@@ -1,6 +1,6 @@
 import { ModelsDev } from "./models"
 import type { Config } from "../config/config"
-import { mergeDeep } from "../util/object"
+import { mergeDeep } from "remeda"
 
 export interface ResolvedModel {
   providerID: string

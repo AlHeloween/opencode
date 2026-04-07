@@ -234,6 +234,14 @@ export function wrapFetch(baseFetch: typeof globalThis.fetch) {
               if (firstChunk) {
                 sample.firstChunkAt = Date.now()
                 firstChunk = false
+                // Log when first chunk arrives (for streaming, this is TTFT)
+                writeLog({
+                  level: "INFO",
+                  event: "gateway.stream.first_chunk",
+                  timestamp: Date.now(),
+                  requestId,
+                  ttftMs: sample.firstChunkAt - sample.headersReceivedAt,
+                })
               }
               sample.lastChunkAt = Date.now()
               sample.chunks++
@@ -241,6 +249,25 @@ export function wrapFetch(baseFetch: typeof globalThis.fetch) {
             },
             flush() {
               sample.endedAt = Date.now()
+              const metrics = Metrics.computeMetrics(sample)
+              writeLog({
+                level: "INFO",
+                event: "gateway.request.end",
+                timestamp: Date.now(),
+                requestId,
+                status: response.status,
+                fetchMs: sample.headersReceivedAt - sample.socketAcquiredAt,
+                metrics: {
+                  totalMs: metrics.totalMs,
+                  ttftMs: metrics.ttftMs,
+                  ttfbMs: metrics.ttfbMs,
+                  queuedMs: metrics.queuedMs,
+                  chunks: metrics.chunks,
+                  avgChunkGapMs: metrics.avgChunkGapMs,
+                },
+                healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
+              })
+              Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)
             },
           }),
         )

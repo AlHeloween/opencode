@@ -1,0 +1,44 @@
+{
+  "$schema": "https://opencode.ai/config.schema.json",
+  "providers": {
+    "models": {
+      "kat-coder-pro-v2": {
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "openai"
+        },
+        "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "gateway": {
+          "logging": {
+            "enabled": true,
+            "format": "json"
+          },
+          "enabled": true,
+          "preferH2": true,
+          "healthWindowSize": 100
+        }
+      },
+      "kat-coder-pro": {
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "openai"
+        },
+        "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "gateway": {
+          "logging": {
+            "enabled": true,
+            "format": "json"
+          }
+        }
+      }
+    },
+    "options": {
+      "openai": {
+        "apiKey": "your-streamlake-api-key",
+        "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "timeout": 300000,
+        "chunkTimeout": 30000
+      }
+    }
+  }
+}

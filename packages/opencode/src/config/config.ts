@@ -793,12 +793,50 @@ export namespace Config {
         .record(
           z.string(),
           ModelsDev.Model.partial().extend({
+            gateway: z
+              .object({
+                logging: z
+                  .object({
+                    enabled: z.boolean().optional().describe("Enable gateway logging for this model (default: true)"),
+                    format: z.enum(["json", "text"]).optional().describe("Log format for this model: json or text"),
+                  })
+                  .optional(),
+              })
+              .optional()
+              .describe("Gateway configuration for this specific model"),
+            provider: z
+              .object({
+                npm: z.string().optional().describe("Provider npm package name (e.g., '@ai-sdk/openai')"),
+                api: z.string().optional().describe("Provider API identifier"),
+              })
+              .optional()
+              .describe("Override provider for this model"),
+            baseURL: z.string().optional().describe("Custom base URL for API requests"),
             variants: z
               .record(
                 z.string(),
                 z
                   .object({
                     disabled: z.boolean().optional().describe("Disable this variant for the model"),
+                    gateway: z
+                      .object({
+                        logging: z
+                          .object({
+                            enabled: z.boolean().optional().describe("Enable gateway logging for this variant"),
+                            format: z.enum(["json", "text"]).optional().describe("Log format for this variant"),
+                          })
+                          .optional(),
+                      })
+                      .optional()
+                      .describe("Gateway configuration for this specific variant"),
+                    baseURL: z.string().optional().describe("Custom base URL for this variant"),
+                    provider: z
+                      .object({
+                        npm: z.string().optional(),
+                        api: z.string().optional(),
+                      })
+                      .optional()
+                      .describe("Override provider for this variant"),
                   })
                   .catchall(z.any()),
               )

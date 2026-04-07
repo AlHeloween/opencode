@@ -1,4 +1,5 @@
 import http2 from "node:http2"
+import { Readable } from "node:stream"
 import { Log } from "@/util/log"
 import type { MetricsResult } from "./metrics"
 import * as M from "./metrics"
@@ -108,6 +109,7 @@ export interface H2Response {
   status: number
   headers: Record<string, string>
   body: string
+  bodyStream?: ReadableStream<Uint8Array>
   metrics: MetricsResult
   requestId?: string
   error?: NormalizedError
@@ -207,6 +209,103 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
         "abort",
         () => {
           req.destroy()
+        },
+        { once: true },
+      )
+    }
+  })
+}
+
+export async function requestStream(
+  options: H2RequestOptions,
+): Promise<{ response: Response; metrics: MetricsResult }> {
+  const sample = M.makeSample(0, options.headers["x-request-id"])
+  sample.queuedAt = Date.now()
+
+  const session = getOrCreateSession(options.baseUrl)
+  if (!session) {
+    throw new Error("Failed to create H2 session")
+  }
+
+  sample.socketAcquiredAt = Date.now()
+
+  return new Promise<{ response: Response; metrics: MetricsResult }>((resolve, reject) => {
+    const url = new URL(options.url)
+    const path = url.pathname + url.search
+
+    const req = session.session.request({
+      ":method": options.method,
+      ":path": path,
+      ...options.headers,
+    })
+
+    let firstChunk = true
+    let status = 0
+    let responseHeaders: Record<string, string> = {}
+    const { readable, writable } = new TransformStream()
+    const writer = writable.getWriter()
+
+    req.on("response", (headers) => {
+      sample.headersReceivedAt = Date.now()
+      status = (headers[":status"] as unknown as number) || 0
+      responseHeaders = { ...headers } as Record<string, string>
+    })
+
+    req.on("data", (chunk: Buffer) => {
+      if (firstChunk) {
+        sample.firstChunkAt = Date.now()
+        firstChunk = false
+      }
+      sample.lastChunkAt = Date.now()
+      sample.chunks++
+      writer.write(new Uint8Array(chunk)).catch(() => {})
+    })
+
+    req.on("end", async () => {
+      sample.endedAt = Date.now()
+      sample.status = status
+      await writer.close()
+      resolve({
+        response: new Response(readable, {
+          status,
+          headers: responseHeaders,
+        }),
+        metrics: M.computeMetrics(sample),
+      })
+    })
+
+    req.on("error", async (err) => {
+      sample.endedAt = Date.now()
+      sample.status = 0
+      const normalized = normalizeError(err)
+      log.debug("h2 stream request error", {
+        url: options.url,
+        category: normalized.category,
+        error: normalized.message,
+      })
+      await writer.close()
+      reject({
+        status: 0,
+        headers: {},
+        body: "",
+        metrics: M.computeMetrics(sample),
+        error: normalized,
+        requestId: options.headers["x-request-id"],
+      })
+    })
+
+    if (options.body) {
+      req.end(options.body)
+    } else {
+      req.end()
+    }
+
+    if (options.signal) {
+      options.signal.addEventListener(
+        "abort",
+        () => {
+          req.destroy()
+          writer.abort().catch(() => {})
         },
         { once: true },
       )

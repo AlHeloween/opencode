@@ -1146,7 +1146,7 @@ export namespace Config {
   export class Service extends ServiceMap.Service<Service, Interface>()("@opencode/Config") {}
 
   function globalConfigFile() {
-    const candidates = ["opencode.jsonc", "opencode.json", "config.json"].map((file) =>
+    const candidates = ["opencode.jsonc", "opencode.json", "gateway.json", "config.json"].map((file) =>
       path.join(Global.Path.config, file),
     )
     for (const file of candidates) {
@@ -1300,6 +1300,7 @@ export namespace Config {
           let result: Info = pipe(
             {},
             mergeDeep(yield* loadFile(path.join(Global.Path.config, "config.json"))),
+            mergeDeep(yield* loadFile(path.join(Global.Path.config, "gateway.json"))),
             mergeDeep(yield* loadFile(path.join(Global.Path.config, "opencode.json"))),
             mergeDeep(yield* loadFile(path.join(Global.Path.config, "opencode.jsonc"))),
           )
@@ -1427,6 +1428,12 @@ export namespace Config {
                 result.mode ??= {}
                 result.plugin ??= []
               }
+            }
+
+            const gatewayFile = path.join(dir, "gateway.json")
+            if (existsSync(gatewayFile)) {
+              log.debug(`loading gateway config from ${gatewayFile}`)
+              merge(gatewayFile, yield* loadFile(gatewayFile))
             }
 
             const dep = iife(async () => {

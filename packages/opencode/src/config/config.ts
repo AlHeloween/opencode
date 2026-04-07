@@ -1079,6 +1079,13 @@ export namespace Config {
             .positive()
             .optional()
             .describe("Number of samples for health window EWMA (default: 100)"),
+          rateLimit: z
+            .object({
+              tpm: z.number().int().positive().optional().describe("Tokens per minute limit for this model"),
+              rpm: z.number().int().positive().optional().describe("Requests per minute limit for this model"),
+            })
+            .optional()
+            .describe("Rate limiting configuration for this model"),
           logging: z
             .object({
               enabled: z.boolean().optional().describe("Enable detailed gateway request logging (default: true)"),

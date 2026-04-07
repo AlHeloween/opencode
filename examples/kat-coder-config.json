@@ -8,14 +8,32 @@
           "api": "openai"
         },
         "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "limit": {
+          "context": 256000,
+          "output": 80000
+        },
         "gateway": {
+          "enabled": true,
+          "preferH2": false,
+          "alpnProbeIntervalMs": 3600000,
+          "healthWindowSize": 100,
+          "rateLimit": {
+            "tpm": 300000,
+            "rpm": 5
+          },
           "logging": {
             "enabled": true,
             "format": "json"
-          },
-          "enabled": true,
-          "preferH2": true,
-          "healthWindowSize": 100
+          }
+        },
+        "variants": {
+          "default": {
+            "gateway": {
+              "logging": {
+                "enabled": true
+              }
+            }
+          }
         }
       },
       "kat-coder-pro": {
@@ -24,7 +42,15 @@
           "api": "openai"
         },
         "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "limit": {
+          "context": 256000,
+          "output": 80000
+        },
         "gateway": {
+          "rateLimit": {
+            "tpm": 300000,
+            "rpm": 5
+          },
           "logging": {
             "enabled": true,
             "format": "json"

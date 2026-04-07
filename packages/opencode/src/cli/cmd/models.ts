@@ -7,6 +7,7 @@ import { cmd } from "./cmd"
 import { UI } from "../ui"
 import { EOL } from "os"
 import * as ModelResolver from "../../provider/model-resolver"
+import { Config } from "../../config/config"
 import { ConfigPaths } from "../../config/paths"
 import path from "path"
 import { Global } from "../../global"
@@ -319,7 +320,7 @@ async function expandConfigWithCache() {
   }
 
   const text = await Filesystem.readText(configPath)
-  const parsed = ConfigPaths.parseText(text, { source: configPath, dir: process.cwd() })
+  const parsed = Config.Info.parse(await ConfigPaths.parseText(text, { source: configPath, dir: process.cwd() }))
 
   if (!parsed?.provider) {
     UI.println("No providers configured")
@@ -369,7 +370,7 @@ async function expandConfigWithCache() {
       }
 
       expandedModel._resolved_from_cache = true
-      parsed.provider[providerID].models[modelID] = expandedModel
+      providerConfig.models[modelID] = expandedModel
       modified = true
     }
   }

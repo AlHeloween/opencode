@@ -2,6 +2,9 @@ import { ModelsDev } from "./models"
 import type { Config } from "../config/config"
 import { mergeDeep } from "remeda"
 
+type ConfigModels = NonNullable<Config.Provider["models"]>
+type ConfigModel = ConfigModels[string]
+
 export interface ResolvedModel {
   providerID: string
   modelID: string
@@ -24,7 +27,7 @@ export interface ResolvedModel {
     headers?: Record<string, string>
     options?: Record<string, unknown>
     variants?: Record<string, Record<string, unknown>>
-    gateway?: Config.Provider["models"][string]["gateway"]
+    gateway?: ConfigModel["gateway"]
   }
   resolvedFields: string[]
   configOverrides: string[]
@@ -94,7 +97,7 @@ export async function resolveModel(providerID: string, modelID: string): Promise
 export async function resolveWithConfig(
   providerID: string,
   modelID: string,
-  configModel: Config.Provider["models"][string],
+  configModel: ConfigModel,
 ): Promise<ResolvedModel> {
   const modelsDev = await ModelsDev.get()
   const cacheModel = modelsDev[providerID]?.models?.[modelID]

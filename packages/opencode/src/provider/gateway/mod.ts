@@ -1,9 +1,10 @@
 import { Effect, Layer, ServiceMap } from "effect"
-import { wrapFetch, probeRoute, getGatewayStatus, logGatewayStatus } from "./adaptive-client"
+import { wrapFetch, getGatewayStatus, logGatewayStatus } from "./adaptive-client"
 import * as Store from "./store"
 import * as H2 from "./h2-transport"
 import { Log } from "@/util/log"
 import type { RouteKey } from "./route-key"
+import { probe as probeCapability, type ProbeResult } from "./capability-probe"
 
 const log = Log.create({ prefix: "gateway/service" })
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
@@ -14,15 +15,6 @@ export interface Interface {
   readonly getStatus: () => Effect.Effect<GatewayStatus>
   readonly getRoutes: () => Effect.Effect<RouteInfo[]>
   readonly shutdown: () => Effect.Effect<void, Error>
-}
-
-export interface ProbeResult {
-  alpnNegotiated: string
-  alpnAdvertised: string[]
-  tlsVersion: string
-  success: boolean
-  error?: string
-  latencyMs: number
 }
 
 export interface GatewayStatus {
@@ -54,7 +46,7 @@ export const layer = Layer.effect(
 
     const probe = (baseUrl: string) =>
       Effect.tryPromise({
-        try: () => probeRoute(baseUrl),
+        try: () => probeCapability(baseUrl),
         catch: (err: unknown) => new Error(err instanceof Error ? err.message : String(err)),
       })
 

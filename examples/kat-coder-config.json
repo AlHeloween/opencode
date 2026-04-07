@@ -7,7 +7,7 @@
           "npm": "@ai-sdk/openai",
           "api": "openai"
         },
-        "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "baseURL": "https://vanchin.streamlake.ai/api/gateway/v1/endpoints",
         "limit": {
           "context": 256000,
           "output": 80000
@@ -41,7 +41,7 @@
           "npm": "@ai-sdk/openai",
           "api": "openai"
         },
-        "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "baseURL": "https://vanchin.streamlake.ai/api/gateway/v1/endpoints",
         "limit": {
           "context": 256000,
           "output": 80000
@@ -61,7 +61,7 @@
     "options": {
       "openai": {
         "apiKey": "your-streamlake-api-key",
-        "baseURL": "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+        "baseURL": "https://vanchin.streamlake.ai/api/gateway/v1/endpoints",
         "timeout": 300000,
         "chunkTimeout": 30000
       }

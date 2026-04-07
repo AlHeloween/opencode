@@ -27,6 +27,8 @@ interface AdaptiveFetchOptions extends RequestInit {
   gatewayRouteKey?: RouteKey
   gatewayStream?: boolean
   gatewayTimeoutMs?: number
+  gatewayProvider?: string
+  gatewayModel?: string
 }
 
 function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
@@ -94,8 +96,8 @@ export function wrapFetch(baseFetch: typeof globalThis.fetch) {
     const sanitizedHeaders = sanitizeHeaders(headers)
 
     const urlObj = new URL(url)
-    const provider = headers["x-opencode-provider"] || "unknown"
-    const model = headers["x-opencode-model"] || "unknown"
+    const provider = init?.gatewayProvider || headers["x-opencode-provider"] || "unknown"
+    const model = init?.gatewayModel || headers["x-opencode-model"] || "unknown"
     const endpointKind = headers["x-opencode-endpoint-kind"] || "chat"
 
     const classifyInput: Classifier.ClassifyInput = {

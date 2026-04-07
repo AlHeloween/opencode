@@ -1402,7 +1402,10 @@ export namespace Provider {
             const chunkTimeout = options["chunkTimeout"]
             delete options["chunkTimeout"]
 
-            const innerFetch = async (input: any, init?: BunFetchRequestInit) => {
+            const wrappedFetch = async (
+              input: any,
+              init?: BunFetchRequestInit & { gatewayProvider?: string; gatewayModel?: string },
+            ) => {
               const fetchFn = customFetch ?? fetch
               const opts = init ?? {}
               const chunkAbortCtl =
@@ -1443,7 +1446,15 @@ export namespace Provider {
               return wrapSSE(res, chunkTimeout, chunkAbortCtl)
             }
 
-            options["fetch"] = gateway.wrap(innerFetch)
+            // Wrap with gateway first, then create an outer wrapper that injects gateway metadata
+            // This ensures gatewayProvider/gatewayModel are set in init BEFORE the gateway wrapper reads them
+            const gatewayWrapped = gateway.wrap(wrappedFetch)
+            options["fetch"] = async (input: any, init?: BunFetchRequestInit) => {
+              const opts = (init as BunFetchRequestInit & { gatewayProvider?: string; gatewayModel?: string }) ?? {}
+              opts.gatewayProvider = model.providerID
+              opts.gatewayModel = model.id
+              return gatewayWrapped(input, opts)
+            }
 
             const bundledFn = BUNDLED_PROVIDERS[model.api.npm]
             if (bundledFn) {

@@ -1016,6 +1016,39 @@ export namespace Config {
             .describe("Token buffer for compaction. Leaves enough window to avoid overflow during compaction."),
         })
         .optional(),
+      gateway: z
+        .object({
+          enabled: z
+            .boolean()
+            .optional()
+            .describe("Enable the adaptive gateway for rate limiting and transport selection (default: true)"),
+          preferH2: z.boolean().optional().describe("Prefer HTTP/2 when available (default: true)"),
+          alpnProbeIntervalMs: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("ALPN probe cache interval in milliseconds (default: 3600000)"),
+          adjustmentPersistIntervalMs: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Gateway adjustment persistence interval in milliseconds (default: 30000)"),
+          healthWindowSize: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Number of samples for health window EWMA (default: 100)"),
+          logging: z
+            .object({
+              enabled: z.boolean().optional().describe("Enable detailed gateway request logging (default: true)"),
+              format: z.enum(["json", "text"]).optional().describe("Log format: json or text (default: json)"),
+            })
+            .optional(),
+        })
+        .optional(),
       experimental: z
         .object({
           disable_paste_summary: z.boolean().optional(),

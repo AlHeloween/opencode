@@ -1,5 +1,5 @@
 import { Effect, Layer, ServiceMap } from "effect"
-import { wrapFetch, probeRoute, getGatewayStatus } from "./adaptive-client"
+import { wrapFetch, probeRoute, getGatewayStatus, logGatewayStatus } from "./adaptive-client"
 import * as Store from "./store"
 import * as H2 from "./h2-transport"
 import { Log } from "@/util/log"
@@ -76,15 +76,32 @@ export const layer = Layer.effect(
 
     const shutdown = () =>
       Effect.tryPromise(() => Store.shutdown()).pipe(
-        Effect.andThen(Effect.sync(() => {
-          H2.closeAll()
-        })),
+        Effect.andThen(
+          Effect.sync(() => {
+            H2.closeAll()
+            // Clear periodic status logging
+            if ((globalThis as any).__gatewayStatusInterval) {
+              clearInterval((globalThis as any).__gatewayStatusInterval)
+              delete (globalThis as any).__gatewayStatusInterval
+            }
+          }),
+        ),
       )
 
     yield* Effect.acquireRelease(
       Effect.sync(() => Store.init()),
       () => shutdown().pipe(Effect.ignore),
     )
+
+    // Start periodic status logging every 30 seconds
+    yield* Effect.sync(() => {
+      const statusInterval = setInterval(() => {
+        logGatewayStatus()
+      }, 30000)
+
+      // Store interval ID for cleanup
+      ;(globalThis as any).__gatewayStatusInterval = statusInterval
+    })
 
     return Service.of({
       wrap,

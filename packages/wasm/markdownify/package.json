@@ -1,0 +1,22 @@
+{
+  "name": "@opencode-ai/wasm-markdownify",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Universal document to markdown converter compiled to WebAssembly",
+  "license": "MIT",
+  "main": "./pkg/markdownify_wasm.js",
+  "types": "./pkg/markdownify_wasm.d.ts",
+  "exports": {
+    ".": {
+      "import": "./pkg/markdownify_wasm.js",
+      "types": "./pkg/markdownify_wasm.d.ts"
+    }
+  },
+  "files": [
+    "pkg"
+  ],
+  "sideEffects": [
+    "./pkg/snippets/*"
+  ]
+}

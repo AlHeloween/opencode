@@ -341,6 +341,18 @@ export const layer: Layer.Layer<
           }
 
           case "error":
+            if (
+              typeof value.error === "string" &&
+              value.error.includes("text part") &&
+              value.error.includes("not found")
+            ) {
+              log.warn("ai-sdk text part error (known issue, ignoring)", {
+                error: value.error,
+                sessionId: ctx.sessionID,
+                messageId: ctx.assistantMessage.id,
+              })
+              return
+            }
             throw value.error
 
           case "start-step":

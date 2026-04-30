@@ -290,6 +290,7 @@ export function Session() {
   })
 
   useKeyboard((evt) => {
+    if (dialog.stack.length > 0) return
     if (!session()?.parentID) return
     if (keybind.match("app_exit", evt)) {
       void exit()

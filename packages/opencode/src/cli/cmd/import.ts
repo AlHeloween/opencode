@@ -163,20 +163,17 @@ export const ImportCommand = cmd({
         projectID: Instance.project.id,
       }) as Session.Info
       const row = Session.toRow(info)
-      Database.use((db) =>
-        db
-          .insert(SessionTable)
+
+      Database.transaction((tx) => {
+        tx.insert(SessionTable)
           .values(row)
           .onConflictDoUpdate({ target: SessionTable.id, set: { project_id: row.project_id } })
-          .run(),
-      )
+          .run()
 
-      for (const msg of exportData.messages) {
-        const msgInfo = decodeMessageInfo(msg.info) as MessageV2.Info
-        const { id, sessionID: _, ...msgData } = msgInfo
-        Database.use((db) =>
-          db
-            .insert(MessageTable)
+        for (const msg of exportData.messages) {
+          const msgInfo = decodeMessageInfo(msg.info) as MessageV2.Info
+          const { id, sessionID: _, ...msgData } = msgInfo
+          tx.insert(MessageTable)
             .values({
               id,
               session_id: row.id,
@@ -184,15 +181,12 @@ export const ImportCommand = cmd({
               data: msgData,
             })
             .onConflictDoNothing()
-            .run(),
-        )
+            .run()
 
-        for (const part of msg.parts) {
-          const partInfo = decodePart(part) as MessageV2.Part
-          const { id: partId, sessionID: _s, messageID, ...partData } = partInfo
-          Database.use((db) =>
-            db
-              .insert(PartTable)
+          for (const part of msg.parts) {
+            const partInfo = decodePart(part) as MessageV2.Part
+            const { id: partId, sessionID: _s, messageID, ...partData } = partInfo
+            tx.insert(PartTable)
               .values({
                 id: partId,
                 message_id: messageID,
@@ -200,10 +194,10 @@ export const ImportCommand = cmd({
                 data: partData,
               })
               .onConflictDoNothing()
-              .run(),
-          )
+              .run()
+          }
         }
-      }
+      })
 
       process.stdout.write(`Imported session: ${exportData.info.id}`)
       process.stdout.write(EOL)

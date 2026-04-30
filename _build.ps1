@@ -150,6 +150,18 @@ function Invoke-Build {
         Write-Success "Native binary copied"
     }
 
+    # Native markdownify binary (built by _build_rust.ps1, stage to platform dist)
+    $markdownifySrc = Join-Path $Root "packages" "native" "markdownify" "target" "release" "opencode-markdownify.exe"
+    $markdownifyDest = Join-Path $OpencodePkg "dist" "opencode-windows-x64" "bin" "opencode-markdownify.exe"
+    if (Test-Path $markdownifySrc) {
+        $markdownifyDestDir = Split-Path $markdownifyDest -Parent
+        if (-not (Test-Path $markdownifyDestDir)) {
+            New-Item -ItemType Directory -Path $markdownifyDestDir -Force | Out-Null
+        }
+        Copy-Item $markdownifySrc $markdownifyDest
+        Write-Success "Markdownify binary staged to platform dist"
+    }
+
     # Native markdownify binary (Windows x64)
     $markdownifyBin = Join-Path $OpencodePkg "dist" "opencode-windows-x64" "bin" "opencode-markdownify.exe"
     if (Test-Path $markdownifyBin) {

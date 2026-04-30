@@ -147,14 +147,15 @@ export async function run(db: SQLiteBunDatabase<any, any> | NodeSQLiteDatabase<a
 
   progress?.({ current, total, label: "starting" })
 
+  let committed = false
   db.run("BEGIN TRANSACTION")
-
-  // Migrate projects first (no FK deps)
-  // Derive all IDs from file paths, not JSON content
-  const projectIds = new Set<string>()
-  const projectValues: unknown[] = []
-  for (let i = 0; i < projectFiles.length; i += batchSize) {
-    const end = Math.min(i + batchSize, projectFiles.length)
+  try {
+    // Migrate projects first (no FK deps)
+    // Derive all IDs from file paths, not JSON content
+    const projectIds = new Set<string>()
+    const projectValues: unknown[] = []
+    for (let i = 0; i < projectFiles.length; i += batchSize) {
+      const end = Math.min(i + batchSize, projectFiles.length)
     const batch = await read(projectFiles, i, end)
     projectValues.length = 0
     for (let j = 0; j < batch.length; j++) {
@@ -404,7 +405,13 @@ export async function run(db: SQLiteBunDatabase<any, any> | NodeSQLiteDatabase<a
     log.warn("skipped orphaned session shares", { count: orphans.shares })
   }
 
-  db.run("COMMIT")
+    db.run("COMMIT")
+    committed = true
+  } finally {
+    if (!committed) {
+      try { db.run("ROLLBACK") } catch {}
+    }
+  }
 
   log.info("json migration complete", {
     projects: stats.projects,

@@ -262,6 +262,8 @@ export const SessionRoutes = lazy(() =>
       async (c) =>
         jsonRequest("SessionRoutes.delete", c, function* () {
           const sessionID = c.req.valid("param").sessionID
+          const state = yield* SessionRunState.Service
+          yield* state.cancel(sessionID)
           const svc = yield* Session.Service
           yield* svc.remove(sessionID)
           return true

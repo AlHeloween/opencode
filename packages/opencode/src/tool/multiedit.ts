@@ -46,12 +46,21 @@ export const MultiEditTool = Tool.define(
             results.push(result)
           }
 
+          const allDiffs = results
+            .map(
+              (r, i) =>
+                r.metadata.diff
+                  ? `\n### Edit ${i + 1}\n${r.metadata.diff}`
+                  : `\n### Edit ${i + 1}\n(applied, no diff)`,
+            )
+            .join("\n")
+
           return {
             title: path.relative(ins.worktree, params.filePath),
             metadata: {
               results: results.map((r) => r.metadata),
             },
-            output: results.at(-1)!.output,
+            output: `Multiple edits applied successfully (${results.length} edits)\n${allDiffs}`,
           }
         }).pipe(Effect.orDie),
     }

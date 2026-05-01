@@ -147,7 +147,23 @@ const FTS_BACKFILL_SQL = `
 
 function verifyFTS(db: SQLiteBunDatabase) {
   const hasFts = db.all("SELECT 1 FROM sqlite_master WHERE type='table' AND name='part_fts'")
-  if (!hasFts.length) return
+  if (!hasFts.length) {
+    log.info("creating FTS index from scratch")
+    const migrationDir = path.join(import.meta.dirname, "../../migration/20260414120000_semantic_vector")
+    if (existsSync(migrationDir)) {
+      const sql = readFileSync(path.join(migrationDir, "migration.sql"), "utf-8")
+      ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec(sql)
+    }
+    const partCount = db.all<{ c: number }>("SELECT count(*) as c FROM part")[0]
+    if (partCount.c > 0) {
+      try {
+        db.run(FTS_BACKFILL_SQL)
+      } catch (e) {
+        log.error("failed to backfill FTS index", { error: String(e) })
+      }
+    }
+    return
+  }
 
   const schema = db.all<{ sql: string }>("SELECT sql FROM sqlite_master WHERE type='table' AND name='part_fts'")
   const hasSemanticColumns = schema.length > 0 && schema[0].sql.includes("semantic_vector")

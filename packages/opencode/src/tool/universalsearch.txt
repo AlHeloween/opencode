@@ -1,0 +1,29 @@
+Search the web, code repositories, or use an AI research agent via the Universal Search Service
+- Provides up-to-date information for current events and recent data
+- Returns search results with titles, URLs, descriptions, and full markdown content
+
+Search modes:
+  source: "agent" (default) — Autonomous AI researcher that iteratively investigates your query using web search and scraping tools. Returns a job ID for polling.
+  source: "web" — Direct web search via Firecrawl, returns full page content as markdown
+  source: "code" — Code search via Sourcegraph, returns file paths, line numbers, and code snippets
+  source: "hybrid" — Combined local code search + Sourcegraph results
+
+Agent mode workflow:
+  1. Call universalsearch({ query: "your question", source: "agent" }) to start research
+  2. Receive a job_id in the response
+  3. Poll with universalsearch({ job_id: "..." }) — the tool will automatically poll every 5 seconds and return results when the research is complete (up to 5 minutes)
+  4. The agent iteratively uses search and scrape tools until it reaches a conclusion
+
+Configuration (in opencode.json):
+  "universal_search": {
+    "enabled": true,
+    "url": "http://127.0.0.1:3005"
+  }
+
+The Universal Search Service must be running as a system service on port 3005. Opencode does not auto-start this service.
+
+Examples:
+  universalsearch({ query: "latest TypeScript features", source: "agent" }) — Autonomous research
+  universalsearch({ query: "current time now", source: "web" }) — Direct web search
+  universalsearch({ query: "async fn handler", source: "code", limit: 10 }) — Code search
+  universalsearch({ job_id: "a1b2c3d4-..." }) — Poll agent job results

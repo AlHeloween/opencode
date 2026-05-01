@@ -253,6 +253,29 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  universal_search: Schema.optional(
+    Schema.Struct({
+      enabled: Schema.optional(Schema.Boolean).annotate({
+        description: "Enable the universal search service (default: true)",
+      }),
+      url: Schema.optional(Schema.String).annotate({
+        description: "URL of the universal search service (default: http://127.0.0.1:3005)",
+      }),
+    }),
+  ),
+  sourcegraph: Schema.optional(
+    Schema.Struct({
+      enabled: Schema.optional(Schema.Boolean).annotate({
+        description: "Enable Sourcegraph code search integration",
+      }),
+      url: Schema.optional(Schema.String).annotate({
+        description: "Sourcegraph instance URL",
+      }),
+      token: Schema.optional(Schema.String).annotate({
+        description: "Sourcegraph API token",
+      }),
+    }),
+  ),
 })
   .annotate({ identifier: "Config" })
   .pipe(

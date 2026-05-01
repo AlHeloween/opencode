@@ -335,15 +335,17 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
               }
             }
 
-            if (permission === "websearch") {
+            if (permission === "universalsearch") {
               const query = typeof data.query === "string" ? data.query : ""
+              const source = typeof data.source === "string" ? data.source : ""
+              const jobId = typeof data.job_id === "string" ? data.job_id : ""
               return {
                 icon: "◈",
-                title: `Exa Web Search "${query}"`,
+                title: jobId ? `Poll Universal Search` : `Universal Search${source ? ` (${source})` : ""} "${query}"`,
                 body: (
-                  <Show when={query}>
+                  <Show when={query || jobId}>
                     <box paddingLeft={1}>
-                      <text fg={theme.textMuted}>{"Query: " + query}</text>
+                      <text fg={theme.textMuted}>{query ? "Query: " + query : "Job: " + jobId}</text>
                     </box>
                   </Show>
                 ),

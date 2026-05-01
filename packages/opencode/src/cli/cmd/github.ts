@@ -886,7 +886,6 @@ export const GithubRunCommand = cmd({
           list: ["List", UI.Style.TEXT_INFO_BOLD],
           read: ["Read", UI.Style.TEXT_HIGHLIGHT_BOLD],
           write: ["Write", UI.Style.TEXT_SUCCESS_BOLD],
-          websearch: ["Search", UI.Style.TEXT_DIM_BOLD],
         }
 
         function printEvent(color: string, type: string, title: string) {

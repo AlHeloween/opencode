@@ -168,7 +168,6 @@ export const layer = Layer.effect(
                 list: "allow",
                 bash: "allow",
                 webfetch: "allow",
-                websearch: "allow",
                 universalsearch: "allow",
                 messagesearch: "allow",
                 read: "allow",

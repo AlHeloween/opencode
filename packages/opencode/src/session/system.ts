@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect"
 
 import { Instance } from "../project/instance"
+import { Ripgrep } from "../file/ripgrep"
 
 import PROMPT_ANTHROPIC from "./prompt/anthropic.txt"
 import PROMPT_DEFAULT from "./prompt/default.txt"
@@ -43,6 +44,26 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const skill = yield* Skill.Service
+    const rg = yield* Ripgrep.Service
+
+    const capabilities = () => [
+      `## Capabilities`,
+      ``,
+      `You have powerful tools at your disposal. Here are some key capabilities you should be aware of:`,
+      ``,
+      `- **Document conversion**: The read tool can extract text and convert many file formats to markdown, including PDFs, Word documents (.docx, .odt), Excel spreadsheets (.xlsx, .ods, .csv), PowerPoint presentations (.pptx, .odp), and plain text formats (.txt, .md, .json, .xml, .html)`,
+      `- **Archive reading**: You can read the contents of compressed archives including .zip, .tar, .gz, and .7z files`,
+      `- **Media files**: You can read image metadata (EXIF data), and extract information from audio and video files`,
+      `- **Web search**: The universalsearch tool can search the web, code repositories, or use an autonomous AI research agent via the Universal Search Service`,
+      `- **Code search**: Use universalsearch with source: "code" for direct code search via Sourcegraph`,
+      `- **Conversation search**: The messagesearch tool provides full-text search (FTS5) with BM25 and semantic ranking over your conversation history`,
+      `- **Directory listing**: The list tool provides a tree-style directory listing with automatic ignore of common directories`,
+      `- **Multi-edit**: The multiedit tool allows multiple sequential edits to a single file in one operation`,
+      `- **Web fetching**: The webfetch tool can retrieve and convert web pages to markdown, text, or HTML format`,
+      `- **Sub-agents**: The task tool can spawn specialized sub-agents for focused work on specific domains`,
+      ``,
+      `When a user asks you to read or analyze a file, consider using the read tool — it supports far more formats than plain text. If a file type is unfamiliar, try reading it rather than assuming you cannot.`,
+    ].join("\n")
 
     return Service.of({
       environment(model) {
@@ -58,6 +79,7 @@ export const layer = Layer.effect(
             `  Platform: ${process.platform}`,
             `  Today's date: ${new Date().toDateString()}`,
             `</env>`,
+            capabilities(),
           ].join("\n"),
         ]
       },
@@ -70,15 +92,14 @@ export const layer = Layer.effect(
         return [
           "Skills provide specialized instructions and workflows for specific tasks.",
           "Use the skill tool to load a skill when a task matches its description.",
-          // the agents seem to ingest the information about skills a bit better if we present a more verbose
-          // version of them here and a less verbose version in tool description, rather than vice versa.
           Skill.fmt(list, { verbose: true }),
         ].join("\n")
       }),
+
     })
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Skill.defaultLayer))
+export const defaultLayer = layer.pipe(Layer.provide(Skill.defaultLayer), Layer.provide(Ripgrep.defaultLayer))
 
 export * as SystemPrompt from "./system"

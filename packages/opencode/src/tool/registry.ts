@@ -12,6 +12,10 @@ import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
+import { ListTool } from "./ls"
+import { MultiEditTool } from "./multiedit"
+import { UniversalSearchTool } from "./universalsearch"
+import { MessageSearchTool } from "./messagesearch"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@opencode-ai/plugin"
@@ -21,7 +25,6 @@ import { ZodOverride } from "@/util/effect-zod"
 import { Plugin } from "../plugin"
 import { Provider } from "@/provider/provider"
 import { ProviderID, type ModelID } from "../provider/schema"
-import { WebSearchTool } from "./websearch"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import * as Log from "@opencode-ai/core/util/log"
 import { LspTool } from "./lsp"
@@ -105,7 +108,6 @@ export const layer: Layer.Layer<
     const lsptool = yield* LspTool
     const plan = yield* PlanExitTool
     const webfetch = yield* WebFetchTool
-    const websearch = yield* WebSearchTool
     const bash = yield* BashTool
     const globtool = yield* GlobTool
     const writetool = yield* WriteTool
@@ -113,6 +115,10 @@ export const layer: Layer.Layer<
     const greptool = yield* GrepTool
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
+    const listtool = yield* ListTool
+    const multiedit = yield* MultiEditTool
+    const universalsearch = yield* UniversalSearchTool
+    const messagesearch = yield* MessageSearchTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -195,12 +201,15 @@ export const layer: Layer.Layer<
           task: Tool.init(task),
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
-          search: Tool.init(websearch),
           skill: Tool.init(skilltool),
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          list: Tool.init(listtool),
+          multiedit: Tool.init(multiedit),
+          universalsearch: Tool.init(universalsearch),
+          messagesearch: Tool.init(messagesearch),
         })
 
         return {
@@ -217,9 +226,12 @@ export const layer: Layer.Layer<
             tool.task,
             tool.fetch,
             tool.todo,
-            tool.search,
             tool.skill,
             tool.patch,
+            tool.list,
+            tool.multiedit,
+            tool.universalsearch,
+            tool.messagesearch,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
           ],
@@ -274,10 +286,6 @@ export const layer: Layer.Layer<
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
       const filtered = (yield* all()).filter((tool) => {
-        if (tool.id === WebSearchTool.id) {
-          return input.providerID === ProviderID.opencode || Flag.OPENCODE_ENABLE_EXA
-        }
-
         const usePatch =
           input.modelID.includes("gpt-") && !input.modelID.includes("oss") && !input.modelID.includes("gpt-4")
         if (tool.id === ApplyPatchTool.id) return usePatch

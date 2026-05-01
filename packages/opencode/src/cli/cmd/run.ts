@@ -19,7 +19,6 @@ import { ReadTool } from "../../tool/read"
 import { WebFetchTool } from "../../tool/webfetch"
 import { EditTool } from "../../tool/edit"
 import { WriteTool } from "../../tool/write"
-import { WebSearchTool } from "../../tool/websearch"
 import { TaskTool } from "../../tool/task"
 import { SkillTool } from "../../tool/skill"
 import { BashTool } from "../../tool/bash"
@@ -142,13 +141,6 @@ function edit(info: ToolProps<typeof EditTool>) {
     },
     diff,
   )
-}
-
-function websearch(info: ToolProps<typeof WebSearchTool>) {
-  inline({
-    icon: "◈",
-    title: `Exa Web Search "${info.input.query}"`,
-  })
 }
 
 function task(info: ToolProps<typeof TaskTool>) {
@@ -407,7 +399,6 @@ export const RunCommand = cmd({
           if (part.tool === "write") return write(props<typeof WriteTool>(part))
           if (part.tool === "webfetch") return webfetch(props<typeof WebFetchTool>(part))
           if (part.tool === "edit") return edit(props<typeof EditTool>(part))
-          if (part.tool === "websearch") return websearch(props<typeof WebSearchTool>(part))
           if (part.tool === "task") return task(props<typeof TaskTool>(part))
           if (part.tool === "todowrite") return todo(props<typeof TodoWriteTool>(part))
           if (part.tool === "skill") return skill(props<typeof SkillTool>(part))

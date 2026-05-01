@@ -6,6 +6,7 @@ import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionTable, MessageTable, PartTable } from "./session.sql"
 import * as Log from "@opencode-ai/core/util/log"
+import { classifyText, formatSemanticVector } from "./semantic-vector"
 
 const log = Log.create({ service: "session.projector" })
 
@@ -118,6 +119,20 @@ export default [
 
   SyncEvent.project(MessageV2.Event.PartUpdated, (db, data) => {
     const { id, messageID, sessionID, ...rest } = data.part
+
+    const textContent =
+      (rest as any).text || (rest as any).state?.output || (rest as any).state?.error || (rest as any).filename || ""
+
+    if (textContent && typeof textContent === "string") {
+      const sv = classifyText(textContent)
+      ;(rest as any).semantic_vector = formatSemanticVector(sv)
+      ;(rest as any).dominant_topic = sv.dominant
+      ;(rest as any).exact_coef = sv.exactCoef
+      ;(rest as any).inferred_coef = sv.inferredCoef
+      ;(rest as any).hypothetical_coef = sv.hypotheticalCoef
+      ;(rest as any).guess_coef = sv.guessCoef
+      ;(rest as any).unknown_coef = sv.unknownCoef
+    }
 
     try {
       db.insert(PartTable)

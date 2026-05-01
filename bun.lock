@@ -428,6 +428,7 @@
         "hono-openapi": "catalog:",
         "ignore": "7.0.5",
         "immer": "11.1.4",
+        "ioredis": "5.10.1",
         "jsonc-parser": "3.3.1",
         "mime-types": "3.0.2",
         "minimatch": "10.0.3",
@@ -473,6 +474,7 @@
         "@types/babel__core": "7.20.5",
         "@types/bun": "catalog:",
         "@types/cross-spawn": "catalog:",
+        "@types/ioredis": "5.0.0",
         "@types/mime-types": "3.0.1",
         "@types/npm-package-arg": "6.1.4",
         "@types/semver": "^7.5.8",
@@ -2344,6 +2346,8 @@
     "@types/http-cache-semantics": ["@types/http-cache-semantics@4.2.0", "", {}, "sha512-L3LgimLHXtGkWikKnsPg0/VFx9OGZaC+eN1u4r+OB1XRqH3meBIAVC2zr1WdMH+RHmnRkqliQAOHNJ/E0j/e0Q=="],
 
     "@types/http-errors": ["@types/http-errors@2.0.5", "", {}, "sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg=="],
+
+    "@types/ioredis": ["@types/ioredis@5.0.0", "", { "dependencies": { "ioredis": "*" } }, "sha512-zJbJ3FVE17CNl5KXzdeSPtdltc4tMT3TzC6fxQS0sQngkbFZ6h+0uTafsRqu+eSLIugf6Yb0Ea0SUuRr42Nk9g=="],
 
     "@types/is-stream": ["@types/is-stream@1.1.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-jkZatu4QVbR60mpIzjINmtS1ZF4a/FqdTUTBeQDVOQ2PYyidtwFKr0B5G6ERukKwliq+7mIXvxyppwzG5EgRYg=="],
 

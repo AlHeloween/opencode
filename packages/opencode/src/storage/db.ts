@@ -111,12 +111,153 @@ export const Client = lazy(() => {
     migrate(db, entries)
   }
 
+  verifyFTS(db)
+  maintainOnStartup(db)
+
   return db
 })
 
 export function close() {
   Client().$client.close()
   Client.reset()
+}
+
+const FTS_BACKFILL_SQL = `
+  INSERT INTO part_fts(part_id, session_id, message_id, part_type, text_content, semantic_vector, dominant_topic, exact_coef, inferred_coef, hypothetical_coef, guess_coef, unknown_coef)
+  SELECT
+    id,
+    session_id,
+    message_id,
+    json_extract(data, '$.type'),
+    COALESCE(
+      json_extract(data, '$.text'),
+      json_extract(data, '$.state.output'),
+      json_extract(data, '$.state.error'),
+      json_extract(data, '$.filename'),
+      ''
+    ),
+    COALESCE(json_extract(data, '$.semantic_vector'), ''),
+    COALESCE(json_extract(data, '$.dominant_topic'), ''),
+    COALESCE(json_extract(data, '$.exact_coef'), 0),
+    COALESCE(json_extract(data, '$.inferred_coef'), 0),
+    COALESCE(json_extract(data, '$.hypothetical_coef'), 0),
+    COALESCE(json_extract(data, '$.guess_coef'), 0),
+    COALESCE(json_extract(data, '$.unknown_coef'), 0)
+  FROM part`
+
+function verifyFTS(db: SQLiteBunDatabase) {
+  const hasFts = db.all("SELECT 1 FROM sqlite_master WHERE type='table' AND name='part_fts'")
+  if (!hasFts.length) return
+
+  const schema = db.all<{ sql: string }>("SELECT sql FROM sqlite_master WHERE type='table' AND name='part_fts'")
+  const hasSemanticColumns = schema.length > 0 && schema[0].sql.includes("semantic_vector")
+
+  if (!hasSemanticColumns) {
+    log.info("rebuilding FTS index with semantic columns")
+    const migrationDir = path.join(import.meta.dirname, "../../migration/20260414120000_semantic_vector")
+    if (existsSync(migrationDir)) {
+      const sql = readFileSync(path.join(migrationDir, "migration.sql"), "utf-8")
+      ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec(sql)
+    }
+    const partCount = db.all<{ c: number }>("SELECT count(*) as c FROM part")[0]
+    if (partCount.c > 0) {
+      try {
+        db.run(FTS_BACKFILL_SQL)
+      } catch (e) {
+        log.error("failed to backfill FTS index after rebuild", { error: String(e) })
+      }
+    }
+    return
+  }
+
+  const triggers = db.all("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'part_fts_%'")
+  const ftsCount = db.all<{ c: number }>("SELECT count(*) as c FROM part_fts")[0]
+  const partCount = db.all<{ c: number }>("SELECT count(*) as c FROM part")[0]
+  const needsTriggers = triggers.length < 3
+  const needsBackfill = ftsCount.c === 0 && partCount.c > 0
+
+  if (!needsTriggers && !needsBackfill) return
+
+  log.info("healing FTS index", {
+    triggers: needsTriggers,
+    backfill: needsBackfill,
+    ftsRows: ftsCount.c,
+    partRows: partCount.c,
+  })
+
+  if (needsTriggers) {
+    const migrationDir = path.join(import.meta.dirname, "../../migration/20260414120000_semantic_vector")
+    if (existsSync(migrationDir)) {
+      const sql = readFileSync(path.join(migrationDir, "migration.sql"), "utf-8")
+      ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec(sql)
+    }
+  }
+
+  if (needsBackfill) {
+    try {
+      db.run(FTS_BACKFILL_SQL)
+    } catch (e) {
+      log.error("failed to backfill FTS index", { error: String(e) })
+    }
+  }
+}
+
+export function rebuildFTS() {
+  const db = Client() as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }
+  const migrationDir = path.join(import.meta.dirname, "../../migration/20260414120000_semantic_vector")
+  if (!existsSync(migrationDir)) {
+    log.error("semantic vector migration not found")
+    return false
+  }
+  const sql = readFileSync(path.join(migrationDir, "migration.sql"), "utf-8")
+  db.$client.exec(sql)
+  const partCount = db.all<{ c: number }>("SELECT count(*) as c FROM part")[0]
+  if (partCount.c > 0) {
+    db.run(FTS_BACKFILL_SQL)
+  }
+  log.info("FTS index rebuilt")
+  return true
+}
+
+function maintainOnStartup(db: SQLiteBunDatabase) {
+  const pageResult = db.all<{ page_size: number }>("PRAGMA page_size")
+  const countResult = db.all<{ page_count: number }>("PRAGMA page_count")
+  const freeResult = db.all<{ freelist_count: number }>("PRAGMA freelist_count")
+  const pageSize = Number(pageResult[0]?.page_size || 0)
+  const pageCount = Number(countResult[0]?.page_count || 0)
+  const freelistCount = Number(freeResult[0]?.freelist_count || 0)
+  const freeRatio = pageCount > 0 ? freelistCount / pageCount : 0
+
+  ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec("PRAGMA mmap_size = 1073741824")
+  ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec("PRAGMA wal_autocheckpoint = 1000")
+  ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec("PRAGMA temp_store = MEMORY")
+  ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec("PRAGMA wal_checkpoint(PASSIVE)")
+
+  const tables = ["message", "part", "session", "todo", "permission", "project", "session_share"]
+  for (const t of tables) {
+    try {
+      db.run(`ANALYZE "${t}"`)
+    } catch {
+      // table may not exist
+    }
+  }
+
+  ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec("PRAGMA optimize")
+
+  if (freeRatio > 0.1) {
+    log.info("database fragmentation detected", {
+      pageSize,
+      pageCount,
+      freelistCount,
+      freeRatio: Math.round(freeRatio * 100) / 100,
+    })
+    try {
+      ;(db as SQLiteBunDatabase & { $client: { exec: (sql: string) => void } }).$client.exec("VACUUM")
+      log.info("database vacuum completed")
+    } catch (e) {
+      log.warn("database vacuum failed", { error: String(e) })
+    }
+  }
 }
 
 export type TxOrDb = Transaction | Client

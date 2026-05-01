@@ -405,12 +405,6 @@ export async function run(db: SQLiteBunDatabase<any, any> | NodeSQLiteDatabase<a
       log.warn("skipped orphaned session shares", { count: orphans.shares })
     }
 
-    // Drop unused FTS5 triggers and table to eliminate write amplification
-    db.run("DROP TRIGGER IF EXISTS part_fts_insert")
-    db.run("DROP TRIGGER IF EXISTS part_fts_delete")
-    db.run("DROP TRIGGER IF EXISTS part_fts_update")
-    db.run("DROP TABLE IF EXISTS part_fts")
-
     db.run("COMMIT")
     committed = true
   } finally {

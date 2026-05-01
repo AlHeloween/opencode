@@ -9,7 +9,8 @@ import DESCRIPTION from "./read.txt"
 import { Instance } from "../project/instance"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
-import { isImageAttachment, isPdfAttachment, sniffAttachmentMime } from "@/util/media"
+import { isImageAttachment, sniffAttachmentMime } from "@/util/media"
+import { convertDocument, isSupportedDocumentFormat } from "../util/markdownify"
 
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
@@ -218,14 +219,13 @@ export const ReadTool = Tool.define(
       const sample = yield* readSample(filepath, Number(stat.size), SAMPLE_BYTES)
 
       const mime = sniffAttachmentMime(sample, AppFileSystem.mimeType(filepath))
-      if (isImageAttachment(mime) || isPdfAttachment(mime)) {
+      if (isImageAttachment(mime)) {
         const bytes = yield* fs.readFile(filepath)
-        const msg = isPdfAttachment(mime) ? "PDF read successfully" : "Image read successfully"
         return {
           title,
-          output: msg,
+          output: "Image read successfully",
           metadata: {
-            preview: msg,
+            preview: "Image read successfully",
             truncated: false,
             loaded: loaded.map((item) => item.filepath),
           },
@@ -240,6 +240,28 @@ export const ReadTool = Tool.define(
       }
 
       if (isBinaryFile(filepath, sample)) {
+        const ext = path.extname(filepath).toLowerCase().slice(1)
+        if (isSupportedDocumentFormat(ext)) {
+          const bytes = yield* fs.readFile(filepath)
+          const markdown = yield* Effect.promise(() =>
+            convertDocument(new Uint8Array(bytes), path.basename(filepath)),
+          )
+          return {
+            title,
+            output: [
+              `<path>${filepath}</path>`,
+              `<type>${ext}</type>`,
+              "<content>",
+              markdown,
+              "</content>",
+            ].join("\n"),
+            metadata: {
+              preview: markdown.slice(0, 500),
+              truncated: false,
+              loaded: loaded.map((item) => item.filepath),
+            },
+          }
+        }
         return yield* Effect.fail(new Error(`Cannot read binary file: ${filepath}`))
       }
 

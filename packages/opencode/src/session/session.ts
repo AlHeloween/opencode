@@ -858,4 +858,21 @@ export function* listGlobal(input?: {
   }
 }
 
+export interface SearchSessionGroup {
+  sessionID: SessionID
+  results: MessageV2.SearchResult[]
+}
+
+export function* search(input: { projectID: ProjectID; query: string; limit?: number }) {
+  const results = MessageV2.search({ projectID: input.projectID, query: input.query, limit: input.limit })
+  const bySession = new Map<SessionID, MessageV2.SearchResult[]>()
+  for (const result of results) {
+    if (!bySession.has(result.sessionID)) bySession.set(result.sessionID, [])
+    bySession.get(result.sessionID)!.push(result)
+  }
+  for (const [sessionID, sessionResults] of bySession) {
+    yield { sessionID, results: sessionResults }
+  }
+}
+
 export * as Session from "./session"

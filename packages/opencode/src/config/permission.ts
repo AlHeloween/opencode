@@ -34,7 +34,6 @@ const InputObject = Schema.StructWithRest(
     todowrite: Schema.optional(Action),
     question: Schema.optional(Action),
     webfetch: Schema.optional(Action),
-    websearch: Schema.optional(Action),
     universalsearch: Schema.optional(Action),
     messagesearch: Schema.optional(Action),
     lsp: Schema.optional(Rule),

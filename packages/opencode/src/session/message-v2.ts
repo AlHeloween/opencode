@@ -1,5 +1,6 @@
 import { BusEvent } from "@/bus/bus-event"
 import { SessionID, MessageID, PartID } from "./schema"
+import { ProjectID } from "../project/schema"
 import z from "zod"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { APICallError, convertToModelMessages, LoadAPIKeyError, type ModelMessage, type UIMessage } from "ai"
@@ -1198,6 +1199,105 @@ export function fromError(
       } catch {}
       return new NamedError.Unknown({ message: JSON.stringify(e) }, { cause: e }).toObject()
   }
+}
+
+export interface SearchResult {
+  messageID: MessageID
+  partID: PartID
+  sessionID: SessionID
+  partType: string
+  text: string
+  snippet: string
+  rank: number
+}
+
+function sanitizeFTSQuery(query: string): string {
+  return query
+    .split(/\s+/)
+    .map((w) => `"${w.replace(/"/g, '""')}"`)
+    .join(" ")
+}
+
+export function search(input: { projectID: ProjectID; query: string; limit?: number }): SearchResult[] {
+  const db = Database.Client().$client as any
+
+  const schema = db
+    .query("SELECT sql FROM sqlite_master WHERE type='table' AND name='part_fts'")
+    .get() as { sql: string } | undefined
+  if (!schema || !schema.sql.includes("semantic_vector")) {
+    Database.rebuildFTS()
+  }
+
+  const rows = db
+    .query(
+      `
+      SELECT
+        p.id as partID,
+        p.message_id as messageID,
+        p.session_id as sessionID,
+        fts.part_type,
+        fts.text_content as text,
+        fts.exact_coef,
+        fts.inferred_coef,
+        fts.hypothetical_coef,
+        fts.guess_coef,
+        fts.unknown_coef,
+        (fts.exact_coef * 10 + fts.inferred_coef * 7 + fts.hypothetical_coef * 4 + fts.guess_coef * 2 + fts.unknown_coef * 1) as semantic_rank,
+        bm25(part_fts) as rank
+      FROM part_fts fts
+      JOIN part p ON p.id = fts.part_id
+      JOIN session s ON s.id = p.session_id
+      WHERE s.project_id = ?
+        AND part_fts MATCH ?
+      ORDER BY semantic_rank DESC, bm25(part_fts)
+      LIMIT ?
+    `,
+    )
+    .all(input.projectID, sanitizeFTSQuery(input.query), input.limit || 50) as any[]
+
+  return rows.map((row) => ({
+    messageID: row.messageID,
+    partID: row.partID,
+    sessionID: row.sessionID,
+    partType: row.part_type,
+    text: row.text,
+    snippet: highlightSnippet(row.text, input.query),
+    rank: row.rank,
+  }))
+}
+
+export function highlightSnippet(text: string, query: string, maxLen = 200): string {
+  if (!text || !query) return text?.slice(0, maxLen) || ""
+
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 0)
+  const lower = text.toLowerCase()
+
+  let matchStart = -1
+  for (const word of words) {
+    const idx = lower.indexOf(word)
+    if (idx !== -1 && (matchStart === -1 || idx < matchStart)) {
+      matchStart = idx
+    }
+  }
+
+  if (matchStart === -1) return text.slice(0, maxLen)
+
+  const start = Math.max(0, matchStart - 50)
+  const end = Math.min(text.length, matchStart + query.length + 50)
+  let snippet = text.slice(start, end)
+
+  if (start > 0) snippet = "..." + snippet
+  if (end < text.length) snippet = snippet + "..."
+
+  words.forEach((word) => {
+    const re = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi")
+    snippet = snippet.replace(re, "**$1**")
+  })
+
+  return snippet
 }
 
 export * as MessageV2 from "./message-v2"

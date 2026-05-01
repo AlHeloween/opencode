@@ -1,0 +1,6 @@
+- Search conversation history (messages and parts) using text matching across all sessions in the current project
+- Searches the text content of message parts for matching keywords or phrases
+- Returns results with snippets, part type, message IDs, and session context grouped by session
+- Use this tool when you need to find previous discussions, decisions, or code snippets from earlier in the conversation
+- Useful for referencing earlier context without re-reading the entire session history
+- Examples: "error handling pattern", "database schema design", "API endpoint structure"

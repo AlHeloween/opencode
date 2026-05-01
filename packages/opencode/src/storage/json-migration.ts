@@ -400,10 +400,16 @@ export async function run(db: SQLiteBunDatabase<any, any> | NodeSQLiteDatabase<a
     stats.shares += insert(shareValues, SessionShareTable, "session_share")
     step("shares", end - i)
   }
-  log.info("migrated session shares", { count: stats.shares })
-  if (orphans.shares > 0) {
-    log.warn("skipped orphaned session shares", { count: orphans.shares })
-  }
+    log.info("migrated session shares", { count: stats.shares })
+    if (orphans.shares > 0) {
+      log.warn("skipped orphaned session shares", { count: orphans.shares })
+    }
+
+    // Drop unused FTS5 triggers and table to eliminate write amplification
+    db.run("DROP TRIGGER IF EXISTS part_fts_insert")
+    db.run("DROP TRIGGER IF EXISTS part_fts_delete")
+    db.run("DROP TRIGGER IF EXISTS part_fts_update")
+    db.run("DROP TABLE IF EXISTS part_fts")
 
     db.run("COMMIT")
     committed = true

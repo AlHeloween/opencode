@@ -57,6 +57,7 @@ export const layer = Layer.effect(
       `- **Web search**: The universalsearch tool can search the web, code repositories, or use an autonomous AI research agent via the Universal Search Service`,
       `- **Code search**: Use universalsearch with source: "code" for direct code search via Sourcegraph`,
       `- **Conversation search**: The messagesearch tool provides full-text search (FTS5) with BM25 and semantic ranking over your conversation history`,
+      `- **Session reading**: The session-read tool reads full messages by index from any session, including summaries`,
       `- **Directory listing**: The list tool provides a tree-style directory listing with automatic ignore of common directories`,
       `- **Multi-edit**: The multiedit tool allows multiple sequential edits to a single file in one operation`,
       `- **Web fetching**: The webfetch tool can retrieve and convert web pages to markdown, text, or HTML format`,

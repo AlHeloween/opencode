@@ -1205,6 +1205,7 @@ export interface SearchResult {
   messageID: MessageID
   partID: PartID
   sessionID: SessionID
+  messageIndex: number
   partType: string
   text: string
   snippet: string
@@ -1246,6 +1247,7 @@ export function search(input: { projectID: ProjectID; query: string; limit?: num
         bm25(part_fts) as rank
       FROM part_fts fts
       JOIN part p ON p.id = fts.part_id
+      JOIN message m ON m.id = p.message_id
       JOIN session s ON s.id = p.session_id
       WHERE s.project_id = ?
         AND part_fts MATCH ?
@@ -1255,15 +1257,23 @@ export function search(input: { projectID: ProjectID; query: string; limit?: num
     )
     .all(input.projectID, sanitizeFTSQuery(input.query), input.limit || 50) as any[]
 
-  return rows.map((row) => ({
-    messageID: row.messageID,
-    partID: row.partID,
-    sessionID: row.sessionID,
-    partType: row.part_type,
-    text: row.text,
-    snippet: highlightSnippet(row.text, input.query),
-    rank: row.rank,
-  }))
+  return rows.map((row) => {
+    const index = db
+      .query(
+        "SELECT COUNT(*) + 1 as idx FROM message WHERE session_id = ? AND time_created < (SELECT time_created FROM message WHERE id = ?)",
+      )
+      .get(row.sessionID, row.messageID) as { idx: number }
+    return {
+      messageID: row.messageID,
+      partID: row.partID,
+      sessionID: row.sessionID,
+      messageIndex: index.idx,
+      partType: row.part_type,
+      text: row.text,
+      snippet: highlightSnippet(row.text, input.query),
+      rank: row.rank,
+    }
+  })
 }
 
 export function highlightSnippet(text: string, query: string, maxLen = 200): string {

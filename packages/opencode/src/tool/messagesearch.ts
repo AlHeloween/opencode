@@ -68,7 +68,7 @@ export const MessageSearchTool = Tool.define(
               if (totalSize >= MAX_OUTPUT) break
 
               const entry = [
-                `### [${result.partType}] ${result.messageID}`,
+                `### #${result.messageIndex} [${result.partType}] ${result.messageID}`,
                 `Snippet: ${result.snippet}`,
                 `Rank: ${result.rank}`,
                 "",

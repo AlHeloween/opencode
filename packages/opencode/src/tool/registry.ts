@@ -16,6 +16,7 @@ import { ListTool } from "./ls"
 import { MultiEditTool } from "./multiedit"
 import { UniversalSearchTool } from "./universalsearch"
 import { MessageSearchTool } from "./messagesearch"
+import { SessionReadTool } from "./session-read"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@opencode-ai/plugin"
@@ -119,6 +120,7 @@ export const layer: Layer.Layer<
     const multiedit = yield* MultiEditTool
     const universalsearch = yield* UniversalSearchTool
     const messagesearch = yield* MessageSearchTool
+    const sessionread = yield* SessionReadTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -210,6 +212,7 @@ export const layer: Layer.Layer<
           multiedit: Tool.init(multiedit),
           universalsearch: Tool.init(universalsearch),
           messagesearch: Tool.init(messagesearch),
+          sessionread: Tool.init(sessionread),
         })
 
         return {
@@ -232,6 +235,7 @@ export const layer: Layer.Layer<
             tool.multiedit,
             tool.universalsearch,
             tool.messagesearch,
+            tool.sessionread,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
           ],

@@ -26,7 +26,7 @@ export const SessionReadTool = Tool.define(
       execute: (params: { sessionId: string; offset?: number; limit?: number }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* ctx.ask({
-            permission: "session_read",
+            permission: "session-read",
             patterns: [params.sessionId],
             always: ["*"],
             metadata: {

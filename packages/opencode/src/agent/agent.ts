@@ -170,7 +170,7 @@ export const layer = Layer.effect(
                 webfetch: "allow",
                 universalsearch: "allow",
                 messagesearch: "allow",
-                session_read: "allow",
+                "session-read": "allow",
                 read: "allow",
                 external_directory: {
                   "*": "ask",

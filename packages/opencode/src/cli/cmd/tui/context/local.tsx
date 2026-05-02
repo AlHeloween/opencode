@@ -142,6 +142,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           recent: modelStore.recent,
           favorite: modelStore.favorite,
           variant: modelStore.variant,
+          agentModel: modelStore.model,
         })
       }
 
@@ -150,6 +151,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
+          if (typeof x.agentModel === "object" && x.agentModel !== null) setModelStore("model", x.agentModel)
         })
         .catch(() => {})
         .finally(() => {
@@ -286,7 +288,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           )
           save()
         },
-        set(model: { providerID: string; modelID: string }, options?: { recent?: boolean }) {
+        set(model: { providerID: string; modelID: string }, options?: { recent?: boolean; agent?: string }) {
           batch(() => {
             if (!isModelValid(model)) {
               toast.show({
@@ -296,9 +298,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               })
               return
             }
-            const a = agent.current()
-            if (!a) return
-            setModelStore("model", a.name, model)
+            const agentName = options?.agent ?? agent.current()?.name
+            if (!agentName) return
+            setModelStore("model", agentName, model)
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
               if (uniq.length > 10) uniq.pop()

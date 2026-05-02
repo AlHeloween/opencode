@@ -448,6 +448,15 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
+      title: "Explore model",
+      value: "explore.model.list",
+      keybind: "explore_model_list",
+      category: "Agent",
+      onSelect: () => {
+        dialog.replace(() => <DialogModel targetAgent="explore" />)
+      },
+    },
+    {
       title: "Model cycle",
       value: "model.cycle_recent",
       keybind: "model_cycle_recent",

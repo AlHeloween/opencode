@@ -8,11 +8,11 @@ import DESCRIPTION from "./session-read.txt"
 const MAX_OUTPUT = 100 * 1024
 
 export const Parameters = Schema.Struct({
-  sessionID: Schema.String.annotate({ description: "The session ID to read messages from" }),
-  fromIndex: Schema.optional(Schema.Number).annotate({
+  sessionId: Schema.String.annotate({ description: "The session ID to read messages from" }),
+  offset: Schema.optional(Schema.Number).annotate({
     description: "Start reading from this message index (1-based). If omitted, reads the most recent messages.",
   }),
-  count: Schema.optional(Schema.Number).annotate({
+  limit: Schema.optional(Schema.Number).annotate({
     description: "Number of messages to read (default: 10)",
   }),
 })
@@ -23,21 +23,21 @@ export const SessionReadTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { sessionID: string; fromIndex?: number; count?: number }, ctx: Tool.Context) =>
+      execute: (params: { sessionId: string; offset?: number; limit?: number }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* ctx.ask({
             permission: "session_read",
-            patterns: [params.sessionID],
+            patterns: [params.sessionId],
             always: ["*"],
             metadata: {
-              sessionID: params.sessionID,
-              fromIndex: params.fromIndex,
-              count: params.count,
+              sessionId: params.sessionId,
+              offset: params.offset,
+              limit: params.limit,
             },
           })
 
           const result = yield* Effect.sync(() => {
-            const sid = params.sessionID as SessionID
+            const sid = params.sessionId as SessionID
             const messages: MessageV2.WithParts[] = []
             for (const msg of MessageV2.stream(sid)) {
               messages.push(msg)
@@ -45,25 +45,24 @@ export const SessionReadTool = Tool.define(
 
             if (messages.length === 0) {
               return {
-                output: `No messages found for session ${params.sessionID}`,
-                title: `Session: ${params.sessionID}`,
-                metadata: { fromIndex: 0, count: 0, total: 0 },
+                output: `No messages found for session ${params.sessionId}`,
+                title: `Session: ${params.sessionId}`,
+                metadata: { offset: 0, limit: 0, total: 0 },
               }
             }
 
-            const count = Math.min(params.count ?? 10, 50)
+            const limit = Math.min(params.limit ?? 10, 50)
+            const fromIndex = params.offset ?? (messages.length - limit + 1)
 
             let slice: MessageV2.WithParts[]
-            if (params.fromIndex !== undefined) {
-              const start = Math.max(0, params.fromIndex - 1)
-              slice = messages.slice(start, start + count)
+            if (params.offset !== undefined) {
+              const start = Math.max(0, params.offset - 1)
+              slice = messages.slice(start, start + limit)
             } else {
-              slice = messages.slice(-count)
+              slice = messages.slice(-limit)
             }
 
-            const firstIdx = params.fromIndex !== undefined ? params.fromIndex : Math.max(1, messages.length - count + 1)
-
-            let output = `## Session: ${params.sessionID}\n`
+            let output = `## Session: ${params.sessionId}\n`
             let totalSize = output.length
 
             for (let i = 0; i < slice.length; i++) {
@@ -73,7 +72,7 @@ export const SessionReadTool = Tool.define(
               }
 
               const msg = slice[i]
-              const idx = firstIdx + i
+              const idx = fromIndex + i
               const role = msg.info.role
 
               for (const part of msg.parts) {
@@ -103,8 +102,8 @@ export const SessionReadTool = Tool.define(
 
             return {
               output,
-              title: `Session: ${params.sessionID}`,
-              metadata: { fromIndex: firstIdx, count: slice.length, total: messages.length },
+              title: `Session: ${params.sessionId}`,
+              metadata: { offset: fromIndex, limit: limit, total: messages.length },
             }
           })
 

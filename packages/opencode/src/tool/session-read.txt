@@ -3,9 +3,9 @@
 - Returns message index, role, and full text content including tool outputs and compaction summaries
 
 Usage:
-  session-read({ sessionID: "ses_abc" }) — reads most recent messages (default: 10)
-  session-read({ sessionID: "ses_abc", fromIndex: 42, count: 8 }) — reads messages 42-49
-  session-read({ sessionID: "ses_abc", count: 20 }) — reads last 20 messages
+  session-read({ sessionId: "ses_abc" }) — reads most recent messages (default: 10)
+  session-read({ sessionId: "ses_abc", offset: 42, limit: 8 }) — reads messages starting from 42
+  session-read({ sessionId: "ses_abc", limit: 20 }) — reads last 20 messages
 
 The output includes message numbers (#42), roles (user/assistant/tool), and full text.
 Compaction summaries are included if they exist after conversations.

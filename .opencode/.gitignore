@@ -1,7 +1,7 @@
-node_modules
-plans
-package.json
+node_modules/
+
+# lockfiles
 bun.lock
-.gitignore
 package-lock.json
-references/
+pnpm-lock.yaml
+yarn.lock

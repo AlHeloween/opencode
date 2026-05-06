@@ -13,6 +13,7 @@ import { Bus } from "../../src/bus"
 import { BusEvent } from "../../src/bus/bus-event"
 import { Truncate } from "@/tool/truncate"
 import { SessionID, MessageID } from "../../src/session/schema"
+import { Global } from "@opencode-ai/core/global"
 
 const ctx = {
   sessionID: SessionID.make("ses_test-edit-session"),
@@ -507,6 +508,180 @@ describe("tool.edit", () => {
           expect(result.metadata.filediff).toBeDefined()
           expect(result.metadata.filediff.file).toBe(filepath)
           expect(result.metadata.filediff.additions).toBeGreaterThan(0)
+        },
+      })
+    })
+  })
+
+  describe("fuzzy matching", () => {
+    test("matches curly quotes as straight quotes via unicode normalization", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      await fs.writeFile(
+        filepath,
+        'function foo() {\n  return \u201Cdone\u201D\n}\n',
+        "utf-8",
+      )
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: 'function foo() {\n  return "done"\n}',
+                newString: 'function foo() {\n  return "ok"\n}',
+              },
+              ctx,
+            ),
+          )
+
+          const content = await fs.readFile(filepath, "utf-8")
+          expect(content).toBe('function foo() {\n  return "ok"\n}\n')
+        },
+      })
+    })
+
+    test("matches em-dash as hyphen via unicode normalization", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      await fs.writeFile(filepath, "title\u2014subtitle\nmiddle\nfooter", "utf-8")
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "title-subtitle\nmiddle\nfooter",
+                newString: "title---subtitle\nmiddle\nfooter",
+              },
+              ctx,
+            ),
+          )
+
+          const content = await fs.readFile(filepath, "utf-8")
+          expect(content).toBe("title---subtitle\nmiddle\nfooter")
+        },
+      })
+    })
+
+    test("matches non-breaking space as regular space via unicode normalization", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      await fs.writeFile(filepath, "hello\u00A0world\nmiddle\nfooter", "utf-8")
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "hello world\nmiddle\nfooter",
+                newString: "goodbye world\nmiddle\nfooter",
+              },
+              ctx,
+            ),
+          )
+
+          const content = await fs.readFile(filepath, "utf-8")
+          expect(content).toBe("goodbye world\nmiddle\nfooter")
+        },
+      })
+    })
+  })
+
+  describe("backups", () => {
+    test("creates backup on successful edit", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      await fs.writeFile(filepath, "original\nmiddle\nend", "utf-8")
+      const callID = "call_backup_test"
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "original\nmiddle\nend",
+                newString: "changed\nmiddle\nend",
+              },
+              { ...ctx, callID },
+            ),
+          )
+
+        const backupsDir = path.join(Global.Path.data, "backups", ctx.sessionID)
+        const backupFiles = await fs.readdir(backupsDir)
+        const backups = backupFiles.filter((f) => f.includes(callID))
+        expect(backups.length).toBe(1)
+        expect(backups[0]).toMatch(new RegExp(`_.*${callID}`))
+
+        const backupContent = await fs.readFile(path.join(backupsDir, backups[0]), "utf-8")
+          expect(backupContent).toBe("original\nmiddle\nend")
+        },
+      })
+    })
+
+    test("no backup when edit fails (oldString not found)", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      await fs.writeFile(filepath, "actual content", "utf-8")
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await expect(
+            Effect.runPromise(
+              edit.execute(
+                {
+                  filePath: filepath,
+                  oldString: "not in file",
+                  newString: "changed",
+                },
+                { ...ctx, callID: "call_no_backup" },
+              ),
+            ),
+          ).rejects.toThrow()
+        },
+      })
+    })
+
+    test("backup on empty oldString when file exists", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      await fs.writeFile(filepath, "existing content", "utf-8")
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "",
+                newString: "new content",
+              },
+              { ...ctx, callID: "call_overwrite" },
+            ),
+          )
+
+          const backupsDir = path.join(Global.Path.data, "backups", ctx.sessionID)
+          const backupFiles = await fs.readdir(backupsDir)
+          const backup = backupFiles.find((f) => f.includes("call_overwrite"))
+          expect(backup).toBeTruthy()
+          const backupContent = await fs.readFile(path.join(backupsDir, backup!), "utf-8")
+          expect(backupContent).toBe("existing content")
         },
       })
     })

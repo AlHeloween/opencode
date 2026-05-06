@@ -20,6 +20,15 @@ Ask the user clarifying questions or ask for their opinion when weighing tradeof
 
 ---
 
+## Plans convention
+
+- Active plans live in `plans/` at the repo root.
+- Completed plans move to `plans_completed/`.
+- After creating a plan document, run the explore task agent to validate it against the codebase.
+- Correct the plan based on explore feedback before implementing.
+
+---
+
 ## Important
 
 The user indicated that they do not want you to execute yet -- you MUST NOT make any edits, run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supersedes any other instructions you have received.

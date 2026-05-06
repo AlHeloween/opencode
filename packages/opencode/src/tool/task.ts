@@ -7,6 +7,9 @@ import { Agent } from "../agent/agent"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
 import { Effect, Schema } from "effect"
+import { Global } from "@opencode-ai/core/global"
+import path from "path"
+import { AppFileSystem } from "@opencode-ai/core/filesystem"
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): void
@@ -33,6 +36,7 @@ export const TaskTool = Tool.define(
     const agent = yield* Agent.Service
     const config = yield* Config.Service
     const sessions = yield* Session.Service
+    const appFs = yield* AppFileSystem.Service
 
     const run = Effect.fn("TaskTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
@@ -99,7 +103,18 @@ export const TaskTool = Tool.define(
       const msg = yield* Effect.sync(() => MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }))
       if (msg.info.role !== "assistant") return yield* Effect.fail(new Error("Not an assistant message"))
 
-      const model = next.model ?? {
+      const taskOverride = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
+        Effect.map((x: any) => {
+          if (x?.taskModel?.providerID && x?.taskModel?.modelID)
+            return {
+              providerID: x.taskModel.providerID,
+              modelID: x.taskModel.modelID,
+            }
+          return undefined
+        }),
+        Effect.catch(() => Effect.succeed(undefined)),
+      )
+      const model = next.model ?? taskOverride ?? {
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
       }

@@ -17,7 +17,42 @@ import { Instance } from "../project/instance"
 import { Snapshot } from "@/snapshot"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
+import { Global } from "@opencode-ai/core/global"
 import * as Bom from "@/util/bom"
+
+const MAX_BACKUPS_PER_SESSION = 50
+
+function formatTimestamp() {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
+}
+
+function writeBackup(
+  content: string,
+  sessionID: string,
+  callID: string,
+  filePath: string,
+  afs: AppFileSystem.Interface,
+) {
+  return Effect.gen(function* () {
+    const dir = path.join(Global.Path.data, "backups", sessionID)
+    const safeName = filePath.replace(/[/\\:]/g, "_").replace(/^_+/, "")
+    const bakPath = path.join(dir, `${formatTimestamp()}_${callID}_${safeName}.bak`)
+
+    yield* afs.makeDirectory(dir, { recursive: true }).pipe(Effect.catch(() => Effect.void))
+
+    yield* afs.writeFileString(bakPath, content).pipe(Effect.catch(() => Effect.void))
+
+    const entries = yield* afs.readDirectory(dir).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+    if (entries.length > MAX_BACKUPS_PER_SESSION) {
+      const sorted = entries.sort()
+      for (let i = 0; i < entries.length - MAX_BACKUPS_PER_SESSION; i++) {
+        yield* afs.remove(path.join(dir, sorted[i])).pipe(Effect.catch(() => Effect.void))
+      }
+    }
+  })
+}
 
 function normalizeLineEndings(text: string): string {
   return text.replaceAll("\r\n", "\n")
@@ -92,6 +127,7 @@ export const EditTool = Tool.define(
                 const next = Bom.split(params.newString)
                 const desiredBom = source.bom || next.bom
                 contentOld = source.text
+                if (existed) yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
                 contentNew = next.text
                 diff = trimDiff(createTwoFilesPatch(filePath, filePath, contentOld, contentNew))
                 yield* ctx.ask({
@@ -120,6 +156,8 @@ export const EditTool = Tool.define(
               if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
               const source = yield* Bom.readFile(afs, filePath)
               contentOld = source.text
+
+              yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
 
               const ending = detectLineEnding(contentOld)
               const old = convertToLineEnding(normalizeLineEndings(params.oldString), ending)
@@ -236,6 +274,70 @@ function levenshtein(a: string, b: string): number {
   return matrix[a.length][b.length]
 }
 
+function normalize(s: string): string {
+  return s
+    .trim()
+    .replaceAll("\u2010", "-")
+    .replaceAll("\u2011", "-")
+    .replaceAll("\u2012", "-")
+    .replaceAll("\u2013", "-")
+    .replaceAll("\u2014", "-")
+    .replaceAll("\u2015", "-")
+    .replaceAll("\u2212", "-")
+    .replaceAll("\u2018", "'")
+    .replaceAll("\u2019", "'")
+    .replaceAll("\u201A", "'")
+    .replaceAll("\u201B", "'")
+    .replaceAll("\u201C", '"')
+    .replaceAll("\u201D", '"')
+    .replaceAll("\u201E", '"')
+    .replaceAll("\u201F", '"')
+    .replaceAll("\u00A0", " ")
+    .replaceAll("\u2002", " ")
+    .replaceAll("\u2003", " ")
+    .replaceAll("\u2004", " ")
+    .replaceAll("\u2005", " ")
+    .replaceAll("\u2006", " ")
+    .replaceAll("\u2007", " ")
+    .replaceAll("\u2008", " ")
+    .replaceAll("\u2009", " ")
+    .replaceAll("\u200A", " ")
+    .replaceAll("\u202F", " ")
+    .replaceAll("\u205F", " ")
+    .replaceAll("\u3000", " ")
+}
+
+function mapAndStripWhitespace(data: string): { stripped: string; indexMap: number[] } {
+  const stripped: string[] = []
+  const indexMap: number[] = []
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] !== " " && data[i] !== "\t" && data[i] !== "\n" && data[i] !== "\r") {
+      stripped.push(data[i])
+      indexMap.push(i)
+    }
+  }
+  return { stripped: stripped.join(""), indexMap }
+}
+
+function slidingHammingBest(
+  haystack: string,
+  needle: string,
+  maxDist = 1,
+): { pos: number; dist: number } | null {
+  const n = haystack.length
+  const m = needle.length
+  if (m === 0 || n < m) return null
+  for (let i = 0; i <= n - m; i++) {
+    let dist = 0
+    for (let j = 0; j < m; j++) {
+      if (haystack[i + j] !== needle[j]) dist++
+      if (dist > maxDist) break
+    }
+    if (dist <= maxDist) return { pos: i, dist }
+  }
+  return null
+}
+
 export const SimpleReplacer: Replacer = function* (_content, find) {
   yield find
 }
@@ -296,24 +398,36 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
   const lastLineSearch = searchLines[searchLines.length - 1].trim()
   const searchBlockSize = searchLines.length
 
-  // Collect all candidate positions where both anchors match
+  // Collect all candidate positions where both anchors match (exact or unicode-normalized)
   const candidates: Array<{ startLine: number; endLine: number }> = []
   for (let i = 0; i < originalLines.length; i++) {
-    if (originalLines[i].trim() !== firstLineSearch) {
+    const firstTrimmed = originalLines[i].trim()
+    if (firstTrimmed !== firstLineSearch && normalize(firstTrimmed) !== normalize(firstLineSearch)) {
       continue
     }
 
     // Look for the matching last line after this first line
     for (let j = i + 2; j < originalLines.length; j++) {
-      if (originalLines[j].trim() === lastLineSearch) {
+      const lastTrimmed = originalLines[j].trim()
+      if (lastTrimmed === lastLineSearch || normalize(lastTrimmed) === normalize(lastLineSearch)) {
         candidates.push({ startLine: i, endLine: j })
-        break // Only match the first occurrence of the last line
+        break
       }
     }
   }
 
-  // Return immediately if no candidates
+  // Return immediately if no candidates — fall through to Hamming fallback
   if (candidates.length === 0) {
+    const { stripped: strippedContent } = mapAndStripWhitespace(content)
+    const { stripped: strippedSearch } = mapAndStripWhitespace(find)
+    const hamming = slidingHammingBest(strippedContent, strippedSearch, 1)
+    if (hamming && hamming.dist === 1) {
+      const contentIdx = mapAndStripWhitespace(content)
+      const searchIdx = mapAndStripWhitespace(find)
+      const start = contentIdx.indexMap[hamming.pos]
+      const end = contentIdx.indexMap[hamming.pos + strippedSearch.length - 1] + 1
+      if (start !== undefined && end !== undefined) yield content.substring(start, end)
+    }
     return
   }
 

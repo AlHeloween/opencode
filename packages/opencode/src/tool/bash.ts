@@ -14,6 +14,7 @@ import { fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Shell } from "@/shell/shell"
+import { stripCommand } from "./strip-win"
 
 import { BashArity } from "@/permission/arity"
 import * as Truncate from "./truncate"
@@ -279,8 +280,9 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan) 
 })
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
+  const stripped = stripCommand(command, shell)
   if (process.platform === "win32" && Shell.ps(shell)) {
-    return ChildProcess.make(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command], {
+    return ChildProcess.make(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", stripped], {
       cwd,
       env,
       stdin: "ignore",
@@ -288,7 +290,7 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
     })
   }
 
-  return ChildProcess.make(command, [], {
+  return ChildProcess.make(stripped, [], {
     shell,
     cwd,
     env,

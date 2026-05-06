@@ -119,12 +119,19 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           modelID: string
         }[]
         variant: Record<string, string | undefined>
+        taskModel:
+          | {
+              providerID: string
+              modelID: string
+            }
+          | undefined
       }>({
         ready: false,
         model: {},
         recent: [],
         favorite: [],
         variant: {},
+        taskModel: undefined,
       })
 
       const filePath = path.join(Global.Path.state, "model.json")
@@ -143,6 +150,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           favorite: modelStore.favorite,
           variant: modelStore.variant,
           agentModel: modelStore.model,
+          taskModel: modelStore.taskModel,
         })
       }
 
@@ -152,6 +160,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
           if (typeof x.agentModel === "object" && x.agentModel !== null) setModelStore("model", x.agentModel)
+          if (
+            typeof x.taskModel === "object" &&
+            x.taskModel !== null &&
+            typeof x.taskModel.providerID === "string" &&
+            typeof x.taskModel.modelID === "string"
+          )
+            setModelStore("taskModel", x.taskModel)
         })
         .catch(() => {})
         .finally(() => {
@@ -210,7 +225,40 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         )
       })
 
+      function forAgent(name: string) {
+        const a = sync.data.agent.find((x) => x.name === name)
+        return (
+          getFirstValidModel(
+            () => modelStore.model[name],
+            () => a?.model,
+          ) ?? undefined
+        )
+      }
+
+      function taskModel() {
+        const m = modelStore.taskModel
+        if (!m) return undefined
+        if (isModelValid(m)) return m
+        return undefined
+      }
+
+      function taskSet(model: { providerID: string; modelID: string }) {
+        if (!isModelValid(model)) {
+          toast.show({
+            message: `Model ${model.providerID}/${model.modelID} is not valid`,
+            variant: "warning",
+            duration: 3000,
+          })
+          return
+        }
+        setModelStore("taskModel", model)
+        save()
+      }
+
       return {
+        forAgent,
+        taskModel,
+        taskSet,
         current: currentModel,
         get ready() {
           return modelStore.ready
@@ -308,8 +356,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 "recent",
                 uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
               )
-              save()
             }
+            save()
           })
         },
         toggleFavorite(model: { providerID: string; modelID: string }) {

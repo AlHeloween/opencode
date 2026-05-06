@@ -92,6 +92,22 @@ const table = sqliteTable("session", {
 })
 ```
 
+## opencode paths
+
+- opencode uses `xdg-basedir` for path resolution. On Windows, this maps to Unix-style paths under `%USERPROFILE%`:
+  - `Global.Path.state`  → `~/.local/state/opencode`  (`model.json` lives here)
+  - `Global.Path.config` → `~/.config/opencode`       (`opencode.jsonc` lives here)
+  - `Global.Path.data`   → `~/.local/share/opencode`
+  - `Global.Path.cache`  → `~/.cache/opencode`
+- `%APPDATA%` and `%LOCALAPPDATA%` are never used by opencode.
+
+## Plans convention
+
+- Active plans live in `plans/` at the repo root.
+- Completed plans move to `plans_completed/`.
+- After creating a plan document, run the explore task agent to validate it against the codebase.
+- Correct the plan based on explore feedback before implementing.
+
 ## Testing
 
 - Avoid mocks as much as possible

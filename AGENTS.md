@@ -117,3 +117,37 @@ const table = sqliteTable("session", {
 ## Type Checking
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
+
+## TUI Testing with cmd_runner
+
+When testing opencode TUI interactions (session delete, rename, dialogs, keybinds), use `cmd_runner.exe` to automate the TUI and verify behavior end-to-end.
+
+### Workflow
+
+1. **Build** the binary: `pwsh _build.ps1`
+2. **Start** opencode from the build output directory (avoids reusing repo-level sessions):
+   ```
+   cmd_runner start --cwd dist/bin -- opencode.exe
+   ```
+3. **Check** the TUI initialized: `cmd_runner tail <run_id>`
+4. **Send text input** (prompts, `/slash` commands):
+   ```
+   cmd_runner send <run_id> --text "/new" --crlf
+   cmd_runner send <run_id> --text "create a file" --crlf
+   ```
+5. **Send key combinations** (leader keys, shortcuts):
+   ```
+   cmd_runner send <run_id> --keys "ctrl+d"        # single chord
+   cmd_runner send <run_id> --keys "ctrl+x,n"      # leader + key (ctrl+x then n)
+   cmd_runner send <run_id> --keys "DOWN,ctrl+r"   # navigate then action
+   ```
+6. **Wait** between steps so the agent/UI has time to process.
+7. **Verify** side effects: check file system, reopen `/sessions` dialog to confirm state.
+
+### Key notes
+- Always launch from `dist/bin` (via `--cwd`) to get a clean project with no pre-existing sessions.
+- `cmd_runner list` shows all runs; `cmd_runner stop <id>` to clean up.
+- Prefer `/slash` commands (`/new`, `/sessions`) over leader keys when possible — they're more reliable through cmd_runner.
+- Session delete: navigate to session in list, `ctrl+d` twice (first press shows confirmation prompt).
+- Session rename: `ctrl+r` on session in list, clear old title (`ctrl+a`), type new name, `ENTER`.
+- Check `logs/cmd_runner/<run_id>/inbox.jsonl` if sends seem to hang — the bridge may stop processing new inbox entries; restart the cmd_runner run in that case.

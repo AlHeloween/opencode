@@ -213,9 +213,11 @@ export function DialogSessionList() {
                       message: errorMessage(result.error),
                     })
                   }
-                  setToDelete(undefined)
                   return
                 }
+                sync.set("session", (draft: typeof sync.data.session) => draft.filter((s) => s.id !== option.value))
+                await sync.session.refresh()
+                if (search()) await refetch()
               } catch (err) {
                 if (session?.workspaceID) {
                   recover(session)
@@ -226,13 +228,9 @@ export function DialogSessionList() {
                     message: errorMessage(err),
                   })
                 }
+              } finally {
                 setToDelete(undefined)
-                return
               }
-              sync.set("session", (draft: typeof sync.data.session) => draft.filter((s) => s.id !== option.value))
-              await sync.session.refresh()
-              if (search()) await refetch()
-              setToDelete(undefined)
               return
             }
             setToDelete(option.value)

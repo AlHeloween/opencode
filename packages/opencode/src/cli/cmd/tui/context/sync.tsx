@@ -200,7 +200,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
 
         case "session.deleted": {
-          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
+          const result = Binary.search(store.session, event.properties.sessionID, (s) => s.id)
           if (result.found) {
             setStore(
               "session",
@@ -212,7 +212,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
         }
         case "session.updated": {
-          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
+          const result = Binary.search(store.session, event.properties.sessionID, (s) => s.id)
           if (result.found) {
             setStore("session", result.index, reconcile(event.properties.info))
             break

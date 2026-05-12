@@ -1,6 +1,6 @@
 import { type SQLiteBunDatabase } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
-import { type SQLiteTransaction } from "drizzle-orm/sqlite-core"
+import { type SQLiteTransaction, sql } from "drizzle-orm/sqlite-core"
 export * from "drizzle-orm"
 import { LocalContext } from "@/util/local-context"
 import { lazy } from "../util/lazy"
@@ -9,12 +9,13 @@ import * as Log from "@opencode-ai/core/util/log"
 import { NamedError } from "@opencode-ai/core/util/error"
 import z from "zod"
 import path from "path"
-import { readFileSync, readdirSync, existsSync } from "fs"
+import { readFileSync, readdirSync, existsSync, mkdirSync } from "fs"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { InstallationChannel } from "@opencode-ai/core/installation/version"
 import { InstanceState } from "@/effect/instance-state"
 import { iife } from "@/util/iife"
 import { init } from "#db"
+import type { ProjectID } from "../project/schema"
 
 declare const OPENCODE_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
 
@@ -45,6 +46,8 @@ export const Path = iife(() => {
 export type Transaction = SQLiteTransaction<"sync", void>
 
 type Client = SQLiteBunDatabase
+
+type DrizzleClient = ReturnType<typeof init> & { $client: { close: () => void; exec: (sql: string) => void } }
 
 type Journal = { sql: string; timestamp: number; name: string }[]
 
@@ -83,8 +86,23 @@ function migrations(dir: string): Journal {
 
 export const Client = lazy(() => {
   log.info("opening database", { path: Path })
+  const db = createAndInitDb(Path, path.join(import.meta.dirname, "../../migration"))
+  verifyFTS(db)
+  maintainOnStartup(db)
+  return db
+})
 
-  const db = init(Path)
+const projectClients = new Map<string, DrizzleClient>()
+
+export function getProjectDbPath(worktree: string) {
+  return path.join(worktree, ".opencode", "project.db")
+}
+
+function createAndInitDb(dbPath: string, migrationDir: string): DrizzleClient {
+  const dir = path.dirname(dbPath)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+  const db = init(dbPath) as DrizzleClient
 
   db.run("PRAGMA journal_mode = WAL")
   db.run("PRAGMA synchronous = NORMAL")
@@ -93,13 +111,13 @@ export const Client = lazy(() => {
   db.run("PRAGMA foreign_keys = ON")
   db.run("PRAGMA wal_checkpoint(PASSIVE)")
 
-  // Apply schema migrations
   const entries =
     typeof OPENCODE_MIGRATIONS !== "undefined"
       ? OPENCODE_MIGRATIONS
-      : migrations(path.join(import.meta.dirname, "../../migration"))
+      : migrations(migrationDir)
   if (entries.length > 0) {
     log.info("applying migrations", {
+      path: dbPath,
       count: entries.length,
       mode: typeof OPENCODE_MIGRATIONS !== "undefined" ? "bundled" : "dev",
     })
@@ -111,13 +129,44 @@ export const Client = lazy(() => {
     migrate(db, entries)
   }
 
-  verifyFTS(db)
-  maintainOnStartup(db)
-
   return db
-})
+}
+
+function projectMigrationsDir() {
+  return path.join(import.meta.dirname, "../../migration-project")
+}
+
+export function getProjectDb(projectID: ProjectID, worktree: string): DrizzleClient {
+  const cached = projectClients.get(projectID)
+  if (cached) return cached
+
+  const dbPath = getProjectDbPath(worktree)
+  log.info("opening project database", { projectID, path: dbPath })
+  const db = createAndInitDb(dbPath, projectMigrationsDir())
+  projectClients.set(projectID, db)
+  return db
+}
+
+export function closeProjectDb(projectID: ProjectID) {
+  const db = projectClients.get(projectID)
+  if (!db) return
+  try {
+    db.$client.close()
+  } catch {}
+  projectClients.delete(projectID)
+}
+
+export function closeAllProjectDbs() {
+  for (const [projectID, db] of projectClients) {
+    try {
+      db.$client.close()
+    } catch {}
+  }
+  projectClients.clear()
+}
 
 export function close() {
+  closeAllProjectDbs()
   Client().$client.close()
   Client.reset()
 }
@@ -297,6 +346,21 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
   }
 }
 
+export function projectUse<T>(projectID: ProjectID, worktree: string, callback: (trx: TxOrDb) => T): T {
+  try {
+    return callback(ctx.use().tx)
+  } catch (err) {
+    if (err instanceof LocalContext.NotFound) {
+      const db = getProjectDb(projectID, worktree)
+      const effects: (() => void | Promise<void>)[] = []
+      const result = ctx.provide({ effects, tx: db }, () => callback(db))
+      for (const effect of effects) effect()
+      return result
+    }
+    throw err
+  }
+}
+
 export function effect(fn: () => any | Promise<any>) {
   const bound = InstanceState.bind(fn)
   try {
@@ -321,6 +385,29 @@ export function transaction<T>(
       const effects: (() => void | Promise<void>)[] = []
       const txCallback = InstanceState.bind((tx: TxOrDb) => ctx.provide({ tx, effects }, () => callback(tx)))
       const result = Client().transaction(txCallback, { behavior: options?.behavior })
+      for (const effect of effects) effect()
+      return result as NotPromise<T>
+    }
+    throw err
+  }
+}
+
+export function projectTransaction<T>(
+  projectID: ProjectID,
+  worktree: string,
+  callback: (tx: TxOrDb) => NotPromise<T>,
+  options?: {
+    behavior?: "deferred" | "immediate" | "exclusive"
+  },
+): NotPromise<T> {
+  try {
+    return callback(ctx.use().tx)
+  } catch (err) {
+    if (err instanceof LocalContext.NotFound) {
+      const db = getProjectDb(projectID, worktree)
+      const effects: (() => void | Promise<void>)[] = []
+      const txCallback = InstanceState.bind((tx: TxOrDb) => ctx.provide({ tx, effects }, () => callback(tx)))
+      const result = db.transaction(txCallback, { behavior: options?.behavior })
       for (const effect of effects) effect()
       return result as NotPromise<T>
     }

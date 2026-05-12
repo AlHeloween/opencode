@@ -9,6 +9,7 @@ import { Snapshot } from "@/snapshot"
 import { SyncEvent } from "../sync"
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
+import { use as projectDb } from "@/storage/project-db"
 import { and } from "drizzle-orm"
 import { desc } from "drizzle-orm"
 import { eq } from "drizzle-orm"
@@ -16,8 +17,13 @@ import { inArray } from "drizzle-orm"
 import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import { MessageTable, PartTable, SessionTable } from "./session.sql"
+import { ProjectTable } from "../project/project.sql"
 import * as ProviderError from "@/provider/error"
 import { iife } from "@/util/iife"
+
+function db<T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T): T {
+  return projectDb(fn)
+}
 import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
 import type { SystemError } from "bun"
@@ -689,7 +695,7 @@ function hydrate(rows: (typeof MessageTable.$inferSelect)[]) {
   const ids = rows.map((row) => row.id)
   const partByMessage = new Map<string, Part[]>()
   if (ids.length > 0) {
-    const partRows = Database.use((db) =>
+    const partRows = db((db) =>
       db
         .select()
         .from(PartTable)
@@ -987,7 +993,7 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
   const where = before
     ? and(eq(MessageTable.session_id, input.sessionID), older(before))
     : eq(MessageTable.session_id, input.sessionID)
-  const rows = Database.use((db) =>
+  const rows = db((db) =>
     db
       .select()
       .from(MessageTable)
@@ -997,7 +1003,7 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
       .all(),
   )
   if (rows.length === 0) {
-    const row = Database.use((db) =>
+    const row = db((db) =>
       db.select({ id: SessionTable.id }).from(SessionTable).where(eq(SessionTable.id, input.sessionID)).get(),
     )
     if (!row) throw new NotFoundError({ message: `Session not found: ${input.sessionID}` })
@@ -1034,7 +1040,7 @@ export function* stream(sessionID: SessionID) {
 }
 
 export function parts(message_id: MessageID) {
-  const rows = Database.use((db) =>
+  const rows = db((db) =>
     db.select().from(PartTable).where(eq(PartTable.message_id, message_id)).orderBy(PartTable.id).all(),
   )
   return rows.map(
@@ -1049,7 +1055,7 @@ export function parts(message_id: MessageID) {
 }
 
 export function get(input: { sessionID: SessionID; messageID: MessageID }): WithParts {
-  const row = Database.use((db) =>
+  const row = db((db) =>
     db
       .select()
       .from(MessageTable)
@@ -1220,7 +1226,21 @@ function sanitizeFTSQuery(query: string): string {
 }
 
 export function search(input: { projectID: ProjectID; query: string; limit?: number }): SearchResult[] {
-  const db = Database.Client().$client as any
+  let rawDb: any
+  if (Database.isProjectDbMode()) {
+    const project = Database.use((d) =>
+      d.select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get(),
+    )
+    if (project) {
+      rawDb = Database.getProjectDb(input.projectID, project.worktree).$client
+    } else {
+      rawDb = Database.Client().$client
+    }
+  } else {
+    rawDb = Database.Client().$client
+  }
+
+  const db = rawDb as any
 
   const schema = db
     .query("SELECT sql FROM sqlite_master WHERE type='table' AND name='part_fts'")

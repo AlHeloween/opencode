@@ -6,6 +6,7 @@ import { ProjectID } from "@/project/schema"
 import { MessageID, SessionID } from "@/session/schema"
 import { PermissionTable } from "@/session/session.sql"
 import { Database } from "@/storage/db"
+import { use as projectDb } from "@/storage/project-db"
 import { eq } from "drizzle-orm"
 import { zod } from "@/util/effect-zod"
 import * as Log from "@opencode-ai/core/util/log"
@@ -156,7 +157,7 @@ export const layer = Layer.effect(
     const bus = yield* Bus.Service
     const state = yield* InstanceState.make<State>(
       Effect.fn("Permission.state")(function* (ctx) {
-        const row = Database.use((db) =>
+        const row = projectDb((db) =>
           db.select().from(PermissionTable).where(eq(PermissionTable.project_id, ctx.project.id)).get(),
         )
         const state = {

@@ -6,9 +6,18 @@ import { withStatics } from "@/util/schema"
 import { Effect, Layer, Context, Schema } from "effect"
 import z from "zod"
 import { Database } from "@/storage/db"
+import { use as projectDb, transaction as projectTx } from "@/storage/project-db"
 import { eq } from "drizzle-orm"
 import { asc } from "drizzle-orm"
 import { TodoTable } from "./session.sql"
+
+function db<T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T): T {
+  return projectDb(fn)
+}
+
+function tx<T>(fn: (d: Parameters<typeof Database.transaction>[0] extends (trx: infer D) => any ? D : never) => T): T {
+  return projectTx(fn)
+}
 
 export const Info = Schema.Struct({
   content: Schema.String.annotate({ description: "Brief description of the task" }),
@@ -45,7 +54,7 @@ export const layer = Layer.effect(
 
     const update = Effect.fn("Todo.update")(function* (input: { sessionID: SessionID; todos: Info[] }) {
       yield* Effect.sync(() =>
-        Database.transaction((db) => {
+        tx((db) => {
           db.delete(TodoTable).where(eq(TodoTable.session_id, input.sessionID)).run()
           if (input.todos.length === 0) return
           db.insert(TodoTable)
@@ -66,7 +75,7 @@ export const layer = Layer.effect(
 
     const get = Effect.fn("Todo.get")(function* (sessionID: SessionID) {
       const rows = yield* Effect.sync(() =>
-        Database.use((db) =>
+        db((db) =>
           db.select().from(TodoTable).where(eq(TodoTable.session_id, sessionID)).orderBy(asc(TodoTable.position)).all(),
         ),
       )

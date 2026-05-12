@@ -2,6 +2,8 @@ import { Schema } from "effect"
 import { setTimeout as sleep } from "node:timers/promises"
 import { fn } from "@/util/fn"
 import { Database } from "@/storage/db"
+import { use as projectDb, transaction as projectTx } from "@/storage/project-db"
+import { Instance } from "@/project/instance"
 import { asc } from "drizzle-orm"
 import { eq } from "drizzle-orm"
 import { inArray } from "drizzle-orm"
@@ -101,7 +103,7 @@ export const create = fn(CreateInput.zod, async (input) => {
     projectID: input.projectID,
   }
 
-  Database.use((db) => {
+  projectDb((db) => {
     db.insert(WorkspaceTable)
       .values({
         id: info.id,
@@ -167,7 +169,7 @@ export const sessionRestore = fn(SessionRestoreInput.zod, async (input) => {
       },
     })
 
-    const rows = Database.use((db) =>
+    const rows = projectDb((db) =>
       db
         .select({
           id: EventTable.id,
@@ -301,7 +303,7 @@ export const sessionRestore = fn(SessionRestoreInput.zod, async (input) => {
 })
 
 export function list(project: Project.Info) {
-  const rows = Database.use((db) =>
+  const rows = projectDb((db) =>
     db.select().from(WorkspaceTable).where(eq(WorkspaceTable.project_id, project.id)).all(),
   )
   const spaces = rows.map(fromRow).sort((a, b) => a.id.localeCompare(b.id))
@@ -309,20 +311,20 @@ export function list(project: Project.Info) {
 }
 
 export const get = fn(WorkspaceID.zod, async (id) => {
-  const row = Database.use((db) => db.select().from(WorkspaceTable).where(eq(WorkspaceTable.id, id)).get())
+  const row = projectDb((db) => db.select().from(WorkspaceTable).where(eq(WorkspaceTable.id, id)).get())
   if (!row) return
   return fromRow(row)
 })
 
 export const remove = fn(WorkspaceID.zod, async (id) => {
-  const sessions = Database.use((db) =>
+  const sessions = projectDb((db) =>
     db.select({ id: SessionTable.id }).from(SessionTable).where(eq(SessionTable.workspace_id, id)).all(),
   )
   for (const session of sessions) {
     await AppRuntime.runPromise(Session.Service.use((svc) => svc.remove(session.id)))
   }
 
-  const row = Database.use((db) => db.select().from(WorkspaceTable).where(eq(WorkspaceTable.id, id)).get())
+  const row = projectDb((db) => db.select().from(WorkspaceTable).where(eq(WorkspaceTable.id, id)).get())
 
   if (row) {
     stopSync(id)
@@ -334,7 +336,7 @@ export const remove = fn(WorkspaceID.zod, async (id) => {
     } catch {
       log.error("adaptor not available when removing workspace", { type: row.type })
     }
-    Database.use((db) => db.delete(WorkspaceTable).where(eq(WorkspaceTable.id, id)).run())
+    projectDb((db) => db.delete(WorkspaceTable).where(eq(WorkspaceTable.id, id)).run())
     return info
   }
 })
@@ -372,7 +374,7 @@ function synced(state: Record<string, number>) {
   if (ids.length === 0) return true
 
   const done = Object.fromEntries(
-    Database.use((db) =>
+    projectDb((db) =>
       db
         .select({
           id: EventSequenceTable.aggregate_id,
@@ -437,7 +439,7 @@ async function connectSSE(url: URL | string, headers: HeadersInit | undefined, s
 }
 
 async function syncHistory(space: Info, url: URL | string, headers: HeadersInit | undefined, signal: AbortSignal) {
-  const sessionIDs = Database.use((db) =>
+  const sessionIDs = projectDb((db) =>
     db
       .select({ id: SessionTable.id })
       .from(SessionTable)
@@ -447,7 +449,7 @@ async function syncHistory(space: Info, url: URL | string, headers: HeadersInit 
   )
   const state = sessionIDs.length
     ? Object.fromEntries(
-        Database.use((db) =>
+        projectDb((db) =>
           db.select().from(EventSequenceTable).where(inArray(EventSequenceTable.aggregate_id, sessionIDs)).all(),
         ).map((row) => [row.aggregate_id, row.seq]),
       )
@@ -603,7 +605,7 @@ function stopSync(id: WorkspaceID) {
 }
 
 export function startWorkspaceSyncing(projectID: ProjectID) {
-  const spaces = Database.use((db) =>
+  const spaces = projectDb((db) =>
     db
       .select({ workspace: WorkspaceTable })
       .from(WorkspaceTable)

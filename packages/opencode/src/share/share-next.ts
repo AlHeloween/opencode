@@ -10,6 +10,7 @@ import { Session } from "@/session/session"
 import { MessageV2 } from "@/session/message-v2"
 import type { SessionID } from "@/session/schema"
 import { Database } from "@/storage/db"
+import { use as projectDb } from "@/storage/project-db"
 import { eq } from "drizzle-orm"
 import { Config } from "@/config/config"
 import * as Log from "@opencode-ai/core/util/log"
@@ -77,7 +78,7 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@opencode/ShareNext") {}
 
 const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
-  Effect.sync(() => Database.use(fn))
+  Effect.sync(() => projectDb(fn))
 
 function api(resource: string): Api {
   return {

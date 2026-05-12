@@ -10,6 +10,7 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
+import { use as projectDb } from "@/storage/project-db"
 import { SessionIndexTable } from "@/storage/global.sql"
 import { eq } from "drizzle-orm"
 import { and } from "drizzle-orm"
@@ -429,7 +430,7 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Se
 export type Patch = Types.DeepMutable<SyncEvent.Event<typeof Event.Updated>["data"]["info"]>
 
 const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
-  Effect.sync(() => Database.use(fn))
+  Effect.sync(() => projectDb(fn))
 
 function resolveSessionProject(sessionID: SessionID): { id: ProjectID; worktree: string } | undefined {
   if (!Database.isProjectDbMode()) return undefined

@@ -116,6 +116,10 @@ import type {
   QuestionReplyResponses,
   SessionAbortErrors,
   SessionAbortResponses,
+  SessionBackupsListErrors,
+  SessionBackupsListResponses,
+  SessionBackupsRestoreErrors,
+  SessionBackupsRestoreResponses,
   SessionChildrenErrors,
   SessionChildrenResponses,
   SessionCommandErrors,
@@ -1637,6 +1641,83 @@ export class Worktree extends HeyApiClient {
   }
 }
 
+export class Backups extends HeyApiClient {
+  /**
+   * List backups
+   *
+   * List edit backups for a session so they can be browsed and restored.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionBackupsListResponses, SessionBackupsListErrors, ThrowOnError>({
+      url: "/session/{sessionID}/backups",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Restore backup
+   *
+   * Restore a file from an edit backup. Copies the .bak file over the original.
+   */
+  public restore<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      filename?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "filename" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionBackupsRestoreResponses,
+      SessionBackupsRestoreErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/backups/restore",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Session2 extends HeyApiClient {
   /**
    * List sessions
@@ -2582,6 +2663,11 @@ export class Session2 extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  private _backups?: Backups
+  get backups(): Backups {
+    return (this._backups ??= new Backups({ client: this.client }))
   }
 }
 

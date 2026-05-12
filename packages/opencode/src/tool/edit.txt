@@ -1,3 +1,15 @@
+## File Backups
+
+Each edit automatically creates a backup of the file's pre-edit content before applying changes. Backups are stored in `~/.local/share/opencode/backups/<sessionID>/` (on Windows: `%USERPROFILE%\.local\share\opencode\backups\<sessionID>\`).
+
+To restore a file from backup:
+1. List the backup directory to find the relevant `.bak` file
+2. Copy the `.bak` file over the original using the Bash tool: `cp "<backup-path>" "<original-file>"`
+
+Do NOT use `git checkout` to restore files — use the backup system instead.
+
+---
+
 Performs exact string replacements in files. 
 
 Usage:
@@ -8,5 +20,3 @@ Usage:
 - The edit will FAIL if `oldString` is not found in the file with an error "oldString not found in content".
 - The edit will FAIL if `oldString` is found multiple times in the file with an error "Found multiple matches for oldString. Provide more surrounding lines in oldString to identify the correct match." Either provide a larger string with more surrounding context to make it unique or use `replaceAll` to change every instance of `oldString`. 
 - Use `replaceAll` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.
-
-- Each edit creates a backup of the file's pre-edit content in `~/.local/share/opencode/backups/<sessionID>/`. If an edit produces incorrect results, you can restore the file from the backup by copying the `.bak` file over the original.

@@ -13,6 +13,7 @@ import { SessionShare } from "@/share/session"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
+import { BackupEntry, listBackups, restoreBackup } from "@/tool/edit-backup"
 import { Effect } from "effect"
 import { Agent } from "@/agent/agent"
 import { Snapshot } from "@/snapshot"
@@ -1112,6 +1113,68 @@ export const SessionRoutes = lazy(() =>
             reply: c.req.valid("json").response,
           })
           return true
+        }),
+    )
+    .get(
+      "/:sessionID/backups",
+      describeRoute({
+        summary: "List backups",
+        description: "List edit backups for a session so they can be browsed and restored.",
+        operationId: "session.backups.list",
+        responses: {
+          200: {
+            description: "Backup entries",
+            content: {
+              "application/json": {
+                schema: resolver(BackupEntry.zod.array()),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: SessionID.zod,
+        }),
+      ),
+      async (c) =>
+        jsonRequest("SessionRoutes.backups.list", c, function* () {
+          const sessionID = c.req.valid("param").sessionID
+          return yield* listBackups(sessionID)
+        }),
+    )
+    .post(
+      "/:sessionID/backups/restore",
+      describeRoute({
+        summary: "Restore backup",
+        description: "Restore a file from an edit backup. Copies the .bak file over the original.",
+        operationId: "session.backups.restore",
+        responses: {
+          200: {
+            description: "Restored file path",
+            content: {
+              "application/json": {
+                schema: resolver(z.string()),
+              },
+            },
+          },
+          ...errors(400, 404),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: SessionID.zod,
+        }),
+      ),
+      validator("json", z.object({ filename: z.string() })),
+      async (c) =>
+        jsonRequest("SessionRoutes.backups.restore", c, function* () {
+          const sessionID = c.req.valid("param").sessionID
+          const { filename } = c.req.valid("json")
+          return yield* restoreBackup(sessionID, filename)
         }),
     ),
 )

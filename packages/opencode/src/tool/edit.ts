@@ -44,6 +44,10 @@ function writeBackup(
 
     yield* afs.writeFileString(bakPath, content).pipe(Effect.catch(() => Effect.void))
 
+    yield* afs
+      .writeFileString(bakPath + ".meta.json", JSON.stringify({ originalPath: filePath }))
+      .pipe(Effect.catch(() => Effect.void))
+
     const entries = yield* afs.readDirectory(dir).pipe(Effect.catch(() => Effect.succeed([] as string[])))
     if (entries.length > MAX_BACKUPS_PER_SESSION) {
       const sorted = entries.sort()

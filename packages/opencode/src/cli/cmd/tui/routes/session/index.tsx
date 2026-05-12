@@ -60,6 +60,7 @@ import type { PromptInfo } from "../../component/prompt/history"
 import { DialogConfirm } from "@tui/ui/dialog-confirm"
 import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
+import { DialogRestore } from "./dialog-restore"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
 import { Sidebar } from "./sidebar"
 import { SubagentFooter } from "./subagent-footer.tsx"
@@ -438,6 +439,18 @@ export function Session() {
       },
       onSelect: (dialog) => {
         dialog.replace(() => <DialogSessionRename session={route.sessionID} />)
+      },
+    },
+    {
+      title: "Restore file from backup",
+      value: "session.restore",
+      keybind: "session_restore",
+      category: "Session",
+      slash: {
+        name: "restore",
+      },
+      onSelect: (dialog) => {
+        dialog.replace(() => <DialogRestore sessionID={route.sessionID} />)
       },
     },
     {

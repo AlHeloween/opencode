@@ -92,6 +92,15 @@ const table = sqliteTable("session", {
 })
 ```
 
+## Backup & Restore
+
+- The `edit` tool automatically creates `.bak` backups of pre-edit file content before each modification.
+- Backups live in `~/.local/share/opencode/backups/<sessionID>/` (one folder per session).
+- On Windows, this resolves to `%USERPROFILE%\.local\share\opencode\backups\<sessionID>\`.
+- Filename format: `<timestamp>_<callID>_<sanitized-path>.bak`
+- To restore: copy the `.bak` file over the original file (no git, no adm needed).
+- Each session keeps up to 50 backups; oldest are deleted first.
+
 ## opencode paths
 
 - opencode uses `xdg-basedir` for path resolution. On Windows, this maps to Unix-style paths under `%USERPROFILE%`:

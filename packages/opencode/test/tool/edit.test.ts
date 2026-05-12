@@ -621,7 +621,7 @@ describe("tool.edit", () => {
 
         const backupsDir = path.join(Global.Path.data, "backups", ctx.sessionID)
         const backupFiles = await fs.readdir(backupsDir)
-        const backups = backupFiles.filter((f) => f.includes(callID))
+        const backups = backupFiles.filter((f) => f.includes(callID) && f.endsWith(".bak"))
         expect(backups.length).toBe(1)
         expect(backups[0]).toMatch(new RegExp(`_.*${callID}`))
 
@@ -684,6 +684,117 @@ describe("tool.edit", () => {
           expect(backupContent).toBe("existing content")
         },
       })
+    })
+  })
+
+  describe("backup metadata", () => {
+    test("creates meta.json alongside backup", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      await fs.writeFile(filepath, "meta test content", "utf-8")
+      const callID = "call_meta_test"
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "meta test content",
+                newString: "meta test changed",
+              },
+              { ...ctx, callID },
+            ),
+          )
+
+          const backupsDir = path.join(Global.Path.data, "backups", ctx.sessionID)
+          const files = await fs.readdir(backupsDir)
+          const metaFiles = files.filter((f) => f.includes(callID) && f.endsWith(".meta.json"))
+          expect(metaFiles.length).toBe(1)
+
+          const meta = JSON.parse(await fs.readFile(path.join(backupsDir, metaFiles[0]), "utf-8"))
+          expect(meta.originalPath).toBe(AppFileSystem.normalizePath(filepath))
+        },
+      })
+    })
+  })
+
+  describe("list and restore backups", () => {
+    test("listBackups returns entries for session", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "list_test.txt")
+      await fs.writeFile(filepath, "list test content", "utf-8")
+      const callID = "call_list_test"
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "list test content",
+                newString: "list test changed",
+              },
+              { ...ctx, callID },
+            ),
+          )
+
+          const { listBackups } = await import("../../src/tool/edit-backup")
+          const result = await runtime.runPromise(listBackups(ctx.sessionID))
+          expect(result.length).toBeGreaterThanOrEqual(1)
+          const entry = result.find((e) => e.filename.includes(callID))
+          expect(entry).toBeTruthy()
+          expect(entry!.timestamp).toBeTruthy()
+          expect(entry!.originalPath).toBeDefined()
+        },
+      })
+    })
+
+    test("restoreBackup restores file content", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "restore_test.txt")
+      await fs.writeFile(filepath, "restore original", "utf-8")
+      const callID = "call_restore_test"
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "restore original",
+                newString: "restore changed",
+              },
+              { ...ctx, callID },
+            ),
+          )
+
+          // Verify file was changed
+          expect(await fs.readFile(filepath, "utf-8")).toBe("restore changed")
+
+          const { listBackups, restoreBackup } = await import("../../src/tool/edit-backup")
+          const entries = await runtime.runPromise(listBackups(ctx.sessionID))
+          const entry = entries.find((e) => e.filename.includes(callID))
+          expect(entry).toBeTruthy()
+
+          await runtime.runPromise(restoreBackup(ctx.sessionID, entry!.filename))
+
+          // Verify file was restored
+          expect(await fs.readFile(filepath, "utf-8")).toBe("restore original")
+        },
+      })
+    })
+
+    test("listBackups returns empty for unknown session", async () => {
+      const { listBackups } = await import("../../src/tool/edit-backup")
+      const result = await runtime.runPromise(listBackups("nonexistent_session"))
+      expect(result).toEqual([])
     })
   })
 

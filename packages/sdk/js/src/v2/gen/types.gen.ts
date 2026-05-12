@@ -1218,8 +1218,9 @@ export type PermissionConfig =
       todowrite?: PermissionActionConfig
       question?: PermissionActionConfig
       webfetch?: PermissionActionConfig
-      websearch?: PermissionActionConfig
-      codesearch?: PermissionActionConfig
+      universalsearch?: PermissionActionConfig
+      messagesearch?: PermissionActionConfig
+      "session-read"?: PermissionActionConfig
       lsp?: PermissionRuleConfig
       doom_loop?: PermissionActionConfig
       skill?: PermissionRuleConfig
@@ -1694,6 +1695,30 @@ export type Config = {
      * Timeout in milliseconds for model context protocol (MCP) requests
      */
     mcp_timeout?: number
+  }
+  universal_search?: {
+    /**
+     * Enable the universal search service (default: true)
+     */
+    enabled?: boolean
+    /**
+     * URL of the universal search service (default: http://127.0.0.1:3005)
+     */
+    url?: string
+  }
+  sourcegraph?: {
+    /**
+     * Enable Sourcegraph code search integration
+     */
+    enabled?: boolean
+    /**
+     * Sourcegraph instance URL
+     */
+    url?: string
+    /**
+     * Sourcegraph API token
+     */
+    token?: string
   }
 }
 
@@ -4275,6 +4300,76 @@ export type PermissionRespondResponses = {
 }
 
 export type PermissionRespondResponse = PermissionRespondResponses[keyof PermissionRespondResponses]
+
+export type SessionBackupsListData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/backups"
+}
+
+export type SessionBackupsListErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionBackupsListError = SessionBackupsListErrors[keyof SessionBackupsListErrors]
+
+export type SessionBackupsListResponses = {
+  /**
+   * Backup entries
+   */
+  200: Array<{
+    filename: string
+    timestamp: string
+    originalPath?: string
+  }>
+}
+
+export type SessionBackupsListResponse = SessionBackupsListResponses[keyof SessionBackupsListResponses]
+
+export type SessionBackupsRestoreData = {
+  body?: {
+    filename: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/backups/restore"
+}
+
+export type SessionBackupsRestoreErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionBackupsRestoreError = SessionBackupsRestoreErrors[keyof SessionBackupsRestoreErrors]
+
+export type SessionBackupsRestoreResponses = {
+  /**
+   * Restored file path
+   */
+  200: string
+}
+
+export type SessionBackupsRestoreResponse = SessionBackupsRestoreResponses[keyof SessionBackupsRestoreResponses]
 
 export type PermissionReplyData = {
   body?: {

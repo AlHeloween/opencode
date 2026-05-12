@@ -12,6 +12,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { Schema as EffectSchema } from "effect"
 import { zodObject } from "@/util/effect-zod"
 import type { DeepMutable } from "@/util/schema"
+import type { ProjectID } from "../project/schema"
 
 // Keep `Event["data"]` mutable because projectors mutate the persisted shape
 // when writing to the database. Bus payloads (`Properties`) stay readonly —
@@ -121,6 +122,33 @@ export function project<Def extends Definition>(
   return [def, func as ProjectorFunc]
 }
 
+function extractProjectId(data: unknown): { id: ProjectID; worktree: string } | undefined {
+  const d = data as Record<string, unknown>
+  const info = (d.info ?? d) as Record<string, unknown> | undefined
+  if (info?.projectID && info?.directory) {
+    return { id: info.projectID as ProjectID, worktree: info.directory as string }
+  }
+  return undefined
+}
+
+function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
+  const extracted = extractProjectId(data)
+  if (extracted) return extracted
+
+  try {
+    const row = Database.use((db) =>
+      db
+        .all<{ project_id: string; directory: string }>(
+          "SELECT project_id, directory FROM session_index WHERE id = ?",
+          [aggregateID],
+        ),
+    )
+    if (row[0]) return { id: row[0].project_id as ProjectID, worktree: row[0].directory }
+  } catch {}
+
+  return undefined
+}
+
 function process<Def extends Definition>(def: Def, event: Event<Def>, options: { publish: boolean }) {
   if (projectors == null) {
     throw new Error("No projectors available. Call `SyncEvent.init` to install projectors")
@@ -129,6 +157,42 @@ function process<Def extends Definition>(def: Def, event: Event<Def>, options: {
   const projector = projectors.get(def)
   if (!projector) {
     throw new Error(`Projector not found for event: ${def.type}`)
+  }
+
+  const projectDbMode = Database.isProjectDbMode()
+  const project = projectDbMode ? resolveProjectInfo(event.aggregateID, event.data) : undefined
+
+  if (projectDbMode && project) {
+    Database.projectTransaction(
+      project.id,
+      project.worktree,
+      (tx) => {
+        projector(tx, event.data)
+
+        tx.insert(EventSequenceTable)
+          .values({
+            aggregate_id: event.aggregateID,
+            seq: event.seq,
+          })
+          .onConflictDoUpdate({
+            target: EventSequenceTable.aggregate_id,
+            set: { seq: event.seq },
+          })
+          .run()
+        tx.insert(EventTable)
+          .values({
+            id: event.id,
+            seq: event.seq,
+            aggregate_id: event.aggregateID,
+            type: versionedType(def.type, def.version),
+            data: event.data as Record<string, unknown>,
+          })
+          .run()
+
+        Database.effect(() => emitEvent(def, event, options))
+      },
+    )
+    return
   }
 
   // idempotent: need to ignore any events already logged
@@ -158,31 +222,33 @@ function process<Def extends Definition>(def: Def, event: Event<Def>, options: {
         .run()
     }
 
-    Database.effect(() => {
-      if (options?.publish) {
-        const result = convertEvent(def.type, event.data)
-        const publish = (data: unknown) => ProjectBus.publish(def, data as Properties<Def>)
-        if (result instanceof Promise) {
-          void result.then(publish)
-        } else {
-          void publish(result)
-        }
-
-        GlobalBus.emit("event", {
-          directory: Instance.directory,
-          project: Instance.project.id,
-          workspace: WorkspaceContext.workspaceID,
-          payload: {
-            type: "sync",
-            syncEvent: {
-              type: versionedType(def.type, def.version),
-              ...event,
-            },
-          },
-        })
-      }
-    })
+    Database.effect(() => emitEvent(def, event, options))
   })
+}
+
+function emitEvent<Def extends Definition>(def: Def, event: Event<Def>, options: { publish: boolean }) {
+  if (options?.publish) {
+    const result = convertEvent(def.type, event.data)
+    const publish = (data: unknown) => ProjectBus.publish(def, data as Properties<Def>)
+    if (result instanceof Promise) {
+      void result.then(publish)
+    } else {
+      void publish(result)
+    }
+
+    GlobalBus.emit("event", {
+      directory: Instance.directory,
+      project: Instance.project.id,
+      workspace: WorkspaceContext.workspaceID,
+      payload: {
+        type: "sync",
+        syncEvent: {
+          type: versionedType(def.type, def.version),
+          ...event,
+        },
+      },
+    })
+  }
 }
 
 export function replay(event: SerializedEvent, options?: { publish: boolean }) {
@@ -245,6 +311,30 @@ export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], 
 
   const { publish = true } = options || {}
 
+  const projectDbMode = Database.isProjectDbMode()
+  const project = projectDbMode ? resolveProjectInfo(agg, data) : undefined
+
+  if (projectDbMode && project) {
+    Database.projectTransaction(
+      project.id,
+      project.worktree,
+      (tx) => {
+        const id = EventID.ascending()
+        const row = tx
+          .select({ seq: EventSequenceTable.seq })
+          .from(EventSequenceTable)
+          .where(eq(EventSequenceTable.aggregate_id, agg))
+          .get()
+        const seq = row?.seq != null ? row.seq + 1 : 0
+
+        const event = { id, seq, aggregateID: agg, data }
+        process(def, event, { publish })
+      },
+      { behavior: "immediate" },
+    )
+    return
+  }
+
   // Note that this is an "immediate" transaction which is critical.
   // We need to make sure we can safely read and write with nothing
   // else changing the data from under us
@@ -268,6 +358,17 @@ export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], 
 }
 
 export function remove(aggregateID: string) {
+  const projectDbMode = Database.isProjectDbMode()
+  const project = projectDbMode ? resolveProjectInfo(aggregateID, null) : undefined
+
+  if (projectDbMode && project) {
+    Database.projectTransaction(project.id, project.worktree, (tx) => {
+      tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+      tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
+    })
+    return
+  }
+
   Database.transaction((tx) => {
     tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
     tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()

@@ -10,6 +10,7 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
+import { SessionIndexTable } from "@/storage/global.sql"
 import { eq } from "drizzle-orm"
 import { and } from "drizzle-orm"
 import { gte } from "drizzle-orm"
@@ -428,7 +429,24 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Se
 export type Patch = Types.DeepMutable<SyncEvent.Event<typeof Event.Updated>["data"]["info"]>
 
 const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
-  Effect.sync(() => Database.use(fn))
+  Effect.gen(function* () {
+    if (Database.isProjectDbMode()) {
+      const ctx = yield* InstanceState.context
+      return Database.withProject(ctx.project.id, ctx.worktree, () => Database.use(fn))
+    }
+    return Database.use(fn)
+  })
+
+function resolveSessionProject(sessionID: SessionID): { id: ProjectID; worktree: string } | undefined {
+  if (!Database.isProjectDbMode()) return undefined
+  try {
+    const row = Database.use((d) =>
+      d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
+    )
+    if (row) return { id: row.project_id, worktree: row.directory }
+  } catch {}
+  return undefined
+}
 
 export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> = Layer.effect(
   Service,
@@ -477,7 +495,10 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
     })
 
     const get = Effect.fn("Session.get")(function* (id: SessionID) {
-      const row = yield* db((d) => d.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
+      const project = resolveSessionProject(id)
+      const row = project
+        ? yield* projectDb(project, (d) => d.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
+        : yield* db((d) => d.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
       if (!row) throw new NotFoundError({ message: `Session not found: ${id}` })
       return fromRow(row)
     })
@@ -775,18 +796,28 @@ export function* list(input?: {
 
   const limit = input?.limit ?? 100
 
-  const rows = Database.use((db) =>
-    db
-      .select()
-      .from(SessionTable)
-      .where(and(...conditions))
-      .orderBy(desc(SessionTable.time_updated))
-      .limit(limit)
-      .all(),
-  )
-  for (const row of rows) {
-    yield fromRow(row)
-  }
+  const projectDbMode = Database.isProjectDbMode()
+  const rows = projectDbMode
+    ? Database.withProject(project.id, project.worktree, () =>
+        Database.use((db) =>
+          db
+            .select()
+            .from(SessionTable)
+            .where(and(...conditions))
+            .orderBy(desc(SessionTable.time_updated))
+            .limit(limit)
+            .all(),
+        ))
+    : Database.use((db) =>
+        db
+          .select()
+          .from(SessionTable)
+          .where(and(...conditions))
+          .orderBy(desc(SessionTable.time_updated))
+          .limit(limit)
+          .all(),
+      )
+  for (const row of rows) { yield fromRow(row) }
 }
 
 export function* listGlobal(input?: {
@@ -798,43 +829,61 @@ export function* listGlobal(input?: {
   limit?: number
   archived?: boolean
 }) {
-  const conditions: SQL[] = []
-
-  if (input?.directory) {
-    conditions.push(eq(SessionTable.directory, input.directory))
-  }
-  if (input?.roots) {
-    conditions.push(isNull(SessionTable.parent_id))
-  }
-  if (input?.start) {
-    conditions.push(gte(SessionTable.time_updated, input.start))
-  }
-  if (input?.cursor) {
-    conditions.push(lt(SessionTable.time_updated, input.cursor))
-  }
-  if (input?.search) {
-    conditions.push(like(SessionTable.title, `%${input.search}%`))
-  }
-  if (!input?.archived) {
-    conditions.push(isNull(SessionTable.time_archived))
-  }
-
   const limit = input?.limit ?? 100
+  const projectDbMode = Database.isProjectDbMode()
+
+  if (projectDbMode) {
+    const conditions: SQL[] = []
+    if (input?.directory) conditions.push(eq(SessionIndexTable.directory, input.directory))
+    if (input?.roots) conditions.push(isNull(SessionIndexTable.parent_id))
+    if (input?.start) conditions.push(gte(SessionIndexTable.time_updated, input.start))
+    if (input?.cursor) conditions.push(lt(SessionIndexTable.time_updated, input.cursor))
+    if (input?.search) conditions.push(like(SessionIndexTable.title, `%${input.search}%`))
+    if (!input?.archived) conditions.push(isNull(SessionIndexTable.time_archived))
+
+    const rows = Database.use((db) => {
+      let query = db.select().from(SessionIndexTable)
+      if (conditions.length > 0) query = query.where(and(...conditions))
+      return query.orderBy(desc(SessionIndexTable.time_updated), desc(SessionIndexTable.id)).limit(limit).all()
+    })
+
+    const ids = [...new Set(rows.map((row) => row.project_id))]
+    const projects = new Map<string, ProjectInfo>()
+    if (ids.length > 0) {
+      const items = Database.use((db) =>
+        db
+          .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
+          .from(ProjectTable)
+          .where(inArray(ProjectTable.id, ids))
+          .all(),
+      )
+      for (const item of items) {
+        projects.set(item.id, { id: item.id, name: item.name ?? undefined, worktree: item.worktree })
+      }
+    }
+    for (const row of rows) {
+      yield { id: row.id, slug: "", projectID: row.project_id, directory: row.directory, title: row.title, version: "", parentID: row.parent_id ?? undefined, workspaceID: row.workspace_id ?? undefined, time: { created: row.time_created, updated: row.time_updated, archived: row.time_archived ?? undefined }, project: projects.get(row.project_id) ?? null }
+    }
+    return
+  }
+
+  const conditions: SQL[] = []
+  if (input?.directory) { conditions.push(eq(SessionTable.directory, input.directory)) }
+  if (input?.roots) { conditions.push(isNull(SessionTable.parent_id)) }
+  if (input?.start) { conditions.push(gte(SessionTable.time_updated, input.start)) }
+  if (input?.cursor) { conditions.push(lt(SessionTable.time_updated, input.cursor)) }
+  if (input?.search) { conditions.push(like(SessionTable.title, `%${input.search}%`)) }
+  if (!input?.archived) { conditions.push(isNull(SessionTable.time_archived)) }
 
   const rows = Database.use((db) => {
-    const query =
-      conditions.length > 0
-        ? db
-            .select()
-            .from(SessionTable)
-            .where(and(...conditions))
-        : db.select().from(SessionTable)
+    const query = conditions.length > 0
+      ? db.select().from(SessionTable).where(and(...conditions))
+      : db.select().from(SessionTable)
     return query.orderBy(desc(SessionTable.time_updated), desc(SessionTable.id)).limit(limit).all()
   })
 
   const ids = [...new Set(rows.map((row) => row.project_id))]
   const projects = new Map<string, ProjectInfo>()
-
   if (ids.length > 0) {
     const items = Database.use((db) =>
       db
@@ -844,14 +893,9 @@ export function* listGlobal(input?: {
         .all(),
     )
     for (const item of items) {
-      projects.set(item.id, {
-        id: item.id,
-        name: item.name ?? undefined,
-        worktree: item.worktree,
-      })
+      projects.set(item.id, { id: item.id, name: item.name ?? undefined, worktree: item.worktree })
     }
   }
-
   for (const row of rows) {
     const project = projects.get(row.project_id) ?? null
     yield { ...fromRow(row), project }

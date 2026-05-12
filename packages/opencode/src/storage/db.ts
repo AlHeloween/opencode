@@ -28,6 +28,33 @@ export const NotFoundError = NamedError.create(
 
 const log = Log.create({ service: "db" })
 
+const MIGRATION_FLAG_TABLE = "_meta"
+const MIGRATION_FLAG_KEY = "migrated_to_project_db"
+
+function setProjectDbModeFlag(db: DrizzleClient) {
+  try {
+    db.run(`CREATE TABLE IF NOT EXISTS "${MIGRATION_FLAG_TABLE}" (key text PRIMARY KEY NOT NULL, value text NOT NULL)`)
+    db.run(`INSERT OR REPLACE INTO "${MIGRATION_FLAG_TABLE}" (key, value) VALUES ('${MIGRATION_FLAG_KEY}', '1')`)
+  } catch {}
+}
+
+export function isProjectDbMode() {
+  try {
+    const rows = Client().all<{ value: string }>(
+      `SELECT value FROM "${MIGRATION_FLAG_TABLE}" WHERE key = '${MIGRATION_FLAG_KEY}'`,
+    )
+    return rows[0]?.value === "1"
+  } catch {
+    return false
+  }
+}
+
+export function markProjectDbMode() {
+  setProjectDbModeFlag(Client())
+}
+
+const log = Log.create({ service: "db" })
+
 export function getChannelPath() {
   if (["latest", "beta", "prod"].includes(InstallationChannel) || Flag.OPENCODE_DISABLE_CHANNEL_DB)
     return path.join(Global.Path.data, "opencode.db")
@@ -329,8 +356,17 @@ export type TxOrDb = Transaction | Client
 
 const ctx = LocalContext.create<{
   tx: TxOrDb
-  effects: (() => void | Promise<void>)[]
+  effects: (() => void | Promise<void>)[],
 }>("database")
+
+const currentProjectCtx = LocalContext.create<{
+  projectID: ProjectID
+  worktree: string
+}>("database.project")
+
+export function withProject<T>(projectID: ProjectID, worktree: string, callback: () => T): T {
+  return currentProjectCtx.provide({ projectID, worktree }, callback)
+}
 
 export function use<T>(callback: (trx: TxOrDb) => T): T {
   try {
@@ -338,10 +374,24 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
       const effects: (() => void | Promise<void>)[] = []
-      const result = ctx.provide({ effects, tx: Client() }, () => callback(Client()))
+      let db: TxOrDb
+      if (isProjectDbMode()) {
+        try {
+          const proj = currentProjectCtx.use()
+          db = getProjectDb(proj.projectID, proj.worktree)
+        } catch {
+          db = Client()
+        }
+      } else {
+        db = Client()
+      }
+      const result = ctx.provide({ effects, tx: db }, () => callback(db))
       for (const effect of effects) effect()
       return result
     }
+    throw err
+  }
+}
     throw err
   }
 }
@@ -383,8 +433,19 @@ export function transaction<T>(
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
       const effects: (() => void | Promise<void>)[] = []
+      let db: TxOrDb
+      if (isProjectDbMode()) {
+        try {
+          const proj = currentProjectCtx.use()
+          db = getProjectDb(proj.projectID, proj.worktree)
+        } catch {
+          db = Client()
+        }
+      } else {
+        db = Client()
+      }
       const txCallback = InstanceState.bind((tx: TxOrDb) => ctx.provide({ tx, effects }, () => callback(tx)))
-      const result = Client().transaction(txCallback, { behavior: options?.behavior })
+      const result = db.transaction(txCallback, { behavior: options?.behavior })
       for (const effect of effects) effect()
       return result as NotPromise<T>
     }

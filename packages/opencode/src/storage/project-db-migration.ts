@@ -1,5 +1,5 @@
 import * as Log from "@opencode-ai/core/util/log"
-import { Database, Path } from "./db"
+import { Database, markProjectDbMode } from "./db"
 import type { ProjectID } from "../project/schema"
 
 const log = Log.create({ service: "project-db-migration" })
@@ -29,6 +29,10 @@ export function migrateAll() {
     }
 
     log.info("per-project database migration complete")
+
+    cleanupGlobal()
+    markProjectDbMode()
+    log.info("switched to project database mode")
   })
 }
 

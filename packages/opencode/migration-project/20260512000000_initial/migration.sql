@@ -97,6 +97,11 @@ CREATE TABLE IF NOT EXISTS "workspace" (
   project_id text NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS "event_sequence" (
+  aggregate_id text PRIMARY KEY NOT NULL,
+  seq integer NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS "event" (
   id text PRIMARY KEY NOT NULL,
   aggregate_id text NOT NULL,

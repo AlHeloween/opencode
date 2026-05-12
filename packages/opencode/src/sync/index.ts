@@ -167,16 +167,6 @@ function process<Def extends Definition>(def: Def, event: Event<Def>, options: {
       (tx) => {
         projector(tx, event.data)
 
-        tx.insert(EventSequenceTable)
-          .values({
-            aggregate_id: event.aggregateID,
-            seq: event.seq,
-          })
-          .onConflictDoUpdate({
-            target: EventSequenceTable.aggregate_id,
-            set: { seq: event.seq },
-          })
-          .run()
         tx.insert(EventTable)
           .values({
             id: event.id,
@@ -190,6 +180,16 @@ function process<Def extends Definition>(def: Def, event: Event<Def>, options: {
         Database.effect(() => emitEvent(def, event, options))
       },
     )
+    // Write event_sequence to global DB for cross-project sync fence
+    Database.use((db) => {
+      db.insert(EventSequenceTable)
+        .values({ aggregate_id: event.aggregateID, seq: event.seq })
+        .onConflictDoUpdate({
+          target: EventSequenceTable.aggregate_id,
+          set: { seq: event.seq },
+        })
+        .run()
+    })
     return
   }
 
@@ -255,13 +255,23 @@ export function replay(event: SerializedEvent, options?: { publish: boolean }) {
     throw new Error(`Unknown event type: ${event.type}`)
   }
 
-  const row = Database.use((db) =>
+  const readSequence = (db: Database.TxOrDb) =>
     db
       .select({ seq: EventSequenceTable.seq })
       .from(EventSequenceTable)
       .where(eq(EventSequenceTable.aggregate_id, event.aggregateID))
-      .get(),
-  )
+      .get()
+
+  let row: { seq: number | null } | undefined
+  if (Database.isProjectDbMode()) {
+    const project = resolveProjectInfo(event.aggregateID, null)
+    if (project) {
+      row = Database.projectUse(project.id, project.worktree, readSequence)
+    }
+  }
+  if (!row) {
+    row = Database.use(readSequence)
+  }
 
   const latest = row?.seq ?? -1
   if (event.seq <= latest) {

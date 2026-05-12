@@ -33,6 +33,7 @@ import { DbCommand } from "./cli/cmd/db"
 import path from "path"
 import { Global } from "@opencode-ai/core/global"
 import { JsonMigration } from "@/storage/json-migration"
+import { needsMigration, migrateAll } from "@/storage/project-db-migration"
 import { Database } from "@/storage/db"
 import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
@@ -41,6 +42,15 @@ import { drizzle } from "drizzle-orm/bun-sqlite"
 import { ensureProcessMetadata } from "@opencode-ai/core/util/opencode-process"
 
 const processMetadata = ensureProcessMetadata("main")
+
+function migrateProjectDbs(): boolean {
+  if (needsMigration()) {
+    process.stderr.write("Per-project database migration starting..." + EOL)
+    migrateAll()
+    return true
+  }
+  return false
+}
 
 process.on("unhandledRejection", (e) => {
   Log.Default.error("rejection", {
@@ -150,6 +160,12 @@ const cli = yargs(args)
         }
       }
       process.stderr.write("Database migration complete." + EOL)
+    }
+
+    const wasMigrated = migrateProjectDbs()
+    if (wasMigrated) {
+      process.stderr.write("Per-project database migration applied. Restarting..." + EOL)
+      process.exit(0)
     }
   })
   .usage("")

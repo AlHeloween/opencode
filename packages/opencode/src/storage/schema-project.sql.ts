@@ -113,5 +113,3 @@ export const EventTable = sqliteTable("event", {
   type: text().notNull(),
   data: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
 })
-
-export * as ProjectSchema from "."

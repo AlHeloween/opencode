@@ -14,5 +14,3 @@ export const SessionIndexTable = sqliteTable("session_index", {
   time_updated: integer().notNull(),
   time_archived: integer(),
 })
-
-export * as GlobalSchema from "."

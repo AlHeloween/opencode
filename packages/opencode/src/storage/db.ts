@@ -1,6 +1,6 @@
 import { type SQLiteBunDatabase } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
-import { type SQLiteTransaction, sql } from "drizzle-orm/sqlite-core"
+import { type SQLiteTransaction } from "drizzle-orm/sqlite-core"
 export * from "drizzle-orm"
 import { LocalContext } from "@/util/local-context"
 import { lazy } from "../util/lazy"
@@ -52,8 +52,6 @@ export function isProjectDbMode() {
 export function markProjectDbMode() {
   setProjectDbModeFlag(Client())
 }
-
-const log = Log.create({ service: "db" })
 
 export function getChannelPath() {
   if (["latest", "beta", "prod"].includes(InstallationChannel) || Flag.OPENCODE_DISABLE_CHANNEL_DB)
@@ -389,9 +387,6 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
       for (const effect of effects) effect()
       return result
     }
-    throw err
-  }
-}
     throw err
   }
 }

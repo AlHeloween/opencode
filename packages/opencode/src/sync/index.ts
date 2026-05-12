@@ -136,13 +136,11 @@ function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID
   if (extracted) return extracted
 
   try {
-    const row = Database.use((db) =>
-      db
-        .all<{ project_id: string; directory: string }>(
-          "SELECT project_id, directory FROM session_index WHERE id = ?",
-          [aggregateID],
-        ),
-    )
+    const row = Database.use((db) => {
+      const rawDb = (db as unknown as { $client: { client: { prepare: (sql: string) => { all: (...args: unknown[]) => unknown[] } } } }).$client.client
+      const stmt = rawDb.prepare("SELECT project_id, directory FROM session_index WHERE id = ?")
+      return stmt.all(aggregateID)
+    }) as { project_id: string; directory: string }[]
     if (row[0]) return { id: row[0].project_id as ProjectID, worktree: row[0].directory }
   } catch {}
 

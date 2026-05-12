@@ -429,13 +429,7 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Se
 export type Patch = Types.DeepMutable<SyncEvent.Event<typeof Event.Updated>["data"]["info"]>
 
 const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
-  Effect.gen(function* () {
-    if (Database.isProjectDbMode()) {
-      const ctx = yield* InstanceState.context
-      return Database.withProject(ctx.project.id, ctx.worktree, () => Database.use(fn))
-    }
-    return Database.use(fn)
-  })
+  Effect.sync(() => Database.use(fn))
 
 function resolveSessionProject(sessionID: SessionID): { id: ProjectID; worktree: string } | undefined {
   if (!Database.isProjectDbMode()) return undefined
@@ -495,10 +489,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
     })
 
     const get = Effect.fn("Session.get")(function* (id: SessionID) {
-      const project = resolveSessionProject(id)
-      const row = project
-        ? yield* projectDb(project, (d) => d.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
-        : yield* db((d) => d.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
+      const row = yield* db((d) => d.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
       if (!row) throw new NotFoundError({ message: `Session not found: ${id}` })
       return fromRow(row)
     })
@@ -842,8 +833,9 @@ export function* listGlobal(input?: {
     if (!input?.archived) conditions.push(isNull(SessionIndexTable.time_archived))
 
     const rows = Database.use((db) => {
-      let query = db.select().from(SessionIndexTable)
-      if (conditions.length > 0) query = query.where(and(...conditions))
+      const query = conditions.length > 0
+        ? db.select().from(SessionIndexTable).where(and(...conditions))
+        : db.select().from(SessionIndexTable)
       return query.orderBy(desc(SessionIndexTable.time_updated), desc(SessionIndexTable.id)).limit(limit).all()
     })
 

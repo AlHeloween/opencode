@@ -161,13 +161,32 @@ function projectMigrationsDir() {
   return path.join(import.meta.dirname, "../../migration-project")
 }
 
+function applyProjectMigrations(db: DrizzleClient) {
+  const dir = projectMigrationsDir()
+  const journal = migrations(dir)
+  if (journal.length === 0) return
+  log.info("applying project migrations", { count: journal.length })
+  for (const item of journal) {
+    if (Flag.OPENCODE_SKIP_MIGRATIONS) {
+      item.sql = "select 1;"
+      continue
+    }
+    try {
+      db.$client.exec(item.sql)
+    } catch (e) {
+      log.warn("project migration statement failed, continuing", { name: item.name, error: String(e) })
+    }
+  }
+}
+
 export function getProjectDb(projectID: ProjectID, worktree: string): DrizzleClient {
   const cached = projectClients.get(projectID)
   if (cached) return cached
 
   const dbPath = getProjectDbPath(worktree)
   log.info("opening project database", { projectID, path: dbPath })
-  const db = createAndInitDb(dbPath, projectMigrationsDir())
+  const db = createAndInitDb(dbPath, "") // skip Drizzle migrations for project DB
+  applyProjectMigrations(db)
   projectClients.set(projectID, db)
   return db
 }

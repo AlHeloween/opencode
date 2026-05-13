@@ -1,5 +1,11 @@
 import { Schema } from "effect"
 import { SessionEvent } from "./session-event"
+import { Database } from "@/storage/db"
+import { use as projectDb } from "@/storage/project-db"
+import { SessionEntryTable } from "@/session/session.sql"
+import { eq } from "drizzle-orm"
+import { SessionID } from "@/session/schema"
+import { Effect, Layer, Context } from "effect"
 
 export const ID = SessionEvent.ID
 export type ID = Schema.Schema.Type<typeof ID>
@@ -197,7 +203,7 @@ export const layer: Layer.Layer<Service, never, never> = Layer.effect(
     const decode: (typeof Service.Service)["decode"] = (row) => decodeEntry({ ...row, id: row.id, type: row.type })
 
     const fromSession = Effect.fn("SessionEntry.fromSession")(function* (sessionID: SessionID) {
-      return Database.use((db) =>
+      return projectDb((db) =>
         db
           .select()
           .from(SessionEntryTable)

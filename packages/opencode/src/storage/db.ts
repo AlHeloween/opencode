@@ -115,7 +115,7 @@ export const Client = lazy(() => {
   const db = createAndInitDb(Path, path.join(import.meta.dirname, "../../migration"))
   verifyFTS(db)
   maintainOnStartup(db)
-  tryMigrateProjectDbs()
+  tryMigrateProjectDbs(db)
   return db
 })
 
@@ -371,9 +371,9 @@ export function close() {
   Client.reset()
 }
 
-function tryMigrateProjectDbs() {
+function tryMigrateProjectDbs(db: DrizzleClient) {
   if (Flag.OPENCODE_SKIP_MIGRATIONS) return
-  if (!needsMigration()) return
+  if (!needsMigration(db)) return
   log.info("per-project database migration triggered")
   try {
     migrateAll()

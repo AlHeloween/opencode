@@ -8,12 +8,17 @@ function rawExec(db: unknown) {
   return (db as { $client: { exec: (sql: string) => string | undefined } }).$client
 }
 
-export function needsMigration(): boolean {
-  return Database.use((db) => {
-    const hasSession = db
-      .all<{ c: number }>("SELECT count(*) as c FROM sqlite_master WHERE type='table' AND name='session'")
+export function needsMigration(db?: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never): boolean {
+  if (db) {
+    const hasSession = db.all<{ c: number }>("SELECT count(*) as c FROM sqlite_master WHERE type='table' AND name='session'")
     if (hasSession[0]?.c === 0) return false
     const sessionCount = db.all<{ c: number }>("SELECT count(*) as c FROM session")
+    return sessionCount[0]?.c > 0
+  }
+  return Database.use((d) => {
+    const hasSession = d.all<{ c: number }>("SELECT count(*) as c FROM sqlite_master WHERE type='table' AND name='session'")
+    if (hasSession[0]?.c === 0) return false
+    const sessionCount = d.all<{ c: number }>("SELECT count(*) as c FROM session")
     return sessionCount[0]?.c > 0
   })
 }

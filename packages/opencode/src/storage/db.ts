@@ -73,7 +73,7 @@ export type Transaction = SQLiteTransaction<"sync", void>
 
 type Client = SQLiteBunDatabase
 
-type DrizzleClient = ReturnType<typeof init> & { $client: { close: () => void; exec: (sql: string) => void } }
+type DrizzleClient = ReturnType<typeof init> & { $client: { close: () => void; exec: (sql: string) => void; client: { prepare: (sql: string) => { get: (...args: unknown[]) => unknown; all: (...args: unknown[]) => unknown[]; run: (...args: unknown[]) => void } } } }
 
 type Journal = { sql: string; timestamp: number; name: string }[]
 
@@ -373,7 +373,14 @@ export function close() {
 
 function tryMigrateProjectDbs(db: DrizzleClient) {
   if (Flag.OPENCODE_SKIP_MIGRATIONS) return
-  if (!needsMigration(db)) return
+  try {
+    const row = db.$client.client.prepare("SELECT count(*) as c FROM sqlite_master WHERE type='table' AND name='session'").get()
+    if (!row || (row as any).c === 0) return
+    const row2 = db.$client.client.prepare("SELECT count(*) as c FROM session").get()
+    if (!row2 || (row2 as any).c === 0) return
+  } catch {
+    return
+  }
   log.info("per-project database migration triggered")
   try {
     migrateAll()

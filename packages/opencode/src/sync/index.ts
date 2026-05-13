@@ -137,7 +137,7 @@ function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID
 
   try {
     const row = Database.use((db) => {
-      const rawDb = (db as unknown as { $client: { client: { prepare: (sql: string) => { all: (...args: unknown[]) => unknown[] } } } }).$client.client
+      const rawDb = (db as unknown as { $client: { prepare: (sql: string) => { all: (...args: unknown[]) => unknown[] } } }).$client
       const stmt = rawDb.prepare("SELECT project_id, directory FROM session_index WHERE id = ?")
       return stmt.all(aggregateID)
     }) as { project_id: string; directory: string }[]

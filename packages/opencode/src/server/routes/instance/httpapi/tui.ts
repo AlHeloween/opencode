@@ -3,6 +3,7 @@ import { TuiEvent } from "@/cli/cmd/tui/event"
 import { SessionID } from "@/session/schema"
 import { SessionTable } from "@/session/session.sql"
 import * as Database from "@/storage/db"
+import { use as projectDb } from "@/storage/project-db"
 import { eq } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
@@ -252,7 +253,7 @@ export const tuiHandlers = Layer.unwrap(
       payload: typeof TuiEvent.SessionSelect.properties.Type
     }) {
       const row = yield* Effect.sync(() =>
-        Database.use((db) =>
+        projectDb((db) =>
           db.select({ id: SessionTable.id }).from(SessionTable).where(eq(SessionTable.id, ctx.payload.sessionID)).get(),
         ),
       )

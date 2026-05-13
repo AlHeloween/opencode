@@ -3,6 +3,7 @@ import { cmd } from "./cmd"
 import { Session } from "@/session/session"
 import { bootstrap } from "../bootstrap"
 import { Database } from "@/storage/db"
+import { use as projectDb } from "@/storage/project-db"
 import { SessionTable } from "../../session/session.sql"
 import { Project } from "@/project/project"
 import { Instance } from "../../project/instance"
@@ -89,7 +90,7 @@ async function getCurrentProject(): Promise<Project.Info> {
 }
 
 async function getAllSessions(): Promise<Session.Info[]> {
-  const rows = Database.use((db) => db.select().from(SessionTable).all())
+  const rows = projectDb((db) => db.select().from(SessionTable).all())
   return rows.map((row) => Session.fromRow(row))
 }
 

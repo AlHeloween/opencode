@@ -5,6 +5,7 @@ import { MessageV2 } from "../../session/message-v2"
 import { cmd } from "./cmd"
 import { bootstrap } from "../bootstrap"
 import { Database } from "@/storage/db"
+import { transaction as projectTx } from "@/storage/project-db"
 import { SessionTable, MessageTable, PartTable } from "../../session/session.sql"
 import { Instance } from "../../project/instance"
 import { ShareNext } from "@/share/share-next"
@@ -164,7 +165,7 @@ export const ImportCommand = cmd({
       }) as Session.Info
       const row = Session.toRow(info)
 
-      Database.transaction((tx) => {
+      projectTx((tx) => {
         tx.insert(SessionTable)
           .values(row)
           .onConflictDoUpdate({ target: SessionTable.id, set: { project_id: row.project_id } })

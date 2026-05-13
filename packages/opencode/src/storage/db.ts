@@ -16,6 +16,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { iife } from "@/util/iife"
 import { init } from "#db"
 import type { ProjectID } from "../project/schema"
+import { needsMigration, migrateAll } from "./project-db-migration"
 
 declare const OPENCODE_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
 
@@ -114,6 +115,7 @@ export const Client = lazy(() => {
   const db = createAndInitDb(Path, path.join(import.meta.dirname, "../../migration"))
   verifyFTS(db)
   maintainOnStartup(db)
+  tryMigrateProjectDbs()
   return db
 })
 
@@ -367,6 +369,18 @@ export function close() {
   closeAllProjectDbs()
   Client().$client.close()
   Client.reset()
+}
+
+function tryMigrateProjectDbs() {
+  if (Flag.OPENCODE_SKIP_MIGRATIONS) return
+  if (!needsMigration()) return
+  log.info("per-project database migration triggered")
+  try {
+    migrateAll()
+    log.info("per-project database migration complete, restart recommended")
+  } catch (e) {
+    log.error("per-project database migration failed", { error: String(e) })
+  }
 }
 
 const FTS_BACKFILL_SQL = `

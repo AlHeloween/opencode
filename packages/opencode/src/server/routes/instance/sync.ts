@@ -3,6 +3,7 @@ import { Hono } from "hono"
 import { describeRoute, validator, resolver } from "hono-openapi"
 import { SyncEvent } from "@/sync"
 import { Database } from "@/storage/db"
+import { use as projectDb } from "@/storage/project-db"
 import { asc } from "drizzle-orm"
 import { and } from "drizzle-orm"
 import { not } from "drizzle-orm"
@@ -142,7 +143,7 @@ export const SyncRoutes = lazy(() =>
           exclude.length > 0
             ? not(or(...exclude.map(([id, seq]) => and(eq(EventTable.aggregate_id, id), lte(EventTable.seq, seq))))!)
             : undefined
-        const rows = Database.use((db) => db.select().from(EventTable).where(where).orderBy(asc(EventTable.seq)).all())
+        const rows = projectDb((db) => db.select().from(EventTable).where(where).orderBy(asc(EventTable.seq)).all())
         return c.json(rows)
       },
     ),

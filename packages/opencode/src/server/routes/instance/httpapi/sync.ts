@@ -1,6 +1,7 @@
 import { startWorkspaceSyncing } from "@/control-plane/workspace"
 import * as InstanceState from "@/effect/instance-state"
 import { Database } from "@/storage/db"
+import { use as projectDb } from "@/storage/project-db"
 import { asc } from "drizzle-orm"
 import { and } from "drizzle-orm"
 import { eq } from "drizzle-orm"
@@ -115,7 +116,7 @@ export const syncHandlers = Layer.unwrap(
 
     const history = Effect.fn("SyncHttpApi.history")(function* (ctx: { payload: typeof HistoryPayload.Type }) {
       const exclude = Object.entries(ctx.payload)
-      return Database.use((db) =>
+      return projectDb((db) =>
         db
           .select()
           .from(EventTable)

@@ -550,7 +550,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       }).pipe(Effect.withSpan("Session.updatePart"))
 
     const getPart: Interface["getPart"] = Effect.fn("Session.getPart")(function* (input) {
-      const row = Database.use((db) =>
+      const row = projectDb((db) =>
         db
           .select()
           .from(PartTable)

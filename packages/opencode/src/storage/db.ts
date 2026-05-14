@@ -18,31 +18,8 @@ declare const OPENCODE_MIGRATIONS: { sql: string; timestamp: number; name: strin
 
 const log = Log.create({ service: "db" })
 
-const MIGRATION_FLAG_TABLE = "_meta"
-const MIGRATION_FLAG_KEY = "migrated_to_project_db"
-
-function setProjectDbModeFlag(db: { run: (sql: string) => void }) {
-  try {
-    db.run(`CREATE TABLE IF NOT EXISTS "${MIGRATION_FLAG_TABLE}" (key text PRIMARY KEY NOT NULL, value text NOT NULL)`)
-    db.run(`INSERT OR REPLACE INTO "${MIGRATION_FLAG_TABLE}" (key, value) VALUES ('${MIGRATION_FLAG_KEY}', '1')`)
-  } catch (err) {
-    log.error("failed to set project DB mode flag", { error: err })
-  }
-}
-
-export function isProjectDbMode(db?: { all: <T>(sql: string, ...params: unknown[]) => T[] }) {
-  try {
-    const rows = (db ?? Client()).all<{ value: string }>(
-      `SELECT value FROM "${MIGRATION_FLAG_TABLE}" WHERE key = '${MIGRATION_FLAG_KEY}'`,
-    )
-    return rows[0]?.value === "1"
-  } catch {
-    return false
-  }
-}
-
-export function markProjectDbMode(db?: { run: (sql: string) => void }) {
-  setProjectDbModeFlag(db ?? Client())
+export function usesProjectDb(worktree: string) {
+  return worktree !== "/"
 }
 
 export const Path = iife(() => {
@@ -537,14 +514,10 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
     if (err instanceof LocalContext.NotFound) {
       const effects: (() => void | Promise<void>)[] = []
       let db: TxOrDb
-      if (isProjectDbMode()) {
-        try {
-          const proj = currentProjectCtx.use()
-          db = getProjectDb(proj.projectID, proj.worktree)
-        } catch {
-          db = Client()
-        }
-      } else {
+      try {
+        const proj = currentProjectCtx.use()
+        db = usesProjectDb(proj.worktree) ? getProjectDb(proj.projectID, proj.worktree) : Client()
+      } catch {
         db = Client()
       }
       const result = ctx.provide({ effects, tx: db }, () => callback(db))
@@ -560,7 +533,7 @@ export function projectUse<T>(projectID: ProjectID, worktree: string, callback: 
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
-      const db = getProjectDb(projectID, worktree)
+      const db = usesProjectDb(worktree) ? getProjectDb(projectID, worktree) : Client()
       const effects: (() => void | Promise<void>)[] = []
       const result = ctx.provide({ effects, tx: db }, () => callback(db))
       for (const effect of effects) effect()
@@ -593,14 +566,10 @@ export function transaction<T>(
     if (err instanceof LocalContext.NotFound) {
       const effects: (() => void | Promise<void>)[] = []
       let db: TxOrDb
-      if (isProjectDbMode()) {
-        try {
-          const proj = currentProjectCtx.use()
-          db = getProjectDb(proj.projectID, proj.worktree)
-        } catch {
-          db = Client()
-        }
-      } else {
+      try {
+        const proj = currentProjectCtx.use()
+        db = usesProjectDb(proj.worktree) ? getProjectDb(proj.projectID, proj.worktree) : Client()
+      } catch {
         db = Client()
       }
       const txCallback = InstanceState.bind((tx: TxOrDb) => {
@@ -626,7 +595,7 @@ export function projectTransaction<T>(
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
-      const db = getProjectDb(projectID, worktree)
+      const db = usesProjectDb(worktree) ? getProjectDb(projectID, worktree) : Client()
       const effects: (() => void | Promise<void>)[] = []
       const txCallback = InstanceState.bind((tx: TxOrDb) => {
         const result = ctx.provide({ tx, effects }, () => callback(tx))

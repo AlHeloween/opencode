@@ -1,0 +1,95 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/sync/index.ts
+@@
+-function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
++function resolveProjectInfo(_aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
+@@
+ function process<Def extends Definition>(def: Def, event: Event<Def>, options: { publish: boolean }) {
+   const projector = projectorFor(def)
+
+-const project = resolveProjectInfo(event.aggregateID, event.data)
++  const project = resolveProjectInfo(event.aggregateID, event.data)
+
+-if (project) {
+-  Database.projectTransaction(project.id, project.worktree, (tx) => {
+-    applyProjectEvent(tx, projector, def, event, options)
+-  })
+-  writeGlobalSequence(event.aggregateID, event.seq)
+-  return
+-}
++  if (project) {
++    Database.projectTransaction(project.id, project.worktree, (tx) => {
++      applyProjectEvent(tx, projector, def, event, options)
++    })
++    writeGlobalSequence(event.aggregateID, event.seq)
++    return
++  }
+@@
+   const project = resolveProjectInfo(agg, data)
+
+   if (project) {
+-  const projector = projectorFor(def)
+-  let sequence = -1
+-  Database.projectTransaction(
+-    project.id,
+-    project.worktree,
+-    (tx) => {
+-      const id = EventID.ascending()
+-      const row = tx
+-        .select({ seq: EventSequenceTable.seq })
+-        .from(EventSequenceTable)
+-        .where(eq(EventSequenceTable.aggregate_id, agg))
+-        .get()
+-      const seq = row?.seq != null ? row.seq + 1 : 0
+-      sequence = seq
+-
+-      const event = { id, seq, aggregateID: agg, data }
+-      applyProjectEvent(tx, projector, def, event, { publish })
+-    },
+-    { behavior: "immediate" },
+-  )
+-  writeGlobalSequence(agg, sequence)
+-  return
+-}
++    const projector = projectorFor(def)
++    let sequence = -1
++    Database.projectTransaction(
++      project.id,
++      project.worktree,
++      (tx) => {
++        const id = EventID.ascending()
++        const row = tx
++          .select({ seq: EventSequenceTable.seq })
++          .from(EventSequenceTable)
++          .where(eq(EventSequenceTable.aggregate_id, agg))
++          .get()
++        const seq = row?.seq != null ? row.seq + 1 : 0
++        sequence = seq
++
++        const event = { id, seq, aggregateID: agg, data }
++        applyProjectEvent(tx, projector, def, event, { publish })
++      },
++      { behavior: "immediate" },
++    )
++    writeGlobalSequence(agg, sequence)
++    return
++  }
+@@
+   const project = resolveProjectInfo(aggregateID, null)
+
+   if (project) {
+-  Database.projectTransaction(project.id, project.worktree, (tx) => {
+-    tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+-    tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
+-  })
+-  deleteGlobalSequence(aggregateID)
+-  return
+-}
++    Database.projectTransaction(project.id, project.worktree, (tx) => {
++      tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
++      tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
++    })
++    deleteGlobalSequence(aggregateID)
++    return
++  }
+*** End Patch

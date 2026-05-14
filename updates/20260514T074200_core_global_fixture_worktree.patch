@@ -1,0 +1,18 @@
+*** Begin Patch
+*** Update File: packages/core/test/fixture/effect-flock-worker.ts
+@@
+     state: os.tmpdir(),
+     bin: os.tmpdir(),
+     log: os.tmpdir(),
++    worktree: os.tmpdir(),
+   }),
+ )
+*** Update File: packages/core/test/util/effect-flock.test.ts
+@@
+     state: os.tmpdir(),
+     bin: os.tmpdir(),
+     log: os.tmpdir(),
++    worktree: os.tmpdir(),
+   }),
+ )
+*** End Patch

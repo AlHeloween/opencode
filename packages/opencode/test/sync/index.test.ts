@@ -5,7 +5,7 @@ import { Bus } from "../../src/bus"
 import { Instance } from "../../src/project/instance"
 import { SyncEvent } from "../../src/sync"
 import { Database } from "@/storage/db"
-import { EventTable } from "../../src/sync/event.sql"
+import { EventSequenceTable, EventTable } from "../../src/sync/event.sql"
 import { Identifier } from "../../src/id/id"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { initProjectors } from "../../src/server/projectors"
@@ -29,10 +29,28 @@ function withInstance(fn: () => void | Promise<void>) {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
+        clearEvents()
         await fn()
       },
     })
   }
+}
+
+function eventDb<T>(fn: (db: Database.TxOrDb) => T) {
+  const ctx = Instance.current
+  if (Database.usesProjectDb(ctx.worktree)) return Database.projectUse(ctx.project.id, ctx.worktree, fn)
+  return Database.use(fn)
+}
+
+function clearEvents() {
+  eventDb((db) => {
+    db.delete(EventTable).run()
+    db.delete(EventSequenceTable).run()
+  })
+}
+
+function eventRows() {
+  return eventDb((db) => db.select().from(EventTable).all())
 }
 
 describe("SyncEvent", () => {
@@ -70,7 +88,7 @@ describe("SyncEvent", () => {
       withInstance(() => {
         const { Created } = setup()
         SyncEvent.run(Created, { id: "evt_1", name: "first" })
-        const rows = Database.use((db) => db.select().from(EventTable).all())
+        const rows = eventRows()
         expect(rows).toHaveLength(1)
         expect(rows[0].type).toBe("item.created.1")
         expect(rows[0].aggregate_id).toBe("evt_1")
@@ -83,7 +101,7 @@ describe("SyncEvent", () => {
         const { Created } = setup()
         SyncEvent.run(Created, { id: "evt_1", name: "first" })
         SyncEvent.run(Created, { id: "evt_1", name: "second" })
-        const rows = Database.use((db) => db.select().from(EventTable).all())
+        const rows = eventRows()
         expect(rows).toHaveLength(2)
         expect(rows[1].seq).toBe(rows[0].seq + 1)
       }),
@@ -94,7 +112,7 @@ describe("SyncEvent", () => {
       withInstance(() => {
         const { Sent } = setup()
         SyncEvent.run(Sent, { item_id: "evt_1", to: "james" })
-        const rows = Database.use((db) => db.select().from(EventTable).all())
+        const rows = eventRows()
         expect(rows).toHaveLength(1)
         expect(rows[0].aggregate_id).toBe("evt_1")
       }),
@@ -142,7 +160,7 @@ describe("SyncEvent", () => {
           aggregateID: id,
           data: { id, name: "replayed" },
         })
-        const rows = Database.use((db) => db.select().from(EventTable).all())
+        const rows = eventRows()
         expect(rows).toHaveLength(1)
         expect(rows[0].aggregate_id).toBe(id)
       }),
@@ -229,7 +247,7 @@ describe("SyncEvent", () => {
         expect(one).toBe(id)
         expect(two).toBe(id)
 
-        const rows = Database.use((db) => db.select().from(EventTable).all())
+        const rows = eventRows()
         expect(rows.map((row) => row.seq)).toEqual([0, 1, 2, 3])
       }),
     )

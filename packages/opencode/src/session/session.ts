@@ -495,13 +495,12 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
     })
 
     const remove: Interface["remove"] = Effect.fnUntraced(function* (sessionID: SessionID) {
-      let session: Info | undefined
-      try {
-        session = yield* get(sessionID)
-      } catch (e) {
-        if (e instanceof NotFoundError) return
-        throw e
-      }
+      const session = yield* db((d) =>
+        d.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get(),
+      ).pipe(
+        Effect.map((row) => row ? fromRow(row) : undefined),
+      )
+      if (!session) return
 
       const kids = yield* children(sessionID)
       for (const child of kids) {
@@ -514,7 +513,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       )
 
       yield* Effect.sync(() => {
-        SyncEvent.run(Event.Deleted, { sessionID, info: session! }, { publish: hasInstance })
+        SyncEvent.run(Event.Deleted, { sessionID, info: session }, { publish: hasInstance })
         SyncEvent.remove(sessionID)
       })
     })
@@ -776,27 +775,15 @@ export function* list(input?: {
 
   const limit = input?.limit ?? 100
 
-  const projectDbMode = Database.isProjectDbMode()
-  const rows = projectDbMode
-    ? Database.withProject(project.id, project.worktree, () =>
-        Database.use((db) =>
-          db
-            .select()
-            .from(SessionTable)
-            .where(and(...conditions))
-            .orderBy(desc(SessionTable.time_updated))
-            .limit(limit)
-            .all(),
-        ))
-    : Database.use((db) =>
-        db
-          .select()
-          .from(SessionTable)
-          .where(and(...conditions))
-          .orderBy(desc(SessionTable.time_updated))
-          .limit(limit)
-          .all(),
-      )
+  const rows = projectDb((db) =>
+    db
+      .select()
+      .from(SessionTable)
+      .where(and(...conditions))
+      .orderBy(desc(SessionTable.time_updated))
+      .limit(limit)
+      .all(),
+  )
   for (const row of rows) { yield fromRow(row) }
 }
 
@@ -864,4 +851,3 @@ export function* search(input: { projectID: ProjectID; query: string; limit?: nu
 }
 
 export * as Session from "./session"
-

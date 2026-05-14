@@ -33,7 +33,7 @@ This plan addresses performance bottlenecks and correctness issues identified in
 | 6.1    | Message search tool         | Done       | Done        |
 | 6.2a   | messagesearch in explore    | Done       | Done        |
 | 6.2b   | default.txt search history  | Done       | **DONE** (wired 2025-05-14) |
-| 6.2c   | json-migration concurrency  | Done       | **DONE** (wired 2025-05-14) |
+| 6.2c   | json-migration concurrency  | Superseded | Superseded by JSON migration removal on 2026-05-14 |
 
 ---
 
@@ -243,12 +243,10 @@ This plan addresses performance bottlenecks and correctness issues identified in
 **Solution:** Made `write` synchronous; errors go to stderr instead of unhandled rejections
 **Impact:** Eliminates unhandled promise rejections from logging path
 
-### 5.4 JSON Migration Concurrency Limit ✅
+### 5.4 JSON Migration Concurrency Limit — Superseded
 
 **File:** `packages/opencode/src/storage/json-migration.ts`
-**Problem:** `batchSize = 1000` with `Promise.allSettled(tasks)` reading 1000 JSON files concurrently — can exhaust file descriptors
-**Solution:** Added `readConcurrency = 64` limit; batch files into chunks processed by concurrent workers
-**Impact:** Bounded file descriptor usage and memory during JSON→SQLite migration
+**Status:** Superseded on 2026-05-14 by removing JSON→SQLite migration entirely. New installs are clean-break SQLite/project-local data only; no backward migration path remains to tune.
 
 ### 5.5 Symlink Traversal Hardening ✅
 
@@ -298,7 +296,7 @@ This plan addresses performance bottlenecks and correctness issues identified in
 - `packages/opencode/src/cli/cmd/run.ts` (await event loop)
 - `packages/opencode/src/index.ts` (ResolveMessage guard)
 - `packages/opencode/src/util/log.ts` (sync write)
-- `packages/opencode/src/storage/json-migration.ts` (concurrency limit)
+- `packages/opencode/src/storage/json-migration.ts` (removed; JSON migration no longer exists)
 - `packages/opencode/src/tool/external-directory.ts` (symlink hardening)
 - `packages/opencode/src/tool/read.ts` (bounded concurrency)
 

@@ -1,0 +1,24 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/session.ts
+@@
+     })
+
+     const remove: Interface["remove"] = Effect.fnUntraced(function* (sessionID: SessionID) {
+-      let session: Info | undefined
+-      try {
+-        session = yield* get(sessionID)
+-      } catch (e) {
+-        if (NotFoundError.isInstance(e)) return
+-        throw e
+-      }
++      const session = yield* get(sessionID).pipe(
++        Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
++      )
++      if (!session) return
+@@
+       yield* Effect.sync(() => {
+-        SyncEvent.run(Event.Deleted, { sessionID, info: session! }, { publish: hasInstance })
++        SyncEvent.run(Event.Deleted, { sessionID, info: session }, { publish: hasInstance })
+         SyncEvent.remove(sessionID)
+       })
+*** End Patch

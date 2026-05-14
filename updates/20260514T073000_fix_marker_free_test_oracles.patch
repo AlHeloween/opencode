@@ -1,0 +1,88 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/session.ts
+@@
+       try {
+         session = yield* get(sessionID)
+       } catch (e) {
+-        if (e instanceof NotFoundError) return
++        if (NotFoundError.isInstance(e)) return
+         throw e
+       }
+*** Update File: packages/opencode/test/storage/db.test.ts
+@@
+ import { Global } from "@opencode-ai/core/global"
++import { Flag } from "@opencode-ai/core/flag/flag"
+ import { Database } from "@/storage/db"
+@@
+ describe("Database.Path", () => {
+   test("returns opencode.db path", () => {
+-    expect(Database.Path).toBe(path.join(Global.Path.data, "opencode.db"))
++    expect(Database.Path).toBe(Flag.OPENCODE_DB ?? path.join(Global.Path.data, "opencode.db"))
+   })
+*** Update File: packages/opencode/test/sync/index.test.ts
+@@
+ import { SyncEvent } from "../../src/sync"
+ import { Database } from "@/storage/db"
+-import { EventTable } from "../../src/sync/event.sql"
++import { EventSequenceTable, EventTable } from "../../src/sync/event.sql"
+@@
+ function withInstance(fn: () => void | Promise<void>) {
+   return async () => {
+     await using tmp = await tmpdir()
+
+     await Instance.provide({
+       directory: tmp.path,
+       fn: async () => {
++        clearEvents()
+         await fn()
+       },
+     })
+   }
+ }
++
++function eventDb<T>(fn: (db: Database.TxOrDb) => T) {
++  const ctx = Instance.current
++  if (Database.usesProjectDb(ctx.worktree)) return Database.projectUse(ctx.project.id, ctx.worktree, fn)
++  return Database.use(fn)
++}
++
++function clearEvents() {
++  eventDb((db) => {
++    db.delete(EventTable).run()
++    db.delete(EventSequenceTable).run()
++  })
++}
++
++function eventRows() {
++  return eventDb((db) => db.select().from(EventTable).all())
++}
+@@
+         const { Created } = setup()
+         SyncEvent.run(Created, { id: "evt_1", name: "first" })
+-        const rows = Database.use((db) => db.select().from(EventTable).all())
++        const rows = eventRows()
+@@
+         const { Created } = setup()
+         SyncEvent.run(Created, { id: "evt_1", name: "first" })
+         SyncEvent.run(Created, { id: "evt_1", name: "second" })
+-        const rows = Database.use((db) => db.select().from(EventTable).all())
++        const rows = eventRows()
+@@
+         const { Sent } = setup()
+         SyncEvent.run(Sent, { item_id: "evt_1", to: "james" })
+-        const rows = Database.use((db) => db.select().from(EventTable).all())
++        const rows = eventRows()
+@@
+         SyncEvent.replay({
+           id: "evt_1",
+           type: "item.created.1",
+           seq: 0,
+           aggregateID: id,
+           data: { id, name: "replayed" },
+         })
+-        const rows = Database.use((db) => db.select().from(EventTable).all())
++        const rows = eventRows()
+@@
+-        const rows = Database.use((db) => db.select().from(EventTable).all())
++        const rows = eventRows()
+*** End Patch

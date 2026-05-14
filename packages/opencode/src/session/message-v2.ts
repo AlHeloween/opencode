@@ -1229,19 +1229,11 @@ function sanitizeFTSQuery(query: string): string {
 }
 
 export function search(input: { projectID: ProjectID; query: string; limit?: number }): SearchResult[] {
-  let rawDb: any
-  if (Database.isProjectDbMode()) {
-    const project = Database.use((d) =>
-      d.select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get(),
-    )
-    if (project) {
-      rawDb = Database.getProjectDb(input.projectID, project.worktree).$client
-    } else {
-      rawDb = Database.Client().$client
-    }
-  } else {
-    rawDb = Database.Client().$client
-  }
+  const project = Database.Client().select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get()
+  const rawDb =
+    project && Database.usesProjectDb(project.worktree)
+      ? Database.getProjectDb(input.projectID, project.worktree).$client
+      : Database.Client().$client
 
   const db = rawDb as any
 

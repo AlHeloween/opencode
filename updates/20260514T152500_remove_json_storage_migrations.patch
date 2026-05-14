@@ -1,0 +1,419 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/index.ts
+@@
+-import { Filesystem } from "@/util/filesystem"
+ import { DebugCommand } from "./cli/cmd/debug"
+@@
+ import { DbCommand } from "./cli/cmd/db"
+-import path from "path"
+-import { Global } from "@opencode-ai/core/global"
+-import { JsonMigration } from "@/storage/json-migration"
+-import { Database } from "@/storage/db"
+ import { errorMessage } from "./util/error"
+@@
+-import { drizzle } from "drizzle-orm/bun-sqlite"
+ import { ensureProcessMetadata } from "@opencode-ai/core/util/opencode-process"
+@@
+-    const marker = path.join(Global.Path.data, "opencode.db")
+-    if (!(await Filesystem.exists(marker))) {
+-      const tty = process.stderr.isTTY
+-      process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)
+-      const width = 36
+-      const orange = "\x1b[38;5;214m"
+-      const muted = "\x1b[0;2m"
+-      const reset = "\x1b[0m"
+-      let last = -1
+-      if (tty) process.stderr.write("\x1b[?25l")
+-      try {
+-        await JsonMigration.run(drizzle({ client: Database.Client().$client }), {
+-          progress: (event) => {
+-            const percent = Math.floor((event.current / event.total) * 100)
+-            if (percent === last && event.current !== event.total) return
+-            last = percent
+-            if (tty) {
+-              const fill = Math.round((percent / 100) * width)
+-              const bar = `${"■".repeat(fill)}${"･".repeat(width - fill)}`
+-              process.stderr.write(
+-                `\r${orange}${bar} ${percent.toString().padStart(3)}%${reset} ${muted}${event.label.padEnd(12)} ${event.current}/${event.total}${reset}`,
+-              )
+-              if (event.current === event.total) process.stderr.write("\n")
+-            } else {
+-              process.stderr.write(`sqlite-migration:${percent}${EOL}`)
+-            }
+-          },
+-        })
+-      } finally {
+-        if (tty) process.stderr.write("\x1b[?25h")
+-        else {
+-          process.stderr.write(`sqlite-migration:done${EOL}`)
+-        }
+-      }
+-      process.stderr.write("Database migration complete." + EOL)
+-    }
+   })
+*** Update File: packages/opencode/src/cli/cmd/db.ts
+@@
+ import type { Argv } from "yargs"
+ import { spawn } from "child_process"
+ import { Database } from "@/storage/db"
+-import { drizzle } from "drizzle-orm/bun-sqlite"
+ import { Database as BunDatabase } from "bun:sqlite"
+ import { UI } from "../ui"
+ import { cmd } from "./cmd"
+-import { JsonMigration } from "@/storage/json-migration"
+-import { EOL } from "os"
+ import { errorMessage } from "../../util/error"
+@@
+-const MigrateCommand = cmd({
+-  command: "migrate",
+-  describe: "migrate JSON data to SQLite (merges with existing data)",
+-  handler: async () => {
+-    const sqlite = new BunDatabase(Database.Path)
+-    const tty = process.stderr.isTTY
+-    const width = 36
+-    const orange = "\x1b[38;5;214m"
+-    const muted = "\x1b[0;2m"
+-    const reset = "\x1b[0m"
+-    let last = -1
+-    if (tty) process.stderr.write("\x1b[?25l")
+-    try {
+-      const stats = await JsonMigration.run(drizzle({ client: sqlite }), {
+-        progress: (event) => {
+-          const percent = Math.floor((event.current / event.total) * 100)
+-          if (percent === last) return
+-          last = percent
+-          if (tty) {
+-            const fill = Math.round((percent / 100) * width)
+-            const bar = `${"■".repeat(fill)}${"･".repeat(width - fill)}`
+-            process.stderr.write(
+-              `\r${orange}${bar} ${percent.toString().padStart(3)}%${reset} ${muted}${event.current}/${event.total}${reset} `,
+-            )
+-          } else {
+-            process.stderr.write(`sqlite-migration:${percent}${EOL}`)
+-          }
+-        },
+-      })
+-      if (tty) process.stderr.write("\n")
+-      if (tty) process.stderr.write("\x1b[?25h")
+-      else process.stderr.write(`sqlite-migration:done${EOL}`)
+-      UI.println(
+-        `Migration complete: ${stats.projects} projects, ${stats.sessions} sessions, ${stats.messages} messages`,
+-      )
+-      if (stats.errors.length > 0) {
+-        UI.println(`${stats.errors.length} errors occurred during migration`)
+-      }
+-    } catch (err) {
+-      if (tty) process.stderr.write("\x1b[?25h")
+-      UI.error(`Migration failed: ${errorMessage(err)}`)
+-      process.exit(1)
+-    } finally {
+-      sqlite.close()
+-    }
+-  },
+-})
+-
+ export const DbCommand = cmd({
+   command: "db",
+   describe: "database tools",
+   builder: (yargs: Argv) => {
+-    return yargs.command(QueryCommand).command(PathCommand).command(MigrateCommand).demandCommand()
++    return yargs.command(QueryCommand).command(PathCommand).demandCommand()
+   },
+   handler: () => {},
+ })
+*** Update File: packages/opencode/src/node.ts
+@@
+ export { bootstrap } from "./cli/bootstrap"
+ export * as Log from "@opencode-ai/core/util/log"
+ export { Database } from "@/storage/db"
+-export { JsonMigration } from "@/storage/json-migration"
+*** Update File: packages/opencode/src/storage/storage.ts
+@@
+-import * as Log from "@opencode-ai/core/util/log"
+ import path from "path"
+ import { Global } from "@opencode-ai/core/global"
+ import { NamedError } from "@opencode-ai/core/util/error"
+ import z from "zod"
+ import { AppFileSystem } from "@opencode-ai/core/filesystem"
+-import { Effect, Exit, Layer, Option, RcMap, Schema, Context, TxReentrantLock } from "effect"
+-import { Git } from "@/git"
+-
+-const log = Log.create({ service: "storage" })
+-
+-type Migration = (
+-  dir: string,
+-  fs: AppFileSystem.Interface,
+-  git: Git.Interface,
+-) => Effect.Effect<void, AppFileSystem.Error>
++import { Effect, Layer, RcMap, Context, TxReentrantLock } from "effect"
+@@
+-const RootFile = Schema.Struct({
+-  path: Schema.optional(
+-    Schema.Struct({
+-      root: Schema.optional(Schema.String),
+-    }),
+-  ),
+-})
+-
+-const SessionFile = Schema.Struct({
+-  id: Schema.String,
+-})
+-
+-const MessageFile = Schema.Struct({
+-  id: Schema.String,
+-})
+-
+-const DiffFile = Schema.Struct({
+-  additions: Schema.Number,
+-  deletions: Schema.Number,
+-})
+-
+-const SummaryFile = Schema.Struct({
+-  id: Schema.String,
+-  projectID: Schema.String,
+-  summary: Schema.Struct({ diffs: Schema.Array(DiffFile) }),
+-})
+-
+-const decodeRoot = Schema.decodeUnknownOption(RootFile)
+-const decodeSession = Schema.decodeUnknownOption(SessionFile)
+-const decodeMessage = Schema.decodeUnknownOption(MessageFile)
+-const decodeSummary = Schema.decodeUnknownOption(SummaryFile)
+-
+ export interface Interface {
+@@
+-function parseMigration(text: string) {
+-  const value = Number.parseInt(text, 10)
+-  return Number.isNaN(value) ? 0 : value
+-}
+-
+-const MIGRATIONS: Migration[] = [
+-  Effect.fn("Storage.migration.1")(function* (dir: string, fs: AppFileSystem.Interface, git: Git.Interface) {
+-    const project = path.resolve(dir, "../project")
+-    if (!(yield* fs.isDir(project))) return
+-    const projectDirs = yield* fs.glob("*", {
+-      cwd: project,
+-      include: "all",
+-    })
+-    for (const projectDir of projectDirs) {
+-      const full = path.join(project, projectDir)
+-      if (!(yield* fs.isDir(full))) continue
+-      log.info(`migrating project ${projectDir}`)
+-      let projectID = projectDir
+-      let worktree = "/"
+-
+-      if (projectID !== "global") {
+-        for (const msgFile of yield* fs.glob("storage/session/message/*/*.json", {
+-          cwd: full,
+-          absolute: true,
+-        })) {
+-          const json = decodeRoot(yield* fs.readJson(msgFile), { onExcessProperty: "preserve" })
+-          const root = Option.isSome(json) ? json.value.path?.root : undefined
+-          if (!root) continue
+-          worktree = root
+-          break
+-        }
+-        if (!worktree) continue
+-        if (!(yield* fs.isDir(worktree))) continue
+-        const result = yield* git.run(["rev-list", "--max-parents=0", "--all"], {
+-          cwd: worktree,
+-        })
+-        const [id] = result
+-          .text()
+-          .split("\n")
+-          .filter(Boolean)
+-          .map((x) => x.trim())
+-          .toSorted()
+-        if (!id) continue
+-        projectID = id
+-
+-        yield* fs.writeWithDirs(
+-          path.join(dir, "project", projectID + ".json"),
+-          JSON.stringify(
+-            {
+-              id,
+-              vcs: "git",
+-              worktree,
+-              time: {
+-                created: Date.now(),
+-                initialized: Date.now(),
+-              },
+-            },
+-            null,
+-            2,
+-          ),
+-        )
+-
+-        log.info(`migrating sessions for project ${projectID}`)
+-        for (const sessionFile of yield* fs.glob("storage/session/info/*.json", {
+-          cwd: full,
+-          absolute: true,
+-        })) {
+-          const dest = path.join(dir, "session", projectID, path.basename(sessionFile))
+-          log.info("copying", { sessionFile, dest })
+-          const session = yield* fs.readJson(sessionFile)
+-          const info = decodeSession(session, { onExcessProperty: "preserve" })
+-          yield* fs.writeWithDirs(dest, JSON.stringify(session, null, 2))
+-          if (Option.isNone(info)) continue
+-          log.info(`migrating messages for session ${info.value.id}`)
+-          for (const msgFile of yield* fs.glob(`storage/session/message/${info.value.id}/*.json`, {
+-            cwd: full,
+-            absolute: true,
+-          })) {
+-            const next = path.join(dir, "message", info.value.id, path.basename(msgFile))
+-            log.info("copying", {
+-              msgFile,
+-              dest: next,
+-            })
+-            const message = yield* fs.readJson(msgFile)
+-            const item = decodeMessage(message, { onExcessProperty: "preserve" })
+-            yield* fs.writeWithDirs(next, JSON.stringify(message, null, 2))
+-            if (Option.isNone(item)) continue
+-
+-            log.info(`migrating parts for message ${item.value.id}`)
+-            for (const partFile of yield* fs.glob(`storage/session/part/${info.value.id}/${item.value.id}/*.json`, {
+-              cwd: full,
+-              absolute: true,
+-            })) {
+-              const out = path.join(dir, "part", item.value.id, path.basename(partFile))
+-              const part = yield* fs.readJson(partFile)
+-              log.info("copying", {
+-                partFile,
+-                dest: out,
+-              })
+-              yield* fs.writeWithDirs(out, JSON.stringify(part, null, 2))
+-            }
+-          }
+-        }
+-      }
+-    }
+-  }),
+-  Effect.fn("Storage.migration.2")(function* (dir: string, fs: AppFileSystem.Interface) {
+-    for (const item of yield* fs.glob("session/*/*.json", {
+-      cwd: dir,
+-      absolute: true,
+-    })) {
+-      const raw = yield* fs.readJson(item)
+-      const session = decodeSummary(raw, { onExcessProperty: "preserve" })
+-      if (Option.isNone(session)) continue
+-      const diffs = session.value.summary.diffs
+-      yield* fs.writeWithDirs(
+-        path.join(dir, "session_diff", session.value.id + ".json"),
+-        JSON.stringify(diffs, null, 2),
+-      )
+-      yield* fs.writeWithDirs(
+-        path.join(dir, "session", session.value.projectID, session.value.id + ".json"),
+-        JSON.stringify(
+-          {
+-            ...(raw as Record<string, unknown>),
+-            summary: {
+-              additions: diffs.reduce((sum, x) => sum + x.additions, 0),
+-              deletions: diffs.reduce((sum, x) => sum + x.deletions, 0),
+-            },
+-          },
+-          null,
+-          2,
+-        ),
+-      )
+-    }
+-  }),
+-]
+-
+ export const layer = Layer.effect(
+@@
+-    const git = yield* Git.Service
+     const locks = yield* RcMap.make({
+@@
+-    const state = yield* Effect.cached(
+-      Effect.gen(function* () {
+-        const dir = path.join(Global.Path.data, "storage")
+-        const marker = path.join(dir, "migration")
+-        const migration = yield* fs.readFileString(marker).pipe(
+-          Effect.map(parseMigration),
+-          Effect.catchIf(missing, () => Effect.succeed(0)),
+-          Effect.orElseSucceed(() => 0),
+-        )
+-        for (let i = migration; i < MIGRATIONS.length; i++) {
+-          log.info("running migration", { index: i })
+-          const step = MIGRATIONS[i]!
+-          const exit = yield* Effect.exit(step(dir, fs, git))
+-          if (Exit.isFailure(exit)) {
+-            log.error("failed to run migration", { index: i, cause: exit.cause })
+-            break
+-          }
+-          yield* fs.writeWithDirs(marker, String(i + 1))
+-        }
+-        return { dir }
+-      }),
+-    )
++    const state = yield* Effect.cached(Effect.succeed({ dir: path.join(Global.Path.data, "storage") }))
+@@
+-export const defaultLayer = layer.pipe(Layer.provide(AppFileSystem.defaultLayer), Layer.provide(Git.defaultLayer))
++export const defaultLayer = layer.pipe(Layer.provide(AppFileSystem.defaultLayer))
+*** Delete File: packages/opencode/src/storage/json-migration.ts
+*** Delete File: packages/opencode/test/storage/json-migration.test.ts
+*** Update File: plans/external-file-locations-redesign.md
+@@
+ **User refinements 2025-05-14:**
+ - DB name: always `opencode.db` (no channel/version variants). Multiple opencode executables on different paths each have their own auth/config adjacent — this guarantees version isolation.
+ - Remove all backward migrations: `json-migration.ts`, `project-db-migration.ts`, legacy JSON storage (`storage.ts`). New software, clean break.
++
++**Implementation correction 2026-05-14:**
++- Runtime migration execution removed: startup no longer runs JSON→SQLite or global→project migration, `opencode db migrate` is removed, and `Storage.defaultLayer` no longer runs legacy JSON storage migrations.
++- Deleted obsolete migration modules/tests: `storage/json-migration.ts`, `storage/project-db-migration.ts`, `test/storage/json-migration.test.ts`, and `test/storage/project-db-migration.test.ts`.
++- `storage/storage.ts` remains only as the current JSON read/write service and `NotFoundError` owner for summary/revert/server paths; full deletion is still pending until those remaining consumers are replaced.
+@@
+-| Legacy JSON storage | `storage/storage.ts` — JSON file-based session storage | **Removed** — SQLite only |
++| Legacy JSON storage | `storage/storage.ts` — JSON file-based session storage | Migration behavior removed; service deletion pending remaining summary/revert/server consumers |
+*** Update File: plans/bug-fixes-round-1.md
+@@
+-## Fix 15: `resolveSessionProject()` swallows all errors
+-**File:** `packages/opencode/src/session/session.ts:437-444`
+-**Validation:** CONFIRMED — but fix approach revised. The function uses `Database.use()` with Drizzle's `.get()` which returns `undefined` on not-found (doesn't throw).
+-**Root cause:** Empty `catch {}` blocks swallows actual DB errors (corruption, connection issues, schema mismatch). The `not-found` case is handled by `if (row)` already.
+-**Fix:** Simply remove the try/catch entirely since `.get()` doesn't throw on not-found:
+-```ts
+-// Before:
+-function resolveSessionProject(sessionID: SessionID) {
+-  if (!Database.isProjectDbMode()) return undefined
+-  try {
+-    const row = Database.use((d) =>
+-      d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
+-    )
+-    if (row) return { id: row.project_id, worktree: row.directory }
+-  } catch {}
+-  return undefined
+-}
+-// After:
+-function resolveSessionProject(sessionID: SessionID) {
+-  if (!Database.isProjectDbMode()) return undefined
+-  const row = Database.use((d) =>
+-    d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
+-  )
+-  if (row) return { id: row.project_id, worktree: row.directory }
+-  return undefined
+-}
+-```
++## Fix 15: obsolete `resolveSessionProject()` migration path
++**File:** `packages/opencode/src/session/session.ts`
++**Validation:** SUPERSEDED — the old `resolveSessionProject()` path depended on `SessionIndexTable` and `Database.isProjectDbMode()`, both of which were removed with the no-global-database redesign.
++**Resolution:** There is no longer a global session-index lookup to catch or swallow errors. Session/project routing now comes from explicit project context and `Database.usesProjectDb(worktree)`, while executable-level sessions route to the executable-local DB.
++**Status:** Closed by migration-removal work on 2026-05-14.
+*** Update File: plans/PERF_PLAN.md
+@@
+-| 6.2c   | json-migration concurrency  | Done       | **DONE** (wired 2025-05-14) |
++| 6.2c   | json-migration concurrency  | Superseded | Superseded by JSON migration removal on 2026-05-14 |
+@@
+-### 5.4 JSON Migration Concurrency Limit ✅
+-
+-**File:** `packages/opencode/src/storage/json-migration.ts`
+-**Problem:** `batchSize = 1000` with `Promise.allSettled(tasks)` reading 1000 JSON files concurrently — can exhaust file descriptors
+-**Solution:** Added `readConcurrency = 64` limit; batch files into chunks processed by concurrent workers
+-**Impact:** Bounded file descriptor usage and memory during JSON→SQLite migration
++### 5.4 JSON Migration Concurrency Limit — Superseded
++
++**File:** `packages/opencode/src/storage/json-migration.ts`
++**Status:** Superseded on 2026-05-14 by removing JSON→SQLite migration entirely. New installs are clean-break SQLite/project-local data only; no backward migration path remains to tune.
+@@
+-- `packages/opencode/src/storage/json-migration.ts` (concurrency limit)
++- `packages/opencode/src/storage/json-migration.ts` (removed; JSON migration no longer exists)
+*** End Patch

@@ -1,0 +1,15 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/session.ts
+@@
+     })
+
+     const remove: Interface["remove"] = Effect.fnUntraced(function* (sessionID: SessionID) {
+-      const session = yield* get(sessionID).pipe(
+-        Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
++      const session = yield* db((d) =>
++        d.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get(),
++      ).pipe(
++        Effect.map((row) => row ? fromRow(row) : undefined),
+       )
+       if (!session) return
+*** End Patch

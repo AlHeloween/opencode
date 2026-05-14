@@ -126,16 +126,21 @@ export function project<Def extends Definition>(
 }
 
 function extractProjectId(data: unknown): { id: ProjectID; worktree: string } | undefined {
+  if (!data || typeof data !== "object") return undefined
   const d = data as Record<string, unknown>
   const info = (d.info ?? d) as Record<string, unknown> | undefined
-  if (info?.projectID && info?.directory) {
+  if (typeof info?.projectID === "string" && typeof info?.directory === "string") {
     return { id: info.projectID as ProjectID, worktree: info.directory as string }
   }
   return undefined
 }
 
-function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
-  return extractProjectId(data)
+function resolveProjectInfo(_aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
+  const dataProject = extractProjectId(data)
+  if (dataProject && Database.usesProjectDb(dataProject.worktree)) return dataProject
+  const ctx = Instance.currentMaybe
+  if (!ctx || !Database.usesProjectDb(ctx.worktree)) return undefined
+  return { id: ctx.project.id, worktree: ctx.worktree }
 }
 
 function projectorFor(def: Definition) {
@@ -192,16 +197,15 @@ function applyProjectEvent<Def extends Definition>(
 function process<Def extends Definition>(def: Def, event: Event<Def>, options: { publish: boolean }) {
   const projector = projectorFor(def)
 
-const projectDbMode = Database.isProjectDbMode()
-const project = projectDbMode ? resolveProjectInfo(event.aggregateID, event.data) : undefined
+  const project = resolveProjectInfo(event.aggregateID, event.data)
 
-if (projectDbMode && project) {
-  Database.projectTransaction(project.id, project.worktree, (tx) => {
-    applyProjectEvent(tx, projector, def, event, options)
-  })
-  writeGlobalSequence(event.aggregateID, event.seq)
-  return
-}
+  if (project) {
+    Database.projectTransaction(project.id, project.worktree, (tx) => {
+      applyProjectEvent(tx, projector, def, event, options)
+    })
+    writeGlobalSequence(event.aggregateID, event.seq)
+    return
+  }
 
   // idempotent: need to ignore any events already logged
 
@@ -277,11 +281,9 @@ export function replay(event: SerializedEvent, options?: { publish: boolean }) {
       .get()
 
   let row: { seq: number | null } | undefined
-  if (Database.isProjectDbMode()) {
-    const project = resolveProjectInfo(event.aggregateID, null)
-    if (project) {
-      row = Database.projectUse(project.id, project.worktree, readSequence)
-    }
+  const project = resolveProjectInfo(event.aggregateID, event.data)
+  if (project) {
+    row = Database.projectUse(project.id, project.worktree, readSequence)
   }
   if (!row) {
     row = Database.use(readSequence)
@@ -333,33 +335,32 @@ export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], 
 
   const { publish = true } = options || {}
 
-  const projectDbMode = Database.isProjectDbMode()
-  const project = projectDbMode ? resolveProjectInfo(agg, data) : undefined
+  const project = resolveProjectInfo(agg, data)
 
-  if (projectDbMode && project) {
-  const projector = projectorFor(def)
-  let sequence = -1
-  Database.projectTransaction(
-    project.id,
-    project.worktree,
-    (tx) => {
-      const id = EventID.ascending()
-      const row = tx
-        .select({ seq: EventSequenceTable.seq })
-        .from(EventSequenceTable)
-        .where(eq(EventSequenceTable.aggregate_id, agg))
-        .get()
-      const seq = row?.seq != null ? row.seq + 1 : 0
-      sequence = seq
+  if (project) {
+    const projector = projectorFor(def)
+    let sequence = -1
+    Database.projectTransaction(
+      project.id,
+      project.worktree,
+      (tx) => {
+        const id = EventID.ascending()
+        const row = tx
+          .select({ seq: EventSequenceTable.seq })
+          .from(EventSequenceTable)
+          .where(eq(EventSequenceTable.aggregate_id, agg))
+          .get()
+        const seq = row?.seq != null ? row.seq + 1 : 0
+        sequence = seq
 
-      const event = { id, seq, aggregateID: agg, data }
-      applyProjectEvent(tx, projector, def, event, { publish })
-    },
-    { behavior: "immediate" },
-  )
-  writeGlobalSequence(agg, sequence)
-  return
-}
+        const event = { id, seq, aggregateID: agg, data }
+        applyProjectEvent(tx, projector, def, event, { publish })
+      },
+      { behavior: "immediate" },
+    )
+    writeGlobalSequence(agg, sequence)
+    return
+  }
 
   // Note that this is an "immediate" transaction which is critical.
   // We need to make sure we can safely read and write with nothing
@@ -384,17 +385,16 @@ export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], 
 }
 
 export function remove(aggregateID: string) {
-  const projectDbMode = Database.isProjectDbMode()
-  const project = projectDbMode ? resolveProjectInfo(aggregateID, null) : undefined
+  const project = resolveProjectInfo(aggregateID, null)
 
-  if (projectDbMode && project) {
-  Database.projectTransaction(project.id, project.worktree, (tx) => {
-    tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
-    tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
-  })
-  deleteGlobalSequence(aggregateID)
-  return
-}
+  if (project) {
+    Database.projectTransaction(project.id, project.worktree, (tx) => {
+      tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+      tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
+    })
+    deleteGlobalSequence(aggregateID)
+    return
+  }
 
   Database.transaction((tx) => {
     tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()

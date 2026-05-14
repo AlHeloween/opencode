@@ -190,33 +190,11 @@ Log.warn("ignored late message update", { error: e.message })
 Log.error("ignored late message update — message references deleted session?", { error: e.message })
 ```
 
-## Fix 15: `resolveSessionProject()` swallows all errors
-**File:** `packages/opencode/src/session/session.ts:437-444`
-**Validation:** CONFIRMED — but fix approach revised. The function uses `Database.use()` with Drizzle's `.get()` which returns `undefined` on not-found (doesn't throw).
-**Root cause:** Empty `catch {}` blocks swallows actual DB errors (corruption, connection issues, schema mismatch). The `not-found` case is handled by `if (row)` already.
-**Fix:** Simply remove the try/catch entirely since `.get()` doesn't throw on not-found:
-```ts
-// Before:
-function resolveSessionProject(sessionID: SessionID) {
-  if (!Database.isProjectDbMode()) return undefined
-  try {
-    const row = Database.use((d) =>
-      d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
-    )
-    if (row) return { id: row.project_id, worktree: row.directory }
-  } catch {}
-  return undefined
-}
-// After:
-function resolveSessionProject(sessionID: SessionID) {
-  if (!Database.isProjectDbMode()) return undefined
-  const row = Database.use((d) =>
-    d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
-  )
-  if (row) return { id: row.project_id, worktree: row.directory }
-  return undefined
-}
-```
+## Fix 15: obsolete `resolveSessionProject()` migration path
+**File:** `packages/opencode/src/session/session.ts`
+**Validation:** SUPERSEDED — the old `resolveSessionProject()` path depended on `SessionIndexTable` and `Database.isProjectDbMode()`, both of which were removed with the no-global-database redesign.
+**Resolution:** There is no longer a global session-index lookup to catch or swallow errors. Session/project routing now comes from explicit project context and `Database.usesProjectDb(worktree)`, while executable-level sessions route to the executable-local DB.
+**Status:** Closed by migration-removal work on 2026-05-14.
 
 ---
 
@@ -225,4 +203,3 @@ function resolveSessionProject(sessionID: SessionID) {
 2. Existing test suite: `bun test` in `packages/opencode`
 3. Manual TUI testing for session delete/rename operations
 4. Check migration applies cleanly (SQLite FK constraint additions)
-

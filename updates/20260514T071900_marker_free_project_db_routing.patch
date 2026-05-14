@@ -1,0 +1,287 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/storage/db.ts
+@@
+ const log = Log.create({ service: "db" })
+
+-const MIGRATION_FLAG_TABLE = "_meta"
+-const MIGRATION_FLAG_KEY = "migrated_to_project_db"
+-
+-function setProjectDbModeFlag(db: { run: (sql: string) => void }) {
+-  try {
+-    db.run(`CREATE TABLE IF NOT EXISTS "${MIGRATION_FLAG_TABLE}" (key text PRIMARY KEY NOT NULL, value text NOT NULL)`)
+-    db.run(`INSERT OR REPLACE INTO "${MIGRATION_FLAG_TABLE}" (key, value) VALUES ('${MIGRATION_FLAG_KEY}', '1')`)
+-  } catch (err) {
+-    log.error("failed to set project DB mode flag", { error: err })
+-  }
+-}
+-
+-export function isProjectDbMode(db?: { all: <T>(sql: string, ...params: unknown[]) => T[] }) {
+-  try {
+-    const rows = (db ?? Client()).all<{ value: string }>(
+-      `SELECT value FROM "${MIGRATION_FLAG_TABLE}" WHERE key = '${MIGRATION_FLAG_KEY}'`,
+-    )
+-    return rows[0]?.value === "1"
+-  } catch {
+-    return false
+-  }
+-}
+-
+-export function markProjectDbMode(db?: { run: (sql: string) => void }) {
+-  setProjectDbModeFlag(db ?? Client())
++export function usesProjectDb(worktree: string) {
++  return worktree !== "/"
+ }
+@@
+       const effects: (() => void | Promise<void>)[] = []
+       let db: TxOrDb
+-      if (isProjectDbMode()) {
+-        try {
+-          const proj = currentProjectCtx.use()
+-          db = getProjectDb(proj.projectID, proj.worktree)
+-        } catch {
+-          db = Client()
+-        }
+-      } else {
++      try {
++        const proj = currentProjectCtx.use()
++        db = usesProjectDb(proj.worktree) ? getProjectDb(proj.projectID, proj.worktree) : Client()
++      } catch {
+         db = Client()
+       }
+@@
+   try {
+     return callback(ctx.use().tx)
+   } catch (err) {
+     if (err instanceof LocalContext.NotFound) {
+-      const db = getProjectDb(projectID, worktree)
++      const db = usesProjectDb(worktree) ? getProjectDb(projectID, worktree) : Client()
+       const effects: (() => void | Promise<void>)[] = []
+@@
+       const effects: (() => void | Promise<void>)[] = []
+       let db: TxOrDb
+-      if (isProjectDbMode()) {
+-        try {
+-          const proj = currentProjectCtx.use()
+-          db = getProjectDb(proj.projectID, proj.worktree)
+-        } catch {
+-          db = Client()
+-        }
+-      } else {
++      try {
++        const proj = currentProjectCtx.use()
++        db = usesProjectDb(proj.worktree) ? getProjectDb(proj.projectID, proj.worktree) : Client()
++      } catch {
+         db = Client()
+       }
+@@
+   try {
+     return callback(ctx.use().tx)
+   } catch (err) {
+     if (err instanceof LocalContext.NotFound) {
+-      const db = getProjectDb(projectID, worktree)
++      const db = usesProjectDb(worktree) ? getProjectDb(projectID, worktree) : Client()
+       const effects: (() => void | Promise<void>)[] = []
+*** Update File: packages/opencode/src/storage/project-db.ts
+@@
+ export function use<T>(
+   fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T,
+ ): T {
+-  if (!Database.isProjectDbMode()) return Database.use(fn)
+-  try {
+-    return Database.withProject(Instance.project.id, Instance.worktree, () => Database.use(fn))
+-  } catch {
+-    return Database.use(fn)
+-  }
++  const ctx = Instance.currentMaybe
++  if (!ctx || !Database.usesProjectDb(ctx.worktree)) return Database.use(fn)
++  return Database.withProject(ctx.project.id, ctx.worktree, () => Database.use(fn))
+ }
+@@
+ export function transaction<T>(
+   fn: (d: Parameters<typeof Database.transaction>[0] extends (trx: infer D) => any ? D : never) => T,
+   options?: { behavior?: "deferred" | "immediate" | "exclusive" },
+ ): T {
+-  if (!Database.isProjectDbMode()) return Database.transaction(fn as any, options)
+-  try {
+-    return Database.withProject(Instance.project.id, Instance.worktree, () =>
+-      Database.transaction(fn as any, options),
+-    )
+-  } catch {
+-    return Database.transaction(fn as any, options)
+-  }
++  const ctx = Instance.currentMaybe
++  if (!ctx || !Database.usesProjectDb(ctx.worktree)) return Database.transaction(fn as any, options)
++  return Database.withProject(ctx.project.id, ctx.worktree, () =>
++    Database.transaction(fn as any, options),
++  )
+ }
+*** Update File: packages/opencode/src/session/session.ts
+@@
+-  const projectDbMode = Database.isProjectDbMode()
+-  const rows = projectDbMode
+-    ? Database.withProject(project.id, project.worktree, () =>
+-        Database.use((db) =>
+-          db
+-            .select()
+-            .from(SessionTable)
+-            .where(and(...conditions))
+-            .orderBy(desc(SessionTable.time_updated))
+-            .limit(limit)
+-            .all(),
+-        ))
+-    : Database.use((db) =>
+-        db
+-          .select()
+-          .from(SessionTable)
+-          .where(and(...conditions))
+-          .orderBy(desc(SessionTable.time_updated))
+-          .limit(limit)
+-          .all(),
+-      )
++  const rows = projectDb((db) =>
++    db
++      .select()
++      .from(SessionTable)
++      .where(and(...conditions))
++      .orderBy(desc(SessionTable.time_updated))
++      .limit(limit)
++      .all(),
++  )
+   for (const row of rows) { yield fromRow(row) }
+ }
+*** Update File: packages/opencode/src/sync/index.ts
+@@
+ function extractProjectId(data: unknown): { id: ProjectID; worktree: string } | undefined {
++  if (!data || typeof data !== "object") return undefined
+   const d = data as Record<string, unknown>
+   const info = (d.info ?? d) as Record<string, unknown> | undefined
+-  if (info?.projectID && info?.directory) {
++  if (typeof info?.projectID === "string" && typeof info?.directory === "string") {
+     return { id: info.projectID as ProjectID, worktree: info.directory as string }
+   }
+   return undefined
+ }
+
+ function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
+-  return extractProjectId(data)
++  const dataProject = extractProjectId(data)
++  if (dataProject && Database.usesProjectDb(dataProject.worktree)) return dataProject
++  const ctx = Instance.currentMaybe
++  if (!ctx || !Database.usesProjectDb(ctx.worktree)) return undefined
++  return { id: ctx.project.id, worktree: ctx.worktree }
+ }
+@@
+-const projectDbMode = Database.isProjectDbMode()
+-const project = projectDbMode ? resolveProjectInfo(event.aggregateID, event.data) : undefined
++const project = resolveProjectInfo(event.aggregateID, event.data)
+
+-if (projectDbMode && project) {
++if (project) {
+   Database.projectTransaction(project.id, project.worktree, (tx) => {
+@@
+-  if (Database.isProjectDbMode()) {
+-    const project = resolveProjectInfo(event.aggregateID, null)
+-    if (project) {
+-      row = Database.projectUse(project.id, project.worktree, readSequence)
+-    }
++  const project = resolveProjectInfo(event.aggregateID, event.data)
++  if (project) {
++    row = Database.projectUse(project.id, project.worktree, readSequence)
+   }
+@@
+-  const projectDbMode = Database.isProjectDbMode()
+-  const project = projectDbMode ? resolveProjectInfo(agg, data) : undefined
++  const project = resolveProjectInfo(agg, data)
+
+-  if (projectDbMode && project) {
++  if (project) {
+@@
+-  const projectDbMode = Database.isProjectDbMode()
+-  const project = projectDbMode ? resolveProjectInfo(aggregateID, null) : undefined
++  const project = resolveProjectInfo(aggregateID, null)
+
+-  if (projectDbMode && project) {
++  if (project) {
+*** Update File: packages/opencode/src/session/message-v2.ts
+@@
+ export function search(input: { projectID: ProjectID; query: string; limit?: number }): SearchResult[] {
+-  let rawDb: any
+-  if (Database.isProjectDbMode()) {
+-    const project = Database.use((d) =>
+-      d.select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get(),
+-    )
+-    if (project) {
+-      rawDb = Database.getProjectDb(input.projectID, project.worktree).$client
+-    } else {
+-      rawDb = Database.Client().$client
+-    }
+-  } else {
+-    rawDb = Database.Client().$client
+-  }
++  const project = Database.Client().select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get()
++  const rawDb =
++    project && Database.usesProjectDb(project.worktree)
++      ? Database.getProjectDb(input.projectID, project.worktree).$client
++      : Database.Client().$client
+
+   const db = rawDb as any
+*** Update File: packages/opencode/test/storage/db.test.ts
+@@
+-import { describe, expect, test } from "bun:test"
++import { afterEach, describe, expect, test } from "bun:test"
+ import path from "path"
++import { eq } from "drizzle-orm"
+ import { Global } from "@opencode-ai/core/global"
+ import { Database } from "@/storage/db"
++import { tmpdir } from "../fixture/fixture"
++import { ProjectID } from "@/project/schema"
++import { SessionID } from "@/session/schema"
++import { SessionTable } from "@/session/session.sql"
++
++afterEach(() => {
++  Database.close()
++})
+@@
+   test("returns opencode.db path", () => {
+     expect(Database.Path).toBe(path.join(Global.Path.data, "opencode.db"))
+   })
++
++  test("routes real project context to project database without migration marker", async () => {
++    await using tmp = await tmpdir()
++    const projectID = ProjectID.make("project_" + crypto.randomUUID())
++    const sessionID = SessionID.make("ses_" + crypto.randomUUID())
++
++    Database.withProject(projectID, tmp.path, () =>
++      Database.use((db) =>
++        db
++          .insert(SessionTable)
++          .values({
++            id: sessionID,
++            project_id: projectID,
++            slug: "test",
++            directory: tmp.path,
++            title: "Test",
++            version: "0.0.0-test",
++            time_created: 1,
++            time_updated: 1,
++          })
++          .run(),
++      ),
++    )
++
++    const projectRows = Database.getProjectDb(projectID, tmp.path)
++      .select({ id: SessionTable.id })
++      .from(SessionTable)
++      .where(eq(SessionTable.id, sessionID))
++      .all()
++    const executableRows = Database.Client()
++      .select({ id: SessionTable.id })
++      .from(SessionTable)
++      .where(eq(SessionTable.id, sessionID))
++      .all()
++
++    expect(projectRows).toHaveLength(1)
++    expect(executableRows).toHaveLength(0)
++  })
+ })
+*** End Patch

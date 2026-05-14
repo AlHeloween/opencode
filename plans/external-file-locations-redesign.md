@@ -10,6 +10,11 @@
 - DB name: always `opencode.db` (no channel/version variants). Multiple opencode executables on different paths each have their own auth/config adjacent — this guarantees version isolation.
 - Remove all backward migrations: `json-migration.ts`, `project-db-migration.ts`, legacy JSON storage (`storage.ts`). New software, clean break.
 
+**Implementation correction 2026-05-14:**
+- Runtime migration execution removed: startup no longer runs JSON→SQLite or global→project migration, `opencode db migrate` is removed, and `Storage.defaultLayer` no longer runs legacy JSON storage migrations.
+- Deleted obsolete migration modules/tests: `storage/json-migration.ts`, `storage/project-db-migration.ts`, `test/storage/json-migration.test.ts`, and `test/storage/project-db-migration.test.ts`.
+- `storage/storage.ts` remains only as the current JSON read/write service and `NotFoundError` owner for summary/revert/server paths; full deletion is still pending until those remaining consumers are replaced.
+
 ---
 
 ## Goal
@@ -28,7 +33,7 @@ Redesign opencode's external file layout to be fully per-project (no global stat
 | Global DB | Yes (accounts, project listing) | **No** — fully per-project, no cross-project state |
 | Per-project DB | `{worktree}/.opencode/project.db` | `{worktree}/.opencode/data/opencode.db` |
 | Backward migrations | `json-migration.ts` (JSON→SQLite), `project-db-migration.ts` (global→per-project) | **Removed** — clean break, no legacy support |
-| Legacy JSON storage | `storage/storage.ts` — JSON file-based session storage | **Removed** — SQLite only |
+| Legacy JSON storage | `storage/storage.ts` — JSON file-based session storage | Migration behavior removed; service deletion pending remaining summary/revert/server consumers |
 
 ## Implementation Tasks
 

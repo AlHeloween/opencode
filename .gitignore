@@ -34,3 +34,6 @@ opencode.exe
 
 artifacts/
 .temp/
+.opencode/data
+.tst1/
+.opencode/project.db

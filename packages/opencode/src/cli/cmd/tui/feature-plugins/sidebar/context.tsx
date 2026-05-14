@@ -20,20 +20,34 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       return {
         tokens: 0,
         percent: null,
+        protocol: undefined as string | undefined,
+        activeStreams: 0 as number,
       }
     }
 
     const tokens =
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
     const model = props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
+
+    const liveStatus = globalThis.__gatewayLiveStatus
+    const routes = globalThis.__gatewayRoutes
+    const protocol = routes?.find((r) => r.provider === last.providerID)?.protocol
+
     return {
       tokens,
       percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : null,
+      protocol,
+      activeStreams: liveStatus?.activeStreams ?? 0,
     }
   })
 
   return (
     <box>
+      <text fg={theme().text}>
+        <b>Greeting</b>
+      </text>
+      {state().protocol ? <text fg={theme().textMuted}>Protocol: {state().protocol}</text> : null}
+      {state().activeStreams > 0 ? <text fg={theme().textMuted}>Streams: {state().activeStreams}</text> : null}
       <text fg={theme().text}>
         <b>Context</b>
       </text>

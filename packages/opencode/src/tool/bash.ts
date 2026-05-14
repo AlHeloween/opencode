@@ -420,7 +420,8 @@ export const BashTool = Tool.define(
     ) {
       const limits = yield* trunc.limits()
       const keep = limits.maxBytes * 2
-      let full = ""
+      const chunks: string[] = []
+      let fullBytes = 0
       let last = ""
       const list: Chunk[] = []
       let used = 0
@@ -458,15 +459,17 @@ export const BashTool = Tool.define(
               if (file) {
                 sink?.write(chunk)
               } else {
-                full += chunk
-                if (Buffer.byteLength(full, "utf-8") > limits.maxBytes) {
-                  return trunc.write(full).pipe(
+                chunks.push(chunk)
+                fullBytes += Buffer.byteLength(chunk, "utf-8")
+                if (fullBytes > limits.maxBytes) {
+                  return trunc.write(chunks.join("")).pipe(
                     Effect.andThen((next) =>
                       Effect.sync(() => {
                         file = next
                         cut = true
                         sink = createWriteStream(next, { flags: "a" })
-                        full = ""
+                        chunks.length = 0
+                        fullBytes = 0
                       }),
                     ),
                     Effect.andThen(

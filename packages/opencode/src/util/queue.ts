@@ -9,11 +9,12 @@ class Node<T> {
 export class AsyncQueue<T> implements AsyncIterable<T> {
   private head: Node<T> | undefined = undefined
   private tail: Node<T> | undefined = undefined
-  private resolvers: ((value: T) => void)[] = []
+  private resolverHead: Node<(value: T) => void> | undefined = undefined
+  private resolverTail: Node<(value: T) => void> | undefined = undefined
 
   push(item: T) {
     const node = new Node(item)
-    const resolve = this.resolvers.shift()
+    const resolve = this.shiftResolver()
     if (resolve) {
       resolve(item)
       return
@@ -34,10 +35,28 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
     return value
   }
 
+  private shiftResolver(): ((value: T) => void) | undefined {
+    if (!this.resolverHead) return undefined
+    const resolve = this.resolverHead.value
+    this.resolverHead = this.resolverHead.next
+    if (!this.resolverHead) this.resolverTail = undefined
+    return resolve
+  }
+
   async next(): Promise<T> {
     const value = this.shift()
     if (value !== undefined) return value
-    return new Promise((resolve) => this.resolvers.push(resolve))
+    return new Promise((resolve) => this.pushResolver(resolve))
+  }
+
+  private pushResolver(resolve: (value: T) => void) {
+    const node = new Node(resolve)
+    if (this.resolverTail) {
+      this.resolverTail.next = node
+      this.resolverTail = node
+    } else {
+      this.resolverHead = this.resolverTail = node
+    }
   }
 
   async *[Symbol.asyncIterator]() {

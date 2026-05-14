@@ -39,6 +39,7 @@ import { Command } from "@/command"
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
 import { Format } from "@/format"
+import { defaultLayer as GatewayLayer } from "@/provider/gateway/mod"
 import { Project } from "@/project/project"
 import { Vcs } from "@/project/vcs"
 import { Worktree } from "@/worktree"
@@ -88,6 +89,7 @@ export const AppLayer = Layer.mergeAll(
   Truncate.defaultLayer,
   ToolRegistry.defaultLayer,
   Format.defaultLayer,
+  GatewayLayer,
   Project.defaultLayer,
   Vcs.defaultLayer,
   Worktree.defaultLayer,

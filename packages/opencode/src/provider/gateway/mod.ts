@@ -80,6 +80,7 @@ export const layer = Layer.effect(
     })
 
     const wrap = (fetch: Fetcher) => wrapFetch(fetch as typeof globalThis.fetch) as Fetcher
+    ;globalThis.__gatewayFetch = wrap(globalThis.fetch as Fetcher)
 
     const probe = (baseUrl: string) =>
       Effect.tryPromise({
@@ -110,9 +111,9 @@ export const layer = Layer.effect(
           Effect.sync(() => {
             H2.closeAll()
             // Clear periodic status logging
-            if ((globalThis as any).__gatewayStatusInterval) {
-              clearInterval((globalThis as any).__gatewayStatusInterval)
-              delete (globalThis as any).__gatewayStatusInterval
+            if (globalThis.__gatewayStatusInterval) {
+              clearInterval(globalThis.__gatewayStatusInterval)
+              delete globalThis.__gatewayStatusInterval
             }
           }),
         ),
@@ -127,15 +128,23 @@ export const layer = Layer.effect(
     yield* Effect.sync(() => {
       const statusInterval = setInterval(() => {
         const status = getGatewayStatus()
-        ;(globalThis as any).__gatewayLiveStatus = {
+        ;globalThis.__gatewayLiveStatus = {
           ...status,
           updatedAt: Date.now(),
         }
+        ;globalThis.__gatewayRoutes = Store.getAllRoutes().map((r) => ({
+          provider: r.key.provider,
+          protocol: r.adjustment.protocol.alpnNegotiated,
+        }))
         logGatewayStatus()
       }, 5000)
 
-      ;(globalThis as any).__gatewayLiveStatus = getGatewayStatus()
-      ;(globalThis as any).__gatewayStatusInterval = statusInterval
+      ;globalThis.__gatewayLiveStatus = { ...getGatewayStatus(), updatedAt: Date.now() }
+      ;globalThis.__gatewayRoutes = Store.getAllRoutes().map((r) => ({
+        provider: r.key.provider,
+        protocol: r.adjustment.protocol.alpnNegotiated,
+      }))
+      ;globalThis.__gatewayStatusInterval = statusInterval
     })
 
     return Service.of({

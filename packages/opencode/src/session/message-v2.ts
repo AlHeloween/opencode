@@ -1022,7 +1022,7 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
 }
 
 export function* stream(sessionID: SessionID) {
-  const size = 50
+  const size = 500
   let before: string | undefined
   while (true) {
     const next = page({ sessionID, limit: size, before })
@@ -1249,7 +1249,12 @@ function sanitizeFTSQuery(query: string): string {
     .join(" ")
 }
 
-export function search(input: { projectID: ProjectID; worktree: string; query: string; limit?: number }): SearchResult[] {
+export function search(input: {
+  projectID: ProjectID
+  worktree: string
+  query: string
+  limit?: number
+}): SearchResult[] {
   const rawDb = Database.getProjectDb(input.projectID, input.worktree).$client
 
   const db = rawDb as any

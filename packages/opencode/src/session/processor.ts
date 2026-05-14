@@ -74,6 +74,7 @@ interface ProcessorContext extends Input {
   textBuilder: StringBuilder
   reasoningMap: Record<string, MessageV2.ReasoningPart>
   reasoningBuilders: Record<string, StringBuilder>
+  recentToolCalls: { toolName: string; input: unknown }[]
 }
 
 type StreamEvent = Event
@@ -126,6 +127,7 @@ export const layer: Layer.Layer<
         textBuilder: new StringBuilder(),
         reasoningMap: {},
         reasoningBuilders: {},
+        recentToolCalls: [],
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id)
@@ -254,7 +256,8 @@ export const layer: Layer.Layer<
 
           case "reasoning-end":
             if (!(value.id in ctx.reasoningMap)) return
-            ctx.reasoningMap[value.id].text = ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
+            ctx.reasoningMap[value.id].text =
+              ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
             delete ctx.reasoningBuilders[value.id]
             ctx.reasoningMap[value.id].time = { ...ctx.reasoningMap[value.id].time, end: Date.now() }
             if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
@@ -308,18 +311,13 @@ export const layer: Layer.Layer<
                 : value.providerMetadata,
             }))
 
-            const parts = MessageV2.parts(ctx.assistantMessage.id)
-            const recentParts = parts.slice(-DOOM_LOOP_THRESHOLD)
+            ctx.recentToolCalls.push({ toolName: value.toolName, input: value.input })
+            if (ctx.recentToolCalls.length > DOOM_LOOP_THRESHOLD) ctx.recentToolCalls.shift()
 
+            const last = ctx.recentToolCalls
             if (
-              recentParts.length !== DOOM_LOOP_THRESHOLD ||
-              !recentParts.every(
-                (part) =>
-                  part.type === "tool" &&
-                  part.tool === value.toolName &&
-                  part.state.status !== "pending" &&
-                  Bun.deepEquals(part.state.input, value.input),
-              )
+              last.length !== DOOM_LOOP_THRESHOLD ||
+              !last.every((c) => c.toolName === value.toolName && Bun.deepEquals(c.input, value.input))
             ) {
               return
             }
@@ -643,4 +641,3 @@ export const defaultLayer = Layer.suspend(() =>
 )
 
 export * as SessionProcessor from "./processor"
-

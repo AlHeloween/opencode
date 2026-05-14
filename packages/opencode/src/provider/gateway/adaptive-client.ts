@@ -134,6 +134,59 @@ function getCallerStack(): string | undefined {
   }
 }
 
+class CoalescingTransform {
+  private buffer: Uint8Array[] = []
+  private timer: ReturnType<typeof setTimeout> | null = null
+  private readonly flushMs: number
+  private readonly maxChunks: number
+
+  constructor(opts: { flushMs?: number; maxChunks?: number } = {}) {
+    this.flushMs = opts.flushMs ?? 50
+    this.maxChunks = opts.maxChunks ?? 10
+  }
+
+  push(chunk: Uint8Array, controller: TransformStreamDefaultController) {
+    this.buffer.push(chunk)
+    if (this.buffer.length >= this.maxChunks) {
+      this.flush(controller)
+      return
+    }
+    if (!this.timer) {
+      this.timer = setTimeout(() => {
+        this.timer = null
+        this.flush(controller)
+      }, this.flushMs)
+    }
+  }
+
+  flush(controller: TransformStreamDefaultController) {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+    if (this.buffer.length === 0) return
+    const merged = new Uint8Array(this.buffer.reduce((sum, b) => sum + b.length, 0))
+    let offset = 0
+    for (const chunk of this.buffer) {
+      merged.set(chunk, offset)
+      offset += chunk.length
+    }
+    this.buffer.length = 0
+    try {
+      controller.enqueue(merged)
+    } catch {
+      /* stream cancelled */
+    }
+  }
+
+  cancel() {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+  }
+}
+
 export function wrapFetch(baseFetch: typeof globalThis.fetch) {
   const wrapped = async (input: string | URL | Request, init?: AdaptiveFetchOptions): Promise<Response> => {
     await Store.init()
@@ -552,51 +605,62 @@ export function wrapFetch(baseFetch: typeof globalThis.fetch) {
 
       if (response.body) {
         let firstChunk = true
-        const trackedBody = response.body.pipeThrough(
-          new TransformStream({
-            transform(chunk, controller) {
-              if (firstChunk) {
-                sample.firstChunkAt = Date.now()
-                firstChunk = false
-                // Log when first chunk arrives (for streaming, this is TTFT)
+        const coalescer = new CoalescingTransform()
+        const trackedBody = response.body
+          .pipeThrough(
+            new TransformStream({
+              transform(chunk, controller) {
+                coalescer.push(chunk, controller)
+              },
+              flush(controller) {
+                coalescer.flush(controller)
+              },
+            }),
+          )
+          .pipeThrough(
+            new TransformStream({
+              transform(chunk, controller) {
+                if (firstChunk) {
+                  sample.firstChunkAt = Date.now()
+                  firstChunk = false
+                  writeLog({
+                    level: "INFO",
+                    event: "gateway.stream.first_chunk",
+                    timestamp: Date.now(),
+                    requestId,
+                    ttftMs: sample.firstChunkAt - sample.headersReceivedAt,
+                  })
+                }
+                sample.lastChunkAt = Date.now()
+                sample.chunks++
+                controller.enqueue(chunk)
+              },
+              flush() {
+                sample.endedAt = Date.now()
+                const metrics = Metrics.computeMetrics(sample)
                 writeLog({
                   level: "INFO",
-                  event: "gateway.stream.first_chunk",
+                  event: "gateway.request.end",
                   timestamp: Date.now(),
                   requestId,
-                  ttftMs: sample.firstChunkAt - sample.headersReceivedAt,
+                  status: response.status,
+                  fetchMs: sample.headersReceivedAt - sample.socketAcquiredAt,
+                  metrics: {
+                    totalMs: metrics.totalMs,
+                    ttftMs: metrics.ttftMs,
+                    ttfbMs: metrics.ttfbMs,
+                    queuedMs: metrics.queuedMs,
+                    chunks: metrics.chunks,
+                    avgChunkGapMs: metrics.avgChunkGapMs,
+                  },
+                  healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
                 })
-              }
-              sample.lastChunkAt = Date.now()
-              sample.chunks++
-              controller.enqueue(chunk)
-            },
-            flush() {
-              sample.endedAt = Date.now()
-              const metrics = Metrics.computeMetrics(sample)
-              writeLog({
-                level: "INFO",
-                event: "gateway.request.end",
-                timestamp: Date.now(),
-                requestId,
-                status: response.status,
-                fetchMs: sample.headersReceivedAt - sample.socketAcquiredAt,
-                metrics: {
-                  totalMs: metrics.totalMs,
-                  ttftMs: metrics.ttftMs,
-                  ttfbMs: metrics.ttfbMs,
-                  queuedMs: metrics.queuedMs,
-                  chunks: metrics.chunks,
-                  avgChunkGapMs: metrics.avgChunkGapMs,
-                },
-                healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
-              })
-              Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)
-              Store.recordCircuitBreakerSuccess(routeKey)
-              Store.adaptRoutePolicy(routeKey, true, healthScore(Store.getRoute(routeKey).health))
-            },
-          }),
-        )
+                Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)
+                Store.recordCircuitBreakerSuccess(routeKey)
+                Store.adaptRoutePolicy(routeKey, true, healthScore(Store.getRoute(routeKey).health))
+              },
+            }),
+          )
 
         return new Response(trackedBody, {
           status: response.status,

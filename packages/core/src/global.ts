@@ -15,17 +15,13 @@ let _log = path.join(exeDir, ".opencode", "data", "log")
 let _bin = path.join(exeDir, ".opencode", "data", "cache", "bin")
 const _config = exeDir
 
-let _initialized = false
-
 export function initFromWorktree(worktree: string) {
-  if (_initialized) return
   _worktree = worktree
   _data = path.join(worktree, ".opencode", "data")
   _cache = path.join(worktree, ".opencode", "data", "cache")
   _state = path.join(worktree, ".opencode", "data", "state")
   _log = path.join(worktree, ".opencode", "data", "log")
   _bin = path.join(worktree, ".opencode", "data", "cache", "bin")
-  _initialized = true
 }
 
 const paths = {

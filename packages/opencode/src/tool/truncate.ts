@@ -8,15 +8,15 @@ import { Config } from "@/config/config"
 import { Identifier } from "../id/id"
 import * as Log from "@opencode-ai/core/util/log"
 import { ToolID } from "./schema"
-import { TRUNCATION_DIR } from "./truncation-dir"
+import { truncationDir } from "./truncation-dir"
 
 const log = Log.create({ service: "truncation" })
 const RETENTION = Duration.days(7)
 
 export const MAX_LINES = 2000
 export const MAX_BYTES = 50 * 1024
-export const DIR = TRUNCATION_DIR
-export const GLOB = path.join(TRUNCATION_DIR, "*")
+export function truncateDir() { return truncationDir() }
+export function truncateGlob() { return path.join(truncationDir(), "*") }
 
 export type Result = { content: string; truncated: false } | { content: string; truncated: true; outputPath: string }
 
@@ -56,19 +56,19 @@ export const layer = Layer.effect(
       const cutoff = Identifier.timestamp(
         Identifier.create("tool", "ascending", Date.now() - Duration.toMillis(RETENTION)),
       )
-      const entries = yield* fs.readDirectory(TRUNCATION_DIR).pipe(
+      const entries = yield* fs.readDirectory(truncationDir()).pipe(
         Effect.map((all) => all.filter((name) => name.startsWith("tool_"))),
         Effect.catch(() => Effect.succeed([])),
       )
       for (const entry of entries) {
         if (Identifier.timestamp(entry) >= cutoff) continue
-        yield* fs.remove(path.join(TRUNCATION_DIR, entry)).pipe(Effect.catch(() => Effect.void))
+        yield* fs.remove(path.join(truncationDir(), entry)).pipe(Effect.catch(() => Effect.void))
       }
     })
 
     const write = Effect.fn("Truncate.write")(function* (text: string) {
-      const file = path.join(TRUNCATION_DIR, ToolID.ascending())
-      yield* fs.ensureDir(TRUNCATION_DIR).pipe(Effect.orDie)
+      const file = path.join(truncationDir(), ToolID.ascending())
+      yield* fs.ensureDir(truncationDir()).pipe(Effect.orDie)
       yield* fs.writeFileString(file, text).pipe(Effect.orDie)
       return file
     })

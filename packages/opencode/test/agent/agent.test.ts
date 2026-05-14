@@ -83,7 +83,7 @@ test("explore agent denies edit and write", async () => {
   })
 })
 
-test("explore agent asks for external directories and allows Truncate.GLOB", async () => {
+test("explore agent asks for external directories and allows Truncate.truncateGlob()", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
   await using tmp = await tmpdir()
   await Instance.provide({
@@ -92,7 +92,7 @@ test("explore agent asks for external directories and allows Truncate.GLOB", asy
       const explore = await load(tmp.path, (svc) => svc.get("explore"))
       expect(explore).toBeDefined()
       expect(Permission.evaluate("external_directory", "/some/other/path", explore!.permission).action).toBe("ask")
-      expect(Permission.evaluate("external_directory", Truncate.GLOB, explore!.permission).action).toBe("allow")
+      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), explore!.permission).action).toBe("allow")
     },
   })
 })
@@ -495,7 +495,7 @@ test("legacy tools config maps write/edit/patch to edit permission", async () =>
   })
 })
 
-test("Truncate.GLOB is allowed even when user denies external_directory globally", async () => {
+test("Truncate.truncateGlob() is allowed even when user denies external_directory globally", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
   await using tmp = await tmpdir({
     config: {
@@ -508,14 +508,14 @@ test("Truncate.GLOB is allowed even when user denies external_directory globally
     directory: tmp.path,
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(Permission.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("allow")
-      expect(Permission.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
+      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("allow")
+      expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
   })
 })
 
-test("Truncate.GLOB is allowed even when user denies external_directory per-agent", async () => {
+test("Truncate.truncateGlob() is allowed even when user denies external_directory per-agent", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
   await using tmp = await tmpdir({
     config: {
@@ -532,21 +532,21 @@ test("Truncate.GLOB is allowed even when user denies external_directory per-agen
     directory: tmp.path,
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(Permission.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("allow")
-      expect(Permission.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
+      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("allow")
+      expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
   })
 })
 
-test("explicit Truncate.GLOB deny is respected", async () => {
+test("explicit Truncate.truncateGlob() deny is respected", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
   await using tmp = await tmpdir({
     config: {
       permission: {
         external_directory: {
           "*": "deny",
-          [Truncate.GLOB]: "deny",
+          [Truncate.truncateGlob()]: "deny",
         },
       },
     },
@@ -555,8 +555,8 @@ test("explicit Truncate.GLOB deny is respected", async () => {
     directory: tmp.path,
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(Permission.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("deny")
-      expect(Permission.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
+      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("deny")
+      expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
     },
   })
 })

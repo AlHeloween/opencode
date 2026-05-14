@@ -6,6 +6,8 @@ import { iife } from "@/util/iife"
 import * as Log from "@opencode-ai/core/util/log"
 import { LocalContext } from "@/util/local-context"
 import * as Project from "./project"
+import { Global } from "@opencode-ai/core/global"
+import { Installation } from "@/installation"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
 
 export interface InstanceContext {
@@ -38,6 +40,8 @@ function boot(input: { directory: string; init?: () => Promise<any>; worktree?: 
               worktree: sandbox,
               project,
             }))
+    Global.initFromWorktree(ctx.worktree)
+    await Log.reopen(Installation.isLocal())
     await context.provide(ctx, async () => {
       await input.init?.()
     })

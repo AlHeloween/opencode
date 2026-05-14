@@ -35,13 +35,13 @@ const MAX_CIRCUIT_BREAKERS = 500
 const MAX_RETRY_BUDGETS = 500
 const STALE_THRESHOLD_MS = 3600000
 
-const policyLogDir = path.join(Global.Path.data, "gateway")
-const policyLogPath = path.join(policyLogDir, POLICY_LOG_FILE)
 let policyLogger: AsyncLogger | undefined
 
 function initPolicyLogger() {
   if (!policyLogger) {
     try {
+      const policyLogDir = path.join(Global.Path.data, "gateway")
+      const policyLogPath = path.join(policyLogDir, POLICY_LOG_FILE)
       fsSync.mkdirSync(policyLogDir, { recursive: true })
       policyLogger = makeAsyncLogger({ path: policyLogPath, maxBuffer: 2000, intervalMs: 200 })
     } catch {

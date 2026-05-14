@@ -52,10 +52,11 @@ let logpath = ""
 export function file() {
   return logpath
 }
-let write = (msg: any) => {
+const _stderr = (msg: any) => {
   process.stderr.write(msg)
   return msg.length
 }
+let write: (msg: any) => number | Promise<number> = _stderr
 
 export async function init(options: Options) {
   if (options.level) level = options.level
@@ -66,6 +67,24 @@ export async function init(options: Options) {
     options.dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
   )
   await fs.truncate(logpath).catch(() => {})
+  mkdirSync(Global.Path.log, { recursive: true })
+  const stream = createWriteStream(logpath, { flags: "a" })
+  write = async (msg: any) => {
+    return new Promise((resolve, reject) => {
+      stream.write(msg, (err) => {
+        if (err) reject(err)
+        else resolve(msg.length)
+      })
+    })
+  }
+}
+
+export async function reopen(dev?: boolean) {
+  if (write === _stderr) return
+  logpath = path.join(
+    Global.Path.log,
+    dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
+  )
   mkdirSync(Global.Path.log, { recursive: true })
   const stream = createWriteStream(logpath, { flags: "a" })
   write = async (msg: any) => {

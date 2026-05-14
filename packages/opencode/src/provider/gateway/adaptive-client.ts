@@ -23,9 +23,6 @@ const log = Log.create({ service: "gateway.adaptive-client" })
 
 const limiterState = Limiter.makeState()
 const streamState = StreamBudget.makeState()
-const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
-const logFilePath = path.join(logDir, "gateway.log")
-const errorLogFilePath = path.join(logDir, "gateway-errors.log")
 let loggingEnabled = true
 let logFormat: "json" | "text" = "json"
 let asyncLogger: AsyncLogger | undefined
@@ -93,6 +90,8 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
 
 function initLogger() {
   if (!asyncLogger && loggingEnabled) {
+    const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
+    const logFilePath = path.join(logDir, "gateway.log")
     fs.mkdirSync(logDir, { recursive: true })
     asyncLogger = makeAsyncLogger({
       path: logFilePath,
@@ -103,6 +102,8 @@ function initLogger() {
     })
   }
   if (!errorLogger && loggingEnabled) {
+    const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
+    const errorLogFilePath = path.join(logDir, "gateway-errors.log")
     fs.mkdirSync(logDir, { recursive: true })
     errorLogger = makeAsyncLogger({ path: errorLogFilePath, maxBuffer: 2000, intervalMs: 100 })
   }

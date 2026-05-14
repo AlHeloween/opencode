@@ -120,7 +120,7 @@ export const layer = Layer.effect(
       )
 
     yield* Effect.acquireRelease(
-      Effect.sync(() => Store.init()),
+      Effect.promise(() => Store.init()),
       () => {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         return shutdown().pipe(Effect.ignore)

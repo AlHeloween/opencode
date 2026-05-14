@@ -6,8 +6,6 @@ import { LocalContext } from "@/util/local-context"
 import { lazy } from "../util/lazy"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import { NamedError } from "@opencode-ai/core/util/error"
-import z from "zod"
 import path from "path"
 import { readFileSync, readdirSync, existsSync, mkdirSync } from "fs"
 import { Flag } from "@opencode-ai/core/flag/flag"
@@ -17,13 +15,6 @@ import { init } from "#db"
 import type { ProjectID } from "../project/schema"
 
 declare const OPENCODE_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
-
-export const NotFoundError = NamedError.create(
-  "NotFoundError",
-  z.object({
-    message: z.string(),
-  }),
-)
 
 const log = Log.create({ service: "db" })
 

@@ -57,11 +57,8 @@ const decodeMessage = Schema.decodeUnknownOption(MessageFile)
 const decodeSummary = Schema.decodeUnknownOption(SummaryFile)
 
 export interface Interface {
-  readonly remove: (key: string[]) => Effect.Effect<void, AppFileSystem.Error>
   readonly read: <T>(key: string[]) => Effect.Effect<T, Error>
-  readonly update: <T>(key: string[], fn: (draft: T) => void) => Effect.Effect<T, Error>
   readonly write: <T>(key: string[], content: T) => Effect.Effect<void, AppFileSystem.Error>
-  readonly list: (prefix: string[]) => Effect.Effect<string[][], AppFileSystem.Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Storage") {}
@@ -269,32 +266,10 @@ export const layer = Layer.effect(
         }),
       )
 
-    const remove: Interface["remove"] = Effect.fn("Storage.remove")(function* (key: string[]) {
-      yield* withResolved(key, (target, rw) =>
-        TxReentrantLock.withWriteLock(rw, fs.remove(target).pipe(Effect.catchIf(missing, () => Effect.void))),
-      )
-    })
-
     const read: Interface["read"] = <T>(key: string[]) =>
       Effect.gen(function* () {
         const value = yield* withResolved(key, (target, rw) =>
           TxReentrantLock.withReadLock(rw, wrap(target, fs.readJson(target))),
-        )
-        return value as T
-      })
-
-    const update: Interface["update"] = <T>(key: string[], fn: (draft: T) => void) =>
-      Effect.gen(function* () {
-        const value = yield* withResolved(key, (target, rw) =>
-          TxReentrantLock.withWriteLock(
-            rw,
-            Effect.gen(function* () {
-              const content = yield* wrap(target, fs.readJson(target))
-              fn(content as T)
-              yield* writeJson(target, content)
-              return content
-            }),
-          ),
         )
         return value as T
       })
@@ -304,26 +279,9 @@ export const layer = Layer.effect(
         yield* withResolved(key, (target, rw) => TxReentrantLock.withWriteLock(rw, writeJson(target, content)))
       })
 
-    const list: Interface["list"] = Effect.fn("Storage.list")(function* (prefix: string[]) {
-      const dir = (yield* state).dir
-      const cwd = path.join(dir, ...prefix)
-      const result = yield* fs
-        .glob("**/*", {
-          cwd,
-          include: "file",
-        })
-        .pipe(Effect.catch(() => Effect.succeed<string[]>([])))
-      return result
-        .map((x) => [...prefix, ...x.slice(0, -5).split(path.sep)])
-        .toSorted((a, b) => a.join("/").localeCompare(b.join("/")))
-    })
-
     return Service.of({
-      remove,
       read,
-      update,
       write,
-      list,
     })
   }),
 )

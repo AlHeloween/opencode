@@ -10,7 +10,6 @@ import { Snapshot } from "@/snapshot"
 import { SyncEvent } from "../sync"
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
-import { use as projectDb } from "@/storage/project-db"
 import { and } from "drizzle-orm"
 import { desc } from "drizzle-orm"
 import { eq } from "drizzle-orm"
@@ -21,10 +20,6 @@ import { MessageTable, PartTable, SessionTable } from "./session.sql"
 import { ProjectTable } from "../project/project.sql"
 import * as ProviderError from "@/provider/error"
 import { iife } from "@/util/iife"
-
-function db<T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T): T {
-  return projectDb(fn)
-}
 import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
 import type { SystemError } from "bun"
@@ -696,7 +691,7 @@ function hydrate(rows: (typeof MessageTable.$inferSelect)[]) {
   const ids = rows.map((row) => row.id)
   const partByMessage = new Map<string, Part[]>()
   if (ids.length > 0) {
-    const partRows = db((db) =>
+    const partRows = Database.use((db) =>
       db
         .select()
         .from(PartTable)
@@ -994,17 +989,17 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
   const where = before
     ? and(eq(MessageTable.session_id, input.sessionID), older(before))
     : eq(MessageTable.session_id, input.sessionID)
-  const rows = db((db) =>
+  const rows = Database.use((db) =>
     db
       .select()
       .from(MessageTable)
       .where(where)
       .orderBy(desc(MessageTable.time_created), desc(MessageTable.id))
-      .limit(input.limit + 1)
+      .limit(input.limit)
       .all(),
   )
   if (rows.length === 0) {
-    const row = db((db) =>
+    const row = Database.use((db) =>
       db.select({ id: SessionTable.id }).from(SessionTable).where(eq(SessionTable.id, input.sessionID)).get(),
     )
     if (!row) throw new NotFoundError({ message: `Session not found: ${input.sessionID}` })
@@ -1041,7 +1036,7 @@ export function* stream(sessionID: SessionID) {
 }
 
 export function parts(message_id: MessageID) {
-  const rows = db((db) =>
+  const rows = Database.use((db) =>
     db.select().from(PartTable).where(eq(PartTable.message_id, message_id)).orderBy(PartTable.id).all(),
   )
   return rows.map(
@@ -1056,7 +1051,7 @@ export function parts(message_id: MessageID) {
 }
 
 export function get(input: { sessionID: SessionID; messageID: MessageID }): WithParts {
-  const row = db((db) =>
+  const row = Database.use((db) =>
     db
       .select()
       .from(MessageTable)
@@ -1094,6 +1089,32 @@ export function filterCompacted(msgs: Iterable<WithParts>) {
       completed.add(msg.info.parentID)
   }
   result.reverse()
+  const compactionIndex = result.findLastIndex(
+    (msg) =>
+      msg.info.role === "user" &&
+      msg.parts.some((item): item is CompactionPart => item.type === "compaction" && item.tail_start_id !== undefined),
+  )
+  const compaction = result[compactionIndex]
+  const part = compaction?.parts.find(
+    (item): item is CompactionPart => item.type === "compaction" && item.tail_start_id !== undefined,
+  )
+  const summaryIndex = compaction
+    ? result.findIndex(
+        (msg, index) =>
+          index > compactionIndex &&
+          msg.info.role === "assistant" &&
+          msg.info.summary &&
+          msg.info.parentID === compaction.info.id,
+      )
+    : -1
+  const tailIndex = part?.tail_start_id ? result.findIndex((msg) => msg.info.id === part.tail_start_id) : -1
+  if (tailIndex >= 0 && tailIndex < compactionIndex && summaryIndex > compactionIndex) {
+    return [
+      ...result.slice(compactionIndex, summaryIndex + 1),
+      ...result.slice(tailIndex, compactionIndex),
+      ...result.slice(summaryIndex + 1),
+    ]
+  }
   return result
 }
 

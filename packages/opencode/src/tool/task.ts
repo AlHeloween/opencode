@@ -115,7 +115,7 @@ export const TaskTool = Tool.define(
         }),
         Effect.catch(() => Effect.succeed(undefined)),
       )
-      const model = next.model ?? taskOverride ?? {
+      const model = taskOverride ?? next.model ?? {
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
       }

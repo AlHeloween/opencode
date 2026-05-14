@@ -1,5 +1,4 @@
 import path from "path"
-import fs from "fs/promises"
 import { Context, Effect, Layer } from "effect"
 import { Flock } from "./util/flock"
 
@@ -59,18 +58,6 @@ const paths = {
 export const Path = paths
 
 Flock.setGlobal({ state: paths.config })
-
-async function ensureDirs() {
-  await Promise.all([
-    fs.mkdir(Path.data, { recursive: true }),
-    fs.mkdir(Path.log, { recursive: true }),
-    fs.mkdir(Path.bin, { recursive: true }),
-  ])
-}
-
-setTimeout(() => {
-  ensureDirs().catch(() => {})
-}, 0)
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Global") {}
 

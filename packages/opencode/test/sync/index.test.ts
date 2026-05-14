@@ -38,8 +38,7 @@ function withInstance(fn: () => void | Promise<void>) {
 
 function eventDb<T>(fn: (db: Database.TxOrDb) => T) {
   const ctx = Instance.current
-  if (Database.usesProjectDb(ctx.worktree)) return Database.projectUse(ctx.project.id, ctx.worktree, fn)
-  return Database.use(fn)
+  return Database.projectUse(ctx.project.id, ctx.worktree, fn)
 }
 
 function clearEvents() {

@@ -36,10 +36,11 @@ export const MessageSearchTool = Tool.define(
 
           const ins = yield* InstanceState.context
           const projectID = ins.project.id
+          const worktree = ins.worktree
 
           const results = yield* Effect.sync(() => {
             const groups: Session.SearchSessionGroup[] = []
-            for (const group of Session.search({ projectID, query: params.query, limit: params.limit })) {
+            for (const group of Session.search({ projectID, worktree, query: params.query, limit: params.limit })) {
               groups.push(group)
             }
             return groups

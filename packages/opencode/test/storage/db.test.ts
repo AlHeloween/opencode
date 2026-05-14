@@ -46,13 +46,7 @@ describe("Database.Path", () => {
       .from(SessionTable)
       .where(eq(SessionTable.id, sessionID))
       .all()
-    const executableRows = Database.Client()
-      .select({ id: SessionTable.id })
-      .from(SessionTable)
-      .where(eq(SessionTable.id, sessionID))
-      .all()
 
     expect(projectRows).toHaveLength(1)
-    expect(executableRows).toHaveLength(0)
   })
 })

@@ -112,8 +112,8 @@ describe("experimental HttpApi", () => {
 
   test("serves Console org switch through Hono bridge", async () => {
     await using tmp = await tmpdir({ config: { formatter: false, lsp: false } })
-    Database.Client()
-      .$client.prepare(
+    Database.use((db) => {
+      (db as any).$client.prepare(
         "INSERT INTO account (id, email, url, access_token, refresh_token, time_created, time_updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
       .run(
@@ -125,6 +125,7 @@ describe("experimental HttpApi", () => {
         Date.now(),
         Date.now(),
       )
+    })
 
     const switched = await app().request(ExperimentalPaths.consoleSwitch, {
       method: "POST",

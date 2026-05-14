@@ -1228,21 +1228,10 @@ function sanitizeFTSQuery(query: string): string {
     .join(" ")
 }
 
-export function search(input: { projectID: ProjectID; query: string; limit?: number }): SearchResult[] {
-  const project = Database.Client().select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get()
-  const rawDb =
-    project && Database.usesProjectDb(project.worktree)
-      ? Database.getProjectDb(input.projectID, project.worktree).$client
-      : Database.Client().$client
+export function search(input: { projectID: ProjectID; worktree: string; query: string; limit?: number }): SearchResult[] {
+  const rawDb = Database.getProjectDb(input.projectID, input.worktree).$client
 
   const db = rawDb as any
-
-  const schema = db
-    .query("SELECT sql FROM sqlite_master WHERE type='table' AND name='part_fts'")
-    .get() as { sql: string } | undefined
-  if (!schema || !schema.sql.includes("semantic_vector")) {
-    Database.rebuildFTS()
-  }
 
   const rows = db
     .query(

@@ -1,6 +1,6 @@
 import path from "path"
 import fs from "fs/promises"
-import { createWriteStream } from "fs"
+import { createWriteStream, mkdirSync } from "fs"
 import * as Global from "../global"
 import z from "zod"
 import { Glob } from "./glob"
@@ -66,6 +66,7 @@ export async function init(options: Options) {
     options.dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
   )
   await fs.truncate(logpath).catch(() => {})
+  mkdirSync(Global.Path.log, { recursive: true })
   const stream = createWriteStream(logpath, { flags: "a" })
   write = async (msg: any) => {
     return new Promise((resolve, reject) => {

@@ -7,7 +7,7 @@ import * as Log from "@opencode-ai/core/util/log"
 
 export const OAUTH_DUMMY_KEY = "opencode-oauth-dummy-key"
 
-const file = path.join(Global.Path.data, "auth.json")
+const file = path.join(Global.Path.config, "auth.json")
 
 const fail = (message: string) => (cause: unknown) => new AuthError({ message, cause })
 

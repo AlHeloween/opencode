@@ -137,9 +137,9 @@ function extractProjectId(data: unknown): { id: ProjectID; worktree: string } | 
 
 function resolveProjectInfo(_aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
   const dataProject = extractProjectId(data)
-  if (dataProject && Database.usesProjectDb(dataProject.worktree)) return dataProject
+  if (dataProject) return dataProject
   const ctx = Instance.currentMaybe
-  if (!ctx || !Database.usesProjectDb(ctx.worktree)) return undefined
+  if (!ctx) return undefined
   return { id: ctx.project.id, worktree: ctx.worktree }
 }
 
@@ -163,14 +163,6 @@ function writeSequence(db: Database.TxOrDb, aggregateID: string, seq: number) {
       set: { seq },
     })
     .run()
-}
-
-function writeGlobalSequence(aggregateID: string, seq: number) {
-  writeSequence(Database.Client(), aggregateID, seq)
-}
-
-function deleteGlobalSequence(aggregateID: string) {
-  Database.Client().delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
 }
 
 function applyProjectEvent<Def extends Definition>(
@@ -203,7 +195,6 @@ function process<Def extends Definition>(def: Def, event: Event<Def>, options: {
     Database.projectTransaction(project.id, project.worktree, (tx) => {
       applyProjectEvent(tx, projector, def, event, options)
     })
-    writeGlobalSequence(event.aggregateID, event.seq)
     return
   }
 
@@ -358,7 +349,6 @@ export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], 
       },
       { behavior: "immediate" },
     )
-    writeGlobalSequence(agg, sequence)
     return
   }
 
@@ -392,7 +382,6 @@ export function remove(aggregateID: string) {
       tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
       tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
     })
-    deleteGlobalSequence(aggregateID)
     return
   }
 

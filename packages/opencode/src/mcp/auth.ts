@@ -29,7 +29,7 @@ export const Entry = z.object({
 })
 export type Entry = z.infer<typeof Entry>
 
-const filepath = path.join(Global.Path.data, "mcp-auth.json")
+const filepath = path.join(Global.Path.config, "mcp-auth.json")
 
 export interface Interface {
   readonly all: () => Effect.Effect<Record<string, Entry>>

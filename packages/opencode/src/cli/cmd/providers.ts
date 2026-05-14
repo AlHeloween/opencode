@@ -225,7 +225,7 @@ export const ProvidersListCommand = cmd({
   describe: "list providers and credentials",
   async handler(_args) {
     UI.empty()
-    const authPath = path.join(Global.Path.data, "auth.json")
+    const authPath = path.join(Global.Path.config, "auth.json")
     const homedir = os.homedir()
     const displayPath = authPath.startsWith(homedir) ? authPath.replace(homedir, "~") : authPath
     prompts.intro(`Credentials ${UI.Style.TEXT_DIM}${displayPath}`)

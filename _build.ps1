@@ -183,13 +183,6 @@ function Invoke-Build {
         Write-Success "App build copied"
     }
 
-    # Copy migration files
-    $migrationDir = Join-Path $OpencodePkg "migration"
-    if (Test-Path $migrationDir) {
-        Copy-Item -Recurse $migrationDir (Join-Path $DistDir "migration")
-        Write-Success "Migrations copied"
-    }
-
     # Local services (from artifacts_dist/)
     $artifactsDist = Join-Path $Root "artifacts_dist"
     if (Test-Path $artifactsDist) {

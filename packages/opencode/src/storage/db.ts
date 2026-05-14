@@ -47,6 +47,18 @@ function createAndInitDb(dbPath: string): DrizzleClient {
   db.run("PRAGMA foreign_keys = ON")
   db.run("PRAGMA wal_checkpoint(PASSIVE)")
 
+  try {
+    db.$client.exec(CORE_SCHEMA_SQL)
+  } catch (e) {
+    log.error("core schema failed", { error: String(e) })
+    throw e
+  }
+  try {
+    db.$client.exec(FTS_SCHEMA_SQL)
+  } catch (e) {
+    log.warn("FTS index creation failed (non-fatal)", { error: String(e) })
+  }
+
   return db
 }
 
@@ -248,22 +260,6 @@ CREATE TRIGGER IF NOT EXISTS part_fts_update AFTER UPDATE ON part BEGIN
 END;
 `
 
-function applyProjectMigrations(db: DrizzleClient) {
-  if (Flag.OPENCODE_SKIP_MIGRATIONS) return
-  log.info("applying project schema")
-  try {
-    db.$client.exec(CORE_SCHEMA_SQL)
-  } catch (e) {
-    log.error("core schema application failed", { error: String(e) })
-    throw e
-  }
-  try {
-    db.$client.exec(FTS_SCHEMA_SQL)
-  } catch (e) {
-    log.warn("FTS index creation failed (non-fatal)", { error: String(e) })
-  }
-}
-
 export function getProjectDb(projectID: ProjectID, worktree: string): DrizzleClient {
   const cached = projectClients.get(projectID)
   if (cached) return cached
@@ -271,7 +267,6 @@ export function getProjectDb(projectID: ProjectID, worktree: string): DrizzleCli
   const dbPath = getProjectDbPath(worktree)
   log.info("opening project database", { projectID, path: dbPath })
   const db = createAndInitDb(dbPath)
-  applyProjectMigrations(db)
   projectClients.set(projectID, db)
   return db
 }
@@ -330,7 +325,6 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
         db = getProjectDb(proj.projectID, proj.worktree)
       } catch {
         db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
-        applyProjectMigrations(db as DrizzleClient)
       }
       const result = ctx.provide({ effects, tx: db }, () => callback(db))
       for (const effect of effects) effect()
@@ -383,7 +377,6 @@ export function transaction<T>(
         db = getProjectDb(proj.projectID, proj.worktree)
       } catch {
         db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
-        applyProjectMigrations(db as DrizzleClient)
       }
       const txCallback = InstanceState.bind((tx: TxOrDb) => {
         const result = ctx.provide({ tx, effects }, () => callback(tx))

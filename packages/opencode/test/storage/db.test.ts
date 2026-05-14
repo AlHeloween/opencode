@@ -18,7 +18,7 @@ describe("Database.Path", () => {
     expect(Database.Path).toBe(Flag.OPENCODE_DB ?? path.join(Global.Path.data, "opencode.db"))
   })
 
-  test("routes real project context to project database without migration marker", async () => {
+    test("routes real project context to project database", async () => {
     await using tmp = await tmpdir()
     const projectID = ProjectID.make("project_" + crypto.randomUUID())
     const sessionID = SessionID.make("ses_" + crypto.randomUUID())

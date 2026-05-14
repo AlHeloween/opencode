@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+      <updates>
+        <metadata>
+          <created_at>2026-05-14T06:48:19.517878+00:00</created_at>
+          <goal>Template one &#x27;replace&#x27; update block.</goal>
+          <owner>REPLACE_WITH_OWNER</owner>
+          <created_with>
+            <git_head>067a99b436efd98cd1e4a9cf839479467f7e218d</git_head>
+            <uv_lock_md5>missing</uv_lock_md5>
+            <python>3.13.13</python>
+            <ast_grep_py>unknown</ast_grep_py>
+            <tree_sitter>absent</tree_sitter>
+            <tree_sitter_language_pack>absent</tree_sitter_language_pack>
+          </created_with>
+          <scripts>
+            <script name="20260514T064819_cli_update.py">Document the operational steps here (apply/verify/rollback).</script>
+          </scripts>
+          <logging>
+            <progress_log path="_progress_log.md" mode="append" />
+            <manifest enabled="true" />
+          </logging>
+          <verification>
+            <verify_all root="." reports_path="logs" />
+            <diagram generator="docs/documentation_uml_generator.py" output="docs/uml_diagram.md" />
+          </verification>
+          <hints>
+            <!-- Legacy marker names referenced by some tooling/tests: -->
+            <name>text_anchor_example</name>
+            <name>text_insert_example</name>
+            <name>binary_patch_example</name>
+            <name>rust_regex_example</name>
+            <name>sed_script_example</name>
+            <name>structured_rule_example</name>
+          </hints>
+        </metadata>
+
+        <update_md5_c0714090cf53dd18da6bbfad306e806c name="text_anchor_replace" md5="c0714090cf53dd18da6bbfad306e806c" size="7">
+  <file>src/project_name/module.py</file>
+  <update_type>text</update_type>
+  <mode>replace</mode>
+  <encoding>utf-8</encoding>
+  <find_text>VALUE = 1</find_text>
+  <semantics>Replace one literal anchor occurrence.</semantics>
+  <content_md5_c0714090cf53dd18da6bbfad306e806c>
+    VALUE = 2
+  </content_md5_c0714090cf53dd18da6bbfad306e806c>
+</update_md5_c0714090cf53dd18da6bbfad306e806c>
+      </updates>

@@ -37,3 +37,4 @@ artifacts/
 .opencode/data
 .tst1/
 .opencode/project.db
+packages/opencode/.opencode/data/opencode.db

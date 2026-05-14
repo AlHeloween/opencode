@@ -506,7 +506,7 @@ export const layer = Layer.effect(
                 watch(s, key, result.mcpClient, bridge, mcp.timeout)
               }
             }),
-          { concurrency: "unbounded" },
+          { concurrency: 4 },
         )
 
         yield* Effect.addFinalizer(() =>
@@ -521,12 +521,14 @@ export const layer = Layer.effect(
                     for (const dpid of pids) {
                       try {
                         process.kill(dpid, "SIGTERM")
-                      } catch {}
+                      } catch (err) {
+                        log.debug("mcp process kill failed", { dpid, error: err })
+                      }
                     }
                   }
                   yield* Effect.tryPromise(() => client.close()).pipe(Effect.ignore)
                 }),
-              { concurrency: "unbounded" },
+              { concurrency: 4 },
             )
             pendingOAuthTransports.clear()
           }),
@@ -645,7 +647,7 @@ export const layer = Layer.effect(
               result[sanitize(clientName) + "_" + sanitize(mcpTool.name)] = convertMcpTool(mcpTool, client, timeout)
             }
           }),
-        { concurrency: "unbounded" },
+        { concurrency: 4 },
       )
       return result
     })

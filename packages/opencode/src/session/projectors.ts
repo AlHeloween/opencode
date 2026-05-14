@@ -5,7 +5,6 @@ import { SyncEvent } from "@/sync"
 import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionTable, MessageTable, PartTable } from "./session.sql"
-import { SessionIndexTable } from "@/storage/global.sql"
 import * as Log from "@opencode-ai/core/util/log"
 import { classifyText, formatSemanticVector } from "./semantic-vector"
 import { Database } from "@/storage/db"
@@ -71,32 +70,6 @@ export default [
     db.insert(SessionTable)
       .values(Session.toRow(info))
       .run()
-
-    try {
-      Database.use((d) =>
-        d.insert(SessionIndexTable)
-          .values({
-            id: info.id,
-            project_id: info.projectID,
-            directory: info.directory,
-            title: info.title,
-            parent_id: info.parentID,
-            workspace_id: info.workspaceID,
-            time_created: info.time.created,
-            time_updated: info.time.updated,
-            time_archived: info.time.archived,
-          })
-          .onConflictDoUpdate({
-            target: SessionIndexTable.id,
-            set: {
-              title: info.title,
-              time_updated: info.time.updated,
-              time_archived: info.time.archived,
-            },
-          })
-          .run(),
-      )
-    } catch {}
   }),
 
   SyncEvent.project(Session.Event.Updated, (db, data) => {
@@ -108,29 +81,10 @@ export default [
       .returning()
       .get()
     if (!row) throw new NotFoundError({ message: `Session not found: ${data.sessionID}` })
-
-    try {
-      const delta = toPartialRow(info as Session.Patch)
-      const set: Record<string, unknown> = {}
-      if (delta.title !== undefined) set.title = delta.title
-      if (delta.time_updated !== undefined) set.time_updated = delta.time_updated
-      if (delta.time_archived !== undefined) set.time_archived = delta.time_archived
-      if (delta.parent_id !== undefined) set.parent_id = delta.parent_id
-      if (delta.workspace_id !== undefined) set.workspace_id = delta.workspace_id
-      if (delta.directory !== undefined) set.directory = delta.directory
-      if (Object.keys(set).length > 0) {
-        Database.use((d) =>
-          d.update(SessionIndexTable).set(set).where(eq(SessionIndexTable.id, data.sessionID)).run(),
-        )
-      }
-    } catch {}
   }),
 
   SyncEvent.project(Session.Event.Deleted, (db, data) => {
     db.delete(SessionTable).where(eq(SessionTable.id, data.sessionID)).run()
-    try {
-      Database.use((d) => d.delete(SessionIndexTable).where(eq(SessionIndexTable.id, data.sessionID)).run())
-    } catch {}
   }),
 
   SyncEvent.project(MessageV2.Event.Updated, (db, data) => {

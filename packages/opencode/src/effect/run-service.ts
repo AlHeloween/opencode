@@ -1,7 +1,6 @@
 import { Effect, Layer, ManagedRuntime } from "effect"
 import * as Context from "effect/Context"
 import { Instance } from "@/project/instance"
-import { LocalContext } from "@/util/local-context"
 import { InstanceRef, WorkspaceRef } from "./instance-ref"
 import * as Observability from "@opencode-ai/core/effect/observability"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
@@ -24,15 +23,10 @@ export function attachWith<A, E, R>(effect: Effect.Effect<A, E, R>, refs: Refs):
 }
 
 export function attach<A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> {
-  try {
-    return attachWith(effect, {
-      instance: Instance.current,
-      workspace: WorkspaceContext.workspaceID,
-    })
-  } catch (err) {
-    if (!(err instanceof LocalContext.NotFound)) throw err
-  }
-  return effect
+  const instance = Instance.currentMaybe
+  const workspace = WorkspaceContext.workspaceID
+  if (!instance && !workspace) return effect
+  return attachWith(effect, { instance, workspace })
 }
 
 export function makeRuntime<I, S, E>(service: Context.Service<I, S>, layer: Layer.Layer<I, E>) {

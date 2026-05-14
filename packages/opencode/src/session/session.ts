@@ -11,7 +11,6 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
 import { use as projectDb } from "@/storage/project-db"
-import { SessionIndexTable } from "@/storage/global.sql"
 import { eq } from "drizzle-orm"
 import { and } from "drizzle-orm"
 import { gte } from "drizzle-orm"
@@ -432,15 +431,6 @@ export type Patch = Types.DeepMutable<SyncEvent.Event<typeof Event.Updated>["dat
 const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
   Effect.sync(() => projectDb(fn))
 
-function resolveSessionProject(sessionID: SessionID): { id: ProjectID; worktree: string } | undefined {
-  if (!Database.isProjectDbMode()) return undefined
-  const row = Database.use((d) =>
-    d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
-  )
-  if (row) return { id: row.project_id, worktree: row.directory }
-  return undefined
-}
-
 export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -820,62 +810,6 @@ export function* listGlobal(input?: {
   archived?: boolean
 }) {
   const limit = input?.limit ?? 100
-  const projectDbMode = Database.isProjectDbMode()
-
-  if (projectDbMode) {
-    const conditions: SQL[] = []
-    if (input?.directory) conditions.push(eq(SessionIndexTable.directory, input.directory))
-    if (input?.roots) conditions.push(isNull(SessionIndexTable.parent_id))
-    if (input?.start) conditions.push(gte(SessionIndexTable.time_updated, input.start))
-    if (input?.cursor) conditions.push(lt(SessionIndexTable.time_updated, input.cursor))
-    if (input?.search) conditions.push(like(SessionIndexTable.title, `%${input.search}%`))
-    if (!input?.archived) conditions.push(isNull(SessionIndexTable.time_archived))
-
-    const rows = Database.use((db) => {
-      const query = conditions.length > 0
-        ? db.select().from(SessionIndexTable).where(and(...conditions))
-        : db.select().from(SessionIndexTable)
-      return query.orderBy(desc(SessionIndexTable.time_updated), desc(SessionIndexTable.id)).limit(limit).all()
-    })
-
-    const ids = [...new Set(rows.map((row) => row.project_id))]
-    const projects = new Map<string, ProjectInfo>()
-    if (ids.length > 0) {
-      const items = Database.use((db) =>
-        db
-          .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
-          .from(ProjectTable)
-          .where(inArray(ProjectTable.id, ids))
-          .all(),
-      )
-      for (const item of items) {
-        projects.set(item.id, { id: item.id, name: item.name ?? undefined, worktree: item.worktree })
-      }
-    }
-
-    const sessions = new Map<SessionID, SessionRow>()
-    for (const project of projects.values()) {
-      const sessionIDs = rows.filter((row) => row.project_id === project.id).map((row) => row.id)
-      if (sessionIDs.length === 0) continue
-      const items = Database.projectUse(project.id, project.worktree, (db) =>
-        db.select().from(SessionTable).where(inArray(SessionTable.id, sessionIDs)).all(),
-      )
-      for (const item of items) {
-        sessions.set(item.id, item)
-      }
-    }
-
-    for (const row of rows) {
-      const project = projects.get(row.project_id) ?? null
-      const session = sessions.get(row.id)
-      if (session) {
-        yield { ...fromRow(session), project }
-        continue
-      }
-      yield { id: row.id, slug: "", projectID: row.project_id, directory: row.directory, title: row.title, version: "", parentID: row.parent_id ?? undefined, workspaceID: row.workspace_id ?? undefined, time: { created: row.time_created, updated: row.time_updated, archived: row.time_archived ?? undefined }, project }
-    }
-    return
-  }
 
   const conditions: SQL[] = []
   if (input?.directory) { conditions.push(eq(SessionTable.directory, input.directory)) }

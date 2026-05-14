@@ -7,6 +7,7 @@ Fix 10 critical/high severity bugs + 5 high-impact medium bugs found in codebase
 ## Current status
 Implemented: Fixes 1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, and 15.
 No code change needed: Fix 9.
+Implemented 2025-05-14: Fix 13 fallback path now logs warnings (empty slug/version are correct defaults for sessions missing from per-project DB).
 Still active: Fix 3 requires a higher-risk recursive session deletion batching redesign across session removal and sync/event sequencing.
 
 ---
@@ -168,10 +169,9 @@ if (Bun.deepEquals(part.state.input, value.input))
 ```ts
 import { HttpApiError } from "effect/unstable/httpapi"
 
-// In the error handler (after existing checks):
-if (HttpApiError.is(error)) {
-  return c.json({ error: error.message }, { status: error.status })
-}
+// In the error handler — the implementation uses per-subclass instanceof checks
+// to determine the correct HTTP status code for each variant:
+//   HttpApiError.BadRequest, HttpApiError.Unauthorized, HttpApiError.Forbidden, etc.
 ```
 
 ## Fix 13: `listGlobal()` returns inconsistent shapes between DB modes

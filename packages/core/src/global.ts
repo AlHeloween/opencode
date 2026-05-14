@@ -1,39 +1,76 @@
 import path from "path"
 import fs from "fs/promises"
-import { xdgData, xdgCache, xdgConfig, xdgState } from "xdg-basedir"
-import os from "os"
 import { Context, Effect, Layer } from "effect"
 import { Flock } from "./util/flock"
 
+let _worktree = ""
+
 const app = "opencode"
-const data = path.join(xdgData!, app)
-const cache = path.join(xdgCache!, app)
-const config = path.join(xdgConfig!, app)
-const state = path.join(xdgState!, app)
+
+const exeDir = path.dirname(process.execPath)
+
+let _data = path.join(exeDir, ".opencode", "data")
+let _cache = path.join(exeDir, ".opencode", "data", "cache")
+let _state = path.join(exeDir, ".opencode", "data", "state")
+let _log = path.join(exeDir, ".opencode", "data", "log")
+let _bin = path.join(exeDir, ".opencode", "data", "cache", "bin")
+const _config = exeDir
+
+let _initialized = false
+
+export function initFromWorktree(worktree: string) {
+  if (_initialized) return
+  _worktree = worktree
+  _data = path.join(worktree, ".opencode", "data")
+  _cache = path.join(worktree, ".opencode", "data", "cache")
+  _state = path.join(worktree, ".opencode", "data", "state")
+  _log = path.join(worktree, ".opencode", "data", "log")
+  _bin = path.join(worktree, ".opencode", "data", "cache", "bin")
+  _initialized = true
+}
 
 const paths = {
   get home() {
-    return process.env.OPENCODE_TEST_HOME ?? os.homedir()
+    return process.env.OPENCODE_TEST_HOME ?? _worktree
   },
-  data,
-  bin: path.join(cache, "bin"),
-  log: path.join(data, "log"),
-  cache,
-  config,
-  state,
+  get data() {
+    return _data
+  },
+  get bin() {
+    return _bin
+  },
+  get log() {
+    return _log
+  },
+  get cache() {
+    return _cache
+  },
+  get config() {
+    return _config
+  },
+  get state() {
+    return _state
+  },
+  get worktree() {
+    return _worktree
+  },
 }
 
 export const Path = paths
 
-Flock.setGlobal({ state })
+Flock.setGlobal({ state: paths.config })
 
-await Promise.all([
-  fs.mkdir(Path.data, { recursive: true }),
-  fs.mkdir(Path.config, { recursive: true }),
-  fs.mkdir(Path.state, { recursive: true }),
-  fs.mkdir(Path.log, { recursive: true }),
-  fs.mkdir(Path.bin, { recursive: true }),
-])
+async function ensureDirs() {
+  await Promise.all([
+    fs.mkdir(Path.data, { recursive: true }),
+    fs.mkdir(Path.log, { recursive: true }),
+    fs.mkdir(Path.bin, { recursive: true }),
+  ])
+}
+
+setTimeout(() => {
+  ensureDirs().catch(() => {})
+}, 0)
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Global") {}
 
@@ -45,6 +82,7 @@ export interface Interface {
   readonly state: string
   readonly bin: string
   readonly log: string
+  readonly worktree: string
 }
 
 export const layer = Layer.effect(
@@ -58,6 +96,7 @@ export const layer = Layer.effect(
       state: Path.state,
       bin: Path.bin,
       log: Path.log,
+      worktree: Path.worktree,
     })
   }),
 )

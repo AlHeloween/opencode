@@ -1,15 +1,42 @@
+class Node<T> {
+  value: T
+  next: Node<T> | undefined = undefined
+  constructor(value: T) {
+    this.value = value
+  }
+}
+
 export class AsyncQueue<T> implements AsyncIterable<T> {
-  private queue: T[] = []
+  private head: Node<T> | undefined = undefined
+  private tail: Node<T> | undefined = undefined
   private resolvers: ((value: T) => void)[] = []
 
   push(item: T) {
+    const node = new Node(item)
     const resolve = this.resolvers.shift()
-    if (resolve) resolve(item)
-    else this.queue.push(item)
+    if (resolve) {
+      resolve(item)
+      return
+    }
+    if (this.tail) {
+      this.tail.next = node
+      this.tail = node
+    } else {
+      this.head = this.tail = node
+    }
+  }
+
+  private shift(): T | undefined {
+    if (!this.head) return undefined
+    const value = this.head.value
+    this.head = this.head.next
+    if (!this.head) this.tail = undefined
+    return value
   }
 
   async next(): Promise<T> {
-    if (this.queue.length > 0) return this.queue.shift()!
+    const value = this.shift()
+    if (value !== undefined) return value
     return new Promise((resolve) => this.resolvers.push(resolve))
   }
 

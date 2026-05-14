@@ -82,15 +82,18 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
     if (sessions.size >= MAX_IDLE_SESSIONS) {
       let oldestKey: string | null = null
       let oldestTime = Infinity
-      for (const [key, session] of sessions) {
-        if (session.lastUsedAt < oldestTime) {
-          oldestTime = session.lastUsedAt
+      for (const [key, candidate] of sessions) {
+        if (candidate.lastUsedAt < oldestTime) {
+          oldestTime = candidate.lastUsedAt
           oldestKey = key
         }
       }
       if (oldestKey) {
-        sessions.get(oldestKey)!.session.close()
-        sessions.delete(oldestKey)
+        const victim = sessions.get(oldestKey)
+        if (victim) {
+          victim.session.close()
+          sessions.delete(oldestKey)
+        }
       }
     }
 
@@ -322,7 +325,9 @@ export async function requestStream(
       }
       sample.lastChunkAt = Date.now()
       sample.chunks++
-      writer.write(new Uint8Array(chunk)).catch(() => {})
+      writer.write(new Uint8Array(chunk)).catch(() => {
+        req.destroy()
+      })
     })
 
     req.on("end", async () => {

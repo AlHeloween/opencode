@@ -11,12 +11,10 @@ import z from "zod"
 import path from "path"
 import { readFileSync, readdirSync, existsSync, mkdirSync } from "fs"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import { InstallationChannel } from "@opencode-ai/core/installation/version"
 import { InstanceState } from "@/effect/instance-state"
 import { iife } from "@/util/iife"
 import { init } from "#db"
 import type { ProjectID } from "../project/schema"
-import { needsMigration, migrateAll } from "./project-db-migration"
 
 declare const OPENCODE_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
 
@@ -36,7 +34,9 @@ function setProjectDbModeFlag(db: { run: (sql: string) => void }) {
   try {
     db.run(`CREATE TABLE IF NOT EXISTS "${MIGRATION_FLAG_TABLE}" (key text PRIMARY KEY NOT NULL, value text NOT NULL)`)
     db.run(`INSERT OR REPLACE INTO "${MIGRATION_FLAG_TABLE}" (key, value) VALUES ('${MIGRATION_FLAG_KEY}', '1')`)
-  } catch {}
+  } catch (err) {
+    log.error("failed to set project DB mode flag", { error: err })
+  }
 }
 
 export function isProjectDbMode(db?: { all: <T>(sql: string, ...params: unknown[]) => T[] }) {
@@ -54,19 +54,12 @@ export function markProjectDbMode(db?: { run: (sql: string) => void }) {
   setProjectDbModeFlag(db ?? Client())
 }
 
-export function getChannelPath() {
-  if (["latest", "beta", "prod"].includes(InstallationChannel) || Flag.OPENCODE_DISABLE_CHANNEL_DB)
-    return path.join(Global.Path.data, "opencode.db")
-  const safe = InstallationChannel.replace(/[^a-zA-Z0-9._-]/g, "-")
-  return path.join(Global.Path.data, `opencode-${safe}.db`)
-}
-
 export const Path = iife(() => {
   if (Flag.OPENCODE_DB) {
     if (Flag.OPENCODE_DB === ":memory:" || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
     return path.join(Global.Path.data, Flag.OPENCODE_DB)
   }
-  return getChannelPath()
+  return path.join(Global.Path.data, "opencode.db")
 })
 
 export type Transaction = SQLiteTransaction<"sync", void>
@@ -115,14 +108,13 @@ export const Client = lazy(() => {
   const db = createAndInitDb(Path, path.join(import.meta.dirname, "../../migration"))
   verifyFTS(db)
   maintainOnStartup(db)
-  tryMigrateProjectDbs(db)
   return db
 })
 
 const projectClients = new Map<string, DrizzleClient>()
 
 export function getProjectDbPath(worktree: string) {
-  return path.join(worktree, ".opencode", "project.db")
+  return path.join(worktree, ".opencode", "data", "opencode.db")
 }
 
 function createAndInitDb(dbPath: string, migrationDir: string, skipMigrations = false): DrizzleClient {
@@ -354,7 +346,9 @@ export function closeProjectDb(projectID: ProjectID) {
   if (!db) return
   try {
     db.$client.close()
-  } catch {}
+  } catch (err) {
+    log.warn("failed to close project DB client", { projectID, error: err })
+  }
   projectClients.delete(projectID)
 }
 
@@ -362,7 +356,9 @@ export function closeAllProjectDbs() {
   for (const [projectID, db] of projectClients) {
     try {
       db.$client.close()
-    } catch {}
+    } catch (err) {
+      log.warn("failed to close project DB client", { projectID, error: err })
+    }
   }
   projectClients.clear()
 }
@@ -371,18 +367,6 @@ export function close() {
   closeAllProjectDbs()
   Client().$client.close()
   Client.reset()
-}
-
-function tryMigrateProjectDbs(db: DrizzleClient) {
-  if (Flag.OPENCODE_SKIP_MIGRATIONS) return
-  if (!needsMigration(db)) return
-  log.info("per-project database migration triggered")
-  try {
-    migrateAll(db as TxOrDb)
-    log.info("per-project database migration complete, restart recommended")
-  } catch (e) {
-    log.error("per-project database migration failed", { error: String(e) })
-  }
 }
 
 const FTS_BACKFILL_SQL = `

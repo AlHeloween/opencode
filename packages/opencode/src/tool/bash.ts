@@ -547,8 +547,14 @@ export const BashTool = Tool.define(
         yield* Effect.promise(
           () =>
             new Promise<void>((resolve) => {
-              stream.end(() => resolve())
-              stream.on("error", () => resolve())
+              let settled = false
+              const done = () => {
+                if (settled) return
+                settled = true
+                resolve()
+              }
+              stream.end(() => done())
+              stream.on("error", () => done())
             }),
         )
       }

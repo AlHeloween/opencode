@@ -76,6 +76,13 @@ export const Instance = {
   get current() {
     return context.use()
   },
+  get currentMaybe(): InstanceContext | undefined {
+    try {
+      return context.use()
+    } catch {
+      return undefined
+    }
+  },
   get directory() {
     return context.use().directory
   },

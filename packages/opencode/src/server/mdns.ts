@@ -36,7 +36,9 @@ export function publish(port: number, domain?: string) {
     if (bonjour) {
       try {
         bonjour.destroy()
-      } catch {}
+      } catch (err) {
+        log.warn("mDNS destroy failed during cleanup", { error: err })
+      }
     }
     bonjour = undefined
     currentPort = undefined

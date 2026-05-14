@@ -4,6 +4,37 @@
 
 This plan addresses performance bottlenecks and correctness issues identified in the opencode codebase. Phase 1 (4 items) has been implemented. Phase 2.1 was attempted but reverted due to retry interaction. Phase 2.2 is implemented. Phase 3.1 was skipped. Phase 4 (gateway, runtime, and tooling optimizations) is implemented. Phase 5 (research report fixes) is implemented.
 
+### Implementation Status (audited 2025-05-14)
+
+| Phase  | Item                        | Plan Claim | Actual      |
+|--------|-----------------------------|------------|-------------|
+| 1.1    | StringBuilder in processor  | Done       | **DONE** (wired 2025-05-14) |
+| 1.2    | MCP concurrency = 4         | Done       | **DONE** (wired 2025-05-14) |
+| 1.3    | Doom loop parts cache       | Done       | Done        |
+| 1.4    | Message loading limits      | Done       | Done        |
+| 2.1    | Delta event coalescing      | Reverted   | Reverted    |
+| 2.2    | Compaction shallow clone    | Done       | **DONE** (wired 2025-05-14) |
+| 3.1    | Snapshot patch debouncing   | Skipped    | Skipped     |
+| 4.1    | CircularBuffer              | Done       | Done        |
+| 4.2    | Health score normalization  | Done       | Done        |
+| 4.3    | Async logger bulk trim      | Done       | Done        |
+| 4.4    | H2 transport LRU            | Done       | Done        |
+| 4.5    | Gateway store eviction      | Done       | Done        |
+| 4.6    | JSON off main thread        | Done       | Done        |
+| 4.7    | Hot path exception elim     | Done       | **DONE** (wired 2025-05-14) |
+| 4.8    | Remove duplicate init       | Done       | Done        |
+| 4.9    | Linked-list queue           | Done       | **DONE** (wired 2025-05-14) |
+| 4.10   | Message stream page size    | Done       | Done        |
+| 4.11   | Part update shallow clone   | Done       | Done        |
+| 4.12   | Bash array accumulation     | Done       | Done        |
+| 4.13   | Grep batched stat           | Done       | Done        |
+| 4.14   | Build version from pkg.json | Done       | Done        |
+| 5.1-6  | Research report fixes       | Done       | Done        |
+| 6.1    | Message search tool         | Done       | Done        |
+| 6.2a   | messagesearch in explore    | Done       | Done        |
+| 6.2b   | default.txt search history  | Done       | **DONE** (wired 2025-05-14) |
+| 6.2c   | json-migration concurrency  | Done       | **DONE** (wired 2025-05-14) |
+
 ---
 
 ## Phase 1: Implemented

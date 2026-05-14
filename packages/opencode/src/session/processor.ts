@@ -20,6 +20,7 @@ import { Question } from "@/question"
 import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { isRecord } from "@/util/record"
+import { StringBuilder } from "@/util/string-builder"
 
 const DOOM_LOOP_THRESHOLD = 3
 const log = Log.create({ service: "session.processor" })
@@ -70,7 +71,9 @@ interface ProcessorContext extends Input {
   blocked: boolean
   needsCompaction: boolean
   currentText: MessageV2.TextPart | undefined
+  textBuilder: StringBuilder
   reasoningMap: Record<string, MessageV2.ReasoningPart>
+  reasoningBuilders: Record<string, StringBuilder>
 }
 
 type StreamEvent = Event
@@ -120,7 +123,9 @@ export const layer: Layer.Layer<
         blocked: false,
         needsCompaction: false,
         currentText: undefined,
+        textBuilder: new StringBuilder(),
         reasoningMap: {},
+        reasoningBuilders: {},
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id)
@@ -230,12 +235,13 @@ export const layer: Layer.Layer<
               time: { start: Date.now() },
               metadata: value.providerMetadata,
             }
+            ctx.reasoningBuilders[value.id] = new StringBuilder()
             yield* session.updatePart(ctx.reasoningMap[value.id])
             return
 
           case "reasoning-delta":
             if (!(value.id in ctx.reasoningMap)) return
-            ctx.reasoningMap[value.id].text += value.text
+            if (ctx.reasoningBuilders[value.id]) ctx.reasoningBuilders[value.id].append(value.text)
             if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
             yield* session.updatePartDelta({
               sessionID: ctx.reasoningMap[value.id].sessionID,
@@ -248,8 +254,8 @@ export const layer: Layer.Layer<
 
           case "reasoning-end":
             if (!(value.id in ctx.reasoningMap)) return
-            // oxlint-disable-next-line no-self-assign -- reactivity trigger
-            ctx.reasoningMap[value.id].text = ctx.reasoningMap[value.id].text
+            ctx.reasoningMap[value.id].text = ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
+            delete ctx.reasoningBuilders[value.id]
             ctx.reasoningMap[value.id].time = { ...ctx.reasoningMap[value.id].time, end: Date.now() }
             if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
             yield* session.updatePart(ctx.reasoningMap[value.id])
@@ -425,12 +431,13 @@ export const layer: Layer.Layer<
               time: { start: Date.now() },
               metadata: value.providerMetadata,
             }
+            ctx.textBuilder.reset()
             yield* session.updatePart(ctx.currentText)
             return
 
           case "text-delta":
             if (!ctx.currentText) return
-            ctx.currentText.text += value.text
+            ctx.textBuilder.append(value.text)
             if (value.providerMetadata) ctx.currentText.metadata = value.providerMetadata
             yield* session.updatePartDelta({
               sessionID: ctx.currentText.sessionID,
@@ -443,8 +450,7 @@ export const layer: Layer.Layer<
 
           case "text-end":
             if (!ctx.currentText) return
-            // oxlint-disable-next-line no-self-assign -- reactivity trigger
-            ctx.currentText.text = ctx.currentText.text
+            ctx.currentText.text = ctx.textBuilder.toString()
             ctx.currentText.text = (yield* plugin.trigger(
               "experimental.text.complete",
               {
@@ -490,6 +496,7 @@ export const layer: Layer.Layer<
 
         if (ctx.currentText) {
           const end = Date.now()
+          ctx.currentText.text = ctx.textBuilder.toString()
           ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
           yield* session.updatePart(ctx.currentText)
           ctx.currentText = undefined
@@ -497,12 +504,15 @@ export const layer: Layer.Layer<
 
         for (const part of Object.values(ctx.reasoningMap)) {
           const end = Date.now()
+          const builder = ctx.reasoningBuilders[part.id]
           yield* session.updatePart({
             ...part,
+            text: builder ? builder.toString() : part.text,
             time: { start: part.time.start ?? end, end },
           })
         }
         ctx.reasoningMap = {}
+        ctx.reasoningBuilders = {}
 
         const pendingToolCalls = Object.entries(ctx.toolcalls)
         yield* Effect.forEach(
@@ -558,7 +568,9 @@ export const layer: Layer.Layer<
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {
             ctx.currentText = undefined
+            ctx.textBuilder.reset()
             ctx.reasoningMap = {}
+            ctx.reasoningBuilders = {}
             const stream = llm.stream(streamInput)
 
             yield* stream.pipe(

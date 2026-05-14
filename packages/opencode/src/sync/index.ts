@@ -8,11 +8,14 @@ import { Instance } from "@/project/instance"
 import { EventSequenceTable, EventTable } from "./event.sql"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
 import { EventID } from "./schema"
+import * as Log from "@opencode-ai/core/util/log"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Schema as EffectSchema } from "effect"
 import { zodObject } from "@/util/effect-zod"
 import type { DeepMutable } from "@/util/schema"
 import type { ProjectID } from "../project/schema"
+
+const log = Log.create({ service: "sync" })
 
 // Keep `Event["data"]` mutable because projectors mutate the persisted shape
 // when writing to the database. Bus payloads (`Properties`) stay readonly —
@@ -132,19 +135,7 @@ function extractProjectId(data: unknown): { id: ProjectID; worktree: string } | 
 }
 
 function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
-  const extracted = extractProjectId(data)
-  if (extracted) return extracted
-
-  try {
-    const row = Database.use((db) => {
-      const rawDb = (db as unknown as { $client: { prepare: (sql: string) => { all: (...args: unknown[]) => unknown[] } } }).$client
-      const stmt = rawDb.prepare("SELECT project_id, directory FROM session_index WHERE id = ?")
-      return stmt.all(aggregateID)
-    }) as { project_id: string; directory: string }[]
-    if (row[0]) return { id: row[0].project_id as ProjectID, worktree: row[0].directory }
-  } catch {}
-
-  return undefined
+  return extractProjectId(data)
 }
 
 function projectorFor(def: Definition) {
@@ -248,9 +239,13 @@ function emitEvent<Def extends Definition>(def: Def, event: Event<Def>, options:
     const result = convertEvent(def.type, event.data)
     const publish = (data: unknown) => ProjectBus.publish(def, data as Properties<Def>)
     if (result instanceof Promise) {
-      void result.then(publish)
+      result.then(publish).catch((err) => log.error("emitEvent publish failed", { error: err }))
     } else {
-      void publish(result)
+      try {
+        void publish(result)
+      } catch (err) {
+        log.error("emitEvent publish failed", { error: err })
+      }
     }
 
     GlobalBus.emit("event", {

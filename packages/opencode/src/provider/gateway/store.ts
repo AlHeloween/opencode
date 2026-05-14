@@ -88,6 +88,17 @@ function evictStaleEntries(s: StoreState): void {
     evicted++
   }
 
+  const staleRouteKeys: string[] = []
+  for (const [key, lastAccess] of s.routeLastAccessed) {
+    if (now - lastAccess > maxAgeMs) {
+      staleRouteKeys.push(key)
+    }
+  }
+  for (const key of staleRouteKeys) {
+    s.routeLastAccessed.delete(key)
+    evicted++
+  }
+
   if (s.circuitBreakers.size > MAX_CIRCUIT_BREAKERS) {
     const entries: Array<[string, number]> = []
     for (const [key, cb] of s.circuitBreakers) {

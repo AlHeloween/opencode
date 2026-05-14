@@ -3,6 +3,7 @@ import { SessionID, MessageID, PartID } from "./schema"
 import { ProjectID } from "../project/schema"
 import z from "zod"
 import { NamedError } from "@opencode-ai/core/util/error"
+import * as Log from "@opencode-ai/core/util/log"
 import { APICallError, convertToModelMessages, LoadAPIKeyError, type ModelMessage, type UIMessage } from "ai"
 import { LSP } from "@/lsp/lsp"
 import { Snapshot } from "@/snapshot"
@@ -1202,7 +1203,9 @@ export function fromError(
             },
           ).toObject()
         }
-      } catch {}
+      } catch (err) {
+        Log.Default.warn("failed to parse error as NamedError", { error: err })
+      }
       return new NamedError.Unknown({ message: JSON.stringify(e) }, { cause: e }).toObject()
   }
 }

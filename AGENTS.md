@@ -4,6 +4,12 @@
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
 
+## Bug Policy
+
+- This is a development tool. There is no such thing as an "unimportant" or "low severity" bug. Every bug is a problem that degrades the tool for its users — fix it, don't triage it away.
+- Silent `catch {}` blocks are bugs. If an error can occur, it must be logged. If it's truly expected and ignorable, log at debug level.
+- Plan-to-code gaps (a plan claiming something is done when it is not) are bugs and must be corrected in the plan document.
+
 ## Style Guide
 
 ### General Principles
@@ -116,6 +122,11 @@ const table = sqliteTable("session", {
 - Completed plans move to `plans_completed/`.
 - After creating a plan document, run the explore task agent to validate it against the codebase.
 - Correct the plan based on explore feedback before implementing.
+- After implementation, verify each plan item against the actual code. Update status markers in the plan document.
+- Plan-to-code gaps (a plan claiming something is done when it is not) are bugs and must be corrected in the plan document.
+- When all items in a plan are resolved, move the plan to `plans_completed/`.
+- Plans found outside `plans/` (e.g., `PERF_PLAN.md` at root, `BUN_SHELL_MIGRATION_PLAN.md` in a package) belong in `plans/` and should be moved there.
+- After any plan change (creation, status update, completion), run the explore task agent to validate the plan against the codebase. Correct the plan based on explore feedback.
 
 ## Testing
 

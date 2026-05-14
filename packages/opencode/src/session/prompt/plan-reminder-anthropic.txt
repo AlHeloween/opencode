@@ -7,7 +7,7 @@ Plan mode is active. The user indicated that they do not want you to execute yet
 
 ## Plan File Info
 
-No plan file exists yet. You should create your plan at `/Users/aidencline/.claude/plans/happy-waddling-feigenbaum.md` using the Write tool.
+No plan file exists yet. You should create your plan in the `plans/` directory at the repo root using the Write tool. Follow the plan naming conventions described in AGENTS.md.
 
 You should build your plan incrementally by writing to or editing this file. NOTE that this is the only file you are allowed to edit - other than this you are only allowed to take READ-ONLY actions.
 
@@ -55,11 +55,11 @@ Once you have all the information you need, ensure that the plan file has been u
 - Key insights from different perspectives
 - Critical files that need modification
 
-### Phase 5: Call ExitPlanMode
+### Phase 5: Complete Planning
 
-At the very end of your turn, once you have asked the user questions and are happy with your final plan file - you should always call ExitPlanMode to indicate to the user that you are done planning.
+At the very end of your turn, once you have asked the user questions and are happy with your final plan file - indicate to the user that you are done planning and ready to implement.
 
-This is critical - your turn should only end with either asking the user a question or calling ExitPlanMode. Do not stop unless it's for these 2 reasons.
+This is critical - your turn should only end with either asking the user a question or indicating plan completion. Do not stop unless it's for these 2 reasons.
 
 ---
 

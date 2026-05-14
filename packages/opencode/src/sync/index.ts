@@ -147,7 +147,7 @@ function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID
   return undefined
 }
 
-function process<Def extends Definition>(def: Def, event: Event<Def>, options: { publish: boolean }) {
+function projectorFor(def: Definition) {
   if (projectors == null) {
     throw new Error("No projectors available. Call `SyncEvent.init` to install projectors")
   }
@@ -156,42 +156,61 @@ function process<Def extends Definition>(def: Def, event: Event<Def>, options: {
   if (!projector) {
     throw new Error(`Projector not found for event: ${def.type}`)
   }
+  return projector
+}
 
-  const projectDbMode = Database.isProjectDbMode()
-  const project = projectDbMode ? resolveProjectInfo(event.aggregateID, event.data) : undefined
-
-  if (projectDbMode && project) {
-    Database.projectTransaction(
-      project.id,
-      project.worktree,
-      (tx) => {
-        projector(tx, event.data)
-
-        tx.insert(EventTable)
-          .values({
-            id: event.id,
-            seq: event.seq,
-            aggregate_id: event.aggregateID,
-            type: versionedType(def.type, def.version),
-            data: event.data as Record<string, unknown>,
-          })
-          .run()
-
-        Database.effect(() => emitEvent(def, event, options))
-      },
-    )
-    // Write event_sequence to global DB for cross-project sync fence
-    Database.use((db) => {
-      db.insert(EventSequenceTable)
-        .values({ aggregate_id: event.aggregateID, seq: event.seq })
-        .onConflictDoUpdate({
-          target: EventSequenceTable.aggregate_id,
-          set: { seq: event.seq },
-        })
-        .run()
+function writeSequence(db: Database.TxOrDb, aggregateID: string, seq: number) {
+  db.insert(EventSequenceTable)
+    .values({ aggregate_id: aggregateID, seq })
+    .onConflictDoUpdate({
+      target: EventSequenceTable.aggregate_id,
+      set: { seq },
     })
-    return
-  }
+    .run()
+}
+
+function writeGlobalSequence(aggregateID: string, seq: number) {
+  writeSequence(Database.Client(), aggregateID, seq)
+}
+
+function deleteGlobalSequence(aggregateID: string) {
+  Database.Client().delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+}
+
+function applyProjectEvent<Def extends Definition>(
+  tx: Database.TxOrDb,
+  projector: ProjectorFunc,
+  def: Def,
+  event: Event<Def>,
+  options: { publish: boolean },
+) {
+  projector(tx, event.data)
+  writeSequence(tx, event.aggregateID, event.seq)
+  tx.insert(EventTable)
+    .values({
+      id: event.id,
+      seq: event.seq,
+      aggregate_id: event.aggregateID,
+      type: versionedType(def.type, def.version),
+      data: event.data as Record<string, unknown>,
+    })
+    .run()
+  Database.effect(() => emitEvent(def, event, options))
+}
+
+function process<Def extends Definition>(def: Def, event: Event<Def>, options: { publish: boolean }) {
+  const projector = projectorFor(def)
+
+const projectDbMode = Database.isProjectDbMode()
+const project = projectDbMode ? resolveProjectInfo(event.aggregateID, event.data) : undefined
+
+if (projectDbMode && project) {
+  Database.projectTransaction(project.id, project.worktree, (tx) => {
+    applyProjectEvent(tx, projector, def, event, options)
+  })
+  writeGlobalSequence(event.aggregateID, event.seq)
+  return
+}
 
   // idempotent: need to ignore any events already logged
 
@@ -323,25 +342,29 @@ export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], 
   const project = projectDbMode ? resolveProjectInfo(agg, data) : undefined
 
   if (projectDbMode && project) {
-    Database.projectTransaction(
-      project.id,
-      project.worktree,
-      (tx) => {
-        const id = EventID.ascending()
-        const row = tx
-          .select({ seq: EventSequenceTable.seq })
-          .from(EventSequenceTable)
-          .where(eq(EventSequenceTable.aggregate_id, agg))
-          .get()
-        const seq = row?.seq != null ? row.seq + 1 : 0
+  const projector = projectorFor(def)
+  let sequence = -1
+  Database.projectTransaction(
+    project.id,
+    project.worktree,
+    (tx) => {
+      const id = EventID.ascending()
+      const row = tx
+        .select({ seq: EventSequenceTable.seq })
+        .from(EventSequenceTable)
+        .where(eq(EventSequenceTable.aggregate_id, agg))
+        .get()
+      const seq = row?.seq != null ? row.seq + 1 : 0
+      sequence = seq
 
-        const event = { id, seq, aggregateID: agg, data }
-        process(def, event, { publish })
-      },
-      { behavior: "immediate" },
-    )
-    return
-  }
+      const event = { id, seq, aggregateID: agg, data }
+      applyProjectEvent(tx, projector, def, event, { publish })
+    },
+    { behavior: "immediate" },
+  )
+  writeGlobalSequence(agg, sequence)
+  return
+}
 
   // Note that this is an "immediate" transaction which is critical.
   // We need to make sure we can safely read and write with nothing
@@ -370,12 +393,13 @@ export function remove(aggregateID: string) {
   const project = projectDbMode ? resolveProjectInfo(aggregateID, null) : undefined
 
   if (projectDbMode && project) {
-    Database.projectTransaction(project.id, project.worktree, (tx) => {
-      tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
-      tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
-    })
-    return
-  }
+  Database.projectTransaction(project.id, project.worktree, (tx) => {
+    tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+    tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
+  })
+  deleteGlobalSequence(aggregateID)
+  return
+}
 
   Database.transaction((tx) => {
     tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
@@ -404,3 +428,4 @@ export function payloads() {
 }
 
 export * as SyncEvent from "."
+

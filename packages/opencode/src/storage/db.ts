@@ -32,16 +32,16 @@ const log = Log.create({ service: "db" })
 const MIGRATION_FLAG_TABLE = "_meta"
 const MIGRATION_FLAG_KEY = "migrated_to_project_db"
 
-function setProjectDbModeFlag(db: DrizzleClient) {
+function setProjectDbModeFlag(db: { run: (sql: string) => void }) {
   try {
     db.run(`CREATE TABLE IF NOT EXISTS "${MIGRATION_FLAG_TABLE}" (key text PRIMARY KEY NOT NULL, value text NOT NULL)`)
     db.run(`INSERT OR REPLACE INTO "${MIGRATION_FLAG_TABLE}" (key, value) VALUES ('${MIGRATION_FLAG_KEY}', '1')`)
   } catch {}
 }
 
-export function isProjectDbMode() {
+export function isProjectDbMode(db?: { all: <T>(sql: string, ...params: unknown[]) => T[] }) {
   try {
-    const rows = Client().all<{ value: string }>(
+    const rows = (db ?? Client()).all<{ value: string }>(
       `SELECT value FROM "${MIGRATION_FLAG_TABLE}" WHERE key = '${MIGRATION_FLAG_KEY}'`,
     )
     return rows[0]?.value === "1"
@@ -50,8 +50,8 @@ export function isProjectDbMode() {
   }
 }
 
-export function markProjectDbMode() {
-  setProjectDbModeFlag(Client())
+export function markProjectDbMode(db?: { run: (sql: string) => void }) {
+  setProjectDbModeFlag(db ?? Client())
 }
 
 export function getChannelPath() {
@@ -125,7 +125,7 @@ export function getProjectDbPath(worktree: string) {
   return path.join(worktree, ".opencode", "project.db")
 }
 
-function createAndInitDb(dbPath: string, migrationDir: string): DrizzleClient {
+function createAndInitDb(dbPath: string, migrationDir: string, skipMigrations = false): DrizzleClient {
   const dir = path.dirname(dbPath)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 
@@ -138,22 +138,24 @@ function createAndInitDb(dbPath: string, migrationDir: string): DrizzleClient {
   db.run("PRAGMA foreign_keys = ON")
   db.run("PRAGMA wal_checkpoint(PASSIVE)")
 
-  const entries =
-    typeof OPENCODE_MIGRATIONS !== "undefined"
-      ? OPENCODE_MIGRATIONS
-      : migrations(migrationDir)
-  if (entries.length > 0) {
-    log.info("applying migrations", {
-      path: dbPath,
-      count: entries.length,
-      mode: typeof OPENCODE_MIGRATIONS !== "undefined" ? "bundled" : "dev",
-    })
-    if (Flag.OPENCODE_SKIP_MIGRATIONS) {
-      for (const item of entries) {
-        item.sql = "select 1;"
+  if (!skipMigrations) {
+    const entries =
+      typeof OPENCODE_MIGRATIONS !== "undefined"
+        ? OPENCODE_MIGRATIONS
+        : migrations(migrationDir)
+    if (entries.length > 0) {
+      log.info("applying migrations", {
+        path: dbPath,
+        count: entries.length,
+        mode: typeof OPENCODE_MIGRATIONS !== "undefined" ? "bundled" : "dev",
+      })
+      if (Flag.OPENCODE_SKIP_MIGRATIONS) {
+        for (const item of entries) {
+          item.sql = "select 1;"
+        }
       }
+      migrate(db, entries)
     }
-    migrate(db, entries)
   }
 
   return db
@@ -341,7 +343,7 @@ export function getProjectDb(projectID: ProjectID, worktree: string): DrizzleCli
 
   const dbPath = getProjectDbPath(worktree)
   log.info("opening project database", { projectID, path: dbPath })
-  const db = createAndInitDb(dbPath, "") // skip Drizzle migrations for project DB
+  const db = createAndInitDb(dbPath, "", true) // skip Drizzle migrations for project DB
   applyProjectMigrations(db)
   projectClients.set(projectID, db)
   return db
@@ -373,17 +375,10 @@ export function close() {
 
 function tryMigrateProjectDbs(db: DrizzleClient) {
   if (Flag.OPENCODE_SKIP_MIGRATIONS) return
-  try {
-    const row = db.$client.prepare("SELECT count(*) as c FROM sqlite_master WHERE type='table' AND name='session'").get()
-    if (!row || (row as any).c === 0) return
-    const row2 = db.$client.prepare("SELECT count(*) as c FROM session").get()
-    if (!row2 || (row2 as any).c === 0) return
-  } catch {
-    return
-  }
+  if (!needsMigration(db)) return
   log.info("per-project database migration triggered")
   try {
-    migrateAll()
+    migrateAll(db as TxOrDb)
     log.info("per-project database migration complete, restart recommended")
   } catch (e) {
     log.error("per-project database migration failed", { error: String(e) })
@@ -633,10 +628,12 @@ export function transaction<T>(
       } else {
         db = Client()
       }
-      const txCallback = InstanceState.bind((tx: TxOrDb) => ctx.provide({ tx, effects }, () => callback(tx)))
-      const result = db.transaction(txCallback, { behavior: options?.behavior })
-      for (const effect of effects) effect()
-      return result as NotPromise<T>
+      const txCallback = InstanceState.bind((tx: TxOrDb) => {
+        const result = ctx.provide({ tx, effects }, () => callback(tx))
+        for (const effect of effects) effect()
+        return result
+      })
+      return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
     }
     throw err
   }
@@ -656,13 +653,16 @@ export function projectTransaction<T>(
     if (err instanceof LocalContext.NotFound) {
       const db = getProjectDb(projectID, worktree)
       const effects: (() => void | Promise<void>)[] = []
-      const txCallback = InstanceState.bind((tx: TxOrDb) => ctx.provide({ tx, effects }, () => callback(tx)))
-      const result = db.transaction(txCallback, { behavior: options?.behavior })
-      for (const effect of effects) effect()
-      return result as NotPromise<T>
+      const txCallback = InstanceState.bind((tx: TxOrDb) => {
+        const result = ctx.provide({ tx, effects }, () => callback(tx))
+        for (const effect of effects) effect()
+        return result
+      })
+      return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
     }
     throw err
   }
 }
 
 export * as Database from "./db"
+

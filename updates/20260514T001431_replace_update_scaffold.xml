@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_2a70d25997262f1e6f93556ac409d393 name="bug_fixes_round_1_status_note" md5="2a70d25997262f1e6f93556ac409d393" size="367">
+    <file>plans/bug-fixes-round-1.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>## Summary
+Fix 10 critical/high severity bugs + 5 high-impact medium bugs found in codebase analysis.
+**Validated by explore agent against actual codebase — corrections applied.**</find_text>
+    <semantics>Make the active plan reflect which bug-fix items are now implemented and which remains pending.</semantics>
+    <content_md5_2a70d25997262f1e6f93556ac409d393>
+      ## Summary
+      Fix 10 critical/high severity bugs + 5 high-impact medium bugs found in codebase analysis.
+      **Validated by explore agent against actual codebase — corrections applied.**
+      
+      ## Current status
+      Implemented: Fixes 1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, and 15.
+      No code change needed: Fix 9.
+      Still active: Fix 3 requires a higher-risk recursive session deletion batching redesign across session removal and sync/event sequencing.
+    </content_md5_2a70d25997262f1e6f93556ac409d393>
+  </update_md5_2a70d25997262f1e6f93556ac409d393>
+</updates>

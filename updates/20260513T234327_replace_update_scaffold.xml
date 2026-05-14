@@ -1,0 +1,305 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_a53df2d8e0acab612b6577471356dfc3 name="session_sql_import_any_sqlite_column" md5="a53df2d8e0acab612b6577471356dfc3" size="98">
+    <file>packages/opencode/src/session/session.sql.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>import { sqliteTable, text, integer, index, primaryKey } from &quot;drizzle-orm/sqlite-core&quot;</find_text>
+    <semantics>Add the Drizzle self-reference column type required by SessionTable.parent_id.</semantics>
+    <content_md5_a53df2d8e0acab612b6577471356dfc3>
+      import { sqliteTable, text, integer, index, primaryKey, type AnySQLiteColumn } from &quot;drizzle-orm/sqlite-core&quot;
+    </content_md5_a53df2d8e0acab612b6577471356dfc3>
+  </update_md5_a53df2d8e0acab612b6577471356dfc3>
+  <update_md5_1062752aadd476121c302f3b0eb5c651 name="session_parent_fk_type_annotation" md5="1062752aadd476121c302f3b0eb5c651" size="105">
+    <file>packages/opencode/src/session/session.sql.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    parent_id: text().$type&lt;SessionID&gt;().references(() =&gt; SessionTable.id, { onDelete: &quot;set null&quot; }),</find_text>
+    <semantics>Annotate the self-referencing FK callback to avoid implicit any recursion.</semantics>
+    <content_md5_1062752aadd476121c302f3b0eb5c651>
+      parent_id: text().$type&lt;SessionID&gt;().references((): AnySQLiteColumn =&gt; SessionTable.id, { onDelete: &quot;set null&quot; }),
+    </content_md5_1062752aadd476121c302f3b0eb5c651>
+  </update_md5_1062752aadd476121c302f3b0eb5c651>
+  <update_md5_0fae9c74f683d1841d182a7381dbb878 name="sync_sequence_helpers" md5="0fae9c74f683d1841d182a7381dbb878" size="1728">
+    <file>packages/opencode/src/sync/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
+  const extracted = extractProjectId(data)
+  if (extracted) return extracted
+
+  try {
+    const row = Database.use((db) =&gt; {
+      const rawDb = (db as unknown as { $client: { prepare: (sql: string) =&gt; { all: (...args: unknown[]) =&gt; unknown[] } } }).$client
+      const stmt = rawDb.prepare(&quot;SELECT project_id, directory FROM session_index WHERE id = ?&quot;)
+      return stmt.all(aggregateID)
+    }) as { project_id: string; directory: string }[]
+    if (row[0]) return { id: row[0].project_id as ProjectID, worktree: row[0].directory }
+  } catch {}
+
+  return undefined
+}</find_text>
+    <semantics>Add explicit project/global event sequence helpers so project DB mode cannot accidentally route fence state through the active transaction context.</semantics>
+    <content_md5_0fae9c74f683d1841d182a7381dbb878>
+      function resolveProjectInfo(aggregateID: string, data: unknown): { id: ProjectID; worktree: string } | undefined {
+        const extracted = extractProjectId(data)
+        if (extracted) return extracted
+      
+        try {
+          const row = Database.use((db) =&gt; {
+            const rawDb = (db as unknown as { $client: { prepare: (sql: string) =&gt; { all: (...args: unknown[]) =&gt; unknown[] } } }).$client
+            const stmt = rawDb.prepare(&quot;SELECT project_id, directory FROM session_index WHERE id = ?&quot;)
+            return stmt.all(aggregateID)
+          }) as { project_id: string; directory: string }[]
+          if (row[0]) return { id: row[0].project_id as ProjectID, worktree: row[0].directory }
+        } catch {}
+      
+        return undefined
+      }
+      
+      function projectorFor(def: Definition) {
+        if (projectors == null) {
+          throw new Error(&quot;No projectors available. Call `SyncEvent.init` to install projectors&quot;)
+        }
+      
+        const projector = projectors.get(def)
+        if (!projector) {
+          throw new Error(`Projector not found for event: ${def.type}`)
+        }
+        return projector
+      }
+      
+      function writeSequence(db: Database.TxOrDb, aggregateID: string, seq: number) {
+        db.insert(EventSequenceTable)
+          .values({ aggregate_id: aggregateID, seq })
+          .onConflictDoUpdate({
+            target: EventSequenceTable.aggregate_id,
+            set: { seq },
+          })
+          .run()
+      }
+      
+      function writeGlobalSequence(aggregateID: string, seq: number) {
+        writeSequence(Database.Client(), aggregateID, seq)
+      }
+      
+      function deleteGlobalSequence(aggregateID: string) {
+        Database.Client().delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+      }
+      
+      function applyProjectEvent&lt;Def extends Definition&gt;(
+        tx: Database.TxOrDb,
+        projector: ProjectorFunc,
+        def: Def,
+        event: Event&lt;Def&gt;,
+        options: { publish: boolean },
+      ) {
+        projector(tx, event.data)
+        writeSequence(tx, event.aggregateID, event.seq)
+        tx.insert(EventTable)
+          .values({
+            id: event.id,
+            seq: event.seq,
+            aggregate_id: event.aggregateID,
+            type: versionedType(def.type, def.version),
+            data: event.data as Record&lt;string, unknown&gt;,
+          })
+          .run()
+        Database.effect(() =&gt; emitEvent(def, event, options))
+      }
+    </content_md5_0fae9c74f683d1841d182a7381dbb878>
+  </update_md5_0fae9c74f683d1841d182a7381dbb878>
+  <update_md5_1f57191d332a73f3076a0c3ab053b4cd name="sync_process_project_sequence" md5="1f57191d332a73f3076a0c3ab053b4cd" size="358">
+    <file>packages/opencode/src/sync/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  if (projectors == null) {
+    throw new Error(&quot;No projectors available. Call `SyncEvent.init` to install projectors&quot;)
+  }
+
+  const projector = projectors.get(def)
+  if (!projector) {
+    throw new Error(`Projector not found for event: ${def.type}`)
+  }
+
+  const projectDbMode = Database.isProjectDbMode()
+  const project = projectDbMode ? resolveProjectInfo(event.aggregateID, event.data) : undefined
+
+  if (projectDbMode &amp;&amp; project) {
+    Database.projectTransaction(
+      project.id,
+      project.worktree,
+      (tx) =&gt; {
+        projector(tx, event.data)
+
+        tx.insert(EventTable)
+          .values({
+            id: event.id,
+            seq: event.seq,
+            aggregate_id: event.aggregateID,
+            type: versionedType(def.type, def.version),
+            data: event.data as Record&lt;string, unknown&gt;,
+          })
+          .run()
+
+        Database.effect(() =&gt; emitEvent(def, event, options))
+      },
+    )
+    // Write event_sequence to global DB for cross-project sync fence
+    Database.use((db) =&gt; {
+      db.insert(EventSequenceTable)
+        .values({ aggregate_id: event.aggregateID, seq: event.seq })
+        .onConflictDoUpdate({
+          target: EventSequenceTable.aggregate_id,
+          set: { seq: event.seq },
+        })
+        .run()
+    })
+    return
+  }</find_text>
+    <semantics>Use explicit project sequence updates inside the project DB and explicit global sequence updates after project transactions.</semantics>
+    <content_md5_1f57191d332a73f3076a0c3ab053b4cd>
+      const projector = projectorFor(def)
+      
+      const projectDbMode = Database.isProjectDbMode()
+      const project = projectDbMode ? resolveProjectInfo(event.aggregateID, event.data) : undefined
+      
+      if (projectDbMode &amp;&amp; project) {
+        Database.projectTransaction(project.id, project.worktree, (tx) =&gt; {
+          applyProjectEvent(tx, projector, def, event, options)
+        })
+        writeGlobalSequence(event.aggregateID, event.seq)
+        return
+      }
+    </content_md5_1f57191d332a73f3076a0c3ab053b4cd>
+  </update_md5_1f57191d332a73f3076a0c3ab053b4cd>
+  <update_md5_e3ab62e0f71b1bdf77480b9b209bbdbf name="sync_run_project_sequence" md5="e3ab62e0f71b1bdf77480b9b209bbdbf" size="493">
+    <file>packages/opencode/src/sync/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  if (projectDbMode &amp;&amp; project) {
+    Database.projectTransaction(
+      project.id,
+      project.worktree,
+      (tx) =&gt; {
+        const id = EventID.ascending()
+        const row = tx
+          .select({ seq: EventSequenceTable.seq })
+          .from(EventSequenceTable)
+          .where(eq(EventSequenceTable.aggregate_id, agg))
+          .get()
+        const seq = row?.seq != null ? row.seq + 1 : 0
+
+        const event = { id, seq, aggregateID: agg, data }
+        process(def, event, { publish })
+      },
+      { behavior: &quot;immediate&quot; },
+    )
+    return
+  }</find_text>
+    <semantics>Avoid nested process routing in project DB mode and update global fence sequence only after the project transaction succeeds.</semantics>
+    <content_md5_e3ab62e0f71b1bdf77480b9b209bbdbf>
+      if (projectDbMode &amp;&amp; project) {
+        const projector = projectorFor(def)
+        let sequence = -1
+        Database.projectTransaction(
+          project.id,
+          project.worktree,
+          (tx) =&gt; {
+            const id = EventID.ascending()
+            const row = tx
+              .select({ seq: EventSequenceTable.seq })
+              .from(EventSequenceTable)
+              .where(eq(EventSequenceTable.aggregate_id, agg))
+              .get()
+            const seq = row?.seq != null ? row.seq + 1 : 0
+            sequence = seq
+      
+            const event = { id, seq, aggregateID: agg, data }
+            applyProjectEvent(tx, projector, def, event, { publish })
+          },
+          { behavior: &quot;immediate&quot; },
+        )
+        writeGlobalSequence(agg, sequence)
+        return
+      }
+    </content_md5_e3ab62e0f71b1bdf77480b9b209bbdbf>
+  </update_md5_e3ab62e0f71b1bdf77480b9b209bbdbf>
+  <update_md5_4ffbbe72d9dc8580d501c075fcaeff71 name="sync_remove_global_sequence" md5="4ffbbe72d9dc8580d501c075fcaeff71" size="296">
+    <file>packages/opencode/src/sync/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  if (projectDbMode &amp;&amp; project) {
+    Database.projectTransaction(project.id, project.worktree, (tx) =&gt; {
+      tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+      tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
+    })
+    return
+  }</find_text>
+    <semantics>Keep global fence sequence state consistent when project-mode aggregates are removed.</semantics>
+    <content_md5_4ffbbe72d9dc8580d501c075fcaeff71>
+      if (projectDbMode &amp;&amp; project) {
+        Database.projectTransaction(project.id, project.worktree, (tx) =&gt; {
+          tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
+          tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
+        })
+        deleteGlobalSequence(aggregateID)
+        return
+      }
+    </content_md5_4ffbbe72d9dc8580d501c075fcaeff71>
+  </update_md5_4ffbbe72d9dc8580d501c075fcaeff71>
+  <update_md5_bae4748a05269ac35f961b9a46dc8b6f name="migration_copy_event_sequence" md5="bae4748a05269ac35f961b9a46dc8b6f" size="512">
+    <file>packages/opencode/src/storage/project-db-migration.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  // Event table uses aggregate_id instead of session_id
+  log.info(&quot;copying event&quot;, { projectID })
+  const eventRows = globalDb.all&lt;Record&lt;string, unknown&gt;&gt;(
+    `SELECT * FROM event WHERE aggregate_id IN (SELECT id FROM session WHERE project_id = &#x27;${escapeSql(projectID)}&#x27;)`,
+  )
+  copyRows(projectDb, &quot;event&quot;, eventRows)</find_text>
+    <semantics>Copy event_sequence rows for migrated sessions before copying their event journal rows.</semantics>
+    <content_md5_bae4748a05269ac35f961b9a46dc8b6f>
+      // Event tables use aggregate_id instead of session_id.
+      const eventFilter = `aggregate_id IN (SELECT id FROM session WHERE project_id = &#x27;${escapeSql(projectID)}&#x27;)`
+      log.info(&quot;copying event_sequence&quot;, { projectID })
+      const eventSequenceRows = globalDb.all&lt;Record&lt;string, unknown&gt;&gt;(`SELECT * FROM event_sequence WHERE ${eventFilter}`)
+      copyRows(projectDb, &quot;event_sequence&quot;, eventSequenceRows)
+      
+      log.info(&quot;copying event&quot;, { projectID })
+      const eventRows = globalDb.all&lt;Record&lt;string, unknown&gt;&gt;(`SELECT * FROM event WHERE ${eventFilter}`)
+      copyRows(projectDb, &quot;event&quot;, eventRows)
+    </content_md5_bae4748a05269ac35f961b9a46dc8b6f>
+  </update_md5_bae4748a05269ac35f961b9a46dc8b6f>
+  <update_md5_f8e2791dd13bd99da55c569bed57f3a5 name="edit_backup_retention_counts_bak_only" md5="f8e2791dd13bd99da55c569bed57f3a5" size="434">
+    <file>packages/opencode/src/tool/edit.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    const entries = yield* afs.readDirectory(dir).pipe(Effect.catch(() =&gt; Effect.succeed([] as string[])))
+    if (entries.length &gt; MAX_BACKUPS_PER_SESSION) {
+      const sorted = entries.sort()
+      for (let i = 0; i &lt; entries.length - MAX_BACKUPS_PER_SESSION; i++) {
+        yield* afs.remove(path.join(dir, sorted[i])).pipe(Effect.catch(() =&gt; Effect.void))
+      }
+    }</find_text>
+    <semantics>Rotate by actual .bak entries and remove matching metadata as sidecar files.</semantics>
+    <content_md5_f8e2791dd13bd99da55c569bed57f3a5>
+      const entries = yield* afs.readDirectory(dir).pipe(Effect.catch(() =&gt; Effect.succeed([] as string[])))
+      const backups = entries.filter((entry) =&gt; entry.endsWith(&quot;.bak&quot;)).sort()
+      if (backups.length &gt; MAX_BACKUPS_PER_SESSION) {
+        for (let i = 0; i &lt; backups.length - MAX_BACKUPS_PER_SESSION; i++) {
+          yield* afs.remove(path.join(dir, backups[i])).pipe(Effect.catch(() =&gt; Effect.void))
+          yield* afs.remove(path.join(dir, backups[i] + &quot;.meta.json&quot;)).pipe(Effect.catch(() =&gt; Effect.void))
+        }
+      }
+    </content_md5_f8e2791dd13bd99da55c569bed57f3a5>
+  </update_md5_f8e2791dd13bd99da55c569bed57f3a5>
+</updates>

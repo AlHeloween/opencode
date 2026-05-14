@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, primaryKey, type AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import { ProjectTable } from "../project/project.sql"
 import type { MessageV2 } from "./message-v2"
 import type { SessionEntry } from "../v2/session-entry"
@@ -21,7 +21,7 @@ export const SessionTable = sqliteTable(
       .notNull()
       .references(() => ProjectTable.id, { onDelete: "cascade" }),
     workspace_id: text().$type<WorkspaceID>(),
-    parent_id: text().$type<SessionID>(),
+    parent_id: text().$type<SessionID>().references((): AnySQLiteColumn => SessionTable.id, { onDelete: "set null" }),
     slug: text().notNull(),
     directory: text().notNull(),
     title: text().notNull(),
@@ -66,7 +66,7 @@ export const PartTable = sqliteTable(
       .$type<MessageID>()
       .notNull()
       .references(() => MessageTable.id, { onDelete: "cascade" }),
-    session_id: text().$type<SessionID>().notNull(),
+    session_id: text().$type<SessionID>().notNull().references(() => SessionTable.id, { onDelete: "cascade" }),
     ...Timestamps,
     data: text({ mode: "json" }).notNull().$type<PartData>(),
   },
@@ -121,3 +121,4 @@ export const PermissionTable = sqliteTable("permission", {
   ...Timestamps,
   data: text({ mode: "json" }).notNull().$type<Permission.Ruleset>(),
 })
+

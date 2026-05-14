@@ -149,7 +149,7 @@ export default [
         .run()
     } catch (err) {
       if (!foreign(err)) throw err
-      log.warn("ignored late message update", { messageID: id, sessionID })
+      log.error("ignored late message update — message references deleted session?", { messageID: id, sessionID })
     }
   }),
 
@@ -195,7 +195,7 @@ export default [
         .run()
     } catch (err) {
       if (!foreign(err)) throw err
-      log.warn("ignored late part update", { partID: id, messageID, sessionID })
+      log.error("ignored late part update — part references deleted session?", { partID: id, messageID, sessionID })
     }
   }),
 ]

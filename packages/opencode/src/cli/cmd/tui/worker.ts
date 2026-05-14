@@ -30,12 +30,14 @@ process.on("unhandledRejection", (e) => {
   Log.Default.error("rejection", {
     e: e instanceof Error ? e.message : e,
   })
+  process.exit(1)
 })
 
 process.on("uncaughtException", (e) => {
   Log.Default.error("exception", {
     e: e instanceof Error ? e.message : e,
   })
+  process.exit(1)
 })
 
 // Subscribe to global events and forward them via RPC

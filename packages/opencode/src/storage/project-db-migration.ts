@@ -1,5 +1,6 @@
 import * as Log from "@opencode-ai/core/util/log"
 import { Database, markProjectDbMode, getProjectDb } from "./db"
+import type { TxOrDb } from "./db"
 import type { ProjectID } from "../project/schema"
 
 const log = Log.create({ service: "project-db-migration" })
@@ -8,7 +9,7 @@ function rawExec(db: unknown) {
   return (db as { $client: { exec: (sql: string) => string | undefined } }).$client
 }
 
-export function needsMigration(db?: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never): boolean {
+export function needsMigration(db?: { all: <T>(sql: string, ...params: unknown[]) => T[] }): boolean {
   if (db) {
     const hasSession = db.all<{ c: number }>("SELECT count(*) as c FROM sqlite_master WHERE type='table' AND name='session'")
     if (hasSession[0]?.c === 0) return false
@@ -23,73 +24,79 @@ export function needsMigration(db?: Parameters<typeof Database.use>[0] extends (
   })
 }
 
-export function migrateAll() {
-  Database.use((globalDb) => {
+export function migrateAll(globalDb?: TxOrDb) {
+  const inner = (globalDb: TxOrDb) => {
     log.info("starting per-project database migration")
     const projects = globalDb.all<{ id: ProjectID; worktree: string }>("SELECT id, worktree FROM project")
     log.info("migrating projects", { count: projects.length })
 
     for (const project of projects) {
-      migrateProject(project.id, project.worktree)
+      migrateProject(project.id, project.worktree, globalDb)
     }
 
     log.info("per-project database migration complete")
-    cleanupGlobal()
-    markProjectDbMode()
+    cleanupGlobal(globalDb)
+    markProjectDbMode(globalDb)
     log.info("switched to project database mode")
-  })
+  }
+  if (globalDb) {
+    inner(globalDb)
+    return
+  }
+  Database.use(inner)
 }
 
-function migrateProject(projectID: ProjectID, worktree: string) {
+function migrateProject(projectID: ProjectID, worktree: string, globalDb: TxOrDb) {
   const projectDb = getProjectDb(projectID, worktree)
   log.info("migrating project", { projectID, worktree })
 
-  Database.use((globalDb) => {
-    // Copy session table first (filtered by project_id)
-    log.info("copying session", { projectID })
-    const sessionRows = globalDb.all<Record<string, unknown>>(
-      `SELECT * FROM session WHERE project_id = '${escapeSql(projectID)}'`,
+  // Copy session table first (filtered by project_id)
+  log.info("copying session", { projectID })
+  const sessionRows = globalDb.all<Record<string, unknown>>(
+    `SELECT * FROM session WHERE project_id = '${escapeSql(projectID)}'`,
+  )
+  copyRows(projectDb, "session", sessionRows)
+
+  for (const table of [
+    "message",
+    "part",
+    "todo",
+    "session_entry",
+    "session_share",
+  ]) {
+    log.info("copying table", { table, projectID })
+    const rows = globalDb.all<Record<string, unknown>>(
+      `SELECT * FROM "${table}" WHERE session_id IN (SELECT id FROM session WHERE project_id = '${escapeSql(projectID)}')`,
     )
-    copyRows(projectDb, "session", sessionRows)
+    copyRows(projectDb, table, rows)
+  }
 
-    for (const table of [
-      "message",
-      "part",
-      "todo",
-      "session_entry",
-      "session_share",
-    ]) {
-      log.info("copying table", { table, projectID })
-      const rows = globalDb.all<Record<string, unknown>>(
-        `SELECT * FROM "${table}" WHERE session_id IN (SELECT id FROM session WHERE project_id = '${escapeSql(projectID)}')`,
-      )
-      copyRows(projectDb, table, rows)
-    }
+  // Event tables use aggregate_id instead of session_id.
+const eventFilter = `aggregate_id IN (SELECT id FROM session WHERE project_id = '${escapeSql(projectID)}')`
+log.info("copying event_sequence", { projectID })
+const eventSequenceRows = globalDb.all<Record<string, unknown>>(`SELECT * FROM event_sequence WHERE ${eventFilter}`)
+copyRows(projectDb, "event_sequence", eventSequenceRows)
 
-    // Event table uses aggregate_id instead of session_id
-    log.info("copying event", { projectID })
-    const eventRows = globalDb.all<Record<string, unknown>>(
-      `SELECT * FROM event WHERE aggregate_id IN (SELECT id FROM session WHERE project_id = '${escapeSql(projectID)}')`,
+log.info("copying event", { projectID })
+const eventRows = globalDb.all<Record<string, unknown>>(`SELECT * FROM event WHERE ${eventFilter}`)
+copyRows(projectDb, "event", eventRows)
+
+  for (const table of ["permission", "workspace"]) {
+    log.info("copying table", { table, projectID })
+    const rows = globalDb.all<Record<string, unknown>>(
+      `SELECT * FROM "${table}" WHERE project_id = '${escapeSql(projectID)}'`,
     )
-    copyRows(projectDb, "event", eventRows)
+    if (rows.length > 0) copyRows(projectDb, table, rows)
+  }
 
-    for (const table of ["permission", "workspace"]) {
-      log.info("copying table", { table, projectID })
-      const rows = globalDb.all<Record<string, unknown>>(
-        `SELECT * FROM "${table}" WHERE project_id = '${escapeSql(projectID)}'`,
-      )
-      if (rows.length > 0) copyRows(projectDb, table, rows)
-    }
-
-    // Build session_index in global DB
-    log.info("building session_index", { projectID })
-    rawExec(globalDb).exec(`
-      INSERT OR IGNORE INTO session_index (id, project_id, directory, title, parent_id, workspace_id, time_created, time_updated, time_archived)
-      SELECT id, project_id, directory, title, parent_id, workspace_id, time_created, time_updated, time_archived
-      FROM session
-      WHERE project_id = '${escapeSql(projectID)}'
-    `)
-  })
+  // Build session_index in global DB
+  log.info("building session_index", { projectID })
+  rawExec(globalDb).exec(`
+    INSERT OR IGNORE INTO session_index (id, project_id, directory, title, parent_id, workspace_id, time_created, time_updated, time_archived)
+    SELECT id, project_id, directory, title, parent_id, workspace_id, time_created, time_updated, time_archived
+    FROM session
+    WHERE project_id = '${escapeSql(projectID)}'
+  `)
 
   // FTS backfill
   log.info("backfilling FTS", { projectID })
@@ -138,8 +145,8 @@ function copyRows(db: ReturnType<typeof getProjectDb>, table: string, rows: Reco
   }
 }
 
-export function cleanupGlobal() {
-  Database.use((db) => {
+export function cleanupGlobal(globalDb?: TxOrDb) {
+  const inner = (db: TxOrDb) => {
     log.info("cleaning up project-scoped tables from global database")
     for (const table of ["part_fts", "event", "session_share", "session_entry", "todo", "part", "message", "session", "permission", "workspace"]) {
       try {
@@ -149,9 +156,15 @@ export function cleanupGlobal() {
         log.warn("failed to drop table", { table, error: String(e) })
       }
     }
-  })
+  }
+  if (globalDb) {
+    inner(globalDb)
+    return
+  }
+  Database.use(inner)
 }
 
 function escapeSql(value: string) {
   return value.replace(/'/g, "''")
 }
+

@@ -4,6 +4,8 @@
   "permission": {
     "edit": {
       "packages/opencode/migration/*": "deny",
+      "plans/*": "allow",
+      "plans_completed/*": "allow",
     },
   },
   "mcp": {},

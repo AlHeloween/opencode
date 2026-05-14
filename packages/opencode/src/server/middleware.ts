@@ -5,6 +5,7 @@ import { Session } from "@/session/session"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
 import type { ErrorHandler, MiddlewareHandler } from "hono"
 import { HTTPException } from "hono/http-exception"
+import { HttpApiError } from "effect/unstable/httpapi"
 import * as Log from "@opencode-ai/core/util/log"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { basicAuth } from "hono/basic-auth"
@@ -12,6 +13,21 @@ import { cors } from "hono/cors"
 import { compress } from "hono/compress"
 
 const log = Log.create({ service: "server" })
+
+function httpApiErrorStatus(err: unknown): ContentfulStatusCode | undefined {
+  if (err instanceof HttpApiError.BadRequest || HttpApiError.HttpApiSchemaError.is(err)) return 400
+  if (err instanceof HttpApiError.Unauthorized) return 401
+  if (err instanceof HttpApiError.Forbidden) return 403
+  if (err instanceof HttpApiError.NotFound) return 404
+  if (err instanceof HttpApiError.MethodNotAllowed) return 405
+  if (err instanceof HttpApiError.NotAcceptable) return 406
+  if (err instanceof HttpApiError.RequestTimeout) return 408
+  if (err instanceof HttpApiError.Conflict) return 409
+  if (err instanceof HttpApiError.Gone) return 410
+  if (err instanceof HttpApiError.NotImplemented) return 501
+  if (err instanceof HttpApiError.ServiceUnavailable) return 503
+  if (err instanceof HttpApiError.InternalServerError) return 500
+}
 
 export const ErrorMiddleware: ErrorHandler = (err, c) => {
   log.error("failed", {
@@ -28,6 +44,10 @@ export const ErrorMiddleware: ErrorHandler = (err, c) => {
   }
   if (err instanceof Session.BusyError) {
     return c.json(new NamedError.Unknown({ message: err.message }).toObject(), { status: 400 })
+  }
+  const httpApiStatus = httpApiErrorStatus(err)
+  if (httpApiStatus) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, { status: httpApiStatus })
   }
   if (err instanceof HTTPException) return err.getResponse()
   const message = err instanceof Error && err.stack ? err.stack : err.toString()
@@ -90,3 +110,4 @@ export const CompressionMiddleware: MiddlewareHandler = (c, next) => {
   if (method === "POST" && /\/session\/[^/]+\/(message|prompt_async)$/.test(path)) return next()
   return zipped(c, next)
 }
+

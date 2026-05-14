@@ -1,0 +1,184 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_7fda142977b25ac932e1ce85c24490d0 name="format_db_transaction_effects" md5="7fda142977b25ac932e1ce85c24490d0" size="226">
+    <file>packages/opencode/src/storage/db.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const txCallback = InstanceState.bind((tx: TxOrDb) =&gt; {
+  const result = ctx.provide({ tx, effects }, () =&gt; callback(tx))
+  for (const effect of effects) effect()
+  return result
+})
+return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise&lt;T&gt;</find_text>
+    <semantics>Restore normal indentation for transaction effect execution.</semantics>
+    <content_md5_7fda142977b25ac932e1ce85c24490d0>
+      const txCallback = InstanceState.bind((tx: TxOrDb) =&gt; {
+              const result = ctx.provide({ tx, effects }, () =&gt; callback(tx))
+              for (const effect of effects) effect()
+              return result
+            })
+            return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise&lt;T&gt;
+    </content_md5_7fda142977b25ac932e1ce85c24490d0>
+  </update_md5_7fda142977b25ac932e1ce85c24490d0>
+  <update_md5_58ebf6f008f1271a215262c27bf0176a name="format_db_project_transaction_effects" md5="58ebf6f008f1271a215262c27bf0176a" size="308">
+    <file>packages/opencode/src/storage/db.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const db = getProjectDb(projectID, worktree)
+const effects: (() =&gt; void | Promise&lt;void&gt;)[] = []
+const txCallback = InstanceState.bind((tx: TxOrDb) =&gt; {
+  const result = ctx.provide({ tx, effects }, () =&gt; callback(tx))
+  for (const effect of effects) effect()
+  return result
+})
+return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise&lt;T&gt;</find_text>
+    <semantics>Restore normal indentation for project transaction effect execution.</semantics>
+    <content_md5_58ebf6f008f1271a215262c27bf0176a>
+      const db = getProjectDb(projectID, worktree)
+            const effects: (() =&gt; void | Promise&lt;void&gt;)[] = []
+            const txCallback = InstanceState.bind((tx: TxOrDb) =&gt; {
+              const result = ctx.provide({ tx, effects }, () =&gt; callback(tx))
+              for (const effect of effects) effect()
+              return result
+            })
+            return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise&lt;T&gt;
+    </content_md5_58ebf6f008f1271a215262c27bf0176a>
+  </update_md5_58ebf6f008f1271a215262c27bf0176a>
+  <update_md5_587a83796718c891a73af260e6712615 name="format_processor_cleanup_snapshot" md5="587a83796718c891a73af260e6712615" size="339">
+    <file>packages/opencode/src/session/processor.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        const pendingToolCalls = Object.entries(ctx.toolcalls)
+yield* Effect.forEach(
+  pendingToolCalls.map(([, call]) =&gt; call),
+  (call) =&gt; Deferred.await(call.done).pipe(Effect.timeout(&quot;250 millis&quot;), Effect.ignore),
+  { concurrency: &quot;unbounded&quot; },
+)
+
+for (const [toolCallID] of pendingToolCalls) {
+  if (!ctx.toolcalls[toolCallID]) continue
+  const match = yield* readToolCall(toolCallID)</find_text>
+    <semantics>Restore normal indentation for processor cleanup tool-call snapshot handling.</semantics>
+    <content_md5_587a83796718c891a73af260e6712615>
+      const pendingToolCalls = Object.entries(ctx.toolcalls)
+            yield* Effect.forEach(
+              pendingToolCalls.map(([, call]) =&gt; call),
+              (call) =&gt; Deferred.await(call.done).pipe(Effect.timeout(&quot;250 millis&quot;), Effect.ignore),
+              { concurrency: &quot;unbounded&quot; },
+            )
+      
+            for (const [toolCallID] of pendingToolCalls) {
+              if (!ctx.toolcalls[toolCallID]) continue
+              const match = yield* readToolCall(toolCallID)
+    </content_md5_587a83796718c891a73af260e6712615>
+  </update_md5_587a83796718c891a73af260e6712615>
+  <update_md5_86045c9710628736e01d180e4a7784cc name="format_session_list_global_project_hydration" md5="86045c9710628736e01d180e4a7784cc" size="1175">
+    <file>packages/opencode/src/session/session.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const projects = new Map&lt;string, ProjectInfo&gt;()
+if (ids.length &gt; 0) {
+  const items = Database.use((db) =&gt;
+    db
+      .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
+      .from(ProjectTable)
+      .where(inArray(ProjectTable.id, ids))
+      .all(),
+  )
+  for (const item of items) {
+    projects.set(item.id, { id: item.id, name: item.name ?? undefined, worktree: item.worktree })
+  }
+}
+
+const sessions = new Map&lt;SessionID, SessionRow&gt;()
+for (const project of projects.values()) {
+  const sessionIDs = rows.filter((row) =&gt; row.project_id === project.id).map((row) =&gt; row.id)
+  if (sessionIDs.length === 0) continue
+  const items = Database.projectUse(project.id, project.worktree, (db) =&gt;
+    db.select().from(SessionTable).where(inArray(SessionTable.id, sessionIDs)).all(),
+  )
+  for (const item of items) {
+    sessions.set(item.id, item)
+  }
+}
+
+for (const row of rows) {
+  const project = projects.get(row.project_id) ?? null
+  const session = sessions.get(row.id)
+  if (session) {
+    yield { ...fromRow(session), project }
+    continue
+  }
+  yield { id: row.id, slug: &quot;&quot;, projectID: row.project_id, directory: row.directory, title: row.title, version: &quot;&quot;, parentID: row.parent_id ?? undefined, workspaceID: row.workspace_id ?? undefined, time: { created: row.time_created, updated: row.time_updated, archived: row.time_archived ?? undefined }, project }
+}
+return</find_text>
+    <semantics>Restore normal indentation for project-mode global session hydration.</semantics>
+    <content_md5_86045c9710628736e01d180e4a7784cc>
+      const projects = new Map&lt;string, ProjectInfo&gt;()
+            if (ids.length &gt; 0) {
+              const items = Database.use((db) =&gt;
+                db
+                  .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
+                  .from(ProjectTable)
+                  .where(inArray(ProjectTable.id, ids))
+                  .all(),
+              )
+              for (const item of items) {
+                projects.set(item.id, { id: item.id, name: item.name ?? undefined, worktree: item.worktree })
+              }
+            }
+      
+            const sessions = new Map&lt;SessionID, SessionRow&gt;()
+            for (const project of projects.values()) {
+              const sessionIDs = rows.filter((row) =&gt; row.project_id === project.id).map((row) =&gt; row.id)
+              if (sessionIDs.length === 0) continue
+              const items = Database.projectUse(project.id, project.worktree, (db) =&gt;
+                db.select().from(SessionTable).where(inArray(SessionTable.id, sessionIDs)).all(),
+              )
+              for (const item of items) {
+                sessions.set(item.id, item)
+              }
+            }
+      
+            for (const row of rows) {
+              const project = projects.get(row.project_id) ?? null
+              const session = sessions.get(row.id)
+              if (session) {
+                yield { ...fromRow(session), project }
+                continue
+              }
+              yield { id: row.id, slug: &quot;&quot;, projectID: row.project_id, directory: row.directory, title: row.title, version: &quot;&quot;, parentID: row.parent_id ?? undefined, workspaceID: row.workspace_id ?? undefined, time: { created: row.time_created, updated: row.time_updated, archived: row.time_archived ?? undefined }, project }
+            }
+            return
+    </content_md5_86045c9710628736e01d180e4a7784cc>
+  </update_md5_86045c9710628736e01d180e4a7784cc>
+  <update_md5_dbbd8a86e03b5ff5982c82119c06f803 name="format_server_httpapi_error_return" md5="dbbd8a86e03b5ff5982c82119c06f803" size="319">
+    <file>packages/opencode/src/server/middleware.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  if (err instanceof Session.BusyError) {
+  return c.json(new NamedError.Unknown({ message: err.message }).toObject(), { status: 400 })
+}
+const httpApiStatus = httpApiErrorStatus(err)
+if (httpApiStatus) {
+  return c.json({ error: err instanceof Error ? err.message : String(err) }, { status: httpApiStatus })
+}
+if (err instanceof HTTPException) return err.getResponse()</find_text>
+    <semantics>Restore normal indentation for server error middleware branches.</semantics>
+    <content_md5_dbbd8a86e03b5ff5982c82119c06f803>
+      if (err instanceof Session.BusyError) {
+              return c.json(new NamedError.Unknown({ message: err.message }).toObject(), { status: 400 })
+            }
+            const httpApiStatus = httpApiErrorStatus(err)
+            if (httpApiStatus) {
+              return c.json({ error: err instanceof Error ? err.message : String(err) }, { status: httpApiStatus })
+            }
+            if (err instanceof HTTPException) return err.getResponse()
+    </content_md5_dbbd8a86e03b5ff5982c82119c06f803>
+  </update_md5_dbbd8a86e03b5ff5982c82119c06f803>
+</updates>

@@ -97,7 +97,19 @@ export const layer = Layer.effect(
         }
       }
       if (from && to) return yield* snapshot.diffFull(from, to)
-      return []
+
+      const filediffs = new Map<string, Snapshot.FileDiff>()
+      for (const item of input.messages) {
+        for (const part of item.parts) {
+          if (part.type !== "tool") continue
+          const meta = part.metadata as Record<string, unknown> | undefined
+          const fd = meta?.filediff as Snapshot.FileDiff | undefined
+          if (fd?.file && (fd.additions > 0 || fd.deletions > 0)) {
+            filediffs.set(fd.file, fd)
+          }
+        }
+      }
+      return [...filediffs.values()]
     })
 
     const summarize = Effect.fn("SessionSummary.summarize")(function* (input: {

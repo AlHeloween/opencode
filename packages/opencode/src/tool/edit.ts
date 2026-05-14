@@ -49,12 +49,13 @@ function writeBackup(
       .pipe(Effect.catch(() => Effect.void))
 
     const entries = yield* afs.readDirectory(dir).pipe(Effect.catch(() => Effect.succeed([] as string[])))
-    if (entries.length > MAX_BACKUPS_PER_SESSION) {
-      const sorted = entries.sort()
-      for (let i = 0; i < entries.length - MAX_BACKUPS_PER_SESSION; i++) {
-        yield* afs.remove(path.join(dir, sorted[i])).pipe(Effect.catch(() => Effect.void))
-      }
-    }
+const backups = entries.filter((entry) => entry.endsWith(".bak")).sort()
+if (backups.length > MAX_BACKUPS_PER_SESSION) {
+  for (let i = 0; i < backups.length - MAX_BACKUPS_PER_SESSION; i++) {
+    yield* afs.remove(path.join(dir, backups[i])).pipe(Effect.catch(() => Effect.void))
+    yield* afs.remove(path.join(dir, backups[i] + ".meta.json")).pipe(Effect.catch(() => Effect.void))
+  }
+}
   })
 }
 
@@ -826,3 +827,4 @@ export function replace(content: string, oldString: string, newString: string, r
   }
   throw new Error("Found multiple matches for oldString. Provide more surrounding context to make the match unique.")
 }
+

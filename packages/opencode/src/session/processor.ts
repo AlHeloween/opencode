@@ -312,7 +312,7 @@ export const layer: Layer.Layer<
                   part.type === "tool" &&
                   part.tool === value.toolName &&
                   part.state.status !== "pending" &&
-                  JSON.stringify(part.state.input) === JSON.stringify(value.input),
+                  Bun.deepEquals(part.state.input, value.input),
               )
             ) {
               return
@@ -504,13 +504,15 @@ export const layer: Layer.Layer<
         }
         ctx.reasoningMap = {}
 
+        const pendingToolCalls = Object.entries(ctx.toolcalls)
         yield* Effect.forEach(
-          Object.values(ctx.toolcalls),
+          pendingToolCalls.map(([, call]) => call),
           (call) => Deferred.await(call.done).pipe(Effect.timeout("250 millis"), Effect.ignore),
           { concurrency: "unbounded" },
         )
 
-        for (const toolCallID of Object.keys(ctx.toolcalls)) {
+        for (const [toolCallID] of pendingToolCalls) {
+          if (!ctx.toolcalls[toolCallID]) continue
           const match = yield* readToolCall(toolCallID)
           if (!match) continue
           const part = match.part
@@ -629,3 +631,4 @@ export const defaultLayer = Layer.suspend(() =>
 )
 
 export * as SessionProcessor from "./processor"
+

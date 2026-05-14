@@ -434,12 +434,10 @@ const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D)
 
 function resolveSessionProject(sessionID: SessionID): { id: ProjectID; worktree: string } | undefined {
   if (!Database.isProjectDbMode()) return undefined
-  try {
-    const row = Database.use((d) =>
-      d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
-    )
-    if (row) return { id: row.project_id, worktree: row.directory }
-  } catch {}
+  const row = Database.use((d) =>
+    d.select().from(SessionIndexTable).where(eq(SessionIndexTable.id, sessionID)).get(),
+  )
+  if (row) return { id: row.project_id, worktree: row.directory }
   return undefined
 }
 
@@ -854,8 +852,27 @@ export function* listGlobal(input?: {
         projects.set(item.id, { id: item.id, name: item.name ?? undefined, worktree: item.worktree })
       }
     }
+
+    const sessions = new Map<SessionID, SessionRow>()
+    for (const project of projects.values()) {
+      const sessionIDs = rows.filter((row) => row.project_id === project.id).map((row) => row.id)
+      if (sessionIDs.length === 0) continue
+      const items = Database.projectUse(project.id, project.worktree, (db) =>
+        db.select().from(SessionTable).where(inArray(SessionTable.id, sessionIDs)).all(),
+      )
+      for (const item of items) {
+        sessions.set(item.id, item)
+      }
+    }
+
     for (const row of rows) {
-      yield { id: row.id, slug: "", projectID: row.project_id, directory: row.directory, title: row.title, version: "", parentID: row.parent_id ?? undefined, workspaceID: row.workspace_id ?? undefined, time: { created: row.time_created, updated: row.time_updated, archived: row.time_archived ?? undefined }, project: projects.get(row.project_id) ?? null }
+      const project = projects.get(row.project_id) ?? null
+      const session = sessions.get(row.id)
+      if (session) {
+        yield { ...fromRow(session), project }
+        continue
+      }
+      yield { id: row.id, slug: "", projectID: row.project_id, directory: row.directory, title: row.title, version: "", parentID: row.parent_id ?? undefined, workspaceID: row.workspace_id ?? undefined, time: { created: row.time_created, updated: row.time_updated, archived: row.time_archived ?? undefined }, project }
     }
     return
   }
@@ -913,3 +930,4 @@ export function* search(input: { projectID: ProjectID; query: string; limit?: nu
 }
 
 export * as Session from "./session"
+

@@ -33,3 +33,4 @@ tsconfig.tsbuildinfo
 opencode.exe
 
 artifacts/
+.temp/

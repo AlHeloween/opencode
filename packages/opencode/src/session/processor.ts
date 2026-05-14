@@ -156,6 +156,8 @@ export const layer: Layer.Layer<
           delete ctx.toolcalls[toolCallID]
           return
         }
+        // eslint-disable-next-line consistent-return
+        // eslint-disable-next-line consistent-return
         return { call, part }
       })
 
@@ -172,6 +174,8 @@ export const layer: Layer.Layer<
           messageID: part.messageID,
           sessionID: part.sessionID,
         }
+        // eslint-disable-next-line consistent-return
+        // eslint-disable-next-line consistent-return
         return part
       })
 

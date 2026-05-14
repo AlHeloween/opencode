@@ -353,6 +353,7 @@ const _ToolState = Schema.Union([ToolStatePending, ToolStateRunning, ToolStateCo
 // Cast the derived zod so downstream z.infer sees the same mutable shape that
 // our exported TS types expose (the pre-migration Zod inferences were mutable).
 export const ToolState = Object.assign(_ToolState, {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   zod: zod(_ToolState) as unknown as z.ZodType<
     ToolStatePending | ToolStateRunning | ToolStateCompleted | ToolStateError
   >,
@@ -420,6 +421,7 @@ const _Part = Schema.Union([
   CompactionPart,
 ]).annotate({ discriminator: "type", identifier: "Part" })
 export const Part = Object.assign(_Part, {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   zod: zod(_Part) as unknown as z.ZodType<
     | TextPart
     | SubtaskPart
@@ -579,6 +581,7 @@ export type Assistant = Omit<Types.DeepMutable<Schema.Schema.Type<typeof Assista
 
 const _Info = Schema.Union([User, Assistant]).annotate({ discriminator: "role", identifier: "Message" })
 export const Info = Object.assign(_Info, {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   zod: zod(_Info) as unknown as z.ZodType<User | Assistant>,
 })
 export type Info = User | Assistant
@@ -669,6 +672,7 @@ export const cursor = {
 }
 
 const info = (row: typeof MessageTable.$inferSelect) =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   ({
     ...row.data,
     id: row.id,
@@ -676,6 +680,7 @@ const info = (row: typeof MessageTable.$inferSelect) =>
   }) as Info
 
 const part = (row: typeof PartTable.$inferSelect) =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   ({
     ...row.data,
     id: row.id,
@@ -752,7 +757,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       return { type: "text", value: output }
     }
 
-    if (typeof output === "object") {
+    if (output && typeof output === "object" && "text" in output) {
       const outputObject = output as {
         text: string
         attachments?: Array<{ mime: string; url: string }>
@@ -777,7 +782,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       }
     }
 
-    return { type: "json", value: output as never }
+    return { type: "json", value: output as Record<string, unknown> }
   }
 
   for (const msg of input) {
@@ -883,6 +888,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                 : outputText
 
             assistantMessage.parts.push({
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
               type: ("tool-" + part.tool) as `tool-${string}`,
               state: "output-available",
               toolCallId: part.callID,
@@ -896,6 +902,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             const output = part.state.metadata?.interrupted === true ? part.state.metadata.output : undefined
             if (typeof output === "string") {
               assistantMessage.parts.push({
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
                 type: ("tool-" + part.tool) as `tool-${string}`,
                 state: "output-available",
                 toolCallId: part.callID,
@@ -906,6 +913,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               })
             } else {
               assistantMessage.parts.push({
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
                 type: ("tool-" + part.tool) as `tool-${string}`,
                 state: "output-error",
                 toolCallId: part.callID,
@@ -920,6 +928,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           // Anthropic/Claude APIs require every tool_use to have a corresponding tool_result
           if (part.state.status === "pending" || part.state.status === "running")
             assistantMessage.parts.push({
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
               type: ("tool-" + part.tool) as `tool-${string}`,
               state: "output-error",
               toolCallId: part.callID,
@@ -1040,6 +1049,7 @@ export function parts(message_id: MessageID) {
   )
   return rows.map(
     (row) =>
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       ({
         ...row.data,
         id: row.id,
@@ -1143,19 +1153,24 @@ export function fromError(
         },
         { cause: e },
       ).toObject()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     case (e as SystemError)?.code === "ECONNRESET":
       return new APIError(
         {
           message: "Connection reset by server",
           isRetryable: true,
           metadata: {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             code: (e as SystemError).code ?? "",
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             syscall: (e as SystemError).syscall ?? "",
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             message: (e as SystemError).message ?? "",
           },
         },
         { cause: e },
       ).toObject()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     case e instanceof Error && (e as FetchDecompressionError).code === "ZlibError":
       if (ctx.aborted) {
         return new AbortedError({ message: e.message }, { cause: e }).toObject()
@@ -1165,6 +1180,7 @@ export function fromError(
           message: "Response decompression failed",
           isRetryable: true,
           metadata: {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             code: (e as FetchDecompressionError).code,
             message: e.message,
           },
@@ -1256,6 +1272,7 @@ export function search(input: {
 }): SearchResult[] {
   const rawDb = Database.getProjectDb(input.projectID, input.worktree).$client
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const db = rawDb as any
 
   const rows = db
@@ -1284,6 +1301,7 @@ export function search(input: {
       LIMIT ?
     `,
     )
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     .all(input.projectID, sanitizeFTSQuery(input.query), input.limit || 50) as any[]
 
   return rows.map((row) => {
@@ -1291,6 +1309,7 @@ export function search(input: {
       .query(
         "SELECT COUNT(*) + 1 as idx FROM message WHERE session_id = ? AND time_created < (SELECT time_created FROM message WHERE id = ?)",
       )
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       .get(row.sessionID, row.messageID) as { idx: number }
     return {
       messageID: row.messageID,

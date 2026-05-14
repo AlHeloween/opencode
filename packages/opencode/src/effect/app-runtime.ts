@@ -101,6 +101,7 @@ export const AppLayer = Layer.mergeAll(
 
 const rt = ManagedRuntime.make(AppLayer, { memoMap })
 type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">
+// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
 const wrap = (effect: Parameters<typeof rt.runSync>[0]) => attach(effect as never) as never
 
 export const AppRuntime: Runtime = {

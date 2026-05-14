@@ -471,7 +471,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           },
         },
         async getModel(sdk: any, modelID: string) {
-          const id = String(modelID).trim()
+          const id = modelID.trim()
           return sdk.languageModel(id)
         },
       }
@@ -488,8 +488,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           project,
           location,
         },
-        async getModel(sdk: any, modelID) {
-          const id = String(modelID).trim()
+        async getModel(sdk: any, modelID: string) {
+          const id = modelID.trim()
           return sdk.languageModel(id)
         },
       }
@@ -1253,7 +1253,8 @@ const layer: Layer.Layer<
 
           const options = yield* Effect.promise(() =>
             plugin.auth!.loader!(
-              () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+            () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
               database[plugin.auth!.provider],
             ),
           )
@@ -1422,6 +1423,7 @@ const layer: Layer.Layer<
 
           url = url.replace(/\$\{([^}]+)\}/g, (item, key) => {
             const val = envs[String(key)]
+            // eslint-disable-next-line @typescript-eslint/consistent-return
             return val ?? item
           })
           return url
@@ -1466,7 +1468,8 @@ const layer: Layer.Layer<
 
           // Strip openai itemId metadata following what codex does
           if (model.api.npm === "@ai-sdk/openai" && opts.body && opts.method === "POST") {
-            const body = JSON.parse(opts.body as string)
+            if (typeof opts.body !== "string") return opts
+            const body = JSON.parse(opts.body)
             const isAzure = model.providerID.includes("azure")
             const keepIds = isAzure && body.store === true
             if (!keepIds && Array.isArray(body.input)) {
@@ -1501,6 +1504,7 @@ const layer: Layer.Layer<
             ...options,
           })
           s.sdk.set(key, loaded)
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
           return loaded as SDK
         }
 
@@ -1525,6 +1529,7 @@ const layer: Layer.Layer<
           ...options,
         })
         s.sdk.set(key, loaded)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         return loaded as SDK
       } catch (e) {
         throw new InitError({ providerID: model.providerID }, { cause: e })

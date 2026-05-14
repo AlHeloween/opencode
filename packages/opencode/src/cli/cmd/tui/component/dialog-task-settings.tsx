@@ -12,8 +12,7 @@ export function DialogTaskSettings() {
   const current = createMemo(() => {
     const tm = local.model.taskModel()
     if (tm) return tm
-    const a = sync.data.agent.find((x) => x.name === "explore")
-    return a?.model
+    return undefined
   })
 
   const parsed = createMemo(() => {

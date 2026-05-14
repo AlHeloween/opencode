@@ -449,9 +449,9 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Explore model",
-      value: "explore.model.list",
-      keybind: "explore_model_list",
+      title: "Task model",
+      value: "task.model.list",
+      keybind: "task_model_list",
       category: "Agent",
       onSelect: () => {
         dialog.replace(() => <DialogTaskSettings />)

@@ -121,7 +121,10 @@ export const layer = Layer.effect(
 
     yield* Effect.acquireRelease(
       Effect.sync(() => Store.init()),
-      () => shutdown().pipe(Effect.ignore),
+      () => {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        return shutdown().pipe(Effect.ignore)
+      },
     )
 
     // Start periodic status logging and live status updates every 5 seconds

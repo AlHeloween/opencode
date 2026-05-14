@@ -193,7 +193,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const timeoutMs = init?.gatewayTimeoutMs || 600000
     const isStream = init?.gatewayStream || false
 
-    const headers = (init?.headers as Record<string, string>) || {}
+    const headers = Object.fromEntries(new Headers(init?.headers ?? {}).entries())
 
     // Handle OAuth token passthrough: if x-opencode-oauth-token is present, use it as Authorization
     const oauthToken = headers["x-opencode-oauth-token"] || headers["X-Opencode-Oauth-Token"]
@@ -219,7 +219,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const urlObj = new URL(url)
     const provider = init?.gatewayProvider || headers["x-opencode-provider"] || "unknown"
     const model = init?.gatewayModel || headers["x-opencode-model"] || "unknown"
-    const endpointKind = headers["x-opencode-endpoint-kind"] || "chat"
+    const endpointKind = (headers["x-opencode-endpoint-kind"] || "chat") as RouteKey["endpointKind"]
 
     const classifyInput: Classifier.ClassifyInput = {
       hasTools: headers["x-opencode-has-tools"] === "true",
@@ -237,7 +237,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       provider,
       baseUrl,
       model,
-      endpointKind: endpointKind as RouteKey["endpointKind"],
+      endpointKind: endpointKind,
       stream: isStream,
       negotiatedProtocol: "unknown",
       requestShapeClass: shapeClass,
@@ -246,10 +246,13 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     // Protocol resolution: model-level gateway.protocol > existing route adjustment > default to http/1.1
     const modelProtocol = init?.gatewayProtocol
     const existingAdjustment = Store.getRoute(baseRouteKey)
+    const existingNegotiated = existingAdjustment.protocol.alpnNegotiated
+    const negotiated: "h2" | "http/1.1" =
+      existingNegotiated === "h2" || existingNegotiated === "http/1.1" ? existingNegotiated : "http/1.1"
     const preferredProtocol: "h2" | "http/1.1" | "unknown" = modelProtocol
       ? modelProtocol
-      : existingAdjustment.protocol.alpnNegotiated !== "unknown"
-        ? (existingAdjustment.protocol.alpnNegotiated as "h2" | "http/1.1")
+      : existingNegotiated !== "unknown"
+        ? negotiated
         : "http/1.1"
 
     // Determine streaming preference from stored route adjustment
@@ -269,7 +272,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
     const debugCfg = getDebugConfig()
     const bodyForLog =
-      debugCfg.logBodies && init?.body ? truncateBody(String(init.body), debugCfg.maxBodySize) : undefined
+      debugCfg.logBodies && init?.body ? truncateBody(typeof init.body === "string" ? init.body : JSON.stringify(init.body), debugCfg.maxBodySize) : undefined
 
     const sanitizedLogHeaders = sanitizeHeaders(headers)
 
@@ -454,9 +457,9 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               const h2Result = await H2.requestStream({
                 baseUrl,
                 url,
-                method: (init?.method as string) || "POST",
+                method: init?.method ?? "POST",
                 headers: headers,
-                body: init?.body as string,
+                body: typeof init?.body === "string" ? init.body : undefined,
               })
               usedProtocol = "h2"
               response = h2Result.response
@@ -465,9 +468,9 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               const h2Result = await H2.request({
                 baseUrl,
                 url,
-                method: (init?.method as string) || "POST",
+                method: init?.method ?? "POST",
                 headers: headers,
-                body: init?.body as string,
+                body: typeof init?.body === "string" ? init.body : undefined,
               })
 
               if (h2Result.error) {
@@ -491,9 +494,9 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   usedProtocol = "http/1.1"
                   const h1Result = await H1.request({
                     url,
-                    method: (init?.method as string) || "POST",
+                    method: init?.method ?? "POST",
                     headers,
-                    body: init?.body as string | undefined,
+                    body: typeof init?.body === "string" ? init.body : undefined,
                     signal: init?.signal ?? undefined,
                   })
                   response = new Response(h1Result.body, {
@@ -537,9 +540,9 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               usedProtocol = "http/1.1"
               const h1Result = await H1.request({
                 url,
-                method: (init?.method as string) || "POST",
+                method: init?.method ?? "POST",
                 headers,
-                body: init?.body as string | undefined,
+                body: typeof init?.body === "string" ? init.body : undefined,
                 signal: init?.signal ?? undefined,
               })
               response = new Response(h1Result.body, {
@@ -556,9 +559,9 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
           usedProtocol = "http/1.1"
           const h1Result = await H1.request({
             url,
-            method: (init?.method as string) || "POST",
+            method: init?.method ?? "POST",
             headers,
-            body: init?.body as string | undefined,
+            body: typeof init?.body === "string" ? init.body : undefined,
             signal: init?.signal ?? undefined,
           })
           response = new Response(h1Result.body, {

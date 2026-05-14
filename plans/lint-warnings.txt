@@ -1,0 +1,434 @@
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Record<string, string>' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:196:22]
+ 195 | 
+ 196 |     const headers = (init?.headers as Record<string, string>) || {}
+     :                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 197 | 
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '"chat" | "custom" | "embeddings" | "files" | "responses"' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:240:21]
+ 239 |       model,
+ 240 |       endpointKind: endpointKind as RouteKey["endpointKind"],
+     :                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 241 |       stream: isStream,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '"h2" | "http/1.1"' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:252:12]
+ 251 |       : existingAdjustment.protocol.alpnNegotiated !== "unknown"
+ 252 |         ? (existingAdjustment.protocol.alpnNegotiated as "h2" | "http/1.1")
+     :            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 253 |         : "http/1.1"
+     `----
+
+  ! typescript-eslint(no-base-to-string): 'init.body' may use Object's default stringification format ('[object Object]') when stringified.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:272:62]
+ 271 |     const bodyForLog =
+ 272 |       debugCfg.logBodies && init?.body ? truncateBody(String(init.body), debugCfg.maxBodySize) : undefined
+     :                                                              ^^^^^^^^^
+ 273 | 
+     `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:457:26]
+ 456 |                 url,
+ 457 |                 method: (init?.method as string) || "POST",
+     :                          ^^^^^^^^^^^^^^^^^^^^^^
+ 458 |                 headers: headers,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:459:23]
+ 458 |                 headers: headers,
+ 459 |                 body: init?.body as string,
+     :                       ^^^^^^^^^^^^^^^^^^^^
+ 460 |               })
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:468:26]
+ 467 |                 url,
+ 468 |                 method: (init?.method as string) || "POST",
+     :                          ^^^^^^^^^^^^^^^^^^^^^^
+ 469 |                 headers: headers,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:470:23]
+ 469 |                 headers: headers,
+ 470 |                 body: init?.body as string,
+     :                       ^^^^^^^^^^^^^^^^^^^^
+ 471 |               })
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:494:30]
+ 493 |                     url,
+ 494 |                     method: (init?.method as string) || "POST",
+     :                              ^^^^^^^^^^^^^^^^^^^^^^
+ 495 |                     headers,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string | undefined' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:496:27]
+ 495 |                     headers,
+ 496 |                     body: init?.body as string | undefined,
+     :                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 497 |                     signal: init?.signal ?? undefined,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:540:26]
+ 539 |                 url,
+ 540 |                 method: (init?.method as string) || "POST",
+     :                          ^^^^^^^^^^^^^^^^^^^^^^
+ 541 |                 headers,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string | undefined' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:542:23]
+ 541 |                 headers,
+ 542 |                 body: init?.body as string | undefined,
+     :                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 543 |                 signal: init?.signal ?? undefined,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:559:22]
+ 558 |             url,
+ 559 |             method: (init?.method as string) || "POST",
+     :                      ^^^^^^^^^^^^^^^^^^^^^^
+ 560 |             headers,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string | undefined' is more narrow than the original type.
+     ,-[packages/opencode/src/provider/gateway/adaptive-client.ts:561:19]
+ 560 |             headers,
+ 561 |             body: init?.body as string | undefined,
+     :                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 562 |             signal: init?.signal ?? undefined,
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'typeof fetch' is more narrow than the original type.
+    ,-[packages/opencode/src/provider/gateway/mod.ts:82:48]
+ 81 | 
+ 82 |     const wrap = (fetch: Fetcher) => wrapFetch(fetch as typeof globalThis.fetch) as Fetcher
+    :                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 83 |     ;globalThis.__gatewayFetch = wrap(globalThis.fetch as Fetcher)
+    `----
+
+  ! typescript-eslint(no-floating-promises): Promises must be awaited, add void operator to ignore.
+     ,-[packages/opencode/src/provider/gateway/mod.ts:122:5]
+ 121 |     
+ 122 | ,->     yield* Effect.acquireRelease(
+ 123 | |         Effect.sync(() => Store.init()),
+ 124 | |         () => shutdown().pipe(Effect.ignore),
+ 125 | `->     )
+ 126 |     
+     `----
+  help: The promise must end with a call to .catch, or end with a call to .then with a rejection handler, or be explicitly marked as ignored with the `void` operator.
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Record<string, unknown>' is more narrow than the original type.
+     ,-[packages/opencode/src/mcp/index.ts:135:22]
+ 134 |           name: mcpTool.name,
+ 135 |           arguments: (args || {}) as Record<string, unknown>,
+     :                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 136 |         },
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/opencode/src/mcp/index.ts:368:78]
+ 367 |         client: undefined as MCPClient | undefined,
+ 368 |         status: (lastStatus ?? { status: "failed", error: "Unknown error" }) as Status,
+     :                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^|^^^^^
+     :                                               |                                  `-- Casting it to '{ readonly status: "connected"; } | { readonly status: "disabled"; } | { readonly error: string; readonly status: "failed"; } | { readonly status: "needs_auth"; } | { readonly error: string; readonly status: "needs_client_registration"; }' is unnecessary
+     :                                               `-- This expression already has the type '{ readonly status: "connected"; } | { readonly status: "disabled"; } | { readonly error: string; readonly status: "failed"; } | { readonly status: "needs_auth"; } | { readonly error: string; readonly status: "needs_client_registration"; }'
+ 369 |       }
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion to `any` detected: consider using a more specific type to ensure safety.
+      ,-[packages/opencode/src/provider/provider.ts:1256:21]
+ 1255 |             plugin.auth!.loader!(
+ 1256 |               () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
+      :                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1257 |               database[plugin.auth!.provider],
+      `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+      ,-[packages/opencode/src/provider/provider.ts:1427:11]
+ 1426 |           })
+ 1427 |           return url
+      :           ^^^^^^^^^^
+ 1428 |         })
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'string' is more narrow than the original type.
+      ,-[packages/opencode/src/provider/provider.ts:1469:37]
+ 1468 |           if (model.api.npm === "@ai-sdk/openai" && opts.body && opts.method === "POST") {
+ 1469 |             const body = JSON.parse(opts.body as string)
+      :                                     ^^^^^^^^^^^^^^^^^^^
+ 1470 |             const isAzure = model.providerID.includes("azure")
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Provider' is more narrow than the original type.
+      ,-[packages/opencode/src/provider/provider.ts:1504:18]
+ 1503 |           s.sdk.set(key, loaded)
+ 1504 |           return loaded as SDK
+      :                  ^^^^^^^^^^^^^
+ 1505 |         }
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion from `any` detected: consider using type guards or a safer assertion.
+      ,-[packages/opencode/src/provider/provider.ts:1528:16]
+ 1527 |         s.sdk.set(key, loaded)
+ 1528 |         return loaded as SDK
+      :                ^^^^^^^^^^^^^
+ 1529 |       } catch (e) {
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'ZodType<{ input: { [x: string]: any; }; raw: string; status: "pending"; } | { input: { [x: string]: any; }; metadata?: { [x: string]: any; } | undefined; status: "running"; time: { start: number; }; title?: string | undefined; } | { ...; } | { ...; }, unknown, $ZodTypeInternals<...>>' is more narrow than the original
+  | type.
+     ,-[packages/opencode/src/session/message-v2.ts:356:8]
+ 355 |     export const ToolState = Object.assign(_ToolState, {
+ 356 | ,->   zod: zod(_ToolState) as unknown as z.ZodType<
+ 357 | |       ToolStatePending | ToolStateRunning | ToolStateCompleted | ToolStateError
+ 358 | `->   >,
+ 359 |     })
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'ZodType<{ id: string & Brand<"PartID">; ignored?: boolean | undefined; messageID: string & Brand<"MessageID">; metadata?: { [x: string]: any; } | undefined; sessionID: string & Brand<...>; synthetic?: boolean | undefined; text: string; time?: { ...; } | undefined; type: "text"; } | ... 11 more ... | ToolPart,
+  | unknow...' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:423:8]
+ 422 |     export const Part = Object.assign(_Part, {
+ 423 | ,->   zod: zod(_Part) as unknown as z.ZodType<
+ 424 | |       | TextPart
+ 425 | |       | SubtaskPart
+ 426 | |       | ReasoningPart
+ 427 | |       | FilePart
+ 428 | |       | ToolPart
+ 429 | |       | StepStartPart
+ 430 | |       | StepFinishPart
+ 431 | |       | SnapshotPart
+ 432 | |       | PatchPart
+ 433 | |       | AgentPart
+ 434 | |       | RetryPart
+ 435 | |       | CompactionPart
+ 436 | `->   >,
+ 437 |     })
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'ZodType<{ agent: string; format?: { retryCount?: number | undefined; schema: { [x: string]: any; }; type: "json_schema"; } | { type: "text"; } | undefined; id: string & Brand<"MessageID">; ... 6 more ...; tools?: { ...; } | undefined; } | Assistant, unknown, $ZodTypeInternals<...>>' is more narrow than the original
+  | type.
+     ,-[packages/opencode/src/session/message-v2.ts:582:8]
+ 581 | export const Info = Object.assign(_Info, {
+ 582 |   zod: zod(_Info) as unknown as z.ZodType<User | Assistant>,
+     :        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 583 | })
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Info' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:672:3]
+ 671 |     const info = (row: typeof MessageTable.$inferSelect) =>
+ 672 | ,->   ({
+ 673 | |       ...row.data,
+ 674 | |       id: row.id,
+ 675 | |       sessionID: row.session_id,
+ 676 | `->   }) as Info
+ 677 |     
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Part' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:679:3]
+ 678 |     const part = (row: typeof PartTable.$inferSelect) =>
+ 679 | ,->   ({
+ 680 | |       ...row.data,
+ 681 | |       id: row.id,
+ 682 | |       sessionID: row.session_id,
+ 683 | |       messageID: row.message_id,
+ 684 | `->   }) as Part
+ 685 |     
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '{ text: string; attachments?: { mime: string; url: string; }[] | undefined; }' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:756:28]
+ 755 |         if (typeof output === "object") {
+ 756 | ,->       const outputObject = output as {
+ 757 | |           text: string
+ 758 | |           attachments?: Array<{ mime: string; url: string }>
+ 759 | `->       }
+ 760 |           const attachments = (outputObject.attachments ?? []).filter((attachment) => {
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'never' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:780:35]
+ 779 | 
+ 780 |     return { type: "json", value: output as never }
+     :                                   ^^^^^^^^^^^^^^^
+ 781 |   }
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '`tool-${string}`' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:886:21]
+ 885 |             assistantMessage.parts.push({
+ 886 |               type: ("tool-" + part.tool) as `tool-${string}`,
+     :                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 887 |               state: "output-available",
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '`tool-${string}`' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:899:23]
+ 898 |               assistantMessage.parts.push({
+ 899 |                 type: ("tool-" + part.tool) as `tool-${string}`,
+     :                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 900 |                 state: "output-available",
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '`tool-${string}`' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:909:23]
+ 908 |               assistantMessage.parts.push({
+ 909 |                 type: ("tool-" + part.tool) as `tool-${string}`,
+     :                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 910 |                 state: "output-error",
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '`tool-${string}`' is more narrow than the original type.
+     ,-[packages/opencode/src/session/message-v2.ts:923:21]
+ 922 |             assistantMessage.parts.push({
+ 923 |               type: ("tool-" + part.tool) as `tool-${string}`,
+     :                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 924 |               state: "output-error",
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Part' is more narrow than the original type.
+      ,-[packages/opencode/src/session/message-v2.ts:1043:7]
+ 1042 |         (row) =>
+ 1043 | ,->       ({
+ 1044 | |           ...row.data,
+ 1045 | |           id: row.id,
+ 1046 | |           sessionID: row.session_id,
+ 1047 | |           messageID: row.message_id,
+ 1048 | `->       }) as Part,
+ 1049 |       )
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'SystemError' is more narrow than the original type.
+      ,-[packages/opencode/src/session/message-v2.ts:1146:11]
+ 1145 |       ).toObject()
+ 1146 |     case (e as SystemError)?.code === "ECONNRESET":
+      :           ^^^^^^^^^^^^^^^^
+ 1147 |       return new APIError(
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'SystemError' is more narrow than the original type.
+      ,-[packages/opencode/src/session/message-v2.ts:1152:20]
+ 1151 |           metadata: {
+ 1152 |             code: (e as SystemError).code ?? "",
+      :                    ^^^^^^^^^^^^^^^^
+ 1153 |             syscall: (e as SystemError).syscall ?? "",
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'SystemError' is more narrow than the original type.
+      ,-[packages/opencode/src/session/message-v2.ts:1153:23]
+ 1152 |             code: (e as SystemError).code ?? "",
+ 1153 |             syscall: (e as SystemError).syscall ?? "",
+      :                       ^^^^^^^^^^^^^^^^
+ 1154 |             message: (e as SystemError).message ?? "",
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'SystemError' is more narrow than the original type.
+      ,-[packages/opencode/src/session/message-v2.ts:1154:23]
+ 1153 |             syscall: (e as SystemError).syscall ?? "",
+ 1154 |             message: (e as SystemError).message ?? "",
+      :                       ^^^^^^^^^^^^^^^^
+ 1155 |           },
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'FetchDecompressionError' is more narrow than the original type.
+      ,-[packages/opencode/src/session/message-v2.ts:1159:33]
+ 1158 |       ).toObject()
+ 1159 |     case e instanceof Error && (e as FetchDecompressionError).code === "ZlibError":
+      :                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1160 |       if (ctx.aborted) {
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'FetchDecompressionError' is more narrow than the original type.
+      ,-[packages/opencode/src/session/message-v2.ts:1168:20]
+ 1167 |           metadata: {
+ 1168 |             code: (e as FetchDecompressionError).code,
+      :                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1169 |             message: e.message,
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion to `any` detected: consider using a more specific type to ensure safety.
+      ,-[packages/opencode/src/session/message-v2.ts:1259:14]
+ 1258 | 
+ 1259 |   const db = rawDb as any
+      :              ^^^^^^^^^^^^
+ 1260 | 
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion from `any` detected: consider using type guards or a safer assertion.
+      ,-[packages/opencode/src/session/message-v2.ts:1261:16]
+ 1260 |     
+ 1261 | ,->   const rows = db
+ 1262 | |       .query(
+ 1263 | |         `
+ 1264 | |         SELECT
+ 1265 | |           p.id as partID,
+ 1266 | |           p.message_id as messageID,
+ 1267 | |           p.session_id as sessionID,
+ 1268 | |           fts.part_type,
+ 1269 | |           fts.text_content as text,
+ 1270 | |           fts.exact_coef,
+ 1271 | |           fts.inferred_coef,
+ 1272 | |           fts.hypothetical_coef,
+ 1273 | |           fts.guess_coef,
+ 1274 | |           fts.unknown_coef,
+ 1275 | |           (fts.exact_coef * 10 + fts.inferred_coef * 7 + fts.hypothetical_coef * 4 + fts.guess_coef * 2 + fts.unknown_coef * 1) as semantic_rank,
+ 1276 | |           bm25(part_fts) as rank
+ 1277 | |         FROM part_fts fts
+ 1278 | |         JOIN part p ON p.id = fts.part_id
+ 1279 | |         JOIN message m ON m.id = p.message_id
+ 1280 | |         JOIN session s ON s.id = p.session_id
+ 1281 | |         WHERE s.project_id = ?
+ 1282 | |           AND part_fts MATCH ?
+ 1283 | |         ORDER BY semantic_rank DESC, bm25(part_fts)
+ 1284 | |         LIMIT ?
+ 1285 | |       `,
+ 1286 | |       )
+ 1287 | `->     .all(input.projectID, sanitizeFTSQuery(input.query), input.limit || 50) as any[]
+ 1288 |     
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion from `any` detected: consider using type guards or a safer assertion.
+      ,-[packages/opencode/src/session/message-v2.ts:1290:19]
+ 1289 |       return rows.map((row) => {
+ 1290 | ,->     const index = db
+ 1291 | |         .query(
+ 1292 | |           "SELECT COUNT(*) + 1 as idx FROM message WHERE session_id = ? AND time_created < (SELECT time_created FROM message WHERE id = ?)",
+ 1293 | |         )
+ 1294 | `->       .get(row.sessionID, row.messageID) as { idx: number }
+ 1295 |         return {
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'never' is more narrow than the original type.
+     ,-[packages/opencode/src/effect/app-runtime.ts:104:60]
+ 103 | type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">
+ 104 | const wrap = (effect: Parameters<typeof rt.runSync>[0]) => attach(effect as never) as never
+     :                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 105 | 
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'never' is more narrow than the original type.
+     ,-[packages/opencode/src/effect/app-runtime.ts:104:67]
+ 103 | type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">
+ 104 | const wrap = (effect: Parameters<typeof rt.runSync>[0]) => attach(effect as never) as never
+     :                                                                   ^^^^^^^^^^^^^^^
+ 105 | 
+     `----
+
+Found 46 warnings and 0 errors.
+Finished in 3.3s on 10 files with 130 rules using 8 threads.

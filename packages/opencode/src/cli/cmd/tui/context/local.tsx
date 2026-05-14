@@ -252,6 +252,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return
         }
         setModelStore("taskModel", model)
+        const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
+        if (uniq.length > 10) uniq.pop()
+        setModelStore(
+          "recent",
+          uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+        )
         save()
       }
 

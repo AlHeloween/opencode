@@ -150,6 +150,7 @@ function auto(key: string, cwd: string, shell: string) {
   if (name === "HOME") return os.homedir()
   if (name === "PWD") return cwd
   if (name === "PSHOME") return path.dirname(shell)
+  return undefined
 }
 
 function expand(text: string, cwd: string, shell: string) {
@@ -163,13 +164,13 @@ function expand(text: string, cwd: string, shell: string) {
 function provider(text: string) {
   const match = text.match(/^([A-Za-z]+)::(.*)$/)
   if (match) {
-    if (match[1].toLowerCase() !== "filesystem") return
+    if (match[1].toLowerCase() !== "filesystem") return undefined
     return match[2]
   }
   const prefix = text.match(/^([A-Za-z]+):(.*)$/)
   if (!prefix) return text
   if (prefix[1].length === 1) return text
-  return
+  return undefined
 }
 
 function dynamic(text: string, ps: boolean) {
@@ -182,7 +183,7 @@ function dynamic(text: string, ps: boolean) {
 function prefix(text: string) {
   const match = /[?*[]/.exec(text)
   if (!match) return text
-  if (match.index === 0) return
+  if (match.index === 0) return undefined
   return text.slice(0, match.index)
 }
 
@@ -340,7 +341,7 @@ export const BashTool = Tool.define(
         .lines(ChildProcess.make(shell, ["-lc", 'cygpath -w -- "$1"', "_", text]))
         .pipe(Effect.catch(() => Effect.succeed([] as string[])))
       const file = lines[0]?.trim()
-      if (!file) return
+      if (!file) return undefined
       return AppFileSystem.normalizePath(file)
     })
 
@@ -358,9 +359,9 @@ export const BashTool = Tool.define(
     const argPath = Effect.fn("BashTool.argPath")(function* (arg: string, cwd: string, ps: boolean, shell: string) {
       const text = ps ? expand(arg, cwd, shell) : home(unquote(arg))
       const file = text && prefix(text)
-      if (!file || dynamic(file, ps)) return
+      if (!file || dynamic(file, ps)) return undefined
       const next = ps ? provider(file) : file
-      if (!next) return
+      if (!next) return undefined
       return yield* resolvePath(next, cwd, shell)
     })
 

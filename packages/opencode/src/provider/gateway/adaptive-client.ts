@@ -13,8 +13,6 @@ import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import fs from "fs"
-import os from "os"
-import { Effect } from "effect"
 import type { AsyncLogger } from "./async-logger"
 import { make as makeAsyncLogger } from "./async-logger"
 import type { ResolvedDebugConfig } from "./debug-config"
@@ -24,7 +22,6 @@ const log = Log.create({ service: "gateway.adaptive-client" })
 const limiterState = Limiter.makeState()
 const streamState = StreamBudget.makeState()
 let loggingEnabled = true
-let logFormat: "json" | "text" = "json"
 let asyncLogger: AsyncLogger | undefined
 let errorLogger: AsyncLogger | undefined
 let debugConfig: ResolvedDebugConfig | null = null
@@ -37,9 +34,8 @@ export function getDebugConfig(): ResolvedDebugConfig {
   return debugConfig ?? { debug: true, logBodies: true, maxBodySize: 10240 }
 }
 
-export function configureLogging(enabled: boolean, format: "json" | "text" = "json"): void {
+export function configureLogging(enabled: boolean, _format: "json" | "text" = "json"): void {
   loggingEnabled = enabled
-  logFormat = format
 }
 
 interface AdaptiveFetchOptions extends RequestInit {
@@ -187,7 +183,7 @@ class CoalescingTransform {
   }
 }
 
-export function wrapFetch(baseFetch: typeof globalThis.fetch) {
+export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
   const wrapped = async (input: string | URL | Request, init?: AdaptiveFetchOptions): Promise<Response> => {
     await Store.init()
     initLogger()
@@ -424,9 +420,7 @@ export function wrapFetch(baseFetch: typeof globalThis.fetch) {
       sample.socketAcquiredAt = Date.now()
       let response: Response
       let usedProtocol: "h2" | "http/1.1" = "http/1.1"
-      let fetchError: unknown = null
       try {
-        const fetchStart = Date.now()
         const protocolPref = Store.getProtocolPreference(routeKey)
         const useH2 = routeKey.negotiatedProtocol === "h2" && shouldUseH2(routeKey) && protocolPref === "h2"
 
@@ -573,11 +567,9 @@ export function wrapFetch(baseFetch: typeof globalThis.fetch) {
           })
         }
 
-        const fetchMs = Date.now() - fetchStart
         sample.headersReceivedAt = Date.now()
         sample.status = response.status
       } catch (err) {
-        fetchError = err
         const normalized = Errors.normalizeError(err)
         Store.recordError(routeKey, normalized.category, Date.now() - startTime)
         Store.recordCircuitBreakerFailure(routeKey)

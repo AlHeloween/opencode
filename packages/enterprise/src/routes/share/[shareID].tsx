@@ -10,6 +10,7 @@ import { Share } from "~/core/share"
 import { Logo, Mark } from "@opencode-ai/ui/logo"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
+import * as Log from "@opencode-ai/core/util/log"
 import { iife } from "@opencode-ai/core/util/iife"
 import { Binary } from "@opencode-ai/core/util/binary"
 import { NamedError } from "@opencode-ai/core/util/error"
@@ -125,7 +126,7 @@ export default function () {
         if (SessionDataMissingError.isInstance(error)) {
           return <NotFound />
         }
-        console.error(error)
+        Log.error(error)
         const details = error instanceof Error ? (error.stack ?? error.message) : String(error)
         return (
           <div class="min-h-screen w-full bg-background-base text-text-base flex flex-col items-center justify-center gap-4 p-6 text-center">

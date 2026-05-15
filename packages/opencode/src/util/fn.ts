@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { z } from "zod"
 
 export function fn<T extends z.ZodType, Result>(schema: T, cb: (input: z.infer<T>) => Result) {
@@ -8,7 +9,7 @@ export function fn<T extends z.ZodType, Result>(schema: T, cb: (input: z.infer<T
     } catch (e) {
       console.trace("schema validation failure stack trace:")
       if (e instanceof z.ZodError) {
-        console.error("schema validation issues:", JSON.stringify(e.issues, null, 2))
+        Log.Default.warn("bug: schema validation issues", { issues: e.issues })
       }
       throw e
     }

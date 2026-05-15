@@ -185,7 +185,8 @@ const createPlatform = (): Platform => {
         const cached = storeCache.get(name)
         if (cached) return cached
 
-        const store = Store.load(name).catch(() => {
+        const store = Store.load(name).catch((err) => {
+          console.warn(`[desktop] failed to load store "${name}":`, err)
           const cached = memoryCache.get(name)
           if (cached) return cached
 

@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { createRoot, getOwner, onCleanup, runWithOwner, type Owner } from "solid-js"
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
@@ -126,7 +127,7 @@ export function createChildStoreManager(input: {
   }
 
   function ensureChild(directory: string) {
-    if (!directory) console.error("No directory provided")
+    if (!directory) Log.Default.warn("bug: no directory provided")
     if (!children[directory]) {
       const vcs = runWithOwner(input.owner, () =>
         persisted(

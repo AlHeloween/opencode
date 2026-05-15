@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import type { Argv } from "yargs"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -614,7 +615,7 @@ export const RunCommand = cmd({
       await share(sdk, sessionID)
 
       loop().catch((e) => {
-        console.error(e)
+        Log.Default.warn("bug: run command failed", { error: e instanceof Error ? e.message : String(e) })
         process.exit(1)
       })
 

@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { usePlatform } from "@/context/platform"
 import type { ServerConnection } from "@/context/server"
 import { createSdkForServer } from "./server"
@@ -32,7 +33,9 @@ function timeoutSignal(timeoutMs: number) {
         signal: timeout.call(AbortSignal, timeoutMs),
         clear: undefined as (() => void) | undefined,
       }
-    } catch {}
+    } catch {
+      Log.Default.debug("server health check failed")
+    }
   }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)

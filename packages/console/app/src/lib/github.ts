@@ -32,7 +32,7 @@ export const github = query(async () => {
       contributors: contributorCount,
     }
   } catch (e) {
-    console.error(e)
+    console.error("[github] Failed to fetch repository data:", e)
   }
   return undefined
 }, "github")

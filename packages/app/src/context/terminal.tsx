@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { batch, createEffect, createMemo, createRoot, on, onCleanup } from "solid-js"
@@ -202,7 +203,7 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
           const currentIndex = store.all.findIndex((item) => item.id === pty.id)
           if (currentIndex >= 0) setStore("all", currentIndex, previous)
         }
-        console.error("Failed to update terminal", error)
+        Log.Default.warn("bug: terminal update failed", { error: String(error) })
       })
   }
 
@@ -215,7 +216,7 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
         title: pty.title,
       })
       .catch((error: unknown) => {
-        console.error("Failed to clone terminal", error)
+        Log.Default.warn("bug: terminal clone failed", { error: String(error) })
         return undefined
       })
     if (!next?.data) return
@@ -266,7 +267,7 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
           setStore("active", id)
         })
         .catch((error: unknown) => {
-          console.error("Failed to create terminal", error)
+          Log.Default.warn("bug: terminal create failed", { error: String(error) })
         })
     },
     update(pty: Partial<LocalPTY> & { id: string }) {
@@ -336,7 +337,7 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
       }
 
       await sdk.client.pty.remove({ ptyID: id }).catch((error: unknown) => {
-        console.error("Failed to close terminal", error)
+        Log.Default.warn("bug: terminal close failed", { error: String(error) })
       })
     },
     move(id: string, to: number) {

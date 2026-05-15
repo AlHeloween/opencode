@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import type { Event } from "@opencode-ai/sdk/v2/client"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
@@ -143,10 +144,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
                 if (aborted(error)) return
                 if (streamErrorLogged) return
                 streamErrorLogged = true
-                console.error("[global-sdk] event stream error", {
+                Log.Default.warn("bug: global-sdk event stream error", {
                   url: currentServer.http.url,
                   fetch: eventFetch ? "platform" : "webview",
-                  error,
+                  error: String(error),
                 })
               },
             })
@@ -185,10 +186,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
           } catch (error) {
             if (!aborted(error) && !streamErrorLogged) {
               streamErrorLogged = true
-              console.error("[global-sdk] event stream failed", {
+              Log.Default.warn("bug: global-sdk event stream failed", {
                 url: currentServer.http.url,
                 fetch: eventFetch ? "platform" : "webview",
-                error,
+                error: String(error),
               })
             }
           } finally {

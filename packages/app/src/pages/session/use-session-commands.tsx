@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { useNavigate } from "@solidjs/router"
 import { useCommand, type CommandOption } from "@/context/command"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -291,7 +292,9 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!sessionID) return
 
     if (status().type !== "idle") {
-      await sdk.client.session.abort({ sessionID }).catch(() => {})
+      await sdk.client.session.abort({ sessionID }).catch(() => {
+        Log.Default.debug("session abort failed")
+      })
     }
 
     const revert = info()?.revert?.messageID

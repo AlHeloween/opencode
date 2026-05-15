@@ -16,19 +16,19 @@ async function login() {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params.toString(),
   }).catch((err) => {
-    console.error("Failed to fetch Salesforce access token:", err)
+    console.error("[salesforce] Failed to fetch access token:", err)
   })
 
   if (!res) return
 
   if (!res.ok) {
-    console.error("Failed to fetch Salesforce access token:", res.status, await res.text())
+    console.error("[salesforce] Failed to fetch access token:", res.status, await res.text())
     return
   }
 
   const data = (await res.json()) as { access_token?: string; instance_url?: string }
   if (!data.access_token) {
-    console.error("Salesforce auth response did not include an access token")
+    console.error("[salesforce] Auth response missing access token")
     return
   }
 
@@ -67,13 +67,13 @@ export async function createLead(input: SalesforceLeadInput): Promise<boolean> {
       LeadSource: "Website",
     }),
   }).catch((err) => {
-    console.error("Failed to create Salesforce lead:", err)
+    console.error("[salesforce] Failed to create lead:", err)
   })
 
   if (!res) return false
 
   if (!res.ok) {
-    console.error("Failed to create Salesforce lead:", res.status, await res.text())
+    console.error("[salesforce] Failed to create lead:", res.status, await res.text())
     return false
   }
 

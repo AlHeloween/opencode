@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import type {
   Config,
   OpencodeClient,
@@ -258,7 +259,7 @@ function createGlobalSync() {
               sessionMeta.set(directory, { limit })
             })
             .catch((err) => {
-              console.error("Failed to load sessions", err)
+              Log.Default.warn("bug: session load failed", { error: String(err) })
               const project = getFilename(directory)
               showToast({
                 variant: "error",

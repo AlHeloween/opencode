@@ -31,7 +31,7 @@ const fetchSvgContent = async (svgPath: string): Promise<string> => {
     const svgText = await response.text()
     return svgText
   } catch (err) {
-    console.error("Failed to fetch SVG content:", err)
+    console.error("[header] Failed to fetch SVG content:", err)
     throw err
   }
 }
@@ -105,7 +105,7 @@ export function Header(props: { zen?: boolean; go?: boolean; hideGetStarted?: bo
       const wordmarkSvg = await fetchSvgContent(wordmarkSvgPath)
       await navigator.clipboard.writeText(wordmarkSvg)
     } catch (err) {
-      console.error("Failed to copy wordmark to clipboard:", err)
+      console.error("[header] Failed to copy wordmark to clipboard:", err)
     }
   }
 
@@ -116,7 +116,7 @@ export function Header(props: { zen?: boolean; go?: boolean; hideGetStarted?: bo
       const logoSvg = await fetchSvgContent(logoSvgPath)
       await navigator.clipboard.writeText(logoSvg)
     } catch (err) {
-      console.error("Failed to copy logo to clipboard:", err)
+      console.error("[header] Failed to copy logo to clipboard:", err)
     }
   }
 

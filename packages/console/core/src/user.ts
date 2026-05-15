@@ -153,7 +153,7 @@ export namespace User {
           ),
         })
       } catch (e) {
-        console.error(e)
+        console.error("[user] failed to send invite email:", e)
       }
     },
   )

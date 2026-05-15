@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { For, createEffect, createMemo, on, onCleanup, Show, Index, type JSX, createSignal } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { useNavigate } from "@solidjs/router"
@@ -387,14 +388,14 @@ export function MessageTimeline(props: {
   const shareMutation = useMutation(() => ({
     mutationFn: (id: string) => globalSDK.client.session.share({ sessionID: id, directory: sdk.directory }),
     onError: (err) => {
-      console.error("Failed to share session", err)
+      Log.Default.warn("bug: session share failed", { error: String(err) })
     },
   }))
 
   const unshareMutation = useMutation(() => ({
     mutationFn: (id: string) => globalSDK.client.session.unshare({ sessionID: id, directory: sdk.directory }),
     onError: (err) => {
-      console.error("Failed to unshare session", err)
+      Log.Default.warn("bug: session unshare failed", { error: String(err) })
     },
   }))
 

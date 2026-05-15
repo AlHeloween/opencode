@@ -46,13 +46,13 @@ function subscribe(email: string, fullName: string) {
   }).then(
     async (res) => {
       if (!res.ok) {
-        console.error("EmailOctopus subscribe failed:", res.status, res.statusText, await res.text())
+        console.error("[enterprise] EmailOctopus subscribe failed:", res.status, res.statusText, await res.text())
         return false
       }
       return true
     },
     (err) => {
-      console.error("Failed to subscribe enterprise email:", err)
+      console.error("[enterprise] Failed to subscribe enterprise email:", err)
       return false
     },
   )
@@ -94,7 +94,7 @@ ${body.phone ? `${body.phone}<br>` : ""}`.trim()
         phone: body.phone,
         message: body.message,
       }).catch((err) => {
-        console.error("Failed to create Salesforce lead:", err)
+        console.error("[enterprise] Failed to create Salesforce lead:", err)
         return false
       }),
       AWS.sendEmail({
@@ -105,7 +105,7 @@ ${body.phone ? `${body.phone}<br>` : ""}`.trim()
       }).then(
         () => true,
         (err) => {
-          console.error("Failed to send enterprise email:", err)
+          console.error("[enterprise] Failed to send enterprise email:", err)
           return false
         },
       ),
@@ -114,16 +114,16 @@ ${body.phone ? `${body.phone}<br>` : ""}`.trim()
 
     if (!lead && !mail && !octopus) {
       if (import.meta.env.DEV) {
-        console.warn("Enterprise inquiry accepted in dev mode without integrations", { email: body.email })
+        console.warn("[enterprise] inquiry accepted in dev mode without integrations", { email: body.email })
         return Response.json({ success: true, message: dict["enterprise.form.success.submitted"] }, { status: 200 })
       }
-      console.error("Enterprise inquiry delivery failed", { email: body.email })
+      console.error("[enterprise] inquiry delivery failed", { email: body.email })
       return Response.json({ error: dict["enterprise.form.error.internalServer"] }, { status: 500 })
     }
 
     return Response.json({ success: true, message: dict["enterprise.form.success.submitted"] }, { status: 200 })
   } catch (error) {
-    console.error("Error processing enterprise form:", error)
+    console.error("[enterprise] Error processing form:", error)
     return Response.json({ error: dict["enterprise.form.error.internalServer"] }, { status: 500 })
   }
 }

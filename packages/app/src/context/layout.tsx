@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { createStore, produce } from "solid-js/store"
 import { batch, createEffect, createMemo, onCleanup, onMount, type Accessor } from "solid-js"
 import { createSimpleContext } from "@opencode-ai/ui/context"
@@ -515,6 +516,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         void globalSdk.client.project
           .update({ projectID: project.id, directory: worktree, icon: { color } })
           .catch(() => {
+            Log.Default.debug("project.update color failed")
             if (colorRequested.get(worktree) === color) colorRequested.delete(worktree)
           })
       }

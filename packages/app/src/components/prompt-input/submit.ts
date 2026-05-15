@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import type { Message, Session } from "@opencode-ai/sdk/v2/client"
 import { showToast } from "@opencode-ai/ui/toast"
 import { base64Encode } from "@opencode-ai/core/util/encode"
@@ -243,7 +244,9 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       .abort({
         sessionID,
       })
-      .catch(() => {})
+      .catch(() => {
+        Log.Default.debug("session abort failed")
+      })
   }
 
   const restoreCommentItems = (items: CommentItem[]) => {

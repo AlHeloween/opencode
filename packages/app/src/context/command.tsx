@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { type Accessor, createEffect, createMemo, onCleanup, onMount } from "solid-js"
@@ -261,7 +262,7 @@ export const { use: useCommand, provider: CommandProvider } = createSimpleContex
           if (seen.has(opt.id)) {
             if (import.meta.env.DEV && !warnedDuplicates.has(opt.id)) {
               warnedDuplicates.add(opt.id)
-              console.warn(`[command] duplicate command id "${opt.id}" registered; keeping first entry`)
+              Log.Default.debug(`[command] duplicate command id "${opt.id}" registered; keeping first entry`)
             }
             continue
           }

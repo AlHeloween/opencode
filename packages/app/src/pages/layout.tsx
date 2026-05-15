@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import {
   batch,
   createEffect,
@@ -1635,6 +1636,7 @@ export default function Layout(props: ParentProps) {
           setData({ status: "ready", dirty })
         })
         .catch(() => {
+          Log.Default.debug("file.status failed")
           setData({ status: "error", dirty: false })
         })
     })
@@ -1704,6 +1706,7 @@ export default function Layout(props: ParentProps) {
           void refresh()
         })
         .catch(() => {
+          Log.Default.debug("file.state failed")
           setState({ status: "error", dirty: false })
         })
     })

@@ -49,7 +49,7 @@ export default function Brand() {
 
       window.URL.revokeObjectURL(blobUrl)
     } catch (error) {
-      console.error("Download failed:", error)
+      console.error("[brand] Download failed:", error)
       const link = document.createElement("a")
       link.href = url
       link.target = "_blank"

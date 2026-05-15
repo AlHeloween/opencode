@@ -357,7 +357,9 @@ export async function handler(
         logger.metric({
           "error.cause2": JSON.stringify(error.cause),
         })
-      } catch {}
+      } catch (e) {
+        console.error("[zen] Failed to log error cause:", e)
+      }
     }
 
     // Note: both top level "type" and "error.type" fields are used by the @ai-sdk/anthropic client to render the error message.

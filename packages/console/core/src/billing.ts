@@ -119,7 +119,7 @@ export namespace Billing {
         payment_method: paymentMethodID!,
       })
     } catch (e: any) {
-      console.error(e)
+      console.error("[billing] reload failed:", e)
       await Database.use((tx) =>
         tx
           .update(BillingTable)

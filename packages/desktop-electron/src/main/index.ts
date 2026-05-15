@@ -14,7 +14,9 @@ contextMenu({ showSaveImageAs: true, showLookUpSelection: false, showSearchWithG
 // on macOS apps run in `/` which can cause issues with ripgrep
 try {
   process.chdir(homedir())
-} catch {}
+} catch (error) {
+  logger.warn("failed to change working directory to home", error)
+}
 
 process.env.OPENCODE_DISABLE_EMBEDDED_WEB_UI = "true"
 

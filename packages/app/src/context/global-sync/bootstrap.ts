@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import type {
   Config,
   OpencodeClient,
@@ -367,7 +368,7 @@ export async function bootstrapDirectory(input: {
     await waitForPaint()
     const slowErrs = errors(await runAll(slow))
     if (slowErrs.length > 0) {
-      console.error("Failed to finish bootstrap instance", slowErrs[0])
+      Log.Default.warn("bug: bootstrap finish failed", { error: String(slowErrs[0]) })
       const project = getFilename(input.directory)
       showToast({
         variant: "error",

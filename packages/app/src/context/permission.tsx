@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { createEffect, createMemo, onCleanup } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "@opencode-ai/ui/context"
@@ -119,6 +120,7 @@ export const { use: usePermission, provider: PermissionProvider } = createSimple
 
     const respond: PermissionRespondFn = (input) => {
       globalSDK.client.permission.respond(input).catch(() => {
+        Log.Default.debug("permission.respond failed")
         responded.delete(input.permissionID)
       })
     }

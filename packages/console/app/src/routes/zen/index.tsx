@@ -24,7 +24,9 @@ import { LocaleLinks } from "~/component/locale-links"
 
 const checkLoggedIn = query(async () => {
   "use server"
-  return await getLastSeenWorkspaceID().catch(() => {})
+  return await getLastSeenWorkspaceID().catch((err) => {
+    console.error("[zen] Failed to check login status:", err)
+  })
 }, "checkLoggedIn.get")
 
 export default function Home() {

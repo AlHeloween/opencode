@@ -1,3 +1,4 @@
+import log from "electron-log/main.js"
 import { spawnSync } from "node:child_process"
 import { basename } from "node:path"
 
@@ -66,7 +67,7 @@ export function loadShellEnv(shell: string) {
     return interactive.value
   }
   if (interactive.type === "Timeout") {
-    console.warn(`[server] Interactive shell env probe timed out: ${shell}`)
+    log.warn(`[server] Interactive shell env probe timed out: ${shell}`)
     return null
   }
 
@@ -76,7 +77,7 @@ export function loadShellEnv(shell: string) {
     return login.value
   }
 
-  console.warn(`[server] Falling back to app environment: ${shell}`)
+  log.warn(`[server] Falling back to app environment: ${shell}`)
   return null
 }
 

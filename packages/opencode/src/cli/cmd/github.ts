@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import { exec } from "child_process"
 import { Filesystem } from "@/util/filesystem"
@@ -688,7 +689,7 @@ export const GithubRunCommand = cmd({
         }
       } catch (e: any) {
         exitCode = 1
-        console.error(e instanceof Error ? e.message : String(e))
+        Log.Default.warn("bug: github command failed", { error: e instanceof Error ? e.message : String(e) })
         let msg = e
         if (e instanceof Process.RunFailedError) {
           msg = e.stderr.toString()
@@ -853,7 +854,7 @@ export const GithubRunCommand = cmd({
             },
           })
           if (!res.ok) {
-            console.error(`Failed to download image: ${url}`)
+            Log.Default.warn("bug: image download failed", { url })
             continue
           }
 
@@ -982,7 +983,7 @@ export const GithubRunCommand = cmd({
 
             if (result.info.role === "assistant" && result.info.error) {
               const err = result.info.error
-              console.error("Agent error:", err)
+              Log.Default.warn("bug: github agent error", { error: String(err) })
               if (err.name === "ContextOverflowError") throw new Error(formatPromptTooLargeError(files))
               const message = "message" in err.data ? err.data.message : ""
               throw new Error(`${err.name}: ${message}`)
@@ -1012,7 +1013,7 @@ export const GithubRunCommand = cmd({
 
             if (summary.info.role === "assistant" && summary.info.error) {
               const err = summary.info.error
-              console.error("Summary agent error:", err)
+              Log.Default.warn("bug: github summary agent error", { error: String(err) })
               if (err.name === "ContextOverflowError") throw new Error(formatPromptTooLargeError(files))
               const message = "message" in err.data ? err.data.message : ""
               throw new Error(`${err.name}: ${message}`)
@@ -1029,7 +1030,7 @@ export const GithubRunCommand = cmd({
         try {
           return await core.getIDToken("opencode-github-action")
         } catch (error) {
-          console.error("Failed to get OIDC token:", error instanceof Error ? error.message : error)
+          Log.Default.warn("bug: OIDC token failed", { error: error instanceof Error ? error.message : String(error) })
           throw new Error(
             "Could not fetch an OIDC token. Make sure to add `id-token: write` to your workflow permissions.",
             { cause: error },
@@ -1222,7 +1223,7 @@ export const GithubRunCommand = cmd({
           permission = response.data.permission
           console.log(`  permission: ${permission}`)
         } catch (error) {
-          console.error(`Failed to check permissions: ${error}`)
+          Log.Default.warn("bug: permission check failed", { error: String(error) })
           throw new Error(`Failed to check permissions for user ${actor}: ${error}`, { cause: error })
         }
 

@@ -1,3 +1,4 @@
+import * as Log from "@opencode-ai/core/util/log"
 import { cmd } from "./cmd"
 import * as prompts from "@clack/prompts"
 import { AppRuntime } from "@/effect/app-runtime"
@@ -211,7 +212,7 @@ const AgentCreateCommand = cmd({
 
         if (await Filesystem.exists(filePath)) {
           if (isFullyNonInteractive) {
-            console.error(`Error: Agent file already exists: ${filePath}`)
+            Log.Default.error("agent: file already exists", { filePath })
             process.exit(1)
           }
           prompts.log.error(`Agent file already exists: ${filePath}`)

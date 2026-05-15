@@ -75,7 +75,9 @@ function logError(msg: string, extra?: Record<string, any>) {
     message: msg,
     ...extra,
   }) + "\n"
-  fs.appendFile(path.join(Global.Path.log, "LoggerErrors.log"), entry).catch(() => {})
+  fs.appendFile(path.join(Global.Path.log, "LoggerErrors.log"), entry).catch((e) => {
+    process.stderr.write(`LoggerErrors.log write failed: ${String(e)}\n`)
+  })
 }
 
 export async function init(options: Options = {}) {
@@ -100,7 +102,7 @@ export async function init(options: Options = {}) {
     })
   }
   write = printLogs
-    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch(() => {}); return r }
+    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch((e) => logError("fileWrite failed", { error: String(e) })); return r }
     : fileWrite
 }
 
@@ -122,7 +124,7 @@ export async function reopen() {
     })
   }
   write = printLogs
-    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch(() => {}); return r }
+    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch((e) => logError("reopen fileWrite failed", { error: String(e) })); return r }
     : fileWrite
 }
 

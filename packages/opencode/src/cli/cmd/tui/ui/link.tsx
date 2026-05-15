@@ -1,6 +1,7 @@
 import type { JSX } from "solid-js"
 import type { RGBA } from "@opentui/core"
 import open from "open"
+import * as Log from "@opencode-ai/core/util/log"
 
 export interface LinkProps {
   href: string
@@ -19,7 +20,7 @@ export function Link(props: LinkProps) {
     <text
       fg={props.fg}
       onMouseUp={() => {
-        open(props.href).catch(() => {})
+        open(props.href).catch((e) => Log.Default.debug("open URL failed", { href: props.href.slice(0, 100), error: String(e) }))
       }}
     >
       {displayText}

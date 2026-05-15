@@ -6,6 +6,7 @@ import { createStore } from "solid-js/store"
 import z from "zod"
 import { isRecord } from "@/util/record"
 import { createSimpleContext } from "./helper"
+import * as Log from "@opencode-ai/core/util/log"
 import { resolveZedDbPath, resolveZedSelection } from "./editor-zed"
 
 const MCP_PROTOCOL_VERSION = "2025-11-25"
@@ -146,7 +147,7 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
               }
             })
             .catch(() => {
-              // Keep the last known Zed selection for transient polling failures.
+              Log.Default.debug("Zed selection poll failed")
             })
             .finally(() => {
               zedSelection = undefined

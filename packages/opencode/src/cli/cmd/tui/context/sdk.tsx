@@ -3,6 +3,7 @@ import type { GlobalEvent } from "@opencode-ai/sdk/v2"
 import { createSimpleContext } from "./helper"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import * as Log from "@opencode-ai/core/util/log"
 import { batch, onCleanup, onMount } from "solid-js"
 
 export type EventSource = {
@@ -88,7 +89,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           if (Flag.OPENCODE_EXPERIMENTAL_WORKSPACES) {
             // Start syncing workspaces, it's important to do this after
             // we've started listening to events
-            await sdk.sync.start().catch(() => {})
+            await sdk.sync.start().catch((e: unknown) => Log.Default.warn("bug: workspace sync start failed", { error: e instanceof Error ? e.message : String(e) }))
           }
 
           for await (const event of events.stream) {
@@ -105,7 +106,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           const backoff = Math.min(retryDelay * 2 ** (attempt - 1), maxRetryDelay)
           await new Promise((resolve) => setTimeout(resolve, backoff))
         }
-      })().catch(() => {})
+      })().catch((e: unknown) => Log.Default.warn("bug: event loop failed", { error: e instanceof Error ? e.message : String(e) }))
     }
 
     onMount(async () => {
@@ -116,7 +117,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
         if (Flag.OPENCODE_EXPERIMENTAL_WORKSPACES) {
           // Start syncing workspaces, it's important to do this after
           // we've started listening to events
-          await sdk.sync.start().catch(() => {})
+          await sdk.sync.start().catch((e: unknown) => Log.Default.warn("bug: workspace sync start failed", { error: e instanceof Error ? e.message : String(e) }))
         }
       } else {
         startSSE()

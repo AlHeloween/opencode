@@ -41,6 +41,7 @@ import { useRenderer } from "@opentui/solid"
 import { createStore, produce } from "solid-js/store"
 import { Global } from "@opencode-ai/core/global"
 import { Filesystem } from "@/util/filesystem"
+import * as Log from "@opencode-ai/core/util/log"
 import { useTuiConfig } from "./tui-config"
 import { isRecord } from "@/util/record"
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui"
@@ -340,6 +341,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
             syncThemes()
           })
           .catch(() => {
+            Log.Default.debug("theme resolution failed, falling back")
             setStore("active", "opencode")
           }),
       ]).finally(() => {
@@ -366,7 +368,8 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
           systemTheme = generateSystem(colors, mode)
           syncThemes()
         })
-        .catch(() => {
+        .catch((e: unknown) => {
+          Log.Default.debug("theme palette failed, falling back", { error: String(e) })
           systemTheme = undefined
           syncThemes()
           if (store.active === "system") {

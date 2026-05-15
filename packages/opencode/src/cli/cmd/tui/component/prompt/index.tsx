@@ -840,7 +840,7 @@ export function Prompt(props: PromptProps) {
             ...nonTextParts.map(assign),
           ],
         })
-        .catch(() => {})
+        .catch((e) => Log.Default.error("prompt submit failed", { error: e instanceof Error ? e.message : String(e) }))
       editor.clearSelection()
     }
     history.append({
@@ -1197,7 +1197,7 @@ export function Prompt(props: PromptProps) {
                     if (mime.startsWith("image/") || mime === "application/pdf") {
                       const content = await Filesystem.readArrayBuffer(filepath)
                         .then((buffer) => Buffer.from(buffer).toString("base64"))
-                        .catch(() => {})
+                        .catch((e) => Log.Default.debug("binary paste failed", { filepath: filepath.slice(0, 100), error: String(e) }))
                       if (content) {
                         await pasteAttachment({
                           filename,

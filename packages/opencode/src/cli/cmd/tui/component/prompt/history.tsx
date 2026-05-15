@@ -5,6 +5,7 @@ import { onMount } from "solid-js"
 import { createStore, produce, unwrap } from "solid-js/store"
 import { createSimpleContext } from "../../context/helper"
 import { appendFile, writeFile } from "fs/promises"
+import * as Log from "@opencode-ai/core/util/log"
 import type { AgentPart, FilePart, TextPart } from "@opencode-ai/sdk/v2"
 
 export type PromptInfo = {
@@ -51,7 +52,7 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
       // Rewrite file with only valid entries to self-heal corruption
       if (lines.length > 0) {
         const content = lines.map((line) => JSON.stringify(line)).join("\n") + "\n"
-        writeFile(historyPath, content).catch(() => {})
+        writeFile(historyPath, content).catch((e) => Log.Default.debug("history write failed", { error: String(e) }))
       }
     })
 
@@ -97,11 +98,11 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
 
         if (trimmed) {
           const content = store.history.map((line) => JSON.stringify(line)).join("\n") + "\n"
-          writeFile(historyPath, content).catch(() => {})
+          writeFile(historyPath, content).catch((e) => Log.Default.debug("history write failed", { error: String(e) }))
           return
         }
 
-        appendFile(historyPath, JSON.stringify(entry) + "\n").catch(() => {})
+        appendFile(historyPath, JSON.stringify(entry) + "\n").catch((e) => Log.Default.debug("history append failed", { error: String(e) }))
       },
     }
   },

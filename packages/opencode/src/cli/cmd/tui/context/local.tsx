@@ -11,6 +11,7 @@ import { useToast } from "../ui/toast"
 import { useArgs } from "./args"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
+import * as Log from "@opencode-ai/core/util/log"
 import { Filesystem } from "@/util/filesystem"
 
 export function parseModel(model: string) {
@@ -168,7 +169,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           )
             setModelStore("taskModel", x.taskModel)
         })
-        .catch(() => {})
+        .catch((e: unknown) => Log.Default.warn("bug: model config load failed", { error: e instanceof Error ? e.message : String(e) }))
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()

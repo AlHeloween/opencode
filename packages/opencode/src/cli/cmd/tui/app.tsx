@@ -650,7 +650,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       title: "Open docs",
       value: "docs.open",
       onSelect: () => {
-        open("https://opencode.ai/docs").catch(() => {})
+        open("https://opencode.ai/docs").catch((e) => Log.Default.debug("open docs failed", { error: String(e) }))
         dialog.clear()
       },
       category: "System",

@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite"
 import os from "node:os"
 import path from "node:path"
 import z from "zod"
+import * as Log from "@opencode-ai/core/util/log"
 import { Filesystem } from "@/util/filesystem"
 import type { EditorSelection } from "./editor"
 
@@ -42,7 +43,7 @@ export async function resolveZedSelection(dbPath: string, cwd = process.cwd()): 
       ? contents.contents
       : await Bun.file(row.buffer_path)
           .text()
-          .catch(() => undefined)
+          .catch((e: unknown) => { Log.Default.debug("Zed buffer read failed", { error: String(e) }); return undefined })
   if (text == null) return { type: "unavailable" }
 
   const startOffset = Math.min(row.selection_start, row.selection_end)

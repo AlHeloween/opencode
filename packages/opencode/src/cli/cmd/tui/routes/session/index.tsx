@@ -407,7 +407,7 @@ export function Session() {
         const copy = (url: string) =>
           Clipboard.copy(url)
             .then(() => toast.show({ message: "Share URL copied to clipboard!", variant: "success" }))
-            .catch(() => toast.show({ message: "Failed to copy URL to clipboard", variant: "error" }))
+            .catch((error) => { Log.Default.debug("clipboard copy URL failed", { error: String(error) }); toast.show({ message: "Failed to copy URL to clipboard", variant: "error" }) })
         const url = session()?.share?.url
         if (url) {
           await copy(url)
@@ -564,7 +564,7 @@ export function Session() {
       },
       onSelect: async (dialog) => {
         const status = sync.data.session_status?.[route.sessionID]
-        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch((e) => Log.Default.debug("session abort failed", { error: String(e) }))
         const revert = session()?.revert?.messageID
         const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
         if (!message) return
@@ -874,7 +874,7 @@ export function Session() {
 
         Clipboard.copy(text)
           .then(() => toast.show({ message: "Message copied to clipboard!", variant: "success" }))
-          .catch(() => toast.show({ message: "Failed to copy to clipboard", variant: "error" }))
+          .catch((error) => { Log.Default.debug("clipboard copy failed", { error: String(error) }); toast.show({ message: "Failed to copy to clipboard", variant: "error" }) })
         dialog.clear()
       },
     },

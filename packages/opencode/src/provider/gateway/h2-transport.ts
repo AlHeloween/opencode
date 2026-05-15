@@ -42,10 +42,12 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
     const session = http2.connect(baseUrl)
 
     let remoteMaxStreams = 100
+    let h2Session: H2Session | null = null
 
     session.on("remoteSettings", (settings: http2.Settings) => {
       if (settings.maxConcurrentStreams !== undefined) {
         remoteMaxStreams = settings.maxConcurrentStreams
+        if (h2Session) h2Session.remoteMaxConcurrentStreams = settings.maxConcurrentStreams
         log.debug("h2 remote settings", {
           host: url.hostname,
           maxConcurrentStreams: remoteMaxStreams,
@@ -63,6 +65,7 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
         errorCode,
         lastStreamID,
       })
+      if (h2Session) h2Session.activeStreams = 0
       sessions.delete(key)
     })
 
@@ -70,7 +73,7 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
       log.debug("h2 ping response", { host: url.hostname })
     })
 
-    const h2Session: H2Session = {
+    h2Session = {
       session,
       remoteMaxConcurrentStreams: remoteMaxStreams,
       activeStreams: 0,
@@ -145,6 +148,7 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
   }
 
   sample.socketAcquiredAt = Date.now()
+  session.activeStreams++
 
   return new Promise<H2Response>((resolve, rejectPromise) => {
     const url = new URL(options.url)
@@ -169,6 +173,7 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
     let completed = false
 
     const cleanup = () => {
+      session.activeStreams = Math.max(0, session.activeStreams - 1)
       req.removeAllListeners("response")
       req.removeAllListeners("data")
       req.removeAllListeners("end")
@@ -291,6 +296,7 @@ export async function requestStream(
   }
 
   sample.socketAcquiredAt = Date.now()
+  session.activeStreams++
 
   return new Promise<{ response: Response; metrics: MetricsResult }>((resolve, reject) => {
     const url = new URL(options.url)
@@ -311,6 +317,13 @@ export async function requestStream(
     let responseHeaders: Record<string, string> = {}
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
+    let streamDone = false
+
+    const decrement = () => {
+      if (streamDone) return
+      streamDone = true
+      session.activeStreams = Math.max(0, session.activeStreams - 1)
+    }
 
     req.on("response", (headers) => {
       sample.headersReceivedAt = Date.now()
@@ -331,6 +344,7 @@ export async function requestStream(
     })
 
     req.on("end", async () => {
+      decrement()
       sample.endedAt = Date.now()
       sample.status = status
       await writer.close()
@@ -345,6 +359,7 @@ export async function requestStream(
     })
 
     req.on("error", async (err) => {
+      decrement()
       sample.endedAt = Date.now()
       sample.status = 0
       const normalized = normalizeError(err)
@@ -367,6 +382,7 @@ export async function requestStream(
       options.signal.addEventListener(
         "abort",
         () => {
+          decrement()
           req.destroy()
           writer.abort().catch((e) => { log.warn("bug: writer abort failed", { error: String(e) }) })
         },
@@ -399,6 +415,16 @@ export function getRemoteMaxConcurrentStreams(baseUrl: string): number | null {
   const key = getSessionKey(baseUrl)
   const session = sessions.get(key)
   return session?.remoteMaxConcurrentStreams ? session.remoteMaxConcurrentStreams : null
+}
+
+export function getMaxRemoteConcurrentStreamsAcrossSessions(): number {
+  let max = 0
+  for (const [, session] of sessions) {
+    if (session.remoteMaxConcurrentStreams > max) {
+      max = session.remoteMaxConcurrentStreams
+    }
+  }
+  return max || 100
 }
 
 export function closeAll(): void {

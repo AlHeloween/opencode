@@ -8,6 +8,7 @@ declare global {
         activeStreams: number
         inflightRequests: number
         h2Sessions: number
+        h2MaxConcurrentStreams: number
         updatedAt: number
       }
     | undefined

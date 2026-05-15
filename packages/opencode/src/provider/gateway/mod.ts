@@ -133,6 +133,7 @@ export const layer = Layer.effect(
         const status = getGatewayStatus()
         ;globalThis.__gatewayLiveStatus = {
           ...status,
+          h2MaxConcurrentStreams: H2.getMaxRemoteConcurrentStreamsAcrossSessions(),
           updatedAt: Date.now(),
         }
         ;globalThis.__gatewayRoutes = Store.getAllRoutes().map((r) => ({
@@ -142,7 +143,7 @@ export const layer = Layer.effect(
         logGatewayStatus()
       }, 5000)
 
-      ;globalThis.__gatewayLiveStatus = { ...getGatewayStatus(), updatedAt: Date.now() }
+      ;globalThis.__gatewayLiveStatus = { ...getGatewayStatus(), h2MaxConcurrentStreams: H2.getMaxRemoteConcurrentStreamsAcrossSessions(), updatedAt: Date.now() }
       ;globalThis.__gatewayRoutes = Store.getAllRoutes().map((r) => ({
         provider: r.key.provider,
         protocol: r.adjustment.protocol.alpnNegotiated,

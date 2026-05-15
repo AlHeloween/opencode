@@ -9,6 +9,9 @@ export class NotFound extends Error {
 export function create<T>(name: string) {
   const storage = new AsyncLocalStorage<T>()
   return {
+    getStore() {
+      return storage.getStore()
+    },
     use() {
       const result = storage.getStore()
       if (!result) {

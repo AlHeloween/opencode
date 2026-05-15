@@ -23,6 +23,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         protocol: undefined as string | undefined,
         streaming: undefined as boolean | undefined,
         activeStreams: 0 as number,
+        gatewayEnabled: false,
       }
     }
 
@@ -39,6 +40,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     return {
       tokens,
       percent: model?.limit?.context ? Math.round((tokens / model.limit.context) * 100) : null,
+      gatewayEnabled,
       protocol: gatewayEnabled ? model?.gateway?.protocol || "http/1.1" : undefined,
       streaming: gatewayEnabled ? true : undefined,
       activeStreams: liveStatus?.activeStreams ?? 0,
@@ -54,7 +56,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       {state().streaming !== undefined ? (
         <text fg={theme().textMuted}>Streaming: {state().streaming ? "enabled" : "disabled"}</text>
       ) : null}
-      {state().activeStreams > 0 ? <text fg={theme().textMuted}>Streams: {state().activeStreams}</text> : null}
+      {state().gatewayEnabled ? <text fg={theme().textMuted}>Streams: {state().activeStreams}</text> : null}
       <text fg={theme().text}>
         <b>Context</b>
       </text>

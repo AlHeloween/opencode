@@ -21,22 +21,26 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         tokens: 0,
         percent: null,
         protocol: undefined as string | undefined,
+        streaming: undefined as boolean | undefined,
         activeStreams: 0 as number,
       }
     }
 
     const tokens =
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
-    const model = props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
+    const provider = props.api.state.provider.find((item) => item.id === last.providerID) as any
+    const model = provider?.models[last.modelID] as any
+    const gatewayEnabled = model?.gateway?.enabled !== false && provider?.gateway?.enabled !== false
 
-    const liveStatus = globalThis.__gatewayLiveStatus
-    const routes = globalThis.__gatewayRoutes
-    const protocol = routes?.find((r) => r.provider === last.providerID)?.protocol
+    const liveStatus = (globalThis as any).__gatewayLiveStatus as
+      | { activeStreams: number; updatedAt: number }
+      | undefined
 
     return {
       tokens,
-      percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : null,
-      protocol,
+      percent: model?.limit?.context ? Math.round((tokens / model.limit.context) * 100) : null,
+      protocol: gatewayEnabled ? model?.gateway?.protocol || "http/1.1" : undefined,
+      streaming: gatewayEnabled ? true : undefined,
       activeStreams: liveStatus?.activeStreams ?? 0,
     }
   })
@@ -47,6 +51,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         <b>Greeting</b>
       </text>
       {state().protocol ? <text fg={theme().textMuted}>Protocol: {state().protocol}</text> : null}
+      {state().streaming !== undefined ? (
+        <text fg={theme().textMuted}>Streaming: {state().streaming ? "enabled" : "disabled"}</text>
+      ) : null}
       {state().activeStreams > 0 ? <text fg={theme().textMuted}>Streams: {state().activeStreams}</text> : null}
       <text fg={theme().text}>
         <b>Context</b>

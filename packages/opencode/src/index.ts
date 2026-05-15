@@ -1,8 +1,12 @@
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
+import path from "path"
+import fs from "fs/promises"
+import { Global } from "@opencode-ai/core/global"
 import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
 import * as Log from "@opencode-ai/core/util/log"
+import { bugReport } from "@opencode-ai/core/util/log"
 import { ConsoleCommand } from "./cli/cmd/account"
 import { ProvidersCommand } from "./cli/cmd/providers"
 import { AgentCommand } from "./cli/cmd/agent"
@@ -199,6 +203,27 @@ try {
   }
   process.exitCode = 1
 } finally {
+  const bugs = bugReport()
+  if (bugs.length > 0) {
+    const dir = path.join(Global.Path.data, "bugs")
+    await fs.mkdir(dir, { recursive: true }).catch(() => {})
+    await fs.writeFile(
+      path.join(dir, "messages.json"),
+      JSON.stringify(bugs.map((b) => ({ id: b.id, message: b.message, count: b.count })), null, 2),
+    ).catch(() => {})
+    for (const bug of bugs) {
+      if (bug.payloads.length > 0) {
+        await fs.writeFile(
+          path.join(dir, bug.id + ".payload.json"),
+          JSON.stringify(bug.payloads, null, 2),
+        ).catch(() => {})
+      }
+    }
+    process.stderr.write("Bugs encountered (" + bugs.length + "):" + EOL)
+    for (const bug of bugs) {
+      process.stderr.write("  " + bug.id + " " + bug.message + " (" + bug.count + ")" + EOL)
+    }
+  }
   // Some subprocesses don't react properly to SIGTERM and similar signals.
   // Most notably, some docker-container-based MCP servers don't handle such signals unless
   // run using `docker run --init`.

@@ -18,7 +18,7 @@ function parse(spec: string) {
   try {
     return npa(spec)
   } catch (err) {
-    Log.Default.debug("plugin specifier parse failed", { spec, error: err })
+    Log.Default.warn("bug: plugin specifier parse failed", { spec, error: err })
   }
 }
 

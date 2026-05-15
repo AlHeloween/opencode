@@ -79,7 +79,7 @@ export async function request(options: H1RequestOptions): Promise<H1Response> {
     }
   } catch (err) {
     const normalized = normalizeError(err)
-    log.debug("h1 request error", {
+    log.warn("bug: h1 request error", {
       url: options.url,
       category: normalized.category,
       error: normalized.message,

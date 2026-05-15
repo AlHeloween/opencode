@@ -5,6 +5,7 @@ import { withNetworkOptions, resolveNetworkOptions } from "../network"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import open from "open"
 import { networkInterfaces } from "os"
+import * as Log from "@opencode-ai/core/util/log"
 
 function getNetworkIPs() {
   const nets = networkInterfaces()
@@ -68,11 +69,11 @@ export const WebCommand = cmd({
       }
 
       // Open localhost in browser
-      open(localhostUrl.toString()).catch(() => {})
+      open(localhostUrl.toString()).catch((e) => { Log.Default.warn("bug: failed to open browser to localhost", { error: String(e) }) })
     } else {
       const displayUrl = server.url.toString()
       UI.println(UI.Style.TEXT_INFO_BOLD + "  Web interface:    ", UI.Style.TEXT_NORMAL, displayUrl)
-      open(displayUrl).catch(() => {})
+      open(displayUrl).catch((e) => { Log.Default.warn("bug: failed to open browser to display URL", { error: String(e) }) })
     }
 
     await new Promise(() => {})

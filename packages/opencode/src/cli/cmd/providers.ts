@@ -13,6 +13,7 @@ import { Plugin } from "../../plugin"
 import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
 import { Process } from "@/util/process"
+import * as Log from "@opencode-ai/core/util/log"
 import { text } from "node:stream/consumers"
 import { Effect } from "effect"
 
@@ -324,7 +325,7 @@ export const ProvidersLoginCommand = cmd({
           prompts.outro("Done")
           return
         }
-        await ModelsDev.refresh(true).catch(() => {})
+        await ModelsDev.refresh(true).catch((e) => { Log.Default.warn("bug: ModelsDev.refresh failed", { error: String(e) }) })
 
         const config = await AppRuntime.runPromise(Config.Service.use((cfg) => cfg.get()))
 

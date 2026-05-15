@@ -100,7 +100,7 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
     sessions.set(key, h2Session)
     return h2Session
   } catch (err) {
-    log.debug("h2 session creation failed", { baseUrl, error: (err as Error).message })
+    log.warn("bug: h2 session creation failed", { baseUrl, error: (err as Error).message })
     return null
   }
 }
@@ -368,7 +368,7 @@ export async function requestStream(
         "abort",
         () => {
           req.destroy()
-          writer.abort().catch(() => {})
+          writer.abort().catch((e) => { log.warn("bug: writer abort failed", { error: String(e) }) })
         },
         { once: true },
       )

@@ -144,7 +144,7 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
                   }
                 }
               } catch (err) {
-                log.debug("copilot vision detection failed", { error: err })
+                log.warn("bug: copilot vision detection failed", { error: err })
               }
               return { isVision: false, isAgent: false }
             })

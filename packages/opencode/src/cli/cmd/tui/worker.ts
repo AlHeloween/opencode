@@ -81,7 +81,7 @@ export const rpc = {
       directory: input.directory,
       init: () => AppRuntime.runPromise(InstanceBootstrap),
       fn: async () => {
-        await upgrade().catch(() => {})
+        await upgrade().catch((e) => { Log.Default.warn("bug: upgrade check failed", { error: String(e) }) })
       },
     })
   },

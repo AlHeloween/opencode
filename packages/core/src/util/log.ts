@@ -48,6 +48,29 @@ export interface Options {
   level?: Level
 }
 
+const bugEntries = new Map<string, { id: string; message: string; count: number; payloads: unknown[] }>()
+let nextBugId = 1
+
+export function bugReport() {
+  return [...bugEntries.values()]
+    .map((b) => ({ id: b.id, message: b.message.replace(/^bug: /, ""), count: b.count, payloads: b.payloads }))
+    .sort((a, b) => a.message.localeCompare(b.message))
+}
+
+function collectBug(message: string) {
+  const existing = bugEntries.get(message)
+  if (existing) {
+    existing.count++
+  } else {
+    bugEntries.set(message, {
+      id: "bug-" + String(nextBugId++).padStart(4, "0"),
+      message,
+      count: 1,
+      payloads: [],
+    })
+  }
+}
+
 let logpath = ""
 export function file() {
   return logpath
@@ -66,7 +89,9 @@ export async function init(options: Options) {
     Global.Path.log,
     options.dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
   )
-  await fs.truncate(logpath).catch(() => {})
+  await fs.truncate(logpath).catch((e) => {
+    collectBug("bug: failed to truncate log file [core/log]")
+  })
   mkdirSync(Global.Path.log, { recursive: true })
   const stream = createWriteStream(logpath, { flags: "a" })
   write = async (msg: any) => {
@@ -103,14 +128,19 @@ async function cleanup(dir: string) {
       cwd: dir,
       absolute: false,
       include: "file",
-    }).catch(() => [])
+    }).catch((e) => {
+      collectBug("bug: failed to scan log files during cleanup [core/log]")
+      return []
+    })
   )
     .filter((file) => path.basename(file) === file)
     .sort()
   if (files.length <= keep) return
 
   const doomed = files.slice(0, -keep)
-  await Promise.all(doomed.map((file) => fs.unlink(path.join(dir, file)).catch(() => {})))
+  await Promise.all(doomed.map((file) => fs.unlink(path.join(dir, file)).catch((e) => {
+    collectBug("bug: failed to unlink old log file [core/log]")
+  })))
 }
 
 function formatError(error: Error, depth = 0): string {
@@ -167,6 +197,20 @@ export function create(tags?: Record<string, any>) {
       }
     },
     warn(message?: any, extra?: Record<string, any>) {
+      if (typeof message === "string" && message.startsWith("bug:")) {
+        const existing = bugEntries.get(message)
+        if (existing) {
+          existing.count++
+          if (extra) existing.payloads.push(extra)
+        } else {
+          bugEntries.set(message, {
+            id: "bug-" + String(nextBugId++).padStart(4, "0"),
+            message,
+            count: 1,
+            payloads: extra ? [extra] : [],
+          })
+        }
+      }
       if (shouldLog("WARN")) {
         write("WARN  " + build(message, extra))
       }

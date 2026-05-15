@@ -122,17 +122,23 @@ const fetchApi = async () => {
 }
 
 export const Data = lazy(async () => {
-  const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch(() => {})
+  const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch((e) => {
+    log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
+  })
   if (result) return result
   // @ts-ignore
   const snapshot = await import("./models-snapshot.js")
     .then((m) => m.snapshot as Record<string, unknown>)
-    .catch(() => undefined)
+    .catch((e) => {
+      log.warn("bug: failed to import models snapshot", { error: e instanceof Error ? e.message : String(e) })
+      return undefined
+    })
   if (snapshot) return snapshot
   if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
   return Flock.withLock(`models-dev:${filepath}`, async () => {
-    const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch(() => {})
-    if (result) return result
+    const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch((e) => {
+      log.warn("bug: failed to read models json from cache", { error: e instanceof Error ? e.message : String(e) })
+    })
     const result2 = await fetchApi()
     if (result2.ok) {
       await Filesystem.write(filepath, result2.text).catch((e) => {

@@ -70,7 +70,7 @@ function message(providerID: ProviderID, e: APICallError) {
         return `${msg}: ${errMsg}`
       }
     } catch (err) {
-      Log.Default.debug("failed to parse provider error body as JSON", { error: err })
+      Log.Default.warn("bug: failed to parse provider error body as JSON", { error: err })
     }
 
     // If responseBody is HTML (e.g. from a gateway or proxy error page),

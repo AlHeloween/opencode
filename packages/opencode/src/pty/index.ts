@@ -126,13 +126,13 @@ export const layer = Layer.effect(
       try {
         session.process.kill()
       } catch (err) {
-        log.debug("pty process kill failed", { error: err })
+        log.warn("bug: pty process kill failed", { error: err })
       }
       for (const [sub, ws] of session.subscribers.entries()) {
         try {
           if (sock(ws) === sub) ws.close()
         } catch (err) {
-          log.debug("pty subscriber close failed", { error: err })
+          log.warn("bug: pty subscriber close failed", { error: err })
         }
       }
       session.subscribers.clear()

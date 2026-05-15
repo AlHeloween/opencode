@@ -35,6 +35,7 @@ export const Event = {
 }
 
 export function getReleaseType(current: string, latest: string): ReleaseType {
+  if (!semver.valid(current) || !semver.valid(latest)) return "patch"
   const currMajor = semver.major(current)
   const currMinor = semver.minor(current)
   const newMajor = semver.major(latest)

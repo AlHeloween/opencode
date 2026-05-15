@@ -31,9 +31,19 @@ const CHANNEL = await (async () => {
 })()
 const IS_PREVIEW = CHANNEL !== "latest"
 
+const versionPath = path.join(import.meta.dir, "..", ".build-version")
+const buildVersion = await Bun.file(versionPath).text()
+  .then((v) => v.trim())
+  .catch(() => "10.0.0")
+
 const VERSION = await (async () => {
   if (env.OPENCODE_VERSION) return env.OPENCODE_VERSION
-  if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`
+  if (IS_PREVIEW) {
+    const [vMajor, vMinor, vPatch] = buildVersion.split(".").map(Number)
+    const next = `${vMajor}.${vMinor}.${vPatch + 1}`
+    await Bun.write(versionPath, next)
+    return buildVersion
+  }
   const version = await fetch("https://registry.npmjs.org/opencode-ai/latest")
     .then((res) => {
       if (!res.ok) throw new Error(res.statusText)

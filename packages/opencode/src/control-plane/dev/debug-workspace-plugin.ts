@@ -18,7 +18,7 @@ async function waitForHealth(port: number) {
         return
       }
     } catch (err) {
-      Log.Default.debug("debug server health check failed, retrying", { error: err })
+      Log.Default.warn("bug: debug server health check failed, retrying", { error: err })
     }
 
     await sleep(250)

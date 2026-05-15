@@ -5,6 +5,7 @@ import path from "path"
 import fs from "fs/promises"
 import * as Filesystem from "../../../../util/filesystem"
 import * as Process from "../../../../util/process"
+import * as Log from "@opencode-ai/core/util/log"
 
 // Lazy load which and clipboardy to avoid expensive execa/which/isexe chain at startup
 const getWhich = lazy(async () => {
@@ -70,7 +71,7 @@ export async function read(): Promise<Content | undefined> {
       return { data: buffer.toString("base64"), mime: "image/png" }
     } catch {
     } finally {
-      await fs.rm(tmpfile, { force: true }).catch(() => {})
+      await fs.rm(tmpfile, { force: true }).catch((e) => { Log.Default.warn("bug: failed to remove clipboard temp file", { error: String(e) }) })
     }
   }
 
@@ -104,7 +105,7 @@ export async function read(): Promise<Content | undefined> {
   }
 
   const clipboardy = await getClipboardy()
-  const text = await clipboardy.read().catch(() => {})
+  const text = await clipboardy.read().catch((e) => { Log.Default.warn("bug: clipboardy.read failed", { error: String(e) }); return undefined })
   if (text) {
     return { data: text, mime: "text/plain" }
   }
@@ -130,7 +131,7 @@ const getCopyMethod = lazy(async () => {
         if (!proc.stdin) return
         proc.stdin.write(text)
         proc.stdin.end()
-        await proc.exited.catch(() => {})
+        await proc.exited.catch((e) => { proc.kill(); Log.Default.warn("bug: wl-copy process exited with error", { error: String(e) }) })
       }
     }
     if (which("xclip")) {
@@ -144,7 +145,7 @@ const getCopyMethod = lazy(async () => {
         if (!proc.stdin) return
         proc.stdin.write(text)
         proc.stdin.end()
-        await proc.exited.catch(() => {})
+        await proc.exited.catch((e) => { proc.kill(); Log.Default.warn("bug: xclip process exited with error", { error: String(e) }) })
       }
     }
     if (which("xsel")) {
@@ -158,7 +159,7 @@ const getCopyMethod = lazy(async () => {
         if (!proc.stdin) return
         proc.stdin.write(text)
         proc.stdin.end()
-        await proc.exited.catch(() => {})
+        await proc.exited.catch((e) => { proc.kill(); Log.Default.warn("bug: xsel process exited with error", { error: String(e) }) })
       }
     }
   }
@@ -185,14 +186,14 @@ const getCopyMethod = lazy(async () => {
       if (!proc.stdin) return
       proc.stdin.write(text)
       proc.stdin.end()
-      await proc.exited.catch(() => {})
+      await proc.exited.catch((e) => { proc.kill(); Log.Default.warn("bug: powershell clipboard process exited with error", { error: String(e) }) })
     }
   }
 
   console.log("clipboard: no native support")
   return async (text: string) => {
     const clipboardy = await getClipboardy()
-    await clipboardy.write(text).catch(() => {})
+    await clipboardy.write(text).catch((e) => { Log.Default.warn("bug: clipboardy.write failed", { text: text.slice(0, 100), error: String(e) }) })
   }
 })
 

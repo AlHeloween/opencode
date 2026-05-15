@@ -1,6 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
 import { Glob } from "@opencode-ai/core/util/glob"
+import * as Log from "@opencode-ai/core/util/log"
 
 const MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024
 const MAX_ROTATED_FILES = 10
@@ -80,6 +81,6 @@ export class LogRotator {
 
     const sorted = files.sort()
     const toDelete = sorted.slice(0, sorted.length - MAX_ROTATED_FILES)
-    await Promise.all(toDelete.map((file) => fs.unlink(file).catch(() => {})))
+    await Promise.all(toDelete.map((file) => fs.unlink(file).catch((e) => { Log.Default.warn("bug: failed to unlink rotated log file", { file, error: String(e) }) })))
   }
 }

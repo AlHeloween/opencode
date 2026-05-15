@@ -134,3 +134,28 @@ const cb = Instance.bind((err, evts) => {
 })
 nativeAddon.subscribe(dir, cb)
 ```
+
+## Bug Report Mechanism
+
+All caught errors that are NOT truly expected/ignorable must be logged with `log.warn("bug: ...", ...)` instead of `log.debug(...)`. The log module collects every `warn()` call starting with `"bug:"` into a deduplicated set. On exit (`index.ts` finally block), the sorted list prints to stderr:
+
+```
+Bugs encountered (N):
+  - bug: upgrade check failed
+  - bug: chmod zls binary failed
+  ...
+```
+
+### Rules
+
+- **`warn("bug: ...")`** — Any error in a catch block that could indicate a real problem. Collected and reported on exit.
+- **`debug("...")`** — Truly expected/ignorable failures (e.g., chmod on Windows, fire-and-forget cleanup on shutdown, diagnostic event handlers). Not collected.
+
+### When to fix
+
+After collecting real usage bug reports, classify each:
+- **Fix**: Code change eliminates the failure path entirely
+- **Keep**: Expected failure, stays as `warn("bug: ...")`
+- **Downgrade**: Truly ignorable, change to `log.debug(...)` (removes from exit report)
+
+Silent `catch {}` blocks (no logging at all) are bugs and must always be fixed — never leave errors completely unlogged.

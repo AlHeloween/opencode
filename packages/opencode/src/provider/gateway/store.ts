@@ -2,6 +2,7 @@ import fs from "fs/promises"
 import fsSync from "fs"
 import path from "path"
 import { Global } from "@opencode-ai/core/global"
+import * as Log from "@opencode-ai/core/util/log"
 import type { AdjustmentStoreData, RouteAdjustment } from "./adjustment-store"
 import {
   initialStore,
@@ -18,7 +19,6 @@ import {
 } from "./adjustment-store"
 import * as HealthWindow from "./health-window"
 import type { HealthMetrics } from "./health-window"
-import * as Log from "@opencode-ai/core/util/log"
 import { toRouteKeyString, parseRouteKeyString, type RouteKey } from "./route-key"
 import { Effect } from "effect"
 import type { AsyncLogger } from "./async-logger"
@@ -243,7 +243,7 @@ function ensureLoaded(): StoreState {
 
 export async function init(): Promise<void> {
   if (state) return
-  await fs.mkdir(path.join(Global.Path.data, "gateway"), { recursive: true }).catch(() => {})
+  await fs.mkdir(path.join(Global.Path.data, "gateway"), { recursive: true }).catch((e) => { Log.Default.warn("bug: failed to create gateway data directory", { error: String(e) }) })
   state = await load()
 
   persistTimer = setInterval(() => {

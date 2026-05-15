@@ -686,7 +686,7 @@ export const Zls: Info = {
       }
 
       if (platform !== "win32") {
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch((e) => { log.warn("bug: chmod zls binary failed", { bin, error: String(e) }) })
       }
 
       log.info(`installed zls`, { bin })
@@ -1092,11 +1092,11 @@ export const Clangd: Info = {
     }
 
     if (platform !== "win32") {
-      await fs.chmod(bin, 0o755).catch(() => {})
+      await fs.chmod(bin, 0o755).catch((e) => { log.warn("bug: chmod clangd binary failed", { bin, error: String(e) }) })
     }
 
-    await fs.unlink(path.join(Global.Path.bin, "clangd")).catch(() => {})
-    await fs.symlink(bin, path.join(Global.Path.bin, "clangd")).catch(() => {})
+    await fs.unlink(path.join(Global.Path.bin, "clangd")).catch((e) => { log.warn("bug: unlink clangd symlink failed", { error: String(e) }) })
+    await fs.symlink(bin, path.join(Global.Path.bin, "clangd")).catch((e) => { log.warn("bug: symlink clangd binary failed", { bin, error: String(e) }) })
 
     log.info(`installed clangd`, { bin })
 
@@ -1377,7 +1377,7 @@ export const KotlinLS: Info = {
       if (!ok) return
       await fs.rm(archivePath, { force: true })
       if (process.platform !== "win32") {
-        await fs.chmod(launcherScript, 0o755).catch(() => {})
+        await fs.chmod(launcherScript, 0o755).catch((e) => { log.warn("bug: chmod kotlin launcher script failed", { launcherScript, error: String(e) }) })
       }
       log.info("Installed Kotlin Language Server", { path: launcherScript })
     }
@@ -1731,7 +1731,7 @@ export const TerraformLS: Info = {
       }
 
       if (platform !== "win32") {
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch((e) => { log.warn("bug: chmod terraform-ls binary failed", { bin, error: String(e) }) })
       }
 
       log.info(`installed terraform-ls`, { bin })
@@ -1825,7 +1825,7 @@ export const TexLab: Info = {
       }
 
       if (platform !== "win32") {
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch((e) => { log.warn("bug: chmod texlab binary failed", { bin, error: String(e) }) })
       }
 
       log.info("installed texlab", { bin })
@@ -2015,7 +2015,7 @@ export const Tinymist: Info = {
       }
 
       if (platform !== "win32") {
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch((e) => { log.warn("bug: chmod tinymist binary failed", { bin, error: String(e) }) })
       }
 
       log.info("installed tinymist", { bin })

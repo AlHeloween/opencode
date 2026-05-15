@@ -28,12 +28,6 @@ type Client = SQLiteBunDatabase & { $client: { close: () => void; exec: (sql: st
 
 type DrizzleClient = ReturnType<typeof init> & { $client: { close: () => void; exec: (sql: string) => void; prepare: (sql: string) => { get: (...args: unknown[]) => unknown; all: (...args: unknown[]) => unknown[]; run: (...args: unknown[]) => void } } }
 
-let defaultDb: DrizzleClient | undefined
-
-function getDefaultDb(): DrizzleClient {
-  return (defaultDb ??= createAndInitDb(path.join(Global.Path.data, "opencode.db")))
-}
-
 const projectClients = new Map<string, DrizzleClient>()
 
 export function getProjectDbPath(worktree: string) {
@@ -301,10 +295,6 @@ export function closeAllProjectDbs() {
 
 export function close() {
   closeAllProjectDbs()
-  if (defaultDb) {
-    try { defaultDb.$client.close() } catch (err) { log.debug("failed to close default DB", { error: err }) }
-    defaultDb = undefined
-  }
 }
 
 export type TxOrDb = Transaction | Client
@@ -330,11 +320,11 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
     if (err instanceof LocalContext.NotFound) {
       const effects: (() => void | Promise<void>)[] = []
       let db: TxOrDb
-      const proj = currentProjectCtx.getStore()
-      if (proj) {
+      try {
+        const proj = currentProjectCtx.use()
         db = getProjectDb(proj.projectID, proj.worktree)
-      } else {
-        db = getDefaultDb()
+      } catch {
+        db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
       }
       const result = ctx.provide({ effects, tx: db }, () => callback(db))
       for (const effect of effects) effect()
@@ -361,10 +351,9 @@ export function projectUse<T>(projectID: ProjectID, worktree: string, callback: 
 
 export function effect(fn: () => any | Promise<any>) {
   const bound = InstanceState.bind(fn)
-  const store = ctx.getStore()
-  if (store) {
-    store.effects.push(bound)
-  } else {
+  try {
+    ctx.use().effects.push(bound)
+  } catch {
     bound()
   }
 }
@@ -383,11 +372,11 @@ export function transaction<T>(
     if (err instanceof LocalContext.NotFound) {
       const effects: (() => void | Promise<void>)[] = []
       let db: TxOrDb
-      const proj = currentProjectCtx.getStore()
-      if (proj) {
+      try {
+        const proj = currentProjectCtx.use()
         db = getProjectDb(proj.projectID, proj.worktree)
-      } else {
-        db = getDefaultDb()
+      } catch {
+        db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
       }
       const txCallback = InstanceState.bind((tx: TxOrDb) => {
         const result = ctx.provide({ tx, effects }, () => callback(tx))

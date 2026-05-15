@@ -69,6 +69,15 @@ const _stderr = (msg: any) => {
 let write: (msg: any) => number | Promise<number> = _stderr
 let printLogs = false
 
+function logError(msg: string, extra?: Record<string, any>) {
+  const entry = JSON.stringify({
+    ts: new Date().toISOString().split(".")[0],
+    message: msg,
+    ...extra,
+  }) + "\n"
+  fs.appendFile(path.join(Global.Path.log, "LoggerErrors.log"), entry).catch(() => {})
+}
+
 export async function init(options: Options = {}) {
   printLogs = options.print ?? false
   void cleanup(Global.Path.log)
@@ -157,7 +166,9 @@ function getCaller(): string | undefined {
         return `${file}:${parsed[2]}`
       }
     }
-  } catch { /* stack parsing failed, no caller info */ }
+  } catch {
+    logError("getCaller stack parsing failed")
+  }
 }
 
 function serializePayload(extra: Record<string, any>): { payload?: object; payload_id?: string } {

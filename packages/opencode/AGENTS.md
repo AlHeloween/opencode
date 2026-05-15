@@ -160,24 +160,26 @@ After collecting real usage bug reports, classify each:
 
 Silent `catch {}` blocks (no logging at all) are bugs and must always be fixed — never leave errors completely unlogged.
 
-Every `catch` block MUST have observable content — a comment, a log call, or a return value. Empty `catch {}` and `.catch(() => {})` are forbidden. Minimum acceptable:
+Every `catch` block MUST call a log function. Comments are NEVER sufficient — they are invisible at runtime. If an exception is caught, it must leave a log trail.
 
 ```ts
-// Allowed — logged at debug (expected/ignorable):
+// EXPECTED failure (no bug) — log at debug:
 } catch { log.debug("module not resolved") }
 
-// Allowed — annotated comment (hot path, no logging overhead):
-} catch { /* stack parsing failed, no caller info */ }
+// UNEXPECTED failure (potential bug) — log with "bug:" prefix:
+} catch { log.warn("bug: fileURLToPath failed", { raw }) }
 
-// Allowed — converts rejection to undefined (checked downstream):
-x.catch(() => undefined)
+// HOT PATH where logging overhead matters — annotate AND log:
+} catch { /* stack parse failed — see LoggerErrors.log */ }
 
-// FORBIDDEN:
+// FORBIDDEN — invisible at runtime, make bugs unobservable:
 } catch {}
 x.catch(() => {})
+// FORBIDDEN — comment-only, no runtime trail:
+} catch { /* ignored */ }
 ```
 
-If the catch could conceal a real bug, use `log.warn("bug: ...")` instead of `log.debug()`. The log trail must reveal the failure.
+The `log.ts` module provides `logError(msg, extra)` for log-internal failures — it writes to `LoggerErrors.log` bypassing the normal pipeline to avoid recursion.
 
 ## Debugging with Logs
 

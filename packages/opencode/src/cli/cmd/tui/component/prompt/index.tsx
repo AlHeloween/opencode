@@ -28,6 +28,7 @@ import { useExit } from "../../context/exit"
 import * as Clipboard from "../../util/clipboard"
 import type { AssistantMessage, FilePart, UserMessage } from "@opencode-ai/sdk/v2"
 import { TuiEvent } from "../../event"
+import * as Log from "@opencode-ai/core/util/log"
 import { iife } from "@/util/iife"
 import { Locale } from "@/util/locale"
 import { formatDuration } from "@/util/format"
@@ -1171,7 +1172,9 @@ export function Prompt(props: PromptProps) {
                   if (raw.startsWith("file://")) {
                     try {
                       return fileURLToPath(raw)
-                    } catch { /* not a file URL */ }
+                    } catch {
+                      Log.Default.warn("bug: fileURLToPath failed", { raw: raw.slice(0, 200) })
+                    }
                   }
                   if (process.platform === "win32") return raw
                   return raw.replace(/\\(.)/g, "$1")
@@ -1183,7 +1186,9 @@ export function Prompt(props: PromptProps) {
                     const filename = path.basename(filepath)
                     // Handle SVG as raw text content, not as base64 image
                     if (mime === "image/svg+xml") {
-                      const content = await Filesystem.readText(filepath).catch(() => { /* read failed, skip */ })
+                      const content = await Filesystem.readText(filepath).catch(() => {
+                        Log.Default.debug("failed to read text file", { filepath: filepath.slice(0, 100) })
+                      })
                       if (content) {
                         pasteText(content, `[SVG: ${filename ?? "image"}]`)
                         return
@@ -1203,7 +1208,9 @@ export function Prompt(props: PromptProps) {
                         return
                       }
                     }
-                  } catch { /* paste processing failed */ }
+                  } catch {
+                    Log.Default.debug("paste processing failed")
+                  }
                 }
 
                 const lineCount = (pastedContent.match(/\n/g)?.length ?? 0) + 1

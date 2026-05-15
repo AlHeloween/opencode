@@ -89,6 +89,7 @@ export async function probe(baseUrl: string, timeoutMs: number = 5000): Promise<
       })
     })
   } catch (err) {
+    log.warn("bug: ALPN capability probe failed", { error: err instanceof Error ? err.message : String(err) })
     return {
       alpnNegotiated: "unknown",
       alpnAdvertised: ALPN_PROTOCOLS,

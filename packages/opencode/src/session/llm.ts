@@ -256,6 +256,7 @@ const live: Layer.Layer<
               title: typeof result === "object" ? result?.title : undefined,
             }
           } catch (e: any) {
+            Log.Default.warn("bug: tool execution failed", { error: e.message ?? String(e) })
             return { result: "", error: e.message ?? String(e) }
           }
         }

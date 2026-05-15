@@ -273,7 +273,10 @@ export const layer = Layer.effect(
 
       const plan = Session.plan(input.session)
       const exists = yield* fsys.existsSafe(plan)
-      if (!exists) yield* fsys.ensureDir(path.dirname(plan)).pipe(Effect.catch(Effect.die))
+      if (!exists) yield* fsys.ensureDir(path.dirname(plan)).pipe(
+        Effect.tapError((e) => Effect.sync(() => Log.Default.warn("bug: plan directory creation failed", { plan, error: String(e) }))),
+        Effect.catch(Effect.die),
+      )
       const part = yield* sessions.updatePart({
         id: PartID.ascending(),
         messageID: userMessage.info.id,
@@ -1164,7 +1167,10 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   type: "file",
                   url:
                     `data:${part.mime};base64,` +
-                    Buffer.from(yield* fsys.readFile(filepath).pipe(Effect.catch(Effect.die))).toString("base64"),
+                    Buffer.from(yield* fsys.readFile(filepath).pipe(
+                      Effect.tapError((e) => Effect.sync(() => Log.Default.warn("bug: readFile for base64 failed", { filepath, error: String(e) }))),
+                      Effect.catch(Effect.die),
+                    )).toString("base64"),
                   mime: part.mime,
                   filename: part.filename!,
                   source: part.source,

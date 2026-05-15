@@ -338,7 +338,8 @@ export async function requestStream(
       }
       sample.lastChunkAt = Date.now()
       sample.chunks++
-      writer.write(new Uint8Array(chunk)).catch(() => {
+      writer.write(new Uint8Array(chunk)).catch((e) => {
+        log.warn("bug: h2 stream write failed", { error: String(e) })
         req.destroy()
       })
     })

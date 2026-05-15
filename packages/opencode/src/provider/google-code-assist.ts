@@ -282,6 +282,7 @@ export function createGeminiProvider(options: GeminiProviderOptions) {
 
             controller.enqueue({ type: "finish", finishReason, usage })
           } catch (error) {
+            log.warn("bug: GCA stream failed", { error: String(error) })
             controller.error(error)
           } finally {
             controller.close()

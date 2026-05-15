@@ -6,6 +6,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import type { Event } from "electron"
 import { app, BrowserWindow, dialog } from "electron"
+import log from "electron-log/main.js"
 import pkg from "electron-updater"
 
 import contextMenu from "electron-context-menu"
@@ -15,7 +16,7 @@ contextMenu({ showSaveImageAs: true, showLookUpSelection: false, showSearchWithG
 try {
   process.chdir(homedir())
 } catch (error) {
-  logger.warn("failed to change working directory to home", error)
+  log.warn("failed to change working directory to home", error)
 }
 
 process.env.OPENCODE_DISABLE_EMBEDDED_WEB_UI = "true"

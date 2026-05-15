@@ -126,7 +126,7 @@ export default function () {
         if (SessionDataMissingError.isInstance(error)) {
           return <NotFound />
         }
-        Log.error(error)
+        Log.Default.error(error)
         const details = error instanceof Error ? (error.stack ?? error.message) : String(error)
         return (
           <div class="min-h-screen w-full bg-background-base text-text-base flex flex-col items-center justify-center gap-4 p-6 text-center">

@@ -14,7 +14,7 @@ import { resetDatabase } from "../fixture/db"
 import { provideInstance, tmpdir } from "../fixture/fixture"
 import { it } from "../lib/effect"
 
-void Log.init({ print: false })
+Log.init()
 
 const original = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const websocket = (() => () => new Response(null, { status: 501 })) as unknown as UpgradeWebSocket

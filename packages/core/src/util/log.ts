@@ -8,19 +8,7 @@ import { Glob } from "./glob"
 export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
 export type Level = z.infer<typeof Level>
 
-const levelPriority: Record<Level, number> = {
-  DEBUG: 0,
-  INFO: 1,
-  WARN: 2,
-  ERROR: 3,
-}
 const keep = 10
-
-let level: Level = "INFO"
-
-function shouldLog(input: Level): boolean {
-  return levelPriority[input] >= levelPriority[level]
-}
 
 export type Logger = {
   debug(message?: any, extra?: Record<string, any>): void
@@ -43,9 +31,7 @@ const loggers = new Map<string, Logger>()
 export const Default = create({ service: "default" })
 
 export interface Options {
-  print: boolean
-  dev?: boolean
-  level?: Level
+  print?: boolean
 }
 
 const bugEntries = new Map<string, { id: string; message: string; count: number; payloads: unknown[] }>()
@@ -57,16 +43,17 @@ export function bugReport() {
     .sort((a, b) => a.message.localeCompare(b.message))
 }
 
-function collectBug(message: string) {
-  const existing = bugEntries.get(message)
+function collectBug(key: string, message: string, extra?: Record<string, any>) {
+  const existing = bugEntries.get(key)
   if (existing) {
     existing.count++
+    if (extra) existing.payloads.push(extra)
   } else {
-    bugEntries.set(message, {
+    bugEntries.set(key, {
       id: "bug-" + String(nextBugId++).padStart(4, "0"),
       message,
       count: 1,
-      payloads: [],
+      payloads: extra ? [extra] : [],
     })
   }
 }
@@ -80,21 +67,22 @@ const _stderr = (msg: any) => {
   return msg.length
 }
 let write: (msg: any) => number | Promise<number> = _stderr
+let printLogs = false
 
-export async function init(options: Options) {
-  if (options.level) level = options.level
+export async function init(options: Options = {}) {
+  printLogs = options.print ?? false
   void cleanup(Global.Path.log)
-  if (options.print) return
   logpath = path.join(
     Global.Path.log,
-    options.dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
+    new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
   )
-  await fs.truncate(logpath).catch((e) => {
-    collectBug("bug: failed to truncate log file [core/log]")
+  await fs.truncate(logpath).catch(() => {
+    collectBug("log.ts:init", "bug: failed to truncate log file [core/log]")
   })
   mkdirSync(Global.Path.log, { recursive: true })
+  mkdirSync(path.join(Global.Path.log, "payloads"), { recursive: true })
   const stream = createWriteStream(logpath, { flags: "a" })
-  write = async (msg: any) => {
+  const fileWrite = async (msg: any) => {
     return new Promise((resolve, reject) => {
       stream.write(msg, (err) => {
         if (err) reject(err)
@@ -102,17 +90,21 @@ export async function init(options: Options) {
       })
     })
   }
+  write = printLogs
+    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch(() => {}); return r }
+    : fileWrite
 }
 
-export async function reopen(dev?: boolean) {
-  if (write === _stderr) return
+export async function reopen() {
+  if (write === _stderr && !printLogs) return
   logpath = path.join(
     Global.Path.log,
-    dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
+    new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
   )
   mkdirSync(Global.Path.log, { recursive: true })
+  mkdirSync(path.join(Global.Path.log, "payloads"), { recursive: true })
   const stream = createWriteStream(logpath, { flags: "a" })
-  write = async (msg: any) => {
+  const fileWrite = async (msg: any) => {
     return new Promise((resolve, reject) => {
       stream.write(msg, (err) => {
         if (err) reject(err)
@@ -120,6 +112,9 @@ export async function reopen(dev?: boolean) {
       })
     })
   }
+  write = printLogs
+    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch(() => {}); return r }
+    : fileWrite
 }
 
 async function cleanup(dir: string) {
@@ -128,8 +123,8 @@ async function cleanup(dir: string) {
       cwd: dir,
       absolute: false,
       include: "file",
-    }).catch((e) => {
-      collectBug("bug: failed to scan log files during cleanup [core/log]")
+    }).catch(() => {
+      collectBug("log.ts:cleanup", "bug: failed to scan log files during cleanup [core/log]")
       return []
     })
   )
@@ -138,82 +133,83 @@ async function cleanup(dir: string) {
   if (files.length <= keep) return
 
   const doomed = files.slice(0, -keep)
-  await Promise.all(doomed.map((file) => fs.unlink(path.join(dir, file)).catch((e) => {
-    collectBug("bug: failed to unlink old log file [core/log]")
+  await Promise.all(doomed.map((file) => fs.unlink(path.join(dir, file)).catch(() => {
+    collectBug("log.ts:cleanup", "bug: failed to unlink old log file [core/log]")
   })))
 }
 
-function formatError(error: Error, depth = 0): string {
-  const result = error.message
-  return error.cause instanceof Error && depth < 10
-    ? result + " Caused by: " + formatError(error.cause, depth + 1)
-    : result
+let nextLogId = 1
+
+function getCaller(): string | undefined {
+  try {
+    const stack = new Error().stack?.split("\n")
+    if (!stack) return undefined
+    for (let i = 1; i < stack.length; i++) {
+      const frame = stack[i]
+      if (!frame) continue
+      if (frame.includes("log.ts")) continue
+      if (frame.includes("(native") || frame.includes("moduleEvaluation") || frame.includes("loadAndEvaluateModule")) continue
+      const fileMatch = frame.match(/\(([^)]+)\)/) || frame.match(/at\s+(.+)/)
+      const location = fileMatch?.[1]
+      const parsed = location?.match(/(.+):(\d+):(\d+)/)
+      if (parsed) {
+        const file = parsed[1].split(/[\\/]/).pop()
+        return `${file}:${parsed[2]}`
+      }
+    }
+  } catch {}
 }
 
-let last = Date.now()
+function serializePayload(extra: Record<string, any>): { payload?: object; payload_id?: string } {
+  const json = JSON.stringify(extra)
+  if (json.length <= 100) return { payload: extra }
+  const id = `l-${String(nextLogId).padStart(4, "0")}`
+  const payloadPath = path.join(Global.Path.log, "payloads", `${id}.json`)
+  fs.writeFile(payloadPath, json).catch(() => {})
+  return { payload_id: id }
+}
+
 export function create(tags?: Record<string, any>) {
   tags = tags || {}
 
   const service = tags["service"]
   if (service && typeof service === "string") {
     const cached = loggers.get(service)
-    if (cached) {
-      return cached
-    }
+    if (cached) return cached
   }
 
-  function build(message: any, extra?: Record<string, any>) {
-    const prefix = Object.entries({
-      ...tags,
-      ...extra,
-    })
-      .filter(([_, value]) => value !== undefined && value !== null)
-      .map(([key, value]) => {
-        const prefix = `${key}=`
-        if (value instanceof Error) return prefix + formatError(value)
-        if (typeof value === "object") return prefix + JSON.stringify(value)
-        return prefix + value
-      })
-      .join(" ")
-    const next = new Date()
-    const diff = next.getTime() - last
-    last = next.getTime()
-    return [next.toISOString().split(".")[0], "+" + diff + "ms", prefix, message].filter(Boolean).join(" ") + "\n"
+  function build(level: Level, message: any, extra?: Record<string, any>) {
+    const id = `l-${String(nextLogId++).padStart(4, "0")}`
+    const caller = getCaller()
+    const ts = new Date().toISOString().split(".")[0]
+    const entry: Record<string, any> = { id, ts, level, message }
+    if (caller) entry.caller = caller
+    if (tags && Object.keys(tags).length > 0) Object.assign(entry, tags)
+    if (extra) {
+      const { payload, payload_id } = serializePayload(extra)
+      if (payload) entry.payload = payload
+      if (payload_id) entry.payload_id = payload_id
+    }
+    return JSON.stringify(entry) + "\n"
   }
+
   const result: Logger = {
     debug(message?: any, extra?: Record<string, any>) {
-      if (shouldLog("DEBUG")) {
-        write("DEBUG " + build(message, extra))
-      }
+      write(build("DEBUG", message, extra))
     },
     info(message?: any, extra?: Record<string, any>) {
-      if (shouldLog("INFO")) {
-        write("INFO  " + build(message, extra))
-      }
+      write(build("INFO", message, extra))
     },
     error(message?: any, extra?: Record<string, any>) {
-      if (shouldLog("ERROR")) {
-        write("ERROR " + build(message, extra))
-      }
+      write(build("ERROR", message, extra))
     },
     warn(message?: any, extra?: Record<string, any>) {
       if (typeof message === "string" && message.startsWith("bug:")) {
-        const existing = bugEntries.get(message)
-        if (existing) {
-          existing.count++
-          if (extra) existing.payloads.push(extra)
-        } else {
-          bugEntries.set(message, {
-            id: "bug-" + String(nextBugId++).padStart(4, "0"),
-            message,
-            count: 1,
-            payloads: extra ? [extra] : [],
-          })
-        }
+        const caller = getCaller() ?? "unknown"
+        const key = caller + " " + message
+        collectBug(key, message, extra)
       }
-      if (shouldLog("WARN")) {
-        write("WARN  " + build(message, extra))
-      }
+      write(build("WARN", message, extra))
     },
     tag(key: string, value: string) {
       if (tags) tags[key] = value

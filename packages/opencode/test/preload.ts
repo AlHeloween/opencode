@@ -82,10 +82,6 @@ process.env["OPENCODE_DB"] = ":memory:"
 const Log = await import("@opencode-ai/core/util/log")
 const { initProjectors } = await import("../src/server/projectors")
 
-void Log.init({
-  print: false,
-  dev: true,
-  level: "DEBUG",
-})
+void Log.init()
 
 initProjectors()

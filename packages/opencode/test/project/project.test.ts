@@ -12,7 +12,7 @@ import { NodePath } from "@effect/platform-node"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 
-void Log.init({ print: false })
+Log.init()
 
 const encoder = new TextEncoder()
 

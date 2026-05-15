@@ -33,7 +33,7 @@ export function setWslConfig(config: WslConfig) {
 export async function spawnLocalServer(hostname: string, port: number, password: string) {
   prepareServerEnv(password)
   const { Log, Server } = await import("virtual:opencode-server")
-  await Log.init({ level: "WARN" })
+  await Log.init()
   const listener = await Server.listen({
     port,
     hostname,

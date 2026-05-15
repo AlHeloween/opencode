@@ -1,4 +1,3 @@
-import { Installation } from "@/installation"
 import { Server } from "@/server/server"
 import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "@/project/instance"
@@ -17,11 +16,6 @@ ensureProcessMetadata("worker")
 
 await Log.init({
   print: process.argv.includes("--print-logs"),
-  dev: Installation.isLocal(),
-  level: (() => {
-    if (Installation.isLocal()) return "DEBUG"
-    return "INFO"
-  })(),
 })
 
 Heap.start()

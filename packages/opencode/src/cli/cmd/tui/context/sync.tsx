@@ -500,9 +500,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           if (fullSyncedSessions.has(sessionID)) return
           const [session, messages, todo, diff] = await Promise.all([
             sdk.client.session.get({ sessionID }, { throwOnError: true }),
-            sdk.client.session.messages({ sessionID, limit: 100 }),
-            sdk.client.session.todo({ sessionID }),
-            sdk.client.session.diff({ sessionID }),
+            sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),
+            sdk.client.session.todo({ sessionID }, { throwOnError: true }),
+            sdk.client.session.diff({ sessionID }, { throwOnError: true }),
           ])
           setStore(
             produce((draft) => {
@@ -510,8 +510,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               if (match.found) draft.session[match.index] = session.data!
               if (!match.found) draft.session.splice(match.index, 0, session.data!)
               draft.todo[sessionID] = todo.data ?? []
-              draft.message[sessionID] = messages.data!.map((x) => x.info)
-              for (const message of messages.data!) {
+              const messageList = messages.data ?? []
+              draft.message[sessionID] = messageList.map((x) => x.info)
+              for (const message of messageList) {
                 draft.part[message.info.id] = message.parts
               }
               draft.session_diff[sessionID] = diff.data ?? []

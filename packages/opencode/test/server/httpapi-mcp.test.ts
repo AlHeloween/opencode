@@ -12,7 +12,7 @@ import { resetDatabase } from "../fixture/db"
 import { provideInstance, tmpdir } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
-void Log.init({ print: false })
+Log.init()
 
 const original = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const context = Context.empty() as Context.Context<unknown>

@@ -89,6 +89,7 @@ import { TuiPluginRuntime } from "@/cli/cmd/tui/plugin/runtime"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { SessionRetry } from "@/session/retry"
 import { getRevertDiffFiles } from "../../util/revert-diff"
+import * as Log from "@opencode-ai/core/util/log"
 
 addDefaultParsers(parsers.parsers)
 
@@ -211,6 +212,7 @@ export function Session() {
       if (route.sessionID === sessionID && scroll) scroll.scrollBy(100_000)
     })().catch((error) => {
       if (route.sessionID !== sessionID) return
+      Log.Default.error("session load failed", { sessionID, error: errorMessage(error) })
       toast.show({
         message: errorMessage(error),
         variant: "error",

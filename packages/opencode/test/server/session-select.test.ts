@@ -7,7 +7,7 @@ import { Instance } from "../../src/project/instance"
 import { Server } from "../../src/server/server"
 import { tmpdir } from "../fixture/fixture"
 
-void Log.init({ print: false })
+Log.init()
 
 function run<A, E>(fx: Effect.Effect<A, E, SessionNs.Service>) {
   return Effect.runPromise(fx.pipe(Effect.provide(SessionNs.defaultLayer)))

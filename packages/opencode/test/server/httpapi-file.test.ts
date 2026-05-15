@@ -8,7 +8,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { resetDatabase } from "../fixture/db"
 import { tmpdir } from "../fixture/fixture"
 
-void Log.init({ print: false })
+Log.init()
 
 const context = Context.empty() as Context.Context<unknown>
 

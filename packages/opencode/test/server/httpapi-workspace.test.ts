@@ -15,7 +15,7 @@ import { resetDatabase } from "../fixture/db"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
 
-void Log.init({ print: false })
+Log.init()
 
 const originalWorkspaces = Flag.OPENCODE_EXPERIMENTAL_WORKSPACES
 const originalHttpApi = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI

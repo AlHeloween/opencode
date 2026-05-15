@@ -6,6 +6,7 @@ import { SplitBorder } from "../component/border"
 import { TextAttributes } from "@opentui/core"
 import { Schema } from "effect"
 import { TuiEvent } from "../event"
+import * as Log from "@opencode-ai/core/util/log"
 
 type ToastInput = Schema.Codec.Encoded<typeof TuiEvent.ToastShow.properties>
 export type ToastOptions = Schema.Schema.Type<typeof TuiEvent.ToastShow.properties>
@@ -60,6 +61,9 @@ function init() {
   const toast = {
     show(options: ToastInput) {
       const toastOptions = decodeToastOptions(options)
+      if (toastOptions.variant === "error") {
+        Log.Default.error(toastOptions.title ?? toastOptions.message)
+      }
       setStore("currentToast", toastOptions)
       if (timeoutHandle) clearTimeout(timeoutHandle)
       timeoutHandle = setTimeout(() => {
@@ -67,11 +71,14 @@ function init() {
       }, toastOptions.duration).unref()
     },
     error: (err: any) => {
-      if (err instanceof Error)
+      if (err instanceof Error) {
+        Log.Default.error(err.message)
         return toast.show({
           variant: "error",
           message: err.message,
         })
+      }
+      Log.Default.error("An unknown error has occurred")
       toast.show({
         variant: "error",
         message: "An unknown error has occurred",

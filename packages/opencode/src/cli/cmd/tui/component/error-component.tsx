@@ -1,10 +1,11 @@
 import { TextAttributes } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
-import { createSignal } from "solid-js"
+import { createSignal, onMount } from "solid-js"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { win32FlushInputBuffer } from "../win32"
 import { getScrollAcceleration } from "../util/scroll"
+import * as Log from "@opencode-ai/core/util/log"
 
 export function ErrorComponent(props: {
   error: Error
@@ -30,6 +31,10 @@ export function ErrorComponent(props: {
     }
   })
   const [copied, setCopied] = createSignal(false)
+
+  onMount(() => {
+    Log.Default.error("fatal tui error", { message: props.error.message, stack: props.error.stack })
+  })
 
   const issueURL = new URL("https://github.com/anomalyco/opencode/issues/new?template=bug-report.yml")
 

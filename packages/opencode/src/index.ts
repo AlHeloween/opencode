@@ -14,7 +14,6 @@ import { UpgradeCommand } from "./cli/cmd/upgrade"
 import { UninstallCommand } from "./cli/cmd/uninstall"
 import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
-import { Installation } from "./installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { FormatError } from "./cli/error"
@@ -78,11 +77,6 @@ const cli = yargs(args)
     describe: "print logs to stderr",
     type: "boolean",
   })
-  .option("log-level", {
-    describe: "log level",
-    type: "string",
-    choices: ["DEBUG", "INFO", "WARN", "ERROR"],
-  })
   .option("pure", {
     describe: "run without external plugins",
     type: "boolean",
@@ -94,12 +88,6 @@ const cli = yargs(args)
 
     await Log.init({
       print: process.argv.includes("--print-logs"),
-      dev: Installation.isLocal(),
-      level: (() => {
-        if (opts.logLevel) return opts.logLevel as Log.Level
-        if (Installation.isLocal()) return "DEBUG"
-        return "INFO"
-      })(),
     })
 
     Heap.start()

@@ -56,7 +56,7 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Ripgrep } from "../../src/file/ripgrep"
 import { Format } from "../../src/format"
 
-void Log.init({ print: false })
+Log.init()
 
 const mcp = Layer.succeed(
   MCP.Service,

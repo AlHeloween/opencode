@@ -29,7 +29,7 @@ describe.skip("log", () => {
 
     await Promise.all(list.map((file) => fs.writeFile(path.join(tmp.path, file), file)))
 
-    await Log.init({ print: false, dev: false })
+    Log.init()
 
     const kept = await files(tmp.path)
     expect(kept).toHaveLength(10)

@@ -159,3 +159,64 @@ After collecting real usage bug reports, classify each:
 - **Downgrade**: Truly ignorable, change to `log.debug(...)` (removes from exit report)
 
 Silent `catch {}` blocks (no logging at all) are bugs and must always be fixed — never leave errors completely unlogged.
+
+## Debugging with Logs
+
+When something breaks in the TUI (red brackets, error toasts, session restore failures, prompt not working), **check the logs first**. The log files live at `{worktree}/.opencode/data/log/`. Bug reports are written as JSON to `{worktree}/.opencode/data/bugs/messages.json` on clean exit.
+
+### Finding errors in logs
+
+Use ripgrep (`rg`) — it is fast and respects `.gitignore`:
+
+```bash
+# Find all errors, warnings, and bug entries across all log files
+rg -nu 'error|ERROR|bug:|WARN' .opencode/data/log
+
+# Find a specific error message
+rg -nu 'data.map' .opencode/data/log
+
+# Show context around matches (3 lines before and after)
+rg -nu -C3 'error' .opencode/data/log
+
+# Search only the latest log file for bugs
+rg -nu 'bug:' .opencode/data/log/$(ls -t .opencode/data/log/*.log | head -1)
+```
+
+### Viewing recent log output
+
+```bash
+# Last 50 lines of the most recent log file
+ls -t .opencode/data/log/*.log | head -1 | xargs tail -50
+
+# Tail all log files by last modified
+rg -nu '' .opencode/data/log | tail -50
+```
+
+### Checking bug reports
+
+```bash
+# Bugs collected on exit (JSON)
+cat .opencode/data/bugs/messages.json 2>/dev/null
+
+# Per-bug payloads
+ls .opencode/data/bugs/*.payload.json 2>/dev/null
+```
+
+### What should be in the logs
+
+Every error visible in the TUI (red brackets, error toasts) MUST also write to the log file. The TUI logs via:
+- `Log.Default.error(...)` — for expected errors (e.g., "Session not found")
+- `Log.Default.warn("bug: ...")` — for unexpected failures (collected and reported on exit)
+- `Log.Default.debug(...)` — for truly ignorable failures
+
+If you see an error in the TUI but NOT in the logs, that is itself a bug — the error path is missing log integration.
+
+## When Searching for Bugs or Exploring Code
+
+**Always use the explore agent** (`task` tool with `subagent_type: "explore"`) for:
+- Searching the codebase for error patterns, crash sites, or bug locations
+- Finding all call sites of a function or usage of a pattern
+- Investigating how a feature works across multiple files
+- Searching logs for errors (the explore agent can run `rg` and return results)
+
+Do NOT manually grep/search/explore the codebase yourself — delegate it to the explore agent. This keeps context small and enforces thoroughness.

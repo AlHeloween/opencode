@@ -58,6 +58,7 @@ import { Provider } from "@/provider/provider"
 import { ArgsProvider, useArgs, type Args } from "./context/args"
 import open from "open"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
+import * as Log from "@opencode-ai/core/util/log"
 import { TuiConfigProvider, useTuiConfig } from "./context/tui-config"
 import { TuiConfig } from "@/cli/cmd/tui/config/tui"
 import { createTuiApi } from "@/cli/cmd/tui/plugin/api"
@@ -84,7 +85,7 @@ function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
         Clipboard.copy(text).catch((error) => {
-          console.error(`Failed to copy console selection to clipboard: ${error}`)
+          Log.Default.warn("bug: failed to copy console selection to clipboard", { error: String(error) })
         })
       },
     },
@@ -250,7 +251,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     config: tuiConfig,
   })
     .catch((error) => {
-      console.error("Failed to load TUI plugins", error)
+      Log.Default.warn("bug: failed to load TUI plugins", { error: String(error) })
     })
     .finally(() => {
       setReady(true)
@@ -792,6 +793,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     const error = evt.properties.error
     if (error && typeof error === "object" && error.name === "MessageAbortedError") return
     const message = errorMessage(error)
+    Log.Default.error("session.error", { sessionID: evt.properties.sessionID, message })
 
     toast.show({
       variant: "error",

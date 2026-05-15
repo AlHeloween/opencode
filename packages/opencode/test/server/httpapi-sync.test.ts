@@ -10,7 +10,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { resetDatabase } from "../fixture/db"
 import { tmpdir } from "../fixture/fixture"
 
-void Log.init({ print: false })
+Log.init()
 
 const originalHttpApi = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const originalWorkspaces = Flag.OPENCODE_EXPERIMENTAL_WORKSPACES

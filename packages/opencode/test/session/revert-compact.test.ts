@@ -13,7 +13,7 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
-void Log.init({ print: false })
+Log.init()
 
 const env = Layer.mergeAll(
   Session.defaultLayer,

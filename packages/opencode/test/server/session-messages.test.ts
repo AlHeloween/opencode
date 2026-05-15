@@ -8,7 +8,7 @@ import { MessageID, PartID, type SessionID } from "../../src/session/schema"
 import * as Log from "@opencode-ai/core/util/log"
 import { tmpdir } from "../fixture/fixture"
 
-void Log.init({ print: false })
+Log.init()
 
 function run<A, E>(fx: Effect.Effect<A, E, SessionNs.Service>) {
   return Effect.runPromise(fx.pipe(Effect.provide(SessionNs.defaultLayer)))

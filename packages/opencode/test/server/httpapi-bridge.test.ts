@@ -26,7 +26,7 @@ import { HttpApi, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { resetDatabase } from "../fixture/db"
 import { tmpdir } from "../fixture/fixture"
 
-void Log.init({ print: false })
+Log.init()
 
 const original = {
   OPENCODE_EXPERIMENTAL_HTTPAPI: Flag.OPENCODE_EXPERIMENTAL_HTTPAPI,

@@ -9,7 +9,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { resetDatabase } from "../fixture/db"
 import { tmpdir } from "../fixture/fixture"
 
-void Log.init({ print: false })
+Log.init()
 
 const original = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const websocket = (() => () => new Response(null, { status: 501 })) as unknown as UpgradeWebSocket

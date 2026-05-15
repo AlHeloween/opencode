@@ -10,7 +10,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { resetDatabase } from "../fixture/db"
 import { provideInstance, tmpdir } from "../fixture/fixture"
 
-void Log.init({ print: false })
+Log.init()
 
 afterEach(async () => {
   await resetDatabase()

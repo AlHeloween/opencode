@@ -4,9 +4,7 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { hideBin } from "yargs/helpers"
 import { Log } from "./node"
 
-Log.init({
-  print: false,
-})
+Log.init()
 
 const cli = yargs(hideBin(process.argv))
   .parserConfiguration({ "populate--": true })
@@ -19,11 +17,6 @@ const cli = yargs(hideBin(process.argv))
   .option("print-logs", {
     describe: "print logs to stderr",
     type: "boolean",
-  })
-  .option("log-level", {
-    describe: "log level",
-    type: "string",
-    choices: ["DEBUG", "INFO", "WARN", "ERROR"],
   })
   .option("pure", {
     describe: "run without external plugins",

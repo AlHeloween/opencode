@@ -157,7 +157,7 @@ function getCaller(): string | undefined {
         return `${file}:${parsed[2]}`
       }
     }
-  } catch {}
+  } catch { /* stack parsing failed, no caller info */ }
 }
 
 function serializePayload(extra: Record<string, any>): { payload?: object; payload_id?: string } {

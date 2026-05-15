@@ -206,7 +206,9 @@ export function Session() {
         // (which will be non-interactive)
         try {
           await sync.bootstrap({ fatal: false })
-        } catch {}
+        } catch {
+          Log.Default.debug("bootstrap failed, workspace may not exist", { sessionID })
+        }
       }
       await sync.session.sync(sessionID)
       if (route.sessionID === sessionID && scroll) scroll.scrollBy(100_000)

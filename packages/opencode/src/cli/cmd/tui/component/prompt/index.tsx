@@ -1171,7 +1171,7 @@ export function Prompt(props: PromptProps) {
                   if (raw.startsWith("file://")) {
                     try {
                       return fileURLToPath(raw)
-                    } catch {}
+                    } catch { /* not a file URL */ }
                   }
                   if (process.platform === "win32") return raw
                   return raw.replace(/\\(.)/g, "$1")
@@ -1183,7 +1183,7 @@ export function Prompt(props: PromptProps) {
                     const filename = path.basename(filepath)
                     // Handle SVG as raw text content, not as base64 image
                     if (mime === "image/svg+xml") {
-                      const content = await Filesystem.readText(filepath).catch(() => {})
+                      const content = await Filesystem.readText(filepath).catch(() => { /* read failed, skip */ })
                       if (content) {
                         pasteText(content, `[SVG: ${filename ?? "image"}]`)
                         return
@@ -1203,7 +1203,7 @@ export function Prompt(props: PromptProps) {
                         return
                       }
                     }
-                  } catch {}
+                  } catch { /* paste processing failed */ }
                 }
 
                 const lineCount = (pastedContent.match(/\n/g)?.length ?? 0) + 1

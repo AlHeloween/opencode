@@ -160,6 +160,25 @@ After collecting real usage bug reports, classify each:
 
 Silent `catch {}` blocks (no logging at all) are bugs and must always be fixed — never leave errors completely unlogged.
 
+Every `catch` block MUST have observable content — a comment, a log call, or a return value. Empty `catch {}` and `.catch(() => {})` are forbidden. Minimum acceptable:
+
+```ts
+// Allowed — logged at debug (expected/ignorable):
+} catch { log.debug("module not resolved") }
+
+// Allowed — annotated comment (hot path, no logging overhead):
+} catch { /* stack parsing failed, no caller info */ }
+
+// Allowed — converts rejection to undefined (checked downstream):
+x.catch(() => undefined)
+
+// FORBIDDEN:
+} catch {}
+x.catch(() => {})
+```
+
+If the catch could conceal a real bug, use `log.warn("bug: ...")` instead of `log.debug()`. The log trail must reveal the failure.
+
 ## Debugging with Logs
 
 When something breaks in the TUI (red brackets, error toasts, session restore failures, prompt not working), **check the logs first**. The log files live at `{worktree}/.opencode/data/log/`. Bug reports are written as JSON to `{worktree}/.opencode/data/bugs/messages.json` on clean exit.

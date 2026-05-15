@@ -232,6 +232,14 @@ Every error visible in the TUI (red brackets, error toasts) MUST also write to t
 
 If you see an error in the TUI but NOT in the logs, that is itself a bug — the error path is missing log integration.
 
+## Design Blockers
+
+When a task request has a design conflict that prevents a straightforward implementation, **stop and report it to the user** with a clear description of the conflict. Do not silently work around it, leave a comment, or hack a partial solution.
+
+Example: the user asked for no comment-only catches, but `getCaller()` in the logger cannot call `log.*` (it is called by the log system itself, creating a circular reference). Reported → user resolved: add `LoggerErrors.log` as a side-channel that bypasses the log pipeline.
+
+Report format: state the conflict, the two constraints in tension, and ask for resolution. The user will decide the tradeoff.
+
 ## When Searching for Bugs or Exploring Code
 
 **Always use the explore agent** (`task` tool with `subagent_type: "explore"`) for:

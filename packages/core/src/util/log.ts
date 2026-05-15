@@ -86,18 +86,23 @@ let dedupTimer: ReturnType<typeof setInterval> | undefined
 
 function flushDedup() {
   if (dedupState.size === 0) return
-  for (const [key, state] of dedupState) {
-    if (state.count <= 1) continue
-    const [, level, message] = key.split("|")
-    const entry = JSON.stringify({
-      id: `l-${String(nextLogId++).padStart(4, "0")}`,
-      caller: "log.ts:dedup",
-      ts: new Date().toISOString().split(".")[0],
-      level,
-      message: `${message} (×${state.count} total in ${DEDUP_WINDOW_MS}ms)`,
-    }) + "\n"
-    write(entry)
+  let totalSuppressed = 0
+  let uniqueKeys = 0
+  for (const [, state] of dedupState) {
+    if (state.count > 1) {
+      totalSuppressed += state.count - 1
+      uniqueKeys++
+    }
   }
+  if (totalSuppressed === 0) { dedupState.clear(); return }
+  const entry = JSON.stringify({
+    id: `l-${String(nextLogId++).padStart(4, "0")}`,
+    caller: "log.ts:dedup",
+    ts: new Date().toISOString().split(".")[0],
+    level: "DEBUG",
+    message: `dedup flush: ${totalSuppressed} entries suppressed (${uniqueKeys} unique keys in ${DEDUP_WINDOW_MS}ms)`,
+  }) + "\n"
+  write(entry)
   dedupState.clear()
 }
 
@@ -215,9 +220,9 @@ function getCaller(): string | undefined {
   }
 }
 
-function serializePayload(extra: Record<string, any>): { payload?: object; payload_id?: string } {
+function serializePayload(extra: Record<string, any>): { payloadJson?: string; payload_id?: string } {
   const json = JSON.stringify(extra)
-  if (json.length <= 100) return { payload: extra }
+  if (json.length <= 500) return { payloadJson: json }
   const id = `l-${String(nextLogId).padStart(4, "0")}`
   const payloadPath = path.join(Global.Path.log, "payloads", `${id}.json`)
   fs.writeFile(payloadPath, json).catch(() => {})
@@ -233,41 +238,51 @@ export function create(tags?: Record<string, any>) {
     if (cached) return cached
   }
 
-  function build(level: Level, message: any, extra?: Record<string, any>) {
+  function build(level: Level, message: any, extra?: Record<string, any>, caller?: string) {
     const id = `l-${String(nextLogId++).padStart(4, "0")}`
-    const caller = getCaller()
+    const resolvedCaller = caller ?? getCaller()
     const ts = new Date().toISOString().split(".")[0]
     const entry: Record<string, any> = { id, ts, level, message }
-    if (caller) entry.caller = caller
+    if (resolvedCaller) entry.caller = resolvedCaller
     if (tags && Object.keys(tags).length > 0) Object.assign(entry, tags)
+    let result = JSON.stringify(entry) + "\n"
     if (extra) {
-      const { payload, payload_id } = serializePayload(extra)
-      if (payload) entry.payload = payload
-      if (payload_id) entry.payload_id = payload_id
+      const { payloadJson, payload_id } = serializePayload(extra)
+      if (payloadJson) {
+        result = result.slice(0, -1) + `,"payload":${payloadJson}}\n`
+        return result
+      }
+      if (payload_id) {
+        entry.payload_id = payload_id
+        result = JSON.stringify(entry) + "\n"
+        return result
+      }
     }
-    return JSON.stringify(entry) + "\n"
+    return result
   }
 
   const result: Logger = {
     debug(message?: any, extra?: Record<string, any>) {
       const msg = String(message ?? "")
+      let caller: string | undefined
       if (canDedup("DEBUG", msg)) {
-        const caller = getCaller()
+        caller = getCaller()
         const key = `${caller}|DEBUG|${msg}`
         if (dedupState.has(key)) { tryDedup(key); return }
         dedupState.set(key, { count: 1, firstId: "", firstTs: new Date().toISOString() })
       }
-      write(build("DEBUG", message, extra))
+      write(build("DEBUG", message, extra, caller))
     },
     info(message?: any, extra?: Record<string, any>) {
       const msg = String(message ?? "")
+      let caller: string | undefined
       if (canDedup("INFO", msg)) {
-        const caller = getCaller()
+        caller = getCaller()
         const key = `${caller}|INFO|${msg}`
         if (dedupState.has(key)) { tryDedup(key); return }
         dedupState.set(key, { count: 1, firstId: "", firstTs: new Date().toISOString() })
       }
-      write(build("INFO", message, extra))
+      write(build("INFO", message, extra, caller))
     },
     error(message?: any, extra?: Record<string, any>) {
       write(build("ERROR", message, extra))

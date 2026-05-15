@@ -4,7 +4,7 @@ import * as M from "./metrics"
 import { normalizeError } from "./errors"
 import type { NormalizedError } from "./errors"
 
-const log = Log.create({ prefix: "gateway/h1" })
+const log = Log.create({ service: "gateway/h1" })
 
 export interface H1Response {
   status: number

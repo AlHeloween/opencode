@@ -68,7 +68,7 @@ function writePolicyLog(entry: {
   policyLogger.log(entry)
 }
 
-const log = Log.create({ prefix: "gateway/store" })
+const log = Log.create({ service: "gateway/store" })
 
 function evictStaleEntries(s: StoreState): void {
   const now = Date.now()

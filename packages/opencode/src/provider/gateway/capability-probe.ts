@@ -1,7 +1,7 @@
 import tls from "node:tls"
 import * as Log from "@opencode-ai/core/util/log"
 
-const log = Log.create({ prefix: "gateway/probe" })
+const log = Log.create({ service: "gateway/probe" })
 
 export interface ProbeResult {
   alpnNegotiated: string

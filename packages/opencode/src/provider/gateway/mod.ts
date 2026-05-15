@@ -18,7 +18,7 @@ import { resolveDebugConfig } from "./debug-config"
 import { LogRotator } from "./log-rotator"
 import { Global } from "@opencode-ai/core/global"
 
-const log = Log.create({ prefix: "gateway/service" })
+const log = Log.create({ service: "gateway/service" })
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
 export interface Interface {

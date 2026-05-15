@@ -6,7 +6,7 @@ import * as M from "./metrics"
 import { normalizeError } from "./errors"
 import type { NormalizedError } from "./errors"
 
-const log = Log.create({ prefix: "gateway/h2" })
+const log = Log.create({ service: "gateway/h2" })
 
 export interface H2Session {
   session: http2.ClientHttp2Session

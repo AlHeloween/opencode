@@ -14,23 +14,30 @@ function startDedupTimer() {
 
 function flushDedup() {
   if (dedupState.size === 0) return
+  let totalSuppressed = 0
+  let uniqueKeys = 0
+  for (const [, state] of dedupState) {
+    if (state.count > 1) {
+      totalSuppressed += state.count - 1
+      uniqueKeys++
+    }
+  }
+  if (totalSuppressed === 0) { dedupState.clear(); return }
   const worktree = process.cwd()
   const logDir = path.join(worktree, ".opencode/data/log")
-  for (const [key, state] of dedupState) {
-    if (state.count <= 1) continue
-    const [, level, message] = key.split("|")
-    const entry = JSON.stringify({
-      id: `l-${String(logIdCounter++).padStart(4, "0")}`,
-      caller: "renderer:dedup",
-      ts: new Date().toISOString().split(".")[0],
-      level,
-      message: `${message} (×${state.count} total in ${DEDUP_WINDOW_MS}ms)`,
-    }) + "\n"
-    const date = new Date().toISOString().split(".")[0].replace(/:/g, "")
-    appendFile(path.join(logDir, `${date}.log`), entry, noop)
-  }
+  const entry = JSON.stringify({
+    id: `l-${String(logIdCounter++).padStart(4, "0")}`,
+    caller: "renderer:dedup",
+    ts: new Date().toISOString().split(".")[0],
+    level: "DEBUG",
+    message: `dedup flush: ${totalSuppressed} entries suppressed (${uniqueKeys} unique keys in ${DEDUP_WINDOW_MS}ms)`,
+  }) + "\n"
+  const date = new Date().toISOString().split(".")[0].replace(/:/g, "")
+  appendFile(path.join(logDir, `${date}.log`), entry, noop)
   dedupState.clear()
 }
+
+let dirsCreated = false
 
 startDedupTimer()
 
@@ -49,8 +56,11 @@ export function writeLogLine(worktree: string, level: string, message: string, e
     }
 
     const logDir = path.join(worktree, ".opencode/data/log")
-    mkdirSync(logDir, { recursive: true })
-    mkdirSync(path.join(logDir, "payloads"), { recursive: true })
+    if (!dirsCreated) {
+      mkdirSync(logDir, { recursive: true })
+      mkdirSync(path.join(logDir, "payloads"), { recursive: true })
+      dirsCreated = true
+    }
 
     const entry: Record<string, unknown> = {
       id: `l-${String(logIdCounter++).padStart(4, "0")}`,
@@ -67,7 +77,7 @@ export function writeLogLine(worktree: string, level: string, message: string, e
         // no payload to write
       } else {
         const payload = JSON.stringify(dedupSafe)
-        if (payload.length > 100) {
+        if (payload.length > 500) {
           const pid = `l-${String(logIdCounter).padStart(4, "0")}`
           entry.payload_id = pid
           appendFile(path.join(logDir, "payloads", `${pid}.json`), payload, noop)

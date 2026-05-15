@@ -80,6 +80,42 @@ function logError(msg: string, extra?: Record<string, any>) {
   })
 }
 
+const DEDUP_WINDOW_MS = 5000
+const dedupState = new Map<string, { count: number; firstId: string; firstTs: string }>()
+let dedupTimer: ReturnType<typeof setInterval> | undefined
+
+function flushDedup() {
+  if (dedupState.size === 0) return
+  for (const [key, state] of dedupState) {
+    if (state.count <= 1) continue
+    const [, level, message] = key.split("|")
+    const entry = JSON.stringify({
+      id: `l-${String(nextLogId++).padStart(4, "0")}`,
+      caller: "log.ts:dedup",
+      ts: new Date().toISOString().split(".")[0],
+      level,
+      message: `${message} (×${state.count} total in ${DEDUP_WINDOW_MS}ms)`,
+    }) + "\n"
+    write(entry)
+  }
+  dedupState.clear()
+}
+
+function tryDedup(key: string): boolean {
+  const existing = dedupState.get(key)
+  if (existing) {
+    existing.count++
+    return true
+  }
+  return false
+}
+
+function canDedup(level: Level, message: string): boolean {
+  if (level === "ERROR") return false
+  if (typeof message === "string" && message.startsWith("bug:")) return false
+  return true
+}
+
 export async function init(options: Options = {}) {
   printLogs = options.print ?? false
   void cleanup(Global.Path.log)
@@ -104,6 +140,9 @@ export async function init(options: Options = {}) {
   write = printLogs
     ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch((e) => logError("fileWrite failed", { error: String(e) })); return r }
     : fileWrite
+  flushDedup()
+  if (dedupTimer) clearInterval(dedupTimer)
+  dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
 }
 
 export async function reopen() {
@@ -126,6 +165,9 @@ export async function reopen() {
   write = printLogs
     ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch((e) => logError("reopen fileWrite failed", { error: String(e) })); return r }
     : fileWrite
+  flushDedup()
+  if (dedupTimer) clearInterval(dedupTimer)
+  dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
 }
 
 async function cleanup(dir: string) {
@@ -208,9 +250,23 @@ export function create(tags?: Record<string, any>) {
 
   const result: Logger = {
     debug(message?: any, extra?: Record<string, any>) {
+      const msg = String(message ?? "")
+      if (canDedup("DEBUG", msg)) {
+        const caller = getCaller()
+        const key = `${caller}|DEBUG|${msg}`
+        if (dedupState.has(key)) { tryDedup(key); return }
+        dedupState.set(key, { count: 1, firstId: "", firstTs: new Date().toISOString() })
+      }
       write(build("DEBUG", message, extra))
     },
     info(message?: any, extra?: Record<string, any>) {
+      const msg = String(message ?? "")
+      if (canDedup("INFO", msg)) {
+        const caller = getCaller()
+        const key = `${caller}|INFO|${msg}`
+        if (dedupState.has(key)) { tryDedup(key); return }
+        dedupState.set(key, { count: 1, firstId: "", firstTs: new Date().toISOString() })
+      }
       write(build("INFO", message, extra))
     },
     error(message?: any, extra?: Record<string, any>) {

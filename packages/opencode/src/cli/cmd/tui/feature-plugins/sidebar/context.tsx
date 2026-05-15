@@ -23,6 +23,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         protocol: undefined as string | undefined,
         streaming: undefined as boolean | undefined,
         activeStreams: 0 as number,
+        h2Sessions: 0 as number,
         gatewayEnabled: false,
       }
     }
@@ -34,7 +35,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     const gatewayEnabled = model?.gateway?.enabled !== false && provider?.gateway?.enabled !== false
 
     const liveStatus = (globalThis as any).__gatewayLiveStatus as
-      | { activeStreams: number; updatedAt: number }
+      | { activeStreams: number; h2Sessions: number; updatedAt: number }
       | undefined
 
     return {
@@ -44,6 +45,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       protocol: gatewayEnabled ? model?.gateway?.protocol || "http/1.1" : undefined,
       streaming: gatewayEnabled ? true : undefined,
       activeStreams: liveStatus?.activeStreams ?? 0,
+      h2Sessions: liveStatus?.h2Sessions ?? 0,
     }
   })
 
@@ -56,7 +58,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       {state().streaming !== undefined ? (
         <text fg={theme().textMuted}>Streaming: {state().streaming ? "enabled" : "disabled"}</text>
       ) : null}
-      {state().gatewayEnabled ? <text fg={theme().textMuted}>Streams: {state().activeStreams}</text> : null}
+      {state().gatewayEnabled ? <text fg={theme().textMuted}>Sessions: {state().h2Sessions}</text> : null}
+      {state().activeStreams > 0 ? <text fg={theme().textMuted}>Active streams: {state().activeStreams}</text> : null}
       <text fg={theme().text}>
         <b>Context</b>
       </text>

@@ -16,6 +16,7 @@ export default [
         resolve: {
           alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
+            "@opencode-ai/core/util/log": fileURLToPath(new URL("./src/utils/log-browser.ts", import.meta.url)),
           },
         },
         worker: {

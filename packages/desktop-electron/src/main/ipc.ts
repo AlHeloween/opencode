@@ -38,6 +38,7 @@ type Deps = {
   checkUpdate: () => Promise<{ updateAvailable: boolean; version?: string }>
   installUpdate: () => Promise<void> | void
   setBackgroundColor: (color: string) => void
+  log: (level: string, message: string, extra?: Record<string, unknown>) => void
 }
 
 export function registerIpcHandlers(deps: Deps) {
@@ -65,6 +66,10 @@ export function registerIpcHandlers(deps: Deps) {
   )
   ipcMain.handle("resolve-app-path", (_event: IpcMainInvokeEvent, appName: string) => deps.resolveAppPath(appName))
   ipcMain.on("loading-window-complete", () => deps.loadingWindowComplete())
+
+  ipcMain.on("log", (_event: IpcMainEvent, level: string, message: string, extra?: Record<string, unknown>) => {
+    deps.log(level, message, extra)
+  })
   ipcMain.handle("run-updater", (_event: IpcMainInvokeEvent, alertOnFail: boolean) => deps.runUpdater(alertOnFail))
   ipcMain.handle("check-update", () => deps.checkUpdate())
   ipcMain.handle("install-update", () => deps.installUpdate())

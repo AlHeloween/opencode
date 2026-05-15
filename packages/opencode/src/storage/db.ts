@@ -325,6 +325,7 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
         db = getProjectDb(proj.projectID, proj.worktree)
       } catch {
         db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
+        log.debug("using default db", { caller: "use" })
       }
       const result = ctx.provide({ effects, tx: db }, () => callback(db))
       for (const effect of effects) effect()
@@ -354,6 +355,7 @@ export function effect(fn: () => any | Promise<any>) {
   try {
     ctx.use().effects.push(bound)
   } catch {
+    log.debug("no db context, executing effect immediately")
     bound()
   }
 }
@@ -377,6 +379,7 @@ export function transaction<T>(
         db = getProjectDb(proj.projectID, proj.worktree)
       } catch {
         db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
+        log.debug("using default db", { caller: "transaction" })
       }
       const txCallback = InstanceState.bind((tx: TxOrDb) => {
         const result = ctx.provide({ tx, effects }, () => callback(tx))

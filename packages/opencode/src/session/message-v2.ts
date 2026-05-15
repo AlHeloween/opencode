@@ -1282,6 +1282,7 @@ export function search(input: {
         p.id as partID,
         p.message_id as messageID,
         p.session_id as sessionID,
+        (SELECT COUNT(*) + 1 FROM message WHERE session_id = p.session_id AND time_created < m.time_created) as messageIndex,
         fts.part_type,
         fts.text_content as text,
         fts.exact_coef,
@@ -1304,24 +1305,16 @@ export function search(input: {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     .all(input.projectID, sanitizeFTSQuery(input.query), input.limit || 50) as any[]
 
-  return rows.map((row) => {
-    const index = db
-      .query(
-        "SELECT COUNT(*) + 1 as idx FROM message WHERE session_id = ? AND time_created < (SELECT time_created FROM message WHERE id = ?)",
-      )
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      .get(row.sessionID, row.messageID) as { idx: number }
-    return {
-      messageID: row.messageID,
-      partID: row.partID,
-      sessionID: row.sessionID,
-      messageIndex: index.idx,
-      partType: row.part_type,
-      text: row.text,
-      snippet: highlightSnippet(row.text, input.query),
-      rank: row.rank,
-    }
-  })
+  return rows.map((row) => ({
+    messageID: row.messageID,
+    partID: row.partID,
+    sessionID: row.sessionID,
+    messageIndex: row.messageIndex as number,
+    partType: row.part_type,
+    text: row.text,
+    snippet: highlightSnippet(row.text, input.query),
+    rank: row.rank,
+  }))
 }
 
 export function highlightSnippet(text: string, query: string, maxLen = 200): string {

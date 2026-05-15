@@ -96,6 +96,7 @@ function evictStaleEntries(s: StoreState): void {
   }
   for (const key of staleRouteKeys) {
     s.routeLastAccessed.delete(key)
+    delete s.data.routes[key]
     evicted++
   }
 

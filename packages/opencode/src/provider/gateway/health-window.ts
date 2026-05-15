@@ -40,7 +40,7 @@ class CircularBuffer {
   toArray(): number[] {
     const result = new Array(this.count)
     for (let i = 0; i < this.count; i++) {
-      result[i] = this.buffer[(this.head - this.count + 1 + i + this.capacity) % this.capacity]
+      result[i] = this.buffer[(this.head - this.count + i + this.capacity) % this.capacity]
     }
     return result
   }
@@ -82,7 +82,7 @@ export class DelayBuffer {
   toArray(): number[] {
     const result = new Array(this.count)
     for (let i = 0; i < this.count; i++) {
-      result[i] = this.buffer[(this.head - this.count + 1 + i + this.capacity) % this.capacity]
+      result[i] = this.buffer[(this.head - this.count + i + this.capacity) % this.capacity]
     }
     return result
   }
@@ -196,7 +196,6 @@ export function recordError(window: HealthWindow, category: string, now?: number
       connReset: Math.round(errorCounts.connReset * ERROR_DECAY_FACTOR),
       readTimeout: Math.round(errorCounts.readTimeout * ERROR_DECAY_FACTOR),
     }
-    errorCounts = { ...errorCounts, ...window.errorCounts }
     window = { ...window, errorCounts, lastErrorDecayAt: currentTime }
   }
 

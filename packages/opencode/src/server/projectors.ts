@@ -5,11 +5,7 @@ import { SessionTable } from "@/session/session.sql"
 import { use as projectDb } from "@/storage/project-db"
 import { eq } from "drizzle-orm"
 
-let initialized = false
-
 export function initProjectors() {
-  if (initialized) return
-  initialized = true
   SyncEvent.init({
     projectors: sessionProjectors,
     convertEvent: (type, data) => {

@@ -302,7 +302,7 @@ export function closeAllProjectDbs() {
 export function close() {
   closeAllProjectDbs()
   if (defaultDb) {
-    try { defaultDb.$client.close() } catch {}
+    try { defaultDb.$client.close() } catch (err) { log.debug("failed to close default DB", { error: err }) }
     defaultDb = undefined
   }
 }
@@ -324,31 +324,39 @@ export function withProject<T>(projectID: ProjectID, worktree: string, callback:
 }
 
 export function use<T>(callback: (trx: TxOrDb) => T): T {
-  const store = ctx.getStore()
-  if (store) return callback(store.tx)
-
-  const effects: (() => void | Promise<void>)[] = []
-  let db: TxOrDb
-  const proj = currentProjectCtx.getStore()
-  if (proj) {
-    db = getProjectDb(proj.projectID, proj.worktree)
-  } else {
-    db = getDefaultDb()
+  try {
+    return callback(ctx.use().tx)
+  } catch (err) {
+    if (err instanceof LocalContext.NotFound) {
+      const effects: (() => void | Promise<void>)[] = []
+      let db: TxOrDb
+      const proj = currentProjectCtx.getStore()
+      if (proj) {
+        db = getProjectDb(proj.projectID, proj.worktree)
+      } else {
+        db = getDefaultDb()
+      }
+      const result = ctx.provide({ effects, tx: db }, () => callback(db))
+      for (const effect of effects) effect()
+      return result
+    }
+    throw err
   }
-  const result = ctx.provide({ effects, tx: db }, () => callback(db))
-  for (const effect of effects) effect()
-  return result
 }
 
 export function projectUse<T>(projectID: ProjectID, worktree: string, callback: (trx: TxOrDb) => T): T {
-  const store = ctx.getStore()
-  if (store) return callback(store.tx)
-
-  const db = getProjectDb(projectID, worktree)
-  const effects: (() => void | Promise<void>)[] = []
-  const result = ctx.provide({ effects, tx: db }, () => callback(db))
-  for (const effect of effects) effect()
-  return result
+  try {
+    return callback(ctx.use().tx)
+  } catch (err) {
+    if (err instanceof LocalContext.NotFound) {
+      const db = getProjectDb(projectID, worktree)
+      const effects: (() => void | Promise<void>)[] = []
+      const result = ctx.provide({ effects, tx: db }, () => callback(db))
+      for (const effect of effects) effect()
+      return result
+    }
+    throw err
+  }
 }
 
 export function effect(fn: () => any | Promise<any>) {
@@ -369,23 +377,27 @@ export function transaction<T>(
     behavior?: "deferred" | "immediate" | "exclusive"
   },
 ): NotPromise<T> {
-  const store = ctx.getStore()
-  if (store) return callback(store.tx)
-
-  const effects: (() => void | Promise<void>)[] = []
-  let db: TxOrDb
-  const proj = currentProjectCtx.getStore()
-  if (proj) {
-    db = getProjectDb(proj.projectID, proj.worktree)
-  } else {
-    db = getDefaultDb()
+  try {
+    return callback(ctx.use().tx)
+  } catch (err) {
+    if (err instanceof LocalContext.NotFound) {
+      const effects: (() => void | Promise<void>)[] = []
+      let db: TxOrDb
+      const proj = currentProjectCtx.getStore()
+      if (proj) {
+        db = getProjectDb(proj.projectID, proj.worktree)
+      } else {
+        db = getDefaultDb()
+      }
+      const txCallback = InstanceState.bind((tx: TxOrDb) => {
+        const result = ctx.provide({ tx, effects }, () => callback(tx))
+        for (const effect of effects) effect()
+        return result
+      })
+      return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
+    }
+    throw err
   }
-  const txCallback = InstanceState.bind((tx: TxOrDb) => {
-    const result = ctx.provide({ tx, effects }, () => callback(tx))
-    for (const effect of effects) effect()
-    return result
-  })
-  return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
 }
 
 export function projectTransaction<T>(
@@ -396,17 +408,21 @@ export function projectTransaction<T>(
     behavior?: "deferred" | "immediate" | "exclusive"
   },
 ): NotPromise<T> {
-  const store = ctx.getStore()
-  if (store) return callback(store.tx)
-
-  const db = getProjectDb(projectID, worktree)
-  const effects: (() => void | Promise<void>)[] = []
-  const txCallback = InstanceState.bind((tx: TxOrDb) => {
-    const result = ctx.provide({ tx, effects }, () => callback(tx))
-    for (const effect of effects) effect()
-    return result
-  })
-  return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
+  try {
+    return callback(ctx.use().tx)
+  } catch (err) {
+    if (err instanceof LocalContext.NotFound) {
+      const db = getProjectDb(projectID, worktree)
+      const effects: (() => void | Promise<void>)[] = []
+      const txCallback = InstanceState.bind((tx: TxOrDb) => {
+        const result = ctx.provide({ tx, effects }, () => callback(tx))
+        for (const effect of effects) effect()
+        return result
+      })
+      return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
+    }
+    throw err
+  }
 }
 
 export * as Database from "./db"

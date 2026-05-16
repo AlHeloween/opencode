@@ -13,6 +13,8 @@ export function mapOpenAICompatibleFinishReason(
     case "function_call":
     case "tool_calls":
       return "tool-calls"
+    case "insufficient_system_resource":
+      return "error"
     default:
       return "other"
   }

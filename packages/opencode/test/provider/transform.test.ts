@@ -172,6 +172,78 @@ describe("ProviderTransform.options - zai/zhipuai thinking", () => {
   }
 })
 
+describe("ProviderTransform.options - deepseek-v4 thinking", () => {
+  const sessionID = "test-session-123"
+
+  const createModel = (apiId: string) =>
+    ({
+      id: `deepseek/${apiId}`,
+      providerID: "deepseek",
+      api: {
+        id: apiId,
+        url: "https://api.deepseek.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+      name: "DeepSeek V4",
+      capabilities: {
+        temperature: true,
+        reasoning: true,
+        attachment: false,
+        toolcall: true,
+        input: { text: true, audio: false, image: false, video: false, pdf: false },
+        output: { text: true, audio: false, image: false, video: false, pdf: false },
+        interleaved: { field: "reasoning_content" },
+      },
+      cost: {
+        input: 0.001,
+        output: 0.002,
+        cache: { read: 0.0001, write: 0.0002 },
+      },
+      limit: {
+        context: 1_000_000,
+        output: 64_000,
+      },
+      status: "active",
+      options: {},
+      headers: {},
+    }) as any
+
+  test("deepseek-v4-pro returns thinking: { type: enabled }", () => {
+    const result = ProviderTransform.options({
+      model: createModel("deepseek-v4-pro"),
+      sessionID,
+      providerOptions: {},
+    })
+
+    expect(result.thinking).toEqual({ type: "enabled" })
+  })
+
+  test("deepseek-v4-flash returns thinking: { type: enabled }", () => {
+    const result = ProviderTransform.options({
+      model: createModel("deepseek-v4-flash"),
+      sessionID,
+      providerOptions: {},
+    })
+
+    expect(result.thinking).toEqual({ type: "enabled" })
+  })
+
+  test("non-deepseek openai-compatible does NOT include thinking", () => {
+    const model = {
+      ...createModel("deepseek-v4-pro"),
+      id: "kimi/kimi-k2",
+      api: { ...createModel("deepseek-v4-pro").api, id: "kimi-k2" },
+    }
+    const result = ProviderTransform.options({
+      model,
+      sessionID,
+      providerOptions: {},
+    })
+
+    expect(result.thinking).toBeUndefined()
+  })
+})
+
 describe("ProviderTransform.options - google thinkingConfig gating", () => {
   const sessionID = "test-session-123"
 
@@ -2227,6 +2299,25 @@ describe("ProviderTransform.variants", () => {
     })
     const result = ProviderTransform.variants(model)
     expect(result).toEqual({})
+  })
+
+  test("deepseek-v4 returns only high and max efforts", () => {
+    const model = createMockModel({
+      id: "deepseek/deepseek-v4-pro",
+      providerID: "deepseek",
+      api: {
+        id: "deepseek-v4-pro",
+        url: "https://api.deepseek.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    })
+    const result = ProviderTransform.variants(model)
+    expect(result).toEqual({
+      high: { reasoningEffort: "high" },
+      max: { reasoningEffort: "max" },
+    })
+    expect(result.low).toBeUndefined()
+    expect(result.medium).toBeUndefined()
   })
 
   test("minimax returns empty object", () => {

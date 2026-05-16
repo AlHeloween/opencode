@@ -574,7 +574,10 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     case "@ai-sdk/openai-compatible":
       const efforts = [...WIDELY_SUPPORTED_EFFORTS]
       if (model.api.id.includes("deepseek-v4")) {
-        efforts.push("max")
+        return {
+          high: { reasoningEffort: "high" },
+          max: { reasoningEffort: "max" },
+        }
       }
       return Object.fromEntries(efforts.map((effort) => [effort, { reasoningEffort: effort }]))
 
@@ -892,6 +895,10 @@ export function options(input: {
       type: "enabled",
       clear_thinking: false,
     }
+  }
+
+  if (input.model.api.id.includes("deepseek-v4") && input.model.api.npm === "@ai-sdk/openai-compatible") {
+    result["thinking"] = { type: "enabled" }
   }
 
   if (input.model.providerID === "openai" || input.providerOptions?.setCacheKey) {

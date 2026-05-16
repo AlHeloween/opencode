@@ -289,6 +289,9 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
           text: undefined,
           reasoning: responseBody.usage?.completion_tokens_details?.reasoning_tokens ?? undefined,
         },
+        promptCacheHitTokens: responseBody.usage?.prompt_cache_hit_tokens
+          ?? responseBody.usage?.prompt_tokens_details?.cached_tokens,
+        promptCacheMissTokens: responseBody.usage?.prompt_cache_miss_tokens,
         raw: responseBody.usage ?? undefined,
       },
       providerMetadata,
@@ -356,6 +359,8 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       promptTokensDetails: {
         cachedTokens: number | undefined
       }
+      promptCacheHitTokens: number | undefined
+      promptCacheMissTokens: number | undefined
       totalTokens: number | undefined
     } = {
       completionTokens: undefined,
@@ -368,6 +373,8 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       promptTokensDetails: {
         cachedTokens: undefined,
       },
+      promptCacheHitTokens: undefined,
+      promptCacheMissTokens: undefined,
       totalTokens: undefined,
     }
     let isFirstChunk = true
@@ -447,6 +454,12 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
               }
               if (prompt_tokens_details?.cached_tokens != null) {
                 usage.promptTokensDetails.cachedTokens = prompt_tokens_details?.cached_tokens
+              }
+              if (value.usage?.prompt_cache_hit_tokens != null) {
+                usage.promptCacheHitTokens = value.usage.prompt_cache_hit_tokens
+              }
+              if (value.usage?.prompt_cache_miss_tokens != null) {
+                usage.promptCacheMissTokens = value.usage.prompt_cache_miss_tokens
               }
             }
 
@@ -740,6 +753,8 @@ const openaiCompatibleTokenUsageSchema = z
         rejected_prediction_tokens: z.number().nullish(),
       })
       .nullish(),
+    prompt_cache_hit_tokens: z.number().nullish(),
+    prompt_cache_miss_tokens: z.number().nullish(),
   })
   .nullish()
 

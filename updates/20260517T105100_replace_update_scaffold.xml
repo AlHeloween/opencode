@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_a86210017abed9b0de8f768caa1a56ff name="reset_default_db_path_on_close" md5="a86210017abed9b0de8f768caa1a56ff" size="59">
+    <file>packages/opencode/src/storage/db.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>export function close() {
+  closeAllProjectDbs()
+  if (defaultDb) {
+    try { defaultDb.$client.close() } catch (err) {
+      log.warn(&quot;failed to close default DB client&quot;, { error: err })
+    }
+    defaultDb = undefined
+  }
+}</find_text>
+    <semantics>Use closeDefaultDb from Database.close so the cached default database path is reset together with the handle.</semantics>
+    <content_md5_a86210017abed9b0de8f768caa1a56ff>
+      export function close() {
+        closeAllProjectDbs()
+        closeDefaultDb()
+      }
+    </content_md5_a86210017abed9b0de8f768caa1a56ff>
+  </update_md5_a86210017abed9b0de8f768caa1a56ff>
+</updates>

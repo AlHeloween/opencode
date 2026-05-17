@@ -208,16 +208,6 @@ function Invoke-Build {
     }
 
     Write-Success "Build complete - artifacts in dist/"
-
-    # Copy executable-adjacent config files to dist/bin/
-    $configFiles = @("auth.json", "opencode.jsonc", "gateway.jsonc")
-    foreach ($cfg in $configFiles) {
-        $src = Join-Path $Root "bin" $cfg
-        if (Test-Path $src) {
-            Copy-Item $src (Join-Path $DistDir "bin" $cfg) -Force
-            Write-Success "$cfg copied to dist/bin/"
-        }
-    }
 }
 
 # ═══════════════════════════════════════════════════════════

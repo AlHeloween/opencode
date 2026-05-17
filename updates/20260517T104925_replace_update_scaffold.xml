@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_0d438719c5d2197972d58c73a97244d3 name="refresh_stale_default_db_path" md5="0d438719c5d2197972d58c73a97244d3" size="707">
+    <file>packages/opencode/src/storage/db.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>let defaultDb: Client | undefined
+
+function getDefaultDb(): Client {
+  return defaultDb ??= createAndInitDb(path.join(Global.Path.data, &quot;opencode.db&quot;))
+}
+
+export const Path = iife(() =&gt; {
+  if (Flag.OPENCODE_DB) {
+    if (Flag.OPENCODE_DB === &quot;:memory:&quot; || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
+    return path.join(Global.Path.data, Flag.OPENCODE_DB)
+  }
+  return path.join(Global.Path.data, &quot;opencode.db&quot;)
+})</find_text>
+    <semantics>Refresh cached default database client when Global.Path.data changes from executable-adjacent data to worktree data.</semantics>
+    <content_md5_0d438719c5d2197972d58c73a97244d3>
+      let defaultDb: Client | undefined
+      let defaultDbPath: string | undefined
+      
+      function getDefaultDbPath() {
+        if (Flag.OPENCODE_DB) {
+          if (Flag.OPENCODE_DB === &quot;:memory:&quot; || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
+          return path.join(Global.Path.data, Flag.OPENCODE_DB)
+        }
+        return path.join(Global.Path.data, &quot;opencode.db&quot;)
+      }
+      
+      function closeDefaultDb() {
+        if (!defaultDb) return
+        try {
+          defaultDb.$client.close()
+        } catch (err) {
+          log.warn(&quot;failed to close default DB client&quot;, { error: err })
+        }
+        defaultDb = undefined
+        defaultDbPath = undefined
+      }
+      
+      function getDefaultDb(): Client {
+        const dbPath = getDefaultDbPath()
+        if (defaultDb &amp;&amp; defaultDbPath === dbPath) return defaultDb
+        closeDefaultDb()
+        defaultDbPath = dbPath
+        return defaultDb = createAndInitDb(dbPath)
+      }
+      
+      export const Path = iife(getDefaultDbPath)
+    </content_md5_0d438719c5d2197972d58c73a97244d3>
+  </update_md5_0d438719c5d2197972d58c73a97244d3>
+</updates>

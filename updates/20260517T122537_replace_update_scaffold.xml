@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_8eb40c4cb9ff7ecb61bd0750cdb193de name="gateway_body_stream_detection_helper" md5="8eb40c4cb9ff7ecb61bd0750cdb193de" size="644">
+    <file>packages/opencode/src/provider/gateway/adaptive-client.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>function getCallerStack(): string | undefined {
+  try {
+    return new Error().stack?.split(&quot;\n&quot;)[3]?.trim()
+  } catch {
+    return undefined
+  }
+}</find_text>
+    <semantics>Add conservative request-body stream detection for gateway routing.</semantics>
+    <content_md5_8eb40c4cb9ff7ecb61bd0750cdb193de>
+      function bodyRequestsStream(body: RequestInit[&quot;body&quot;] | undefined): boolean {
+        if (typeof body !== &quot;string&quot;) return false
+        if (!body.trimStart().startsWith(&quot;{&quot;)) return false
+        try {
+          const parsed = JSON.parse(body) as unknown
+          if (!parsed || typeof parsed !== &quot;object&quot;) return false
+          return (parsed as { stream?: unknown }).stream === true
+        } catch (error) {
+          log.debug(&quot;gateway.stream.detect_failed&quot;, {
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return false
+        }
+      }
+      
+      function getCallerStack(): string | undefined {
+        try {
+          return new Error().stack?.split(&quot;\n&quot;)[3]?.trim()
+        } catch (error) {
+          log.debug(&quot;gateway.caller_stack.detect_failed&quot;, {
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return undefined
+        }
+      }
+    </content_md5_8eb40c4cb9ff7ecb61bd0750cdb193de>
+  </update_md5_8eb40c4cb9ff7ecb61bd0750cdb193de>
+  <update_md5_44cd7152d2a7915069bdb6ebacb59f13 name="gateway_use_body_stream_detection" md5="44cd7152d2a7915069bdb6ebacb59f13" size="65">
+    <file>packages/opencode/src/provider/gateway/adaptive-client.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const isStream = init?.gatewayStream || false</find_text>
+    <semantics>Use explicit gateway stream flag when present, otherwise infer stream intent from JSON body.</semantics>
+    <content_md5_44cd7152d2a7915069bdb6ebacb59f13>
+      const isStream = init?.gatewayStream ?? bodyRequestsStream(init?.body)
+    </content_md5_44cd7152d2a7915069bdb6ebacb59f13>
+  </update_md5_44cd7152d2a7915069bdb6ebacb59f13>
+  <update_md5_361223754984c4a897c2fc1357147452 name="gateway_pass_model_metadata" md5="361223754984c4a897c2fc1357147452" size="137">
+    <file>packages/opencode/src/provider/provider.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>            gatewayProvider: model.providerID,
+            gatewayProtocol: model.options?.protocol,
+            gatewayStreaming: model.options?.streaming,</find_text>
+    <semantics>Pass the active model id into gateway metadata for logs and route keys.</semantics>
+    <content_md5_361223754984c4a897c2fc1357147452>
+      gatewayProvider: model.providerID,
+      gatewayModel: model.id,
+      gatewayProtocol: model.options?.protocol,
+      gatewayStreaming: model.options?.streaming,
+    </content_md5_361223754984c4a897c2fc1357147452>
+  </update_md5_361223754984c4a897c2fc1357147452>
+</updates>

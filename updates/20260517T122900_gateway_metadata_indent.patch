@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/provider/provider.ts
+@@
+-            gatewayProvider: model.providerID,
+-gatewayModel: model.id,
+-gatewayProtocol: model.options?.protocol,
+-gatewayStreaming: model.options?.streaming,
++            gatewayProvider: model.providerID,
++            gatewayModel: model.id,
++            gatewayProtocol: model.options?.protocol,
++            gatewayStreaming: model.options?.streaming,
+*** End Patch

@@ -1488,9 +1488,9 @@ const layer: Layer.Layer<
             // @ts-ignore see here: https://github.com/oven-sh/bun/issues/16682
             timeout: false,
             gatewayProvider: model.providerID,
-            gatewayModel: model.id,
-            gatewayProtocol: model.options?.protocol,
-            gatewayStreaming: model.options?.streaming,
+gatewayModel: model.id,
+gatewayProtocol: model.options?.protocol,
+gatewayStreaming: model.options?.streaming,
           })
 
           if (!chunkAbortCtl) return res

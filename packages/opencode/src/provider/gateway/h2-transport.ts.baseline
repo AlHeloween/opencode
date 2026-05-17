@@ -108,20 +108,6 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
   }
 }
 
-function getResponseStatus(headers: http2.IncomingHttpHeaders): number {
-  const status = headers[":status"]
-  return typeof status === "number" ? status : Number(status) || 0
-}
-
-function toFetchHeaders(headers: http2.IncomingHttpHeaders): Record<string, string> {
-  const result: Record<string, string> = {}
-  for (const [key, value] of Object.entries(headers)) {
-    if (key.startsWith(":") || value === undefined) continue
-    result[key] = Array.isArray(value) ? value.join(", ") : String(value)
-  }
-  return result
-}
-
 export interface H2RequestOptions {
   url: string
   baseUrl: string
@@ -196,8 +182,8 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
 
     req.on("response", (headers) => {
       sample.headersReceivedAt = Date.now()
-      status = getResponseStatus(headers)
-      responseHeaders = toFetchHeaders(headers)
+      status = (headers[":status"] as unknown as number) || 0
+      responseHeaders = { ...headers } as Record<string, string>
     })
 
     req.on("data", (chunk: Buffer) => {
@@ -332,7 +318,6 @@ export async function requestStream(
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
     let streamDone = false
-    let settled = false
 
     const decrement = () => {
       if (streamDone) return
@@ -340,25 +325,10 @@ export async function requestStream(
       session.activeStreams = Math.max(0, session.activeStreams - 1)
     }
 
-    const settle = () => {
-      if (settled) return
-      settled = true
-      const safeStatus = status >= 200 && status <= 599 ? status : 200
-      resolve({
-        response: new Response(readable, {
-          status: safeStatus,
-          headers: responseHeaders,
-        }),
-        metrics: M.computeMetrics(sample),
-      })
-    }
-
     req.on("response", (headers) => {
       sample.headersReceivedAt = Date.now()
-      status = getResponseStatus(headers)
-      responseHeaders = toFetchHeaders(headers)
-      sample.status = status
-      settle()
+      status = (headers[":status"] as unknown as number) || 0
+      responseHeaders = { ...headers } as Record<string, string>
     })
 
     req.on("data", (chunk: Buffer) => {
@@ -379,7 +349,14 @@ export async function requestStream(
       sample.endedAt = Date.now()
       sample.status = status
       await writer.close()
-      settle()
+      const safeStatus = status >= 200 && status <= 599 ? status : 200
+      resolve({
+        response: new Response(readable, {
+          status: safeStatus,
+          headers: responseHeaders,
+        }),
+        metrics: M.computeMetrics(sample),
+      })
     })
 
     req.on("error", async (err) => {
@@ -387,16 +364,13 @@ export async function requestStream(
       sample.endedAt = Date.now()
       sample.status = 0
       const normalized = normalizeError(err)
-      const error = new Error(`H2 stream request failed: ${normalized.message}`, { cause: err })
       log.debug("h2 stream request error", {
         url: options.url,
         category: normalized.category,
         error: normalized.message,
       })
-      await writer.abort(error).catch((abortError) => {
-        log.warn("bug: h2 stream abort failed", { error: String(abortError) })
-      })
-      if (!settled) reject(error)
+      await writer.close()
+      reject(new Error(`H2 stream request failed: ${normalized.message}`, { cause: err }))
     })
 
     if (options.body) {
@@ -411,9 +385,7 @@ export async function requestStream(
         () => {
           decrement()
           req.destroy()
-          const error = new Error("Request aborted")
-          writer.abort(error).catch((e) => { log.warn("bug: writer abort failed", { error: String(e) }) })
-          if (!settled) reject(error)
+          writer.abort().catch((e) => { log.warn("bug: writer abort failed", { error: String(e) }) })
         },
         { once: true },
       )

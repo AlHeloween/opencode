@@ -6,6 +6,7 @@ import type * as Provider from "./provider"
 import type * as ModelsDev from "./models"
 import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import PROMPT_REASONING from "@/session/prompt/reasoning.txt"
 
 type Modality = NonNullable<ModelsDev.Model["modalities"]>["input"][number]
 
@@ -423,6 +424,14 @@ export function topK(model: Provider.Model) {
     return 20
   }
   if (id.includes("gemini")) return 64
+  return undefined
+}
+
+export function systemPromptPrefix(model: Provider.Model) {
+  const id = model.id.toLowerCase()
+  if (id.includes("deepseek")) return PROMPT_REASONING
+  if (id.includes("claude")) return PROMPT_REASONING
+  if (id.includes("kat-coder")) return PROMPT_REASONING
   return undefined
 }
 

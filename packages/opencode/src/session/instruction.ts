@@ -49,10 +49,19 @@ function extract(messages: MessageV2.WithParts[]) {
   return paths
 }
 
+function parseFrontmatter(content: string): string {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
+  if (!match) return content
+  const frontmatter = match[1]
+  if (!frontmatter.includes("alwaysApply: true")) return match[2].trim()
+  return match[2].trim()
+}
+
 export interface Interface {
   readonly clear: (messageID: MessageID) => Effect.Effect<void>
   readonly systemPaths: () => Effect.Effect<Set<string>, AppFileSystem.Error>
   readonly system: () => Effect.Effect<string[], AppFileSystem.Error>
+  readonly rules: () => Effect.Effect<string[], AppFileSystem.Error>
   readonly find: (dir: string) => Effect.Effect<string | undefined, AppFileSystem.Error>
   readonly resolve: (
     messages: MessageV2.WithParts[],
@@ -176,6 +185,26 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
         ]
       })
 
+      const rules = Effect.fn("Instruction.rules")(function* () {
+        const ctx = yield* InstanceState.context
+        const rulesDir = path.join(ctx.worktree, ".opencode", "rules")
+        if (!(yield* fs.existsSafe(rulesDir))) return []
+
+        const matches = yield* fs.glob("*", { cwd: rulesDir, absolute: true, include: "file" }).pipe(
+          Effect.catch(() => Effect.succeed([] as string[])),
+        )
+
+        const blocks: string[] = []
+        const filtered = matches.filter((f) => [".mdc", ".md"].some((ext) => f.endsWith(ext))).sort()
+        for (const filepath of filtered) {
+          const raw = yield* read(filepath)
+          if (!raw) continue
+          const parsed = parseFrontmatter(raw)
+          blocks.push(`Instructions from: .opencode/rules/${path.basename(filepath)}\n${parsed}`)
+        }
+        return blocks
+      })
+
       const find = Effect.fn("Instruction.find")(function* (dir: string) {
         for (const file of FILES) {
           const filepath = path.resolve(path.join(dir, file))
@@ -227,7 +256,7 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
         return results
       })
 
-      return Service.of({ clear, systemPaths, system, find, resolve })
+      return Service.of({ clear, systemPaths, system, rules, find, resolve })
     }),
   )
 

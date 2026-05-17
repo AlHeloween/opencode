@@ -26,6 +26,7 @@ import * as Option from "effect/Option"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
 
 const log = Log.create({ service: "llm" })
+let loggedSystemPrompt = false
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
 
@@ -96,9 +97,20 @@ const live: Layer.Layer<
       // TODO: move this to a proper hook
       const isOpenaiOauth = item.id === "openai" && info?.type === "oauth"
 
+      const reasoningPrefix = ProviderTransform.systemPromptPrefix(input.model)
+      const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : SystemPrompt.providerName(input.model)
+
+      l.info("system prompt", {
+        reasoning: !!reasoningPrefix,
+        prompt: promptFile,
+        agent: input.agent.name,
+        model: input.model.id,
+      })
+
       const system: string[] = []
       system.push(
         [
+          ...(reasoningPrefix ? [reasoningPrefix] : []),
           // use agent prompt otherwise provider prompt
           ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
           // any custom prompt passed into this call
@@ -109,6 +121,11 @@ const live: Layer.Layer<
           .filter((x) => x)
           .join("\n"),
       )
+
+      if (!loggedSystemPrompt) {
+        loggedSystemPrompt = true
+        l.info("system prompt dump (once)", { content: system[0] })
+      }
 
       const header = system[0]
       yield* plugin.trigger(

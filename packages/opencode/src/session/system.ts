@@ -28,9 +28,25 @@ export function provider(model: Provider.Model) {
   }
   if (model.api.id.includes("gemini-")) return [PROMPT_GEMINI]
   if (model.api.id.includes("claude")) return [PROMPT_ANTHROPIC]
+  if (model.api.id.includes("deepseek")) return [PROMPT_ANTHROPIC]
   if (model.api.id.toLowerCase().includes("trinity")) return [PROMPT_TRINITY]
   if (model.api.id.toLowerCase().includes("kimi")) return [PROMPT_KIMI]
   return [PROMPT_DEFAULT]
+}
+
+export function providerName(model: Provider.Model) {
+  if (model.api.id.includes("gpt-4") || model.api.id.includes("o1") || model.api.id.includes("o3"))
+    return "beast.txt"
+  if (model.api.id.includes("gpt")) {
+    if (model.api.id.includes("codex")) return "codex.txt"
+    return "gpt.txt"
+  }
+  if (model.api.id.includes("gemini-")) return "gemini.txt"
+  if (model.api.id.includes("claude")) return "anthropic.txt"
+  if (model.api.id.includes("deepseek")) return "anthropic.txt"
+  if (model.api.id.toLowerCase().includes("trinity")) return "trinity.txt"
+  if (model.api.id.toLowerCase().includes("kimi")) return "kimi.txt"
+  return "default.txt"
 }
 
 export interface Interface {

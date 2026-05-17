@@ -49,7 +49,7 @@ Invoke as: `tools/adm <command>` (or `tools/adm.exe <command>` on Windows; or `p
 | `--list-diff <file> [N]` | Shows unified or hex diffs against up to N backups. | To compare current vs previous versions before rollback. |
 | `--emit-boot-log [roots...]` | Runs pytest then verify-all; writes `boot_test.log` and verify reports. | One-shot “boot” check: tests + verification. |
 | `--install-adid-rules [target_dir]` | Installs Cursor rules, adm-exe skill, framework doc, and `adm.exe` into the target project. | To onboard a project with ADID (creates `.cursor/`, `docs/`, `tools/adm.exe`). |
-| `--snapshot-context [snapshot.json]` | Captures repo context (git head, uv.lock, versions) to a JSON file. | Before major changes; then use `--preflight` to detect drift. |
+| `--snapshot-context [snapshot.json]` | Captures repo context (git head, detected lockfiles, tool versions) to a JSON file. | Before major changes; then use `--preflight` to detect drift. |
 | `--preflight [snapshot.json] [--strict]` | Compares current tree to snapshot; `--strict` fails on drift. | After changes to ensure nothing unintended changed. |
 | `--clean [root] [--all]` | Removes manifests, rotated backups, demo bundles. With `--all`, also removes baseline snapshots (`*.baseline`), JSONL ledgers (`*.adid.log.jsonl`), and strips trailing `ADID_ROLLBACK`/`SDID_ROLLBACK` blocks from text files. | To tidy artifacts under the given root (use `--all` only when you want a full cleanup). |
 | `--rg <pattern> <replacement> <file> [-- flags]` | ripgrep-based replacement with backup and ledger. | When you need regex replace but want backups/rollback; use via adm, not raw rg. |
@@ -121,9 +121,9 @@ python scripts/_build.py --help
 Nuitka executables do not bundle PyTorch. Install it separately:
 ~~~bash
 # CPU version
-uv pip install torch sentence-transformers
+python -m pip install torch sentence-transformers
 
 # CUDA version (for GPU acceleration)
-uv pip install torch sentence-transformers --index-url https://download.pytorch.org/whl/cu121
+python -m pip install torch sentence-transformers --index-url https://download.pytorch.org/whl/cu121
 ~~~
 

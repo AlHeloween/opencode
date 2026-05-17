@@ -162,7 +162,9 @@ export const layer = Layer.effect(
 
         const servers: Record<string, LSPServer.Info> = {}
 
-        if (!cfg.lsp) {
+        const lspConfig = cfg.lsp ?? true
+
+        if (lspConfig === false) {
           log.info("all LSPs are disabled")
         } else {
           for (const server of Object.values(LSPServer)) {
@@ -171,8 +173,8 @@ export const layer = Layer.effect(
 
           filterExperimentalServers(servers)
 
-          if (cfg.lsp !== true) {
-            for (const [name, item] of Object.entries(cfg.lsp)) {
+          if (lspConfig !== true) {
+            for (const [name, item] of Object.entries(lspConfig)) {
               const existing = servers[name]
               if (item.disabled) {
                 log.info(`LSP server ${name} is disabled`)

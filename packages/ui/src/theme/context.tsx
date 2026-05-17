@@ -98,14 +98,20 @@ function write(key: string, value: string) {
   if (typeof localStorage !== "object") return
   try {
     localStorage.setItem(key, value)
-  } catch {}
+  } catch {
+    // localStorage may be unavailable (SSR, private browsing, quota exceeded)
+    console.debug("theme: localStorage.setItem failed")
+  }
 }
 
 function drop(key: string) {
   if (typeof localStorage !== "object") return
   try {
     localStorage.removeItem(key)
-  } catch {}
+  } catch {
+    // localStorage may be unavailable (SSR, private browsing, quota exceeded)
+    console.debug("theme: localStorage.removeItem failed")
+  }
 }
 
 function clear() {

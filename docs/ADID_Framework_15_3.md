@@ -396,7 +396,7 @@ This document defines a formal, universal framework for project development and 
                 <owner>REPLACE_WITH_OWNER</owner>
                 <created_with>
                   <git_head>REPLACE_WITH_GIT_HEAD</git_head>
-                  <uv_lock_md5>REPLACE_WITH_UV_LOCK_MD5</uv_lock_md5>
+                  <lockfiles_md5>REPLACE_WITH_LOCKFILE_HASHES</lockfiles_md5>
                   <python>REPLACE_WITH_PYTHON</python>
                   <ast_grep_py>REPLACE_WITH_AST_GREP</ast_grep_py>
                   <tree_sitter>REPLACE_WITH_TREE_SITTER</tree_sitter>

@@ -14,7 +14,7 @@ Use this skill when a command may be:
 
 **Use cmd_runner for:**
 - Long-running builds: `cargo build --release`, `msbuild`, `make`, `gradle build`
-- Package installs: `npm install`, `pip install -r requirements.txt`, `uv sync`
+- Package installs: `npm install`, `python -m pip install -r requirements.txt`, `cargo fetch`, ecosystem-specific dependency setup
 - Test suites: `pytest`, `cargo test`, `npm test`, `mvn test`
 - Interactive TUIs: `htop`, `ncurses` apps, installers with prompts
 - Crash-prone or unstable commands
@@ -57,7 +57,7 @@ All subprocesses created by cmd_runner open with `SW_SHOWMINNOACTIVE`:
 - Repo/dev:
   - `.\cmd_runner.exe ...` (Delphi binary at repo root)
 - Release bundle:
-  - `cmd_runner.exe ...` (preferred; no `uv` required)
+  - `cmd_runner.exe ...` (preferred; no project package manager required)
 - Via adm (integration; keeps a single progress-log cycle):
   - `tools/adm.exe --cmd-runner <cmd_runner args...>`
   - Example: `tools/adm.exe --cmd-runner start -- <command ...>`

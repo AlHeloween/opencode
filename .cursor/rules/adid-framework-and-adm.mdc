@@ -43,8 +43,8 @@ alwaysApply: true
   - Example: `powershell -NoProfile -c 'cmd /c "where dcc64"'`
   - Reason: In some environments, `cmd /c <command>` can succeed but produce no captured output.
 
-- **Windows permission quirks (uv cache / pytest temp):**
-  - If `python ...` fails with `Access is denied` under the default UV cache (user profile), set `UV_CACHE_DIR` to a repo-local folder (example: `.uv_cache/`) and retry.
+- **Windows permission quirks (Python cache / test temp):**
+  - If Python package or cache access fails with `Access is denied` under a user-profile cache, configure the active package manager or tool to use a repo-local cache/temp folder and retry.
   - If pytest temp cleanup fails with `PermissionError` on `--basetemp`, prefer placing basetemp under the repo (example: `python -m pytest -q --basetemp .temp/pytest`).
   - If a temp folder becomes unreadable, reclaim and delete it via `takeown` + `icacls` + `rd /s /q` (hardware-grounded filesystem ops; do not "pretend" tests ran).
   - Recommended start-of-work (Windows):
@@ -94,7 +94,9 @@ alwaysApply: true
 
 ## Project Structure:
 
-- `./pyproject.toml`: Project file, which includes all dependencies; initialized via `uv sync` at start of session. `./README.md` - readme file which describes project. `./AGENTS.md`: Operational Rules for Agents. `./src/project_name/__init__.py`: Application|Server initialization sequence. `./src/project_name/__main__.py`: Application|Server run sequence. `./src/project_name/libs/`: Standard universal libraries. `./src/project_name/DB/`: Databases `./src/project_name/gui/`: Core Graphical user interface with gui related files. `./src/project_name/clients/`: Data end users (with gui and logic). place documentation in /docs folder, 
+- Identify the project manifest(s) for the current repository before assuming tooling or layout. Common roots include `pyproject.toml`, `Cargo.toml`, `package.json`, `tsconfig.json`, `project.dpr`, `package.dpk`, `*.sln`, `CMakeLists.txt`, `Makefile`, or language-specific equivalents.
+- Read project-local governance and entrypoint documents when present: `README.md`, `AGENTS.md`, `docs/`, `index.md`, `DOCINDEX.md`, release/build scripts, and test configuration.
+- Derive source, test, GUI, database, client, and library folders from the actual repository layout. Do not assume a Python `src/project_name` structure in Rust, TypeScript, Delphi, C/C++, or mixed-language projects.
 
 ## Project Planning (track progress)
 

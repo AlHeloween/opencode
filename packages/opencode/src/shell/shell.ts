@@ -1,10 +1,13 @@
 import { Flag } from "@opencode-ai/core/flag/flag"
+import * as Log from "@opencode-ai/core/util/log"
 import { lazy } from "@/util/lazy"
 import { Filesystem } from "@/util/filesystem"
 import { which } from "@/util/which"
 import path from "path"
 import { spawn, type ChildProcess } from "child_process"
 import { setTimeout as sleep } from "node:timers/promises"
+
+const log = Log.create({ service: "shell" })
 
 const SIGKILL_TIMEOUT_MS = 200
 const META: Record<string, { deny?: boolean; login?: boolean; posix?: boolean; ps?: boolean }> = {
@@ -48,6 +51,7 @@ export async function killTree(proc: ChildProcess, opts?: { exited?: () => boole
       process.kill(-pid, "SIGKILL")
     }
   } catch (_e) {
+    log.debug("process.kill failed, falling back to proc.kill", { error: String(_e) })
     proc.kill("SIGTERM")
     await sleep(SIGKILL_TIMEOUT_MS)
     if (!opts?.exited?.()) {

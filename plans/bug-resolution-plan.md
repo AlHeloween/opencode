@@ -17,6 +17,34 @@
 
 ## Bug Inventory by Category
 
+### Category Triaging Guide
+
+Bugs are triaged into three tiers:
+- **Fix** — Code change eliminates the failure path entirely. These become actionable issues.
+- **Keep as `warn("bug:")`** — Expected failure in rare conditions; keep collecting for signal.
+- **Downgrade to `log.debug`** — Truly ignorable, normal shutdown/cleanup/OS-specific noise. Downgrading removes them from the exit report.
+
+### Triage Summary (2026-05-18)
+
+| Category | Count | Recommendation | Rationale |
+|----------|-------|---------------|-----------|
+| A (Guard invalid inputs) | 1 | **Fix** | Upgrade check crashes on dev builds |
+| B (Exit/shutdown) | 5 | **Downgrade to `log.debug`** | All are normal teardown — stream abort, process kill, WS close, file handle cleanup on exit |
+| C (OS-specific fs) | 8 | **Keep as `warn("bug:")`** | Platform guards already handle most; `clangd` symlink needs guard (see Fix #2) |
+| D (External tool failures) | 9 | **Downgrade to `log.debug`** | All are user-environment tools (clipboard, browser, debug probe). Not opencode bugs. |
+| E (Resource cleanup) | 9 | **Downgrade to `log.debug`** | All are temp file / log rotation / watcher cleanup on exit. Normal OS behavior. |
+| F (Network/protocol) | 4 | **Keep as `warn("bug:")`** | Network failures may indicate real issues; retry logic handles most but signal is useful |
+| G (Data/parsing) | 6 | **Keep as `warn("bug:")`** | Config file corruption, provider error parsing — useful signal for support |
+| H (RPC/fire-and-forget) | 4 | **Downgrade to `log.debug`** | All are fire-and-forget RPC calls on exit/shutdown. Expected to fail occasionally. |
+
+**Actionable bugs:** 2 fixes needed (see below). All other 44+ bugs should be downgraded to `log.debug`.
+
+**Process improvement:** When `bug:warn` occurrences for categories B-E and H are confirmed as always-normal after 30 days of real usage, automate the downgrade with a script that replaces `warn("bug:")` with `log.debug(...)` in the identified source files.
+
+---
+
+## Bug Inventory by Category (original catalog)
+
 ### A: Guard invalid inputs (1 item)
 | Bug | File | Fix |
 |-----|------|-----|

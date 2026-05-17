@@ -34,24 +34,26 @@ describe("lsp.spawn", () => {
     ),
   )
 
-  it.live("does not spawn builtin LSP for files inside instance when LSP is unset", () =>
-    provideTmpdirInstance((dir) =>
-      LSP.Service.use((lsp) =>
-        Effect.gen(function* () {
-          const spy = spyOn(LSPServer.Typescript, "spawn").mockResolvedValue(undefined)
+  it.live("does not spawn builtin LSP for files inside instance when LSP is disabled", () =>
+    provideTmpdirInstance(
+      (dir) =>
+        LSP.Service.use((lsp) =>
+          Effect.gen(function* () {
+            const spy = spyOn(LSPServer.Typescript, "spawn").mockResolvedValue(undefined)
 
-          try {
-            yield* lsp.hover({
-              file: path.join(dir, "src", "inside.ts"),
-              line: 0,
-              character: 0,
-            })
-            expect(spy).toHaveBeenCalledTimes(0)
-          } finally {
-            spy.mockRestore()
-          }
-        }),
-      ),
+            try {
+              yield* lsp.hover({
+                file: path.join(dir, "src", "inside.ts"),
+                line: 0,
+                character: 0,
+              })
+              expect(spy).toHaveBeenCalledTimes(0)
+            } finally {
+              spy.mockRestore()
+            }
+          }),
+        ),
+      { config: { lsp: false } },
     ),
   )
 

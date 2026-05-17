@@ -2681,7 +2681,10 @@ test("opencode loader keeps paid models when auth exists", async () => {
 
   try {
     prev = await Filesystem.readText(authPath)
-  } catch {}
+  } catch {
+    // auth file may not exist yet - expected on first test run
+    console.debug("provider test: auth file read skipped (not found)")
+  }
 
   try {
     await Filesystem.write(
@@ -2708,7 +2711,10 @@ test("opencode loader keeps paid models when auth exists", async () => {
     if (prev === undefined) {
       try {
         await unlink(authPath)
-      } catch {}
+      } catch {
+        // cleanup may fail if file was already removed
+        console.debug("provider test: auth file cleanup skipped")
+      }
     }
   }
 })

@@ -75,7 +75,9 @@ export function restoreShadowTextSelection(root: ShadowRoot | undefined, range: 
     try {
       selection.removeAllRanges()
       selection.addRange(range)
-    } catch {}
+    } catch (e) {
+      console.debug("selection restore failed", e)
+    }
   })
 }
 

@@ -78,7 +78,9 @@ export function activate(context: vscode.ExtensionContext) {
         await fetch(`http://localhost:${port}/app`)
         connected = true
         break
-      } catch {}
+      } catch {
+        console.debug("opencode server not ready, retrying...")
+      }
 
       tries--
     } while (tries > 0)

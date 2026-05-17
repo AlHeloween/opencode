@@ -194,20 +194,20 @@ try {
   const bugs = bugReport()
   if (bugs.length > 0) {
     const dir = path.join(Global.Path.data, "bugs")
-    await fs.mkdir(dir, { recursive: true }).catch(() => {})
+    await fs.mkdir(dir, { recursive: true }).catch((e) => { Log.Default.debug("failed to create bugs dir", { error: String(e) }) })
     await fs.writeFile(
       path.join(dir, "messages.json"),
       JSON.stringify(bugs.map((b) => ({ id: b.id, message: b.message, count: b.count })), null, 2),
-    ).catch(() => {})
+    ).catch((e) => { Log.Default.debug("failed to write bugs messages.json", { error: String(e) }) })
     for (const bug of bugs) {
       if (bug.payloads.length > 0) {
         await fs.writeFile(
           path.join(dir, bug.id + ".payload.json"),
           JSON.stringify(bug.payloads, null, 2),
-        ).catch(() => {})
-      }
+      ).catch((e) => { Log.Default.debug("failed to write bug payload", { id: bug.id, error: String(e) }) })
     }
-    process.stderr.write("Bugs encountered (" + bugs.length + "):" + EOL)
+  }
+  process.stderr.write("Bugs encountered (" + bugs.length + "):" + EOL)
     for (const bug of bugs) {
       process.stderr.write("  " + bug.id + " " + bug.message + " (" + bug.count + ")" + EOL)
     }

@@ -17,7 +17,7 @@ export type DialogGoUpsellProps = {
 }
 
 function subscribe(props: DialogGoUpsellProps, dialog: ReturnType<typeof useDialog>) {
-  open(GO_URL).catch(() => {})
+  open(GO_URL).catch((e) => { console.debug("failed to open go url", e) })
   props.onClose?.()
   dialog.clear()
 }

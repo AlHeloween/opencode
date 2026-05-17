@@ -502,15 +502,34 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       )
       if (!session) return
 
-      const kids = yield* children(sessionID)
-      for (const child of kids) {
-        yield* remove(child.id)
-      }
+      const descendants: SessionID[] = []
+      const collect = (parentID: SessionID): Effect.Effect<void> =>
+        Effect.gen(function* () {
+          const rows = yield* db((d) =>
+            d
+              .select()
+              .from(SessionTable)
+              .where(and(eq(SessionTable.parent_id, parentID)))
+              .all(),
+          )
+          for (const row of rows) {
+            descendants.push(row.id)
+            yield* collect(row.id)
+          }
+        })
+      yield* collect(sessionID)
 
       const hasInstance = yield* InstanceState.directory.pipe(
         Effect.as(true),
         Effect.catchCause(() => Effect.succeed(false)),
       )
+
+      for (const id of descendants.reverse()) {
+        yield* Effect.sync(() => {
+          SyncEvent.run(Event.Deleted, { sessionID: id, info: session }, { publish: hasInstance })
+          SyncEvent.remove(id)
+        })
+      }
 
       yield* Effect.sync(() => {
         SyncEvent.run(Event.Deleted, { sessionID, info: session }, { publish: hasInstance })

@@ -116,7 +116,7 @@ function executeAgentSearch(
 
     const healthy = yield* checkHealth(url)
     if (!healthy) {
-      throw new Error("Universal search service is not responding on port 3005. Ensure the service is running.")
+      throw new Error(`Universal search service is not responding at ${url}. Ensure the service is running.`)
     }
 
     const controller = new AbortController()
@@ -243,7 +243,7 @@ function executeWebSearch(url: string, params: { query?: string; limit?: number 
 
     const healthy = yield* checkHealth(url)
     if (!healthy) {
-      throw new Error("Universal search service is not responding on port 3005. Ensure the service is running.")
+      throw new Error(`Universal search service is not responding at ${url}. Ensure the service is running.`)
     }
 
     const controller = new AbortController()
@@ -308,7 +308,7 @@ function executeCodeSearch(url: string, params: { query?: string; limit?: number
 
     const healthy = yield* checkHealth(url)
     if (!healthy) {
-      throw new Error("Universal search service is not responding on port 3005. Ensure the service is running.")
+      throw new Error(`Universal search service is not responding at ${url}. Ensure the service is running.`)
     }
 
     const controller = new AbortController()
@@ -369,7 +369,7 @@ function executeHybridSearch(url: string, params: { query?: string; limit?: numb
 
     const healthy = yield* checkHealth(url)
     if (!healthy) {
-      throw new Error("Universal search service is not responding on port 3005. Ensure the service is running.")
+      throw new Error(`Universal search service is not responding at ${url}. Ensure the service is running.`)
     }
 
     const controller = new AbortController()

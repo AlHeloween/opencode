@@ -47,7 +47,9 @@ async function handleToolUpdate(part: ToolPart, channel: string, thread: string)
       thread_ts: thread,
       text: toolMessage,
     })
-    .catch(() => {})
+    .catch(() => {
+      console.debug("slack tool update post failed", { tool: part.tool })
+    })
 }
 
 app.use(async ({ next, context }) => {

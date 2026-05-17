@@ -29,7 +29,6 @@ export interface GatewayProviderConfig {
   npm?: string
   models: Record<string, GatewayModelConfig>
   options?: Record<string, unknown>
-  protocol?: "h2" | "http/1.1"
 }
 
 export interface GatewayModelConfig {
@@ -43,7 +42,6 @@ export interface GatewayModelConfig {
   }
   gateway?: {
     enabled?: boolean
-    protocol?: "h2" | "http/1.1"
     debug?: boolean
     logging?: {
       enabled?: boolean
@@ -127,7 +125,6 @@ function defaultProviderConfig(
   modelId: string,
   model: ModelsDev.Model,
 ): GatewayProviderConfig {
-  const isOpenAI = provider.id === "openai" || provider.npm === "@ai-sdk/openai"
   return {
     name: provider.name,
     env: provider.env ?? [],
@@ -140,7 +137,6 @@ function defaultProviderConfig(
       timeout: 1800000,
       chunkTimeout: 600000,
     },
-    protocol: isOpenAI ? "h2" : "http/1.1",
   }
 }
 
@@ -185,9 +181,6 @@ export async function writeConfigFile(filePath: string, config: GatewayConfig): 
 // providers.<name>.api: API base URL for the provider.
 // providers.<name>.npm: NPM package for the provider SDK
 //   (e.g. "@ai-sdk/openai-compatible", "@ai-sdk/anthropic").
-// providers.<name>.protocol: Default protocol preference - "http/1.1" or "h2" (alias: "http/2").
-//   Default: "http/1.1". The gateway auto-falls back from H2 to H1 after
-//   consecutive H2 failures.
 // providers.<name>.options.timeout: Total request timeout in milliseconds.
 //   Default: 1800000 (30 minutes).
 // providers.<name>.options.chunkTimeout: Idle timeout between streaming chunks
@@ -197,8 +190,6 @@ export async function writeConfigFile(filePath: string, config: GatewayConfig): 
 // --------------
 // Each model under a provider can override settings:
 // providers.<name>.models.<model>.gateway.enabled: Override gateway enabled for this model.
-// providers.<name>.models.<model>.gateway.protocol: Override protocol for this model
-//   ("http/1.1" or "h2", alias: "http/2").
 // providers.<name>.models.<model>.gateway.debug: Enable debug mode for this model.
 // providers.<name>.models.<model>.gateway.logging.*: Override logging settings for this model.
 // providers.<name>.models.<model>.provider.api: Override API URL for this model.
@@ -207,18 +198,7 @@ export async function writeConfigFile(filePath: string, config: GatewayConfig): 
 // providers.<name>.models.<model>.limit.output: Maximum output tokens.
 // providers.<name>.models.<model>.metadata.*: Model metadata (cost, capabilities, etc.).
 //
-// EXAMPLE: Force HTTP/2 for a specific model
-// -------------------------------------------
-//   "providers": {
-//     "openai": {
-//       "models": {
-//         "gpt-4": {
-//           "gateway": { "protocol": "h2" }
-//         }
-//       }
-//     }
-//   }
-//
+
 ${JSON.stringify(config, null, 2)}
 `
   const tempPath = filePath + ".tmp"
@@ -261,7 +241,6 @@ async function mergeConfigs(
         result.providers[providerId] = {
           ...existing,
           ...provider,
-          protocol: provider.protocol ?? existing.protocol,
           api: provider.api ?? existing.api,
           npm: provider.npm ?? existing.npm,
           name: provider.name ?? existing.name,
@@ -276,9 +255,6 @@ async function mergeConfigs(
       }
     }
   }
-
-  // Remove legacy global preferH2 setting - protocol preference is now per-model via gateway.protocol
-  if (result.gateway) delete (result.gateway as any).preferH2
 
   for (const provider of Object.values(result.providers)) {
     if (!provider.options) provider.options = {}
@@ -339,7 +315,6 @@ async function buildDefaultConfig(): Promise<GatewayConfig> {
     if (!devModel) continue
 
     if (!providers[providerID]) {
-      const isOpenAI = providerID === "openai" || devProvider.npm === "@ai-sdk/openai"
       providers[providerID] = {
         name: devProvider.name,
         env: devProvider.env ?? [],
@@ -350,7 +325,6 @@ async function buildDefaultConfig(): Promise<GatewayConfig> {
           timeout: DEFAULT_TIMEOUT,
           chunkTimeout: DEFAULT_CHUNK_TIMEOUT,
         },
-        protocol: isOpenAI ? "h2" : "http/1.1",
       }
     }
     providers[providerID].models[modelID] = defaultModelConfig(devProvider, devModel)
@@ -408,7 +382,6 @@ export async function ensureModelConfig(providerID: ProviderID, modelID: string)
   const modelConfig = defaultModelConfig(devProvider, devModel)
 
   // Update global config first (as the canonical source)
-  const isOpenAI = providerID === "openai" || devProvider.npm === "@ai-sdk/openai"
   const existingProvider = globalConfig?.providers?.[providerID]
   const updatedGlobal: GatewayConfig = {
     ...(globalConfig || {
@@ -434,7 +407,6 @@ export async function ensureModelConfig(providerID: ProviderID, modelID: string)
           timeout: DEFAULT_TIMEOUT,
           chunkTimeout: DEFAULT_CHUNK_TIMEOUT,
         },
-        protocol: existingProvider?.protocol || (isOpenAI ? "h2" : "http/1.1"),
       },
     },
   }
@@ -462,7 +434,6 @@ export async function ensureModelConfig(providerID: ProviderID, modelID: string)
         timeout: DEFAULT_TIMEOUT,
         chunkTimeout: DEFAULT_CHUNK_TIMEOUT,
       },
-      protocol: existingLocalProvider?.protocol || (isOpenAI ? "h2" : "http/1.1"),
     }
 
     const updatedLocal: GatewayConfig = {
@@ -516,17 +487,4 @@ export async function isModelEnabled(providerID: string, modelID: string): Promi
   return config.gateway?.enabled !== false
 }
 
-export async function getModelProtocol(providerID: string, modelID: string): Promise<"h2" | "http/1.1" | undefined> {
-  const config = await loadGatewayConfig()
-  const model = config.providers[providerID]?.models?.[modelID]
-  const modelProtocol = model?.gateway?.protocol as string | undefined
-  if (modelProtocol) {
-    return modelProtocol === "http/2" ? "h2" : (modelProtocol as "h2" | "http/1.1")
-  }
-  const provider = config.providers[providerID]
-  const providerProtocol = provider?.protocol as string | undefined
-  if (providerProtocol) {
-    return providerProtocol === "http/2" ? "h2" : (providerProtocol as "h2" | "http/1.1")
-  }
-  return undefined
-}
+

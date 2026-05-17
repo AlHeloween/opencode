@@ -38,7 +38,7 @@ export namespace Actor {
   const ctx = Context.create<Info>()
   export const use = ctx.use
 
-  const log = Log.create().tag("namespace", "actor")
+  const log = Log.create({ service: "console/actor" }).tag("namespace", "actor")
 
   export function provide<R, T extends Info["type"]>(
     type: T,

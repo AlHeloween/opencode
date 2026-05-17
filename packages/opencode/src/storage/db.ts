@@ -14,6 +14,12 @@ import type { ProjectID } from "../project/schema"
 
 const log = Log.create({ service: "db" })
 
+let defaultDb: Client | undefined
+
+function getDefaultDb(): Client {
+  return defaultDb ??= createAndInitDb(path.join(Global.Path.data, "opencode.db"))
+}
+
 export const Path = iife(() => {
   if (Flag.OPENCODE_DB) {
     if (Flag.OPENCODE_DB === ":memory:" || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
@@ -295,6 +301,12 @@ export function closeAllProjectDbs() {
 
 export function close() {
   closeAllProjectDbs()
+  if (defaultDb) {
+    try { defaultDb.$client.close() } catch (err) {
+      log.warn("failed to close default DB client", { error: err })
+    }
+    defaultDb = undefined
+  }
 }
 
 export type TxOrDb = Transaction | Client
@@ -324,7 +336,7 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
         const proj = currentProjectCtx.use()
         db = getProjectDb(proj.projectID, proj.worktree)
       } catch {
-        db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
+        db = getDefaultDb()
         log.debug("using default db", { caller: "use" })
       }
       const result = ctx.provide({ effects, tx: db }, () => callback(db))
@@ -378,7 +390,7 @@ export function transaction<T>(
         const proj = currentProjectCtx.use()
         db = getProjectDb(proj.projectID, proj.worktree)
       } catch {
-        db = createAndInitDb(path.join(Global.Path.data, "opencode.db"))
+        db = getDefaultDb()
         log.debug("using default db", { caller: "transaction" })
       }
       const txCallback = InstanceState.bind((tx: TxOrDb) => {

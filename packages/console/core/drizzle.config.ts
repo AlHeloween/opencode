@@ -13,8 +13,6 @@ export default defineConfig({
     user: Resource.Database.username,
     password: Resource.Database.password,
     port: Resource.Database.port,
-    ssl: {
-      rejectUnauthorized: false,
-    },
+    ssl: process.env.DB_SSL_REJECT_UNAUTHORIZED === "false" ? { rejectUnauthorized: false } : undefined,
   },
 })

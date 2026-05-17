@@ -9,11 +9,6 @@ import {
   getOrCreateRoute,
   updateStreamingPreference,
   defaultStreamingPreference,
-  recordH2Failure as adjustH2Failure,
-  recordH1Success as adjustH1Success,
-  recordH2Success as adjustH2Success,
-  getEffectiveProtocol,
-  defaultProtocolPreference,
   adaptPolicy as adaptPolicyFn,
   enforcePolicyFloors,
 } from "./adjustment-store"
@@ -166,13 +161,10 @@ async function load(): Promise<StoreState> {
         routeLastAccessed: new Map(),
       }
     }
-    // Normalize: ensure all routes have streamingPreference, protocolPreference, policy bounds, and delayHistory
+    // Normalize: ensure all routes have streamingPreference, policy bounds, and delayHistory
     for (const route of Object.values(data.routes)) {
       if (!route.streamingPreference) {
         route.streamingPreference = defaultStreamingPreference()
-      }
-      if (!route.protocolPreference) {
-        route.protocolPreference = defaultProtocolPreference()
       }
       route.policy = enforcePolicyFloors(route.policy)
       if (!route.delayHistory) {
@@ -487,57 +479,6 @@ export function recordTotalRequest(key: RouteKey): void {
   const keyStr = toRouteKeyString(key)
   const budget = getOrCreateRetryBudget(s, keyStr)
   s.retryBudgets.set(keyStr, RetryBudget.recordRequest(budget))
-}
-
-export function recordH2Failure(key: RouteKey, reason: string): void {
-  const s = ensureLoaded()
-  const keyStr = toRouteKeyString(key)
-  const existing = s.data.routes[keyStr]
-  if (existing) {
-    const updated = adjustH2Failure(existing, reason, Date.now())
-    s.data.routes[keyStr] = updated
-    s.dirty = true
-
-    writePolicyLog({
-      event: "gateway.policy.h2_fallback",
-      timestamp: Date.now(),
-      routeKey: keyStr,
-      provider: key.provider,
-      model: key.model,
-      policy: {
-        preferred: updated.protocolPreference.preferred,
-        h2Disabled: updated.protocolPreference.h2Disabled,
-        consecutiveFailures: updated.protocolPreference.h2ConsecutiveFailures,
-      },
-      success: false,
-    })
-  }
-}
-
-export function recordProtocolSuccess(key: RouteKey, protocol: "h2" | "http/1.1"): void {
-  const s = ensureLoaded()
-  const keyStr = toRouteKeyString(key)
-  const existing = s.data.routes[keyStr]
-  if (!existing) return
-
-  const updated = protocol === "h2" ? adjustH2Success(existing, Date.now()) : adjustH1Success(existing, Date.now())
-
-  s.data.routes[keyStr] = updated
-  s.dirty = true
-}
-
-export function getProtocolPreference(key: RouteKey): "h2" | "http/1.1" {
-  const adj = getRoute(key)
-  return getEffectiveProtocol(adj)
-}
-
-export function shouldProbeH2(key: RouteKey): boolean {
-  const adj = getRoute(key)
-  const pref = adj.protocolPreference
-  if (!pref.h2Disabled) return false
-
-  const now = Date.now()
-  return now - pref.lastSwitchAt > 300000
 }
 
 export function adaptRoutePolicy(key: RouteKey, success: boolean, score: number): void {

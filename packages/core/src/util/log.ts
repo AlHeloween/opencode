@@ -225,7 +225,9 @@ function serializePayload(extra: Record<string, any>): { payloadJson?: string; p
   if (json.length <= 500) return { payloadJson: json }
   const id = `l-${String(nextLogId).padStart(4, "0")}`
   const payloadPath = path.join(Global.Path.log, "payloads", `${id}.json`)
-  fs.writeFile(payloadPath, json).catch(() => {})
+  fs.writeFile(payloadPath, json).catch((e) => {
+    logError("payload write failed", { path: payloadPath, error: String(e) })
+  })
   return { payload_id: id }
 }
 

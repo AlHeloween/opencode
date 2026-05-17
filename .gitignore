@@ -39,3 +39,4 @@ artifacts/
 .opencode/project.db
 packages/opencode/.opencode/data/opencode.db
 bin/
+dist/

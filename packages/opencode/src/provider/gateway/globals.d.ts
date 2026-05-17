@@ -12,6 +12,6 @@ declare global {
         updatedAt: number
       }
     | undefined
-  var __gatewayRoutes: Array<{ provider: string; protocol: string }> | undefined
+  var __gatewayRoutes: Array<{ provider: string }> | undefined
   var __gatewayStatusInterval: ReturnType<typeof setInterval> | undefined
 }

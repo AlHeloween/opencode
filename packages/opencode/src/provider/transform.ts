@@ -217,7 +217,9 @@ function normalizeMessages(
   if (
     typeof model.capabilities.interleaved === "object" &&
     model.capabilities.interleaved.field &&
-    model.api.npm !== "@openrouter/ai-sdk-provider"
+    model.api.npm !== "@openrouter/ai-sdk-provider" &&
+    model.api.npm !== "@ai-sdk/anthropic" &&
+    model.api.npm !== "@ai-sdk/google-vertex/anthropic"
   ) {
     const field = model.capabilities.interleaved.field
     return msgs.map((msg) => {
@@ -634,6 +636,13 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     case "@ai-sdk/google-vertex/anthropic":
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/google-vertex#anthropic-provider
 
+      if (model.api.id.includes("deepseek-v4")) {
+        return {
+          high: { thinking: { type: "enabled" }, effort: "high" },
+          max: { thinking: { type: "enabled" }, effort: "max" },
+        }
+      }
+
       if (model.providerID === "github-copilot") {
         if (model.api.id.includes("opus-4.7")) {
           return Object.fromEntries(["medium"].map((effort) => [effort, { reasoningEffort: effort }]))
@@ -661,13 +670,13 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
         high: {
           thinking: {
             type: "enabled",
-            budgetTokens: Math.min(16_000, Math.floor(model.limit.output / 2 - 1)),
+            budgetTokens: Math.floor(model.limit.context / 2),
           },
         },
         max: {
           thinking: {
             type: "enabled",
-            budgetTokens: Math.min(31_999, model.limit.output - 1),
+            budgetTokens: model.limit.context,
           },
         },
       }
@@ -850,10 +859,7 @@ export function options(input: {
 }): Record<string, any> {
   const result: Record<string, any> = {}
 
-  if (
-    input.model.api.npm === "@ai-sdk/google-vertex/anthropic" ||
-    (!input.model.api.id.includes("claude") && input.model.api.npm === "@ai-sdk/anthropic")
-  ) {
+  if (input.model.api.npm === "@ai-sdk/google-vertex/anthropic") {
     result["toolStreaming"] = false
   }
 

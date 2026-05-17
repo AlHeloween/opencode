@@ -37,12 +37,6 @@ export interface LimitsObserved {
   lastKnownGoodStreams: number
 }
 
-export interface ProtocolInfo {
-  alpnAdvertised: string[]
-  alpnNegotiated: string
-  lastSeenAt: number
-}
-
 export interface StreamingPreference {
   enabled: boolean
   autoTuned: boolean
@@ -59,98 +53,6 @@ export function defaultStreamingPreference(): StreamingPreference {
     consecutiveSuccesses: 0,
     consecutiveFailures: 0,
   }
-}
-
-export interface ProtocolPreference {
-  preferred: "h2" | "http/1.1"
-  h2ConsecutiveFailures: number
-  h1ConsecutiveSuccesses: number
-  lastSwitchAt: number
-  lastFallbackReason?: string
-  h2Disabled: boolean
-  h2ProbeAttempts: number
-}
-
-export function defaultProtocolPreference(): ProtocolPreference {
-  return {
-    preferred: "http/1.1",
-    h2ConsecutiveFailures: 0,
-    h1ConsecutiveSuccesses: 0,
-    lastSwitchAt: 0,
-    lastFallbackReason: undefined,
-    h2Disabled: false,
-    h2ProbeAttempts: 0,
-  }
-}
-
-const H2_FALLBACK_THRESHOLD = 2
-const H1_REUPGRADE_THRESHOLD = 5
-const H2_PROBE_COOLDOWN_MS = 300000
-const FALLBACK_COOLDOWN_MS = 60000
-
-export function recordH2Failure(adj: RouteAdjustment, reason: string, now: number): RouteAdjustment {
-  const pref = { ...adj.protocolPreference }
-  pref.h2ConsecutiveFailures++
-  pref.h1ConsecutiveSuccesses = 0
-  pref.lastFallbackReason = reason
-
-  if (pref.h2ConsecutiveFailures >= H2_FALLBACK_THRESHOLD && now - pref.lastSwitchAt > FALLBACK_COOLDOWN_MS) {
-    pref.preferred = "http/1.1"
-    pref.h2Disabled = true
-    pref.lastSwitchAt = now
-    pref.h2ProbeAttempts = 0
-  }
-
-  return {
-    ...adj,
-    protocolPreference: pref,
-    updatedAt: now,
-  }
-}
-
-export function recordH1Success(adj: RouteAdjustment, now: number): RouteAdjustment {
-  const pref = { ...adj.protocolPreference }
-  pref.h1ConsecutiveSuccesses++
-  pref.h2ConsecutiveFailures = 0
-
-  if (
-    pref.h2Disabled &&
-    pref.h1ConsecutiveSuccesses >= H1_REUPGRADE_THRESHOLD &&
-    now - pref.lastSwitchAt > H2_PROBE_COOLDOWN_MS
-  ) {
-    pref.preferred = "h2"
-    pref.h2Disabled = false
-    pref.lastSwitchAt = now
-    pref.h2ProbeAttempts++
-    pref.h1ConsecutiveSuccesses = 0
-  }
-
-  return {
-    ...adj,
-    protocolPreference: pref,
-    updatedAt: now,
-  }
-}
-
-export function recordH2Success(adj: RouteAdjustment, now: number): RouteAdjustment {
-  const pref = { ...adj.protocolPreference }
-  pref.h2ConsecutiveFailures = 0
-  pref.h1ConsecutiveSuccesses = 0
-
-  if (pref.h2Disabled) {
-    pref.h2Disabled = false
-    pref.lastSwitchAt = now
-  }
-
-  return {
-    ...adj,
-    protocolPreference: pref,
-    updatedAt: now,
-  }
-}
-
-export function getEffectiveProtocol(adj: RouteAdjustment): "h2" | "http/1.1" {
-  return adj.protocolPreference.preferred
 }
 
 const STREAMING_DISABLE_THRESHOLD = 3
@@ -191,8 +93,6 @@ export function updateStreamingPreference(
 }
 
 export interface RouteAdjustment {
-  protocol: ProtocolInfo
-  protocolPreference: ProtocolPreference
   policy: Policy
   streamingPreference: StreamingPreference
   health: {
@@ -231,12 +131,6 @@ export function getOrCreateRoute(store: AdjustmentStoreData, key: string, now: n
   if (existing) return existing
 
   const adjustment: RouteAdjustment = {
-    protocol: {
-      alpnAdvertised: [],
-      alpnNegotiated: "unknown",
-      lastSeenAt: now,
-    },
-    protocolPreference: defaultProtocolPreference(),
     policy: defaultPolicy(),
     streamingPreference: defaultStreamingPreference(),
     health: {

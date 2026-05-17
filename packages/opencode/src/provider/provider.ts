@@ -1142,6 +1142,7 @@ const layer: Layer.Layer<
               existingModel?.api.npm ??
               modelsDev[providerID]?.npm ??
               "@ai-sdk/openai-compatible"
+            const apiUrl = model.provider?.api ?? provider?.api ?? existingModel?.api.url ?? modelsDev[providerID]?.api ?? ""
             const name = iife(() => {
               if (model.name) return model.name
               if (model.id && model.id !== modelID) return modelID
@@ -1152,7 +1153,7 @@ const layer: Layer.Layer<
               api: {
                 id: apiID,
                 npm: apiNpm,
-                url: model.provider?.api ?? provider?.api ?? existingModel?.api.url ?? modelsDev[providerID]?.api ?? "",
+                url: apiUrl,
               },
               status: model.status ?? existingModel?.status ?? "active",
               name,
@@ -1182,9 +1183,9 @@ const layer: Layer.Layer<
                 interleaved:
                   model.interleaved ??
                   existingModel?.capabilities.interleaved ??
-                  (!existingModel && apiNpm === "@ai-sdk/openai-compatible" && apiID.includes("deepseek")
-                    ? { field: "reasoning_content" }
-                    : false),
+              (!existingModel && (apiNpm === "@ai-sdk/openai-compatible" || apiNpm === "@ai-sdk/anthropic") && apiID.includes("deepseek")
+                ? { field: "reasoning_content" }
+                : false),
               },
               cost: {
                 input: model?.cost?.input ?? existingModel?.cost?.input ?? 0,
@@ -1486,6 +1487,9 @@ const layer: Layer.Layer<
             ...opts,
             // @ts-ignore see here: https://github.com/oven-sh/bun/issues/16682
             timeout: false,
+            gatewayProvider: model.providerID,
+            gatewayProtocol: model.options?.protocol,
+            gatewayStreaming: model.options?.streaming,
           })
 
           if (!chunkAbortCtl) return res

@@ -45,6 +45,7 @@ interface AdaptiveFetchOptions extends RequestInit {
   gatewayProvider?: string
   gatewayModel?: string
   gatewayProtocol?: "h2" | "http/1.1"
+  gatewayStreaming?: boolean
 }
 
 /**
@@ -232,36 +233,23 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const shapeClass = Classifier.classify(classifyInput)
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`
 
-    // Determine protocol preference from model config, stored route adjustment, or global config
+    const modelProtocol = init?.gatewayProtocol
+
     const baseRouteKey: RouteKey = {
       provider,
       baseUrl,
       model,
       endpointKind: endpointKind,
       stream: isStream,
-      negotiatedProtocol: "unknown",
       requestShapeClass: shapeClass,
     }
 
-    // Protocol resolution: model-level gateway.protocol > existing route adjustment > default to http/1.1
-    const modelProtocol = init?.gatewayProtocol
-    const existingAdjustment = Store.getRoute(baseRouteKey)
-    const existingNegotiated = existingAdjustment.protocol.alpnNegotiated
-    const negotiated: "h2" | "http/1.1" =
-      existingNegotiated === "h2" || existingNegotiated === "http/1.1" ? existingNegotiated : "http/1.1"
-    const preferredProtocol: "h2" | "http/1.1" | "unknown" = modelProtocol
-      ? modelProtocol
-      : existingNegotiated !== "unknown"
-        ? negotiated
-        : "http/1.1"
-
-    // Determine streaming preference from stored route adjustment
-    const streamingEnabled = Store.getStreamingEnabled(baseRouteKey)
+    // Determine streaming preference from config or stored route adjustment
+    const streamingEnabled = init?.gatewayStreaming ?? Store.getStreamingEnabled(baseRouteKey)
     const effectiveStream = streamingEnabled ? isStream : false
 
     const routeKey: RouteKey = {
       ...baseRouteKey,
-      negotiatedProtocol: preferredProtocol,
       stream: effectiveStream,
     }
 
@@ -424,15 +412,12 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       let response: Response
       let usedProtocol: "h2" | "http/1.1" = "http/1.1"
       try {
-        const protocolPref = Store.getProtocolPreference(routeKey)
-        const useH2 = routeKey.negotiatedProtocol === "h2" && shouldUseH2(routeKey) && protocolPref === "h2"
+        const useH2 = modelProtocol === "h2"
 
         log.info("gateway.protocol.decision", {
           provider,
           model,
           configured: modelProtocol,
-          negotiated: routeKey.negotiatedProtocol,
-          stored: protocolPref,
           using: useH2 ? "h2" : "http/1.1",
           streaming: routeKey.stream,
         })
@@ -444,8 +429,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
             provider,
             model,
             configured: modelProtocol,
-            negotiated: routeKey.negotiatedProtocol,
-            stored: protocolPref,
             using: useH2 ? "h2" : "http/1.1",
             streaming: routeKey.stream,
           })
@@ -463,7 +446,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               })
               usedProtocol = "h2"
               response = h2Result.response
-              Store.recordProtocolSuccess(routeKey, "h2")
             } else {
               const h2Result = await H2.request({
                 baseUrl,
@@ -488,7 +470,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                     message: h2Result.error.message,
                   })
 
-                  Store.recordH2Failure(routeKey, `${h2Result.error.category}: ${h2Result.error.message}`)
                   H2.closeSession(baseUrl)
 
                   usedProtocol = "http/1.1"
@@ -514,7 +495,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   status: h2Result.status,
                   headers: h2Result.headers,
                 })
-                Store.recordProtocolSuccess(routeKey, "h2")
               }
             }
           } catch (h2Err) {
@@ -534,7 +514,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 message: normalized.message,
               })
 
-              Store.recordH2Failure(routeKey, `${normalized.category}: ${normalized.message}`)
               H2.closeSession(baseUrl)
 
               usedProtocol = "http/1.1"
@@ -669,7 +648,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
       if (success) {
         Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)
-        Store.recordProtocolSuccess(routeKey, usedProtocol)
         Store.recordCircuitBreakerSuccess(routeKey)
         const postScore = healthScore(Store.getRoute(routeKey).health)
         Store.adaptRoutePolicy(routeKey, true, postScore)
@@ -696,10 +674,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     }
   }
   return wrapped
-}
-
-export async function probeRoute(_baseUrl: string): Promise<{ alpnNegotiated: string; success: boolean }> {
-  return { alpnNegotiated: "http/1.1", success: true }
 }
 
 export function getGatewayStatus() {
@@ -738,9 +712,3 @@ export function logGatewayStatus(): void {
 }
 
 export { initLogger }
-
-function shouldUseH2(routeKey: RouteKey): boolean {
-  if (routeKey.negotiatedProtocol === "h2") return true
-  const protocolPref = Store.getProtocolPreference(routeKey)
-  return protocolPref === "h2"
-}

@@ -71,6 +71,17 @@ const FIXTURES = {
     `data: {"choices":[{"finish_reason":"tool_calls","index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"function":{"arguments":"{}","name":"read_file"},"id":"call_reasoning_only_2","index":1,"type":"function"}]}}],"created":1769917420,"id":"opaque-only","usage":{"completion_tokens":12,"prompt_tokens":123,"prompt_tokens_details":{"cached_tokens":0},"total_tokens":135,"reasoning_tokens":0},"model":"gemini-3-flash-preview"}`,
     `data: [DONE]`,
   ],
+
+  cacheTokensStreaming: [
+    `data: {"choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}],"id":"cache-test","model":"deepseek-v4-pro","usage":{"prompt_cache_hit_tokens":42,"prompt_cache_miss_tokens":8}}`,
+    `data: {"choices":[{"finish_reason":"stop","index":0,"delta":{"content":""}}],"id":"cache-test","model":"deepseek-v4-pro","usage":{"prompt_cache_hit_tokens":42,"prompt_cache_miss_tokens":8,"completion_tokens":5,"prompt_tokens":50,"total_tokens":55}}`,
+    `data: [DONE]`,
+  ],
+
+  cacheTokensDualFormat: [
+    `data: {"choices":[{"finish_reason":"stop","index":0,"delta":{"content":"Hi"}}],"id":"cache-dual","model":"deepseek-v4-pro","usage":{"prompt_cache_hit_tokens":42,"prompt_cache_miss_tokens":8,"completion_tokens":3,"prompt_tokens":50,"total_tokens":53,"prompt_tokens_details":{"cached_tokens":0}}}`,
+    `data: [DONE]`,
+  ],
 }
 
 function createMockFetch(chunks: string[]) {
@@ -588,5 +599,47 @@ describe("request body", () => {
         },
       },
     ])
+  })
+
+  test("should accumulate prompt_cache_hit_tokens and prompt_cache_miss_tokens from streaming usage", async () => {
+    const mockFetch = createMockFetch(FIXTURES.cacheTokensStreaming)
+    const model = createModel(mockFetch)
+
+    const { stream } = await model.doStream({
+      prompt: TEST_PROMPT,
+      includeRawChunks: false,
+    })
+
+    const parts = await convertReadableStreamToArray(stream)
+    const finish = parts.find((p) => p.type === "finish")
+    expect(finish).toMatchObject({
+      type: "finish",
+      finishReason: { unified: "stop" },
+      usage: {
+        promptCacheHitTokens: 42,
+        promptCacheMissTokens: 8,
+      },
+    })
+  })
+
+  test("should extract prompt_cache_hit/miss_tokens from non-streaming body with dual-format fallback", async () => {
+    const mockFetch = createMockFetch(FIXTURES.cacheTokensDualFormat)
+    const model = createModel(mockFetch)
+
+    const { stream } = await model.doStream({
+      prompt: TEST_PROMPT,
+      includeRawChunks: false,
+    })
+
+    const parts = await convertReadableStreamToArray(stream)
+    const finish = parts.find((p) => p.type === "finish")
+    expect(finish).toMatchObject({
+      type: "finish",
+      finishReason: { unified: "stop" },
+      usage: {
+        promptCacheHitTokens: 42,
+        promptCacheMissTokens: 8,
+      },
+    })
   })
 })

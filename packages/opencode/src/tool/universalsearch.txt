@@ -1,6 +1,7 @@
 Search the web, code repositories, or use an AI research agent via the Universal Search Service
 - Provides up-to-date information for current events and recent data
 - Returns search results with titles, URLs, descriptions, and full markdown content
+- The service handles all internal routing (web search, code search, Firecrawl, Sourcegraph) — no other port is needed
 
 Search modes:
   source: "agent" (default) — Autonomous AI researcher that iteratively investigates your query using web search and scraping tools. Returns a job ID for polling.
@@ -21,6 +22,8 @@ Configuration (in opencode.json):
   }
 
 The Universal Search Service must be running as a system service on port 3005. Opencode does not auto-start this service.
+All search modes (web, code, agent, hybrid) go through the same configured URL — never use any other port.
+Do not attempt to reach port 3002 or any other port directly — the service manages all internal backends.
 
 Examples:
   universalsearch({ query: "latest TypeScript features", source: "agent" }) — Autonomous research

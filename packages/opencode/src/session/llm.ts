@@ -145,19 +145,9 @@ const live: Layer.Layer<
       }
 
       const isWorkflow = language instanceof GitLabWorkflowLanguageModel
-      const messages = isOpenaiOauth
+      const messages = isOpenaiOauth || isWorkflow
         ? input.messages
-        : isWorkflow
-          ? input.messages
-          : [
-              ...system.map(
-                (x): ModelMessage => ({
-                  role: "system",
-                  content: x,
-                }),
-              ),
-              ...input.messages,
-            ]
+        : input.messages
 
       const params = yield* plugin.trigger(
         "chat.params",
@@ -367,6 +357,7 @@ const live: Layer.Layer<
         toolChoice: input.toolChoice,
         maxOutputTokens: params.maxOutputTokens,
         abortSignal: input.abort,
+        ...(isOpenaiOauth || isWorkflow ? {} : { system: system.join("\n") }),
         headers: {
           ...(input.model.providerID.startsWith("opencode")
             ? {

@@ -15,18 +15,36 @@ import type { ProjectID } from "../project/schema"
 const log = Log.create({ service: "db" })
 
 let defaultDb: Client | undefined
+let defaultDbPath: string | undefined
 
-function getDefaultDb(): Client {
-  return defaultDb ??= createAndInitDb(path.join(Global.Path.data, "opencode.db"))
-}
-
-export const Path = iife(() => {
+function getDefaultDbPath() {
   if (Flag.OPENCODE_DB) {
     if (Flag.OPENCODE_DB === ":memory:" || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
     return path.join(Global.Path.data, Flag.OPENCODE_DB)
   }
   return path.join(Global.Path.data, "opencode.db")
-})
+}
+
+function closeDefaultDb() {
+  if (!defaultDb) return
+  try {
+    defaultDb.$client.close()
+  } catch (err) {
+    log.warn("failed to close default DB client", { error: err })
+  }
+  defaultDb = undefined
+  defaultDbPath = undefined
+}
+
+function getDefaultDb(): Client {
+  const dbPath = getDefaultDbPath()
+  if (defaultDb && defaultDbPath === dbPath) return defaultDb
+  closeDefaultDb()
+  defaultDbPath = dbPath
+  return defaultDb = createAndInitDb(dbPath)
+}
+
+export const Path = iife(getDefaultDbPath)
 
 export type Transaction = SQLiteTransaction<"sync", void>
 
@@ -301,12 +319,7 @@ export function closeAllProjectDbs() {
 
 export function close() {
   closeAllProjectDbs()
-  if (defaultDb) {
-    try { defaultDb.$client.close() } catch (err) {
-      log.warn("failed to close default DB client", { error: err })
-    }
-    defaultDb = undefined
-  }
+  closeDefaultDb()
 }
 
 export type TxOrDb = Transaction | Client
@@ -431,3 +444,16 @@ export function projectTransaction<T>(
 
 export * as Database from "./db"
 
+// ADID_ROLLBACK (from adm.exe)
+// SDID_ROLLBACK {
+//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/storage/db.ts"
+//   "update_script": "adm.exe"
+//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/storage/db.ts.backup_20260517T185131_917545"
+//   "created_at": "2026-05-17T10:51:31.934235+00:00"
+//   "backup_hash": "0fefbab3ec70aacddd49bd4456f0990a"
+//   "new_hash": "c62314fa99eb7e1e8f874b31c0a22182"
+//   "goal_id": "reset_default_db_path_on_close"
+//   "semantics": "Use closeDefaultDb from Database.close so the cached default database path is reset together with the handle."
+//   "update_attrs": {"relative_path": "packages/opencode/src/storage/db.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "export function close() {\n  closeAllProjectDbs()\n  if (defaultDb) {\n    try { defaultDb.$client.close() } catch (err) {\n      log.warn(\"failed to close default DB client\", { error: err })\n    }\n    defaultDb = undefined\n  }\n}", "replace_present": true}
+//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/storage/db.ts\""
+// }

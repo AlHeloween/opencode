@@ -1,5 +1,5 @@
 import { defineConfig, PluginOption } from "vite"
-import { solidStart } from "@solidjs/start/config"
+import { defineConfig as solidStartConfig } from "@solidjs/start/config"
 import { nitro } from "nitro/vite"
 import tailwindcss from "@tailwindcss/vite"
 
@@ -20,7 +20,7 @@ const nitroConfig: any = (() => {
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    solidStart() as PluginOption,
+    solidStartConfig() as PluginOption,
     nitro({
       ...nitroConfig,
       baseURL: process.env.OPENCODE_BASE_URL,

@@ -49,6 +49,9 @@ import { ShareNext } from "@/share/share-next"
 import { SessionShare } from "@/share/session"
 import { Npm } from "@opencode-ai/core/npm"
 import { memoMap } from "@opencode-ai/core/effect/memo-map"
+import { EventV2 } from "@opencode-ai/core/event"
+import { EventV2Bridge } from "@/event-v2-bridge"
+import { RuntimeFlags } from "@/effect/runtime-flags"
 
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
@@ -97,6 +100,9 @@ export const AppLayer = Layer.mergeAll(
   Installation.defaultLayer,
   ShareNext.defaultLayer,
   SessionShare.defaultLayer,
+  EventV2.defaultLayer,
+  EventV2Bridge.defaultLayer,
+  RuntimeFlags.defaultLayer,
 ).pipe(Layer.provideMerge(Observability.layer))
 
 const rt = ManagedRuntime.make(AppLayer, { memoMap })

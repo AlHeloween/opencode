@@ -204,3 +204,14 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 ## Dependency Notes
 
 - **Desktop TypeScript version** (`packages/desktop/`, `packages/desktop-electron/`): Both pin `typescript@~5.6.2` while the rest of the monorepo uses `5.8.2` (via root catalog). This is intentional — Tauri Specta bindings and Electron tooling have known compatibility constraints with TS 5.8. Do not upgrade these packages without verifying Tauri/Electron builds.
+
+## Completed Research
+
+Research analyses are kept in `research_done/` for reference. Each surfaced bugs and improvements that were triaged and resolved:
+
+| File | Scope | Bugs Found | Status |
+|------|-------|-----------|--------|
+| `research_done/research_v1.md` | Initial comparative analysis of `Local_Development` branch vs `dev` | Algorithmic wins (linked-list queue, StringBuilder, MCP concurrency cap) | [x] Cherry-picked |
+| `research_done/research_v2.md` | Deeper static analysis with specific bugs | 6 bugs (health-window off-by-one, N+1 query, route eviction, lexical path, h2 backpressure, structuredClone) | [x] 5/6 fixed — h2 backpressure remains (see `plans/20260518_deferred_items_plan.md`) |
+| `research_done/research_v3.md` | Runtime microbenchmarks + profiling playbook | Queue performance (674ms→4ms), throw/catch overhead (530x) | [x] Applied |
+| `research_done/research_v4.md` | Concrete fix-oriented security/correctness triage | 5 issues (Vite exposure, Electron updater, DB effects, process.exit, release workflow) | [x] All fixed (see `plans/20260518_deferred_items_plan.md`) |

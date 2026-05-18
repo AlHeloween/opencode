@@ -36,6 +36,10 @@ function writeBackup(
   afs: AppFileSystem.Interface,
 ) {
   return Effect.gen(function* () {
+    const absFile = path.resolve(filePath)
+    const dataDir = path.resolve(Global.Path.data) + path.sep
+    if (absFile.startsWith(dataDir)) return
+
     const dir = path.join(Global.Path.data, "backups", sessionID)
     const safeName = filePath.replace(/[/\\:]/g, "_").replace(/^_+/, "")
     const bakPath = path.join(dir, `${formatTimestamp()}_${callID}_${safeName}.bak`)

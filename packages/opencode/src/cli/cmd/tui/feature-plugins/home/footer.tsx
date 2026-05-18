@@ -13,8 +13,14 @@ function Directory(props: { api: TuiPluginApi }) {
     if (branch) return out + ":" + branch
     return out
   })
+  const root = createMemo(() => Global.Path.worktree)
 
-  return <text fg={theme().textMuted}>{dir()}</text>
+  return (
+    <box flexDirection="column" flexShrink={0}>
+      <text fg={theme().textMuted}>{dir()}</text>
+      <text fg={theme().textMuted}>{root()}</text>
+    </box>
+  )
 }
 
 function Mcp(props: { api: TuiPluginApi }) {

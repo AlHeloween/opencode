@@ -162,6 +162,10 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
   }
 
   sample.socketAcquiredAt = Date.now()
+
+  while (session.activeStreams >= session.remoteMaxConcurrentStreams) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 10))
+  }
   session.activeStreams++
 
   return new Promise<H2Response>((resolve, rejectPromise) => {
@@ -310,6 +314,10 @@ export async function requestStream(
   }
 
   sample.socketAcquiredAt = Date.now()
+
+  while (session.activeStreams >= session.remoteMaxConcurrentStreams) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 10))
+  }
   session.activeStreams++
 
   return new Promise<{ response: Response; metrics: MetricsResult }>((resolve, reject) => {

@@ -215,6 +215,14 @@ try {
   // Some subprocesses don't react properly to SIGTERM and similar signals.
   // Most notably, some docker-container-based MCP servers don't handle such signals unless
   // run using `docker run --init`.
-  // Explicitly exit to avoid any hanging subprocesses.
-  process.exit()
+  // Let cleanup complete gracefully, then force-exit if still hanging.
+  const forceExit = setTimeout(() => process.exit(), 5000).unref()
+  try {
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+  } finally {
+    clearTimeout(forceExit)
+  }
+  if (process.exitCode === undefined) process.exit()
 }

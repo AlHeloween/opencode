@@ -59,6 +59,7 @@ const getBase = (): Configuration => ({
   },
   win: {
     icon: `resources/icons/icon.ico`,
+    verifyUpdateCodeSignature: true,
     signtoolOptions: {
       sign: signWindows,
     },

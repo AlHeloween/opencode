@@ -331,7 +331,7 @@ function setupAutoUpdater() {
   autoUpdater.logger = logger
   autoUpdater.channel = "latest"
   autoUpdater.allowPrerelease = false
-  autoUpdater.allowDowngrade = true
+  autoUpdater.allowDowngrade = process.env.OPENCODE_ALLOW_DOWNGRADE === "1"
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
   logger.log("auto updater configured", {

@@ -1,5 +1,27 @@
 # web + desktop packages
 packages/app/      @adamdotdevin
-packages/tauri/    @adamdotdevin
 packages/desktop/src-tauri/  @brendonovich
 packages/desktop/  @adamdotdevin
+
+# core engine
+packages/opencode/ @anomalyco/opencode
+
+# shared libraries
+packages/core/     @anomalyco/opencode
+packages/ui/       @anomalyco/opencode
+packages/plugin/   @anomalyco/opencode
+packages/script/   @anomalyco/opencode
+
+# SDK
+packages/sdk/js/   @anomalyco/opencode
+
+# backends
+packages/function/ @anomalyco/opencode
+packages/enterprise/ @anomalyco/opencode
+
+# console (SaaS)
+packages/console/  @anomalyco/opencode
+
+# infrastructure
+packages/web/      @anomalyco/opencode
+packages/containers/ @anomalyco/opencode

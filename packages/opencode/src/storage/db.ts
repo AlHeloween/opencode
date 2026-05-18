@@ -326,7 +326,7 @@ export type TxOrDb = Transaction | Client
 
 const ctx = LocalContext.create<{
   tx: TxOrDb
-  effects: (() => void | Promise<void>)[],
+  effects: (() => void)[],
 }>("database")
 
 const currentProjectCtx = LocalContext.create<{
@@ -343,7 +343,7 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
-      const effects: (() => void | Promise<void>)[] = []
+      const effects: (() => void)[] = []
       let db: TxOrDb
       try {
         const proj = currentProjectCtx.use()
@@ -366,7 +366,7 @@ export function projectUse<T>(projectID: ProjectID, worktree: string, callback: 
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
       const db = getProjectDb(projectID, worktree)
-      const effects: (() => void | Promise<void>)[] = []
+      const effects: (() => void)[] = []
       const result = ctx.provide({ effects, tx: db }, () => callback(db))
       for (const effect of effects) effect()
       return result
@@ -375,7 +375,7 @@ export function projectUse<T>(projectID: ProjectID, worktree: string, callback: 
   }
 }
 
-export function effect(fn: () => any | Promise<any>) {
+export function effect(fn: () => void) {
   const bound = InstanceState.bind(fn)
   try {
     ctx.use().effects.push(bound)
@@ -397,7 +397,7 @@ export function transaction<T>(
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
-      const effects: (() => void | Promise<void>)[] = []
+      const effects: (() => void)[] = []
       let db: TxOrDb
       try {
         const proj = currentProjectCtx.use()
@@ -430,7 +430,7 @@ export function projectTransaction<T>(
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
       const db = getProjectDb(projectID, worktree)
-      const effects: (() => void | Promise<void>)[] = []
+      const effects: (() => void)[] = []
       const txCallback = InstanceState.bind((tx: TxOrDb) => {
         const result = ctx.provide({ tx, effects }, () => callback(tx))
         for (const effect of effects) effect()

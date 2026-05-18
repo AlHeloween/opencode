@@ -39,7 +39,8 @@ Our branch differs from upstream in these fundamental ways — direct file copie
 
 | Date | Compared up to commit | Scope | Status |
 |------|----------------------|-------|--------|
-| 2026-05-18 | `71b27a1b0` (HEAD) | `packages/opencode/src/session/`, `provider/`, `tool/`, `config/`, `packages/core/` | Done — see below |
+| 2026-05-18 | `71b27a1b0` (HEAD) | `packages/opencode/src/session/`, `provider/`, `tool/`, `config/`, `packages/core/` | Phase 1 planned (6 items) — see `plans/20260518_upstream_adoption_plan.md` |
+
 
 ---
 
@@ -92,3 +93,29 @@ Our branch differs from upstream in these fundamental ways — direct file copie
 | Per-session DB queries rewritten | We already have per-project DBs |
 | Self-reexport patterns | Already applied |
 | Effect migration patterns | We already have Effect layer |
+
+---
+
+## Implementation Tracker
+
+**Plan:** `plans/20260518_upstream_adoption_plan.md`
+
+| # | Pattern | Status | Applied Date |
+|---|---------|--------|-------------|
+| 1 | JSON Schema generator | [ ] Pending | — |
+| 2 | OutputTokenMax overflow | [ ] Pending | — |
+| 3 | Attachment config | [ ] Pending | — |
+| 4 | Reference config | [ ] Pending | — |
+| 5 | EventV2 infrastructure (4 files) | [ ] Pending | — |
+| 6 | Compaction v2 events | [ ] Pending | — |
+
+**Dependency note (from validation):** Items 5/6 are NOT standalone. They require porting the full EventV2 stack as a group: `core/event.ts` → `core/session-event.ts` → `opencode/effect/runtime-flags.ts` → `opencode/event-v2-bridge.ts`. This is a 4-file atomic port — partial adoption won't compile.
+
+### Comparison Checkpoints
+
+Prevents re-comparing the same commit range:
+
+| Date | Upstream commit | Scope | Action |
+|------|----------------|-------|--------|
+| 2026-05-18 | `71b27a1b0` | All packages | Patterns identified, plan created |
+| _next_ | `new HEAD` | Changed files only | Diff from `71b27a1b0..new HEAD`, append findings |

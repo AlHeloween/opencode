@@ -127,14 +127,14 @@ Bugs are triaged into three tiers:
 
 ## Fixes (ordered by priority)
 
-### [ ] 1. Fix upgrade check for dev builds
+### [x] 1. Fix upgrade check for dev builds
 - **File**: `src/cli/upgrade.ts:27`
-- **Change**: wrap `Installation.getReleaseType()` in try/catch; return early if version parse fails
+- **Change**: wrapped `getReleaseType()` in try/catch; return early if version parse fails
 - **Kills**: `bug: upgrade check failed`
 
-### [ ] 2. Guard clangd symlink operations
+### [x] 2. Guard clangd symlink operations
 - **File**: `src/lsp/server.ts:1098-1099`
-- **Change**: `fs.unlink(..., { force: true })`; check `bin` exists before symlink
+- **Change**: `fs.rm(..., { force: true })` replaces `fs.unlink(...)`; `fs.access(bin)` check before `fs.symlink`
 - **Kills**: `bug: unlink clangd symlink failed`, `bug: symlink clangd binary failed`
 
 ### [ ] 3. Triage remaining categories B-H

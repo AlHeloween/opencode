@@ -24,6 +24,17 @@ Follow these external style guides for TypeScript code:
 - Silent `catch {}` blocks are bugs. If an error can occur, it must be logged. If it's truly expected and ignorable, log at debug level.
 - Plan-to-code gaps (a plan claiming something is done when it is not) are bugs and must be corrected in the plan document.
 
+## Discovery Rule
+
+- **Before reporting any file or module as "not found" or "missing", run `fd` to search for it.** `fd` searches ignored directories too; `glob`/`list` are bounded by `.gitignore`. Guessing absence without discovery is a bug. Same applies to "module X doesn't exist" claims — search first, report after.
+
+## Plan Maintenance
+
+- **After any implementation task completes, audit all `plans/*.md` files.** Mark items `[x]` if code confirms they're done. Move fully-completed plans to `plans_completed/`.
+- **Plan-to-code gaps are bugs.** A plan claiming `[ ]` when code is done, or `[x]` when code is missing, is a bug — correct the plan immediately.
+- **Deduplicate overlapping plans.** If two active plans track the same item, pick one as canonical and remove from the other.
+- **Use `messagesearch` to verify task completion.** Before implementing any task, search conversation history for prior work on the same item. Re-doing completed work is a bug. If the task was already done, update the plan — never re-implement.
+
 ## Style Guide
 
 ### General Principles

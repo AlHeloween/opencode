@@ -24,7 +24,13 @@ export async function upgrade() {
 
   if (InstallationVersion === latest) return
 
-  const kind = Installation.getReleaseType(InstallationVersion, latest)
+  let kind: ReturnType<typeof Installation.getReleaseType>
+  try {
+    kind = Installation.getReleaseType(InstallationVersion, latest)
+  } catch {
+    log.debug("upgrade skipped: unparseable version", { version: InstallationVersion })
+    return
+  }
 
   if (config.autoupdate === "notify" || kind !== "patch") {
     await Bus.publish(Installation.Event.UpdateAvailable, { version: latest })

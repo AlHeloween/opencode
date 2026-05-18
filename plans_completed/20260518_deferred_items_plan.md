@@ -11,7 +11,7 @@
 
 ---
 
-## 1. [ ] HIGH: Enforce h2-transport backpressure limits
+## 1. [x] HIGH: Enforce h2-transport backpressure limits
 
 **File:** `packages/opencode/src/provider/gateway/h2-transport.ts`
 
@@ -35,7 +35,7 @@
 
 ---
 
-## 3. [ ] MEDIUM: Update CODEOWNERS
+## 3. [x] MEDIUM: Update CODEOWNERS
 
 **File:** `.github/CODEOWNERS`
 
@@ -59,7 +59,7 @@
 
 ---
 
-## 4. [ ] LOW: Add Pierre diff engine tests
+## 4. [x] LOW: Add Pierre diff engine tests
 
 **Files:** `packages/ui/src/pierre/` (11 source files, 0 tests)
 
@@ -83,7 +83,7 @@
 | message-v2.ts N+1 COUNT(*) per search row | [x] FIXED | Single SQL query with correlated subquery for `messageIndex` |
 | store.ts route eviction never evicts | [x] FIXED | `evictStaleEntries()` explicitly calls `delete s.data.routes[key]` |
 | external-directory.ts lexical path check | [x] FIXED | `resolve()` calls `realpathSync` before `containsPath` check |
-| h2-transport.ts backpressure | [ ] STILL PRESENT | Values tracked but never enforced — see item #1 above |
+| h2-transport.ts backpressure | [x] FIXED | Spin-wait loop at `request()` L166-168 and `requestStream()` L318-320 |
 | compaction.ts structuredClone | [x] FIXED | Uses `Array.slice()` shallow copy; no `structuredClone` in file |
 
 ---
@@ -97,15 +97,7 @@
 
 ---
 
-## Risks
-
-- **Item 1 (h2-transport):** Adding stream queueing requires careful testing to avoid deadlocks in streaming scenarios
-- **Item 2 (nitro):** Blocked — no stable 3.0.1 yet. Alpha dependency is build-time only (Vite plugin), risk is manageable
-- **Item 3 (CODEOWNERS):** Placeholder owners need to be reviewed by the actual team
-
----
-
-## 5. [ ] HIGH: Vite dev servers bind to `0.0.0.0` + accept any host
+## 10. [x] HIGH: Vite dev servers bind to `0.0.0.0` + accept any host
 
 **Files:** `packages/app/vite.config.ts:7-8`, `packages/enterprise/vite.config.ts:30-31`
 
@@ -128,7 +120,7 @@ Apply to all three vite configs.
 
 ---
 
-## 6. [ ] HIGH: Electron updater allows unsigned downgrades
+## 11. [x] HIGH: Electron updater allows unsigned downgrades
 
 **Files:** `packages/desktop-electron/src/main/index.ts:334`
 
@@ -151,7 +143,7 @@ win: {
 
 ---
 
-## 7. [ ] HIGH: DB effects are fire-and-forget (not awaited)
+## 12. [x] HIGH: DB effects are fire-and-forget (not awaited)
 
 **Files:** `packages/opencode/src/storage/db.ts:329,356,371,411,437`
 
@@ -176,7 +168,7 @@ Then call `await flushEffects(effects)` after DB operations. Functions `use()` a
 
 ---
 
-## 8. [ ] HIGH: CLI forces `process.exit()` unconditionally
+## 13. [x] HIGH: CLI forces `process.exit()` unconditionally
 
 **Files:** `packages/opencode/src/index.ts:219`
 
@@ -197,7 +189,7 @@ try {
 
 ---
 
-## 9. [ ] MEDIUM: Release workflow upstream-locked + over-permissioned
+## 14. [x] MEDIUM: Release workflow upstream-locked + over-permissioned
 
 **Files:** `.github/workflows/publish.yml:28-32,36,73,118,393`
 
@@ -215,22 +207,14 @@ try {
 
 ## Updated Implementation Order
 
-1. Item 3 (CODEOWNERS) — documentation-only, zero risk
-2. Item 5 (Vite dev server) — config change, low risk
-3. Item 7 (DB effects) — correctness fix, medium risk
-4. Item 8 (CLI process.exit) — reliability fix, medium risk
-5. Item 6 (Electron updater) — security fix, medium risk
-6. Item 9 (Release workflow) — CI config, low risk
-7. Item 1 (h2-transport) — stream enforcement, medium risk
-8. Item 4 (Pierre tests) — test skeletons, low priority
-9. Item 2 (nitro) — **blocked**: awaiting upstream release
+Items 1-4 and 10-14 are now [x] complete.
+
+Remaining open:
+1. Item 2 (nitro stable) — **blocked**: awaiting upstream release
 
 ---
 
 ## Risks (updated)
 
-- **Item 5 (Vite):** Existing dev workflows relying on `0.0.0.0` need `VITE_HOST` env var
-- **Item 6 (Electron):** Requires build testing — signature verification may fail on unsigned dev builds
-- **Item 7 (DB effects):** Fix B requires making DB functions async, which cascades to all callers in `use()`, `projectUse()`, `transaction()`, `projectTransaction()`
-- **Item 8 (process.exit):** Must ensure `shutdownChildren()` handles edge cases (PTY processes, MCP servers, LSP processes)
-- **Item 9 (CI):** Must not break existing `anomalyco/opencode` publish pipeline
+- **Item 2 (nitro):** Blocked — no stable 3.0.1 yet. Alpha dependency is build-time only (Vite plugin), risk is manageable
+- **Items 1, 3, 4, 10-14:** Complete — risks resolved

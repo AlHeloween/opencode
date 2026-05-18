@@ -1095,8 +1095,13 @@ export const Clangd: Info = {
       await fs.chmod(bin, 0o755).catch((e) => { log.warn("bug: chmod clangd binary failed", { bin, error: String(e) }) })
     }
 
-    await fs.unlink(path.join(Global.Path.bin, "clangd")).catch((e) => { log.warn("bug: unlink clangd symlink failed", { error: String(e) }) })
-    await fs.symlink(bin, path.join(Global.Path.bin, "clangd")).catch((e) => { log.warn("bug: symlink clangd binary failed", { bin, error: String(e) }) })
+    await fs.rm(path.join(Global.Path.bin, "clangd"), { force: true }).catch((e) => { log.warn("bug: unlink clangd symlink failed", { error: String(e) }) })
+    try {
+      await fs.access(bin)
+      await fs.symlink(bin, path.join(Global.Path.bin, "clangd"))
+    } catch {
+      log.warn("bug: symlink clangd binary failed", { bin })
+    }
 
     log.info(`installed clangd`, { bin })
 

@@ -104,7 +104,7 @@ reference: {
 
 ---
 
-### 5. [!] EventV2 Infrastructure Stack (BLOCKED)
+### 5. [x] EventV2 Infrastructure Stack
 
 **Source:** `packages/core/src/event.ts` + `core/src/session-event.ts` + `opencode/src/effect/runtime-flags.ts` + `opencode/src/event-v2-bridge.ts` (all new in upstream)
 **Effort:** High (massive dependency tree — blocked until precursor files are ported)
@@ -136,7 +136,7 @@ opencode/event-v2-bridge.ts
 
 ---
 
-### 6. [!] Compaction V2 Events (BLOCKED)
+### 6. [x] Compaction V2 Events
 
 **Blocked by:** Item 5 (EventV2 infrastructure)
 

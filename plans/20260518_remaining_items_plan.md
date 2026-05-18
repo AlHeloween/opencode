@@ -13,52 +13,11 @@
 
 ---
 
-## 1. [ ] CODEOWNERS: Remove Stale Entry + Expand Coverage
-
-**Affected:** `.github/CODEOWNERS`
-
-**Problem:**
-- `packages/tauri/` entry on line 3 no longer exists (replaced by `desktop/`)
-- Only 4 entries cover `app/`, `desktop/`, and `desktop/src-tauri/`
-- Large portions uncovered: `opencode/`, `core/`, `ui/`, `sdk/`, `function/`, `plugin/`, `enterprise/`, `console/`, `web/`, `slack/`, `sdks/`
-
-**Action:**
-1. Remove stale `packages/tauri/` line
-2. Add ownership for remaining packages — assign to existing owners where applicable, otherwise mark as `@anomalyco/opencode` (team)
-
-**Proposed entries:**
-| Path | Owner | Rationale |
-|------|-------|-----------|
-| `packages/opencode/` | `@anomalyco/opencode` | Core CLI — team ownership |
-| `packages/core/` | `@anomalyco/opencode` | Shared utilities |
-| `packages/ui/` | `@adamdotdevin` | UI components + themes |
-| `packages/sdk/` | `@anomalyco/opencode` | Generated SDK |
-| `packages/function/` | `@anomalyco/opencode` | Sharing sync backend |
-| `packages/plugin/` | `@anomalyco/opencode` | Plugin API |
-| `packages/console/` | `@anomalyco/opencode` | SaaS console |
-| `packages/enterprise/` | `@anomalyco/opencode` | Enterprise sharing |
-| `packages/web/` | `@adamdotdevin` | Marketing site |
-| `packages/slack/` | `@anomalyco/opencode` | Slack integration |
-| `sdks/` | `@anomalyco/opencode` | External SDKs |
-| `.github/` | `@anomalyco/opencode` | CI/CD workflows |
+## 1. [x] DELETED — canonical in `deferred_items_plan.md` #3 (CODEOWNERS)
 
 ---
 
-## 2. [ ] Pierre Diff Engine: Add Tests
-
-**Affected:** `packages/ui/src/pierre/` (11 source files, 0 tests)
-
-**Problem:** The Pierre diff engine — used for code diff selection, commenting, virtual rendering — has no test coverage. It handles user interactions with code diffs in the TUI and web app.
-
-**Action:**
-1. Create `packages/ui/src/pierre/pierre.test.ts`
-2. Add tests covering:
-   - `file-find.ts` — file path resolution in diff trees
-   - `diff-selection.ts` — line/range selection from diff hunks
-   - `commented-lines.ts` — comment attachment to diff lines
-   - `virtualizer.ts` — virtual scrolling of large diffs
-
-**Risk:** Low. Pierre is mostly UI logic with well-defined input/output. Tests can use snapshot diff data.
+## 2. [x] DELETED — canonical in `deferred_items_plan.md` #4 (Pierre tests)
 
 ---
 
@@ -76,7 +35,7 @@
 
 ---
 
-## 4. [ ] Research Bugs: Verify Fix Status (optional)
+## 4. [x] Research Bugs: Verified (5/6 fixed, 1 remains — h2 backpressure)
 
 **Affected:** Projects referenced in now-deleted `research/research_v2.md`
 

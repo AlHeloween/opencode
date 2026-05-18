@@ -2067,3 +2067,35 @@ export const JuliaLS: Info = {
     }
   },
 }
+
+export const Delphi: Info = {
+  id: "delphi",
+  extensions: [".pas", ".dpr", ".dpk", ".dfm", ".fmx", ".inc", ".pp", ".lpr"],
+  root: NearestRoot(["*.dpr", "*.dproj", "*.groupproj"]),
+  async spawn(root) {
+    let binary = which("DelphiLSP")
+    if (!binary) {
+      const candidates = [
+        path.join(os.homedir(), "RAD Studio", "bin64", "DelphiLSP"),
+        "C:\\Program Files (x86)\\Embarcadero\\Studio\\bin64\\DelphiLSP",
+      ]
+      for (const candidate of candidates) {
+        if (await pathExists(candidate)) {
+          binary = candidate
+          break
+        }
+      }
+    }
+    if (!binary) {
+      log.info("DelphiLSP not found — install from DelphiLSP project or add to PATH")
+      return
+    }
+    const proc = spawn(binary, [], {
+      cwd: root,
+      env: {
+        ...process.env,
+      },
+    })
+    return { process: proc }
+  },
+}

@@ -30,7 +30,7 @@ Items 1, 3, 4 are truly self-contained (no deps). Item 2 needs a `ProviderTransf
 
 ## Phase 1: HIGH Priority — Low Effort, Drop-In
 
-### 1. [ ] JSON Schema Generator for Tools
+### 1. [x] JSON Schema Generator for Tools
 
 **Source:** `packages/opencode/src/tool/json-schema.ts` (new in upstream, 155 lines)
 **Effort:** Low (self-contained, only imports from effect + @ai-sdk/provider)
@@ -48,7 +48,7 @@ Items 1, 3, 4 are truly self-contained (no deps). Item 2 needs a `ProviderTransf
 
 ---
 
-### 2. [ ] OutputTokenMax in Overflow
+### 2. [x] OutputTokenMax in Overflow
 
 **Source:** `packages/opencode/src/session/overflow.ts`
 **Effort:** Low (signature change + `ProviderTransform.maxOutputTokens` update)
@@ -65,7 +65,7 @@ Items 1, 3, 4 are truly self-contained (no deps). Item 2 needs a `ProviderTransf
 
 ---
 
-### 3. [ ] Attachment Config Schema
+### 3. [x] Attachment Config Schema
 
 **Source:** `packages/opencode/src/config/attachment.ts` (new in upstream)
 **Effort:** Low (new config module)
@@ -86,7 +86,7 @@ image: {
 
 ---
 
-### 4. [ ] Reference Config Schema
+### 4. [x] Reference Config Schema
 
 **Source:** `packages/opencode/src/config/reference.ts` (new in upstream)
 **Effort:** Low (new config module)
@@ -104,11 +104,25 @@ reference: {
 
 ---
 
-### 5. [ ] EventV2 Infrastructure Stack
+### 5. [!] EventV2 Infrastructure Stack (BLOCKED)
 
 **Source:** `packages/core/src/event.ts` + `core/src/session-event.ts` + `opencode/src/effect/runtime-flags.ts` + `opencode/src/event-v2-bridge.ts` (all new in upstream)
-**Effort:** Medium (4 interrelated files, must port as group)
-**Deps:** None (these form a self-contained stack)
+**Effort:** High (massive dependency tree — blocked until precursor files are ported)
+**Blocked by:** Missing core modules: `core/src/location.ts`, `core/src/schema.ts` (PositiveInt/NonNegativeInt), `core/src/model.ts` (ModelV2), `core/src/session.ts` (Session.ID), `core/src/session-prompt.ts`, `core/src/tool-output.ts`, `core/src/v2-schema.ts`, `core/src/catalog.ts`, `opencode/src/effect/config-service.ts`, `opencode/src/project/instance-store.ts`, `opencode/src/effect/instance-ref.ts`
+
+**Dependency tree:**
+```
+core/event.ts
+  needs: core/location.ts, core/util/identifier.ts (exists), core/schema.ts (missing)
+core/session-event.ts  
+  needs: core/event.ts, core/model.ts, core/session.ts, core/session-prompt.ts,
+         core/tool-output.ts, core/v2-schema.ts, core/schema.ts (all missing)
+opencode/effect/runtime-flags.ts
+  needs: opencode/effect/config-service.ts (missing)
+opencode/event-v2-bridge.ts
+  needs: opencode/bus (exists), opencode/effect/instance-ref (missing),
+         opencode/project/instance-store (missing), opencode/sync (exists)
+```
 
 **What to port as a group:**
 1. `packages/core/src/event.ts` (175 lines) — `EventV2` base type + publisher
@@ -122,7 +136,9 @@ reference: {
 
 ---
 
-### 6. [ ] Compaction V2 Events (Dual-Write)
+### 6. [!] Compaction V2 Events (BLOCKED)
+
+**Blocked by:** Item 5 (EventV2 infrastructure)
 
 **Source:** `packages/opencode/src/session/compaction.ts`
 **Effort:** Low (additive event publishing, gated by flag)

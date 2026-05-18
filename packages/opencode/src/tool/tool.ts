@@ -38,6 +38,7 @@ export interface Def<
   id: string
   description: string
   parameters: Parameters
+  jsonSchema?: unknown
   execute(args: Schema.Schema.Type<Parameters>, ctx: Context): Effect.Effect<ExecuteResult<M>>
   formatValidationError?(error: unknown): string
 }

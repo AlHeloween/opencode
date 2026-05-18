@@ -102,14 +102,14 @@ Our branch differs from upstream in these fundamental ways — direct file copie
 
 | # | Pattern | Status | Applied Date |
 |---|---------|--------|-------------|
-| 1 | JSON Schema generator | [ ] Pending | — |
-| 2 | OutputTokenMax overflow | [ ] Pending | — |
-| 3 | Attachment config | [ ] Pending | — |
-| 4 | Reference config | [ ] Pending | — |
-| 5 | EventV2 infrastructure (4 files) | [ ] Pending | — |
-| 6 | Compaction v2 events | [ ] Pending | — |
+| 1 | JSON Schema generator | [x] Done | 2026-05-18 |
+| 2 | OutputTokenMax overflow | [x] Done | 2026-05-18 |
+| 3 | Attachment config | [x] Done | 2026-05-18 |
+| 4 | Reference config | [x] Done | 2026-05-18 |
+| 5 | EventV2 infrastructure (4 files) | [!] Blocked | — |
+| 6 | Compaction v2 events | [!] Blocked | — |
 
-**Dependency note (from validation):** Items 5/6 are NOT standalone. They require porting the full EventV2 stack as a group: `core/event.ts` → `core/session-event.ts` → `opencode/effect/runtime-flags.ts` → `opencode/event-v2-bridge.ts`. This is a 4-file atomic port — partial adoption won't compile.
+**Blocked reason:** Items 5/6 depend on 12+ missing core modules (`location.ts`, `model.ts`, `session.ts`, `session-prompt.ts`, `tool-output.ts`, `v2-schema.ts`, `catalog.ts`, `schema.ts`, `config-service.ts`, `instance-store.ts`, `instance-ref.ts`). These need to be ported individually as a dependency chain.
 
 ### Comparison Checkpoints
 

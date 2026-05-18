@@ -40,10 +40,10 @@ export function make(input: {
         const tail = idx === -1 ? raw : raw.slice(idx + 1)
         await fs.writeFile(input.path, tail ? tail.replace(/\n*$/, "\n") : "")
       } finally {
-        await fh.close().catch((e) => { log.warn("bug: failed to close file handle", { error: e instanceof Error ? e.message : String(e) }) })
+        await fh.close().catch((e) => { log.debug("failed to close file handle", { error: e instanceof Error ? e.message : String(e) }) })
       }
     } catch (e) {
-      log.warn("bug: failed to trim log file", { error: e instanceof Error ? e.message : String(e) })
+      log.debug("failed to trim log file", { error: e instanceof Error ? e.message : String(e) })
     }
   }
 
@@ -56,7 +56,7 @@ export function make(input: {
       await fs.appendFile(input.path, batch.join("\n") + "\n")
       await trim()
     } catch (e) {
-      log.warn("bug: failed to flush log entries", { error: e instanceof Error ? e.message : String(e) })
+      log.debug("failed to flush log entries", { error: e instanceof Error ? e.message : String(e) })
     }
     flushing = false
   }

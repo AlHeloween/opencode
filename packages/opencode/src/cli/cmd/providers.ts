@@ -325,7 +325,7 @@ export const ProvidersLoginCommand = cmd({
           prompts.outro("Done")
           return
         }
-        await ModelsDev.refresh(true).catch((e) => { Log.Default.warn("bug: ModelsDev.refresh failed", { error: String(e) }) })
+        await ModelsDev.refresh(true).catch((e) => { Log.Default.debug("ModelsDev.refresh failed", { error: String(e) }) })
 
         const config = await AppRuntime.runPromise(Config.Service.use((cfg) => cfg.get()))
 

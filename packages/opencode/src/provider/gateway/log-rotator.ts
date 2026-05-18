@@ -81,6 +81,6 @@ export class LogRotator {
 
     const sorted = files.sort()
     const toDelete = sorted.slice(0, sorted.length - MAX_ROTATED_FILES)
-    await Promise.all(toDelete.map((file) => fs.unlink(file).catch((e) => { Log.Default.warn("bug: failed to unlink rotated log file", { file, error: String(e) }) })))
+    await Promise.all(toDelete.map((file) => fs.unlink(file).catch((e) => { Log.Default.debug("failed to unlink rotated log file", { file, error: String(e) }) })))
   }
 }

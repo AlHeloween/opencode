@@ -521,7 +521,7 @@ export const layer = Layer.effect(
                       try {
                         process.kill(dpid, "SIGTERM")
                       } catch (err) {
-                        log.warn("bug: mcp process kill failed", { dpid, error: err })
+                        log.debug("mcp process kill failed", { dpid, error: err })
                       }
                     }
                   }

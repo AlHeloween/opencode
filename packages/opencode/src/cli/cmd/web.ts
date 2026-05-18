@@ -69,11 +69,11 @@ export const WebCommand = cmd({
       }
 
       // Open localhost in browser
-      open(localhostUrl.toString()).catch((e) => { Log.Default.warn("bug: failed to open browser to localhost", { error: String(e) }) })
+      open(localhostUrl.toString()).catch((e) => { Log.Default.debug("failed to open browser to localhost", { error: String(e) }) })
     } else {
       const displayUrl = server.url.toString()
       UI.println(UI.Style.TEXT_INFO_BOLD + "  Web interface:    ", UI.Style.TEXT_NORMAL, displayUrl)
-      open(displayUrl).catch((e) => { Log.Default.warn("bug: failed to open browser to display URL", { error: String(e) }) })
+      open(displayUrl).catch((e) => { Log.Default.debug("failed to open browser to display URL", { error: String(e) }) })
     }
 
     await new Promise(() => {})

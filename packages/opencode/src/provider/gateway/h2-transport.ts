@@ -402,7 +402,7 @@ export async function requestStream(
         error: normalized.message,
       })
       await writer.abort(error).catch((abortError) => {
-        log.warn("bug: h2 stream abort failed", { error: String(abortError) })
+        log.debug("h2 stream abort failed", { error: String(abortError) })
       })
       if (!settled) reject(error)
     })
@@ -420,7 +420,7 @@ export async function requestStream(
           decrement()
           req.destroy()
           const error = new Error("Request aborted")
-          writer.abort(error).catch((e) => { log.warn("bug: writer abort failed", { error: String(e) }) })
+          writer.abort(error).catch((e) => { log.debug("writer abort failed", { error: String(e) }) })
           if (!settled) reject(error)
         },
         { once: true },

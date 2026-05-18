@@ -236,7 +236,7 @@ function ensureLoaded(): StoreState {
 
 export async function init(): Promise<void> {
   if (state) return
-  await fs.mkdir(path.join(Global.Path.data, "gateway"), { recursive: true }).catch((e) => { Log.Default.warn("bug: failed to create gateway data directory", { error: String(e) }) })
+  await fs.mkdir(path.join(Global.Path.data, "gateway"), { recursive: true }).catch((e) => { Log.Default.debug("failed to create gateway data directory", { error: String(e) }) })
   state = await load()
 
   persistTimer = setInterval(() => {

@@ -137,11 +137,12 @@ Bugs are triaged into three tiers:
 - **Change**: `fs.rm(..., { force: true })` replaces `fs.unlink(...)`; `fs.access(bin)` check before `fs.symlink`
 - **Kills**: `bug: unlink clangd symlink failed`, `bug: symlink clangd binary failed`
 
-### [ ] 3. Triage remaining categories B-H
-- After collecting bug reports from real usage, classify each remaining bug as:
-  - **Fix**: code change eliminates the failure path
-  - **Keep**: expected/ignorable, log stays at warn
-  - **Downgrade**: truly ignorable, change to `log.debug` (exit report filters these)
+### [x] 3. Downgraded categories B, D, E, H to `log.debug`
+
+- **27 occurrences across 13 files**: all moved from `warn("bug: ...")` → `debug("...")`
+- **Files**: `clipboard.ts` (7), `h2-transport.ts` (2), `async-logger.ts` (3), `mcp/index.ts` (1), `pty/index.ts` (2), `web.ts` (2), `debug-workspace-plugin.ts` (1), `app.tsx` (1), `log-rotator.ts` (1), `store.ts` (1), `watcher.ts` (1), `thread.ts` (1), `providers.ts` (1), `config.ts` (1)
+- **Categories C and F** remain as `warn("bug: ...")` — network/filesystem failures are useful signal
+- **Core log self-references** (`core/util/log.ts` collectBug calls) left as-is — side-channel required to avoid recursion
 
 ---
 

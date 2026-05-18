@@ -85,7 +85,7 @@ function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
         Clipboard.copy(text).catch((error) => {
-          Log.Default.warn("bug: failed to copy console selection to clipboard", { error: String(error) })
+          Log.Default.debug("failed to copy console selection to clipboard", { error: String(error) })
         })
       },
     },

@@ -151,6 +151,15 @@ const table = sqliteTable("session", {
 - Test actual implementation, do not duplicate logic into tests
 - Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
 
+## Searching in Gitignored Directories
+
+- The `glob` and `list` tools are bounded by `.gitignore` — they will not return results from `logs/`, `.opencode/data/`, `node_modules/`, or other ignored paths.
+- To search gitignored directories (logs, runtime data), use `rg -nu` (ripgrep with `--no-ignore`) via the Bash tool:
+  ```bash
+  rg -nu 'error|ERROR|bug:' .opencode/data/log
+  rg -nu '' .opencode/data/log | head -50
+  ```
+
 ## Type Checking
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.

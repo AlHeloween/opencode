@@ -58,6 +58,14 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 ---
 
+## Upstream Comparison (`upstream_comparison/`)
+
+| Document | Owner | Entrypoint | Status | Last Verified |
+|----------|-------|------------|--------|---------------|
+| `upstream_comparison/README.md` | OpenCode team | Fork point, divergence summary, adoptable patterns from upstream `dev` | production | 2026-05-18 |
+
+---
+
 ## Plans (`plans/`)
 
 | Document | Owner | Status | Last Verified |

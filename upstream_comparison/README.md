@@ -106,10 +106,10 @@ Our branch differs from upstream in these fundamental ways — direct file copie
 | 2 | OutputTokenMax overflow | [x] Done | 2026-05-18 |
 | 3 | Attachment config | [x] Done | 2026-05-18 |
 | 4 | Reference config | [x] Done | 2026-05-18 |
-| 5 | EventV2 infrastructure (4 files) | [!] Blocked | — |
-| 6 | Compaction v2 events | [!] Blocked | — |
+| 5 | EventV2 infrastructure (4 files) | [x] Done | 2026-05-18 |
+| 6 | Compaction v2 events | [x] Done | 2026-05-18 |
 
-**Blocked reason:** Items 5/6 depend on 12+ missing core modules (`location.ts`, `model.ts`, `session.ts`, `session-prompt.ts`, `tool-output.ts`, `v2-schema.ts`, `catalog.ts`, `schema.ts`, `config-service.ts`, `instance-store.ts`, `instance-ref.ts`). These need to be ported individually as a dependency chain.
+**Resolved:** Items 5/6 ported via `plans/20260518_eventv2_integration_plan.md` — 12 core modules created, EventV2.Service + SessionEvent taxonomy + bridge + RuntimeFlags all wired into `AppLayer`.
 
 ### Comparison Checkpoints
 

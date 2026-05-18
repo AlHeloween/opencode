@@ -1,5 +1,8 @@
 import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
+import { EventV2Bridge } from "@/event-v2-bridge"
+import { RuntimeFlags } from "@/effect/runtime-flags"
+import { SessionEvent } from "@opencode-ai/core/session-event"
 import * as Session from "./session"
 import { SessionID, MessageID, PartID } from "./schema"
 import { Provider } from "@/provider/provider"
@@ -556,7 +559,20 @@ export const layer: Layer.Layer<
       }
 
       if (processor.message.error) return "stop"
-      if (result === "continue") yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })
+      if (result === "continue") {
+        const flags = yield* Effect.serviceOption(RuntimeFlags.Service)
+        if (flags._tag === "Some" && flags.value.experimentalEventSystem) {
+          const events = yield* Effect.serviceOption(EventV2Bridge.Service)
+          if (events._tag === "Some") {
+            yield* events.value.publish(SessionEvent.Compaction.Ended, {
+              sessionID: input.sessionID as unknown as import("@opencode-ai/core/session").Session.ID,
+              timestamp: Date.now(),
+              text: "",
+            })
+          }
+        }
+        yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })
+      }
       return result
     })
 
@@ -603,6 +619,8 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Plugin.defaultLayer),
     Layer.provide(Bus.layer),
     Layer.provide(Config.defaultLayer),
+    Layer.provide(EventV2Bridge.defaultLayer),
+    Layer.provide(RuntimeFlags.defaultLayer),
   ),
 )
 

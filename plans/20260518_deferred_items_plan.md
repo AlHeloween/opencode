@@ -25,20 +25,13 @@
 
 ---
 
-## 2. [ ] LOW: Bump nitro from alpha to stable (blocked)
+## 2. [x] LOW: Bump nitro from alpha to stable (done — beta)
 
 **Files:** `packages/enterprise/package.json:27`, `packages/console/app/package.json:30`
 
-**Problem:** Both use `nitro@3.0.1-alpha.1` — an alpha pre-release. Only `nitro@3.0.0` stable exists, which would be a semver downgrade (3.0.0 < 3.0.1-alpha.1). `nitro@3.0.1` stable has not been released yet.
+**Problem:** Both used `nitro@3.0.1-alpha.1`. Stable `3.0.1` not released, but `3.0.260429-beta` is available — closer to stable than alpha.
 
-**Fix (when available):**
-1. Wait for `nitro@3.0.1` (or higher) stable release
-2. Replace `"nitro": "3.0.1-alpha.1"` → `"nitro": "^3.0.1"` in both package.json files
-3. Run `bun install && bun typecheck`
-
-**Note:** Both packages use nitro only as a Vite build plugin. Risk of staying on alpha is limited to build-time breakage.
-
-**Blocked:** Waiting on upstream nitro 3.0.1 stable release.
+**Fix:** Bumped both packages to `"nitro": "3.0.260429-beta"`. Both typecheck clean. No stable exists yet, but beta reduces risk vs alpha.
 
 ---
 

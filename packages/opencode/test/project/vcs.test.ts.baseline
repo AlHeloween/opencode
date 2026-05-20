@@ -258,26 +258,6 @@ describe("Vcs diff", () => {
     })
   })
 
-  test("diff('git') adds runtime data ignore before collecting changes", async () => {
-    await using tmp = await tmpdir({ git: true })
-    await fs.mkdir(path.join(tmp.path, ".opencode", "data", "log"), { recursive: true })
-    await fs.writeFile(path.join(tmp.path, ".opencode", "data", "log", "debug.log"), "original\n", "utf-8")
-    await $`git add .`.cwd(tmp.path).quiet()
-    await $`git commit --no-gpg-sign -m "track runtime data"`.cwd(tmp.path).quiet()
-    await fs.writeFile(path.join(tmp.path, ".opencode", "data", "log", "debug.log"), "debug\n", "utf-8")
-
-    await withVcsOnly(tmp.path, async () => {
-      const diff = await AppRuntime.runPromise(
-        Effect.gen(function* () {
-          const vcs = yield* Vcs.Service
-          return yield* vcs.diff("git")
-        }),
-      )
-      expect(await fs.readFile(path.join(tmp.path, ".gitignore"), "utf-8")).toContain(".opencode/data")
-      expect(diff.map((item) => item.file)).not.toContain(".opencode/data/log/debug.log")
-    })
-  })
-
   test("diff('branch') returns changes against default branch", async () => {
     await using tmp = await tmpdir({ git: true })
     await $`git branch -M main`.cwd(tmp.path).quiet()

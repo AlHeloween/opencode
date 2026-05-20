@@ -1,0 +1,93 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/project/gitignore.ts
+@@
+ function hasRuntimeDataIgnore(text: string) {
+   return text
+     .split(/\r?\n/)
+     .map((line) => line.trim())
+     .some((line) => !line.startsWith("#") && acceptedRuntimeDataIgnores.has(line))
+ }
++
++export function isRuntimeDataPath(file: string) {
++  const normalized = file.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "")
++  return normalized === runtimeDataIgnore || normalized.startsWith(`${runtimeDataIgnore}/`)
++}
+ 
+ export const ensureRuntimeDataIgnored = Effect.fn("ProjectGitignore.ensureRuntimeDataIgnored")(function* (
+*** Update File: packages/opencode/src/project/vcs.ts
+@@
+ import { AppFileSystem } from "@opencode-ai/core/filesystem"
+ import { FileWatcher } from "@/file/watcher"
+ import { Git } from "@/git"
+-import { ensureRuntimeDataIgnored } from "@/project/gitignore"
++import { ensureRuntimeDataIgnored, isRuntimeDataPath } from "@/project/gitignore"
+ import * as Log from "@opencode-ai/core/util/log"
+ import { zod } from "@/util/effect-zod"
+ import { withStatics } from "@/util/schema"
+@@
+ const merge = (...lists: Git.Item[][]) => {
+   const out = new Map<string, Git.Item>()
+   lists.flat().forEach((item) => {
+     if (!out.has(item.file)) out.set(item.file, item)
+   })
+   return [...out.values()]
+ }
++
++const visibleItems = (list: Git.Item[]) => list.filter((item) => !isRuntimeDataPath(item.file))
++const visibleStats = (list: Git.Stat[]) => list.filter((item) => !isRuntimeDataPath(item.file))
+ 
+ const files = Effect.fnUntraced(function* (
+@@
+   cwd: string,
+   ref: string | undefined,
+ ) {
+-  if (!ref) return yield* files(fs, git, cwd, ref, yield* git.status(cwd), new Map())
++  if (!ref) return yield* files(fs, git, cwd, ref, visibleItems(yield* git.status(cwd)), new Map())
+   const [list, stats] = yield* Effect.all([git.status(cwd), git.stats(cwd, ref)], { concurrency: 2 })
+-  return yield* files(fs, git, cwd, ref, list, nums(stats))
++  return yield* files(fs, git, cwd, ref, visibleItems(list), nums(visibleStats(stats)))
+ })
+@@
+   const [list, stats, extra] = yield* Effect.all([git.diff(cwd, ref), git.stats(cwd, ref), git.status(cwd)], {
+     concurrency: 3,
+   })
+   return yield* files(
+     fs,
+     git,
+     cwd,
+     ref,
+     merge(
+-      list,
+-      extra.filter((item) => item.code === "??"),
++      visibleItems(list),
++      visibleItems(extra.filter((item) => item.code === "??")),
+     ),
+-    nums(stats),
++    nums(visibleStats(stats)),
+   )
+ })
+*** Update File: packages/opencode/test/project/vcs.test.ts
+@@
+   test("diff('git') adds runtime data ignore before collecting changes", async () => {
+     await using tmp = await tmpdir({ git: true })
+     await fs.mkdir(path.join(tmp.path, ".opencode", "data", "log"), { recursive: true })
+-    await fs.writeFile(path.join(tmp.path, ".opencode", "data", "log", "debug.log"), "debug\n", "utf-8")
++    await fs.writeFile(path.join(tmp.path, ".opencode", "data", "log", "debug.log"), "original\n", "utf-8")
++    await $`git add .`.cwd(tmp.path).quiet()
++    await $`git commit --no-gpg-sign -m "track runtime data"`.cwd(tmp.path).quiet()
++    await fs.writeFile(path.join(tmp.path, ".opencode", "data", "log", "debug.log"), "debug\n", "utf-8")
+ 
+     await withVcsOnly(tmp.path, async () => {
+*** Update File: packages/opencode/test/snapshot/snapshot.test.ts
+@@
+     directory: tmp.path,
+     fn: async () => {
+       await $`mkdir -p ${tmp.path}/.opencode/data/log`.quiet()
+-      await Filesystem.write(`${tmp.path}/.opencode/data/log/debug.log`, "debug")
++      await Filesystem.write(`${tmp.path}/.opencode/data/log/debug.log`, "original")
++      await $`git add .`.cwd(tmp.path).quiet()
++      await $`git commit --no-gpg-sign -m "track runtime data"`.cwd(tmp.path).quiet()
++      await Filesystem.write(`${tmp.path}/.opencode/data/log/debug.log`, "debug")
+ 
+       const before = await run(tmp.path, (snapshot) => snapshot.track())
+*** End Patch

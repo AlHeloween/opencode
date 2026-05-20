@@ -52,6 +52,12 @@ function rejectAllWaiters(session: H2Session, err: Error) {
   }
 }
 
+function closeSessionState(key: string, session: H2Session, err: Error) {
+  session.activeStreams = 0
+  rejectAllWaiters(session, err)
+  sessions.delete(key)
+}
+
 function getSessionKey(baseUrl: string): string {
   try {
     const url = new URL(baseUrl)
@@ -89,6 +95,11 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
 
     session.on("error", (err) => {
       log.debug("h2 session error", { host: url.hostname, error: err.message })
+      if (h2Session) closeSessionState(key, h2Session, err)
+    })
+
+    session.on("close", () => {
+      if (h2Session) closeSessionState(key, h2Session, new Error("H2 session closed"))
     })
 
     session.on("goaway", (errorCode, lastStreamID, opaqueData) => {
@@ -98,10 +109,8 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
         lastStreamID,
       })
       if (h2Session) {
-        h2Session.activeStreams = 0
-        rejectAllWaiters(h2Session, new Error("H2 session closed (goaway)"))
+        closeSessionState(key, h2Session, new Error("H2 session closed (goaway)"))
       }
-      sessions.delete(key)
     })
 
     session.on("ping", () => {
@@ -130,8 +139,8 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
       if (oldestKey) {
         const victim = sessions.get(oldestKey)
         if (victim) {
+          closeSessionState(oldestKey, victim, new Error("H2 session evicted"))
           victim.session.close()
-          sessions.delete(oldestKey)
         }
       }
     }
@@ -513,18 +522,18 @@ export function getMaxRemoteConcurrentStreamsAcrossSessions(): number {
 }
 
 export function closeAll(): void {
-  for (const [, session] of sessions) {
+  for (const [key, session] of sessions) {
+    closeSessionState(key, session, new Error("H2 session closed"))
     session.session.close()
   }
-  sessions.clear()
 }
 
 export function closeSession(baseUrl: string): void {
   const key = getSessionKey(baseUrl)
   const session = sessions.get(key)
   if (session) {
+    closeSessionState(key, session, new Error("H2 session closed"))
     session.session.close()
-    sessions.delete(key)
   }
 }
 

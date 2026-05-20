@@ -2076,7 +2076,9 @@ export const Delphi: Info = {
     let binary = which("DelphiLSP")
     if (!binary) {
       const candidates = [
+        path.join(os.homedir(), "RAD Studio", "bin64", "DelphiLSP.exe"),
         path.join(os.homedir(), "RAD Studio", "bin64", "DelphiLSP"),
+        "C:\\Program Files (x86)\\Embarcadero\\Studio\\bin64\\DelphiLSP.exe",
         "C:\\Program Files (x86)\\Embarcadero\\Studio\\bin64\\DelphiLSP",
       ]
       for (const candidate of candidates) {

@@ -261,9 +261,6 @@ describe("Vcs diff", () => {
   test("diff('git') adds runtime data ignore before collecting changes", async () => {
     await using tmp = await tmpdir({ git: true })
     await fs.mkdir(path.join(tmp.path, ".opencode", "data", "log"), { recursive: true })
-    await fs.writeFile(path.join(tmp.path, ".opencode", "data", "log", "debug.log"), "original\n", "utf-8")
-    await $`git add .`.cwd(tmp.path).quiet()
-    await $`git commit --no-gpg-sign -m "track runtime data"`.cwd(tmp.path).quiet()
     await fs.writeFile(path.join(tmp.path, ".opencode", "data", "log", "debug.log"), "debug\n", "utf-8")
 
     await withVcsOnly(tmp.path, async () => {

@@ -7,7 +7,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { FileWatcher } from "@/file/watcher"
 import { Git } from "@/git"
-import { ensureRuntimeDataIgnored, isRuntimeDataPath } from "@/project/gitignore"
+import { ensureRuntimeDataIgnored } from "@/project/gitignore"
 import * as Log from "@opencode-ai/core/util/log"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
@@ -38,9 +38,6 @@ const merge = (...lists: Git.Item[][]) => {
   })
   return [...out.values()]
 }
-
-const visibleItems = (list: Git.Item[]) => list.filter((item) => !isRuntimeDataPath(item.file))
-const visibleStats = (list: Git.Stat[]) => list.filter((item) => !isRuntimeDataPath(item.file))
 
 const files = Effect.fnUntraced(function* (
   fs: AppFileSystem.Interface,
@@ -79,9 +76,9 @@ const track = Effect.fnUntraced(function* (
   cwd: string,
   ref: string | undefined,
 ) {
-  if (!ref) return yield* files(fs, git, cwd, ref, visibleItems(yield* git.status(cwd)), new Map())
+  if (!ref) return yield* files(fs, git, cwd, ref, yield* git.status(cwd), new Map())
   const [list, stats] = yield* Effect.all([git.status(cwd), git.stats(cwd, ref)], { concurrency: 2 })
-  return yield* files(fs, git, cwd, ref, visibleItems(list), nums(visibleStats(stats)))
+  return yield* files(fs, git, cwd, ref, list, nums(stats))
 })
 
 const compare = Effect.fnUntraced(function* (
@@ -99,10 +96,10 @@ const compare = Effect.fnUntraced(function* (
     cwd,
     ref,
     merge(
-      visibleItems(list),
-      visibleItems(extra.filter((item) => item.code === "??")),
+      list,
+      extra.filter((item) => item.code === "??"),
     ),
-    nums(visibleStats(stats)),
+    nums(stats),
   )
 })
 

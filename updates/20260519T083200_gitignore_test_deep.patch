@@ -1,0 +1,8 @@
+*** Begin Patch
+*** Update File: .gitignore
+@@
+ opencode-dev
++test_deep/
+ UPCOMING_CHANGELOG.md
+ logs/
+*** End Patch

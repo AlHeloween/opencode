@@ -574,30 +574,6 @@ test("source project gitignore is respected - ignored files are not snapshotted"
   })
 })
 
-test("runtime data is ignored before snapshot diff collection", async () => {
-  await using tmp = await bootstrap()
-  await Instance.provide({
-    directory: tmp.path,
-    fn: async () => {
-      await $`mkdir -p ${tmp.path}/.opencode/data/log`.quiet()
-      await Filesystem.write(`${tmp.path}/.opencode/data/log/debug.log`, "original")
-      await $`git add .`.cwd(tmp.path).quiet()
-      await $`git commit --no-gpg-sign -m "track runtime data"`.cwd(tmp.path).quiet()
-      await Filesystem.write(`${tmp.path}/.opencode/data/log/debug.log`, "debug")
-
-      const before = await run(tmp.path, (snapshot) => snapshot.track())
-      expect(before).toBeTruthy()
-      expect(await fs.readFile(`${tmp.path}/.gitignore`, "utf-8")).toContain(".opencode/data")
-
-      await Filesystem.write(`${tmp.path}/.opencode/data/log/next.log`, "next")
-
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(before!))
-      expect(patch.files).not.toContain(fwd(tmp.path, ".opencode", "data", "log", "debug.log"))
-      expect(patch.files).not.toContain(fwd(tmp.path, ".opencode", "data", "log", "next.log"))
-    },
-  })
-})
-
 test("gitignore changes", async () => {
   await using tmp = await bootstrap()
   await Instance.provide({

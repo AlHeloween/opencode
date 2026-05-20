@@ -9,7 +9,6 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
-import { ensureRuntimeDataIgnored } from "@/project/gitignore"
 import * as Log from "@opencode-ai/core/util/log"
 import { withStatics } from "@/util/schema"
 import { zod } from "@/util/effect-zod"
@@ -209,7 +208,6 @@ export const layer: Layer.Layer<
         })
 
         const add = Effect.fnUntraced(function* () {
-          yield* ensureRuntimeDataIgnored(fs, state.worktree)
           yield* sync()
           const [diff, other] = yield* Effect.all(
             [

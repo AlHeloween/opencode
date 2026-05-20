@@ -51,7 +51,7 @@ async function streamEvents(c: Context, subscribe: (q: AsyncQueue<string | null>
       done = true
       clearInterval(heartbeat)
       unsub()
-      q.push(null)
+      q.push(null, { force: true })
       log.info("global event disconnected")
     }
 

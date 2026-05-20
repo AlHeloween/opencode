@@ -1,0 +1,36 @@
+import { Effect } from "effect"
+import path from "path"
+import { AppFileSystem } from "@opencode-ai/core/filesystem"
+
+const runtimeDataIgnore = ".opencode/data"
+const acceptedRuntimeDataIgnores = new Set([
+  runtimeDataIgnore,
+  `${runtimeDataIgnore}/`,
+  `/${runtimeDataIgnore}`,
+  `/${runtimeDataIgnore}/`,
+])
+
+function hasRuntimeDataIgnore(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .some((line) => !line.startsWith("#") && acceptedRuntimeDataIgnores.has(line))
+}
+
+export function isRuntimeDataPath(file: string) {
+  const normalized = file.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "")
+  return normalized === runtimeDataIgnore || normalized.startsWith(`${runtimeDataIgnore}/`)
+}
+
+export const ensureRuntimeDataIgnored = Effect.fn("ProjectGitignore.ensureRuntimeDataIgnored")(function* (
+  fs: AppFileSystem.Interface,
+  worktree: string,
+) {
+  const file = path.join(worktree, ".gitignore")
+  const text = yield* fs.readFileString(file).pipe(Effect.catch(() => Effect.succeed("")))
+  if (hasRuntimeDataIgnore(text)) return
+
+  yield* fs
+    .writeFileString(file, `${text}${text && !text.endsWith("\n") ? "\n" : ""}${runtimeDataIgnore}\n`)
+    .pipe(Effect.orDie)
+})

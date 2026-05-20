@@ -62,7 +62,7 @@ export const EventRoutes = () =>
           done = true
           clearInterval(heartbeat)
           unsub()
-          q.push(null)
+          q.push(null, { force: true })
           log.info("event disconnected")
         }
 

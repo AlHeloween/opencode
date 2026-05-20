@@ -8,10 +8,16 @@ import type { NormalizedError } from "./errors"
 
 const log = Log.create({ service: "gateway/h2" })
 
+interface Waiter {
+  resolve: () => void
+  reject: (err: Error) => void
+}
+
 export interface H2Session {
   session: http2.ClientHttp2Session
   remoteMaxConcurrentStreams: number
   activeStreams: number
+  waitQueue: Waiter[]
   createdAt: number
   lastUsedAt: number
   pingRttMs: number
@@ -19,6 +25,32 @@ export interface H2Session {
 
 const sessions = new Map<string, H2Session>()
 const MAX_IDLE_SESSIONS = 10
+
+function releaseStreamSlot(session: H2Session) {
+  session.activeStreams = Math.max(0, session.activeStreams - 1)
+  const next = session.waitQueue.shift()
+  if (next) {
+    session.activeStreams++
+    next.resolve()
+  }
+}
+
+async function acquireStreamSlot(session: H2Session): Promise<void> {
+  if (session.activeStreams < session.remoteMaxConcurrentStreams) {
+    session.activeStreams++
+    return
+  }
+  return new Promise<void>((resolve, reject) => {
+    session.waitQueue.push({ resolve, reject })
+  })
+}
+
+function rejectAllWaiters(session: H2Session, err: Error) {
+  while (session.waitQueue.length > 0) {
+    const waiter = session.waitQueue.shift()!
+    waiter.reject(err)
+  }
+}
 
 function getSessionKey(baseUrl: string): string {
   try {
@@ -65,7 +97,10 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
         errorCode,
         lastStreamID,
       })
-      if (h2Session) h2Session.activeStreams = 0
+      if (h2Session) {
+        h2Session.activeStreams = 0
+        rejectAllWaiters(h2Session, new Error("H2 session closed (goaway)"))
+      }
       sessions.delete(key)
     })
 
@@ -77,6 +112,7 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
       session,
       remoteMaxConcurrentStreams: remoteMaxStreams,
       activeStreams: 0,
+      waitQueue: [],
       createdAt: Date.now(),
       lastUsedAt: Date.now(),
       pingRttMs: 0,
@@ -163,10 +199,20 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
 
   sample.socketAcquiredAt = Date.now()
 
-  while (session.activeStreams >= session.remoteMaxConcurrentStreams) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 10))
+  try {
+    await acquireStreamSlot(session)
+  } catch (err) {
+    const normalized = normalizeError(err as Error)
+    sample.endedAt = Date.now()
+    throw {
+      status: 0,
+      headers: {},
+      body: "",
+      metrics: M.computeMetrics(sample),
+      error: normalized,
+      requestId: options.headers["x-request-id"],
+    }
   }
-  session.activeStreams++
 
   return new Promise<H2Response>((resolve, rejectPromise) => {
     const url = new URL(options.url)
@@ -191,7 +237,7 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
     let completed = false
 
     const cleanup = () => {
-      session.activeStreams = Math.max(0, session.activeStreams - 1)
+      releaseStreamSlot(session)
       req.removeAllListeners("response")
       req.removeAllListeners("data")
       req.removeAllListeners("end")
@@ -315,10 +361,12 @@ export async function requestStream(
 
   sample.socketAcquiredAt = Date.now()
 
-  while (session.activeStreams >= session.remoteMaxConcurrentStreams) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 10))
+  try {
+    await acquireStreamSlot(session)
+  } catch (err) {
+    sample.endedAt = Date.now()
+    throw new Error(`Failed to acquire H2 stream slot: ${(err as Error).message}`)
   }
-  session.activeStreams++
 
   return new Promise<{ response: Response; metrics: MetricsResult }>((resolve, reject) => {
     const url = new URL(options.url)
@@ -345,7 +393,7 @@ export async function requestStream(
     const decrement = () => {
       if (streamDone) return
       streamDone = true
-      session.activeStreams = Math.max(0, session.activeStreams - 1)
+      releaseStreamSlot(session)
     }
 
     const settle = () => {

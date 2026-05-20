@@ -22,7 +22,7 @@ export const GlobalDisposedEvent = BusEvent.define("global.disposed", Schema.Str
 
 async function streamEvents(c: Context, subscribe: (q: AsyncQueue<string | null>) => () => void) {
   return streamSSE(c, async (stream) => {
-    const q = new AsyncQueue<string | null>()
+    const q = new AsyncQueue<string | null>({ maxLength: 1000 })
     let done = false
 
     q.push(

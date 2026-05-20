@@ -11,11 +11,20 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
   private tail: Node<T> | undefined = undefined
   private resolverHead: Node<(value: T) => void> | undefined = undefined
   private resolverTail: Node<(value: T) => void> | undefined = undefined
+  private length = 0
+  private maxLength: number
+
+  constructor(options?: { maxLength?: number }) {
+    this.maxLength = options?.maxLength ?? Infinity
+  }
 
   push(item: T) {
+    if (this.length >= this.maxLength) return
+    this.length++
     const node = new Node(item)
     const resolve = this.shiftResolver()
     if (resolve) {
+      this.length--
       resolve(item)
       return
     }
@@ -32,6 +41,7 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
     const value = this.head.value
     this.head = this.head.next
     if (!this.head) this.tail = undefined
+    this.length = Math.max(0, this.length - 1)
     return value
   }
 

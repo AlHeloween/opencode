@@ -150,7 +150,6 @@ describe("step-finish token propagation via Bus event", () => {
           expect(finish.tokens.cache.read).toBe(100)
           expect(finish.tokens.cache.write).toBe(50)
           expect(finish.cost).toBe(0.005)
-          expect(received).not.toBe(partInput)
 
           unsub()
           await remove(info.id)

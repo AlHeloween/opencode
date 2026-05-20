@@ -145,6 +145,17 @@ const table = sqliteTable("session", {
 - `Global.Path.config` is set from `path.dirname(process.execPath)` at startup.
 - Call `Global.initFromWorktree(worktree)` once the worktree is known to switch all data/log/cache paths to worktree-relative.
 
+### Portable Path Architecture (CRITICAL)
+
+**`Global.Path.home` = worktree, NOT `os.homedir()`.** This is by design for full portability — copy the project to any OS and paths resolve locally. All data lives under `{worktree}/.opencode/data/`, not XDG or OS home directories.
+
+**Do NOT change `Global.Path.home` to `os.homedir()`.** If you need the OS user home directory, use `os.homedir()` directly. Code that uses `Global.Path.home` for `~` abbreviation is correct — `~` represents the worktree in our portable model.
+
+**When displaying paths in the TUI**, remember:
+- Windows uses `\` as path separator. Always normalize before `split("/")`: use `text.replace(/\\/g, "/").split("/")`.
+- When the working directory IS the worktree (after `~` replacement the path is just `~`), there are no subdirectory segments to split. Guard rendering against empty parent segments (e.g., `<Show when={parent}>`).
+- The `~:branch` format (worktree + branch) is a single display unit — do not split the `:` part on path separators.
+
 ## Plans convention
 
 - Active plans live in `plans/` at the repo root.
@@ -233,6 +244,6 @@ Research analyses are kept in `research_done/` for reference. Each surfaced bugs
 | File | Scope | Bugs Found | Status |
 |------|-------|-----------|--------|
 | `research_done/research_v1.md` | Initial comparative analysis of `Local_Development` branch vs `dev` | Algorithmic wins (linked-list queue, StringBuilder, MCP concurrency cap) | [x] Cherry-picked |
-| `research_done/research_v2.md` | Deeper static analysis with specific bugs | 6 bugs (health-window off-by-one, N+1 query, route eviction, lexical path, h2 backpressure, structuredClone) | [x] 5/6 fixed — h2 backpressure remains (see `plans/20260518_deferred_items_plan.md`) |
+| `research_done/research_v2.md` | Deeper static analysis with specific bugs | 6 bugs (health-window off-by-one, N+1 query, route eviction, lexical path, h2 backpressure, structuredClone) | [x] All fixed (see `plans/20260519_perf_audit_followup.md` for h2 semaphore fix) |
 | `research_done/research_v3.md` | Runtime microbenchmarks + profiling playbook | Queue performance (674ms→4ms), throw/catch overhead (530x) | [x] Applied |
 | `research_done/research_v4.md` | Concrete fix-oriented security/correctness triage | 5 issues (Vite exposure, Electron updater, DB effects, process.exit, release workflow) | [x] All fixed (see `plans/20260518_deferred_items_plan.md`) |

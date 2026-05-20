@@ -20,6 +20,22 @@ const BUFFER_LIMIT = 1024 * 1024 * 2
 const BUFFER_CHUNK = 64 * 1024
 const encoder = new TextEncoder()
 
+function readBuffer(session: Active, from: number, end: number): string {
+  if (session.bufferChunks.length === 0) return ""
+  const offset = Math.max(0, from - session.bufferCursor)
+  let skipped = 0
+  const parts: string[] = []
+  for (const chunk of session.bufferChunks) {
+    if (skipped + chunk.length <= offset) {
+      skipped += chunk.length
+      continue
+    }
+    const start = Math.max(0, offset - skipped)
+    parts.push(chunk.slice(start))
+  }
+  return parts.join("")
+}
+
 type Socket = {
   readyState: number
   data?: unknown
@@ -32,7 +48,7 @@ const sock = (ws: Socket) => (ws.data && typeof ws.data === "object" ? ws.data :
 type Active = {
   info: Info
   process: Proc
-  buffer: string
+  bufferChunks: string[]
   bufferCursor: number
   cursor: number
   subscribers: Map<unknown, Socket>
@@ -227,7 +243,7 @@ export const layer = Layer.effect(
       const session: Active = {
         info,
         process: proc,
-        buffer: "",
+        bufferChunks: [],
         bufferCursor: 0,
         cursor: 0,
         subscribers: new Map(),
@@ -253,11 +269,15 @@ export const layer = Layer.effect(
             }
           }
 
-          session.buffer += chunk
-          if (session.buffer.length <= BUFFER_LIMIT) return
-          const excess = session.buffer.length - BUFFER_LIMIT
-          session.buffer = session.buffer.slice(excess)
-          session.bufferCursor += excess
+          session.bufferChunks.push(chunk)
+          // Trim oldest chunks to stay under BUFFER_LIMIT without copying large strings
+          let chunkTotal = 0
+          for (const c of session.bufferChunks) chunkTotal += c.length
+          while (chunkTotal > BUFFER_LIMIT && session.bufferChunks.length > 1) {
+            const removed = session.bufferChunks.shift()!
+            chunkTotal -= removed.length
+            session.bufferCursor += removed.length
+          }
         }),
       )
       proc.onExit(
@@ -326,11 +346,8 @@ export const layer = Layer.effect(
         cursor === -1 ? end : typeof cursor === "number" && Number.isSafeInteger(cursor) ? Math.max(0, cursor) : 0
 
       const data = (() => {
-        if (!session.buffer) return ""
         if (from >= end) return ""
-        const offset = Math.max(0, from - start)
-        if (offset >= session.buffer.length) return ""
-        return session.buffer.slice(offset)
+        return readBuffer(session, from, end)
       })()
 
       if (data) {

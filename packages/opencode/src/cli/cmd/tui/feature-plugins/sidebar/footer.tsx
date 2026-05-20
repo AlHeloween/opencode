@@ -17,7 +17,7 @@ function View(props: { api: TuiPluginApi }) {
     const dir = props.api.state.path.directory || process.cwd()
     const out = dir.replace(Global.Path.home, "~")
     const text = props.api.state.vcs?.branch ? out + ":" + props.api.state.vcs.branch : out
-    const list = text.split("/")
+    const list = text.replace(/\\/g, "/").split("/")
     return {
       parent: list.slice(0, -1).join("/"),
       name: list.at(-1) ?? "",
@@ -60,8 +60,10 @@ function View(props: { api: TuiPluginApi }) {
         </box>
       </Show>
       <text>
-        <span style={{ fg: theme().textMuted }}>{path().parent}/</span>
-        <span style={{ fg: theme().text }}>{path().name}</span>
+        <Show when={path().parent} fallback={<span style={{ fg: theme().text }}>{path().name}</span>}>
+          <span style={{ fg: theme().textMuted }}>{path().parent}/</span>
+          <span style={{ fg: theme().text }}>{path().name}</span>
+        </Show>
       </text>
       <text fg={theme().textMuted}>
         <span style={{ fg: theme().success }}>•</span> <b>Open</b>

@@ -1,6 +1,7 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import { createMemo, Show } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
+import { formatProjectDirectory } from "../../util/directory-display"
 
 const id = "internal:sidebar-footer"
 
@@ -15,8 +16,11 @@ function View(props: { api: TuiPluginApi }) {
   const show = createMemo(() => !has() && !done())
   const path = createMemo(() => {
     const dir = props.api.state.path.directory || process.cwd()
-    const out = dir.replace(/\\/g, "/").replace(Global.Path.home.replace(/\\/g, "/"), "~")
-    const text = props.api.state.vcs?.branch ? out + ":" + props.api.state.vcs.branch : out
+    const text = formatProjectDirectory({
+      directory: dir,
+      worktree: Global.Path.worktree || Global.Path.home,
+      branch: props.api.state.vcs?.branch,
+    })
     const list = text.replace(/\\/g, "/").split("/")
     return {
       parent: list.slice(0, -1).join("/"),

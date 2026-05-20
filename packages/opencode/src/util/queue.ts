@@ -18,8 +18,8 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
     this.maxLength = options?.maxLength ?? Infinity
   }
 
-  push(item: T) {
-    if (this.length >= this.maxLength) return
+  push(item: T, options?: { force?: boolean }) {
+    if (this.length >= this.maxLength && !options?.force) return
     this.length++
     const node = new Node(item)
     const resolve = this.shiftResolver()

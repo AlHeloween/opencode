@@ -1,6 +1,7 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import { createMemo, Match, Show, Switch } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
+import { formatProjectDirectory } from "../../util/directory-display"
 
 const id = "internal:home-footer"
 
@@ -8,10 +9,11 @@ function Directory(props: { api: TuiPluginApi }) {
   const theme = () => props.api.theme.current
   const dir = createMemo(() => {
     const dir = props.api.state.path.directory || process.cwd()
-    const out = dir.replace(/\\/g, "/").replace(Global.Path.home.replace(/\\/g, "/"), "~")
-    const branch = props.api.state.vcs?.branch
-    if (branch) return out + ":" + branch
-    return out
+    return formatProjectDirectory({
+      directory: dir,
+      worktree: Global.Path.worktree || Global.Path.home,
+      branch: props.api.state.vcs?.branch,
+    })
   })
   const root = createMemo(() => Global.Path.worktree)
 

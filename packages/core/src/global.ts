@@ -16,12 +16,12 @@ let _bin = path.join(exeDir, ".opencode", "data", "cache", "bin")
 const _config = exeDir
 
 export function initFromWorktree(worktree: string) {
-  _worktree = worktree
-  _data = path.join(worktree, ".opencode", "data")
-  _cache = path.join(worktree, ".opencode", "data", "cache")
-  _state = path.join(worktree, ".opencode", "data", "state")
-  _log = path.join(worktree, ".opencode", "data", "log")
-  _bin = path.join(worktree, ".opencode", "data", "cache", "bin")
+  _worktree = path.normalize(worktree)
+  _data = path.join(_worktree, ".opencode", "data")
+  _cache = path.join(_worktree, ".opencode", "data", "cache")
+  _state = path.join(_worktree, ".opencode", "data", "state")
+  _log = path.join(_worktree, ".opencode", "data", "log")
+  _bin = path.join(_worktree, ".opencode", "data", "cache", "bin")
 }
 
 const paths = {

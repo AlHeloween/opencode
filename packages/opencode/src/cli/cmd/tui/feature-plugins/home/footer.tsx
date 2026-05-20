@@ -8,7 +8,7 @@ function Directory(props: { api: TuiPluginApi }) {
   const theme = () => props.api.theme.current
   const dir = createMemo(() => {
     const dir = props.api.state.path.directory || process.cwd()
-    const out = dir.replace(Global.Path.home, "~")
+    const out = dir.replace(/\\/g, "/").replace(Global.Path.home.replace(/\\/g, "/"), "~")
     const branch = props.api.state.vcs?.branch
     if (branch) return out + ":" + branch
     return out

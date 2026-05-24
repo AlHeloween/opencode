@@ -7,7 +7,10 @@ import type { OpenAICompatibleChatPrompt } from "./openai-compatible-api-types"
 import { convertToBase64 } from "@ai-sdk/provider-utils"
 
 function getOpenAIMetadata(message: { providerOptions?: SharedV3ProviderOptions }) {
-  return message?.providerOptions?.copilot ?? {}
+  return {
+    ...(message?.providerOptions?.openaiCompatible ?? {}),
+    ...(message?.providerOptions?.copilot ?? {}),
+  }
 }
 
 export function convertToOpenAICompatibleChatMessages(prompt: LanguageModelV3Prompt): OpenAICompatibleChatPrompt {
@@ -113,13 +116,15 @@ export function convertToOpenAICompatibleChatMessages(prompt: LanguageModelV3Pro
           }
         }
 
+        const { reasoning_content, ...messageMetadata } = metadata
         messages.push({
           role: "assistant",
           content: text || null,
           tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+          ...(typeof reasoning_content === "string" ? { reasoning_content } : {}),
           reasoning_text: reasoningOpaque ? reasoningText : undefined,
           reasoning_opaque: reasoningOpaque,
-          ...metadata,
+          ...messageMetadata,
         })
 
         break

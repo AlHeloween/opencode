@@ -8,13 +8,13 @@ finish reason handling, context cache usage metrics, and cleaning variant effort
 
 | What we do | How | Status |
 |---|---|---|
-| Reasoning content extraction | `interleaved: { field: "reasoning_content" }` → `providerOptions.openaiCompatible.reasoning_content` | OK |
+| Reasoning content extraction | `reasoning_content` stream parsing plus `providerOptions.openaiCompatible.reasoning_content` passback | OK |
 | Multi-turn reasoning preservation | Empty `reasoning` part on all assistant msgs for deepseek models | OK |
 | Reasoning effort variants | `low`, `medium`, `high`, `max` all return `{ reasoningEffort: effort }` | Misleading |
 | V4 "max" effort | Appended to `WIDELY_SUPPORTED_EFFORTS` in `@ai-sdk/openai-compatible` case | OK |
 | `thinking` parameter | Not sent — relies on API default (`enabled`) | Missing |
 | `insufficient_system_resource` finish reason | Not handled | Missing |
-| Context cache metrics | Only `cached_tokens` captured; `prompt_cache_hit/miss_tokens` not captured | Missing |
+| Context cache metrics | `prompt_cache_hit/miss_tokens` normalized into `inputTokens.cacheRead/noCache` | OK |
 | V4 context window | May be incorrect (128K legacy) | Verify |
 
 ## Reference Sources
@@ -101,11 +101,17 @@ prompt_cache_miss_tokens: z.number().nullish(),
 
 #### 4b. Non-streaming extraction (line 280-293)
 
-Add alongside existing capture:
+Add alongside existing capture and normalize into `inputTokens`:
 ```ts
-promptCacheHitTokens: responseBody.usage?.prompt_cache_hit_tokens
-  ?? responseBody.usage?.prompt_tokens_details?.cached_tokens,
-promptCacheMissTokens: responseBody.usage?.prompt_cache_miss_tokens,
+inputTokens: {
+  total: responseBody.usage?.prompt_tokens ?? undefined,
+  noCache: responseBody.usage?.prompt_cache_miss_tokens ?? undefined,
+  cacheRead:
+    responseBody.usage?.prompt_cache_hit_tokens
+    ?? responseBody.usage?.prompt_tokens_details?.cached_tokens
+    ?? undefined,
+  cacheWrite: undefined,
+}
 ```
 
 Use dual-format pattern from DeepSeek-TUI: try `prompt_cache_hit_tokens` first
@@ -123,6 +129,15 @@ if (value.usage?.prompt_cache_miss_tokens != null) {
   usage.promptCacheMissTokens = value.usage.prompt_cache_miss_tokens
 }
 ```
+
+Finish events normalize those fields into `inputTokens.cacheRead` and
+`inputTokens.noCache`; raw usage still carries the DeepSeek field names.
+
+#### 4d. Native reasoning content
+
+OpenAI-compatible streaming now accepts DeepSeek's `delta.reasoning_content`
+as a reasoning part, and assistant messages can pass
+`providerOptions.openaiCompatible.reasoning_content` back to the native API.
 
 ### 5. V4 context window (verified — no changes)
 

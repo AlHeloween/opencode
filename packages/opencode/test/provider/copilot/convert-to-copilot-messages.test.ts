@@ -422,6 +422,45 @@ describe("reasoning (copilot-specific)", () => {
     ])
   })
 
+  test("should include DeepSeek reasoning_content from openaiCompatible providerOptions", () => {
+    const result = convertToCopilotMessages([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call_123",
+            toolName: "read_file",
+            input: { filePath: "README.md" },
+          },
+        ],
+        providerOptions: {
+          openaiCompatible: { reasoning_content: "Need to inspect the file first." },
+        },
+      },
+    ])
+
+    expect(result).toEqual([
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "call_123",
+            type: "function",
+            function: {
+              name: "read_file",
+              arguments: JSON.stringify({ filePath: "README.md" }),
+            },
+          },
+        ],
+        reasoning_content: "Need to inspect the file first.",
+        reasoning_text: undefined,
+        reasoning_opaque: undefined,
+      },
+    ])
+  })
+
   test("should include reasoning_opaque from text part providerOptions", () => {
     const result = convertToCopilotMessages([
       {

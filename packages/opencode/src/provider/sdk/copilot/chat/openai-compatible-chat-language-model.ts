@@ -226,8 +226,8 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       })
     }
 
-    // reasoning content (Copilot uses reasoning_text):
-    const reasoning = choice.message.reasoning_text
+    // reasoning content (DeepSeek uses reasoning_content, Copilot uses reasoning_text):
+    const reasoning = choice.message.reasoning_content ?? choice.message.reasoning_text
     if (reasoning != null && reasoning.length > 0) {
       content.push({
         type: "reasoning",
@@ -280,8 +280,11 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       usage: {
         inputTokens: {
           total: responseBody.usage?.prompt_tokens ?? undefined,
-          noCache: undefined,
-          cacheRead: responseBody.usage?.prompt_tokens_details?.cached_tokens ?? undefined,
+          noCache: responseBody.usage?.prompt_cache_miss_tokens ?? undefined,
+          cacheRead:
+            responseBody.usage?.prompt_cache_hit_tokens ??
+            responseBody.usage?.prompt_tokens_details?.cached_tokens ??
+            undefined,
           cacheWrite: undefined,
         },
         outputTokens: {
@@ -490,8 +493,8 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
               reasoningOpaque = delta.reasoning_opaque
             }
 
-            // enqueue reasoning before text deltas (Copilot uses reasoning_text):
-            const reasoningContent = delta.reasoning_text
+            // enqueue reasoning before text deltas (DeepSeek uses reasoning_content, Copilot uses reasoning_text):
+            const reasoningContent = delta.reasoning_content ?? delta.reasoning_text
             if (reasoningContent) {
               if (!isActiveReasoning) {
                 controller.enqueue({
@@ -708,10 +711,14 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
                 inputTokens: {
                   total: usage.promptTokens,
                   noCache:
-                    usage.promptTokens != undefined && usage.promptTokensDetails.cachedTokens != undefined
-                      ? usage.promptTokens - usage.promptTokensDetails.cachedTokens
-                      : undefined,
-                  cacheRead: usage.promptTokensDetails.cachedTokens,
+                    usage.promptCacheMissTokens != undefined
+                      ? usage.promptCacheMissTokens
+                      : usage.promptTokens != undefined && usage.promptTokensDetails.cachedTokens != undefined
+                        ? usage.promptTokens - usage.promptTokensDetails.cachedTokens
+                        : undefined,
+                  cacheRead:
+                    usage.promptCacheHitTokens ??
+                    usage.promptTokensDetails.cachedTokens,
                   cacheWrite: undefined,
                 },
                 outputTokens: {
@@ -723,6 +730,8 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
                   prompt_tokens: usage.promptTokens ?? null,
                   completion_tokens: usage.completionTokens ?? null,
                   total_tokens: usage.totalTokens ?? null,
+                  prompt_cache_hit_tokens: usage.promptCacheHitTokens ?? null,
+                  prompt_cache_miss_tokens: usage.promptCacheMissTokens ?? null,
                 },
               },
               providerMetadata,
@@ -769,6 +778,7 @@ const OpenAICompatibleChatResponseSchema = z.object({
       message: z.object({
         role: z.literal("assistant").nullish(),
         content: z.string().nullish(),
+        reasoning_content: z.string().nullish(),
         // Copilot-specific reasoning fields
         reasoning_text: z.string().nullish(),
         reasoning_opaque: z.string().nullish(),
@@ -804,6 +814,7 @@ const createOpenAICompatibleChatChunkSchema = <ERROR_SCHEMA extends z.core.$ZodT
             .object({
               role: z.enum(["assistant"]).nullish(),
               content: z.string().nullish(),
+              reasoning_content: z.string().nullish(),
               // Copilot-specific reasoning fields
               reasoning_text: z.string().nullish(),
               reasoning_opaque: z.string().nullish(),

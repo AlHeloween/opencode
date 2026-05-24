@@ -82,6 +82,12 @@ const FIXTURES = {
     `data: {"choices":[{"finish_reason":"stop","index":0,"delta":{"content":"Hi"}}],"id":"cache-dual","model":"deepseek-v4-pro","usage":{"prompt_cache_hit_tokens":42,"prompt_cache_miss_tokens":8,"completion_tokens":3,"prompt_tokens":50,"total_tokens":53,"prompt_tokens_details":{"cached_tokens":0}}}`,
     `data: [DONE]`,
   ],
+
+  reasoningContentStreaming: [
+    `data: {"choices":[{"index":0,"delta":{"content":null,"role":"assistant","reasoning_content":"Need to inspect state. "},"finish_reason":null}],"id":"deepseek-reasoning","model":"deepseek-v4-pro"}`,
+    `data: {"choices":[{"index":0,"delta":{"content":"I inspected it."},"finish_reason":"stop"}],"id":"deepseek-reasoning","model":"deepseek-v4-pro","usage":{"completion_tokens":4,"prompt_tokens":40,"total_tokens":44}}`,
+    `data: [DONE]`,
+  ],
 }
 
 function createMockFetch(chunks: string[]) {
@@ -616,8 +622,11 @@ describe("request body", () => {
       type: "finish",
       finishReason: { unified: "stop" },
       usage: {
-        promptCacheHitTokens: 42,
-        promptCacheMissTokens: 8,
+        inputTokens: {
+          total: 50,
+          noCache: 8,
+          cacheRead: 42,
+        },
       },
     })
   })
@@ -637,9 +646,31 @@ describe("request body", () => {
       type: "finish",
       finishReason: { unified: "stop" },
       usage: {
-        promptCacheHitTokens: 42,
-        promptCacheMissTokens: 8,
+        inputTokens: {
+          total: 50,
+          noCache: 8,
+          cacheRead: 42,
+        },
       },
     })
+  })
+
+  test("should stream DeepSeek reasoning_content as reasoning parts", async () => {
+    const mockFetch = createMockFetch(FIXTURES.reasoningContentStreaming)
+    const model = createModel(mockFetch)
+
+    const { stream } = await model.doStream({
+      prompt: TEST_PROMPT,
+      includeRawChunks: false,
+    })
+
+    const parts = await convertReadableStreamToArray(stream)
+    expect(parts.filter((p) => p.type === "reasoning-delta")).toEqual([
+      {
+        type: "reasoning-delta",
+        id: "reasoning-0",
+        delta: "Need to inspect state. ",
+      },
+    ])
   })
 })

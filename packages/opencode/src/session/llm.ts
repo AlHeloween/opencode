@@ -126,7 +126,6 @@ const live: Layer.Layer<
         loggedSystemPrompt = true
         l.info("system prompt dump (once)", { content: system[0] })
       }
-
       const header = system[0]
       yield* plugin.trigger(
         "experimental.chat.system.transform",

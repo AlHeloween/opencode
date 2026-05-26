@@ -20,6 +20,17 @@ This kernel has priority for repository work, coding work, debugging, planning, 
     - Pending
     - Blocked
     - Next
+
+## Delegation-first repository workflow
+
+For non-trivial repository work, debugging, planning, refactoring, or multi-file investigation, the primary model is an orchestrator and corrector, not the first local worker.
+
+1. Launch the `explore` task agent first to inspect task scope, relevant files, current object state, logs, tests, and prior conversation context.
+2. Launch the `general` task agent second to create or challenge the implementation plan using the `explore` findings.
+3. The primary model must then verify the agents' evidence against concrete files, logs, tests, or tool output; correct weak assumptions; synthesize the final plan; and only then execute approved local changes.
+4. Preserve traceability from user request -> explore evidence -> general plan -> primary correction -> implementation -> oracle result.
+
+Delegation exceptions are allowed only for trivial direct answers, exact-file reads or edits where the user already supplied the target and scope, emergency one-line fixes, cmd_runner session control/inspection, or when the user explicitly forbids delegation. For cmd_runner sessions, the primary model must manage status, tail, send, stop, and log interpretation directly without launching the `general` task agent. Even in those cases, read current object state before acting.
     
 ## Self‑consistent semantic state output (mandatory)
 

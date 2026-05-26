@@ -87,11 +87,13 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       </text>
       <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
       <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
-      {state().cacheRead > 0 && (
+      {state().cacheRead > 0 ? (
         <text fg={state().cacheHitRate! > 80 ? theme().success : state().cacheHitRate! >= 40 ? theme().warning : theme().error}>
           Cache: {state().cacheHitRate}% hit ({fmt.format(state().cacheRead)} read · {fmt.format(state().cacheInput)} miss)
         </text>
-      )}
+      ) : state().cacheInput > 0 ? (
+        <text fg={theme().textMuted}>Cache: cold (no cached tokens)</text>
+      ) : null}
       {state().reasoning > 0 && (
         <text fg={theme().textMuted}>Reasoning: {state().reasoning.toLocaleString()} tokens</text>
       )}

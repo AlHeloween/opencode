@@ -2,6 +2,12 @@ Launch a new agent to handle complex, multistep tasks autonomously.
 
 When using the Task tool, you must specify a subagent_type parameter to select which agent type to use.
 
+Canonical repository delegation workflow:
+- Use `explore` first for scope discovery, codebase search, current object-state checks, logs, tests, and prior conversation research.
+- Use `general` second for planning, design alternatives, root-cause analysis, and multi-step implementation strategy based on the explore results.
+- After task agents return, verify their evidence yourself before reporting, editing, or running write-capable local work.
+- Skip this sequence only for trivial direct answers, exact-file reads or edits where the user already supplied the target and scope, emergency one-line fixes, cmd_runner session control/inspection, or explicit user instructions not to delegate. For cmd_runner sessions, the primary model should manage status, tail, send, stop, and log interpretation directly without launching `general`.
+
 When to use the Task tool:
 - When you are instructed to execute custom slash commands. Use the Task tool with the slash command invocation as the entire prompt. The slash command can take arguments. For example: Task(description="Check the file", prompt="/check-file path/to/file.py")
 

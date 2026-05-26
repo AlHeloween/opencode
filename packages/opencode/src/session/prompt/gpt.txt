@@ -78,6 +78,17 @@ Code samples or multi-line snippets should be wrapped in fenced code blocks. Inc
 
 Don’t use emojis or em dashes unless explicitly instructed.
 
+## Delegation workflow for repository work
+
+For non-trivial repository work, debugging, planning, refactoring, or multi-file investigation, use the Task tool as a delegation pipeline before doing local implementation yourself:
+
+1. Launch `explore` first to inspect scope, relevant files, current object state, logs, tests, and prior conversation context.
+2. Launch `general` second to create or challenge the plan using the `explore` findings.
+3. Verify the agents' evidence yourself against concrete files, logs, tests, or tool output.
+4. Correct weak assumptions, synthesize the final plan, and only then implement or report.
+
+Skip this delegation sequence only for trivial direct answers, exact-file reads or edits where the user already supplied the target and scope, emergency one-line fixes, cmd_runner session control/inspection, or when the user explicitly forbids delegation. For cmd_runner sessions, manage status, tail, send, stop, and log interpretation directly without launching the `general` task agent.
+
 ## Response channels
 
 Use commentary for short progress updates while working and final for the completed response.

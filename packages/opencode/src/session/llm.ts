@@ -108,23 +108,27 @@ const live: Layer.Layer<
       })
 
       const system: string[] = []
+      const dynamicIndex = input.system.findIndex((item) => item.includes("Today's date:"))
+      const stableSystem = dynamicIndex === -1 ? input.system : input.system.slice(0, dynamicIndex)
+      const dynamicSystem = [
+        ...(dynamicIndex === -1 ? [] : input.system.slice(dynamicIndex)),
+        ...(input.user.system ? [input.user.system] : []),
+      ]
       system.push(
         [
           ...(reasoningPrefix ? [reasoningPrefix] : []),
           // use agent prompt otherwise provider prompt
           ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
-          // any custom prompt passed into this call
-          ...input.system,
-          // any custom prompt from last user message
-          ...(input.user.system ? [input.user.system] : []),
         ]
           .filter((x) => x)
           .join("\n"),
       )
+      if (stableSystem.length > 0) system.push(stableSystem.join("\n"))
+      if (dynamicSystem.length > 0) system.push(dynamicSystem.join("\n"))
 
       if (!loggedSystemPrompt) {
         loggedSystemPrompt = true
-        l.info("system prompt dump (once)", { content: system[0] })
+        l.info("system prompt dump (once)", { content: system.join("\n") })
       }
       const header = system[0]
       yield* plugin.trigger(
@@ -132,11 +136,12 @@ const live: Layer.Layer<
         { sessionID: input.sessionID, model: input.model },
         { system },
       )
-      // rejoin to maintain 2-part structure for caching if header unchanged
+      // Keep volatile context out of the first two cached system messages.
       if (system.length > 2 && system[0] === header) {
-        const rest = system.slice(1)
+        const second = system[1]
+        const tail = system.slice(2)
         system.length = 0
-        system.push(header, rest.join("\n"))
+        system.push(header, second, tail.join("\n"))
       }
 
       const variant =
@@ -373,7 +378,9 @@ const live: Layer.Layer<
         toolChoice: input.toolChoice,
         maxOutputTokens: params.maxOutputTokens,
         abortSignal: input.abort,
-        ...(isOpenaiOauth || isWorkflow ? {} : { system: system.join("\n") }),
+        ...(isOpenaiOauth || isWorkflow
+          ? {}
+          : { system: system.map((content) => ({ role: "system" as const, content })) }),
         headers: {
           ...(input.model.providerID.startsWith("opencode")
             ? {

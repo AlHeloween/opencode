@@ -31,6 +31,7 @@ Follow these external style guides for TypeScript code:
 ## Plan Maintenance
 
 - **After any implementation task completes, audit all `plans/*.md` files.** Mark items `[x]` if code confirms they're done. Move fully-completed plans to `plans_completed/`.
+- **Never use `.opencode/plans/`.** Active plans live only in repo-root `plans/`, and completed plans live only in repo-root `plans_completed/`; `.opencode/plans/` is prohibited, not a compatibility location.
 - **Plan-to-code gaps are bugs.** A plan claiming `[ ]` when code is done, or `[x]` when code is missing, is a bug — correct the plan immediately.
 - **Deduplicate overlapping plans.** If two active plans track the same item, pick one as canonical and remove from the other.
 - **Use `messagesearch` to verify task completion.** Before implementing any task, search conversation history for prior work on the same item. Re-doing completed work is a bug. If the task was already done, update the plan — never re-implement.
@@ -159,12 +160,14 @@ const table = sqliteTable("session", {
 ## Plans convention
 
 - Active plans live in `plans/` at the repo root.
-- Completed plans move to `plans_completed/`.
+- Completed plans move to `plans_completed/` at the repo root.
+- `.opencode/plans/` is strictly prohibited. Do not create, edit, read as authoritative, migrate from, or preserve plan state there.
 - After creating a plan document, run the explore task agent to validate it against the codebase.
 - Correct the plan based on explore feedback before implementing.
 - After implementation, verify each plan item against the actual code. Update status markers in the plan document.
 - Plan-to-code gaps (a plan claiming something is done when it is not) are bugs and must be corrected in the plan document.
-- When all items in a plan are resolved, move the plan to `plans_completed/`.
+- Before moving a resolved plan to `plans_completed/`, run the explore task agent against the real code execution state and correct any plan-to-code gaps it finds.
+- When all items in a plan are resolved and the final explore check is clean, move the plan to `plans_completed/`.
 - Plans found outside `plans/` (e.g., `PERF_PLAN.md` at root, `BUN_SHELL_MIGRATION_PLAN.md` in a package) belong in `plans/` and should be moved there.
 - After any plan change (creation, status update, completion), run the explore task agent to validate the plan against the codebase. Correct the plan based on explore feedback.
 

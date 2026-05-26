@@ -35,7 +35,6 @@ import { SessionID, MessageID, PartID } from "./schema"
 
 import type { Provider } from "@/provider/provider"
 import { Permission } from "@/permission"
-import { Global } from "@opencode-ai/core/global"
 import { Effect, Layer, Option, Context, Schema, Types } from "effect"
 import { zod } from "@/util/effect-zod"
 import { optionalOmitUndefined, withStatics } from "@/util/schema"
@@ -300,10 +299,7 @@ export const Event = {
 }
 
 export function plan(input: { slug: string; time: { created: number } }) {
-  const base = Instance.project.vcs
-    ? path.join(Instance.worktree, ".opencode", "plans")
-    : path.join(Global.Path.data, "plans")
-  return path.join(base, [input.time.created, input.slug].join("-") + ".md")
+  return path.join(Instance.worktree, "plans", [input.time.created, input.slug].join("-") + ".md")
 }
 
 export const getUsage = (input: { model: Provider.Model; usage: LanguageModelUsage; metadata?: ProviderMetadata }) => {
@@ -369,6 +365,10 @@ export const getUsage = (input: { model: Provider.Model; usage: LanguageModelUsa
     ),
     tokens,
   }
+}
+
+export function isCacheWarm(tokens: { cache: { read: number } }) {
+  return tokens.cache.read > 0
 }
 
 export class BusyError extends Error {

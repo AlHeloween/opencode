@@ -51,6 +51,7 @@ export function providerName(model: Provider.Model) {
 
 export interface Interface {
   readonly environment: (model: Provider.Model) => string[]
+  readonly environmentDate: () => string[]
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
 }
 
@@ -94,11 +95,14 @@ export const layer = Layer.effect(
             `  Workspace root folder: ${Instance.worktree}`,
             `  Is directory a git repo: ${project.vcs === "git" ? "yes" : "no"}`,
             `  Platform: ${process.platform}`,
-            `  Today's date: ${new Date().toDateString()}`,
             `</env>`,
             capabilities(),
           ].join("\n"),
         ]
+      },
+
+      environmentDate() {
+        return [`  Today's date: ${new Date().toDateString()}`]
       },
 
       skills: Effect.fn("SystemPrompt.skills")(function* (agent: Agent.Info) {

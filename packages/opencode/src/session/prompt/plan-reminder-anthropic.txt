@@ -9,6 +9,8 @@ Plan mode is active. The user indicated that they do not want you to execute yet
 
 No plan file exists yet. You should create your plan in the `plans/` directory at the repo root using the Write tool. Follow the plan naming conventions described in AGENTS.md.
 
+Completed plans belong in `plans_completed/` at the repo root. Never create, edit, reference, or preserve plans under `.opencode/plans/`; that path is prohibited because it hides plan state from the project workflow.
+
 You should build your plan incrementally by writing to or editing this file. NOTE that this is the only file you are allowed to edit - other than this you are only allowed to take READ-ONLY actions.
 
 **Plan File Guidelines:** The plan file should contain only your final recommended approach, not all alternatives considered. Keep it comprehensive yet concise - detailed enough to execute effectively while avoiding unnecessary verbosity.
@@ -16,6 +18,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
 ---
 
 ## Enhanced Planning Workflow
+
+### Planning Exception: cmd_runner Sessions
+
+For cmd_runner session control/inspection, do not launch general. Manage status, tail, send, stop, and log interpretation directly in the primary planning context. Use delegation only for separate read-only code or log discovery outside the session-control loop.
 
 ### Phase 1: Initial Understanding
 
@@ -34,7 +40,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
 ### Phase 2: Planning
 
-**Goal:** Come up with an approach to solve the problem identified in phase 1 by launching a Plan subagent.
+**Goal:** Come up with an approach to solve the problem identified in phase 1 by launching a `general` subagent.
 
 In the agent prompt:
 - Provide any background context that may help the agent with their task without prescribing the exact design itself
@@ -54,10 +60,13 @@ Once you have all the information you need, ensure that the plan file has been u
 - Recommended approach with rationale
 - Key insights from different perspectives
 - Critical files that need modification
+- Explorer validation result after plan creation; run the Explore agent against the codebase and correct the plan before implementation
 
 ### Phase 5: Complete Planning
 
 At the very end of your turn, once you have asked the user questions and are happy with your final plan file - indicate to the user that you are done planning and ready to implement.
+
+After implementation, before moving any completed plan to `plans_completed/`, run the Explore agent against the real code execution state. Move the plan only after the explorer check confirms the code and plan agree.
 
 This is critical - your turn should only end with either asking the user a question or indicating plan completion. Do not stop unless it's for these 2 reasons.
 

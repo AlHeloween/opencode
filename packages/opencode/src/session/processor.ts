@@ -383,6 +383,15 @@ export const layer: Layer.Layer<
             ctx.assistantMessage.finish = value.finishReason
             ctx.assistantMessage.cost += usage.cost
             ctx.assistantMessage.tokens = usage.tokens
+            if (usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0) {
+              log.info(Session.isCacheWarm(usage.tokens) ? "cache hit" : "cache miss", {
+                sessionID: ctx.sessionID,
+                modelID: ctx.model.id,
+                inputTokens: usage.tokens.input,
+                cacheReadTokens: usage.tokens.cache.read,
+                cacheWriteTokens: usage.tokens.cache.write,
+              })
+            }
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,

@@ -1,3 +1,7 @@
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "control-plane.sse" })
+
 export async function parseSSE(
   body: ReadableStream<Uint8Array>,
   signal: AbortSignal,
@@ -10,7 +14,7 @@ export async function parseSSE(
   let retry = 1000
 
   const abort = () => {
-    void reader.cancel().catch(() => undefined)
+    void reader.cancel().catch((err) => log.debug("sse reader cancel failed", { error: String(err) }))
   }
 
   signal.addEventListener("abort", abort)

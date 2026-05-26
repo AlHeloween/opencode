@@ -7,9 +7,10 @@ export function fn<T extends z.ZodType, Result>(schema: T, cb: (input: z.infer<T
     try {
       parsed = schema.parse(input)
     } catch (e) {
-      console.trace("schema validation failure stack trace:")
       if (e instanceof z.ZodError) {
         Log.Default.warn("bug: schema validation issues", { issues: e.issues })
+      } else {
+        Log.Default.warn("bug: schema validation failed", { error: String(e) })
       }
       throw e
     }

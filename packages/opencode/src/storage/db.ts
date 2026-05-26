@@ -379,7 +379,8 @@ export function effect(fn: () => void) {
   const bound = InstanceState.bind(fn)
   try {
     ctx.use().effects.push(bound)
-  } catch {
+  } catch (err) {
+    if (!(err instanceof LocalContext.NotFound)) throw err
     log.debug("no db context, executing effect immediately")
     bound()
   }

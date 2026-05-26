@@ -264,7 +264,8 @@ export const layer = Layer.effect(
             }
             try {
               ws.send(chunk)
-            } catch {
+            } catch (err) {
+              log.debug("pty ws send failed", { error: String(err) })
               session.subscribers.delete(key)
             }
           }

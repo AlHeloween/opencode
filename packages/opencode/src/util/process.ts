@@ -2,6 +2,9 @@ import { type ChildProcess } from "child_process"
 import launch from "cross-spawn"
 import { buffer } from "node:stream/consumers"
 import { errorMessage } from "./error"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "process" })
 
 export type Stdio = "inherit" | "pipe" | "ignore"
 export type Shell = boolean | string
@@ -98,7 +101,7 @@ export function spawn(cmd: string[], opts: Options = {}): Child {
       reject(error)
     })
   })
-  void exited.catch(() => undefined)
+  void exited.catch((err) => log.debug("spawned process failed", { command: cmd[0], error: errorMessage(err) }))
 
   if (opts.abort) {
     opts.abort.addEventListener("abort", abort, { once: true })

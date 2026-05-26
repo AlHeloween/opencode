@@ -10,11 +10,11 @@ import { ProviderTransform } from "@/provider/transform"
 import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
+import PROMPT_GENERAL from "./prompt/general.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
-import { Global } from "@opencode-ai/core/global"
 import path from "path"
 import { Plugin } from "@/plugin"
 import { Skill } from "../skill"
@@ -129,13 +129,9 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 plan_exit: "allow",
-                external_directory: {
-                  [path.join(Global.Path.data, "plans", "*")]: "allow",
-                },
                 edit: {
                   "*": "deny",
-                  [path.join(".opencode", "plans", "*.md")]: "allow",
-                  [path.relative(ctx.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",
+                  [path.join("plans", "*.md")]: "allow",
                 },
               }),
               user,
@@ -145,7 +141,7 @@ export const layer = Layer.effect(
           },
           general: {
             name: "general",
-            description: `General-purpose agent for researching complex questions and executing multi-step tasks. Use this agent to execute multiple units of work in parallel.`,
+            description: `General-purpose subagent for planning, design alternatives, root-cause analysis, and multi-step implementation strategy. Use this after explore has gathered scope evidence, or when a focused non-explore subtask should run in parallel.`,
             permission: Permission.merge(
               defaults,
               Permission.fromConfig({
@@ -153,6 +149,7 @@ export const layer = Layer.effect(
               }),
               user,
             ),
+            prompt: PROMPT_GENERAL,
             options: {},
             mode: "subagent",
             native: true,

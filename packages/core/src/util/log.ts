@@ -148,6 +148,7 @@ export async function init(options: Options = {}) {
   flushDedup()
   if (dedupTimer) clearInterval(dedupTimer)
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
+  dedupTimer.unref?.()
 }
 
 export async function reopen() {
@@ -173,6 +174,7 @@ export async function reopen() {
   flushDedup()
   if (dedupTimer) clearInterval(dedupTimer)
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
+  dedupTimer.unref?.()
 }
 
 async function cleanup(dir: string) {
@@ -251,7 +253,8 @@ export function create(tags?: Record<string, any>) {
     if (extra) {
       const { payloadJson, payload_id } = serializePayload(extra)
       if (payloadJson) {
-        result = result.slice(0, -1) + `,"payload":${payloadJson}}\n`
+        entry.payload = JSON.parse(payloadJson)
+        result = JSON.stringify(entry) + "\n"
         return result
       }
       if (payload_id) {

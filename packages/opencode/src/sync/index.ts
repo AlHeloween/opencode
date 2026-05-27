@@ -237,7 +237,7 @@ function emitEvent<Def extends Definition>(def: Def, event: Event<Def>, options:
       result.then(publish).catch((err) => log.error("emitEvent publish failed", { error: err }))
     } else {
       try {
-        void publish(result)
+        void publish(result).catch((err) => log.error("emitEvent publish failed", { error: err }))
       } catch (err) {
         log.error("emitEvent publish failed", { error: err })
       }

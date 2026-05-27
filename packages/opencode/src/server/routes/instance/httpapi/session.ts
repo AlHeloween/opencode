@@ -765,7 +765,9 @@ export const sessionHandlers = Layer.unwrap(
               error: new NamedError.Unknown({
                 message: error instanceof Error ? error.message : String(error),
               }).toObject(),
-            })
+            }).catch((publishError) =>
+              log.error("prompt_async error publish failed", { sessionID: ctx.params.sessionID, error: publishError }),
+            )
           })
         })
       })

@@ -934,7 +934,7 @@ export const SessionRoutes = lazy(() =>
           void Bus.publish(Session.Event.Error, {
             sessionID,
             error: new NamedError.Unknown({ message: err instanceof Error ? err.message : String(err) }).toObject(),
-          })
+          }).catch((publishError) => log.error("prompt_async error publish failed", { sessionID, error: publishError }))
         })
 
         return c.body(null, 204)

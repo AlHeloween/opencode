@@ -1089,8 +1089,10 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
 }
 
 export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number): number {
-  const cap = outputTokenMax ?? OUTPUT_TOKEN_MAX
-  return Math.min(model.limit.output, cap) || cap
+  if (outputTokenMax !== undefined) return outputTokenMax
+  const native = model.limit.output
+  if (native > 0) return native
+  return OUTPUT_TOKEN_MAX
 }
 
 export function schema(model: Provider.Model, schema: JSONSchema.BaseSchema | JSONSchema7): JSONSchema7 {

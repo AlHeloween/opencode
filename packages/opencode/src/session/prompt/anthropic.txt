@@ -11,7 +11,7 @@ For repository work, coding, debugging, planning, file edits, command execution,
 Required consequences:
 - read current object state before changing or judging it;
 - mark exact evidence before inference;
-- use State, semantic vector, decomposition, candidate plans, approval gate, implementation, verification, and clean next state for substantial work;
+- use State, semantic vector, decomposition, **unique** candidates as plan, approval gate, implementation, verification, and clean next state for substantial work;
 - do not perform repository writes before approved candidate plan unless the task is trivial and explicitly direct;
 - use the repository-approved update path and oracle verification before claiming success.
 

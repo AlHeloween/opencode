@@ -35,6 +35,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         cacheHitRate: null as number | null,
         reasoning: 0 as number,
         h2MaxConcurrentStreams: 0 as number,
+        output: 0 as number,
+        outputLimit: 0 as number,
       }
     }
 
@@ -43,6 +45,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     const provider = props.api.state.provider.find((item) => item.id === last.providerID) as any
     const model = provider?.models[last.modelID] as any
     const gatewayEnabled = model?.gateway?.enabled !== false && provider?.gateway?.enabled !== false
+    const outputLimit = (model?.limit?.output as number | undefined) ?? 0
 
     const liveStatus = (globalThis as any).__gatewayLiveStatus as
       | { activeStreams: number; h2Sessions: number; h2MaxConcurrentStreams: number; updatedAt: number }
@@ -66,6 +69,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       cacheInput: last.tokens.input,
       cacheHitRate,
       reasoning: last.tokens.reasoning,
+      output: last.tokens.output,
+      outputLimit,
       providerID: last.providerID,
       apiProtocol: (model?.api?.npm as string)?.includes("anthropic") ? "Anthropic" : "OpenAI",
     }
@@ -96,6 +101,12 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       ) : null}
       {state().reasoning > 0 && (
         <text fg={theme().textMuted}>Reasoning: {state().reasoning.toLocaleString()} tokens</text>
+      )}
+      {state().output > 0 && (
+        <text fg={theme().textMuted}>
+          Output: {state().output.toLocaleString()}
+          {state().outputLimit > 0 ? ` / ${state().outputLimit.toLocaleString()} tokens` : " tokens"}
+        </text>
       )}
       <text fg={theme().textMuted}>{money.format(cost())} spent</text>
     </box>

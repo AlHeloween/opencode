@@ -38,13 +38,19 @@ export function configureLogging(enabled: boolean, _format: "json" | "text" = "j
   loggingEnabled = enabled
 }
 
+type GatewayProtocol = "h2" | "http/1.1"
+
+export function resolveGatewayProtocol(provider: string, configured?: GatewayProtocol): GatewayProtocol {
+  return configured ?? (provider === "openai" ? "h2" : "http/1.1")
+}
+
 interface AdaptiveFetchOptions extends RequestInit {
   gatewayRouteKey?: RouteKey
   gatewayStream?: boolean
   gatewayTimeoutMs?: number
   gatewayProvider?: string
   gatewayModel?: string
-  gatewayProtocol?: "h2" | "http/1.1"
+  gatewayProtocol?: GatewayProtocol
   gatewayStreaming?: boolean
 }
 
@@ -251,7 +257,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const shapeClass = Classifier.classify(classifyInput)
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`
 
-    const modelProtocol = init?.gatewayProtocol
+    const modelProtocol = resolveGatewayProtocol(provider, init?.gatewayProtocol)
 
     const baseRouteKey: RouteKey = {
       provider,

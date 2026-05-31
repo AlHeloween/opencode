@@ -825,29 +825,65 @@ export function* listGlobal(input?: {
   if (input?.search) { conditions.push(like(SessionTable.title, `%${input.search}%`)) }
   if (!input?.archived) { conditions.push(isNull(SessionTable.time_archived)) }
 
-  const rows = Database.use((db) => {
-    const query = conditions.length > 0
-      ? db.select().from(SessionTable).where(and(...conditions))
-      : db.select().from(SessionTable)
-    return query.orderBy(desc(SessionTable.time_updated), desc(SessionTable.id)).limit(limit).all()
-  })
+  const allRows: SessionRow[] = []
+  const seen = new Set<string>()
 
-  const ids = [...new Set(rows.map((row) => row.project_id))]
-  const projects = new Map<string, ProjectInfo>()
-  if (ids.length > 0) {
-    const items = Database.use((db) =>
-      db
-        .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
-        .from(ProjectTable)
-        .where(inArray(ProjectTable.id, ids))
-        .all(),
-    )
-    for (const item of items) {
-      projects.set(item.id, { id: item.id, name: item.name ?? undefined, worktree: item.worktree })
+  // 1. Read all known projects from the global DB
+  const allProjects = Database.use((db) =>
+    db
+      .select({ id: ProjectTable.id, worktree: ProjectTable.worktree, name: ProjectTable.name })
+      .from(ProjectTable)
+      .all(),
+  )
+
+  const projectMap = new Map<string, ProjectInfo>()
+  for (const proj of allProjects) {
+    projectMap.set(proj.id, { id: proj.id as ProjectID, name: proj.name ?? undefined, worktree: proj.worktree })
+  }
+
+  // 2. Scan per-project DBs first (local session databases)
+  for (const proj of allProjects) {
+    try {
+      const projectDB = Database.getProjectDb(proj.id, proj.worktree) as any
+      const base = projectDB.select().from(SessionTable)
+      const rows = (conditions.length > 0 ? base.where(and(...conditions)) : base)
+        .orderBy(desc(SessionTable.time_updated), desc(SessionTable.id))
+        .all() as SessionRow[]
+      for (const row of rows) {
+        if (!seen.has(row.id)) {
+          seen.add(row.id)
+          allRows.push(row)
+        }
+      }
+    } catch {
+      // project DB may not exist or be inaccessible
     }
   }
+
+  // 3. Also read global DB (for sessions created without a project context)
+  try {
+    const globalRows = Database.use((db) => {
+      const base = db.select().from(SessionTable)
+      return (conditions.length > 0 ? base.where(and(...conditions)) : base)
+        .orderBy(desc(SessionTable.time_updated), desc(SessionTable.id))
+        .all() as SessionRow[]
+    })
+    for (const row of globalRows) {
+      if (!seen.has(row.id)) {
+        seen.add(row.id)
+        allRows.push(row)
+      }
+    }
+  } catch {
+    // global DB may not exist
+  }
+
+  // 4. Sort and limit
+  allRows.sort((a, b) => b.time_updated - a.time_updated || b.id.localeCompare(a.id))
+  const rows = allRows.slice(0, limit)
+
   for (const row of rows) {
-    const project = projects.get(row.project_id) ?? null
+    const project = projectMap.get(row.project_id) ?? null
     yield { ...fromRow(row), project }
   }
 }

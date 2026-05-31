@@ -342,28 +342,28 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         }
 
         case "message.part.delta": {
-        const parts = store.part[event.properties.messageID]
-        if (!parts) {
-          recoverSessionSync(event.properties)
-          break
-        }
-        const result = Binary.search(parts, event.properties.partID, (p) => p.id)
-        if (!result.found) {
-          recoverSessionSync(event.properties)
-          break
-        }
-        setStore(
-          "part",
-          event.properties.messageID,
-          produce((draft) => {
-            const part = draft[result.index]
-            const field = event.properties.field as keyof typeof part
-            const existing = part[field] as string | undefined
-            ;(part[field] as string) = (existing ?? "") + event.properties.delta
-          }),
-        )
-        break
-      }
+  const parts = store.part[event.properties.messageID]
+  if (!parts) {
+    recoverSessionSync(event.properties)
+    break
+  }
+  const result = Binary.search(parts, event.properties.partID, (p) => p.id)
+  if (!result.found) {
+    recoverSessionSync(event.properties)
+    break
+  }
+  setStore(
+    "part",
+    event.properties.messageID,
+    produce((draft) => {
+      const part = draft[result.index]
+      const field = event.properties.field as keyof typeof part
+      const existing = part[field] as string | undefined
+      ;(part[field] as string) = (existing ?? "") + event.properties.delta
+    }),
+  )
+  break
+}
 
         case "message.part.removed": {
           const parts = store.part[event.properties.messageID]
@@ -550,12 +550,12 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 // SDID_ROLLBACK {
 //   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/cli/cmd/tui/context/sync.tsx"
 //   "update_script": "adm.exe"
-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/cli/cmd/tui/context/sync.tsx.backup_20260531T214405_119107"
-//   "created_at": "2026-05-31T13:44:05.132623+00:00"
-//   "backup_hash": "62827e7ecf2648fb2f35e3fe7a1cac90"
-//   "new_hash": "62827e7ecf2648fb2f35e3fe7a1cac90"
-//   "goal_id": "format_delta_recovery_case"
-//   "semantics": "Restore standard local indentation for the message.part.delta recovery branch."
-//   "update_attrs": {"relative_path": "packages/opencode/src/cli/cmd/tui/context/sync.tsx", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "case \"message.part.delta\": {\n  const parts = store.part[event.properties.messageID]\n  if (!parts) {\n    recoverSessionSync(event.properties)\n    break\n  }\n  const result = Binary.search(parts, event.properties.partID, (p) => p.id)\n  if (!result.found) {\n    recoverSessionSync(event.properties)\n    break\n  }\n  setStore(\n    \"part\",\n    event.properties.messageID,\n    produce((draft) => {\n      const part = draft[result.index]\n      const field = event.properties.field as keyof typeof part\n      const existing = part[field] as string | undefined\n      ;(part[field] as string) = (existing ?? \"\") + event.properties.delta\n    }),\n  )\n  break\n}", "replace_present": true}
+//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/cli/cmd/tui/context/sync.tsx.backup_20260531T214404_845720"
+//   "created_at": "2026-05-31T13:44:04.860391+00:00"
+//   "backup_hash": "de67c8b72410836578fbea5608b77e5f"
+//   "new_hash": "de67c8b72410836578fbea5608b77e5f"
+//   "goal_id": "format_sync_recovery_helpers"
+//   "semantics": "Restore standard local indentation for the helper functions inserted by the session render recovery change."
+//   "update_attrs": {"relative_path": "packages/opencode/src/cli/cmd/tui/context/sync.tsx", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "async function syncSession(sessionID: string, input: { force?: boolean } = {}) {\n  if (!input.force && fullSyncedSessions.has(sessionID)) return\n  const [session, messages, todo, diff] = await Promise.all([\n    sdk.client.session.get({ sessionID }, { throwOnError: true }),\n    sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),\n    sdk.client.session.todo({ sessionID }, { throwOnError: true }),\n    sdk.client.session.diff({ sessionID }, { throwOnError: true }),\n  ])\n  setStore(\n    produce((draft) => {\n      const match = Binary.search(draft.session, sessionID, (s) => s.id)\n      if (match.found) draft.session[match.index] = session.data!\n      if (!match.found) draft.session.splice(match.index, 0, session.data!)\n      draft.todo[sessionID] = todo.data ?? []\n      const messageList = messages.data ?? []\n      draft.message[sessionID] = messageList.map((x) => x.info)\n      for (const message of messageList) {\n        draft.part[message.info.id] = message.parts\n      }\n      draft.session_diff[sessionID] = diff.data ?? []\n    }),\n  )\n  fullSyncedSessions.add(sessionID)\n}\n\nfunction recoverSessionSync(input: { sessionID: string; messageID: string; partID: string }) {\n  void syncSession(input.sessionID, { force: true }).catch((error) => {\n    Log.Default.warn(\"session delta recovery sync failed\", {\n      sessionID: input.sessionID,\n      messageID: input.messageID,\n      partID: input.partID,\n      error: error instanceof Error ? error.message : String(error),\n    })\n  })\n}\n\nevent.subscribe((event) => {", "replace_present": true}
 //   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/cli/cmd/tui/context/sync.tsx\""
 // }

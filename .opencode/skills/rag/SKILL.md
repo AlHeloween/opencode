@@ -10,6 +10,7 @@ This skill covers the `adm --rag ...` and `adm --query ...` commands.
 ## Requirements
 
 - `adm.json` must exist in the launch folder (adm auto-creates it with defaults if missing).
+- Concrete documentation fixture: `artefacts/examples/project-agnostic/adm.json`.
 - The local embedder must be loadable from `rag.embed.*` settings.
 - Default embedder: `sentence_transformers` + `BAAI/bge-m3`.
 - **External Python Runtime:** `adm-rag.exe` is a small Nuitka helper that attaches `site-packages` from a compatible Python 3.13 installation found on PATH, or from `ADID_RAG_PYTHON`.
@@ -78,7 +79,7 @@ Use `tools/adm.exe --rag settings` to inspect the effective `include_globs`, `ad
 - Hybrid retrieval:
   - full-vector similarity
   - SQLite FTS5
-  - dual-quaternion signature shortlist/rerank using the same low-frequency packing style as `docs/dual-quaternion-truth-2.py`
+  - dual-quaternion signature shortlist/rerank using the project's local DQ reference implementation when present
 - Suggested mental model:
   - embeddings + DQ = fast semantic/structural shortlist
   - ADID = time-resolved and semantically grounded reasoning over the shortlist
@@ -92,16 +93,14 @@ Use `tools/adm.exe --rag settings` to inspect the effective `include_globs`, `ad
 
 After indexing docs, these are good “first queries” to validate wiring:
 
-- `tools/adm.exe --query <index_name> "ADIDInstaller.json"`
-- `tools/adm.exe --query <index_name> "codex mcp add adid_rag"`
+- `tools/adm.exe --query <index_name> "configuration file location"`
+- `tools/adm.exe --query <index_name> "codex mcp add project_rag"`
 - `tools/adm.exe --query <index_name> "log://cmd_runner"`
 - `tools/adm.exe --query <index_name> "symbol_name:Greeter"`
 
 ## Windows-specific
 
-- Set repo-local cache/temp at start of work:
-  - cmd.exe: `call scripts\\dev_env_windows.cmd`
-  - PowerShell: `. .\\scripts\\dev_env_windows.ps1`
+- If the project provides repo-local cache/temp setup scripts, run them at the start of work.
 
 ## Linux-specific
 

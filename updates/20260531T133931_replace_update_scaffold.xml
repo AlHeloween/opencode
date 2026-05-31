@@ -1,0 +1,144 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_6cf7e3bfa667d78095517b09daec1ab7 name="add_forceable_session_sync_helper" md5="6cf7e3bfa667d78095517b09daec1ab7" size="1258">
+    <file>packages/opencode/src/cli/cmd/tui/context/sync.tsx</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    event.subscribe((event) =&gt; {</find_text>
+    <semantics>Add a forceable session rehydration helper before event subscription so missed live deltas can refresh from persisted state.</semantics>
+    <content_md5_6cf7e3bfa667d78095517b09daec1ab7>
+      async function syncSession(sessionID: string, input: { force?: boolean } = {}) {
+        if (!input.force &amp;&amp; fullSyncedSessions.has(sessionID)) return
+        const [session, messages, todo, diff] = await Promise.all([
+          sdk.client.session.get({ sessionID }, { throwOnError: true }),
+          sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),
+          sdk.client.session.todo({ sessionID }, { throwOnError: true }),
+          sdk.client.session.diff({ sessionID }, { throwOnError: true }),
+        ])
+        setStore(
+          produce((draft) =&gt; {
+            const match = Binary.search(draft.session, sessionID, (s) =&gt; s.id)
+            if (match.found) draft.session[match.index] = session.data!
+            if (!match.found) draft.session.splice(match.index, 0, session.data!)
+            draft.todo[sessionID] = todo.data ?? []
+            const messageList = messages.data ?? []
+            draft.message[sessionID] = messageList.map((x) =&gt; x.info)
+            for (const message of messageList) {
+              draft.part[message.info.id] = message.parts
+            }
+            draft.session_diff[sessionID] = diff.data ?? []
+          }),
+        )
+        fullSyncedSessions.add(sessionID)
+      }
+      
+      function recoverSessionSync(input: { sessionID: string; messageID: string; partID: string }) {
+        void syncSession(input.sessionID, { force: true }).catch((error) =&gt; {
+          Log.Default.warn(&quot;session delta recovery sync failed&quot;, {
+            sessionID: input.sessionID,
+            messageID: input.messageID,
+            partID: input.partID,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        })
+      }
+      
+      event.subscribe((event) =&gt; {
+    </content_md5_6cf7e3bfa667d78095517b09daec1ab7>
+  </update_md5_6cf7e3bfa667d78095517b09daec1ab7>
+  <update_md5_7d93aa4d8f2d10c4efad450572689a05 name="recover_missed_part_delta" md5="7d93aa4d8f2d10c4efad450572689a05" size="507">
+    <file>packages/opencode/src/cli/cmd/tui/context/sync.tsx</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        case &quot;message.part.delta&quot;: {
+          const parts = store.part[event.properties.messageID]
+          if (!parts) break
+          const result = Binary.search(parts, event.properties.partID, (p) =&gt; p.id)
+          if (!result.found) break
+          setStore(
+            &quot;part&quot;,
+            event.properties.messageID,
+            produce((draft) =&gt; {
+              const part = draft[result.index]
+              const field = event.properties.field as keyof typeof part
+              const existing = part[field] as string | undefined
+              ;(part[field] as string) = (existing ?? &quot;&quot;) + event.properties.delta
+            }),
+          )
+          break
+        }</find_text>
+    <semantics>When a live text delta arrives before local parts are hydrated, re-sync that session from persisted state instead of dropping the event silently.</semantics>
+    <content_md5_7d93aa4d8f2d10c4efad450572689a05>
+      case &quot;message.part.delta&quot;: {
+        const parts = store.part[event.properties.messageID]
+        if (!parts) {
+          recoverSessionSync(event.properties)
+          break
+        }
+        const result = Binary.search(parts, event.properties.partID, (p) =&gt; p.id)
+        if (!result.found) {
+          recoverSessionSync(event.properties)
+          break
+        }
+        setStore(
+          &quot;part&quot;,
+          event.properties.messageID,
+          produce((draft) =&gt; {
+            const part = draft[result.index]
+            const field = event.properties.field as keyof typeof part
+            const existing = part[field] as string | undefined
+            ;(part[field] as string) = (existing ?? &quot;&quot;) + event.properties.delta
+          }),
+        )
+        break
+      }
+    </content_md5_7d93aa4d8f2d10c4efad450572689a05>
+  </update_md5_7d93aa4d8f2d10c4efad450572689a05>
+  <update_md5_cc944244830e3f1545e743d613446226 name="expose_forceable_session_sync" md5="cc944244830e3f1545e743d613446226" size="17">
+    <file>packages/opencode/src/cli/cmd/tui/context/sync.tsx</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        async sync(sessionID: string) {
+          if (fullSyncedSessions.has(sessionID)) return
+          const [session, messages, todo, diff] = await Promise.all([
+            sdk.client.session.get({ sessionID }, { throwOnError: true }),
+            sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),
+            sdk.client.session.todo({ sessionID }, { throwOnError: true }),
+            sdk.client.session.diff({ sessionID }, { throwOnError: true }),
+          ])
+          setStore(
+            produce((draft) =&gt; {
+              const match = Binary.search(draft.session, sessionID, (s) =&gt; s.id)
+              if (match.found) draft.session[match.index] = session.data!
+              if (!match.found) draft.session.splice(match.index, 0, session.data!)
+              draft.todo[sessionID] = todo.data ?? []
+              const messageList = messages.data ?? []
+              draft.message[sessionID] = messageList.map((x) =&gt; x.info)
+              for (const message of messageList) {
+                draft.part[message.info.id] = message.parts
+              }
+              draft.session_diff[sessionID] = diff.data ?? []
+            }),
+          )
+          fullSyncedSessions.add(sessionID)
+        },</find_text>
+    <semantics>Expose the new forceable helper through the existing sync API while preserving the cached no-op behavior for normal callers.</semantics>
+    <content_md5_cc944244830e3f1545e743d613446226>
+      sync: syncSession,
+    </content_md5_cc944244830e3f1545e743d613446226>
+  </update_md5_cc944244830e3f1545e743d613446226>
+  <update_md5_d088009c935a7e6506f42c59352e8dec name="force_hydrate_session_route" md5="d088009c935a7e6506f42c59352e8dec" size="46">
+    <file>packages/opencode/src/cli/cmd/tui/routes/session/index.tsx</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      await sync.session.sync(sessionID)</find_text>
+    <semantics>Force a fresh persisted session read when entering a session route so restored conversations render immediately.</semantics>
+    <content_md5_d088009c935a7e6506f42c59352e8dec>
+      await sync.session.sync(sessionID, { force: true })
+    </content_md5_d088009c935a7e6506f42c59352e8dec>
+  </update_md5_d088009c935a7e6506f42c59352e8dec>
+</updates>

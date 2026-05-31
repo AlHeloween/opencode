@@ -53,6 +53,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
 import { EffectBridge } from "@/effect/bridge"
+import { isSupportedDocumentFormat } from "@/util/markdownify"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -150,7 +151,7 @@ export const layer = Layer.effect(
             type: "file",
             url: pathToFileURL(filepath).href,
             filename: name,
-            mime: stat.type === "Directory" ? "application/x-directory" : "text/plain",
+            mime: stat.type === "Directory" ? "application/x-directory" : AppFileSystem.mimeType(filepath),
           })
         }),
         { concurrency: "unbounded", discard: true },
@@ -1040,7 +1041,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   .pipe(Effect.onInterrupt(() => Effect.sync(() => controller.abort())))
               }
 
-              if (part.mime === "text/plain") {
+              const fileExt = path.extname(filepath).toLowerCase().slice(1)
+              if (part.mime === "text/plain" || isSupportedDocumentFormat(fileExt)) {
                 let offset: number | undefined
                 let limit: number | undefined
                 const range = { start: url.searchParams.get("start"), end: url.searchParams.get("end") }

@@ -1256,6 +1256,25 @@ const MIME_BADGE: Record<string, string> = {
   "image/webp": "img",
   "application/pdf": "pdf",
   "application/x-directory": "dir",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "application/vnd.ms-excel": "xls",
+  "application/msword": "doc",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/json": "json",
+  "text/csv": "csv",
+  "text/html": "html",
+  "text/xml": "xml",
+  "application/xml": "xml",
+  "application/zip": "zip",
+  "application/gzip": "gz",
+  "application/x-7z-compressed": "7z",
+  "text/markdown": "md",
+  "text/x-python": "py",
+  "text/x-typescript": "ts",
+  "text/javascript": "js",
+  "text/css": "css",
 }
 
 function UserMessage(props: {
@@ -1324,7 +1343,7 @@ function UserMessage(props: {
                     })
                     return (
                       <text fg={theme.text}>
-                        <span style={{ bg: bg(), fg: theme.background }}> {MIME_BADGE[file.mime] ?? file.mime} </span>
+                        <span style={{ bg: bg(), fg: theme.background }}> {MIME_BADGE[file.mime] ?? (file.filename?.split(".").pop()?.toLowerCase()) ?? file.mime} </span>
                         <span style={{ bg: theme.backgroundElement, fg: theme.textMuted }}> {file.filename} </span>
                       </text>
                     )

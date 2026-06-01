@@ -11,6 +11,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { iife } from "@/util/iife"
 import { init } from "#db"
 import type { ProjectID } from "../project/schema"
+import { DatabaseMigration } from "./migration"
 
 const log = Log.create({ service: "db" })
 
@@ -70,6 +71,12 @@ function createAndInitDb(dbPath: string): DrizzleClient {
   db.run("PRAGMA cache_size = -64000")
   db.run("PRAGMA foreign_keys = ON")
   db.run("PRAGMA wal_checkpoint(PASSIVE)")
+
+  try {
+    DatabaseMigration.apply(db as DatabaseMigration.DbClient)
+  } catch (e) {
+    log.warn("migration runner failed (non-fatal)", { error: String(e) })
+  }
 
   try {
     db.$client.exec(CORE_SCHEMA_SQL)
@@ -138,7 +145,13 @@ CREATE TABLE IF NOT EXISTS "session" (
   time_created integer NOT NULL,
   time_updated integer NOT NULL,
   time_compacting integer,
-  time_archived integer
+  time_archived integer,
+  cost integer NOT NULL DEFAULT 0,
+  tokens_input integer NOT NULL DEFAULT 0,
+  tokens_output integer NOT NULL DEFAULT 0,
+  tokens_reasoning integer NOT NULL DEFAULT 0,
+  tokens_cache_read integer NOT NULL DEFAULT 0,
+  tokens_cache_write integer NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS "session_project_idx" ON "session" ("project_id");
 CREATE INDEX IF NOT EXISTS "session_workspace_idx" ON "session" ("workspace_id");
@@ -226,6 +239,25 @@ CREATE TABLE IF NOT EXISTS "event" (
   type text NOT NULL,
   data text NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "part_embedding" (
+  id text PRIMARY KEY NOT NULL,
+  part_id text NOT NULL REFERENCES part(id) ON DELETE CASCADE,
+  session_id text NOT NULL,
+  message_id text NOT NULL,
+  embedding_type text NOT NULL,
+  embedding text NOT NULL,
+  position_in_document integer NOT NULL,
+  content_length integer NOT NULL,
+  model_id text NOT NULL,
+  model_dim integer NOT NULL,
+  provider_priority integer NOT NULL DEFAULT 1,
+  time_created integer NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "part_embedding_part_idx" ON "part_embedding" ("part_id");
+CREATE INDEX IF NOT EXISTS "part_embedding_session_idx" ON "part_embedding" ("session_id");
+CREATE INDEX IF NOT EXISTS "part_embedding_type_idx" ON "part_embedding" ("embedding_type");
+CREATE INDEX IF NOT EXISTS "part_embedding_model_idx" ON "part_embedding" ("model_id");
 `
 
 const FTS_SCHEMA_SQL = `
@@ -388,6 +420,29 @@ export function effect(fn: () => void) {
 
 type NotPromise<T> = T extends Promise<any> ? never : T
 
+/** Check if an error is SQLITE_BUSY (errno 5) — lock contention after busy_timeout expires. */
+function isBusy(err: unknown): boolean {
+  if (err instanceof Error && "errno" in err) {
+    return (err as Error & { errno: number }).errno === 5
+  }
+  return false
+}
+
+/** Retry a callback on SQLITE_BUSY with backoff. Max 3 retries over ~7 seconds. */
+function withBusyRetry<T>(fn: () => T): T {
+  const delays = [200, 500, 1000, 2000, 4000]
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return fn()
+    } catch (err) {
+      if (!isBusy(err) || attempt === delays.length) throw err
+      log.debug("db busy, retrying", { attempt: attempt + 1, delayMs: delays[attempt] })
+      Bun.sleepSync(delays[attempt])
+    }
+  }
+  throw new Error("unreachable")
+}
+
 export function transaction<T>(
   callback: (tx: TxOrDb) => NotPromise<T>,
   options?: {
@@ -412,7 +467,7 @@ export function transaction<T>(
         for (const effect of effects) effect()
         return result
       })
-      return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
+      return withBusyRetry(() => db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>)
     }
     throw err
   }
@@ -437,7 +492,7 @@ export function projectTransaction<T>(
         for (const effect of effects) effect()
         return result
       })
-      return db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>
+      return withBusyRetry(() => db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>)
     }
     throw err
   }

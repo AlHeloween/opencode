@@ -8,6 +8,7 @@ import { LocalContext } from "@/util/local-context"
 import * as Project from "./project"
 import { Global } from "@opencode-ai/core/global"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
+import { Database } from "../storage/db"
 
 export interface InstanceContext {
   directory: string
@@ -193,6 +194,8 @@ export const Instance = {
       }
     }).finally(() => {
       disposal.all = undefined
+      // Force WAL checkpoint + close all DB connections on shutdown
+      try { Database.close() } catch (err) { Log.Default.warn("database close on shutdown failed", { error: err }) }
     })
 
     return disposal.all

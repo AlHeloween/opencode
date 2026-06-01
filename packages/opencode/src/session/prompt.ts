@@ -37,6 +37,7 @@ import { SessionSummary } from "./summary"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { SessionProcessor } from "./processor"
 import { Tool } from "@/tool/tool"
+import { SessionTools } from "./tools"
 import { Permission } from "@/permission"
 import { SessionStatus } from "./status"
 import { LLM } from "./llm"
@@ -364,177 +365,6 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       })
       userMessage.parts.push(part)
       return input.messages
-    })
-
-    const resolveTools = Effect.fn("SessionPrompt.resolveTools")(function* (input: {
-      agent: Agent.Info
-      model: Provider.Model
-      session: Session.Info
-      tools?: Record<string, boolean>
-      processor: Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">
-      bypassAgentCheck: boolean
-      messages: MessageV2.WithParts[]
-    }) {
-      using _ = log.time("resolveTools")
-      const tools: Record<string, AITool> = {}
-      const run = yield* runner()
-      const promptOps = yield* ops()
-
-      const context = (args: any, options: ToolExecutionOptions): Tool.Context => ({
-        sessionID: input.session.id,
-        abort: options.abortSignal!,
-        messageID: input.processor.message.id,
-        callID: options.toolCallId,
-        extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps },
-        agent: input.agent.name,
-        messages: input.messages,
-        metadata: (val) =>
-          input.processor.updateToolCall(options.toolCallId, (match) => {
-            if (!["running", "pending"].includes(match.state.status)) return match
-            return {
-              ...match,
-              state: {
-                title: val.title,
-                metadata: val.metadata,
-                status: "running",
-                input: args,
-                time: { start: Date.now() },
-              },
-            }
-          }),
-        ask: (req) =>
-          permission
-            .ask({
-              ...req,
-              sessionID: input.session.id,
-              tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-              ruleset: Permission.merge(input.agent.permission, input.session.permission ?? []),
-            })
-            .pipe(Effect.orDie),
-      })
-
-      for (const item of yield* registry.tools({
-        modelID: ModelID.make(input.model.api.id),
-        providerID: input.model.providerID,
-        agent: input.agent,
-      })) {
-        const schema = ProviderTransform.schema(input.model, EffectZod.toJsonSchema(item.parameters))
-        tools[item.id] = tool({
-          description: item.description,
-          inputSchema: jsonSchema(schema),
-          execute(args, options) {
-            return run.promise(
-              Effect.gen(function* () {
-                const ctx = context(args, options)
-                yield* plugin.trigger(
-                  "tool.execute.before",
-                  { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID },
-                  { args },
-                )
-                const result = yield* item.execute(args, ctx)
-                const output = {
-                  ...result,
-                  attachments: result.attachments?.map((attachment) => ({
-                    ...attachment,
-                    id: PartID.ascending(),
-                    sessionID: ctx.sessionID,
-                    messageID: input.processor.message.id,
-                  })),
-                }
-                yield* plugin.trigger(
-                  "tool.execute.after",
-                  { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID, args },
-                  output,
-                )
-                if (options.abortSignal?.aborted) {
-                  yield* input.processor.completeToolCall(options.toolCallId, output)
-                }
-                return output
-              }),
-            )
-          },
-        })
-      }
-
-      for (const [key, item] of Object.entries(yield* mcp.tools())) {
-        const execute = item.execute
-        if (!execute) continue
-
-        const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
-        const transformed = ProviderTransform.schema(input.model, schema)
-        item.inputSchema = jsonSchema(transformed)
-        item.execute = (args, opts) =>
-          run.promise(
-            Effect.gen(function* () {
-              const ctx = context(args, opts)
-              yield* plugin.trigger(
-                "tool.execute.before",
-                { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
-                { args },
-              )
-              yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
-              const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.promise(() =>
-                execute(args, opts),
-              )
-              yield* plugin.trigger(
-                "tool.execute.after",
-                { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId, args },
-                result,
-              )
-
-              const textParts: string[] = []
-              const attachments: Omit<MessageV2.FilePart, "id" | "sessionID" | "messageID">[] = []
-              for (const contentItem of result.content) {
-                if (contentItem.type === "text") textParts.push(contentItem.text)
-                else if (contentItem.type === "image") {
-                  attachments.push({
-                    type: "file",
-                    mime: contentItem.mimeType,
-                    url: `data:${contentItem.mimeType};base64,${contentItem.data}`,
-                  })
-                } else if (contentItem.type === "resource") {
-                  const { resource } = contentItem
-                  if (resource.text) textParts.push(resource.text)
-                  if (resource.blob) {
-                    attachments.push({
-                      type: "file",
-                      mime: resource.mimeType ?? "application/octet-stream",
-                      url: `data:${resource.mimeType ?? "application/octet-stream"};base64,${resource.blob}`,
-                      filename: resource.uri,
-                    })
-                  }
-                }
-              }
-
-              const truncated = yield* truncate.output(textParts.join("\n\n"), {}, input.agent)
-              const metadata = {
-                ...result.metadata,
-                truncated: truncated.truncated,
-                ...(truncated.truncated && { outputPath: truncated.outputPath }),
-              }
-
-              const output = {
-                title: "",
-                metadata,
-                output: truncated.content,
-                attachments: attachments.map((attachment) => ({
-                  ...attachment,
-                  id: PartID.ascending(),
-                  sessionID: ctx.sessionID,
-                  messageID: input.processor.message.id,
-                })),
-                content: result.content,
-              }
-              if (opts.abortSignal?.aborted) {
-                yield* input.processor.completeToolCall(opts.toolCallId, output)
-              }
-              return output
-            }),
-          )
-        tools[key] = item
-      }
-
-      return tools
     })
 
     const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* (input: {
@@ -1285,7 +1115,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       throw new Error("Impossible")
     })
 
-    const runLoop: (sessionID: SessionID) => Effect.Effect<MessageV2.WithParts> = Effect.fn("SessionPrompt.run")(
+    const runLoop = Effect.fn("SessionPrompt.run")(
       function* (sessionID: SessionID) {
         const ctx = yield* InstanceState.context
         const slog = elog.with({ sessionID })
@@ -1298,6 +1128,18 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           yield* slog.info("loop", { step })
 
           let msgs = yield* MessageV2.filterCompactedEffect(sessionID)
+
+          // Filter out orphaned interrupted tool parts — they were never completed
+          // and their partial output should not appear in the model context.
+          const isOrphanedInterruptedTool = (part: { type: string; state?: { status?: string; metadata?: Record<string, unknown> } }): boolean =>
+            part.type === "tool" &&
+            part.state?.status === "error" &&
+            part.state?.metadata?.interrupted === true
+
+          msgs = msgs.map((msg) => ({
+            ...msg,
+            parts: msg.parts.filter((p) => !isOrphanedInterruptedTool(p)),
+          }))
 
           let lastUser: MessageV2.User | undefined
           let lastAssistant: MessageV2.Assistant | undefined
@@ -1424,14 +1266,14 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
 
-            const tools = yield* resolveTools({
+            const tools = yield* SessionTools.resolve({
               agent,
               session,
               model,
-              tools: lastUser.tools,
               processor: handle,
               bypassAgentCheck,
               messages: msgs,
+              promptOps: yield* ops(),
             })
 
             if (lastUser.format?.type === "json_schema") {
@@ -1536,7 +1378,13 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     const loop: (input: LoopInput) => Effect.Effect<MessageV2.WithParts> = Effect.fn("SessionPrompt.loop")(function* (
       input: LoopInput,
     ) {
-      return yield* state.ensureRunning(input.sessionID, lastAssistant(input.sessionID), runLoop(input.sessionID))
+      // SessionTools.resolve() yields services that are already provided by the enclosing layer.
+      // The type system can't unify the requirements through ensureRunning, but they are satisfied.
+      return yield* state.ensureRunning(
+        input.sessionID,
+        lastAssistant(input.sessionID),
+        runLoop(input.sessionID) as Effect.Effect<MessageV2.WithParts>,
+      )
     })
 
     const shell: (input: ShellInput) => Effect.Effect<MessageV2.WithParts> = Effect.fn("SessionPrompt.shell")(
@@ -1823,3 +1671,4 @@ const placeholderRegex = /\$(\d+)/g
 const quoteTrimRegex = /^["']|["']$/g
 
 export * as SessionPrompt from "./prompt"
+

@@ -80,8 +80,8 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
       const fs = yield* AppFileSystem.Service
       const http = HttpClient.filterStatusOk(withTransientReadRetry(yield* HttpClient.HttpClient))
 
-      const state = yield* InstanceState.make(
-        Effect.fn("Instruction.state")(() =>
+      const claimsState = yield* InstanceState.make(
+        Effect.fn("Instruction.claims")(() =>
           Effect.succeed({
             // Track which instruction files have already been attached for a given assistant message.
             claims: new Map<MessageID, Set<string>>(),
@@ -121,88 +121,94 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
         return new TextDecoder().decode(body)
       })
 
+      const instructionCache = yield* InstanceState.make(
+        Effect.fn("Instruction.cache")(() =>
+          Effect.gen(function* () {
+          // --- systemPaths (computed once per project directory) ---
+          const config = yield* cfg.get()
+          const ctx = yield* InstanceState.context
+          const paths = new Set<string>()
+
+          if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+            for (const file of FILES) {
+              const matches = yield* fs.findUp(file, ctx.directory, ctx.worktree)
+              if (matches.length > 0) {
+                matches.forEach((item) => paths.add(path.resolve(item)))
+                break
+              }
+            }
+          }
+
+          for (const file of globalFiles()) {
+            if (yield* fs.existsSafe(file)) {
+              paths.add(path.resolve(file))
+              break
+            }
+          }
+
+          if (config.instructions) {
+            for (const raw of config.instructions) {
+              if (raw.startsWith("https://") || raw.startsWith("http://")) continue
+              const instruction = raw.startsWith("~/") ? path.join(os.homedir(), raw.slice(2)) : raw
+              const matches = yield* (
+                path.isAbsolute(instruction)
+                  ? fs.glob(path.basename(instruction), {
+                      cwd: path.dirname(instruction),
+                      absolute: true,
+                      include: "file",
+                    })
+                  : relative(instruction)
+              ).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+              matches.forEach((item) => paths.add(path.resolve(item)))
+            }
+          }
+
+          // --- system (computed once) ---
+          const urls = (config.instructions ?? []).filter(
+            (item) => item.startsWith("https://") || item.startsWith("http://"),
+          )
+          const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
+          const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
+          const systemResult = [
+            ...Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [])),
+            ...urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : [])),
+          ]
+
+          // --- rules (computed once) ---
+          const rulesDir = path.join(ctx.worktree, ".opencode", "rules")
+          const rulesResult: string[] = []
+          if (yield* fs.existsSafe(rulesDir)) {
+            const matches = yield* fs.glob("*", { cwd: rulesDir, absolute: true, include: "file" }).pipe(
+              Effect.catch(() => Effect.succeed([] as string[])),
+            )
+            const filtered = matches.filter((f) => [".mdc", ".md"].some((ext) => f.endsWith(ext))).sort()
+            for (const filepath of filtered) {
+              const raw = yield* read(filepath)
+              if (!raw) continue
+              const parsed = parseFrontmatter(raw)
+              rulesResult.push(`Instructions from: .opencode/rules/${path.basename(filepath)}\n${parsed}`)
+            }
+          }
+
+          return { paths, system: systemResult, rules: rulesResult }
+          }),
+        ))
+
       const clear = Effect.fn("Instruction.clear")(function* (messageID: MessageID) {
-        const s = yield* InstanceState.get(state)
+        const s = yield* InstanceState.get(claimsState)
         s.claims.delete(messageID)
       })
 
       const systemPaths = Effect.fn("Instruction.systemPaths")(function* () {
-        const config = yield* cfg.get()
-        const ctx = yield* InstanceState.context
-        const paths = new Set<string>()
-
-        // The first project-level match wins so we don't stack AGENTS.md/CLAUDE.md from every ancestor.
-        if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
-          for (const file of FILES) {
-            const matches = yield* fs.findUp(file, ctx.directory, ctx.worktree)
-            if (matches.length > 0) {
-              matches.forEach((item) => paths.add(path.resolve(item)))
-              break
-            }
-          }
-        }
-
-        for (const file of globalFiles()) {
-          if (yield* fs.existsSafe(file)) {
-            paths.add(path.resolve(file))
-            break
-          }
-        }
-
-        if (config.instructions) {
-          for (const raw of config.instructions) {
-            if (raw.startsWith("https://") || raw.startsWith("http://")) continue
-            const instruction = raw.startsWith("~/") ? path.join(os.homedir(), raw.slice(2)) : raw
-            const matches = yield* (
-              path.isAbsolute(instruction)
-                ? fs.glob(path.basename(instruction), {
-                    cwd: path.dirname(instruction),
-                    absolute: true,
-                    include: "file",
-                  })
-                : relative(instruction)
-            ).pipe(Effect.catch(() => Effect.succeed([] as string[])))
-            matches.forEach((item) => paths.add(path.resolve(item)))
-          }
-        }
-
-        return paths
+        return (yield* InstanceState.get(instructionCache)).paths
       })
 
       const system = Effect.fn("Instruction.system")(function* () {
-        const config = yield* cfg.get()
-        const paths = yield* systemPaths()
-        const urls = (config.instructions ?? []).filter(
-          (item) => item.startsWith("https://") || item.startsWith("http://"),
-        )
-
-        const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
-        const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
-
-        return [
-          ...Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [])),
-          ...urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : [])),
-        ]
+        return (yield* InstanceState.get(instructionCache)).system
       })
 
       const rules = Effect.fn("Instruction.rules")(function* () {
-        const ctx = yield* InstanceState.context
-        const rulesDir = path.join(ctx.worktree, ".opencode", "rules")
-        if (!(yield* fs.existsSafe(rulesDir))) return []
-
-        const matches = yield* fs.glob("*", { cwd: rulesDir, absolute: true, include: "file" }).pipe(
-          Effect.catch(() => Effect.succeed([] as string[])),
-        )
-
-        const blocks: string[] = []
-        const filtered = matches.filter((f) => [".mdc", ".md"].some((ext) => f.endsWith(ext))).sort()
-        for (const filepath of filtered) {
-          const raw = yield* read(filepath)
-          if (!raw) continue
-          const parsed = parseFrontmatter(raw)
-          blocks.push(`Instructions from: .opencode/rules/${path.basename(filepath)}\n${parsed}`)
-        }
-        return blocks
+        return (yield* InstanceState.get(instructionCache)).rules
       })
 
       const find = Effect.fn("Instruction.find")(function* (dir: string) {
@@ -220,7 +226,7 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
         const sys = yield* systemPaths()
         const already = extract(messages)
         const results: { filepath: string; content: string }[] = []
-        const s = yield* InstanceState.get(state)
+        const s = yield* InstanceState.get(claimsState)
         const root = path.resolve(yield* InstanceState.directory)
 
         const target = path.resolve(filepath)

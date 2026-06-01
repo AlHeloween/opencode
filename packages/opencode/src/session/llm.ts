@@ -27,6 +27,23 @@ import * as OtelTracer from "@effect/opentelemetry/Tracer"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
+
+/** Per-session hash of the final system messages — used to detect cache-poisoning content changes. */
+const systemContentHashes = new Map<string, number>()
+
+function checkSystemStability(sessionID: string, content: string) {
+  const hash = Number(Bun.hash(content))
+  const prev = systemContentHashes.get(sessionID)
+  if (prev !== undefined && prev !== hash) {
+    log.error("bug: system prompt content changed mid-session — prompt cache poisoned", {
+      sessionID,
+      prevHash: prev,
+      newHash: hash,
+    })
+  }
+  systemContentHashes.set(sessionID, hash)
+}
+
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
 
@@ -143,6 +160,10 @@ const live: Layer.Layer<
         system.length = 0
         system.push(header, second, tail.join("\n"))
       }
+
+      // Detect cache-poisoning: if the system prompt content changed mid-session
+      // while the promptCacheKey (sessionID) is stable, the provider cache is invalidated.
+      checkSystemStability(input.sessionID, system.join(""))
 
       const variant =
         !input.small && input.model.variants && input.user.model.variant

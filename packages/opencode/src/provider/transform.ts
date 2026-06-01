@@ -354,7 +354,11 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
       model.id.includes("anthropic") ||
       model.id.includes("claude") ||
       model.api.npm === "@ai-sdk/anthropic" ||
-      model.api.npm === "@ai-sdk/alibaba") &&
+      model.api.npm === "@ai-sdk/alibaba" ||
+      model.api.npm === "@ai-sdk/openai-compatible" ||
+      model.api.npm === "@ai-sdk/openai" ||
+      model.api.npm === "@ai-sdk/azure" ||
+      model.api.npm === "@ai-sdk/github-copilot") &&
     model.api.npm !== "@ai-sdk/gateway"
   ) {
     msgs = applyCaching(msgs, model)
@@ -916,7 +920,13 @@ export function options(input: {
     result["thinking"] = { type: "enabled" }
   }
 
-  if (input.model.providerID === "openai" || input.providerOptions?.setCacheKey) {
+  if (
+    input.model.providerID === "openai" ||
+    input.model.api.npm === "@ai-sdk/openai-compatible" ||
+    input.model.api.npm === "@ai-sdk/azure" ||
+    input.model.providerID === "deepseek" ||
+    input.providerOptions?.setCacheKey
+  ) {
     result["promptCacheKey"] = input.sessionID
   }
 

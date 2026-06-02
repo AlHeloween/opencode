@@ -1,11 +1,8 @@
 import { Effect, Schema } from "effect"
-import { fileURLToPath } from "node:url"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import * as Tool from "./tool"
 import TurndownService from "turndown"
 import DESCRIPTION from "./webfetch.txt"
-import { existsSync } from "fs"
-import path from "path"
 import { isImageAttachment } from "@/util/media"
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -104,8 +101,8 @@ export const WebFetchTool = Tool.define(
           if (playwrightResult) return playwrightResult
 
           // Strategy 3: Both failed
-          const httpErr = httpExit._tag === "Failure" ? httpExit.cause : null
-          const errMsg = (httpErr as any)?.reason?.message ?? (httpErr as any)?._tag ?? "unknown error"
+          const httpErr: any = httpExit._tag === "Failure" ? httpExit.cause : null
+          const errMsg = httpErr?.error?.message ?? httpErr?.defect?.message ?? httpErr?._tag ?? "unknown error"
           return {
             output: `Failed to fetch the URL.\nHTTP error: ${errMsg}\nPlaywright fallback also failed.`,
             title: `${params.url} (fetch failed)`,
@@ -177,104 +174,63 @@ function processHttpResponse(
   })
 }
 
-function findNodePath(): string {
-  const fromWhich = Bun.which("node")
-  if (fromWhich) return fromWhich
-
-  const candidates = [
-    "C:\\Program Files\\nodejs\\node.exe",
-    "C:\\Program Files (x86)\\nodejs\\node.exe",
-    path.join(process.env.LOCALAPPDATA || "", "Programs", "nodejs", "node.exe"),
-    path.join(process.env.APPDATA || "", "npm", "node.exe"),
-  ]
-  for (const p of candidates) {
-    if (existsSync(p)) return p
-  }
-
-  return "node"
-}
+const BROWSER_ENDPOINT = "http://127.0.0.1:3005/web/browser"
 
 async function fetchWithPlaywright(
   url: string,
   format: "text" | "markdown" | "html",
   timeoutMs: number,
 ): Promise<{ output: string; title: string; metadata: Record<string, unknown> } | null> {
-  // Bun cannot connect to Playwright's CDP on Windows, so we spawn a Node.js
-  // child process that does the browser fetch.
-  const helperPath = fileURLToPath(new URL("./playwright-fetch-helper.cjs", import.meta.url))
-  // Resolve from the package root (two dirs up from src/tool/)
-  const pkgDir = fileURLToPath(new URL("../..", import.meta.url))
-
-  // Resolve node binary with multi-path fallback
-  const nodePath = findNodePath()
-
-  const proc = Bun.spawn([nodePath, helperPath, url, String(timeoutMs)], {
-    cwd: pkgDir,
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-
-  // Apply a timeout around the process wait
-  const procTimeout = timeoutMs + 30_000 // 30s extra for browser launch overhead
-  const timedExit = Promise.race([
-    proc.exited.then((code) => code),
-    new Promise<number>((resolve) => setTimeout(() => resolve(-1), procTimeout)),
-  ])
-
-  const stdout = await new Response(proc.stdout).text()
-  const stderr = await new Response(proc.stderr).text()
-  const exitCode = await timedExit
-
-  if (exitCode !== 0 || !stdout.trim()) {
-    if (stderr.trim()) {
-      // Log stderr but don't expose to user
-      console.error("[webfetch:playwright]", stderr.trim().substring(0, 500))
-    }
-    return null
-  }
-
-  let result: { html: string; pageTitle: string; status?: number }
   try {
-    result = JSON.parse(stdout.trim())
-  } catch {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs + 30_000)
+
+    const res = await fetch(BROWSER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+
+    if (!res.ok) return null
+
+    const data = (await res.json()) as { title?: string; content?: string; content_length?: number }
+    const html = data.content || ""
+    const pageTitle = data.title || ""
+
+    if (!html) return null
+    if (html.includes("Just a moment") && html.includes("cf-browser-verification")) return null
+
+    switch (format) {
+      case "markdown":
+        return {
+          output: convertHTMLToMarkdown(html),
+          title: `${url} (via browser — ${pageTitle})`,
+          metadata: {},
+        }
+      case "text":
+        return {
+          output: await extractTextFromHTML(html),
+          title: `${url} (via browser — ${pageTitle})`,
+          metadata: {},
+        }
+      case "html":
+        return {
+          output: html,
+          title: `${url} (via browser — ${pageTitle})`,
+          metadata: {},
+        }
+      default:
+        return {
+          output: html,
+          title: `${url} (via browser — ${pageTitle})`,
+          metadata: {},
+        }
+    }
+  } catch (err) {
+    console.error("[webfetch:browser]", err instanceof Error ? err.message : String(err))
     return null
-  }
-
-  if (!result || !result.html) return null
-
-  // Don't accept Cloudflare challenge pages
-  if (
-    result.html.includes("Just a moment") &&
-    result.html.includes("cf-browser-verification")
-  ) {
-    return null
-  }
-
-  switch (format) {
-    case "markdown":
-      return {
-        output: convertHTMLToMarkdown(result.html),
-        title: `${url} (via Playwright — ${result.pageTitle})`,
-        metadata: {},
-      }
-    case "text":
-      return {
-        output: await extractTextFromHTML(result.html),
-        title: `${url} (via Playwright — ${result.pageTitle})`,
-        metadata: {},
-      }
-    case "html":
-      return {
-        output: result.html,
-        title: `${url} (via Playwright — ${result.pageTitle})`,
-        metadata: {},
-      }
-    default:
-      return {
-        output: result.html,
-        title: `${url} (via Playwright — ${result.pageTitle})`,
-        metadata: {},
-      }
   }
 }
 

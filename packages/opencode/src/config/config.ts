@@ -660,6 +660,19 @@ export const layer = Layer.effect(
           }
         }
 
+        // OPENCODE_CONFIG_DIR is the highest-priority config source — re-apply at the end
+        // so it overrides remote account config, managed config, and OPENCODE_CONFIG_CONTENT.
+        if (Flag.OPENCODE_CONFIG_DIR) {
+          for (const file of ["opencode.json", "opencode.jsonc"]) {
+            const source = path.join(Flag.OPENCODE_CONFIG_DIR, file)
+            const next = yield* loadFile(source)
+            yield* merge(source, next, "local")
+          }
+          log.debug("re-applied OPENCODE_CONFIG_DIR as highest priority", {
+            path: Flag.OPENCODE_CONFIG_DIR,
+          })
+        }
+
         for (const [name, mode] of Object.entries(result.mode ?? {})) {
           result.agent = mergeDeep(result.agent ?? {}, {
             [name]: {

@@ -4,6 +4,8 @@ import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import * as Tool from "./tool"
 import TurndownService from "turndown"
 import DESCRIPTION from "./webfetch.txt"
+import { existsSync } from "fs"
+import path from "path"
 import { isImageAttachment } from "@/util/media"
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -175,6 +177,23 @@ function processHttpResponse(
   })
 }
 
+function findNodePath(): string {
+  const fromWhich = Bun.which("node")
+  if (fromWhich) return fromWhich
+
+  const candidates = [
+    "C:\\Program Files\\nodejs\\node.exe",
+    "C:\\Program Files (x86)\\nodejs\\node.exe",
+    path.join(process.env.LOCALAPPDATA || "", "Programs", "nodejs", "node.exe"),
+    path.join(process.env.APPDATA || "", "npm", "node.exe"),
+  ]
+  for (const p of candidates) {
+    if (existsSync(p)) return p
+  }
+
+  return "node"
+}
+
 async function fetchWithPlaywright(
   url: string,
   format: "text" | "markdown" | "html",
@@ -186,8 +205,8 @@ async function fetchWithPlaywright(
   // Resolve from the package root (two dirs up from src/tool/)
   const pkgDir = fileURLToPath(new URL("../..", import.meta.url))
 
-  // Resolve node binary (Bun.spawn may not inherit full PATH on Windows)
-  const nodePath = Bun.which("node") || "node"
+  // Resolve node binary with multi-path fallback
+  const nodePath = findNodePath()
 
   const proc = Bun.spawn([nodePath, helperPath, url, String(timeoutMs)], {
     cwd: pkgDir,

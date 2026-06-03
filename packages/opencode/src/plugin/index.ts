@@ -17,6 +17,9 @@ import { CopilotAuthPlugin } from "./github-copilot/copilot"
 import { gitlabAuthPlugin as GitlabAuthPlugin } from "opencode-gitlab-auth"
 import { PoeAuthPlugin } from "opencode-poe-auth"
 import { CloudflareAIGatewayAuthPlugin, CloudflareWorkersAuthPlugin } from "./cloudflare"
+import { AzureAuthPlugin } from "./azure"
+import { DigitalOceanAuthPlugin } from "./digitalocean"
+import { XaiAuthPlugin } from "./xai"
 import { Effect, Layer, Context, Stream } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
@@ -25,6 +28,8 @@ import { PluginLoader } from "./loader"
 import { parsePluginSpecifier, readPluginId, readV1Plugin, resolvePluginId } from "./shared"
 import { registerAdaptor } from "@/control-plane/adaptors"
 import type { WorkspaceAdaptor } from "@/control-plane/types"
+import { RuntimeFlags } from "@/effect/runtime-flags"
+import { EventV2Bridge } from "@/event-v2-bridge"
 
 const log = Log.create({ service: "plugin" })
 
@@ -61,6 +66,9 @@ const INTERNAL_PLUGINS: PluginInstance[] = [
   PoeAuthPlugin,
   CloudflareWorkersAuthPlugin,
   CloudflareAIGatewayAuthPlugin,
+  AzureAuthPlugin,
+  DigitalOceanAuthPlugin,
+  XaiAuthPlugin,
 ]
 
 function isServerPlugin(value: unknown): value is PluginInstance {
@@ -247,6 +255,13 @@ export const layer = Layer.effect(
           Effect.forkScoped,
         )
 
+        // Call dispose hooks on scope close
+        yield* Effect.addFinalizer(() =>
+          Effect.promise(() =>
+            Promise.all(hooks.map((h) => (h as any).dispose?.() ?? Promise.resolve()))
+          ).pipe(Effect.ignore)
+        )
+
         return { hooks }
       }),
     )
@@ -279,6 +294,6 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Bus.layer), Layer.provide(Config.defaultLayer))
+export const defaultLayer = layer.pipe(Layer.provide(Bus.layer), Layer.provide(Config.defaultLayer), Layer.provide(RuntimeFlags.defaultLayer), Layer.provide(EventV2Bridge.defaultLayer))
 
 export * as Plugin from "."

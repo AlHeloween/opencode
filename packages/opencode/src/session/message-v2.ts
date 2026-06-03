@@ -18,6 +18,8 @@ import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import { MessageTable, PartTable, SessionTable } from "./session.sql"
 import * as ProviderError from "@/provider/error"
+import { registry } from "@/attachment/registry"
+import { fromMime as classifyKind } from "@/attachment/kind"
 import { iife } from "@/util/iife"
 import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
@@ -730,26 +732,19 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
+  // Use registry for provider capability checks
   // Track media from tool results that need to be injected as user messages
-  // for providers that don't support media in tool results.
+  // for providers that don't support specific media types in tool results.
   //
   // OpenAI-compatible APIs only support string content in tool results, so we need
   // to extract media and inject as user messages. Other SDKs (anthropic, google,
   // bedrock) handle type: "content" with media parts natively.
-  //
-  // Only apply this workaround if the model actually supports image input -
-  // otherwise there's no point extracting images.
-  const supportsMediaInToolResults = (() => {
-    if (model.api.npm === "@ai-sdk/anthropic") return true
-    if (model.api.npm === "@ai-sdk/openai") return true
-    if (model.api.npm === "@ai-sdk/amazon-bedrock") return true
-    if (model.api.npm === "@ai-sdk/google-vertex/anthropic") return true
-    if (model.api.npm === "@ai-sdk/google") {
-      const id = model.api.id.toLowerCase()
-      return id.includes("gemini-3") && !id.includes("gemini-2")
-    }
-    return false
-  })()
+  const supportsMediaInToolResult = (attachment: { mime: string }) => {
+    const kind = classifyKind(attachment.mime)
+    if (kind === "image" && model.api.npm === "@ai-sdk/amazon-bedrock") return true
+    if (kind === "image" && model.api.npm === "@ai-sdk/xai") return true
+    return registry.isMedia(attachment.mime) && model.api.npm !== "@ai-sdk/openai-compatible"
+  }
 
   const toModelOutput = (options: { toolCallId: string; input: unknown; output: unknown }) => {
     const output = options.output
@@ -803,7 +798,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           })
         // text/plain and directory files are converted into text parts, ignore them
         if (part.type === "file" && part.mime !== "text/plain" && part.mime !== "application/x-directory") {
-          if (options?.stripMedia && isMedia(part.mime)) {
+          if (options?.stripMedia && registry.isMedia(part.mime)) {
             userMessage.parts.push({
               type: "text",
               text: `[Attached ${part.mime}: ${part.filename ?? "file"}]`,
@@ -837,13 +832,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       const differentModel = `${model.providerID}/${model.id}` !== `${msg.info.providerID}/${msg.info.modelID}`
       const media: Array<{ mime: string; url: string }> = []
 
-      if (
-        msg.info.error &&
-        !(
-          AbortedError.isInstance(msg.info.error) &&
-          msg.parts.some((part) => part.type !== "step-start" && part.type !== "reasoning")
-        )
-      ) {
+      if (msg.info.error) {
         continue
       }
       const assistantMessage: UIMessage = {
@@ -872,12 +861,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 
             // For providers that don't support media in tool results, extract media files
             // (images, PDFs) to be sent as a separate user message
-            const mediaAttachments = attachments.filter((a) => isMedia(a.mime))
-            const nonMediaAttachments = attachments.filter((a) => !isMedia(a.mime))
-            if (!supportsMediaInToolResults && mediaAttachments.length > 0) {
-              media.push(...mediaAttachments)
+            const mediaAttachments = attachments.filter((a) => registry.isMedia(a.mime))
+            const unsupportedMedia = mediaAttachments.filter((a) => !supportsMediaInToolResult(a))
+            if (unsupportedMedia.length > 0) {
+              media.push(...unsupportedMedia)
             }
-            const finalAttachments = supportsMediaInToolResults ? attachments : nonMediaAttachments
+            const finalAttachments = attachments.filter((a) => !registry.isMedia(a.mime) || supportsMediaInToolResult(a))
 
             const output =
               finalAttachments.length > 0
@@ -1183,6 +1172,29 @@ export function fromError(
             // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             code: (e as FetchDecompressionError).code,
             message: e.message,
+          },
+        },
+        { cause: e },
+      ).toObject()
+    case e instanceof ProviderError.HeaderTimeoutError:
+      return new APIError(
+        {
+          message: e.message,
+          isRetryable: true,
+          metadata: {
+            code: e.name,
+            timeoutMs: String(e.ms),
+          },
+        },
+        { cause: e },
+      ).toObject()
+    case e instanceof ProviderError.ResponseStreamError:
+      return new APIError(
+        {
+          message: e.message,
+          isRetryable: true,
+          metadata: {
+            code: e.name,
           },
         },
         { cause: e },

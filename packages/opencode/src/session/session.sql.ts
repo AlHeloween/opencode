@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, primaryKey, type AnySQLiteColumn } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, primaryKey, real, type AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import { ProjectTable } from "../project/project.sql"
 import type { MessageV2 } from "./message-v2"
 import type { SessionEntry } from "../v2/session-entry"
@@ -36,6 +36,12 @@ export const SessionTable = sqliteTable(
     ...Timestamps,
     time_compacting: integer(),
     time_archived: integer(),
+    cost: integer().default(0),
+    tokens_input: integer().default(0),
+    tokens_output: integer().default(0),
+    tokens_reasoning: integer().default(0),
+    tokens_cache_read: integer().default(0),
+    tokens_cache_write: integer().default(0),
   },
   (table) => [
     index("session_project_idx").on(table.project_id),
@@ -121,4 +127,34 @@ export const PermissionTable = sqliteTable("permission", {
   ...Timestamps,
   data: text({ mode: "json" }).notNull().$type<Permission.Ruleset>(),
 })
+
+/**
+ * Embeddings for multimodal attachment search.
+ * One attachment can have multiple rows — one per embedding model per type.
+ */
+export const PartEmbeddingTable = sqliteTable(
+  "part_embedding",
+  {
+    id: text().primaryKey(),
+    part_id: text()
+      .notNull()
+      .references(() => PartTable.id, { onDelete: "cascade" }),
+    session_id: text().$type<SessionID>().notNull(),
+    message_id: text().$type<MessageID>().notNull(),
+    embedding_type: text().notNull(),
+    embedding: text({ mode: "json" }).notNull().$type<number[]>(),
+    position_in_document: integer().notNull(),
+    content_length: integer().notNull(),
+    model_id: text().notNull(),
+    model_dim: integer().notNull(),
+    provider_priority: integer().notNull().default(1),
+    time_created: integer().notNull(),
+  },
+  (table) => [
+    index("part_embedding_part_idx").on(table.part_id),
+    index("part_embedding_session_idx").on(table.session_id),
+    index("part_embedding_type_idx").on(table.embedding_type),
+    index("part_embedding_model_idx").on(table.model_id),
+  ],
+)
 

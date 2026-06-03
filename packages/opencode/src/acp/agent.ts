@@ -1215,13 +1215,14 @@ export class Agent implements ACPAgent {
 
     const mcpServers: Record<string, ConfigMCP.Info> = {}
     for (const server of params.mcpServers) {
+      const s = server as any
       if ("type" in server) {
         mcpServers[server.name] = {
-          url: server.url,
-          headers: server.headers.reduce<Record<string, string>>((acc, { name, value }) => {
+          url: s.url as string,
+          headers: (s.headers as Array<{ name: string; value: string }> | undefined)?.reduce<Record<string, string>>((acc, { name, value }) => {
             acc[name] = value
             return acc
-          }, {}),
+          }, {}) ?? {},
           type: "remote",
         }
       } else {

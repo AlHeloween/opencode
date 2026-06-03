@@ -205,6 +205,45 @@ export const layer: Layer.Layer<
         yield* settleToolCall(toolCallID)
       })
 
+      /** Create or retrieve a tool call part, returning its metadata. */
+      const ensureToolCall = Effect.fn("SessionProcessor.ensureToolCall")(function* (value: {
+        id: string; toolName: string; providerExecuted?: boolean
+      }) {
+        if (ctx.assistantMessage.summary) {
+          throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
+        }
+        const part = yield* session.updatePart({
+          id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
+          messageID: ctx.assistantMessage.id,
+          sessionID: ctx.assistantMessage.sessionID,
+          type: "tool",
+          tool: value.toolName,
+          callID: value.id,
+          state: { status: "pending", input: {}, raw: "" },
+          metadata: value.providerExecuted ? { providerExecuted: true } : undefined,
+        } satisfies MessageV2.ToolPart)
+        ctx.toolcalls[value.id] = {
+          done: yield* Deferred.make<void>(),
+          partID: part.id,
+          messageID: part.messageID,
+          sessionID: part.sessionID,
+        }
+      })
+
+      /** Flush pending reasoning text and finalize the reasoning part. */
+      const finishReasoning = Effect.fn("SessionProcessor.finishReasoning")(function* (value: {
+        id: string; providerMetadata?: Record<string, unknown>
+      }) {
+        if (!(value.id in ctx.reasoningMap)) return
+        ctx.reasoningMap[value.id].text =
+          ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
+        delete ctx.reasoningBuilders[value.id]
+        ctx.reasoningMap[value.id].time = { ...ctx.reasoningMap[value.id].time, end: Date.now() }
+        if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
+        yield* session.updatePart(ctx.reasoningMap[value.id])
+        delete ctx.reasoningMap[value.id]
+      })
+
       const failToolCall = Effect.fn("SessionProcessor.failToolCall")(function* (toolCallID: string, error: unknown) {
         const match = yield* readToolCall(toolCallID)
         if (!match || match.part.state.status !== "running") return false
@@ -259,36 +298,11 @@ export const layer: Layer.Layer<
             return
 
           case "reasoning-end":
-            if (!(value.id in ctx.reasoningMap)) return
-            ctx.reasoningMap[value.id].text =
-              ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
-            delete ctx.reasoningBuilders[value.id]
-            ctx.reasoningMap[value.id].time = { ...ctx.reasoningMap[value.id].time, end: Date.now() }
-            if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
-            yield* session.updatePart(ctx.reasoningMap[value.id])
-            delete ctx.reasoningMap[value.id]
+            yield* finishReasoning(value)
             return
 
           case "tool-input-start":
-            if (ctx.assistantMessage.summary) {
-              throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
-            }
-            const part = yield* session.updatePart({
-              id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
-              messageID: ctx.assistantMessage.id,
-              sessionID: ctx.assistantMessage.sessionID,
-              type: "tool",
-              tool: value.toolName,
-              callID: value.id,
-              state: { status: "pending", input: {}, raw: "" },
-              metadata: value.providerExecuted ? { providerExecuted: true } : undefined,
-            } satisfies MessageV2.ToolPart)
-            ctx.toolcalls[value.id] = {
-              done: yield* Deferred.make<void>(),
-              partID: part.id,
-              messageID: part.messageID,
-              sessionID: part.sessionID,
-            }
+            yield* ensureToolCall(value)
             return
 
           case "tool-input-delta":

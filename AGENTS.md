@@ -21,8 +21,11 @@ Follow these external style guides for TypeScript code:
 ## Bug Policy
 
 - This is a development tool. There is no such thing as an "unimportant" or "low severity" bug. Every bug is a problem that degrades the tool for its users — fix it, don't triage it away.
+- **There are NO pre-existing errors.** Every TypeScript error, every typecheck failure, every test failure is a real bug that must be investigated and fixed. Do not label errors as "pre-existing" and skip them — that creates an ever-growing pile of broken code that nobody owns. Each error in `tsgo --noEmit` output is a deliverable.
 - Silent `catch {}` blocks are bugs. If an error can occur, it must be logged. If it's truly expected and ignorable, log at debug level.
 - Plan-to-code gaps (a plan claiming something is done when it is not) are bugs and must be corrected in the plan document.
+- **Known type workarounds** (documented, not bugs):
+  - `src/tool/bash.ts`: `web-tree-sitter` `Parser.init()` requires full `EmscriptenModule` but runtime only uses `locateFile`. Cast to `as any` with comment explaining why.
 
 ## Discovery Rule
 

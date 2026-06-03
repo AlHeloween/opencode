@@ -305,7 +305,8 @@ const parser = lazy(async () => {
     with: { type: "wasm" },
   })
   const treePath = resolveWasm(treeWasm)
-  await Parser.init({
+  // web-tree-sitter types require full EmscriptenModule, but runtime only needs locateFile
+  await (Parser.init as any)({
     locateFile() {
       return treePath
     },

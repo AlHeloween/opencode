@@ -4,6 +4,8 @@ const bool = (name: string) => Config.boolean(name).pipe(Config.withDefault(fals
 
 export interface Shape {
   readonly experimentalEventSystem: boolean
+  readonly experimentalWebSockets: boolean
+  readonly experimentalNativeLlm: boolean
 }
 
 export class Service extends Context.Service<Service, Shape>()("@opencode/RuntimeFlags") {}
@@ -12,7 +14,9 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const experimentalEventSystem = yield* bool("OPENCODE_EXPERIMENTAL_EVENT_SYSTEM")
-    return Service.of({ experimentalEventSystem })
+    const experimentalWebSockets = yield* bool("OPENCODE_EXPERIMENTAL_WEBSOCKETS")
+    const experimentalNativeLlm = yield* bool("OPENCODE_EXPERIMENTAL_NATIVE_LLM")
+    return Service.of({ experimentalEventSystem, experimentalWebSockets, experimentalNativeLlm })
   }),
 )
 

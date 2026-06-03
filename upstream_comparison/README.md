@@ -11,10 +11,10 @@
 |-------|-------|
 | Common ancestor | `aa07f38b0708f306a25d55db8d2123498958f578` |
 | Date | 2026-04-28 19:37:40 +0800 |
-| Upstream HEAD (at comparison) | `71b27a1b0` |
-| Local HEAD (at comparison) | `3a1651963` |
-| Upstream commits since fork | **1094** |
-| Local commits since fork | **91** |
+| Upstream HEAD (at comparison) | `c57379833` |
+| Local HEAD (at comparison) | `418866be6` |
+| Upstream commits since fork | **1677** |
+| Local commits since fork | **116** |
 
 ---
 
@@ -111,6 +111,29 @@ Our branch differs from upstream in these fundamental ways — direct file copie
 
 **Resolved:** Items 5/6 ported via `plans/20260518_eventv2_integration_plan.md` — 12 core modules created, EventV2.Service + SessionEvent taxonomy + bridge + RuntimeFlags all wired into `AppLayer`.
 
+### Phase 2 (2026-06-01) — Applied
+
+| # | Pattern | Status | Applied Date |
+|---|---------|--------|-------------|
+| 1 | Wildcard matcher (`core/src/util/wildcard.ts`) | [x] Done | 2026-06-01 |
+| 2 | State.create() (`opencode/src/util/state.ts`) | [x] Done | 2026-06-01 |
+| 3 | LLM AGENTS.md | [x] Done | 2026-06-01 |
+| 4 | HeaderTimeoutError class | [x] Done | 2026-06-01 |
+| 5 | ResponseStreamError class | [x] Done | 2026-06-01 |
+| 6 | HeaderTimeoutError/ResponseStreamError in fromError() | [x] Done | 2026-06-01 |
+| 7 | server_is_overloaded in parseStreamError | [x] Done | 2026-06-01 |
+| 8 | Policy V2 (`core/src/policy.ts`) | [x] Done | 2026-06-01 |
+| 9 | Permission V2 (`core/src/permission.ts`) | [x] Done | 2026-06-01 |
+| 10 | Universal Attachment System (Phase 1 foundation) | [x] Done | 2026-06-01 |
+| 11 | Embedding Config (`config/embedding.ts`) | [x] Done | 2026-06-01 |
+| 12 | ProviderCapabilityMatrix (`attachment/capability.ts`) | [x] Done | 2026-06-01 |
+
+**Not adoptable:**
+- Gateway plugins — requires different plugin integration path (`@opencode-ai/plugin` vs `PluginV2`)
+- Plan mode template — fetch issue (tool-level interception)
+- xAI image support — superseded by ProviderCapabilityMatrix
+- Metadata migration — different DB migration system
+
 ### Comparison Checkpoints
 
 Prevents re-comparing the same commit range:
@@ -118,4 +141,4 @@ Prevents re-comparing the same commit range:
 | Date | Upstream commit | Scope | Action |
 |------|----------------|-------|--------|
 | 2026-05-18 | `71b27a1b0` | All packages | Patterns identified, plan created |
-| _next_ | `new HEAD` | Changed files only | Diff from `71b27a1b0..new HEAD`, append findings |
+| 2026-06-01 | `c57379833` | All packages | Phase 2 comparison (583 new commits). 33 items identified. 6 immediate items applied (wildcard, state, AGENTS.md, HeaderTimeoutError, ResponseStreamError, server_is_overloaded). 6 items already present. 21 remaining for future phases. |

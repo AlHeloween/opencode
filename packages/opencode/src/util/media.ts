@@ -1,15 +1,20 @@
+import { registry } from "@/attachment/registry"
+
 const startsWith = (bytes: Uint8Array, prefix: number[]) => prefix.every((value, index) => bytes[index] === value)
 
+/** @deprecated Use `registry.isPdf(mime)` from `@/attachment/registry` */
 export function isPdfAttachment(mime: string) {
-  return mime === "application/pdf"
+  return registry.isPdf(mime)
 }
 
+/** @deprecated Use `registry.isMedia(mime)` from `@/attachment/registry` */
 export function isMedia(mime: string) {
-  return mime.startsWith("image/") || isPdfAttachment(mime)
+  return registry.isMedia(mime)
 }
 
+/** @deprecated Use `registry.isImage(mime)` from `@/attachment/registry` */
 export function isImageAttachment(mime: string) {
-  return mime.startsWith("image/") && mime !== "image/svg+xml" && mime !== "image/vnd.fastbidsheet"
+  return registry.isImage(mime)
 }
 
 export function sniffAttachmentMime(bytes: Uint8Array, fallback: string) {

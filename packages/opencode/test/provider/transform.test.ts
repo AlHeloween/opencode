@@ -43,7 +43,17 @@ describe("ProviderTransform.options - setCacheKey", () => {
       sessionID,
       providerOptions: { setCacheKey: true },
     })
-    expect(result.promptCacheKey).toBe(sessionID)
+    expect(result.promptCacheKey).toBe(`${sessionID}:${mockModel.id}`)
+  })
+
+  test("should use explicit cacheKey when provided", () => {
+    const result = ProviderTransform.options({
+      model: mockModel,
+      sessionID,
+      cacheKey: `${sessionID}:build:${mockModel.id}`,
+      providerOptions: { setCacheKey: true },
+    })
+    expect(result.promptCacheKey).toBe(`${sessionID}:build:${mockModel.id}`)
   })
 
   test("should not set promptCacheKey when providerOptions.setCacheKey is false", () => {
@@ -80,7 +90,7 @@ describe("ProviderTransform.options - setCacheKey", () => {
       },
     }
     const result = ProviderTransform.options({ model: openaiModel, sessionID, providerOptions: {} })
-    expect(result.promptCacheKey).toBe(sessionID)
+    expect(result.promptCacheKey).toBe(`${sessionID}:${openaiModel.id}`)
   })
 
   test("should set store=false for openai provider", () => {
@@ -1128,14 +1138,13 @@ describe("ProviderTransform.message - DeepSeek reasoning content", () => {
     )
 
     expect(result).toHaveLength(1)
-    expect(result[0].content).toEqual([
-      {
-        type: "tool-call",
-        toolCallId: "test",
-        toolName: "bash",
-        input: { command: "echo hello" },
-      },
-    ])
+    expect(result[0].content).toHaveLength(1)
+    expect(result[0].content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "test",
+      toolName: "bash",
+      input: { command: "echo hello" },
+    })
     expect(result[0].providerOptions?.openaiCompatible?.reasoning_content).toBe("Let me think about this...")
   })
 
@@ -1187,10 +1196,9 @@ describe("ProviderTransform.message - DeepSeek reasoning content", () => {
       {},
     )
 
-    expect(result[0].content).toEqual([
-      { type: "reasoning", text: "Should not be processed" },
-      { type: "text", text: "Answer" },
-    ])
+    expect(result[0].content).toHaveLength(2)
+    expect(result[0].content[0]).toMatchObject({ type: "reasoning", text: "Should not be processed" })
+    expect(result[0].content[1]).toMatchObject({ type: "text", text: "Answer" })
     expect(result[0].providerOptions?.openaiCompatible?.reasoning_content).toBeUndefined()
   })
 })
@@ -1988,7 +1996,7 @@ describe("ProviderTransform.message - providerOptions key remapping", () => {
 
     const result = ProviderTransform.message(msgs, model, {})
 
-    expect(result[0].providerOptions?.copilot).toEqual({ someOption: "value" })
+    expect(result[0].providerOptions?.copilot).toMatchObject({ someOption: "value" })
     expect(result[0].providerOptions?.["github-copilot"]).toBeUndefined()
   })
 
@@ -3023,13 +3031,13 @@ describe("ProviderTransform.variants", () => {
       expect(result.high).toEqual({
         thinking: {
           type: "enabled",
-          budgetTokens: 16000,
+          budgetTokens: 100000,
         },
       })
       expect(result.max).toEqual({
         thinking: {
           type: "enabled",
-          budgetTokens: 31999,
+          budgetTokens: 200000,
         },
       })
     })

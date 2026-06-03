@@ -28,20 +28,23 @@ import * as OtelTracer from "@effect/opentelemetry/Tracer"
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
 
-/** Per-session hash of the final system messages — used to detect cache-poisoning content changes. */
+/** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes. */
 const systemContentHashes = new Map<string, number>()
 
-function checkSystemStability(sessionID: string, content: string) {
-  const hash = Number(Bun.hash(content))
-  const prev = systemContentHashes.get(sessionID)
+function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; content: string }) {
+  const key = [input.sessionID, input.agent, input.modelID].join(":")
+  const hash = Number(Bun.hash(input.content))
+  const prev = systemContentHashes.get(key)
   if (prev !== undefined && prev !== hash) {
     log.error("bug: system prompt content changed mid-session — prompt cache poisoned", {
-      sessionID,
+      sessionID: input.sessionID,
+      agent: input.agent,
+      modelID: input.modelID,
       prevHash: prev,
       newHash: hash,
     })
   }
-  systemContentHashes.set(sessionID, hash)
+  systemContentHashes.set(key, hash)
 }
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
@@ -161,9 +164,14 @@ const live: Layer.Layer<
         system.push(header, second, tail.join("\n"))
       }
 
-      // Detect cache-poisoning: if the system prompt content changed mid-session
-      // while the promptCacheKey (sessionID) is stable, the provider cache is invalidated.
-      checkSystemStability(input.sessionID, system.join(""))
+      // Detect cache-poisoning: if one agent/model's system prompt content changes
+      // while its provider cache key is stable, the provider cache is invalidated.
+      checkSystemStability({
+        sessionID: input.sessionID,
+        agent: input.agent.name,
+        modelID: input.model.id,
+        content: system.join(""),
+      })
 
       const variant =
         !input.small && input.model.variants && input.user.model.variant
@@ -174,6 +182,7 @@ const live: Layer.Layer<
         : ProviderTransform.options({
             model: input.model,
             sessionID: input.sessionID,
+            cacheKey: [input.sessionID, input.agent.name, input.model.id].join(":"),
             providerOptions: item.options,
           })
       const options: Record<string, any> = pipe(

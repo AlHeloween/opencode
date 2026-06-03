@@ -822,7 +822,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([])
   })
 
-  test("includes aborted assistant messages only when they have non-step-start/reasoning content", async () => {
+  test("filters aborted assistant messages from model context", async () => {
     const assistantID1 = "m-assistant-1"
     const assistantID2 = "m-assistant-2"
 
@@ -862,15 +862,7 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
-      {
-        role: "assistant",
-        content: [
-          { type: "reasoning", text: "thinking", providerOptions: undefined },
-          { type: "text", text: "partial answer" },
-        ],
-      },
-    ])
+    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([])
   })
 
   test("preserves OpenRouter reasoning details through provider transform", async () => {

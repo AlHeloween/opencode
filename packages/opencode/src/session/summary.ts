@@ -7,6 +7,7 @@ import { withStatics } from "@/util/schema"
 import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID } from "./schema"
+import { Config } from "@/config/config"
 
 function unquoteGitPath(input: string) {
   if (!input.startsWith('"')) return input
@@ -78,6 +79,7 @@ export const layer = Layer.effect(
     const sessions = yield* Session.Service
     const snapshot = yield* Snapshot.Service
     const storage = yield* Storage.Service
+    const config = yield* Effect.serviceOption(Config.Service)
     const bus = yield* Bus.Service
 
     const computeDiff = Effect.fn("SessionSummary.computeDiff")(function* (input: { messages: MessageV2.WithParts[] }) {
@@ -118,6 +120,15 @@ export const layer = Layer.effect(
     }) {
       const all = yield* sessions.messages({ sessionID: input.sessionID })
       if (!all.length) return
+
+      const cfg = config._tag === "Some" ? yield* config.value.get() : undefined
+      if (cfg?.snapshot === false) {
+        yield* sessions.setSummary({
+          sessionID: input.sessionID,
+          summary: { additions: 0, deletions: 0, files: 0 },
+        })
+        return
+      }
 
       const diffs = yield* computeDiff({ messages: all })
       yield* sessions.setSummary({

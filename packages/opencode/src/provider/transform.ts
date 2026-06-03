@@ -868,9 +868,11 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
 export function options(input: {
   model: Provider.Model
   sessionID: string
+  cacheKey?: string
   providerOptions?: Record<string, any>
 }): Record<string, any> {
   const result: Record<string, any> = {}
+  const promptCacheKey = input.cacheKey ?? [input.sessionID, input.model.id].join(":")
 
   if (input.model.api.npm === "@ai-sdk/google-vertex/anthropic") {
     result["toolStreaming"] = false
@@ -887,7 +889,7 @@ export function options(input: {
 
   if (input.model.api.npm === "@ai-sdk/azure") {
     result["store"] = true
-    result["promptCacheKey"] = input.sessionID
+    result["promptCacheKey"] = promptCacheKey
   }
 
   if (input.model.api.npm === "@openrouter/ai-sdk-provider" || input.model.api.npm === "@llmgateway/ai-sdk-provider") {
@@ -927,7 +929,7 @@ export function options(input: {
     input.model.providerID === "deepseek" ||
     input.providerOptions?.setCacheKey
   ) {
-    result["promptCacheKey"] = input.sessionID
+    result["promptCacheKey"] = promptCacheKey
   }
 
   if (input.model.api.npm === "@ai-sdk/google" || input.model.api.npm === "@ai-sdk/google-vertex") {
@@ -994,18 +996,18 @@ export function options(input: {
     }
 
     if (input.model.providerID.startsWith("opencode")) {
-      result["promptCacheKey"] = input.sessionID
+      result["promptCacheKey"] = promptCacheKey
       result["include"] = ["reasoning.encrypted_content"]
       result["reasoningSummary"] = "auto"
     }
   }
 
   if (input.model.providerID === "venice") {
-    result["promptCacheKey"] = input.sessionID
+    result["promptCacheKey"] = promptCacheKey
   }
 
   if (input.model.providerID === "openrouter") {
-    result["prompt_cache_key"] = input.sessionID
+    result["prompt_cache_key"] = promptCacheKey
   }
   if (input.model.api.npm === "@ai-sdk/gateway") {
     result["gateway"] = {

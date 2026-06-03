@@ -25,6 +25,20 @@ import { StringBuilder } from "@/util/string-builder"
 const DOOM_LOOP_THRESHOLD = 3
 const log = Log.create({ service: "session.processor" })
 
+const CACHE_HEALTHY_RATIO = 0.85
+const CACHE_COLLAPSED_RATIO = 0.25
+const CACHE_POISON_THRESHOLD = 2
+
+type CachePoisonState = {
+  healthy: boolean
+  collapsed: number
+  poisoned: boolean
+  previousRatio?: number
+  previousMessageID?: string
+}
+
+const cachePoisonStates = new Map<string, CachePoisonState>()
+
 export type Result = "compact" | "stop" | "continue"
 
 export type Event = LLM.Event
@@ -78,6 +92,64 @@ interface ProcessorContext extends Input {
 }
 
 type StreamEvent = Event
+
+export function cacheRatio(tokens: { input: number; cache: { read: number; write: number } }) {
+  return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
+}
+
+export function trackCachePoison(input: {
+  key: string
+  messageID: string
+  tokens: { input: number; cache: { read: number; write: number } }
+}) {
+  const ratio = cacheRatio(input.tokens)
+  const state = cachePoisonStates.get(input.key) ?? { healthy: false, collapsed: 0, poisoned: false }
+  if (ratio >= CACHE_HEALTHY_RATIO) {
+    const next = {
+      healthy: true,
+      collapsed: 0,
+      poisoned: false,
+      previousRatio: ratio,
+      previousMessageID: input.messageID,
+    }
+    cachePoisonStates.set(input.key, next)
+    return { ratio, collapsed: false, poisoned: false, state: next }
+  }
+
+  if (!state.healthy) {
+    const next = {
+      ...state,
+      previousRatio: ratio,
+      previousMessageID: input.messageID,
+    }
+    cachePoisonStates.set(input.key, next)
+    return { ratio, collapsed: false, poisoned: false, state: next }
+  }
+
+  if (ratio <= CACHE_COLLAPSED_RATIO) {
+    const collapsed = state.collapsed + 1
+    const poisoned = collapsed >= CACHE_POISON_THRESHOLD
+    const next = {
+      healthy: true,
+      collapsed,
+      poisoned,
+      previousRatio: ratio,
+      previousMessageID: input.messageID,
+    }
+    cachePoisonStates.set(input.key, poisoned ? { healthy: false, collapsed: 0, poisoned: true } : next)
+    return { ratio, collapsed: true, poisoned, state: next }
+  }
+
+  const next = {
+    healthy: true,
+    collapsed: 0,
+    poisoned: false,
+    previousRatio: ratio,
+    previousMessageID: input.messageID,
+  }
+  cachePoisonStates.set(input.key, next)
+  return { ratio, collapsed: false, poisoned: false, state: next }
+}
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionProcessor") {}
 
@@ -405,6 +477,38 @@ export const layer: Layer.Layer<
                 cacheReadTokens: usage.tokens.cache.read,
                 cacheWriteTokens: usage.tokens.cache.write,
               })
+              const poison = trackCachePoison({
+                key: [ctx.sessionID, ctx.assistantMessage.agent, ctx.model.id].join(":"),
+                messageID: ctx.assistantMessage.id,
+                tokens: usage.tokens,
+              })
+              if (poison.collapsed) {
+                log.warn("bug: prompt cache collapsed", {
+                  sessionID: ctx.sessionID,
+                  agent: ctx.assistantMessage.agent,
+                  modelID: ctx.model.id,
+                  messageID: ctx.assistantMessage.id,
+                  cacheRatio: poison.ratio,
+                  collapsedCount: poison.state.collapsed,
+                  poisoned: poison.poisoned,
+                  inputTokens: usage.tokens.input,
+                  cacheReadTokens: usage.tokens.cache.read,
+                  cacheWriteTokens: usage.tokens.cache.write,
+                })
+              }
+              if (poison.poisoned) {
+                ctx.blocked = true
+                log.error("bug: prompt cache poisoned twice sequentially - stopping processor loop", {
+                  sessionID: ctx.sessionID,
+                  agent: ctx.assistantMessage.agent,
+                  modelID: ctx.model.id,
+                  messageID: ctx.assistantMessage.id,
+                  cacheRatio: poison.ratio,
+                  inputTokens: usage.tokens.input,
+                  cacheReadTokens: usage.tokens.cache.read,
+                  cacheWriteTokens: usage.tokens.cache.write,
+                })
+              }
             }
             yield* session.updatePart({
               id: PartID.ascending(),

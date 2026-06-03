@@ -45,8 +45,9 @@
 - `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
 
 ### `plans/` — Active Plans
-- `bug-resolution-plan.md` — Bug catalog and triage
-- `20260518_project_health_plan.md` — Project health improvements
+- `20260604_stream_stall_cache_poisoning_plan.md` — Stream stall recovery and DeepSeek prompt-cache poisoning diagnostics
+- `20260601_upstream_adoption_phase2.md` — Upstream adoption phase 2 tracking
+- `20260601_complete_remaining_items.md` — Remaining implementation items tracking
 
 ### `plans_completed/` — Completed Plans (22 plans)
 Performance, logging, security, shell migration, file locations, backups, session ops, bug fixes, more.

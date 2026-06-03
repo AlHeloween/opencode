@@ -13,7 +13,7 @@ import { ModelID, ProviderID } from "../../src/provider/schema"
 import { Session } from "@/session/session"
 import { LLM } from "../../src/session/llm"
 import { MessageV2 } from "../../src/session/message-v2"
-import { SessionProcessor } from "../../src/session/processor"
+import { cacheRatio, SessionProcessor, trackCachePoison } from "../../src/session/processor"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { SessionSummary } from "../../src/session/summary"
@@ -183,6 +183,81 @@ const boot = Effect.fn("test.boot")(function* () {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+it.effect("session.processor cache poison detector stops after two collapsed requests", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    const warm = trackCachePoison({
+      key,
+      messageID: "msg_warm",
+      tokens: { input: 100, cache: { read: 900, write: 0 } },
+    })
+    const first = trackCachePoison({
+      key,
+      messageID: "msg_first_collapse",
+      tokens: { input: 900, cache: { read: 100, write: 0 } },
+    })
+    const second = trackCachePoison({
+      key,
+      messageID: "msg_second_collapse",
+      tokens: { input: 900, cache: { read: 100, write: 0 } },
+    })
+
+    expect(warm.poisoned).toBe(false)
+    expect(first.collapsed).toBe(true)
+    expect(first.poisoned).toBe(false)
+    expect(second.collapsed).toBe(true)
+    expect(second.poisoned).toBe(true)
+  }),
+)
+
+it.effect("session.processor cache poison detector waits for a healthy baseline", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    const first = trackCachePoison({
+      key,
+      messageID: "msg_cold_start",
+      tokens: { input: 900, cache: { read: 100, write: 0 } },
+    })
+    const second = trackCachePoison({
+      key,
+      messageID: "msg_still_cold",
+      tokens: { input: 900, cache: { read: 100, write: 0 } },
+    })
+
+    expect(cacheRatio({ input: 900, cache: { read: 100, write: 0 } })).toBe(0.1)
+    expect(first.collapsed).toBe(false)
+    expect(second.collapsed).toBe(false)
+    expect(second.poisoned).toBe(false)
+  }),
+)
+
+it.effect("session.processor cache poison detector resets after cache recovery", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    trackCachePoison({ key, messageID: "msg_warm", tokens: { input: 100, cache: { read: 900, write: 0 } } })
+    const first = trackCachePoison({
+      key,
+      messageID: "msg_first_collapse",
+      tokens: { input: 900, cache: { read: 100, write: 0 } },
+    })
+    const recovered = trackCachePoison({
+      key,
+      messageID: "msg_recovered",
+      tokens: { input: 100, cache: { read: 900, write: 0 } },
+    })
+    const second = trackCachePoison({
+      key,
+      messageID: "msg_second_collapse",
+      tokens: { input: 900, cache: { read: 100, write: 0 } },
+    })
+
+    expect(first.collapsed).toBe(true)
+    expect(recovered.collapsed).toBe(false)
+    expect(second.collapsed).toBe(true)
+    expect(second.poisoned).toBe(false)
+  }),
+)
 
 it.live("session.processor effect tests capture llm input cleanly", () =>
   provideTmpdirServer(

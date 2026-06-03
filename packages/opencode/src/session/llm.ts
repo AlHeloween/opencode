@@ -31,6 +31,27 @@ let loggedSystemPrompt = false
 /** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes. */
 const systemContentHashes = new Map<string, number>()
 
+function stableStringify(input: unknown): string {
+  if (Array.isArray(input)) return `[${input.map(stableStringify).join(",")}]`
+  if (input && typeof input === "object") {
+    return `{${Object.entries(input as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${JSON.stringify(key)}:${stableStringify(value)}`)
+      .join(",")}}`
+  }
+  if (typeof input === "function") return '"[function]"'
+  if (typeof input === "undefined") return '"[undefined]"'
+  return JSON.stringify(input)
+}
+
+function hashInfo(input: unknown) {
+  const text = stableStringify(input)
+  return {
+    hash: Number(Bun.hash(text)),
+    length: text.length,
+  }
+}
+
 function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; content: string }) {
   const key = [input.sessionID, input.agent, input.modelID].join(":")
   const hash = Number(Bun.hash(input.content))
@@ -355,6 +376,20 @@ const live: Layer.Layer<
           }
         })
       }
+
+      const promptCacheKey = options["promptCacheKey"] ?? options["prompt_cache_key"]
+      l.info("request shape", {
+        system: hashInfo(system),
+        providerOptions: hashInfo(options),
+        tools: hashInfo(Object.keys(tools).sort()),
+        messages: hashInfo(messages),
+        toolChoice: input.toolChoice ?? "auto",
+        promptCacheKey: {
+          present: typeof promptCacheKey === "string",
+          hash: typeof promptCacheKey === "string" ? Number(Bun.hash(promptCacheKey)) : undefined,
+          scope: typeof promptCacheKey === "string" ? "session:agent:model" : undefined,
+        },
+      })
 
       const tracer = cfg.experimental?.openTelemetry
         ? Option.getOrUndefined(yield* Effect.serviceOption(OtelTracer.OtelTracer))

@@ -29,7 +29,7 @@ const CACHE_HEALTHY_RATIO = 0.85
 const CACHE_POISON_THRESHOLD = 2
 const CACHE_INPUT_DELTA_THRESHOLD = 100_000
 const CACHE_COLD_START_INPUT_THRESHOLD = 100_000
-const STREAM_STALL_DEFAULT_MS = 120_000
+const STREAM_STALL_DEFAULT_MS = 120_000_000
 function streamStallTimeoutMs() {
   const value = Number(process.env.OPENCODE_STREAM_STALL_TIMEOUT_MS)
   return Number.isFinite(value) && value > 0 ? value : STREAM_STALL_DEFAULT_MS

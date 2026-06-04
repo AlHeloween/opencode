@@ -9,8 +9,10 @@ import { Config } from "@/config/config"
 import { Effect, Exit, Schema } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { Global } from "@opencode-ai/core/global"
+import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
+import { Provider } from "@/provider/provider"
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -38,6 +40,7 @@ export const TaskTool = Tool.define(
     const config = yield* Config.Service
     const sessions = yield* Session.Service
     const appFs = yield* AppFileSystem.Service
+    const provider = yield* Provider.Service
 
     const run = Effect.fn("TaskTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
@@ -118,6 +121,23 @@ export const TaskTool = Tool.define(
       const model = taskOverride ?? next.model ?? {
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
+      }
+
+      // Diagnostic: log when task agent model has different context window than parent
+      const parentModel = { modelID: msg.info.modelID, providerID: msg.info.providerID }
+      if (parentModel.modelID !== model.modelID || parentModel.providerID !== model.providerID) {
+        const logCtx = Log.create({ service: "task" })
+        const taskResolved = yield* provider.getModel(model.providerID, model.modelID).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        const parentResolved = yield* provider.getModel(parentModel.providerID, parentModel.modelID).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        if (taskResolved && parentResolved) {
+          logCtx.info("task agent model differs from parent", {
+            parentModel: `${parentModel.providerID}/${parentModel.modelID}`,
+            parentContext: parentResolved.limit?.context,
+            taskModel: `${model.providerID}/${model.modelID}`,
+            taskContext: taskResolved.limit?.context,
+            subagent: next.name,
+          })
+        }
       }
 
       yield* ctx.metadata({

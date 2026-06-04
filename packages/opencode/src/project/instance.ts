@@ -41,6 +41,8 @@ function boot(input: { directory: string; init?: () => Promise<any>; worktree?: 
               project,
             }))
     Global.initFromWorktree(ctx.worktree)
+    // Re-register in the now-correct global DB after worktree path change
+    Project.syncUpsert(ctx.project)
     await Log.reopen()
     await context.provide(ctx, async () => {
       await input.init?.()

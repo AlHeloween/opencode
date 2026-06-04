@@ -31,8 +31,10 @@ import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
 import { ProjectID } from "../project/schema"
 import { WorkspaceID } from "../control-plane/schema"
+import { existsSync, readdirSync } from "fs"
 import { SessionID, MessageID, PartID } from "./schema"
 import { ModelID } from "../provider/schema"
+import { importFromDisk } from "../project/project"
 
 import type { Provider } from "@/provider/provider"
 import { Permission } from "@/permission"
@@ -851,6 +853,32 @@ export function* listGlobal(input?: {
   const projectMap = new Map<string, ProjectInfo>()
   for (const proj of allProjects) {
     projectMap.set(proj.id, { id: proj.id as ProjectID, name: proj.name ?? undefined, worktree: proj.worktree })
+  }
+
+  // 1.5. Auto-discover orphaned project databases on disk (sibling directories)
+  {
+    const knownWorktrees = new Set(allProjects.map((p) => p.worktree))
+    const snapshot = [...knownWorktrees]
+    for (const wt of snapshot) {
+      try {
+        const parent = path.dirname(wt)
+        if (!existsSync(parent)) continue
+        const entries = readdirSync(parent, { withFileTypes: true })
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue
+          const childPath = path.join(parent, entry.name)
+          if (knownWorktrees.has(childPath)) continue
+          const imported = importFromDisk(childPath)
+          if (imported) {
+            projectMap.set(imported.id, { id: imported.id, name: imported.name, worktree: imported.worktree })
+            knownWorktrees.add(childPath)
+            allProjects.push({ id: imported.id, worktree: imported.worktree, name: imported.name ?? null })
+          }
+        }
+      } catch {
+        // parent directory may not be readable
+      }
+    }
   }
 
   // 2. Scan per-project DBs first (local session databases)

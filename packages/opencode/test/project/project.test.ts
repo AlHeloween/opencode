@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Project } from "@/project/project"
+import { Project, syncUpsert, importFromDisk, list as listProjects, Info } from "@/project/project"
 import * as Log from "@opencode-ai/core/util/log"
 import { $ } from "bun"
 import path from "path"
@@ -11,6 +11,8 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { NodePath } from "@effect/platform-node"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+import { Database } from "@/storage/db"
+import { ProjectTable } from "@/project/project.sql"
 
 Log.init()
 
@@ -597,5 +599,102 @@ describe("Project.fromDirectory with bare repos", () => {
     } finally {
       await $`rm -rf ${barePath} ${worktreePath}`.quiet().nothrow()
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// syncUpsert & importFromDisk
+// ---------------------------------------------------------------------------
+
+describe("syncUpsert", () => {
+  test("inserts a new project into the global DB", () => {
+    const testId = ProjectID.make("test-sync-upsert-ins-" + Date.now())
+    const info: Info = {
+      id: testId,
+      worktree: "/test/worktree",
+      sandboxes: [],
+      time: { created: Date.now(), updated: Date.now() },
+    }
+    syncUpsert(info)
+
+    const all = listProjects()
+    const found = all.find((p) => p.id === testId)
+    expect(found).toBeDefined()
+    expect(found!.worktree).toBe("/test/worktree")
+  })
+
+  test("updates an existing project idempotently", () => {
+    const testId = ProjectID.make("test-sync-upsert-upd-" + Date.now())
+    const info1: Info = {
+      id: testId,
+      worktree: "/initial",
+      sandboxes: [],
+      time: { created: Date.now(), updated: Date.now() },
+    }
+    const info2: Info = {
+      id: testId,
+      worktree: "/updated",
+      name: "Renamed",
+      vcs: "git" as const,
+      sandboxes: [],
+      time: { created: Date.now(), updated: Date.now() },
+    }
+
+    syncUpsert(info1)
+    syncUpsert(info2)
+
+    const all = listProjects()
+    const found = all.find((p) => p.id === testId)
+    expect(found).toBeDefined()
+    expect(found!.worktree).toBe("/updated")
+    expect(found!.name).toBe("Renamed")
+    expect(found!.vcs).toBe("git")
+  })
+})
+
+describe("importFromDisk", () => {
+  test("returns undefined for non-existent DB path", () => {
+    const result = importFromDisk("/nonexistent/path/that/does/not/exist")
+    expect(result).toBeUndefined()
+  })
+
+  test("imports a project from a valid opencode database", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    const gitHead = await $`git rev-parse HEAD`.cwd(tmp.path).text()
+    const testID = ProjectID.make(gitHead.trim())
+
+    // Create the project database via getProjectDb (auto-creates dir + schema)
+    const db = Database.getProjectDb(testID, tmp.path)
+    // Insert a project record so the DB has a valid project row
+    db.insert(ProjectTable).values({
+      id: testID,
+      worktree: tmp.path,
+      vcs: "git",
+      time_created: Date.now(),
+      time_updated: Date.now(),
+      sandboxes: [],
+    }).run()
+    Database.closeProjectDb(testID)
+
+    // Import from disk — should find the project and upsert into global DB
+    const imported = importFromDisk(tmp.path)
+    expect(imported).toBeDefined()
+    expect(imported!.id).toBe(testID)
+    expect(imported!.worktree).toBe(tmp.path)
+    expect(imported!.vcs).toBe("git")
+
+    // Verify it's now in the global DB
+    const all = listProjects()
+    const found = all.find((p) => p.id === testID)
+    expect(found).toBeDefined()
+    expect(found!.worktree).toBe(tmp.path)
+  })
+
+  test("returns undefined for directory with no .opencode db", async () => {
+    await using tmp = await tmpdir()
+    // No .opencode/data directory at all
+    const result = importFromDisk(tmp.path)
+    expect(result).toBeUndefined()
   })
 })

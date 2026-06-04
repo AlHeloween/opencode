@@ -205,6 +205,10 @@ export interface Interface {
     auto: boolean
     overflow?: boolean
   }) => Effect.Effect<void>
+  readonly selectMessages: (input: {
+    messages: MessageV2.WithParts[]
+    model: Provider.Model
+  }) => Effect.Effect<{ head: MessageV2.WithParts[]; tail_start_id: string | undefined }>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionCompaction") {}
@@ -616,6 +620,13 @@ export const layer: Layer.Layer<
       prune,
       process: processCompaction,
       create,
+      selectMessages: Effect.fn("SessionCompaction.selectMessages")(function* (input: {
+        messages: MessageV2.WithParts[]
+        model: Provider.Model
+      }) {
+        const cfg = yield* config.get()
+        return yield* select({ ...input, cfg })
+      }),
     })
   }),
 )

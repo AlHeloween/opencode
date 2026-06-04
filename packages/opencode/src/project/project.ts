@@ -17,6 +17,8 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
+import { existsSync } from "fs"
+import { init } from "#db"
 
 const log = Log.create({ service: "project" })
 
@@ -82,6 +84,23 @@ export function fromRow(row: Row): Info {
     },
     sandboxes: row.sandboxes,
     commands: row.commands ?? undefined,
+  }
+}
+
+function infoToInsertValues(info: Info) {
+  return {
+    id: info.id,
+    worktree: info.worktree,
+    vcs: info.vcs ?? null,
+    name: info.name ?? null,
+    icon_url: info.icon?.url ?? null,
+    icon_url_override: info.icon?.override ?? null,
+    icon_color: info.icon?.color ?? null,
+    time_created: info.time.created,
+    time_updated: info.time.updated,
+    time_initialized: info.time.initialized ?? null,
+    sandboxes: info.sandboxes,
+    commands: info.commands ?? null,
   }
 }
 
@@ -297,40 +316,12 @@ export const layer: Layer.Layer<
         { concurrency: "unbounded" },
       ).pipe(Effect.map((arr) => arr.filter((x): x is string => x !== undefined)))
 
-      yield* db((d) =>
-        d
-          .insert(ProjectTable)
-          .values({
-            id: result.id,
-            worktree: result.worktree,
-            vcs: result.vcs ?? null,
-            name: result.name,
-            icon_url: result.icon?.url,
-            icon_url_override: result.icon?.override,
-            icon_color: result.icon?.color,
-            time_created: result.time.created,
-            time_updated: result.time.updated,
-            time_initialized: result.time.initialized,
-            sandboxes: result.sandboxes,
-            commands: result.commands,
-          })
-          .onConflictDoUpdate({
-            target: ProjectTable.id,
-            set: {
-              worktree: result.worktree,
-              vcs: result.vcs ?? null,
-              name: result.name,
-              icon_url: result.icon?.url,
-              icon_url_override: result.icon?.override,
-              icon_color: result.icon?.color,
-              time_updated: result.time.updated,
-              time_initialized: result.time.initialized,
-              sandboxes: result.sandboxes,
-              commands: result.commands,
-            },
-          })
-          .run(),
-      )
+      yield* Effect.sync(() => syncUpsert(result))
+
+      // Also import from per-project DB if it exists (e.g. from a previous launch)
+      yield* Effect.sync(() => {
+        importFromDisk(data.worktree)
+      })
 
       if (data.id !== ProjectID.global) {
         yield* db((d) =>
@@ -505,6 +496,72 @@ export function setInitialized(id: ProjectID) {
   Database.use((db) =>
     db.update(ProjectTable).set({ time_initialized: Date.now() }).where(eq(ProjectTable.id, id)).run(),
   )
+}
+
+/** Upsert a project into the current default (global) DB. Idempotent. */
+export function syncUpsert(info: Info) {
+  Database.use((db) =>
+    db
+      .insert(ProjectTable)
+      .values(infoToInsertValues(info))
+      .onConflictDoUpdate({
+        target: ProjectTable.id,
+        set: {
+          worktree: info.worktree,
+          vcs: info.vcs ?? null,
+          name: info.name ?? null,
+          icon_url: info.icon?.url ?? null,
+          icon_url_override: info.icon?.override ?? null,
+          icon_color: info.icon?.color ?? null,
+          time_updated: info.time.updated,
+          time_initialized: info.time.initialized ?? null,
+          sandboxes: info.sandboxes,
+          commands: info.commands ?? null,
+        },
+      })
+      .run(),
+  )
+}
+
+/**
+ * Discover and import a project from an existing on-disk database.
+ * Checks if `{worktree}/.opencode/data/opencode.db` exists, validates
+ * it's an opencode database, reads project metadata, and upserts it
+ * into the current global DB so sessions can be listed.
+ */
+export function importFromDisk(worktree: string): Info | undefined {
+  const dbPath = Database.getProjectDbPath(worktree)
+  if (!existsSync(dbPath)) return undefined
+
+  let db: ReturnType<typeof init> | undefined
+  try {
+    db = init(dbPath)
+    // Validate it's an opencode database by checking for expected tables
+    const sqlite = db.$client as {
+      prepare: (sql: string) => { all: () => Array<{ name: string }> }
+    }
+    const tables = sqlite
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('project', 'session')")
+      .all()
+    if (tables.length < 2) return undefined
+
+    // Read project metadata from the per-project DB
+    const row = db.select().from(ProjectTable).get()
+    if (!row) return undefined
+
+    const info = fromRow(row)
+    // Import into the current global DB
+    syncUpsert(info)
+    log.info("imported project from disk", { id: info.id, worktree })
+    return info
+  } catch (err) {
+    log.warn("bug: failed to import project from disk", { worktree, error: String(err) })
+    return undefined
+  } finally {
+    if (db) {
+      try { (db.$client as { close: () => void }).close() } catch { /* best effort */ }
+    }
+  }
 }
 
 export * as Project from "./project"

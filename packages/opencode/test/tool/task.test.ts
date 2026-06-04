@@ -9,6 +9,7 @@ import { MessageV2 } from "../../src/session/message-v2"
 import type { SessionPrompt } from "../../src/session/prompt"
 import { MessageID, PartID } from "../../src/session/schema"
 import { ModelID, ProviderID } from "../../src/provider/schema"
+import { Provider } from "@/provider/provider"
 import { TaskTool, type TaskPromptOps } from "../../src/tool/task"
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
@@ -30,6 +31,7 @@ const it = testEffect(
     Agent.defaultLayer,
     Config.defaultLayer,
     CrossSpawnSpawner.defaultLayer,
+    Provider.defaultLayer,
     Session.defaultLayer,
     Truncate.defaultLayer,
     ToolRegistry.defaultLayer,

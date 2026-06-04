@@ -29,9 +29,10 @@ const CACHE_HEALTHY_RATIO = 0.85
 const CACHE_POISON_THRESHOLD = 2
 const CACHE_INPUT_DELTA_THRESHOLD = 100_000
 const CACHE_COLD_START_INPUT_THRESHOLD = 100_000
+const STREAM_STALL_DEFAULT_MS = 120_000
 function streamStallTimeoutMs() {
   const value = Number(process.env.OPENCODE_STREAM_STALL_TIMEOUT_MS)
-  return Number.isFinite(value) && value > 0 ? value : 30_000_000
+  return Number.isFinite(value) && value > 0 ? value : STREAM_STALL_DEFAULT_MS
 }
 
 type CachePoisonState = {
@@ -752,30 +753,28 @@ export const layer: Layer.Layer<
             ctx.reasoningBuilders = {}
             const stream = llm.stream(streamInput)
             const stallTimeoutMs = streamStallTimeoutMs()
+            let streamCompleted = false
 
             yield* stream.pipe(
-              Stream.tap((event) => handleEvent(event)),
-              Stream.takeUntil(() => ctx.needsCompaction),
-              Stream.runDrain,
-              Effect.timeoutOrElse({
-                duration: `${stallTimeoutMs} millis`,
-                orElse: () =>
-                  Effect.gen(function* () {
-                    if (!ctx.toolCallEmitted) {
-                      ctx.stalled = true
-                      log.warn("bug: llm stream stalled before tool call", {
-                        sessionID: ctx.sessionID,
-                        agent: ctx.assistantMessage.agent,
-                        modelID: ctx.model.id,
-                        messageID: ctx.assistantMessage.id,
-                        timeoutMs: stallTimeoutMs,
-                      })
-                      return
-                    }
-                    yield* halt(new Error(`LLM stream stalled after tool call for ${stallTimeoutMs}ms`))
-                  }),
+              Stream.tap((event) => {
+                if (event.type === "finish-step") streamCompleted = true
+                return handleEvent(event)
               }),
+              Stream.takeUntil(() => ctx.needsCompaction),
+              Stream.timeout(`${stallTimeoutMs} millis`),
+              Stream.runDrain,
             )
+
+            if (!streamCompleted && !ctx.needsCompaction) {
+              ctx.stalled = true
+              log.warn("bug: llm stream stalled", {
+                sessionID: ctx.sessionID,
+                agent: ctx.assistantMessage.agent,
+                modelID: ctx.model.id,
+                messageID: ctx.assistantMessage.id,
+                timeoutMs: stallTimeoutMs,
+              })
+            }
           }).pipe(
             Effect.onInterrupt(() =>
               Effect.gen(function* () {

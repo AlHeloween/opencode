@@ -26,8 +26,13 @@ const DOOM_LOOP_THRESHOLD = 3
 const log = Log.create({ service: "session.processor" })
 
 const CACHE_HEALTHY_RATIO = 0.85
-const CACHE_COLLAPSED_RATIO = 0.25
 const CACHE_POISON_THRESHOLD = 2
+const CACHE_INPUT_DELTA_THRESHOLD = 100_000
+const CACHE_COLD_START_INPUT_THRESHOLD = 100_000
+function streamStallTimeoutMs() {
+  const value = Number(process.env.OPENCODE_STREAM_STALL_TIMEOUT_MS)
+  return Number.isFinite(value) && value > 0 ? value : 30_000_000
+}
 
 type CachePoisonState = {
   healthy: boolean
@@ -35,16 +40,18 @@ type CachePoisonState = {
   poisoned: boolean
   previousRatio?: number
   previousMessageID?: string
+  previousInputTokens?: number
 }
 
 const cachePoisonStates = new Map<string, CachePoisonState>()
 
-export type Result = "compact" | "stop" | "continue"
+export type Result = "compact" | "stop" | "continue" | "stalled"
 
 export type Event = LLM.Event
 
 export interface Handle {
   readonly message: MessageV2.Assistant
+  readonly needsCacheRebaseline: boolean
   readonly updateToolCall: (
     toolCallID: string,
     update: (part: MessageV2.ToolPart) => MessageV2.ToolPart,
@@ -83,7 +90,10 @@ interface ProcessorContext extends Input {
   shouldBreak: boolean
   snapshot: string | undefined
   blocked: boolean
+  stalled: boolean
+  toolCallEmitted: boolean
   needsCompaction: boolean
+  needsCacheRebaseline: boolean
   currentText: MessageV2.TextPart | undefined
   textBuilder: StringBuilder
   reasoningMap: Record<string, MessageV2.ReasoningPart>
@@ -97,13 +107,24 @@ export function cacheRatio(tokens: { input: number; cache: { read: number; write
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
 }
 
+export function resetCachePoisonState(key: string) {
+  cachePoisonStates.delete(key)
+}
+
 export function trackCachePoison(input: {
   key: string
   messageID: string
   tokens: { input: number; cache: { read: number; write: number } }
 }) {
   const ratio = cacheRatio(input.tokens)
-  const state = cachePoisonStates.get(input.key) ?? { healthy: false, collapsed: 0, poisoned: false }
+  const state = cachePoisonStates.get(input.key) ?? { healthy: false, collapsed: 0, poisoned: false, previousInputTokens: undefined }
+
+  const inputDelta = state.previousInputTokens !== undefined
+    ? input.tokens.input - state.previousInputTokens
+    : undefined
+
+  const collapsedByDelta = inputDelta !== undefined && inputDelta > CACHE_INPUT_DELTA_THRESHOLD
+
   if (ratio >= CACHE_HEALTHY_RATIO) {
     const next = {
       healthy: true,
@@ -111,22 +132,33 @@ export function trackCachePoison(input: {
       poisoned: false,
       previousRatio: ratio,
       previousMessageID: input.messageID,
+      previousInputTokens: input.tokens.input,
     }
     cachePoisonStates.set(input.key, next)
-    return { ratio, collapsed: false, poisoned: false, state: next }
+    return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
   }
 
   if (!state.healthy) {
+    if (input.tokens.input > CACHE_COLD_START_INPUT_THRESHOLD) {
+      log.warn("bug: cold cache cost", {
+        key: input.key,
+        messageID: input.messageID,
+        inputTokens: input.tokens.input,
+        cacheReadTokens: input.tokens.cache.read,
+        cacheWriteTokens: input.tokens.cache.write,
+      })
+    }
     const next = {
       ...state,
       previousRatio: ratio,
       previousMessageID: input.messageID,
+      previousInputTokens: input.tokens.input,
     }
     cachePoisonStates.set(input.key, next)
-    return { ratio, collapsed: false, poisoned: false, state: next }
+    return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
   }
 
-  if (ratio <= CACHE_COLLAPSED_RATIO) {
+  if (collapsedByDelta) {
     const collapsed = state.collapsed + 1
     const poisoned = collapsed >= CACHE_POISON_THRESHOLD
     const next = {
@@ -135,9 +167,10 @@ export function trackCachePoison(input: {
       poisoned,
       previousRatio: ratio,
       previousMessageID: input.messageID,
+      previousInputTokens: input.tokens.input,
     }
-    cachePoisonStates.set(input.key, poisoned ? { healthy: false, collapsed: 0, poisoned: true } : next)
-    return { ratio, collapsed: true, poisoned, state: next }
+    cachePoisonStates.set(input.key, poisoned ? { healthy: false, collapsed: 0, poisoned: true, previousInputTokens: input.tokens.input } : next)
+    return { ratio, collapsed: true, poisoned, state: next, inputDelta }
   }
 
   const next = {
@@ -146,9 +179,10 @@ export function trackCachePoison(input: {
     poisoned: false,
     previousRatio: ratio,
     previousMessageID: input.messageID,
+    previousInputTokens: input.tokens.input,
   }
   cachePoisonStates.set(input.key, next)
-  return { ratio, collapsed: false, poisoned: false, state: next }
+  return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionProcessor") {}
@@ -194,7 +228,10 @@ export const layer: Layer.Layer<
         shouldBreak: false,
         snapshot: initialSnapshot,
         blocked: false,
+        stalled: false,
+        toolCallEmitted: false,
         needsCompaction: false,
+        needsCacheRebaseline: false,
         currentText: undefined,
         textBuilder: new StringBuilder(),
         reasoningMap: {},
@@ -384,6 +421,7 @@ export const layer: Layer.Layer<
             return
 
           case "tool-call": {
+            ctx.toolCallEmitted = true
             if (ctx.assistantMessage.summary) {
               throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
             }
@@ -489,24 +527,36 @@ export const layer: Layer.Layer<
                   modelID: ctx.model.id,
                   messageID: ctx.assistantMessage.id,
                   cacheRatio: poison.ratio,
+                  inputDelta: poison.inputDelta,
                   collapsedCount: poison.state.collapsed,
                   poisoned: poison.poisoned,
                   inputTokens: usage.tokens.input,
                   cacheReadTokens: usage.tokens.cache.read,
                   cacheWriteTokens: usage.tokens.cache.write,
+                  rawInputTokenDetails: value.usage.inputTokenDetails,
                 })
               }
               if (poison.poisoned) {
-                ctx.blocked = true
-                log.error("bug: prompt cache poisoned twice sequentially - stopping processor loop", {
+                ctx.needsCacheRebaseline = true
+                yield* bus.publish(Session.Event.CacheCollapsed, {
+                  sessionID: ctx.sessionID,
+                  agent: ctx.assistantMessage.agent,
+                  modelID: ctx.model.id,
+                  inputTokens: usage.tokens.input,
+                  cacheReadTokens: usage.tokens.cache.read,
+                  cacheWriteTokens: usage.tokens.cache.write,
+                })
+                log.error("bug: prompt cache poisoned twice sequentially - signaling rebaseline (not blocking)", {
                   sessionID: ctx.sessionID,
                   agent: ctx.assistantMessage.agent,
                   modelID: ctx.model.id,
                   messageID: ctx.assistantMessage.id,
                   cacheRatio: poison.ratio,
+                  inputDelta: poison.inputDelta,
                   inputTokens: usage.tokens.input,
                   cacheReadTokens: usage.tokens.cache.read,
                   cacheWriteTokens: usage.tokens.cache.write,
+                  rawInputTokenDetails: value.usage.inputTokenDetails,
                 })
               }
             }
@@ -701,11 +751,30 @@ export const layer: Layer.Layer<
             ctx.reasoningMap = {}
             ctx.reasoningBuilders = {}
             const stream = llm.stream(streamInput)
+            const stallTimeoutMs = streamStallTimeoutMs()
 
             yield* stream.pipe(
               Stream.tap((event) => handleEvent(event)),
               Stream.takeUntil(() => ctx.needsCompaction),
               Stream.runDrain,
+              Effect.timeoutOrElse({
+                duration: `${stallTimeoutMs} millis`,
+                orElse: () =>
+                  Effect.gen(function* () {
+                    if (!ctx.toolCallEmitted) {
+                      ctx.stalled = true
+                      log.warn("bug: llm stream stalled before tool call", {
+                        sessionID: ctx.sessionID,
+                        agent: ctx.assistantMessage.agent,
+                        modelID: ctx.model.id,
+                        messageID: ctx.assistantMessage.id,
+                        timeoutMs: stallTimeoutMs,
+                      })
+                      return
+                    }
+                    yield* halt(new Error(`LLM stream stalled after tool call for ${stallTimeoutMs}ms`))
+                  }),
+              }),
             )
           }).pipe(
             Effect.onInterrupt(() =>
@@ -736,6 +805,7 @@ export const layer: Layer.Layer<
             Effect.ensuring(cleanup()),
           )
 
+          if (ctx.stalled) return "stalled"
           if (ctx.needsCompaction) return "compact"
           if (ctx.blocked || ctx.assistantMessage.error) return "stop"
           return "continue"
@@ -745,6 +815,9 @@ export const layer: Layer.Layer<
       return {
         get message() {
           return ctx.assistantMessage
+        },
+        get needsCacheRebaseline() {
+          return ctx.needsCacheRebaseline
         },
         updateToolCall,
         completeToolCall,

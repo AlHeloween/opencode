@@ -32,6 +32,7 @@ import { Snapshot } from "@/snapshot"
 import { ProjectID } from "../project/schema"
 import { WorkspaceID } from "../control-plane/schema"
 import { SessionID, MessageID, PartID } from "./schema"
+import { ModelID } from "../provider/schema"
 
 import type { Provider } from "@/provider/provider"
 import { Permission } from "@/permission"
@@ -294,6 +295,17 @@ export const Event = {
       // Reuses MessageV2.Assistant.fields.error (already Schema.optional) so
       // the derived zod keeps the same discriminated-union shape on the bus.
       error: MessageV2.Assistant.fields.error,
+    }),
+  ),
+  CacheCollapsed: BusEvent.define(
+    "session.cache_collapsed",
+    Schema.Struct({
+      sessionID: SessionID,
+      agent: Schema.String,
+      modelID: ModelID,
+      inputTokens: Schema.Number,
+      cacheReadTokens: Schema.Number,
+      cacheWriteTokens: Schema.Number,
     }),
   ),
 }

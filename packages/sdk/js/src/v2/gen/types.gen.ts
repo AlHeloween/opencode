@@ -216,6 +216,18 @@ export type EventSessionError = {
   }
 }
 
+export type EventSessionCacheCollapsed = {
+  type: "session.cache_collapsed"
+  properties: {
+    sessionID: string
+    agent: string
+    modelID: string
+    inputTokens: number
+    cacheReadTokens: number
+    cacheWriteTokens: number
+  }
+}
+
 export type EventInstallationUpdated = {
   type: "installation.updated"
   properties: {
@@ -1122,6 +1134,7 @@ export type GlobalEvent = {
     | EventPermissionReplied
     | EventSessionDiff
     | EventSessionError
+    | EventSessionCacheCollapsed
     | EventInstallationUpdated
     | EventInstallationUpdateAvailable
     | EventQuestionAsked
@@ -2090,6 +2103,7 @@ export type Event =
   | EventPermissionReplied
   | EventSessionDiff
   | EventSessionError
+  | EventSessionCacheCollapsed
   | EventInstallationUpdated
   | EventInstallationUpdateAvailable
   | EventQuestionAsked

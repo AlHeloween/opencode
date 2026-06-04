@@ -349,10 +349,13 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
   if (
     (model.providerID === "anthropic" ||
       model.providerID === "google-vertex-anthropic" ||
+      model.providerID === "deepseek" ||
       model.api.id.includes("anthropic") ||
       model.api.id.includes("claude") ||
+      model.api.id.includes("deepseek") ||
       model.id.includes("anthropic") ||
       model.id.includes("claude") ||
+      model.id.includes("deepseek") ||
       model.api.npm === "@ai-sdk/anthropic" ||
       model.api.npm === "@ai-sdk/alibaba" ||
       model.api.npm === "@ai-sdk/openai-compatible" ||

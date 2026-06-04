@@ -184,7 +184,7 @@ const boot = Effect.fn("test.boot")(function* () {
 // Tests
 // ---------------------------------------------------------------------------
 
-it.effect("session.processor cache poison detector stops after two collapsed requests", () =>
+it.effect("session.processor cache poison detector stops after two collapsed requests via input delta", () =>
   Effect.sync(() => {
     const key = `test:${crypto.randomUUID()}`
     const warm = trackCachePoison({
@@ -195,16 +195,17 @@ it.effect("session.processor cache poison detector stops after two collapsed req
     const first = trackCachePoison({
       key,
       messageID: "msg_first_collapse",
-      tokens: { input: 900, cache: { read: 100, write: 0 } },
+      tokens: { input: 150100, cache: { read: 100, write: 0 } },
     })
     const second = trackCachePoison({
       key,
       messageID: "msg_second_collapse",
-      tokens: { input: 900, cache: { read: 100, write: 0 } },
+      tokens: { input: 300100, cache: { read: 100, write: 0 } },
     })
 
     expect(warm.poisoned).toBe(false)
     expect(first.collapsed).toBe(true)
+    expect(first.inputDelta).toBe(150000)
     expect(first.poisoned).toBe(false)
     expect(second.collapsed).toBe(true)
     expect(second.poisoned).toBe(true)
@@ -232,30 +233,75 @@ it.effect("session.processor cache poison detector waits for a healthy baseline"
   }),
 )
 
-it.effect("session.processor cache poison detector resets after cache recovery", () =>
+it.effect("session.processor cache poison detector resets after cache recovery via input delta", () =>
   Effect.sync(() => {
     const key = `test:${crypto.randomUUID()}`
     trackCachePoison({ key, messageID: "msg_warm", tokens: { input: 100, cache: { read: 900, write: 0 } } })
     const first = trackCachePoison({
       key,
       messageID: "msg_first_collapse",
-      tokens: { input: 900, cache: { read: 100, write: 0 } },
+      tokens: { input: 150100, cache: { read: 100, write: 0 } },
     })
     const recovered = trackCachePoison({
       key,
       messageID: "msg_recovered",
-      tokens: { input: 100, cache: { read: 900, write: 0 } },
+      tokens: { input: 200, cache: { read: 900, write: 0 } },
     })
     const second = trackCachePoison({
       key,
       messageID: "msg_second_collapse",
-      tokens: { input: 900, cache: { read: 100, write: 0 } },
+      tokens: { input: 150200, cache: { read: 100, write: 0 } },
     })
 
     expect(first.collapsed).toBe(true)
     expect(recovered.collapsed).toBe(false)
     expect(second.collapsed).toBe(true)
     expect(second.poisoned).toBe(false)
+  }),
+)
+
+it.effect("session.processor input delta detection: small delta not collapsed", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    trackCachePoison({ key, messageID: "msg_warm", tokens: { input: 5000, cache: { read: 500000, write: 0 } } })
+    const normal = trackCachePoison({
+      key,
+      messageID: "msg_normal",
+      tokens: { input: 7000, cache: { read: 500000, write: 0 } },
+    })
+
+    expect(normal.collapsed).toBe(false)
+    expect(normal.inputDelta).toBe(2000)
+  }),
+)
+
+it.effect("session.processor input delta detection: large delta collapsed", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    trackCachePoison({ key, messageID: "msg_warm", tokens: { input: 5000, cache: { read: 500000, write: 0 } } })
+    const spike = trackCachePoison({
+      key,
+      messageID: "msg_spike",
+      tokens: { input: 490000, cache: { read: 18000, write: 0 } },
+    })
+
+    expect(spike.collapsed).toBe(true)
+    expect(spike.inputDelta).toBe(485000)
+  }),
+)
+
+it.effect("session.processor cold start with high input logs warning", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    const cold = trackCachePoison({
+      key,
+      messageID: "msg_cold_start_high",
+      tokens: { input: 520000, cache: { read: 18000, write: 0 } },
+    })
+
+    expect(cold.collapsed).toBe(false)
+    expect(cold.poisoned).toBe(false)
+    expect(cold.state.previousInputTokens).toBe(520000)
   }),
 )
 

@@ -58,14 +58,14 @@ Outputs:
 
 ## Tasks
 
-- [ ] Add stream progress watchdog.
-  - Completion: tests prove no-progress streams are finalized and normal-progress streams are untouched.
+- [x] Add conservative stream stall timeout.
+  - Completion: `SessionProcessor.process` now times out stalled streams and distinguishes pre-tool stalls from post-tool stalls. Dedicated runtime tests remain pending because current LLM-server live tests time out in this environment.
 
-- [ ] Define processor-to-prompt stalled outcome integration.
+- [x] Define processor-to-prompt stalled outcome integration.
   - Completion: `SessionProcessor.process` can signal a stalled request to `SessionPrompt` without confusing it with normal `stop`, `continue`, or `compact` outcomes.
 
-- [ ] Add conservative automatic stop-and-continue.
-  - Completion: tests prove retry occurs only before tool execution and stalled assistant messages are excluded from future model context.
+- [x] Add conservative automatic stop-and-continue.
+  - Completion: pre-tool stalls return `"stalled"`; `SessionPrompt` marks the assistant as errored and continues the loop. Post-tool stalls are handled as `"stop"` to avoid duplicate execution.
 
 - [ ] Stabilize deterministic request-shape surfaces.
   - Completion: tests prove tool names/schema serialization order is deterministic across repeated resolves, so hashes can be compared reliably.
@@ -79,17 +79,17 @@ Outputs:
 - [x] Add sequential cache-poison stop rule.
   - Completion: two consecutive collapsed requests after a healthy baseline stop the current processing loop before additional reasoning/tool calls continue on the broken cache prefix.
 
-- [ ] Add explicit cache rebaseline continuation path.
+- [x] Add explicit cache rebaseline continuation path.
   - Completion: after a sequential cache-poison stop, the next request is allowed to rebuild provider-side cache from the full system prompt and preserved history, without compaction and without discarding reasoning history.
 
 - [ ] Add DeepSeek reasoning-content diagnostics.
   - Completion: tests/logs expose assistant message ID, tool-call presence, reasoning lengths, emitted `reasoning_content` length, and synthesized-empty reasoning status.
 
-- [ ] Add targeted test files.
+- [ ] Add targeted watchdog and diagnostic test files.
   - Completion: cache-collapse detector tests were added to `test/session/processor-effect.test.ts`; dedicated watchdog, reasoning diagnostics, and deterministic request-hashing tests remain open.
 
-- [ ] Verify implementation.
-  - Completion: targeted tests and `bun typecheck` pass from `packages/opencode`.
+- [ ] Verify full implementation.
+  - Completion: `bun typecheck` passes from `packages/opencode`; targeted runtime watchdog tests remain open.
 
 ## Test Cases
 

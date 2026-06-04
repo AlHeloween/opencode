@@ -272,6 +272,16 @@ export function Session() {
     })
   })
 
+  event.on("session.cache_collapsed", (evt) => {
+    if (evt.properties.sessionID !== route.sessionID) return
+    toast.show({
+      title: "Prompt cache rebuilding",
+      message: `${evt.properties.modelID}: resent ${evt.properties.inputTokens.toLocaleString()} input tokens`,
+      variant: "info",
+      duration: 5000,
+    })
+  })
+
   // Allow exit when in child session (prompt is hidden)
   const exit = useExit()
 

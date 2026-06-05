@@ -17,10 +17,21 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
-import { existsSync } from "fs"
+import { existsSync, readdirSync } from "fs"
+import path from "path"
 import { init } from "#db"
 
 const log = Log.create({ service: "project" })
+
+const projectWorktrees = new Map<ProjectID, string>()
+
+export function getProjectWorktrees(): Map<ProjectID, string> {
+  return projectWorktrees
+}
+
+export function clearProjectWorktrees(): void {
+  projectWorktrees.clear()
+}
 
 const ProjectVcs = Schema.Literal("git")
 
@@ -172,6 +183,13 @@ export const layer: Layer.Layer<
     const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
       Effect.sync(() => Database.use(fn))
 
+    const projectDb = <T>(id: ProjectID, fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
+      Effect.sync(() => {
+        const worktree = projectWorktrees.get(id)
+        if (!worktree) throw new Error(`No worktree found for project ${id}`)
+        return Database.projectUse(id, worktree, fn)
+      })
+
     const emitUpdated = (data: Info) =>
       Effect.sync(() =>
         GlobalBus.emit("event", {
@@ -284,28 +302,46 @@ export const layer: Layer.Layer<
         return { id, sandbox, worktree, vcs: "git" as const }
       })
 
-      // Phase 2: upsert
-      const row = yield* db((d) => d.select().from(ProjectTable).where(eq(ProjectTable.id, data.id)).get())
-      const existing = row
-        ? fromRow(row)
-        : {
-            id: data.id,
-            worktree: data.worktree,
-            vcs: data.vcs,
-            sandboxes: [] as string[],
-            time: { created: Date.now(), updated: Date.now() },
-          }
-
-      if (Flag.OPENCODE_EXPERIMENTAL_ICON_DISCOVERY) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
-
+      // Build project from discovery data only (no DB access).
+      // Persistence (merge with existing row, upsert, session migration) is handled
+      // by persistDiscovery() after initFromWorktree in instance.ts.
       const result: Info = {
-        ...existing,
+        id: data.id,
         worktree: data.worktree,
         vcs: data.vcs,
-        time: { ...existing.time, updated: Date.now() },
+        sandboxes: data.sandbox !== data.worktree ? [data.sandbox] : [],
+        time: { created: Date.now(), updated: Date.now() },
       }
-      if (data.sandbox !== result.worktree && !result.sandboxes.includes(data.sandbox))
-        result.sandboxes.push(data.sandbox)
+      projectWorktrees.set(data.id, data.worktree)
+      // Persist project to its own DB
+      yield* Effect.sync(() =>
+        Database.projectUse(data.id, data.worktree, (db) => {
+          // Read existing row to merge sandboxes
+          const existing = db.select().from(ProjectTable).where(eq(ProjectTable.id, data.id)).get()
+          const mergedSandboxes = existing
+            ? [...new Set([...existing.sandboxes, ...result.sandboxes])]
+            : result.sandboxes
+          result.sandboxes = mergedSandboxes
+          db.insert(ProjectTable)
+            .values(infoToInsertValues(result))
+            .onConflictDoUpdate({
+              target: ProjectTable.id,
+              set: {
+                worktree: result.worktree,
+                vcs: result.vcs ?? null,
+                name: result.name ?? null,
+                icon_url: result.icon?.url ?? null,
+                icon_url_override: result.icon?.override ?? null,
+                icon_color: result.icon?.color ?? null,
+                time_updated: result.time.updated,
+                sandboxes: mergedSandboxes,
+                commands: result.commands ?? null,
+              },
+            })
+            .run()
+        }),
+      )
+      // Filter sandboxes by filesystem existence
       result.sandboxes = yield* Effect.forEach(
         result.sandboxes,
         (s) =>
@@ -315,23 +351,6 @@ export const layer: Layer.Layer<
           ),
         { concurrency: "unbounded" },
       ).pipe(Effect.map((arr) => arr.filter((x): x is string => x !== undefined)))
-
-      yield* Effect.sync(() => syncUpsert(result))
-
-      // Also import from per-project DB if it exists (e.g. from a previous launch)
-      yield* Effect.sync(() => {
-        importFromDisk(data.worktree)
-      })
-
-      if (data.id !== ProjectID.global) {
-        yield* db((d) =>
-          d
-            .update(SessionTable)
-            .set({ project_id: data.id })
-            .where(and(eq(SessionTable.project_id, ProjectID.global), eq(SessionTable.directory, data.worktree)))
-            .run(),
-        )
-      }
 
       yield* emitUpdated(result)
       return { project: result, sandbox: data.sandbox }
@@ -360,29 +379,49 @@ export const layer: Layer.Layer<
     })
 
     const list = Effect.fn("Project.list")(function* () {
-      return yield* db((d) => d.select().from(ProjectTable).all().map(fromRow))
+      const entries = yield* Effect.sync(() => [...projectWorktrees.entries()])
+      const results: Info[] = []
+      for (const [id, worktree] of entries) {
+        const row = yield* Effect.sync(() =>
+          Database.projectUse(id, worktree, (d) =>
+            d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get(),
+          ),
+        )
+        if (row) results.push(fromRow(row))
+      }
+      return results
     })
 
     const get = Effect.fn("Project.get")(function* (id: ProjectID) {
-      const row = yield* db((d) => d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
+      const worktree = projectWorktrees.get(id)
+      if (!worktree) return undefined
+      const row = yield* Effect.sync(() =>
+        Database.projectUse(id, worktree, (d) =>
+          d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get(),
+        ),
+      )
       return row ? fromRow(row) : undefined
     })
 
     const update = Effect.fn("Project.update")(function* (input: UpdateInput) {
-      const result = yield* db((d) =>
-        d
-          .update(ProjectTable)
-          .set({
-            name: input.name,
-            icon_url: input.icon?.url,
-            icon_url_override: input.icon?.override,
-            icon_color: input.icon?.color,
-            commands: input.commands,
-            time_updated: Date.now(),
-          })
-          .where(eq(ProjectTable.id, input.projectID))
-          .returning()
-          .get(),
+      const worktree = projectWorktrees.get(input.projectID)
+      if (!worktree) throw new Error(`No worktree found for project ${input.projectID}`)
+      const result = yield* Effect.sync(() =>
+        Database.projectUse(input.projectID, worktree, (d) =>
+          d
+            .update(ProjectTable)
+            .set({
+              name: input.name,
+              icon_url: input.icon?.url,
+              icon_url_override: input.icon?.override,
+              icon_color: input.icon?.color,
+              commands: input.commands,
+              time_updated: Date.now(),
+            })
+            .where(eq(ProjectTable.id, input.projectID))
+            .returning()
+            .get(),
+        ),
       )
       if (!result) throw new Error(`Project not found: ${input.projectID}`)
       const data = fromRow(result)
@@ -402,13 +441,23 @@ export const layer: Layer.Layer<
     })
 
     const setInitialized = Effect.fn("Project.setInitialized")(function* (id: ProjectID) {
-      yield* db((d) =>
-        d.update(ProjectTable).set({ time_initialized: Date.now() }).where(eq(ProjectTable.id, id)).run(),
+      const worktree = projectWorktrees.get(id)
+      if (!worktree) throw new Error(`No worktree found for project ${id}`)
+      yield* Effect.sync(() =>
+        Database.projectUse(id, worktree, (d) =>
+          d.update(ProjectTable).set({ time_initialized: Date.now() }).where(eq(ProjectTable.id, id)).run(),
+        ),
       )
     })
 
     const sandboxes = Effect.fn("Project.sandboxes")(function* (id: ProjectID) {
-      const row = yield* db((d) => d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
+      const worktree = projectWorktrees.get(id)
+      if (!worktree) return []
+      const row = yield* Effect.sync(() =>
+        Database.projectUse(id, worktree, (d) =>
+          d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get(),
+        ),
+      )
       if (!row) return []
       const data = fromRow(row)
       return yield* Effect.forEach(
@@ -423,33 +472,49 @@ export const layer: Layer.Layer<
     })
 
     const addSandbox = Effect.fn("Project.addSandbox")(function* (id: ProjectID, directory: string) {
-      const row = yield* db((d) => d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
+      const worktree = projectWorktrees.get(id)
+      if (!worktree) throw new Error(`No worktree found for project ${id}`)
+      const row = yield* Effect.sync(() =>
+        Database.projectUse(id, worktree, (d) =>
+          d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get(),
+        ),
+      )
       if (!row) throw new Error(`Project not found: ${id}`)
       const sboxes = [...row.sandboxes]
       if (!sboxes.includes(directory)) sboxes.push(directory)
-      const result = yield* db((d) =>
-        d
-          .update(ProjectTable)
-          .set({ sandboxes: sboxes, time_updated: Date.now() })
-          .where(eq(ProjectTable.id, id))
-          .returning()
-          .get(),
+      const result = yield* Effect.sync(() =>
+        Database.projectUse(id, worktree, (d) =>
+          d
+            .update(ProjectTable)
+            .set({ sandboxes: sboxes, time_updated: Date.now() })
+            .where(eq(ProjectTable.id, id))
+            .returning()
+            .get(),
+        ),
       )
       if (!result) throw new Error(`Project not found: ${id}`)
       yield* emitUpdated(fromRow(result))
     })
 
     const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectID, directory: string) {
-      const row = yield* db((d) => d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
+      const worktree = projectWorktrees.get(id)
+      if (!worktree) throw new Error(`No worktree found for project ${id}`)
+      const row = yield* Effect.sync(() =>
+        Database.projectUse(id, worktree, (d) =>
+          d.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get(),
+        ),
+      )
       if (!row) throw new Error(`Project not found: ${id}`)
       const sboxes = row.sandboxes.filter((s) => s !== directory)
-      const result = yield* db((d) =>
-        d
-          .update(ProjectTable)
-          .set({ sandboxes: sboxes, time_updated: Date.now() })
-          .where(eq(ProjectTable.id, id))
-          .returning()
-          .get(),
+      const result = yield* Effect.sync(() =>
+        Database.projectUse(id, worktree, (d) =>
+          d
+            .update(ProjectTable)
+            .set({ sandboxes: sboxes, time_updated: Date.now() })
+            .where(eq(ProjectTable.id, id))
+            .returning()
+            .get(),
+        ),
       )
       if (!result) throw new Error(`Project not found: ${id}`)
       yield* emitUpdated(fromRow(result))
@@ -477,57 +542,105 @@ export const defaultLayer = layer.pipe(
 )
 
 export function list() {
-  return Database.use((db) =>
-    db
-      .select()
-      .from(ProjectTable)
-      .all()
-      .map((row) => fromRow(row)),
-  )
+  const results: Info[] = []
+  const seen = new Set<string>()
+
+  // Read all known projects from the in-memory map
+  for (const [id, worktree] of projectWorktrees) {
+    if (seen.has(id)) continue
+    try {
+      const row = Database.projectUse(id, worktree, (db) =>
+        db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get(),
+      )
+      if (row && !seen.has(row.id)) {
+        seen.add(row.id)
+        results.push(fromRow(row))
+      }
+    } catch {
+      // project DB may not be accessible
+    }
+  }
+
+  return results
 }
 
 export function get(id: ProjectID): Info | undefined {
-  const row = Database.use((db) => db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
-  if (!row) return undefined
-  return fromRow(row)
+  const worktree = projectWorktrees.get(id)
+  if (!worktree) return undefined
+  try {
+    const row = Database.projectUse(id, worktree, (db) =>
+      db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get(),
+    )
+    if (!row) return undefined
+    return fromRow(row)
+  } catch {
+    return undefined
+  }
 }
 
 export function setInitialized(id: ProjectID) {
-  Database.use((db) =>
+  const worktree = projectWorktrees.get(id)
+  if (!worktree) return
+  Database.projectUse(id, worktree, (db) =>
     db.update(ProjectTable).set({ time_initialized: Date.now() }).where(eq(ProjectTable.id, id)).run(),
   )
 }
 
-/** Upsert a project into the current default (global) DB. Idempotent. */
-export function syncUpsert(info: Info) {
-  Database.use((db) =>
-    db
-      .insert(ProjectTable)
-      .values(infoToInsertValues(info))
+/**
+ * Persist a newly discovered project into the project's own DB.
+ * Reads the existing project row (if any) to preserve name/icon/timestamps,
+ * merges with new discovery data, upserts, and migrates orphan sessions.
+ * Must be called within a project context (Database.withProject).
+ */
+export function persistDiscovery(result: Info, worktree: string) {
+  Database.use((db) => {
+    // Read existing project row to preserve name/icon/timestamps
+    const row = db.select().from(ProjectTable).where(eq(ProjectTable.id, result.id)).get()
+    const existing = row ? fromRow(row) : result
+
+    // Merge: preserve existing name/icon/timestamps, update worktree/vcs/sandboxes
+    const merged: Info = {
+      ...existing,
+      worktree: result.worktree,
+      vcs: result.vcs,
+      sandboxes: [...new Set([...existing.sandboxes, ...result.sandboxes])],
+      time: { ...existing.time, updated: Date.now() },
+    }
+
+    // Upsert into the current project DB (already scoped by Database.withProject)
+    db.insert(ProjectTable)
+      .values(infoToInsertValues(merged))
       .onConflictDoUpdate({
         target: ProjectTable.id,
         set: {
-          worktree: info.worktree,
-          vcs: info.vcs ?? null,
-          name: info.name ?? null,
-          icon_url: info.icon?.url ?? null,
-          icon_url_override: info.icon?.override ?? null,
-          icon_color: info.icon?.color ?? null,
-          time_updated: info.time.updated,
-          time_initialized: info.time.initialized ?? null,
-          sandboxes: info.sandboxes,
-          commands: info.commands ?? null,
+          worktree: merged.worktree,
+          vcs: merged.vcs ?? null,
+          name: merged.name ?? null,
+          icon_url: merged.icon?.url ?? null,
+          icon_url_override: merged.icon?.override ?? null,
+          icon_color: merged.icon?.color ?? null,
+          time_updated: merged.time.updated,
+          time_initialized: merged.time.initialized ?? null,
+          sandboxes: merged.sandboxes,
+          commands: merged.commands ?? null,
         },
       })
-      .run(),
-  )
+      .run()
+
+    // Migrate orphan sessions from global project to discovered project
+    if (merged.id !== ProjectID.global) {
+      db.update(SessionTable)
+        .set({ project_id: merged.id })
+        .where(and(eq(SessionTable.project_id, ProjectID.global), eq(SessionTable.directory, worktree)))
+        .run()
+    }
+  })
 }
 
 /**
  * Discover and import a project from an existing on-disk database.
  * Checks if `{worktree}/.opencode/data/opencode.db` exists, validates
- * it's an opencode database, reads project metadata, and upserts it
- * into the current global DB so sessions can be listed.
+ * it's an opencode database, reads project metadata, and returns it.
  */
 export function importFromDisk(worktree: string): Info | undefined {
   const dbPath = Database.getProjectDbPath(worktree)
@@ -550,8 +663,7 @@ export function importFromDisk(worktree: string): Info | undefined {
     if (!row) return undefined
 
     const info = fromRow(row)
-    // Import into the current global DB
-    syncUpsert(info)
+    projectWorktrees.set(info.id, worktree)
     log.info("imported project from disk", { id: info.id, worktree })
     return info
   } catch (err) {

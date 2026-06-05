@@ -21,6 +21,11 @@ import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { isRecord } from "@/util/record"
 import { StringBuilder } from "@/util/string-builder"
+import * as Balance from "@/provider/balance"
+import * as BalanceStorage from "@/provider/balance-storage"
+import { SessionTable } from "./session.sql"
+import { eq, sql } from "drizzle-orm"
+import { Database } from "@/storage/db"
 
 const DOOM_LOOP_THRESHOLD = 3
 const log = Log.create({ service: "session.processor" })
@@ -29,22 +34,15 @@ const CACHE_HEALTHY_RATIO = 0.85
 const CACHE_POISON_THRESHOLD = 2
 const CACHE_INPUT_DELTA_THRESHOLD = 100_000
 const CACHE_COLD_START_INPUT_THRESHOLD = 100_000
+const CACHE_PERSISTENT_COLD_THRESHOLD = 3
+const CACHE_COLD_RATIO_THRESHOLD = 0.1
 const STREAM_STALL_DEFAULT_MS = 120_000_000
 function streamStallTimeoutMs() {
   const value = Number(process.env.OPENCODE_STREAM_STALL_TIMEOUT_MS)
   return Number.isFinite(value) && value > 0 ? value : STREAM_STALL_DEFAULT_MS
 }
 
-type CachePoisonState = {
-  healthy: boolean
-  collapsed: number
-  poisoned: boolean
-  previousRatio?: number
-  previousMessageID?: string
-  previousInputTokens?: number
-}
-
-const cachePoisonStates = new Map<string, CachePoisonState>()
+import { cachePoisonStates, type CachePoisonState } from "./cache-poison-state"
 
 export type Result = "compact" | "stop" | "continue" | "stalled"
 
@@ -118,19 +116,22 @@ export function trackCachePoison(input: {
   tokens: { input: number; cache: { read: number; write: number } }
 }) {
   const ratio = cacheRatio(input.tokens)
-  const state = cachePoisonStates.get(input.key) ?? { healthy: false, collapsed: 0, poisoned: false, previousInputTokens: undefined }
+  const state = cachePoisonStates.get(input.key) ?? { healthy: false, collapsed: 0, poisoned: false, consecutiveCold: 0, previousInputTokens: undefined }
 
   const inputDelta = state.previousInputTokens !== undefined
     ? input.tokens.input - state.previousInputTokens
     : undefined
 
-  const collapsedByDelta = inputDelta !== undefined && inputDelta > CACHE_INPUT_DELTA_THRESHOLD
+  const collapsedByDelta = inputDelta !== undefined && inputDelta > 0 && inputDelta > CACHE_INPUT_DELTA_THRESHOLD
+  const shrunkByDelta = inputDelta !== undefined && inputDelta < -CACHE_INPUT_DELTA_THRESHOLD
+  const isHighColdInput = input.tokens.input > CACHE_COLD_START_INPUT_THRESHOLD && ratio < CACHE_COLD_RATIO_THRESHOLD
 
   if (ratio >= CACHE_HEALTHY_RATIO) {
     const next = {
       healthy: true,
       collapsed: 0,
       poisoned: false,
+      consecutiveCold: 0,
       previousRatio: ratio,
       previousMessageID: input.messageID,
       previousInputTokens: input.tokens.input,
@@ -140,15 +141,83 @@ export function trackCachePoison(input: {
   }
 
   if (!state.healthy) {
-    if (input.tokens.input > CACHE_COLD_START_INPUT_THRESHOLD) {
+    if (shrunkByDelta) {
+      log.info("cache baseline reset on context shrinkage", {
+        key: input.key,
+        messageID: input.messageID,
+        inputDelta,
+        previousInputTokens: state.previousInputTokens,
+        currentInputTokens: input.tokens.input,
+      })
+      const next = {
+        ...state,
+        previousRatio: ratio,
+        previousMessageID: input.messageID,
+        previousInputTokens: input.tokens.input,
+      }
+      cachePoisonStates.set(input.key, next)
+      return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
+    }
+
+    if (collapsedByDelta) {
+      const collapsed = state.collapsed + 1
+      const poisoned = collapsed >= CACHE_POISON_THRESHOLD
+      log.warn("bug: prompt cache collapsed from cold start", {
+        key: input.key,
+        messageID: input.messageID,
+        cacheRatio: ratio,
+        inputDelta,
+        collapsedCount: collapsed,
+        poisoned,
+        inputTokens: input.tokens.input,
+        cacheReadTokens: input.tokens.cache.read,
+        cacheWriteTokens: input.tokens.cache.write,
+      })
+      const next = {
+        healthy: false,
+        collapsed: poisoned ? 0 : collapsed,
+        poisoned,
+        consecutiveCold: 0,
+        previousRatio: ratio,
+        previousMessageID: input.messageID,
+        previousInputTokens: input.tokens.input,
+      }
+      cachePoisonStates.set(input.key, next)
+      return { ratio, collapsed: true, poisoned, state: next, inputDelta }
+    }
+
+    if (isHighColdInput) {
+      const consecutiveCold = state.consecutiveCold + 1
+      const persistentColdPoisoned = consecutiveCold >= CACHE_PERSISTENT_COLD_THRESHOLD
       log.warn("bug: cold cache cost", {
         key: input.key,
         messageID: input.messageID,
         inputTokens: input.tokens.input,
         cacheReadTokens: input.tokens.cache.read,
         cacheWriteTokens: input.tokens.cache.write,
+        consecutiveCold,
       })
+      const next = {
+        ...state,
+        consecutiveCold: persistentColdPoisoned ? 0 : consecutiveCold,
+        poisoned: persistentColdPoisoned,
+        previousRatio: ratio,
+        previousMessageID: input.messageID,
+        previousInputTokens: input.tokens.input,
+      }
+      if (persistentColdPoisoned) {
+        log.error("bug: persistent cold cache — forcing rebaseline", {
+          key: input.key,
+          messageID: input.messageID,
+          consecutiveCold,
+          inputTokens: input.tokens.input,
+          cacheReadTokens: input.tokens.cache.read,
+        })
+      }
+      cachePoisonStates.set(input.key, next)
+      return { ratio, collapsed: false, poisoned: persistentColdPoisoned, state: next, inputDelta }
     }
+
     const next = {
       ...state,
       previousRatio: ratio,
@@ -166,11 +235,12 @@ export function trackCachePoison(input: {
       healthy: true,
       collapsed,
       poisoned,
+      consecutiveCold: 0,
       previousRatio: ratio,
       previousMessageID: input.messageID,
       previousInputTokens: input.tokens.input,
     }
-    cachePoisonStates.set(input.key, poisoned ? { healthy: false, collapsed: 0, poisoned: true, previousInputTokens: input.tokens.input } : next)
+    cachePoisonStates.set(input.key, poisoned ? { healthy: false, collapsed: 0, poisoned: true, consecutiveCold: 0, previousInputTokens: input.tokens.input } : next)
     return { ratio, collapsed: true, poisoned, state: next, inputDelta }
   }
 
@@ -178,12 +248,51 @@ export function trackCachePoison(input: {
     healthy: true,
     collapsed: 0,
     poisoned: false,
+    consecutiveCold: 0,
     previousRatio: ratio,
     previousMessageID: input.messageID,
     previousInputTokens: input.tokens.input,
   }
   cachePoisonStates.set(input.key, next)
   return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
+}
+
+let _lastBalanceCheck = 0
+const BALANCE_CHECK_INTERVAL_MS = 300_000 // 5 minutes
+const BALANCE_CHECK_MIN_COST = 0.01
+
+async function checkAndSnapshotBalance(params: {
+  providerID: string
+  sessionID: string
+  messageID: string
+}): Promise<Balance.BalanceSnapshot | null> {
+  if (params.providerID !== "deepseek") return null
+  const now = Date.now()
+  if (now - _lastBalanceCheck < BALANCE_CHECK_INTERVAL_MS) return null
+  _lastBalanceCheck = now
+
+  try {
+    const previous = BalanceStorage.readLatestBalanceSnapshot("deepseek")
+    const calculatedCost = BalanceStorage.calculatedCostSinceLastSnapshot(
+      params.sessionID,
+      "deepseek",
+    )
+    if (previous && calculatedCost < BALANCE_CHECK_MIN_COST) return null
+
+    const snapshot = await Balance.checkBalance({
+      providerID: params.providerID,
+      sessionID: params.sessionID,
+      messageID: params.messageID,
+      previousSnapshot: previous ?? undefined,
+      calculatedCostSinceLast: calculatedCost,
+    })
+    if (snapshot) {
+      BalanceStorage.writeBalanceSnapshot(snapshot)
+    }
+    return snapshot
+  } catch (err) {
+    return null
+  }
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionProcessor") {}
@@ -572,6 +681,46 @@ export const layer: Layer.Layer<
               cost: usage.cost,
             })
             yield* session.updateMessage(ctx.assistantMessage)
+            // Accumulate session-level token/cost totals
+            yield* Effect.sync(() =>
+              Database.use((db) =>
+                db
+                  .update(SessionTable)
+                  .set({
+                    cost: sql`cost + ${usage.cost}`,
+                    tokens_input: sql`tokens_input + ${usage.tokens.input + usage.tokens.cache.read}`,
+                    tokens_output: sql`tokens_output + ${usage.tokens.output}`,
+                    tokens_reasoning: sql`tokens_reasoning + ${usage.tokens.reasoning}`,
+                    tokens_cache_read: sql`tokens_cache_read + ${usage.tokens.cache.read}`,
+                    tokens_cache_write: sql`tokens_cache_write + ${usage.tokens.cache.write}`,
+                  })
+                  .where(eq(SessionTable.id, ctx.sessionID))
+                  .run(),
+              ),
+            )
+            // Snapshot provider balance and publish update for TUI display.
+            yield* Effect.gen(function* () {
+              const snapshot = yield* Effect.promise(() =>
+                checkAndSnapshotBalance({
+                  providerID: ctx.model.providerID,
+                  sessionID: ctx.sessionID,
+                  messageID: ctx.assistantMessage.id,
+                }),
+              )
+              if (snapshot) {
+                yield* bus.publish(Session.Event.BalanceUpdated, {
+                  sessionID: ctx.sessionID,
+                  providerID: snapshot.providerID,
+                  currency: snapshot.currency,
+                  totalBalance: snapshot.totalBalance,
+                  grantedBalance: snapshot.grantedBalance,
+                  toppedUpBalance: snapshot.toppedUpBalance,
+                  isAvailable: snapshot.isAvailable,
+                  calculatedCostSinceLast: snapshot.calculatedCostSinceLast,
+                  costValidationDelta: snapshot.costValidationDelta,
+                })
+              }
+            }).pipe(Effect.ignore, Effect.forkIn(scope))
             if (ctx.snapshot) {
               const patch = yield* snapshot.patch(ctx.snapshot)
               if (patch.files.length) {

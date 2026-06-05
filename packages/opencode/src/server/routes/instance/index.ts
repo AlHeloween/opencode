@@ -133,6 +133,8 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket): Hono => {
     app.delete(SessionPaths.deleteMessage, (c) => handler(c.req.raw, context))
     app.delete(SessionPaths.deletePart, (c) => handler(c.req.raw, context))
     app.patch(SessionPaths.updatePart, (c) => handler(c.req.raw, context))
+    app.get(SessionPaths.backups, (c) => handler(c.req.raw, context))
+    app.post(SessionPaths.restore, (c) => handler(c.req.raw, context))
     app.post(TuiPaths.appendPrompt, (c) => handler(c.req.raw, context))
     app.post(TuiPaths.openHelp, (c) => handler(c.req.raw, context))
     app.post(TuiPaths.openSessions, (c) => handler(c.req.raw, context))

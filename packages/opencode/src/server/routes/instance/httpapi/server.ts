@@ -57,9 +57,12 @@ const instance = HttpRouter.middleware()(
         const headers = yield* HttpServerRequest.schemaHeaders(Headers)
         const raw = query.directory || headers["x-opencode-directory"] || process.cwd()
         const workspace = query.workspace || undefined
+
+        const directory = Filesystem.resolve(decode(raw))
+
         const ctx = yield* Effect.promise(() =>
           Instance.provide({
-            directory: Filesystem.resolve(decode(raw)),
+            directory,
             init: () => AppRuntime.runPromise(InstanceBootstrap),
             fn: () => Instance.current,
           }),

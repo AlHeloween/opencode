@@ -19,6 +19,7 @@ import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { Snapshot } from "@/snapshot"
+import { listBackups, restoreBackup } from "@/tool/edit-backup"
 import * as Log from "@opencode-ai/core/util/log"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Effect, Layer, Schema, SchemaGetter, Struct } from "effect"
@@ -121,6 +122,8 @@ export const SessionPaths = {
   deleteMessage: `${root}/:sessionID/message/:messageID`,
   deletePart: `${root}/:sessionID/message/:messageID/part/:partID`,
   updatePart: `${root}/:sessionID/message/:messageID/part/:partID`,
+  backups: `${root}/:sessionID/backups`,
+  restore: `${root}/:sessionID/backups/restore`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -412,6 +415,33 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "part.update",
             description: "Update a part in a message.",
+          }),
+        ),
+        HttpApiEndpoint.get("listBackups", SessionPaths.backups, {
+          params: { sessionID: SessionID },
+          success: Schema.Array(Schema.Struct({
+            filename: Schema.String,
+            timestamp: Schema.String,
+            originalPath: Schema.optional(Schema.String),
+          })),
+          error: HttpApiError.NotFound,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.backups.list",
+            summary: "List backups",
+            description: "List edit backups for a session so they can be browsed and restored.",
+          }),
+        ),
+        HttpApiEndpoint.post("restoreBackup", SessionPaths.restore, {
+          params: { sessionID: SessionID },
+          payload: Schema.Struct({ filename: Schema.String }),
+          success: Schema.String,
+          error: HttpApiError.BadRequest,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.backups.restore",
+            summary: "Restore backup",
+            description: "Restore a file from an edit backup. Copies the .bak file over the original.",
           }),
         ),
       )
@@ -910,6 +940,21 @@ export const sessionHandlers = Layer.unwrap(
       )
     })
 
+    const listBackupsHandler = Effect.fn("SessionHttpApi.listBackups")(function* (ctx: {
+      params: { sessionID: SessionID }
+    }) {
+      return yield* listBackups(ctx.params.sessionID)
+    })
+
+    const restoreBackupHandler = Effect.fn("SessionHttpApi.restoreBackup")(function* (ctx: {
+      params: { sessionID: SessionID }
+      payload: { filename: string }
+    }) {
+      return yield* restoreBackup(ctx.params.sessionID, ctx.payload.filename).pipe(
+        Effect.mapError(() => new HttpApiError.BadRequest({})),
+      )
+    })
+
     return HttpApiBuilder.group(SessionApi, "session", (handlers) =>
       handlers
         .handle("list", list)
@@ -938,7 +983,9 @@ export const sessionHandlers = Layer.unwrap(
         .handle("permissionRespond", permissionRespond)
         .handle("deleteMessage", deleteMessage)
         .handle("deletePart", deletePart)
-        .handle("updatePart", updatePart),
+        .handle("updatePart", updatePart)
+        .handle("listBackups", listBackupsHandler)
+        .handle("restoreBackup", restoreBackupHandler),
     )
   }),
 ).pipe(

@@ -3,12 +3,12 @@ import { Effect, Layer, Option } from "effect"
 
 import { AccountRepo } from "../../src/account/repo"
 import { AccessToken, AccountID, OrgID, RefreshToken } from "../../src/account/schema"
-import { Database } from "@/storage/db"
+import { configUse } from "@/storage/db"
 import { testEffect } from "../lib/effect"
 
 const truncate = Layer.effectDiscard(
   Effect.sync(() => {
-    Database.use((db) => {
+    configUse((db) => {
       db.run(/*sql*/ `DELETE FROM account_state`)
       db.run(/*sql*/ `DELETE FROM account`)
     })

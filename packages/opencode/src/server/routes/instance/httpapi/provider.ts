@@ -121,19 +121,6 @@ export const providerHandlers = Layer.unwrap(
       return result
     })
 
-    const authorizeRaw = Effect.fn("ProviderHttpApi.authorizeRaw")(function* (ctx: {
-      params: { providerID: ProviderID }
-      request: HttpServerRequest.HttpServerRequest
-    }) {
-      const body = yield* Effect.orDie(ctx.request.text)
-      const payload = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(ProviderAuth.AuthorizeInput))(body).pipe(
-        Effect.mapError(() => new HttpApiError.BadRequest({})),
-      )
-      const result = yield* authorize({ params: ctx.params, payload })
-      if (result === undefined) return HttpServerResponse.empty({ status: 200 })
-      return HttpServerResponse.jsonUnsafe(result)
-    })
-
     const callback = Effect.fn("ProviderHttpApi.callback")(function* (ctx: {
       params: { providerID: ProviderID }
       payload: ProviderAuth.CallbackInput
@@ -152,7 +139,7 @@ export const providerHandlers = Layer.unwrap(
       handlers
         .handle("list", list)
         .handle("auth", auth)
-        .handleRaw("authorize", authorizeRaw)
+        .handle("authorize", authorize)
         .handle("callback", callback),
     )
   }),

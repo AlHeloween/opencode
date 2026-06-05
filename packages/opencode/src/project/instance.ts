@@ -41,11 +41,14 @@ function boot(input: { directory: string; init?: () => Promise<any>; worktree?: 
               project,
             }))
     Global.initFromWorktree(ctx.worktree)
-    // Re-register in the now-correct global DB after worktree path change
-    Project.syncUpsert(ctx.project)
-    await Log.reopen()
-    await context.provide(ctx, async () => {
-      await input.init?.()
+    // Set project context for DB operations: persistDiscovery, init (bootstrap), and all user code
+    await Database.withProject(ctx.project.id, ctx.worktree, async () => {
+      // Persist discovered project: merge with existing row, upsert, migrate sessions
+      Project.persistDiscovery(ctx.project, ctx.worktree)
+      await Log.reopen()
+      await context.provide(ctx, async () => {
+        await input.init?.()
+      })
     })
     return ctx
   })
@@ -76,7 +79,7 @@ export const Instance = {
     }
     const ctx = await existing
     return context.provide(ctx, async () => {
-      return input.fn()
+      return Database.withProject(ctx.project.id, ctx.worktree, () => input.fn())
     })
   },
   get current() {
@@ -150,9 +153,9 @@ export const Instance = {
 
     return await next
   },
-  async dispose() {
-    const directory = Instance.directory
-    const project = Instance.project
+  async dispose(input?: { directory?: string; project?: Project.Info }) {
+    const directory = input?.directory ?? Instance.directory
+    const project = input?.project ?? Instance.project
     Log.Default.info("disposing instance", { directory })
     await disposeInstance(directory)
     cache.delete(directory)

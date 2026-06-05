@@ -22,6 +22,7 @@ import { Auth } from "@/auth"
 import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
+import { resetCachePoisonState } from "./cache-poison-state"
 import * as Option from "effect/Option"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
 
@@ -63,6 +64,12 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
       modelID: input.modelID,
       prevHash: prev,
       newHash: hash,
+    })
+    resetCachePoisonState(key)
+    log.info("cache poison state reset due to system prompt change", {
+      sessionID: input.sessionID,
+      agent: input.agent,
+      modelID: input.modelID,
     })
   }
   systemContentHashes.set(key, hash)
@@ -474,6 +481,18 @@ const live: Layer.Layer<
                 if (args.type === "stream") {
                   // @ts-expect-error
                   args.params.prompt = ProviderTransform.message(args.params.prompt, input.model, options)
+                  // Diagnostic: check cache markers on first system message
+                  const sysMsg: any = args.params.prompt.find((m: any) => m.role === "system")
+                  const lastContent: any = sysMsg?.content?.[sysMsg.content?.length - 1]
+                  const hasCacheControl: any = sysMsg?.providerOptions?.openaiCompatible?.cache_control
+                    ?? lastContent?.providerOptions?.openaiCompatible?.cache_control
+                  log.info("cache marker check", {
+                    providerID: input.model.providerID,
+                    modelID: input.model.id,
+                    hasCacheControl: !!hasCacheControl,
+                    cacheControlValue: hasCacheControl ?? null,
+                    systemMsgCount: args.params.prompt.filter((m: any) => m.role === "system").length,
+                  })
                 }
                 return args.params
               },

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Project, syncUpsert, importFromDisk, list as listProjects, Info } from "@/project/project"
+import { Project, importFromDisk, list as listProjects, Info } from "@/project/project"
 import * as Log from "@opencode-ai/core/util/log"
 import { $ } from "bun"
 import path from "path"
@@ -401,7 +401,7 @@ describe("Project.update", () => {
           name: "Should Fail",
         }),
       ),
-    ).rejects.toThrow("Project not found: nonexistent-project-id")
+    ).rejects.toThrow("No worktree found for project nonexistent-project-id")
   })
 
   test("should emit GlobalBus event on update", async () => {
@@ -603,54 +603,8 @@ describe("Project.fromDirectory with bare repos", () => {
 })
 
 // ---------------------------------------------------------------------------
-// syncUpsert & importFromDisk
+// importFromDisk
 // ---------------------------------------------------------------------------
-
-describe("syncUpsert", () => {
-  test("inserts a new project into the global DB", () => {
-    const testId = ProjectID.make("test-sync-upsert-ins-" + Date.now())
-    const info: Info = {
-      id: testId,
-      worktree: "/test/worktree",
-      sandboxes: [],
-      time: { created: Date.now(), updated: Date.now() },
-    }
-    syncUpsert(info)
-
-    const all = listProjects()
-    const found = all.find((p) => p.id === testId)
-    expect(found).toBeDefined()
-    expect(found!.worktree).toBe("/test/worktree")
-  })
-
-  test("updates an existing project idempotently", () => {
-    const testId = ProjectID.make("test-sync-upsert-upd-" + Date.now())
-    const info1: Info = {
-      id: testId,
-      worktree: "/initial",
-      sandboxes: [],
-      time: { created: Date.now(), updated: Date.now() },
-    }
-    const info2: Info = {
-      id: testId,
-      worktree: "/updated",
-      name: "Renamed",
-      vcs: "git" as const,
-      sandboxes: [],
-      time: { created: Date.now(), updated: Date.now() },
-    }
-
-    syncUpsert(info1)
-    syncUpsert(info2)
-
-    const all = listProjects()
-    const found = all.find((p) => p.id === testId)
-    expect(found).toBeDefined()
-    expect(found!.worktree).toBe("/updated")
-    expect(found!.name).toBe("Renamed")
-    expect(found!.vcs).toBe("git")
-  })
-})
 
 describe("importFromDisk", () => {
   test("returns undefined for non-existent DB path", () => {

@@ -83,7 +83,9 @@ describe("session messages endpoint", () => {
           const ids = await fill(session.id, 5)
           const app = Server.Default().app
 
-          const a = await app.request(`/session/${session.id}/message?limit=2`)
+          const a = await app.request(`/session/${session.id}/message?limit=2`, {
+            headers: { "x-opencode-directory": tmp.path },
+          })
           expect(a.status).toBe(200)
           const aBody = (await a.json()) as MessageV2.WithParts[]
           expect(aBody.map((item) => item.info.id)).toEqual(ids.slice(-2))
@@ -91,7 +93,9 @@ describe("session messages endpoint", () => {
           expect(cursor).toBeTruthy()
           expect(a.headers.get("link")).toContain('rel="next"')
 
-          const b = await app.request(`/session/${session.id}/message?limit=2&before=${encodeURIComponent(cursor!)}`)
+          const b = await app.request(`/session/${session.id}/message?limit=2&before=${encodeURIComponent(cursor!)}`, {
+            headers: { "x-opencode-directory": tmp.path },
+          })
           expect(b.status).toBe(200)
           const bBody = (await b.json()) as MessageV2.WithParts[]
           expect(bBody.map((item) => item.info.id)).toEqual(ids.slice(-4, -2))
@@ -112,7 +116,9 @@ describe("session messages endpoint", () => {
           const ids = await fill(session.id, 3)
           const app = Server.Default().app
 
-          const res = await app.request(`/session/${session.id}/message`)
+          const res = await app.request(`/session/${session.id}/message`, {
+            headers: { "x-opencode-directory": tmp.path },
+          })
           expect(res.status).toBe(200)
           const body = (await res.json()) as MessageV2.WithParts[]
           expect(body.map((item) => item.info.id)).toEqual(ids)
@@ -132,10 +138,14 @@ describe("session messages endpoint", () => {
           const session = await svc.create({})
           const app = Server.Default().app
 
-          const bad = await app.request(`/session/${session.id}/message?limit=2&before=bad`)
+          const bad = await app.request(`/session/${session.id}/message?limit=2&before=bad`, {
+            headers: { "x-opencode-directory": tmp.path },
+          })
           expect(bad.status).toBe(400)
 
-          const miss = await app.request(`/session/ses_missing/message?limit=2`)
+          const miss = await app.request(`/session/ses_missing/message?limit=2`, {
+            headers: { "x-opencode-directory": tmp.path },
+          })
           expect(miss.status).toBe(404)
 
           await svc.remove(session.id)
@@ -154,7 +164,9 @@ describe("session messages endpoint", () => {
           await fill(session.id, 520)
           const app = Server.Default().app
 
-          const res = await app.request(`/session/${session.id}/message?limit=510`)
+          const res = await app.request(`/session/${session.id}/message?limit=510`, {
+            headers: { "x-opencode-directory": tmp.path },
+          })
           expect(res.status).toBe(200)
           const body = (await res.json()) as MessageV2.WithParts[]
           expect(body).toHaveLength(510)

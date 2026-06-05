@@ -1,15 +1,17 @@
 import { eq } from "drizzle-orm"
 import { Effect, Layer, Option, Schema, Context } from "effect"
 
-import { Database } from "@/storage/db"
+import { configUse, configTransaction } from "@/storage/db"
 import { AccountStateTable, AccountTable } from "./account.sql"
 import { AccessToken, AccountID, AccountRepoError, Info, OrgID, RefreshToken } from "./schema"
 import { normalizeServerUrl } from "./url"
 
 export type AccountRow = (typeof AccountTable)["$inferSelect"]
 
-type DbClient = Parameters<typeof Database.use>[0] extends (db: infer T) => unknown ? T : never
-type DbTransactionCallback<A> = Parameters<typeof Database.transaction<A>>[0]
+import type { TxOrDb } from "@/storage/db"
+
+type DbTransactionCallback<A> = (db: TxOrDb) => A
+type DbClient = TxOrDb
 
 const ACCOUNT_STATE_ID = 1
 
@@ -45,13 +47,13 @@ export const layer: Layer.Layer<Service> = Layer.effect(
 
     const query = <A>(f: DbTransactionCallback<A>) =>
       Effect.try({
-        try: () => Database.use(f),
+        try: () => configUse(f),
         catch: (cause) => new AccountRepoError({ message: "Database operation failed", cause }),
       })
 
     const tx = <A>(f: DbTransactionCallback<A>) =>
       Effect.try({
-        try: () => Database.transaction(f),
+        try: () => configTransaction(f as any) as A,
         catch: (cause) => new AccountRepoError({ message: "Database operation failed", cause }),
       })
 

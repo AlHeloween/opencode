@@ -6,10 +6,11 @@ import { LSP } from "@/lsp/lsp"
 import { Vcs } from "@/project/vcs"
 import { Skill } from "@/skill"
 import * as InstanceState from "@/effect/instance-state"
+import { InstanceRef } from "@/effect/instance-ref"
+import { Instance } from "@/project/instance"
 import { Effect, Layer, Schema } from "effect"
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "./auth"
-import { markInstanceForDisposal } from "./lifecycle"
 
 const PathInfo = Schema.Struct({
   home: Schema.String,
@@ -150,7 +151,8 @@ export const instanceHandlers = Layer.unwrap(
     const vcs = yield* Vcs.Service
 
     const dispose = Effect.fn("InstanceHttpApi.dispose")(function* () {
-      yield* markInstanceForDisposal(yield* InstanceState.context)
+      const instance = yield* InstanceRef
+      yield* Effect.promise(() => Instance.dispose(instance))
       return true
     })
 

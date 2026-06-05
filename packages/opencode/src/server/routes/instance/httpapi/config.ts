@@ -1,10 +1,10 @@
 import { Config } from "@/config/config"
+import { InstanceRef } from "@/effect/instance-ref"
 import { Provider } from "@/provider/provider"
-import * as InstanceState from "@/effect/instance-state"
+import { Instance } from "@/project/instance"
 import { Effect, Layer } from "effect"
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "./auth"
-import { markInstanceForDisposal } from "./lifecycle"
 
 const root = "/config"
 
@@ -68,7 +68,8 @@ export const configHandlers = Layer.unwrap(
 
     const update = Effect.fn("ConfigHttpApi.update")(function* (ctx) {
       yield* configSvc.update(ctx.payload, { dispose: false })
-      yield* markInstanceForDisposal(yield* InstanceState.context)
+      const instance = yield* InstanceRef
+      yield* Effect.promise(() => Instance.dispose(instance))
       return ctx.payload
     })
 

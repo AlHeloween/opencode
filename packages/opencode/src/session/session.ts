@@ -31,10 +31,9 @@ import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
 import { ProjectID } from "../project/schema"
 import { WorkspaceID } from "../control-plane/schema"
-import { existsSync, readdirSync } from "fs"
 import { SessionID, MessageID, PartID } from "./schema"
 import { ModelID } from "../provider/schema"
-import { importFromDisk } from "../project/project"
+import { getProjectWorktrees } from "../project/project"
 
 import type { Provider } from "@/provider/provider"
 import { Permission } from "@/permission"
@@ -43,6 +42,7 @@ import { zod } from "@/util/effect-zod"
 import { optionalOmitUndefined, withStatics } from "@/util/schema"
 
 const log = Log.create({ service: "session" })
+const logDb = Log.create({ service: "session-db" })
 
 const parentTitlePrefix = "New session - "
 const childTitlePrefix = "Child session - "
@@ -90,6 +90,16 @@ export function fromRow(row: SessionRow): Info {
       compacting: row.time_compacting ?? undefined,
       archived: row.time_archived ?? undefined,
     },
+    cost: row.cost ?? 0,
+    tokens: {
+      input: row.tokens_input ?? 0,
+      output: row.tokens_output ?? 0,
+      reasoning: row.tokens_reasoning ?? 0,
+      cache: {
+        read: row.tokens_cache_read ?? 0,
+        write: row.tokens_cache_write ?? 0,
+      },
+    },
   }
 }
 
@@ -114,6 +124,12 @@ export function toRow(info: Info) {
     time_updated: info.time.updated,
     time_compacting: info.time.compacting,
     time_archived: info.time.archived,
+    cost: info.cost ?? 0,
+    tokens_input: info.tokens?.input ?? 0,
+    tokens_output: info.tokens?.output ?? 0,
+    tokens_reasoning: info.tokens?.reasoning ?? 0,
+    tokens_cache_read: info.tokens?.cache?.read ?? 0,
+    tokens_cache_write: info.tokens?.cache?.write ?? 0,
   }
 }
 
@@ -166,6 +182,14 @@ export const Info = Schema.Struct({
   time: Time,
   permission: optionalOmitUndefined(Permission.Ruleset),
   revert: optionalOmitUndefined(Revert),
+  cost: Schema.optional(Schema.Number),
+  tokens: Schema.optional(Schema.Struct({
+    input: Schema.Number,
+    output: Schema.Number,
+    reasoning: Schema.Number,
+    cache: Schema.Struct({ read: Schema.Number, write: Schema.Number }),
+    cacheRatio: Schema.optional(Schema.Number),
+  })),
 })
   .annotate({ identifier: "Session" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -310,6 +334,20 @@ export const Event = {
       cacheWriteTokens: Schema.Number,
     }),
   ),
+  BalanceUpdated: BusEvent.define(
+    "session.balance_updated",
+    Schema.Struct({
+      sessionID: Schema.String,
+      providerID: Schema.String,
+      currency: Schema.String,
+      totalBalance: Schema.String,
+      grantedBalance: Schema.String,
+      toppedUpBalance: Schema.String,
+      isAvailable: Schema.Boolean,
+      calculatedCostSinceLast: Schema.optional(Schema.Number),
+      costValidationDelta: Schema.optional(Schema.Number),
+    }),
+  ),
 }
 
 export function plan(input: { slug: string; time: { created: number } }) {
@@ -359,6 +397,7 @@ export const getUsage = (input: { model: Provider.Model; usage: LanguageModelUsa
       write: cacheWriteInputTokens,
       read: cacheReadInputTokens,
     },
+    cacheRatio: safe(cacheReadInputTokens / Math.max(1, adjustedInputTokens + cacheReadInputTokens + cacheWriteInputTokens)),
   }
 
   const costInfo =
@@ -473,6 +512,13 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
         time: {
           created: Date.now(),
           updated: Date.now(),
+        },
+        cost: 0,
+        tokens: {
+          input: 0,
+          output: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
         },
       }
       log.info("created", result)
@@ -841,47 +887,21 @@ export function* listGlobal(input?: {
 
   const allRows: SessionRow[] = []
   const seen = new Set<string>()
-
-  // 1. Read all known projects from the global DB
-  const allProjects = Database.use((db) =>
-    db
-      .select({ id: ProjectTable.id, worktree: ProjectTable.worktree, name: ProjectTable.name })
-      .from(ProjectTable)
-      .all(),
-  )
-
   const projectMap = new Map<string, ProjectInfo>()
+
+  // Read all known projects from the in-memory projectWorktrees map
+  const worktrees = getProjectWorktrees()
+  const allProjects = Array.from(worktrees.entries()).map(([id, worktree]) => ({
+    id,
+    worktree,
+    name: null as string | null,
+  }))
+
   for (const proj of allProjects) {
     projectMap.set(proj.id, { id: proj.id as ProjectID, name: proj.name ?? undefined, worktree: proj.worktree })
   }
 
-  // 1.5. Auto-discover orphaned project databases on disk (sibling directories)
-  {
-    const knownWorktrees = new Set(allProjects.map((p) => p.worktree))
-    const snapshot = [...knownWorktrees]
-    for (const wt of snapshot) {
-      try {
-        const parent = path.dirname(wt)
-        if (!existsSync(parent)) continue
-        const entries = readdirSync(parent, { withFileTypes: true })
-        for (const entry of entries) {
-          if (!entry.isDirectory()) continue
-          const childPath = path.join(parent, entry.name)
-          if (knownWorktrees.has(childPath)) continue
-          const imported = importFromDisk(childPath)
-          if (imported) {
-            projectMap.set(imported.id, { id: imported.id, name: imported.name, worktree: imported.worktree })
-            knownWorktrees.add(childPath)
-            allProjects.push({ id: imported.id, worktree: imported.worktree, name: imported.name ?? null })
-          }
-        }
-      } catch {
-        // parent directory may not be readable
-      }
-    }
-  }
-
-  // 2. Scan per-project DBs first (local session databases)
+  // Scan per-project DBs
   for (const proj of allProjects) {
     try {
       const projectDB = Database.getProjectDb(proj.id, proj.worktree) as any
@@ -900,25 +920,7 @@ export function* listGlobal(input?: {
     }
   }
 
-  // 3. Also read global DB (for sessions created without a project context)
-  try {
-    const globalRows = Database.use((db) => {
-      const base = db.select().from(SessionTable)
-      return (conditions.length > 0 ? base.where(and(...conditions)) : base)
-        .orderBy(desc(SessionTable.time_updated), desc(SessionTable.id))
-        .all() as SessionRow[]
-    })
-    for (const row of globalRows) {
-      if (!seen.has(row.id)) {
-        seen.add(row.id)
-        allRows.push(row)
-      }
-    }
-  } catch {
-    // global DB may not exist
-  }
-
-  // 4. Sort and limit
+  // Sort and limit
   allRows.sort((a, b) => b.time_updated - a.time_updated || b.id.localeCompare(a.id))
   const rows = allRows.slice(0, limit)
 

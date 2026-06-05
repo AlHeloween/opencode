@@ -1,12 +1,12 @@
 import * as InstanceState from "@/effect/instance-state"
 import { AppRuntime } from "@/effect/app-runtime"
 import { Project } from "@/project/project"
+import { Instance } from "@/project/instance"
 import { InstanceBootstrap } from "@/project/bootstrap"
 import { ProjectID } from "@/project/schema"
 import { Effect, Layer, Schema } from "effect"
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "./auth"
-import { markInstanceForReload } from "./lifecycle"
 
 const root = "/project"
 
@@ -86,12 +86,12 @@ export const projectHandlers = Layer.unwrap(
       const next = yield* svc.initGit({ directory: ctx.directory, project: ctx.project })
       if (next.id === ctx.project.id && next.vcs === ctx.project.vcs && next.worktree === ctx.project.worktree)
         return next
-      yield* markInstanceForReload(ctx, {
+      yield* Effect.promise(() => Instance.reload({
         directory: ctx.directory,
         worktree: ctx.directory,
         project: next,
         init: () => AppRuntime.runPromise(InstanceBootstrap),
-      })
+      }))
       return next
     })
 

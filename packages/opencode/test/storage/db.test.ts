@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import path from "path"
 import { eq } from "drizzle-orm"
-import { Global } from "@opencode-ai/core/global"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import { Database } from "@/storage/db"
 import { tmpdir } from "../fixture/fixture"
 import { ProjectID } from "@/project/schema"
@@ -13,12 +11,15 @@ afterEach(() => {
   Database.close()
 })
 
-describe("Database.Path", () => {
-  test("returns opencode.db path", () => {
-    expect(Database.Path).toBe(Flag.OPENCODE_DB ?? path.join(Global.Path.data, "opencode.db"))
+describe("Database.getProjectDbPath", () => {
+  test("returns project db path inside worktree", () => {
+    const worktree = "/some/worktree"
+    expect(Database.getProjectDbPath(worktree)).toBe(path.join(worktree, ".opencode", "data", "opencode.db"))
   })
+})
 
-    test("routes real project context to project database", async () => {
+describe("Database project routing", () => {
+  test("routes real project context to project database", async () => {
     await using tmp = await tmpdir()
     const projectID = ProjectID.make("project_" + crypto.randomUUID())
     const sessionID = SessionID.make("ses_" + crypto.randomUUID())

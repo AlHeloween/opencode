@@ -305,6 +305,131 @@ it.effect("session.processor cold start with high input logs warning", () =>
   }),
 )
 
+it.effect("session.processor cache poison detector: cold-start positive delta triggers collapse", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    const first = trackCachePoison({
+      key,
+      messageID: "msg_cold_first",
+      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
+    })
+    const second = trackCachePoison({
+      key,
+      messageID: "msg_cold_spike",
+      tokens: { input: 720000, cache: { read: 1000, write: 0 } },
+    })
+
+    expect(first.collapsed).toBe(false)
+    expect(first.poisoned).toBe(false)
+    expect(second.collapsed).toBe(true)
+    expect(second.inputDelta).toBe(200000)
+    expect(second.poisoned).toBe(false)
+  }),
+)
+
+it.effect("session.processor cache poison detector: two cold-start collapses trigger poison", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    trackCachePoison({
+      key,
+      messageID: "msg_cold_first",
+      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
+    })
+    const first = trackCachePoison({
+      key,
+      messageID: "msg_cold_spike1",
+      tokens: { input: 720000, cache: { read: 1000, write: 0 } },
+    })
+    const second = trackCachePoison({
+      key,
+      messageID: "msg_cold_spike2",
+      tokens: { input: 920000, cache: { read: 1000, write: 0 } },
+    })
+
+    expect(first.collapsed).toBe(true)
+    expect(first.poisoned).toBe(false)
+    expect(second.collapsed).toBe(true)
+    expect(second.poisoned).toBe(true)
+  }),
+)
+
+it.effect("session.processor cache poison detector: persistent cold triggers poison after threshold", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    const cold = (n: number) => trackCachePoison({
+      key,
+      messageID: `msg_cold_${n}`,
+      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
+    })
+
+    const t1 = cold(1)
+    expect(t1.poisoned).toBe(false)
+    const t2 = cold(2)
+    expect(t2.poisoned).toBe(false)
+    const t3 = cold(3)
+    expect(t3.poisoned).toBe(true)
+  }),
+)
+
+it.effect("session.processor cache poison detector: persistent cold resets after healthy ratio", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    trackCachePoison({
+      key,
+      messageID: "msg_cold_1",
+      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
+    })
+    trackCachePoison({
+      key,
+      messageID: "msg_cold_2",
+      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
+    })
+    // Third would be persistent-cold poison, but we interject a healthy one
+    trackCachePoison({
+      key,
+      messageID: "msg_healthy",
+      tokens: { input: 100, cache: { read: 900, write: 0 } },
+    })
+    const afterHealthy = trackCachePoison({
+      key,
+      messageID: "msg_cold_after_healthy",
+      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
+    })
+    expect(afterHealthy.poisoned).toBe(false)
+    // healthy path persists — collapse detected but consecutiveCold stays 0
+    expect(afterHealthy.collapsed).toBe(true)
+    expect(afterHealthy.state.consecutiveCold).toBe(0)
+  }),
+)
+
+it.effect("session.processor cache poison detector: negative delta resets baseline", () =>
+  Effect.sync(() => {
+    const key = `test:${crypto.randomUUID()}`
+    const large = trackCachePoison({
+      key,
+      messageID: "msg_large",
+      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
+    })
+    const small = trackCachePoison({
+      key,
+      messageID: "msg_small",
+      tokens: { input: 10000, cache: { read: 5000, write: 0 } },
+    })
+
+    expect(large.state.previousInputTokens).toBe(520000)
+    expect(small.collapsed).toBe(false)
+    expect(small.inputDelta).toBe(-510000)
+    // After reset, a subsequent normal request should not be a "collapse"
+    const normal = trackCachePoison({
+      key,
+      messageID: "msg_normal",
+      tokens: { input: 12000, cache: { read: 5000, write: 0 } },
+    })
+    expect(normal.collapsed).toBe(false)
+    expect(normal.inputDelta).toBe(2000)
+  }),
+)
+
 it.live("session.processor effect tests capture llm input cleanly", () =>
   provideTmpdirServer(
     ({ dir, llm }) =>

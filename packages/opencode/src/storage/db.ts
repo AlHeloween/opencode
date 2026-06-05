@@ -3,49 +3,30 @@ import { type SQLiteTransaction } from "drizzle-orm/sqlite-core"
 export * from "drizzle-orm"
 import { LocalContext } from "@/util/local-context"
 import { Global } from "@opencode-ai/core/global"
+import { Flag } from "@opencode-ai/core/flag/flag"
 import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import { existsSync, mkdirSync } from "fs"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import { InstanceState } from "@/effect/instance-state"
-import { iife } from "@/util/iife"
 import { init } from "#db"
 import type { ProjectID } from "../project/schema"
 import { DatabaseMigration } from "./migration"
 
 const log = Log.create({ service: "db" })
 
-let defaultDb: Client | undefined
-let defaultDbPath: string | undefined
+/** Unified client cache keyed by DB file path (dbPath).
+  * dbPath is always {worktree}/.opencode/data/opencode.db — one connection per project.
+  * All callers share one connection per file — no dual-connection collision. */
+const pathClientCache = new Map<string, DrizzleClient>()
 
-function getDefaultDbPath() {
-  if (Flag.OPENCODE_DB) {
-    if (Flag.OPENCODE_DB === ":memory:" || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
-    return path.join(Global.Path.data, Flag.OPENCODE_DB)
-  }
-  return path.join(Global.Path.data, "opencode.db")
+/** Get or create a client for the given dbPath. All callers share one connection per file. */
+function getOrCreateDb(dbPath: string): DrizzleClient {
+  const cached = pathClientCache.get(dbPath)
+  if (cached) return cached
+  const db = createAndInitDb(dbPath)
+  pathClientCache.set(dbPath, db)
+  return db
 }
-
-function closeDefaultDb() {
-  if (!defaultDb) return
-  try {
-    defaultDb.$client.close()
-  } catch (err) {
-    log.warn("failed to close default DB client", { error: err })
-  }
-  defaultDb = undefined
-  defaultDbPath = undefined
-}
-
-function getDefaultDb(): Client {
-  const dbPath = getDefaultDbPath()
-  if (defaultDb && defaultDbPath === dbPath) return defaultDb
-  closeDefaultDb()
-  defaultDbPath = dbPath
-  return defaultDb = createAndInitDb(dbPath)
-}
-
-export const Path = iife(getDefaultDbPath)
 
 export type Transaction = SQLiteTransaction<"sync", void>
 
@@ -53,10 +34,49 @@ type Client = SQLiteBunDatabase & { $client: { close: () => void; exec: (sql: st
 
 type DrizzleClient = ReturnType<typeof init> & { $client: { close: () => void; exec: (sql: string) => void; prepare: (sql: string) => { get: (...args: unknown[]) => unknown; all: (...args: unknown[]) => unknown[]; run: (...args: unknown[]) => void } } }
 
-const projectClients = new Map<string, DrizzleClient>()
-
 export function getProjectDbPath(worktree: string) {
   return path.join(worktree, ".opencode", "data", "opencode.db")
+}
+
+/** Path to the config-level database (executable-adjacent). Used for account/auth state. */
+export function getConfigDbPath(): string {
+  if (Flag.OPENCODE_DB) {
+    if (Flag.OPENCODE_DB === ":memory:" || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
+  }
+  if (Global.Path.config) return path.join(Global.Path.config, "account.db")
+  return ":memory:"
+}
+
+/** Cached config DB client (singleton). */
+let configDb: DrizzleClient | undefined
+
+function getOrCreateConfigDb(): DrizzleClient {
+  if (configDb) return configDb
+  const dbPath = getConfigDbPath()
+  const dir = path.dirname(dbPath)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  configDb = createAndInitDb(dbPath)
+  return configDb
+}
+
+/** Execute a callback using the config-level database (for account/auth state). */
+export function configUse<T>(callback: (db: TxOrDb) => T): T {
+  return callback(getOrCreateConfigDb())
+}
+
+/** Execute a transaction on the config-level database. */
+export function configTransaction<T>(
+  callback: (tx: TxOrDb) => NotPromise<T>,
+  options?: { behavior?: "deferred" | "immediate" | "exclusive" },
+): NotPromise<T> {
+  const db = getOrCreateConfigDb()
+  const effects: (() => void)[] = []
+  const txCallback = InstanceState.bind((tx: TxOrDb) => {
+    const result = ctx.provide({ tx, effects }, () => callback(tx))
+    for (const effect of effects) effect()
+    return result
+  })
+  return withBusyRetry(() => db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>)
 }
 
 function createAndInitDb(dbPath: string): DrizzleClient {
@@ -258,6 +278,24 @@ CREATE INDEX IF NOT EXISTS "part_embedding_part_idx" ON "part_embedding" ("part_
 CREATE INDEX IF NOT EXISTS "part_embedding_session_idx" ON "part_embedding" ("session_id");
 CREATE INDEX IF NOT EXISTS "part_embedding_type_idx" ON "part_embedding" ("embedding_type");
 CREATE INDEX IF NOT EXISTS "part_embedding_model_idx" ON "part_embedding" ("model_id");
+
+CREATE TABLE IF NOT EXISTS "balance_snapshot" (
+  id text PRIMARY KEY NOT NULL,
+  provider_id text NOT NULL,
+  currency text NOT NULL,
+  total_balance text NOT NULL,
+  granted_balance text NOT NULL,
+  topped_up_balance text NOT NULL,
+  is_available integer NOT NULL,
+  session_id text,
+  message_id text,
+  calculated_cost_since_last real,
+  actual_balance_delta real,
+  cost_validation_delta real,
+  raw_response text,
+  time_created integer NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "balance_snapshot_provider_time_idx" ON "balance_snapshot" ("provider_id", "time_created");
 `
 
 const FTS_SCHEMA_SQL = `
@@ -317,41 +355,26 @@ END;
 `
 
 export function getProjectDb(projectID: ProjectID, worktree: string): DrizzleClient {
-  const cached = projectClients.get(projectID)
-  if (cached) return cached
-
   const dbPath = getProjectDbPath(worktree)
   log.info("opening project database", { projectID, path: dbPath })
-  const db = createAndInitDb(dbPath)
-  projectClients.set(projectID, db)
-  return db
+  return getOrCreateDb(dbPath)
 }
 
 export function closeProjectDb(projectID: ProjectID) {
-  const db = projectClients.get(projectID)
-  if (!db) return
-  try {
-    db.$client.close()
-  } catch (err) {
-    log.warn("failed to close project DB client", { projectID, error: err })
-  }
-  projectClients.delete(projectID)
-}
-
-export function closeAllProjectDbs() {
-  for (const [projectID, db] of projectClients) {
-    try {
-      db.$client.close()
-    } catch (err) {
-      log.warn("failed to close project DB client", { projectID, error: err })
-    }
-  }
-  projectClients.clear()
+  // Individual close is no longer tracked separately; close() handles all.
+  // Keep this method for API compatibility but it's now a no-op
+  // since the unified cache is shared by dbPath, not projectID.
 }
 
 export function close() {
-  closeAllProjectDbs()
-  closeDefaultDb()
+  for (const [dbPath, db] of pathClientCache) {
+    try {
+      db.$client.close()
+    } catch (err) {
+      log.warn("failed to close DB client", { dbPath, error: err })
+    }
+  }
+  pathClientCache.clear()
 }
 
 export type TxOrDb = Transaction | Client
@@ -366,6 +389,18 @@ const currentProjectCtx = LocalContext.create<{
   worktree: string
 }>("database.project")
 
+const fallbackProjectCtx = {
+  value: undefined as { projectID: ProjectID; worktree: string } | undefined,
+}
+
+export function setProjectContext(projectID: ProjectID, worktree: string): void {
+  fallbackProjectCtx.value = { projectID, worktree }
+}
+
+export function clearProjectContext(): void {
+  fallbackProjectCtx.value = undefined
+}
+
 export function withProject<T>(projectID: ProjectID, worktree: string, callback: () => T): T {
   return currentProjectCtx.provide({ projectID, worktree }, callback)
 }
@@ -375,18 +410,25 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
-      const effects: (() => void)[] = []
-      let db: TxOrDb
       try {
         const proj = currentProjectCtx.use()
-        db = getProjectDb(proj.projectID, proj.worktree)
-      } catch {
-        db = getDefaultDb()
-        log.debug("using default db", { caller: "use" })
+        const db = getProjectDb(proj.projectID, proj.worktree)
+        const effects: (() => void)[] = []
+        const result = ctx.provide({ effects, tx: db }, () => callback(db))
+        for (const effect of effects) effect()
+        return result
+      } catch (err2) {
+        if (!(err2 instanceof LocalContext.NotFound)) throw err2
       }
-      const result = ctx.provide({ effects, tx: db }, () => callback(db))
-      for (const effect of effects) effect()
-      return result
+      // Fallback: use module-level project context set by middleware
+      if (fallbackProjectCtx.value) {
+        const db = getProjectDb(fallbackProjectCtx.value.projectID, fallbackProjectCtx.value.worktree)
+        const effects: (() => void)[] = []
+        const result = ctx.provide({ effects, tx: db }, () => callback(db))
+        for (const effect of effects) effect()
+        return result
+      }
+      throw err
     }
     throw err
   }
@@ -453,15 +495,9 @@ export function transaction<T>(
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
+      const proj = currentProjectCtx.use()
+      const db = getProjectDb(proj.projectID, proj.worktree)
       const effects: (() => void)[] = []
-      let db: TxOrDb
-      try {
-        const proj = currentProjectCtx.use()
-        db = getProjectDb(proj.projectID, proj.worktree)
-      } catch {
-        db = getDefaultDb()
-        log.debug("using default db", { caller: "transaction" })
-      }
       const txCallback = InstanceState.bind((tx: TxOrDb) => {
         const result = ctx.provide({ tx, effects }, () => callback(tx))
         for (const effect of effects) effect()

@@ -1,5 +1,6 @@
 import type { ModelMessage } from "ai"
 import { mergeDeep, unique } from "remeda"
+import * as Log from "@opencode-ai/core/util/log"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import type { JSONSchema } from "zod/v4/core"
 import type * as Provider from "./provider"
@@ -7,6 +8,8 @@ import type * as ModelsDev from "./models"
 import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import PROMPT_REASONING from "@/session/prompt/reasoning.txt"
+
+const tlog = Log.create({ service: "provider.transform" })
 
 type Modality = NonNullable<ModelsDev.Model["modalities"]>["input"][number]
 
@@ -364,6 +367,11 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
       model.api.npm === "@ai-sdk/github-copilot") &&
     model.api.npm !== "@ai-sdk/gateway"
   ) {
+    tlog.info("applyCaching triggered", {
+      providerID: model.providerID,
+      apiNpm: model.api.npm,
+      modelID: model.id,
+    })
     msgs = applyCaching(msgs, model)
   }
 
@@ -932,6 +940,11 @@ export function options(input: {
     input.model.providerID === "deepseek" ||
     input.providerOptions?.setCacheKey
   ) {
+    tlog.info("promptCacheKey set", {
+      providerID: input.model.providerID,
+      apiNpm: input.model.api.npm,
+      promptCacheKey,
+    })
     result["promptCacheKey"] = promptCacheKey
   }
 

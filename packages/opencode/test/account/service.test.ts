@@ -15,12 +15,12 @@ import {
   RefreshToken,
   UserCode,
 } from "../../src/account/schema"
-import { Database } from "@/storage/db"
+import { configUse } from "@/storage/db"
 import { testEffect } from "../lib/effect"
 
 const truncate = Layer.effectDiscard(
   Effect.sync(() => {
-    Database.use((db) => {
+    configUse((db) => {
       db.run(/*sql*/ `DELETE FROM account_state`)
       db.run(/*sql*/ `DELETE FROM account`)
     })

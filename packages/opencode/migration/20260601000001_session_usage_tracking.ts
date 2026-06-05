@@ -1,9 +1,12 @@
 import type { DatabaseMigration } from "@/storage/migration"
+import * as Log from "@opencode-ai/core/util/log"
 
 /**
  * Add session usage tracking columns (cost, tokens).
  * Ported from upstream 20260510033149_session_usage.
  */
+const log = Log.create({ service: "migration" })
+
 const migration: DatabaseMigration.Migration = {
   id: "20260601000001_session_usage_tracking",
 
@@ -21,8 +24,8 @@ const migration: DatabaseMigration.Migration = {
     ]) {
       try {
         sqlite.exec(col)
-      } catch {
-        // Column already exists (IF NOT EXISTS not supported by SQLite ALTER TABLE)
+      } catch (err) {
+        log.debug("column already exists or ALTER TABLE failed", { col, error: String(err) })
       }
     }
   },

@@ -9,7 +9,6 @@ import { EventSequenceTable, EventTable } from "./event.sql"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
 import { EventID } from "./schema"
 import * as Log from "@opencode-ai/core/util/log"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import { Schema as EffectSchema } from "effect"
 import { zodObject } from "@/util/effect-zod"
 import type { DeepMutable } from "@/util/schema"
@@ -191,41 +190,13 @@ function process<Def extends Definition>(def: Def, event: Event<Def>, options: {
 
   const project = resolveProjectInfo(event.aggregateID, event.data)
 
-  if (project) {
-    Database.projectTransaction(project.id, project.worktree, (tx) => {
-      applyProjectEvent(tx, projector, def, event, options)
-    })
+  if (!project) {
+    log.warn("sync event dropped: no project context", { type: def.type, aggregateID: event.aggregateID })
     return
   }
 
-  // idempotent: need to ignore any events already logged
-
-  Database.transaction((tx) => {
-    projector(tx, event.data)
-
-    if (Flag.OPENCODE_EXPERIMENTAL_WORKSPACES) {
-      tx.insert(EventSequenceTable)
-        .values({
-          aggregate_id: event.aggregateID,
-          seq: event.seq,
-        })
-        .onConflictDoUpdate({
-          target: EventSequenceTable.aggregate_id,
-          set: { seq: event.seq },
-        })
-        .run()
-      tx.insert(EventTable)
-        .values({
-          id: event.id,
-          seq: event.seq,
-          aggregate_id: event.aggregateID,
-          type: versionedType(def.type, def.version),
-          data: event.data as Record<string, unknown>,
-        })
-        .run()
-    }
-
-    Database.effect(() => emitEvent(def, event, options))
+  Database.projectTransaction(project.id, project.worktree, (tx) => {
+    applyProjectEvent(tx, projector, def, event, options)
   })
 }
 
@@ -271,14 +242,13 @@ export function replay(event: SerializedEvent, options?: { publish: boolean }) {
       .where(eq(EventSequenceTable.aggregate_id, event.aggregateID))
       .get()
 
-  let row: { seq: number | null } | undefined
   const project = resolveProjectInfo(event.aggregateID, event.data)
-  if (project) {
-    row = Database.projectUse(project.id, project.worktree, readSequence)
+  if (!project) {
+    log.warn("replay dropped: no project context", { type: event.type, aggregateID: event.aggregateID })
+    return
   }
-  if (!row) {
-    row = Database.use(readSequence)
-  }
+
+  const row = Database.projectUse(project.id, project.worktree, readSequence)
 
   const latest = row?.seq ?? -1
   if (event.seq <= latest) {
@@ -352,40 +322,18 @@ export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], 
     return
   }
 
-  // Note that this is an "immediate" transaction which is critical.
-  // We need to make sure we can safely read and write with nothing
-  // else changing the data from under us
-  Database.transaction(
-    (tx) => {
-      const id = EventID.ascending()
-      const row = tx
-        .select({ seq: EventSequenceTable.seq })
-        .from(EventSequenceTable)
-        .where(eq(EventSequenceTable.aggregate_id, agg))
-        .get()
-      const seq = row?.seq != null ? row.seq + 1 : 0
-
-      const event = { id, seq, aggregateID: agg, data }
-      process(def, event, { publish })
-    },
-    {
-      behavior: "immediate",
-    },
-  )
+  throw new Error(`SyncEvent.run: no project context for aggregate "${agg}"`)
 }
 
 export function remove(aggregateID: string) {
   const project = resolveProjectInfo(aggregateID, null)
 
-  if (project) {
-    Database.projectTransaction(project.id, project.worktree, (tx) => {
-      tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
-      tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
-    })
+  if (!project) {
+    log.warn("remove dropped: no project context", { aggregateID })
     return
   }
 
-  Database.transaction((tx) => {
+  Database.projectTransaction(project.id, project.worktree, (tx) => {
     tx.delete(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).run()
     tx.delete(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).run()
   })

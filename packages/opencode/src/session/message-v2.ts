@@ -125,6 +125,13 @@ export const TextPart = Schema.Struct({
     }),
   ),
   metadata: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
+  semantic_vector: Schema.optional(Schema.String),
+  dominant_topic: Schema.optional(Schema.String),
+  exact_coef: Schema.optional(Schema.Number),
+  inferred_coef: Schema.optional(Schema.Number),
+  hypothetical_coef: Schema.optional(Schema.Number),
+  guess_coef: Schema.optional(Schema.Number),
+  unknown_coef: Schema.optional(Schema.Number),
 })
   .annotate({ identifier: "TextPart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -283,6 +290,7 @@ export const StepFinishPart = Schema.Struct({
       read: Schema.Number,
       write: Schema.Number,
     }),
+    cacheRatio: Schema.optional(Schema.Number),
   }),
 })
   .annotate({ identifier: "StepFinishPart" })
@@ -570,6 +578,7 @@ export const Assistant = Schema.Struct({
       read: Schema.Number,
       write: Schema.Number,
     }),
+    cacheRatio: Schema.optional(Schema.Number),
   }),
   structured: Schema.optional(Schema.Any),
   variant: Schema.optional(Schema.String),
@@ -992,7 +1001,7 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
       .from(MessageTable)
       .where(where)
       .orderBy(desc(MessageTable.time_created), desc(MessageTable.id))
-      .limit(input.limit)
+      .limit(input.limit + 1)
       .all(),
   )
   if (rows.length === 0) {

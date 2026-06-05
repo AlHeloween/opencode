@@ -1,6 +1,6 @@
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import { createMemo } from "solid-js"
+import { createMemo, createSignal, onCleanup } from "solid-js"
 
 const id = "internal:sidebar-context"
 
@@ -14,10 +14,31 @@ const fmt = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 })
 
+interface BalanceInfo {
+  totalBalance: string
+  currency: string
+  isAvailable: boolean
+  timestamp: number
+}
+
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
   const cost = createMemo(() => msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0))
+  const [balance, setBalance] = createSignal<BalanceInfo | null>(null)
+
+  // Listen for balance update events from the backend
+  const unsub = (props.api.event as any).on("session.balance_updated", (evt: any) => {
+    const props = evt.properties ?? evt
+    if (props.providerID !== "deepseek") return
+    setBalance({
+      totalBalance: props.totalBalance,
+      currency: props.currency,
+      isAvailable: props.isAvailable,
+      timestamp: Date.now(),
+    })
+  })
+  onCleanup(() => unsub?.())
 
   const state = createMemo(() => {
     const last = msg().findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
@@ -109,6 +130,19 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         </text>
       )}
       <text fg={theme().textMuted}>{money.format(cost())} spent</text>
+      {balance() && (
+        <box marginTop={1}>
+          <text fg={theme().text}>
+            <b>Balance</b>
+          </text>
+          <text fg={balance()!.isAvailable ? theme().success : theme().error}>
+            {balance()!.isAvailable ? "✓ available" : "✗ insufficient"}
+          </text>
+          <text fg={theme().textMuted}>
+            {Number(balance()!.totalBalance).toFixed(2)} {balance()!.currency}
+          </text>
+        </box>
+      )}
     </box>
   )
 }

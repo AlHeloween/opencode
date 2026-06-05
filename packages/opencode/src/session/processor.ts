@@ -291,6 +291,7 @@ async function checkAndSnapshotBalance(params: {
     }
     return snapshot
   } catch (err) {
+    log.warn("bug: balance snapshot failed", { error: String(err), sessionID: params.sessionID })
     return null
   }
 }

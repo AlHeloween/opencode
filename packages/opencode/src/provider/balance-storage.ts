@@ -1,11 +1,12 @@
 /**
  * Balance snapshot DB persistence.
- * Uses the Database module directly — works both inside and outside Effect context.
+ * Requires project context to be set via Database.withProject() or Effect InstanceRef.
  */
-import { eq, desc } from "drizzle-orm"
+import { eq, desc, sql } from "drizzle-orm"
 import { BalanceSnapshotTable } from "./balance.sql"
 import { Database } from "@/storage/db"
 import type { BalanceSnapshot } from "./balance"
+import { MessageTable } from "@/session/session.sql"
 
 /**
  * Write a balance snapshot. Called after balance check completes.
@@ -73,9 +74,6 @@ export function calculatedCostSinceLastSnapshot(
 
     // Sum message costs for this session since the last snapshot
     // Messages store cost in their JSON data field
-    const { MessageTable } = require("@/session/session.sql") as typeof import("@/session/session.sql")
-    const { sql } = require("drizzle-orm") as typeof import("drizzle-orm")
-
     const result = db
       .select({
         total: sql<number>`SUM(CAST(json_extract(data, '$.cost') AS REAL))`,

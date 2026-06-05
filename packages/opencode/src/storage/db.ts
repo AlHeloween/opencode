@@ -11,6 +11,8 @@ import { InstanceState } from "@/effect/instance-state"
 import { init } from "#db"
 import type { ProjectID } from "../project/schema"
 import { DatabaseMigration } from "./migration"
+import { Fiber, Context } from "effect"
+import { InstanceRef } from "@/effect/instance-ref"
 
 const log = Log.create({ service: "db" })
 
@@ -375,6 +377,14 @@ export function close() {
     }
   }
   pathClientCache.clear()
+  if (configDb) {
+    try {
+      configDb.$client.close()
+    } catch (err) {
+      log.warn("failed to close config DB client", { error: err })
+    }
+    configDb = undefined
+  }
 }
 
 export type TxOrDb = Transaction | Client
@@ -389,20 +399,24 @@ const currentProjectCtx = LocalContext.create<{
   worktree: string
 }>("database.project")
 
-const fallbackProjectCtx = {
-  value: undefined as { projectID: ProjectID; worktree: string } | undefined,
-}
-
-export function setProjectContext(projectID: ProjectID, worktree: string): void {
-  fallbackProjectCtx.value = { projectID, worktree }
-}
-
-export function clearProjectContext(): void {
-  fallbackProjectCtx.value = undefined
-}
-
 export function withProject<T>(projectID: ProjectID, worktree: string, callback: () => T): T {
   return currentProjectCtx.provide({ projectID, worktree }, callback)
+}
+
+function tryResolveProjectCtx(): { projectID: ProjectID; worktree: string } | undefined {
+  try {
+    return currentProjectCtx.use()
+  } catch (err) {
+    if (!(err instanceof LocalContext.NotFound)) throw err
+  }
+  const fiber = Fiber.getCurrent()
+  if (fiber) {
+    const ref = Context.getReferenceUnsafe(fiber.context, InstanceRef)
+    if (ref && ref.project && ref.worktree) {
+      return { projectID: ref.project.id, worktree: ref.worktree }
+    }
+  }
+  return undefined
 }
 
 export function use<T>(callback: (trx: TxOrDb) => T): T {
@@ -410,19 +424,9 @@ export function use<T>(callback: (trx: TxOrDb) => T): T {
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
-      try {
-        const proj = currentProjectCtx.use()
+      const proj = tryResolveProjectCtx()
+      if (proj) {
         const db = getProjectDb(proj.projectID, proj.worktree)
-        const effects: (() => void)[] = []
-        const result = ctx.provide({ effects, tx: db }, () => callback(db))
-        for (const effect of effects) effect()
-        return result
-      } catch (err2) {
-        if (!(err2 instanceof LocalContext.NotFound)) throw err2
-      }
-      // Fallback: use module-level project context set by middleware
-      if (fallbackProjectCtx.value) {
-        const db = getProjectDb(fallbackProjectCtx.value.projectID, fallbackProjectCtx.value.worktree)
         const effects: (() => void)[] = []
         const result = ctx.provide({ effects, tx: db }, () => callback(db))
         for (const effect of effects) effect()
@@ -495,7 +499,8 @@ export function transaction<T>(
     return callback(ctx.use().tx)
   } catch (err) {
     if (err instanceof LocalContext.NotFound) {
-      const proj = currentProjectCtx.use()
+      const proj = tryResolveProjectCtx()
+      if (!proj) throw err
       const db = getProjectDb(proj.projectID, proj.worktree)
       const effects: (() => void)[] = []
       const txCallback = InstanceState.bind((tx: TxOrDb) => {

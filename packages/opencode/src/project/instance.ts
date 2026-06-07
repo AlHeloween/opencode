@@ -110,8 +110,8 @@ export const Instance = {
   containsPath(filepath: string, ctx?: InstanceContext) {
     const instance = ctx ?? Instance
     if (AppFileSystem.contains(instance.directory, filepath)) return true
-    // Non-git projects set worktree to "/" which would match ANY absolute path.
-    // Skip worktree check in this case to preserve external_directory permissions.
+    // Older non-git discovery used "/" as a sentinel. Keep the guard so old
+    // contexts cannot make every absolute path look internal.
     if (instance.worktree === "/") return false
     return AppFileSystem.contains(instance.worktree, filepath)
   },

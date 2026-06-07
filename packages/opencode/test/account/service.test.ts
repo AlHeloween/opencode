@@ -15,19 +15,9 @@ import {
   RefreshToken,
   UserCode,
 } from "../../src/account/schema"
-import { configUse } from "@/storage/db"
 import { testEffect } from "../lib/effect"
 
-const truncate = Layer.effectDiscard(
-  Effect.sync(() => {
-    configUse((db) => {
-      db.run(/*sql*/ `DELETE FROM account_state`)
-      db.run(/*sql*/ `DELETE FROM account`)
-    })
-  }),
-)
-
-const it = testEffect(Layer.merge(AccountRepo.layer, truncate))
+const it = testEffect(AccountRepo.layer)
 
 const insideEagerRefreshWindow = Duration.toMillis(Duration.minutes(1))
 const outsideEagerRefreshWindow = Duration.toMillis(Duration.minutes(10))

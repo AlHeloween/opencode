@@ -70,11 +70,10 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 | Document | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|
-| `plans/20260606_remove_watchdog_cache_side_effects.md` | OpenCode team | active | 2026-06-06 |
-| `plans/20260605_preexisting_provider_git_init.md` | OpenCode team | active | 2026-06-06 |
-| `plans/20260604_project_analysis_issues.md` | OpenCode team | active | 2026-06-06 |
-| `plans/20260601_upstream_adoption_phase2.md` | OpenCode team | active | 2026-06-06 |
-| `plans/20260601_complete_remaining_items.md` | OpenCode team | active | 2026-06-06 |
+| `plans/20260605_preexisting_provider_git_init.md` | OpenCode team | active | 2026-06-08 |
+| `plans/20260604_project_analysis_issues.md` | OpenCode team | active | 2026-06-08 |
+| `plans/20260601_upstream_adoption_phase2.md` | OpenCode team | active | 2026-06-08 |
+| `plans/20260601_complete_remaining_items.md` | OpenCode team | active | 2026-06-08 |
 
 ---
 
@@ -105,6 +104,8 @@ This index tracks all documentation surfaces in the repository with ownership, e
 | `plans_completed/bug-fixes-round-1.md` | OpenCode team | completed | 2026-05-18 |
 | `plans_completed/20260604_cache_poison_cold_start_deadlock_fix.md` | OpenCode team | completed | 2026-06-06 |
 | `plans_completed/20260605_recent_commit_correctness_fix.md` | OpenCode team | completed | 2026-06-06 |
+| `plans_completed/20260606_remove_watchdog_cache_side_effects.md` | OpenCode team | completed | 2026-06-07 |
+| `plans_completed/20260607_runtime_path_account_db_cleanup.md` | OpenCode team | completed | 2026-06-08 |
 
 ---
 

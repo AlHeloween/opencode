@@ -2,8 +2,6 @@ import { type SQLiteBunDatabase } from "drizzle-orm/bun-sqlite"
 import { type SQLiteTransaction } from "drizzle-orm/sqlite-core"
 export * from "drizzle-orm"
 import { LocalContext } from "@/util/local-context"
-import { Global } from "@opencode-ai/core/global"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import { existsSync, mkdirSync } from "fs"
@@ -38,47 +36,6 @@ type DrizzleClient = ReturnType<typeof init> & { $client: { close: () => void; e
 
 export function getProjectDbPath(worktree: string) {
   return path.join(worktree, ".opencode", "data", "opencode.db")
-}
-
-/** Path to the config-level database (executable-adjacent). Used for account/auth state. */
-export function getConfigDbPath(): string {
-  if (Flag.OPENCODE_DB) {
-    if (Flag.OPENCODE_DB === ":memory:" || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
-  }
-  if (Global.Path.config) return path.join(Global.Path.config, "account.db")
-  return ":memory:"
-}
-
-/** Cached config DB client (singleton). */
-let configDb: DrizzleClient | undefined
-
-function getOrCreateConfigDb(): DrizzleClient {
-  if (configDb) return configDb
-  const dbPath = getConfigDbPath()
-  const dir = path.dirname(dbPath)
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  configDb = createAndInitDb(dbPath)
-  return configDb
-}
-
-/** Execute a callback using the config-level database (for account/auth state). */
-export function configUse<T>(callback: (db: TxOrDb) => T): T {
-  return callback(getOrCreateConfigDb())
-}
-
-/** Execute a transaction on the config-level database. */
-export function configTransaction<T>(
-  callback: (tx: TxOrDb) => NotPromise<T>,
-  options?: { behavior?: "deferred" | "immediate" | "exclusive" },
-): NotPromise<T> {
-  const db = getOrCreateConfigDb()
-  const effects: (() => void)[] = []
-  const txCallback = InstanceState.bind((tx: TxOrDb) => {
-    const result = ctx.provide({ tx, effects }, () => callback(tx))
-    for (const effect of effects) effect()
-    return result
-  })
-  return withBusyRetry(() => db.transaction(txCallback, { behavior: options?.behavior }) as NotPromise<T>)
 }
 
 function createAndInitDb(dbPath: string): DrizzleClient {
@@ -129,23 +86,6 @@ CREATE TABLE IF NOT EXISTS "project" (
   time_initialized integer,
   sandboxes text NOT NULL DEFAULT '[]',
   commands text DEFAULT '{}'
-);
-
-CREATE TABLE IF NOT EXISTS "account" (
-  id text PRIMARY KEY NOT NULL,
-  email text NOT NULL,
-  url text NOT NULL,
-  access_token text NOT NULL,
-  refresh_token text NOT NULL,
-  token_expiry integer,
-  time_created integer NOT NULL,
-  time_updated integer NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS "account_state" (
-  id integer PRIMARY KEY,
-  active_account_id text,
-  active_org_id text
 );
 
 CREATE TABLE IF NOT EXISTS "session" (
@@ -377,14 +317,6 @@ export function close() {
     }
   }
   pathClientCache.clear()
-  if (configDb) {
-    try {
-      configDb.$client.close()
-    } catch (err) {
-      log.warn("failed to close config DB client", { error: err })
-    }
-    configDb = undefined
-  }
 }
 
 export type TxOrDb = Transaction | Client

@@ -1,21 +1,11 @@
 import { expect } from "bun:test"
-import { Effect, Layer, Option } from "effect"
+import { Effect, Option } from "effect"
 
 import { AccountRepo } from "../../src/account/repo"
 import { AccessToken, AccountID, OrgID, RefreshToken } from "../../src/account/schema"
-import { configUse } from "@/storage/db"
 import { testEffect } from "../lib/effect"
 
-const truncate = Layer.effectDiscard(
-  Effect.sync(() => {
-    configUse((db) => {
-      db.run(/*sql*/ `DELETE FROM account_state`)
-      db.run(/*sql*/ `DELETE FROM account`)
-    })
-  }),
-)
-
-const it = testEffect(Layer.merge(AccountRepo.layer, truncate))
+const it = testEffect(AccountRepo.layer)
 
 it.live("list returns empty when no accounts exist", () =>
   Effect.gen(function* () {

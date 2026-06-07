@@ -7,7 +7,6 @@ import { Instance } from "../../src/project/instance"
 import { InstanceRoutes } from "../../src/server/routes/instance"
 import { ExperimentalPaths } from "../../src/server/routes/instance/httpapi/experimental"
 import { Session } from "@/session/session"
-import { configUse } from "@/storage/db"
 import * as Log from "@opencode-ai/core/util/log"
 import { Worktree } from "../../src/worktree"
 import { resetDatabase } from "../fixture/db"
@@ -110,22 +109,8 @@ describe("experimental HttpApi", () => {
     expect(await resources.json()).toEqual({})
   })
 
-  test("serves Console org switch through Hono bridge", async () => {
+  test("rejects Console org switch without an account", async () => {
     await using tmp = await tmpdir({ config: { formatter: false, lsp: false } })
-    configUse((db) => {
-      (db as any).$client.prepare(
-        "INSERT INTO account (id, email, url, access_token, refresh_token, time_created, time_updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      )
-      .run(
-        "account-test",
-        "test@example.com",
-        "https://console.example.com",
-        "access",
-        "refresh",
-        Date.now(),
-        Date.now(),
-      )
-    })
 
     const switched = await app().request(ExperimentalPaths.consoleSwitch, {
       method: "POST",
@@ -133,8 +118,7 @@ describe("experimental HttpApi", () => {
       body: JSON.stringify({ accountID: "account-test", orgID: "org-test" }),
     })
 
-    expect(switched.status).toBe(200)
-    expect(await switched.json()).toBe(true)
+    expect(switched.status).toBe(400)
   })
 
   test("serves global session list through Hono bridge", async () => {

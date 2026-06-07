@@ -1,19 +1,16 @@
-import { eq } from "drizzle-orm"
 import { Effect, Layer, Option, Schema, Context } from "effect"
 
-import { configUse, configTransaction } from "@/storage/db"
-import { AccountStateTable, AccountTable } from "./account.sql"
 import { AccessToken, AccountID, AccountRepoError, Info, OrgID, RefreshToken } from "./schema"
 import { normalizeServerUrl } from "./url"
 
-export type AccountRow = (typeof AccountTable)["$inferSelect"]
-
-import type { TxOrDb } from "@/storage/db"
-
-type DbTransactionCallback<A> = (db: TxOrDb) => A
-type DbClient = TxOrDb
-
-const ACCOUNT_STATE_ID = 1
+export type AccountRow = {
+  id: AccountID
+  email: string
+  url: string
+  access_token: AccessToken
+  refresh_token: RefreshToken
+  token_expiry: number | null
+}
 
 export interface Interface {
   readonly active: () => Effect.Effect<Option.Option<Info>, AccountRepoError>
@@ -44,112 +41,80 @@ export const layer: Layer.Layer<Service> = Layer.effect(
   Service,
   Effect.gen(function* () {
     const decode = Schema.decodeUnknownSync(Info)
+    const accounts = new Map<AccountID, AccountRow>()
+    let activeAccountID: AccountID | undefined
+    let activeOrgID: OrgID | null = null
 
-    const query = <A>(f: DbTransactionCallback<A>) =>
+    const query = <A>(f: () => A) =>
       Effect.try({
-        try: () => configUse(f),
-        catch: (cause) => new AccountRepoError({ message: "Database operation failed", cause }),
+        try: f,
+        catch: (cause) => new AccountRepoError({ message: "Account repository operation failed", cause }),
       })
 
-    const tx = <A>(f: DbTransactionCallback<A>) =>
-      Effect.try({
-        try: () => configTransaction(f as any) as A,
-        catch: (cause) => new AccountRepoError({ message: "Database operation failed", cause }),
-      })
-
-    const current = (db: DbClient) => {
-      const state = db.select().from(AccountStateTable).where(eq(AccountStateTable.id, ACCOUNT_STATE_ID)).get()
-      if (!state?.active_account_id) return
-      const account = db.select().from(AccountTable).where(eq(AccountTable.id, state.active_account_id)).get()
+    const current = () => {
+      if (!activeAccountID) return
+      const account = accounts.get(activeAccountID)
       if (!account) return
-      return { ...account, active_org_id: state.active_org_id ?? null }
+      return { ...account, active_org_id: activeOrgID }
     }
 
-    const state = (db: DbClient, accountID: AccountID, orgID: Option.Option<OrgID>) => {
-      const id = Option.getOrNull(orgID)
-      return db
-        .insert(AccountStateTable)
-        .values({ id: ACCOUNT_STATE_ID, active_account_id: accountID, active_org_id: id })
-        .onConflictDoUpdate({
-          target: AccountStateTable.id,
-          set: { active_account_id: accountID, active_org_id: id },
-        })
-        .run()
+    const useAccount = (accountID: AccountID, orgID: Option.Option<OrgID>) => {
+      if (!accounts.has(accountID)) throw new Error("Account not found")
+      activeAccountID = accountID
+      activeOrgID = Option.getOrNull(orgID)
     }
 
     const active = Effect.fn("AccountRepo.active")(() =>
-      query((db) => current(db)).pipe(Effect.map((row) => (row ? Option.some(decode(row)) : Option.none()))),
+      query(current).pipe(Effect.map((row) => (row ? Option.some(decode(row)) : Option.none()))),
     )
 
     const list = Effect.fn("AccountRepo.list")(() =>
-      query((db) =>
-        db
-          .select()
-          .from(AccountTable)
-          .all()
-          .map((row: AccountRow) => decode({ ...row, active_org_id: null })),
-      ),
+      query(() => [...accounts.values()].map((row) => decode({ ...row, active_org_id: null }))),
     )
 
     const remove = Effect.fn("AccountRepo.remove")((accountID: AccountID) =>
-      tx((db) => {
-        db.update(AccountStateTable)
-          .set({ active_account_id: null, active_org_id: null })
-          .where(eq(AccountStateTable.active_account_id, accountID))
-          .run()
-        db.delete(AccountTable).where(eq(AccountTable.id, accountID)).run()
+      query(() => {
+        accounts.delete(accountID)
+        if (activeAccountID === accountID) {
+          activeAccountID = undefined
+          activeOrgID = null
+        }
       }).pipe(Effect.asVoid),
     )
 
     const use = Effect.fn("AccountRepo.use")((accountID: AccountID, orgID: Option.Option<OrgID>) =>
-      query((db) => state(db, accountID, orgID)).pipe(Effect.asVoid),
+      query(() => useAccount(accountID, orgID)).pipe(Effect.asVoid),
     )
 
     const getRow = Effect.fn("AccountRepo.getRow")((accountID: AccountID) =>
-      query((db) => db.select().from(AccountTable).where(eq(AccountTable.id, accountID)).get()).pipe(
-        Effect.map(Option.fromNullishOr),
-      ),
+      query(() => accounts.get(accountID)).pipe(Effect.map(Option.fromNullishOr)),
     )
 
     const persistToken = Effect.fn("AccountRepo.persistToken")((input) =>
-      query((db) =>
-        db
-          .update(AccountTable)
-          .set({
+      query(() => {
+        const account = accounts.get(input.accountID)
+        if (!account) return
+        accounts.set(input.accountID, {
+          ...account,
             access_token: input.accessToken,
             refresh_token: input.refreshToken,
             token_expiry: Option.getOrNull(input.expiry),
-          })
-          .where(eq(AccountTable.id, input.accountID))
-          .run(),
-      ).pipe(Effect.asVoid),
+        })
+      }).pipe(Effect.asVoid),
     )
 
     const persistAccount = Effect.fn("AccountRepo.persistAccount")((input) =>
-      tx((db) => {
+      query(() => {
         const url = normalizeServerUrl(input.url)
-
-        db.insert(AccountTable)
-          .values({
-            id: input.id,
-            email: input.email,
-            url,
-            access_token: input.accessToken,
-            refresh_token: input.refreshToken,
-            token_expiry: input.expiry,
-          })
-          .onConflictDoUpdate({
-            target: AccountTable.id,
-            set: {
-              email: input.email,
-              url,
-              access_token: input.accessToken,
-              refresh_token: input.refreshToken,
-              token_expiry: input.expiry,
-            },
-          })
-          .run()
-        void state(db, input.id, input.orgID)
+        accounts.set(input.id, {
+          id: input.id,
+          email: input.email,
+          url,
+          access_token: input.accessToken,
+          refresh_token: input.refreshToken,
+          token_expiry: input.expiry,
+        })
+        useAccount(input.id, input.orgID)
       }).pipe(Effect.asVoid),
     )
 

@@ -134,25 +134,25 @@ function Invoke-Build {
     Write-Host "  Collecting release artifacts..." -ForegroundColor Yellow
 
     # CLI binary (from opencode package)
-    $cliBin = Join-Path $OpencodePkg "dist" "cli.js"
+    $cliBin = [IO.Path]::Combine($OpencodePkg, "dist", "cli.js")
     if (Test-Path $cliBin) {
         Copy-Item $cliBin (Join-Path $DistDir "cli.js")
         Write-Success "CLI script copied"
     }
 
     # Native binary (Windows x64)
-    $nativeBin = Join-Path $OpencodePkg "dist" "opencode-windows-x64" "bin" "opencode.exe"
+    $nativeBin = [IO.Path]::Combine($OpencodePkg, "dist", "opencode-windows-x64", "bin", "opencode.exe")
     if (Test-Path $nativeBin) {
         if (-not (Test-Path (Join-Path $DistDir "bin"))) {
             New-Item -ItemType Directory -Path (Join-Path $DistDir "bin") | Out-Null
         }
-        Copy-Item $nativeBin (Join-Path $DistDir "bin" "opencode.exe")
+        Copy-Item $nativeBin ([IO.Path]::Combine($DistDir, "bin", "opencode.exe"))
         Write-Success "Native binary copied"
     }
 
     # Native markdownify binary (built by _build_rust.ps1, stage to platform dist)
-    $markdownifySrc = Join-Path $Root "packages" "native" "markdownify" "target" "release" "opencode-markdownify.exe"
-    $markdownifyDest = Join-Path $OpencodePkg "dist" "opencode-windows-x64" "bin" "opencode-markdownify.exe"
+    $markdownifySrc = [IO.Path]::Combine($Root, "packages", "native", "markdownify", "target", "release", "opencode-markdownify.exe")
+    $markdownifyDest = [IO.Path]::Combine($OpencodePkg, "dist", "opencode-windows-x64", "bin", "opencode-markdownify.exe")
     if (Test-Path $markdownifySrc) {
         $markdownifyDestDir = Split-Path $markdownifyDest -Parent
         if (-not (Test-Path $markdownifyDestDir)) {
@@ -163,21 +163,21 @@ function Invoke-Build {
     }
 
     # Native markdownify binary (Windows x64)
-    $markdownifyBin = Join-Path $OpencodePkg "dist" "opencode-windows-x64" "bin" "opencode-markdownify.exe"
+    $markdownifyBin = [IO.Path]::Combine($OpencodePkg, "dist", "opencode-windows-x64", "bin", "opencode-markdownify.exe")
     if (Test-Path $markdownifyBin) {
-        Copy-Item $markdownifyBin (Join-Path $DistDir "bin" "opencode-markdownify.exe")
+        Copy-Item $markdownifyBin ([IO.Path]::Combine($DistDir, "bin", "opencode-markdownify.exe"))
         Write-Success "Markdownify binary copied"
     }
 
     # SDK (from sdk/js package)
-    $sdkDir = Join-Path $Root "packages" "sdk" "js" "dist"
+    $sdkDir = [IO.Path]::Combine($Root, "packages", "sdk", "js", "dist")
     if (Test-Path $sdkDir) {
         Copy-Item -Recurse $sdkDir (Join-Path $DistDir "sdk")
         Write-Success "SDK copied"
     }
 
     # App build (from app package)
-    $appDist = Join-Path $Root "packages" "app" "dist"
+    $appDist = [IO.Path]::Combine($Root, "packages", "app", "dist")
     if (Test-Path $appDist) {
         Copy-Item -Recurse $appDist (Join-Path $DistDir "app")
         Write-Success "App build copied"
@@ -190,7 +190,7 @@ function Invoke-Build {
             New-Item -ItemType Directory -Path (Join-Path $DistDir "bin") | Out-Null
         }
         Get-ChildItem $artifactsDist -Directory | ForEach-Object {
-            Copy-Item -Recurse $_.FullName (Join-Path $DistDir "bin" $_.Name)
+            Copy-Item -Recurse $_.FullName ([IO.Path]::Combine($DistDir, "bin", $_.Name))
             Write-Success "Service $($_.Name) copied from artifacts_dist/"
         }
     }
@@ -199,7 +199,7 @@ function Invoke-Build {
     Get-ChildItem (Join-Path $Root "packages") -Directory | ForEach-Object {
         $pkgJson = Join-Path $_.FullName "package.json"
         if (Test-Path $pkgJson) {
-            $destDir = Join-Path $DistDir "packages" $_.Name
+            $destDir = [IO.Path]::Combine($DistDir, "packages", $_.Name)
             if (-not (Test-Path $destDir)) {
                 New-Item -ItemType Directory -Path $destDir | Out-Null
             }

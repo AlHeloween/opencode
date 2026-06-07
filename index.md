@@ -45,14 +45,13 @@
 - `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
 
 ### `plans/` — Active Plans
-- `20260606_remove_watchdog_cache_side_effects.md` — Remove stream watchdog and cache-control side effects
 - `20260605_preexisting_provider_git_init.md` — Provider/git-init test failure fixes
 - `20260604_project_analysis_issues.md` — Project analysis issue backlog
 - `20260601_upstream_adoption_phase2.md` — Upstream adoption phase 2 tracking
 - `20260601_complete_remaining_items.md` — Remaining implementation items tracking
 
 ### `plans_completed/` — Completed Plans
-Performance, logging, security, shell migration, file locations, backups, session ops, bug fixes, more.
+Performance, logging, security, shell migration, file locations, backups, session ops, watchdog/cache cleanup, runtime path cleanup, bug fixes, more.
 
 ### `research_done/` — Completed Research Documents
 - `research_v4.md` — Fix-oriented security/correctness triage

@@ -30,3 +30,32 @@
 Coverage estimate vs actual codebase: 6%.
 
 This diagram covers the modified session-processing and compaction path only, not the full opencode runtime.
+
+## Project Runtime Path Flow
+
+1. `packages/core/src/global.ts` / module initialization
+   - Input: process launch working directory and executable path.
+   - Output: initial `Global.Path.*` values.
+   - Logic: data/cache/state/log/bin start under the launch working directory; config remains executable-adjacent.
+
+2. `packages/opencode/src/project/instance.ts` / `Instance.provide`
+   - Input: requested project directory.
+   - Output: instance context with project ID and worktree.
+   - Logic: resolve project metadata, call `Global.initFromWorktree`, then run project-scoped initialization in `Database.withProject`.
+
+3. `packages/opencode/src/project/project.ts` / `Project.fromDirectory`
+   - Input: requested directory.
+   - Output: `{ project, sandbox }` discovery result.
+   - Logic: import local project DB if present, otherwise honor local opencode config files or child `bin` config files as a boundary, otherwise discover parent git worktree.
+
+4. `packages/opencode/src/storage/db.ts` / `Database.getProjectDb`
+   - Input: project ID and resolved worktree.
+   - Output: SQLite client for `{worktree}/.opencode/data/opencode.db`.
+   - Logic: one cached DB connection per project DB path.
+
+5. `packages/opencode/src/account/repo.ts` / `AccountRepo.layer`
+   - Input: experimental console account operations in the current process.
+   - Output: active account/org state for that process only.
+   - Logic: store account rows in memory; no config-level SQLite database or `account.db` file is created.
+
+Coverage estimate vs actual codebase: 7%.

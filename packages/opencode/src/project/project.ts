@@ -15,6 +15,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { NodePath } from "@effect/platform-node"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+import { Hash } from "@opencode-ai/core/util/hash"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
 import { existsSync, readdirSync } from "fs"
@@ -212,6 +213,15 @@ export const layer: Layer.Layer<
 
     const scope = yield* Scope.Scope
 
+    const pathProjectID = (dir: string) => ProjectID.make(Hash.fast(pathSvc.normalize(dir)))
+
+    const hasLocalProjectBoundary = (dir: string) =>
+      existsSync(Database.getProjectDbPath(dir)) ||
+      existsSync(pathSvc.join(dir, "opencode.json")) ||
+      existsSync(pathSvc.join(dir, "opencode.jsonc")) ||
+      existsSync(pathSvc.join(dir, "bin", "opencode.json")) ||
+      existsSync(pathSvc.join(dir, "bin", "opencode.jsonc"))
+
     const readCachedProjectId = Effect.fnUntraced(function* (dir: string) {
       return yield* fs.readFileString(pathSvc.join(dir, "opencode")).pipe(
         Effect.map((x) => x.trim()),
@@ -227,14 +237,33 @@ export const layer: Layer.Layer<
       type DiscoveryResult = { id: ProjectID; worktree: string; sandbox: string; vcs: Info["vcs"] }
 
       const data: DiscoveryResult = yield* Effect.gen(function* () {
+        const local = importFromDisk(directory)
+        if (local) {
+          return {
+            id: local.id,
+            worktree: pathSvc.normalize(directory),
+            sandbox: pathSvc.normalize(directory),
+            vcs: local.vcs,
+          }
+        }
+
+        if (hasLocalProjectBoundary(directory)) {
+          return {
+            id: pathProjectID(directory),
+            worktree: pathSvc.normalize(directory),
+            sandbox: pathSvc.normalize(directory),
+            vcs: fakeVcs,
+          }
+        }
+
         const dotgitMatches = yield* fs.up({ targets: [".git"], start: directory }).pipe(Effect.orDie)
         const dotgit = dotgitMatches[0]
 
         if (!dotgit) {
           return {
-            id: ProjectID.global,
-            worktree: "/",
-            sandbox: "/",
+            id: pathProjectID(directory),
+            worktree: pathSvc.normalize(directory),
+            sandbox: pathSvc.normalize(directory),
             vcs: fakeVcs,
           }
         }
@@ -245,7 +274,7 @@ export const layer: Layer.Layer<
 
         if (!gitBinary) {
           return {
-            id: id ?? ProjectID.global,
+            id: id ?? pathProjectID(sandbox),
             worktree: sandbox,
             sandbox,
             vcs: fakeVcs,
@@ -255,7 +284,7 @@ export const layer: Layer.Layer<
         const commonDir = yield* git(["rev-parse", "--git-common-dir"], { cwd: sandbox })
         if (commonDir.code !== 0) {
           return {
-            id: id ?? ProjectID.global,
+            id: id ?? pathProjectID(sandbox),
             worktree: sandbox,
             sandbox,
             vcs: fakeVcs,
@@ -285,7 +314,7 @@ export const layer: Layer.Layer<
         }
 
         if (!id) {
-          return { id: ProjectID.global, worktree: sandbox, sandbox, vcs: "git" as const }
+          return { id: pathProjectID(sandbox), worktree: sandbox, sandbox, vcs: "git" as const }
         }
 
         const topLevel = yield* git(["rev-parse", "--show-toplevel"], { cwd: sandbox })

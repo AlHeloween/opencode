@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Project, importFromDisk, list as listProjects, Info } from "@/project/project"
 import * as Log from "@opencode-ai/core/util/log"
 import { $ } from "bun"
+import * as fs from "fs/promises"
 import path from "path"
 import { tmpdir } from "../fixture/fixture"
 import { GlobalBus } from "../../src/bus/global"
@@ -78,7 +79,7 @@ describe("Project.fromDirectory", () => {
     const { project } = await run((svc) => svc.fromDirectory(tmp.path))
 
     expect(project).toBeDefined()
-    expect(project.id).toBe(ProjectID.global)
+    expect(project.id).not.toBe(ProjectID.global)
     expect(project.vcs).toBe("git")
     expect(project.worktree).toBe(tmp.path)
 
@@ -100,10 +101,54 @@ describe("Project.fromDirectory", () => {
     expect(await Bun.file(opencodeFile).exists()).toBe(true)
   })
 
-  test("returns global for non-git directory", async () => {
+  test("uses directory project for non-git directory", async () => {
     await using tmp = await tmpdir()
     const { project } = await run((svc) => svc.fromDirectory(tmp.path))
-    expect(project.id).toBe(ProjectID.global)
+    expect(project.id).not.toBe(ProjectID.global)
+    expect(project.worktree).toBe(tmp.path)
+  })
+
+  test("keeps git root for subdirectory without local opencode boundary", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const child = path.join(tmp.path, "child")
+    await fs.mkdir(child)
+
+    const { project, sandbox } = await run((svc) => svc.fromDirectory(child))
+
+    expect(project.id).not.toBe(ProjectID.global)
+    expect(project.worktree).toBe(tmp.path)
+    expect(sandbox).toBe(tmp.path)
+  })
+
+  test("uses local opencode boundary inside parent git repo", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const child = path.join(tmp.path, "child")
+    await fs.mkdir(child)
+    await Bun.write(path.join(child, "opencode.json"), JSON.stringify({ $schema: "https://opencode.ai/config.json" }))
+
+    const { project: parent } = await run((svc) => svc.fromDirectory(tmp.path))
+    const { project, sandbox } = await run((svc) => svc.fromDirectory(child))
+
+    expect(project.id).not.toBe(ProjectID.global)
+    expect(project.id).not.toBe(parent.id)
+    expect(project.worktree).toBe(child)
+    expect(sandbox).toBe(child)
+  })
+
+  test("uses parent directory boundary when config lives in child bin", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const child = path.join(tmp.path, "child")
+    const bin = path.join(child, "bin")
+    await fs.mkdir(bin, { recursive: true })
+    await Bun.write(path.join(bin, "opencode.jsonc"), "{}")
+
+    const { project: parent } = await run((svc) => svc.fromDirectory(tmp.path))
+    const { project, sandbox } = await run((svc) => svc.fromDirectory(child))
+
+    expect(project.id).not.toBe(ProjectID.global)
+    expect(project.id).not.toBe(parent.id)
+    expect(project.worktree).toBe(child)
+    expect(sandbox).toBe(child)
   })
 
   test("derives stable project ID from root commit", async () => {
@@ -122,7 +167,7 @@ describe("Project.fromDirectory git failure paths", () => {
     // rev-list fails because HEAD doesn't exist yet — this is the natural scenario
     const { project } = await run((svc) => svc.fromDirectory(tmp.path))
     expect(project.vcs).toBe("git")
-    expect(project.id).toBe(ProjectID.global)
+    expect(project.id).not.toBe(ProjectID.global)
     expect(project.worktree).toBe(tmp.path)
   })
 

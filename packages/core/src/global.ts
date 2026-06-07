@@ -2,17 +2,17 @@ import path from "path"
 import { Context, Effect, Layer } from "effect"
 import { Flock } from "./util/flock"
 
-let _worktree = ""
-
 const app = "opencode"
 
 const exeDir = path.dirname(process.execPath)
+const initialWorktree = path.normalize(process.cwd())
 
-let _data = ""
-let _cache = path.join(exeDir, ".opencode", "data", "cache")
-let _state = path.join(exeDir, ".opencode", "data", "state")
-let _log = path.join(exeDir, ".opencode", "data", "log")
-let _bin = path.join(exeDir, ".opencode", "data", "cache", "bin")
+let _worktree = initialWorktree
+let _data = path.join(_worktree, ".opencode", "data")
+let _cache = path.join(_worktree, ".opencode", "data", "cache")
+let _state = path.join(_worktree, ".opencode", "data", "state")
+let _log = path.join(_worktree, ".opencode", "data", "log")
+let _bin = path.join(_worktree, ".opencode", "data", "cache", "bin")
 const _config = exeDir
 
 export function initFromWorktree(worktree: string) {

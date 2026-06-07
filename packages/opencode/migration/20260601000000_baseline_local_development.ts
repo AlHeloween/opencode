@@ -24,16 +24,6 @@ const migration: DatabaseMigration.Migration = {
       commands text DEFAULT '{}'
     )`)
 
-    sqlite.exec(`CREATE TABLE IF NOT EXISTS "account" (
-      id text PRIMARY KEY NOT NULL, email text NOT NULL, url text NOT NULL,
-      access_token text NOT NULL, refresh_token text NOT NULL,
-      token_expiry integer, time_created integer NOT NULL, time_updated integer NOT NULL
-    )`)
-
-    sqlite.exec(`CREATE TABLE IF NOT EXISTS "account_state" (
-      id integer PRIMARY KEY, active_account_id text, active_org_id text
-    )`)
-
     sqlite.exec(`CREATE TABLE IF NOT EXISTS "session" (
       id text PRIMARY KEY NOT NULL, project_id text NOT NULL, workspace_id text,
       parent_id text, slug text NOT NULL, directory text NOT NULL,

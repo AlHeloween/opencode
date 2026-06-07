@@ -216,15 +216,18 @@ export type EventSessionError = {
   }
 }
 
-export type EventSessionCacheCollapsed = {
-  type: "session.cache_collapsed"
+export type EventSessionBalanceUpdated = {
+  type: "session.balance_updated"
   properties: {
     sessionID: string
-    agent: string
-    modelID: string
-    inputTokens: number
-    cacheReadTokens: number
-    cacheWriteTokens: number
+    providerID: string
+    currency: string
+    totalBalance: string
+    grantedBalance: string
+    toppedUpBalance: string
+    isAvailable: boolean
+    calculatedCostSinceLast?: number
+    costValidationDelta?: number
   }
 }
 
@@ -627,6 +630,7 @@ export type AssistantMessage = {
       read: number
       write: number
     }
+    cacheRatio?: number
   }
   structured?: unknown
   variant?: string
@@ -666,6 +670,13 @@ export type TextPart = {
   metadata?: {
     [key: string]: unknown
   }
+  semantic_vector?: string
+  dominant_topic?: string
+  exact_coef?: number
+  inferred_coef?: number
+  hypothetical_coef?: number
+  guess_coef?: number
+  unknown_coef?: number
 }
 
 export type SubtaskPart = {
@@ -845,6 +856,7 @@ export type StepFinishPart = {
       read: number
       write: number
     }
+    cacheRatio?: number
   }
 }
 
@@ -972,6 +984,17 @@ export type Session = {
     partID?: string
     snapshot?: string
     diff?: string
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+    cacheRatio?: number
   }
 }
 
@@ -1134,7 +1157,7 @@ export type GlobalEvent = {
     | EventPermissionReplied
     | EventSessionDiff
     | EventSessionError
-    | EventSessionCacheCollapsed
+    | EventSessionBalanceUpdated
     | EventInstallationUpdated
     | EventInstallationUpdateAvailable
     | EventQuestionAsked
@@ -1945,6 +1968,17 @@ export type GlobalSession = {
     snapshot?: string
     diff?: string
   }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+    cacheRatio?: number
+  }
   project: ProjectSummary | null
 }
 
@@ -2103,7 +2137,7 @@ export type Event =
   | EventPermissionReplied
   | EventSessionDiff
   | EventSessionError
-  | EventSessionCacheCollapsed
+  | EventSessionBalanceUpdated
   | EventInstallationUpdated
   | EventInstallationUpdateAvailable
   | EventQuestionAsked

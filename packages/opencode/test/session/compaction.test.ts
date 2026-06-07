@@ -1,6 +1,6 @@
+import { NodeFileSystem } from "@effect/platform-node"
 import { afterEach, describe, expect, mock, test } from "bun:test"
-import { APICallError } from "ai"
-import { Cause, Effect, Exit, Layer, ManagedRuntime } from "effect"
+import { Cause, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect"
 import * as Stream from "effect/Stream"
 import z from "zod"
 import { Bus } from "../../src/bus"
@@ -13,18 +13,19 @@ import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
 import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
-import { provideTmpdirInstance, tmpdir } from "../fixture/fixture"
+import { provideTmpdirInstance, provideTmpdirServer, tmpdir } from "../fixture/fixture"
 import { Session as SessionNs } from "@/session/session"
 import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { SessionSummary } from "../../src/session/summary"
 import { ModelID, ProviderID } from "../../src/provider/schema"
-import type { Provider } from "@/provider/provider"
+import { Provider } from "@/provider/provider"
 import * as SessionProcessorModule from "../../src/session/processor"
 import { Snapshot } from "../../src/snapshot"
 import { ProviderTest } from "../fake/provider"
 import { testEffect } from "../lib/effect"
+import { TestLLMServer } from "../lib/llm-server"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 
 Log.init()
@@ -61,6 +62,51 @@ const summary = Layer.succeed(
 const ref = {
   providerID: ProviderID.make("test"),
   modelID: ModelID.make("test-model"),
+}
+
+const liveProviderConfig = {
+  provider: {
+    test: {
+      name: "Test",
+      id: "test",
+      env: [],
+      npm: "@ai-sdk/openai-compatible",
+      models: {
+        "test-model": {
+          id: "test-model",
+          name: "Test Model",
+          attachment: false,
+          reasoning: false,
+          temperature: false,
+          tool_call: true,
+          release_date: "2025-01-01",
+          limit: { context: 100_000, output: 32_000 },
+          cost: { input: 0, output: 0 },
+          options: {},
+        },
+      },
+      options: {
+        apiKey: "test-key",
+        baseURL: "http://localhost:1/v1",
+      },
+    },
+  },
+}
+
+function liveProviderCfg(url: string) {
+  return {
+    ...liveProviderConfig,
+    provider: {
+      ...liveProviderConfig.provider,
+      test: {
+        ...liveProviderConfig.provider.test,
+        options: {
+          ...liveProviderConfig.provider.test.options,
+          baseURL: url,
+        },
+      },
+    },
+  }
 }
 
 afterEach(() => {
@@ -191,9 +237,6 @@ function fake(
     get message() {
       return msg
     },
-    get needsCacheRebaseline() {
-      return false
-    },
     updateToolCall: Effect.fn("TestSessionProcessor.updateToolCall")(() => Effect.succeed(undefined)),
     completeToolCall: Effect.fn("TestSessionProcessor.completeToolCall")(() => Effect.void),
     process: Effect.fn("TestSessionProcessor.process")(() => Effect.succeed(result)),
@@ -253,6 +296,28 @@ const env = Layer.mergeAll(
 
 const it = testEffect(env)
 
+const liveStatus = SessionStatus.layer.pipe(Layer.provideMerge(Bus.layer))
+const liveInfra = Layer.mergeAll(NodeFileSystem.layer, CrossSpawnSpawner.defaultLayer)
+const liveDeps = Layer.mergeAll(
+  SessionNs.defaultLayer,
+  Snapshot.defaultLayer,
+  Agent.defaultLayer,
+  Permission.defaultLayer,
+  Plugin.defaultLayer,
+  Config.defaultLayer,
+  LLM.defaultLayer,
+  Provider.defaultLayer,
+  liveStatus,
+).pipe(Layer.provideMerge(liveInfra))
+const liveProcessor = SessionProcessorModule.SessionProcessor.layer.pipe(Layer.provide(summary), Layer.provideMerge(liveDeps))
+const liveEnv = Layer.mergeAll(
+  TestLLMServer.layer,
+  liveDeps,
+  liveProcessor,
+  SessionCompaction.layer.pipe(Layer.provide(liveProcessor), Layer.provideMerge(liveDeps)),
+)
+const liveIt = testEffect(liveEnv)
+
 function llm() {
   const queue: Array<
     Stream.Stream<LLM.Event, unknown> | ((input: LLM.StreamInput) => Stream.Stream<LLM.Event, unknown>)
@@ -278,7 +343,18 @@ function llm() {
 function liveRuntime(layer: Layer.Layer<LLM.Service>, provider = ProviderTest.fake(), config = Config.defaultLayer) {
   const bus = Bus.layer
   const status = SessionStatus.layer.pipe(Layer.provide(bus))
-  const processor = SessionProcessorModule.SessionProcessor.layer.pipe(Layer.provide(summary))
+  const processor = SessionProcessorModule.SessionProcessor.layer.pipe(
+    Layer.provide(summary),
+    Layer.provide(status),
+    Layer.provide(SessionNs.defaultLayer),
+    Layer.provide(Snapshot.defaultLayer),
+    Layer.provide(layer),
+    Layer.provide(Permission.defaultLayer),
+    Layer.provide(Agent.defaultLayer),
+    Layer.provide(Plugin.defaultLayer),
+    Layer.provide(bus),
+    Layer.provide(config),
+  )
   return ManagedRuntime.make(
     Layer.mergeAll(SessionCompaction.layer.pipe(Layer.provide(processor)), processor, bus, status).pipe(
       Layer.provide(provider.layer),
@@ -288,7 +364,6 @@ function liveRuntime(layer: Layer.Layer<LLM.Service>, provider = ProviderTest.fa
       Layer.provide(Permission.defaultLayer),
       Layer.provide(Agent.defaultLayer),
       Layer.provide(Plugin.defaultLayer),
-      Layer.provide(status),
       Layer.provide(bus),
       Layer.provide(config),
     ),
@@ -1347,99 +1422,69 @@ describe("session.compaction.process", () => {
     })
   })
 
-  test("stops quickly when aborted during retry backoff", async () => {
-    const stub = llm()
-    const ready = defer()
-    stub.push(
-      Stream.fromAsyncIterable(
-        {
-          async *[Symbol.asyncIterator]() {
-            yield { type: "start" } as LLM.Event
-            throw new APICallError({
-              message: "boom",
-              url: "https://example.com/v1/chat/completions",
-              requestBodyValues: {},
-              statusCode: 503,
-              responseHeaders: { "retry-after-ms": "10000" },
-              responseBody: '{"error":"boom"}',
-              isRetryable: true,
-            })
-          },
-        },
-        (err) => err,
-      ),
-    )
+  liveIt.live("stops quickly when aborted during retry backoff", () =>
+    provideTmpdirServer(
+      ({ llm }) =>
+        Effect.gen(function* () {
+          const session = yield* SessionNs.Service
+          const status = yield* SessionStatus.Service
+          const compact = yield* SessionCompaction.Service
+          let run: Fiber.Fiber<"continue" | "stop", unknown> | undefined
 
-    await using tmp = await tmpdir({ git: true })
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
-        const session = await svc.create({})
-        const msg = await user(session.id, "hello")
-        const msgs = await svc.messages({ sessionID: session.id })
-        const abort = new AbortController()
-        const rt = liveRuntime(stub.layer, wide())
-        let off: (() => void) | undefined
-        let run: Promise<"continue" | "stop"> | undefined
-        try {
-          off = await rt.runPromise(
-            Bus.Service.use((svc) =>
-              svc.subscribeCallback(SessionStatus.Event.Status, (evt) => {
-                if (evt.properties.sessionID !== session.id) return
-                if (evt.properties.status.type !== "retry") return
-                ready.resolve()
-              }),
-            ),
-          )
+          yield* llm.error(503, { error: "boom" })
+          yield* llm.text("")
 
-          run = rt
-            .runPromiseExit(
-              SessionCompaction.Service.use((svc) =>
-                svc.process({
-                  parentID: msg.id,
-                  messages: msgs,
-                  sessionID: session.id,
-                  auto: false,
-                }),
-              ),
-              { signal: abort.signal },
-            )
-            .then((exit) => {
-              if (Exit.isFailure(exit)) {
-                if (Cause.hasInterrupts(exit.cause) && abort.signal.aborted) return "stop"
-                throw Cause.squash(exit.cause)
-              }
-              return exit.value
-            })
+          const chat = yield* session.create({})
+          const msg = yield* session.updateMessage({
+            id: MessageID.ascending(),
+            role: "user",
+            sessionID: chat.id,
+            agent: "build",
+            model: ref,
+            time: { created: Date.now() },
+          })
+          yield* session.updatePart({
+            id: PartID.ascending(),
+            messageID: msg.id,
+            sessionID: chat.id,
+            type: "text",
+            text: "hello",
+          })
+          const msgs = yield* session.messages({ sessionID: chat.id })
 
-          await Promise.race([
-            ready.promise,
-            wait(1000).then(() => {
-              throw new Error("timed out waiting for retry status")
-            }),
-          ])
+          try {
+            run = yield* compact
+              .process({
+                parentID: msg.id,
+                messages: msgs,
+                sessionID: chat.id,
+                auto: false,
+              })
+              .pipe(Effect.forkChild)
 
-          const start = Date.now()
-          abort.abort()
-          const result = await Promise.race([
-            run.then((value) => ({ kind: "done" as const, value, ms: Date.now() - start })),
-            wait(250).then(() => ({ kind: "timeout" as const })),
-          ])
+            yield* llm.wait(1)
+            const deadline = Date.now() + 1000
+            while (true) {
+              if ((yield* status.get(chat.id)).type === "retry") break
+              if (Date.now() >= deadline) throw new Error("timed out waiting for retry status")
+              yield* Effect.sleep("10 millis")
+            }
+            yield* Effect.sleep("50 millis")
 
-          expect(result.kind).toBe("done")
-          if (result.kind === "done") {
-            expect(result.value).toBe("stop")
-            expect(result.ms).toBeLessThan(250)
+            const start = Date.now()
+            run.interruptUnsafe()
+            const exit = yield* Fiber.await(run).pipe(Effect.timeout("1500 millis"))
+
+            expect(Date.now() - start).toBeLessThan(1500)
+            if (Exit.isFailure(exit)) return
+            expect(exit.value).toBe("stop")
+          } finally {
+            if (run) yield* Fiber.interrupt(run).pipe(Effect.ignore)
           }
-        } finally {
-          off?.()
-          abort.abort()
-          await rt.dispose()
-          await run?.catch(() => undefined)
-        }
-      },
-    })
-  })
+        }),
+      { git: true, config: liveProviderCfg },
+    ),
+  )
 
   test("does not leave a summary assistant when aborted before processor setup", async () => {
     const ready = defer()

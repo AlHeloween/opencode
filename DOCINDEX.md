@@ -70,8 +70,11 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 | Document | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|
-| `plans/bug-resolution-plan.md` | OpenCode team | active | 2026-05-18 |
-| `plans/20260518_project_health_plan.md` | OpenCode team | active | 2026-05-18 |
+| `plans/20260606_remove_watchdog_cache_side_effects.md` | OpenCode team | active | 2026-06-06 |
+| `plans/20260605_preexisting_provider_git_init.md` | OpenCode team | active | 2026-06-06 |
+| `plans/20260604_project_analysis_issues.md` | OpenCode team | active | 2026-06-06 |
+| `plans/20260601_upstream_adoption_phase2.md` | OpenCode team | active | 2026-06-06 |
+| `plans/20260601_complete_remaining_items.md` | OpenCode team | active | 2026-06-06 |
 
 ---
 
@@ -100,16 +103,19 @@ This index tracks all documentation surfaces in the repository with ownership, e
 | `plans_completed/perf-fixes.md` | OpenCode team | completed | 2026-05-18 |
 | `plans_completed/perf-fixes-2.md` | OpenCode team | completed | 2026-05-18 |
 | `plans_completed/bug-fixes-round-1.md` | OpenCode team | completed | 2026-05-18 |
+| `plans_completed/20260604_cache_poison_cold_start_deadlock_fix.md` | OpenCode team | completed | 2026-06-06 |
+| `plans_completed/20260605_recent_commit_correctness_fix.md` | OpenCode team | completed | 2026-06-06 |
 
 ---
 
-## Research (`research/`)
+## Research (`research_done/`)
 
 | Document | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|
-| `research/research_v1.md` | OpenCode team | reference | 2026-05-18 |
-| `research/research_v2.md` | OpenCode team | reference | 2026-05-18 |
-| `research/research_v3.md` | OpenCode team | reference | 2026-05-18 |
+| `research_done/research_v4.md` | OpenCode team | reference | 2026-05-18 |
+| `research_done/research_v5_cache_collapse_investigation.md` | OpenCode team | reference | 2026-06-04 |
+| `research_done/20260604_katcoder_cache_regression_investigation.md` | OpenCode team | reference | 2026-06-06 |
+| `research_done/20260605_preexisting_test_failures_fix.md` | OpenCode team | reference | 2026-06-06 |
 
 ---
 

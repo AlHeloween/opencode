@@ -22,7 +22,6 @@ import { Auth } from "@/auth"
 import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
-import { resetCachePoisonState } from "./cache-poison-state"
 import * as Option from "effect/Option"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
 
@@ -58,18 +57,12 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
   const hash = Number(Bun.hash(input.content))
   const prev = systemContentHashes.get(key)
   if (prev !== undefined && prev !== hash) {
-    log.error("bug: system prompt content changed mid-session — prompt cache poisoned", {
+    log.warn("bug: system prompt content changed mid-session", {
       sessionID: input.sessionID,
       agent: input.agent,
       modelID: input.modelID,
       prevHash: prev,
       newHash: hash,
-    })
-    resetCachePoisonState(key)
-    log.info("cache poison state reset due to system prompt change", {
-      sessionID: input.sessionID,
-      agent: input.agent,
-      modelID: input.modelID,
     })
   }
   systemContentHashes.set(key, hash)

@@ -1117,8 +1117,8 @@ export function filterCompacted(msgs: Iterable<WithParts>) {
   const tailIndex = part?.tail_start_id ? result.findIndex((msg) => msg.info.id === part.tail_start_id) : -1
   if (tailIndex >= 0 && tailIndex < compactionIndex && summaryIndex > compactionIndex) {
     return [
-      ...result.slice(compactionIndex, summaryIndex + 1),
       ...result.slice(tailIndex, compactionIndex),
+      ...result.slice(compactionIndex, summaryIndex + 1),
       ...result.slice(summaryIndex + 1),
     ]
   }

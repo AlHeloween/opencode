@@ -45,17 +45,23 @@
 - `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
 
 ### `plans/` — Active Plans
-- `20260604_stream_stall_cache_poisoning_plan.md` — Stream stall recovery and DeepSeek prompt-cache poisoning diagnostics
+- `20260606_remove_watchdog_cache_side_effects.md` — Remove stream watchdog and cache-control side effects
+- `20260605_preexisting_provider_git_init.md` — Provider/git-init test failure fixes
+- `20260604_project_analysis_issues.md` — Project analysis issue backlog
 - `20260601_upstream_adoption_phase2.md` — Upstream adoption phase 2 tracking
 - `20260601_complete_remaining_items.md` — Remaining implementation items tracking
 
-### `plans_completed/` — Completed Plans (22 plans)
+### `plans_completed/` — Completed Plans
 Performance, logging, security, shell migration, file locations, backups, session ops, bug fixes, more.
 
-### `research/` — Research Documents
-- `research_v1.md` — Initial comparative analysis of `Local_Development` branch
-- `research_v2.md` — Deeper static analysis with identified bugs
-- `research_v3.md` — Runtime analysis with microbenchmarks
+### `research_done/` — Completed Research Documents
+- `research_v4.md` — Fix-oriented security/correctness triage
+- `research_v5_cache_collapse_investigation.md` — Cache collapse investigation
+- `20260604_katcoder_cache_regression_investigation.md` — Kat-coder cache regression investigation
+- `20260605_preexisting_test_failures_fix.md` — Pre-existing test failure analysis
+
+### `obsolete/` — Deprecated Reference Artifacts
+- `plans/` — Retired active plans that were superseded or invalidated by later architectural decisions
 
 ---
 

@@ -323,17 +323,6 @@ export const Event = {
       error: MessageV2.Assistant.fields.error,
     }),
   ),
-  CacheCollapsed: BusEvent.define(
-    "session.cache_collapsed",
-    Schema.Struct({
-      sessionID: SessionID,
-      agent: Schema.String,
-      modelID: ModelID,
-      inputTokens: Schema.Number,
-      cacheReadTokens: Schema.Number,
-      cacheWriteTokens: Schema.Number,
-    }),
-  ),
   BalanceUpdated: BusEvent.define(
     "session.balance_updated",
     Schema.Struct({

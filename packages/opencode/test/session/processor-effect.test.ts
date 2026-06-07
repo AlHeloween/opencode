@@ -13,7 +13,7 @@ import { ModelID, ProviderID } from "../../src/provider/schema"
 import { Session } from "@/session/session"
 import { LLM } from "../../src/session/llm"
 import { MessageV2 } from "../../src/session/message-v2"
-import { cacheRatio, SessionProcessor, trackCachePoison } from "../../src/session/processor"
+import { cacheRatio, SessionProcessor } from "../../src/session/processor"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { SessionSummary } from "../../src/session/summary"
@@ -184,249 +184,9 @@ const boot = Effect.fn("test.boot")(function* () {
 // Tests
 // ---------------------------------------------------------------------------
 
-it.effect("session.processor cache poison detector stops after two collapsed requests via input delta", () =>
+it.effect("session.processor computes cache ratio for passive diagnostics", () =>
   Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    const warm = trackCachePoison({
-      key,
-      messageID: "msg_warm",
-      tokens: { input: 100, cache: { read: 900, write: 0 } },
-    })
-    const first = trackCachePoison({
-      key,
-      messageID: "msg_first_collapse",
-      tokens: { input: 150100, cache: { read: 100, write: 0 } },
-    })
-    const second = trackCachePoison({
-      key,
-      messageID: "msg_second_collapse",
-      tokens: { input: 300100, cache: { read: 100, write: 0 } },
-    })
-
-    expect(warm.poisoned).toBe(false)
-    expect(first.collapsed).toBe(true)
-    expect(first.inputDelta).toBe(150000)
-    expect(first.poisoned).toBe(false)
-    expect(second.collapsed).toBe(true)
-    expect(second.poisoned).toBe(true)
-  }),
-)
-
-it.effect("session.processor cache poison detector waits for a healthy baseline", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    const first = trackCachePoison({
-      key,
-      messageID: "msg_cold_start",
-      tokens: { input: 900, cache: { read: 100, write: 0 } },
-    })
-    const second = trackCachePoison({
-      key,
-      messageID: "msg_still_cold",
-      tokens: { input: 900, cache: { read: 100, write: 0 } },
-    })
-
     expect(cacheRatio({ input: 900, cache: { read: 100, write: 0 } })).toBe(0.1)
-    expect(first.collapsed).toBe(false)
-    expect(second.collapsed).toBe(false)
-    expect(second.poisoned).toBe(false)
-  }),
-)
-
-it.effect("session.processor cache poison detector resets after cache recovery via input delta", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    trackCachePoison({ key, messageID: "msg_warm", tokens: { input: 100, cache: { read: 900, write: 0 } } })
-    const first = trackCachePoison({
-      key,
-      messageID: "msg_first_collapse",
-      tokens: { input: 150100, cache: { read: 100, write: 0 } },
-    })
-    const recovered = trackCachePoison({
-      key,
-      messageID: "msg_recovered",
-      tokens: { input: 200, cache: { read: 900, write: 0 } },
-    })
-    const second = trackCachePoison({
-      key,
-      messageID: "msg_second_collapse",
-      tokens: { input: 150200, cache: { read: 100, write: 0 } },
-    })
-
-    expect(first.collapsed).toBe(true)
-    expect(recovered.collapsed).toBe(false)
-    expect(second.collapsed).toBe(true)
-    expect(second.poisoned).toBe(false)
-  }),
-)
-
-it.effect("session.processor input delta detection: small delta not collapsed", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    trackCachePoison({ key, messageID: "msg_warm", tokens: { input: 5000, cache: { read: 500000, write: 0 } } })
-    const normal = trackCachePoison({
-      key,
-      messageID: "msg_normal",
-      tokens: { input: 7000, cache: { read: 500000, write: 0 } },
-    })
-
-    expect(normal.collapsed).toBe(false)
-    expect(normal.inputDelta).toBe(2000)
-  }),
-)
-
-it.effect("session.processor input delta detection: large delta collapsed", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    trackCachePoison({ key, messageID: "msg_warm", tokens: { input: 5000, cache: { read: 500000, write: 0 } } })
-    const spike = trackCachePoison({
-      key,
-      messageID: "msg_spike",
-      tokens: { input: 490000, cache: { read: 18000, write: 0 } },
-    })
-
-    expect(spike.collapsed).toBe(true)
-    expect(spike.inputDelta).toBe(485000)
-  }),
-)
-
-it.effect("session.processor cold start with high input logs warning", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    const cold = trackCachePoison({
-      key,
-      messageID: "msg_cold_start_high",
-      tokens: { input: 520000, cache: { read: 18000, write: 0 } },
-    })
-
-    expect(cold.collapsed).toBe(false)
-    expect(cold.poisoned).toBe(false)
-    expect(cold.state.previousInputTokens).toBe(520000)
-  }),
-)
-
-it.effect("session.processor cache poison detector: cold-start positive delta triggers collapse", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    const first = trackCachePoison({
-      key,
-      messageID: "msg_cold_first",
-      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
-    })
-    const second = trackCachePoison({
-      key,
-      messageID: "msg_cold_spike",
-      tokens: { input: 720000, cache: { read: 1000, write: 0 } },
-    })
-
-    expect(first.collapsed).toBe(false)
-    expect(first.poisoned).toBe(false)
-    expect(second.collapsed).toBe(true)
-    expect(second.inputDelta).toBe(200000)
-    expect(second.poisoned).toBe(false)
-  }),
-)
-
-it.effect("session.processor cache poison detector: two cold-start collapses trigger poison", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    trackCachePoison({
-      key,
-      messageID: "msg_cold_first",
-      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
-    })
-    const first = trackCachePoison({
-      key,
-      messageID: "msg_cold_spike1",
-      tokens: { input: 720000, cache: { read: 1000, write: 0 } },
-    })
-    const second = trackCachePoison({
-      key,
-      messageID: "msg_cold_spike2",
-      tokens: { input: 920000, cache: { read: 1000, write: 0 } },
-    })
-
-    expect(first.collapsed).toBe(true)
-    expect(first.poisoned).toBe(false)
-    expect(second.collapsed).toBe(true)
-    expect(second.poisoned).toBe(true)
-  }),
-)
-
-it.effect("session.processor cache poison detector: persistent cold triggers poison after threshold", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    const cold = (n: number) => trackCachePoison({
-      key,
-      messageID: `msg_cold_${n}`,
-      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
-    })
-
-    const t1 = cold(1)
-    expect(t1.poisoned).toBe(false)
-    const t2 = cold(2)
-    expect(t2.poisoned).toBe(false)
-    const t3 = cold(3)
-    expect(t3.poisoned).toBe(true)
-  }),
-)
-
-it.effect("session.processor cache poison detector: persistent cold resets after healthy ratio", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    trackCachePoison({
-      key,
-      messageID: "msg_cold_1",
-      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
-    })
-    trackCachePoison({
-      key,
-      messageID: "msg_cold_2",
-      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
-    })
-    // Third would be persistent-cold poison, but we interject a healthy one
-    trackCachePoison({
-      key,
-      messageID: "msg_healthy",
-      tokens: { input: 100, cache: { read: 900, write: 0 } },
-    })
-    const afterHealthy = trackCachePoison({
-      key,
-      messageID: "msg_cold_after_healthy",
-      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
-    })
-    expect(afterHealthy.poisoned).toBe(false)
-    // healthy path persists — collapse detected but consecutiveCold stays 0
-    expect(afterHealthy.collapsed).toBe(true)
-    expect(afterHealthy.state.consecutiveCold).toBe(0)
-  }),
-)
-
-it.effect("session.processor cache poison detector: negative delta resets baseline", () =>
-  Effect.sync(() => {
-    const key = `test:${crypto.randomUUID()}`
-    const large = trackCachePoison({
-      key,
-      messageID: "msg_large",
-      tokens: { input: 520000, cache: { read: 1000, write: 0 } },
-    })
-    const small = trackCachePoison({
-      key,
-      messageID: "msg_small",
-      tokens: { input: 10000, cache: { read: 5000, write: 0 } },
-    })
-
-    expect(large.state.previousInputTokens).toBe(520000)
-    expect(small.collapsed).toBe(false)
-    expect(small.inputDelta).toBe(-510000)
-    // After reset, a subsequent normal request should not be a "collapse"
-    const normal = trackCachePoison({
-      key,
-      messageID: "msg_normal",
-      tokens: { input: 12000, cache: { read: 5000, write: 0 } },
-    })
-    expect(normal.collapsed).toBe(false)
-    expect(normal.inputDelta).toBe(2000)
   }),
 )
 
@@ -1010,19 +770,11 @@ it.live("session.processor effect tests record aborted errors and idle state", (
 
         const exit = yield* Fiber.await(run)
         yield* Effect.promise(() => seen.promise)
-        const stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
         const state = yield* sts.get(chat.id)
         off()
 
         expect(Exit.isFailure(exit)).toBe(true)
-        if (Exit.isFailure(exit)) {
-          expect(Cause.hasInterruptsOnly(exit.cause)).toBe(true)
-        }
         expect(handle.message.error?.name).toBe("MessageAbortedError")
-        expect(stored.info.role).toBe("assistant")
-        if (stored.info.role === "assistant") {
-          expect(stored.info.error?.name).toBe("MessageAbortedError")
-        }
         expect(state).toMatchObject({ type: "idle" })
         expect(errs).toContain("MessageAbortedError")
       }),

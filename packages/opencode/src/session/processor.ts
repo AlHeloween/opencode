@@ -29,28 +29,12 @@ import { Database } from "@/storage/db"
 
 const DOOM_LOOP_THRESHOLD = 3
 const log = Log.create({ service: "session.processor" })
-
-const CACHE_HEALTHY_RATIO = 0.85
-const CACHE_POISON_THRESHOLD = 2
-const CACHE_INPUT_DELTA_THRESHOLD = 100_000
-const CACHE_COLD_START_INPUT_THRESHOLD = 100_000
-const CACHE_PERSISTENT_COLD_THRESHOLD = 3
-const CACHE_COLD_RATIO_THRESHOLD = 0.1
-const STREAM_STALL_DEFAULT_MS = 120_000_000
-function streamStallTimeoutMs() {
-  const value = Number(process.env.OPENCODE_STREAM_STALL_TIMEOUT_MS)
-  return Number.isFinite(value) && value > 0 ? value : STREAM_STALL_DEFAULT_MS
-}
-
-import { cachePoisonStates, type CachePoisonState } from "./cache-poison-state"
-
-export type Result = "compact" | "stop" | "continue" | "stalled"
+export type Result = "compact" | "stop" | "continue"
 
 export type Event = LLM.Event
 
 export interface Handle {
   readonly message: MessageV2.Assistant
-  readonly needsCacheRebaseline: boolean
   readonly updateToolCall: (
     toolCallID: string,
     update: (part: MessageV2.ToolPart) => MessageV2.ToolPart,
@@ -89,10 +73,8 @@ interface ProcessorContext extends Input {
   shouldBreak: boolean
   snapshot: string | undefined
   blocked: boolean
-  stalled: boolean
   toolCallEmitted: boolean
   needsCompaction: boolean
-  needsCacheRebaseline: boolean
   currentText: MessageV2.TextPart | undefined
   textBuilder: StringBuilder
   reasoningMap: Record<string, MessageV2.ReasoningPart>
@@ -104,157 +86,6 @@ type StreamEvent = Event
 
 export function cacheRatio(tokens: { input: number; cache: { read: number; write: number } }) {
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
-}
-
-export function resetCachePoisonState(key: string) {
-  cachePoisonStates.delete(key)
-}
-
-export function trackCachePoison(input: {
-  key: string
-  messageID: string
-  tokens: { input: number; cache: { read: number; write: number } }
-}) {
-  const ratio = cacheRatio(input.tokens)
-  const state = cachePoisonStates.get(input.key) ?? { healthy: false, collapsed: 0, poisoned: false, consecutiveCold: 0, previousInputTokens: undefined }
-
-  const inputDelta = state.previousInputTokens !== undefined
-    ? input.tokens.input - state.previousInputTokens
-    : undefined
-
-  const collapsedByDelta = inputDelta !== undefined && inputDelta > 0 && inputDelta > CACHE_INPUT_DELTA_THRESHOLD
-  const shrunkByDelta = inputDelta !== undefined && inputDelta < -CACHE_INPUT_DELTA_THRESHOLD
-  const isHighColdInput = input.tokens.input > CACHE_COLD_START_INPUT_THRESHOLD && ratio < CACHE_COLD_RATIO_THRESHOLD
-
-  if (ratio >= CACHE_HEALTHY_RATIO) {
-    const next = {
-      healthy: true,
-      collapsed: 0,
-      poisoned: false,
-      consecutiveCold: 0,
-      previousRatio: ratio,
-      previousMessageID: input.messageID,
-      previousInputTokens: input.tokens.input,
-    }
-    cachePoisonStates.set(input.key, next)
-    return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
-  }
-
-  if (!state.healthy) {
-    if (shrunkByDelta) {
-      log.info("cache baseline reset on context shrinkage", {
-        key: input.key,
-        messageID: input.messageID,
-        inputDelta,
-        previousInputTokens: state.previousInputTokens,
-        currentInputTokens: input.tokens.input,
-      })
-      const next = {
-        ...state,
-        previousRatio: ratio,
-        previousMessageID: input.messageID,
-        previousInputTokens: input.tokens.input,
-      }
-      cachePoisonStates.set(input.key, next)
-      return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
-    }
-
-    if (collapsedByDelta) {
-      const collapsed = state.collapsed + 1
-      const poisoned = collapsed >= CACHE_POISON_THRESHOLD
-      log.warn("bug: prompt cache collapsed from cold start", {
-        key: input.key,
-        messageID: input.messageID,
-        cacheRatio: ratio,
-        inputDelta,
-        collapsedCount: collapsed,
-        poisoned,
-        inputTokens: input.tokens.input,
-        cacheReadTokens: input.tokens.cache.read,
-        cacheWriteTokens: input.tokens.cache.write,
-      })
-      const next = {
-        healthy: false,
-        collapsed: poisoned ? 0 : collapsed,
-        poisoned,
-        consecutiveCold: 0,
-        previousRatio: ratio,
-        previousMessageID: input.messageID,
-        previousInputTokens: input.tokens.input,
-      }
-      cachePoisonStates.set(input.key, next)
-      return { ratio, collapsed: true, poisoned, state: next, inputDelta }
-    }
-
-    if (isHighColdInput) {
-      const consecutiveCold = state.consecutiveCold + 1
-      const persistentColdPoisoned = consecutiveCold >= CACHE_PERSISTENT_COLD_THRESHOLD
-      log.warn("bug: cold cache cost", {
-        key: input.key,
-        messageID: input.messageID,
-        inputTokens: input.tokens.input,
-        cacheReadTokens: input.tokens.cache.read,
-        cacheWriteTokens: input.tokens.cache.write,
-        consecutiveCold,
-      })
-      const next = {
-        ...state,
-        consecutiveCold: persistentColdPoisoned ? 0 : consecutiveCold,
-        poisoned: persistentColdPoisoned,
-        previousRatio: ratio,
-        previousMessageID: input.messageID,
-        previousInputTokens: input.tokens.input,
-      }
-      if (persistentColdPoisoned) {
-        log.error("bug: persistent cold cache — forcing rebaseline", {
-          key: input.key,
-          messageID: input.messageID,
-          consecutiveCold,
-          inputTokens: input.tokens.input,
-          cacheReadTokens: input.tokens.cache.read,
-        })
-      }
-      cachePoisonStates.set(input.key, next)
-      return { ratio, collapsed: false, poisoned: persistentColdPoisoned, state: next, inputDelta }
-    }
-
-    const next = {
-      ...state,
-      previousRatio: ratio,
-      previousMessageID: input.messageID,
-      previousInputTokens: input.tokens.input,
-    }
-    cachePoisonStates.set(input.key, next)
-    return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
-  }
-
-  if (collapsedByDelta) {
-    const collapsed = state.collapsed + 1
-    const poisoned = collapsed >= CACHE_POISON_THRESHOLD
-    const next = {
-      healthy: true,
-      collapsed,
-      poisoned,
-      consecutiveCold: 0,
-      previousRatio: ratio,
-      previousMessageID: input.messageID,
-      previousInputTokens: input.tokens.input,
-    }
-    cachePoisonStates.set(input.key, poisoned ? { healthy: false, collapsed: 0, poisoned: true, consecutiveCold: 0, previousInputTokens: input.tokens.input } : next)
-    return { ratio, collapsed: true, poisoned, state: next, inputDelta }
-  }
-
-  const next = {
-    healthy: true,
-    collapsed: 0,
-    poisoned: false,
-    consecutiveCold: 0,
-    previousRatio: ratio,
-    previousMessageID: input.messageID,
-    previousInputTokens: input.tokens.input,
-  }
-  cachePoisonStates.set(input.key, next)
-  return { ratio, collapsed: false, poisoned: false, state: next, inputDelta }
 }
 
 let _lastBalanceCheck = 0
@@ -339,10 +170,8 @@ export const layer: Layer.Layer<
         shouldBreak: false,
         snapshot: initialSnapshot,
         blocked: false,
-        stalled: false,
         toolCallEmitted: false,
         needsCompaction: false,
-        needsCacheRebaseline: false,
         currentText: undefined,
         textBuilder: new StringBuilder(),
         reasoningMap: {},
@@ -622,54 +451,11 @@ export const layer: Layer.Layer<
               log.info(Session.isCacheWarm(usage.tokens) ? "cache hit" : "cache miss", {
                 sessionID: ctx.sessionID,
                 modelID: ctx.model.id,
+                cacheRatio: cacheRatio(usage.tokens),
                 inputTokens: usage.tokens.input,
                 cacheReadTokens: usage.tokens.cache.read,
                 cacheWriteTokens: usage.tokens.cache.write,
               })
-              const poison = trackCachePoison({
-                key: [ctx.sessionID, ctx.assistantMessage.agent, ctx.model.id].join(":"),
-                messageID: ctx.assistantMessage.id,
-                tokens: usage.tokens,
-              })
-              if (poison.collapsed) {
-                log.warn("bug: prompt cache collapsed", {
-                  sessionID: ctx.sessionID,
-                  agent: ctx.assistantMessage.agent,
-                  modelID: ctx.model.id,
-                  messageID: ctx.assistantMessage.id,
-                  cacheRatio: poison.ratio,
-                  inputDelta: poison.inputDelta,
-                  collapsedCount: poison.state.collapsed,
-                  poisoned: poison.poisoned,
-                  inputTokens: usage.tokens.input,
-                  cacheReadTokens: usage.tokens.cache.read,
-                  cacheWriteTokens: usage.tokens.cache.write,
-                  rawInputTokenDetails: value.usage.inputTokenDetails,
-                })
-              }
-              if (poison.poisoned) {
-                ctx.needsCacheRebaseline = true
-                yield* bus.publish(Session.Event.CacheCollapsed, {
-                  sessionID: ctx.sessionID,
-                  agent: ctx.assistantMessage.agent,
-                  modelID: ctx.model.id,
-                  inputTokens: usage.tokens.input,
-                  cacheReadTokens: usage.tokens.cache.read,
-                  cacheWriteTokens: usage.tokens.cache.write,
-                })
-                log.error("bug: prompt cache poisoned twice sequentially - signaling rebaseline (not blocking)", {
-                  sessionID: ctx.sessionID,
-                  agent: ctx.assistantMessage.agent,
-                  modelID: ctx.model.id,
-                  messageID: ctx.assistantMessage.id,
-                  cacheRatio: poison.ratio,
-                  inputDelta: poison.inputDelta,
-                  inputTokens: usage.tokens.input,
-                  cacheReadTokens: usage.tokens.cache.read,
-                  cacheWriteTokens: usage.tokens.cache.write,
-                  rawInputTokenDetails: value.usage.inputTokenDetails,
-                })
-              }
             }
             yield* session.updatePart({
               id: PartID.ascending(),
@@ -870,8 +656,15 @@ export const layer: Layer.Layer<
           })
         }
         ctx.toolcalls = {}
-        ctx.assistantMessage.time.completed = Date.now()
-        yield* session.updateMessage(ctx.assistantMessage)
+        yield* Effect.uninterruptible(
+          Effect.gen(function* () {
+            if (aborted && !ctx.assistantMessage.error) {
+              ctx.assistantMessage.error = parse(new DOMException("Aborted", "AbortError"))
+            }
+            ctx.assistantMessage.time.completed = Date.now()
+            yield* session.updateMessage(ctx.assistantMessage)
+          }),
+        )
       })
 
       const halt = Effect.fn("SessionProcessor.halt")(function* (e: unknown) {
@@ -902,29 +695,12 @@ export const layer: Layer.Layer<
             ctx.reasoningMap = {}
             ctx.reasoningBuilders = {}
             const stream = llm.stream(streamInput)
-            const stallTimeoutMs = streamStallTimeoutMs()
-            let streamCompleted = false
 
             yield* stream.pipe(
-              Stream.tap((event) => {
-                if (event.type === "finish-step") streamCompleted = true
-                return handleEvent(event)
-              }),
+              Stream.tap((event) => handleEvent(event)),
               Stream.takeUntil(() => ctx.needsCompaction),
-              Stream.timeout(`${stallTimeoutMs} millis`),
               Stream.runDrain,
             )
-
-            if (!streamCompleted && !ctx.needsCompaction) {
-              ctx.stalled = true
-              log.warn("bug: llm stream stalled", {
-                sessionID: ctx.sessionID,
-                agent: ctx.assistantMessage.agent,
-                modelID: ctx.model.id,
-                messageID: ctx.assistantMessage.id,
-                timeoutMs: stallTimeoutMs,
-              })
-            }
           }).pipe(
             Effect.onInterrupt(() =>
               Effect.gen(function* () {
@@ -950,11 +726,19 @@ export const layer: Layer.Layer<
                   }),
               }),
             ),
+            Effect.interruptible,
+            Effect.onInterrupt(() =>
+              Effect.gen(function* () {
+                aborted = true
+                if (!ctx.assistantMessage.error) {
+                  yield* halt(new DOMException("Aborted", "AbortError"))
+                }
+              }),
+            ),
             Effect.catch(halt),
             Effect.ensuring(cleanup()),
           )
 
-          if (ctx.stalled) return "stalled"
           if (ctx.needsCompaction) return "compact"
           if (ctx.blocked || ctx.assistantMessage.error) return "stop"
           return "continue"
@@ -964,9 +748,6 @@ export const layer: Layer.Layer<
       return {
         get message() {
           return ctx.assistantMessage
-        },
-        get needsCacheRebaseline() {
-          return ctx.needsCacheRebaseline
         },
         updateToolCall,
         completeToolCall,

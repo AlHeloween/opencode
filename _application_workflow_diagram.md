@@ -5,28 +5,28 @@
 1. `packages/opencode/src/session/prompt.ts` / `SessionPrompt.loop`
    - Input: user/session/model/agent state.
    - Output: assistant message or loop break.
-   - Logic: build system prompt and model messages, call `SessionProcessor.process`, handle `"stalled"`, `"stop"`, `"compact"`, and cache rebaseline signals.
+   - Logic: build system prompt and model messages, call `SessionProcessor.process`, handle `"stop"` and `"compact"`, and leave cache metrics passive.
 
 2. `packages/opencode/src/session/processor.ts` / `SessionProcessor.process`
    - Input: `LLM.StreamInput`.
-   - Output: `"compact" | "stop" | "continue" | "stalled"`.
-   - Logic: stream provider events, update message parts, apply stream stall timeout, run cleanup, return typed outcome.
+   - Output: `"compact" | "stop" | "continue"`.
+   - Logic: stream provider events, update message parts, mark interruptions as aborted, run cleanup, return typed outcome.
 
-3. `packages/opencode/src/session/processor.ts` / `trackCachePoison`
-   - Input: cache key, message ID, normalized token usage.
-   - Output: ratio diagnostics, collapse/poison flags, input delta.
-   - Logic: track previous input tokens per key; collapse when input delta exceeds threshold; poison after consecutive collapses.
+3. `packages/opencode/src/session/processor.ts` / `cacheRatio`
+   - Input: token usage with input/cache read/cache write counts.
+   - Output: passive cache-read ratio.
+   - Logic: compute cache-read share for diagnostics without changing processor control flow.
 
-4. `packages/opencode/src/session/session.ts` / `Session.Event.CacheCollapsed`
-   - Input: session/model/token details.
-   - Output: bus event payload.
-   - Logic: typed fire-and-forget event for cache-collapse notification.
+4. `packages/opencode/src/session/session.ts` / `Session.updateMessage`
+   - Input: message info.
+   - Output: updated message info.
+   - Logic: run `MessageV2.Event.Updated`, whose projector persists the message row.
 
-5. `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` / session route event handler
-   - Input: `session.cache_collapsed` event.
-   - Output: non-blocking toast.
-   - Logic: filter to active session and show model/token details.
+5. `packages/opencode/src/session/compaction.ts` / compaction continuation
+   - Input: compaction prompt state and processor result.
+   - Output: compacted session continuation or stop.
+   - Logic: retry context-overflow handling and user-driven compaction without stream-stall fallback.
 
-Coverage estimate vs actual codebase: 7%.
+Coverage estimate vs actual codebase: 6%.
 
-This diagram covers the modified session-processing and TUI notification path only, not the full opencode runtime.
+This diagram covers the modified session-processing and compaction path only, not the full opencode runtime.

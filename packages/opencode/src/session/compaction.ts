@@ -474,15 +474,6 @@ export const layer: Layer.Layer<
         return "stop"
       }
 
-      if (result === "stalled") {
-        processor.message.error = MessageV2.fromError(new Error("LLM stream stalled during compaction"), {
-          providerID: model.providerID,
-        })
-        processor.message.finish = "error"
-        yield* session.updateMessage(processor.message)
-        return "stop"
-      }
-
       if (compactionPart && selected.tail_start_id && compactionPart.tail_start_id !== selected.tail_start_id) {
         yield* session.updatePart({
           ...compactionPart,

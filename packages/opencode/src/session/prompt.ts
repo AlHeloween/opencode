@@ -1332,25 +1332,6 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               toolChoice: format.type === "json_schema" ? "required" : undefined,
             })
 
-            if (handle.needsCacheRebaseline) {
-              SessionProcessor.resetCachePoisonState([sessionID, lastUser.agent, model.id].join(":"))
-              log.info("prompt cache rebaseline requested", {
-                sessionID,
-                agent: lastUser.agent,
-                modelID: model.id,
-              })
-            }
-
-            if (result === "stalled") {
-              handle.message.error = MessageV2.fromError(
-                new Error("LLM stream stalled before tool execution"),
-                { providerID: model.providerID },
-              )
-              handle.message.finish = "error"
-              yield* sessions.updateMessage(handle.message)
-              return "continue" as const
-            }
-
             if (structured !== undefined) {
               handle.message.structured = structured
               handle.message.finish = handle.message.finish ?? "stop"

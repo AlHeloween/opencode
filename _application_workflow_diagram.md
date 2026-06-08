@@ -73,3 +73,27 @@ Coverage estimate vs actual codebase: 7%.
    - Logic: render `Continue <executable> -s <session>` so copied bundles point at `bin\\opencode.exe` instead of a possibly unrelated `opencode` on `PATH`.
 
 Coverage estimate vs actual codebase: 8%.
+
+## Read Tool Document Conversion Flow
+
+1. `packages/opencode/src/tool/read.ts` / `isBinaryFile`
+   - Input: requested file path and sample bytes.
+   - Output: binary/text classification.
+   - Logic: known binary/document extensions, including `.pdf`, enter the binary branch before byte heuristics.
+
+2. `packages/opencode/src/tool/read.ts` / Windows path normalization
+   - Input: requested file path and active instance directory.
+   - Output: normalized absolute path for permission and stat checks.
+   - Logic: drive-less absolute paths such as `/Users/...` are resolved on the active project drive instead of the process cwd drive.
+
+3. `packages/opencode/src/tool/read.ts` / document conversion branch
+   - Input: binary file bytes and file extension.
+   - Output: `<content>` block containing converted markdown.
+   - Logic: supported non-text document formats call `convertDocument`; binary bytes in text-like extensions remain rejected as binary.
+
+4. `packages/opencode/src/util/markdownify.ts` / `resolveBinPath`
+   - Input: runtime paths and platform executable suffix.
+   - Output: resolved `opencode-markdownify` path.
+   - Logic: check packaged cache/bin, executable-adjacent config/bin, actual executable directory, portable project `bin`, cwd `bin`, source-checkout `bin`, then development dist locations.
+
+Coverage estimate vs actual codebase: 9%.

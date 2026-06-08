@@ -1,5 +1,4 @@
 import path from "path"
-import fs from "fs/promises"
 import { Process } from "./process"
 import { Global } from "@opencode-ai/core/global"
 import { Filesystem } from "./filesystem"
@@ -9,37 +8,54 @@ const MARKDOWNIFY_BIN = "opencode-markdownify"
 
 let cachedBinPath: string | null = null
 
+function markdownifyName() {
+  return MARKDOWNIFY_BIN + (process.platform === "win32" ? ".exe" : "")
+}
+
+function hasPathSeparator(value: string) {
+  return value.includes("/") || value.includes("\\")
+}
+
+function binCandidates(name: string) {
+  const candidates: string[] = []
+  const add = (candidate: string | undefined) => {
+    if (!candidate) return
+    const normalized = path.normalize(candidate)
+    if (!candidates.includes(normalized)) candidates.push(normalized)
+  }
+
+  add(path.join(Global.Path.bin, name))
+  add(path.join(Global.Path.config, name))
+  add(path.join(path.dirname(process.execPath), name))
+
+  const argv0 = process.argv0 || ""
+  if (argv0 && (path.isAbsolute(argv0) || hasPathSeparator(argv0))) {
+    add(path.join(path.dirname(path.resolve(process.cwd(), argv0)), name))
+  }
+
+  add(path.join(Global.Path.home, "bin", name))
+  add(path.join(process.cwd(), "bin", name))
+
+  // Source checkout fallback for development/test runs where process.execPath is Bun or Node.
+  add(path.join(__dirname, "..", "..", "..", "..", "bin", name))
+
+  const platformDir = `opencode-${process.platform}-${process.arch}`
+  add(path.join(__dirname, "..", "..", "..", "dist", platformDir, "bin", name))
+  add(path.join(__dirname, "..", "..", "..", "..", "dist", platformDir, "bin", name))
+
+  return candidates
+}
+
 async function resolveBinPath(): Promise<string | null> {
   if (cachedBinPath) return cachedBinPath
 
-  const ext = process.platform === "win32" ? ".exe" : ""
-  const name = MARKDOWNIFY_BIN + ext
-
-  // Check if binary exists in Global.Path.bin (embedded by build process)
-  const bundled = path.join(Global.Path.bin, name)
-  if (await Filesystem.exists(bundled)) {
-    cachedBinPath = bundled
-    return bundled
+  for (const candidate of binCandidates(markdownifyName())) {
+    if (await Filesystem.exists(candidate)) {
+      cachedBinPath = candidate
+      return candidate
+    }
   }
 
-  // Check if binary is adjacent to the opencode executable
-  const exePath = process.argv0 || process.execPath
-  const exeDir = path.dirname(exePath)
-  const adjacent = path.join(exeDir, name)
-  if (await Filesystem.exists(adjacent)) {
-    cachedBinPath = adjacent
-    return adjacent
-  }
-
-  // Development: check dist/<platform>/bin/ adjacent to package root
-  const platformDir = `opencode-${process.platform}-${process.arch}`
-  const devBin = path.join(__dirname, "..", "..", "..", "dist", platformDir, "bin", name)
-  if (await Filesystem.exists(devBin)) {
-    cachedBinPath = devBin
-    return devBin
-  }
-
-  // Not found
   cachedBinPath = null
   return null
 }
@@ -49,8 +65,9 @@ export async function initMarkdownify() {}
 export async function convertDocument(bytes: Uint8Array, filename: string, opts?: { tail?: number }): Promise<string> {
   const binPath = await resolveBinPath()
   if (!binPath) {
-    Log.Default.warn("markdownify binary not found, skipping conversion", { filename })
-    return ""
+    const candidates = binCandidates(markdownifyName())
+    Log.Default.warn("markdownify binary not found", { filename, candidates })
+    throw new Error(`Document conversion failed: ${MARKDOWNIFY_BIN} not found`)
   }
 
   const args = [filename]
@@ -74,7 +91,7 @@ export async function convertDocument(bytes: Uint8Array, filename: string, opts?
 
   if (exitCode !== 0) {
     Log.Default.warn("markdownify failed", { filename, exitCode, stderr: stderr.trim() })
-    return ""
+    throw new Error(`Document conversion failed: ${stderr.trim() || `${MARKDOWNIFY_BIN} exited with code ${exitCode}`}`)
   }
 
   return stdout

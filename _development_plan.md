@@ -46,3 +46,22 @@ Verification:
 - [x] `_build.ps1` passed and produced version `10.0.100` (`cmd_runner` run `20260608T015813Z_c736b7a2`).
 - [x] `bin\\opencode.exe -s ses_15b15261fffe3zPa4pCOPoSrpM` from `bin_tst\\tst3` restored the session through `cmd.exe` (`cmd_runner` run `20260608T020231Z_7a7f6fde`).
 - [x] Exit banner now prints `Continue bin\\opencode.exe -s ses_15b15261fffe3zPa4pCOPoSrpM` (`cmd_runner` run `20260608T020231Z_7a7f6fde`).
+
+## 2026-06-08 Document Read Conversion
+
+Goal: make the read tool convert local PDF/DOCX/PPTX artifacts through the bundled `opencode-markdownify` executable instead of returning empty content.
+
+Tasks:
+
+- [x] Resolve `opencode-markdownify` from the actual executable/config directory and portable project `bin` folders instead of trusting bare `process.argv0`.
+- [x] Add `.pdf` to read-tool binary detection so PDFs consistently enter the document conversion path.
+- [x] Surface missing/failing markdownify as a document conversion error instead of returning empty `<content>`.
+- [x] Keep binary `.txt` files rejected even though `txt` is a supported markdownify extension for non-binary attachments.
+- [x] Resolve Windows drive-less absolute paths against the active project drive before read permission/stat checks.
+
+Verification:
+
+- [x] `bun typecheck` from `packages/opencode` passed (`cmd_runner` run `20260608T144234Z_74fcce27`).
+- [x] Artifact conversion through `convertDocument()` returned non-empty markdown for the PDF, PPTX, and both DOCX files in `artifacts/`.
+- [x] `bun test --timeout 30000 -t "rejects text extension files with null bytes" test/tool/read.test.ts` passed (`cmd_runner` run `20260608T143539Z_205c3467`).
+- [x] `bun test --timeout 30000 test/tool/read.test.ts` passed from `packages/opencode` (`cmd_runner` run `20260608T144234Z_5dafabe4`).

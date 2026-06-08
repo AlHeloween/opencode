@@ -18,6 +18,7 @@ const MAX_LINE_SUFFIX = `... (line truncated to ${MAX_LINE_LENGTH} chars)`
 const MAX_BYTES = 50 * 1024
 const MAX_BYTES_LABEL = `${MAX_BYTES / 1024} KB`
 const SAMPLE_BYTES = 4096
+const TEXT_DOCUMENT_EXTENSIONS = new Set(["atom", "csv", "htm", "html", "json", "md", "rss", "txt", "xml"])
 
 // `offset` and `limit` were originally `z.coerce.number()` — the runtime
 // coercion was useful when the tool was called from a shell but serves no
@@ -121,6 +122,7 @@ export const ReadTool = Tool.define(
         case ".xlsx":
         case ".ppt":
         case ".pptx":
+        case ".pdf":
         case ".odt":
         case ".ods":
         case ".odp":
@@ -158,6 +160,12 @@ export const ReadTool = Tool.define(
       }
 
       let filepath = params.filePath
+      if (process.platform === "win32") {
+        filepath = AppFileSystem.windowsPath(filepath)
+        if (/^[\\/](?![A-Za-z](?:[\\/]|:)|cygdrive[\\/]|mnt[\\/])/.test(filepath)) {
+          filepath = path.join(path.parse(Instance.directory).root, filepath.slice(1))
+        }
+      }
       if (!path.isAbsolute(filepath)) {
         filepath = path.resolve(Instance.directory, filepath)
       }
@@ -241,7 +249,7 @@ export const ReadTool = Tool.define(
 
       if (isBinaryFile(filepath, sample)) {
         const ext = path.extname(filepath).toLowerCase().slice(1)
-        if (isSupportedDocumentFormat(ext)) {
+        if (isSupportedDocumentFormat(ext) && !TEXT_DOCUMENT_EXTENSIONS.has(ext)) {
           const bytes = yield* fs.readFile(filepath)
           const markdown = yield* Effect.promise(() =>
             convertDocument(new Uint8Array(bytes), path.basename(filepath)),

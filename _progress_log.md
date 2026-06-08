@@ -99,3 +99,21 @@ Script output:
 - Exit banner printed `Continue bin\\opencode.exe -s ses_15b15261fffe3zPa4pCOPoSrpM` (`cmd_runner` run `20260608T020116Z_d2bedc6d`).
 - Exact displayed command through `cmd.exe` restored the session and exited cleanly (`cmd_runner` run `20260608T020231Z_7a7f6fde`).
 - Direct `cmd_runner` argv execution of relative `bin\\opencode.exe` is not equivalent to a user `cmd.exe` prompt and reproduced `Session not found`; that diagnostic run was stopped (`cmd_runner` run `20260608T020146Z_1b34a5e0`).
+
+## 2026-06-08 Document Read Conversion
+
+Reason: reading non-empty PDF/DOCX/PPTX files from `artifacts/` returned empty content because `convertDocument()` could not resolve `opencode-markdownify` and returned an empty string on failure.
+
+Changes:
+
+- Updated `packages/opencode/src/util/markdownify.ts` to search the real executable directory, executable-adjacent config directory, project `bin`, cwd `bin`, and source-checkout `bin` before development `dist` fallbacks.
+- Updated `packages/opencode/src/util/markdownify.ts` to throw a clear document conversion error when the converter is missing or exits non-zero.
+- Updated `packages/opencode/src/tool/read.ts` to classify `.pdf` as binary and reject binary bytes in text-like extensions instead of converting them through markdownify.
+- Updated `packages/opencode/src/tool/read.ts` to resolve Windows drive-less absolute paths against the active project drive before read permission/stat checks.
+
+Script output:
+
+- `bun typecheck` from `packages/opencode`: passed (`cmd_runner` run `20260608T144234Z_74fcce27`).
+- `convertDocument()` against all files in `artifacts/`: non-empty output for `Методические указания по курсовому проекту.pdf`, `Основные требования.pptx`, `Примерное содержание раздела Тестирование.docx`, and `Титульный лист.docx`.
+- `bun test --timeout 30000 -t "rejects text extension files with null bytes" test/tool/read.test.ts`: passed, 2 pass, 126 filtered out (`cmd_runner` run `20260608T143539Z_205c3467`).
+- `bun test --timeout 30000 test/tool/read.test.ts`: passed, 37 pass (`cmd_runner` run `20260608T144234Z_5dafabe4`).

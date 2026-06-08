@@ -59,3 +59,17 @@ This diagram covers the modified session-processing and compaction path only, no
    - Logic: store account rows in memory; no config-level SQLite database or `account.db` file is created.
 
 Coverage estimate vs actual codebase: 7%.
+
+## TUI Session Exit Banner Flow
+
+1. `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` / `currentExecutableCommand`
+   - Input: process executable path, original argv0, and current working directory.
+   - Output: shell-copyable executable command path.
+   - Logic: use the launched runtime name for development runtimes, otherwise resolve the packaged executable and prefer a relative path when it is inside the current directory.
+
+2. `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` / session exit message effect
+   - Input: active session title and session ID.
+   - Output: terminal exit banner with a portable continue command.
+   - Logic: render `Continue <executable> -s <session>` so copied bundles point at `bin\\opencode.exe` instead of a possibly unrelated `opencode` on `PATH`.
+
+Coverage estimate vs actual codebase: 8%.

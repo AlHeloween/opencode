@@ -97,6 +97,27 @@ const GO_UPSELL_LAST_SEEN_AT = "go_upsell_last_seen_at"
 const GO_UPSELL_DONT_SHOW = "go_upsell_dont_show"
 const GO_UPSELL_WINDOW = 86_400_000 // 24 hrs
 
+function quoteCommandPath(value: string) {
+  if (!/[\s"&|<>^]/.test(value)) return value
+  return `"${value.replace(/"/g, '\\"')}"`
+}
+
+function currentExecutableCommand() {
+  const argv0 = process.argv0 || ""
+  const execBase = path.basename(process.execPath).toLowerCase()
+  const isRuntime = execBase === "bun" || execBase === "bun.exe" || execBase === "node" || execBase === "node.exe"
+  const hasPathSeparator = argv0.includes("/") || argv0.includes("\\")
+
+  if (argv0 && isRuntime) return quoteCommandPath(argv0)
+
+  const executable = argv0 && (hasPathSeparator || path.isAbsolute(argv0)) ? argv0 : process.execPath
+  const absolute = path.isAbsolute(executable) ? path.normalize(executable) : path.resolve(process.cwd(), executable)
+  const relative = path.relative(process.cwd(), absolute)
+
+  if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) return quoteCommandPath(relative)
+  return quoteCommandPath(absolute)
+}
+
 const context = createContext<{
   width: number
   sessionID: string
@@ -288,7 +309,7 @@ export function Session() {
         `${logo[3] ?? ""}`,
         ``,
         `  ${weak("Session")}${UI.Style.TEXT_NORMAL_BOLD}${title}${UI.Style.TEXT_NORMAL}`,
-        `  ${weak("Continue")}${UI.Style.TEXT_NORMAL_BOLD}opencode -s ${session()?.id}${UI.Style.TEXT_NORMAL}`,
+        `  ${weak("Continue")}${UI.Style.TEXT_NORMAL_BOLD}${currentExecutableCommand()} -s ${session()?.id}${UI.Style.TEXT_NORMAL}`,
         ``,
       ].join("\n"),
     )

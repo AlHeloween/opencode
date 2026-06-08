@@ -80,3 +80,22 @@ Final verification update:
 - `bun test --timeout 30000 test/project/project.test.ts` from `packages/opencode` hung before test output and was stopped (`cmd_runner` runs `20260607T175919Z_e92432da`, `20260607T180127Z_1665f17a`). The earlier full project suite pass after the boundary fix remains the valid full-suite evidence for this code path (`cmd_runner` run `20260607T172739Z_0b43b725`).
 - `bun test --timeout 30000 test/project/project.test.ts -t "uses parent directory boundary when config lives in child bin"` hung before test output and was stopped (`cmd_runner` run `20260607T180249Z_6bd2d15f`).
 - Runtime directory search found no `account.db` under `.opencode`, `bin`, `dist`, or `bin_tst`.
+
+## 2026-06-08 Portable Continue Command
+
+Reason: the TUI exit banner printed `opencode -s <session>`, but a copied portable bundle launched from `bin_tst\\tst3` needs `bin\\opencode.exe -s <session>` so the user does not accidentally run a different `opencode` from `PATH`.
+
+Changes:
+
+- Updated `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` to derive the continue command from the current executable instead of hardcoding `opencode`.
+- Added command-path quoting for paths with shell-sensitive characters.
+- Rebuilt the portable binary and copied it into `bin_tst\\tst3\\bin\\opencode.exe` for runtime verification.
+
+Script output:
+
+- `bun typecheck` from `packages/opencode`: passed (`cmd_runner` run `20260608T015744Z_ffa4700e`).
+- `_build.ps1`: passed, smoke test version `10.0.100` (`cmd_runner` run `20260608T015813Z_c736b7a2`).
+- Absolute portable invocation restored reported session `ses_15b15261fffe3zPa4pCOPoSrpM` (`cmd_runner` run `20260608T020116Z_d2bedc6d`).
+- Exit banner printed `Continue bin\\opencode.exe -s ses_15b15261fffe3zPa4pCOPoSrpM` (`cmd_runner` run `20260608T020116Z_d2bedc6d`).
+- Exact displayed command through `cmd.exe` restored the session and exited cleanly (`cmd_runner` run `20260608T020231Z_7a7f6fde`).
+- Direct `cmd_runner` argv execution of relative `bin\\opencode.exe` is not equivalent to a user `cmd.exe` prompt and reproduced `Session not found`; that diagnostic run was stopped (`cmd_runner` run `20260608T020146Z_1b34a5e0`).

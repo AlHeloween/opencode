@@ -29,3 +29,20 @@ Verification:
 - [x] `pwsh _build.ps1` from repo root passed and produced version `10.0.98` (`cmd_runner` run `20260607T172921Z_c0f5d996`).
 - [x] Fresh portable launch from `bin_tst\\tst3` opened `bin_tst\\tst3\\.opencode\\data\\opencode.db` and created no `bin\\account.db` (`cmd_runner` run `20260607T173159Z_24d85141`).
 - [x] Restore-oriented relaunch reused project ID `c0e7496c66ae89d0c28c5d036a623b3f356c7761` and the same project DB (`cmd_runner` run `20260607T173918Z_cb0a119e`).
+
+## 2026-06-08 Portable Continue Command
+
+Goal: make the TUI exit banner print a restore command that works from a portable bundle directory.
+
+Tasks:
+
+- [x] Replace the hardcoded `opencode -s <session>` banner command with a command derived from the launched executable.
+- [x] Prefer a relative executable path when the binary is inside the current working directory.
+- [x] Quote executable paths that contain shell-sensitive characters.
+
+Verification:
+
+- [x] `bun typecheck` from `packages/opencode` passed (`cmd_runner` run `20260608T015744Z_ffa4700e`).
+- [x] `_build.ps1` passed and produced version `10.0.100` (`cmd_runner` run `20260608T015813Z_c736b7a2`).
+- [x] `bin\\opencode.exe -s ses_15b15261fffe3zPa4pCOPoSrpM` from `bin_tst\\tst3` restored the session through `cmd.exe` (`cmd_runner` run `20260608T020231Z_7a7f6fde`).
+- [x] Exit banner now prints `Continue bin\\opencode.exe -s ses_15b15261fffe3zPa4pCOPoSrpM` (`cmd_runner` run `20260608T020231Z_7a7f6fde`).

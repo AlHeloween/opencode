@@ -24,6 +24,7 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
 import * as Option from "effect/Option"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
+import { repairJson } from "@/util/json-repair"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
@@ -423,6 +424,19 @@ const live: Layer.Layer<
             return {
               ...failed.toolCall,
               toolName: lower,
+            }
+          }
+          // Attempt JSON repair on malformed tool call arguments before
+          // falling back to the "invalid" tool (LLMs often emit extra brackets
+          // or trailing commas that can be auto-fixed).
+          const repaired = repairJson(String(failed.toolCall.input))
+          if (repaired !== null) {
+            l.info("repaired malformed JSON in tool call", {
+              tool: failed.toolCall.toolName,
+            })
+            return {
+              ...failed.toolCall,
+              input: repaired,
             }
           }
           return {

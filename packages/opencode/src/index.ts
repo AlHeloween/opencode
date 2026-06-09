@@ -82,6 +82,7 @@ const cli = yargs(args)
     type: "boolean",
   })
   .middleware(async (opts) => {
+    if (opts.help || opts.version) return
     if (opts.pure) {
       process.env.OPENCODE_PURE = "1"
     }

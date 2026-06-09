@@ -128,9 +128,6 @@ export async function init(options: Options = {}) {
     Global.Path.log,
     new Date().toISOString().replace(/:/g, "").replace("Z", "") + ".log",
   )
-  await fs.truncate(logpath).catch(() => {
-    collectBug("log.ts:init", "bug: failed to truncate log file [core/log]")
-  })
   mkdirSync(Global.Path.log, { recursive: true })
   mkdirSync(path.join(Global.Path.log, "payloads"), { recursive: true })
   const stream = createWriteStream(logpath, { flags: "a" })

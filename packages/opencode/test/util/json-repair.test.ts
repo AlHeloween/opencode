@@ -84,4 +84,73 @@ describe("repairJson", () => {
     expect(result).not.toBeNull()
     expect(JSON.parse(result!)).toEqual(JSON.parse(expected))
   })
+
+  // --- control character escaping tests ---
+
+  test("escapes literal newline inside JSON string", () => {
+    // Build a JSON string with a literal LF byte (0x0A) inside the string value.
+    // In JS, "\n" in a regular string literal produces a literal newline byte —
+    // NOT the two characters backslash+n. So this creates invalid JSON that
+    // needs repair.
+    const input = '{"prompt":"' + "line1\nline2" + '"}'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ prompt: "line1\nline2" })
+  })
+
+  test("escapes literal tab inside JSON string", () => {
+    const input = `{"prompt":"col1\tcol2"}`
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ prompt: "col1\tcol2" })
+  })
+
+  test("preserves already-escaped sequences unchanged", () => {
+    // already-escaped \\n should pass through without double-escaping
+    const input = '{"prompt":"line1\\\\nline2"}'
+    const result = repairJson(input)
+    expect(result).toBe(input) // fast path: already valid JSON
+    expect(JSON.parse(result!)).toEqual({ prompt: "line1\\nline2" })
+  })
+
+  test("escapes literal newline + repairs trailing comma", () => {
+    // Literal newline inside string AND trailing comma before }
+    const input = `{"prompt":"line1\nline2",}`
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ prompt: "line1\nline2" })
+  })
+
+  test("escapes literal newline + repairs extra bracket", () => {
+    // Literal newline inside string AND extra closing bracket
+    const input = `{"prompt":"line1\nline2"}}`
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ prompt: "line1\nline2" })
+  })
+
+  test("escapes multiple control chars in multi-line prompt (task tool scenario)", () => {
+    // Simulates a task/explore tool call with multi-line prompt
+    const input =
+      '{"description":"analyze bugs","prompt":"Research task.\n\n1. Find all callers.\n2. Check tests.","subagent_type":"explore"}'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    const parsed = JSON.parse(result!)
+    expect(parsed.description).toBe("analyze bugs")
+    expect(parsed.subagent_type).toBe("explore")
+    expect(parsed.prompt).toContain("Research task.")
+    expect(parsed.prompt).toContain("1. Find all callers.")
+  })
+
+  test("handles control chars outside strings (edge case)", () => {
+    // Control chars outside JSON strings are unusual but should pass through
+    // (or at least not corrupt the repair)
+    const result = repairJson(" \t\n\r ") // whitespace-only, not valid JSON
+    expect(result).toBeNull()
+  })
 })

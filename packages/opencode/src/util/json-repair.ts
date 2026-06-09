@@ -2,8 +2,9 @@
  * JSON repair utility for LLM-generated tool call arguments.
  *
  * LLMs occasionally emit malformed JSON (extra brackets, trailing commas,
- * garbage text after valid JSON). This module attempts auto-repair before
- * routing to the "invalid" tool fallback.
+ * garbage text after valid JSON, unescaped control characters in strings).
+ * This module attempts auto-repair before routing to the "invalid" tool
+ * fallback.
  */
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -15,20 +16,34 @@ const log = Log.create({ service: "json-repair" })
  * all repair strategies fail.
  */
 export function repairJson(input: string): string | null {
-  let repaired = input.trim()
-  if (repaired.length === 0) return null
+  let candidate = input.trim()
+  if (candidate.length === 0) return null
 
   // Strategy 0: fast path — input is already valid JSON
-  if (tryParse(repaired)) return repaired
+  if (tryParse(candidate)) return candidate
 
-  // Strategy 1: remove trailing commas before ] or }
-  repaired = repaired.replace(/,\s*([}\]])/g, "$1")
+  // Strategy 1: escape unescaped control characters inside JSON strings.
+  // LLMs often emit literal newlines (0x0A), tabs (0x09), or carriage
+  // returns (0x0D) inside string values, which breaks JSON.parse().
+  // Escaping never changes JSON structure, so we apply it once and use
+  // the result for all subsequent structural fixes.
+  const escaped = escapeStringControlChars(candidate)
+  if (escaped !== candidate) {
+    if (tryParse(escaped)) {
+      log.info("escaped control characters in tool call JSON")
+      return escaped
+    }
+    candidate = escaped
+  }
+
+  // Strategy 2: remove trailing commas before ] or }
+  let repaired = candidate.replace(/,\s*([}\]])/g, "$1")
   if (tryParse(repaired)) {
     log.info("repaired trailing comma in tool call JSON")
     return repaired
   }
 
-  // Strategy 2: balance excess closing brackets (most common LLM error)
+  // Strategy 3: balance excess closing brackets (most common LLM error)
   // LLMs sometimes add extra ] or } at the end of JSON objects/arrays
   repaired = balanceBrackets(repaired)
   if (tryParse(repaired)) {
@@ -36,7 +51,7 @@ export function repairJson(input: string): string | null {
     return repaired
   }
 
-  // Strategy 3: extract the longest valid JSON prefix
+  // Strategy 4: extract the longest valid JSON prefix
   // Handles trailing garbage text after a valid JSON block
   const prefix = extractValidPrefix(repaired)
   if (prefix !== null) {
@@ -44,9 +59,9 @@ export function repairJson(input: string): string | null {
     return prefix
   }
 
-  // Strategy 4: combine trailing comma removal + bracket balancing
-  repaired = balanceBrackets(input.trim().replace(/,\s*([}\]])/g, "$1"))
-  if (repaired !== input.trim() && tryParse(repaired)) {
+  // Strategy 5: combine trailing comma removal + bracket balancing
+  repaired = balanceBrackets(candidate.replace(/,\s*([}\]])/g, "$1"))
+  if (repaired !== candidate && tryParse(repaired)) {
     log.info("repaired trailing comma + unbalanced brackets in tool call JSON")
     return repaired
   }
@@ -60,6 +75,77 @@ function tryParse(json: string): boolean {
     return true
   } catch {
     return false
+  }
+}
+
+/**
+ * Escape unescaped control characters (newlines, tabs, carriage returns,
+ * and other 0x00-0x1F bytes) found inside JSON string values.
+ *
+ * Uses a simple state machine: tracks whether we're inside a JSON string
+ * and whether the previous character was an unescaped backslash. Control
+ * characters found inside strings are replaced with their JSON escape
+ * sequences. Characters outside strings pass through unmodified.
+ *
+ * Already-escaped sequences (\\n, \\t, \\r, \\\", \\\\) are preserved
+ * as-is — the `escaped` flag ensures we don't double-escape them.
+ */
+function escapeStringControlChars(input: string): string {
+  let result = ""
+  let inString = false
+  let escaped = false
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]
+
+    if (escaped) {
+      // Previous char was an unescaped backslash — this character is part
+      // of an existing escape sequence (\\n, \\t, \\\\, \\\", etc.).
+      // Preserve it as-is and clear the escaped flag.
+      result += ch
+      escaped = false
+      continue
+    }
+
+    if (ch === "\\") {
+      // Start of a potential escape sequence. Output the backslash and
+      // set the flag so the next character is treated as escaped.
+      result += ch
+      escaped = true
+      continue
+    }
+
+    if (ch === '"') {
+      inString = !inString
+      result += ch
+      continue
+    }
+
+    if (inString && isControlChar(ch)) {
+      result += escapeChar(ch)
+      continue
+    }
+
+    result += ch
+  }
+
+  return result
+}
+
+function isControlChar(ch: string): boolean {
+  const code = ch.charCodeAt(0)
+  return code <= 0x1f
+}
+
+function escapeChar(ch: string): string {
+  switch (ch) {
+    case "\n": return "\\n"
+    case "\r": return "\\r"
+    case "\t": return "\\t"
+    default: {
+      const hex = ch.charCodeAt(0).toString(16).padStart(4, "0")
+      return `\\u${hex}`
+    }
   }
 }
 

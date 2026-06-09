@@ -13,6 +13,7 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
+import { CacheControl } from "./cache-control"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
@@ -1308,17 +1309,49 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            const [skills, env, envDate, instructions, rules, modelMsgs] = yield* Effect.all([
+            // Inject date at START of freshly-published user message (not system prompt).
+            // Must happen BEFORE toModelMessagesEffect so it flows through conversion.
+            // Session ID at system prompt start ensures per-session cache isolation.
+            const envDate = yield* Effect.sync(() => sys.environmentDate())
+            const dateText = envDate[0] ?? ""
+            const freshUserMsg = msgs.findLast((m) => m.info.role === "user")!
+            if (dateText && freshUserMsg.parts.length) {
+              const firstText = freshUserMsg.parts.find(
+                (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
+              )
+              if (firstText) {
+                firstText.text = dateText + "\n\n" + firstText.text
+              }
+            }
+
+            const [skills, env, instructions, rules, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
               Effect.sync(() => sys.environment(model)),
-              Effect.sync(() => sys.environmentDate()),
               instruction.system().pipe(Effect.orDie),
               instruction.rules().pipe(Effect.orDie),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
-            const system = [...rules, ...instructions, ...env, ...(skills ? [skills] : []), ...envDate]
+            // Session ID as first system message for per-session cache namespace
+            const sessionIdBanner = `[session: ${sessionID}]`
+            const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+
+            // Pre-send cache chain audit: compare current request fingerprint with previous.
+            // Logs [cache:broken] or [cache:stable] before the request hits DeepSeek.
+            const currentFP = CacheControl.requestFingerprint(system, msgs, {
+              sessionId: sessionID,
+              modelId: model.id,
+              providerId: model.providerID,
+            })
+            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id)
+            const audit = CacheControl.auditCache(prevFP, currentFP, agent.name)
+            if (!audit.cacheStable) {
+              // Log at warn level to surface in bug reports and diagnostics
+              log.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`)
+            }
+            CacheControl.storePrevFingerprint(sessionID, model.id, currentFP)
+
             const result = yield* handle.process({
               user: lastUser,
               agent,

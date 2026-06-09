@@ -21,7 +21,7 @@ import { useEvent } from "@tui/context/event"
 import { SplitBorder } from "@tui/component/border"
 import { Spinner } from "@tui/component/spinner"
 import { selectedForeground, useTheme } from "@tui/context/theme"
-import { BoxRenderable, ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
+import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import type {
   AssistantMessage,
@@ -1430,12 +1430,12 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     <>
       <For each={props.parts}>
         {(part, index) => {
-          const component = createMemo(() => PART_MAPPING[part.type as keyof typeof PART_MAPPING])
+          const Component = PART_MAPPING[part.type as keyof typeof PART_MAPPING]
           return (
-            <Show when={component()}>
+            <Show when={Component}>
               <Dynamic
                 last={index() === props.parts.length - 1}
-                component={component()}
+                component={Component}
                 part={part as any}
                 message={props.message}
               />
@@ -1710,7 +1710,6 @@ function InlineTool(props: {
   part: ToolPart
   onClick?: () => void
 }) {
-  const [margin, setMargin] = createSignal(0)
   const { theme } = useTheme()
   const ctx = use()
   const sync = useSync()
@@ -1742,35 +1741,13 @@ function InlineTool(props: {
 
   return (
     <box
-      marginTop={margin()}
+      marginTop={1}
       paddingLeft={3}
       onMouseOver={() => props.onClick && setHover(true)}
       onMouseOut={() => setHover(false)}
       onMouseUp={() => {
         if (renderer.getSelection()?.getSelectedText()) return
         props.onClick?.()
-      }}
-      renderBefore={function () {
-        const el = this as BoxRenderable
-        const parent = el.parent
-        if (!parent) {
-          return
-        }
-        if (el.height > 1) {
-          setMargin(1)
-          return
-        }
-        const children = parent.getChildren()
-        const index = children.indexOf(el)
-        const previous = children[index - 1]
-        if (!previous) {
-          setMargin(0)
-          return
-        }
-        if (previous.height > 1 || previous.id.startsWith("text-")) {
-          setMargin(1)
-          return
-        }
       }}
     >
       <Switch>

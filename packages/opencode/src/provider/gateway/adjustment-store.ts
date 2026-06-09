@@ -97,10 +97,10 @@ export interface RouteAdjustment {
   streamingPreference: StreamingPreference
   health: {
     successRate: number
-    ewmaLatencyMs: number
-    ewmaTtftMs: number
-    ewmaChunkGapMs: number
-    ewmaPingMs: number
+    p50LatencyMs: number
+    p50TtftMs: number
+    p50ChunkGapMs: number
+    p50PingMs: number
     recent429: number
     recent5xx: number
     recentConnReset: number
@@ -135,10 +135,10 @@ export function getOrCreateRoute(store: AdjustmentStoreData, key: string, now: n
     streamingPreference: defaultStreamingPreference(),
     health: {
       successRate: 1.0,
-      ewmaLatencyMs: 0,
-      ewmaTtftMs: 0,
-      ewmaChunkGapMs: 0,
-      ewmaPingMs: 0,
+      p50LatencyMs: 0,
+      p50TtftMs: 0,
+      p50ChunkGapMs: 0,
+      p50PingMs: 0,
       recent429: 0,
       recent5xx: 0,
       recentConnReset: 0,

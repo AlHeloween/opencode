@@ -1,4 +1,3 @@
-const ALPHA = 0.15
 const WINDOW_SIZE = 100
 const DELAY_BUFFER_SIZE = 100
 const ERROR_DECAY_INTERVAL_MS = 600000
@@ -7,10 +6,10 @@ const ERROR_DECAY_FACTOR = 0.5
 export interface HealthMetrics {
   successRate: number
   errorRate: number
-  ewmaLatencyMs: number
-  ewmaTtftMs: number
-  ewmaChunkGapMs: number
-  ewmaPingMs: number
+  p50LatencyMs: number
+  p50TtftMs: number
+  p50ChunkGapMs: number
+  p50PingMs: number
   recent429: number
   recent5xx: number
   recentConnReset: number
@@ -112,10 +111,6 @@ export interface HealthWindow {
   lastErrorDecayAt: number
   totalSamples: number
   successSamples: number
-  ewmaLatencyMs: number
-  ewmaTtftMs: number
-  ewmaChunkGapMs: number
-  ewmaPingMs: number
 }
 
 export function make(): HealthWindow {
@@ -128,53 +123,38 @@ export function make(): HealthWindow {
     lastErrorDecayAt: Date.now(),
     totalSamples: 0,
     successSamples: 0,
-    ewmaLatencyMs: 0,
-    ewmaTtftMs: 0,
-    ewmaChunkGapMs: 0,
-    ewmaPingMs: 0,
   }
 }
 
-function pushSample(samples: CircularBuffer, value: number): CircularBuffer {
-  samples.push(value)
-  return samples
-}
-
-function ewma(prev: number, current: number, alpha: number = ALPHA): number {
-  return alpha * current + (1 - alpha) * prev
+function circularMedian(buf: CircularBuffer): number {
+  const arr = buf.toArray()
+  if (arr.length === 0) return 0
+  const sorted = [...arr].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) {
+    return Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+  }
+  return sorted[mid]
 }
 
 export function recordLatency(window: HealthWindow, ms: number): HealthWindow {
-  const isFirst = window.latencySamples.length === 0
   window.latencySamples.push(ms)
-  return {
-    ...window,
-    ewmaLatencyMs: isFirst ? ms : ewma(window.ewmaLatencyMs, ms),
-  }
+  return window
 }
 
 export function recordTtft(window: HealthWindow, ms: number): HealthWindow {
   window.ttftSamples.push(ms)
-  return {
-    ...window,
-    ewmaTtftMs: window.totalSamples === 0 ? ms : ewma(window.ewmaTtftMs, ms),
-  }
+  return window
 }
 
 export function recordChunkGap(window: HealthWindow, ms: number): HealthWindow {
   window.chunkGapSamples.push(ms)
-  return {
-    ...window,
-    ewmaChunkGapMs: window.totalSamples === 0 ? ms : ewma(window.ewmaChunkGapMs, ms),
-  }
+  return window
 }
 
 export function recordPing(window: HealthWindow, ms: number): HealthWindow {
   window.pingSamples.push(ms)
-  return {
-    ...window,
-    ewmaPingMs: window.totalSamples === 0 ? ms : ewma(window.ewmaPingMs, ms),
-  }
+  return window
 }
 
 export function recordSuccess(window: HealthWindow): HealthWindow {
@@ -216,10 +196,10 @@ export function getMetrics(window: HealthWindow): HealthMetrics {
   return {
     successRate: window.successSamples / total,
     errorRate: 1 - window.successSamples / total,
-    ewmaLatencyMs: window.ewmaLatencyMs,
-    ewmaTtftMs: window.ewmaTtftMs,
-    ewmaChunkGapMs: window.ewmaChunkGapMs,
-    ewmaPingMs: window.ewmaPingMs,
+    p50LatencyMs: circularMedian(window.latencySamples),
+    p50TtftMs: circularMedian(window.ttftSamples),
+    p50ChunkGapMs: circularMedian(window.chunkGapSamples),
+    p50PingMs: circularMedian(window.pingSamples),
     recent429: window.errorCounts["429"],
     recent5xx: window.errorCounts["5xx"],
     recentConnReset: window.errorCounts.connReset,
@@ -230,9 +210,9 @@ export function getMetrics(window: HealthWindow): HealthMetrics {
 
 export function healthScore(health: {
   successRate: number
-  ewmaTtftMs: number
-  ewmaChunkGapMs: number
-  ewmaPingMs: number
+  p50TtftMs: number
+  p50ChunkGapMs: number
+  p50PingMs: number
   recent429: number
   recent5xx: number
 }): number {
@@ -244,8 +224,8 @@ export function healthScore(health: {
     1.0 -
     0.3 * errorRate -
     0.2 * normalize(errorSampleCount, 10) -
-    0.2 * normalize(health.ewmaTtftMs, 5000) -
-    0.15 * normalize(health.ewmaChunkGapMs, 500) -
-    0.15 * normalize(health.ewmaPingMs, 200)
+    0.2 * normalize(health.p50TtftMs, 5000) -
+    0.15 * normalize(health.p50ChunkGapMs, 500) -
+    0.15 * normalize(health.p50PingMs, 200)
   )
 }

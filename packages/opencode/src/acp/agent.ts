@@ -56,6 +56,13 @@ type ModeOption = { id: string; name: string; description?: string }
 type ModelOption = { modelId: string; name: string }
 const decodeTodos = Schema.decodeUnknownResult(Schema.fromJsonString(Schema.Array(Todo.Info)))
 
+/** Strip null bytes (U+0000) and other JSON-invalid control characters from strings
+ *  that will be serialized into JSON-RPC/SSE messages. \x00 in particular causes
+ *  JSON.parse to fail with "Unrecognized token" on the receiving end. */
+function sanitizeText(value: string): string {
+  return value.replace(/\x00/g, "").replace(/[\x01-\x08\x0B\x0C\x0E-\x1F]/g, "")
+}
+
 const DEFAULT_VARIANT_VALUE = "default"
 
 const log = Log.create({ service: "acp-agent" })
@@ -349,7 +356,7 @@ export class Agent implements ACPAgent {
                   type: "content",
                   content: {
                     type: "text",
-                    text: part.state.output,
+                    text: sanitizeText(part.state.output),
                   },
                 },
               ]
@@ -411,7 +418,7 @@ export class Agent implements ACPAgent {
                     title: part.state.title,
                     rawInput: part.state.input,
                     rawOutput: {
-                      output: part.state.output,
+                      output: sanitizeText(part.state.output),
                       metadata: part.state.metadata,
                     },
                   },
@@ -439,12 +446,12 @@ export class Agent implements ACPAgent {
                         type: "content",
                         content: {
                           type: "text",
-                          text: part.state.error,
+                          text: sanitizeText(part.state.error),
                         },
                       },
                     ],
                     rawOutput: {
-                      error: part.state.error,
+                      error: sanitizeText(part.state.error),
                       metadata: part.state.metadata,
                     },
                   },
@@ -878,7 +885,7 @@ export class Agent implements ACPAgent {
                 type: "content",
                 content: {
                   type: "text",
-                  text: part.state.output,
+                  text: sanitizeText(part.state.output),
                 },
               },
             ]
@@ -940,7 +947,7 @@ export class Agent implements ACPAgent {
                   title: part.state.title,
                   rawInput: part.state.input,
                   rawOutput: {
-                    output: part.state.output,
+                    output: sanitizeText(part.state.output),
                     metadata: part.state.metadata,
                   },
                 },
@@ -967,12 +974,12 @@ export class Agent implements ACPAgent {
                       type: "content",
                       content: {
                         type: "text",
-                        text: part.state.error,
+                        text: sanitizeText(part.state.error),
                       },
                     },
                   ],
                   rawOutput: {
-                    error: part.state.error,
+                    error: sanitizeText(part.state.error),
                     metadata: part.state.metadata,
                   },
                 },

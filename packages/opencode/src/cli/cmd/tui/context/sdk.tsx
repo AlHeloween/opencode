@@ -44,11 +44,16 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
     const retryDelay = 1000
     const maxRetryDelay = 30000
 
+    const MAX_BATCH = 200
+
     const flush = () => {
       if (queue.length === 0) return
-      const events = queue
-      queue = []
-      timer = undefined
+      const events = queue.splice(0, MAX_BATCH)
+      if (queue.length > 0) {
+        timer = setTimeout(flush, 0)
+      } else {
+        timer = undefined
+      }
       last = Date.now()
       // Batch all event emissions so all store updates result in a single render
       batch(() => {

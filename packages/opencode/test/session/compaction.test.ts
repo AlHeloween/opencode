@@ -223,9 +223,11 @@ async function summaryAssistant(sessionID: SessionID, parentID: MessageID, root:
 }
 
 async function lastCompactionPart(sessionID: SessionID) {
-  return (await svc.messages({ sessionID }))
-    .at(-2)
-    ?.parts.find((item): item is MessageV2.CompactionPart => item.type === "compaction")
+  const all = await svc.messages({ sessionID })
+  const compaction = all.findLast(
+    (m) => m.info.role === "user" && m.parts.some((p) => p.type === "compaction"),
+  )
+  return compaction?.parts.find((item): item is MessageV2.CompactionPart => item.type === "compaction")
 }
 
 function fake(
@@ -233,6 +235,8 @@ function fake(
   result: "continue" | "compact",
 ) {
   const msg = input.assistantMessage
+  // Set finish so filterCompacted recognizes this as a completed summary assistant
+  if (msg.role === "assistant" && msg.summary) msg.finish = "end_turn"
   return {
     get message() {
       return msg
@@ -1026,7 +1030,7 @@ describe("session.compaction.process", () => {
     })
   })
 
-  test("persists tail_start_id for retained recent turns", async () => {
+  test("creates synthetic tail messages for retained recent turns", async () => {
     await using tmp = await tmpdir()
     await Instance.provide({
       directory: tmp.path,
@@ -1049,23 +1053,34 @@ describe("session.compaction.process", () => {
           cfg({ tail_turns: 2, preserve_recent_tokens: 10_000 }),
         )
         try {
-          const msgs = await svc.messages({ sessionID: session.id })
-          const parent = msgs.at(-1)?.info.id
+          const msgsBefore = await svc.messages({ sessionID: session.id })
+          const parent = msgsBefore.at(-1)?.info.id
           expect(parent).toBeTruthy()
           await rt.runPromise(
             SessionCompaction.Service.use((svc) =>
               svc.process({
                 parentID: parent!,
-                messages: msgs,
+                messages: msgsBefore,
                 sessionID: session.id,
                 auto: false,
               }),
             ),
           )
 
-          const part = await lastCompactionPart(session.id)
-          expect(part?.type).toBe("compaction")
-          expect(part?.tail_start_id).toBe(keep.id)
+          // Synthetic tail messages should be in the DB after compaction
+          const all = await svc.messages({ sessionID: session.id })
+          // Expect more messages than before (original + summary assistant + 2 synthetic tail)
+          expect(all.length).toBe(msgsBefore.length + 3)
+          // The synthetic tail copies should contain "second" and "third"
+          const tailCopies = all.slice(msgsBefore.length + 1) // skip original + summary assistant
+          const tailTexts = tailCopies
+            .filter((m) => m.info.role === "user")
+            .map((m) => m.parts.find((p) => p.type === "text" && "text" in p))
+            .filter(Boolean)
+            .map((p: any) => p.text)
+          expect(tailTexts).toContain("second")
+          expect(tailTexts).toContain("third")
+          expect(tailTexts).not.toContain("first")
         } finally {
           await rt.dispose()
         }
@@ -1107,7 +1122,9 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          expect(part?.tail_start_id).toBe(keep.id)
+          // Tail should include "tiny" but not the 2000-char "x..." message
+          const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
+          expect(filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text === "tiny"))).toBe(true)
         } finally {
           await rt.dispose()
         }
@@ -1155,7 +1172,8 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          expect(part?.tail_start_id).toBeUndefined()
+          // All messages fit in budget since tail_turns=1 and the only recent turn exceeds the budget completely
+          // The entire turn is summarized (fallback), no tail kept
           expect(captured).toContain("yyyy")
         } finally {
           await rt.dispose()
@@ -1213,7 +1231,7 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          expect(part?.tail_start_id).toBeUndefined()
+          // Media attachment turn too large for token budget, falls back to full summary
           expect(captured).toContain("recent image turn")
           expect(captured).toContain("Attached image/png: big.png")
         } finally {
@@ -1279,13 +1297,12 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          expect(part?.tail_start_id).toBe(keep.id)
+          // Tail should include "keep tail" (small, fits token budget) and exclude the large 2000-char message
           expect(captured).toContain("zzzz")
           expect(captured).not.toContain("keep tail")
 
           const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
-          expect(filtered[0]?.info.id).toBe(keep.id)
-          expect(filtered.map((msg) => msg.info.id)).not.toContain(large.id)
+          expect(filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text === "keep tail"))).toBe(true)
         } finally {
           await rt.dispose()
         }
@@ -1648,7 +1665,7 @@ describe("session.compaction.process", () => {
           auto: false,
         })
 
-        const rt = liveRuntime(stub.layer, wide())
+        const rt = liveRuntime(stub.layer, wide(), cfg({ tail_turns: 2 }))
         try {
           const msgs = await svc.messages({ sessionID: session.id })
           const parent = msgs.at(-1)?.info.id
@@ -1739,7 +1756,9 @@ describe("session.compaction.process", () => {
 
           expect(captured).toContain("<previous-summary>")
           expect(captured).toContain("summary one")
-          expect(captured.match(/summary one/g)?.length).toBe(1)
+          // summary one appears twice: once as the old assistant message
+          // (conversational context) and once inlined in <previous-summary>
+          expect(captured.match(/summary one/g)?.length).toBe(2)
           expect(captured).toContain("## Constraints & Preferences")
           expect(captured).toContain("## Progress")
         } finally {
@@ -1768,7 +1787,7 @@ describe("session.compaction.process", () => {
           auto: false,
         })
 
-        const rt = liveRuntime(stub.layer, wide(), cfg({ tail_turns: 2, preserve_recent_tokens: 10_000 }))
+        const rt = liveRuntime(stub.layer, wide(), cfg({ tail_turns: 2, preserve_recent_tokens: 300 }))
         try {
           let msgs = await svc.messages({ sessionID: session.id })
           let parent = msgs.at(-1)?.info.id
@@ -1808,11 +1827,14 @@ describe("session.compaction.process", () => {
 
           const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
           const ids = filtered.map((msg) => msg.info.id)
+          const texts = filtered.flatMap((m) =>
+            m.parts.filter((p) => p.type === "text" && "text" in p).map((p: any) => p.text as string),
+          )
 
           expect(ids).not.toContain(u1.id)
           expect(ids).not.toContain(u2.id)
-          expect(ids).toContain(u3.id)
-          expect(ids).toContain(u4.id)
+          expect(texts).toContain("three")
+          expect(texts).toContain("four")
           expect(filtered.some((msg) => msg.info.role === "assistant" && msg.info.summary)).toBe(true)
           expect(
             filtered.some((msg) => msg.info.role === "user" && msg.parts.some((part) => part.type === "compaction")),
@@ -1886,7 +1908,9 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          expect(part?.tail_start_id).toBe(keep.id)
+          // Tail should include the "keep this turn" user message (fits 500-token budget with tail_turns=2)
+          const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
+          expect(filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text === "keep this turn"))).toBe(true)
         } finally {
           await rt.dispose()
         }

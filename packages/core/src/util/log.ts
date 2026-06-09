@@ -71,7 +71,7 @@ let printLogs = false
 
 function logError(msg: string, extra?: Record<string, any>) {
   const entry = JSON.stringify({
-    ts: new Date().toISOString().split(".")[0],
+    ts: new Date().toISOString(),
     message: msg,
     ...extra,
   }) + "\n"
@@ -98,7 +98,7 @@ function flushDedup() {
   const entry = JSON.stringify({
     id: `l-${String(nextLogId++).padStart(4, "0")}`,
     caller: "log.ts:dedup",
-    ts: new Date().toISOString().split(".")[0],
+    ts: new Date().toISOString(),
     level: "DEBUG",
     message: `dedup flush: ${totalSuppressed} entries suppressed (${uniqueKeys} unique keys in ${DEDUP_WINDOW_MS}ms)`,
   }) + "\n"
@@ -126,7 +126,7 @@ export async function init(options: Options = {}) {
   void cleanup(Global.Path.log)
   logpath = path.join(
     Global.Path.log,
-    new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
+    new Date().toISOString().replace(/:/g, "").replace("Z", "") + ".log",
   )
   await fs.truncate(logpath).catch(() => {
     collectBug("log.ts:init", "bug: failed to truncate log file [core/log]")
@@ -155,7 +155,7 @@ export async function reopen() {
   if (write === _stderr && !printLogs) return
   logpath = path.join(
     Global.Path.log,
-    new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
+    new Date().toISOString().replace(/:/g, "").replace("Z", "") + ".log",
   )
   mkdirSync(Global.Path.log, { recursive: true })
   mkdirSync(path.join(Global.Path.log, "payloads"), { recursive: true })
@@ -225,7 +225,8 @@ function getCaller(): string | undefined {
 function serializePayload(extra: Record<string, any>): { payloadJson?: string; payload_id?: string } {
   const json = JSON.stringify(extra)
   if (json.length <= 500) return { payloadJson: json }
-  const id = `l-${String(nextLogId).padStart(4, "0")}`
+  const now = new Date()
+  const id = now.toISOString().replace(/:/g, "").replace("Z", "")
   const payloadPath = path.join(Global.Path.log, "payloads", `${id}.json`)
   fs.writeFile(payloadPath, json).catch((e) => {
     logError("payload write failed", { path: payloadPath, error: String(e) })
@@ -245,7 +246,7 @@ export function create(tags?: Record<string, any>) {
   function build(level: Level, message: any, extra?: Record<string, any>, caller?: string) {
     const id = `l-${String(nextLogId++).padStart(4, "0")}`
     const resolvedCaller = caller ?? getCaller()
-    const ts = new Date().toISOString().split(".")[0]
+    const ts = new Date().toISOString()
     const entry: Record<string, any> = { id, ts, level, message }
     if (resolvedCaller) entry.caller = resolvedCaller
     if (tags && Object.keys(tags).length > 0) Object.assign(entry, tags)

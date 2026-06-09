@@ -1651,7 +1651,6 @@ ToolRegistry.register({
     return (
       <BasicTool
         {...props}
-        hideDetails
         icon="window-cursor"
         trigger={
           <div data-slot="basic-tool-tool-info-structured">
@@ -1808,7 +1807,6 @@ ToolRegistry.register({
         icon="task"
         status={props.status}
         trigger={trigger()}
-        hideDetails
         triggerHref={href()}
         clickable={clickable()}
         onTriggerClick={navigate}
@@ -2320,6 +2318,6 @@ ToolRegistry.register({
       </div>
     )
 
-    return <BasicTool icon="brain" status={props.status} trigger={trigger()} hideDetails />
+    return <BasicTool icon="brain" status={props.status} trigger={trigger()} />
   },
 })

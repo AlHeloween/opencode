@@ -8,6 +8,7 @@ import { APICallError, convertToModelMessages, LoadAPIKeyError, type ModelMessag
 import { LSP } from "@/lsp/lsp"
 import { Snapshot } from "@/snapshot"
 import { SyncEvent } from "../sync"
+import { CacheControl } from "./cache-control"
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
 import { and } from "drizzle-orm"
@@ -226,7 +227,6 @@ export const CompactionPart = Schema.Struct({
   type: Schema.Literal("compaction"),
   auto: Schema.Boolean,
   overflow: Schema.optional(Schema.Boolean),
-  tail_start_id: Schema.optional(MessageID),
 })
   .annotate({ identifier: "CompactionPart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -734,6 +734,9 @@ function providerMeta(metadata: Record<string, any> | undefined) {
   return Object.keys(rest).length > 0 ? rest : undefined
 }
 
+/** Module-level conversion cache: avoids re-converting stable messages across calls. */
+const msgConversionCache = new Map<string, UIMessage>()
+
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
@@ -741,6 +744,8 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
+  // Lookup module-level cache
+  const cache = msgConversionCache
   // Use registry for provider capability checks
   // Track media from tool results that need to be injected as user messages
   // for providers that don't support specific media types in tool results.
@@ -792,6 +797,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   for (const msg of input) {
     if (msg.parts.length === 0) continue
 
+    // Per-message conversion cache: skip redundant conversion of stable messages.
+    const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}`
+    const cached = cache.get(cacheKey)
+    if (cached) {
+      result.push(cached)
+      continue
+    }
+
     if (msg.info.role === "user") {
       const userMessage: UIMessage = {
         id: msg.info.id,
@@ -799,6 +812,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         parts: [],
       }
       result.push(userMessage)
+      cache.set(cacheKey, userMessage)
       for (const part of msg.parts) {
         if (part.type === "text" && !part.ignored)
           userMessage.parts.push({
@@ -946,6 +960,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       }
       if (assistantMessage.parts.length > 0) {
         result.push(assistantMessage)
+        cache.set(cacheKey, assistantMessage)
         // Inject pending media as a user message for providers that don't support
         // media (images, PDFs) in tool results
         if (media.length > 0) {
@@ -1075,58 +1090,45 @@ export function get(input: { sessionID: SessionID; messageID: MessageID }): With
 export function filterCompacted(msgs: Iterable<WithParts>) {
   const result = [] as WithParts[]
   const completed = new Set<string>()
-  let retain: MessageID | undefined
   for (const msg of msgs) {
     result.push(msg)
-    if (retain) {
-      if (msg.info.id === retain) break
-      continue
-    }
-    if (msg.info.role === "user" && completed.has(msg.info.id)) {
-      const part = msg.parts.find((item): item is CompactionPart => item.type === "compaction")
-      if (!part) continue
-      if (!part.tail_start_id) break
-      retain = part.tail_start_id
-      if (msg.info.id === retain) break
-      continue
-    }
-    if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction"))
-      break
     if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish && !msg.info.error)
       completed.add(msg.info.parentID)
+    if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction"))
+      break
   }
   result.reverse()
-  const compactionIndex = result.findLastIndex(
-    (msg) =>
-      msg.info.role === "user" &&
-      msg.parts.some((item): item is CompactionPart => item.type === "compaction" && item.tail_start_id !== undefined),
-  )
-  const compaction = result[compactionIndex]
-  const part = compaction?.parts.find(
-    (item): item is CompactionPart => item.type === "compaction" && item.tail_start_id !== undefined,
-  )
-  const summaryIndex = compaction
-    ? result.findIndex(
-        (msg, index) =>
-          index > compactionIndex &&
-          msg.info.role === "assistant" &&
-          msg.info.summary &&
-          msg.info.parentID === compaction.info.id,
-      )
-    : -1
-  const tailIndex = part?.tail_start_id ? result.findIndex((msg) => msg.info.id === part.tail_start_id) : -1
-  if (tailIndex >= 0 && tailIndex < compactionIndex && summaryIndex > compactionIndex) {
-    return [
-      ...result.slice(tailIndex, compactionIndex),
-      ...result.slice(compactionIndex, summaryIndex + 1),
-      ...result.slice(summaryIndex + 1),
-    ]
-  }
   return result
 }
 
 export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: SessionID) {
-  return filterCompacted(stream(sessionID))
+  const size = 500
+  let before: string | undefined
+  const result: WithParts[] = []
+  const completed = new Set<string>()
+
+  outer: while (true) {
+    const next = page({ sessionID, limit: size, before })
+    if (next.items.length === 0) break
+
+    // next.items is chronological (oldest first after hydrate().reverse()).
+    // Iterate newest-first so the compaction boundary (summary assistant followed
+    // by its parent compaction user) is detected and we stop loading older pages.
+    for (let i = next.items.length - 1; i >= 0; i--) {
+      const msg = next.items[i]!
+      result.push(msg)
+      if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish && !msg.info.error)
+        completed.add(msg.info.parentID)
+      if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction"))
+        break outer
+    }
+
+    if (!next.more || !next.cursor) break
+    before = next.cursor
+  }
+
+  result.reverse()
+  return result
 })
 
 export function fromError(

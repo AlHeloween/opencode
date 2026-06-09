@@ -15,6 +15,7 @@ import type { SessionID } from "./schema"
 import { SessionRetry } from "./retry"
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
+import { CacheControl } from "./cache-control"
 import type { Provider } from "@/provider/provider"
 import { Question } from "@/question"
 import { errorMessage } from "@/util/error"
@@ -448,7 +449,8 @@ export const layer: Layer.Layer<
             ctx.assistantMessage.cost += usage.cost
             ctx.assistantMessage.tokens = usage.tokens
             if (usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0) {
-              log.info(Session.isCacheWarm(usage.tokens) ? "cache hit" : "cache miss", {
+              const cacheWarm = Session.isCacheWarm(usage.tokens)
+              log.info(cacheWarm ? "cache hit" : "cache miss", {
                 sessionID: ctx.sessionID,
                 modelID: ctx.model.id,
                 cacheRatio: cacheRatio(usage.tokens),
@@ -456,6 +458,26 @@ export const layer: Layer.Layer<
                 cacheReadTokens: usage.tokens.cache.read,
                 cacheWriteTokens: usage.tokens.cache.write,
               })
+
+              // Post-send cache audit: compare actual DeepSeek cache behavior
+              // against our pre-send MD5 prediction. Log mismatches as miscalculations.
+              const prevFP = CacheControl.getPrevFingerprint(ctx.sessionID, ctx.model.id)
+              if (prevFP) {
+                // Pre-send prediction: audit.estimatedHitRatio > 0 means we expected some cache hits
+                const predictedWarm = prevFP.estimatedTokens > 0
+                if (predictedWarm !== cacheWarm) {
+                  log.warn("bug: cache miscalculation", {
+                    sessionID: ctx.sessionID,
+                    modelID: ctx.model.id,
+                    predicted: predictedWarm ? "warm" : "cold",
+                    actual: cacheWarm ? "warm" : "cold",
+                    actualCacheRead: usage.tokens.cache.read,
+                    actualCacheWrite: usage.tokens.cache.write,
+                    actualInputTokens: usage.tokens.input,
+                    fingerprint: prevFP.fullMd5,
+                  })
+                }
+              }
             }
             yield* session.updatePart({
               id: PartID.ascending(),

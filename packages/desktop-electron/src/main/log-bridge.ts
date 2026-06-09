@@ -28,7 +28,7 @@ function flushDedup() {
   const entry = JSON.stringify({
     id: `l-${String(logIdCounter++).padStart(4, "0")}`,
     caller: "renderer:dedup",
-    ts: new Date().toISOString().split(".")[0],
+    ts: new Date().toISOString(),
     level: "DEBUG",
     message: `dedup flush: ${totalSuppressed} entries suppressed (${uniqueKeys} unique keys in ${DEDUP_WINDOW_MS}ms)`,
   }) + "\n"
@@ -65,7 +65,7 @@ export function writeLogLine(worktree: string, level: string, message: string, e
     const entry: Record<string, unknown> = {
       id: `l-${String(logIdCounter++).padStart(4, "0")}`,
       caller: "renderer",
-      ts: new Date().toISOString().split(".")[0],
+      ts: new Date().toISOString(),
       level: upperLevel,
       message,
     }
@@ -78,7 +78,7 @@ export function writeLogLine(worktree: string, level: string, message: string, e
       } else {
         const payload = JSON.stringify(dedupSafe)
         if (payload.length > 500) {
-          const pid = `l-${String(logIdCounter).padStart(4, "0")}`
+          const pid = new Date().toISOString().replace(/:/g, "").replace("Z", "")
           entry.payload_id = pid
           appendFile(path.join(logDir, "payloads", `${pid}.json`), payload, noop)
         } else {
@@ -87,7 +87,7 @@ export function writeLogLine(worktree: string, level: string, message: string, e
       }
     }
 
-    const date = new Date().toISOString().split(".")[0].replace(/:/g, "")
+  const date = new Date().toISOString().replace(/:/g, "").replace("Z", "")
     appendFile(path.join(logDir, `${date}.log`), JSON.stringify(entry) + "\n", noop)
   } catch {
     // log write failure — silently ignore

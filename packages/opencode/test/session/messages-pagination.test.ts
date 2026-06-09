@@ -107,14 +107,13 @@ async function addAssistant(
   return id
 }
 
-async function addCompactionPart(sessionID: SessionID, messageID: MessageID, tailStartID?: MessageID) {
+async function addCompactionPart(sessionID: SessionID, messageID: MessageID) {
   await svc.updatePart({
     id: PartID.ascending(),
     sessionID,
     messageID,
     type: "compaction",
     auto: true,
-    tail_start_id: tailStartID,
   } as any)
 }
 
@@ -781,7 +780,7 @@ describe("MessageV2.filterCompacted", () => {
     })
   })
 
-  test("retains original tail when compaction stores tail_start_id", async () => {
+  test("breaks at compaction boundary and returns completed compaction + newer messages", async () => {
     await Instance.provide({
       directory: root,
       fn: async () => {
@@ -808,7 +807,7 @@ describe("MessageV2.filterCompacted", () => {
         })
 
         const c1 = await addUser(session.id)
-        await addCompactionPart(session.id, c1, u2)
+        await addCompactionPart(session.id, c1)
         const s1 = await addAssistant(session.id, c1, { summary: true, finish: "end_turn" })
         await svc.updatePart({
           id: PartID.ascending(),
@@ -830,7 +829,7 @@ describe("MessageV2.filterCompacted", () => {
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
 
-        expect(result.map((item) => item.info.id)).toEqual([u2, a2, c1, s1, u3, a3])
+        expect(result.map((item) => item.info.id)).toEqual([c1, s1, u3, a3])
 
         await svc.remove(session.id)
       },
@@ -872,7 +871,7 @@ describe("MessageV2.filterCompacted", () => {
         })
 
         const c1 = await addUser(session.id)
-        await addCompactionPart(session.id, c1, a3)
+        await addCompactionPart(session.id, c1)
         const s1 = await addAssistant(session.id, c1, { summary: true, finish: "end_turn" })
         await svc.updatePart({
           id: PartID.ascending(),
@@ -894,7 +893,7 @@ describe("MessageV2.filterCompacted", () => {
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
 
-        expect(result.map((item) => item.info.id)).toEqual([a3, c1, s1, u3, a4])
+        expect(result.map((item) => item.info.id)).toEqual([c1, s1, u3, a4])
 
         await svc.remove(session.id)
       },
@@ -928,7 +927,7 @@ describe("MessageV2.filterCompacted", () => {
         })
 
         const c1 = await addUser(session.id)
-        await addCompactionPart(session.id, c1, u2)
+        await addCompactionPart(session.id, c1)
         const s1 = await addAssistant(session.id, c1, { summary: true, finish: "end_turn" })
         await svc.updatePart({
           id: PartID.ascending(),
@@ -949,7 +948,7 @@ describe("MessageV2.filterCompacted", () => {
         })
 
         const c2 = await addUser(session.id)
-        await addCompactionPart(session.id, c2, u3)
+        await addCompactionPart(session.id, c2)
         const s2 = await addAssistant(session.id, c2, { summary: true, finish: "end_turn" })
         await svc.updatePart({
           id: PartID.ascending(),
@@ -971,7 +970,7 @@ describe("MessageV2.filterCompacted", () => {
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
 
-        expect(result.map((item) => item.info.id)).toEqual([u3, a3, c2, s2, u4, a4])
+        expect(result.map((item) => item.info.id)).toEqual([c2, s2, u4, a4])
 
         await svc.remove(session.id)
       },

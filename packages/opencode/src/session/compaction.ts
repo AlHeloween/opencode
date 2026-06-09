@@ -38,9 +38,8 @@ export const PRUNE_MINIMUM = 20_000
 export const PRUNE_PROTECT = 40_000
 const TOOL_OUTPUT_MAX_CHARS = 2_000
 const PRUNE_PROTECTED_TOOLS = ["skill"]
-const DEFAULT_TAIL_TURNS = 2
+const DEFAULT_PRESERVE_RECENT_TOKENS = 10_000
 const MIN_PRESERVE_RECENT_TOKENS = 2_000
-const MAX_PRESERVE_RECENT_TOKENS = 8_000
 const SUMMARY_TEMPLATE = `Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
 <template>
 ## Goal
@@ -76,7 +75,11 @@ Rules:
 - Keep every section, even when empty.
 - Use terse bullets, not prose paragraphs.
 - Preserve exact file paths, commands, error strings, and identifiers when known.
-- Do not mention the summary process or that context was compacted.`
+- Summarize only the conversation history provided. Focus on details that still matter for continuing the work.
+- Do not answer the conversation. Do not mention that you are summarizing, compacting, or merging context.
+- Respond in the same language as the conversation.
+- Place completed, immutable facts before in-progress or changed facts. Preserve original wording of unchanged facts exactly.
+- When updating a previous summary, keep facts that are still true at the same position with the same wording. Add new or changed facts at the end of their section.`
 type Turn = {
   start: number
   end: number
@@ -138,7 +141,7 @@ function buildPrompt(input: { previousSummary?: string; context: string[] }) {
 function preserveRecentBudget(input: { cfg: Config.Info; model: Provider.Model }) {
   return (
     input.cfg.compaction?.preserve_recent_tokens ??
-    Math.min(MAX_PRESERVE_RECENT_TOKENS, Math.max(MIN_PRESERVE_RECENT_TOKENS, Math.floor(usable(input) * 0.25)))
+    Math.min(DEFAULT_PRESERVE_RECENT_TOKENS, Math.max(MIN_PRESERVE_RECENT_TOKENS, Math.floor(usable(input) * 0.25)))
   )
 }
 
@@ -208,7 +211,7 @@ export interface Interface {
   readonly selectMessages: (input: {
     messages: MessageV2.WithParts[]
     model: Provider.Model
-  }) => Effect.Effect<{ head: MessageV2.WithParts[]; tail_start_id: string | undefined }>
+  }) => Effect.Effect<{ head: MessageV2.WithParts[]; tail: MessageV2.WithParts[] }>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionCompaction") {}
@@ -254,12 +257,10 @@ export const layer: Layer.Layer<
       cfg: Config.Info
       model: Provider.Model
     }) {
-      const limit = input.cfg.compaction?.tail_turns ?? DEFAULT_TAIL_TURNS
-      if (limit <= 0) return { head: input.messages, tail_start_id: undefined }
       const budget = preserveRecentBudget({ cfg: input.cfg, model: input.model })
       const all = turns(input.messages)
-      if (!all.length) return { head: input.messages, tail_start_id: undefined }
-      const recent = all.slice(-limit)
+      if (!all.length) return { head: input.messages, tail: [] }
+      const recent = all.slice(-(input.cfg.compaction?.tail_turns ?? Number.MAX_SAFE_INTEGER))
       const sizes = yield* Effect.forEach(
         recent,
         (turn) =>
@@ -267,7 +268,7 @@ export const layer: Layer.Layer<
             messages: input.messages.slice(turn.start, turn.end),
             model: input.model,
           }),
-        { concurrency: 1 },
+        { concurrency: "unbounded" },
       )
 
       let total = 0
@@ -293,10 +294,10 @@ export const layer: Layer.Layer<
         break
       }
 
-      if (!keep || keep.start === 0) return { head: input.messages, tail_start_id: undefined }
+      if (!keep || keep.start === 0) return { head: input.messages, tail: [] }
       return {
         head: input.messages.slice(0, keep.start),
-        tail_start_id: keep.id,
+        tail: input.messages.slice(keep.start),
       }
     })
 
@@ -409,6 +410,12 @@ export const layer: Layer.Layer<
       )
       const nextPrompt = compacting.prompt ?? buildPrompt({ previousSummary, context: compacting.context })
       const msgs = [...selected.head]
+      // Include old compaction pairs as conversational context so the model
+      // sees the full anchoring: "What did we do so far?" + previous summary.
+      for (const item of prior) {
+        msgs.push(history[item.userIndex])
+        msgs.push(history[item.assistantIndex])
+      }
       yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
       const modelMessages = yield* MessageV2.toModelMessagesEffect(msgs, model, {
         stripMedia: true,
@@ -474,11 +481,60 @@ export const layer: Layer.Layer<
         return "stop"
       }
 
-      if (compactionPart && selected.tail_start_id && compactionPart.tail_start_id !== selected.tail_start_id) {
-        yield* session.updatePart({
-          ...compactionPart,
-          tail_start_id: selected.tail_start_id,
-        })
+      // Persist the completed summary assistant (sets finish from processor.stream completion)
+      yield* session.updateMessage(processor.message)
+
+      // Create synthetic tail cache messages after the summary assistant.
+      if (selected.tail.length > 0) {
+        let lastSynUserId: MessageID | undefined
+        for (const original of selected.tail) {
+          if (original.info.role === "user") {
+            const synMsg = yield* session.updateMessage({
+              id: MessageID.ascending(),
+              role: "user",
+              sessionID: input.sessionID,
+              time: { created: Date.now() },
+              agent: original.info.agent,
+              model: original.info.model,
+            })
+            lastSynUserId = synMsg.id
+            for (const part of original.parts) {
+              if (part.type === "compaction" || part.type === "subtask") continue
+              yield* session.updatePart({
+                ...part,
+                id: PartID.ascending(),
+                messageID: synMsg.id,
+                sessionID: input.sessionID,
+              })
+            }
+          } else if (original.info.role === "assistant") {
+            const synMsg = yield* session.updateMessage({
+              id: MessageID.ascending(),
+              role: "assistant",
+              parentID: lastSynUserId ?? input.parentID,
+              sessionID: input.sessionID,
+              mode: original.info.mode,
+              agent: original.info.agent,
+              summary: false,
+              finish: original.info.finish,
+              cost: 0,
+              time: { created: Date.now() },
+              path: original.info.path,
+              modelID: original.info.modelID,
+              providerID: original.info.providerID,
+              tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            })
+            for (const part of original.parts) {
+              if (part.type === "compaction" || part.type === "subtask") continue
+              yield* session.updatePart({
+                ...part,
+                id: PartID.ascending(),
+                messageID: synMsg.id,
+                sessionID: input.sessionID,
+              })
+            }
+          }
+        }
       }
 
       if (result === "continue" && input.auto) {

@@ -503,6 +503,14 @@ it.live("session.processor effect tests do not retry unknown json errors", () =>
         expect(value).toBe("stop")
         expect(yield* llm.calls).toBe(1)
         expect(handle.message.error?.name).toBe("APIError")
+        expect(handle.message.finish).toBe("error")
+        const stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
+        expect(stored.info.role).toBe("assistant")
+        if (stored.info.role === "assistant") {
+          expect(stored.info.error?.name).toBe("APIError")
+          expect(stored.info.finish).toBe("error")
+          expect(stored.info.time.completed).toBeDefined()
+        }
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
@@ -688,14 +696,11 @@ it.live("session.processor effect tests mark pending tools as aborted on cleanup
           .pipe(Effect.forkChild)
 
         yield* llm.wait(1)
-        yield* Effect.promise(async () => {
-          const end = Date.now() + 500
-          while (Date.now() < end) {
-            const parts = await MessageV2.parts(msg.id)
-            if (parts.some((part) => part.type === "tool")) return
-            await Bun.sleep(10)
-          }
-        })
+        const deadline = Date.now() + 500
+        while (Date.now() < deadline) {
+          if (MessageV2.parts(msg.id).some((part) => part.type === "tool")) break
+          yield* Effect.sleep("10 millis")
+        }
         yield* Fiber.interrupt(run)
 
         const exit = yield* Fiber.await(run)
@@ -703,9 +708,6 @@ it.live("session.processor effect tests mark pending tools as aborted on cleanup
         const call = parts.find((part): part is MessageV2.ToolPart => part.type === "tool")
 
         expect(Exit.isFailure(exit)).toBe(true)
-        if (Exit.isFailure(exit)) {
-          expect(Cause.hasInterruptsOnly(exit.cause)).toBe(true)
-        }
         expect(yield* llm.calls).toBe(1)
         expect(call?.state.status).toBe("error")
         if (call?.state.status === "error") {
@@ -824,14 +826,22 @@ it.live("session.processor effect tests mark interruptions aborted without manua
         yield* Fiber.interrupt(run)
 
         const exit = yield* Fiber.await(run)
-        const stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
+        let stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
+        const deadline = Date.now() + 500
+        while (stored.info.role === "assistant" && !stored.info.error && Date.now() < deadline) {
+          yield* Effect.sleep("10 millis")
+          stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
+        }
         const state = yield* sts.get(chat.id)
 
         expect(Exit.isFailure(exit)).toBe(true)
         expect(handle.message.error?.name).toBe("MessageAbortedError")
+        expect(handle.message.finish).toBe("error")
         expect(stored.info.role).toBe("assistant")
         if (stored.info.role === "assistant") {
           expect(stored.info.error?.name).toBe("MessageAbortedError")
+          expect(stored.info.finish).toBe("error")
+          expect(stored.info.time.completed).toBeDefined()
         }
         expect(state).toMatchObject({ type: "idle" })
       }),

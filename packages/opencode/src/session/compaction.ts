@@ -17,7 +17,7 @@ import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
-import { Effect, Layer, Context, Schema } from "effect"
+import { Effect, Layer, Context, Schema, Option } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { isOverflow as overflow, usable } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
@@ -481,8 +481,24 @@ export const layer: Layer.Layer<
         return "stop"
       }
 
+      // Check for error before creating synthetic messages — if the compaction
+      // summary errored, synthetic tail / auto-continue messages would be orphaned
+      // and the boundary would not be detected by filterCompactedEffect.
+      if (processor.message.error) {
+        yield* session.updateMessage(processor.message)
+        return "stop"
+      }
+
       // Persist the completed summary assistant (sets finish from processor.stream completion)
       yield* session.updateMessage(processor.message)
+      const storedSummary = yield* session.findMessage(
+        input.sessionID,
+        (message) => message.info.id === processor.message.id,
+      )
+      const compactionSummary = Option.match(storedSummary, {
+        onNone: () => "",
+        onSome: (message) => summaryText(message) ?? "",
+      })
 
       // Create synthetic tail cache messages after the summary assistant.
       if (selected.tail.length > 0) {
@@ -628,7 +644,7 @@ export const layer: Layer.Layer<
             yield* events.value.publish(SessionEvent.Compaction.Ended, {
               sessionID: input.sessionID as unknown as import("@opencode-ai/core/session").Session.ID,
               timestamp: Date.now(),
-              text: "",
+              text: compactionSummary,
             })
           }
         }

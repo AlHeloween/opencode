@@ -599,6 +599,8 @@ export type Info = User | Assistant
 
 const UpdatedEventSchema = Schema.Struct({
   sessionID: SessionID,
+  projectID: Schema.optional(ProjectID),
+  directory: Schema.optional(Schema.String),
   info: _Info,
 })
 
@@ -609,6 +611,8 @@ const RemovedEventSchema = Schema.Struct({
 
 const PartUpdatedEventSchema = Schema.Struct({
   sessionID: SessionID,
+  projectID: Schema.optional(ProjectID),
+  directory: Schema.optional(Schema.String),
   part: _Part,
   time: Schema.Number,
 })
@@ -1035,12 +1039,57 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
   const items = hydrate(slice)
   items.reverse()
   const tail = slice.at(-1)
+  const nextCursor = more && tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined
   return {
     items,
     more,
-    cursor: more && tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined,
+    cursor: nextCursor,
   }
 }
+
+function compactedPageCursor(message: WithParts | undefined) {
+  if (!message) return undefined
+  return cursor.encode({ id: message.info.id, time: message.info.time.created })
+}
+
+function isCompactionBoundary(message: WithParts | undefined) {
+  return message?.info.role === "user" && message.parts.some((part) => part.type === "compaction")
+}
+
+export const pageCompacted = Effect.fnUntraced(function* (input: {
+  sessionID: SessionID
+  limit: number
+  before?: string
+}) {
+  if (input.before) return page(input)
+
+  const limit = Math.max(input.limit, 1)
+  const active = yield* filterCompactedEffect(input.sessionID)
+  if (active.length <= limit) {
+    return {
+      items: active,
+      more: false,
+    }
+  }
+
+  if (isCompactionBoundary(active[0]) && active[1]?.info.role === "assistant" && active[1].info.summary && limit > 1) {
+    const pinned = active.slice(0, 2)
+    const tailLimit = Math.max(limit - pinned.length, 0)
+    const tail = tailLimit > 0 ? active.slice(-tailLimit) : []
+    return {
+      items: [...pinned, ...tail.filter((message) => !pinned.some((item) => item.info.id === message.info.id))],
+      more: true,
+      cursor: compactedPageCursor(tail[0]),
+    }
+  }
+
+  const items = active.slice(-limit)
+  return {
+    items,
+    more: true,
+    cursor: compactedPageCursor(items[0]),
+  }
+})
 
 export function* stream(sessionID: SessionID) {
   const size = 500
@@ -1092,7 +1141,8 @@ export function filterCompacted(msgs: Iterable<WithParts>) {
   const completed = new Set<string>()
   for (const msg of msgs) {
     result.push(msg)
-    if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish && !msg.info.error)
+    // Accept completed or errored compaction summaries as valid boundaries.
+    if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish)
       completed.add(msg.info.parentID)
     if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction"))
       break
@@ -1117,7 +1167,10 @@ export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: Ses
     for (let i = next.items.length - 1; i >= 0; i--) {
       const msg = next.items[i]!
       result.push(msg)
-      if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish && !msg.info.error)
+      // Accept completed or errored compaction summaries as valid boundaries.
+      // An errored summary still marks the compaction point — the underlying
+      // compaction user message with the compaction part type is the real boundary.
+      if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish)
         completed.add(msg.info.parentID)
       if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction"))
         break outer

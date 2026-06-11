@@ -682,6 +682,70 @@ describe("session.compaction.create", () => {
   )
 })
 
+describe("MessageV2.pageCompacted", () => {
+  it.live(
+    "keeps compaction boundary and summary in limited pages",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+
+        const older = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: older.id,
+          sessionID: info.id,
+          type: "text",
+          text: "older context",
+        })
+
+        yield* compact.create({
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          auto: false,
+        })
+        const compaction = (yield* ssn.messages({ sessionID: info.id })).at(-1)
+        expect(compaction?.info.role).toBe("user")
+        yield* Effect.promise(() => summaryAssistant(info.id, compaction!.info.id, dir, "summary marker"))
+
+        for (const text of ["tail one", "tail two", "tail three", "tail four"]) {
+          const msg = yield* ssn.updateMessage({
+            id: MessageID.ascending(),
+            role: "user",
+            sessionID: info.id,
+            agent: "build",
+            model: ref,
+            time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({
+            id: PartID.ascending(),
+            messageID: msg.id,
+            sessionID: info.id,
+            type: "text",
+            text,
+          })
+        }
+
+        const page = yield* MessageV2.pageCompacted({ sessionID: info.id, limit: 3 })
+        expect(page.items).toHaveLength(3)
+        expect(page.items.map((message) => message.info.id)).toContain(compaction!.info.id)
+        expect(page.items.some((message) => message.info.role === "assistant" && message.info.summary)).toBe(true)
+        expect(page.items.some((message) => message.parts.some((part) => part.type === "text" && part.text === "summary marker"))).toBe(true)
+        expect(page.items.at(-1)?.parts.some((part) => part.type === "text" && part.text === "tail four")).toBe(true)
+      }),
+    ),
+  )
+})
+
 describe("session.compaction.prune", () => {
   it.live(
     "compacts old completed tool output",

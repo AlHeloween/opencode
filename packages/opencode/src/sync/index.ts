@@ -127,6 +127,9 @@ export function project<Def extends Definition>(
 function extractProjectId(data: unknown): { id: ProjectID; worktree: string } | undefined {
   if (!data || typeof data !== "object") return undefined
   const d = data as Record<string, unknown>
+  if (typeof d.projectID === "string" && typeof d.directory === "string") {
+    return { id: d.projectID as ProjectID, worktree: d.directory as string }
+  }
   const info = (d.info ?? d) as Record<string, unknown> | undefined
   if (typeof info?.projectID === "string" && typeof info?.directory === "string") {
     return { id: info.projectID as ProjectID, worktree: info.directory as string }

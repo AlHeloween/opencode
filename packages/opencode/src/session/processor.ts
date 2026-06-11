@@ -683,6 +683,9 @@ export const layer: Layer.Layer<
             if (aborted && !ctx.assistantMessage.error) {
               ctx.assistantMessage.error = parse(new DOMException("Aborted", "AbortError"))
             }
+            if (ctx.assistantMessage.error && !ctx.assistantMessage.finish) {
+              ctx.assistantMessage.finish = "error"
+            }
             ctx.assistantMessage.time.completed = Date.now()
             yield* session.updateMessage(ctx.assistantMessage)
           }),
@@ -698,6 +701,9 @@ export const layer: Layer.Layer<
           return
         }
         ctx.assistantMessage.error = error
+        ctx.assistantMessage.finish = "error"
+        ctx.assistantMessage.time.completed = Date.now()
+        yield* session.updateMessage(ctx.assistantMessage)
         yield* bus.publish(Session.Event.Error, {
           sessionID: ctx.assistantMessage.sessionID,
           error: ctx.assistantMessage.error,
@@ -728,7 +734,7 @@ export const layer: Layer.Layer<
               Effect.gen(function* () {
                 aborted = true
                 if (!ctx.assistantMessage.error) {
-                  yield* halt(new DOMException("Aborted", "AbortError"))
+                  yield* Effect.uninterruptible(halt(new DOMException("Aborted", "AbortError")))
                 }
               }),
             ),
@@ -753,12 +759,12 @@ export const layer: Layer.Layer<
               Effect.gen(function* () {
                 aborted = true
                 if (!ctx.assistantMessage.error) {
-                  yield* halt(new DOMException("Aborted", "AbortError"))
+                  yield* Effect.uninterruptible(halt(new DOMException("Aborted", "AbortError")))
                 }
               }),
             ),
             Effect.catch(halt),
-            Effect.ensuring(cleanup()),
+            Effect.ensuring(Effect.uninterruptible(cleanup())),
           )
 
           if (ctx.needsCompaction) return "compact"

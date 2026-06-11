@@ -523,7 +523,7 @@ export const sessionHandlers = Layer.unwrap(
         return yield* session.messages({ sessionID: ctx.params.sessionID })
       }
 
-      const page = MessageV2.page({
+      const page = yield* MessageV2.pageCompacted({
         sessionID: ctx.params.sessionID,
         limit: ctx.query.limit,
         before: ctx.query.before,

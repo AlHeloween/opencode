@@ -589,15 +589,22 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
 
     const updateMessage = <T extends MessageV2.Info>(msg: T): Effect.Effect<T> =>
       Effect.gen(function* () {
-        yield* Effect.sync(() => SyncEvent.run(MessageV2.Event.Updated, { sessionID: msg.sessionID, info: msg }))
+        const ctx = yield* InstanceState.context.pipe(Effect.option)
+        const project = Option.isSome(ctx) ? { projectID: ctx.value.project.id, directory: ctx.value.worktree } : {}
+        yield* Effect.sync(() =>
+          SyncEvent.run(MessageV2.Event.Updated, { sessionID: msg.sessionID, ...project, info: msg }),
+        )
         return msg
       }).pipe(Effect.withSpan("Session.updateMessage"))
 
     const updatePart = <T extends MessageV2.Part>(part: T): Effect.Effect<T> =>
       Effect.gen(function* () {
+        const ctx = yield* InstanceState.context.pipe(Effect.option)
+        const project = Option.isSome(ctx) ? { projectID: ctx.value.project.id, directory: ctx.value.worktree } : {}
         yield* Effect.sync(() =>
           SyncEvent.run(MessageV2.Event.PartUpdated, {
             sessionID: part.sessionID,
+            ...project,
             part,
             time: Date.now(),
           }),

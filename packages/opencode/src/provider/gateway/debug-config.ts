@@ -3,13 +3,13 @@ import type { GatewayConfig, GatewayModelConfig } from "./config-manager"
 export interface ResolvedDebugConfig {
   debug: boolean
   logBodies: boolean
-  maxBodySize: number
+  perRequest: boolean
 }
 
 const DEFAULT_DEBUG_CONFIG: ResolvedDebugConfig = {
   debug: true,
   logBodies: true,
-  maxBodySize: 10240,
+  perRequest: false,
 }
 
 export function resolveDebugConfig(
@@ -22,7 +22,7 @@ export function resolveDebugConfig(
   return {
     debug: modelGateway?.debug ?? globalGateway?.debug ?? DEFAULT_DEBUG_CONFIG.debug,
     logBodies: modelGateway?.logging?.logBodies ?? globalGateway?.logging?.logBodies ?? DEFAULT_DEBUG_CONFIG.logBodies,
-    maxBodySize:
-      modelGateway?.logging?.maxBodySize ?? globalGateway?.logging?.maxBodySize ?? DEFAULT_DEBUG_CONFIG.maxBodySize,
+    perRequest:
+      modelGateway?.logging?.perRequest ?? globalGateway?.logging?.perRequest ?? DEFAULT_DEBUG_CONFIG.perRequest,
   }
 }

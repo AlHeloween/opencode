@@ -13,8 +13,8 @@ import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import fs from "fs"
-import type { AsyncLogger } from "./async-logger"
-import { make as makeAsyncLogger } from "./async-logger"
+import type { AsyncLogger, PerRequestLogger } from "./async-logger"
+import { make as makeAsyncLogger, makePerRequest } from "./async-logger"
 import type { ResolvedDebugConfig } from "./debug-config"
 
 const log = Log.create({ service: "gateway.adaptive-client" })
@@ -24,14 +24,18 @@ const streamState = StreamBudget.makeState()
 let loggingEnabled = true
 let asyncLogger: AsyncLogger | undefined
 let errorLogger: AsyncLogger | undefined
+let perRequestLogger: PerRequestLogger | undefined
 let debugConfig: ResolvedDebugConfig | null = null
 
 export function setDebugConfig(config: ResolvedDebugConfig): void {
   debugConfig = config
+  if (config.perRequest && !perRequestLogger && loggingEnabled) {
+    initLogger()
+  }
 }
 
 export function getDebugConfig(): ResolvedDebugConfig {
-  return debugConfig ?? { debug: true, logBodies: true, maxBodySize: 10240 }
+  return debugConfig ?? { debug: true, logBodies: true, perRequest: false }
 }
 
 export function configureLogging(enabled: boolean, _format: "json" | "text" = "json"): void {
@@ -100,8 +104,6 @@ function initLogger() {
       path: logFilePath,
       maxBuffer: 5000,
       intervalMs: 100,
-      maxBytes: 20 * 1024,
-      keepBytes: 10 * 1024,
     })
   }
   if (!errorLogger && loggingEnabled) {
@@ -109,6 +111,11 @@ function initLogger() {
     const errorLogFilePath = path.join(logDir, "gateway-errors.log")
     fs.mkdirSync(logDir, { recursive: true })
     errorLogger = makeAsyncLogger({ path: errorLogFilePath, maxBuffer: 2000, intervalMs: 100 })
+  }
+  if (!perRequestLogger && loggingEnabled && debugConfig?.perRequest) {
+    const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
+    const perRequestDir = path.join(logDir, "per-request")
+    perRequestLogger = makePerRequest({ dir: perRequestDir })
   }
 }
 
@@ -120,13 +127,6 @@ function writeLog(entry: Record<string, unknown>): void {
 function writeErrorLog(entry: Record<string, unknown>): void {
   if (!loggingEnabled || !errorLogger) return
   errorLogger.log(entry)
-}
-
-function truncateBody(body: string, maxSize: number): { preview: string; truncated: boolean; size: number } {
-  if (body.length <= maxSize) {
-    return { preview: body, truncated: false, size: body.length }
-  }
-  return { preview: body.slice(0, maxSize) + "...", truncated: true, size: body.length }
 }
 
 function bodyRequestsStream(body: RequestInit["body"] | undefined): boolean {
@@ -283,8 +283,12 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const score = healthScore(adjustment.health)
 
     const debugCfg = getDebugConfig()
-    const bodyForLog =
-      debugCfg.logBodies && init?.body ? truncateBody(typeof init.body === "string" ? init.body : JSON.stringify(init.body), debugCfg.maxBodySize) : undefined
+    const rawBody =
+      debugCfg.logBodies && init?.body
+        ? typeof init.body === "string"
+          ? init.body
+          : JSON.stringify(init.body)
+        : undefined
 
     const sanitizedLogHeaders = sanitizeHeaders(headers)
 
@@ -310,13 +314,34 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       },
       ...(debugCfg.debug && {
         headers: sanitizedLogHeaders,
-        ...(bodyForLog && {
-          bodyPreview: bodyForLog.preview,
-          bodyTruncated: bodyForLog.truncated,
-          bodySize: bodyForLog.size,
-        }),
       }),
     })
+
+    if (perRequestLogger && debugCfg.perRequest) {
+      perRequestLogger.log({
+        level: "INFO",
+        event: "gateway.request.per_request",
+        timestamp: startTime,
+        requestId,
+        url,
+        method: (init?.method || "GET").toUpperCase(),
+        provider,
+        model,
+        endpointKind,
+        shapeClass,
+        isStream,
+        key: keyStr,
+        healthScore: Math.round(score * 100) / 100,
+        policy: {
+          minLaunchIntervalMs: policy.minLaunchIntervalMs,
+          streamMinLaunchIntervalMs: policy.streamMinLaunchIntervalMs,
+          maxInflight: policy.maxInflight,
+          maxStreams: policy.maxStreams,
+        },
+        headers: sanitizedLogHeaders,
+        ...(rawBody && { body: rawBody, bodySize: rawBody.length }),
+      })
+    }
 
     if (Store.isCircuitBreakerOpen(routeKey)) {
       writeLog({

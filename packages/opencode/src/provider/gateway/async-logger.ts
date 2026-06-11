@@ -1,4 +1,5 @@
 import fs from "fs/promises"
+import path from "path"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "gateway.async-logger" })
@@ -6,6 +7,11 @@ const log = Log.create({ service: "gateway.async-logger" })
 export interface AsyncLogger {
   log: (entry: Record<string, unknown>) => void
   flush: () => Promise<void>
+  dispose: () => Promise<void>
+}
+
+export interface PerRequestLogger {
+  log: (entry: Record<string, unknown>) => void
   dispose: () => Promise<void>
 }
 
@@ -88,5 +94,54 @@ export function make(input: {
     },
     flush: () => flush(),
     dispose: () => finalFlush(),
+  }
+}
+
+/**
+ * Per-request logger that writes each gateway request to its own file.
+ * Files are named `{timestamp}_{requestId}.json` under the configured directory.
+ * Best-effort: write failures are logged to debug and silently ignored.
+ */
+export function makePerRequest(input: { dir: string }): PerRequestLogger {
+  const dir = input.dir
+  let disposed = false
+  const pending = new Set<Promise<void>>()
+
+  const ensureDir = (async () => {
+    try {
+      await fs.mkdir(dir, { recursive: true })
+    } catch (e) {
+      log.debug("failed to create per-request log dir", {
+        error: e instanceof Error ? e.message : String(e),
+        dir,
+      })
+    }
+  })()
+
+  return {
+    log: (entry) => {
+      if (disposed) return
+      const ts = (entry.timestamp as number) ?? Date.now()
+      const reqId = (entry.requestId as string) ?? "unknown"
+      const sanitized = String(reqId).replace(/[^a-zA-Z0-9_-]/g, "_")
+      const fileName = `${ts}_${sanitized}.json`
+      const filePath = path.join(dir, fileName)
+
+      const write = ensureDir.then(() =>
+        fs.writeFile(filePath, JSON.stringify(entry) + "\n").catch((e) => {
+          log.debug("failed to write per-request log", {
+            error: e instanceof Error ? e.message : String(e),
+            filePath,
+          })
+        }),
+      )
+
+      pending.add(write)
+      write.finally(() => pending.delete(write))
+    },
+    dispose: async () => {
+      disposed = true
+      await Promise.all(pending)
+    },
   }
 }

@@ -47,7 +47,7 @@ export interface GatewayModelConfig {
       enabled?: boolean
       format?: "json" | "text"
       logBodies?: boolean
-      maxBodySize?: number
+      perRequest?: boolean
     }
   }
   provider?: {
@@ -79,7 +79,7 @@ export interface GatewayConfig {
       enabled?: boolean
       format?: "json" | "text"
       logBodies?: boolean
-      maxBodySize?: number
+      perRequest?: boolean
     }
   }
 }

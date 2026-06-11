@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm"
 import { and } from "drizzle-orm"
 import { gte } from "drizzle-orm"
 import { isNull } from "drizzle-orm"
+import { isNotNull } from "drizzle-orm"
 import { desc } from "drizzle-orm"
 import { like } from "drizzle-orm"
 import { inArray } from "drizzle-orm"
@@ -872,7 +873,12 @@ export function* listGlobal(input?: {
   if (input?.start) { conditions.push(gte(SessionTable.time_updated, input.start)) }
   if (input?.cursor) { conditions.push(lt(SessionTable.time_updated, input.cursor)) }
   if (input?.search) { conditions.push(like(SessionTable.title, `%${input.search}%`)) }
-  if (!input?.archived) { conditions.push(isNull(SessionTable.time_archived)) }
+  if (input?.archived === true) {
+    conditions.push(isNotNull(SessionTable.time_archived))
+  } else if (input?.archived === false) {
+    conditions.push(isNull(SessionTable.time_archived))
+  }
+  // undefined: no filter — show all sessions (matches list() behavior)
 
   const allRows: SessionRow[] = []
   const seen = new Set<string>()

@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/processor.ts
+@@
+-            Effect.ensuring(cleanup()),
++            Effect.ensuring(Effect.uninterruptible(cleanup())),
+*** End Patch

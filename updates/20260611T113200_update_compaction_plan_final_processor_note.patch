@@ -1,0 +1,7 @@
+*** Begin Patch
+*** Update File: plans/20260611_compaction_written_then_gone.md
+@@
+ - `SessionProcessor.halt()` sets `finish = "error"`, records `time.completed`, and persists errored assistant state immediately.
+ - Added processor oracle coverage for persisted non-overflow API errors and interrupted messages.
++- Message and part update sync events now carry explicit project context, so interrupted finalizers can persist updates without relying on ambient `Instance` context.
+*** End Patch

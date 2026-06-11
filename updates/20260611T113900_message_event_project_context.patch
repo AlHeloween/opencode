@@ -1,0 +1,52 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/sync/index.ts
+@@
+ function extractProjectId(data: unknown): { id: ProjectID; worktree: string } | undefined {
+   if (!data || typeof data !== "object") return undefined
+   const d = data as Record<string, unknown>
++  if (typeof d.projectID === "string" && typeof d.directory === "string") {
++    return { id: d.projectID as ProjectID, worktree: d.directory as string }
++  }
+   const info = (d.info ?? d) as Record<string, unknown> | undefined
+   if (typeof info?.projectID === "string" && typeof info?.directory === "string") {
+     return { id: info.projectID as ProjectID, worktree: info.directory as string }
+*** Update File: packages/opencode/src/session/message-v2.ts
+@@
+ const UpdatedEventSchema = Schema.Struct({
+   sessionID: SessionID,
++  projectID: Schema.optional(ProjectID),
++  directory: Schema.optional(Schema.String),
+   info: _Info,
+ })
+@@
+ const PartUpdatedEventSchema = Schema.Struct({
+   sessionID: SessionID,
++  projectID: Schema.optional(ProjectID),
++  directory: Schema.optional(Schema.String),
+   part: _Part,
+   time: Schema.Number,
+ })
+*** Update File: packages/opencode/src/session/session.ts
+@@
+     const updateMessage = <T extends MessageV2.Info>(msg: T): Effect.Effect<T> =>
+       Effect.gen(function* () {
+-        yield* Effect.sync(() => SyncEvent.run(MessageV2.Event.Updated, { sessionID: msg.sessionID, info: msg }))
++        const ctx = yield* InstanceState.context.pipe(Effect.option)
++        const project = Option.isSome(ctx) ? { projectID: ctx.value.project.id, directory: ctx.value.worktree } : {}
++        yield* Effect.sync(() =>
++          SyncEvent.run(MessageV2.Event.Updated, { sessionID: msg.sessionID, ...project, info: msg }),
++        )
+         return msg
+       }).pipe(Effect.withSpan("Session.updateMessage"))
+ 
+     const updatePart = <T extends MessageV2.Part>(part: T): Effect.Effect<T> =>
+       Effect.gen(function* () {
++        const ctx = yield* InstanceState.context.pipe(Effect.option)
++        const project = Option.isSome(ctx) ? { projectID: ctx.value.project.id, directory: ctx.value.worktree } : {}
+         yield* Effect.sync(() =>
+           SyncEvent.run(MessageV2.Event.PartUpdated, {
+             sessionID: part.sessionID,
++            ...project,
+             part,
+             time: Date.now(),
+*** End Patch

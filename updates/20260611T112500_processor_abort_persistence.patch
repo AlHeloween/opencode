@@ -1,0 +1,39 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/processor.ts
+@@
+             if (aborted && !ctx.assistantMessage.error) {
+               ctx.assistantMessage.error = parse(new DOMException("Aborted", "AbortError"))
+             }
++            if (ctx.assistantMessage.error && !ctx.assistantMessage.finish) {
++              ctx.assistantMessage.finish = "error"
++            }
+             ctx.assistantMessage.time.completed = Date.now()
+             yield* session.updateMessage(ctx.assistantMessage)
+@@
+                 aborted = true
+                 if (!ctx.assistantMessage.error) {
+-                  yield* halt(new DOMException("Aborted", "AbortError"))
++                  yield* Effect.uninterruptible(halt(new DOMException("Aborted", "AbortError")))
+                 }
+@@
+                 aborted = true
+                 if (!ctx.assistantMessage.error) {
+-                  yield* halt(new DOMException("Aborted", "AbortError"))
++                  yield* Effect.uninterruptible(halt(new DOMException("Aborted", "AbortError")))
+                 }
+*** Update File: packages/opencode/test/session/processor-effect.test.ts
+@@
+-        yield* Effect.promise(async () => {
+-          const end = Date.now() + 500
+-          while (Date.now() < end) {
+-            const parts = await MessageV2.parts(msg.id)
+-            if (parts.some((part) => part.type === "tool")) return
+-            await Bun.sleep(10)
+-          }
+-        })
++        const deadline = Date.now() + 500
++        while (Date.now() < deadline) {
++          if (MessageV2.parts(msg.id).some((part) => part.type === "tool")) break
++          yield* Effect.sleep("10 millis")
++        }
+*** End Patch

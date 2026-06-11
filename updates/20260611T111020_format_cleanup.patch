@@ -1,0 +1,62 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/message-v2.ts
+@@
+-  const items = hydrate(slice)
+-  items.reverse()
+-    const tail = slice.at(-1)
++  const items = hydrate(slice)
++  items.reverse()
++  const tail = slice.at(-1)
+*** Update File: packages/opencode/src/session/compaction.ts
+@@
+-      // Persist the completed summary assistant (sets finish from processor.stream completion)
+-yield* session.updateMessage(processor.message)
+-const storedSummary = yield* session.findMessage(
+-  input.sessionID,
+-  (message) => message.info.id === processor.message.id,
+-)
+-const compactionSummary = Option.match(storedSummary, {
+-  onNone: () => "",
+-  onSome: (message) => summaryText(message) ?? "",
+-})
+-
+-// Create synthetic tail cache messages after the summary assistant.
++      // Persist the completed summary assistant (sets finish from processor.stream completion)
++      yield* session.updateMessage(processor.message)
++      const storedSummary = yield* session.findMessage(
++        input.sessionID,
++        (message) => message.info.id === processor.message.id,
++      )
++      const compactionSummary = Option.match(storedSummary, {
++        onNone: () => "",
++        onSome: (message) => summaryText(message) ?? "",
++      })
++
++      // Create synthetic tail cache messages after the summary assistant.
+*** Update File: packages/opencode/src/server/routes/instance/httpapi/session.ts
+@@
+-      const page = yield* MessageV2.pageCompacted({
+-  sessionID: ctx.params.sessionID,
+-  limit: ctx.query.limit,
+-  before: ctx.query.before,
+-})
++      const page = yield* MessageV2.pageCompacted({
++        sessionID: ctx.params.sessionID,
++        limit: ctx.query.limit,
++        before: ctx.query.before,
++      })
+*** Update File: packages/opencode/src/server/routes/instance/session.ts
+@@
+-        const pageEffect = MessageV2.pageCompacted({
+-  sessionID,
+-  limit: query.limit,
+-  before: query.before,
+-})
+-const page = await runRequest("SessionRoutes.messages.page", c, pageEffect)
++        const pageEffect = MessageV2.pageCompacted({
++          sessionID,
++          limit: query.limit,
++          before: query.before,
++        })
++        const page = await runRequest("SessionRoutes.messages.page", c, pageEffect)
+*** End Patch

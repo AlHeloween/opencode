@@ -1,0 +1,26 @@
+*** Begin Patch
+*** Update File: plans/20260611_compaction_written_then_gone.md
+@@
+-**Status:** Planning  
++**Status:** Partially Implemented  
+@@
+ Compaction creates messages that appear to be written but are later missing — the
+ compaction boundary is not detected, causing all historical messages to be loaded
+ again, defeating the purpose of compaction.
++
++## Implementation Status — 2026-06-11
++
++Completed:
++- `processCompaction` now stops before synthetic tail / auto-continue messages when the compaction summary is errored.
++- `filterCompacted` and `filterCompactedEffect` now accept completed errored summaries as valid compaction boundaries.
++- Limited message retrieval now has a compacted active-window pager that preserves the compaction boundary and summary in the first page.
++- Limited HTTP API and legacy session routes now use compacted paging.
++- The v2 `session.next.compaction.ended` event now includes the persisted summary text instead of an empty string.
++- Added regression coverage for limited compacted paging.
++
++Pending:
++- `SessionProcessor.halt()` still needs a dedicated follow-up to set `finish = "error"` and persist the errored assistant immediately.
++- Interrupt/manual overflow behavior still needs a focused oracle beyond the limited-page regression.
+ 
+ ---
+*** End Patch

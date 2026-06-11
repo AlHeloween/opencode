@@ -1,0 +1,41 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/session/processor-effect.test.ts
+@@
+         expect(value).toBe("stop")
+         expect(yield* llm.calls).toBe(1)
+         expect(handle.message.error?.name).toBe("APIError")
++        expect(handle.message.finish).toBe("error")
++        const stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
++        expect(stored.info.role).toBe("assistant")
++        if (stored.info.role === "assistant") {
++          expect(stored.info.error?.name).toBe("APIError")
++          expect(stored.info.finish).toBe("error")
++          expect(stored.info.time.completed).toBeDefined()
++        }
+       }),
+@@
+         expect(Exit.isFailure(exit)).toBe(true)
+         expect(handle.message.error?.name).toBe("MessageAbortedError")
++        expect(handle.message.finish).toBe("error")
+         expect(stored.info.role).toBe("assistant")
+         if (stored.info.role === "assistant") {
+           expect(stored.info.error?.name).toBe("MessageAbortedError")
++          expect(stored.info.finish).toBe("error")
++          expect(stored.info.time.completed).toBeDefined()
+         }
+         expect(state).toMatchObject({ type: "idle" })
+*** Update File: plans/20260611_compaction_written_then_gone.md
+@@
+-**Status:** Partially Implemented  
++**Status:** Completed  
+@@
+ - The v2 `session.next.compaction.ended` event now includes the persisted summary text instead of an empty string.
+ - Added regression coverage for limited compacted paging.
++- `SessionProcessor.halt()` sets `finish = "error"`, records `time.completed`, and persists errored assistant state immediately.
++- Added processor oracle coverage for persisted non-overflow API errors and interrupted messages.
+ 
+ Pending:
+-- `SessionProcessor.halt()` still needs a dedicated follow-up to set `finish = "error"` and persist the errored assistant immediately.
+-- Interrupt/manual overflow behavior still needs a focused oracle beyond the limited-page regression.
++- None for this plan.
+*** End Patch

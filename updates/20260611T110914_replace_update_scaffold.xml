@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_dc1bfd7b00baff93e016941129a4ffbd name="message_v2_page_cursor_local" md5="dc1bfd7b00baff93e016941129a4ffbd" size="147">
+    <file>packages/opencode/src/session/message-v2.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  const tail = slice.at(-1)
+      return {
+      items,
+      more,
+      cursor: more &amp;&amp; tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined,
+    }
+  }</find_text>
+    <semantics>Introduce a local cursor value while restoring the page return block indentation.</semantics>
+    <content_md5_dc1bfd7b00baff93e016941129a4ffbd>
+        const tail = slice.at(-1)
+        const nextCursor = more &amp;&amp; tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined
+        return {
+          items,
+          more,
+          cursor: nextCursor,
+        }
+      }
+    </content_md5_dc1bfd7b00baff93e016941129a4ffbd>
+  </update_md5_dc1bfd7b00baff93e016941129a4ffbd>
+  <update_md5_e891e3a26b07775531e32712795f8b9e name="compaction_summary_option_match" md5="e891e3a26b07775531e32712795f8b9e" size="406">
+    <file>packages/opencode/src/session/compaction.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      // Persist the completed summary assistant (sets finish from processor.stream completion)
+yield* session.updateMessage(processor.message)
+const storedSummary = yield* session.findMessage(
+  input.sessionID,
+  (message) =&gt; message.info.id === processor.message.id,
+)
+const compactionSummary = Option.isSome(storedSummary) ? (summaryText(storedSummary.value) ?? &quot;&quot;) : &quot;&quot;
+
+// Create synthetic tail cache messages after the summary assistant.</find_text>
+    <semantics>Use Option.match for summary extraction while restoring block indentation.</semantics>
+    <content_md5_e891e3a26b07775531e32712795f8b9e>
+      // Persist the completed summary assistant (sets finish from processor.stream completion)
+      yield* session.updateMessage(processor.message)
+      const storedSummary = yield* session.findMessage(
+        input.sessionID,
+        (message) =&gt; message.info.id === processor.message.id,
+      )
+      const compactionSummary = Option.match(storedSummary, {
+        onNone: () =&gt; &quot;&quot;,
+        onSome: (message) =&gt; summaryText(message) ?? &quot;&quot;,
+      })
+      
+      // Create synthetic tail cache messages after the summary assistant.
+    </content_md5_e891e3a26b07775531e32712795f8b9e>
+  </update_md5_e891e3a26b07775531e32712795f8b9e>
+  <update_md5_dd54f237dd12cb85d224221c7da8efb4 name="legacy_route_page_effect_local" md5="dd54f237dd12cb85d224221c7da8efb4" size="160">
+    <file>packages/opencode/src/server/routes/instance/session.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        const page = await runRequest(
+  &quot;SessionRoutes.messages.page&quot;,
+  c,
+  MessageV2.pageCompacted({
+    sessionID,
+    limit: query.limit,
+    before: query.before,
+  }),
+)</find_text>
+    <semantics>Introduce a local page effect while restoring route call indentation.</semantics>
+    <content_md5_dd54f237dd12cb85d224221c7da8efb4>
+      const pageEffect = MessageV2.pageCompacted({
+        sessionID,
+        limit: query.limit,
+        before: query.before,
+      })
+      const page = await runRequest(&quot;SessionRoutes.messages.page&quot;, c, pageEffect)
+    </content_md5_dd54f237dd12cb85d224221c7da8efb4>
+  </update_md5_dd54f237dd12cb85d224221c7da8efb4>
+</updates>

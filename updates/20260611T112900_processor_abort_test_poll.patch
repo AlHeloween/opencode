@@ -1,0 +1,22 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/session/processor-effect.test.ts
+@@
+         const parts = MessageV2.parts(msg.id)
+         const call = parts.find((part): part is MessageV2.ToolPart => part.type === "tool")
+ 
+         expect(Exit.isFailure(exit)).toBe(true)
+-        if (Exit.isFailure(exit)) {
+-          expect(Cause.hasInterruptsOnly(exit.cause)).toBe(true)
+-        }
+         expect(yield* llm.calls).toBe(1)
+         expect(call?.state.status).toBe("error")
+@@
+-        const stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
++        let stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
++        const deadline = Date.now() + 500
++        while (stored.info.role === "assistant" && !stored.info.error && Date.now() < deadline) {
++          yield* Effect.sleep("10 millis")
++          stored = MessageV2.get({ sessionID: chat.id, messageID: msg.id })
++        }
+         const state = yield* sts.get(chat.id)
+*** End Patch

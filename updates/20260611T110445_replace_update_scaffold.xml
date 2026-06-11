@@ -1,0 +1,231 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_1244b5a3ea43bbe579091a3c47c3da67 name="message_v2_compacted_page_helper" md5="1244b5a3ea43bbe579091a3c47c3da67" size="1210">
+    <file>packages/opencode/src/session/message-v2.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  return {
+    items,
+    more,
+    cursor: more &amp;&amp; tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined,
+  }
+}
+
+export function* stream(sessionID: SessionID) {</find_text>
+    <semantics>Add a compacted paging helper that keeps the compaction boundary and summary visible in first-page limited retrieval.</semantics>
+    <content_md5_1244b5a3ea43bbe579091a3c47c3da67>
+        return {
+          items,
+          more,
+          cursor: more &amp;&amp; tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined,
+        }
+      }
+      
+      function compactedPageCursor(message: WithParts | undefined) {
+        if (!message) return undefined
+        return cursor.encode({ id: message.info.id, time: message.info.time.created })
+      }
+      
+      function isCompactionBoundary(message: WithParts | undefined) {
+        return message?.info.role === &quot;user&quot; &amp;&amp; message.parts.some((part) =&gt; part.type === &quot;compaction&quot;)
+      }
+      
+      export const pageCompacted = Effect.fnUntraced(function* (input: {
+        sessionID: SessionID
+        limit: number
+        before?: string
+      }) {
+        if (input.before) return page(input)
+      
+        const limit = Math.max(input.limit, 1)
+        const active = yield* filterCompactedEffect(input.sessionID)
+        if (active.length &lt;= limit) {
+          return {
+            items: active,
+            more: false,
+          }
+        }
+      
+        if (isCompactionBoundary(active[0]) &amp;&amp; active[1]?.info.role === &quot;assistant&quot; &amp;&amp; active[1].info.summary &amp;&amp; limit &gt; 1) {
+          const pinned = active.slice(0, 2)
+          const tailLimit = Math.max(limit - pinned.length, 0)
+          const tail = tailLimit &gt; 0 ? active.slice(-tailLimit) : []
+          return {
+            items: [...pinned, ...tail.filter((message) =&gt; !pinned.some((item) =&gt; item.info.id === message.info.id))],
+            more: true,
+            cursor: compactedPageCursor(tail[0]),
+          }
+        }
+      
+        const items = active.slice(-limit)
+        return {
+          items,
+          more: true,
+          cursor: compactedPageCursor(items[0]),
+        }
+      })
+      
+      export function* stream(sessionID: SessionID) {
+    </content_md5_1244b5a3ea43bbe579091a3c47c3da67>
+  </update_md5_1244b5a3ea43bbe579091a3c47c3da67>
+  <update_md5_2e100b7d0b9016fbcb44d2d6dec7a6d1 name="httpapi_messages_use_compacted_page" md5="2e100b7d0b9016fbcb44d2d6dec7a6d1" size="120">
+    <file>packages/opencode/src/server/routes/instance/httpapi/session.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const page = MessageV2.page({
+        sessionID: ctx.params.sessionID,
+        limit: ctx.query.limit,
+        before: ctx.query.before,
+      })</find_text>
+    <semantics>Route limited HTTP API message retrieval through the compacted active-window pager.</semantics>
+    <content_md5_2e100b7d0b9016fbcb44d2d6dec7a6d1>
+      const page = yield* MessageV2.pageCompacted({
+        sessionID: ctx.params.sessionID,
+        limit: ctx.query.limit,
+        before: ctx.query.before,
+      })
+    </content_md5_2e100b7d0b9016fbcb44d2d6dec7a6d1>
+  </update_md5_2e100b7d0b9016fbcb44d2d6dec7a6d1>
+  <update_md5_2f2d41a2206c02a82f44845a9e00daa0 name="legacy_route_messages_use_compacted_page" md5="2f2d41a2206c02a82f44845a9e00daa0" size="135">
+    <file>packages/opencode/src/server/routes/instance/session.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        const page = await MessageV2.page({
+          sessionID,
+          limit: query.limit,
+          before: query.before,
+        })</find_text>
+    <semantics>Route legacy limited message retrieval through the compacted active-window pager.</semantics>
+    <content_md5_2f2d41a2206c02a82f44845a9e00daa0>
+      const page = await runRequest(
+        &quot;SessionRoutes.messages.page&quot;,
+        c,
+        MessageV2.pageCompacted({
+          sessionID,
+          limit: query.limit,
+          before: query.before,
+        }),
+      )
+    </content_md5_2f2d41a2206c02a82f44845a9e00daa0>
+  </update_md5_2f2d41a2206c02a82f44845a9e00daa0>
+  <update_md5_d3da1711ecdb8ade2ad34a527eaf554e name="compaction_import_option" md5="d3da1711ecdb8ade2ad34a527eaf554e" size="54">
+    <file>packages/opencode/src/session/compaction.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>import { Effect, Layer, Context, Schema } from &quot;effect&quot;</find_text>
+    <semantics>Import Option so persisted summary lookup can safely extract text for v2 events.</semantics>
+    <content_md5_d3da1711ecdb8ade2ad34a527eaf554e>
+      import { Effect, Layer, Context, Schema, Option } from &quot;effect&quot;
+    </content_md5_d3da1711ecdb8ade2ad34a527eaf554e>
+  </update_md5_d3da1711ecdb8ade2ad34a527eaf554e>
+  <update_md5_392c42e54adf9f5046829722944560c7 name="compaction_capture_summary_text" md5="392c42e54adf9f5046829722944560c7" size="389">
+    <file>packages/opencode/src/session/compaction.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      // Persist the completed summary assistant (sets finish from processor.stream completion)
+      yield* session.updateMessage(processor.message)
+
+      // Create synthetic tail cache messages after the summary assistant.</find_text>
+    <semantics>Read the persisted summary assistant text before synthetic tail creation so the v2 compaction-ended event is durable and informative.</semantics>
+    <content_md5_392c42e54adf9f5046829722944560c7>
+      // Persist the completed summary assistant (sets finish from processor.stream completion)
+      yield* session.updateMessage(processor.message)
+      const storedSummary = yield* session.findMessage(
+        input.sessionID,
+        (message) =&gt; message.info.id === processor.message.id,
+      )
+      const compactionSummary = Option.isSome(storedSummary) ? (summaryText(storedSummary.value) ?? &quot;&quot;) : &quot;&quot;
+      
+      // Create synthetic tail cache messages after the summary assistant.
+    </content_md5_392c42e54adf9f5046829722944560c7>
+  </update_md5_392c42e54adf9f5046829722944560c7>
+  <update_md5_b1b1378ef3cc4698745759549fce5294 name="compaction_emit_summary_text" md5="b1b1378ef3cc4698745759549fce5294" size="23">
+    <file>packages/opencode/src/session/compaction.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>              text: &quot;&quot;,</find_text>
+    <semantics>Publish the persisted compaction summary text in the v2 compaction-ended event.</semantics>
+    <content_md5_b1b1378ef3cc4698745759549fce5294>
+      text: compactionSummary,
+    </content_md5_b1b1378ef3cc4698745759549fce5294>
+  </update_md5_b1b1378ef3cc4698745759549fce5294>
+  <update_md5_f58214b66e0ea1374986f220d493084d name="compacted_page_regression_test" md5="f58214b66e0ea1374986f220d493084d" size="1541">
+    <file>packages/opencode/test/session/compaction.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>describe(&quot;session.compaction.prune&quot;, () =&gt; {</find_text>
+    <semantics>Add a regression proving limited compacted pages retain the compaction boundary and summary instead of returning only the trimmed tail.</semantics>
+    <content_md5_f58214b66e0ea1374986f220d493084d>
+      describe(&quot;MessageV2.pageCompacted&quot;, () =&gt; {
+        it.live(
+          &quot;keeps compaction boundary and summary in limited pages&quot;,
+          provideTmpdirInstance((dir) =&gt;
+            Effect.gen(function* () {
+              const compact = yield* SessionCompaction.Service
+              const ssn = yield* SessionNs.Service
+              const info = yield* ssn.create({})
+      
+              const older = yield* ssn.updateMessage({
+                id: MessageID.ascending(),
+                role: &quot;user&quot;,
+                sessionID: info.id,
+                agent: &quot;build&quot;,
+                model: ref,
+                time: { created: Date.now() },
+              })
+              yield* ssn.updatePart({
+                id: PartID.ascending(),
+                messageID: older.id,
+                sessionID: info.id,
+                type: &quot;text&quot;,
+                text: &quot;older context&quot;,
+              })
+      
+              const compaction = yield* compact.create({
+                sessionID: info.id,
+                agent: &quot;build&quot;,
+                model: ref,
+                auto: false,
+              })
+              yield* Effect.promise(() =&gt; summaryAssistant(info.id, compaction.id, dir, &quot;summary marker&quot;))
+      
+              for (const text of [&quot;tail one&quot;, &quot;tail two&quot;, &quot;tail three&quot;, &quot;tail four&quot;]) {
+                const msg = yield* ssn.updateMessage({
+                  id: MessageID.ascending(),
+                  role: &quot;user&quot;,
+                  sessionID: info.id,
+                  agent: &quot;build&quot;,
+                  model: ref,
+                  time: { created: Date.now() },
+                })
+                yield* ssn.updatePart({
+                  id: PartID.ascending(),
+                  messageID: msg.id,
+                  sessionID: info.id,
+                  type: &quot;text&quot;,
+                  text,
+                })
+              }
+      
+              const page = yield* MessageV2.pageCompacted({ sessionID: info.id, limit: 3 })
+              expect(page.items).toHaveLength(3)
+              expect(page.items.map((message) =&gt; message.info.id)).toContain(compaction.id)
+              expect(page.items.some((message) =&gt; message.info.role === &quot;assistant&quot; &amp;&amp; message.info.summary)).toBe(true)
+              expect(page.items.some((message) =&gt; message.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;summary marker&quot;))).toBe(true)
+              expect(page.items.at(-1)?.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;tail four&quot;)).toBe(true)
+            }),
+          ),
+        )
+      })
+      
+      describe(&quot;session.compaction.prune&quot;, () =&gt; {
+    </content_md5_f58214b66e0ea1374986f220d493084d>
+  </update_md5_f58214b66e0ea1374986f220d493084d>
+</updates>

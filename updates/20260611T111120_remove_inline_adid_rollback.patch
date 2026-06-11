@@ -1,0 +1,77 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/server/routes/instance/httpapi/session.ts
+@@
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/server/routes/instance/httpapi/session.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/server/routes/instance/httpapi/session.ts.backup_20260611T190713_400120"
+-//   "created_at": "2026-06-11T11:07:13.416489+00:00"
+-//   "backup_hash": "f2bb9a0254beda569e064084f7d213a9"
+-//   "new_hash": "4f30aee4e4ac906e092232f38e627cab"
+-//   "goal_id": "httpapi_messages_use_compacted_page"
+-//   "semantics": "Route limited HTTP API message retrieval through the compacted active-window pager."
+-//   "update_attrs": {"relative_path": "packages/opencode/src/server/routes/instance/httpapi/session.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "const page = MessageV2.page({\n        sessionID: ctx.params.sessionID,\n        limit: ctx.query.limit,\n        before: ctx.query.before,\n      })", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/server/routes/instance/httpapi/session.ts\""
+-// }
+*** Update File: packages/opencode/src/server/routes/instance/session.ts
+@@
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/server/routes/instance/session.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/server/routes/instance/session.ts.backup_20260611T191002_973216"
+-//   "created_at": "2026-06-11T11:10:02.987171+00:00"
+-//   "backup_hash": "ad231c48b43ae6e3f432f35684340749"
+-//   "new_hash": "3fc81c05003de49784181eb8a49c44e4"
+-//   "goal_id": "legacy_route_page_effect_local"
+-//   "semantics": "Introduce a local page effect while restoring route call indentation."
+-//   "update_attrs": {"relative_path": "packages/opencode/src/server/routes/instance/session.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "const page = await runRequest(\n  \"SessionRoutes.messages.page\",\n  c,\n  MessageV2.pageCompacted({\n    sessionID,\n    limit: query.limit,\n    before: query.before,\n  }),\n)", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/server/routes/instance/session.ts\""
+-// }
+*** Update File: packages/opencode/src/session/compaction.ts
+@@
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/session/compaction.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/session/compaction.ts.backup_20260611T191002_634579"
+-//   "created_at": "2026-06-11T11:10:02.648274+00:00"
+-//   "backup_hash": "2356ccf3bd26655ecd9b3e939f0aad4e"
+-//   "new_hash": "a9f7f6a8d5d276760ffeed255961c130"
+-//   "goal_id": "compaction_summary_option_match"
+-//   "semantics": "Use Option.match for summary extraction while restoring block indentation."
+-//   "update_attrs": {"relative_path": "packages/opencode/src/session/compaction.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "// Persist the completed summary assistant (sets finish from processor.stream completion)\nyield* session.updateMessage(processor.message)\nconst storedSummary = yield* session.findMessage(\n  input.sessionID,\n  (message) => message.info.id === processor.message.id,\n)\nconst compactionSummary = Option.isSome(storedSummary) ? (summaryText(storedSummary.value) ?? \"\") : \"\"\n\n// Create synthetic tail cache messages after the summary assistant.", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/session/compaction.ts\""
+-// }
+*** Update File: packages/opencode/src/session/message-v2.ts
+@@
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/session/message-v2.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/session/message-v2.ts.backup_20260611T191002_455230"
+-//   "created_at": "2026-06-11T11:10:02.473413+00:00"
+-//   "backup_hash": "41adc2487e70f2c4f67d45d8cdbff203"
+-//   "new_hash": "c25cd6c60cb54b4fd925cc2942e53869"
+-//   "goal_id": "message_v2_page_cursor_local"
+-//   "semantics": "Introduce a local cursor value while restoring the page return block indentation."
+-//   "update_attrs": {"relative_path": "packages/opencode/src/session/message-v2.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "const tail = slice.at(-1)\n      return {\n      items,\n      more,\n      cursor: more && tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined,\n    }\n  }", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/session/message-v2.ts\""
+-// }
+*** Update File: packages/opencode/test/session/compaction.test.ts
+@@
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/session/compaction.test.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/compaction.test.ts.backup_20260611T190715_801096"
+-//   "created_at": "2026-06-11T11:07:15.826045+00:00"
+-//   "backup_hash": "c847e104eaa018faa1e588e83af89f83"
+-//   "new_hash": "a1c01496bf13c74443f7bcc136f413eb"
+-//   "goal_id": "compacted_page_regression_test"
+-//   "semantics": "Add a regression proving limited compacted pages retain the compaction boundary and summary instead of returning only the trimmed tail."
+-//   "update_attrs": {"relative_path": "packages/opencode/test/session/compaction.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "describe(\"session.compaction.prune\", () => {", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/session/compaction.test.ts\""
+-// }
+*** End Patch

@@ -1,0 +1,18 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/session/compaction.test.ts
+@@
+-        const compaction = yield* compact.create({
++        yield* compact.create({
+           sessionID: info.id,
+           agent: "build",
+           model: ref,
+           auto: false,
+         })
+-        yield* Effect.promise(() => summaryAssistant(info.id, compaction.id, dir, "summary marker"))
++        const compaction = (yield* ssn.messages({ sessionID: info.id })).at(-1)
++        expect(compaction?.info.role).toBe("user")
++        yield* Effect.promise(() => summaryAssistant(info.id, compaction!.info.id, dir, "summary marker"))
+@@
+-        expect(page.items.map((message) => message.info.id)).toContain(compaction.id)
++        expect(page.items.map((message) => message.info.id)).toContain(compaction!.info.id)
+*** End Patch

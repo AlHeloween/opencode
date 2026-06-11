@@ -1,0 +1,32 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/server/routes/instance/httpapi/session.ts
+@@
+   Layer.provide(Todo.defaultLayer),
+   Layer.provide(SessionSummary.defaultLayer),
+ )
+-
+*** Update File: packages/opencode/src/server/routes/instance/session.ts
+@@
+         }),
+     ),
+ )
+-
+*** Update File: packages/opencode/src/session/compaction.ts
+@@
+ )
+ 
+ export * as SessionCompaction from "./compaction"
+-
+*** Update File: packages/opencode/src/session/message-v2.ts
+@@
+ }
+ 
+ export * as MessageV2 from "./message-v2"
+-
+*** Update File: packages/opencode/test/session/compaction.test.ts
+@@
+     expect(result.tokens.cache.write).toBe(300)
+   })
+ })
+-
+*** End Patch

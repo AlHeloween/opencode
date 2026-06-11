@@ -12,41 +12,82 @@ import PROMPT_KIMI from "./prompt/kimi.txt"
 
 import PROMPT_CODEX from "./prompt/codex.txt"
 import PROMPT_TRINITY from "./prompt/trinity.txt"
+import PROMPT_COPILOT_GPT_5 from "./prompt/copilot-gpt-5.txt"
 import type { Provider } from "@/provider/provider"
 import type { Agent } from "@/agent/agent"
 import { Permission } from "@/permission"
 import { Skill } from "@/skill"
 
-export function provider(model: Provider.Model) {
-  if (model.api.id.includes("gpt-4") || model.api.id.includes("o1") || model.api.id.includes("o3"))
-    return [PROMPT_BEAST]
-  if (model.api.id.includes("gpt")) {
-    if (model.api.id.includes("codex")) {
-      return [PROMPT_CODEX]
+interface PromptEntry {
+  models: string[]
+  family: string
+  filename: string
+  content: string
+}
+
+export function parseFrontmatter(raw: string): { models: string[]; family: string; content: string } {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/)
+  if (!match) return { models: ["*"], family: "General", content: raw }
+  const yaml = match[1]!
+  const content = raw.slice(match[0].length)
+  const models: string[] = []
+  let family = "General"
+  for (const line of yaml.split("\n")) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith("-")) {
+      models.push(trimmed.replace(/^-\s*/, "").replace(/^"(.*)"$/, "$1").trim())
+    } else if (trimmed.startsWith("family:")) {
+      family = trimmed.replace(/^family:\s*/, "").trim()
     }
-    return [PROMPT_GPT]
   }
-  if (model.api.id.includes("gemini-")) return [PROMPT_GEMINI]
-  if (model.api.id.includes("claude")) return [PROMPT_ANTHROPIC]
-  if (model.api.id.includes("deepseek")) return [PROMPT_ANTHROPIC]
-  if (model.api.id.toLowerCase().includes("trinity")) return [PROMPT_TRINITY]
-  if (model.api.id.toLowerCase().includes("kimi")) return [PROMPT_KIMI]
-  return [PROMPT_DEFAULT]
+  if (models.length === 0) models.push("*")
+  return { models, family, content }
+}
+
+const PROMPT_REGISTRY: PromptEntry[] = [
+  { ...parseFrontmatter(PROMPT_ANTHROPIC), filename: "anthropic.txt" },
+  { ...parseFrontmatter(PROMPT_BEAST), filename: "beast.txt" },
+  { ...parseFrontmatter(PROMPT_CODEX), filename: "codex.txt" },
+  { ...parseFrontmatter(PROMPT_GEMINI), filename: "gemini.txt" },
+  { ...parseFrontmatter(PROMPT_GPT), filename: "gpt.txt" },
+  { ...parseFrontmatter(PROMPT_KIMI), filename: "kimi.txt" },
+  { ...parseFrontmatter(PROMPT_TRINITY), filename: "trinity.txt" },
+  { ...parseFrontmatter(PROMPT_DEFAULT), filename: "default.txt" },
+  { ...parseFrontmatter(PROMPT_COPILOT_GPT_5), filename: "copilot-gpt-5.txt" },
+]
+
+function resolvePrompt(model: Provider.Model): PromptEntry {
+  const id = model.api.id.toLowerCase()
+  let best: PromptEntry | undefined
+  let bestLen = 0
+
+  for (const entry of PROMPT_REGISTRY) {
+    for (const pattern of entry.models) {
+      if (pattern === "*") continue
+      if (id.includes(pattern.toLowerCase()) && pattern.length > bestLen) {
+        best = entry
+        bestLen = pattern.length
+      }
+    }
+  }
+
+  if (best) return best
+
+  const fallback = PROMPT_REGISTRY.find((e) => e.models.includes("*"))
+  if (fallback) return fallback
+  throw new Error("No prompt matches and no wildcard fallback in registry")
+}
+
+export function provider(model: Provider.Model) {
+  return [resolvePrompt(model).content]
 }
 
 export function providerName(model: Provider.Model) {
-  if (model.api.id.includes("gpt-4") || model.api.id.includes("o1") || model.api.id.includes("o3"))
-    return "beast.txt"
-  if (model.api.id.includes("gpt")) {
-    if (model.api.id.includes("codex")) return "codex.txt"
-    return "gpt.txt"
-  }
-  if (model.api.id.includes("gemini-")) return "gemini.txt"
-  if (model.api.id.includes("claude")) return "anthropic.txt"
-  if (model.api.id.includes("deepseek")) return "anthropic.txt"
-  if (model.api.id.toLowerCase().includes("trinity")) return "trinity.txt"
-  if (model.api.id.toLowerCase().includes("kimi")) return "kimi.txt"
-  return "default.txt"
+  return resolvePrompt(model).filename
+}
+
+export function promptFamily(model: Provider.Model) {
+  return resolvePrompt(model).family
 }
 
 export interface Interface {
@@ -86,9 +127,10 @@ export const layer = Layer.effect(
     return Service.of({
       environment(model) {
         const project = Instance.project
+        const family = resolvePrompt(model).family
         return [
           [
-            `You are powered by the model named ${model.api.id}. The exact model ID is ${model.providerID}/${model.api.id}`,
+            `You are a ${family} coding assistant.`,
             `Here is some useful information about the environment you are running in:`,
             `<env>`,
             `  Working directory: ${Instance.directory}`,

@@ -402,9 +402,14 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         fullSyncedSessions.clear()
         syncedWorkspace = workspace
       }
-      const sessionListPromise = sdk.client.session
-        .list({})
-        .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id)))
+      const projectPromise = project.sync()
+      // session.list depends on project.sync() populating projectWorktrees.
+      // If called in parallel, listGlobal() sees empty worktrees → zero sessions.
+      const sessionListPromise = projectPromise.then(() =>
+        sdk.client.session
+          .list({})
+          .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id))),
+      )
 
       // blocking - include session.list when continuing a session
       const providersPromise = sdk.client.config.providers({ workspace }, { throwOnError: true })
@@ -415,7 +420,6 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         .catch(() => emptyConsoleState)
       const agentsPromise = sdk.client.app.agents({ workspace }, { throwOnError: true })
       const configPromise = sdk.client.config.get({ workspace }, { throwOnError: true })
-      const projectPromise = project.sync()
       const blockingRequests: Promise<unknown>[] = [
         providersPromise,
         providerListPromise,

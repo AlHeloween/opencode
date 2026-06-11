@@ -27,6 +27,9 @@ let errorLogger: AsyncLogger | undefined
 let perRequestLogger: PerRequestLogger | undefined
 let debugConfig: ResolvedDebugConfig | null = null
 
+/** Previous request body for per-request diff comparison. */
+let prevRequestBody: { requestId: string; timestamp: number; body: string } | undefined
+
 export function setDebugConfig(config: ResolvedDebugConfig): void {
   debugConfig = config
   if (config.perRequest && !perRequestLogger && loggingEnabled) {
@@ -127,6 +130,78 @@ function writeLog(entry: Record<string, unknown>): void {
 function writeErrorLog(entry: Record<string, unknown>): void {
   if (!loggingEnabled || !errorLogger) return
   errorLogger.log(entry)
+}
+
+/** Compute a line-based unified diff between two strings.
+  * Returns git-format diff with ---/+++ headers and hunks. */
+function unifiedDiff(prev: string, curr: string, prevLabel: string, currLabel: string): string {
+  const pLines = prev.split("\n")
+  const cLines = curr.split("\n")
+  const out: string[] = []
+
+  out.push(`--- ${prevLabel}`)
+  out.push(`+++ ${currLabel}`)
+
+  // Count changes for the stats line
+  let added = 0
+  let removed = 0
+  const hunkLines: string[] = []
+  let i = 0
+  let j = 0
+
+  while (i < pLines.length || j < cLines.length) {
+    if (i < pLines.length && j < cLines.length && pLines[i] === cLines[j]) {
+      hunkLines.push(` ${pLines[i]}`)
+      i++
+      j++
+      continue
+    }
+
+    // Find next sync point within a window
+    let syncP = -1
+    let syncC = -1
+    const window = 30
+    for (let si = i; si < Math.min(i + window, pLines.length) && syncP === -1; si++) {
+      for (let sj = j; sj < Math.min(j + window, cLines.length); sj++) {
+        if (pLines[si] === cLines[sj]) {
+          syncP = si
+          syncC = sj
+          break
+        }
+      }
+    }
+
+    if (syncP >= 0) {
+      for (let k = i; k < syncP; k++) {
+        hunkLines.push(`-${pLines[k]}`)
+        removed++
+      }
+      for (let k = j; k < syncC; k++) {
+        hunkLines.push(`+${cLines[k]}`)
+        added++
+      }
+      i = syncP
+      j = syncC
+    } else {
+      for (let k = i; k < pLines.length; k++) {
+        hunkLines.push(`-${pLines[k]}`)
+        removed++
+      }
+      for (let k = j; k < cLines.length; k++) {
+        hunkLines.push(`+${cLines[k]}`)
+        added++
+      }
+      break
+    }
+  }
+
+  out.push(`@@ -0,0 +0,0 @@ ${added} added, ${removed} removed, ${Math.round((added + removed) / Math.max(1, added + removed + hunkLines.filter(l => l.startsWith(" ")).length) * 100)}% changed`)
+  out.push(...hunkLines.slice(0, 100)) // Cap at 100 lines to keep files manageable
+  if (hunkLines.length > 100) {
+    out.push(`... (${hunkLines.length - 100} more lines omitted)`)
+  }
+
+  return out.join("\n")
 }
 
 function bodyRequestsStream(body: RequestInit["body"] | undefined): boolean {
@@ -341,6 +416,28 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
         headers: sanitizedLogHeaders,
         ...(rawBody && { body: rawBody, bodySize: rawBody.length }),
       })
+
+      // Write request-to-request git-format diff as a separate .diff file
+      if (rawBody && prevRequestBody) {
+        const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
+        const diffDir = path.join(logDir, "per-request")
+        fs.mkdirSync(diffDir, { recursive: true })
+        const d = new Date(startTime)
+        const pad = (n: number, len = 2) => String(n).padStart(len, "0")
+        const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
+          `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
+        const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
+        const diffPath = path.join(diffDir, `${iso}-${sanitizedId}.diff`)
+        const diffLabel = (id: string, ts: number) => `${id} ${new Date(ts).toISOString()}`
+        const diffContent = unifiedDiff(
+          prevRequestBody.body,
+          rawBody,
+          diffLabel(prevRequestBody.requestId, prevRequestBody.timestamp),
+          diffLabel(requestId, startTime),
+        )
+        fs.writeFileSync(diffPath, diffContent + "\n")
+      }
+      prevRequestBody = { requestId, timestamp: startTime, body: rawBody ?? "" }
     }
 
     if (Store.isCircuitBreakerOpen(routeKey)) {

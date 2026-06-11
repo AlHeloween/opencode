@@ -471,6 +471,20 @@ export function projectTransaction<T>(
   }
 }
 
+/** Reclaim WAL file space by checkpointing all frames into the main database
+  * and truncating the WAL file to zero bytes.
+  * Safe to call at any time — blocks until the write lock is acquired. */
+export function walCheckpointTruncate(db: DrizzleClient): void {
+  db.run("PRAGMA wal_checkpoint(TRUNCATE)")
+}
+
+/** Rebuild the entire database file to reclaim disk space from deleted rows.
+  * Requires exclusive database access — blocks until all other connections release their locks.
+  * After heavy session deletion, this can significantly reduce the database file size. */
+export function vacuum(db: DrizzleClient): void {
+  db.run("VACUUM")
+}
+
 export * as Database from "./db"
 
 // ADID_ROLLBACK (from adm.exe)

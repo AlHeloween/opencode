@@ -1,5 +1,6 @@
 import type { Argv } from "yargs"
 import { spawn } from "child_process"
+import { statSync } from "fs"
 import { Database } from "@/storage/db"
 import { Database as BunDatabase } from "bun:sqlite"
 import { UI } from "../ui"
@@ -9,6 +10,12 @@ import path from "path"
 
 function resolveProjectDbPath(cwd: string): string {
   return Database.getProjectDbPath(cwd)
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 const QueryCommand = cmd({
@@ -62,6 +69,47 @@ const QueryCommand = cmd({
   },
 })
 
+const CompactCommand = cmd({
+  command: "compact",
+  describe: "reclaim disk space by vacuuming the database and checkpointing the WAL",
+  builder: (yargs: Argv) => {
+    return yargs.option("dir", {
+      type: "string",
+      describe: "Project directory (defaults to current working directory)",
+    })
+  },
+  handler: (args: { dir?: string }) => {
+    const cwd = args.dir ?? process.cwd()
+    const dbPath = resolveProjectDbPath(cwd)
+
+    let statBefore: ReturnType<typeof statSync>
+    try {
+      statBefore = statSync(dbPath)
+    } catch {
+      UI.error(`Database not found at ${dbPath}`)
+      process.exit(1)
+    }
+
+    const db = new BunDatabase(dbPath)
+    try {
+      db.run("PRAGMA wal_checkpoint(TRUNCATE)")
+      db.run("VACUUM")
+    } catch (err) {
+      UI.error(errorMessage(err))
+      process.exit(1)
+    } finally {
+      db.close()
+    }
+
+    const statAfter = statSync(dbPath)
+    const saved = statBefore.size - statAfter.size
+    const pct = statBefore.size > 0 ? ((saved / statBefore.size) * 100).toFixed(1) : "0.0"
+    UI.println(
+      `Compacted: ${formatBytes(statBefore.size)} → ${formatBytes(statAfter.size)} (${formatBytes(Math.abs(saved))} ${saved >= 0 ? "reclaimed" : "larger"}, ${pct}%)`,
+    )
+  },
+})
+
 const PathCommand = cmd({
   command: "path",
   describe: "print the project database path",
@@ -81,7 +129,7 @@ export const DbCommand = cmd({
   command: "db",
   describe: "database tools",
   builder: (yargs: Argv) => {
-    return yargs.command(QueryCommand).command(PathCommand).demandCommand()
+    return yargs.command(QueryCommand).command(PathCommand).command(CompactCommand).demandCommand()
   },
   handler: () => {},
 })

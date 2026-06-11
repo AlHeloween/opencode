@@ -422,7 +422,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         agentsPromise,
         configPromise,
         projectPromise,
-        ...(args.continue ? [sessionListPromise] : []),
+        sessionListPromise,
       ]
 
       await Promise.all(blockingRequests)
@@ -432,7 +432,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const consoleStateResponse = consoleStatePromise
           const agentsResponse = agentsPromise.then((x) => x.data ?? [])
           const configResponse = configPromise.then((x) => x.data!)
-          const sessionListResponse = args.continue ? sessionListPromise : undefined
+          const sessionListResponse = sessionListPromise
 
           return Promise.all([
             providersResponse,
@@ -440,7 +440,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             consoleStateResponse,
             agentsResponse,
             configResponse,
-            ...(sessionListResponse ? [sessionListResponse] : []),
+            sessionListResponse,
           ]).then((responses) => {
             const providers = responses[0]
             const providerList = responses[1]
@@ -464,7 +464,6 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           if (store.status !== "complete") setStore("status", "partial")
           // non-blocking
           void Promise.all([
-            ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
             consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
             sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
             sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),

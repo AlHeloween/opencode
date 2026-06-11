@@ -124,7 +124,11 @@ export function makePerRequest(input: { dir: string }): PerRequestLogger {
       const ts = (entry.timestamp as number) ?? Date.now()
       const reqId = (entry.requestId as string) ?? "unknown"
       const sanitized = String(reqId).replace(/[^a-zA-Z0-9_-]/g, "_")
-      const fileName = `${ts}_${sanitized}.json`
+      const d = new Date(ts)
+      const pad = (n: number, len = 2) => String(n).padStart(len, "0")
+      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
+        `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
+      const fileName = `${iso}-${sanitized}.json`
       const filePath = path.join(dir, fileName)
 
       const write = ensureDir.then(() =>

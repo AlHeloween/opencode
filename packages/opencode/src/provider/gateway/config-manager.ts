@@ -170,7 +170,9 @@ export async function writeConfigFile(filePath: string, config: GatewayConfig): 
 // gateway.logging.enabled: Enable gateway request logging. Default: false.
 // gateway.logging.format: Log format - "json" or "text". Default: "json".
 // gateway.logging.logBodies: Include request/response bodies in logs. Default: false.
-// gateway.logging.maxBodySize: Max body size in bytes to include in logs. Default: 10000.
+// gateway.logging.perRequest: Write each request to a separate JSON file under
+//   the per-request/ log subdirectory. Filename: {datetime-ms}-{requestId}.json.
+//   Full body included when logBodies is also enabled. Default: false.
 //
 // PROVIDER SETTINGS
 // -----------------

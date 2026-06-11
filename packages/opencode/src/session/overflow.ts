@@ -25,3 +25,19 @@ export function isOverflow(input: { cfg: Config.Info; tokens: MessageV2.Assistan
     input.tokens.total || input.tokens.input + input.tokens.output + input.tokens.cache.read + input.tokens.cache.write
   return count >= usable(input)
 }
+
+/** Estimate overflow from actual message content, not stored token fields.
+  * Avoids synthetic-zero-token blind spot from compaction tail copies. */
+export function isOverflowFromContent(input: {
+  cfg: Config.Info
+  msgs: MessageV2.WithParts[]
+  model: Provider.Model
+  outputTokenMax?: number
+}) {
+  if (input.cfg.compaction?.auto === false) return false
+  if (input.model.limit.context === 0) return false
+  if (input.msgs.length === 0) return false
+
+  const count = Math.ceil(JSON.stringify(input.msgs).length / 4)
+  return count >= usable(input)
+}

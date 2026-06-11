@@ -13,6 +13,7 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
+import { isOverflowFromContent } from "./overflow"
 import { CacheControl } from "./cache-control"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
@@ -1122,6 +1123,9 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         const slog = elog.with({ sessionID })
         let structured: unknown | undefined
         let step = 0
+        /** Cached model-ready messages from previous loop iteration.
+          * Reused when the MD5 fingerprint is stable (DeepSeek KV cache hit). */
+        let modelMsgsCache: unknown = undefined
         const session = yield* sessions.get(sessionID)
 
         while (true) {
@@ -1210,9 +1214,9 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           if (
             lastFinished &&
             lastFinished.summary !== true &&
-            (yield* compaction.isOverflow({ tokens: lastFinished.tokens, model }))
+            isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true })
+            yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true, overflow: true })
             continue
           }
 
@@ -1324,12 +1328,11 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               }
             }
 
-            const [skills, env, instructions, rules, modelMsgs] = yield* Effect.all([
+            const [skills, env, instructions, rules] = yield* Effect.all([
               sys.skills(agent),
               Effect.sync(() => sys.environment(model)),
               instruction.system().pipe(Effect.orDie),
               instruction.rules().pipe(Effect.orDie),
-              MessageV2.toModelMessagesEffect(msgs, model),
             ])
             // Session ID as first system message for per-session cache namespace
             const sessionIdBanner = `[session: ${sessionID}]`
@@ -1337,8 +1340,10 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
-            // Pre-send cache chain audit: compare current request fingerprint with previous.
-            // Logs [cache:broken] or [cache:stable] before the request hits DeepSeek.
+            // Compute MD5 fingerprint BEFORE converting messages — content-based,
+            // detects cache breaks from the DeepSeek KV cache research.
+            // When the fingerprint matches, DeepSeek's KV cache hits — we can
+            // skip toModelMessagesEffect and reuse the cached model messages.
             const currentFP = CacheControl.requestFingerprint(system, msgs, {
               sessionId: sessionID,
               modelId: model.id,
@@ -1347,10 +1352,21 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id)
             const audit = CacheControl.auditCache(prevFP, currentFP, agent.name)
             if (!audit.cacheStable) {
-              // Log at warn level to surface in bug reports and diagnostics
               log.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`)
             }
             CacheControl.storePrevFingerprint(sessionID, model.id, currentFP)
+
+            // Reuse cached model messages when fingerprint is stable.
+            // Invalidation: cleared when the loop exits (break) so the next
+            // turn starts with a fresh conversion. Also cleared on cache break.
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            const modelMsgs =
+              audit.cacheStable && modelMsgsCache
+                ? (modelMsgsCache as ReturnType<typeof MessageV2.toModelMessagesEffect> extends Effect.Effect<infer A, any, any> ? A : never)
+                : yield* MessageV2.toModelMessagesEffect(msgs, model)
+            if (audit.cacheStable || !modelMsgsCache) {
+              modelMsgsCache = modelMsgs
+            }
 
             const result = yield* handle.process({
               user: lastUser,

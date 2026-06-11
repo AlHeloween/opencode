@@ -1,5 +1,5 @@
 import type { Argv } from "yargs"
-import { spawn } from "child_process"
+import { createInterface } from "readline"
 import { statSync } from "fs"
 import { Database } from "@/storage/db"
 import { Database as BunDatabase } from "bun:sqlite"
@@ -62,10 +62,38 @@ const QueryCommand = cmd({
       db.close()
       return
     }
-    const child = spawn("sqlite3", [dbPath], {
-      stdio: "inherit",
-    })
-    await new Promise((resolve) => child.on("close", resolve))
+    const db = new BunDatabase(dbPath, { readonly: true })
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    UI.println(`Connected to ${dbPath}`)
+    UI.println("Enter SQL queries (empty line to exit):")
+    const ask = (): Promise<void> =>
+      new Promise((resolve) => {
+        rl.question("sql> ", (line: string) => {
+          const trimmed = line.trim()
+          if (!trimmed) {
+            rl.close()
+            db.close()
+            resolve()
+            return
+          }
+          try {
+            const result = db.query(trimmed).all() as Record<string, unknown>[]
+            if (result.length === 0) {
+              UI.println("(empty)")
+            } else {
+              const keys = Object.keys(result[0])
+              UI.println(keys.join("\t"))
+              for (const row of result) {
+                UI.println(keys.map((k) => row[k]).join("\t"))
+              }
+            }
+          } catch (err) {
+            UI.error(errorMessage(err))
+          }
+          resolve(ask())
+        })
+      })
+    await ask()
   },
 })
 

@@ -402,6 +402,23 @@ export const layer: Layer.Layer<
         cfg,
         model,
       })
+      // Store tail count on the compaction part so filterCompactedEffect
+      // can include original tail messages without synthetic copies.
+      if (compactionPart && selected.tail.length > 0) {
+        compactionPart.tail_count = selected.tail.length
+        yield* session.updatePart(compactionPart)
+      }
+      // Invalidate previous compaction's tail_count since this compaction
+      // subsumes its tail (prevents double-counting in filterCompactedEffect).
+      if (prior.length > 0) {
+        const prevUserIdx = prior.at(-1)!.userIndex
+        const prevMsg = history[prevUserIdx]
+        const prevPart = prevMsg?.parts.find((p) => p.type === "compaction")
+        if (prevPart) {
+          ;(prevPart as { tail_count?: number }).tail_count = 0
+          yield* session.updatePart(prevPart)
+        }
+      }
       // Allow plugins to inject context or replace compaction prompt.
       const compacting = yield* plugin.trigger(
         "experimental.session.compacting",
@@ -499,59 +516,6 @@ export const layer: Layer.Layer<
         onNone: () => "",
         onSome: (message) => summaryText(message) ?? "",
       })
-
-      // Create synthetic tail cache messages after the summary assistant.
-      if (selected.tail.length > 0) {
-        let lastSynUserId: MessageID | undefined
-        for (const original of selected.tail) {
-          if (original.info.role === "user") {
-            const synMsg = yield* session.updateMessage({
-              id: MessageID.ascending(),
-              role: "user",
-              sessionID: input.sessionID,
-              time: { created: Date.now() },
-              agent: original.info.agent,
-              model: original.info.model,
-            })
-            lastSynUserId = synMsg.id
-            for (const part of original.parts) {
-              if (part.type === "compaction" || part.type === "subtask") continue
-              yield* session.updatePart({
-                ...part,
-                id: PartID.ascending(),
-                messageID: synMsg.id,
-                sessionID: input.sessionID,
-              })
-            }
-          } else if (original.info.role === "assistant") {
-            const synMsg = yield* session.updateMessage({
-              id: MessageID.ascending(),
-              role: "assistant",
-              parentID: lastSynUserId ?? input.parentID,
-              sessionID: input.sessionID,
-              mode: original.info.mode,
-              agent: original.info.agent,
-              summary: false,
-              finish: original.info.finish,
-              cost: 0,
-              time: { created: Date.now() },
-              path: original.info.path,
-              modelID: original.info.modelID,
-              providerID: original.info.providerID,
-              tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-            })
-            for (const part of original.parts) {
-              if (part.type === "compaction" || part.type === "subtask") continue
-              yield* session.updatePart({
-                ...part,
-                id: PartID.ascending(),
-                messageID: synMsg.id,
-                sessionID: input.sessionID,
-              })
-            }
-          }
-        }
-      }
 
       if (result === "continue" && input.auto) {
         if (replay) {

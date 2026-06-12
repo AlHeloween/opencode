@@ -1094,7 +1094,7 @@ describe("session.compaction.process", () => {
     })
   })
 
-  test("creates synthetic tail messages for retained recent turns", async () => {
+  test("preserves original tail messages without synthetic copies", async () => {
     await using tmp = await tmpdir()
     await Instance.provide({
       directory: tmp.path,
@@ -1131,20 +1131,24 @@ describe("session.compaction.process", () => {
             ),
           )
 
-          // Synthetic tail messages should be in the DB after compaction
+          // Only the summary assistant is added (no synthetic tail copies)
           const all = await svc.messages({ sessionID: session.id })
-          // Expect more messages than before (original + summary assistant + 2 synthetic tail)
-          expect(all.length).toBe(msgsBefore.length + 3)
-          // The synthetic tail copies should contain "second" and "third"
-          const tailCopies = all.slice(msgsBefore.length + 1) // skip original + summary assistant
-          const tailTexts = tailCopies
+          expect(all.length).toBe(msgsBefore.length + 1)
+
+          // CompactionPart stores tail_count for filterCompactedEffect
+          const part = await lastCompactionPart(session.id)
+          expect(part?.type).toBe("compaction")
+          expect(part?.tail_count).toBe(2)
+
+          // filterCompacted includes original tail messages by content
+          const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
+          const userTexts = filtered
             .filter((m) => m.info.role === "user")
-            .map((m) => m.parts.find((p) => p.type === "text" && "text" in p))
-            .filter(Boolean)
+            .flatMap((m) => m.parts.filter((p) => p.type === "text" && "text" in p))
             .map((p: any) => p.text)
-          expect(tailTexts).toContain("second")
-          expect(tailTexts).toContain("third")
-          expect(tailTexts).not.toContain("first")
+          expect(userTexts).toContain("second")
+          expect(userTexts).toContain("third")
+          expect(userTexts).not.toContain("first")
         } finally {
           await rt.dispose()
         }

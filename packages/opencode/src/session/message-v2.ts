@@ -227,6 +227,7 @@ export const CompactionPart = Schema.Struct({
   type: Schema.Literal("compaction"),
   auto: Schema.Boolean,
   overflow: Schema.optional(Schema.Boolean),
+  tail_count: Schema.optional(Schema.Number),
 })
   .annotate({ identifier: "CompactionPart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -1139,13 +1140,32 @@ export function get(input: { sessionID: SessionID; messageID: MessageID }): With
 export function filterCompacted(msgs: Iterable<WithParts>) {
   const result = [] as WithParts[]
   const completed = new Set<string>()
+  let tailRemaining = 0
+  let foundFirst = false
   for (const msg of msgs) {
     result.push(msg)
     // Accept completed or errored compaction summaries as valid boundaries.
     if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish)
       completed.add(msg.info.parentID)
-    if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction"))
-      break
+    if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction")) {
+      if (!foundFirst) {
+        const compactionPart = msg.parts.find((part) => part.type === "compaction")
+        tailRemaining = (compactionPart as { tail_count?: number })?.tail_count ?? 0
+        foundFirst = true
+        if (tailRemaining <= 0) break
+      }
+      continue // boundary message itself is not a tail message
+    }
+    if (tailRemaining > 0) {
+      // Only decrement for real content messages, not compaction infrastructure
+      if (
+        !(msg.info.role === "user" && msg.parts.some((p) => p.type === "compaction")) &&
+        !(msg.info.role === "assistant" && msg.info.summary)
+      ) {
+        tailRemaining--
+      }
+      if (tailRemaining === 0) break
+    }
   }
   result.reverse()
   return result
@@ -1156,6 +1176,8 @@ export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: Ses
   let before: string | undefined
   const result: WithParts[] = []
   const completed = new Set<string>()
+  let tailRemaining = 0
+  let foundFirst = false
 
   outer: while (true) {
     const next = page({ sessionID, limit: size, before })
@@ -1172,8 +1194,25 @@ export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: Ses
       // compaction user message with the compaction part type is the real boundary.
       if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish)
         completed.add(msg.info.parentID)
-      if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction"))
-        break outer
+      if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction")) {
+        if (!foundFirst) {
+          const compactionPart = msg.parts.find((part) => part.type === "compaction")
+          tailRemaining = (compactionPart as { tail_count?: number })?.tail_count ?? 0
+          foundFirst = true
+          if (tailRemaining <= 0) break outer
+        }
+        continue // boundary message itself is not a tail message
+      }
+      if (tailRemaining > 0) {
+        // Only decrement for real content messages, not compaction infrastructure
+        if (
+          !(msg.info.role === "user" && msg.parts.some((p) => p.type === "compaction")) &&
+          !(msg.info.role === "assistant" && msg.info.summary)
+        ) {
+          tailRemaining--
+        }
+        if (tailRemaining === 0) break outer
+      }
     }
 
     if (!next.more || !next.cursor) break

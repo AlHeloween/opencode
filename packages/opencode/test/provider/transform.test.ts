@@ -1,6 +1,59 @@
 import { describe, expect, test } from "bun:test"
+import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
+
+const createModel = (limit: Provider.Model["limit"]): Provider.Model => ({
+  id: ModelID.zod.parse("test/model"),
+  providerID: ProviderID.zod.parse("test"),
+  api: {
+    id: "model",
+    url: "https://example.com",
+    npm: "@ai-sdk/openai-compatible",
+  },
+  name: "Test Model",
+  capabilities: {
+    temperature: true,
+    reasoning: false,
+    attachment: false,
+    toolcall: true,
+    input: { text: true, audio: false, image: false, video: false, pdf: false },
+    output: { text: true, audio: false, image: false, video: false, pdf: false },
+    interleaved: false,
+  },
+  cost: {
+    input: 0,
+    output: 0,
+    cache: { read: 0, write: 0 },
+  },
+  limit,
+  status: "active",
+  options: {},
+  headers: {},
+  release_date: "2026-06-12",
+})
+
+describe("ProviderTransform.maxOutputTokens", () => {
+  test("returns native output for normal models", () => {
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 200_000, output: 8_192 }))).toBe(8_192)
+  })
+
+  test("caps output when native output equals context", () => {
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(20_000)
+  })
+
+  test("caps output when native output exceeds context", () => {
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(19_200)
+  })
+
+  test("preserves native output when context is zero", () => {
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 262_000 }))).toBe(262_000)
+  })
+
+  test("respects explicit output override", () => {
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }), 4_096)).toBe(4_096)
+  })
+})
 
 describe("ProviderTransform.options - setCacheKey", () => {
   const sessionID = "test-session-123"

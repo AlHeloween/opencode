@@ -1,33 +1,62 @@
 # Application Workflow Diagram
 
+## Provider Request Output Cap Flow
+
+1. `packages/opencode/src/provider/transform.ts` / `maxOutputTokens`
+   - Input: provider model limits and optional explicit output override.
+   - Output: output token cap for provider request generation.
+   - Logic: explicit override wins; normal native output limits are preserved; pathological `output >= context` metadata is capped to the smaller of native output, default output max, and a context reserve.
+
+2. `packages/opencode/src/session/llm.ts` / request parameter assembly
+   - Input: model, prompt messages, provider options, and session context.
+   - Output: AI SDK stream/generation parameters.
+   - Logic: pass the capped `maxOutputTokens` value to the provider request so input plus output cap does not start from an impossible full-context output claim.
+
+3. `packages/opencode/test/session/llm.test.ts` / qwen-like request capture
+   - Input: `alibaba/qwen-plus` fixture with in-memory `output == context` override.
+   - Output: captured local mock-server request body.
+   - Logic: verify the outgoing OpenAI-compatible `max_tokens` body field is capped below context.
+
+Coverage estimate vs actual codebase: 9%.
+
 ## Session Prompt To Processor Flow
 
-1. `packages/opencode/src/session/prompt.ts` / `SessionPrompt.loop`
+1. `packages/opencode/src/session/overflow.ts` / `usable`
+   - Input: config and provider model limits.
+   - Output: actual-usage threshold derived from explicit input limit or context minus reserved buffer.
+   - Logic: treat `maxOutputTokens` as generation cap only; do not subtract output limit from usage capacity.
+
+2. `packages/opencode/src/session/prompt.ts` / `SessionPrompt.loop`
    - Input: user/session/model/agent state.
    - Output: assistant message or loop break.
    - Logic: build system prompt and model messages, call `SessionProcessor.process`, handle `"stop"` and `"compact"`, and leave cache metrics passive.
 
-2. `packages/opencode/src/session/processor.ts` / `SessionProcessor.process`
+3. `packages/opencode/src/session/processor.ts` / `SessionProcessor.process`
    - Input: `LLM.StreamInput`.
    - Output: `"compact" | "stop" | "continue"`.
    - Logic: stream provider events, update message parts, mark interruptions as aborted, run cleanup, return typed outcome.
 
-3. `packages/opencode/src/session/processor.ts` / `cacheRatio`
+4. `packages/opencode/src/session/processor.ts` / `cacheRatio`
    - Input: token usage with input/cache read/cache write counts.
    - Output: passive cache-read ratio.
    - Logic: compute cache-read share for diagnostics without changing processor control flow.
 
-4. `packages/opencode/src/session/session.ts` / `Session.updateMessage`
+5. `packages/opencode/src/session/session.ts` / `Session.updateMessage`
    - Input: message info.
    - Output: updated message info.
    - Logic: run `MessageV2.Event.Updated`, whose projector persists the message row.
 
-5. `packages/opencode/src/session/compaction.ts` / compaction continuation
+6. `packages/opencode/src/session/compaction.ts` / `select`
+   - Input: ordered messages, config, model.
+   - Output: `{ head, tail }` where `head` is summarized and `tail` is preserved.
+   - Logic: force the newest real turn into `tail`, then optionally keep older turns within the preservation budget.
+
+7. `packages/opencode/src/session/compaction.ts` / compaction continuation
    - Input: compaction prompt state and processor result.
    - Output: compacted session continuation or stop.
-   - Logic: retry context-overflow handling and user-driven compaction without stream-stall fallback.
+   - Logic: summarize `head`, store `tail_count`, and preserve the latest turn after the compaction summary.
 
-Coverage estimate vs actual codebase: 6%.
+Coverage estimate vs actual codebase: 7%.
 
 This diagram covers the modified session-processing and compaction path only, not the full opencode runtime.
 

@@ -473,7 +473,7 @@ describe("session.compaction.isOverflow", () => {
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
         const model = createModel({ context: 100_000, output: 32_000 })
-        const tokens = { input: 75_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
+        const tokens = { input: 85_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
         expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
       }),
     ),
@@ -497,7 +497,7 @@ describe("session.compaction.isOverflow", () => {
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
         const model = createModel({ context: 100_000, output: 32_000 })
-        const tokens = { input: 60_000, output: 10_000, reasoning: 0, cache: { read: 10_000, write: 0 } }
+        const tokens = { input: 75_000, output: 10_000, reasoning: 0, cache: { read: 5_000, write: 0 } }
         expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
       }),
     ),
@@ -539,82 +539,65 @@ describe("session.compaction.isOverflow", () => {
     ),
   )
 
-  // ─── Bug reproduction tests ───────────────────────────────────────────
-  // These tests demonstrate that when limit.input is set, isOverflow()
-  // does not subtract any headroom for the next model response. This means
-  // compaction only triggers AFTER we've already consumed the full input
-  // budget, leaving zero room for the next API call's output tokens.
-  //
-  // Compare: without limit.input, usable = context - output (reserves space).
-  // With limit.input, usable = limit.input (reserves nothing).
-  //
   // Related issues: #10634, #8089, #11086, #12621
   // Open PRs: #6875, #12924
 
   it.live(
-    "BUG: no headroom when limit.input is set — compaction should trigger near boundary but does not",
+    "reserves headroom when limit.input is set",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
-        // Simulate Claude with prompt caching: input limit = 200K, output limit = 32K
         const model = createModel({ context: 200_000, input: 200_000, output: 32_000 })
-
-        // We've used 198K tokens total. Only 2K under the input limit.
-        // On the next turn, the full conversation (198K) becomes input,
-        // plus the model needs room to generate output — this WILL overflow.
         const tokens = { input: 180_000, output: 15_000, reasoning: 0, cache: { read: 3_000, write: 0 } }
-        // count = 180K + 3K + 15K = 198K
-        // usable = limit.input = 200K (no output subtracted!)
-        // 198K > 200K = false → no compaction triggered
-
-        // WITHOUT limit.input: usable = 200K - 32K = 168K, and 198K > 168K = true ✓
-        // WITH limit.input: usable = 200K, and 198K > 200K = false ✗
-
-        // With 198K used and only 2K headroom, the next turn will overflow.
-        // Compaction MUST trigger here.
         expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
       }),
     ),
   )
 
   it.live(
-    "BUG: without limit.input, same token count correctly triggers compaction",
+    "uses context headroom when limit.input is absent",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
-        // Same model but without limit.input — uses context - output instead
         const model = createModel({ context: 200_000, output: 32_000 })
-
-        // Same token usage as above
         const tokens = { input: 180_000, output: 15_000, reasoning: 0, cache: { read: 3_000, write: 0 } }
-        // count = 198K
-        // usable = context - output = 200K - 32K = 168K
-        // 198K > 168K = true → compaction correctly triggered
 
         const result = yield* compact.isOverflow({ tokens, model })
-        expect(result).toBe(true) // ← Correct: headroom is reserved
+        expect(result).toBe(true)
       }),
     ),
   )
 
   it.live(
-    "BUG: asymmetry — limit.input model allows 30K more usage before compaction than equivalent model without it",
+    "uses symmetric headroom for equivalent models with and without limit.input",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
-        // Two models with identical context/output limits, differing only in limit.input
         const withInputLimit = createModel({ context: 200_000, input: 200_000, output: 32_000 })
         const withoutInputLimit = createModel({ context: 200_000, output: 32_000 })
-
-        // 170K total tokens — well above context-output (168K) but below input limit (200K)
         const tokens = { input: 166_000, output: 10_000, reasoning: 0, cache: { read: 5_000, write: 0 } }
 
         const withLimit = yield* compact.isOverflow({ tokens, model: withInputLimit })
         const withoutLimit = yield* compact.isOverflow({ tokens, model: withoutInputLimit })
 
-        // Both models have identical real capacity — they should agree:
-        expect(withLimit).toBe(true) // should compact (170K leaves no room for 32K output)
-        expect(withoutLimit).toBe(true) // correctly compacts (170K > 168K)
+        expect(withLimit).toBe(true)
+        expect(withoutLimit).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "does not treat output limit as used context when input limit is absent",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const model = createModel({ context: 262_000, output: 262_000 })
+
+        const small = { input: 100, output: 100, reasoning: 0, cache: { read: 0, write: 0 } }
+        const large = { input: 250_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
+
+        expect(yield* compact.isOverflow({ tokens: small, model })).toBe(false)
+        expect(yield* compact.isOverflow({ tokens: large, model })).toBe(true)
       }),
     ),
   )
@@ -1200,7 +1183,7 @@ describe("session.compaction.process", () => {
     })
   })
 
-  test("falls back to full summary when even one recent turn exceeds preserve token budget", async () => {
+  test("preserves latest turn when it exceeds preserve token budget", async () => {
     await using tmp = await tmpdir({ git: true })
     const stub = llm()
     let captured = ""
@@ -1240,9 +1223,11 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          // All messages fit in budget since tail_turns=1 and the only recent turn exceeds the budget completely
-          // The entire turn is summarized (fallback), no tail kept
-          expect(captured).toContain("yyyy")
+          expect(captured).toContain("first")
+          expect(captured).not.toContain("yyyy")
+
+          const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
+          expect(filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text.includes("yyyy")))).toBe(true)
         } finally {
           await rt.dispose()
         }
@@ -1250,7 +1235,7 @@ describe("session.compaction.process", () => {
     })
   })
 
-  test("falls back to full summary when retained tail media exceeds preserve token budget", async () => {
+  test("preserves latest media turn when it exceeds preserve token budget", async () => {
     await using tmp = await tmpdir({ git: true })
     const stub = llm()
     let captured = ""
@@ -1299,9 +1284,14 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          // Media attachment turn too large for token budget, falls back to full summary
-          expect(captured).toContain("recent image turn")
-          expect(captured).toContain("Attached image/png: big.png")
+          expect(captured).toContain("older")
+          expect(captured).not.toContain("recent image turn")
+          expect(captured).not.toContain("Attached image/png: big.png")
+
+          const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
+          expect(
+            filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text === "recent image turn")),
+          ).toBe(true)
         } finally {
           await rt.dispose()
         }
@@ -1309,7 +1299,7 @@ describe("session.compaction.process", () => {
     })
   })
 
-  test("retains a split turn suffix when a later message fits the preserve token budget", async () => {
+  test("preserves latest turn without splitting it into the summary", async () => {
     await using tmp = await tmpdir({ git: true })
     const stub = llm()
     let captured = ""
@@ -1365,11 +1355,14 @@ describe("session.compaction.process", () => {
 
           const part = await lastCompactionPart(session.id)
           expect(part?.type).toBe("compaction")
-          // Tail should include "keep tail" (small, fits token budget) and exclude the large 2000-char message
-          expect(captured).toContain("zzzz")
+          expect(captured).toContain("older")
+          expect(captured).not.toContain("recent turn")
+          expect(captured).not.toContain("zzzz")
           expect(captured).not.toContain("keep tail")
 
           const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
+          expect(filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text === "recent turn"))).toBe(true)
+          expect(filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text.includes("zzzz")))).toBe(true)
           expect(filtered.some((m) => m.parts.some((p) => p.type === "text" && "text" in p && (p as any).text === "keep tail"))).toBe(true)
         } finally {
           await rt.dispose()

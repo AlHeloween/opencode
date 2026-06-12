@@ -260,7 +260,13 @@ export const layer: Layer.Layer<
       const budget = preserveRecentBudget({ cfg: input.cfg, model: input.model })
       const all = turns(input.messages)
       if (!all.length) return { head: input.messages, tail: [] }
-      const recent = all.slice(-(input.cfg.compaction?.tail_turns ?? Number.MAX_SAFE_INTEGER))
+      const latest = all.at(-1)!
+      const tailTurns = input.cfg.compaction?.tail_turns ?? Number.MAX_SAFE_INTEGER
+      const recent = all.slice(0, -1).slice(-Math.max(0, tailTurns - 1))
+      const latestSize = yield* estimate({
+        messages: input.messages.slice(latest.start, latest.end),
+        model: input.model,
+      })
       const sizes = yield* Effect.forEach(
         recent,
         (turn) =>
@@ -271,8 +277,8 @@ export const layer: Layer.Layer<
         { concurrency: "unbounded" },
       )
 
-      let total = 0
-      let keep: Tail | undefined
+      let total = latestSize
+      let keep: Tail = { start: latest.start, id: latest.id }
       for (let i = recent.length - 1; i >= 0; i--) {
         const turn = recent[i]!
         const size = sizes[i]
@@ -294,7 +300,7 @@ export const layer: Layer.Layer<
         break
       }
 
-      if (!keep || keep.start === 0) return { head: input.messages, tail: [] }
+      if (keep.start === 0) return { head: [], tail: input.messages }
       return {
         head: input.messages.slice(0, keep.start),
         tail: input.messages.slice(keep.start),

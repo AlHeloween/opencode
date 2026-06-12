@@ -117,3 +117,33 @@ Script output:
 - `convertDocument()` against all files in `artifacts/`: non-empty output for `Методические указания по курсовому проекту.pdf`, `Основные требования.pptx`, `Примерное содержание раздела Тестирование.docx`, and `Титульный лист.docx`.
 - `bun test --timeout 30000 -t "rejects text extension files with null bytes" test/tool/read.test.ts`: passed, 2 pass, 126 filtered out (`cmd_runner` run `20260608T143539Z_205c3467`).
 - `bun test --timeout 30000 test/tool/read.test.ts`: passed, 37 pass (`cmd_runner` run `20260608T144234Z_5dafabe4`).
+
+## 2026-06-12 Provider Max Output Cap
+
+Reason: qwen-like model metadata can report native output equal to the full context window, causing provider requests to send an impossible `max_tokens` value when input tokens are also present.
+
+Changes:
+
+- Updated `packages/opencode/src/provider/transform.ts` so `ProviderTransform.maxOutputTokens()` preserves explicit overrides and normal native limits, but caps pathological `output >= context` metadata to a context reserve.
+- Added focused `ProviderTransform.maxOutputTokens()` regression tests in `packages/opencode/test/provider/transform.test.ts`.
+- Updated `plans/20260612_cap_pathological_max_output_tokens.md` and `_development_plan.md` with completed verification.
+
+Script output:
+
+- `bun test --timeout 30000 test/provider/transform.test.ts`: passed, 148 pass (`cmd_runner` run `20260612T074312Z_c0e85514`).
+- `bun typecheck`: passed (`cmd_runner` run `20260612T074327Z_7d464663`).
+
+## 2026-06-12 Qwen Request Cap Verification
+
+Reason: confirm the qwen/openai-compatible LLM request path sends a capped provider `max_tokens` value when model metadata reports native output equal to context.
+
+Changes:
+
+- Added a qwen-like request-body regression test in `packages/opencode/test/session/llm.test.ts` using the existing `alibaba/qwen-plus` fixture with an in-memory `output == context` override.
+- Verified the mock HTTP capture receives `max_tokens == 20000` and less than the model context window.
+- Updated `plans/20260612_qwen_request_cap_e2e_verification.md` and `_development_plan.md` with completed verification.
+
+Script output:
+
+- `bun test --timeout 30000 test/session/llm.test.ts -t "caps max_tokens for qwen-like"`: passed, 3 pass, 178 filtered, 0 fail (`cmd_runner` run `20260612T075720Z_e5b7a91e`).
+- `bun typecheck`: passed (`cmd_runner` run `20260612T075744Z_64d9ca27`).

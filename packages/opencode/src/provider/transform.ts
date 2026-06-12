@@ -22,6 +22,7 @@ function mimeToModality(mime: string): Modality | undefined {
 }
 
 export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
+const OUTPUT_TOKEN_CONTEXT_RESERVE = 20_000
 
 // Maps npm package to the key the AI SDK expects for providerOptions
 function sdkKey(npm: string): string | undefined {
@@ -1116,10 +1117,22 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
   return { [key]: options }
 }
 
-export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number): number {
+export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number, contentTokens?: number): number {
   if (outputTokenMax !== undefined) return outputTokenMax
   const native = model.limit.output
-  if (native > 0) return native
+  const dynamic = contentTokens === undefined ? undefined : Math.max(1, Math.floor(contentTokens * 0.25))
+  if (native > 0) {
+    if (dynamic !== undefined) return Math.min(native, dynamic)
+    if (model.limit.context > 0 && native >= model.limit.context) {
+      return Math.min(
+        native,
+        OUTPUT_TOKEN_MAX,
+        Math.max(1, Math.min(OUTPUT_TOKEN_CONTEXT_RESERVE, Math.floor(model.limit.context * 0.15))),
+      )
+    }
+    return native
+  }
+  if (dynamic !== undefined) return Math.min(OUTPUT_TOKEN_MAX, dynamic)
   return OUTPUT_TOKEN_MAX
 }
 

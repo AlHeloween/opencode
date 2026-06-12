@@ -221,6 +221,7 @@ const live: Layer.Layer<
       const messages = isOpenaiOauth || isWorkflow
         ? input.messages
         : input.messages
+      const contentTokens = Math.ceil(JSON.stringify(messages).length / 4)
 
       const params = yield* plugin.trigger(
         "chat.params",
@@ -237,7 +238,7 @@ const live: Layer.Layer<
             : undefined,
           topP: input.agent.topP ?? ProviderTransform.topP(input.model),
           topK: ProviderTransform.topK(input.model),
-          maxOutputTokens: ProviderTransform.maxOutputTokens(input.model),
+          maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens),
           options,
         },
       )

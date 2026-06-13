@@ -742,6 +742,11 @@ function providerMeta(metadata: Record<string, any> | undefined) {
 /** Module-level conversion cache: avoids re-converting stable messages across calls. */
 const msgConversionCache = new Map<string, UIMessage>()
 
+/** Clear the module-level conversion cache. Intended for test isolation. */
+export function clearConversionCache() {
+  msgConversionCache.clear()
+}
+
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,

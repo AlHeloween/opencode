@@ -2,7 +2,7 @@
 
 **Goal:** Debug KV cache misses by logging unified diffs between consecutive LLM requests. Every diff shows exactly what changed in the system prompt and conversation messages between turns.
 
-**Status:** plan
+**Status:** completed
 
 ---
 
@@ -22,11 +22,24 @@ prompt.ts request assembly
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | What to diff | Formatted text of system + modelMsgs | Exact bytes sent to provider (post-plugin transform) |
-| Diff format | Unified diff (git-compatible) | Human-readable, machine-parseable |
+| Diff format | Section-aware structural diff (META/SYSTEM/MESSAGES) | Compact, section-scoped, human-readable |
 | Baseline | Previous request in same session | Only meaningful to compare same-session consecutive turns |
-| Storage | `{worktree}/diffs/` folder | Not gitignored (debug artifact, user may commit for bug reports) |
+| Storage | `.opencode/data/diffs/` folder | Gitignored, per-project data directory |
 | Default | Enabled | KV cache debugging is critical; minimal perf impact |
-| Max diffs per session | 200 (FIFO) | Prevent unbounded disk growth |
+| Max diffs per session | 200 (FIFO per-model) | Prevent unbounded disk growth |
+
+---
+
+## Bug Discoveries & Fixes
+
+### Bug 1 — Duplicate compaction text (`message-v2.ts:844-849`)
+`toModelMessagesEffect` appended `"What did we do so far?"` as a second text part when encountering a `compaction` part. The first text part already contained the full summary prompt. Fix: compaction parts now `continue` (skip).
+
+### Bug 2 — System array mutated by reference (`prompt.ts`)
+The `system` array was passed by reference to `handle.process()`. The plugin hook in `llm.ts` mutated it in place. `formatRequest` was called AFTER `handle.process()`, capturing post-mutation array with injected conversation content. Fix: `const systemForDiff = [...system]` snapshot before `handle.process()`.
+
+### Bug 3 — `msgConversionCache` test contamination (`message-v2.ts:743`)
+Module-level `Map<string, UIMessage>` keyed by `${messageID}:${modelID}:...`. Test fixtures reuse hardcoded IDs (`"m-user"`, `"m-assistant"`), causing cross-test-cache poisoning (12 of 27 tests failed). Production safe (ascending time-based IDs never collide). Fix: exported `clearConversionCache()`; added `beforeEach` clearing in test suite.
 
 ---
 
@@ -185,11 +198,16 @@ The only overhead is formatting + disk I/O after the request is already assemble
 
 ## Completion Criteria
 
-- [ ] `src/util/unified-diff.ts` extracted from adaptive-client.ts
-- [ ] `adaptive-client.ts` imports from shared utility
-- [ ] `src/session/request-diff.ts` with formatRequest, diffRequest, writeDiff, getPrev/storePrev
-- [ ] `src/config/config.ts` diff_requests boolean (default true)
-- [ ] `src/session/prompt.ts` diff capture in both normal + compaction branches
-- [ ] Tests pass (6 test cases)
-- [ ] Typecheck clean
-- [ ] `index.md` updated with diffs/ folder description
+- [x] `src/util/unified-diff.ts` extracted from adaptive-client.ts (added context-window collapsing)
+- [x] `adaptive-client.ts` imports from shared utility
+- [x] `src/session/request-diff.ts` with section-aware diff (META key-by-key, SYSTEM line-level, MESSAGES hash-based)
+- [x] `src/config/config.ts` diff_requests boolean (default true)
+- [x] `src/session/prompt.ts` diff capture in both normal + compaction branches (systemForDiff snapshot)
+- [x] Tests: `request-diff.test.ts` 18/18 pass
+- [x] Typecheck clean
+- [x] Bug 1 fixed: compaction duplicate text removed
+- [x] Bug 2 fixed: systemForDiff snapshot prevents array mutation
+- [x] Bug 3 fixed: clearConversionCache() with test beforeEach isolation
+- [x] `message-v2.test.ts`: 26/27 pass (1 pre-existing: OpenRouter reasoning + applyCaching)
+- [x] Diffs directory: `.opencode/data/diffs/` (gitignored, per-project)
+- [x] `index.md` updated with diffs/ folder description

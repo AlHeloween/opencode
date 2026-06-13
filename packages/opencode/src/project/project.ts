@@ -1,5 +1,5 @@
 import z from "zod"
-import { and } from "drizzle-orm"
+import { and, ne } from "drizzle-orm"
 import { Database } from "@/storage/db"
 import { eq } from "drizzle-orm"
 import { ProjectTable } from "./project.sql"
@@ -238,7 +238,11 @@ export const layer: Layer.Layer<
 
       const data: DiscoveryResult = yield* Effect.gen(function* () {
         const local = importFromDisk(directory)
-        if (local) {
+        // Only trust a previously-imported project if it was discovered as git.
+        // Non-git projects (vcs: null/fakeVcs) may have been cached before a .git
+        // directory existed — re-check so sessions with the git root-commit
+        // project ID become visible in the session list.
+        if (local && local.vcs === "git") {
           return {
             id: local.id,
             worktree: pathSvc.normalize(directory),
@@ -656,11 +660,17 @@ export function persistDiscovery(result: Info, worktree: string) {
       })
       .run()
 
-    // Migrate orphan sessions from global project to discovered project
+    // Migrate orphan sessions to the discovered project ID.
+    // Covers: (a) sessions with global project ID (pre-discovery),
+    //         (b) sessions with a stale project ID from a prior discovery
+    //             that produced a different ID (e.g. path-hash vs git root-commit).
     if (merged.id !== ProjectID.global) {
       db.update(SessionTable)
         .set({ project_id: merged.id })
-        .where(and(eq(SessionTable.project_id, ProjectID.global), eq(SessionTable.directory, worktree)))
+        .where(and(
+          eq(SessionTable.directory, worktree),
+          ne(SessionTable.project_id, merged.id),
+        ))
         .run()
     }
   })

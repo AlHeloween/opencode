@@ -21,7 +21,6 @@ import type { ModelMessage } from "ai"
 import { Global } from "@opencode-ai/core/global"
 
 const DIFFS_DIR = "diffs"
-const MODELS_DIR = path.join(DIFFS_DIR, "models")
 const MAX_DIFFS_PER_SESSION = 200
 const BASELINE_VERSION = 1
 const KEY_DERIVATION_SALT = ":opencode-diff-baseline-v1"
@@ -525,22 +524,29 @@ function hashString(s: string): number {
  *
  * Returns the absolute file path.
  */
+/**
+ * Write a diff to the per-session diffs folder.
+ *
+ * Layout: `{data}/diffs/{sessionID}/{ISO8601-ms}_{provider}_{model}.diff`
+ *
+ * Encrypted baselines live alongside in the same folder.
+ * FIFO rotation per session: removes oldest diff when exceeding MAX_DIFFS_PER_SESSION.
+ */
 export function writeDiff(diffContent: string, meta: DiffMeta): string {
-  const diffsDir = path.join(Global.Path.data, DIFFS_DIR)
-  fs.mkdirSync(diffsDir, { recursive: true })
+  const sessionDir = path.join(Global.Path.data, DIFFS_DIR, meta.sessionID)
+  fs.mkdirSync(sessionDir, { recursive: true })
 
   // FIFO rotation: track count per session
   const count = (countMap.get(meta.sessionID) ?? 0) + 1
   countMap.set(meta.sessionID, count)
 
   if (count > MAX_DIFFS_PER_SESSION) {
-    // Delete oldest diff for this session
-    const pattern = new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z_${escapeRegExp(meta.providerID)}_${escapeRegExp(meta.modelID)}\\.diff$`)
-    const files = fs.readdirSync(diffsDir)
+    const pattern = new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z_.*\\.diff$`)
+    const files = fs.readdirSync(sessionDir)
       .filter((f) => pattern.test(f))
-      .sort() // chronological order (ISO8601 sorts correctly)
+      .sort()
     if (files.length > 0) {
-      fs.unlinkSync(path.join(diffsDir, files[0]))
+      fs.unlinkSync(path.join(sessionDir, files[0]))
     }
   }
 
@@ -553,7 +559,7 @@ export function writeDiff(diffContent: string, meta: DiffMeta): string {
   const safeModel = sanitize(meta.modelID)
   const filename = `${iso}_${safeProvider}_${safeModel}.diff`
 
-  const filepath = path.join(diffsDir, filename)
+  const filepath = path.join(sessionDir, filename)
   fs.writeFileSync(filepath, diffContent + "\n")
   return filepath
 }
@@ -571,15 +577,15 @@ function escapeRegExp(s: string): string {
 // ── Persistent baseline storage ───────────────────────────────────────────────
 
 /** Directory path for persisted baselines for a given session. */
-export function modelsDirForSession(sessionID: string): string {
-  return path.join(Global.Path.data, MODELS_DIR, sessionID)
+export function sessionDiffDir(sessionID: string): string {
+  return path.join(Global.Path.data, DIFFS_DIR, sessionID)
 }
 
 /** File path for a persisted encrypted baseline. */
 export function baselinePath(sessionID: string, providerID: string, modelID: string): string {
   const safeProvider = sanitize(providerID)
   const safeModel = sanitize(modelID)
-  return path.join(modelsDirForSession(sessionID), `${safeProvider}_${safeModel}.enc`)
+  return path.join(sessionDiffDir(sessionID), `${safeProvider}_${safeModel}.enc`)
 }
 
 /**
@@ -652,7 +658,7 @@ export function deleteBaselines(sessionID: string): void {
   for (const key of prevMap.keys()) {
     if (key.startsWith(prefix)) prevMap.delete(key)
   }
-  const dir = modelsDirForSession(sessionID)
+  const dir = sessionDiffDir(sessionID)
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true, force: true })
   }

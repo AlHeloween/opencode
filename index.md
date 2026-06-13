@@ -122,7 +122,7 @@ XML descriptors for declarative code changes, verification, and rollback.
 cmd_runner and application runtime logs.
 
 ### `.opencode/data/diffs/` — KV Cache Diff Logs (gitignored)
-Per-request section-aware structural diffs (META/SYSTEM/MESSAGES) between consecutive LLM requests for KV cache miss debugging. Files named `{ISO8601-ms}_{provider}_{model}.diff`. Enabled by default (config `diff_requests`). Per-session FIFO rotation (max 200 per model).
+Per-session folders containing section-aware structural diffs (META/SYSTEM/MESSAGES) between consecutive LLM requests and encrypted baseline snapshots. Files named `{ISO8601-ms}_{provider}_{model}.diff` and `{provider}_{model}.enc`. Enabled by default (config `diff_requests`). Per-session FIFO rotation (max 200 per model).
 
 ### `nix/` — Nix Build Support
 Nix flake for reproducible builds.

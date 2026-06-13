@@ -506,7 +506,7 @@ describe("persistent baselines", () => {
     RequestDiff.deleteBaselines(sessionID)
 
     // Directory should be gone
-    const dir = RequestDiff.modelsDirForSession(sessionID)
+    const dir = RequestDiff.sessionDiffDir(sessionID)
     expect(fs.existsSync(dir)).toBeFalse()
 
     // prevMap entries should be cleared

@@ -1285,6 +1285,15 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
               const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
 
+              // Compute and store compaction turn fingerprint so the next
+              // normal turn has a valid cache baseline.
+              const currentFP = CacheControl.requestFingerprint(system, msgs, {
+                sessionId: sessionID,
+                modelId: model.id,
+                providerId: model.providerID,
+              })
+              CacheControl.storePrevFingerprint(sessionID, model.id, currentFP)
+
               const result = yield* handle.process({
                 user: lastUser,
                 agent,
@@ -1311,6 +1320,11 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             }).pipe(
               Effect.ensuring(instruction.clear(handle.message.id)),
             )
+
+            // Invalidate modelMsgsCache after compaction so the next normal
+            // turn doesn't reuse stale converted messages from before compaction.
+            modelMsgsCache = undefined
+
             if (outcome === "break") break
             continue
           }
@@ -1448,6 +1462,10 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             // detects cache breaks from the DeepSeek KV cache research.
             // When the fingerprint matches, DeepSeek's KV cache hits — we can
             // skip toModelMessagesEffect and reuse the cached model messages.
+            //
+            // NOTE: Fingerprint is NOT stored here — the experimental.chat.system.transform
+            // plugin in llm.ts can modify `system` by reference during handle.process().
+            // The accurate fingerprint is stored AFTER handle.process() returns.
             const currentFP = CacheControl.requestFingerprint(system, msgs, {
               sessionId: sessionID,
               modelId: model.id,
@@ -1458,7 +1476,6 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             if (!audit.cacheStable) {
               log.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`)
             }
-            CacheControl.storePrevFingerprint(sessionID, model.id, currentFP)
 
             // Reuse cached model messages when fingerprint is stable.
             // Invalidation: cleared when the loop exits (break) so the next
@@ -1484,6 +1501,17 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
             })
+
+            // Store accurate fingerprint AFTER handle.process() completes.
+            // The experimental.chat.system.transform plugin in llm.ts may have
+            // modified `system` by reference — this captures the actual content
+            // sent to the provider for the next turn's cache comparison.
+            const finalFP = CacheControl.requestFingerprint(system, msgs, {
+              sessionId: sessionID,
+              modelId: model.id,
+              providerId: model.providerID,
+            })
+            CacheControl.storePrevFingerprint(sessionID, model.id, finalFP)
 
             if (structured !== undefined) {
               handle.message.structured = structured

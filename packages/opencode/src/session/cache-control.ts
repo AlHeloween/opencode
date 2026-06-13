@@ -66,7 +66,7 @@ export function md5(content: string): string {
 export function partFingerprint(part: MessageV2.Part): string {
   switch (part.type) {
     case "text":
-      return `t:${part.id}:${part.text.length}:${part.ignored ? 1 : 0}`
+      return `t:${part.id}:${md5(part.text.slice(0, 1024))}:${part.ignored ? 1 : 0}`
     case "tool": {
       const p = part as any
       const outputLen = typeof p.state?.output === "string" ? p.state.output.length : 0

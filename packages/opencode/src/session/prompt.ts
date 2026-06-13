@@ -1186,13 +1186,17 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           }
 
           step++
-          if (step === 1)
+          if (step === 1) {
             yield* title({
               session,
               modelID: lastUser.model.modelID,
               providerID: lastUser.model.providerID,
               history: msgs,
             }).pipe(Effect.ignore, Effect.forkIn(scope))
+            // Fire on step 1 for ALL paths (compaction/subtask/normal)
+            // so file diffs accumulate regardless of which handler runs.
+            yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
+          }
 
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
           const task = tasks.pop()
@@ -1440,8 +1444,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               })
             }
 
-            if (step === 1)
-              yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
+            // summarize() moved to common step-1 block before task dispatch
 
             if (step > 1 && lastFinished) {
               for (const m of msgs) {

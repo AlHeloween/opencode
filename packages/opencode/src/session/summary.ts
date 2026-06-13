@@ -4,10 +4,13 @@ import { Snapshot } from "@/snapshot"
 import { Storage } from "@/storage/storage"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
+import * as Log from "@opencode-ai/core/util/log"
 import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID } from "./schema"
 import { Config } from "@/config/config"
+
+const log = Log.create({ service: "session.summary" })
 
 function unquoteGitPath(input: string) {
   if (!input.startsWith('"')) return input
@@ -98,7 +101,12 @@ export const layer = Layer.effect(
           if (part.type === "step-finish" && part.snapshot) to = part.snapshot
         }
       }
-      if (from && to) return yield* snapshot.diffFull(from, to)
+      if (from && to) {
+        log.info("computeDiff snapshot path", { from, to })
+        return yield* snapshot.diffFull(from, to)
+      }
+
+      log.info("computeDiff fallback: scanning tool parts", { msgCount: input.messages.length })
 
       const filediffs = new Map<string, Snapshot.FileDiff>()
       for (const item of input.messages) {
@@ -111,6 +119,7 @@ export const layer = Layer.effect(
           }
         }
       }
+      log.info("computeDiff filediff result", { count: filediffs.size })
       return [...filediffs.values()]
     })
 
@@ -131,6 +140,13 @@ export const layer = Layer.effect(
       }
 
       const diffs = yield* computeDiff({ messages: all })
+      log.info("summarize", {
+        sessionID: input.sessionID,
+        msgCount: all.length,
+        diffCount: diffs.length,
+        totalAdditions: diffs.reduce((sum, x) => sum + x.additions, 0),
+        totalDeletions: diffs.reduce((sum, x) => sum + x.deletions, 0),
+      })
       yield* sessions.setSummary({
         sessionID: input.sessionID,
         summary: {

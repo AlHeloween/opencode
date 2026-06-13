@@ -11,6 +11,7 @@ import * as H1 from "./h1-transport"
 import { healthScore } from "./health-window"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
+import { unifiedDiff } from "@/util/unified-diff"
 import path from "path"
 import fs from "fs"
 import type { AsyncLogger, PerRequestLogger } from "./async-logger"
@@ -130,78 +131,6 @@ function writeLog(entry: Record<string, unknown>): void {
 function writeErrorLog(entry: Record<string, unknown>): void {
   if (!loggingEnabled || !errorLogger) return
   errorLogger.log(entry)
-}
-
-/** Compute a line-based unified diff between two strings.
-  * Returns git-format diff with ---/+++ headers and hunks. */
-function unifiedDiff(prev: string, curr: string, prevLabel: string, currLabel: string): string {
-  const pLines = prev.split("\n")
-  const cLines = curr.split("\n")
-  const out: string[] = []
-
-  out.push(`--- ${prevLabel}`)
-  out.push(`+++ ${currLabel}`)
-
-  // Count changes for the stats line
-  let added = 0
-  let removed = 0
-  const hunkLines: string[] = []
-  let i = 0
-  let j = 0
-
-  while (i < pLines.length || j < cLines.length) {
-    if (i < pLines.length && j < cLines.length && pLines[i] === cLines[j]) {
-      hunkLines.push(` ${pLines[i]}`)
-      i++
-      j++
-      continue
-    }
-
-    // Find next sync point within a window
-    let syncP = -1
-    let syncC = -1
-    const window = 30
-    for (let si = i; si < Math.min(i + window, pLines.length) && syncP === -1; si++) {
-      for (let sj = j; sj < Math.min(j + window, cLines.length); sj++) {
-        if (pLines[si] === cLines[sj]) {
-          syncP = si
-          syncC = sj
-          break
-        }
-      }
-    }
-
-    if (syncP >= 0) {
-      for (let k = i; k < syncP; k++) {
-        hunkLines.push(`-${pLines[k]}`)
-        removed++
-      }
-      for (let k = j; k < syncC; k++) {
-        hunkLines.push(`+${cLines[k]}`)
-        added++
-      }
-      i = syncP
-      j = syncC
-    } else {
-      for (let k = i; k < pLines.length; k++) {
-        hunkLines.push(`-${pLines[k]}`)
-        removed++
-      }
-      for (let k = j; k < cLines.length; k++) {
-        hunkLines.push(`+${cLines[k]}`)
-        added++
-      }
-      break
-    }
-  }
-
-  out.push(`@@ -0,0 +0,0 @@ ${added} added, ${removed} removed, ${Math.round((added + removed) / Math.max(1, added + removed + hunkLines.filter(l => l.startsWith(" ")).length) * 100)}% changed`)
-  out.push(...hunkLines.slice(0, 100)) // Cap at 100 lines to keep files manageable
-  if (hunkLines.length > 100) {
-    out.push(`... (${hunkLines.length - 100} more lines omitted)`)
-  }
-
-  return out.join("\n")
 }
 
 function bodyRequestsStream(body: RequestInit["body"] | undefined): boolean {

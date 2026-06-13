@@ -15,6 +15,7 @@ import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { isOverflowFromContent } from "./overflow"
 import { CacheControl } from "./cache-control"
+import { RequestDiff } from "./request-diff"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
@@ -1306,6 +1307,26 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 model,
               })
 
+              // Diff logging for compaction turns (same capture format as normal turns)
+              const cfg2 = yield* config.get()
+              if (cfg2.diff_requests !== false) {
+                const diffMeta: RequestDiff.DiffMeta = {
+                  sessionID,
+                  modelID: model.id,
+                  providerID: model.providerID,
+                  turn: step,
+                  agent: agent.name,
+                  timestamp: Date.now(),
+                }
+                const formatted = RequestDiff.formatRequest(system, modelMsgs, diffMeta)
+                const prev = RequestDiff.getPrev(sessionID)
+                if (prev) {
+                  const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)
+                  if (diff) RequestDiff.writeDiff(diff, diffMeta)
+                }
+                RequestDiff.storePrev(sessionID, formatted, diffMeta)
+              }
+
               if (result === "stop") return "break" as const
               if (result === "compact") {
                 yield* compaction.create({
@@ -1512,6 +1533,28 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               providerId: model.providerID,
             })
             CacheControl.storePrevFingerprint(sessionID, model.id, finalFP)
+
+            // Diff logging: capture the actual request content (system + modelMsgs)
+            // after the plugin may have modified `system` by reference during
+            // handle.process().  Writes unified diff to diffs/ folder for KV cache debugging.
+            const cfg = yield* config.get()
+            if (cfg.diff_requests !== false) {
+              const diffMeta: RequestDiff.DiffMeta = {
+                sessionID,
+                modelID: model.id,
+                providerID: model.providerID,
+                turn: step,
+                agent: agent.name,
+                timestamp: Date.now(),
+              }
+              const formatted = RequestDiff.formatRequest(system, modelMsgs, diffMeta)
+              const prev = RequestDiff.getPrev(sessionID)
+              if (prev) {
+                const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)
+                if (diff) RequestDiff.writeDiff(diff, diffMeta)
+              }
+              RequestDiff.storePrev(sessionID, formatted, diffMeta)
+            }
 
             if (structured !== undefined) {
               handle.message.structured = structured

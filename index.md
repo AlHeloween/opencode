@@ -1,6 +1,6 @@
 # Repository Folder Map
 
-**Last updated:** 2026-05-18
+**Last updated:** 2026-06-13
 **Purpose:** Folder-based index of repository contents — purpose + key entrypoints for each directory.
 
 ---
@@ -120,6 +120,9 @@ XML descriptors for declarative code changes, verification, and rollback.
 
 ### `logs/` — Runtime Logs (gitignored)
 cmd_runner and application runtime logs.
+
+### `diffs/` — KV Cache Diff Logs
+Per-request unified diffs between consecutive LLM requests for cache miss debugging. Files named `{ISO8601-ms}_{provider}_{model}.diff`.
 
 ### `nix/` — Nix Build Support
 Nix flake for reproducible builds.

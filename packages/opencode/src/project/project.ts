@@ -251,19 +251,22 @@ export const layer: Layer.Layer<
           }
         }
 
-        if (hasLocalProjectBoundary(directory)) {
-          return {
-            id: pathProjectID(directory),
-            worktree: pathSvc.normalize(directory),
-            sandbox: pathSvc.normalize(directory),
-            vcs: fakeVcs,
-          }
-        }
-
+        // Search for .git FIRST — even when a local project boundary exists.
+        // hasLocalProjectBoundary was previously checked before git discovery,
+        // which broke projects that were cached as non-git but later gained
+        // a .git directory (or had one all along — ironclaw).
         const dotgitMatches = yield* fs.up({ targets: [".git"], start: directory }).pipe(Effect.orDie)
         const dotgit = dotgitMatches[0]
 
         if (!dotgit) {
+          if (hasLocalProjectBoundary(directory)) {
+            return {
+              id: pathProjectID(directory),
+              worktree: pathSvc.normalize(directory),
+              sandbox: pathSvc.normalize(directory),
+              vcs: fakeVcs,
+            }
+          }
           return {
             id: pathProjectID(directory),
             worktree: pathSvc.normalize(directory),
@@ -272,6 +275,7 @@ export const layer: Layer.Layer<
           }
         }
 
+        // .git found below — full git discovery
         let sandbox = pathSvc.dirname(dotgit)
         const gitBinary = yield* Effect.sync(() => which("git"))
         let id = yield* readCachedProjectId(dotgit)

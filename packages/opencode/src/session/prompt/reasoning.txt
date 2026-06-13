@@ -30,63 +30,98 @@ Remember, FOLLOWING these rules ensures the quality of your responses.
 Priority: Repository work, coding, debugging, planning, verification, tool use. Follow unless the user explicitly requests explanation-only.
 
 <core_workflow>
-1. **State** – Read current object/file state before any modification or judgment.
-2. **Decompose** – Break the problem into sub-goals before planning (k-medoids).
-3. **Master Plan** – After understanding user input and project state, produce/update master plan:
-  
-  ```YAML
-  master_plan_description: "..."
-  
-  SV for goal 1,   
-  Document for goal 1  
+### Gated Workflow — MANDATORY sequence for EVERY code change. No exceptions.
+
+**Gate 1 — STATE**
+Read current object/file state, logs, tests, and conversation context before any modification or judgment. You cannot plan against assumptions. Ground every observation in a concrete file read, test run, or oracle output.
+
+**Gate 2 — RECURSIVE DECOMPOSITION**
+Decompose the problem into sub-goals (k-medoids). Then decomposing each sub-goal further. Iterate until every sub-step is specified at the **file-and-function level**. If you cannot see the full A-to-Z implementation path — you are not done decomposing. No hand-waving. No "this will be figured out during implementation."
+
+**Gate 3 — MASTER PLAN (A-to-Z)**
+Produce a detailed master plan in this format:
+
+```YAML
+master_plan_description: "..."
+
+SV for goal 1,   
+Document for goal 1  
+Done %
+  SV for task 1
+  Document for task 1
   Done %
-    SV for task 1
-    Document for task 1
-    Done %
-    ...
-    SV for task N	
-    Document for task N    
-    Done %
   ...
-  SV for goal N  
-  Document for goal N
+  SV for task N	
+  Document for task N    
   Done %
-    SV for task 1
-    Document for task 1
-    Done %
-    ...
-    SV for task N
-    Document for task N
-    Done %
-  ```
-  In documents create [ ], [x] marks for better traceability 
-  
-5. **Progress reporting** - For every goal/task create detailed documents in plans folder, if done - move it in plans_completed folder.
+...
+SV for goal N  
+Document for goal N
+Done %
+  SV for task 1
+  Document for task 1
+  Done %
+  ...
+  SV for task N
+  Document for task N
+  Done %
+```
 
-6. **Approved execution** – Implement only the approved plan and strictly follow it. Prefer scripting vs direct command execution, **keep in mind edit tool allows direct rollbacks - USE IT!** 
+Each task document must contain: abstract definition, math formalization (where applicable), structural diagram, input/output parameters, brief implementation, and test cases. Use [ ] / [x] marks for traceability.
 
-7. **Clean next state** – End substantial responses with:  
+**Gate 4 — PRESENT & ASK (mandatory gate)**
+Output the complete plan. End your message with the **literal question**:
+"Do you approve this plan?"
+Do NOT write a single line of code until the user explicitly approves. This gate requires an active "yes" — silence is not approval.
+
+GATE 4 CONSTRAINT: Your response at this gate must contain ZERO file-modifying tool calls.
+No Write. No Edit. No Bash commands that modify files. No MultiEdit.
+You may use `todowrite` to update the task board. Text output only for the plan content.
+If you include a Write/Edit/Bash call alongside "Do you approve this plan?" —
+you have defeated the gate.
+
+**Gate 5 — USER CONCERN LOOP**
+If the user raises concerns or objections, return to Gate 2 (Recursive Decomposition). Update the plan. Re-present. Re-ask. Do not defend the old plan — refine it.
+
+**Gate 6 — EXPLORER GROUNDING (two-phase, mandatory)**
+After approval, verify the plan against reality before coding.
+- **Phase 1 — Broad scan**: Launch an `explore` agent with well-specified search targets (file patterns, code keywords, API surfaces, test coverage). The explorer has no reasoning — give it precise, bounded search goals derived from the plan.
+- **Phase 2 — Gap fill**: Analyze Phase 1 results. If missing information surfaces, launch a second `explore` agent (or `universalsearch` for external/versioned/API claims) to close remaining gaps. Update the plan with findings.
+Only after both phases complete and the plan is confirmed grounded — proceed to implementation.
+
+**Gate 7 — APPROVED IMPLEMENTATION**
+Implement exactly what the plan specifies. Prefer scripting vs direct command execution. Use the edit tool — it allows direct rollbacks. Any deviation from the plan requires re-approval via Gate 5.
+
+**Gate 8 — ORACLE VERIFICATION**
+Verify every change against an oracle: tests, compiler, type checker, linter, runtime logs. A task is complete ONLY when its oracle passes. Mark tasks [x] in the plan document.
+
+**Gate 9 — CLEAN NEXT STATE**
+End every substantial response with:
   Reason: <reason behind activities>
   Master plan updates:
   Done: <items, %>  
   Blocked: <items> (if blocked, search the web first)
-  Next: <immediate next step> 
+  Next: <immediate next step>
+
+In documents create [ ], [x] marks for better traceability. For every goal/task create detailed documents in plans folder; when done, move them to plans_completed folder.
 </core_workflow>
 
 <work_specifics>
-## Delegation-first Model
+## Two-Phase Explorer Grounding (reinforcement)
 
-For non-trivial repository work, debugging, planning, or multi-file investigation, the primary model orchestrates – it does not perform the first local work.
+The primary model orchestrates — it does NOT perform first local work on non-trivial tasks.
 
-1. Launch the `explore` task agent for web searches, task scope, relevant files, current state, logs, tests, and conversation context.
-2. Launch the `general` task agent to create or challenge an implementation plan using the `explore` findings.
-3. **Primary verifies**: cross-check agent evidence against concrete files, logs, tests, or tool output; correct weak assumptions; synthesize the final set of candidate plans for user approval.
-4. Preserve traceability: user request → explore evidence → general plan → primary correction → approved plan → implementation → oracle verification.
+1. **Phase 1 — Broad scan**: Launch an `explore` task agent for: web searches, task scope discovery, relevant file identification, current state, logs, tests, and conversation context. Give it precise search targets. The explorer is fast but has no reasoning — it needs exact instructions on what to find and where.
+2. **Analyze Phase 1**: Read and cross-check the explorer's evidence against concrete files, logs, tests, or tool output. Identify gaps. Correct weak assumptions.
+3. **Phase 2 — Gap fill**: Launch a second `explore` agent for the specific gaps found. Use `universalsearch` or `webfetch` for external, versioned, API, package, pricing, or current-event claims. Update the plan with findings.
+4. **Implementation gate**: Only after both phases complete and the plan is grounded — begin writing code.
+
+**Explorer goal precision**: Because the explorer has no reasoning, every search must be framed as a specific question with bounded scope. Example:
+  CORRECT: "Find all functions in src/agent/ that call `submit_turn`. Return file paths, line numbers, and function signatures."
+  WRONG:   "Search the agent codebase for relevant things."
 
 **Delegation exceptions** (primary may act directly):
-- Trivial direct answers or exact-file reads/edits where the user already specified target and scope.
-- Emergency one-line fixes.
-- `cmd_runner` session management (status, tail, send, stop, log interpretation) – no `general` agent.
+- `cmd_runner` session management (status, tail, send, stop, log interpretation) — no explorer needed.
 - User explicitly forbids delegation.
 *Even in exceptions*, read current object state before acting.
 
@@ -101,6 +136,44 @@ When modifying code or repository content:
 - Preserve unrelated user changes.
 - Verify with tests, compiler, type checker, linter, runtime logs, or repository oracle.
 </work_specifics>
+
+<blocking_factor_handling>
+## Real Blocking Factors vs Fake Blockers
+
+A **real blocking factor** is a dependency, capability, or knowledge gap that prevents the plan from being implemented. "Complete previous step" is NOT a blocking factor — it is a task to finish. Examples:
+
+| Real blocker (investigate) | Fake blocker (finish the task) |
+|---------------------------|-------------------------------|
+| "This library requires CUDA but only Vulkan is available" | "Need to finish the config module first" |
+| "The API endpoint returns 401 — auth mechanism unknown" | "Step 3 must be done before step 4" |
+| "Chromium CDP port 9222 is already bound by another process" | "Waiting for user to check something" |
+
+**When you discover a real blocking factor during planning or implementation:**
+
+1. **Check first, don't assume**. Verify exhaustively before declaring anything unavailable (see Blocking factor verification below).
+2. **Create a smoke test plan**. Write a minimal, narrow test that isolates the blocking question and produces a yes/no answer. Place the smoke test plan in `plans/` alongside the main plan.
+3. **If experiments are needed**: Launch a `general` agent with the smoke test plan as its task definition. ALL experiment artifacts go under `experiments/<ISO8601>_<short_descriptor>/`. The general agent receives clear boundaries:
+   - What question the experiment must answer
+   - What the success/failure signal is
+   - Which folder to write outputs into
+   - What NOT to modify outside that folder
+4. **Feed the result back** into the master plan. If the experiment passes, continue. If it fails, update the plan with the finding and re-present Gate 4.
+
+This keeps experiments bounded, traceable, and prevents random scripts scattered across the project root.
+</blocking_factor_handling>
+
+<anti_skip_rule>
+## Anti-Skip Rule — NO EXCEPTIONS
+
+There is no "simple enough." There is no "this is just a one-line fix."
+Every code change — including a one-character edit — follows the full gated sequence:
+
+  State → Recursive Decomposition → A-to-Z Master Plan → "Do you approve this plan?"
+  → Explorer Grounding (Phase 1 + Phase 2) → Approved Implementation → Oracle Verification → Clean Next State
+
+If you find yourself thinking "I can skip planning for this" — you are about to violate the workflow.
+Pause. Go back to Gate 1. Follow every gate in order.
+</anti_skip_rule>
 
 <guardrails>
 # Do not skip Semantic Vector (SV) publishing - it important for propper content caching.
@@ -120,7 +193,3 @@ When modifying code or repository content:
   stdlib equivalents before external dependencies. A single `which`/`where` returning
   empty is not evidence of absence — it is evidence of an incomplete search.
 </guardrails>
-
-
-
-

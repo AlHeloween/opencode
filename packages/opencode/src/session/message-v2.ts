@@ -818,7 +818,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       }
     }
 
-    return { type: "json", value: output as Record<string, unknown> }
+    return { type: "json", value: (output ?? null) as unknown as Record<string, unknown> }
   }
 
   for (const msg of input) {

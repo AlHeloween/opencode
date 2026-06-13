@@ -298,12 +298,14 @@ function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage
         lastContent.type !== "tool-approval-request" &&
         lastContent.type !== "tool-approval-response"
       ) {
-        lastContent.providerOptions = mergeDeep(lastContent.providerOptions ?? {}, providerOptions)
+        const safeExistingPart = lastContent.providerOptions && typeof lastContent.providerOptions === "object" && !Array.isArray(lastContent.providerOptions) ? lastContent.providerOptions : {}
+        lastContent.providerOptions = mergeDeep(safeExistingPart, providerOptions)
         continue
       }
     }
 
-    msg.providerOptions = mergeDeep(msg.providerOptions ?? {}, providerOptions)
+    const safeExistingMsg = msg.providerOptions && typeof msg.providerOptions === "object" && !Array.isArray(msg.providerOptions) ? msg.providerOptions : {}
+    msg.providerOptions = mergeDeep(safeExistingMsg, providerOptions)
   }
 
   return msgs

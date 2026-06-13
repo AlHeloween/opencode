@@ -1,6 +1,6 @@
 import path from "path"
 import fs from "fs/promises"
-import { createWriteStream, mkdirSync } from "fs"
+import { createWriteStream, mkdirSync, type WriteStream } from "fs"
 import * as Global from "../global"
 import z from "zod"
 import { Glob } from "./glob"
@@ -68,6 +68,36 @@ const _stderr = (msg: any) => {
 }
 let write: (msg: any) => number | Promise<number> = _stderr
 let printLogs = false
+
+// Per-session log file routing — mirrors diffs/ layout:
+//   log/{sessionID}/{ISO8601-start}.log
+const sessionStreams = new Map<string, { logpath: string; stream: WriteStream }>()
+
+export function initSession(sessionID: string): void {
+  if (sessionStreams.has(sessionID)) return
+  const dir = path.join(Global.Path.log, sessionID)
+  mkdirSync(dir, { recursive: true })
+  const spath = path.join(dir, new Date().toISOString().replace(/:/g, "").replace("Z", "") + ".log")
+  const stream = createWriteStream(spath, { flags: "a" })
+  sessionStreams.set(sessionID, { logpath: spath, stream })
+}
+
+export function closeSession(sessionID: string): void {
+  const s = sessionStreams.get(sessionID)
+  if (s) {
+    s.stream.end()
+    sessionStreams.delete(sessionID)
+  }
+}
+
+function sessionWrite(sessionID: string, entry: string): void {
+  const s = sessionStreams.get(sessionID)
+  if (s) {
+    s.stream.write(entry, (err) => {
+      if (err) logError("session log write failed", { sessionID, error: String(err) })
+    })
+  }
+}
 
 function logError(msg: string, extra?: Record<string, any>) {
   const entry = JSON.stringify({
@@ -264,6 +294,14 @@ export function create(tags?: Record<string, any>) {
     return result
   }
 
+  const sidTag = (tags?.["session.id"] ?? tags?.["session_id"]) as string | undefined
+
+  const routeWrite = (entry: string, extra?: Record<string, any>): void => {
+    const sid = (sidTag ?? extra?.["session.id"] ?? extra?.["session_id"]) as string | undefined
+    write(entry)
+    if (sid) sessionWrite(sid, entry)
+  }
+
   const result: Logger = {
     debug(message?: any, extra?: Record<string, any>) {
       const msg = String(message ?? "")
@@ -274,7 +312,7 @@ export function create(tags?: Record<string, any>) {
         if (dedupState.has(key)) { tryDedup(key); return }
         dedupState.set(key, { count: 1, firstId: "", firstTs: new Date().toISOString() })
       }
-      write(build("DEBUG", message, extra, caller))
+      routeWrite(build("DEBUG", message, extra, caller), extra)
     },
     info(message?: any, extra?: Record<string, any>) {
       const msg = String(message ?? "")
@@ -285,10 +323,10 @@ export function create(tags?: Record<string, any>) {
         if (dedupState.has(key)) { tryDedup(key); return }
         dedupState.set(key, { count: 1, firstId: "", firstTs: new Date().toISOString() })
       }
-      write(build("INFO", message, extra, caller))
+      routeWrite(build("INFO", message, extra, caller), extra)
     },
     error(message?: any, extra?: Record<string, any>) {
-      write(build("ERROR", message, extra))
+      routeWrite(build("ERROR", message, extra), extra)
     },
     warn(message?: any, extra?: Record<string, any>) {
       if (typeof message === "string" && message.startsWith("bug:")) {
@@ -296,7 +334,7 @@ export function create(tags?: Record<string, any>) {
         const key = caller + " " + message
         collectBug(key, message, extra)
       }
-      write(build("WARN", message, extra))
+      routeWrite(build("WARN", message, extra), extra)
     },
     tag(key: string, value: string) {
       if (tags) tags[key] = value

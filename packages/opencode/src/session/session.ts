@@ -589,6 +589,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
 
       // Clean up persisted diff baselines (filesystem side-effect after DB commit)
       RequestDiff.deleteBaselines(sessionID)
+      Log.closeSession(sessionID)
     })
 
     const updateMessage = <T extends MessageV2.Info>(msg: T): Effect.Effect<T> =>

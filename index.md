@@ -124,6 +124,9 @@ cmd_runner and application runtime logs.
 ### `.opencode/data/diffs/` — KV Cache Diff Logs (gitignored)
 Per-session folders containing section-aware structural diffs (META/SYSTEM/MESSAGES) between consecutive LLM requests and encrypted baseline snapshots. Files named `{ISO8601-ms}_{provider}_{model}.diff` and `{provider}_{model}.enc`. Enabled by default (config `diff_requests`). Per-session FIFO rotation (max 200 per model).
 
+### `.opencode/data/log/` — Runtime Logs (gitignored)
+**Global**: `{ISO8601-start}.log` (one per process invocation, oldest 10 kept). **Per-session**: `{sessionID}/{ISO8601-start}.log` — mirrors diffs/ layout. Session-annotated entries (via Effect logger or `Log.create({ "session.id": id })`) are routed to the session file in addition to the global log. Init on first `runLoop` entry (idempotent), cleanup on session delete.
+
 ### `nix/` — Nix Build Support
 Nix flake for reproducible builds.
 

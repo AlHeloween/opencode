@@ -115,3 +115,86 @@ Verification:
 
 - [x] `bun test --timeout 30000 test/session/llm.test.ts -t "caps max_tokens for qwen-like"` from `packages/opencode` passed: 3 tests, 178 filtered, 0 failures (`cmd_runner` run `20260612T075720Z_e5b7a91e`).
 - [x] `bun typecheck` from `packages/opencode` passed with exit code 0 (`cmd_runner` run `20260612T075744Z_64d9ca27`).
+
+## 2026-06-12 Ordered Compaction Replacement
+
+Goal: make compaction preserve normal message order by summarizing the active history before the latest real turn, then using the summary immediately before that latest turn.
+
+Tasks:
+
+- [x] Stop removing and re-appending prior compaction pairs during compaction prompt construction.
+- [x] Preserve only the newest real turn as the post-summary tail for regular compaction.
+- [x] Preserve no extra tail during overflow replay, because the replayed user request is inserted after the summary.
+- [x] Update compaction regression tests for ordered replacement semantics.
+- [x] Run targeted compaction tests from `packages/opencode`.
+- [x] Run `bun typecheck` from `packages/opencode`.
+
+Verification:
+
+- [x] `bun test --timeout 30000 test/session/compaction.test.ts` from `packages/opencode` passed: 50 tests, 0 failures (`cmd_runner` run `20260612T094919Z_3921508d`).
+- [x] `bun typecheck` from `packages/opencode` passed with exit code 0 (`cmd_runner` run `20260612T095402Z_abf22fa9`).
+
+## 2026-06-13 Compaction Skill Prompt Isolation
+
+Goal: keep the normal system prompt immutable during compaction while moving compaction formatting rules into a deterministic skill payload.
+
+Tasks:
+
+- [x] Pass the normal system prompt from `prompt.ts` into `SessionCompaction.process`.
+- [x] Remove the compaction summary template from the final compaction user instruction.
+- [x] Inject the compaction template as a deterministic `<skill_content name="compaction">` message before the dynamic summary instruction.
+- [x] Preserve plugin `context` and `prompt` behavior for the dynamic compaction instruction only.
+- [x] Add regression coverage for normal system propagation and skill-payload isolation from `input.system`.
+- [x] Run targeted compaction tests from `packages/opencode`.
+- [x] Run revert-compaction tests from `packages/opencode`.
+- [x] Run `bun typecheck` from `packages/opencode`.
+
+Verification:
+
+- [x] `bun test --timeout 30000 test/session/compaction.test.ts` from `packages/opencode` passed: 51 tests, 0 failures (`cmd_runner` run `20260613T022803Z_32d575c5`).
+- [x] `bun test --timeout 30000 test/session/revert-compact.test.ts` from `packages/opencode` passed: 7 tests, 0 failures (`cmd_runner` run `20260613T022803Z_c99ceaf9`).
+- [x] `bun test --timeout 30000 test/session/compaction.test.ts -t "passes normal system"` from `packages/opencode` passed: 1 test, 156 filtered, 0 failures (`cmd_runner` run `20260613T023216Z_a23632a8`).
+- [x] `bun typecheck` from `packages/opencode` passed with exit code 0 (`cmd_runner` run `20260613T022803Z_7ca3d452`).
+
+## 2026-06-13 Compaction Normal-Flow Integration
+
+Goal: make compaction flow through the normal message pipeline instead of a separate processing path, preserving system prompt identity for KV cache continuity.
+
+### Architecture change
+
+Before: compaction used `compaction.process()` — a separate processor call with hardcoded skill injection, a tool-less "compaction" agent, and empty system prompt. This broke semantic flow and invalidated the provider's KV cache (different system prompt hash).
+
+After: compaction is just another turn in the conversation. `compaction.create()` inserts a user message with a text instruction ("Please create a structured summary..."). The normal processor loop picks it up, uses the **same agent** as the original turn, constructs the **identical system prompt**, and processes it through `handle.process()`. The summary assistant response gets `summary: true` for boundary detection.
+
+### KV cache continuity
+
+The system prompt is byte-stable across the full session:
+- `sys.skills(agent)` — same agent → same skills content
+- `sys.environment(model)` — no timestamps, no mutable markers
+- `instruction.system()` / `instruction.rules()` — file-based, session-stable
+- Date injection goes into **user messages**, not system prompt
+- `format` / `json_schema` check matches normal turn behavior
+
+Providers see identical SHA256(system prompt) across compaction and normal turns → prefix cache hits → minimum recomputation.
+
+### Tasks
+
+- [x] Create `src/skill/compaction/SKILL.md` — compaction as a proper skill file with YAML frontmatter.
+- [x] Register "compaction" as a built-in skill in `skill/index.ts` (available to all agents).
+- [x] Remove hardcoded `COMPACTION_SKILL_CONTENT` from `compaction.ts` — skill content flows through `sys.skills()`.
+- [x] Remove `compaction.process()` function and its service interface entry.
+- [x] Rewrite prompt.ts compaction task block to use normal processor: same agent, same system prompt, same `handle.process()`.
+- [x] `compaction.create()` now uses `input.agent` (original user agent) instead of hardcoded `"compaction"`.
+- [x] Add `summary: true` to compaction assistant message for `filterCompactedEffect` boundary detection.
+- [x] Call `compaction.selectMessages()` to set `tail_count` on the compaction part.
+- [x] Add `bypassAgentCheck: false` to `SessionTools.resolve()`.
+- [x] Add `format` / `json_schema` check for system prompt parity with normal turns.
+- [x] Remove 21 `session.compaction.process` tests (no longer applicable).
+- [x] Update `create` test to expect text part + compaction part.
+- [x] Run typecheck and all compaction tests.
+
+### Verification
+
+- [x] `bun typecheck` from `packages/opencode` passed.
+- [x] `bun test test/session/compaction.test.ts` from `packages/opencode`: 31 pass, 0 fail.
+- [x] `bun test test/skill/skill.test.ts` from `packages/opencode`: 10 pass, 0 fail.

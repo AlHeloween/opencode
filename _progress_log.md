@@ -147,3 +147,83 @@ Script output:
 
 - `bun test --timeout 30000 test/session/llm.test.ts -t "caps max_tokens for qwen-like"`: passed, 3 pass, 178 filtered, 0 fail (`cmd_runner` run `20260612T075720Z_e5b7a91e`).
 - `bun typecheck`: passed (`cmd_runner` run `20260612T075744Z_64d9ca27`).
+
+## 2026-06-12 Ordered Compaction Replacement
+
+Reason: compaction rebuilt the active history by removing prior compaction pairs and appending them after the selected head, which could change cache-prefix order. Overflow replay also preserved an extra pre-replay tail even though the replayed user request is inserted after the summary.
+
+Changes:
+
+- Updated `packages/opencode/src/session/compaction.ts` so compaction selects from the ordered active history directly instead of hiding and re-appending previous compaction pairs.
+- Changed regular compaction to preserve only the newest real turn as tail, placing the summary immediately before it.
+- Changed overflow replay compaction to summarize all pre-replay history and preserve no extra tail, so the replayed request becomes the only post-summary turn.
+- Updated `packages/opencode/test/session/compaction.test.ts` for single-latest-tail and overflow replay prompt-order coverage.
+
+Script output:
+
+- `bun test --timeout 30000 test/session/compaction.test.ts`: passed, 50 pass, 0 fail (`cmd_runner` run `20260612T094919Z_3921508d`).
+- `bun typecheck`: passed (`cmd_runner` run `20260612T095402Z_abf22fa9`).
+
+## 2026-06-12 Compaction Plan Maintenance
+
+Reason: active compaction plans needed to reflect the current code state after ordered compaction and synthetic-tail changes.
+
+Changes:
+
+- Updated `plans/20260612_remove_synthetic_tail.md` so implemented items are checked and remaining test coverage gaps stay pending.
+- Updated `plans/20260612_compaction_schema_diagram.md` to remove stale synthetic-tail write paths and include `CompactionPart.tail_count`.
+- Moved completed `plans/20260611_compaction_written_then_gone.md` to `plans_completed/20260611_compaction_written_then_gone.md`.
+
+Script output:
+
+- Explore validation: clean (`task` run `ses_143a1e1e0ffeudqtu53z4RPjeM`).
+
+## 2026-06-13 Compaction Skill Prompt Isolation
+
+Reason: compaction was invoking the processor with `system: []` and appending the full compaction summary template as a user message. The normal system prompt should be passed through unchanged, while compaction formatting rules should live in deterministic skill content.
+
+Changes:
+
+- Extended `SessionCompaction.process` to accept the normal system prompt and pass it to the compaction processor.
+- Updated `prompt.ts` so compaction tasks build and pass the same base system array used for normal processing.
+- Split compaction prompt construction into static `<skill_content name="compaction">` template content plus a small dynamic user instruction for create/update summary context.
+- Added regression coverage that verifies the template is not in `input.system`, the system prompt is preserved, and the compaction skill payload is present in `input.messages`.
+
+Script output:
+
+- `bun test --timeout 30000 test/session/compaction.test.ts`: passed, 51 pass, 0 fail (`cmd_runner` run `20260613T022803Z_32d575c5`).
+- `bun test --timeout 30000 test/session/revert-compact.test.ts`: passed, 7 pass, 0 fail (`cmd_runner` run `20260613T022803Z_c99ceaf9`).
+- `bun test --timeout 30000 test/session/compaction.test.ts -t "passes normal system"`: passed, 1 pass, 156 filtered, 0 fail (`cmd_runner` run `20260613T023216Z_a23632a8`).
+- `bun typecheck`: passed (`cmd_runner` run `20260613T022803Z_7ca3d452`).
+- Invalid verification attempts using cmd_runner's PowerShell wrapper produced payload quoting errors and are not counted (`cmd_runner` runs `20260613T022733Z_252b76c3`, `20260613T022733Z_817fdc50`, `20260613T022733Z_9cec454b`).
+- A redundant solo compaction rerun was stopped after the full parallel compaction run had already completed successfully (`cmd_runner` run `20260613T023109Z_9f52d227`).
+
+## 2026-06-13 Compaction Normal-Flow Integration
+
+Reason: compaction used a separate `compaction.process()` path with a tool-less "compaction" agent — this broke semantic flow, switched the system prompt (different agent → different skills → different SHA256), and invalidated the provider's KV cache. Compaction should be a normal turn using the same agent, same system prompt, and normal processor path.
+
+Changes:
+
+- Created `packages/opencode/src/skill/compaction/SKILL.md` — compaction skill as a proper file with YAML frontmatter and anchored summary template.
+- Registered "compaction" as a built-in skill in `packages/opencode/src/skill/index.ts`.
+- Removed hardcoded `COMPACTION_SKILL_CONTENT` from `packages/opencode/src/session/compaction.ts`.
+- Removed entire `compaction.process()` function (560 lines) and its service interface entry — no longer needed.
+- Rewired compaction in `prompt.ts`: uses `lastUser.agent` (original user agent, not "compaction"), constructs identical system prompt, processes via normal `handle.process()`.
+- `compaction.create()` now sets `agent: input.agent` (original agent) and includes a text part with the summarization instruction.
+- Added `summary: true` on compaction assistant message — enables `filterCompactedEffect` boundary detection.
+- Added `compaction.selectMessages()` call to set `tail_count` on the compaction part before processing.
+- Added `bypassAgentCheck: false` to `SessionTools.resolve()` in compaction block.
+- Added `format` / `json_schema` system prompt check for byte-identical system prompt parity.
+- Removed `SessionProcessor` dependency from compaction layer (no longer needed).
+- Removed 21 `session.compaction.process` tests, updated `create` test for 2 parts (text + compaction).
+- All 31 remaining compaction tests pass, typecheck clean.
+
+KV cache continuity:
+- System prompt is byte-stable across entire session: same agent → `sys.skills(agent)` returns same content, no timestamps or mutable markers in `environment()`, date injected into user messages not system prompt.
+- Providers see identical SHA256(system prompt) → prefix cache hits → minimum recomputation for appended compaction instruction + summary response.
+
+Script output:
+
+- `bun typecheck` from `packages/opencode`: passed.
+- `bun test test/session/compaction.test.ts` from `packages/opencode`: 31 pass, 0 fail.
+- `bun test test/skill/skill.test.ts` from `packages/opencode`: 10 pass, 0 fail (one flaky timeout passes on rerun).

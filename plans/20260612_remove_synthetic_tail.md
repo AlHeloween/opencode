@@ -1,7 +1,7 @@
 # Remove Synthetic Tail Message Creation from Compaction
 
 **Date:** 2026-06-12  
-**Status:** Plan (pending validation)  
+**Status:** Active (implementation complete; coverage gaps pending)  
 **Priority:** Medium
 
 ---
@@ -245,19 +245,18 @@ Uses `filterCompacted(stream(...))` at line 1189. Will pass only if `filterCompa
 
 ## Verification Checklist
 
-- [ ] `CompactionPart.tail_count` schema field added (`message-v2.ts:230`)
-- [ ] `filterCompactedEffect` boundary logic updated to continue past boundary for `tail_count` messages (`message-v2.ts:1154-1185`)
-- [ ] `filterCompacted` (sync) updated identically (`message-v2.ts:1139-1152`)
-- [ ] `filterCompacted` (sync) updated identically with `tail_count` continuation (`message-v2.ts:1139-1152`)
-- [ ] Synthetic tail creation block removed (`compaction.ts:503-554`)
-- [ ] `tail_count` stored on `CompactionPart` at the correct point in `processCompaction` (after `select()`, before `session.updateMessage(processor.message)`)
-- [ ] Test `compaction.test.ts:1097-1153` ("creates synthetic tail messages...") rewritten for new behavior
-- [ ] Test `compaction.test.ts:1155-1197` ("shrinks retained tail...") verified still passes
-- [ ] New test: `tail_count` correctly stored on CompactionPart
-- [ ] New test: `filterCompactedEffect` returns original tail messages by ID
-- [ ] New test: no duplicate messages in post-compaction set
-- [ ] New test: cross-page tail collection
-- [ ] New test: errored compaction doesn't store `tail_count`
-- [ ] Run `bun typecheck` from `packages/opencode`
-- [ ] Run `bun test packages/opencode/test/session/compaction.test.ts`
-- [ ] Run `bun test packages/opencode/test/session/revert-compact.test.ts`
+- [x] `CompactionPart.tail_count` schema field added (`message-v2.ts:230`)
+- [x] `filterCompactedEffect` boundary logic updated to continue past boundary for `tail_count` messages (`message-v2.ts:1174-1224`)
+- [x] `filterCompacted` (sync) updated identically with `tail_count` continuation (`message-v2.ts:1140-1172`)
+- [x] Synthetic tail creation block removed from `processCompaction`
+- [x] `tail_count` stored on `CompactionPart` at the correct point in `processCompaction` after `select()`
+- [x] Test `compaction.test.ts:1097-1153` ("creates synthetic tail messages...") rewritten as "preserves original tail messages without synthetic copies"
+- [x] Test `compaction.test.ts:1155-1197` ("shrinks retained tail...") verified in the targeted compaction test run
+- [x] New test coverage: `tail_count` correctly stored on CompactionPart
+- [x] Run `bun typecheck` from `packages/opencode` (`cmd_runner` runs `20260612T095402Z_abf22fa9`, `20260613T022348Z_2d7a2cfd`)
+- [x] Run `bun test --timeout 30000 test/session/compaction.test.ts` from `packages/opencode` (`cmd_runner` runs `20260612T094919Z_3921508d`, `20260613T021820Z_f4786889`)
+- [ ] Add ID-level assertion that `filterCompactedEffect` returns original tail messages by original message ID, not only by text content
+- [ ] Add no-duplicate-messages regression coverage for post-compaction results
+- [ ] Add cross-page tail collection regression coverage
+- [ ] Add explicit errored-compaction `tail_count` behavior coverage
+- [x] Run `bun test --timeout 30000 test/session/revert-compact.test.ts` from `packages/opencode` (`cmd_runner` run `20260613T022132Z_a719310c`)

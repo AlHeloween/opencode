@@ -1,6 +1,6 @@
 # Compaction Schema Analysis & Diagram
 
-**Date:** 2026-06-12  
+**Date:** 2026-06-12 (updated 2026-06-13 with normal-flow integration)  
 **Status:** Validated (codebase cross-reference complete, corrections applied)  
 **Priority:** Medium
 
@@ -33,6 +33,7 @@ erDiagram
         literal type "compaction"
         boolean auto "Auto-triggered vs manual"
         boolean overflow "Overflow trigger vs user-initiated"
+        integer tail_count "Original post-boundary tail messages preserved"
     }
     CompactionConfig {
         boolean auto "Enable auto compaction (default: true)"
@@ -63,6 +64,7 @@ classDiagram
         +Literal "compaction"
         +Boolean auto
         +Boolean? overflow
+        +Number? tail_count
     }
     class SubTaskPart {
         +Literal "subtask"
@@ -95,25 +97,25 @@ stateDiagram-v2
     Normal --> OverflowDetected : token usage >= usable context
     OverflowDetected --> CompactionTaskQueued : process() returns "compact"\n→ compaction.create() inserts\nuser msg w/ CompactionPart
 
-    Normal --> OverflowFromContent : synthetic tail copies\nhave zero token counters
+    Normal --> OverflowFromContent : content-estimated\noverflow check
     OverflowFromContent --> CompactionTaskQueued : isOverflowFromContent()\n→ compaction.create(overflow=true)
 
     CompactionTaskQueued --> Compacting : prompt loop picks up\ncompaction part from tasks
 
     Compacting --> SelectingMessages : select() splits head/tail
-    SelectingMessages --> GeneratingSummary : compaction agent invoked\n(via SessionProcessor)
+    Note right of Compacting: tail_count stored on CompactionPart<br/>for filterCompactedEffect boundary logic
+    SelectingMessages --> GeneratingSummary : normal processor invoked<br/>(same agent, same system prompt<br/>as the original user turn)
 
-    Note right of Compacting: prune() is called separately\nafter each turn loop exit\n(prompt.ts:1422)\nNOT inside processCompaction
+    Note right of Compacting: prune() is called separately\nafter each turn loop exit\n(prompt.ts main loop)\nNOT inside the compaction block
 
-    GeneratingSummary --> SummaryDone : LLM returns summary text
+    GeneratingSummary --> SummaryDone : LLM returns summary text<br/>summary: true on assistant msg
     GeneratingSummary --> SummaryErrored : LLM error / ContextOverflowError
 
-    SummaryDone --> CreatingSynthetics : persist summary assistant\n(updateMessage)
-    CreatingSynthetics --> Done : synthetic tail copies created\n+ optional auto-continue prompt
+    SummaryDone --> Done : persist summary assistant\n(updateMessage)\n+ optional auto-continue prompt
 
     SummaryErrored --> Done : halt() marks finish="error"\nerrored summary still serves\nas compaction boundary
 
-    Done --> Normal : filterCompactedEffect()\nloads only messages since\ncompaction boundary
+    Done --> Normal : filterCompactedEffect()\nloads only messages since\ncompaction boundary\n(uses tail_count + summary=true)
 
     note right of OverflowDetected
         processor.ts:553-558
@@ -141,18 +143,18 @@ graph TD
 
     subgraph "Session Module"
         OVERFLOW[overflow.ts<br/>usable()<br/>isOverflow()<br/>isOverflowFromContent()]
-        COMPACTION[compaction.ts<br/>select() - head/tail split<br/>prune() - tool output erasure<br/>processCompaction() - main flow<br/>create() - task creation]
+        COMPACTION[compaction.ts<br/>select() - head/tail split<br/>prune() - tool output erasure<br/>create() - task creation<br/>selectMessages() - public API]
         MESSAGE[message-v2.ts<br/>CompactionPart schema<br/>filterCompactedEffect()<br/>isCompactionBoundary()<br/>pageCompacted()]
         PROCESSOR[processor.ts<br/>needsCompaction flag<br/>halt() - error handling<br/>process() - return compact/stop/continue]
-        PROMPT[prompt.ts<br/>task extraction<br/>compaction processing<br/>overflow creation]
+        PROMPT[prompt.ts<br/>task extraction<br/>compaction: normal processor path<br/>same agent, same system prompt<br/>overflow creation]
     end
 
     subgraph "Storage"
         DB[(SQLite DB<br/>session.time_compacting<br/>message with CompactionPart<br/>assistant with summary=true)]
     end
 
-    subgraph "Agent"
-        CAGENT[Compaction Agent<br/>hidden, no-tools native agent<br/>prompt: built dynamically via SUMMARY_TEMPLATE<br/>generates anchored summary]
+    subgraph "Skill System"
+        SKILL[compaction SKILL.md<br/>built-in skill<br/>available to all agents<br/>via sys.skills(agent)]
     end
 
     CONFIG --> OVERFLOW
@@ -165,13 +167,15 @@ graph TD
 
     PROMPT -->|"filterCompactedEffect()"| MESSAGE
     PROMPT -->|"compaction.create()"| COMPACTION
-    PROMPT -->|"compaction.process()"| COMPACTION
+    PROMPT -->|"compaction.selectMessages()"| COMPACTION
     PROMPT -->|"compaction.prune()"| COMPACTION
     PROMPT -->|"isOverflowFromContent()"| OVERFLOW
+    PROMPT -->|"handle.process()<br/>(normal processor)"| PROCESSOR
 
     COMPACTION -->|"select() - token estimation"| MESSAGE
-    COMPACTION -->|"invokes compaction agent"| CAGENT
     COMPACTION -->|"reads/writes"| DB
+
+    SKILL -->|"loaded via<br/>sys.skills(agent)"| PROMPT
 
     MESSAGE -->|"loads messages"| DB
     PROCESSOR -->|"reads/writes"| DB
@@ -181,6 +185,7 @@ graph TD
     style MESSAGE fill:#e6ffe6
     style PROCESSOR fill:#f0e6ff
     style PROMPT fill:#ffe6e6
+    style SKILL fill:#e6e6ff
 ```
 
 ---
@@ -238,25 +243,24 @@ sequenceDiagram
     Prompt->>Prompt: extract tasks from messages
     Note over Prompt: finds CompactionPart on latest user msg
 
-    Prompt->>Compaction: process({ messages, parentID, sessionID, auto, overflow })
-
+    Prompt->>Compaction: selectMessages({ messages, model })
     Compaction->>Compaction: select() - head/tail split
     Note over Compaction: head = summarized<br/>tail = kept verbatim<br/>preserve_recent_tokens budget
+    Compaction->>DB: UPDATE CompactionPart.tail_count
+    Compaction-->>Prompt: { head, tail }
 
-    Compaction->>Agent: invoke compaction agent<br/>(hidden, no-tools)
-    Agent->>Agent: generate anchored summary<br/>(update previous summary if exists)
-    Agent-->>Compaction: summary text
+    Note over Prompt: construct system prompt<br/>IDENTICAL to normal turn:<br/>same agent → same skills<br/>same rules, instructions, env<br/>no timestamps or mutable markers
+
+    Prompt->>Processor: handle.process({ user, agent, system, messages })
+    Note over Processor: normal processor flow<br/>compaction skill loaded via sys.skills()<br/>instruction: "Please create a structured<br/>summary... Do not use any tools"
+    Processor-->>Prompt: summary text
 
     alt summary successful
-        Compaction->>DB: INSERT assistant message<br/>(summary=true, finish=stop)
-        Compaction->>DB: INSERT synthetic tail copies<br/>(preserved recent turns)
-        opt auto-continue
-            Compaction->>DB: INSERT user message<br/>("Please continue...")
-        end
-        Compaction-->>Prompt: return "continue"
+        Prompt->>DB: INSERT assistant message<br/>(summary=true, finish=stop, mode=agent.name)
+        Prompt-->>Prompt: return "break"
     else summary errored
-        Compaction->>DB: UPDATE assistant message<br/>(summary=true, finish=error)
-        Compaction-->>Prompt: return "stop"
+        Prompt->>DB: UPDATE assistant message<br/>(summary=true, finish=error)
+        Prompt-->>Prompt: return "break"
     end
 
     Note over Prompt,DB: === Post-Compaction (Next Turn) ===
@@ -264,8 +268,7 @@ sequenceDiagram
     Prompt->>Message: filterCompactedEffect(sessionID)
     Message->>DB: SELECT messages LIMIT 500<br/>newest first
     Message->>Message: iterate until compaction boundary found:
-    Note over Message: assistant.summary=true<br/>+ assistant.finish set<br/>→ parent user with compaction part = boundary
-    Message->>Message: stop loading, reverse order
+    Note over Message: assistant.summary=true<br/>+ assistant.finish set<br/>→ parent user with compaction part = boundary<br/>tail_count messages preserved before boundary
     Message-->>Prompt: msgs (only post-compaction)
 
     Note over Prompt,DB: === Pruning (after each turn loop exit) ===
@@ -405,6 +408,7 @@ export const CompactionPart = Schema.Struct({
   type: Schema.Literal("compaction"),       // discriminator literal
   auto: Schema.Boolean,                     // auto-triggered (true) vs manual /summarize (false)
   overflow: Schema.optional(Schema.Boolean), // true when triggered by context overflow
+  tail_count: Schema.optional(Schema.Number), // original post-boundary tail messages preserved
 })
 
 // Session DB column: session.sql.ts:37
@@ -434,46 +438,92 @@ part.state.time.compacted = Date.now()
 
 ---
 
-## 10. Compaction Agent Definition
+## 10. Compaction Skill Definition
+
+Compaction is a **built-in skill** (`src/skill/compaction/SKILL.md`), not a separate agent.
+The skill is registered in `skill/index.ts` and available to all agents via `sys.skills(agent)`.
+
+```yaml
+# src/skill/compaction/SKILL.md (frontmatter)
+name: compaction
+description: Summarize conversation history using the anchored summary template.
+```
+
+The compaction turn uses the **same agent** as the original user turn (e.g., "build").
+No tool-less "compaction" agent is needed — the text instruction says "Do not use any tools."
+This keeps the system prompt byte-identical between turns, preserving KV cache continuity.
 
 ```typescript
-// agent.ts:184-197 — Defined as a plain object in the agents map (not Agent.define())
-compaction: {
-  name: "compaction",
-  mode: "primary",
-  native: true,            // always available (no third-party)
-  hidden: true,            // not shown in agent list
-  permission: Permission.merge(
-    defaults,
-    Permission.fromConfig({ "*": "deny" }),  // no tools available
-    user,
-  ),
-  options: {},             // no custom model override (uses default model)
-  // No prompt field — the compaction prompt is built dynamically
-  // via buildPrompt() in compaction.ts:128-139 using SUMMARY_TEMPLATE
-}
+// compaction.ts — create() inserts a user message with the summarization instruction
+const msg = yield* session.updateMessage({
+    role: "user",
+    agent: input.agent,           // same agent as the original turn
+    ...
+})
+yield* session.updatePart({
+    type: "text",
+    text: "Please create a structured summary of the conversation history. " +
+          "Keep the most recent turn verbatim. " +
+          "Do not use any tools — just produce the summary.",
+    synthetic: true,
+})
+yield* session.updatePart({
+    type: "compaction",
+    auto: input.auto,
+    overflow: input.overflow,
+})
+
+// prompt.ts — compaction block uses the same agent
+const agent = yield* agents.get(lastUser.agent)  // user's original agent
+// → sys.skills(agent) returns identical content to previous turn
+// → system prompt is byte-stable → KV cache hits for prefix
 ```
+
+---
+
+## 11. KV Cache Continuity Model
+
+The system prompt is **byte-stable** for the entire session:
+
+| Component | Source | Changes between turns? |
+|-----------|--------|----------------------|
+| sessionIdBanner | `[session: <ID>]` | No |
+| rules | `instruction.rules()` | No (file-based) |
+| instructions | `instruction.system()` | No (file-based) |
+| env | `sys.environment(model)` | No (no timestamps, no mutable markers) |
+| skills | `sys.skills(agent)` | No (same agent used) |
+| json_schema | `STRUCTURED_OUTPUT_SYSTEM_PROMPT` | Same condition → same result |
+
+Date (`Today's date: ...`) is injected into **user messages**, not the system prompt
+(`prompt.ts:1417-1430`). Providers see identical SHA256(system prompt) across all turns
+including compaction → prefix cache hits → minimum recomputation.
 
 ---
 
 ## Verification Checklist
 
-- [x] Confirm `CompactionPart` schema matches current `message-v2.ts:225-233` -- VERIFIED
-- [x] Confirm `time_compacting` column exists in `session.sql.ts:37` -- VERIFIED
-- [x] Confirm config schema matches `config.ts:218-237` -- VERIFIED
-- [x] Confirm boundary detection logic in `filterCompactedEffect` at `message-v2.ts:1154-1185` -- VERIFIED
+- [x] Confirm `CompactionPart` schema matches current `message-v2.ts` -- VERIFIED
+- [x] Confirm `time_compacting` column exists in `session.sql.ts` -- VERIFIED
+- [x] Confirm config schema matches `config.ts` -- VERIFIED
+- [x] Confirm boundary detection logic in `filterCompactedEffect` at `message-v2.ts` -- VERIFIED
 - [x] Confirm overflow detection in `overflow.ts` -- VERIFIED
-- [x] Confirm compaction flow in `compaction.ts:processCompaction` -- VERIFIED
-- [x] Validate against codebase via explore agent -- COMPLETED; corrections applied (see sections 2,3,4,7,9,10)
-- [ ] Run typecheck: `bun typecheck` from `packages/opencode`
-- [ ] Run compaction tests: `bun test packages/opencode/test/session/compaction.test.ts`
+- [x] 2026-06-13: Removed `processCompaction` — compaction now uses normal processor path -- VERIFIED
+- [x] 2026-06-13: Compaction skill as proper SKILL.md + built-in registration -- VERIFIED
+- [x] 2026-06-13: Same agent, same system prompt for KV cache continuity -- VERIFIED
+- [x] 2026-06-13: `summary: true` + `tail_count` set before compaction processing -- VERIFIED
+- [x] Validate against codebase via explore agent -- COMPLETED; corrections applied
+- [x] Run typecheck: `bun typecheck` from `packages/opencode` -- passed
+- [x] Run compaction tests: `bun test test/session/compaction.test.ts` from `packages/opencode` -- 31 pass, 0 fail
+- [x] Run skill tests: `bun test test/skill/skill.test.ts` from `packages/opencode` -- 10 pass, 0 fail
 
 ### Corrections Applied (from explore validation)
 
 | Section | Issue | Fix |
 |---------|-------|-----|
 | 2 | ManualSummarize path not implemented in code | Removed from state machine |
-| 2, 4, 7 | `prune()` shown as step inside `processCompaction` | Corrected: `prune()` is called separately from `prompt.ts:1422` after loop exit |
-| 7 | `session.time_compacting` shown as updated by `prune()` | Corrected: `prune()` only updates individual `part.state.time.compacted`; DB column exists but `prune()` does not write to it |
-| 3, 10 | Agent prompt shown as file `compaction.txt` | Corrected: prompt is built dynamically via `SUMMARY_TEMPLATE` in `compaction.ts:128-139` |
-| 10 | Agent definition shown as `Agent.define()` syntax | Corrected: agent is a plain object in the `agents` map with `permission` rules |
+| 2, 4, 7 | `prune()` shown as step inside `processCompaction` | Corrected: `prune()` is called separately from `prompt.ts` after loop exit |
+| 7 | `session.time_compacting` shown as updated by `prune()` | Corrected: `prune()` only updates individual `part.state.time.compacted` |
+| 3, 10 | Agent prompt shown as file `compaction.txt` | Corrected: compaction is a built-in skill (`SKILL.md`) loaded via `sys.skills()` |
+| 10 | Compaction as separate "compaction" agent | Corrected: uses same agent as original turn; skill loaded via normal skill system |
+| 2, 4, 9 | Diagram still showed synthetic tail copies and omitted `tail_count` | Corrected: removed synthetic tail insertions and added `CompactionPart.tail_count` |
+| 4 | Compaction process omitted normal system prompt | Corrected: normal processor constructs identical system prompt (same agent → same skills) |

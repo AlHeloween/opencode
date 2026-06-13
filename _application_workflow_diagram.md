@@ -49,14 +49,14 @@ Coverage estimate vs actual codebase: 9%.
 6. `packages/opencode/src/session/compaction.ts` / `select`
    - Input: ordered messages, config, model.
    - Output: `{ head, tail }` where `head` is summarized and `tail` is preserved.
-   - Logic: force the newest real turn into `tail`, then optionally keep older turns within the preservation budget.
+   - Logic: keep only the newest real turn in `tail` for regular compaction; keep no extra tail for overflow replay because the replayed user request is inserted after the summary.
 
 7. `packages/opencode/src/session/compaction.ts` / compaction continuation
-   - Input: compaction prompt state and processor result.
+   - Input: normal system prompt, compaction skill payload, dynamic compaction instruction, and processor result.
    - Output: compacted session continuation or stop.
-   - Logic: summarize `head`, store `tail_count`, and preserve the latest turn after the compaction summary.
+   - Logic: summarize the ordered active history before the latest turn, pass the normal system prompt through unchanged, inject the static compaction template as `<skill_content name="compaction">`, store `tail_count`, and preserve database order as compaction summary followed by the latest turn.
 
-Coverage estimate vs actual codebase: 7%.
+Coverage estimate vs actual codebase: 8%.
 
 This diagram covers the modified session-processing and compaction path only, not the full opencode runtime.
 

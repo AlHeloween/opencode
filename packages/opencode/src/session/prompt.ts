@@ -1200,14 +1200,118 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           }
 
           if (task?.type === "compaction") {
-            const result = yield* compaction.process({
-              messages: msgs,
+            const agent = yield* agents.get(lastUser.agent)
+            if (!agent) {
+              const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+              const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
+              const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
+              yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
+              throw error
+            }
+
+            // Split messages into head (for summarization) and tail (preserved verbatim).
+            // Sets tail_count on the compaction part so filterCompactedEffect can
+            // identify which messages to keep after the boundary.
+            const selected = yield* compaction.selectMessages({ messages: msgs, model })
+            if (selected.tail.length > 0) {
+              task.tail_count = selected.tail.length
+              yield* sessions.updatePart(task)
+            }
+
+            const maxSteps = agent.steps ?? Infinity
+            const isLastStep = step >= maxSteps
+            msgs = yield* insertReminders({ messages: msgs, agent, session })
+
+            const msg: MessageV2.Assistant = {
+              id: MessageID.ascending(),
               parentID: lastUser.id,
+              role: "assistant",
+              mode: agent.name,
+              agent: agent.name,
+              summary: true,
+              variant: lastUser.model.variant,
+              path: { cwd: ctx.directory, root: ctx.worktree },
+              cost: 0,
+              tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              modelID: model.id,
+              providerID: model.providerID,
+              time: { created: Date.now() },
               sessionID,
-              auto: task.auto,
-              overflow: task.overflow,
-            })
-            if (result === "stop") break
+            }
+            yield* sessions.updateMessage(msg)
+
+            const handle = yield* processor
+              .create({
+                assistantMessage: msg,
+                sessionID,
+                model,
+              })
+
+            const outcome: "break" | "continue" = yield* Effect.gen(function* () {
+              const tools = yield* SessionTools.resolve({
+                agent,
+                session,
+                model,
+                processor: handle,
+                bypassAgentCheck: false,
+                messages: msgs,
+                promptOps: yield* ops(),
+              })
+
+              yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
+
+              const envDate = yield* Effect.sync(() => sys.environmentDate())
+              const dateText = envDate[0] ?? ""
+              const freshUserMsg = msgs.findLast((m) => m.info.role === "user")!
+              if (dateText && freshUserMsg.parts.length) {
+                const firstText = freshUserMsg.parts.find(
+                  (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
+                )
+                if (firstText) {
+                  firstText.text = dateText + "\n\n" + firstText.text
+                }
+              }
+
+              const [skills, env, instructions, rules] = yield* Effect.all([
+                sys.skills(agent),
+                Effect.sync(() => sys.environment(model)),
+                instruction.system().pipe(Effect.orDie),
+                instruction.rules().pipe(Effect.orDie),
+              ])
+              const sessionIdBanner = `[session: ${sessionID}]`
+              const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
+              const format = lastUser.format ?? { type: "text" as const }
+              if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+
+              const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
+
+              const result = yield* handle.process({
+                user: lastUser,
+                agent,
+                permission: session.permission,
+                sessionID,
+                parentSessionID: session.parentID,
+                system,
+                messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
+                tools,
+                model,
+              })
+
+              if (result === "stop") return "break" as const
+              if (result === "compact") {
+                yield* compaction.create({
+                  sessionID,
+                  agent: lastUser.agent,
+                  model: lastUser.model,
+                  auto: true,
+                  overflow: !handle.message.finish,
+                })
+              }
+              return "continue" as const
+            }).pipe(
+              Effect.ensuring(instruction.clear(handle.message.id)),
+            )
+            if (outcome === "break") break
             continue
           }
 

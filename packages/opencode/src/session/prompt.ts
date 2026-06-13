@@ -1324,13 +1324,16 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   agent: agent.name,
                   timestamp: Date.now(),
                 }
+                yield* Effect.promise(() =>
+                  RequestDiff.ensureBaseline(sessionID, model.id, model.providerID, ctx.project.id, ctx.worktree),
+                )
                 const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
-                const prev = RequestDiff.getPrev(sessionID)
+                const prev = RequestDiff.getPrev(sessionID, model.id)
                 if (prev) {
                   const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)
                   if (diff) RequestDiff.writeDiff(diff, diffMeta)
                 }
-                RequestDiff.storePrev(sessionID, formatted, diffMeta)
+                RequestDiff.storePrev(sessionID, model.id, formatted, diffMeta, ctx.project.id, ctx.worktree)
               }
 
               if (result === "stop") return "break" as const
@@ -1554,13 +1557,16 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 agent: agent.name,
                 timestamp: Date.now(),
               }
+              yield* Effect.promise(() =>
+                RequestDiff.ensureBaseline(sessionID, model.id, model.providerID, ctx.project.id, ctx.worktree),
+              )
               const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
-              const prev = RequestDiff.getPrev(sessionID)
+              const prev = RequestDiff.getPrev(sessionID, model.id)
               if (prev) {
                 const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)
                 if (diff) RequestDiff.writeDiff(diff, diffMeta)
               }
-              RequestDiff.storePrev(sessionID, formatted, diffMeta)
+              RequestDiff.storePrev(sessionID, model.id, formatted, diffMeta, ctx.project.id, ctx.worktree)
             }
 
             if (structured !== undefined) {

@@ -10,6 +10,7 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
+import { RequestDiff } from "./request-diff"
 import { use as projectDb } from "@/storage/project-db"
 import { eq } from "drizzle-orm"
 import { and } from "drizzle-orm"
@@ -585,6 +586,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
         SyncEvent.run(Event.Deleted, { sessionID, info: session }, { publish: hasInstance })
         SyncEvent.remove(sessionID)
       })
+
+      // Clean up persisted diff baselines (filesystem side-effect after DB commit)
+      RequestDiff.deleteBaselines(sessionID)
     })
 
     const updateMessage = <T extends MessageV2.Info>(msg: T): Effect.Effect<T> =>

@@ -16,11 +16,15 @@
  */
 import path from "path"
 import fs from "fs"
+import { createHash } from "node:crypto"
 import type { ModelMessage } from "ai"
 import { Global } from "@opencode-ai/core/global"
 
 const DIFFS_DIR = "diffs"
+const MODELS_DIR = path.join(DIFFS_DIR, "models")
 const MAX_DIFFS_PER_SESSION = 200
+const BASELINE_VERSION = 1
+const KEY_DERIVATION_SALT = ":opencode-diff-baseline-v1"
 
 /** Metadata attached to each diff entry. */
 export interface DiffMeta {
@@ -38,20 +42,48 @@ interface Baseline {
   meta: DiffMeta
 }
 
-/** Per-session baseline storage (in-memory — does not survive restart). */
+/** Composite key: sessionID + modelID — prevents cross-model comparison. */
+function prevKey(sessionID: string, modelID: string): string {
+  return `${sessionID}:${modelID}`
+}
+
+/** Per-session+model baseline storage (in-memory — loaded from disk on first access). */
 const prevMap = new Map<string, Baseline>()
 
 /** Per-session diff counter for FIFO rotation. */
 const countMap = new Map<string, number>()
 
-/** Retrieve the previous request baseline for a session. */
-export function getPrev(sessionID: string): Baseline | undefined {
-  return prevMap.get(sessionID)
+/** Retrieve the previous request baseline for a session+model (in-memory only). */
+export function getPrev(sessionID: string, modelID: string): Baseline | undefined {
+  return prevMap.get(prevKey(sessionID, modelID))
 }
 
-/** Store the current request as the next baseline for the session. */
-export function storePrev(sessionID: string, formatted: string, meta: DiffMeta): void {
-  prevMap.set(sessionID, { formatted, meta })
+/**
+ * Store the current request as the next baseline for the session+model.
+ * Updates in-memory cache AND fires async encrypted persistence to disk.
+ */
+export function storePrev(
+  sessionID: string,
+  modelID: string,
+  formatted: string,
+  meta: DiffMeta,
+  projectID: string,
+  worktree: string,
+): void {
+  const key = prevKey(sessionID, modelID)
+  const baseline: Baseline = { formatted, meta }
+  prevMap.set(key, baseline)
+
+  // Fire-and-forget encrypted persistence (non-blocking — diff chain
+  // resumes from scratch on next restart only if persistence fails).
+  const filePath = baselinePath(sessionID, meta.providerID, meta.modelID)
+  const dir = path.dirname(filePath)
+  fs.mkdirSync(dir, { recursive: true })
+  deriveKey(projectID, worktree, sessionID).then((encKey) =>
+    encryptBaseline(JSON.stringify(baseline), encKey).then((encrypted) => {
+      fs.writeFileSync(filePath, encrypted)
+    })
+  ).catch(() => { /* persistence failure is non-critical */ })
 }
 
 /**
@@ -534,6 +566,96 @@ function sanitize(s: string): string {
 /** Escape regex special characters. */
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+// ── Persistent baseline storage ───────────────────────────────────────────────
+
+/** Directory path for persisted baselines for a given session. */
+export function modelsDirForSession(sessionID: string): string {
+  return path.join(Global.Path.data, MODELS_DIR, sessionID)
+}
+
+/** File path for a persisted encrypted baseline. */
+export function baselinePath(sessionID: string, providerID: string, modelID: string): string {
+  const safeProvider = sanitize(providerID)
+  const safeModel = sanitize(modelID)
+  return path.join(modelsDirForSession(sessionID), `${safeProvider}_${safeModel}.enc`)
+}
+
+/**
+ * Derive an AES-256-GCM key from project+session identity.
+ * Deterministic — same inputs always produce the same key.
+ */
+export async function deriveKey(
+  projectID: string,
+  worktree: string,
+  sessionID: string,
+): Promise<CryptoKey> {
+  const material = `${projectID}:${worktree}:${sessionID}${KEY_DERIVATION_SALT}`
+  const keyBytes = createHash("sha256").update(material).digest()
+  return crypto.subtle.importKey("raw", new Uint8Array(keyBytes), "AES-GCM", false, ["encrypt", "decrypt"])
+}
+
+/** Encrypt a string with AES-256-GCM. Returns IV (12 bytes) prepended to ciphertext+authTag. */
+export async function encryptBaseline(plaintext: string, key: CryptoKey): Promise<Buffer> {
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const encoded = new TextEncoder().encode(plaintext)
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded))
+  return Buffer.concat([Buffer.from(iv), Buffer.from(ciphertext)])
+}
+
+/** Decrypt an AES-256-GCM ciphertext (IV prepended format). */
+export async function decryptBaseline(encrypted: Buffer, key: CryptoKey): Promise<string> {
+  const iv = new Uint8Array(encrypted.subarray(0, 12))
+  const ciphertext = new Uint8Array(encrypted.subarray(12))
+  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext)
+  return new TextDecoder().decode(plaintext)
+}
+
+/**
+ * Ensure a baseline exists in prevMap for this session+model.
+ * On first call: checks memory, then attempts decryption from disk.
+ * Later calls: memory hit — synchronous getPrev still works.
+ */
+export async function ensureBaseline(
+  sessionID: string,
+  modelID: string,
+  providerID: string,
+  projectID: string,
+  worktree: string,
+): Promise<void> {
+  const key = prevKey(sessionID, modelID)
+  if (prevMap.has(key)) return
+
+  const filePath = baselinePath(sessionID, providerID, modelID)
+  if (!fs.existsSync(filePath)) return
+
+  try {
+    const encKey = await deriveKey(projectID, worktree, sessionID)
+    const encrypted = fs.readFileSync(filePath)
+    const plaintext = await decryptBaseline(encrypted, encKey)
+    const baseline: Baseline = JSON.parse(plaintext)
+    prevMap.set(key, baseline)
+  } catch {
+    // Corrupt file or key mismatch — delete and start fresh
+    try { fs.unlinkSync(filePath) } catch { /* best-effort cleanup */ }
+  }
+}
+
+/**
+ * Remove all persisted baselines for a session (called on session.delete).
+ * Clears in-memory cache for all models within the session.
+ */
+export function deleteBaselines(sessionID: string): void {
+  // Clear all model-variant keys for this session
+  const prefix = `${sessionID}:`
+  for (const key of prevMap.keys()) {
+    if (key.startsWith(prefix)) prevMap.delete(key)
+  }
+  const dir = modelsDirForSession(sessionID)
+  if (fs.existsSync(dir)) {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 }
 
 export * as RequestDiff from "./request-diff"

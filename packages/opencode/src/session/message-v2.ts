@@ -747,6 +747,23 @@ export function clearConversionCache() {
   msgConversionCache.clear()
 }
 
+/**
+ * Compute a fast content hash of all part texts for cache invalidation.
+ * When text content changes (e.g. environmentDate() prepend), the hash
+ * changes and the conversion cache produces a fresh result.
+ */
+function hashPartTexts(parts: readonly Part[]): number {
+  let h = 0
+  for (const part of parts) {
+    if ("text" in part && typeof part.text === "string") {
+      for (let i = 0; i < part.text.length; i++) {
+        h = ((h << 5) - h + part.text.charCodeAt(i)) | 0
+      }
+    }
+  }
+  return h
+}
+
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
@@ -808,7 +825,11 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     if (msg.parts.length === 0) continue
 
     // Per-message conversion cache: skip redundant conversion of stable messages.
-    const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}`
+    // Key includes a content hash of part texts so mutations (e.g. environmentDate()
+    // prepend) invalidate the cache entry.  Without this, date accumulations corrupt
+    // cached message content after session restores.
+    const contentFp = hashPartTexts(msg.parts)
+    const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}:${contentFp}`
     const cached = cache.get(cacheKey)
     if (cached) {
       result.push(cached)

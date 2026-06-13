@@ -221,7 +221,7 @@ const live: Layer.Layer<
       const messages = isOpenaiOauth || isWorkflow
         ? input.messages
         : input.messages
-      const contentTokens = Math.ceil(JSON.stringify(messages).length / 4)
+      const contentTokens = Math.ceil((JSON.stringify(messages).length + JSON.stringify(system).length) / 4)
 
       const params = yield* plugin.trigger(
         "chat.params",

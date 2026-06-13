@@ -27,6 +27,34 @@ Follow these external style guides for TypeScript code:
 - **Known type workarounds** (documented, not bugs):
   - `src/tool/bash.ts`: `web-tree-sitter` `Parser.init()` requires full `EmscriptenModule` but runtime only uses `locateFile`. Cast to `as any` with comment explaining why.
 
+## KV Cache Continuity
+
+The system prompt is **byte-stable** for the entire session — no timestamps, no mutable markers, no agent switches between turns. This ensures providers see identical SHA256(system prompt) → prefix KV cache hits → minimum recomputation → model preserves its reasoning chain across turns.
+
+**Before modifying any code that touches the system prompt, user messages, or model message conversion, assess KV cache impact:**
+
+- **System prompt** (`src/session/system.ts`, `src/session/prompt.ts` system construction): Must be byte-identical across all turns within a session. No dates, no counters, no `Date.now()`, no random values, no per-turn identifiers.
+- **Agent resolution**: Same agent must be used for consecutive turns (including compaction). Switching agents changes `sys.skills(agent)` output → different system prompt → cache break.
+- **Plugin hooks**: `experimental.chat.system.transform` in `llm.ts` receives `system[]` by reference. If a plugin modifies it, fingerprint must be computed AFTER the plugin runs, not before.
+- **Date/time**: `environmentDate()` (`system.ts:147`) returns the date string — it must ONLY be injected into user messages, never the system prompt.
+- **Message conversion**: `toModelMessagesEffect()` must not inject timestamps, random IDs, or mutable content into converted messages.
+
+**Reporting rule:** If a proposed change has any probability of breaking KV cache continuity, the agent MUST:
+1. Explicitly flag it with `[KV-CACHE RISK]` before implementing
+2. Explain what would change (system prompt hash, message prefix, etc.)
+3. Provide the alternative that preserves cache stability
+4. If the change is unavoidable, document it clearly so downstream developers understand the cache invalidation
+
+**Key files:**
+| File | What | Cache sensitivity |
+|------|------|-------------------|
+| `src/session/system.ts` | System prompt construction | `environment()` must be static; date goes to user messages only |
+| `src/session/prompt.ts` | System prompt assembly, fingerprint | System must be identical across paths; fingerprint stored post-plugin |
+| `src/session/cache-control.ts` | Fingerprint computation | `partFingerprint` uses MD5(content) for text, not length |
+| `src/session/llm.ts` | Plugin hook, provider request | Plugin can modify system by reference; fingerprint must be post-hook |
+| `src/session/compaction.ts` | Compaction message creation | Same agent as original turn; `summary: true` on assistant |
+| `src/session/message-v2.ts` | Message conversion | No mutable injection in `toModelMessagesEffect` |
+
 ## Discovery Rule
 
 - **Before reporting any file or module as "not found" or "missing", run `fd` to search for it.** `fd` searches ignored directories too; `glob`/`list` are bounded by `.gitignore`. Guessing absence without discovery is a bug. Same applies to "module X doesn't exist" claims — search first, report after.

@@ -112,7 +112,10 @@ export const layer = Layer.effect(
       for (const item of input.messages) {
         for (const part of item.parts) {
           if (part.type !== "tool") continue
-          const meta = part.metadata as Record<string, unknown> | undefined
+          // filediff lives in part.state.metadata (tool result metadata),
+          // not part.metadata (tool call metadata — only has providerExecuted).
+          const state = (part as { state?: { status?: string; metadata?: Record<string, unknown> } }).state
+          const meta = state?.status === "completed" ? state.metadata : (part.metadata as Record<string, unknown> | undefined)
           const fd = meta?.filediff as Snapshot.FileDiff | undefined
           if (fd?.file && (fd.additions > 0 || fd.deletions > 0)) {
             filediffs.set(fd.file, fd)

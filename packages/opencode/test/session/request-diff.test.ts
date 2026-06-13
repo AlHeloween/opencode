@@ -137,7 +137,7 @@ describe("diffRequest", () => {
     expect(diff).toEqual("")
   })
 
-  test("produces unified diff showing additions only (system unchanged, new messages)", () => {
+  test("shows new messages in MESSAGES section (system unchanged)", () => {
     const prevMeta = baseMeta({ turn: 1 })
     const currMeta = baseMeta({ turn: 2 })
 
@@ -152,28 +152,80 @@ describe("diffRequest", () => {
     const curr = RequestDiff.formatRequest(makeSystem(), msgs2, currMeta)
     const diff = RequestDiff.diffRequest(prev, curr, prevMeta, currMeta)
 
-    expect(diff).toContain("---")
-    expect(diff).toContain("+++")
-    expect(diff).toContain("turn-1")
-    expect(diff).toContain("turn-2")
-    // Should contain the new content
+    // Section-aware structural diff
+    expect(diff).toContain("@@ MESSAGES @@")
+    expect(diff).toContain("added")
+    expect(diff).toContain("[assistant] #2")
     expect(diff).toContain("what is 2+2?")
+    // META section shows timestamp change
+    expect(diff).toContain("@@ META @@")
   })
 
-  test("produces unified diff showing system changes (agent switch simulation)", () => {
+  test("shows system prompt changes with proper context", () => {
     const prevMeta = baseMeta({ turn: 1, agent: "build" })
     const currMeta = baseMeta({ turn: 2, agent: "plan" })
 
-    const sys1 = ["[session: ses_test_001]", "You are a build agent."]
-    const sys2 = ["[session: ses_test_001]", "You are a plan agent."]
+    const sys1 = ["[session: ses_test_001]", "You are a build agent.", "Rule A", "Rule B", "Rule C"]
+    const sys2 = ["[session: ses_test_001]", "You are a plan agent.", "Rule A", "Rule B", "Rule C"]
     const msgs: ModelMessage[] = [{ role: "user", content: "hello" }]
 
     const prev = RequestDiff.formatRequest(sys1, msgs, prevMeta)
     const curr = RequestDiff.formatRequest(sys2, msgs, currMeta)
     const diff = RequestDiff.diffRequest(prev, curr, prevMeta, currMeta)
 
+    expect(diff).toContain("@@ SYSTEM @@")
     expect(diff).toContain("build")
     expect(diff).toContain("plan")
+    // Should show only the changed line with context (Rule A context)
+    expect(diff).toContain("Rule A")
+  })
+
+  test("collapses large unchanged SYSTEM sections", () => {
+    const prevMeta = baseMeta({ turn: 1 })
+    const currMeta = baseMeta({ turn: 2 })
+
+    // Large identical system prompt — only meta changes
+    const largeSys = Array.from({ length: 50 }, (_, i) => `Rule line ${i}`)
+    const msgs1: ModelMessage[] = [{ role: "user", content: "first" }]
+    const msgs2: ModelMessage[] = [{ role: "user", content: "second" }]
+
+    const prev = RequestDiff.formatRequest(largeSys, msgs1, prevMeta)
+    const curr = RequestDiff.formatRequest(largeSys, msgs2, currMeta)
+    const diff = RequestDiff.diffRequest(prev, curr, prevMeta, currMeta)
+
+    // SYSTEM should show (unchanged) or be absent
+    expect(diff).not.toContain("@@ SYSTEM @@ add")
+    // MESSAGES should show the change
+    expect(diff).toContain("@@ MESSAGES @@")
+  })
+
+  test("shows removed messages (compaction simulation)", () => {
+    const prevMeta = baseMeta({ turn: 1 })
+    const currMeta = baseMeta({ turn: 2 })
+
+    const msgs1: ModelMessage[] = [
+      { role: "user", content: "question A" },
+      { role: "assistant", content: "answer A" },
+      { role: "user", content: "question B" },
+    ]
+    const msgs2: ModelMessage[] = [
+      { role: "user", content: "question B" },
+    ]
+
+    const prev = RequestDiff.formatRequest(makeSystem(), msgs1, prevMeta)
+    const curr = RequestDiff.formatRequest(makeSystem(), msgs2, currMeta)
+    const diff = RequestDiff.diffRequest(prev, curr, prevMeta, currMeta)
+
+    expect(diff).toContain("@@ MESSAGES @@")
+    expect(diff).toContain("removed")
+  })
+
+  test("handles identical requests (no changes)", () => {
+    const meta = baseMeta()
+    const formatted = RequestDiff.formatRequest(makeSystem(), makeMessages(), meta)
+    const diff = RequestDiff.diffRequest(formatted, formatted, meta, meta)
+
+    expect(diff).toContain("no changes")
   })
 })
 

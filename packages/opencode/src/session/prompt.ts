@@ -1284,6 +1284,12 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               const format = lastUser.format ?? { type: "text" as const }
               if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
+              // Snapshot system before handle.process() may mutate it via plugin hook.
+              // llm.ts:176-186 passes system by reference to experimental.chat.system.transform
+              // and collapses it in-place. Use the snapshot for diff logging so the formatted
+              // output matches what was actually sent to the provider.
+              const systemForDiff = [...system]
+
               const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
 
               // Compute and store compaction turn fingerprint so the next
@@ -1318,7 +1324,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   agent: agent.name,
                   timestamp: Date.now(),
                 }
-                const formatted = RequestDiff.formatRequest(system, modelMsgs, diffMeta)
+                const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
                 const prev = RequestDiff.getPrev(sessionID)
                 if (prev) {
                   const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)
@@ -1479,11 +1485,12 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
-            // Compute MD5 fingerprint BEFORE converting messages — content-based,
-            // detects cache breaks from the DeepSeek KV cache research.
-            // When the fingerprint matches, DeepSeek's KV cache hits — we can
-            // skip toModelMessagesEffect and reuse the cached model messages.
-            //
+            // Snapshot system before handle.process() may mutate it via plugin hook.
+            // llm.ts:176-186 passes system by reference to experimental.chat.system.transform
+            // and collapses it in-place. Use the snapshot for diff logging so the formatted
+            // output matches what was actually sent to the provider.
+            const systemForDiff = [...system]
+
             // NOTE: Fingerprint is NOT stored here — the experimental.chat.system.transform
             // plugin in llm.ts can modify `system` by reference during handle.process().
             // The accurate fingerprint is stored AFTER handle.process() returns.
@@ -1547,7 +1554,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 agent: agent.name,
                 timestamp: Date.now(),
               }
-              const formatted = RequestDiff.formatRequest(system, modelMsgs, diffMeta)
+              const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
               const prev = RequestDiff.getPrev(sessionID)
               if (prev) {
                 const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)

@@ -2,8 +2,15 @@
  * KV Cache Diff Logging.
  *
  * Formats LLM requests (system + model messages) as diffable text,
- * computes unified diffs between consecutive turns, and writes .diff
- * files to the `diffs/` folder for cache miss debugging.
+ * computes structural diffs between consecutive turns, and writes .diff
+ * files to the `.opencode/data/diffs/` folder for cache miss debugging.
+ *
+ * Diff strategy (section-aware like difftastic):
+ *   META    → key-by-key comparison, show only changed fields
+ *   SYSTEM  → line-level diff with 3-line context windows, collapses
+ *             unchanged regions to a count line
+ *   MESSAGES → message-by-message comparison via content hash;
+ *             shows added/removed/changed messages with headers
  *
  * [KV-CACHE SAFE] — pure read-side logging, zero impact on provider request bytes.
  */
@@ -11,7 +18,6 @@ import path from "path"
 import fs from "fs"
 import type { ModelMessage } from "ai"
 import { Global } from "@opencode-ai/core/global"
-import { unifiedDiff } from "@/util/unified-diff"
 
 const DIFFS_DIR = "diffs"
 const MAX_DIFFS_PER_SESSION = 200
@@ -130,8 +136,14 @@ function formatMessageContent(msg: ModelMessage): string {
   return JSON.stringify(content)
 }
 
+// ── Section-aware structural diff ───────────────────────────────────────────
+
+const CONTEXT_LINES = 3
+const MAX_OUTPUT_LINES = 300
+
 /**
- * Compute a unified diff between two formatted requests.
+ * Compute a structural diff between two formatted requests.
+ * Parses into META / SYSTEM / MESSAGES sections and diffs each independently.
  * Returns empty string when `prev` is null (first turn of session).
  */
 export function diffRequest(
@@ -142,10 +154,334 @@ export function diffRequest(
 ): string {
   if (!prev || !prevMeta) return ""
 
-  const prevLabel = `turn-${prevMeta.turn}  ${new Date(prevMeta.timestamp).toISOString()}`
-  const currLabel = `turn-${currMeta.turn}  ${new Date(currMeta.timestamp).toISOString()}`
+  const out: string[] = []
 
-  return unifiedDiff(prev, curr, prevLabel, currLabel)
+  // Header
+  const prevTs = new Date(prevMeta.timestamp).toISOString()
+  const currTs = new Date(currMeta.timestamp).toISOString()
+  out.push(`--- turn-${prevMeta.turn}  ${prevTs}`)
+  out.push(`+++ turn-${currMeta.turn}  ${currTs}`)
+
+  // Parse into sections
+  const prevSections = parseSections(prev)
+  const currSections = parseSections(curr)
+
+  // Diff META
+  const metaDiff = diffMetaKeys(prevSections.meta, currSections.meta)
+  if (metaDiff.length > 0) {
+    out.push("", "@@ META @@")
+    out.push(...metaDiff)
+  }
+
+  // Diff SYSTEM
+  const sysDiff = diffLinesHunked(
+    prevSections.system,
+    currSections.system,
+    "SYSTEM",
+  )
+  if (sysDiff.length > 0) {
+    out.push("", ...sysDiff)
+  }
+
+  // Diff MESSAGES
+  const msgDiff = diffMessages(prevSections.messages, currSections.messages)
+  if (msgDiff.length > 0) {
+    out.push("", ...msgDiff)
+  }
+
+  // If nothing changed at all
+  if (out.length <= 2) {
+    out.push("", "(no changes — identical request content)")
+  }
+
+  // Cap total output
+  if (out.length > MAX_OUTPUT_LINES) {
+    const trimmed = out.slice(0, MAX_OUTPUT_LINES)
+    trimmed.push(`... (${out.length - MAX_OUTPUT_LINES} more lines omitted)`)
+    return trimmed.join("\n")
+  }
+
+  return out.join("\n")
+}
+
+interface ParsedSections {
+  meta: string[]
+  system: string[]
+  messages: string[]
+}
+
+/** Split a formatted request into META / SYSTEM / MESSAGES sections. */
+function parseSections(text: string): ParsedSections {
+  const lines = text.split("\n")
+  const meta: string[] = []
+  const system: string[] = []
+  const messages: string[] = []
+
+  let section: "meta" | "system" | "messages" | "done" = "meta"
+
+  for (const line of lines) {
+    if (line === "=== META ===") {
+      continue
+    }
+    if (line === "=== SYSTEM ===") {
+      section = "system"
+      continue
+    }
+    if (line === "=== MESSAGES ===") {
+      section = "messages"
+      continue
+    }
+    if (section === "meta") meta.push(line)
+    else if (section === "system") system.push(line)
+    else if (section === "messages") messages.push(line)
+  }
+
+  return { meta, system, messages }
+}
+
+/** Diff META key:value lines — only show changed keys. */
+function diffMetaKeys(prev: string[], curr: string[]): string[] {
+  const out: string[] = []
+  const prevMap = new Map<string, string>()
+  const currMap = new Map<string, string>()
+
+  for (const line of prev) {
+    const sep = line.indexOf(":")
+    if (sep >= 0) prevMap.set(line.slice(0, sep), line.slice(sep + 1).trim())
+  }
+  for (const line of curr) {
+    const sep = line.indexOf(":")
+    if (sep >= 0) currMap.set(line.slice(0, sep), line.slice(sep + 1).trim())
+  }
+
+  const allKeys = new Set([...prevMap.keys(), ...currMap.keys()])
+  let changed = 0
+  for (const key of allKeys) {
+    const pv = prevMap.get(key)
+    const cv = currMap.get(key)
+    if (pv === undefined && cv !== undefined) {
+      changed++
+      out.push(`+ ${key}: ${cv}`)
+    } else if (cv === undefined && pv !== undefined) {
+      changed++
+      out.push(`- ${key}: ${pv}`)
+    } else if (pv !== cv) {
+      changed++
+      out.push(`- ${key}: ${pv}`)
+      out.push(`+ ${key}: ${cv}`)
+    }
+  }
+
+  if (changed === 0) return []
+  return out
+}
+
+/**
+ * Compact line-level diff with context windows.
+ * Collapses runs of identical lines into a count note (like difftastic).
+ */
+function diffLinesHunked(
+  prev: string[],
+  curr: string[],
+  sectionLabel: string,
+): string[] {
+  const ops = alignLines(prev, curr)
+
+  // Count total stats
+  let added = 0
+  let removed = 0
+  for (const op of ops) {
+    if (op.type === "+") added++
+    if (op.type === "-") removed++
+  }
+  if (added === 0 && removed === 0) return []
+
+  // Find change regions: runs of +/- ops (with context padding)
+  const changeIndices: number[] = []
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i].type !== "==") changeIndices.push(i)
+  }
+  if (changeIndices.length === 0) return []
+
+  // Build context windows around each change index
+  const keep = new Set<number>()
+  for (const ci of changeIndices) {
+    for (let k = ci - CONTEXT_LINES; k <= ci + CONTEXT_LINES; k++) {
+      if (k >= 0 && k < ops.length) keep.add(k)
+    }
+  }
+
+  // Build output: emit ops, collapse skipped regions
+  const out: string[] = []
+  out.push(`@@ ${sectionLabel} @@ ${added} added, ${removed} removed`)
+
+  let skipped = 0
+  for (let i = 0; i < ops.length; i++) {
+    if (keep.has(i)) {
+      // Flush skipped count before this kept line
+      if (skipped > 0) {
+        out.push(`... (${skipped} identical lines)`)
+        skipped = 0
+      }
+      const op = ops[i]
+      if (op.type === "==") out.push(` ${op.line}`)
+      else if (op.type === "-") out.push(`-${op.line}`)
+      else out.push(`+${op.line}`)
+    } else {
+      skipped++
+    }
+  }
+  if (skipped > 0) {
+    out.push(`... (${skipped} identical lines)`)
+  }
+
+  return out
+}
+
+/** Simple line-by-line alignment using sync-point search. */
+interface EditOp {
+  type: "==" | "-" | "+"
+  line: string
+}
+
+function alignLines(prev: string[], curr: string[]): EditOp[] {
+  const ops: EditOp[] = []
+  let i = 0
+  let j = 0
+
+  while (i < prev.length || j < curr.length) {
+    if (i < prev.length && j < curr.length && prev[i] === curr[j]) {
+      ops.push({ type: "==", line: prev[i] })
+      i++
+      j++
+      continue
+    }
+
+    // Find next sync point
+    let syncP = -1
+    let syncC = -1
+    const window = 30
+    for (let si = i; si < Math.min(i + window, prev.length) && syncP === -1; si++) {
+      for (let sj = j; sj < Math.min(j + window, curr.length); sj++) {
+        if (prev[si] === curr[sj]) {
+          syncP = si
+          syncC = sj
+          break
+        }
+      }
+    }
+
+    if (syncP >= 0) {
+      for (let k = i; k < syncP; k++) {
+        ops.push({ type: "-", line: prev[k] })
+      }
+      for (let k = j; k < syncC; k++) {
+        ops.push({ type: "+", line: curr[k] })
+      }
+      i = syncP
+      j = syncC
+    } else {
+      for (let k = i; k < prev.length; k++) {
+        ops.push({ type: "-", line: prev[k] })
+      }
+      for (let k = j; k < curr.length; k++) {
+        ops.push({ type: "+", line: curr[k] })
+      }
+      break
+    }
+  }
+
+  return ops
+}
+
+/** Diff messages by content hash — show added, removed, and changed messages. */
+function diffMessages(prev: string[], curr: string[]): string[] {
+  const out: string[] = []
+  out.push("@@ MESSAGES @@")
+
+  // Group messages: each message starts with [role] #N
+  const prevMsgs = splitMessages(prev)
+  const currMsgs = splitMessages(curr)
+
+  // Hash each message for comparison
+  const prevHashes = prevMsgs.map((m) => hashString(m.join("\n")))
+  const currHashes = currMsgs.map((m) => hashString(m.join("\n")))
+
+  let added = 0
+  let removed = 0
+
+  // Simple diff: walk both arrays, identify additions/removals
+  const pi = new Set(prevHashes)
+  const ci = new Set(currHashes)
+
+  // Check for purely added messages (in curr but not prev)
+  const addedMsgs: number[] = []
+  for (let i = 0; i < currMsgs.length; i++) {
+    if (!pi.has(currHashes[i])) {
+      addedMsgs.push(i)
+      added++
+    }
+  }
+
+  // Check for purely removed messages (in prev but not curr)
+  const removedMsgs: number[] = []
+  for (let i = 0; i < prevMsgs.length; i++) {
+    if (!ci.has(prevHashes[i])) {
+      removedMsgs.push(i)
+      removed++
+    }
+  }
+
+  if (added === 0 && removed === 0) return []
+
+  out.push(`${added} added, ${removed} removed`)
+
+  for (const idx of removedMsgs) {
+    const header = prevMsgs[idx][0] // [role] #N
+    out.push(`- ${header}`)
+    // Show first 2 lines of content
+    for (let l = 1; l < Math.min(prevMsgs[idx].length, 3); l++) {
+      out.push(`-   ${prevMsgs[idx][l]}`)
+    }
+  }
+
+  for (const idx of addedMsgs) {
+    const header = currMsgs[idx][0] // [role] #N
+    out.push(`+ ${header}`)
+    // Show first 2 lines of content
+    for (let l = 1; l < Math.min(currMsgs[idx].length, 3); l++) {
+      out.push(`+   ${currMsgs[idx][l]}`)
+    }
+  }
+
+  return out
+}
+
+/** Split message lines into per-message groups based on `[role] #N` headers. */
+function splitMessages(lines: string[]): string[][] {
+  const groups: string[][] = []
+  let current: string[] = []
+
+  for (const line of lines) {
+    if (/^\[(user|assistant|tool|system)\]\s+#\d+$/.test(line)) {
+      if (current.length > 0) groups.push(current)
+      current = [line]
+    } else {
+      current.push(line)
+    }
+  }
+  if (current.length > 0) groups.push(current)
+
+  return groups
+}
+
+/** Fast non-cryptographic hash for content comparison. */
+function hashString(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  }
+  return h
 }
 
 /**
@@ -158,7 +494,7 @@ export function diffRequest(
  * Returns the absolute file path.
  */
 export function writeDiff(diffContent: string, meta: DiffMeta): string {
-  const diffsDir = path.join(Global.Path.home, DIFFS_DIR)
+  const diffsDir = path.join(Global.Path.data, DIFFS_DIR)
   fs.mkdirSync(diffsDir, { recursive: true })
 
   // FIFO rotation: track count per session

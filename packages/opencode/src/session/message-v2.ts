@@ -841,11 +841,10 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           }
         }
 
+        // compaction parts are markers only — the real instruction
+        // is in the text part created by compaction.ts:create()
         if (part.type === "compaction") {
-          userMessage.parts.push({
-            type: "text",
-            text: "What did we do so far?",
-          })
+          continue
         }
         if (part.type === "subtask") {
           userMessage.parts.push({

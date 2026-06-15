@@ -1124,7 +1124,14 @@ export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number, 
   const native = model.limit.output
   const dynamic = contentTokens === undefined ? undefined : Math.max(1, Math.floor(contentTokens * 0.25))
   if (native > 0) {
-    if (dynamic !== undefined) return Math.min(native, dynamic)
+    if (dynamic !== undefined) {
+      // For large-output models, the 25% ratio creates unnecessarily tight
+      // caps (e.g. deepseek-v4-pro: 384K native, but 25% of 200K content = 50K).
+      // Ensure a floor of at least 10% of native (minimum 8K) so large-output
+      // models aren't restricted below their intended capability.
+      const floor = Math.min(native, Math.max(8192, Math.floor(native * 0.1)))
+      return Math.min(native, Math.max(dynamic, floor))
+    }
     if (model.limit.context > 0 && native >= model.limit.context) {
       return Math.min(
         native,

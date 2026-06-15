@@ -1,6 +1,6 @@
 # Repository Folder Map
 
-**Last updated:** 2026-06-13
+**Last updated:** 2026-06-16
 **Purpose:** Folder-based index of repository contents — purpose + key entrypoints for each directory.
 
 ---
@@ -10,7 +10,7 @@
 ### `packages/` — Main Monorepo Packages (21 packages)
 | Subfolder | Purpose | Key Entrypoint |
 |-----------|---------|----------------|
-| `opencode/` | Core CLI/TUI server — AI agent engine, tools, HTTP API, session mgmt | `src/index.ts` |
+| `opencode/` | Core CLI/TUI server — AI agent engine, tools, HTTP API, session mgmt, tokenizers (BPE + tiktoken) | `src/index.ts` |
 | `app/` | SolidJS SPA — web UI for chat, sessions, settings | `src/entry.tsx` |
 | `core/` | Shared utilities — global paths, filesystem, npm resolution, Effect services | `src/global.ts` |
 | `ui/` | Shared SolidJS component library (40+ components), themes, Pierre diff engine | `package.json` exports 14 entrypoints |
@@ -51,7 +51,9 @@
 - `20260601_complete_remaining_items.md` — Remaining implementation items tracking
 
 ### `plans_completed/` — Completed Plans
-Performance, logging, security, shell migration, file locations, backups, session ops, watchdog/cache cleanup, runtime path cleanup, bug fixes, more.
+- `20260615_fix_premature_compaction_json_inflation.md` — Fixed premature compaction from JSON/4 token inflation
+- `20260615_real_tokenizer_integration.md` — Real BPE + tiktoken tokenizers for DeepSeek V4, Qwen3, GPT-5
+- Plus: performance, logging, security, shell migration, file locations, backups, session ops
 
 ### `research_done/` — Completed Research Documents
 - `research_v4.md` — Fix-oriented security/correctness triage
@@ -121,11 +123,20 @@ XML descriptors for declarative code changes, verification, and rollback.
 ### `logs/` — Runtime Logs (gitignored)
 cmd_runner and application runtime logs.
 
-### `.opencode/data/diffs/` — KV Cache Diff Logs (gitignored)
-Per-session folders containing section-aware structural diffs (META/SYSTEM/MESSAGES) between consecutive LLM requests and encrypted baseline snapshots. Files named `{ISO8601-ms}_{provider}_{model}.diff` and `{provider}_{model}.enc`. Enabled by default (config `diff_requests`). Per-session FIFO rotation (max 200 per model).
+### `.opencode/data/log/` — Runtime Logs & KV Cache Diffs (gitignored)
+Single flat directory, no subdirectories. All metadata encoded in filename:
 
-### `.opencode/data/log/` — Runtime Logs (gitignored)
-**Global**: `{ISO8601-start}.log` (one per process invocation, oldest 10 kept). **Per-session**: `{sessionID}/{ISO8601-start}.log` — mirrors diffs/ layout. Session-annotated entries (via Effect logger or `Log.create({ "session.id": id })`) are routed to the session file in addition to the global log. Init on first `runLoop` entry (idempotent), cleanup on session delete.
+`{time_ms}_{operation}_{model}_{session_id}.{ext}`
+
+| Component | Values | Example |
+|-----------|--------|---------|
+| `time_ms` | `Date.now()` epoch millis — primal sort index | `1718446605473` |
+| `operation` | `log` (JSONL entries), `diff` (request comparison), `payload` (large spillover) | `log` |
+| `model` | Sanitized model ID or `system` | `claude-sonnet-4-20250514` |
+| `session_id` | Session ID or `internal` | `ses_abc123` |
+| `ext` | `jsonl`, `diff`, `json` | `jsonl` |
+
+Lexical sort = chronological sort. Retention: 100 latest log files. Diff baselines encrypted in `log/.baselines/`. Enabled by default (config `diff_requests`). Streams created lazily per `(model, session_id, op)`, closed via `Log.closeStreams()` on session delete.
 
 ### `nix/` — Nix Build Support
 Nix flake for reproducible builds.

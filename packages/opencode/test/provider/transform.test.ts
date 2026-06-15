@@ -53,6 +53,33 @@ describe("ProviderTransform.maxOutputTokens", () => {
   test("respects explicit output override", () => {
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }), 4_096)).toBe(4_096)
   })
+
+  test("applies 25% cap when contentTokens provided for small-output model", () => {
+    // 40K content * 0.25 = 10K, min(8K, 10K) = 8K
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 8_192 }), undefined, 40_000)).toBe(
+      8_192,
+    )
+  })
+
+  test("floor prevents excessive capping for large-output models", () => {
+    // deepseek-v4-pro: native 384K, content 50K → dynamic = 12.5K
+    // floor = min(384K, max(8K, 38.4K)) = 38.4K → result = 38.4K
+    const model = createModel({ context: 1_000_000, output: 384_000 })
+    expect(ProviderTransform.maxOutputTokens(model, undefined, 50_000)).toBeGreaterThanOrEqual(38_400)
+  })
+
+  test("returns native output for large-output model without contentTokens", () => {
+    const model = createModel({ context: 1_000_000, output: 384_000 })
+    expect(ProviderTransform.maxOutputTokens(model)).toBe(384_000)
+  })
+
+  test("floor does not exceed native limit", () => {
+    // 8K model: floor = min(8192, max(8192, 819)) = 8192 = native
+    // With 10K content: dynamic = 2.5K, max(2.5K, 8K) = 8K, min(8K, 8K) = 8K
+    expect(
+      ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 8_192 }), undefined, 10_000),
+    ).toBe(8_192)
+  })
 })
 
 describe("ProviderTransform.options - setCacheKey", () => {

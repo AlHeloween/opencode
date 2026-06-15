@@ -8,6 +8,7 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
+import { isOverflowFromContent } from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
@@ -1264,5 +1265,148 @@ describe("SessionNs.getUsage", () => {
     expect(result.tokens.input).toBe(500)
     expect(result.tokens.cache.read).toBe(200)
     expect(result.tokens.cache.write).toBe(300)
+  })
+})
+
+// --- isOverflowFromContent tests (overflow.ts) ---
+
+function makeMsg(role: "user" | "assistant", parts: Partial<MessageV2.Part>[]): MessageV2.WithParts {
+  return {
+    info: {
+      id: `msg-${Math.random().toString(36).slice(2, 10)}`,
+      sessionID: "test-session",
+      role,
+      time: { created: Date.now() },
+    },
+    parts: parts.map((p, i) => ({
+      id: `part-${i}`,
+      messageID: "msg-test",
+      sessionID: "test-session",
+      ...p,
+    })),
+  } as MessageV2.WithParts
+}
+
+function defaultCfg(): Config.Info {
+  return { compaction: { auto: true } } as Config.Info
+}
+
+function deepseekV4Model(): Provider.Model {
+  return createModel({ context: 1_000_000, output: 384_000 })
+}
+
+function deepseekChatModel(): Provider.Model {
+  return createModel({ context: 128_000, output: 8_192 })
+}
+
+describe("isOverflowFromContent", () => {
+  test("returns false for small text content on 1M context model", () => {
+    // Simulate ~15K chars of text (3,750 tokens) — well under 980K usable
+    const msgs = [
+      makeMsg("user", [{ type: "text", text: "x".repeat(10_000) }]),
+      makeMsg("assistant", [{ type: "text", text: "x".repeat(5_000) }]),
+    ]
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+  })
+
+  test("returns false for 200K chars of text on 1M context model", () => {
+    // 200K chars = 50K tokens — well under 980K usable
+    const msgs = [
+      makeMsg("user", [{ type: "text", text: "x".repeat(200_000) }]),
+    ]
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+  })
+
+  test("returns true for 3.2M chars of text on 1M context model", () => {
+    // 3.2M chars = 800K tokens → 800K + 200K = 1M → triggers
+    const msgs = [
+      makeMsg("user", [{ type: "text", text: "x".repeat(3_200_000) }]),
+    ]
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(true)
+  })
+
+  test("counts reasoning part text", () => {
+    // 700K of reasoning + 100K of text = 800K chars = 200K tokens
+    // But 200K tokens << 800K needed for overflow on 1M context
+    const msgs = [
+      makeMsg("assistant", [
+        { type: "reasoning", text: "x".repeat(100_000) },
+        { type: "text", text: "x".repeat(700_000) },
+      ]),
+    ]
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+  })
+
+  test("skips ignored text parts", () => {
+    // 4M chars total but 3.9M are ignored → only 100K counted → no overflow
+    const msgs = [
+      makeMsg("user", [
+        { type: "text", text: "x".repeat(100_000) },
+        { type: "text", text: "x".repeat(3_900_000), ignored: true },
+      ]),
+    ]
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+  })
+
+  test("counts completed tool output", () => {
+    // 500K of tool output + 500K of text = 1M chars = 250K tokens
+    const msgs = [
+      makeMsg("assistant", [
+        {
+          type: "tool",
+          tool: "bash",
+          callID: "call-1",
+          state: { status: "completed", output: "x".repeat(500_000), input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" },
+        },
+      ]),
+      makeMsg("user", [{ type: "text", text: "x".repeat(500_000) }]),
+    ]
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+  })
+
+  test("skips non-completed tool state", () => {
+    // Only completed tools count; running/pending/error should not
+    const msgs = [
+      makeMsg("assistant", [
+        {
+          type: "tool",
+          tool: "bash",
+          callID: "call-1",
+          state: { status: "running", input: {}, time: { start: 0 } },
+        },
+        {
+          type: "tool",
+          tool: "bash",
+          callID: "call-2",
+          state: { status: "error", error: "fail", input: {}, time: { start: 0, end: 1 } },
+        },
+      ]),
+    ]
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+  })
+
+  test("returns false when compaction.auto is disabled", () => {
+    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4_000_000) }])]
+    const cfg = { compaction: { auto: false } } as Config.Info
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg, msgs, model })).toBe(false)
+  })
+
+  test("returns false when context limit is 0", () => {
+    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4_000_000) }])]
+    const model = createModel({ context: 0, output: 384_000 })
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+  })
+
+  test("returns false for empty message array", () => {
+    const model = deepseekV4Model()
+    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs: [], model })).toBe(false)
   })
 })

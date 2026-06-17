@@ -1,5 +1,5 @@
 use crate::{
-    constants::{UPDATER_ENABLED, window_state_flags},
+    constants::{window_state_flags},
     server::get_wsl_config,
 };
 use std::{ops::Deref, time::Duration};
@@ -61,7 +61,7 @@ impl MainWindow {
         .initialization_script(format!(
             r#"
             window.__OPENCODE__ ??= {{}};
-            window.__OPENCODE__.updaterEnabled = {UPDATER_ENABLED};
+
             window.__OPENCODE__.wsl = {wsl_enabled};
           "#
         ));

@@ -354,9 +354,7 @@ pub fn run() {
             Ok(())
         });
 
-    if UPDATER_ENABLED {
-        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
-    }
+
 
     builder
         .build(tauri::generate_context!())

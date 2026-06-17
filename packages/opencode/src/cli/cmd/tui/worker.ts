@@ -3,7 +3,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "@/project/instance"
 import { InstanceBootstrap } from "@/project/bootstrap"
 import { Rpc } from "@/util/rpc"
-import { upgrade } from "@/cli/upgrade"
+
 import { Config } from "@/config/config"
 import { GlobalBus } from "@/bus/global"
 import { Flag } from "@opencode-ai/core/flag/flag"
@@ -70,15 +70,7 @@ export const rpc = {
     server = await Server.listen(input)
     return { url: server.url.toString() }
   },
-  async checkUpgrade(input: { directory: string }) {
-    await Instance.provide({
-      directory: input.directory,
-      init: () => AppRuntime.runPromise(InstanceBootstrap),
-      fn: async () => {
-        await upgrade().catch((e) => { Log.Default.warn("bug: upgrade check failed", { error: String(e) }) })
-      },
-    })
-  },
+
   async reload() {
     await AppRuntime.runPromise(Config.Service.use((cfg) => cfg.invalidate(true)))
   },

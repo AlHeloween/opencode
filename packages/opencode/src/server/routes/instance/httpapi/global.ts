@@ -14,27 +14,11 @@ const GlobalEvent = Schema.Struct({
   payload: Schema.Unknown,
 }).annotate({ identifier: "GlobalEvent" })
 
-const GlobalUpgradeInput = Schema.Struct({
-  target: Schema.optional(Schema.String),
-}).annotate({ identifier: "GlobalUpgradeInput" })
-
-const GlobalUpgradeResult = Schema.Union([
-  Schema.Struct({
-    success: Schema.Literal(true),
-    version: Schema.String,
-  }),
-  Schema.Struct({
-    success: Schema.Literal(false),
-    error: Schema.String,
-  }),
-]).annotate({ identifier: "GlobalUpgradeResult" })
-
 export const GlobalPaths = {
   health: "/global/health",
   event: "/global/event",
   config: "/global/config",
   dispose: "/global/dispose",
-  upgrade: "/global/upgrade",
 } as const
 
 export const GlobalApi = HttpApi.make("global").add(
@@ -86,16 +70,7 @@ export const GlobalApi = HttpApi.make("global").add(
           description: "Clean up and dispose all OpenCode instances, releasing all resources.",
         }),
       ),
-      HttpApiEndpoint.post("upgrade", GlobalPaths.upgrade, {
-        payload: GlobalUpgradeInput,
-        success: GlobalUpgradeResult,
-      }).annotateMerge(
-        OpenApi.annotations({
-          identifier: "global.upgrade",
-          summary: "Upgrade opencode",
-          description: "Upgrade opencode to the specified version or latest if not specified.",
-        }),
-      ),
+
     )
     .annotateMerge(OpenApi.annotations({ title: "global", description: "Global server routes." })),
 )

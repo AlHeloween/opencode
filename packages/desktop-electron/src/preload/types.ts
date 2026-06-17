@@ -15,15 +15,12 @@ export type TitlebarTheme = {
   mode: "light" | "dark"
 }
 
-export type WindowConfig = {
-  updaterEnabled: boolean
-}
+
 
 export type ElectronAPI = {
   killSidecar: () => Promise<void>
   installCli: () => Promise<string>
   awaitInitialization: (onStep: (step: InitStep) => void) => Promise<ServerReadyData>
-  getWindowConfig: () => Promise<WindowConfig>
   consumeInitialDeepLinks: () => Promise<string[]>
   getDefaultServerUrl: () => Promise<string | null>
   setDefaultServerUrl: (url: string | null) => Promise<void>
@@ -72,9 +69,6 @@ export type ElectronAPI = {
   setZoomFactor: (factor: number) => Promise<void>
   setTitlebar: (theme: TitlebarTheme) => Promise<void>
   loadingWindowComplete: () => void
-  runUpdater: (alertOnFail: boolean) => Promise<void>
-  checkUpdate: () => Promise<{ updateAvailable: boolean; version?: string }>
-  installUpdate: () => Promise<void>
   setBackgroundColor: (color: string) => Promise<void>
   log: (level: "debug" | "info" | "warn" | "error", message: string, extra?: Record<string, unknown>) => void
 }

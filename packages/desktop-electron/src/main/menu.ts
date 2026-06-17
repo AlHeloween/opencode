@@ -1,11 +1,10 @@
 import { Menu, shell } from "electron"
 
-import { UPDATER_ENABLED } from "./constants"
+
 import { createMainWindow } from "./windows"
 
 type Deps = {
   trigger: (id: string) => void
-  checkForUpdates: () => void
   reload: () => void
   relaunch: () => void
 }
@@ -18,11 +17,6 @@ export function createMenu(deps: Deps) {
       label: "OpenCode",
       submenu: [
         { role: "about" },
-        {
-          label: "Check for Updates...",
-          enabled: UPDATER_ENABLED,
-          click: () => deps.checkForUpdates(),
-        },
         {
           label: "Reload Webview",
           click: () => deps.reload(),

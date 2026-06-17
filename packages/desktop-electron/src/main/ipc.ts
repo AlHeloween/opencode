@@ -7,7 +7,6 @@ import type {
   ServerReadyData,
   SqliteMigrationProgress,
   TitlebarTheme,
-  WindowConfig,
   WslConfig,
 } from "../preload/types"
 import { getStore } from "./store"
@@ -21,7 +20,6 @@ const pickerFilters = (ext?: string[]) => {
 type Deps = {
   killSidecar: () => void
   awaitInitialization: (sendStep: (step: InitStep) => void) => Promise<ServerReadyData>
-  getWindowConfig: () => Promise<WindowConfig> | WindowConfig
   consumeInitialDeepLinks: () => Promise<string[]> | string[]
   getDefaultServerUrl: () => Promise<string | null> | string | null
   setDefaultServerUrl: (url: string | null) => Promise<void> | void
@@ -34,9 +32,6 @@ type Deps = {
   wslPath: (path: string, mode: "windows" | "linux" | null) => Promise<string>
   resolveAppPath: (appName: string) => Promise<string | null>
   loadingWindowComplete: () => void
-  runUpdater: (alertOnFail: boolean) => Promise<void> | void
-  checkUpdate: () => Promise<{ updateAvailable: boolean; version?: string }>
-  installUpdate: () => Promise<void> | void
   setBackgroundColor: (color: string) => void
   log: (level: string, message: string, extra?: Record<string, unknown>) => void
 }
@@ -47,7 +42,6 @@ export function registerIpcHandlers(deps: Deps) {
     const send = (step: InitStep) => event.sender.send("init-step", step)
     return deps.awaitInitialization(send)
   })
-  ipcMain.handle("get-window-config", () => deps.getWindowConfig())
   ipcMain.handle("consume-initial-deep-links", () => deps.consumeInitialDeepLinks())
   ipcMain.handle("get-default-server-url", () => deps.getDefaultServerUrl())
   ipcMain.handle("set-default-server-url", (_event: IpcMainInvokeEvent, url: string | null) =>
@@ -70,9 +64,6 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.on("log", (_event: IpcMainEvent, level: string, message: string, extra?: Record<string, unknown>) => {
     deps.log(level, message, extra)
   })
-  ipcMain.handle("run-updater", (_event: IpcMainInvokeEvent, alertOnFail: boolean) => deps.runUpdater(alertOnFail))
-  ipcMain.handle("check-update", () => deps.checkUpdate())
-  ipcMain.handle("install-update", () => deps.installUpdate())
   ipcMain.handle("set-background-color", (_event: IpcMainInvokeEvent, color: string) => deps.setBackgroundColor(color))
   ipcMain.handle("store-get", (_event: IpcMainInvokeEvent, name: string, key: string) => {
     const store = getStore(name)

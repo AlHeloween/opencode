@@ -9,7 +9,7 @@ import { GlobalBus } from "@/bus/global"
 import { AppRuntime } from "@/effect/app-runtime"
 import { AsyncQueue } from "@/util/queue"
 import { Instance } from "../../project/instance"
-import { Installation } from "@/installation"
+
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import * as Log from "@opencode-ai/core/util/log"
 import { lazy } from "../../util/lazy"
@@ -211,77 +211,6 @@ export const GlobalRoutes = lazy(() =>
         return c.json(true)
       },
     )
-    .post(
-      "/upgrade",
-      describeRoute({
-        summary: "Upgrade opencode",
-        description: "Upgrade opencode to the specified version or latest if not specified.",
-        operationId: "global.upgrade",
-        responses: {
-          200: {
-            description: "Upgrade result",
-            content: {
-              "application/json": {
-                schema: resolver(
-                  z.union([
-                    z.object({
-                      success: z.literal(true),
-                      version: z.string(),
-                    }),
-                    z.object({
-                      success: z.literal(false),
-                      error: z.string(),
-                    }),
-                  ]),
-                ),
-              },
-            },
-          },
-          ...errors(400),
-        },
-      }),
-      validator(
-        "json",
-        z.object({
-          target: z.string().optional(),
-        }),
-      ),
-      async (c) => {
-        const result = await AppRuntime.runPromise(
-          Installation.Service.use((svc) =>
-            Effect.gen(function* () {
-              const method = yield* svc.method()
-              if (method === "unknown") {
-                return { success: false as const, status: 400 as const, error: "Unknown installation method" }
-              }
 
-              const target = c.req.valid("json").target || (yield* svc.latest(method))
-              const result = yield* Effect.catch(
-                svc.upgrade(method, target).pipe(Effect.as({ success: true as const, version: target })),
-                (err) =>
-                  Effect.succeed({
-                    success: false as const,
-                    status: 500 as const,
-                    error: err instanceof Error ? err.message : String(err),
-                  }),
-              )
-              if (!result.success) return result
-              return { ...result, status: 200 as const }
-            }),
-          ),
-        )
-        if (!result.success) {
-          return c.json({ success: false, error: result.error }, result.status)
-        }
-        const target = result.version
-        GlobalBus.emit("event", {
-          directory: "global",
-          payload: {
-            type: Installation.Event.Updated.type,
-            properties: { version: target },
-          },
-        })
-        return c.json({ success: true, version: target })
-      },
-    ),
+
 )

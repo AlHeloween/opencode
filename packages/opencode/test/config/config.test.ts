@@ -1457,7 +1457,6 @@ test("managed settings override project settings", async () => {
     init: async (dir) => {
       await writeConfig(dir, {
         $schema: "https://opencode.ai/config.json",
-        autoupdate: true,
         disabled_providers: [],
       })
     },
@@ -1465,7 +1464,6 @@ test("managed settings override project settings", async () => {
 
   await writeManagedSettings({
     $schema: "https://opencode.ai/config.json",
-    autoupdate: false,
     disabled_providers: ["openai"],
   })
 
@@ -1473,7 +1471,6 @@ test("managed settings override project settings", async () => {
     directory: tmp.path,
     fn: async () => {
       const config = await load()
-      expect(config.autoupdate).toBe(false)
       expect(config.disabled_providers).toEqual(["openai"])
     },
   })

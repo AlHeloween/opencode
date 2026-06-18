@@ -1122,8 +1122,6 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       function* (sessionID: SessionID) {
         const ctx = yield* InstanceState.context
         const slog = elog.with({ sessionID })
-        // Per-session log file — mirrors diffs/ layout
-        Log.initSession(sessionID)
         let structured: unknown | undefined
         let step = 0
         /** Cached model-ready messages from previous loop iteration.
@@ -1181,7 +1179,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             !hasToolCalls &&
             lastUser.id < lastAssistant.id
           ) {
-            yield* slog.info("exiting loop")
+            yield* slog.info("exiting loop", { step })
             break
           }
 

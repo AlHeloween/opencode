@@ -3,12 +3,11 @@ import fs from "fs/promises"
 import { createWriteStream, mkdirSync, type WriteStream } from "fs"
 import * as Global from "../global"
 import z from "zod"
-import { Glob } from "./glob"
 
 export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
 export type Level = z.infer<typeof Level>
 
-const keep = 10
+const keep = 100
 
 export type Logger = {
   debug(message?: any, extra?: Record<string, any>): void
@@ -58,46 +57,78 @@ function collectBug(key: string, message: string, extra?: Record<string, any>) {
   }
 }
 
-let logpath = ""
 export function file() {
-  return logpath
+  return Global.Path.log
 }
+
 const _stderr = (msg: any) => {
   process.stderr.write(msg)
   return msg.length
 }
-let write: (msg: any) => number | Promise<number> = _stderr
 let printLogs = false
 
-// Per-session log file routing — mirrors diffs/ layout:
-//   log/{sessionID}/{ISO8601-start}.log
-const sessionStreams = new Map<string, { logpath: string; stream: WriteStream }>()
+// ── Flat file routing ─────────────────────────────────────────────────────────────
+//
+// All log/diff/payload files live in a single flat log/ directory.
+// Naming: {time_ms}_{operation}_{model}_{session_id}.{ext}
+//
+// Streams are created lazily per (model, session_id, operation) tuple.
+// The timestamp in the filename is the first-write time for that stream.
 
-export function initSession(sessionID: string): void {
-  if (sessionStreams.has(sessionID)) return
-  const dir = path.join(Global.Path.log, sessionID)
-  mkdirSync(dir, { recursive: true })
-  const spath = path.join(dir, new Date().toISOString().replace(/:/g, "").replace("Z", "") + ".log")
-  const stream = createWriteStream(spath, { flags: "a" })
-  sessionStreams.set(sessionID, { logpath: spath, stream })
+const contextStreams = new Map<string, WriteStream>()
+
+/** Sanitize a string for safe use in filenames. */
+function sanitize(s: string): string {
+  return s.replace(/[^a-zA-Z0-9._-]/g, "-")
 }
 
-export function closeSession(sessionID: string): void {
-  const s = sessionStreams.get(sessionID)
-  if (s) {
-    s.stream.end()
-    sessionStreams.delete(sessionID)
+/** Build a flat-named log file path. */
+export function logPath(op: "log" | "diff" | "payload", model: string, sessionID: string, ext: string, suffix?: string): string {
+  const safeModel = sanitize(model || "system")
+  const safeSid = sanitize(sessionID || "internal")
+  const base = `${Date.now()}_${op}_${safeModel}_${safeSid}`
+  const name = suffix ? `${base}_${suffix}.${ext}` : `${base}.${ext}`
+  return path.join(Global.Path.log, name)
+}
+
+/** Stream key for deduplicating open file handles. */
+function streamKey(model: string, sessionID: string, op: string): string {
+  return `${sanitize(model)}:${sanitize(sessionID || "internal")}:${op}`
+}
+
+/** Get or create a write stream for the given (model, session_id, operation) context. */
+function getOrCreateStream(model: string, sessionID: string, op: "log" | "diff" | "payload", ext: string): WriteStream {
+  const key = streamKey(model, sessionID, op)
+  const existing = contextStreams.get(key)
+  if (existing) return existing
+  const filepath = logPath(op, model, sessionID, ext)
+  mkdirSync(Global.Path.log, { recursive: true })
+  const stream = createWriteStream(filepath, { flags: "a" })
+  contextStreams.set(key, stream)
+  return stream
+}
+
+/** Close all streams for a given session. */
+export function closeStreams(sessionID: string): void {
+  const safeSid = sanitize(sessionID)
+  for (const [key, stream] of contextStreams) {
+    if (key.includes(`:${safeSid}:`)) {
+      stream.end()
+      contextStreams.delete(key)
+    }
   }
 }
 
-function sessionWrite(sessionID: string, entry: string): void {
-  const s = sessionStreams.get(sessionID)
-  if (s) {
-    s.stream.write(entry, (err) => {
-      if (err) logError("session log write failed", { sessionID, error: String(err) })
-    })
+/** Close all context streams (shutdown). */
+function closeAllStreams(): void {
+  for (const [, stream] of contextStreams) {
+    stream.end()
   }
+  contextStreams.clear()
 }
+
+// Backward-compat: initSession / closeSession removed; use closeStreams instead.
+// These are intentionally absent — callers must migrate to the flat naming model.
 
 function logError(msg: string, extra?: Record<string, any>) {
   const entry = JSON.stringify({
@@ -109,6 +140,8 @@ function logError(msg: string, extra?: Record<string, any>) {
     process.stderr.write(`LoggerErrors.log write failed: ${String(e)}\n`)
   })
 }
+
+// ── Deduplication ──────────────────────────────────────────────────────────────────
 
 const DEDUP_WINDOW_MS = 5000
 const dedupState = new Map<string, { count: number; firstId: string; firstTs: string }>()
@@ -125,14 +158,23 @@ function flushDedup() {
     }
   }
   if (totalSuppressed === 0) { dedupState.clear(); return }
+  const now = Date.now()
   const entry = JSON.stringify({
     id: `l-${String(nextLogId++).padStart(4, "0")}`,
-    caller: "log.ts:dedup",
-    ts: new Date().toISOString(),
+    time_ms: now,
+    ts: new Date(now).toISOString(),
+    op: "log",
     level: "DEBUG",
     message: `dedup flush: ${totalSuppressed} entries suppressed (${uniqueKeys} unique keys in ${DEDUP_WINDOW_MS}ms)`,
+    model: "system",
+    session_id: "internal",
+    caller: "log.ts:dedup",
   }) + "\n"
-  write(entry)
+  const stream = getOrCreateStream("system", "internal", "log", "jsonl")
+  stream.write(entry, (err) => {
+    if (err) logError("dedup flush write failed", { error: String(err) })
+  })
+  if (printLogs) _stderr(entry)
   dedupState.clear()
 }
 
@@ -151,27 +193,14 @@ function canDedup(level: Level, message: string): boolean {
   return true
 }
 
+// ── Initialization ─────────────────────────────────────────────────────────────────
+
 export async function init(options: Options = {}) {
   printLogs = options.print ?? false
-  void cleanup(Global.Path.log)
-  logpath = path.join(
-    Global.Path.log,
-    new Date().toISOString().replace(/:/g, "").replace("Z", "") + ".log",
-  )
+  await cleanup(Global.Path.log)
   mkdirSync(Global.Path.log, { recursive: true })
-  mkdirSync(path.join(Global.Path.log, "payloads"), { recursive: true })
-  const stream = createWriteStream(logpath, { flags: "a" })
-  const fileWrite = async (msg: any) => {
-    return new Promise((resolve, reject) => {
-      stream.write(msg, (err) => {
-        if (err) reject(err)
-        else resolve(msg.length)
-      })
-    })
-  }
-  write = printLogs
-    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch((e) => logError("fileWrite failed", { error: String(e) })); return r }
-    : fileWrite
+  // Close any previous streams
+  closeAllStreams()
   flushDedup()
   if (dedupTimer) clearInterval(dedupTimer)
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
@@ -179,25 +208,9 @@ export async function init(options: Options = {}) {
 }
 
 export async function reopen() {
-  if (write === _stderr && !printLogs) return
-  logpath = path.join(
-    Global.Path.log,
-    new Date().toISOString().replace(/:/g, "").replace("Z", "") + ".log",
-  )
+  printLogs = printLogs // preserve
   mkdirSync(Global.Path.log, { recursive: true })
-  mkdirSync(path.join(Global.Path.log, "payloads"), { recursive: true })
-  const stream = createWriteStream(logpath, { flags: "a" })
-  const fileWrite = async (msg: any) => {
-    return new Promise((resolve, reject) => {
-      stream.write(msg, (err) => {
-        if (err) reject(err)
-        else resolve(msg.length)
-      })
-    })
-  }
-  write = printLogs
-    ? (msg: any) => { const r = _stderr(msg); fileWrite(msg).catch((e) => logError("reopen fileWrite failed", { error: String(e) })); return r }
-    : fileWrite
+  closeAllStreams()
   flushDedup()
   if (dedupTimer) clearInterval(dedupTimer)
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
@@ -205,18 +218,19 @@ export async function reopen() {
 }
 
 async function cleanup(dir: string) {
-  const files = (
-    await Glob.scan("????-??-??T??????.log", {
-      cwd: dir,
-      absolute: false,
-      include: "file",
-    }).catch(() => {
-      collectBug("log.ts:cleanup", "bug: failed to scan log files during cleanup [core/log]")
-      return []
-    })
-  )
-    .filter((file) => path.basename(file) === file)
-    .sort()
+  // Match flat-named files: {13-digit-ms}_{op}_{model}_{session_id}.{ext}
+  const pattern = /^\d{13}_(log|diff|payload)_.+\.(jsonl|diff|json)$/
+  let files: string[] = []
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true })
+    files = entries
+      .filter((e) => e.isFile() && pattern.test(e.name))
+      .map((e) => e.name)
+      .sort()
+  } catch {
+    collectBug("log.ts:cleanup", "bug: failed to scan log files during cleanup [core/log]")
+    return
+  }
   if (files.length <= keep) return
 
   const doomed = files.slice(0, -keep)
@@ -224,6 +238,8 @@ async function cleanup(dir: string) {
     collectBug("log.ts:cleanup", "bug: failed to unlink old log file [core/log]")
   })))
 }
+
+// ── Log entry building ─────────────────────────────────────────────────────────────
 
 let nextLogId = 1
 
@@ -249,16 +265,26 @@ function getCaller(): string | undefined {
   }
 }
 
-function serializePayload(extra: Record<string, any>): { payloadJson?: string; payload_id?: string } {
+/** Resolve model from tags or extra context. Falls back to "system". */
+function resolveModel(tags?: Record<string, any>, extra?: Record<string, any>): string {
+  return (tags?.["model"] ?? tags?.["modelID"] ?? extra?.["model"] ?? extra?.["modelID"] ?? "system") as string
+}
+
+/** Resolve session ID from tags or extra context. Falls back to "internal". */
+function resolveSessionID(tags?: Record<string, any>, extra?: Record<string, any>): string {
+  return (tags?.["session.id"] ?? tags?.["session_id"] ?? extra?.["session.id"] ?? extra?.["session_id"] ?? "internal") as string
+}
+
+function serializePayload(extra: Record<string, any>, model: string, sessionID: string): { payloadJson?: string; payload_id?: string } {
   const json = JSON.stringify(extra)
   if (json.length <= 500) return { payloadJson: json }
   const now = new Date()
-  const id = now.toISOString().replace(/:/g, "").replace("Z", "")
-  const payloadPath = path.join(Global.Path.log, "payloads", `${id}.json`)
+  const pid = now.toISOString().replace(/:/g, "").replace("Z", "")
+  const payloadPath = logPath("payload", model, sessionID, "json", pid)
   fs.writeFile(payloadPath, json).catch((e) => {
     logError("payload write failed", { path: payloadPath, error: String(e) })
   })
-  return { payload_id: id }
+  return { payload_id: pid }
 }
 
 export function create(tags?: Record<string, any>) {
@@ -271,15 +297,32 @@ export function create(tags?: Record<string, any>) {
   }
 
   function build(level: Level, message: any, extra?: Record<string, any>, caller?: string) {
+    const now = Date.now()
     const id = `l-${String(nextLogId++).padStart(4, "0")}`
     const resolvedCaller = caller ?? getCaller()
-    const ts = new Date().toISOString()
-    const entry: Record<string, any> = { id, ts, level, message }
+    const model = resolveModel(tags, extra)
+    const sessionID = resolveSessionID(tags, extra)
+    const entry: Record<string, any> = {
+      id,
+      time_ms: now,
+      ts: new Date(now).toISOString(),
+      op: "log",
+      level,
+      message,
+      model,
+      session_id: sessionID,
+    }
     if (resolvedCaller) entry.caller = resolvedCaller
-    if (tags && Object.keys(tags).length > 0) Object.assign(entry, tags)
+    if (tags && Object.keys(tags).length > 0) {
+      // Include service and other tags (but not internal routing keys already in entry)
+      for (const [key, value] of Object.entries(tags)) {
+        if (key === "model" || key === "modelID" || key === "session.id" || key === "session_id") continue
+        entry[key] = value
+      }
+    }
     let result = JSON.stringify(entry) + "\n"
     if (extra) {
-      const { payloadJson, payload_id } = serializePayload(extra)
+      const { payloadJson, payload_id } = serializePayload(extra, model, sessionID)
       if (payloadJson) {
         entry.payload = JSON.parse(payloadJson)
         result = JSON.stringify(entry) + "\n"
@@ -294,12 +337,14 @@ export function create(tags?: Record<string, any>) {
     return result
   }
 
-  const sidTag = (tags?.["session.id"] ?? tags?.["session_id"]) as string | undefined
-
   const routeWrite = (entry: string, extra?: Record<string, any>): void => {
-    const sid = (sidTag ?? extra?.["session.id"] ?? extra?.["session_id"]) as string | undefined
-    write(entry)
-    if (sid) sessionWrite(sid, entry)
+    const model = resolveModel(tags, extra)
+    const sessionID = resolveSessionID(tags, extra)
+    if (printLogs) _stderr(entry)
+    const stream = getOrCreateStream(model, sessionID, "log", "jsonl")
+    stream.write(entry, (err) => {
+      if (err) logError("log stream write failed", { model, sessionID, error: String(err) })
+    })
   }
 
   const result: Logger = {

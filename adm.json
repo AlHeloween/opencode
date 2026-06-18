@@ -2,7 +2,7 @@
   "runtime": {
     "progress_log": "_progress_log.md",
     "temp_dir": ".temp",
-    "uv_cache_dir": ".uv_cache",
+    "pip_cache_dir": ".pip_cache",
     "cmd_runner": "",
     "demos_enabled": false
   },
@@ -12,7 +12,7 @@
     "profile": ""
   },
   "rag": {
-    "db_dir": "logs/rag",
+    "db_dir": ".adid_rag/data",
     "include_globs": [
       "**/*.py",
       "**/*.md",
@@ -61,7 +61,7 @@
       "**/releases/**",
       "**/logs/**",
       "**/.temp/**",
-      "**/.uv_cache/**"
+      "**/.pip_cache/**"
     ],
     "exclude_patterns": [],
     "max_file_bytes": 2000000,
@@ -69,10 +69,8 @@
     "chunk_overlap_lines": 20,
     "top_k": 8,
     "vector_top_k": 160,
-    "fts_top_k": 160,
     "dq_top_k": 160,
     "weight_vector": 1.0,
-    "weight_fts": 1.0,
     "weight_dq": 1.0,
     "rrf_k": 60,
     "dq_rerank_window": 48,
@@ -82,14 +80,16 @@
     "dq_include_energy": true,
     "dq_structure_weight": 0.12,
     "dq_residual_weight": 0.05,
-    "astgrep_tags_enabled": false,
     "adid_history_enabled": true,
-    "cmd_runner_logs_enabled": true,
+    "kmedoids_min_k": 2,
+    "kmedoids_max_k": 20,
+    "kmedoids_max_iter": 100,
+    "kmedoids_silhouette_sample": 5000,
+    "cluster_search_multiplier": 3,
     "embed": {
       "backend": "sentence_transformers",
-      "model": "BAAI/bge-m3",
-      "device": "auto",
-      "batch_size": 16,
+      "model": "BAAI/bge-base-en-v1.5",
+      "batch_size": 32,
       "normalize": true
     }
   }

@@ -183,7 +183,7 @@ The `log.ts` module provides `logError(msg, extra)` for log-internal failures â€
 
 ## Debugging with Logs
 
-When something breaks in the TUI (red brackets, error toasts, session restore failures, prompt not working), **check the logs first**. The log files live at `{worktree}/.opencode/data/log/`. Bug reports are written as JSON to `{worktree}/.opencode/data/bugs/messages.json` on clean exit.
+When something breaks in the TUI (red brackets, error toasts, session restore failures, prompt not working), **check the logs first**. Log/diff/payload files live in a single flat directory at `{worktree}/.opencode/data/log/` using the naming convention `{time_ms}_{operation}_{model}_{session_id}.{ext}`. `ls log/` is chronologically sorted. Bug reports are written as JSON to `{worktree}/.opencode/data/bugs/messages.json` on clean exit.
 
 ### Finding errors in logs
 
@@ -199,18 +199,21 @@ rg -nu 'data.map' .opencode/data/log
 # Show context around matches (3 lines before and after)
 rg -nu -C3 'error' .opencode/data/log
 
-# Search only the latest log file for bugs
-rg -nu 'bug:' .opencode/data/log/$(ls -t .opencode/data/log/*.log | head -1)
+# Search only the latest log file for bugs (files sort chronologically by time_ms prefix)
+rg -nu 'bug:' .opencode/data/log/$(ls .opencode/data/log/*.jsonl | sort | tail -1)
 ```
 
 ### Viewing recent log output
 
 ```bash
-# Last 50 lines of the most recent log file
-ls -t .opencode/data/log/*.log | head -1 | xargs tail -50
+# Last 50 lines of the most recent JSONL log file
+tail -50 "$(ls .opencode/data/log/*_log_*.jsonl | sort | tail -1)"
 
 # Tail all log files by last modified
 rg -nu '' .opencode/data/log | tail -50
+
+# List files chronologically (time_ms prefix ensures sort order)
+ls .opencode/data/log/*.jsonl | sort
 ```
 
 ### Checking bug reports

@@ -99,7 +99,7 @@ export function make(input: {
 
 /**
  * Per-request logger that writes each gateway request to its own file.
- * Files are named `{timestamp}_{requestId}.json` under the configured directory.
+ * Files are named `{time_ms}_req_{requestId}.json` under the configured directory.
  * Best-effort: write failures are logged to debug and silently ignored.
  */
 export function makePerRequest(input: { dir: string }): PerRequestLogger {
@@ -123,12 +123,8 @@ export function makePerRequest(input: { dir: string }): PerRequestLogger {
       if (disposed) return
       const ts = (entry.timestamp as number) ?? Date.now()
       const reqId = (entry.requestId as string) ?? "unknown"
-      const sanitized = String(reqId).replace(/[^a-zA-Z0-9_-]/g, "_")
-      const d = new Date(ts)
-      const pad = (n: number, len = 2) => String(n).padStart(len, "0")
-      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
-        `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
-      const fileName = `${iso}-${sanitized}.json`
+      const sanitized = String(reqId).replace(/[^a-zA-Z0-9_-]/g, "-")
+      const fileName = `${ts}_req_${sanitized}.json`
       const filePath = path.join(dir, fileName)
 
       const write = ensureDir.then(() =>

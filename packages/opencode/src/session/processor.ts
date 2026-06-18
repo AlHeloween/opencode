@@ -180,7 +180,7 @@ export const layer: Layer.Layer<
         recentToolCalls: [],
       }
       let aborted = false
-      const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id)
+      const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
 
       const parse = (e: unknown) =>
         MessageV2.fromError(e, {

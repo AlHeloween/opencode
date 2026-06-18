@@ -12,6 +12,10 @@ function startDedupTimer() {
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
 }
 
+function sanitize(s: string): string {
+  return s.replace(/[^a-zA-Z0-9._-]/g, "-")
+}
+
 function flushDedup() {
   if (dedupState.size === 0) return
   let totalSuppressed = 0
@@ -25,15 +29,20 @@ function flushDedup() {
   if (totalSuppressed === 0) { dedupState.clear(); return }
   const worktree = process.cwd()
   const logDir = path.join(worktree, ".opencode/data/log")
+  const now = Date.now()
   const entry = JSON.stringify({
     id: `l-${String(logIdCounter++).padStart(4, "0")}`,
-    caller: "renderer:dedup",
-    ts: new Date().toISOString(),
+    time_ms: now,
+    ts: new Date(now).toISOString(),
+    op: "log",
     level: "DEBUG",
     message: `dedup flush: ${totalSuppressed} entries suppressed (${uniqueKeys} unique keys in ${DEDUP_WINDOW_MS}ms)`,
+    model: "system",
+    session_id: "internal",
+    caller: "renderer:dedup",
   }) + "\n"
-  const date = new Date().toISOString().split(".")[0].replace(/:/g, "")
-  appendFile(path.join(logDir, `${date}.log`), entry, noop)
+  const filename = `${now}_log_system_internal.jsonl`
+  appendFile(path.join(logDir, filename), entry, noop)
   dedupState.clear()
 }
 
@@ -58,37 +67,45 @@ export function writeLogLine(worktree: string, level: string, message: string, e
     const logDir = path.join(worktree, ".opencode/data/log")
     if (!dirsCreated) {
       mkdirSync(logDir, { recursive: true })
-      mkdirSync(path.join(logDir, "payloads"), { recursive: true })
       dirsCreated = true
     }
 
+    const now = Date.now()
+    const model = (extra?.model as string) || "system"
+    const sessionID = (extra?.session_id as string) || "internal"
+
     const entry: Record<string, unknown> = {
       id: `l-${String(logIdCounter++).padStart(4, "0")}`,
-      caller: "renderer",
-      ts: new Date().toISOString(),
+      time_ms: now,
+      ts: new Date(now).toISOString(),
+      op: "log",
       level: upperLevel,
       message,
+      model: sanitize(model),
+      session_id: sanitize(sessionID),
+      caller: "renderer",
     }
 
     if (extra && Object.keys(extra).length > 0) {
       const dedupSafe = { ...extra }
       delete dedupSafe.caller
-      if (Object.keys(dedupSafe).length === 0) {
-        // no payload to write
-      } else {
+      delete dedupSafe.model
+      delete dedupSafe.session_id
+      if (Object.keys(dedupSafe).length > 0) {
         const payload = JSON.stringify(dedupSafe)
         if (payload.length > 500) {
           const pid = new Date().toISOString().replace(/:/g, "").replace("Z", "")
           entry.payload_id = pid
-          appendFile(path.join(logDir, "payloads", `${pid}.json`), payload, noop)
+          const payloadName = `${now}_payload_${sanitize(model)}_${sanitize(sessionID)}_${pid}.json`
+          appendFile(path.join(logDir, payloadName), payload, noop)
         } else {
           entry.payload = dedupSafe
         }
       }
     }
 
-  const date = new Date().toISOString().replace(/:/g, "").replace("Z", "")
-    appendFile(path.join(logDir, `${date}.log`), JSON.stringify(entry) + "\n", noop)
+    const filename = `${now}_log_${sanitize(model)}_${sanitize(sessionID)}.jsonl`
+    appendFile(path.join(logDir, filename), JSON.stringify(entry) + "\n", noop)
   } catch {
     // log write failure — silently ignore
   }

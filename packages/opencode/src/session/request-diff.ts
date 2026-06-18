@@ -3,7 +3,8 @@
  *
  * Formats LLM requests (system + model messages) as diffable text,
  * computes structural diffs between consecutive turns, and writes .diff
- * files to the `.opencode/data/diffs/` folder for cache miss debugging.
+ * files to the flat `.opencode/data/log/` directory using the unified
+ * naming convention: `{time_ms}_diff_{model}_{sessionID}.diff`.
  *
  * Diff strategy (section-aware like difftastic):
  *   META    → key-by-key comparison, show only changed fields
@@ -19,8 +20,9 @@ import fs from "fs"
 import { createHash } from "node:crypto"
 import type { ModelMessage } from "ai"
 import { Global } from "@opencode-ai/core/global"
+import { logPath } from "@opencode-ai/core/util/log"
 
-const DIFFS_DIR = "diffs"
+const BASELINES_DIR = ".baselines"
 const MAX_DIFFS_PER_SESSION = 200
 const BASELINE_VERSION = 1
 const KEY_DERIVATION_SALT = ":opencode-diff-baseline-v1"
@@ -525,48 +527,38 @@ function hashString(s: string): number {
  * Returns the absolute file path.
  */
 /**
- * Write a diff to the per-session diffs folder.
+ * Write a diff to the flat log/ directory.
  *
- * Layout: `{data}/diffs/{sessionID}/{ISO8601-ms}_{provider}_{model}.diff`
+ * Layout: `{data}/log/{time_ms}_diff_{model}_{sessionID}.diff`
  *
- * Encrypted baselines live alongside in the same folder.
+ * Encrypted baselines live in `log/.baselines/`.
  * FIFO rotation per session: removes oldest diff when exceeding MAX_DIFFS_PER_SESSION.
  */
 export function writeDiff(diffContent: string, meta: DiffMeta): string {
-  const sessionDir = path.join(Global.Path.data, DIFFS_DIR, meta.sessionID)
-  fs.mkdirSync(sessionDir, { recursive: true })
-
   // FIFO rotation: track count per session
   const count = (countMap.get(meta.sessionID) ?? 0) + 1
   countMap.set(meta.sessionID, count)
 
   if (count > MAX_DIFFS_PER_SESSION) {
-    const pattern = new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z_.*\\.diff$`)
-    const files = fs.readdirSync(sessionDir)
-      .filter((f) => pattern.test(f))
+    const logDir = Global.Path.log
+    const pattern = /^\d{13}_diff_.+\.diff$/
+    const safeSid = sanitize(meta.sessionID)
+    const files = fs.readdirSync(logDir)
+      .filter((f) => pattern.test(f) && f.includes(`_${safeSid}.diff`))
       .sort()
     if (files.length > 0) {
-      fs.unlinkSync(path.join(sessionDir, files[0]))
+      fs.unlinkSync(path.join(logDir, files[0]))
     }
   }
 
-  // Build filename: ISO8601-ms_provider_model.diff
-  const d = new Date(meta.timestamp)
-  const pad = (n: number, len = 2) => String(n).padStart(len, "0")
-  const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
-    `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
-  const safeProvider = sanitize(meta.providerID)
-  const safeModel = sanitize(meta.modelID)
-  const filename = `${iso}_${safeProvider}_${safeModel}.diff`
-
-  const filepath = path.join(sessionDir, filename)
+  const filepath = logPath("diff", meta.modelID, meta.sessionID, "diff")
   fs.writeFileSync(filepath, diffContent + "\n")
   return filepath
 }
 
 /** Sanitize a string for use in filenames. */
 function sanitize(s: string): string {
-  return s.replace(/[^a-zA-Z0-9._-]/g, "_")
+  return s.replace(/[^a-zA-Z0-9._-]/g, "-")
 }
 
 /** Escape regex special characters. */
@@ -576,16 +568,17 @@ function escapeRegExp(s: string): string {
 
 // ── Persistent baseline storage ───────────────────────────────────────────────
 
-/** Directory path for persisted baselines for a given session. */
-export function sessionDiffDir(sessionID: string): string {
-  return path.join(Global.Path.data, DIFFS_DIR, sessionID)
+/** Directory path for persisted encrypted baselines. */
+export function sessionDiffDir(_sessionID: string): string {
+  return path.join(Global.Path.log, BASELINES_DIR)
 }
 
 /** File path for a persisted encrypted baseline. */
 export function baselinePath(sessionID: string, providerID: string, modelID: string): string {
   const safeProvider = sanitize(providerID)
   const safeModel = sanitize(modelID)
-  return path.join(sessionDiffDir(sessionID), `${safeProvider}_${safeModel}.enc`)
+  const safeSid = sanitize(sessionID)
+  return path.join(Global.Path.log, BASELINES_DIR, `${safeProvider}_${safeModel}_${safeSid}.enc`)
 }
 
 /**
@@ -658,9 +651,18 @@ export function deleteBaselines(sessionID: string): void {
   for (const key of prevMap.keys()) {
     if (key.startsWith(prefix)) prevMap.delete(key)
   }
-  const dir = sessionDiffDir(sessionID)
-  if (fs.existsSync(dir)) {
-    fs.rmSync(dir, { recursive: true, force: true })
+  // Delete specific baselines for this session from the shared directory
+  const baselinesDir = path.join(Global.Path.log, BASELINES_DIR)
+  if (fs.existsSync(baselinesDir)) {
+    const safeSid = sanitize(sessionID)
+    try {
+      const files = fs.readdirSync(baselinesDir)
+      for (const file of files) {
+        if (file.endsWith(`_${safeSid}.enc`)) {
+          fs.unlinkSync(path.join(baselinesDir, file))
+        }
+      }
+    } catch { /* best-effort cleanup */ }
   }
 }
 

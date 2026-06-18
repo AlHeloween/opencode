@@ -3,7 +3,11 @@ import * as Log from "../util/log"
 
 type Fields = Record<string, unknown>
 
-const normalizeKey = (key: string) => (key === "sessionID" ? "session.id" : key)
+const normalizeKey = (key: string) => {
+  if (key === "sessionID") return "session.id"
+  if (key === "modelID") return "model"
+  return key
+}
 
 export interface Handle {
   readonly debug: (msg?: unknown, extra?: Fields) => Effect.Effect<void>

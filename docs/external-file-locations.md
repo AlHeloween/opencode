@@ -22,7 +22,7 @@ Multiple opencode versions (v1, v2, v2_1) on different filesystem paths each hav
 | `opencode.db` | SQLite database (always this name, no channel/version variants) |
 | `opencode.db-wal` | Write-ahead log |
 | `opencode.db-shm` | Shared memory file |
-| `log/` | Application log files (`YYYY-MM-DDTHHMMSS.log`, kept: 10) |
+| `log/` | Application log/diff/payload files (`{time_ms}_{operation}_{model}_{session_id}.{ext}`, kept: 100) |
 | `log/dev.log` | Dev mode log |
 | `log/heap-<pid>-<timestamp>.heapsnapshot` | Heap snapshots (when `OPENCODE_AUTO_HEAP_SNAPSHOT` is set) |
 | `cache/` | Cached data |
@@ -127,7 +127,7 @@ Override via `OPENCODE_TEST_MANAGED_CONFIG_DIR` (tests only).
 
 | Resource | Limit | Eviction |
 |----------|-------|----------|
-| Application logs | 10 files | Oldest deleted on init |
+| Application log/diff/payload files | 100 files | Oldest deleted on init (sorted by time_ms prefix) |
 | Edit backups | 50 per session | Oldest deleted first |
 | Gateway logs | 1 MB size limit | Rotated, keeps 10 rotated files |
 | Gateway store (routes) | 500 entries per Map | Stale entries (>1hr) evicted |

@@ -23,6 +23,7 @@ import { Effect, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { InstanceState } from "@/effect/instance-state"
+import { Jobs } from "@/jobs"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
@@ -61,6 +62,9 @@ export const Parameters = Schema.Struct({
   description: Schema.String.annotate({
     description:
       "Clear, concise description of what this command does in 5-10 words. Examples:\nInput: ls\nOutput: Lists files in current directory\n\nInput: git status\nOutput: Shows working tree status\n\nInput: npm install\nOutput: Installs package dependencies\n\nInput: mkdir foo\nOutput: Creates directory 'foo'",
+  }),
+  run_in_background: Schema.optional(Schema.Boolean).annotate({
+    description: "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output later.",
   }),
 })
 
@@ -613,6 +617,35 @@ export const BashTool = Tool.define(
               const scan = yield* collect(root, cwd, ps, shell)
               if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
               yield* ask(ctx, scan)
+
+              // Background mode: fork into JobManager, return immediately
+              if (params.run_in_background) {
+                const jobSvc = yield* Effect.serviceOption(Jobs.Service)
+                if (jobSvc._tag === "None") {
+                  // Fallback to normal execution if Jobs not available
+                  return yield* run(
+                    { shell, command: params.command, cwd, env: yield* shellEnv(ctx, cwd), timeout, description: params.description },
+                    ctx,
+                  )
+                }
+                const jobID = yield* jobSvc.value.startEffect({
+                  sessionID: ctx.sessionID,
+                  kind: "bash",
+                  label: params.description || params.command.slice(0, 80),
+                  run: Effect.gen(function* () {
+                    const result = yield* run(
+                      { shell, command: params.command, cwd, env: yield* shellEnv(ctx, cwd), timeout, description: params.description },
+                      ctx,
+                    )
+                    return result.output
+                  }),
+                })
+                return {
+                  title: `Background bash ${jobID}`,
+                  output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use job_output to read its output, or job_wait to wait for completion.`,
+                  metadata: { jobID, output: "", exit: null as number | null, description: params.description || params.command.slice(0, 80), truncated: false },
+                } as any
+              }
 
               return yield* run(
                 {

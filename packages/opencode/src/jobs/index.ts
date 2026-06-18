@@ -52,6 +52,14 @@ export interface Interface {
     run: (signal: AbortSignal, writeOutput: (chunk: string) => void) => Promise<string>
   }) => Effect.Effect<JobID>
 
+  /** Start a background job running an Effect. The effect is forked; output is captured via Effect log annotations. */
+  readonly startEffect: (input: {
+    sessionID: SessionID
+    kind: JobKind
+    label: string
+    run: Effect.Effect<string, Error>
+  }) => Effect.Effect<JobID>
+
   /** Read incremental output from a job. Returns the output since last read. */
   readonly output: (input: { sessionID: SessionID; jobID: JobID }) => Effect.Effect<{ text: string; status: JobStatus }>
 
@@ -220,7 +228,81 @@ export const layer = Layer.effect(
       )
     })
 
-    return Service.of({ start, output, kill, list, drainCompletedNote })
+    const startEffect = Effect.fn("Jobs.startEffect")(function* (input: {
+      sessionID: SessionID
+      kind: JobKind
+      label: string
+      run: Effect.Effect<string, Error>
+    }) {
+      const id = nextID(input.sessionID, input.kind)
+      const controller = new AbortController()
+
+      const job: Job = {
+        id,
+        kind: input.kind,
+        label: input.label,
+        sessionID: input.sessionID,
+        status: "running",
+        output: "",
+        result: "",
+        resultSurfaced: false,
+        startedAt: Date.now(),
+        finishedAt: 0,
+        cancel: () => controller.abort(),
+      }
+
+      const jobKey = key(input.sessionID, id)
+      jobs.set(jobKey, job)
+
+      log.info("job started (effect)", { id, kind: input.kind, sessionID: input.sessionID })
+
+      // Fork the effect — output is captured via a log interceptor
+      input.run.pipe(
+        Effect.tap((text) => Effect.sync(() => {
+          const j = jobs.get(jobKey)
+          if (j) j.output += text + "\n"
+        })),
+        Effect.matchEffect({
+          onSuccess: (result) => Effect.sync(() => {
+            const j = jobs.get(jobKey)
+            if (!j) return
+            if (controller.signal.aborted) {
+              j.status = "killed"
+            } else {
+              j.status = "done"
+              j.result = result
+            }
+            j.finishedAt = Date.now()
+            completed.push({
+              sessionID: input.sessionID,
+              text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
+            })
+            log.info("job completed (effect)", { id, status: j.status })
+          }),
+          onFailure: (err) => Effect.sync(() => {
+            const j = jobs.get(jobKey)
+            if (!j) return
+            if (controller.signal.aborted) {
+              j.status = "killed"
+            } else {
+              j.status = "failed"
+              j.output += `\nError: ${err.message}`
+            }
+            j.finishedAt = Date.now()
+            completed.push({
+              sessionID: input.sessionID,
+              text: `${j.id} (${j.label}) → failed`,
+            })
+            log.warn("job failed (effect)", { id, error: err.message })
+          }),
+        }),
+        Effect.runFork,
+      )
+
+      return id
+    })
+
+    return Service.of({ start, startEffect, output, kill, list, drainCompletedNote })
   }),
 )
 

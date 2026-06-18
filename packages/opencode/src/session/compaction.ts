@@ -30,7 +30,24 @@ export const Event = {
       sessionID: SessionID,
     }),
   ),
+  CompactionNotice: BusEvent.define(
+    "session.compaction.notice",
+    Schema.Struct({
+      sessionID: SessionID,
+      ratio: Schema.Number,
+      tier: Schema.Literal("soft"),
+    }),
+  ),
+  CompactionStuck: BusEvent.define(
+    "session.compaction.stuck",
+    Schema.Struct({
+      sessionID: SessionID,
+      consecutiveCompacts: Schema.Number,
+    }),
+  ),
 }
+
+const MAX_CONSECUTIVE_COMPACTS = 3
 
 export const PRUNE_MINIMUM = 20_000
 export const PRUNE_PROTECT = 40_000
@@ -55,6 +72,12 @@ const SUMMARY_TEMPLATE = `Output exactly the Markdown structure shown inside <te
 
 ### Blocked
 - [blockers or "(none)"]
+
+## Commands & Outcomes
+- [commands run (builds, tests, git) and their relevant results, or "(none)"]
+
+## Errors & Fixes
+- [problems encountered and how they were resolved, or "(none)"]
 
 ## Key Decisions
 - [decision and why, or "(none)"]
@@ -168,6 +191,7 @@ export interface Interface {
     model: { providerID: ProviderID; modelID: ModelID }
     auto: boolean
     overflow?: boolean
+    forced?: boolean
   }) => Effect.Effect<void>
   readonly selectMessages: (input: {
     messages: MessageV2.WithParts[]
@@ -195,6 +219,9 @@ export const layer: Layer.Layer<
     const agents = yield* Agent.Service
     const plugin = yield* Plugin.Service
     const provider = yield* Provider.Service
+
+    // Per-session counter for consecutive compaction detection
+    const compactionCounts = new Map<SessionID, number>()
 
     const isOverflow = Effect.fn("SessionCompaction.isOverflow")(function* (input: {
       tokens: MessageV2.Assistant["tokens"]
@@ -290,7 +317,31 @@ export const layer: Layer.Layer<
       model: { providerID: ProviderID; modelID: ModelID }
       auto: boolean
       overflow?: boolean
+      /** Whether compaction was forced (bypassing economics). */
+      forced?: boolean
     }) {
+      // Stuck detection: track consecutive compactions per session.
+      // If we compact on 3+ consecutive turns and context is still above
+      // the full threshold, emit a stuck event and pause auto-compaction.
+      if (input.auto && !input.forced) {
+        const prev = compactionCounts.get(input.sessionID) ?? 0
+        compactionCounts.set(input.sessionID, prev + 1)
+        if (prev + 1 >= MAX_CONSECUTIVE_COMPACTS) {
+          log.warn("bug: compaction stuck — context window may be too small", {
+            sessionID: input.sessionID,
+            consecutiveCompacts: prev + 1,
+          })
+          yield* bus.publish(Event.CompactionStuck, {
+            sessionID: input.sessionID,
+            consecutiveCompacts: prev + 1,
+          })
+          return
+        }
+      } else if (!input.auto) {
+        // Manual or forced compaction resets the counter
+        compactionCounts.delete(input.sessionID)
+      }
+
       const msg = yield* session.updateMessage({
         id: MessageID.ascending(),
         role: "user",

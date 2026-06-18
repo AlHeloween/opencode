@@ -13,7 +13,8 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
-import { isOverflowFromContent } from "./overflow"
+import { isOverflowFromContent, compactionTier } from "./overflow"
+import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
 import { Bus } from "../bus"
@@ -1368,7 +1369,21 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             lastFinished.summary !== true &&
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true, overflow: true })
+            const tokens = lastFinished.tokens
+            const tier = compactionTier({ cfg: yield* config.get(), tokens, model })
+
+            if (tier === "soft") {
+              // Emit notice that context is growing, but preserve cache-first prefix
+              yield* bus.publish(SessionCompaction.Event.CompactionNotice, {
+                sessionID,
+                ratio: (tokens.total || tokens.input + tokens.output + tokens.cache.read + tokens.cache.write) / model.limit.context,
+                tier: "soft",
+              })
+              continue
+            }
+
+            const forced = tier === "force"
+            yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true, overflow: true, forced })
             continue
           }
 
@@ -1476,6 +1491,26 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               )
               if (firstText) {
                 firstText.text = dateText + "\n\n" + firstText.text
+              }
+            }
+
+            // Inject background job completion notes from the JobManager
+            const jobsNote = yield* Effect.gen(function* () {
+              // JobManager is optional — silently skip if not provided in the layer
+              try {
+                const svc = yield* Effect.serviceOption(Jobs.Service)
+                if (svc._tag === "None") return ""
+                return yield* svc.value.drainCompletedNote({ sessionID })
+              } catch {
+                return ""
+              }
+            })
+            if (jobsNote) {
+              const userText = freshUserMsg.parts.find(
+                (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
+              )
+              if (userText) {
+                userText.text = "<background-jobs>\n" + jobsNote + "\n</background-jobs>\n\n" + userText.text
               }
             }
 

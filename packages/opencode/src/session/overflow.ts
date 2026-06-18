@@ -7,6 +7,38 @@ import type { MessageV2 } from "./message-v2"
 
 const COMPACTION_BUFFER = 20_000
 
+/** Compaction tier returned by compactionTier(). */
+export type CompactionTier = "none" | "soft" | "full" | "force"
+
+/** Determine which compaction tier the current context usage falls into.
+  * - none:  below soft threshold, no action
+  * - soft:  at/above soft ratio, emit notice but do NOT compact (cache-first)
+  * - full:  at/above full ratio, trigger normal compaction
+  * - force: at/above force ratio, trigger compaction bypassing economics check
+  */
+export function compactionTier(input: {
+  cfg: Config.Info
+  tokens: MessageV2.Assistant["tokens"]
+  model: Provider.Model
+}): CompactionTier {
+  if (input.cfg.compaction?.auto === false) return "none"
+  if (input.model.limit.context === 0) return "none"
+
+  const count =
+    input.tokens.total || input.tokens.input + input.tokens.output + input.tokens.cache.read + input.tokens.cache.write
+  const window = input.model.limit.context
+  const ratio = count / window
+
+  const soft = input.cfg.compaction?.soft_ratio ?? 0.5
+  const full = input.cfg.compaction?.full_ratio ?? 0.8
+  const force = input.cfg.compaction?.force_ratio ?? 0.9
+
+  if (ratio >= force) return "force"
+  if (ratio >= full) return "full"
+  if (ratio >= soft) return "soft"
+  return "none"
+}
+
 export function usable(input: { cfg: Config.Info; model: Provider.Model }) {
   const context = input.model.limit.context
   if (context === 0) return 0

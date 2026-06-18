@@ -244,6 +244,15 @@ export const Info = Schema.Struct({
       reserved: Schema.optional(NonNegativeInt).annotate({
         description: "Token buffer for compaction. Leaves enough window to avoid overflow during compaction.",
       }),
+      soft_ratio: Schema.optional(Schema.Number).annotate({
+        description: "Fraction of context window at which to emit a notice (default: 0.5). Does not compact.",
+      }),
+      full_ratio: Schema.optional(Schema.Number).annotate({
+        description: "Fraction of context window at which to trigger normal compaction (default: 0.8).",
+      }),
+      force_ratio: Schema.optional(Schema.Number).annotate({
+        description: "Fraction of context window at which to force compaction, bypassing economics check (default: 0.9).",
+      }),
     }),
   ),
   experimental: Schema.optional(

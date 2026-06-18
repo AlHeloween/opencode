@@ -41,7 +41,7 @@ const paths = {
     return _cache
   },
   get config() {
-    return _config
+    return process.env.OPENCODE_TEST_CONFIG ?? _config
   },
   get state() {
     return _state

@@ -235,8 +235,8 @@ describe("Instruction.system", () => {
       },
     })
 
-    const originalGlobalConfig = Global.Path.config
-    ;(Global.Path as { config: string }).config = globalTmp.path
+    const originalGlobalConfig = process.env.OPENCODE_TEST_CONFIG
+    process.env.OPENCODE_TEST_CONFIG = globalTmp.path
 
     try {
       await Instance.provide({
@@ -262,7 +262,7 @@ describe("Instruction.system", () => {
           ),
       })
     } finally {
-      ;(Global.Path as { config: string }).config = originalGlobalConfig
+      process.env.OPENCODE_TEST_CONFIG = originalGlobalConfig
       if (originalConfigDir === undefined) {
         delete process.env["OPENCODE_CONFIG_DIR"]
       } else {
@@ -301,8 +301,8 @@ describe("Instruction.systemPaths OPENCODE_CONFIG_DIR", () => {
     await using projectTmp = await tmpdir()
 
     process.env["OPENCODE_CONFIG_DIR"] = profileTmp.path
-    const originalGlobalConfig = Global.Path.config
-    ;(Global.Path as { config: string }).config = globalTmp.path
+    const originalGlobalConfig = process.env.OPENCODE_TEST_CONFIG
+    process.env.OPENCODE_TEST_CONFIG = globalTmp.path
 
     try {
       await Instance.provide({
@@ -319,7 +319,7 @@ describe("Instruction.systemPaths OPENCODE_CONFIG_DIR", () => {
           ),
       })
     } finally {
-      ;(Global.Path as { config: string }).config = originalGlobalConfig
+      process.env.OPENCODE_TEST_CONFIG = originalGlobalConfig
     }
   })
 
@@ -333,8 +333,8 @@ describe("Instruction.systemPaths OPENCODE_CONFIG_DIR", () => {
     await using projectTmp = await tmpdir()
 
     process.env["OPENCODE_CONFIG_DIR"] = profileTmp.path
-    const originalGlobalConfig = Global.Path.config
-    ;(Global.Path as { config: string }).config = globalTmp.path
+    const originalGlobalConfig = process.env.OPENCODE_TEST_CONFIG
+    process.env.OPENCODE_TEST_CONFIG = globalTmp.path
 
     try {
       await Instance.provide({
@@ -351,7 +351,7 @@ describe("Instruction.systemPaths OPENCODE_CONFIG_DIR", () => {
           ),
       })
     } finally {
-      ;(Global.Path as { config: string }).config = originalGlobalConfig
+      process.env.OPENCODE_TEST_CONFIG = originalGlobalConfig
     }
   })
 
@@ -364,8 +364,8 @@ describe("Instruction.systemPaths OPENCODE_CONFIG_DIR", () => {
     await using projectTmp = await tmpdir()
 
     delete process.env["OPENCODE_CONFIG_DIR"]
-    const originalGlobalConfig = Global.Path.config
-    ;(Global.Path as { config: string }).config = globalTmp.path
+    const originalGlobalConfig = process.env.OPENCODE_TEST_CONFIG
+    process.env.OPENCODE_TEST_CONFIG = globalTmp.path
 
     try {
       await Instance.provide({
@@ -381,7 +381,7 @@ describe("Instruction.systemPaths OPENCODE_CONFIG_DIR", () => {
           ),
       })
     } finally {
-      ;(Global.Path as { config: string }).config = originalGlobalConfig
+      process.env.OPENCODE_TEST_CONFIG = originalGlobalConfig
     }
   })
 })

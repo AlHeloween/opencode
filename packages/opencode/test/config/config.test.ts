@@ -90,8 +90,8 @@ async function check(map: (dir: string) => string) {
   if (process.platform !== "win32") return
   await using globalTmp = await tmpdir()
   await using tmp = await tmpdir({ git: true, config: { snapshot: true } })
-  const prev = Global.Path.config
-  ;(Global.Path as { config: string }).config = globalTmp.path
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = globalTmp.path
   await clear()
   try {
     await writeConfig(globalTmp.path, {
@@ -109,7 +109,7 @@ async function check(map: (dir: string) => string) {
     })
   } finally {
     await Instance.disposeAll()
-    ;(Global.Path as { config: string }).config = prev
+    process.env.OPENCODE_TEST_CONFIG = prev
     await clear()
   }
 }
@@ -197,8 +197,8 @@ test("updates global config and omits empty shell key in json", async () => {
     },
   })
 
-  const prev = Global.Path.config
-  ;(Global.Path as { config: string }).config = tmp.path
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = tmp.path
   await clear(true)
 
   try {
@@ -207,7 +207,7 @@ test("updates global config and omits empty shell key in json", async () => {
     const writtenConfig = await Filesystem.readJson<{ shell?: string }>(path.join(tmp.path, "opencode.json"))
     expect("shell" in writtenConfig).toBe(false)
   } finally {
-    ;(Global.Path as { config: string }).config = prev
+    process.env.OPENCODE_TEST_CONFIG = prev
     await clear(true)
   }
 })
@@ -226,8 +226,8 @@ test("updates global config and omits empty shell key in jsonc", async () => {
     },
   })
 
-  const prev = Global.Path.config
-  ;(Global.Path as { config: string }).config = tmp.path
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = tmp.path
   await clear(true)
 
   try {
@@ -240,7 +240,7 @@ test("updates global config and omits empty shell key in jsonc", async () => {
     expect(parsed.shell).toBeUndefined()
     expect(parsed.model).toBe("test/model")
   } finally {
-    ;(Global.Path as { config: string }).config = prev
+    process.env.OPENCODE_TEST_CONFIG = prev
     await clear(true)
   }
 })
@@ -1079,7 +1079,7 @@ test("merges plugin arrays from global and local configs", async () => {
       const opencodeDir = path.join(projectDir, ".opencode")
       await fs.mkdir(opencodeDir, { recursive: true })
 
-      // Global config with plugins
+      // Global config with plugins (written to dir which will be Global.Path.config)
       await Filesystem.write(
         path.join(dir, "opencode.json"),
         JSON.stringify({
@@ -1099,22 +1099,29 @@ test("merges plugin arrays from global and local configs", async () => {
     },
   })
 
-  await Instance.provide({
-    directory: path.join(tmp.path, "project"),
-    fn: async () => {
-      const config = await load()
-      const plugins = config.plugin ?? []
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = tmp.path
 
-      // Should contain both global and local plugins
-      expect(plugins.some((p) => p.includes("global-plugin-1"))).toBe(true)
-      expect(plugins.some((p) => p.includes("global-plugin-2"))).toBe(true)
-      expect(plugins.some((p) => p.includes("local-plugin-1"))).toBe(true)
+  try {
+    await Instance.provide({
+      directory: path.join(tmp.path, "project"),
+      fn: async () => {
+        const config = await load()
+        const plugins = config.plugin ?? []
 
-      // Should have all 3 plugins (not replaced, but merged)
-      const pluginNames = plugins.filter((p) => p.includes("global-plugin") || p.includes("local-plugin"))
-      expect(pluginNames.length).toBeGreaterThanOrEqual(3)
-    },
-  })
+        // Should contain both global and local plugins
+        expect(plugins.some((p) => p.includes("global-plugin-1"))).toBe(true)
+        expect(plugins.some((p) => p.includes("global-plugin-2"))).toBe(true)
+        expect(plugins.some((p) => p.includes("local-plugin-1"))).toBe(true)
+
+        // Should have all 3 plugins (not replaced, but merged)
+        const pluginNames = plugins.filter((p) => p.includes("global-plugin") || p.includes("local-plugin"))
+        expect(pluginNames.length).toBeGreaterThanOrEqual(3)
+      },
+    })
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = prev
+  }
 })
 
 test("does not error when only custom agent is a subagent", async () => {
@@ -1174,18 +1181,25 @@ test("merges instructions arrays from global and local configs", async () => {
     },
   })
 
-  await Instance.provide({
-    directory: path.join(tmp.path, "project"),
-    fn: async () => {
-      const config = await load()
-      const instructions = config.instructions ?? []
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = tmp.path
 
-      expect(instructions).toContain("global-instructions.md")
-      expect(instructions).toContain("shared-rules.md")
-      expect(instructions).toContain("local-instructions.md")
-      expect(instructions.length).toBe(3)
-    },
-  })
+  try {
+    await Instance.provide({
+      directory: path.join(tmp.path, "project"),
+      fn: async () => {
+        const config = await load()
+        const instructions = config.instructions ?? []
+
+        expect(instructions).toContain("global-instructions.md")
+        expect(instructions).toContain("shared-rules.md")
+        expect(instructions).toContain("local-instructions.md")
+        expect(instructions.length).toBe(3)
+      },
+    })
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = prev
+  }
 })
 
 test("deduplicates duplicate instructions from global and local configs", async () => {
@@ -1213,21 +1227,28 @@ test("deduplicates duplicate instructions from global and local configs", async 
     },
   })
 
-  await Instance.provide({
-    directory: path.join(tmp.path, "project"),
-    fn: async () => {
-      const config = await load()
-      const instructions = config.instructions ?? []
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = tmp.path
 
-      expect(instructions).toContain("global-only.md")
-      expect(instructions).toContain("local-only.md")
-      expect(instructions).toContain("duplicate.md")
+  try {
+    await Instance.provide({
+      directory: path.join(tmp.path, "project"),
+      fn: async () => {
+        const config = await load()
+        const instructions = config.instructions ?? []
 
-      const duplicates = instructions.filter((i) => i === "duplicate.md")
-      expect(duplicates.length).toBe(1)
-      expect(instructions.length).toBe(3)
-    },
-  })
+        expect(instructions).toContain("global-only.md")
+        expect(instructions).toContain("local-only.md")
+        expect(instructions).toContain("duplicate.md")
+
+        const duplicates = instructions.filter((i) => i === "duplicate.md")
+        expect(duplicates.length).toBe(1)
+        expect(instructions.length).toBe(3)
+      },
+    })
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = prev
+  }
 })
 
 test("deduplicates duplicate plugins from global and local configs", async () => {
@@ -1258,28 +1279,35 @@ test("deduplicates duplicate plugins from global and local configs", async () =>
     },
   })
 
-  await Instance.provide({
-    directory: path.join(tmp.path, "project"),
-    fn: async () => {
-      const config = await load()
-      const plugins = config.plugin ?? []
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = tmp.path
 
-      // Should contain all unique plugins
-      expect(plugins.some((p) => p.includes("global-plugin-1"))).toBe(true)
-      expect(plugins.some((p) => p.includes("local-plugin-1"))).toBe(true)
-      expect(plugins.some((p) => p.includes("duplicate-plugin"))).toBe(true)
+  try {
+    await Instance.provide({
+      directory: path.join(tmp.path, "project"),
+      fn: async () => {
+        const config = await load()
+        const plugins = config.plugin ?? []
 
-      // Should deduplicate the duplicate plugin
-      const duplicatePlugins = plugins.filter((p) => p.includes("duplicate-plugin"))
-      expect(duplicatePlugins.length).toBe(1)
+        // Should contain all unique plugins
+        expect(plugins.some((p) => p.includes("global-plugin-1"))).toBe(true)
+        expect(plugins.some((p) => p.includes("local-plugin-1"))).toBe(true)
+        expect(plugins.some((p) => p.includes("duplicate-plugin"))).toBe(true)
 
-      // Should have exactly 3 unique plugins
-      const pluginNames = plugins.filter(
-        (p) => p.includes("global-plugin") || p.includes("local-plugin") || p.includes("duplicate-plugin"),
-      )
-      expect(pluginNames.length).toBe(3)
-    },
-  })
+        // Should deduplicate the duplicate plugin
+        const duplicatePlugins = plugins.filter((p) => p.includes("duplicate-plugin"))
+        expect(duplicatePlugins.length).toBe(1)
+
+        // Should have exactly 3 unique plugins
+        const pluginNames = plugins.filter(
+          (p) => p.includes("global-plugin") || p.includes("local-plugin") || p.includes("duplicate-plugin"),
+        )
+        expect(pluginNames.length).toBe(3)
+      },
+    })
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = prev
+  }
 })
 
 test("keeps plugin origins aligned with merged plugin list", async () => {
@@ -1307,24 +1335,31 @@ test("keeps plugin origins aligned with merged plugin list", async () => {
     },
   })
 
-  await Instance.provide({
-    directory: path.join(tmp.path, "project"),
-    fn: async () => {
-      const cfg = await load()
-      const plugins = cfg.plugin ?? []
-      const origins = cfg.plugin_origins ?? []
-      const names = plugins.map((item) => ConfigPlugin.pluginSpecifier(item))
+  const prev = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = tmp.path
 
-      expect(names).toContain("shared-plugin@2.0.0")
-      expect(names).not.toContain("shared-plugin@1.0.0")
-      expect(names).toContain("global-only@1.0.0")
-      expect(names).toContain("local-only@1.0.0")
+  try {
+    await Instance.provide({
+      directory: path.join(tmp.path, "project"),
+      fn: async () => {
+        const cfg = await load()
+        const plugins = cfg.plugin ?? []
+        const origins = cfg.plugin_origins ?? []
+        const names = plugins.map((item) => ConfigPlugin.pluginSpecifier(item))
 
-      expect(origins.map((item) => item.spec)).toEqual(plugins)
-      const hit = origins.find((item) => ConfigPlugin.pluginSpecifier(item.spec) === "shared-plugin@2.0.0")
-      expect(hit?.scope).toBe("local")
-    },
-  })
+        expect(names).toContain("shared-plugin@2.0.0")
+        expect(names).not.toContain("shared-plugin@1.0.0")
+        expect(names).toContain("global-only@1.0.0")
+        expect(names).toContain("local-only@1.0.0")
+
+        expect(origins.map((item) => item.spec)).toEqual(plugins)
+        const hit = origins.find((item) => ConfigPlugin.pluginSpecifier(item.spec) === "shared-plugin@2.0.0")
+        expect(hit?.scope).toBe("local")
+      },
+    })
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = prev
+  }
 })
 
 // Legacy tools migration tests
@@ -2093,16 +2128,23 @@ describe("deduplicatePluginOrigins", () => {
       },
     })
 
-    await Instance.provide({
-      directory: path.join(tmp.path, "project"),
-      fn: async () => {
-        const config = await load()
-        const plugins = config.plugin ?? []
+    const prev = process.env.OPENCODE_TEST_CONFIG
+    process.env.OPENCODE_TEST_CONFIG = tmp.path
 
-        expect(plugins.some((p) => ConfigPlugin.pluginSpecifier(p) === "my-plugin@1.0.0")).toBe(true)
-        expect(plugins.some((p) => ConfigPlugin.pluginSpecifier(p).startsWith("file://"))).toBe(true)
-      },
-    })
+    try {
+      await Instance.provide({
+        directory: path.join(tmp.path, "project"),
+        fn: async () => {
+          const config = await load()
+          const plugins = config.plugin ?? []
+
+          expect(plugins.some((p) => ConfigPlugin.pluginSpecifier(p) === "my-plugin@1.0.0")).toBe(true)
+          expect(plugins.some((p) => ConfigPlugin.pluginSpecifier(p).startsWith("file://"))).toBe(true)
+        },
+      })
+    } finally {
+      process.env.OPENCODE_TEST_CONFIG = prev
+    }
   })
 })
 

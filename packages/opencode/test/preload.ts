@@ -41,6 +41,13 @@ const testHome = path.join(dir, "home")
 await fs.mkdir(testHome, { recursive: true })
 process.env["OPENCODE_TEST_HOME"] = testHome
 
+// Set test config directory to isolate tests from the executable's config path.
+// This replaces the old pattern of mutating Global.Path.config which fails on
+// Bun/Windows due to module export immutability.
+const testConfigDir = path.join(dir, "configs")
+await fs.mkdir(testConfigDir, { recursive: true })
+process.env["OPENCODE_TEST_CONFIG"] = testConfigDir
+
 // Set test managed config directory to isolate tests from system managed settings
 const testManagedConfigDir = path.join(dir, "managed")
 process.env["OPENCODE_TEST_MANAGED_CONFIG_DIR"] = testManagedConfigDir

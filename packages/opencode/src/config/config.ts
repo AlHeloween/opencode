@@ -434,18 +434,13 @@ export const layer = Layer.effect(
       return result
     })
 
-    const [cachedGlobal, invalidateGlobal] = yield* Effect.cachedInvalidateWithTTL(
-      loadGlobal().pipe(
+    const getGlobal = Effect.fn("Config.getGlobal")(function* () {
+      return yield* loadGlobal().pipe(
         Effect.tapError((error) =>
           Effect.sync(() => log.error("failed to load global config, using defaults", { error: String(error) })),
         ),
         Effect.orElseSucceed((): Info => ({})),
-      ),
-      Duration.infinity,
-    )
-
-    const getGlobal = Effect.fn("Config.getGlobal")(function* () {
-      return yield* cachedGlobal
+      )
     })
 
     const ensureGitignore = Effect.fn("Config.ensureGitignore")(function* (dir: string) {
@@ -494,8 +489,9 @@ export const layer = Layer.effect(
           const hit = kind ?? (yield* pluginScopeForSource(source))
           // Merge newly seen plugin origins with previously collected ones, then dedupe by plugin identity while
           // keeping the winning source/scope metadata for downstream installs, writes, and diagnostics.
+          const existingOrigins = result.plugin_origins ?? []
           const plugins = ConfigPlugin.deduplicatePluginOrigins([
-            ...(result.plugin_origins ?? []),
+            ...existingOrigins,
             ...list.map((spec) => ({ spec, source, scope: hit })),
           ])
           result.plugin = plugins.map((item) => item.spec)
@@ -538,7 +534,8 @@ export const layer = Layer.effect(
         }
 
         if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
-          for (const file of yield* ConfigPaths.files("opencode", ctx.directory, ctx.worktree).pipe(Effect.orDie)) {
+          const projectFiles = yield* ConfigPaths.files("opencode", ctx.directory, ctx.worktree).pipe(Effect.orDie)
+          for (const file of projectFiles) {
             yield* merge(file, yield* loadFile(file), "local")
           }
         }
@@ -759,7 +756,6 @@ export const layer = Layer.effect(
     })
 
     const invalidate = Effect.fn("Config.invalidate")(function* (wait?: boolean) {
-      yield* invalidateGlobal
       const task = Instance.disposeAll()
         .catch(() => undefined)
         .finally(() =>

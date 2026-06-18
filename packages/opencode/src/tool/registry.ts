@@ -49,6 +49,7 @@ import { Instruction } from "../session/instruction"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Bus } from "../bus"
 import { Agent } from "../agent/agent"
+import { Jobs } from "../jobs"
 import { Skill } from "../skill"
 import { Permission } from "@/permission"
 
@@ -93,6 +94,7 @@ export const layer: Layer.Layer<
   | Ripgrep.Service
   | Format.Service
   | Truncate.Service
+  | Jobs.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -122,6 +124,8 @@ export const layer: Layer.Layer<
     const universalsearch = yield* UniversalSearchTool
     const messagesearch = yield* MessageSearchTool
     const sessionread = yield* SessionReadTool
+    const joboutput = yield* JobOutputTool
+    const jobwait = yield* JobWaitTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -214,6 +218,8 @@ export const layer: Layer.Layer<
           universalsearch: Tool.init(universalsearch),
           messagesearch: Tool.init(messagesearch),
           sessionread: Tool.init(sessionread),
+          joboutput: Tool.init(joboutput),
+          jobwait: Tool.init(jobwait),
         })
 
         return {
@@ -237,6 +243,8 @@ export const layer: Layer.Layer<
             tool.universalsearch,
             tool.messagesearch,
             tool.sessionread,
+            tool.joboutput,
+            tool.jobwait,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
           ],
@@ -354,6 +362,7 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(CrossSpawnSpawner.defaultLayer),
     Layer.provide(Ripgrep.defaultLayer),
     Layer.provide(Truncate.defaultLayer),
+    Layer.provide(Jobs.defaultLayer),
   ),
 )
 

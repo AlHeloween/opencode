@@ -52,6 +52,7 @@ import { memoMap } from "@opencode-ai/core/effect/memo-map"
 import { EventV2 } from "@opencode-ai/core/event"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { Jobs } from "@/jobs"
 
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
@@ -103,6 +104,7 @@ export const AppLayer = Layer.mergeAll(
   EventV2.defaultLayer,
   EventV2Bridge.defaultLayer,
   RuntimeFlags.defaultLayer,
+  Jobs.defaultLayer,
 ).pipe(Layer.provideMerge(Observability.layer))
 
 const rt = ManagedRuntime.make(AppLayer, { memoMap })

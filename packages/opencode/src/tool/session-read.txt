@@ -1,11 +1,32 @@
-- Reads messages from a conversation session by index position
-- Use this tool to get full context around messages found by messagesearch
-- Returns message index, role, and full text content including tool outputs and compaction summaries
+Reads messages from a conversation session by index position. Use this to get full context around messages found by messagesearch.
 
-Usage:
-  session-read({ sessionId: "ses_abc" }) — reads most recent messages (default: 10)
-  session-read({ sessionId: "ses_abc", offset: 42, limit: 8 }) — reads messages starting from 42
-  session-read({ sessionId: "ses_abc", limit: 20 }) — reads last 20 messages
+## Output Format
 
-The output includes message numbers (#42), roles (user/assistant/tool), and full text.
-Compaction summaries are included if they exist after conversations.
+Each message includes:
+- **#N** — message index within the session
+- **Role** — `user`, `assistant`, or `tool`
+- **Full text content** including:
+  - `text` parts — the actual message text
+  - `tool` parts — tool call state, output, and errors
+  - `reasoning` parts — model's chain-of-thought
+  - `compaction` parts — summaries of compressed conversation segments
+
+## Limits
+
+- **Message limit**: Capped at 50 regardless of the requested `limit`. If more messages exist, the output notes the range shown.
+- **Output cap**: 100KB total output. Use `offset` to page through larger ranges.
+- **Default view**: Most recent 10 messages when `offset` is omitted.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sessionId` | string | — | The session ID to read from (from messagesearch results) |
+| `offset` | number | last 10 | Start reading from this message index (1-based) |
+| `limit` | number | 10 | Maximum messages to read |
+
+## When to Use
+
+- After messagesearch finds relevant context, read the surrounding conversation
+- Review what happened in a session
+- Check previous decisions or error resolutions

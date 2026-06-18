@@ -1,13 +1,29 @@
-- Fetches content from a specified URL
-- Takes a URL and optional format as input
-- Fetches the URL content, converts to requested format (markdown by default)
-- Returns the content in the specified format
-- Use this tool when you need to retrieve and analyze web content
+Fetches content from a specified URL and converts it to the requested format.
 
-Usage notes:
-  - IMPORTANT: if another tool is present that offers better web fetching capabilities, is more targeted to the task, or has fewer restrictions, prefer using that tool instead of this one.
-  - The URL must be a fully-formed valid URL
-  - HTTP URLs will be automatically upgraded to HTTPS
-  - Format options: "markdown" (default), "text", or "html"
-  - This tool is read-only and does not modify any files
-  - Results may be summarized if the content is very large
+## Two-Stage Fetch Strategy
+
+1. **HTTP** — Direct HTTP request with content-type negotiation (default timeout: 30s, max 120s).
+2. **Playwright Browser Fallback** — If HTTP fails (JS-rendered pages, Cloudflare challenges, bot detection), automatically falls back to a headless browser at the Universal Search Service. This handles JavaScript-heavy sites transparently — you don't need to special-case any URL.
+
+## Response Processing
+
+- **HTML → Markdown** conversion via TurndownService for the `markdown` format (default).
+- **Text extraction** strips `script`, `style`, `noscript`, `iframe`, `object`, and `embed` elements.
+- **Images** in fetched content are returned as base64 data URL attachments.
+- **Max response size**: 5MB. Larger responses are truncated.
+- Custom `User-Agent` and `Accept` headers sent with requests (format-dependent Accept negotiation).
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `url` | string | — | Fully-formed valid URL (HTTP upgraded to HTTPS) |
+| `format` | enum | `"markdown"` | Return format: `"markdown"`, `"text"`, or `"html"` |
+| `timeout` | number | 30 | Timeout in seconds (max 120) |
+
+## When to Use
+
+- Reading documentation or reference pages from the web
+- Fetching API responses
+- Checking current information or release notes
+- Any task where the information lives at a URL, not in the local filesystem or conversation history

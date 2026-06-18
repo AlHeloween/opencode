@@ -1,5 +1,18 @@
-Load a specialized skill when the task at hand matches one of the skills listed in the system prompt.
+Load a specialized skill that provides domain-specific instructions and workflows. The skill name must match one of the available skills listed in your system prompt.
 
-Use this tool to inject the skill's instructions and resources into current conversation. The output may contain detailed workflow guidance as well as references to scripts, files, etc in the same directory as the skill.
+When you recognize that a task matches one of the available skills, use this tool to load the full skill instructions. The skill will inject detailed instructions, workflows, and access to bundled resources (scripts, references, templates) into the conversation context.
 
-The skill name must match one of the skills listed in your system prompt.
+## Return Value
+
+- **Skill directory listing** — up to 10 files from the skill's directory (excluding SKILL.md itself), so you know what resources are available.
+- **Base directory URL** — for resolving relative paths in the skill's instructions.
+
+## Error Handling
+
+If the skill name does not match any available skill, returns an error with the list of available skill names.
+
+## Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | string | Name of the skill from the available skills list |

@@ -1,8 +1,23 @@
-- Fast content search tool that works with any codebase size
-- Searches file contents using regular expressions
-- Supports full regex syntax (eg. "log.*Error", "function\s+\w+", etc.)
-- Filter files by pattern with the include parameter (eg. "*.js", "*.{ts,tsx}")
-- Returns file paths and line numbers with at least one match sorted by modification time
-- Use this tool when you need to find files containing specific patterns
-- If you need to identify/count the number of matches within files, use the Bash tool with `rg` (ripgrep) directly. Do NOT use `grep`.
-- When you are doing an open-ended search that may require multiple rounds of globbing and grepping, use the Task tool instead
+Fast content search tool that works with any codebase size. Searches file contents using regular expressions. Supports full regex syntax (e.g., `log.*Error`, `function\s+\w+`).
+
+Use this tool when searching file contents for specific patterns. Use Glob when searching by filename.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `pattern` | string | — | Regex pattern to search for in file contents |
+| `path` | string | workspace root | Directory to search in |
+| `include` | string | — | File glob to filter results (e.g., `*.ts`, `*.{js,jsx}`) |
+
+## Output
+
+Returns **file paths + line numbers + matched text content** sorted by modification time. Each match includes the full line of code where the pattern was found.
+
+## Limits
+
+- Maximum **100 results** with partial notice when some paths are inaccessible.
+- Lines exceeding **2000 characters** are truncated with `...`.
+- For counting/aggregating matches across files, use `rg` via bash instead.
+
+Call multiple grep searches in parallel when looking for independent patterns.

@@ -1,32 +1,42 @@
-Search the web, code repositories, or use an AI research agent via the Universal Search Service
-- Provides up-to-date information for current events and recent data
-- Returns search results with titles, URLs, descriptions, and full markdown content
-- The service handles all internal routing (web search, code search, Firecrawl, Sourcegraph) — no other port is needed
+Search the web, code repositories, or use an AI research agent via the Universal Search Service. The service handles all internal routing (web search, code search, Firecrawl, Sourcegraph).
 
-Search modes:
-  source: "agent" (default) — Autonomous AI researcher that iteratively investigates your query using web search and scraping tools. Returns a job ID for polling.
-  source: "web" — Direct web search via Firecrawl, returns full page content as markdown
-  source: "code" — Code search via Sourcegraph, returns file paths, line numbers, and code snippets
-  source: "hybrid" — Combined local code search + Sourcegraph results
+## Search Modes
 
-Agent mode workflow:
-  1. Call universalsearch({ query: "your question", source: "agent" }) to start research
-  2. Receive a job_id in the response
-  3. Poll with universalsearch({ job_id: "..." }) — the tool will automatically poll every 5 seconds and return results when the research is complete (up to 5 minutes)
-  4. The agent iteratively uses search and scrape tools until it reaches a conclusion
+| Mode | Description | Use For |
+|------|-------------|---------|
+| `agent` (default) | Autonomous AI researcher that iteratively investigates, scrapes, and synthesizes. Returns a job ID for polling. | Complex research questions requiring multi-step investigation |
+| `web` | Direct web search via Firecrawl. Returns full page content as markdown. | Simple lookups, current events, documentation |
+| `code` | Code search via Sourcegraph. Returns file paths, line numbers, and code snippets. | Finding API usage, function definitions, patterns in OSS |
+| `hybrid` | Combined local code search + Sourcegraph results. Results labeled `[Local]` or `[Sourcegraph]`. | When you want both local and global code results |
 
-Configuration (in opencode.json):
-  "universal_search": {
-    "enabled": true,
-    "url": "http://127.0.0.1:3005"
-  }
+## Agent Mode Workflow
 
-The Universal Search Service must be running as a system service on port 3005. Opencode does not auto-start this service.
-All search modes (web, code, agent, hybrid) go through the same configured URL — never use any other port.
-Do not attempt to reach port 3002 or any other port directly — the service manages all internal backends.
+1. Call with `source: "agent"` to start research
+2. Receive a `job_id` in the response
+3. Poll with `job_id: "..."` — automatically polls every 5 seconds, returns results when complete (up to 5 minutes)
+4. The agent iteratively uses search and scrape tools until it reaches a conclusion
 
-Examples:
-  universalsearch({ query: "latest TypeScript features", source: "agent" }) — Autonomous research
-  universalsearch({ query: "current time now", source: "web" }) — Direct web search
-  universalsearch({ query: "async fn handler", source: "code", limit: 10 }) — Code search
-  universalsearch({ job_id: "a1b2c3d4-..." }) — Poll agent job results
+## Health & Reliability
+
+- **Health check** runs before every request — detects if the service is available.
+- **Timeout**: 60s per individual request, 5 min max for agent jobs.
+- **Error states**: Service not responding, job cancelled, unknown status — all handled with descriptive errors.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | — | Search query or research question |
+| `source` | `"agent"`, `"web"`, `"code"`, `"hybrid"` | `"agent"` | Which search backend to use |
+| `limit` | number | 5 (web) / 10 (code) | Max results |
+| `max_turns` | number | 5 | Max agent iterations (agent mode) |
+| `job_id` | string | — | Poll an existing agent job for results |
+
+## Configuration
+
+Requires `universal_search` config in `opencode.json`:
+```json
+{ "universal_search": { "enabled": true, "url": "http://127.0.0.1:3005" } }
+```
+
+The Universal Search Service must be running as a system service on the configured port.

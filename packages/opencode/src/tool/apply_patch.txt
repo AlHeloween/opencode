@@ -1,33 +1,38 @@
-Use the `apply_patch` tool to edit files. Your patch language is a stripped‑down, file‑oriented diff format designed to be easy to parse and safe to apply. You can think of it as a high‑level envelope:
+Apply multiple file changes in a single atomic operation using a structured patch format.
 
-*** Begin Patch
-[ one or more file sections ]
-*** End Patch
+## Patch Format
 
-Within that envelope, you get a sequence of file operations.
-You MUST include a header to specify the action you are taking.
-Each operation starts with one of three headers:
-
-*** Add File: <path> - create a new file. Every following line is a + line (the initial contents).
-*** Delete File: <path> - remove an existing file. Nothing follows.
-*** Update File: <path> - patch an existing file in place (optionally with a rename).
-
-Example patch:
-
+Each patch uses this envelope:
 ```
 *** Begin Patch
-*** Add File: hello.txt
-+Hello world
-*** Update File: src/app.py
-*** Move to: src/main.py
-@@ def greet():
--print("Hi")
-+print("Hello, world!")
-*** Delete File: obsolete.txt
+<operation description or comment>
+*** Operation: <Add File|Update File|Delete File>
+*** Path: <file path>
+*** Move to: <new path>  (optional, for renaming during Update)
+*** Content
+<file content or diff>
 *** End Patch
 ```
 
-It is important to remember:
+## Operations
 
-- You must include a header with your intended action (Add/Delete/Update)
-- You must prefix new lines with `+` even when creating a new file
+- **Add File**: `*** Content` section contains the full new file content.
+- **Delete File**: No Content section needed.
+- **Update File**: Uses `@@` hunk headers with context lines (same format as unified diff). The `*** Move to:` header is optional for renaming.
+
+## Post-Edit Processing
+
+- **LSP diagnostics** run on all modified files. Errors are reported in the output.
+- **File formatting** respects the project's configured formatter.
+- **UTF-8 BOM** is preserved/detected.
+- **Permission integration** — shows diffs before applying for user approval.
+
+## Atomic Application
+
+All file changes in a single patch are applied atomically. If any individual change fails, none are applied.
+
+## When to Use
+
+- Making coordinated changes across multiple files
+- Renaming files during edits (Use `*** Move to:`)
+- Operations where partial application would leave the project in a broken state

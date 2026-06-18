@@ -158,6 +158,10 @@ The assistant did not use the todo list because this is a single command executi
    - Complete current tasks before starting new ones
    - Cancel tasks that become irrelevant
 
+3. **Task Priority**:
+   - Each task can have a `priority` field: `high`, `medium`, or `low`.
+   - Use this to help the user understand the relative importance of tasks.
+
 3. **Task Breakdown**:
    - Create specific, actionable items
    - Break complex tasks into smaller, manageable steps

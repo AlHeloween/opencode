@@ -1,22 +1,52 @@
 ## File Backups
 
-Each edit automatically creates a backup of the file's pre-edit content before applying changes. Backups are stored in `~/.local/share/opencode/backups/<sessionID>/` (on Windows: `%USERPROFILE%\.local\share\opencode\backups\<sessionID>\`).
-
-To restore a file from backup:
-1. List the backup directory to find the relevant `.bak` file
-2. Copy the `.bak` file over the original using the Bash tool: `cp "<backup-path>" "<original-file>"`
-
-Do NOT use `git checkout` to restore files — use the backup system instead.
+Each edit automatically creates a backup of the file's pre-edit content before applying changes. Backups are stored in `{worktree}/.opencode/data/backups/<sessionID>/`. Each session keeps up to 50 backups; oldest are deleted first.
 
 ---
 
-Performs exact string replacements in files. 
+Performs exact string replacements in files.
 
-Usage:
-- You must use your `Read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file. 
-- When editing text from Read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: line number + colon + space (e.g., `1: `). Everything after that space is the actual file content to match. Never include any part of the line number prefix in the oldString or newString.
-- ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
-- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.
-- The edit will FAIL if `oldString` is not found in the file with an error "oldString not found in content".
-- The edit will FAIL if `oldString` is found multiple times in the file with an error "Found multiple matches for oldString. Provide more surrounding lines in oldString to identify the correct match." Either provide a larger string with more surrounding context to make it unique or use `replaceAll` to change every instance of `oldString`. 
-- Use `replaceAll` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.
+## Matching: 9-Stage Fuzzy Cascade
+
+The tool tries progressively more flexible matching strategies before failing. It does NOT require a perfect character-for-character match — the following strategies are tried in order:
+
+1. **SimpleReplacer** — Exact `indexOf` match.
+2. **LineTrimmedReplacer** — Match line-by-line after trimming whitespace from each line.
+3. **BlockAnchorReplacer** — Anchor on first and last lines, uses Levenshtein distance to score middle-line candidates. Falls back to sliding Hamming distance (max dist 1) if no anchor match.
+4. **WhitespaceNormalizedReplacer** — Normalize all whitespace runs to single spaces before matching.
+5. **IndentationFlexibleReplacer** — Strip minimum common indentation before matching.
+6. **EscapeNormalizedReplacer** — Unescape `\n`, `\t`, etc. before matching.
+7. **TrimmedBoundaryReplacer** — Try trimmed version of the search block.
+8. **ContextAwareReplacer** — Anchor-based with 50% middle-line match threshold.
+9. **MultiOccurrenceReplacer** — Find all exact matches for `replaceAll` mode.
+
+If all 9 strategies fail, the edit throws an error. If a strategy finds multiple matches when `replaceAll` is not set, it also fails — provide more surrounding context to disambiguate.
+
+## Line Endings & Unicode
+
+- Line endings are auto-detected (`\r\n` vs `\n`) and preserved.
+- Unicode normalization handles various dash characters, quote characters, and non-breaking spaces — LLM formatting quirks are transparently handled.
+
+## File Locking
+
+Per-file semaphore ensures only one edit operates on a given file at a time.
+
+## Post-Edit Processing
+
+- **LSP diagnostics** run on the modified file after editing. Errors are reported in the output.
+- **File formatting** is applied respecting the project's configured formatter.
+- **Backups** are written with `.bak` extension and a `.meta.json` sidecar tracking the original path. Maximum 50 backups per session.
+- **BOM** (Byte Order Mark) is preserved/detected on UTF-8 files.
+
+## Creating New Files
+
+Set `oldString: ""` and `newString` to the full file content. The tool creates the file if it doesn't exist.
+
+## Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `filePath` | string | Absolute path to the file to modify |
+| `oldString` | string | The text to replace (must match file content after fuzzy cascade) |
+| `newString` | string | The text to replace it with (must differ from oldString) |
+| `replaceAll` | boolean (default: false) | Replace all occurrences of oldString |

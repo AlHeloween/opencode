@@ -6,6 +6,18 @@ All commands run in the current working directory by default. Use the `workdir` 
 
 IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.
 
+## Permission Scanning
+
+Commands are parsed with tree-sitter (bash and PowerShell grammars) to detect filesystem-affecting operations (rm, cp, mv, mkdir, write redirections, etc.). The permission system prompts for approval before executing dangerous commands. This means you don't need to manually ask before running git push, npm publish, or file-deleting commands — the system will gate them automatically.
+
+## Output Handling
+
+If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output will be written to a file. You can use Read with offset/limit to read specific sections or Grep to search the full content. Do NOT use `head`, `tail`, or other truncation commands to limit output; the full output will already be captured to a file for more precise searching.
+
+## Timeout
+
+The default timeout is 60000ms (1 minute). You can specify an optional timeout in milliseconds. The timeout can also be overridden via the `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` environment variable.
+
 Before executing the command, please follow these steps:
 
 1. Directory Verification:
@@ -24,7 +36,7 @@ Before executing the command, please follow these steps:
 
 Usage notes:
   - The command argument is required.
-  - You can specify an optional timeout in milliseconds. If not specified, commands will time out after 120000ms (2 minutes).
+  - You can specify an optional timeout in milliseconds. If not specified, commands will time out after 60000ms (1 minute).
   - It is very helpful if you write a clear, concise description of what this command does in 5-10 words.
   - If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output will be written to a file. You can use Read with offset/limit to read specific sections or Grep to search the full content. Do NOT use `head`, `tail`, or other truncation commands to limit output; the full output will already be captured to a file for more precise searching.
 
@@ -47,6 +59,10 @@ Usage notes:
     <bad-example>
     cd /foo/bar && pytest tests
     </bad-example>
+
+## Dual Shell Support
+
+Both bash and PowerShell are supported. The shell is auto-detected from the system (`${os}` / `${shell}`). PowerShell commands should use PowerShell syntax; bash commands should use bash syntax.
 
 # Committing changes with git
 

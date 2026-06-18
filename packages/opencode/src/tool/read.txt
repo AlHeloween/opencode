@@ -1,14 +1,45 @@
-Read a file or directory from the local filesystem. If the path does not exist, an error is returned.
+Read a file or directory from the local filesystem. Supports text files, images, binary documents, archives, and media files.
 
-Usage:
-- The filePath parameter should be an absolute path.
-- By default, this tool returns up to 2000 lines from the start of the file.
-- The offset parameter is the line number to start from (1-indexed).
-- To read later sections, call this tool again with a larger offset.
-- Use the grep tool to find specific content in large files or files with long lines.
-- If you are unsure of the correct file path, use the glob tool to look up filenames by glob pattern.
-- Contents are returned with each line prefixed by its line number as `<line>: <content>`. For example, if a file has contents "foo\n", you will receive "1: foo\n". For directories, entries are returned one per line (without line numbers) with a trailing `/` for subdirectories.
-- Any line longer than 2000 characters is truncated.
-- Call this tool in parallel when you know there are multiple files you want to read.
-- Avoid tiny repeated slices (30 line chunks). If you need more context, read a larger window.
-- This tool can read image files and PDFs and return them as file attachments.
+## Document Conversion
+
+The tool automatically detects and converts binary document formats to markdown:
+- **PDF** (.pdf)
+- **Word documents** (.docx)
+- **Excel spreadsheets** (.xlsx, .ods, .csv)
+- **PowerPoint presentations** (.pptx, .odp)
+- **Plain text** (.txt, .md, .json, .xml, .html)
+
+## Image & Media Files
+
+- **Images** (PNG, JPEG, GIF, WebP, etc.) are returned as base64 data URL attachments visible in the UI.
+- **Audio/video files** — metadata (EXIF) is extracted and returned.
+- **Archive files** (.zip, .tar, .gz, .7z) — contents are listed and individual files can be read.
+
+## Binary Safety
+
+Binary files (executables, compiled code, binary formats) are detected and refused with a clear error message. The detection is extension-based and safe.
+
+## Reading Text Files
+
+- **Default limit**: 2000 lines per read.
+- **Line numbers**: Each line is prefixed with `<line>: <content>`.
+- **Long lines**: Lines exceeding 2000 characters are truncated with a `... (line truncated)` suffix.
+- **Byte cap**: Output is capped at 50KB. If exceeded, shows the range read and suggests `offset` to continue.
+- **File not found**: Lists similar files in the same directory to help correct typos.
+- **LSP warming**: After reading, the file is touched to activate the language server for code intelligence.
+
+## Directory Listing
+
+When `filePath` points to a directory, entries are listed one per line. Directories are suffixed with `/`. Use `offset` and `limit` to paginate.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `filePath` | string | — | Absolute path to file or directory |
+| `offset` | number | 1 | Line number to start reading from (1-indexed) |
+| `limit` | number | 2000 | Maximum lines to read |
+
+## Parallel Usage
+
+Call this tool in parallel when you need to read multiple independent files.

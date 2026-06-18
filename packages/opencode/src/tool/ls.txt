@@ -1,1 +1,33 @@
-Lists files and directories in a given path. The path parameter must be absolute; omit it to use the current workspace directory. You can optionally provide an array of glob patterns to ignore with the ignore parameter. You should generally prefer the Glob and Grep tools, if you know which directories to search.
+Lists files and directories in a tree format. Must use an absolute path parameter.
+
+## Output Format
+
+Returns a hierarchical tree with directory branches and file leaves. Directories are suffixed with `/`. Example:
+
+```
+src/
+  tool/
+    bash.ts
+    edit.ts
+  session/
+    prompt.ts
+```
+
+## Ignores
+
+The following are **hardcoded ignores** and do NOT need to be specified:
+`node_modules/`, `__pycache__/`, `.git/`, `dist/`, `build/`, `target/`, `vendor/`, `bin/`, `obj/`, `.idea/`, `.vscode/`, `.zig-cache/`, `zig-out`, `.coverage`, `coverage/`, `tmp/`, `temp/`, `.cache/`, `cache/`, `logs/`, `.venv/`, `venv/`, `env/`
+
+Use the `ignore` parameter to add additional glob patterns. The tool uses ripgrep (`fd`) for gitignore-aware file discovery.
+
+## Limits
+
+- **Maximum 100 entries** returned. If a directory has more, the output notes truncation.
+- Returns **absolute paths** in the tree display.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | workspace root | Absolute path to directory to list |
+| `ignore` | string[] | — | Additional glob patterns to ignore |

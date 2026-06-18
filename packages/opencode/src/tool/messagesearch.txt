@@ -1,6 +1,37 @@
-- Search conversation history (messages and parts) using text matching across all sessions in the current project
-- Searches the text content of message parts for matching keywords or phrases
-- Returns results with snippets, part type, message IDs, and session context grouped by session
-- Use this tool when you need to find previous discussions, decisions, or code snippets from earlier in the conversation
-- Useful for referencing earlier context without re-reading the entire session history
-- Examples: "error handling pattern", "database schema design", "API endpoint structure"
+Search conversation history (messages and parts) using text matching across all sessions in the current project.
+
+## Search Engine
+
+- **FTS5** full-text search over all message content in the project's SQLite database (not file scanning).
+- **BM25** text relevance ranking for keyword match quality.
+- **Epistemic-weighted semantic ranking**: Content labeled with evidence markers is boosted:
+  - `[Exact]` → 10x weight
+  - `[Inferred]` → 7x weight
+  - `[Hypothetical]` → 4x weight
+  - `[Guess]` → 2x weight
+  - `[Unknown]` → 1x weight
+- Results are ordered by semantic rank first, then BM25.
+
+## Output Format
+
+Results are grouped by session. Each result includes:
+- Session ID
+- Message index (#N) and part type in brackets: `[text]`, `[tool]`, `[reasoning]`, etc.
+- Snippet with query term highlighting (`**term**`)
+- Rank score
+
+Output is capped at 50KB. Use `session-read` to get full context around found messages.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | — | Search keywords or phrase |
+| `limit` | number | 20 | Maximum results to return |
+
+## When to Use
+
+- Recall prior decisions, bug fixes, or patterns from earlier in the conversation
+- Find when a specific file, command, or error was discussed
+- Check if a task was already attempted before starting work
+- Get context before planning or executing

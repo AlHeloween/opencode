@@ -197,6 +197,16 @@ export const Info = Schema.Struct({
   }),
   layout: Schema.optional(ConfigLayout.Layout).annotate({ description: "@deprecated Always uses stretch layout." }),
   permission: Schema.optional(ConfigPermission.Info),
+  navigation: Schema.optional(
+    Schema.Struct({
+      allow: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
+        description: "Directories to always allow for external tool access. Paths are expanded (~/ => home).",
+      }),
+      deny: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
+        description: "Directories to always deny for external tool access. Takes precedence over allow rules.",
+      }),
+    }),
+  ).annotate({ description: "Directory navigation permissions for external tool access" }),
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
   enterprise: Schema.optional(
     Schema.Struct({
@@ -698,6 +708,31 @@ export const layer = Layer.effect(
 
         if (result.autoshare === true && !result.share) {
           result.share = "auto"
+        }
+
+        // Convert navigation.allow/deny directories into external_directory permission rules.
+        // Paths are expanded (~/ => homedir), resolved, and glob-suffixed so the permission
+        // engine can match any file under the allowed/denied directory.
+        if (result.navigation?.allow || result.navigation?.deny) {
+          const navRules: Record<string, ConfigPermission.Action> = {}
+          const expandPath = (p: string) => {
+            if (p.startsWith("~/")) return os.homedir() + p.slice(1)
+            if (p === "~") return os.homedir()
+            if (p.startsWith("$HOME/")) return os.homedir() + p.slice(5)
+            if (p.startsWith("$HOME")) return os.homedir() + p.slice(5)
+            return p
+          }
+          for (const dir of result.navigation.deny ?? []) {
+            const resolved = path.resolve(expandPath(dir))
+            navRules[path.join(resolved, "*")] = "deny"
+          }
+          for (const dir of result.navigation.allow ?? []) {
+            const resolved = path.resolve(expandPath(dir))
+            navRules[path.join(resolved, "*")] = "allow"
+          }
+          result.permission = mergeDeep(result.permission ?? {}, {
+            external_directory: navRules,
+          })
         }
 
         if (Flag.OPENCODE_DISABLE_AUTOCOMPACT) {

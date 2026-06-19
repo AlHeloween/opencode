@@ -32,15 +32,6 @@ function vcs(branch: string): Event {
   }
 }
 
-function update(version: string): Event {
-  return {
-    type: "installation.update-available",
-    properties: {
-      version,
-    },
-  }
-}
-
 function createSource() {
   let fn: ((event: GlobalEvent) => void) | undefined
 
@@ -163,11 +154,11 @@ describe("useEvent", () => {
 
     try {
       project.workspace.set("ws_a")
-      emit(event(update("1.2.3"), { directory: "global" }))
+      emit(event(vcs("test-branch"), { directory: "global" }))
 
       await wait(() => seen.length === 1)
 
-      expect(seen).toEqual([update("1.2.3")])
+      expect(seen).toEqual([vcs("test-branch")])
     } finally {
       app.renderer.destroy()
     }

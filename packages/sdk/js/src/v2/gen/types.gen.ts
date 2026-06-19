@@ -231,20 +231,6 @@ export type EventSessionBalanceUpdated = {
   }
 }
 
-export type EventInstallationUpdated = {
-  type: "installation.updated"
-  properties: {
-    version: string
-  }
-}
-
-export type EventInstallationUpdateAvailable = {
-  type: "installation.update-available"
-  properties: {
-    version: string
-  }
-}
-
 export type QuestionOption = {
   /**
    * Display text (1-5 words, concise)
@@ -378,6 +364,23 @@ export type EventSessionCompacted = {
   type: "session.compacted"
   properties: {
     sessionID: string
+  }
+}
+
+export type EventSessionCompactionNotice = {
+  type: "session.compaction.notice"
+  properties: {
+    sessionID: string
+    ratio: number
+    tier: "soft"
+  }
+}
+
+export type EventSessionCompactionStuck = {
+  type: "session.compaction.stuck"
+  properties: {
+    sessionID: string
+    consecutiveCompacts: number
   }
 }
 
@@ -643,6 +646,8 @@ export type EventMessageUpdated = {
   type: "message.updated"
   properties: {
     sessionID: string
+    projectID?: string
+    directory?: string
     info: Message
   }
 }
@@ -909,7 +914,7 @@ export type CompactionPart = {
   type: "compaction"
   auto: boolean
   overflow?: boolean
-  tail_start_id?: string
+  tail_count?: number
 }
 
 export type Part =
@@ -930,6 +935,8 @@ export type EventMessagePartUpdated = {
   type: "message.part.updated"
   properties: {
     sessionID: string
+    projectID?: string
+    directory?: string
     part: Part
     time: number
   }
@@ -1030,6 +1037,8 @@ export type SyncEventMessageUpdated = {
   aggregateID: "sessionID"
   data: {
     sessionID: string
+    projectID?: string
+    directory?: string
     info: Message
   }
 }
@@ -1054,6 +1063,8 @@ export type SyncEventMessagePartUpdated = {
   aggregateID: "sessionID"
   data: {
     sessionID: string
+    projectID?: string
+    directory?: string
     part: Part
     time: number
   }
@@ -1158,8 +1169,6 @@ export type GlobalEvent = {
     | EventSessionDiff
     | EventSessionError
     | EventSessionBalanceUpdated
-    | EventInstallationUpdated
-    | EventInstallationUpdateAvailable
     | EventQuestionAsked
     | EventQuestionReplied
     | EventQuestionRejected
@@ -1167,6 +1176,8 @@ export type GlobalEvent = {
     | EventSessionStatus
     | EventSessionIdle
     | EventSessionCompacted
+    | EventSessionCompactionNotice
+    | EventSessionCompactionStuck
     | EventTuiPromptAppend
     | EventTuiCommandExecute
     | EventTuiToastShow
@@ -1545,6 +1556,10 @@ export type Config = {
    * Enable or disable snapshot tracking. When false, filesystem snapshots are not recorded and undoing or reverting will not undo/redo file changes. Defaults to true.
    */
   snapshot?: boolean
+  /**
+   * Log unified diffs between consecutive LLM requests to diffs/ folder for KV cache debugging. Defaults to true.
+   */
+  diff_requests?: boolean
   plugin?: Array<
     | string
     | [
@@ -1562,10 +1577,6 @@ export type Config = {
    * @deprecated Use 'share' field instead. Share newly created sessions automatically
    */
   autoshare?: boolean
-  /**
-   * Automatically update to the latest version. Set to true to auto-update, false to disable, or 'notify' to show update notifications
-   */
-  autoupdate?: boolean | "notify"
   /**
    * Disable providers that are loaded automatically
    */
@@ -1665,6 +1676,19 @@ export type Config = {
   instructions?: Array<string>
   layout?: LayoutConfig
   permission?: PermissionConfig
+  /**
+   * Directory navigation permissions for external tool access
+   */
+  navigation?: {
+    /**
+     * Directories to always allow for external tool access. Paths are expanded (~/ => home).
+     */
+    allow?: Array<string>
+    /**
+     * Directories to always deny for external tool access. Takes precedence over allow rules.
+     */
+    deny?: Array<string>
+  }
   tools?: {
     [key: string]: boolean
   }
@@ -1708,6 +1732,18 @@ export type Config = {
      * Token buffer for compaction. Leaves enough window to avoid overflow during compaction.
      */
     reserved?: number
+    /**
+     * Fraction of context window at which to emit a notice (default: 0.5). Does not compact.
+     */
+    soft_ratio?: number
+    /**
+     * Fraction of context window at which to trigger normal compaction (default: 0.8).
+     */
+    full_ratio?: number
+    /**
+     * Fraction of context window at which to force compaction, bypassing economics check (default: 0.9).
+     */
+    force_ratio?: number
   }
   experimental?: {
     disable_paste_summary?: boolean
@@ -1715,10 +1751,6 @@ export type Config = {
      * Enable the batch tool
      */
     batch_tool?: boolean
-    /**
-     * Enable OpenTelemetry spans for AI SDK calls (using the 'experimental_telemetry' flag)
-     */
-    openTelemetry?: boolean
     /**
      * Tools that should only be available to primary agents.
      */
@@ -2138,8 +2170,6 @@ export type Event =
   | EventSessionDiff
   | EventSessionError
   | EventSessionBalanceUpdated
-  | EventInstallationUpdated
-  | EventInstallationUpdateAvailable
   | EventQuestionAsked
   | EventQuestionReplied
   | EventQuestionRejected
@@ -2147,6 +2177,8 @@ export type Event =
   | EventSessionStatus
   | EventSessionIdle
   | EventSessionCompacted
+  | EventSessionCompactionNotice
+  | EventSessionCompactionStuck
   | EventTuiPromptAppend
   | EventTuiCommandExecute
   | EventTuiToastShow
@@ -2364,41 +2396,6 @@ export type GlobalDisposeResponses = {
 }
 
 export type GlobalDisposeResponse = GlobalDisposeResponses[keyof GlobalDisposeResponses]
-
-export type GlobalUpgradeData = {
-  body?: {
-    target?: string
-  }
-  path?: never
-  query?: never
-  url: "/global/upgrade"
-}
-
-export type GlobalUpgradeErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type GlobalUpgradeError = GlobalUpgradeErrors[keyof GlobalUpgradeErrors]
-
-export type GlobalUpgradeResponses = {
-  /**
-   * Upgrade result
-   */
-  200:
-    | {
-        success: true
-        version: string
-      }
-    | {
-        success: false
-        error: string
-      }
-}
-
-export type GlobalUpgradeResponse = GlobalUpgradeResponses[keyof GlobalUpgradeResponses]
 
 export type AuthRemoveData = {
   body?: never

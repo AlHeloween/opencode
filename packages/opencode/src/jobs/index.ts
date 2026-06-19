@@ -1,6 +1,9 @@
-import { Effect, Context, Layer, Schema, Stream } from "effect"
+import { Effect, Context, Layer, Schema } from "effect"
 import { SessionID } from "../session/schema"
 import * as Log from "@opencode-ai/core/util/log"
+import { Database } from "bun:sqlite"
+import path from "path"
+import { existsSync, mkdirSync } from "fs"
 
 const log = Log.create({ service: "jobs" })
 
@@ -42,17 +45,13 @@ interface Completion {
 }
 
 export interface Interface {
-  /** Start a background job. Returns the job ID immediately; the work runs in a forked fiber. */
   readonly start: (input: {
     sessionID: SessionID
     kind: JobKind
     label: string
-    /** The work function. Receives an AbortSignal for cancellation.
-      * bash jobs should write to the provided writer; task jobs should return their final answer. */
     run: (signal: AbortSignal, writeOutput: (chunk: string) => void) => Promise<string>
   }) => Effect.Effect<JobID>
 
-  /** Start a background job running an Effect. The effect is forked; output is captured via Effect log annotations. */
   readonly startEffect: (input: {
     sessionID: SessionID
     kind: JobKind
@@ -60,32 +59,103 @@ export interface Interface {
     run: Effect.Effect<string, Error>
   }) => Effect.Effect<JobID>
 
-  /** Read incremental output from a job. Returns the output since last read. */
   readonly output: (input: { sessionID: SessionID; jobID: JobID }) => Effect.Effect<{ text: string; status: JobStatus }>
 
-  /** Kill a running job. Returns true if the job was running and is now killed. */
   readonly kill: (input: { sessionID: SessionID; jobID: JobID }) => Effect.Effect<boolean>
 
-  /** List all jobs for a session. */
   readonly list: (input: { sessionID: SessionID }) => Effect.Effect<JobInfo[]>
 
-  /** Drain completion notes for a session. Returns text to inject into the next turn, or empty string. */
   readonly drainCompletedNote: (input: { sessionID: SessionID }) => Effect.Effect<string>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Jobs") {}
 
+/** Get the jobs.db path — same folder as the main opencode.db */
+function getJobsDbPath(): string {
+  // Use the worktree-relative data path, same as main DB
+  const { Global } = require("@opencode-ai/core/global") as typeof import("@opencode-ai/core/global")
+  const dir = path.join(Global.Path.data)
+  return path.join(dir, "jobs.db")
+}
+
+/** Open (or create) the jobs database */
+let _jobsDb: Database | undefined
+let _jobsDbPath: string | undefined
+
+function getJobsDb(): Database {
+  const dbPath = getJobsDbPath()
+  if (_jobsDb && _jobsDbPath === dbPath) return _jobsDb
+
+  // Close previous if path changed
+  if (_jobsDb) {
+    try { _jobsDb.close() } catch { /* ignore */ }
+  }
+
+  const dir = path.dirname(dbPath)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+  const db = new Database(dbPath, { create: true })
+  db.run("PRAGMA journal_mode = WAL")
+  db.run("PRAGMA synchronous = NORMAL")
+  db.run("PRAGMA busy_timeout = 5000")
+  db.run("PRAGMA foreign_keys = ON")
+
+  // Create jobs table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS job (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      label TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running',
+      output TEXT NOT NULL DEFAULT '',
+      result TEXT NOT NULL DEFAULT '',
+      started_at INTEGER NOT NULL,
+      finished_at INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  db.run("CREATE INDEX IF NOT EXISTS job_session_idx ON job (session_id)")
+
+  // Recover: mark any running jobs from a prior crash as killed
+  const orphanResult = db.run(
+    "UPDATE job SET status = 'killed', finished_at = ? WHERE status = 'running'",
+    [Date.now()],
+  )
+  if (orphanResult.changes > 0) {
+    log.info("orphan jobs recovered", { count: orphanResult.changes })
+  }
+
+  _jobsDb = db
+  _jobsDbPath = dbPath
+  return db
+}
+
+function dbInsert(sqldb: Database, j: Job) {
+  sqldb.run(
+    `INSERT OR REPLACE INTO job (id, session_id, kind, label, status, output, result, started_at, finished_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [j.id, j.sessionID, j.kind, j.label, j.status, j.output, j.result, j.startedAt, j.finishedAt],
+  )
+}
+
+function dbUpdate(sqldb: Database, j: Job) {
+  sqldb.run(
+    `UPDATE job SET status = ?, output = ?, result = ?, finished_at = ? WHERE id = ?`,
+    [j.status, j.output, j.result, j.finishedAt, j.id],
+  )
+}
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    // In-memory job store keyed by "sessionID\x00jobID"
+    // In-memory job store for live fiber access + SQLite for durability
     const jobs = new Map<string, Job>()
-    // Completion notes queued by the run goroutine
     const completed: Completion[] = []
-    // Per-session read offsets for incremental output
     const readOffsets = new Map<string, number>()
-    // Sequential counter per kind per session
     const counters = new Map<string, number>()
+
+    // Initialize jobs DB
+    const db = getJobsDb()
 
     function key(sessionID: SessionID, jobID: JobID) {
       return `${sessionID}\x00${jobID}`
@@ -98,6 +168,14 @@ export const layer = Layer.effect(
       return JobID.make(`${kind}-${n}`)
     }
 
+    function persistJob(j: Job) {
+      try { dbInsert(db, j) } catch (e) { log.warn("job db insert failed", { error: String(e) }) }
+    }
+
+    function persistUpdate(j: Job) {
+      try { dbUpdate(db, j) } catch (e) { log.warn("job db update failed", { error: String(e) }) }
+    }
+
     const start = Effect.fn("Jobs.start")(function* (input: {
       sessionID: SessionID
       kind: JobKind
@@ -108,62 +186,45 @@ export const layer = Layer.effect(
       const controller = new AbortController()
 
       const job: Job = {
-        id,
-        kind: input.kind,
-        label: input.label,
-        sessionID: input.sessionID,
-        status: "running",
-        output: "",
-        result: "",
-        resultSurfaced: false,
-        startedAt: Date.now(),
-        finishedAt: 0,
+        id, kind: input.kind, label: input.label, sessionID: input.sessionID,
+        status: "running", output: "", result: "", resultSurfaced: false,
+        startedAt: Date.now(), finishedAt: 0,
         cancel: () => controller.abort(),
       }
 
       const jobKey = key(input.sessionID, id)
       jobs.set(jobKey, job)
-
+      persistJob(job)
       log.info("job started", { id, kind: input.kind, sessionID: input.sessionID })
 
-      // Run the job in a forked fiber
       void Effect.gen(function* () {
         try {
           const writeOutput = (chunk: string) => {
             const j = jobs.get(jobKey)
-            if (j) j.output += chunk
+            if (j) { j.output += chunk; persistUpdate(j) }
           }
-
           const result = yield* Effect.tryPromise({
             try: () => input.run(controller.signal, writeOutput),
             catch: (err) => (err instanceof Error ? err : new Error(String(err))),
           })
-
           const j = jobs.get(jobKey)
           if (j) {
-            if (controller.signal.aborted) {
-              j.status = "killed"
-            } else {
-              j.status = "done"
-              if (input.kind === "task") j.result = result
-            }
+            if (controller.signal.aborted) { j.status = "killed" }
+            else { j.status = "done"; if (input.kind === "task") j.result = result }
             j.finishedAt = Date.now()
+            persistUpdate(j)
             log.info("job completed", { id, status: j.status })
           }
         } catch (err) {
           const j = jobs.get(jobKey)
           if (j) {
-            if (controller.signal.aborted) {
-              j.status = "killed"
-            } else {
-              j.status = "failed"
-            }
+            if (controller.signal.aborted) { j.status = "killed" }
+            else { j.status = "failed" }
             j.finishedAt = Date.now()
+            persistUpdate(j)
             log.warn("job failed", { id, error: String(err) })
           }
         }
-
-        // Queue completion note
         const j = jobs.get(jobKey)
         if (j) {
           completed.push({
@@ -179,18 +240,14 @@ export const layer = Layer.effect(
     const output = Effect.fn("Jobs.output")(function* (input: { sessionID: SessionID; jobID: JobID }) {
       const j = jobs.get(key(input.sessionID, input.jobID))
       if (!j) return { text: "", status: "failed" as JobStatus }
-
       const offsetKey = key(input.sessionID, input.jobID) + ":offset"
       const offset = readOffsets.get(offsetKey) ?? 0
       const text = j.output.slice(offset)
       readOffsets.set(offsetKey, offset + text.length)
-
-      // For task jobs, surface the result if no new output and job is done
       if (text === "" && j.status !== "running" && j.result !== "" && !j.resultSurfaced) {
         j.resultSurfaced = true
         return { text: j.result, status: j.status }
       }
-
       return { text, status: j.status }
     })
 
@@ -200,6 +257,7 @@ export const layer = Layer.effect(
       j.cancel()
       j.status = "killed"
       j.finishedAt = Date.now()
+      persistUpdate(j)
       return true
     })
 
@@ -220,6 +278,12 @@ export const layer = Layer.effect(
           completed.splice(i, 1)
         }
       }
+      // Clean up completed rows from DB for this session
+      if (notes.length > 0) {
+        try {
+          db.run("DELETE FROM job WHERE session_id = ? AND status != 'running'", [input.sessionID])
+        } catch (e) { log.warn("job db cleanup failed", { error: String(e) }) }
+      }
       if (notes.length === 0) return ""
       return (
         "Background jobs since your last turn: " +
@@ -238,41 +302,30 @@ export const layer = Layer.effect(
       const controller = new AbortController()
 
       const job: Job = {
-        id,
-        kind: input.kind,
-        label: input.label,
-        sessionID: input.sessionID,
-        status: "running",
-        output: "",
-        result: "",
-        resultSurfaced: false,
-        startedAt: Date.now(),
-        finishedAt: 0,
+        id, kind: input.kind, label: input.label, sessionID: input.sessionID,
+        status: "running", output: "", result: "", resultSurfaced: false,
+        startedAt: Date.now(), finishedAt: 0,
         cancel: () => controller.abort(),
       }
 
       const jobKey = key(input.sessionID, id)
       jobs.set(jobKey, job)
-
+      persistJob(job)
       log.info("job started (effect)", { id, kind: input.kind, sessionID: input.sessionID })
 
-      // Fork the effect — output is captured via a log interceptor
       input.run.pipe(
         Effect.tap((text) => Effect.sync(() => {
           const j = jobs.get(jobKey)
-          if (j) j.output += text + "\n"
+          if (j) { j.output += text + "\n"; persistUpdate(j) }
         })),
         Effect.matchEffect({
           onSuccess: (result) => Effect.sync(() => {
             const j = jobs.get(jobKey)
             if (!j) return
-            if (controller.signal.aborted) {
-              j.status = "killed"
-            } else {
-              j.status = "done"
-              j.result = result
-            }
+            if (controller.signal.aborted) { j.status = "killed" }
+            else { j.status = "done"; j.result = result }
             j.finishedAt = Date.now()
+            persistUpdate(j)
             completed.push({
               sessionID: input.sessionID,
               text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
@@ -282,17 +335,11 @@ export const layer = Layer.effect(
           onFailure: (err) => Effect.sync(() => {
             const j = jobs.get(jobKey)
             if (!j) return
-            if (controller.signal.aborted) {
-              j.status = "killed"
-            } else {
-              j.status = "failed"
-              j.output += `\nError: ${err.message}`
-            }
+            if (controller.signal.aborted) { j.status = "killed" }
+            else { j.status = "failed"; j.output += `\nError: ${err.message}` }
             j.finishedAt = Date.now()
-            completed.push({
-              sessionID: input.sessionID,
-              text: `${j.id} (${j.label}) → failed`,
-            })
+            persistUpdate(j)
+            completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed` })
             log.warn("job failed (effect)", { id, error: err.message })
           }),
         }),

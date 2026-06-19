@@ -89,9 +89,7 @@ export const SettingsGeneral: Component = () => {
   const params = useParams()
   const settings = useSettings()
 
-  const [store, setStore] = createStore({
-    checking: false,
-  })
+  const [store, setStore] = createStore({})
 
   const linux = createMemo(() => platform.platform === "desktop" && platform.os === "linux")
   const dir = createMemo(() => decode64(params.dir))
@@ -120,58 +118,6 @@ export const SettingsGeneral: Component = () => {
     permission.disableAutoAccept(params.id, value)
   }
   const desktop = createMemo(() => platform.platform === "desktop")
-
-  const check = () => {
-    if (!platform.checkUpdate) return
-    setStore("checking", true)
-
-    void platform
-      .checkUpdate()
-      .then((result) => {
-        if (!result.updateAvailable) {
-          showToast({
-            variant: "success",
-            icon: "circle-check",
-            title: language.t("settings.updates.toast.latest.title"),
-            description: language.t("settings.updates.toast.latest.description", { version: platform.version ?? "" }),
-          })
-          return
-        }
-
-        const actions = platform.updateAndRestart
-          ? [
-              {
-                label: language.t("toast.update.action.installRestart"),
-                onClick: async () => {
-                  await platform.updateAndRestart!()
-                },
-              },
-              {
-                label: language.t("toast.update.action.notYet"),
-                onClick: "dismiss" as const,
-              },
-            ]
-          : [
-              {
-                label: language.t("toast.update.action.notYet"),
-                onClick: "dismiss" as const,
-              },
-            ]
-
-        showToast({
-          persistent: true,
-          icon: "download",
-          title: language.t("toast.update.title"),
-          description: language.t("toast.update.description", { version: result.version ?? "" }),
-          actions,
-        })
-      })
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err)
-        showToast({ title: language.t("common.requestFailed"), description: message })
-      })
-      .finally(() => setStore("checking", false))
-  }
 
   const themeOptions = createMemo<ThemeOption[]>(() => theme.ids().map((id) => ({ id, name: theme.name(id) })))
 
@@ -684,51 +630,7 @@ export const SettingsGeneral: Component = () => {
     </div>
   )
 
-  const UpdatesSection = () => (
-    <div class="flex flex-col gap-1">
-      <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.updates")}</h3>
-
-      <SettingsList>
-        <SettingsRow
-          title={language.t("settings.updates.row.startup.title")}
-          description={language.t("settings.updates.row.startup.description")}
-        >
-          <div data-action="settings-updates-startup">
-            <Switch
-              checked={settings.updates.startup()}
-              disabled={!platform.checkUpdate}
-              onChange={(checked) => settings.updates.setStartup(checked)}
-            />
-          </div>
-        </SettingsRow>
-
-        <SettingsRow
-          title={language.t("settings.general.row.releaseNotes.title")}
-          description={language.t("settings.general.row.releaseNotes.description")}
-        >
-          <div data-action="settings-release-notes">
-            <Switch
-              checked={settings.general.releaseNotes()}
-              onChange={(checked) => settings.general.setReleaseNotes(checked)}
-            />
-          </div>
-        </SettingsRow>
-
-        <SettingsRow
-          title={language.t("settings.updates.row.check.title")}
-          description={language.t("settings.updates.row.check.description")}
-        >
-          <Button size="small" variant="secondary" disabled={store.checking || !platform.checkUpdate} onClick={check}>
-            {store.checking
-              ? language.t("settings.updates.action.checking")
-              : language.t("settings.updates.action.checkNow")}
-          </Button>
-        </SettingsRow>
-      </SettingsList>
-    </div>
-  )
-
-  console.log(import.meta.env)
+console.log(import.meta.env)
   return (
     <div class="flex flex-col h-full overflow-y-auto no-scrollbar px-4 pb-10 sm:px-10 sm:pb-10">
       <div class="sticky top-0 z-10 bg-[linear-gradient(to_bottom,var(--surface-stronger-non-alpha)_calc(100%_-_24px),transparent)]">
@@ -745,8 +647,6 @@ export const SettingsGeneral: Component = () => {
         <NotificationsSection />
 
         <SoundsSection />
-
-        <UpdatesSection />
 
         <Show when={linux()}>
           <div class="flex flex-col gap-1">

@@ -8,17 +8,7 @@ export const dict = {
   "desktop.dialog.chooseFile": "Vælg en fil",
   "desktop.dialog.saveFile": "Gem fil",
 
-  "desktop.updater.checkFailed.title": "Opdateringstjek mislykkedes",
-  "desktop.updater.checkFailed.message": "Kunne ikke tjekke for opdateringer",
-  "desktop.updater.none.title": "Ingen opdatering tilgængelig",
-  "desktop.updater.none.message": "Du bruger allerede den nyeste version af OpenCode",
-  "desktop.updater.downloadFailed.title": "Opdatering mislykkedes",
-  "desktop.updater.downloadFailed.message": "Kunne ikke downloade opdateringen",
-  "desktop.updater.downloaded.title": "Opdatering downloadet",
-  "desktop.updater.downloaded.prompt":
     "Version {{version}} af OpenCode er blevet downloadet. Vil du installere den og genstarte?",
-  "desktop.updater.installFailed.title": "Opdatering mislykkedes",
-  "desktop.updater.installFailed.message": "Kunne ikke installere opdateringen",
 
   "desktop.cli.installed.title": "CLI installeret",
   "desktop.cli.installed.message":

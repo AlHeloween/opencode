@@ -198,3 +198,49 @@ Providers see identical SHA256(system prompt) across compaction and normal turns
 - [x] `bun typecheck` from `packages/opencode` passed.
 - [x] `bun test test/session/compaction.test.ts` from `packages/opencode`: 31 pass, 0 fail.
 - [x] `bun test test/skill/skill.test.ts` from `packages/opencode`: 10 pass, 0 fail.
+
+## 2026-06-17 Remove Autoupdate & Telemetry
+
+Goal: Strip all autoupdate infrastructure (CLI, Tauri, Electron, web app, config, flags, server, OpenAPI, SDK, i18n, docs) and remove PostHog/OpenTelemetry collection.
+
+Tasks:
+- [x] Remove CLI upgrade files + commands
+- [x] Clean Installation module (remove upgrade/latest/events)
+- [x] Remove Tauri desktop updater + deps
+- [x] Remove Electron desktop updater + deps
+- [x] Remove web app update UI (layout, settings, platform, error)
+- [x] Remove i18n updater strings (49 files, 3 packages)
+- [x] Remove PostHog from stats script
+- [x] Strip OpenTelemetry from observability, LLM, agent, config, deps
+- [x] Clean OpenAPI schema + regenerate SDK
+- [x] Clean documentation across 19 locales (config, cli, troubleshooting, plugins)
+- [x] Fix 10 config test failures (OPENCODE_TEST_CONFIG env var)
+- [x] Fix test isolation (Duration.infinity caching removed)
+
+Verification:
+- [x] `bun typecheck` from `packages/opencode` — PASS
+- [x] `bun test test/config/config.test.ts` — 75 pass, 0 fail
+- [x] `bun test test/auth/auth.test.ts` — 4 pass, 0 fail
+- [x] SDK regenerates clean
+
+## 2026-06-18 Reasonix-Inspired Enhancements
+
+Goal: Adopt multi-tier compaction, background job manager, tool descriptions rewrite, directory navigation from DeepSeek-Reasonix analysis.
+
+Tasks:
+- [x] Multi-tier compaction (soft/full/force thresholds, stuck detection, improved summary template)
+- [x] CompactionNotice TUI toast
+- [x] Background job manager (Jobs.Service with startEffect, output, kill, drain)
+- [x] bash tool run_in_background flag
+- [x] job_output + job_wait tools
+- [x] Completion notes injected into next turn prompt
+- [x] Jobs SQLite persistence via separate jobs.db (orphan recovery on startup)
+- [x] Task tool background integration (run_in_background flag)
+- [x] Tool descriptions rewrite (17 of 20 files)
+- [x] Directory navigation settings (navigation.allow/deny, TUI dialog)
+
+Verification:
+- [x] `bun typecheck` from `packages/opencode` — PASS
+- [x] `bun test test/jobs/jobs.test.ts` — 4 pass, 0 fail
+- [x] `bun test test/cli/tui/effective-navigation.test.ts` — 11 pass, 0 fail
+- [x] `bun test test/config/config.test.ts` — 75 pass, 0 fail

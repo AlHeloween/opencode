@@ -815,7 +815,14 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     })
   })
 
-
+  event.on("session.compaction.notice", (evt) => {
+    const pct = Math.round((evt.properties.ratio ?? 0) * 100)
+    toast.show({
+      variant: "info",
+      message: `Context at ${pct}% — compaction will trigger at 80%`,
+      duration: 4000,
+    })
+  })
 
   const plugin = createMemo(() => {
     if (!ready()) return

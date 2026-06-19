@@ -16,9 +16,7 @@ description: استخدام ملف إعدادات OpenCode بصيغة JSON.
   "$schema": "https://opencode.ai/config.json",
   // إعدادات السمة
   "theme": "opencode",
-  "model": "anthropic/claude-sonnet-4-5",
-  "autoupdate": true,
-}
+  "model": "anthropic/claude-sonnet-4-5",}
 ```
 
 ---
@@ -34,7 +32,6 @@ description: استخدام ملف إعدادات OpenCode بصيغة JSON.
 
 تُدمَج ملفات الإعدادات معًا ولا تُستبدَل. يتم جمع الإعدادات من مواقع الإعدادات التالية. تتجاوز الإعدادات اللاحقة الإعدادات السابقة فقط عند تعارض المفاتيح. أما الإعدادات غير المتعارضة فتبقى محفوظة من جميع الملفات.
 
-على سبيل المثال، إذا كان الإعداد العام يضبط `theme: "opencode"` و`autoupdate: true`، وكان إعداد المشروع يضبط `model: "anthropic/claude-sonnet-4-5"`، فستتضمن الإعدادات النهائية الخيارات الثلاثة جميعها.
 
 ---
 
@@ -420,16 +417,13 @@ opencode run "Hello world"
 
 ### التحديث التلقائي
 
-سيقوم OpenCode بتنزيل أي تحديثات جديدة تلقائيًا عند بدء التشغيل. يمكنك تعطيل ذلك عبر الخيار `autoupdate`.
 
 ```json title="opencode.json"
 {
   "$schema": "https://opencode.ai/config.json",
-  "autoupdate": false
 }
 ```
 
-إذا لم تكن تريد التحديثات لكنك تريد الإشعار عند توفر نسخة جديدة، فاضبط `autoupdate` على `"notify"`.
 لاحظ أن هذا يعمل فقط إذا لم يتم تثبيته عبر مدير حزم مثل Homebrew.
 
 ---

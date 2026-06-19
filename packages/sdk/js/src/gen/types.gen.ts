@@ -7,20 +7,6 @@ export type EventServerInstanceDisposed = {
   }
 }
 
-export type EventInstallationUpdated = {
-  type: "installation.updated"
-  properties: {
-    version: string
-  }
-}
-
-export type EventInstallationUpdateAvailable = {
-  type: "installation.update-available"
-  properties: {
-    version: string
-  }
-}
-
 export type EventLspClientDiagnostics = {
   type: "lsp.client.diagnostics"
   properties: {
@@ -703,8 +689,6 @@ export type EventServerConnected = {
 
 export type Event =
   | EventServerInstanceDisposed
-  | EventInstallationUpdated
-  | EventInstallationUpdateAvailable
   | EventLspClientDiagnostics
   | EventLspUpdated
   | EventMessageUpdated
@@ -1233,10 +1217,6 @@ export type Config = {
    * @deprecated Use 'share' field instead. Share newly created sessions automatically
    */
   autoshare?: boolean
-  /**
-   * Automatically update to the latest version. Set to true to auto-update, false to disable, or 'notify' to show update notifications
-   */
-  autoupdate?: boolean | "notify"
   /**
    * Disable providers that are loaded automatically
    */

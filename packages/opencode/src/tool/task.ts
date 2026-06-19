@@ -13,6 +13,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Provider } from "@/provider/provider"
+import { Jobs } from "../jobs"
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -31,6 +32,9 @@ export const Parameters = Schema.Struct({
       "This should only be set if you mean to resume a previous task (you can pass a prior task_id and the task will continue the same subagent session as before instead of creating a fresh one)",
   }),
   command: Schema.optional(Schema.String).annotate({ description: "The command that triggered this task" }),
+  run_in_background: Schema.optional(Schema.Boolean).annotate({
+    description: "If true, run the sub-agent as a background job and return immediately with a job ID. Use job_output to read the result.",
+  }),
 })
 
 export const TaskTool = Tool.define(
@@ -151,6 +155,49 @@ export const TaskTool = Tool.define(
       const ops = ctx.extra?.promptOps as TaskPromptOps
       if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
 
+      // Background execution: fork the task via Jobs.Service and return immediately
+      if (params.run_in_background) {
+        const jobSvc = yield* Effect.serviceOption(Jobs.Service)
+        if (jobSvc._tag === "None") {
+          // Fallback to synchronous if Jobs not available
+        } else {
+          const jobID = yield* jobSvc.value.startEffect({
+            sessionID: ctx.sessionID,
+            kind: "task",
+            label: params.description,
+            run: Effect.gen(function* () {
+              const messageID = MessageID.ascending()
+              const parts = yield* ops.resolvePromptParts(params.prompt)
+              const result = yield* ops.prompt({
+                messageID,
+                sessionID: nextSession.id,
+                model: {
+                  modelID: model.modelID,
+                  providerID: model.providerID,
+                },
+                agent: next.name,
+                tools: {
+                  ...(canTodo ? {} : { todowrite: false }),
+                  ...(canTask ? {} : { task: false }),
+                  ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
+                },
+                parts,
+              })
+              return result.parts.findLast((item) => item.type === "text")?.text ?? ""
+            }),
+          })
+          return {
+            title: params.description,
+            metadata: {
+              sessionId: nextSession.id,
+              model,
+            },
+            output: `Task spawned as background job ${jobID}. Use job_output(${jobID}) to read the result when ready, or job_wait to block until completion.`,
+          }
+        }
+      }
+
+      // Synchronous execution — original path
       const messageID = MessageID.ascending()
 
       const runCancel = yield* EffectBridge.make()

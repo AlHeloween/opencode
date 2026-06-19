@@ -1539,7 +1539,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               sessionId: sessionID,
               modelId: model.id,
               providerId: model.providerID,
-            })
+            }, CacheControl.toolSchemasFromRecord(tools))
             const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id)
             const audit = CacheControl.auditCache(prevFP, currentFP, agent.name)
             if (!audit.cacheStable) {
@@ -1579,7 +1579,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               sessionId: sessionID,
               modelId: model.id,
               providerId: model.providerID,
-            })
+            }, CacheControl.toolSchemasFromRecord(tools))
             CacheControl.storePrevFingerprint(sessionID, model.id, finalFP)
 
             // Diff logging: capture the actual request content (system + modelMsgs)

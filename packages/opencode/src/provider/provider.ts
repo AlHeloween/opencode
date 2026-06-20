@@ -1712,7 +1712,7 @@ export const defaultLayer = Layer.suspend(() =>
   ),
 )
 
-const priority = ["gpt-5", "claude-sonnet-4", "big-pickle", "gemini-3-pro"]
+const priority = ["kat-coder-pro-v2", "deepseek-v4-pro", "big-pickle"]
 export function sort<T extends { id: string }>(models: T[]) {
   return sortBy(
     models,

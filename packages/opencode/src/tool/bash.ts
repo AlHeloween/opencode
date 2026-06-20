@@ -611,7 +611,9 @@ export const BashTool = Tool.define(
               if (params.timeout !== undefined && params.timeout < 0) {
                 throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
               }
-              const timeout = params.timeout ?? DEFAULT_TIMEOUT
+              const CMD_RUNNER_TIMEOUT = 10 * 60 * 1000 // 10 min — cmd_runner manages its own lifecycle
+              const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
+              const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : DEFAULT_TIMEOUT)
               const ps = Shell.ps(shell)
               const root = yield* parse(params.command, ps)
               const scan = yield* collect(root, cwd, ps, shell)

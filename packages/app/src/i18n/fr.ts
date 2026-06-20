@@ -397,7 +397,6 @@ export const dict = {
   "toast.session.unshare.failed.title": "Échec de l'annulation du partage",
   "toast.session.unshare.failed.description": "Une erreur s'est produite lors de l'annulation du partage de la session",
   "toast.session.listFailed.title": "Échec du chargement des sessions pour {{project}}",
-    "Une nouvelle version d'OpenCode ({{version}}) est maintenant disponible pour installation.",
   "error.page.title": "Quelque chose s'est mal passé",
   "error.page.description": "Une erreur s'est produite lors du chargement de l'application.",
   "error.page.details.label": "Détails de l'erreur",

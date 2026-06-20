@@ -8,7 +8,6 @@ export const dict = {
   "desktop.dialog.chooseFile": "ファイルを選択",
   "desktop.dialog.saveFile": "ファイルを保存",
 
-    "OpenCode のバージョン {{version}} がダウンロードされました。インストールして再起動しますか？",
 
   "desktop.cli.installed.title": "CLI をインストールしました",
   "desktop.cli.installed.message":

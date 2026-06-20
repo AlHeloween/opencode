@@ -41,7 +41,10 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   onCleanup(() => unsub?.())
 
   const state = createMemo(() => {
-    const last = msg().findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
+    const allAssistant = msg().filter((item): item is AssistantMessage =>
+      item.role === "assistant" && item.tokens.output > 0,
+    )
+    const last = allAssistant[allAssistant.length - 1]
     if (!last) {
       return {
         tokens: 0,
@@ -54,6 +57,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         cacheRead: 0 as number,
         cacheInput: 0 as number,
         cacheHitRate: null as number | null,
+        sessionCacheRead: 0 as number,
+        sessionCacheInput: 0 as number,
+        sessionCacheHitRate: null as number | null,
         reasoning: 0 as number,
         h2MaxConcurrentStreams: 0 as number,
         output: 0 as number,
@@ -77,6 +83,18 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       ? Math.round((last.tokens.cache.read / totalInput) * 100)
       : null
 
+    // Cumulative session cache: sum across ALL assistant messages
+    let sessionCacheRead = 0
+    let sessionCacheInput = 0
+    for (const m of allAssistant) {
+      sessionCacheRead += m.tokens.cache.read
+      sessionCacheInput += m.tokens.input
+    }
+    const sessionTotal = sessionCacheRead + sessionCacheInput
+    const sessionCacheHitRate = sessionTotal > 0 && sessionCacheRead > 0
+      ? Math.round((sessionCacheRead / sessionTotal) * 100)
+      : null
+
     return {
       tokens,
       percent: model?.limit?.context ? Math.round((tokens / model.limit.context) * 100) : null,
@@ -89,6 +107,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       cacheRead: last.tokens.cache.read,
       cacheInput: last.tokens.input,
       cacheHitRate,
+      sessionCacheRead,
+      sessionCacheInput,
+      sessionCacheHitRate,
       reasoning: last.tokens.reasoning,
       output: last.tokens.output,
       outputLimit,
@@ -119,6 +140,11 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         </text>
       ) : state().cacheInput > 0 ? (
         <text fg={theme().textMuted}>Cache: cold (no cached tokens)</text>
+      ) : null}
+      {state().sessionCacheRead! > 0 && state().sessionCacheHitRate !== null && state().sessionCacheHitRate !== state().cacheHitRate ? (
+        <text fg={state().sessionCacheHitRate! > 80 ? theme().success : state().sessionCacheHitRate! >= 40 ? theme().warning : theme().error}>
+          Session: {state().sessionCacheHitRate}% ({fmt.format(state().sessionCacheRead!)} read · {fmt.format(state().sessionCacheInput!)} miss)
+        </text>
       ) : null}
       {state().reasoning > 0 && (
         <text fg={theme().textMuted}>Reasoning: {state().reasoning.toLocaleString()} tokens</text>

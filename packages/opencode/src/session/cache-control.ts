@@ -260,8 +260,9 @@ export function auditCache(
   // First request: no baseline
   if (!prev) {
     entry.changeDescription = "first request - no cache baseline"
-    entry.estimatedHitRatio = 0
-    return entry
+      entry.estimatedHitRatio = 0
+      entry.cacheStable = false
+      return entry
   }
 
   // Component-level cache break diagnosis (when PrefixShape data is available).
@@ -274,6 +275,7 @@ export function auditCache(
       entry.prevAtDivergence = prev.prefix.systemOnlyMd5.slice(0, 8)
       entry.nextAtDivergence = next.prefix.systemOnlyMd5.slice(0, 8)
       entry.changeDescription = `system prompt changed (non-tool): ${prev.prefix.systemOnlyMd5.slice(0, 8)} → ${next.prefix.systemOnlyMd5.slice(0, 8)}`
+      entry.cacheStable = false
       entry.estimatedHitRatio = 0
       return entry
     }
@@ -287,6 +289,7 @@ export function auditCache(
         entry.changeDescription = "tool schemas changed (order + possibly content)"
       }
       entry.estimatedHitRatio = 0
+      entry.cacheStable = false
       return entry
     }
     if (prev.prefix.toolsOrderHash !== next.prefix.toolsOrderHash) {
@@ -294,6 +297,7 @@ export function auditCache(
       entry.prevAtDivergence = prev.prefix.toolsOrderHash.slice(0, 8)
       entry.nextAtDivergence = next.prefix.toolsOrderHash.slice(0, 8)
       entry.changeDescription = "tool order changed only (content identical)"
+      entry.cacheStable = false
       entry.estimatedHitRatio = 0
       return entry
     }
@@ -494,15 +498,14 @@ if (import.meta.main) {
   console.log(`  toolsOrderHash match: ${reqA.prefix?.toolsOrderHash === reqB.prefix?.toolsOrderHash} (expected: true)`)
   console.log(`  prefixMd5 match: ${reqA.prefix?.prefixMd5 === reqB.prefix?.prefixMd5} (expected: true)`)
 
-  // Test 9: Component blame — tool order change only
-  console.log("\n── Test 9: Component blame (tool order change) ──")
+  // Test 9: Component blame — tool content change
+  console.log("\n── Test 9: Component blame (tool content change) ──")
   const toolsC: ToolSchema[] = [{ name: "z", description: "last", parameters: "{}" }]
   const toolsD: ToolSchema[] = [{ name: "z", description: "last", parameters: '{"extra":true}' }]
   const reqC = requestFingerprint(["Sys"], [msg1], undefined, toolsC)
   const reqD = requestFingerprint(["Sys"], [msg1], undefined, toolsD)
   const auditCD = auditCache(reqC, reqD, "test")
   console.log(`  blame: ${auditCD.changeDescription}`)
-  console.log(`  (should say tool schemas changed — content differs)`)
 
   // Test 10: Component blame — system changed, tools same
   console.log("\n── Test 10: Component blame (system changed, tools same) ──")
@@ -510,7 +513,6 @@ if (import.meta.main) {
   const reqF = requestFingerprint(["System B"], [msg1], undefined, toolsA)
   const auditEF = auditCache(reqE, reqF, "test")
   console.log(`  blame: ${auditEF.changeDescription}`)
-  console.log(`  (should say system prompt changed)`)
 
   // Test 11: Legacy — no toolSchemas provided (backward compat)
   console.log("\n── Test 11: Backward compat (no toolSchemas) ──")

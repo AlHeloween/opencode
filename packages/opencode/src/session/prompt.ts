@@ -250,7 +250,7 @@ export const layer = Layer.effect(
       if (!Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE) {
         if (input.agent.name === "plan") {
           if (!hasSynthetic(PROMPT_PLAN)) {
-            userMessage.parts.push({
+            const part = yield* sessions.updatePart({
               id: PartID.ascending(),
               messageID: userMessage.info.id,
               sessionID: userMessage.info.sessionID,
@@ -258,12 +258,13 @@ export const layer = Layer.effect(
               text: PROMPT_PLAN,
               synthetic: true,
             })
+            userMessage.parts.push(part)
           }
         }
         const wasPlan = input.messages.some((msg) => msg.info.role === "assistant" && msg.info.agent === "plan")
         if (wasPlan && input.agent.name === "build") {
           if (!hasSynthetic(BUILD_SWITCH)) {
-            userMessage.parts.push({
+            const part = yield* sessions.updatePart({
               id: PartID.ascending(),
               messageID: userMessage.info.id,
               sessionID: userMessage.info.sessionID,
@@ -271,6 +272,7 @@ export const layer = Layer.effect(
               text: BUILD_SWITCH,
               synthetic: true,
             })
+            userMessage.parts.push(part)
           }
         }
         return input.messages

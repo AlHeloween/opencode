@@ -11,9 +11,13 @@
 
 import { createHash } from "crypto"
 import type { MessageV2 } from "./message-v2"
-import { Database } from "@/storage/db"
-import { CacheFingerprintTable } from "./session.sql"
-import { eq, and } from "drizzle-orm"
+import { Database as BunDatabase } from "bun:sqlite"
+import path from "path"
+import { Path as GlobalPath } from "@opencode-ai/core/global"
+
+// Separate SQLite DB for fingerprint persistence — avoids locking conflicts
+// with the main drizzle DB and requires no migrations.
+const FINGERPRINT_DB_PATH = path.join(GlobalPath.state, "cache_fingerprints.db")
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -219,13 +223,26 @@ export function requestFingerprint(
 }
 
 /** Per-session + model request fingerprint storage for cache chain tracking.
-  * Dual-layer: in-memory Map (fast path) + SQLite (survives runLoop boundaries).
+  * Dual-layer: in-memory Map (fast path) + separate SQLite DB (survives restarts).
   * Without SQLite, fingerprints are lost on process restart or session reopen,
-  * causing full KV cache misses → model amnesia → 32k+ tokens wasted. */
+  * causing full KV cache misses → model amnesia → 32k+ tokens wasted.
+  * Uses a standalone .db file to avoid locking conflicts with the main drizzle DB. */
 const prevRequestCache = new Map<string, RequestFingerprint>()
 
 function cacheStoreKey(sessionId: string, modelId: string): string {
   return `${sessionId}:${modelId}`
+}
+
+let _fpDb: BunDatabase | undefined
+function fpDb(): BunDatabase {
+  if (!_fpDb) {
+    _fpDb = new BunDatabase(FINGERPRINT_DB_PATH, { create: true })
+    _fpDb.run("PRAGMA journal_mode = WAL")
+    _fpDb.run(
+      "CREATE TABLE IF NOT EXISTS fingerprints (session_id TEXT NOT NULL, model_id TEXT NOT NULL, system_md5 TEXT NOT NULL, full_md5 TEXT NOT NULL, data TEXT NOT NULL, time_updated INTEGER NOT NULL, PRIMARY KEY (session_id, model_id))",
+    )
+  }
+  return _fpDb
 }
 
 export function storePrevFingerprint(
@@ -236,32 +253,15 @@ export function storePrevFingerprint(
   const key = cacheStoreKey(sessionId, modelId)
   prevRequestCache.set(key, fp)
 
-  // Persist to SQLite so the fingerprint survives runLoop restarts
-  // and session reopens — prevents model amnesia on turn boundaries.
+  // Persist to separate SQLite DB so the fingerprint survives restarts
   try {
     const now = Date.now()
-    Database.use((db) =>
-      db
-        .insert(CacheFingerprintTable)
-        .values({
-          session_id: sessionId as never,
-          model_id: modelId,
-          system_md5: fp.systemMd5,
-          full_md5: fp.fullMd5,
-          data: JSON.stringify(fp),
-          time_updated: now,
-        })
-        .onConflictDoUpdate({
-          target: [CacheFingerprintTable.session_id, CacheFingerprintTable.model_id],
-          set: {
-            system_md5: fp.systemMd5,
-            full_md5: fp.fullMd5,
-            data: JSON.stringify(fp),
-            time_updated: now,
-          },
-        })
-        .run(),
-    )
+    const data = JSON.stringify(fp)
+    fpDb()
+      .query(
+        "INSERT OR REPLACE INTO fingerprints (session_id, model_id, system_md5, full_md5, data, time_updated) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(sessionId, modelId, fp.systemMd5, fp.fullMd5, data, now)
   } catch {
     // Non-critical: in-memory cache still works for the current turn
   }
@@ -275,28 +275,18 @@ export function getPrevFingerprint(
   const cached = prevRequestCache.get(key)
   if (cached) return cached
 
-  // Memory miss — try SQLite. Handles turn boundaries, process restarts,
-  // and session reopens where the in-memory Map is cold.
+  // Memory miss — try the separate SQLite DB
   try {
-    const row = Database.use((db) =>
-      db
-        .select({ data: CacheFingerprintTable.data })
-        .from(CacheFingerprintTable)
-        .where(
-          and(
-            eq(CacheFingerprintTable.session_id, sessionId as never),
-            eq(CacheFingerprintTable.model_id, modelId),
-          ),
-        )
-        .get(),
-    )
+    const row = fpDb()
+      .query("SELECT data FROM fingerprints WHERE session_id = ? AND model_id = ?")
+      .get(sessionId, modelId) as { data: string } | undefined
     if (row) {
-      const fp = JSON.parse(row.data as string) as RequestFingerprint
-      prevRequestCache.set(key, fp) // restore to memory
+      const fp = JSON.parse(row.data) as RequestFingerprint
+      prevRequestCache.set(key, fp)
       return fp
     }
   } catch {
-    // DB miss or parse error — return null (first turn or corrupted data)
+    // DB miss or parse error — return null
   }
   return null
 }

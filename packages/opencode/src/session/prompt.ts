@@ -1468,9 +1468,14 @@ You should build your plan incrementally by writing to or editing this file. NOT
             // version → cache invalidated from that position forward → ~33k token
             // miss. DB-persisted synthetic parts eliminate this: the wrapper
             // survives reloads, and the original text part never changes.
+            //
+            // TARGET: only the LAST user message — matches date-injection
+            // pattern at line 1528. This ensures the system-reminder wrapper
+            // is always at conversation end, preserving assistant→tool→assistant
+            // flow immutability for KV cache continuity.
             if (lastFinished) {
-              for (const m of msgs) {
-                if (m.info.role !== "user" || m.info.id <= lastFinished.id) continue
+              const m = msgs.findLast((m) => m.info.role === "user")
+              if (m && m.info.id > lastFinished.id) {
                 for (const p of m.parts) {
                   if (p.type !== "text" || p.ignored || p.synthetic) continue
                   if (!p.text.trim()) continue

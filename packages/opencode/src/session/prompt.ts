@@ -1536,7 +1536,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
               const userText = freshUserMsg.parts.find(
                 (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
               )
-              if (userText) {
+              // Idempotency guard: prevent re-prepend across loop iterations.
+              if (userText && !userText.text.startsWith("<background-jobs>")) {
                 userText.text = "<background-jobs>\n" + jobsNote + "\n</background-jobs>\n\n" + userText.text
               }
             }

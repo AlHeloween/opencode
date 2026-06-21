@@ -1312,7 +1312,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   sessionID,
                   modelID: model.id,
                   providerID: model.providerID,
-                  turn: step,
+                  turn: msgs.filter((m) => m.info.role === "user").length,
                   agent: agent.name,
                   timestamp: Date.now(),
                 }
@@ -1645,7 +1645,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 sessionID,
                 modelID: model.id,
                 providerID: model.providerID,
-                turn: step,
+                  turn: msgs.filter((m) => m.info.role === "user").length,
                 agent: agent.name,
                 timestamp: Date.now(),
               }

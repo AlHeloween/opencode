@@ -1449,6 +1449,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 for (const p of m.parts) {
                   if (p.type !== "text" || p.ignored || p.synthetic) continue
                   if (!p.text.trim()) continue
+                  // Idempotency guard: only wrap once. With message caching,
+                  // re-wrapping on every tool-loop step causes cumulative text
+                  // growth → different MD5 each step → KV cache break.
+                  if (p.text.includes("<system-reminder>")) continue
                   p.text = [
                     "<system-reminder>",
                     "The user sent the following message:",

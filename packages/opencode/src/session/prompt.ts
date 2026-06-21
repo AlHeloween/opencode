@@ -1259,10 +1259,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
                 )
                 // Idempotency guard: date is injected once per user message.
-              // Without this the loop re-injects on every iteration, compounding
-              // the prefix and breaking KV cache stability on every turn.
-              if (firstText && !firstText.text.startsWith(dateText)) {
-                  firstText.text = dateText + "\n\n" + firstText.text
+              // Without this the loop re-injects on every iteration.
+              if (firstText && !firstText.text.includes(dateText)) {
+                  firstText.text = firstText.text + "\n\n" + dateText
                 }
               }
 
@@ -1525,9 +1524,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            // Inject date at START of freshly-published user message (not system prompt).
+            // Inject date at END of freshly-published user message (not system prompt).
             // Must happen BEFORE toModelMessagesEffect so it flows through conversion.
-            // Session ID at system prompt start ensures per-session cache isolation.
             const envDate = yield* Effect.sync(() => sys.environmentDate())
             const dateText = envDate[0] ?? ""
             const freshUserMsg = msgs.findLast((m) => m.info.role === "user")!
@@ -1536,10 +1534,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
               )
               // Idempotency guard: date is injected once per user message.
-              // Without this the loop re-injects on every iteration, compounding
-              // the prefix and breaking KV cache stability on every turn.
-              if (firstText && !firstText.text.startsWith(dateText)) {
-                firstText.text = dateText + "\n\n" + firstText.text
+              // Without this the loop re-injects on every iteration.
+              if (firstText && !firstText.text.includes(dateText)) {
+                firstText.text = firstText.text + "\n\n" + dateText
               }
             }
 

@@ -828,7 +828,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 
     // Per-message conversion cache: skip redundant conversion of stable messages.
     // Key includes a content hash of part texts so mutations (e.g. environmentDate()
-    // prepend) invalidate the cache entry.  Without this, date accumulations corrupt
+    // append) invalidate the cache entry.  Without this, date text changes corrupt
     // cached message content after session restores.
     const contentFp = hashPartTexts(msg.parts)
     const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}:${contentFp}`

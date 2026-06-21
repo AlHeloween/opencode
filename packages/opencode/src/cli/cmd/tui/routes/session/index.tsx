@@ -42,6 +42,7 @@ import type { GlobTool } from "@/tool/glob"
 import { TodoWriteTool } from "@/tool/todo"
 import type { GrepTool } from "@/tool/grep"
 import type { EditTool } from "@/tool/edit"
+import type { MultiEditTool } from "@/tool/multiedit"
 import type { ApplyPatchTool } from "@/tool/apply_patch"
 import type { WebFetchTool } from "@/tool/webfetch"
 import type { UniversalSearchTool } from "@/tool/universalsearch"
@@ -1638,6 +1639,9 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
         <Match when={props.part.tool === "edit"}>
           <Edit {...toolprops} />
         </Match>
+        <Match when={props.part.tool === "multiedit"}>
+          <MultiEdit {...toolprops} />
+        </Match>
         <Match when={props.part.tool === "task"}>
           <Task {...toolprops} />
         </Match>
@@ -2250,6 +2254,62 @@ function Question(props: ToolProps<typeof QuestionTool>) {
       <Match when={true}>
         <InlineTool icon="→" pending="Asking questions..." complete={count()} part={props.part}>
           Asked {count()} question{count() !== 1 ? "s" : ""}
+        </InlineTool>
+      </Match>
+    </Switch>
+  )
+}
+
+function MultiEdit(props: ToolProps<typeof MultiEditTool>) {
+  const ctx = use()
+  const { theme, syntax } = useTheme()
+
+  const view = createMemo(() => {
+    const diffStyle = ctx.tui.diff_style
+    if (diffStyle === "stacked") return "unified"
+    return ctx.width > 120 ? "split" : "unified"
+  })
+
+  const results = createMemo(() => (props.metadata.results ?? []) as { diff?: string; filediff?: { file: string } }[])
+  const filePath = () => props.input.filePath ?? ""
+  const ft = createMemo(() => filetype(filePath()))
+
+  return (
+    <Switch>
+      <Match when={results().length > 0}>
+        <BlockTool title={"← MultiEdit " + normalizePath(filePath())} part={props.part}>
+          <For each={results()}>
+            {(result, i) => (
+              <Show when={result.diff}>
+                <box paddingLeft={1}>
+                  <diff
+                    diff={result.diff!}
+                    view={view()}
+                    filetype={ft()}
+                    syntaxStyle={syntax()}
+                    showLineNumbers={true}
+                    width="100%"
+                    wrapMode={ctx.diffWrapMode()}
+                    fg={theme.text}
+                    addedBg={theme.diffAddedBg}
+                    removedBg={theme.diffRemovedBg}
+                    contextBg={theme.diffContextBg}
+                    addedSignColor={theme.diffHighlightAdded}
+                    removedSignColor={theme.diffHighlightRemoved}
+                    lineNumberFg={theme.diffLineNumber}
+                    lineNumberBg={theme.diffContextBg}
+                    addedLineNumberBg={theme.diffAddedLineNumberBg}
+                    removedLineNumberBg={theme.diffRemovedLineNumberBg}
+                  />
+                </box>
+              </Show>
+            )}
+          </For>
+        </BlockTool>
+      </Match>
+      <Match when={true}>
+        <InlineTool icon="←" pending="Preparing edits..." complete={filePath()} part={props.part}>
+          MultiEdit {normalizePath(filePath())}
         </InlineTool>
       </Match>
     </Switch>

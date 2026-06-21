@@ -53,7 +53,9 @@ export const MultiEditTool = Tool.define(
               if (!r.metadata.diff) return `Edit ${i + 1}: no change`
               // Strip verbose patch headers, keep only the hunk showing +/- lines
               const hunk = r.metadata.diff.split("\n")
-                .filter((l: string) => l.startsWith("+") || l.startsWith("-") || l.startsWith(" "))
+                .filter((l: string) =>
+                  (l.startsWith("+") || l.startsWith("-")) && !l.startsWith("---") && !l.startsWith("+++")
+                  || (l.startsWith(" ") && !l.startsWith("  ")))
                 .join("\n")
               return `Edit ${i + 1}${stats}:\n${hunk}`
             })

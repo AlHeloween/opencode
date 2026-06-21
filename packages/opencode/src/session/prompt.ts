@@ -1142,6 +1142,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
             ...msg,
             parts: msg.parts.filter((p) => !isOrphanedInterruptedTool(p)),
           }))
+          // Keep cache in sync — msgs.map() creates new message objects.
+          // Without this, mutations to msgs (system-reminder, background-jobs)
+          // are lost when cachedMsgs is reused on the next iteration.
+          cachedMsgs = msgs
 
           let lastUser: MessageV2.User | undefined
           let lastAssistant: MessageV2.Assistant | undefined

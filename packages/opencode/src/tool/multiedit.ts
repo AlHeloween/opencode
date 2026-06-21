@@ -60,7 +60,7 @@ export const MultiEditTool = Tool.define(
               results: results.map((r) => r.metadata),
               allDiffs,
             },
-            output: `Multiple edits applied successfully (${results.length} edits)`,
+            output: `Multiple edits applied successfully (${results.length} edits)\n\n${allDiffs}`,
           }
         }).pipe(Effect.orDie),
     }

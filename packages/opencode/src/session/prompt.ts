@@ -1551,7 +1551,13 @@ You should build your plan incrementally by writing to or editing this file. NOT
             const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id)
             const audit = CacheControl.auditCache(prevFP, currentFP, agent.name)
             if (!audit.cacheStable) {
-              log.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`)
+              Log.Default.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`, {
+                bannerLen: system[0]?.length ?? 0,
+                rulesCount: rules.length,
+                instructionsCount: instructions.length,
+                skillsLen: skills?.length ?? 0,
+                systemTotalLen: system.join("\n").length,
+              })
             }
 
             // Reuse cached model messages when fingerprint is stable.

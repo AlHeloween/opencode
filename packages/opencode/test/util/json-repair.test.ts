@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { repairJson } from "../../src/util/json-repair"
+import { repairJson, diagnoseParseError } from "../../src/util/json-repair"
 
 describe("repairJson", () => {
   test("returns valid JSON as-is (fast path)", () => {
@@ -152,5 +152,89 @@ describe("repairJson", () => {
     // (or at least not corrupt the repair)
     const result = repairJson(" \t\n\r ") // whitespace-only, not valid JSON
     expect(result).toBeNull()
+  })
+
+  // --- unterminated string repair (Strategy 3.5) ---
+
+  test("closes unterminated string + missing closing brace", () => {
+    const input = '{"description":"test","prompt":"hello'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    const parsed = JSON.parse(result!)
+    expect(parsed.description).toBe("test")
+    expect(parsed.prompt).toBe("hello")
+  })
+
+  test("closes unterminated string in nested object", () => {
+    const input = '{"outer":{"inner":"val'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ outer: { inner: "val" } })
+  })
+
+  test("closes unterminated string in array context", () => {
+    const input = '[{"a":"b","c":"hello'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual([{ a: "b", c: "hello" }])
+  })
+
+  test("closes unterminated string with literal newline (combo with Strategy 1)", () => {
+    const input = '{"prompt":"line1\nline2'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    const parsed = JSON.parse(result!)
+    expect(parsed.prompt).toBe("line1\nline2")
+  })
+
+  test("handles unterminated string with escaped quote inside", () => {
+    // Escaped quote \" should not toggle inString, so we correctly detect untermination
+    const input = '{"a":"b\\"c'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    const parsed = JSON.parse(result!)
+    expect(parsed.a).toBe('b"c')
+  })
+
+  test("closes multiple unterminated levels (string + array + object)", () => {
+    // Deeply nested: object contains array contains unterminated string
+    const input = '{"items":[{"key":"val'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ items: [{ key: "val" }] })
+  })
+
+  // --- diagnoseParseError tests ---
+
+  test("diagnoseParseError: unterminated string", () => {
+    const result = diagnoseParseError("JSON Parse error: Unterminated string")
+    expect(result).toContain("Unterminated string")
+    expect(result).toContain("Hint:")
+    expect(result).toContain("closing")
+    expect(result).toContain('"')
+  })
+
+  test("diagnoseParseError: unexpected token", () => {
+    const result = diagnoseParseError("JSON Parse error: Unexpected token '}'")
+    expect(result).toContain("Hint:")
+    expect(result).toContain("syntax error")
+  })
+
+  test("diagnoseParseError: unexpected end", () => {
+    const result = diagnoseParseError("JSON Parse error: Unexpected end of JSON input")
+    expect(result).toContain("Hint:")
+    expect(result).toContain("truncated")
+  })
+
+  test("diagnoseParseError: generic fallback", () => {
+    const result = diagnoseParseError("some unknown error")
+    expect(result).toContain("Hint:")
+    expect(result).toContain("malformed")
   })
 })

@@ -23,7 +23,7 @@ import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
 import * as Option from "effect/Option"
-import { repairJson } from "@/util/json-repair"
+import { repairJson, diagnoseParseError } from "@/util/json-repair"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
@@ -427,7 +427,7 @@ const live: Layer.Layer<
             ...failed.toolCall,
             input: JSON.stringify({
               tool: failed.toolCall.toolName,
-              error: failed.error.message,
+              error: diagnoseParseError(failed.error.message),
             }),
             toolName: "invalid",
           }

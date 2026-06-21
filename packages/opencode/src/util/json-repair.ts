@@ -51,6 +51,17 @@ export function repairJson(input: string): string | null {
     return repaired
   }
 
+  // Strategy 3.5: close unterminated strings and missing brackets.
+  // When LLMs truncate long string values, the closing " and matching
+  // brackets are lost. Detect open structures at EOF and append the
+  // needed closers in correct nesting order (strings first, then brackets
+  // in LIFO order — inner arrays before outer objects).
+  repaired = closeOpenStructures(repaired)
+  if (tryParse(repaired)) {
+    log.info("closed unterminated string/missing brackets in tool call JSON")
+    return repaired
+  }
+
   // Strategy 4: extract the longest valid JSON prefix
   // Handles trailing garbage text after a valid JSON block
   const prefix = extractValidPrefix(repaired)
@@ -76,6 +87,32 @@ function tryParse(json: string): boolean {
   } catch {
     return false
   }
+}
+
+/**
+ * Produce an actionable error message from a raw JSON parse error.
+ *
+ * When the AI SDK's `JSON.parse()` fails on an LLM-generated tool call,
+ * the raw error (e.g. "JSON Parse error: Unterminated string") tells
+ * the model what went wrong but not how to fix it. This function augments
+ * the error with a targeted hint based on the error pattern.
+ */
+export function diagnoseParseError(rawError: string): string {
+  const hint = pickHint(rawError)
+  return `${rawError}\n\nHint: ${hint}`
+}
+
+function pickHint(msg: string): string {
+  if (msg.includes("Unterminated string")) {
+    return 'Your JSON has an open string value that wasn\'t closed. Every string must end with a double-quote character ("). If your prompt parameter text is very long, ensure you add the closing " immediately after the final text character.'
+  }
+  if (msg.includes("Unexpected token") || msg.includes("Expected")) {
+    return "Your JSON has a syntax error. Check for missing commas between fields, trailing commas (not allowed in JSON), or unquoted property names."
+  }
+  if (msg.includes("Unexpected end")) {
+    return "Your JSON appears to be truncated. Ensure all objects are closed with } and all arrays with ]."
+  }
+  return 'Your JSON tool arguments are malformed. Double-check that all strings are quoted with ", objects closed with }, arrays closed with ], and there are no trailing commas.'
 }
 
 /**
@@ -190,6 +227,59 @@ function balanceBrackets(input: string): string {
     } else {
       break
     }
+  }
+
+  return result
+}
+
+/**
+ * Close unterminated strings and unclosed brackets at EOF.
+ *
+ * Uses a state machine to track whether the cursor is inside a JSON
+ * string and which brackets remain unclosed. At EOF, if we're still
+ * inside a string, appends a closing ". Then appends missing ] and }
+ * brackets in LIFO order (inner arrays before outer objects).
+ *
+ * This handles the common LLM truncation pattern where a long string
+ * value near EOF loses its closing quote and the enclosing braces become
+ * unbalanced.
+ */
+function closeOpenStructures(input: string): string {
+  let inString = false
+  let escaped = false
+  const bracketStack: ("{" | "[")[] = []
+
+  for (const ch of input) {
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    if (ch === "\\") {
+      escaped = true
+      continue
+    }
+    if (ch === '"') {
+      inString = !inString
+      continue
+    }
+    if (inString) continue
+    if (ch === "{" || ch === "[") {
+      bracketStack.push(ch)
+    } else if (ch === "}") {
+      if (bracketStack.at(-1) === "{") bracketStack.pop()
+    } else if (ch === "]") {
+      if (bracketStack.at(-1) === "[") bracketStack.pop()
+    }
+  }
+
+  let result = input
+
+  // Close unterminated string at EOF (not mid-escape)
+  if (inString && !escaped) result += '"'
+
+  // Close unclosed brackets in LIFO order (innermost first)
+  while (bracketStack.length > 0) {
+    result += bracketStack.pop()! === "{" ? "}" : "]"
   }
 
   return result

@@ -22,8 +22,14 @@ import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
-import PROMPT_PLAN from "../session/prompt/plan.txt"
-import BUILD_SWITCH from "../session/prompt/build-switch.txt"
+import PROMPT_PLAN_RAW from "../session/prompt/plan.txt"
+import BUILD_SWITCH_RAW from "../session/prompt/build-switch.txt"
+// Normalize CRLF → LF so exact text comparisons match DB-stored versions
+// regardless of OS line-ending conventions. Failure to do this causes
+// hasSynthetic() to miss existing synthetic parts, leading to re-push
+// with new PartID → KV cache break on every turn.
+const PROMPT_PLAN = PROMPT_PLAN_RAW.replace(/\r\n/g, "\n")
+const BUILD_SWITCH = BUILD_SWITCH_RAW.replace(/\r\n/g, "\n")
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
@@ -239,12 +245,17 @@ export const layer = Layer.effect(
       // Without this, every turn pushes a new synthetic part with a new
       // PartID.ascending(), which changes the message fingerprint → KV cache
       // break on every turn → ~32k tokens reprocessed every step.
+      // normalizeNL handles \r\n vs \n mismatch between imported .txt files (LF)
+      // and DB-stored text from Windows JSON serialization (CRLF).
+      const normalizeNL = (s: string) => s.replace(/\r\n/g, "\n")
       const hasSynthetic = (text: string, match: "exact" | "prefix" = "exact") =>
         userMessage.parts.some(
           (p) =>
             p.type === "text" &&
             (p as MessageV2.TextPart & { synthetic?: boolean }).synthetic === true &&
-            (match === "exact" ? p.text === text : p.text.startsWith(text)),
+            (match === "exact"
+              ? normalizeNL(p.text) === normalizeNL(text)
+              : normalizeNL(p.text).startsWith(normalizeNL(text))),
         )
 
       if (!Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE) {

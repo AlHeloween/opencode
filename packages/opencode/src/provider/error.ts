@@ -142,6 +142,34 @@ export function parseStreamError(input: unknown): ParsedStreamError | undefined 
   const responseBody = JSON.stringify(body)
   if (body.type !== "error") return
 
+  // Detect overflow from message text using the same regex patterns as the
+  // APICallError path. OpenAI-compatible streaming endpoints often return
+  // generic error codes (e.g. "invalid_request_error") even when the actual
+  // problem is context overflow. The message text reliably contains the
+  // overflow indicator.
+  const errorMessage =
+    typeof body?.error?.message === "string"
+      ? body.error.message
+      : typeof body?.message === "string"
+        ? body.message
+        : ""
+  if (errorMessage && isOverflow(errorMessage)) {
+    return {
+      type: "context_overflow",
+      message: errorMessage,
+      responseBody,
+    }
+  }
+
+  // Some providers signal context overflow via HTTP 413 even in stream errors
+  if (body?.statusCode === 413 || body?.status === 413) {
+    return {
+      type: "context_overflow",
+      message: "Request entity too large",
+      responseBody,
+    }
+  }
+
   switch (body?.error?.code) {
     case "context_length_exceeded":
       return {

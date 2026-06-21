@@ -937,7 +937,18 @@ describe("session.message-v2.toModelMessage", () => {
               },
             },
           },
-          { type: "text", text: "answer" },
+          {
+            type: "text",
+            text: "answer",
+            providerOptions: {
+              alibaba: { cacheControl: { type: "ephemeral" } },
+              anthropic: { cacheControl: { type: "ephemeral" } },
+              bedrock: { cachePoint: { type: "default" } },
+              copilot: { copilot_cache_control: { type: "ephemeral" } },
+              openaiCompatible: { cache_control: { type: "ephemeral" } },
+              openrouter: { cacheControl: { type: "ephemeral" } },
+            },
+          },
         ],
       },
     ])
@@ -1276,5 +1287,62 @@ describe("session.message-v2.fromError", () => {
     const result = MessageV2.fromError(zlibError, { providerID, aborted: true })
 
     expect(result.name).toBe("MessageAbortedError")
+  })
+
+  test("detects context overflow from stream error message text (OpenAI-compatible pattern)", () => {
+    const body = {
+      type: "error",
+      error: {
+        code: "invalid_request_error",
+        message:
+          "This model's maximum context length is 256000 tokens. However, your messages resulted in 300000 tokens.",
+      },
+    }
+    const input = { message: JSON.stringify(body) }
+    const result = MessageV2.fromError(input, { providerID })
+    expect(MessageV2.ContextOverflowError.isInstance(result)).toBe(true)
+  })
+
+  test("detects context overflow from stream error with vLLM / DeepSeek message pattern", () => {
+    const body = {
+      type: "error",
+      error: {
+        code: "invalid_request_error",
+        message:
+          "maximum context length is 131072 tokens. you have 150000 tokens in your request",
+      },
+    }
+    const input = { message: JSON.stringify(body) }
+    const result = MessageV2.fromError(input, { providerID })
+    expect(MessageV2.ContextOverflowError.isInstance(result)).toBe(true)
+  })
+
+  test("detects context overflow from stream error with generic context_length_exceeded pattern", () => {
+    // "context_length_exceeded" with underscores — generic fallback pattern
+    const body = {
+      type: "error",
+      error: {
+        code: "server_error",
+        message: "context_length_exceeded: input too large for model",
+      },
+    }
+    const input = { message: JSON.stringify(body) }
+    const result = MessageV2.fromError(input, { providerID })
+    expect(MessageV2.ContextOverflowError.isInstance(result)).toBe(true)
+  })
+
+  test("does not classify non-overflow stream error message as context overflow", () => {
+    const body = {
+      type: "error",
+      error: {
+        code: "invalid_request_error",
+        message: "The model is currently overloaded. Please try again later.",
+      },
+    }
+    const input = { message: JSON.stringify(body) }
+    const result = MessageV2.fromError(input, { providerID })
+    // Should NOT be context overflow — falls through to UnknownError
+    expect(MessageV2.ContextOverflowError.isInstance(result)).toBe(false)
+    expect(result.name).toBe("UnknownError")
   })
 })

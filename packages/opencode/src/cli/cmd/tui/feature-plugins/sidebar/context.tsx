@@ -1,6 +1,7 @@
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import { createMemo, createSignal, onCleanup } from "solid-js"
+import { createMemo, createSignal, onCleanup, onMount } from "solid-js"
+import { getModelStatus } from "@/provider/balance"
 
 const id = "internal:sidebar-context"
 
@@ -47,6 +48,27 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     }))
   })
   onCleanup(() => unsub?.())
+
+  // Fetch model status for all configured providers on mount so the
+  // sidebar shows status immediately, not just after a message is sent.
+  onMount(() => {
+    for (const p of props.api.state.provider) {
+      getModelStatus(p.id).then((status) => {
+        setProviderStatus((prev) => ({
+          ...prev,
+          [p.id]: {
+            type: status.type,
+            currency: (status as any).currency,
+            totalBalance: (status as any).totalBalance,
+            isAvailable: (status as any).isAvailable,
+            windows: (status as any).windows,
+            reason: (status as any).reason,
+            timestamp: Date.now(),
+          },
+        }))
+      }).catch(() => {})
+    }
+  })
 
   const state = createMemo(() => {
     const allAssistant = msg().filter((item): item is AssistantMessage =>

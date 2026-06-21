@@ -11,6 +11,9 @@
 
 import { createHash } from "crypto"
 import type { MessageV2 } from "./message-v2"
+import { Database } from "@/storage/db"
+import { CacheFingerprintTable } from "./session.sql"
+import { eq, and } from "drizzle-orm"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -215,7 +218,10 @@ export function requestFingerprint(
   }
 }
 
-/** Per-session + model request fingerprint storage for cache chain tracking. */
+/** Per-session + model request fingerprint storage for cache chain tracking.
+  * Dual-layer: in-memory Map (fast path) + SQLite (survives runLoop boundaries).
+  * Without SQLite, fingerprints are lost on process restart or session reopen,
+  * causing full KV cache misses → model amnesia → 32k+ tokens wasted. */
 const prevRequestCache = new Map<string, RequestFingerprint>()
 
 function cacheStoreKey(sessionId: string, modelId: string): string {
@@ -227,14 +233,72 @@ export function storePrevFingerprint(
   modelId: string,
   fp: RequestFingerprint,
 ): void {
-  prevRequestCache.set(cacheStoreKey(sessionId, modelId), fp)
+  const key = cacheStoreKey(sessionId, modelId)
+  prevRequestCache.set(key, fp)
+
+  // Persist to SQLite so the fingerprint survives runLoop restarts
+  // and session reopens — prevents model amnesia on turn boundaries.
+  try {
+    const now = Date.now()
+    Database.use((db) =>
+      db
+        .insert(CacheFingerprintTable)
+        .values({
+          session_id: sessionId as never,
+          model_id: modelId,
+          system_md5: fp.systemMd5,
+          full_md5: fp.fullMd5,
+          data: JSON.stringify(fp),
+          time_updated: now,
+        })
+        .onConflictDoUpdate({
+          target: [CacheFingerprintTable.session_id, CacheFingerprintTable.model_id],
+          set: {
+            system_md5: fp.systemMd5,
+            full_md5: fp.fullMd5,
+            data: JSON.stringify(fp),
+            time_updated: now,
+          },
+        })
+        .run(),
+    )
+  } catch {
+    // Non-critical: in-memory cache still works for the current turn
+  }
 }
 
 export function getPrevFingerprint(
   sessionId: string,
   modelId: string,
 ): RequestFingerprint | null {
-  return prevRequestCache.get(cacheStoreKey(sessionId, modelId)) ?? null
+  const key = cacheStoreKey(sessionId, modelId)
+  const cached = prevRequestCache.get(key)
+  if (cached) return cached
+
+  // Memory miss — try SQLite. Handles turn boundaries, process restarts,
+  // and session reopens where the in-memory Map is cold.
+  try {
+    const row = Database.use((db) =>
+      db
+        .select({ data: CacheFingerprintTable.data })
+        .from(CacheFingerprintTable)
+        .where(
+          and(
+            eq(CacheFingerprintTable.session_id, sessionId as never),
+            eq(CacheFingerprintTable.model_id, modelId),
+          ),
+        )
+        .get(),
+    )
+    if (row) {
+      const fp = JSON.parse(row.data as string) as RequestFingerprint
+      prevRequestCache.set(key, fp) // restore to memory
+      return fp
+    }
+  } catch {
+    // DB miss or parse error — return null (first turn or corrupted data)
+  }
+  return null
 }
 
 // ── Cache Audit ────────────────────────────────────────────────────────────

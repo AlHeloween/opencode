@@ -158,3 +158,22 @@ export const PartEmbeddingTable = sqliteTable(
   ],
 )
 
+/** KV cache fingerprint persistence — survives runLoop restarts.
+  * Prevents model amnesia (full context reprocessing) when the in-memory
+  * fingerprint Map is cold after a turn boundary. */
+export const CacheFingerprintTable = sqliteTable(
+  "cache_fingerprint",
+  {
+    session_id: text().$type<SessionID>().notNull(),
+    model_id: text().notNull(),
+    system_md5: text().notNull(),
+    full_md5: text().notNull(),
+    data: text({ mode: "json" }).notNull(),
+    time_updated: integer().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.session_id, table.model_id] }),
+    index("cache_fingerprint_session_idx").on(table.session_id),
+  ],
+)
+

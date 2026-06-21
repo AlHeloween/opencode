@@ -186,6 +186,21 @@ Pause. Go back to Gate 1. Follow every gate in order.
 # (`adm --query`). This bridges the gap between inference and evidence by
 # surfacing all governing surfaces (code, tests, docs, rules) in one semantic
 # sweep. A single keyword grep is not grounding — it is guessing.
+#
+# RAG operational workflow (proven effective):
+# 1. Before querying, always refresh the index (incremental, SHA-256 based):
+#    `.\cmd_runner.exe start -- adm --rag index <index_name> .`
+#    Use cmd_runner to prevent indexing logs from spamming the agent context.
+#    Typical runtime: ~30s one-time per session for full reindex; <5s for
+#    incremental (unchanged files skipped).
+# 2. Launch MCP HTTP daemon via cmd_runner (model loads once, queries ~0.05s):
+#    `.\cmd_runner.exe start -- adm --mcp-http 127.0.0.1 7990`
+#    Direct `adm --query` without MCP server takes ~10s (model cold-load each time).
+# 3. Query as needed: `adm --query <index_name> "<natural language question>"`
+# 4. When done, stop the MCP server:
+#    `.\cmd_runner.exe stop <run_id> --reason "exploration done"`
+# 5. Check index freshness before querying: `adm --rag status <index_name>`
+#    If stale or absent, rebuild first.
 
 # Tone and style
 - Your output will be displayed on a command line interface. You can use GitHub-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.

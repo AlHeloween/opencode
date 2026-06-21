@@ -316,7 +316,7 @@ export const layer = Layer.effect(
         Effect.tapError((e) => Effect.sync(() => Log.Default.warn("bug: plan directory creation failed", { plan, error: String(e) }))),
         Effect.catch(Effect.die),
       )
-      if (!hasSynthetic("<system-reminder>", "prefix")) {
+      if (!hasSynthetic("<system-reminder>\nPlan mode", "prefix")) {
         const part = yield* sessions.updatePart({
           id: PartID.ascending(),
           messageID: userMessage.info.id,
@@ -1457,20 +1457,35 @@ You should build your plan incrementally by writing to or editing this file. NOT
             // summarize() moved to common step-1 block before task dispatch
 
             // Wrap user messages after the last finished turn in a system-reminder
-            // block. Must run on step 1 too, otherwise the fingerprint alternates
-            // (with/without wrapper) between new user messages and tool-loop steps,
-            // causing KV cache breaks on every turn boundary.
+            // block as a DB-persisted synthetic text part. The underlying user
+            // message text part is never mutated — it is marked `ignored: true`
+            // so toModelMessagesEffect skips it in favor of the synthetic part.
+            //
+            // Without DB persistence, the wrapper vanishes on message reload
+            // (DB-stored text is unwrapped). When lastFinished advances between
+            // turns, the guard `m.info.id <= lastFinished.id` prevents re-wrapping
+            // old messages → their text differs from the previously KV-cached
+            // version → cache invalidated from that position forward → ~33k token
+            // miss. DB-persisted synthetic parts eliminate this: the wrapper
+            // survives reloads, and the original text part never changes.
             if (lastFinished) {
               for (const m of msgs) {
                 if (m.info.role !== "user" || m.info.id <= lastFinished.id) continue
                 for (const p of m.parts) {
                   if (p.type !== "text" || p.ignored || p.synthetic) continue
                   if (!p.text.trim()) continue
-                  // Idempotency guard: only wrap once. With message caching,
-                  // re-wrapping on every tool-loop step causes cumulative text
-                  // growth → different MD5 each step → KV cache break.
-                  if (p.text.includes("<system-reminder>")) continue
-                  p.text = [
+                  // Idempotency guard: once a synthetic system-reminder part
+                  // exists on this message, skip. The synthetic part is DB-backed
+                  // and survives reloads, so this check prevents re-wrapping
+                  // across tool-loop iterations AND across turns.
+                  const alreadyWrapped = m.parts.some(
+                    (part) =>
+                      part.type === "text" &&
+                      (part as MessageV2.TextPart).synthetic === true &&
+                      part.text.startsWith("<system-reminder>"),
+                  )
+                  if (alreadyWrapped) continue
+                  const wrapperText = [
                     "<system-reminder>",
                     "The user sent the following message:",
                     p.text,
@@ -1478,6 +1493,27 @@ You should build your plan incrementally by writing to or editing this file. NOT
                     "Please address this message and continue with your tasks.",
                     "</system-reminder>",
                   ].join("\n")
+                  // Persist wrapper as a synthetic part — survives DB reloads.
+                  const syntheticPart = yield* sessions.updatePart({
+                    id: PartID.ascending(),
+                    messageID: m.info.id,
+                    sessionID: m.info.sessionID,
+                    type: "text" as const,
+                    text: wrapperText,
+                    synthetic: true,
+                  })
+                  // Mark original text part ignored. PERSIST so DB reloads
+                  // preserve the ignored flag. Without this, a reloaded
+                  // text part would render ALONGSIDE the synthetic wrapper.
+                  yield* sessions.updatePart({
+                    ...p,
+                    ignored: true,
+                  } as MessageV2.TextPart)
+                  p.ignored = true
+                  // Prepend synthetic part so it renders BEFORE the ignored
+                  // original text part (though ignored parts are excluded
+                  // from rendering anyway via !part.ignored guard).
+                  m.parts.unshift(syntheticPart)
                 }
               }
             }

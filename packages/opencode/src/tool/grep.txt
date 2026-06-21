@@ -18,6 +18,6 @@ Returns **file paths + line numbers + matched text content** sorted by modificat
 
 - Maximum **100 results** with partial notice when some paths are inaccessible.
 - Lines exceeding **2000 characters** are truncated with `...`.
-- For counting/aggregating matches across files, use `rg` via bash instead.
+- This tool is limited to 100 results and 2000-char line truncation. For counting, aggregation, or full output, prefer `rg` via bash (auto-approved for all safe flags).
 
 Call multiple grep searches in parallel when looking for independent patterns.

@@ -37,9 +37,9 @@ describe("log", () => {
   })
 
   test("filename generation with payload operation and suffix", () => {
-    const filepath = Log.logPath("payload", "claude", "ses_abc", "json", "payload-001")
+    const filepath = Log.logPath("payload", "claude", "ses_abc", "md", "payload-001")
     const filename = path.basename(filepath)
-    expect(filename).toMatch(/^\d{13}_payload_claude_ses_abc_payload-001\.json$/)
+    expect(filename).toMatch(/^\d{13}_payload_claude_ses_abc_payload-001\.md$/)
   })
 
   test("init cleanup keeps the newest flat-named logs", async () => {

@@ -1,4 +1,5 @@
 import fs from "fs/promises"
+import { EOL } from "os"
 import path from "path"
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -44,7 +45,7 @@ export function make(input: {
         const raw = buf.toString("utf8")
         const idx = raw.indexOf("\n")
         const tail = idx === -1 ? raw : raw.slice(idx + 1)
-        await fs.writeFile(input.path, tail ? tail.replace(/\n*$/, "\n") : "")
+        await fs.writeFile(input.path, tail ? tail.replace(/[\r\n]+$/, "") + EOL : "")
       } finally {
         await fh.close().catch((e) => { log.debug("failed to close file handle", { error: e instanceof Error ? e.message : String(e) }) })
       }
@@ -59,7 +60,7 @@ export function make(input: {
     flushing = true
     const batch = queue.splice(0, maxBuffer)
     try {
-      await fs.appendFile(input.path, batch.join("\n") + "\n")
+      await fs.appendFile(input.path, batch.join(EOL) + EOL)
       await trim()
     } catch (e) {
       log.debug("failed to flush log entries", { error: e instanceof Error ? e.message : String(e) })
@@ -128,7 +129,7 @@ export function makePerRequest(input: { dir: string }): PerRequestLogger {
       const filePath = path.join(dir, fileName)
 
       const write = ensureDir.then(() =>
-        fs.writeFile(filePath, JSON.stringify(entry) + "\n").catch((e) => {
+        fs.writeFile(filePath, JSON.stringify(entry) + EOL).catch((e) => {
           log.debug("failed to write per-request log", {
             error: e instanceof Error ? e.message : String(e),
             filePath,

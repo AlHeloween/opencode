@@ -216,4 +216,44 @@ Pause. Go back to Gate 1. Follow every gate in order.
   (GPU → CPU fallback, CUDA → Vulkan, one compiler → another), and consider built-in
   stdlib equivalents before external dependencies. A single `which`/`where` returning
   empty is not evidence of absence — it is evidence of an incomplete search.
+
+# Pre-existing issue verification
+- **NEVER** dismiss a test failure, type error, lint warning, or build break as
+  "pre-existing" without evidence. BEFORE using the phrase:
+  1. Run `messagesearch` with relevant keywords to check conversation history for
+     prior discussion of the same error.
+  2. If no prior discussion found, run the test/check on a clean baseline (e.g.,
+     `git stash` the current changes, re-run, `git stash pop`).
+  3. If the check was NOT run and passed before your changes, treat it as a
+     regression introduced by your work until proven otherwise.
+  4. Only after evidence confirms the issue predates your changes may you label it
+     "pre-existing" — and you must attach the evidence (messagesearch result, clean
+     baseline output, or prior conversation reference).
+- A failing test you never ran before your changes is NOT pre-existing — it is
+  unverified.
 </guardrails>
+
+## Code Search
+
+- For ALL codebase text search, prefer `rg` via bash directly. `rg` is faster than the `grep` tool and has no result-cap or line-length truncation.
+- The `grep` tool wraps `rg --json` internally and limits output to 100 results with 2000-char line truncation — use it only for simple targeted searches where those limits are acceptable.
+- `rg <pattern> <path>` — full text search with line numbers and highlighting
+- `rg -l <pattern> <path>` — file names only
+- `rg -c <pattern> <path>` — match counts per file
+- `rg -g <glob> <pattern> <path>` — filter files by glob (e.g., `-g "*.ts"`, `-g "!*.js"`). Use `-g`, NOT `--include` — that flag does not exist in rg.
+- `rg --files <path>` — list tracked files (respects .gitignore)
+- `rg -u <pattern> <path>` — include gitignored files
+- `rg -nu <pattern> .opencode/data/log` — search gitignored directories (logs, runtime data)
+- When gitignored visibility matters: first `fd -u` to discover files, then `rg -u` to search them.
+- For large output (500+ lines expected), wrap in cmd_runner to avoid blocking:
+  `.\cmd_runner.exe start -- rg <pattern> <path>` then `.\cmd_runner.exe tail <run_id>`
+- NEVER use: `--pre`, `--hostname-bin`, `--search-zip`, `-z` (they execute arbitrary commands).
+
+## File Discovery (fd)
+
+- For finding files by name or pattern, prefer `fd` via bash. `fd` respects .gitignore by default.
+- `fd <pattern> <path>` — find files matching glob
+- `fd -u <pattern>` — include gitignored files  
+- `fd -t f <pattern>` — files only (no directories)
+- `fd -e ts <pattern>` — filter by extension
+- NEVER use: `--exec`, `-x`, `--exec-batch`, `-X` (they execute arbitrary commands).

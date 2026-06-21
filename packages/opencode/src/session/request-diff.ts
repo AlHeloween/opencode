@@ -16,6 +16,7 @@
  * [KV-CACHE SAFE] — pure read-side logging, zero impact on provider request bytes.
  */
 import path from "path"
+import { EOL } from "os"
 import fs from "fs"
 import { createHash } from "node:crypto"
 import type { ModelMessage } from "ai"
@@ -552,7 +553,7 @@ export function writeDiff(diffContent: string, meta: DiffMeta): string {
   }
 
   const filepath = logPath("diff", meta.modelID, meta.sessionID, "diff")
-  fs.writeFileSync(filepath, diffContent + "\n")
+  fs.writeFileSync(filepath, diffContent + EOL)
   return filepath
 }
 

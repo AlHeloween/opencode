@@ -53,6 +53,23 @@ const FILES = new Set([
 const FLAGS = new Set(["-destination", "-literalpath", "-path"])
 const SWITCHES = new Set(["-confirm", "-debug", "-force", "-nonewline", "-recurse", "-verbose", "-whatif"])
 
+// Known-safe search tools auto-approved when not using dangerous flags.
+// Mirrors Codex safe-command logic: block code-exec flags, allow all others.
+const UNSAFE_RG_FLAGS = new Set(["--pre", "--hostname-bin", "--search-zip", "-z"])
+const UNSAFE_FD_FLAGS = new Set(["--exec", "-x", "--exec-batch", "-X"])
+
+function isKnownSafeCommand(parts: Part[]): boolean {
+  const cmd = parts[0]?.text?.toLowerCase()
+  const tokens = parts.map((p) => p.text.toLowerCase())
+  if (cmd === "rg" || cmd === "rg.exe") {
+    return !tokens.some((t) => UNSAFE_RG_FLAGS.has(t))
+  }
+  if (cmd === "fd" || cmd === "fd.exe") {
+    return !tokens.some((t) => UNSAFE_FD_FLAGS.has(t))
+  }
+  return false
+}
+
 export const Parameters = Schema.Struct({
   command: Schema.String.annotate({ description: "The command to execute" }),
   timeout: Schema.optional(Schema.Number).annotate({ description: "Optional timeout in milliseconds" }),
@@ -381,6 +398,11 @@ export const BashTool = Tool.define(
         const command = parts(node)
         const tokens = command.map((item) => item.text)
         const cmd = ps ? tokens[0]?.toLowerCase() : tokens[0]
+
+        // Auto-approve known-safe search tools (rg, fd) when not using dangerous flags
+        if (cmd && isKnownSafeCommand(command)) {
+          continue
+        }
 
         if (cmd && FILES.has(cmd)) {
           for (const arg of pathArgs(command, ps)) {

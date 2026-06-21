@@ -1,4 +1,5 @@
 import { appendFile, mkdirSync } from "node:fs"
+import { EOL } from "node:os"
 import path from "node:path"
 
 let logIdCounter = 1
@@ -92,12 +93,12 @@ export function writeLogLine(worktree: string, level: string, message: string, e
       delete dedupSafe.model
       delete dedupSafe.session_id
       if (Object.keys(dedupSafe).length > 0) {
-        const payload = JSON.stringify(dedupSafe)
-        if (payload.length > 500) {
+        const text = objectToPayloadText(dedupSafe)
+        if (text.length > 500) {
           const pid = new Date().toISOString().replace(/:/g, "").replace("Z", "")
           entry.payload_id = pid
-          const payloadName = `${now}_payload_${sanitize(model)}_${sanitize(sessionID)}_${pid}.json`
-          appendFile(path.join(logDir, payloadName), payload, noop)
+          const payloadName = `${now}_payload_${sanitize(model)}_${sanitize(sessionID)}_${pid}.md`
+          appendFile(path.join(logDir, payloadName), text, noop)
         } else {
           entry.payload = dedupSafe
         }
@@ -105,10 +106,28 @@ export function writeLogLine(worktree: string, level: string, message: string, e
     }
 
     const filename = `${now}_log_${sanitize(model)}_${sanitize(sessionID)}.jsonl`
-    appendFile(path.join(logDir, filename), JSON.stringify(entry) + "\n", noop)
+    appendFile(path.join(logDir, filename), JSON.stringify(entry) + EOL, noop)
   } catch {
     // log write failure — silently ignore
   }
 }
 
 function noop() {}
+
+/** Write object fields as plain-text with real OS line endings — rg-searchable. */
+function objectToPayloadText(obj: Record<string, unknown>): string {
+  const lines: string[] = []
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "string") {
+      lines.push(`--- FIELD: ${key} ---`)
+      lines.push(value.replace(/\r\n/g, "\n").replace(/\n/g, EOL))
+    } else if (typeof value === "object" && value !== null) {
+      lines.push(`--- FIELD: ${key} (object) ---`)
+      lines.push(JSON.stringify(value, null, 2))
+    } else {
+      lines.push(`--- FIELD: ${key} ---`)
+      lines.push(String(value))
+    }
+  }
+  return lines.join(EOL) + EOL
+}

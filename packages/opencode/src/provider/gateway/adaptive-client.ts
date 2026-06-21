@@ -13,6 +13,7 @@ import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import { unifiedDiff } from "@/util/unified-diff"
 import path from "path"
+import { EOL } from "os"
 import fs from "fs"
 import type { AsyncLogger, PerRequestLogger } from "./async-logger"
 import { make as makeAsyncLogger, makePerRequest } from "./async-logger"
@@ -364,7 +365,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
           diffLabel(prevRequestBody.requestId, prevRequestBody.timestamp),
           diffLabel(requestId, startTime),
         )
-        fs.writeFileSync(diffPath, diffContent + "\n")
+        fs.writeFileSync(diffPath, diffContent + EOL)
       }
       prevRequestBody = { requestId, timestamp: startTime, body: rawBody ?? "" }
     }

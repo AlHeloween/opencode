@@ -1,6 +1,7 @@
 import path from "path"
 import fs from "fs/promises"
 import { createWriteStream, mkdirSync, type WriteStream } from "fs"
+import { EOL } from "os"
 import * as Global from "../global"
 import z from "zod"
 
@@ -135,7 +136,7 @@ function logError(msg: string, extra?: Record<string, any>) {
     ts: new Date().toISOString(),
     message: msg,
     ...extra,
-  }) + "\n"
+  }) + EOL
   fs.appendFile(path.join(Global.Path.log, "LoggerErrors.log"), entry).catch((e) => {
     process.stderr.write(`LoggerErrors.log write failed: ${String(e)}\n`)
   })
@@ -169,7 +170,7 @@ function flushDedup() {
     model: "system",
     session_id: "internal",
     caller: "log.ts:dedup",
-  }) + "\n"
+  }) + EOL
   const stream = getOrCreateStream("system", "internal", "log", "jsonl")
   stream.write(entry, (err) => {
     if (err) logError("dedup flush write failed", { error: String(err) })
@@ -219,7 +220,7 @@ export async function reopen() {
 
 async function cleanup(dir: string) {
   // Match flat-named files: {13-digit-ms}_{op}_{model}_{session_id}.{ext}
-  const pattern = /^\d{13}_(log|diff|payload)_.+\.(jsonl|diff|json)$/
+  const pattern = /^\d{13}_(log|diff|payload)_.+\.(jsonl|diff|json|md)$/
   let files: string[] = []
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -275,13 +276,31 @@ function resolveSessionID(tags?: Record<string, any>, extra?: Record<string, any
   return (tags?.["session.id"] ?? tags?.["session_id"] ?? extra?.["session.id"] ?? extra?.["session_id"] ?? "internal") as string
 }
 
+/** Write extra fields as plain-text with real OS line endings — rg-searchable. */
+function writePayloadAsText(extra: Record<string, any>): string {
+  const lines: string[] = []
+  for (const [key, value] of Object.entries(extra)) {
+    if (typeof value === "string") {
+      lines.push(`--- FIELD: ${key} ---`)
+      lines.push(value.replace(/\r\n/g, "\n").replace(/\n/g, EOL))
+    } else if (typeof value === "object" && value !== null) {
+      lines.push(`--- FIELD: ${key} (object) ---`)
+      lines.push(JSON.stringify(value, null, 2))
+    } else {
+      lines.push(`--- FIELD: ${key} ---`)
+      lines.push(String(value))
+    }
+  }
+  return lines.join(EOL) + EOL
+}
+
 function serializePayload(extra: Record<string, any>, model: string, sessionID: string): { payloadJson?: string; payload_id?: string } {
   const json = JSON.stringify(extra)
   if (json.length <= 500) return { payloadJson: json }
   const now = new Date()
   const pid = now.toISOString().replace(/:/g, "").replace("Z", "")
-  const payloadPath = logPath("payload", model, sessionID, "json", pid)
-  fs.writeFile(payloadPath, json).catch((e) => {
+  const payloadPath = logPath("payload", model, sessionID, "md", pid)
+  fs.writeFile(payloadPath, writePayloadAsText(extra)).catch((e) => {
     logError("payload write failed", { path: payloadPath, error: String(e) })
   })
   return { payload_id: pid }
@@ -320,17 +339,17 @@ export function create(tags?: Record<string, any>) {
         entry[key] = value
       }
     }
-    let result = JSON.stringify(entry) + "\n"
+    let result = JSON.stringify(entry) + EOL
     if (extra) {
       const { payloadJson, payload_id } = serializePayload(extra, model, sessionID)
       if (payloadJson) {
         entry.payload = JSON.parse(payloadJson)
-        result = JSON.stringify(entry) + "\n"
+        result = JSON.stringify(entry) + EOL
         return result
       }
       if (payload_id) {
         entry.payload_id = payload_id
-        result = JSON.stringify(entry) + "\n"
+        result = JSON.stringify(entry) + EOL
         return result
       }
     }

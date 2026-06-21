@@ -1456,7 +1456,11 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
             // summarize() moved to common step-1 block before task dispatch
 
-            if (step > 1 && lastFinished) {
+            // Wrap user messages after the last finished turn in a system-reminder
+            // block. Must run on step 1 too, otherwise the fingerprint alternates
+            // (with/without wrapper) between new user messages and tool-loop steps,
+            // causing KV cache breaks on every turn boundary.
+            if (lastFinished) {
               for (const m of msgs) {
                 if (m.info.role !== "user" || m.info.id <= lastFinished.id) continue
                 for (const p of m.parts) {

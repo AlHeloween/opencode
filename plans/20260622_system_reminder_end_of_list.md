@@ -1,7 +1,23 @@
 # System Reminder — Append at End of Message List
 
 **Created:** 2026-06-22
-**Status:** [x] Done | **Commit:** [pending]
+**Status:** [x] Done | **Commits:** `0f06b6c70`, `ecb96b7b3`, `e6b42ebbd`, `6fb992328`, `180154555`, `bcaf2862a`, `ecf42a2c9`, `852bd9ce9`, `fbdec956d`
+
+## Session Summary
+
+9 fixes applied in this session:
+
+| Commit | Fix |
+|--------|-----|
+| `0f06b6c70` | System-reminder `findLast` — stops content destruction |
+| `ecb96b7b3` | Date appended to user message end (not prepended) |
+| `e6b42ebbd` | QUEUED badge constrained to last user message |
+| `6fb992328` | Turn counter: monotonic user-message count |
+| `180154555` | Multiedit: diffs surfaced in tool output |
+| `bcaf2862a` | Multiedit: compact +/- format with add/remove stats |
+| `ecf42a2c9` | Multiedit: strip `---`/`+++` patch headers |
+| `852bd9ce9` | Multiedit: TUI `<diff>` element renderer |
+| `fbdec956d` | UTC ms timestamp at message creation (loop injection removed) |
 
 ---
 

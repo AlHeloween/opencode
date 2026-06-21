@@ -1128,13 +1128,33 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         /** Cached model-ready messages from previous loop iteration.
           * Reused when the MD5 fingerprint is stable (DeepSeek KV cache hit). */
         let modelMsgsCache: unknown = undefined
+        /** Cached filterCompactedEffect result — messages are immutable within a
+          * runLoop except for new tool results appended at the end. Reusing this
+          * avoids re-paginating the entire history on every tool-using loop step. */
+        let cachedMsgs: MessageV2.WithParts[] | undefined
+        let lastKnownId: string | undefined
+        /** Cached tool resolution — tool set is stable across loop iterations
+          * within a single turn (same agent, model, session, provider). */
+        let cachedTools: Record<string, AITool> | undefined
         const session = yield* sessions.get(sessionID)
 
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
           yield* slog.info("loop", { step })
 
-          let msgs = yield* MessageV2.filterCompactedEffect(sessionID)
+          let msgs: MessageV2.WithParts[]
+          if (cachedMsgs && lastKnownId) {
+            const newMsgs = MessageV2.messagesSince(sessionID, lastKnownId)
+            msgs = [...cachedMsgs, ...newMsgs]
+            if (newMsgs.length > 0) {
+              cachedMsgs = msgs
+              lastKnownId = msgs[msgs.length - 1]?.info.id ?? lastKnownId
+            }
+          } else {
+            msgs = yield* MessageV2.filterCompactedEffect(sessionID)
+            cachedMsgs = msgs
+            lastKnownId = msgs[msgs.length - 1]?.info.id
+          }
 
           // Filter out orphaned interrupted tool parts — they were never completed
           // and their partial output should not appear in the model context.
@@ -1356,9 +1376,11 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               Effect.ensuring(instruction.clear(handle.message.id)),
             )
 
-            // Invalidate modelMsgsCache after compaction so the next normal
-            // turn doesn't reuse stale converted messages from before compaction.
+            // Invalidate caches after compaction so the next iteration
+            // reloads messages and reconverts them from the new boundary.
             modelMsgsCache = undefined
+            cachedMsgs = undefined
+            lastKnownId = undefined
 
             if (outcome === "break") break
             continue
@@ -1384,6 +1406,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
             const forced = tier === "force"
             yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true, overflow: true, forced })
+            cachedMsgs = undefined
+            lastKnownId = undefined
             continue
           }
 
@@ -1438,23 +1462,28 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
 
-            const tools = yield* SessionTools.resolve({
-              agent,
-              session,
-              model,
-              processor: handle,
-              bypassAgentCheck,
-              messages: msgs,
-              promptOps: yield* ops(),
-            })
-
-            if (lastUser.format?.type === "json_schema") {
-              tools["StructuredOutput"] = createStructuredOutputTool({
-                schema: lastUser.format.schema,
-                onSuccess(output) {
-                  structured = output
-                },
+            let tools: Record<string, AITool>
+            if (cachedTools) {
+              tools = cachedTools
+            } else {
+              tools = yield* SessionTools.resolve({
+                agent,
+                session,
+                model,
+                processor: handle,
+                bypassAgentCheck,
+                messages: msgs,
+                promptOps: yield* ops(),
               })
+              if (lastUser.format?.type === "json_schema") {
+                tools["StructuredOutput"] = createStructuredOutputTool({
+                  schema: lastUser.format.schema,
+                  onSuccess(output) {
+                    structured = output
+                  },
+                })
+              }
+              cachedTools = tools
             }
 
             // summarize() moved to common step-1 block before task dispatch
@@ -1573,13 +1602,15 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
             // Store accurate fingerprint AFTER handle.process() completes.
             // The experimental.chat.system.transform plugin in llm.ts may have
-            // modified `system` by reference — this captures the actual content
-            // sent to the provider for the next turn's cache comparison.
-            const finalFP = CacheControl.requestFingerprint(system, msgs, {
-              sessionId: sessionID,
-              modelId: model.id,
-              providerId: model.providerID,
-            }, CacheControl.toolSchemasFromRecord(tools))
+            // modified `system` by reference — check first before recomputing.
+            const systemChanged = system.join("\n") !== systemForDiff.join("\n")
+            const finalFP = systemChanged
+              ? CacheControl.requestFingerprint(system, msgs, {
+                  sessionId: sessionID,
+                  modelId: model.id,
+                  providerId: model.providerID,
+                }, CacheControl.toolSchemasFromRecord(tools))
+              : currentFP
             CacheControl.storePrevFingerprint(sessionID, model.id, finalFP)
 
             // Diff logging: capture the actual request content (system + modelMsgs)
@@ -1635,6 +1666,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 auto: true,
                 overflow: !handle.message.finish,
               })
+              cachedMsgs = undefined
+              lastKnownId = undefined
             }
             return "continue" as const
           }).pipe(

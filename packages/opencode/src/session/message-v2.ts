@@ -12,11 +12,13 @@ import { CacheControl } from "./cache-control"
 import { Database } from "@/storage/db"
 import { NotFoundError } from "@/storage/storage"
 import { and } from "drizzle-orm"
+import { asc } from "drizzle-orm"
 import { desc } from "drizzle-orm"
 import { eq } from "drizzle-orm"
 import { inArray } from "drizzle-orm"
 import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import { MessageTable, PartTable, SessionTable } from "./session.sql"
 import * as ProviderError from "@/provider/error"
 import { registry } from "@/attachment/registry"
@@ -1073,6 +1075,18 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
   }
 }
 
+export function messagesSince(sessionID: SessionID, after: string) {
+  const rows = Database.use((db) =>
+    db
+      .select()
+      .from(MessageTable)
+      .where(and(eq(MessageTable.session_id, sessionID), sql`${MessageTable.id} > ${after}`))
+      .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
+      .all(),
+  )
+  return hydrate(rows)
+}
+
 function compactedPageCursor(message: WithParts | undefined) {
   if (!message) return undefined
   return cursor.encode({ id: message.info.id, time: message.info.time.created })
@@ -1197,6 +1211,35 @@ export function filterCompacted(msgs: Iterable<WithParts>) {
 }
 
 export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: SessionID) {
+  const t0 = typeof performance !== "undefined" ? performance.now() : 0
+  // Fast path: if no compaction boundary exists, load all messages in one query.
+  // Avoids the per-page pagination loop which costs ceil(N/500) DB round-trips.
+  const hasCompactionPart = Database.use((db) =>
+    db
+      .select({ one: sql`1` })
+      .from(PartTable)
+      .where(and(eq(PartTable.session_id, sessionID), sql`json_extract(${PartTable.data}, '$.type') = 'compaction'`))
+      .limit(1)
+      .all(),
+  ).length > 0
+
+  if (!hasCompactionPart) {
+    const allRows = Database.use((db) =>
+      db
+        .select()
+        .from(MessageTable)
+        .where(eq(MessageTable.session_id, sessionID))
+        .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
+        .all(),
+    )
+    const result = hydrate(allRows)
+    Log.Default.debug("filterCompactedEffect fast path (no compaction boundary)", {
+      sessionID, msgCount: result.length,
+      ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+    })
+    return result
+  }
+
   const size = 500
   let before: string | undefined
   const result: WithParts[] = []

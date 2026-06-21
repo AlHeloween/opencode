@@ -92,7 +92,6 @@ export function promptFamily(model: Provider.Model) {
 
 export interface Interface {
   readonly environment: (model: Provider.Model) => string[]
-  readonly environmentDate: () => string[]
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
 }
 
@@ -141,10 +140,6 @@ export const layer = Layer.effect(
             capabilities(),
           ].join("\n"),
         ]
-      },
-
-      environmentDate() {
-        return [`  Today's date: ${new Date().toDateString()}`]
       },
 
       skills: Effect.fn("SystemPrompt.skills")(function* (agent: Agent.Info) {

@@ -751,7 +751,7 @@ export function clearConversionCache() {
 
 /**
  * Compute a fast content hash of all part texts for cache invalidation.
- * When text content changes (e.g. environmentDate() prepend), the hash
+ * When text content changes (e.g. UTC timestamp append), the hash
  * changes and the conversion cache produces a fresh result.
  */
 function hashPartTexts(parts: readonly Part[]): number {
@@ -827,7 +827,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     if (msg.parts.length === 0) continue
 
     // Per-message conversion cache: skip redundant conversion of stable messages.
-    // Key includes a content hash of part texts so mutations (e.g. environmentDate()
+    // Key includes a content hash of part texts so mutations (e.g. UTC
     // append) invalidate the cache entry.  Without this, date text changes corrupt
     // cached message content after session restores.
     const contentFp = hashPartTexts(msg.parts)

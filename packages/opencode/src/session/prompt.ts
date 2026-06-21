@@ -1013,6 +1013,16 @@ You should build your plan incrementally by writing to or editing this file. NOT
         Effect.map((x) => x.flat().map(assign)),
       )
 
+      // Append UTC timestamp once at message submission — static, never
+      // re-injected by the prompt loop. Cache-stable because the text
+      // is immutable after this DB write.
+      const utcTimestamp = new Date().toISOString()
+      for (const part of parts) {
+        if (part.type === "text" && !(part as MessageV2.TextPart).synthetic) {
+          part.text = part.text + "\n\nUTC: " + utcTimestamp
+        }
+      }
+
       yield* plugin.trigger(
         "chat.message",
         {
@@ -1250,20 +1260,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
               })
 
               yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
-
-              const envDate = yield* Effect.sync(() => sys.environmentDate())
-              const dateText = envDate[0] ?? ""
-              const freshUserMsg = msgs.findLast((m) => m.info.role === "user")!
-              if (dateText && freshUserMsg.parts.length) {
-                const firstText = freshUserMsg.parts.find(
-                  (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
-                )
-                // Idempotency guard: date is injected once per user message.
-              // Without this the loop re-injects on every iteration.
-              if (firstText && !firstText.text.includes(dateText)) {
-                  firstText.text = firstText.text + "\n\n" + dateText
-                }
-              }
 
               const [skills, env, instructions, rules] = yield* Effect.all([
                 sys.skills(agent),
@@ -1524,22 +1520,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            // Inject date at END of freshly-published user message (not system prompt).
-            // Must happen BEFORE toModelMessagesEffect so it flows through conversion.
-            const envDate = yield* Effect.sync(() => sys.environmentDate())
-            const dateText = envDate[0] ?? ""
-            const freshUserMsg = msgs.findLast((m) => m.info.role === "user")!
-            if (dateText && freshUserMsg.parts.length) {
-              const firstText = freshUserMsg.parts.find(
-                (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
-              )
-              // Idempotency guard: date is injected once per user message.
-              // Without this the loop re-injects on every iteration.
-              if (firstText && !firstText.text.includes(dateText)) {
-                firstText.text = firstText.text + "\n\n" + dateText
-              }
-            }
-
             // Inject background job completion notes from the JobManager
             const jobsNote = yield* Effect.gen(function* () {
               // JobManager is optional — silently skip if not provided in the layer
@@ -1552,6 +1532,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
             })
             if (jobsNote) {
+              const freshUserMsg = msgs.findLast((m) => m.info.role === "user")!
               const userText = freshUserMsg.parts.find(
                 (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
               )

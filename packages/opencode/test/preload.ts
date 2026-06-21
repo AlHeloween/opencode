@@ -7,7 +7,14 @@ import { setTimeout as sleep } from "node:timers/promises"
 import { afterAll } from "bun:test"
 
 // Set XDG env vars FIRST, before any src/ imports
-const dir = path.join(os.tmpdir(), "opencode-test-data-" + process.pid)
+// Use repo-local .temp/test instead of os.tmpdir() — keeps test artifacts
+// in the worktree (portable, avoids Windows user-profile permission issues).
+const REPO_ROOT = path.resolve(import.meta.dir, "../../../")
+const TEST_TEMP = path.join(REPO_ROOT, ".temp", "test")
+await fs.mkdir(TEST_TEMP, { recursive: true })
+const dir = path.join(TEST_TEMP, "opencode-test-data-" + process.pid)
+// Expose test temp root for fixture.ts to consume
+process.env["OPENCODE_TEST_TEMP"] = TEST_TEMP
 await fs.mkdir(dir, { recursive: true })
 afterAll(async () => {
   const { Database } = await import("../src/storage/db")

@@ -2,18 +2,18 @@ import { $ } from "bun"
 import * as fs from "fs/promises"
 import os from "os"
 import path from "path"
-import { Effect, Context } from "effect"
-import type * as PlatformError from "effect/PlatformError"
-import type * as Scope from "effect/Scope"
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
-import type { Config } from "@/config/config"
-import { InstanceRef } from "../../src/effect/instance-ref"
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable"
+import { Effect } from "effect"
+import { Config } from "../../src/config/config"
 import { Instance } from "../../src/project/instance"
-import { TestLLMServer } from "../lib/llm-server"
+import { BunProcessSpawner } from "../../src/process/spawner"
 
-// Strip null bytes from paths (defensive fix for CI environment issues)
-function sanitizePath(p: string): string {
-  return p.replace(/\0/g, "")
+// Use repo-local .temp/test from preload.ts env var, fallback to os.tmpdir()
+// for tests that don't go through preload.
+const TEST_TEMP = process.env["OPENCODE_TEST_TEMP"] ?? path.join(os.tmpdir(), "opencode-test")
+
+function sanitizePath(str: string) {
+  return str.replace(/\0/g, "")
 }
 
 function exists(dir: string) {
@@ -44,7 +44,7 @@ type TmpDirOptions<T> = {
   dispose?: (dir: string) => Promise<T>
 }
 export async function tmpdir<T>(options?: TmpDirOptions<T>) {
-  const dirpath = sanitizePath(path.join(os.tmpdir(), "opencode-test-" + Math.random().toString(36).slice(2)))
+  const dirpath = sanitizePath(path.join(TEST_TEMP, "opencode-test-" + Math.random().toString(36).slice(2)))
   await fs.mkdir(dirpath, { recursive: true })
   if (options?.git) {
     await $`git init`.cwd(dirpath).quiet()
@@ -84,7 +84,7 @@ export async function tmpdir<T>(options?: TmpDirOptions<T>) {
 export function tmpdirScoped(options?: { git?: boolean; config?: Partial<Config.Info> }) {
   return Effect.gen(function* () {
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
-    const dirpath = sanitizePath(path.join(os.tmpdir(), "opencode-test-" + Math.random().toString(36).slice(2)))
+    const dirpath = sanitizePath(path.join(TEST_TEMP, "opencode-test-" + Math.random().toString(36).slice(2)))
     yield* Effect.promise(() => fs.mkdir(dirpath, { recursive: true }))
     const dir = sanitizePath(yield* Effect.promise(() => fs.realpath(dirpath)))
 

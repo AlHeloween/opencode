@@ -1,6 +1,6 @@
 import os from "os"
 import path from "path"
-import { pathToFileURL } from "url"
+
 import z from "zod"
 import { Effect, Layer, Context, Schema } from "effect"
 import { zod } from "@/util/effect-zod"
@@ -327,7 +327,9 @@ export function fmt(list: Info[], opts: { verbose: boolean }) {
           "  <skill>",
           `    <name>${skill.name}</name>`,
           `    <description>${skill.description}</description>`,
-          `    <location>${pathToFileURL(skill.location).href}</location>`,
+          ...(skill.name === "compaction"
+            ? [`    <content>\n${skill.content}\n    </content>`]
+            : []),
           "  </skill>",
         ]),
       "</available_skills>",

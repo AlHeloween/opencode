@@ -612,8 +612,10 @@ export const BashTool = Tool.define(
                 throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
               }
               const CMD_RUNNER_TIMEOUT = 10 * 60 * 1000 // 10 min — cmd_runner manages its own lifecycle
+              const ADM_TIMEOUT = 3 * 60 * 1000 // 3 min — adm --query needs model cold-load (~20-30s)
               const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
-              const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : DEFAULT_TIMEOUT)
+              const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
+              const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
               const ps = Shell.ps(shell)
               const root = yield* parse(params.command, ps)
               const scan = yield* collect(root, cwd, ps, shell)

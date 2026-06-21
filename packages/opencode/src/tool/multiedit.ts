@@ -47,11 +47,16 @@ export const MultiEditTool = Tool.define(
           }
 
           const allDiffs = results
-            .map((r, i) =>
-              r.metadata.diff
-                ? `### Edit ${i + 1}\n${r.metadata.diff}`
-                : `### Edit ${i + 1} (applied, no diff)`,
-            )
+            .map((r, i) => {
+              const fd = r.metadata.filediff as { additions?: number; deletions?: number } | undefined
+              const stats = fd ? ` (+${fd.additions ?? 0} -${fd.deletions ?? 0})` : ""
+              if (!r.metadata.diff) return `Edit ${i + 1}: no change`
+              // Strip verbose patch headers, keep only the hunk showing +/- lines
+              const hunk = r.metadata.diff.split("\n")
+                .filter((l: string) => l.startsWith("+") || l.startsWith("-") || l.startsWith(" "))
+                .join("\n")
+              return `Edit ${i + 1}${stats}:\n${hunk}`
+            })
             .join("\n")
 
           return {

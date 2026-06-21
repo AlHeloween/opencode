@@ -1245,7 +1245,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 const firstText = freshUserMsg.parts.find(
                   (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
                 )
-                if (firstText) {
+                // Idempotency guard: date is injected once per user message.
+              // Without this the loop re-injects on every iteration, compounding
+              // the prefix and breaking KV cache stability on every turn.
+              if (firstText && !firstText.text.startsWith(dateText)) {
                   firstText.text = dateText + "\n\n" + firstText.text
                 }
               }
@@ -1470,7 +1473,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
               const firstText = freshUserMsg.parts.find(
                 (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
               )
-              if (firstText) {
+              // Idempotency guard: date is injected once per user message.
+              // Without this the loop re-injects on every iteration, compounding
+              // the prefix and breaking KV cache stability on every turn.
+              if (firstText && !firstText.text.startsWith(dateText)) {
                 firstText.text = dateText + "\n\n" + firstText.text
               }
             }

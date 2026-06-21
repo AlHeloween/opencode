@@ -92,5 +92,6 @@
       "batch_size": 32,
       "normalize": true
     }
-  }
+  },
+  "config_version": 1
 }

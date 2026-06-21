@@ -42,3 +42,4 @@ packages/opencode/.opencode/data/opencode.db
 bin/
 bin_tst/
 dist/
+.adid_rag/

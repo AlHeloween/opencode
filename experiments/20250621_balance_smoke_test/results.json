@@ -1,0 +1,62 @@
+[
+  {
+    "provider": "deepseek",
+    "endpoint": "https://api.deepseek.com/user/balance",
+    "success": true,
+    "durationMs": 180,
+    "statusCode": 200,
+    "responseShape": {
+      "is_available": "boolean",
+      "balance_infos": "0, 1"
+    },
+    "parsedBalance": {
+      "currency": "CNY",
+      "totalBalance": "-0.04",
+      "isAvailable": true
+    }
+  },
+  {
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/key",
+    "success": true,
+    "durationMs": 341,
+    "statusCode": 200,
+    "responseShape": {
+      "data": "label, is_management_key, is_provisioning_key, limit, limit_reset, limit_remaining, include_byok_in_limit, usage, usage_daily, usage_weekly, usage_monthly, byok_usage, byok_usage_daily, byok_usage_weekly, byok_usage_monthly, is_free_tier, expires_at, creator_user_id, rate_limit"
+    },
+    "parsedBalance": {
+      "currency": "USD",
+      "totalBalance": "0.358235564",
+      "isAvailable": true
+    }
+  },
+  {
+    "provider": "openrouter-credits",
+    "endpoint": "https://openrouter.ai/api/v1/credits",
+    "success": true,
+    "durationMs": 6,
+    "statusCode": 200,
+    "responseShape": {
+      "data": "total_credits, total_usage"
+    },
+    "parsedBalance": {
+      "currency": "USD",
+      "totalBalance": "4.010668248",
+      "isAvailable": true
+    }
+  },
+  {
+    "provider": "opencode-zen",
+    "endpoint": "https://zen.opencode.ai/zen/v1/balance",
+    "success": false,
+    "durationMs": 30,
+    "error": "Unable to connect. Is the computer able to access the url?"
+  },
+  {
+    "provider": "opencode-go",
+    "endpoint": "https://zen.opencode.ai/zen/go/v1/balance",
+    "success": false,
+    "durationMs": 0,
+    "error": "Was there a typo in the url or port?"
+  }
+]

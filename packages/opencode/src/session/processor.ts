@@ -89,7 +89,7 @@ export function cacheRatio(tokens: { input: number; cache: { read: number; write
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
 }
 
-let _lastBalanceCheck = 0
+const _lastBalanceCheck: Record<string, number> = {}
 const BALANCE_CHECK_INTERVAL_MS = 300_000 // 5 minutes
 const BALANCE_CHECK_MIN_COST = 0.01
 
@@ -98,16 +98,16 @@ async function checkAndSnapshotBalance(params: {
   sessionID: string
   messageID: string
 }): Promise<Balance.BalanceSnapshot | null> {
-  if (params.providerID !== "deepseek") return null
   const now = Date.now()
-  if (now - _lastBalanceCheck < BALANCE_CHECK_INTERVAL_MS) return null
-  _lastBalanceCheck = now
+  const last = _lastBalanceCheck[params.providerID] ?? 0
+  if (now - last < BALANCE_CHECK_INTERVAL_MS) return null
+  _lastBalanceCheck[params.providerID] = now
 
   try {
-    const previous = BalanceStorage.readLatestBalanceSnapshot("deepseek")
+    const previous = BalanceStorage.readLatestBalanceSnapshot(params.providerID)
     const calculatedCost = BalanceStorage.calculatedCostSinceLastSnapshot(
       params.sessionID,
-      "deepseek",
+      params.providerID,
     )
     if (previous && calculatedCost < BALANCE_CHECK_MIN_COST) return null
 
@@ -181,6 +181,29 @@ export const layer: Layer.Layer<
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
+
+      // Publish model status immediately on load / model switch so the TUI
+      // shows balance (DeepSeek/OpenRouter) or usage (OpenAI) right away,
+      // not just after a message completes.
+      yield* Effect.gen(function* () {
+        const status = yield* Effect.promise(() =>
+          Balance.getModelStatus(input.model.providerID),
+        )
+        yield* bus.publish(Session.Event.ModelStatusUpdated, {
+          sessionID: input.sessionID,
+          providerID: input.model.providerID,
+          type: status.type,
+          ...(status.type === "balance"
+            ? { currency: status.currency, totalBalance: status.totalBalance, isAvailable: status.isAvailable }
+            : {}),
+          ...(status.type === "usage"
+            ? { windows: status.windows }
+            : {}),
+          ...(status.type === "unavailable"
+            ? { reason: status.reason }
+            : {}),
+        })
+      }).pipe(Effect.ignore, Effect.forkIn(scope))
 
       const parse = (e: unknown) =>
         MessageV2.fromError(e, {
@@ -507,8 +530,9 @@ export const layer: Layer.Layer<
                   .run(),
               ),
             )
-            // Snapshot provider balance and publish update for TUI display.
+            // Snapshot provider status and publish for TUI display.
             yield* Effect.gen(function* () {
+              // Cost-validation snapshot (internal)
               const snapshot = yield* Effect.promise(() =>
                 checkAndSnapshotBalance({
                   providerID: ctx.model.providerID,
@@ -529,6 +553,24 @@ export const layer: Layer.Layer<
                   costValidationDelta: snapshot.costValidationDelta,
                 })
               }
+              // Standardised model status (balance / usage / unavailable)
+              const status = yield* Effect.promise(() =>
+                Balance.getModelStatus(ctx.model.providerID),
+              )
+              yield* bus.publish(Session.Event.ModelStatusUpdated, {
+                sessionID: ctx.sessionID,
+                providerID: ctx.model.providerID,
+                type: status.type,
+                ...(status.type === "balance"
+                  ? { currency: status.currency, totalBalance: status.totalBalance, isAvailable: status.isAvailable }
+                  : {}),
+                ...(status.type === "usage"
+                  ? { windows: status.windows }
+                  : {}),
+                ...(status.type === "unavailable"
+                  ? { reason: status.reason }
+                  : {}),
+              })
             }).pipe(Effect.ignore, Effect.forkIn(scope))
             if (ctx.snapshot) {
               const patch = yield* snapshot.patch(ctx.snapshot)

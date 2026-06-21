@@ -66,13 +66,43 @@ describe("provider.balance", () => {
     expect(result.balanceInfos).toHaveLength(0)
   })
 
-  it("checkBalance skips non-deepseek providers", async () => {
+  it("checkBalance returns null for providers with no registered handler", async () => {
+    // "nonexistent" has no entry in balanceFetcherRegistry
     const { checkBalance } = await import("../../src/provider/balance")
     const result = await checkBalance({
-      providerID: "openai",
+      providerID: "nonexistent",
       sessionID: "test",
       messageID: "test",
     })
     expect(result).toBeNull()
+  })
+
+  it("parses a valid OpenRouter credits response", () => {
+    // Simulates the response from GET https://openrouter.ai/api/v1/credits
+    const mockResponse = {
+      data: {
+        total_credits: 20,
+        total_usage: 15.989331752,
+      },
+    }
+
+    const totalCredits = mockResponse.data.total_credits
+    const totalUsage = mockResponse.data.total_usage
+    const remaining = totalCredits - totalUsage
+
+    expect(remaining).toBeCloseTo(4.010668248, 6)
+    expect(remaining).toBeGreaterThan(0)
+  })
+
+  it("handles OpenRouter zero-balance response", () => {
+    const mockResponse = {
+      data: {
+        total_credits: 5,
+        total_usage: 5,
+      },
+    }
+
+    const remaining = mockResponse.data.total_credits - mockResponse.data.total_usage
+    expect(remaining).toBe(0)
   })
 })

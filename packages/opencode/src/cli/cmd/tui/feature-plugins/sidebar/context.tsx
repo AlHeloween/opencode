@@ -14,10 +14,13 @@ const fmt = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 })
 
-interface BalanceInfo {
-  totalBalance: string
-  currency: string
-  isAvailable: boolean
+interface ModelStatusDisplay {
+  type: "balance" | "usage" | "unavailable"
+  currency?: string
+  totalBalance?: string
+  isAvailable?: boolean
+  windows?: Array<{ label: string; usedPercent: number; resetAt: number }>
+  reason?: string
   timestamp: number
 }
 
@@ -25,18 +28,23 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
   const cost = createMemo(() => msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0))
-  const [balance, setBalance] = createSignal<BalanceInfo | null>(null)
+  const [providerStatus, setProviderStatus] = createSignal<Record<string, ModelStatusDisplay>>({})
 
-  // Listen for balance update events from the backend
-  const unsub = (props.api.event as any).on("session.balance_updated", (evt: any) => {
-    const props = evt.properties ?? evt
-    if (props.providerID !== "deepseek") return
-    setBalance({
-      totalBalance: props.totalBalance,
-      currency: props.currency,
-      isAvailable: props.isAvailable,
-      timestamp: Date.now(),
-    })
+  // Listen for standardised model status updates — all providers
+  const unsub = (props.api.event as any).on("session.model_status_updated", (evt: any) => {
+    const p = evt.properties ?? evt
+    setProviderStatus((prev) => ({
+      ...prev,
+      [p.providerID]: {
+        type: p.type,
+        currency: p.currency,
+        totalBalance: p.totalBalance,
+        isAvailable: p.isAvailable,
+        windows: p.windows,
+        reason: p.reason,
+        timestamp: Date.now(),
+      },
+    }))
   })
   onCleanup(() => unsub?.())
 
@@ -156,19 +164,58 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         </text>
       )}
       <text fg={theme().textMuted}>{money.format(cost())} spent</text>
-      {balance() && (
-        <box marginTop={1}>
-          <text fg={theme().text}>
-            <b>Balance</b>
-          </text>
-          <text fg={balance()!.isAvailable ? theme().success : theme().error}>
-            {balance()!.isAvailable ? "✓ available" : "✗ insufficient"}
-          </text>
-          <text fg={theme().textMuted}>
-            {Number(balance()!.totalBalance).toFixed(2)} {balance()!.currency}
-          </text>
-        </box>
-      )}
+      {(() => {
+        const pid = state().providerID
+        if (!pid) return null
+        const status = providerStatus()[pid]
+        if (!status) {
+          return (
+            <box marginTop={1}>
+              <text fg={theme().text}>
+                <b>Status</b>
+              </text>
+              <text fg={theme().textMuted}>No Status</text>
+            </box>
+          )
+        }
+        if (status.type === "balance") {
+          return (
+            <box marginTop={1}>
+              <text fg={theme().text}>
+                <b>Status</b>
+              </text>
+              <text fg={status.isAvailable ? theme().success : theme().error}>
+                {status.isAvailable ? "✓ available" : "✗ insufficient"}
+              </text>
+              <text fg={theme().textMuted}>
+                {Number(status.totalBalance).toFixed(2)} {status.currency}
+              </text>
+            </box>
+          )
+        }
+        if (status.type === "usage") {
+          return (
+            <box marginTop={1}>
+              <text fg={theme().text}>
+                <b>Status</b>
+              </text>
+              {(status.windows ?? []).map((w) => (
+                <text fg={w.usedPercent >= 90 ? theme().error : w.usedPercent >= 75 ? theme().warning : theme().textMuted}>
+                  {w.label}: {w.usedPercent}% used
+                </text>
+              ))}
+            </box>
+          )
+        }
+        return (
+          <box marginTop={1}>
+            <text fg={theme().text}>
+              <b>Status</b>
+            </text>
+            <text fg={theme().textMuted}>No Status</text>
+          </box>
+        )
+      })()}
     </box>
   )
 }

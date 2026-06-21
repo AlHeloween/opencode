@@ -339,6 +339,27 @@ export const Event = {
       costValidationDelta: Schema.optional(Schema.Number),
     }),
   ),
+  ModelStatusUpdated: BusEvent.define(
+    "session.model_status_updated",
+    Schema.Struct({
+      sessionID: Schema.String,
+      providerID: Schema.String,
+      type: Schema.String,
+      currency: Schema.optional(Schema.String),
+      totalBalance: Schema.optional(Schema.String),
+      isAvailable: Schema.optional(Schema.Boolean),
+      windows: Schema.optional(
+        Schema.Array(
+          Schema.Struct({
+            label: Schema.String,
+            usedPercent: Schema.Number,
+            resetAt: Schema.Number,
+          }),
+        ),
+      ),
+      reason: Schema.optional(Schema.String),
+    }),
+  ),
 }
 
 export function plan(input: { slug: string; time: { created: number } }) {

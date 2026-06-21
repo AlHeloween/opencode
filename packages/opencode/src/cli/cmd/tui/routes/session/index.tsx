@@ -1195,6 +1195,7 @@ export function Session() {
                         message={message as UserMessage}
                         parts={sync.data.part[message.id] ?? []}
                         pending={pending()}
+                        messages={messages()}
                       />
                     </Match>
                     <Match when={message.role === "assistant"}>
@@ -1304,6 +1305,7 @@ function UserMessage(props: {
   onMouseUp: () => void
   index: number
   pending?: string
+  messages: ReadonlyArray<{ role: string; id: string }>
 }) {
   const ctx = use()
   const local = useLocal()
@@ -1321,7 +1323,12 @@ function UserMessage(props: {
   const files = createMemo(() => props.parts.flatMap((x) => (x.type === "file" ? [x] : [])))
   const { theme } = useTheme()
   const [hover, setHover] = createSignal(false)
-  const queued = createMemo(() => props.pending && props.message.id > props.pending)
+  const queued = createMemo(() => {
+    if (!props.pending) return false
+    const lastUser = props.messages.findLast((x) => x.role === "user")
+    if (lastUser?.id !== props.message.id) return false
+    return props.message.id > props.pending
+  })
   const color = createMemo(() => local.agent.color(props.message.agent))
   const queuedFg = createMemo(() => selectedForeground(theme, color()))
   const metadataVisible = createMemo(() => queued() || ctx.showTimestamps())

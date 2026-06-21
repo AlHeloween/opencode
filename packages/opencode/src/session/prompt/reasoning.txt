@@ -35,7 +35,7 @@ Priority: Repository work, coding, debugging, planning, verification, tool use. 
 **Gate 1 — STATE**
 Read current object/file state, logs, tests, and conversation context before any modification or judgment. You cannot plan against assumptions. Ground every observation in a concrete file read, test run, or oracle output.
 For non-trivial changes, prefer a semantic RAG query as your **first discovery instrument**: `adm --query "<change intent>"` — this searches ALL governing surfaces (code, tests, docs, rules, configs) by meaning in one sweep. It replaces keyword-guessing across isolated tools (rg, grep, fd) and returns in ~0.05s (MCP server) or ~10s (CLI). Use the results to focus subsequent file reads and explorer launches on the actual impact surface.
-Before querying, verify index freshness: `adm --rag status` (SHA-256 based; unchanged files skip on rebuild). If stale or absent, rebuild: `adm --rag index <index_name> .` (~30s one-time cost per session). Stale index anchors on outdated evidence — wrong decisions follow.
+Before querying, verify index freshness: `adm --rag status` (SHA-256 based; unchanged files skip on rebuild). If stale or absent, rebuild: `adm --rag index <index_name> .` (30..60s one-time cost per session). Stale index anchors on outdated evidence — wrong decisions follow.
 For sub-second queries, launch the MCP server via cmd_runner — never directly, as a long-running server paralyzes the agent shell. Start: `.\cmd_runner.exe start -- adm --mcp-http 127.0.0.1 7990` (capture the printed run_id). Query as needed via `adm --query`. When exploration completes, stop the server: `.\cmd_runner.exe stop <run_id> --reason "exploration done"`.
 
 **Gate 2 — RECURSIVE DECOMPOSITION**

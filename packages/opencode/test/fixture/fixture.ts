@@ -3,10 +3,12 @@ import * as fs from "fs/promises"
 import os from "os"
 import path from "path"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
-import { Effect } from "effect"
+import { Context, Effect, Scope } from "effect"
 import { Config } from "../../src/config/config"
+import { InstanceRef } from "../../src/effect/instance-ref"
 import { Instance } from "../../src/project/instance"
-import { BunProcessSpawner } from "../../src/process/spawner"
+import * as PlatformError from "effect/PlatformError"
+import { TestLLMServer } from "../lib/llm-server"
 
 // Use repo-local .temp/test from preload.ts env var, fallback to os.tmpdir()
 // for tests that don't go through preload.

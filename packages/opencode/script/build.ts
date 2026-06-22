@@ -183,11 +183,11 @@ for (const item of targets) {
     files: embeddedFileMap ? { "opencode-web-ui.gen.ts": embeddedFileMap } : {},
     entrypoints: ["./src/index.ts", parserWorker, workerPath, ...(embeddedFileMap ? ["opencode-web-ui.gen.ts"] : [])],
     define: {
-      OPENCODE_VERSION: `'${Script.version}'`,
-      OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + workerRelativePath,
-      OPENCODE_WORKER_PATH: workerPath,
-      OPENCODE_CHANNEL: `'${Script.channel}'`,
-      OPENCODE_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
+      OPENCODE_VERSION: JSON.stringify(Script.version),
+      OTUI_TREE_SITTER_WORKER_PATH: JSON.stringify(bunfsRoot + workerRelativePath),
+      OPENCODE_WORKER_PATH: JSON.stringify(workerPath),
+      OPENCODE_CHANNEL: JSON.stringify(Script.channel),
+      OPENCODE_LIBC: item.os === "linux" ? JSON.stringify(item.abi ?? "glibc") : JSON.stringify(""),
     },
   })
 

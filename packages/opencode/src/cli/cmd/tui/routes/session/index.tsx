@@ -169,7 +169,11 @@ export function Session() {
   const disabled = createMemo(() => permissions().length > 0 || questions().length > 0)
 
   const pending = createMemo(() => {
-    return messages().findLast((x) => x.role === "assistant" && !x.time.completed)?.id
+    const msg = messages().findLast((x) => x.role === "assistant" && !x.time.completed)
+    if (!msg) return
+    // msg is narrowed to Assistant by findLast predicate (role === "assistant");
+    // TypeScript's findLast return type doesn't carry the narrowing through.
+    return { id: msg.id, parentID: (msg as { parentID: string }).parentID }
   })
 
   const lastUserId = createMemo(() => {
@@ -1309,7 +1313,7 @@ function UserMessage(props: {
   parts: Part[]
   onMouseUp: () => void
   index: number
-  pending?: string
+  pending?: { id: string; parentID: string }
   lastUserId?: string
 }) {
   const ctx = use()
@@ -1331,7 +1335,7 @@ function UserMessage(props: {
   const queued = createMemo(() => {
     if (!props.pending) return false
     if (props.lastUserId !== props.message.id) return false
-    return props.message.id > props.pending
+    return props.pending.parentID !== props.message.id
   })
   const color = createMemo(() => local.agent.color(props.message.agent))
   const queuedFg = createMemo(() => selectedForeground(theme, color()))

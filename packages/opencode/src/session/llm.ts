@@ -28,8 +28,10 @@ import { repairJson, diagnoseParseError } from "@/util/json-repair"
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
 
-/** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes. */
+/** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
+  * LRU-evicted at 500 entries to prevent unbounded growth. */
 const systemContentHashes = new Map<string, number>()
+const MAX_HASHES = 500
 
 function stableStringify(input: unknown): string {
   if (Array.isArray(input)) return `[${input.map(stableStringify).join(",")}]`
@@ -66,6 +68,10 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
     })
   }
   systemContentHashes.set(key, hash)
+  if (systemContentHashes.size > MAX_HASHES) {
+    const first = systemContentHashes.keys().next().value
+    if (first !== undefined) systemContentHashes.delete(first)
+  }
 }
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX

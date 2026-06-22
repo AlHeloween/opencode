@@ -227,7 +227,9 @@ export function requestFingerprint(
   * Without SQLite, fingerprints are lost on process restart or session reopen,
   * causing full KV cache misses → model amnesia → 32k+ tokens wasted.
   * Uses a standalone .db file to avoid locking conflicts with the main drizzle DB. */
+/** LRU-evicted at 500 entries to prevent unbounded growth over long sessions. */
 const prevRequestCache = new Map<string, RequestFingerprint>()
+const MAX_FINGERPRINTS = 500
 
 function cacheStoreKey(sessionId: string, modelId: string): string {
   return `${sessionId}:${modelId}`
@@ -252,6 +254,10 @@ export function storePrevFingerprint(
 ): void {
   const key = cacheStoreKey(sessionId, modelId)
   prevRequestCache.set(key, fp)
+  if (prevRequestCache.size > MAX_FINGERPRINTS) {
+    const first = prevRequestCache.keys().next().value
+    if (first !== undefined) prevRequestCache.delete(first)
+  }
 
   // Persist to separate SQLite DB so the fingerprint survives restarts
   try {
@@ -283,6 +289,10 @@ export function getPrevFingerprint(
     if (row) {
       const fp = JSON.parse(row.data) as RequestFingerprint
       prevRequestCache.set(key, fp)
+      if (prevRequestCache.size > MAX_FINGERPRINTS) {
+        const first = prevRequestCache.keys().next().value
+        if (first !== undefined) prevRequestCache.delete(first)
+      }
       return fp
     }
   } catch {

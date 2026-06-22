@@ -741,8 +741,17 @@ function providerMeta(metadata: Record<string, any> | undefined) {
   return Object.keys(rest).length > 0 ? rest : undefined
 }
 
-/** Module-level conversion cache: avoids re-converting stable messages across calls. */
+/** Module-level conversion cache: avoids re-converting stable messages across calls.
+  * LRU-evicted at 1000 entries to prevent unbounded growth over long sessions. */
 const msgConversionCache = new Map<string, UIMessage>()
+const MAX_CONVERSION_CACHE = 1000
+
+function evictIfFull() {
+  if (msgConversionCache.size > MAX_CONVERSION_CACHE) {
+    const first = msgConversionCache.keys().next().value
+    if (first !== undefined) msgConversionCache.delete(first)
+  }
+}
 
 /** Clear the module-level conversion cache. Intended for test isolation. */
 export function clearConversionCache() {
@@ -846,6 +855,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       }
       result.push(userMessage)
       cache.set(cacheKey, userMessage)
+      evictIfFull()
       for (const part of msg.parts) {
         if (part.type === "text" && !part.ignored)
           userMessage.parts.push({
@@ -993,6 +1003,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       if (assistantMessage.parts.length > 0) {
         result.push(assistantMessage)
         cache.set(cacheKey, assistantMessage)
+        evictIfFull()
         // Inject pending media as a user message for providers that don't support
         // media (images, PDFs) in tool results
         if (media.length > 0) {

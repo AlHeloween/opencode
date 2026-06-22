@@ -236,7 +236,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
 
         case "session.deleted": {
-          const result = Binary.search(store.session, event.properties.sessionID, (s) => s.id)
+          const sid = event.properties.sessionID
+          const result = Binary.search(store.session, sid, (s) => s.id)
           if (result.found) {
             setStore(
               "session",
@@ -245,6 +246,22 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               }),
             )
           }
+          // Clean up orphaned session-keyed stores. Without this, deleted
+          // sessions accumulate message/part/status reactive proxies that
+          // SolidJS tracks for the process lifetime — the primary contributor
+          // to the 1.18 GB peak RSS Bun segfault on long-running Windows sessions.
+          const messageIDs = store.message[sid]?.map((m) => m.id) ?? []
+          batch(() => {
+            setStore("message", produce((draft) => { delete draft[sid] }))
+            setStore("session_status", produce((draft) => { delete draft[sid] }))
+            setStore("session_diff", produce((draft) => { delete draft[sid] }))
+            setStore("todo", produce((draft) => { delete draft[sid] }))
+            setStore("permission", produce((draft) => { delete draft[sid] }))
+            setStore("question", produce((draft) => { delete draft[sid] }))
+            setStore("part", produce((draft) => {
+              for (const mid of messageIDs) delete draft[mid]
+            }))
+          })
           break
         }
         case "session.updated": {

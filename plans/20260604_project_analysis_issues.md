@@ -41,11 +41,11 @@
 
 ## High Priority Issues
 
-### 4. Windows Path Handling Bug in `tool/ls.ts`
-- **File:** `packages/opencode/src/tool/ls.ts:91`
-- **Issue:** `dir.split("/")` uses hardcoded forward slash. On Windows, `path.dirname()` returns backslash-separated paths, so this split won't work correctly on Windows.
-- **Impact:** Directory listing tool produces incorrect results on Windows.
-- **Fix:** Use `path.sep` or normalize path before splitting.
+### 4. Windows Path Handling Bug in `tool/ls.ts` — **[x] FIXED 2026-06-22**
+- **File:** `packages/opencode/src/tool/ls.ts:91,112`
+- **Issue:** `dir.split("/")` uses hardcoded forward slash. On Windows, `path.dirname()` returns backslash-separated paths, so this split won't work correctly on Windows. Additionally, line 112 `path.dirname(d) === dirPath` compares backslash with forward-slash paths.
+- **Also fixed:** `packages/opencode/src/file/ripgrep.ts:441` — same `file.split("/")` bug in `tree()` function.
+- **Fix:** Normalize with `dir.replace(/\\/g, "/")` before split/comparison (matches pattern in `directory-display.ts`).
 
 ### 5. `setInterval` Without Cleanup in `provider/models.ts`
 - **File:** `packages/opencode/src/provider/models.ts:174-179`
@@ -63,10 +63,10 @@
 
 ## Medium Priority Issues
 
-### 7. `isNaN()` vs `Number.isNaN()` Inconsistency
-- **Files:** `packages/opencode/src/cli/cmd/stats.ts:337-343`, `packages/opencode/src/mcp/index.ts:447`
+### 7. `isNaN()` vs `Number.isNaN()` Inconsistency — **[x] FIXED 2026-06-22**
+- **Files:** `packages/opencode/src/cli/cmd/stats.ts:337-343` (4 occurrences), `packages/opencode/src/mcp/index.ts:447` (1 occurrence).
 - **Issue:** Global `isNaN()` coerces non-numeric types to numbers before checking, potentially masking type errors.
-- **Fix:** Replace with `Number.isNaN()`.
+- **Fix:** Replaced all 5 occurrences with `Number.isNaN()`. No bare `isNaN()` remains in `packages/opencode/src`.
 
 ### 8. Fetch Without `.catch()` Error Handling
 - **File:** `packages/opencode/src/cli/cmd/providers.ts:301`
@@ -169,10 +169,10 @@
 - [ ] **P1:** Fix plan-to-code gap — implement or remove `toolResultOutput()` reference; add `[ ]`/`[x]` markers to all items in `complete_remaining_items.md`
 - [ ] **P1:** Update `DOCINDEX.md` to list correct active plans
 - [ ] **P1:** Fix `index.md` and `DOCINDEX.md` references to non-existent research files
-- [ ] **P2:** Fix Windows path handling in `tool/ls.ts` — use `path.sep` instead of hardcoded `/`
+- [x] **P2:** Fix Windows path handling in `tool/ls.ts` — normalize backslashes before split/comparison (also fixed `ripgrep.ts:441`)
 - [ ] **P2:** Fix `setInterval` cleanup in `provider/models.ts` — store and clear interval ID
 - [ ] **P2:** Fix `setInterval` cleanup in `provider/gateway/mod.ts` — clear `globalThis.__gatewayStatusInterval`
-- [ ] **P2:** Replace `isNaN()` with `Number.isNaN()` in `cli/cmd/stats.ts` and `mcp/index.ts`
+- [x] **P2:** Replace `isNaN()` with `Number.isNaN()` in `cli/cmd/stats.ts` and `mcp/index.ts`
 - [ ] **P2:** Add `.catch()` to fetch in `cli/cmd/providers.ts`
 - [ ] **P2:** Add error handling to `void` fire-and-forget patterns (8+ locations)
 - [ ] **P2:** Add existence checks before non-null assertions (8 locations)

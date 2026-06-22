@@ -88,7 +88,8 @@ export const ListTool = Tool.define(
 
           for (const file of files) {
             const dir = path.dirname(file)
-            const parts = dir === "." ? [] : dir.split("/")
+            const normalizedDir = dir.replace(/\\/g, "/")
+            const parts = normalizedDir === "." ? [] : normalizedDir.split("/")
 
             for (let i = 0; i <= parts.length; i++) {
               const dirPath = i === 0 ? "." : parts.slice(0, i).join("/")
@@ -109,7 +110,7 @@ export const ListTool = Tool.define(
 
             const childIndent = "  ".repeat(depth + 1)
             const children = Array.from(dirs)
-              .filter((d) => path.dirname(d) === dirPath && d !== dirPath)
+              .filter((d) => d.replace(/\\/g, "/") === dirPath && d !== dirPath)
               .sort()
 
             for (const child of children) {

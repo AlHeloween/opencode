@@ -444,7 +444,7 @@ export const layer = Layer.effect(
           yield* handle.exitCode
           for (const tok of text.split("\n")) {
             const cpid = parseInt(tok, 10)
-            if (!isNaN(cpid) && !pids.includes(cpid)) {
+            if (!Number.isNaN(cpid) && !pids.includes(cpid)) {
               pids.push(cpid)
               queue.push(cpid)
             }

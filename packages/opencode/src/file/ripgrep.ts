@@ -438,7 +438,8 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | ChildPro
         const root: Node = { name: "", children: new Map() }
         for (const file of list) {
           if (file.includes(".opencode")) continue
-          const parts = file.split("/")
+          const normalized = file.replace(/\\/g, "/")
+          const parts = normalized.split("/")
           if (parts.length < 2) continue
           let node = root
           for (const part of parts.slice(0, -1)) {

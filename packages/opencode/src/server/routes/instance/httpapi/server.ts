@@ -60,7 +60,7 @@ const instance = HttpRouter.middleware()(
 
         const directory = Filesystem.resolve(decode(raw))
 
-        const ctx = yield* Effect.promise(() =>
+        const ctx = yield* Effect.tryPromise(() =>
           Instance.provide({
             directory,
             init: () => AppRuntime.runPromise(InstanceBootstrap),

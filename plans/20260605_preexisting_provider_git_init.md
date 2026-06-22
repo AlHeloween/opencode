@@ -15,9 +15,14 @@ Fix the two remaining pre-existing test failures: `httpapi-provider` (OAuth time
 
 ## Analysis
 
-### httpapi-provider timeout
+### httpapi-provider timeout — **[ ] DEFERRED (investigated 2026-06-22)**
 
-**Root cause**: Nested `Effect.promise` deadlock in the `instance` middleware (`src/server/routes/instance/httpapi/server.ts` lines 60-66).
+**Root cause**: Deeper than initially identified. Neither `Effect.promise`, `Effect.tryPromise`, nor `Effect.callback` resolves the deadlock. Suspect `HttpApiBuilder`/Hono bridge creates separate Effect runtime context that cannot share ALS with the test's `Effect.promise` runtime. Requires investigation of the fiber/runtime coordination layer.
+
+**Attempted fixes:**
+1. `Effect.callback` — does not exist in Effect v4 (renamed, different API)
+2. `Effect.tryPromise` — codebase standard pattern, but same deadlock
+3. `Effect.promise` — original, same deadlock
 
 The test execution flow:
 1. Test calls `Effect.promise(async () => { await app.request(...) })` — creates outer promise-driven fiber

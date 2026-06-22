@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_a43a2f17c01ab54b22e43a8db90032bf name="request_diff_delete_empty_baseline_dir" md5="a43a2f17c01ab54b22e43a8db90032bf" size="269">
+    <file>packages/opencode/src/session/request-diff.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const files = fs.readdirSync(baselinesDir)
+      for (const file of files) {
+        if (file.endsWith(`_${safeSid}.enc`)) {
+          fs.unlinkSync(path.join(baselinesDir, file))
+        }
+      }
+    } catch { /* best-effort cleanup */ }</find_text>
+    <semantics>Remove the shared request-diff baseline directory after session deletion when no baseline files remain.</semantics>
+    <content_md5_a43a2f17c01ab54b22e43a8db90032bf>
+        const files = fs.readdirSync(baselinesDir)
+        for (const file of files) {
+          if (file.endsWith(`_${safeSid}.enc`)) {
+            fs.unlinkSync(path.join(baselinesDir, file))
+          }
+        }
+        if (fs.readdirSync(baselinesDir).length === 0) {
+          fs.rmSync(baselinesDir, { recursive: true, force: true })
+        }
+      } catch { /* best-effort cleanup */ }
+    </content_md5_a43a2f17c01ab54b22e43a8db90032bf>
+  </update_md5_a43a2f17c01ab54b22e43a8db90032bf>
+</updates>

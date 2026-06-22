@@ -27,6 +27,9 @@ const BASELINES_DIR = ".baselines"
 const MAX_DIFFS_PER_SESSION = 200
 const BASELINE_VERSION = 1
 const KEY_DERIVATION_SALT = ":opencode-diff-baseline-v1"
+const MAX_FORMATTED_REQUEST_CHARS = 256 * 1024
+const MAX_FORMATTED_SYSTEM_CHARS = 64 * 1024
+const MAX_FORMATTED_MESSAGE_CHARS = 2 * 1024
 
 /** Metadata attached to each diff entry. */
 export interface DiffMeta {
@@ -98,25 +101,44 @@ export function formatRequest(
   meta: DiffMeta,
 ): string {
   const lines: string[] = []
+  let chars = 0
+  const pushLine = (line: string): boolean => {
+    if (chars >= MAX_FORMATTED_REQUEST_CHARS) return false
+    const next = chars + line.length + 1
+    if (next <= MAX_FORMATTED_REQUEST_CHARS) {
+      lines.push(line)
+      chars = next
+      return true
+    }
 
-  lines.push("=== META ===")
-  lines.push(`session: ${meta.sessionID}`)
-  lines.push(`model: ${meta.providerID}/${meta.modelID}`)
-  lines.push(`agent: ${meta.agent}`)
-  lines.push(`turn: ${meta.turn}`)
-  lines.push(`timestamp: ${new Date(meta.timestamp).toISOString()}`)
-
-  lines.push("")
-  lines.push("=== SYSTEM ===")
-  for (const s of system) {
-    lines.push(s)
+    const suffix = `... (request diff baseline truncated at ${MAX_FORMATTED_REQUEST_CHARS} chars)`
+    const remaining = MAX_FORMATTED_REQUEST_CHARS - chars
+    lines.push(
+      remaining > suffix.length + 1
+        ? `${line.slice(0, remaining - suffix.length - 1)}\n${suffix}`
+        : suffix,
+    )
+    chars = MAX_FORMATTED_REQUEST_CHARS
+    return false
   }
 
-  lines.push("")
-  lines.push("=== MESSAGES ===")
+  pushLine("=== META ===")
+  pushLine(`session: ${meta.sessionID}`)
+  pushLine(`model: ${meta.providerID}/${meta.modelID}`)
+  pushLine(`agent: ${meta.agent}`)
+  pushLine(`turn: ${meta.turn}`)
+  pushLine(`timestamp: ${new Date(meta.timestamp).toISOString()}`)
+
+  pushLine("")
+  pushLine("=== SYSTEM ===")
+  for (const s of system) {
+    if (!pushLine(truncateText(s, MAX_FORMATTED_SYSTEM_CHARS, "system entry"))) return lines.join("\n")
+  }
+
+  pushLine("")
+  pushLine("=== MESSAGES ===")
   for (let i = 0; i < modelMsgs.length; i++) {
-    const msg = modelMsgs[i]
-    lines.push(formatModelMessage(msg, i))
+    if (!pushLine(formatModelMessage(modelMsgs[i], i))) break
   }
 
   return lines.join("\n")
@@ -124,16 +146,21 @@ export function formatRequest(
 
 /** Format a single ModelMessage for display. */
 function formatModelMessage(msg: ModelMessage, index: number): string {
-  const header = `[${msg.role}] #${index + 1}`
+  return `[${msg.role}] #${index + 1}\n${truncateText(
+    formatMessageContent(msg),
+    MAX_FORMATTED_MESSAGE_CHARS,
+    "message",
+  )}`
+}
 
-  const contentStr = formatMessageContent(msg)
+function truncateText(text: string, maxChars: number, label: string): string {
+  if (text.length <= maxChars) return text
+  return `${text.slice(0, maxChars)}\n... (${text.length - maxChars} more chars truncated from ${label})`
+}
 
-  // Truncate very long tool outputs to keep diffs manageable
-  const truncated = contentStr.length > 4000
-    ? contentStr.slice(0, 4000) + `\n... (${contentStr.length - 4000} more chars)`
-    : contentStr
-
-  return `${header}\n${truncated}`
+function stringifyForDiff(value: unknown): string {
+  const json = JSON.stringify(value)
+  return json ?? String(value)
 }
 
 /** Convert message content to a string for diffing. */
@@ -147,17 +174,32 @@ function formatMessageContent(msg: ModelMessage): string {
   if (Array.isArray(content)) {
     return content
       .map((part) => {
-        if (part.type === "text") return `[text] ${part.text}`
-        if (part.type === "reasoning") return `[reasoning] ${part.text}`
+        if (part.type === "text") {
+          return `[text] ${truncateText(part.text, MAX_FORMATTED_MESSAGE_CHARS, "text part")}`
+        }
+        if (part.type === "reasoning") {
+          return `[reasoning] ${truncateText(part.text, MAX_FORMATTED_MESSAGE_CHARS, "reasoning part")}`
+        }
         if (part.type === "tool-call") {
-          return `[tool-call:${part.toolName}] id=${part.toolCallId} input=${JSON.stringify(part.input)}`
+          return `[tool-call:${part.toolName}] id=${part.toolCallId} input=${truncateText(
+            stringifyForDiff(part.input),
+            MAX_FORMATTED_MESSAGE_CHARS,
+            "tool input",
+          )}`
         }
         if (part.type === "tool-result") {
-          const output = typeof part.output === "string" ? part.output : JSON.stringify(part.output)
-          return `[tool-result:${part.toolName}] id=${part.toolCallId}\n${output}`
+          return `[tool-result:${part.toolName}] id=${part.toolCallId}\n${truncateText(
+            typeof part.output === "string" ? part.output : stringifyForDiff(part.output),
+            MAX_FORMATTED_MESSAGE_CHARS,
+            "tool result",
+          )}`
         }
         if (part.type === "image") return `[image] ${typeof part.image === "string" ? part.image : "<binary>"}`
-        if (part.type === "file") return `[file] ${part.filename ?? JSON.stringify(part.data)}`
+        if (part.type === "file") {
+          return `[file] ${
+            part.filename ?? truncateText(stringifyForDiff(part.data), MAX_FORMATTED_MESSAGE_CHARS, "file data")
+          }`
+        }
         if (part.type === "tool-approval-request") return `[tool-approval-request] approvalId=${part.approvalId} toolCallId=${part.toolCallId}`
         if (part.type === "tool-approval-response") return `[tool-approval-response] approvalId=${part.approvalId} approved=${part.approved}`
         // Exhaustive: all known part types handled above
@@ -167,7 +209,7 @@ function formatMessageContent(msg: ModelMessage): string {
       .join("\n")
   }
 
-  return JSON.stringify(content)
+  return stringifyForDiff(content)
 }
 
 // ── Section-aware structural diff ───────────────────────────────────────────
@@ -663,10 +705,11 @@ export function deleteBaselines(sessionID: string): void {
           fs.unlinkSync(path.join(baselinesDir, file))
         }
       }
+      if (fs.readdirSync(baselinesDir).length === 0) {
+        fs.rmSync(baselinesDir, { recursive: true, force: true })
+      }
     } catch { /* best-effort cleanup */ }
   }
 }
 
 export * as RequestDiff from "./request-diff"
-
-

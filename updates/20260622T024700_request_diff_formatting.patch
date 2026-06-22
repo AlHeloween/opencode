@@ -1,0 +1,81 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/request-diff.ts
+@@
+-        if (part.type === "text") return `[text] ${truncateText(part.text, MAX_FORMATTED_MESSAGE_CHARS, "text part")}`
+-        if (part.type === "reasoning") return `[reasoning] ${truncateText(part.text, MAX_FORMATTED_MESSAGE_CHARS, "reasoning part")}`
++        if (part.type === "text") {
++          return `[text] ${truncateText(part.text, MAX_FORMATTED_MESSAGE_CHARS, "text part")}`
++        }
++        if (part.type === "reasoning") {
++          return `[reasoning] ${truncateText(part.text, MAX_FORMATTED_MESSAGE_CHARS, "reasoning part")}`
++        }
+@@
+-        if (part.type === "file") return `[file] ${part.filename ?? truncateText(stringifyForDiff(part.data), MAX_FORMATTED_MESSAGE_CHARS, "file data")}`
++        if (part.type === "file") {
++          return `[file] ${
++            part.filename ?? truncateText(stringifyForDiff(part.data), MAX_FORMATTED_MESSAGE_CHARS, "file data")
++          }`
++        }
+@@
+-        const files = fs.readdirSync(baselinesDir)
+-  for (const file of files) {
+-    if (file.endsWith(`_${safeSid}.enc`)) {
+-      fs.unlinkSync(path.join(baselinesDir, file))
+-    }
+-  }
+-  if (fs.readdirSync(baselinesDir).length === 0) {
+-    fs.rmSync(baselinesDir, { recursive: true, force: true })
+-  }
+-} catch { /* best-effort cleanup */ }
++      const files = fs.readdirSync(baselinesDir)
++      for (const file of files) {
++        if (file.endsWith(`_${safeSid}.enc`)) {
++          fs.unlinkSync(path.join(baselinesDir, file))
++        }
++      }
++      if (fs.readdirSync(baselinesDir).length === 0) {
++        fs.rmSync(baselinesDir, { recursive: true, force: true })
++      }
++    } catch { /* best-effort cleanup */ }
+*** Update File: packages/opencode/test/session/request-diff.test.ts
+@@
+   test("truncates very long content to keep diffs manageable", () => {
+-  const longContent = "x".repeat(5000)
+-  const msgs: ModelMessage[] = [
+-    { role: "user", content: longContent },
+-  ]
+-  const result = RequestDiff.formatRequest(makeSystem(), msgs, baseMeta())
+-  expect(result.length).toBeLessThan(longContent.length + 1000)
+-  expect(result).toContain("more chars")
+-})
+-
+-test("bounds request-diff formatted size across many large messages", () => {
+-  const msgs = Array.from({ length: 200 }, (_, i): ModelMessage => ({
+-    role: "user",
+-    content: `message ${i} ${"x".repeat(5000)}`,
+-  }))
+-  const result = RequestDiff.formatRequest(["system ".repeat(20_000)], msgs, baseMeta())
+-  expect(result.length).toBeLessThan(300_000)
+-  expect(result).toContain("request diff baseline truncated")
+-  expect(result).toContain("truncated from message")
+-})
++    const longContent = "x".repeat(5000)
++    const msgs: ModelMessage[] = [
++      { role: "user", content: longContent },
++    ]
++    const result = RequestDiff.formatRequest(makeSystem(), msgs, baseMeta())
++    expect(result.length).toBeLessThan(longContent.length + 1000)
++    expect(result).toContain("more chars")
++  })
++
++  test("bounds request-diff formatted size across many large messages", () => {
++    const msgs = Array.from({ length: 200 }, (_, i): ModelMessage => ({
++      role: "user",
++      content: `message ${i} ${"x".repeat(5000)}`,
++    }))
++    const result = RequestDiff.formatRequest(["system ".repeat(20_000)], msgs, baseMeta())
++    expect(result.length).toBeLessThan(300_000)
++    expect(result).toContain("request diff baseline truncated")
++    expect(result).toContain("truncated from message")
++  })
+*** End Patch

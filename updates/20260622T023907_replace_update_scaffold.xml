@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_0dc110b2c4165804ad5d0429fac1305f name="request_diff_test_formatting" md5="0dc110b2c4165804ad5d0429fac1305f" size="725">
+    <file>packages/opencode/test/session/request-diff.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  test(&quot;truncates very long content to keep diffs manageable&quot;, () =&gt; {
+  const longContent = &quot;x&quot;.repeat(5000)
+  const msgs: ModelMessage[] = [
+    { role: &quot;user&quot;, content: longContent },
+  ]
+  const result = RequestDiff.formatRequest(makeSystem(), msgs, baseMeta())
+  expect(result.length).toBeLessThan(longContent.length + 1000)
+  expect(result).toContain(&quot;more chars&quot;)
+})
+
+test(&quot;bounds formatted request size across many large messages&quot;, () =&gt; {
+  const msgs = Array.from({ length: 200 }, (_, i): ModelMessage =&gt; ({
+    role: &quot;user&quot;,
+    content: `message ${i} ${&quot;x&quot;.repeat(5000)}`,
+  }))
+  const result = RequestDiff.formatRequest([&quot;system &quot;.repeat(20_000)], msgs, baseMeta())
+  expect(result.length).toBeLessThan(300_000)
+  expect(result).toContain(&quot;request diff baseline truncated&quot;)
+  expect(result).toContain(&quot;truncated from message&quot;)
+})</find_text>
+    <semantics>Restore test indentation after bounded request-diff regression insertion.</semantics>
+    <content_md5_0dc110b2c4165804ad5d0429fac1305f>
+      test(&quot;truncates very long content to keep diffs manageable&quot;, () =&gt; {
+        const longContent = &quot;x&quot;.repeat(5000)
+        const msgs: ModelMessage[] = [
+          { role: &quot;user&quot;, content: longContent },
+        ]
+        const result = RequestDiff.formatRequest(makeSystem(), msgs, baseMeta())
+        expect(result.length).toBeLessThan(longContent.length + 1000)
+        expect(result).toContain(&quot;more chars&quot;)
+      })
+      
+      test(&quot;bounds request-diff formatted size across many large messages&quot;, () =&gt; {
+        const msgs = Array.from({ length: 200 }, (_, i): ModelMessage =&gt; ({
+          role: &quot;user&quot;,
+          content: `message ${i} ${&quot;x&quot;.repeat(5000)}`,
+        }))
+        const result = RequestDiff.formatRequest([&quot;system &quot;.repeat(20_000)], msgs, baseMeta())
+        expect(result.length).toBeLessThan(300_000)
+        expect(result).toContain(&quot;request diff baseline truncated&quot;)
+        expect(result).toContain(&quot;truncated from message&quot;)
+      })
+    </content_md5_0dc110b2c4165804ad5d0429fac1305f>
+  </update_md5_0dc110b2c4165804ad5d0429fac1305f>
+</updates>

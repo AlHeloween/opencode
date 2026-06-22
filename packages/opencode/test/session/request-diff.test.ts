@@ -135,6 +135,17 @@ describe("formatRequest", () => {
     expect(result).toContain("more chars")
   })
 
+  test("bounds request-diff formatted size across many large messages", () => {
+    const msgs = Array.from({ length: 200 }, (_, i): ModelMessage => ({
+      role: "user",
+      content: `message ${i} ${"x".repeat(5000)}`,
+    }))
+    const result = RequestDiff.formatRequest(["system ".repeat(20_000)], msgs, baseMeta())
+    expect(result.length).toBeLessThan(300_000)
+    expect(result).toContain("request diff baseline truncated")
+    expect(result).toContain("truncated from message")
+  })
+
   test("handles reasoning parts", () => {
     const msgs: ModelMessage[] = [
       {

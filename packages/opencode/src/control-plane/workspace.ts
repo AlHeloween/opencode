@@ -571,9 +571,13 @@ async function startSync(space: Info) {
   const target = await adaptor.target(space)
 
   if (target.type === "local") {
-    void Filesystem.exists(target.directory).then((exists) => {
-      setStatus(space.id, exists ? "connected" : "error")
-    })
+    void Filesystem.exists(target.directory)
+      .then((exists) => {
+        setStatus(space.id, exists ? "connected" : "error")
+      })
+      .catch(() => {
+        setStatus(space.id, "error")
+      })
     return
   }
 

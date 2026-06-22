@@ -106,22 +106,24 @@ function play(file: string, volume: number) {
 export function start() {
   stop()
   const id = ++seq
-  void asset().then(({ hum }) => {
-    if (id !== seq) return
-    const next = run(hum, 0.24)
-    if (!next) return
-    proc = next
-    void next.exited.then(
-      () => {
-        if (id !== seq) return
-        if (proc === next) proc = undefined
-      },
-      () => {
-        if (id !== seq) return
-        if (proc === next) proc = undefined
-      },
-    )
-  })
+  void asset()
+    .then(({ hum }) => {
+      if (id !== seq) return
+      const next = run(hum, 0.24)
+      if (!next) return
+      proc = next
+      void next.exited.then(
+        () => {
+          if (id !== seq) return
+          if (proc === next) proc = undefined
+        },
+        () => {
+          if (id !== seq) return
+          if (proc === next) proc = undefined
+        },
+      )
+    })
+    .catch(() => {})
 }
 
 export function stop(delay = 0) {

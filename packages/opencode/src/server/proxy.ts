@@ -51,7 +51,10 @@ function socket(url: string | URL) {
 
 function send(ws: { send(data: string | ArrayBuffer | Uint8Array): void }, data: any) {
   if (data instanceof Blob) {
-    return data.arrayBuffer().then((x) => ws.send(x))
+    return data
+      .arrayBuffer()
+      .then((x) => ws.send(x))
+      .catch((err) => log.debug("proxy send blob failed", { error: err }))
   }
   return ws.send(data)
 }

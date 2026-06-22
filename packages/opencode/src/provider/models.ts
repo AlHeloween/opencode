@@ -169,14 +169,24 @@ export async function refresh(force = false) {
   })
 }
 
+let refreshIntervalId: ReturnType<typeof setInterval> | undefined
+
+export function dispose() {
+  if (refreshIntervalId !== undefined) {
+    clearInterval(refreshIntervalId)
+    refreshIntervalId = undefined
+  }
+}
+
 if (!Flag.OPENCODE_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
   void refresh()
-  setInterval(
+  refreshIntervalId = setInterval(
     async () => {
       await refresh()
     },
     60 * 1000 * 60,
-  ).unref()
+  )
+  refreshIntervalId.unref()
 }
 
 export * as ModelsDev from "./models"

@@ -97,9 +97,9 @@ export const layer = Layer.effect(
           const cb: ParcelWatcher.SubscribeCallback = Instance.bind((err, evts) => {
             if (err) return
             for (const evt of evts) {
-              if (evt.type === "create") void Bus.publish(Event.Updated, { file: evt.path, event: "add" })
-              if (evt.type === "update") void Bus.publish(Event.Updated, { file: evt.path, event: "change" })
-              if (evt.type === "delete") void Bus.publish(Event.Updated, { file: evt.path, event: "unlink" })
+              if (evt.type === "create") void Bus.publish(Event.Updated, { file: evt.path, event: "add" }).catch(() => {})
+              if (evt.type === "update") void Bus.publish(Event.Updated, { file: evt.path, event: "change" }).catch(() => {})
+              if (evt.type === "delete") void Bus.publish(Event.Updated, { file: evt.path, event: "unlink" }).catch(() => {})
             }
           })
 

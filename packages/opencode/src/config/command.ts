@@ -37,7 +37,7 @@ export async function load(dir: string) {
         ? err.data.message
         : `Failed to parse command ${item}`
       const { Session } = await import("@/session/session")
-      void Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
+      void Bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() }).catch(() => {})
       log.error("failed to load command", { command: item, err })
       return undefined
     })

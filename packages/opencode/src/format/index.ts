@@ -84,6 +84,10 @@ export const layer = Layer.effect(
             for (const { item, cmd } of formatters) {
               log.info("running", { command: cmd })
               const replaced = cmd.map((x) => x.replace("$FILE", filepath))
+              if (!replaced[0]) {
+                log.warn("formatter command empty after substitution", { cmd, filepath })
+                continue
+              }
               const dir = yield* InstanceState.directory
               const code = yield* spawner
                 .spawn(

@@ -47,17 +47,15 @@
 - **Also fixed:** `packages/opencode/src/file/ripgrep.ts:441` — same `file.split("/")` bug in `tree()` function.
 - **Fix:** Normalize with `dir.replace(/\\/g, "/")` before split/comparison (matches pattern in `directory-display.ts`).
 
-### 5. `setInterval` Without Cleanup in `provider/models.ts`
+### 5. `setInterval` Without Cleanup in `provider/models.ts` — **[x] FIXED 2026-06-22**
 - **File:** `packages/opencode/src/provider/models.ts:174-179`
 - **Issue:** `setInterval()` ID is never stored, so it can never be cleared. Interval continues indefinitely even if module reloads.
-- **Impact:** Resource leak; process cannot cleanly shut down model refresh.
-- **Fix:** Store interval ID and clear it on module disposal.
+- **Fix:** Stored interval ID in `refreshIntervalId` module variable. Exported `dispose()` function to clear it.
 
-### 6. `setInterval` Stored in `globalThis` But Never Cleared
+### 6. `setInterval` Stored in `globalThis` But Never Cleared — **ALREADY FIXED (false positive)**
 - **File:** `packages/opencode/src/provider/gateway/mod.ts:139`
-- **Issue:** `globalThis.__gatewayStatusInterval = statusInterval` stores the interval but no code reads this and calls `clearInterval`.
-- **Impact:** Interval continues after gateway shutdown.
-- **Fix:** Add cleanup code that reads and clears `globalThis.__gatewayStatusInterval`.
+- **Issue:** `globalThis.__gatewayStatusInterval = statusInterval` stores the interval. Plan claimed no code reads this.
+- **Reality:** Cleanup exists at lines 104-107 — `shutdown()` function clears it via `clearInterval(globalThis.__gatewayStatusInterval)`. Called by `Effect.acquireRelease` on Layer disposal. **No bug.**
 
 ---
 
@@ -68,30 +66,29 @@
 - **Issue:** Global `isNaN()` coerces non-numeric types to numbers before checking, potentially masking type errors.
 - **Fix:** Replaced all 5 occurrences with `Number.isNaN()`. No bare `isNaN()` remains in `packages/opencode/src`.
 
-### 8. Fetch Without `.catch()` Error Handling
+### 8. Fetch Without `.catch()` Error Handling — **[x] FIXED 2026-06-22**
 - **File:** `packages/opencode/src/cli/cmd/providers.ts:301`
 - **Issue:** `fetch().then(x => x.json())` has no `.catch()` handler. Network errors or non-JSON responses cause unhandled rejections.
-- **Fix:** Add `.catch()` or wrap in `Effect.tryPromise`.
+- **Fix:** Added `.catch()` with `Log.Default.error` logging and clean exit.
 
-### 9. `void` Fire-and-Forget Patterns (Multiple Files)
-- **Files:** `packages/opencode/src/session/llm.ts:346`, `packages/opencode/src/server/routes/instance/session.ts:898,934`, `packages/opencode/src/server/routes/instance/httpapi/session.ts:757,763`, `packages/opencode/src/file/watcher.ts:100-102`, `packages/opencode/src/control-plane/workspace.ts:577`, `packages/opencode/src/config/command.ts:40`, `packages/opencode/src/config/agent.ts:123,155`, `packages/opencode/src/acp/agent.ts:247,1258`
-- **Issue:** `void promise` fires promises without error handling. If any reject, the rejection is unhandled.
-- **Fix:** Either await with try/catch, or attach `.catch()` to the promise.
+### 9. `void` Fire-and-Forget Patterns (Multiple Files) — **[x] FIXED 2026-06-22**
+- **Files:** `packages/opencode/src/control-plane/workspace.ts:574`, `packages/opencode/src/file/watcher.ts:100-102`, `packages/opencode/src/config/command.ts:40`, `packages/opencode/src/config/agent.ts:123,155`, `packages/opencode/src/cli/cmd/tui/util/sound.ts:109,114`, `packages/opencode/src/acp/agent.ts:254,1265`, `packages/opencode/src/provider/provider.ts:52`, `packages/opencode/src/server/proxy.ts:54`
+- **Fix:** Added `.catch(() => {})` or `.catch((err) => log.warn(...))` to all 9 unhandled void promises. 5 additional void calls already had `.catch()`. 17 were safe (non-promise or self-protected).
 
-### 10. Non-Null Assertions That Could Fail
-- **Files:** `packages/opencode/src/util/lock.ts:20`, `packages/opencode/src/provider/gateway/store.ts:423,430`, `packages/opencode/src/provider/gateway/limiter.ts:44`, `packages/opencode/src/mcp/oauth-callback.ts:104,130`, `packages/opencode/src/shell/shell.ts:116`, `packages/opencode/src/cli/cmd/tui/win32.ts:39,82,86`, `packages/opencode/src/format/index.ts:90`, `packages/opencode/src/tool/ls.ts:99`
-- **Issue:** `!` assertions on `Map.get()` or array `[0]` that could fail if the key/element doesn't exist.
-- **Fix:** Add existence checks before using `!` or use optional chaining.
+### 10. Non-Null Assertions That Could Fail — **[x] PARTIALLY FIXED 2026-06-22**
+- **Files with fixes:** `packages/opencode/src/cli/cmd/tui/component/logo.tsx:502-503` (guard for missing center entry), `packages/opencode/src/format/index.ts:90` (guard for empty command array), `packages/opencode/src/cli/cmd/tui/context/theme.tsx:520-521` (?? fallback for palette)
+- **Files verified safe (guarded by has/set/loop):** `lock.ts:20,29,36`, `store.ts:423,430`, `limiter.ts:44`, `oauth-callback.ts:104,130`, `shell.ts:116`, `win32.ts:39,82,86`, `ls.ts:100`
+- **23 of 29 assertions are provably safe. 4 fixed, 2 cosmetic (unnecessary `!` on non-nullable types).**
 
-### 11. Test Failures: `packages/core` npm-config Tests (5 failures)
+### 11. Test Failures: `packages/core` npm-config Tests (5 failures) — **[x] FIXED 2026-06-22**
 - **File:** `packages/core/test/npm-config.test.ts`
 - **Issue:** `@npmcli/config` is not reading `.npmrc` files correctly in tests — falls back to default registry.
-- **Fix:** Investigate `npmPath` resolution or `@npmcli/config` initialization pattern.
+- **Fix:** Added `package.json` to each test fixture so `@npmcli/config` detects the project root. All 5 tests pass.
 
-### 12. Test Failures: `packages/ui` Diff Text Tests (2 failures)
+### 12. Test Failures: `packages/ui` Diff Text Tests (2 failures) — **[x] FIXED 2026-06-22**
 - **Files:** `packages/ui/src/components/apply-patch-file.test.ts`, `packages/ui/src/components/session-diff.test.ts`
-- **Issue:** `text()` function joins lines with `""` but tests expect `"\n"` between lines.
-- **Fix:** Either fix `text()` to join with `"\n"` or correct test expectations.
+- **Issue:** `text()` function joined lines with `join("")`, but `@pierre/diffs` returns lines with inconsistent trailing `\n`. Single-line entries kept `\n`, multi-line entries stripped it from the last element.
+- **Fix:** Normalize by stripping trailing `\n` from each element, then `join("\n") + "\n"`. All 4 tests pass.
 
 ### 13. Test Failures: `packages/enterprise` Storage Tests (16 failures)
 - **Files:** `packages/enterprise/test/core/share.test.ts`, `packages/enterprise/test/core/storage.test.ts`
@@ -170,14 +167,14 @@
 - [ ] **P1:** Update `DOCINDEX.md` to list correct active plans
 - [ ] **P1:** Fix `index.md` and `DOCINDEX.md` references to non-existent research files
 - [x] **P2:** Fix Windows path handling in `tool/ls.ts` — normalize backslashes before split/comparison (also fixed `ripgrep.ts:441`)
-- [ ] **P2:** Fix `setInterval` cleanup in `provider/models.ts` — store and clear interval ID
-- [ ] **P2:** Fix `setInterval` cleanup in `provider/gateway/mod.ts` — clear `globalThis.__gatewayStatusInterval`
+- [x] **P2:** Fix `setInterval` cleanup in `provider/models.ts` — store and clear interval ID
+- [x] **P2:** Fix `setInterval` cleanup in `provider/gateway/mod.ts` — verified: cleanup already exists (false positive)
 - [x] **P2:** Replace `isNaN()` with `Number.isNaN()` in `cli/cmd/stats.ts` and `mcp/index.ts`
-- [ ] **P2:** Add `.catch()` to fetch in `cli/cmd/providers.ts`
-- [ ] **P2:** Add error handling to `void` fire-and-forget patterns (8+ locations)
-- [ ] **P2:** Add existence checks before non-null assertions (8 locations)
-- [ ] **P2:** Fix `packages/core` npm-config test failures
-- [ ] **P2:** Fix `packages/ui` diff text test failures
+- [x] **P2:** Add `.catch()` to fetch in `cli/cmd/providers.ts`
+- [x] **P2:** Add error handling to `void` fire-and-forget patterns — 9 fixes, 5 already handled, 17 safe
+- [x] **P2:** Add existence checks before non-null assertions — 4 fixed, 23 safe, 2 cosmetic
+- [x] **P2:** Fix `packages/core` npm-config test failures — add package.json fixture
+- [x] **P2:** Fix `packages/ui` diff text test failures — normalize trailing newlines
 - [ ] **P2:** Add mock storage adapter for `packages/enterprise` tests
 - [ ] **P2:** Update stale line numbers in `upstream_adoption_phase2.md`
 - [ ] **P2:** Update `index.md` completed plans count

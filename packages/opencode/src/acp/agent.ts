@@ -255,7 +255,9 @@ export class Agent implements ACPAgent {
                   sessionId: session.id,
                   path: filepath,
                   content: newContent,
-                })
+                }).catch((err) =>
+                  log.warn("bug: ACP write text file failed", { filepath, error: err }),
+                )
               }
             }
 
@@ -1268,7 +1270,9 @@ export class Agent implements ACPAgent {
           sessionUpdate: "available_commands_update",
           availableCommands,
         },
-      })
+      }).catch((err) =>
+        log.warn("bug: ACP session update failed", { sessionId, error: err }),
+      )
     }, 0)
 
     return {

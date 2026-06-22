@@ -298,7 +298,13 @@ export const ProvidersLoginCommand = cmd({
         prompts.intro("Add credential")
         if (args.url) {
           const url = args.url.replace(/\/+$/, "")
-          const wellknown = (await fetch(`${url}/.well-known/opencode`).then((x) => x.json())) as {
+          const wellknown = (await fetch(`${url}/.well-known/opencode`)
+            .then((x) => x.json())
+            .catch((e) => {
+              Log.Default.error("failed to fetch .well-known/opencode", { url, error: String(e) })
+              prompts.outro("Failed to fetch provider configuration")
+              process.exit(1)
+            })) as {
             auth: { command: string[]; env: string }
           }
           prompts.log.info(`Running \`${wellknown.auth.command.join(" ")}\``)

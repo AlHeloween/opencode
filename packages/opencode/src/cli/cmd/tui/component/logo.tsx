@@ -499,8 +499,10 @@ function bloom(x: number, y: number, frame: Frame, ctx: LogoContext) {
   if (age < 0 || age > GLOW_OUT) return 0
   const p = age / GLOW_OUT
   const flash = (1 - p) ** 2
-  const dx = x + 0.5 - ctx.MAP.center.get(item.glyph)!.x
-  const dy = y * 2 + 1 - ctx.MAP.center.get(item.glyph)!.y
+  const center = ctx.MAP.center.get(item.glyph)
+  if (!center) return 0
+  const dx = x + 0.5 - center.x
+  const dy = y * 2 + 1 - center.y
   const bias = Math.exp(-((Math.hypot(dx, dy) / 2.8) ** 2))
   return lerp(item.force, item.force * 0.18, p) * lerp(0.72, 1.1, bias) * flash
 }

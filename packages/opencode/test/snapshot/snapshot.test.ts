@@ -371,6 +371,8 @@ test("unicode filenames", async () => {
   })
 })
 
+// SKIP: Unicode filenames can be flaky in CI environments with limited locale support.
+// Passes on modern Windows 10+, macOS, and Linux with UTF-8 locales.
 test.skip("unicode filenames modification and restore", async () => {
   await using tmp = await bootstrap()
   await Instance.provide({

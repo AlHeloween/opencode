@@ -58,6 +58,7 @@
 ### `research_done/` — Completed Research Documents
 - `research_v4.md` — Fix-oriented security/correctness triage
 - `research_v5_cache_collapse_investigation.md` — Cache collapse investigation
+- `research_cache_semantics.md` — Cache semantics experiments and fact pairs
 - `20260604_katcoder_cache_regression_investigation.md` — Kat-coder cache regression investigation
 - `20260605_preexisting_test_failures_fix.md` — Pre-existing test failure analysis
 

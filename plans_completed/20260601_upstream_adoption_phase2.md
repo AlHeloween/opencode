@@ -59,8 +59,8 @@
 ### 17. [x] Processor Extractions — ensureToolCall, finishReasoning, completeToolCall all extracted as Effect.fn
 ### 18. [x] Summary Diff Lazy Compute — cfg?.snapshot === false guard at summary.ts:125
 ### 19. [ ] yield* db.transaction() Pattern — uses synchronous db.transaction() wrappers
-### 20. [x] Orphan Reasoning Delta Guard — guard at processor.ts:288
-### 21. [x] isOrphanedInterruptedTool() Guard — filter at prompt.ts:1300-1312
+### 20. [x] Orphan Reasoning Delta Guard — guard at processor.ts:360-361 (was 288, code shifted +72 lines since plan creation)
+### 21. [x] isOrphanedInterruptedTool() Guard — filter at prompt.ts:1134-1144 (was 1300-1312, code shifted -166 lines since plan creation)
 ### 22. [ ] Git Service Abstraction — not started
 
 ---

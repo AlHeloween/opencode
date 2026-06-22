@@ -90,10 +90,9 @@
 - **Issue:** `text()` function joined lines with `join("")`, but `@pierre/diffs` returns lines with inconsistent trailing `\n`. Single-line entries kept `\n`, multi-line entries stripped it from the last element.
 - **Fix:** Normalize by stripping trailing `\n` from each element, then `join("\n") + "\n"`. All 4 tests pass.
 
-### 13. Test Failures: `packages/enterprise` Storage Tests (16 failures)
+### 13. Test Failures: `packages/enterprise` Storage Tests (16 failures) — **[x] FIXED 2026-06-22**
 - **Files:** `packages/enterprise/test/core/share.test.ts`, `packages/enterprise/test/core/storage.test.ts`
-- **Issue:** Tests require `OPENCODE_STORAGE_ADAPTER` env var and S3/R2 credentials. Cannot run locally.
-- **Fix:** Add a mock/local storage adapter for development testing.
+- **Fix:** Created `packages/enterprise/src/core/storage.local.ts` — filesystem-based local adapter implementing `Storage.Adapter`. Updated `storage.ts` to fall back to local adapter when no S3/R2 credentials configured. All 16 tests pass without external services.
 
 ### 14. `complete_remaining_items.md` Has No Status Markers
 - **File:** `plans/20260601_complete_remaining_items.md`
@@ -175,7 +174,7 @@
 - [x] **P2:** Add existence checks before non-null assertions — 4 fixed, 23 safe, 2 cosmetic
 - [x] **P2:** Fix `packages/core` npm-config test failures — add package.json fixture
 - [x] **P2:** Fix `packages/ui` diff text test failures — normalize trailing newlines
-- [ ] **P2:** Add mock storage adapter for `packages/enterprise` tests
+- [x] **P2:** Add mock storage adapter for `packages/enterprise` tests — local filesystem adapter, 16/16 pass
 - [ ] **P2:** Update stale line numbers in `upstream_adoption_phase2.md`
 - [ ] **P2:** Update `index.md` completed plans count
 - [ ] **P3:** Reduce `catch (e: any)` to `unknown` (8 instances)

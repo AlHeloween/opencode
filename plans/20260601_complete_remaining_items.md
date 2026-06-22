@@ -7,7 +7,7 @@
 
 ## Part 1: Quick Wins (Low Effort, High Value)
 
-### 1.1 `drizzle.config.ts` — Enable future migrations
+### 1.1 [ ] `drizzle.config.ts` — Enable future migrations
 
 **File:** `packages/opencode/drizzle.config.ts` (NEW)
 **Effort:** 5 min
@@ -23,28 +23,28 @@ export default defineConfig({
 })
 ```
 
-### 1.2 `isOrphanedInterruptedTool()` guard
+### 1.2 [ ] `isOrphanedInterruptedTool()` guard
 
 **File:** `packages/opencode/src/session/prompt.ts` (MODIFY)
 **Effort:** 15 min
 **What:** Filter out tool parts with `state.status === "error" && state.metadata?.interrupted === true` from assistant prefill logic
 **Why:** Prevents interrupted tools from appearing in model context
 
-### 1.3 Summary diff lazy compute
+### 1.3 [ ] Summary diff lazy compute
 
 **File:** `packages/opencode/src/session/summary.ts` (MODIFY)
 **Effort:** 15 min
 **What:** Skip expensive diff computation when `config.snapshot === false`. Read diffs from stored message summary instead of recomputing.
 **Why:** Performance — diffs are expensive and often unused
 
-### 1.4 `yield* db.transaction()` pattern
+### 1.4 [ ] `yield* db.transaction()` pattern
 
 **File:** `packages/opencode/src/session/todo.ts` (MODIFY)
 **Effort:** 10 min
 **What:** Replace `Effect.sync(() => Database.transaction(...))` with `yield* db.transaction((tx) => Effect.gen(...))`
 **Why:** Cleaner effect code, better type safety
 
-### 1.5 Orphan reasoning delta guard
+### 1.5 [x] Orphan reasoning delta guard
 
 **File:** `packages/opencode/src/session/processor.ts` (MODIFY)
 **Effort:** 10 min
@@ -55,21 +55,21 @@ export default defineConfig({
 
 ## Part 2: Medium Effort
 
-### 2.1 EventV2Bridge → plugin layer
+### 2.1 [ ] EventV2Bridge → plugin layer
 
 **Files:** `packages/opencode/src/plugin/index.ts` (MODIFY)
 **Effort:** 1h
 **What:** Replace `bus.subscribeAll()` with `events.listen()` from `EventV2Bridge.Service`
 **Depends on:** EventV2Bridge.Service already exists in our codebase
 
-### 2.2 RuntimeFlags + Codex WebSocket flags
+### 2.2 [ ] RuntimeFlags + Codex WebSocket flags
 
 **Files:** `packages/opencode/src/plugin/index.ts` (MODIFY)
 **Effort:** 30 min
 **What:** Add `RuntimeFlags.defaultLayer` to plugin layer. Gate `experimentalWebSockets` behind flag in Codex plugin.
 **Depends on:** RuntimeFlags already exists in our codebase
 
-### 2.3 Processor extractions
+### 2.3 [ ] Processor extractions
 
 **Files:** `packages/opencode/src/session/processor.ts` (MODIFY)
 **Effort:** 1h
@@ -78,28 +78,28 @@ export default defineConfig({
 - `finishReasoning()` — flushes pending reasoning on step-finish
 - `toolResultOutput()` — normalizes both structured and raw tool result output
 
-### 2.4 Session usage tracking migration
+### 2.4 [ ] Session usage tracking migration
 
 **Files:** New migration file (NEW)
 **Effort:** 30 min
 **What:** Port upstream's `20260510033149_session_usage` migration — adds token tracking columns to session table
 **Note:** Adapt for our DB schema
 
-### 2.5 Tool resolution consolidation
+### 2.5 [ ] Tool resolution consolidation
 
 **Files:** `packages/opencode/src/session/tools.ts` (NEW)
 **Effort:** 1.5h
 **What:** Extract tool resolution logic from `prompt.ts` into dedicated module. Handles registry tools + MCP tools with context, permissions, plugin hooks.
 **Depends on:** Our existing tool registry and MCP integration
 
-### 2.6 LLM request preparation
+### 2.6 [ ] LLM request preparation
 
 **Files:** `packages/opencode/src/session/llm/request.ts` (NEW)
 **Effort:** 2h
 **What:** Consolidate system prompt assembly, message formatting, tool resolution, header construction, and provider-specific options into `LLMRequestPrep.prepare()`.
 **Note:** Adapted from upstream for our architecture
 
-### 2.7 Git service abstraction
+### 2.7 [ ] Git service abstraction
 
 **Files:** `packages/core/src/git.ts` (NEW)
 **Effort:** 1h
@@ -110,35 +110,35 @@ export default defineConfig({
 
 ## Part 3: External Package Dependencies
 
-### 3.1 Audio metadata extraction
+### 3.1 [ ] Audio metadata extraction
 
 **Package:** `music-metadata`
 **File:** `packages/opencode/src/attachment/handlers/audio.ts` (MODIFY)
 **Effort:** 30 min
 **What:** Parse WAV/MP3/OGG headers to extract duration, sample rate, channels, codec
 
-### 3.2 Video keyframe extraction
+### 3.2 [ ] Video keyframe extraction
 
 **Package:** `fluent-ffmpeg` or metadata-only
 **File:** `packages/opencode/src/attachment/handlers/video.ts` (MODIFY)
 **Effort:** 45 min
 **What:** Extract duration, dimensions, fps from container headers (no full decode needed)
 
-### 3.3 HDF5 sensor reader
+### 3.3 [ ] HDF5 sensor reader
 
 **Package:** `h5wasm`
 **File:** `packages/opencode/src/attachment/handlers/sensor.ts` (MODIFY)
 **Effort:** 1h
 **What:** Parse HDF5 files to extract dataset names, shapes, dtypes, attributes
 
-### 3.4 Image resizing
+### 3.4 [ ] Image resizing
 
 **Package:** `sharp` or `jimp`
 **File:** `packages/opencode/src/attachment/handlers/image.ts` (MODIFY)
 **Effort:** 1h
 **What:** Resize images per `ConfigAttachment.image.max_width/max_height` before storage
 
-### 3.5 Archive file listing
+### 3.5 [ ] Archive file listing
 
 **Package:** `adm-zip`, `tar-stream`
 **File:** `packages/opencode/src/attachment/handlers/archive.ts` (MODIFY)
@@ -151,28 +151,28 @@ export default defineConfig({
 
 These are scoped for awareness; implementation deferred to future sessions.
 
-### 4.1 ACP module
+### 4.1 [ ] ACP module
 **Scope:** 12 files, agent client protocol for third-party AI agent control
 
-### 4.2 HTTP API v2 restructure
+### 4.2 [ ] HTTP API v2 restructure
 **Scope:** Groups/handlers/middleware separation, cursor-based pagination
 
-### 4.3 MCP OAuth overhaul
+### 4.3 [ ] MCP OAuth overhaul
 **Scope:** Remote MCP server authentication with PKCE
 
-### 4.4 Catalog service
+### 4.4 [ ] Catalog service
 **Scope:** Centralized provider/model store — tied to architectural decision
 
-### 4.5 Auth V2 / Account service
+### 4.5 [ ] Auth V2 / Account service
 **Scope:** Multi-account credential management — tied to architectural decision
 
-### 4.6 PluginV2 hook rename
+### 4.6 [ ] PluginV2 hook rename
 **Scope:** `provider.update` → `catalog.transform` — tied to Catalog adoption
 
-### 4.7 FTS trigger update for `$.kind`
+### 4.7 [ ] FTS trigger update for `$.kind`
 **Scope:** Add `json_extract(new.data, '$.kind')` to FTS triggers
 
-### 4.8 Remove inline SQL (Phase A4)
+### 4.8 [ ] Remove inline SQL (Phase A4)
 **Scope:** Remove CORE_SCHEMA_SQL after migration system verified
 
 ---

@@ -13,57 +13,57 @@
 
 | [x] | File | Action |
 |-----|------|--------|
-| [ ] | `packages/opencode/src/cli/cmd/upgrade.ts` | **Delete** — the `opencode upgrade` CLI command |
-| [ ] | `packages/opencode/src/cli/upgrade.ts` | **Delete** — background upgrade check logic |
+| [x] | `packages/opencode/src/cli/cmd/upgrade.ts` | **Delete** — the `opencode upgrade` CLI command |
+| [x] | `packages/opencode/src/cli/upgrade.ts` | **Delete** — background upgrade check logic |
 
 **Dependencies removed**: `Installation.upgrade()`, `Installation.latest()`, `Flag.OPENCODE_DISABLE_AUTOUPDATE`, `Flag.OPENCODE_ALWAYS_NOTIFY_UPDATE`, `config.autoupdate`
 
-### Task 1.2: Clean Installation Module
+### Task 1.2: Clean Installation Module — **[x] VERIFIED 2026-06-23**
 
 **File**: `packages/opencode/src/installation/index.ts`
 
 | [ ] | Change | Detail |
 |-----|--------|--------|
-| [ ] | Keep `Method` type | Used by `uninstall.ts` as type annotation (`Installation.Method`) |
-| [ ] | Remove `ReleaseType` type | Used only by `getReleaseType()` |
-| [ ] | Remove `Event` block (lines 22-35) | `Updated` and `UpdateAvailable` bus events |
-| [ ] | Remove `getReleaseType()` (lines 37-47) | |
-| [ ] | Remove `Info` zod schema (lines 49-57) | |
-| [ ] | Remove `UpgradeFailedError` (lines 69-71) | |
-| [ ] | Remove `GitHubRelease`, `NpmPackage`, `BrewFormula`, `BrewInfoV2`, `ChocoPackage`, `ScoopManifest` schemas (lines 74-83) | Used only by `latest()` |
-| [ ] | Remove `latest()` from Interface (line 88) | |
-| [ ] | Remove `upgrade()` from Interface (line 89) | |
-| [ ] | Remove `upgradeCurl` function (lines 145-165) | |
-| [ ] | Remove `getBrewFormula` function (lines 137-143) | |
-| [ ] | Remove `latest()` implementation (lines 208-264) | |
-| [ ] | Remove `upgrade()` implementation (lines 265-322) | |
-| [ ] | Simplify `info()` implementation | Remove `latest:` field, only return `version` |
-| [ ] | Remove convenience exports `latest` and `upgrade` (lines 336-338) | Keep `method` export |
+| [x] | Keep `Method` type | Used by `uninstall.ts` as type annotation (`Installation.Method`) |
+| [x] | Remove `ReleaseType` type | Used only by `getReleaseType()` |
+| [x] | Remove `Event` block (lines 22-35) | `Updated` and `UpdateAvailable` bus events |
+| [x] | Remove `getReleaseType()` (lines 37-47) | |
+| [x] | Remove `Info` zod schema (lines 49-57) | |
+| [x] | Remove `UpgradeFailedError` (lines 69-71) | |
+| [x] | Remove `GitHubRelease`, `NpmPackage`, `BrewFormula`, `BrewInfoV2`, `ChocoPackage`, `ScoopManifest` schemas (lines 74-83) | Used only by `latest()` |
+| [x] | Remove `latest()` from Interface (line 88) | |
+| [x] | Remove `upgrade()` from Interface (line 89) | |
+| [x] | Remove `upgradeCurl` function (lines 145-165) | |
+| [x] | Remove `getBrewFormula` function (lines 137-143) | |
+| [x] | Remove `latest()` implementation (lines 208-264) | |
+| [x] | Remove `upgrade()` implementation (lines 265-322) | |
+| [x] | Simplify `info()` implementation | `info()` removed entirely — no version-info export needed |
+| [x] | Remove convenience exports `latest` and `upgrade` (lines 336-338) | Keep `method` export |
 
 **Kept**: `USER_AGENT`, `isPreview()`, `isLocal()`, `method()`, `info()` (simplified), `Service`, `layer`
 
-### Task 1.3: Remove Upgrade References from Entry Points
+### Task 1.3: Remove Upgrade References from Entry Points — **[x] VERIFIED 2026-06-23**
 
-| [ ] | File | Change |
+| [x] | File | Change |
 |-----|------|--------|
-| [ ] | `packages/opencode/src/index.ts` | Remove `import { UpgradeCommand }` (line 13), remove `.command(UpgradeCommand)` (line 120) |
-| [ ] | `packages/opencode/src/cli/cmd/tui/worker.ts` | Remove `import { upgrade } from "@/cli/upgrade"` (line 6), remove `checkUpgrade` RPC method (lines 73-81) and its call |
-| [ ] | `packages/opencode/src/cli/cmd/tui/thread.ts` | Remove `client.call("checkUpgrade", ...)` block (lines 224-226) |
-| [ ] | `packages/opencode/src/cli/cmd/tui/app.tsx` | Remove `event.on("installation.update-available", ...)` handler (lines 805-850) |
+| [x] | `packages/opencode/src/index.ts` | Remove `import { UpgradeCommand }` (line 13), remove `.command(UpgradeCommand)` (line 120) |
+| [x] | `packages/opencode/src/cli/cmd/tui/worker.ts` | Remove `import { upgrade } from "@/cli/upgrade"` (line 6), remove `checkUpgrade` RPC method (lines 73-81) and its call |
+| [x] | `packages/opencode/src/cli/cmd/tui/thread.ts` | Remove `client.call("checkUpgrade", ...)` block (lines 224-226) |
+| [x] | `packages/opencode/src/cli/cmd/tui/app.tsx` | Remove `event.on("installation.update-available", ...)` handler (lines 805-850) |
 
-### Task 1.4: Remove Config & Flag Controls
+### Task 1.4: Remove Config & Flag Controls — **[x] VERIFIED 2026-06-23**
 
-| [ ] | File | Change |
+| [x] | File | Change |
 |-----|------|--------|
-| [ ] | `packages/opencode/src/config/config.ts` | Remove `autoupdate` field (lines 134-137) |
-| [ ] | `packages/core/src/flag/flag.ts` | Remove `OPENCODE_DISABLE_AUTOUPDATE` (line 35), remove `OPENCODE_ALWAYS_NOTIFY_UPDATE` (line 36) |
+| [x] | `packages/opencode/src/config/config.ts` | Remove `autoupdate` field (lines 134-137) |
+| [x] | `packages/core/src/flag/flag.ts` | Remove `OPENCODE_DISABLE_AUTOUPDATE` (line 35), remove `OPENCODE_ALWAYS_NOTIFY_UPDATE` (line 36) |
 
-### Task 1.5: Remove Server Upgrade Routes
+### Task 1.5: Remove Server Upgrade Routes — **[x] VERIFIED 2026-06-23**
 
-| [ ] | File | Change |
+| [x] | File | Change |
 |-----|------|--------|
-| [ ] | `packages/opencode/src/server/routes/global.ts` | Remove `/upgrade` POST route (lines 214-286) and its `Installation` import used only by this route |
-| [ ] | `packages/opencode/src/server/routes/instance/httpapi/global.ts` | Remove `GlobalUpgradeInput`, `GlobalUpgradeResult` schemas, remove `upgrade` path from `GlobalPaths`, remove `upgrade` endpoint from `GlobalApi` |
+| [x] | `packages/opencode/src/server/routes/global.ts` | Remove `/upgrade` POST route (lines 214-286) and its `Installation` import used only by this route |
+| [x] | `packages/opencode/src/server/routes/instance/httpapi/global.ts` | Remove `GlobalUpgradeInput`, `GlobalUpgradeResult` schemas, remove `upgrade` path from `GlobalPaths`, remove `upgrade` endpoint from `GlobalApi` |
 
 ### Task 1.6: Remove Tauri Desktop Updater
 

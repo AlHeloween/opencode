@@ -351,12 +351,12 @@ export async function handler(
     logger.metric({
       "error.type": err.constructor.name,
       "error.message": err.message,
-      "error.cause": (err.cause as any)?.toString?.(),
+      "error.cause": err.cause instanceof Error ? err.cause.message : err.cause === undefined ? undefined : String(err.cause),
     })
     if (err.message.startsWith("Failed query")) {
       try {
         logger.metric({
-          "error.cause2": JSON.stringify(error.cause),
+          "error.cause2": JSON.stringify(err.cause),
         })
       } catch (e) {
         console.error("[zen] Failed to log error cause:", e)

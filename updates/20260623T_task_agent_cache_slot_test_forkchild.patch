@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/tool/task.test.ts
+@@
+-        const firstFiber = yield* executeTask(def, chat, assistant, firstOps).pipe(Effect.fork)
++        const firstFiber = yield* executeTask(def, chat, assistant, firstOps).pipe(Effect.forkChild)
+*** End Patch

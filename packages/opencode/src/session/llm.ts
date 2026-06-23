@@ -54,8 +54,8 @@ function hashInfo(input: unknown) {
   }
 }
 
-function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; content: string }) {
-  const key = [input.sessionID, input.agent, input.modelID].join(":")
+function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {
+  const key = input.cacheKey
   const hash = Number(Bun.hash(input.content))
   const prev = systemContentHashes.get(key)
   if (prev !== undefined && prev !== hash) {
@@ -63,6 +63,7 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
       sessionID: input.sessionID,
       agent: input.agent,
       modelID: input.modelID,
+      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
       prevHash: prev,
       newHash: hash,
     })
@@ -81,6 +82,7 @@ export type StreamInput = {
   user: MessageV2.User
   sessionID: string
   parentSessionID?: string
+  providerCacheKey?: string
   model: Provider.Model
   agent: Agent.Info
   permission?: Permission.Ruleset
@@ -193,10 +195,12 @@ const live: Layer.Layer<
 
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.
+      const providerCacheKey = input.providerCacheKey ?? [input.sessionID, input.agent.name, input.model.id].join(":")
       checkSystemStability({
         sessionID: input.sessionID,
         agent: input.agent.name,
         modelID: input.model.id,
+        cacheKey: providerCacheKey,
         content: system.join(""),
       })
 
@@ -209,7 +213,7 @@ const live: Layer.Layer<
         : ProviderTransform.options({
             model: input.model,
             sessionID: input.sessionID,
-            cacheKey: [input.sessionID, input.agent.name, input.model.id].join(":"),
+            cacheKey: providerCacheKey,
             providerOptions: item.options,
           })
       const options: Record<string, any> = pipe(

@@ -1,0 +1,9 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/tool/task.ts
+@@
+-      const cacheLease = taskID
++      const cacheLease = session
+         ? undefined
+         : acquireTaskCacheLease({
+             parentSessionID: ctx.sessionID,
+*** End Patch

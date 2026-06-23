@@ -22,6 +22,33 @@ export interface TaskPromptOps {
 }
 
 const id = "task"
+let taskCacheLeaseID = 0
+const taskCacheLeases = new Map<string, number>()
+
+function acquireTaskCacheLease(input: {
+  parentSessionID: SessionID
+  agent: string
+  providerID: string
+  modelID: string
+}) {
+  const scope = [input.parentSessionID, input.agent, input.providerID, input.modelID].join(":")
+  const slot = (() => {
+    for (let i = 1; ; i++) {
+      const candidate = `task-${i}`
+      if (!taskCacheLeases.has(`${scope}:${candidate}`)) return candidate
+    }
+  })()
+  const cacheKey = `${scope}:${slot}`
+  const token = ++taskCacheLeaseID
+  taskCacheLeases.set(cacheKey, token)
+  return {
+    cacheKey,
+    slot,
+    release: Effect.sync(() => {
+      if (taskCacheLeases.get(cacheKey) === token) taskCacheLeases.delete(cacheKey)
+    }),
+  }
+}
 
 export const Parameters = Schema.Struct({
   description: Schema.String.annotate({ description: "A short (3-5 words) description of the task" }),
@@ -126,6 +153,14 @@ export const TaskTool = Tool.define(
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
       }
+      const cacheLease = session
+        ? undefined
+        : acquireTaskCacheLease({
+            parentSessionID: ctx.sessionID,
+            agent: next.name,
+            providerID: model.providerID,
+            modelID: model.modelID,
+          })
 
       // Diagnostic: log when task agent model has different context window than parent
       const parentModel = { modelID: msg.info.modelID, providerID: msg.info.providerID }
@@ -171,6 +206,7 @@ export const TaskTool = Tool.define(
               const result = yield* ops.prompt({
                 messageID,
                 sessionID: nextSession.id,
+                providerCacheKey: cacheLease?.cacheKey,
                 model: {
                   modelID: model.modelID,
                   providerID: model.providerID,
@@ -184,8 +220,8 @@ export const TaskTool = Tool.define(
                 parts,
               })
               return result.parts.findLast((item) => item.type === "text")?.text ?? ""
-            }),
-          })
+            }).pipe(Effect.ensuring(cacheLease?.release ?? Effect.void)),
+          }).pipe(Effect.tapError(() => cacheLease?.release ?? Effect.void))
           return {
             title: params.description,
             metadata: {
@@ -217,6 +253,7 @@ export const TaskTool = Tool.define(
             const result = yield* ops.prompt({
               messageID,
               sessionID: nextSession.id,
+              providerCacheKey: cacheLease?.cacheKey,
               model: {
                 modelID: model.modelID,
                 providerID: model.providerID,
@@ -248,6 +285,7 @@ export const TaskTool = Tool.define(
         (_, exit) =>
           Effect.gen(function* () {
             if (Exit.hasInterrupts(exit)) yield* cancel
+            if (cacheLease) yield* cacheLease.release
           }).pipe(
             Effect.ensuring(
               Effect.sync(() => {

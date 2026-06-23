@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/tool/task.ts
+@@
+-          }).pipe(Effect.onError(() => cacheLease?.release ?? Effect.void))
++          }).pipe(Effect.tapError(() => cacheLease?.release ?? Effect.void))
+*** End Patch

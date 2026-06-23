@@ -729,6 +729,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
         },
         system: input.system,
         format: input.format,
+        providerCacheKey: input.providerCacheKey,
       }
 
       yield* Effect.addFinalizer(() => instruction.clear(info.id))
@@ -1299,6 +1300,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 permission: session.permission,
                 sessionID,
                 parentSessionID: session.parentID,
+                providerCacheKey: lastUser.providerCacheKey,
                 system,
                 messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
                 tools,
@@ -1602,6 +1604,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               permission: session.permission,
               sessionID,
               parentSessionID: session.parentID,
+              providerCacheKey: lastUser.providerCacheKey,
               system,
               messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
               tools,
@@ -1888,6 +1891,7 @@ export const PromptInput = Schema.Struct({
   format: Schema.optional(MessageV2.Format),
   system: Schema.optional(Schema.String),
   variant: Schema.optional(Schema.String),
+  providerCacheKey: Schema.optional(Schema.String),
   parts: Schema.Array(
     Schema.Union([
       MessageV2.TextPartInput,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Deferred, Effect, Fiber, Layer } from "effect"
+import type * as Tool from "../../src/tool/tool"
 import { Agent } from "../../src/agent/agent"
 import { Config } from "@/config/config"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
@@ -108,6 +109,31 @@ function reply(input: SessionPrompt.PromptInput, text: string): MessageV2.WithPa
       },
     ],
   }
+}
+
+function executeTask(
+  def: Omit<Tool.InferDef<typeof TaskTool>, "id">,
+  chat: Session.Info,
+  assistant: MessageV2.Assistant,
+  promptOps: TaskPromptOps,
+) {
+  return def.execute(
+    {
+      description: "inspect bug",
+      prompt: "look into the cache key path",
+      subagent_type: "general",
+    },
+    {
+      sessionID: chat.id,
+      messageID: assistant.id,
+      agent: "build",
+      abort: new AbortController().signal,
+      extra: { promptOps },
+      messages: [],
+      metadata: () => Effect.void,
+      ask: () => Effect.void,
+    },
+  )
 }
 
 describe("tool.task", () => {
@@ -313,6 +339,68 @@ describe("tool.task", () => {
         expect(result.metadata.sessionId).not.toBe("ses_missing")
         expect(result.output).toContain(`task_id: ${result.metadata.sessionId}`)
         expect(seen?.sessionID).toBe(result.metadata.sessionId)
+      }),
+    ),
+  )
+
+  it.live("execute reuses released cache slot for sequential fresh tasks", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        const seen: string[] = []
+        const promptOps = stubOps({
+          onPrompt: (input) => {
+            if (input.providerCacheKey) seen.push(input.providerCacheKey)
+          },
+        })
+
+        const first = yield* executeTask(def, chat, assistant, promptOps)
+        const second = yield* executeTask(def, chat, assistant, promptOps)
+
+        expect(first.metadata.sessionId).not.toBe(second.metadata.sessionId)
+        expect(seen).toHaveLength(2)
+        expect(seen[0]).toBe(seen[1])
+        expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
+      }),
+    ),
+  )
+
+  it.live("execute isolates cache slots for concurrent fresh tasks", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        const firstStarted = yield* Deferred.make<string>()
+        const releaseFirst = yield* Deferred.make<void>()
+        let secondKey = ""
+        const firstOps: TaskPromptOps = {
+          cancel: () => Effect.void,
+          resolvePromptParts: (template) => Effect.succeed([{ type: "text" as const, text: template }]),
+          prompt: (input) =>
+            Effect.gen(function* () {
+              yield* Deferred.succeed(firstStarted, input.providerCacheKey ?? "")
+              yield* Deferred.await(releaseFirst)
+              return reply(input, "first")
+            }),
+        }
+        const secondOps = stubOps({
+          text: "second",
+          onPrompt: (input) => {
+            secondKey = input.providerCacheKey ?? ""
+          },
+        })
+
+        const firstFiber = yield* executeTask(def, chat, assistant, firstOps).pipe(Effect.forkChild)
+        const firstKey = yield* Deferred.await(firstStarted)
+        yield* executeTask(def, chat, assistant, secondOps)
+        yield* Deferred.succeed(releaseFirst, undefined)
+        yield* Fiber.join(firstFiber)
+
+        expect(firstKey).toContain(`${chat.id}:general:test:test-model:task-1`)
+        expect(secondKey).toContain(`${chat.id}:general:test:test-model:task-2`)
       }),
     ),
   )

@@ -1,0 +1,258 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/message-v2.ts
+@@
+   system: Schema.optional(Schema.String),
+   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
++  providerCacheKey: Schema.optional(Schema.String),
+ })
+   .annotate({ identifier: "UserMessage" })
+   .pipe(withStatics((s) => ({ zod: zod(s) })))
+*** Update File: packages/opencode/src/session/llm.ts
+@@
+-function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; content: string }) {
++function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {
+-  const key = [input.sessionID, input.agent, input.modelID].join(":")
++  const key = input.cacheKey
+   const hash = Number(Bun.hash(input.content))
+   const prev = systemContentHashes.get(key)
+   if (prev !== undefined && prev !== hash) {
+     log.warn("bug: system prompt content changed mid-session", {
+       sessionID: input.sessionID,
+       agent: input.agent,
+       modelID: input.modelID,
++      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
+       prevHash: prev,
+       newHash: hash,
+     })
+@@
+   parentSessionID?: string
++  providerCacheKey?: string
+   model: Provider.Model
+   agent: Agent.Info
+@@
+       // Detect cache-poisoning: if one agent/model's system prompt content changes
+       // while its provider cache key is stable, the provider cache is invalidated.
++      const providerCacheKey = input.providerCacheKey ?? [input.sessionID, input.agent.name, input.model.id].join(":")
+       checkSystemStability({
+         sessionID: input.sessionID,
+         agent: input.agent.name,
+         modelID: input.model.id,
++        cacheKey: providerCacheKey,
+         content: system.join(""),
+       })
+@@
+         : ProviderTransform.options({
+             model: input.model,
+             sessionID: input.sessionID,
+-            cacheKey: [input.sessionID, input.agent.name, input.model.id].join(":"),
++            cacheKey: providerCacheKey,
+             providerOptions: item.options,
+           })
+*** Update File: packages/opencode/src/session/prompt.ts
+@@
+         system: input.system,
+         format: input.format,
++        providerCacheKey: input.providerCacheKey,
+       }
+@@
+                 sessionID,
+                 parentSessionID: session.parentID,
++                providerCacheKey: lastUser.providerCacheKey,
+                 system,
+                 messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
+@@
+               sessionID,
+               parentSessionID: session.parentID,
++              providerCacheKey: lastUser.providerCacheKey,
+               system,
+               messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
+@@
+   variant: Schema.optional(Schema.String),
++  providerCacheKey: Schema.optional(Schema.String),
+   parts: Schema.Array(
+*** Update File: packages/opencode/src/tool/task.ts
+@@
+ import { Jobs } from "../jobs"
+ 
+ export interface TaskPromptOps {
+@@
+ 
+ const id = "task"
++let taskCacheLeaseID = 0
++const taskCacheLeases = new Map<string, number>()
++
++function acquireTaskCacheLease(input: {
++  parentSessionID: SessionID
++  agent: string
++  providerID: string
++  modelID: string
++}) {
++  const scope = [input.parentSessionID, input.agent, input.providerID, input.modelID].join(":")
++  const slot = (() => {
++    for (let i = 1; ; i++) {
++      const candidate = `task-${i}`
++      if (!taskCacheLeases.has(`${scope}:${candidate}`)) return candidate
++    }
++  })()
++  const cacheKey = `${scope}:${slot}`
++  const token = ++taskCacheLeaseID
++  taskCacheLeases.set(cacheKey, token)
++  return {
++    cacheKey,
++    slot,
++    release: Effect.sync(() => {
++      if (taskCacheLeases.get(cacheKey) === token) taskCacheLeases.delete(cacheKey)
++    }),
++  }
++}
+ 
+ export const Parameters = Schema.Struct({
+@@
+       const model = taskOverride ?? next.model ?? {
+         modelID: msg.info.modelID,
+         providerID: msg.info.providerID,
+       }
++      const cacheLease = taskID
++        ? undefined
++        : acquireTaskCacheLease({
++            parentSessionID: ctx.sessionID,
++            agent: next.name,
++            providerID: model.providerID,
++            modelID: model.modelID,
++          })
+@@
+               const parts = yield* ops.resolvePromptParts(params.prompt)
+               const result = yield* ops.prompt({
+                 messageID,
+                 sessionID: nextSession.id,
++                providerCacheKey: cacheLease?.cacheKey,
+                 model: {
+                   modelID: model.modelID,
+@@
+-              return result.parts.findLast((item) => item.type === "text")?.text ?? ""
+-            }),
+-          })
++              return result.parts.findLast((item) => item.type === "text")?.text ?? ""
++            }).pipe(Effect.ensuring(cacheLease?.release ?? Effect.void)),
++          }).pipe(Effect.onError(() => cacheLease?.release ?? Effect.void))
+           return {
+@@
+             const parts = yield* ops.resolvePromptParts(params.prompt)
+             const result = yield* ops.prompt({
+               messageID,
+               sessionID: nextSession.id,
++              providerCacheKey: cacheLease?.cacheKey,
+               model: {
+                 modelID: model.modelID,
+@@
+             if (Exit.hasInterrupts(exit)) yield* cancel
++            if (cacheLease) yield* cacheLease.release
+           }).pipe(
+*** Update File: packages/opencode/test/tool/task.test.ts
+@@
+-import { Effect, Layer } from "effect"
++import { Deferred, Effect, Fiber, Layer } from "effect"
++import type * as Tool from "../../src/tool/tool"
+@@
+ function reply(input: SessionPrompt.PromptInput, text: string): MessageV2.WithParts {
+@@
+   }
+ }
++
++function executeTask(
++  def: Omit<Tool.InferDef<typeof TaskTool>, "id">,
++  chat: Session.Info,
++  assistant: MessageV2.Assistant,
++  promptOps: TaskPromptOps,
++) {
++  return def.execute(
++    {
++      description: "inspect bug",
++      prompt: "look into the cache key path",
++      subagent_type: "general",
++    },
++    {
++      sessionID: chat.id,
++      messageID: assistant.id,
++      agent: "build",
++      abort: new AbortController().signal,
++      extra: { promptOps },
++      messages: [],
++      metadata: () => Effect.void,
++      ask: () => Effect.void,
++    },
++  )
++}
+ 
+ describe("tool.task", () => {
+@@
+         expect(result.output).toContain(`task_id: ${result.metadata.sessionId}`)
+         expect(seen?.sessionID).toBe(result.metadata.sessionId)
+       }),
+     ),
+   )
++
++  it.live("execute reuses released cache slot for sequential fresh tasks", () =>
++    provideTmpdirInstance(() =>
++      Effect.gen(function* () {
++        const { chat, assistant } = yield* seed()
++        const tool = yield* TaskTool
++        const def = yield* tool.init()
++        const seen: string[] = []
++        const promptOps = stubOps({
++          onPrompt: (input) => {
++            if (input.providerCacheKey) seen.push(input.providerCacheKey)
++          },
++        })
++
++        const first = yield* executeTask(def, chat, assistant, promptOps)
++        const second = yield* executeTask(def, chat, assistant, promptOps)
++
++        expect(first.metadata.sessionId).not.toBe(second.metadata.sessionId)
++        expect(seen).toHaveLength(2)
++        expect(seen[0]).toBe(seen[1])
++        expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
++      }),
++    ),
++  )
++
++  it.live("execute isolates cache slots for concurrent fresh tasks", () =>
++    provideTmpdirInstance(() =>
++      Effect.gen(function* () {
++        const { chat, assistant } = yield* seed()
++        const tool = yield* TaskTool
++        const def = yield* tool.init()
++        const firstStarted = yield* Deferred.make<string>()
++        const releaseFirst = yield* Deferred.make<void>()
++        let secondKey = ""
++        const firstOps: TaskPromptOps = {
++          cancel: () => Effect.void,
++          resolvePromptParts: (template) => Effect.succeed([{ type: "text" as const, text: template }]),
++          prompt: (input) =>
++            Effect.gen(function* () {
++              yield* Deferred.succeed(firstStarted, input.providerCacheKey ?? "")
++              yield* Deferred.await(releaseFirst)
++              return reply(input, "first")
++            }),
++        }
++        const secondOps = stubOps({
++          text: "second",
++          onPrompt: (input) => {
++            secondKey = input.providerCacheKey ?? ""
++          },
++        })
++
++        const firstFiber = yield* executeTask(def, chat, assistant, firstOps).pipe(Effect.fork)
++        const firstKey = yield* Deferred.await(firstStarted)
++        yield* executeTask(def, chat, assistant, secondOps)
++        yield* Deferred.succeed(releaseFirst, undefined)
++        yield* Fiber.join(firstFiber)
++
++        expect(firstKey).toContain(`${chat.id}:general:test:test-model:task-1`)
++        expect(secondKey).toContain(`${chat.id}:general:test:test-model:task-2`)
++      }),
++    ),
++  )
+ 
+   it.live("execute shapes child permissions for task, todowrite, and primary tools", () =>
+*** End Patch

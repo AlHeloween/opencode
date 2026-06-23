@@ -346,13 +346,14 @@ export async function handler(
       statusText: res.statusText,
       headers: resHeaders,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error))
     logger.metric({
-      "error.type": error.constructor.name,
-      "error.message": error.message,
-      "error.cause": error.cause?.toString(),
+      "error.type": err.constructor.name,
+      "error.message": err.message,
+      "error.cause": (err.cause as any)?.toString?.(),
     })
-    if (error.message.startsWith("Failed query")) {
+    if (err.message.startsWith("Failed query")) {
       try {
         logger.metric({
           "error.cause2": JSON.stringify(error.cause),

@@ -54,9 +54,13 @@ const ctx = yield* Effect.async((resume) => {
 })
 ```
 
-### project-init-git timeout
+### project-init-git timeout — **[ ] VERIFIED 2026-06-23 (deferred)**
 
-**Root cause**: `InstanceBootstrap` triggers a chain that blocks on npm install fibers.
+**Root cause confirmed**: `InstanceBootstrap` → `Config.get()` → `loadInstanceState()` forks npm install fibers → `Plugin.init()` → `waitForDependencies()` → `Fiber.join` on all npm fibers. When `Instance.reload()` is called synchronously from the HTTP handler, the reloaded instance blocks on the same npm install fibers, causing a 5s timeout.
+
+**Test file**: `packages/opencode/test/server/project-init-git.test.ts` — first test times out. Second test (already-git) passes.
+
+**Fix needed**: Deferred reload pattern — make `Instance.reload()` async so the HTTP response returns before bootstrap re-completes. Or mock `InstanceBootstrap` in tests to skip npm install. Requires fiber coordination changes.
 
 The execution flow when `initGit` is called:
 1. Handler calls `Instance.reload()` → `boot()` → `AppRuntime.runPromise(InstanceBootstrap)`

@@ -347,7 +347,7 @@ export default new Hono<{ Bindings: Env }>()
       })
 
       return c.json({ token: installationAuth.token })
-    } catch (e: any) {
+    } catch (e: unknown) {
       let error = e
       if (e instanceof Error) {
         error = e.message

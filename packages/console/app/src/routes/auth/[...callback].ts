@@ -34,10 +34,10 @@ export async function GET(input: APIEvent) {
     })
     const next = url.pathname === "/auth/callback" ? "/auth" : url.pathname.replace("/auth/callback", "")
     return redirect(route(locale, next))
-  } catch (e: any) {
+  } catch (e: unknown) {
     return new Response(
       JSON.stringify({
-        error: e.message,
+        error: e instanceof Error ? e.message : String(e),
         cause: Object.fromEntries(url.searchParams.entries()),
       }),
       { status: 500 },

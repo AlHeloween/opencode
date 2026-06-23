@@ -118,14 +118,14 @@ export namespace Billing {
         off_session: true,
         payment_method: paymentMethodID!,
       })
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("[billing] reload failed:", e)
       await Database.use((tx) =>
         tx
           .update(BillingTable)
           .set({
             reload: false,
-            reloadError: e.message ?? "Payment failed.",
+            reloadError: e instanceof Error ? e.message : "Payment failed.",
             timeReloadError: sql`now()`,
           })
           .where(eq(BillingTable.workspaceID, Actor.workspace())),
@@ -371,10 +371,11 @@ export namespace Billing {
       try {
         const session = await createSession()
         return session.url
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const err = e as { type?: string; message?: string }
         if (
-          e.type !== "StripeInvalidRequestError" ||
-          !e.message.includes("You cannot combine currencies on a single customer")
+          err.type !== "StripeInvalidRequestError" ||
+          !err.message?.includes("You cannot combine currencies on a single customer")
         )
           throw e
 

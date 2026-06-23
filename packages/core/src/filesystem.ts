@@ -209,8 +209,8 @@ export namespace AppFileSystem {
     const resolved = pathResolve(windowsPath(p))
     try {
       return normalizePath(realpathSync(resolved))
-    } catch (e: any) {
-      if (e?.code === "ENOENT") return normalizePath(resolved)
+    } catch (e: unknown) {
+      if ((e as NodeJS.ErrnoException)?.code === "ENOENT") return normalizePath(resolved)
       throw e
     }
   }

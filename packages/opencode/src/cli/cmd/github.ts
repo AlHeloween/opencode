@@ -687,10 +687,10 @@ export const GithubRunCommand = cmd({
             await removeReaction(commentType)
           }
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         exitCode = 1
         Log.Default.warn("bug: github command failed", { error: e instanceof Error ? e.message : String(e) })
-        let msg = e
+        let msg: string = e instanceof Error ? e.message : String(e)
         if (e instanceof Process.RunFailedError) {
           msg = e.stderr.toString()
         } else if (e instanceof Error) {

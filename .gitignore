@@ -43,3 +43,8 @@ bin/
 bin_tst/
 dist/
 .adid_rag/
+*.adid.log.jsonl
+*.backup_*
+*.baseline
+artifacts/
+packages/enterprise/.opencode/

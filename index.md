@@ -47,8 +47,7 @@
 ### `plans/` — Active Plans
 - `20260605_preexisting_provider_git_init.md` — Provider/git-init test failure fixes
 - `20260604_project_analysis_issues.md` — Project analysis issue backlog
-- `20260601_upstream_adoption_phase2.md` — Upstream adoption phase 2 tracking
-- `20260601_complete_remaining_items.md` — Remaining implementation items tracking
+- `20260623_remaining_items.md` — Remaining implementation items (12 open across Parts 1-3)
 
 ### `plans_completed/` — Completed Plans
 - `20260615_fix_premature_compaction_json_inflation.md` — Fixed premature compaction from JSON/4 token inflation

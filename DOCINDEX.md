@@ -72,7 +72,7 @@ This index tracks all documentation surfaces in the repository with ownership, e
 |----------|-------|--------|---------------|
 | `plans/20260605_preexisting_provider_git_init.md` | OpenCode team | active | 2026-06-22 |
 | `plans/20260604_project_analysis_issues.md` | OpenCode team | active | 2026-06-22 |
-| `plans/20260601_complete_remaining_items.md` | OpenCode team | active | 2026-06-22 |
+| `plans/20260623_remaining_items.md` | OpenCode team | active | 2026-06-23 |
 
 ---
 
@@ -80,6 +80,7 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 | Document | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|
+| `plans_completed/20260601_complete_remaining_items.md` | OpenCode team | completed | 2026-06-23 |
 | `plans_completed/PERF_PLAN.md` | OpenCode team | completed | 2026-05-18 |
 | `plans_completed/unified-logging.md` | OpenCode team | completed | 2026-05-18 |
 | `plans_completed/per-project-db-remaining.md` | OpenCode team | completed | 2026-05-18 |

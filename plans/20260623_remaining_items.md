@@ -1,7 +1,14 @@
-# Complete Remaining Items Plan
+# Remaining Items Plan
 
-**Created:** 2026-06-01
-**Status:** Plan — covers all remaining items from upstream adoption, universal attachment, migration, and plugin alignment
+**Created:** 2026-06-23 — carried forward from `20260601_complete_remaining_items.md` (now in `plans_completed/`)
+**Status:** Active — 12 open items across Parts 1-3; Part 4 is deferred scoping
+
+Resolved in prior plan (2026-06-23):
+- 1.4 REJECTED — `Effect.sync(() => tx(...))` is correct for sync `Database.transaction()`
+- 1.5 [x] Orphan reasoning delta guard
+- 2.1 [x] EventV2Bridge → `eventsBus.all()` replaces `bus.subscribeAll()`
+- 2.3 [x] `ensureToolCall()` and `finishReasoning()` already extracted; `toolResultOutput()` no-op (AI SDK normalizes)
+- 2.7 [x] Git service abstraction — already exists at `packages/opencode/src/git/index.ts` (260 lines)
 
 ---
 
@@ -37,30 +44,9 @@ export default defineConfig({
 **What:** Skip expensive diff computation when `config.snapshot === false`. Read diffs from stored message summary instead of recomputing.
 **Why:** Performance — diffs are expensive and often unused
 
-### 1.4 [ ] `yield* db.transaction()` pattern
-
-**File:** `packages/opencode/src/session/todo.ts` (MODIFY)
-**Effort:** 10 min
-**What:** Replace `Effect.sync(() => Database.transaction(...))` with `yield* db.transaction((tx) => Effect.gen(...))`
-**Why:** Cleaner effect code, better type safety
-
-### 1.5 [x] Orphan reasoning delta guard
-
-**File:** `packages/opencode/src/session/processor.ts` (MODIFY)
-**Effort:** 10 min
-**What:** Silently drop `reasoning-delta` events without preceding `reasoning-start`
-**Why:** Bug fix — malformed event streams can crash the processor
-
 ---
 
 ## Part 2: Medium Effort
-
-### 2.1 [ ] EventV2Bridge → plugin layer
-
-**Files:** `packages/opencode/src/plugin/index.ts` (MODIFY)
-**Effort:** 1h
-**What:** Replace `bus.subscribeAll()` with `events.listen()` from `EventV2Bridge.Service`
-**Depends on:** EventV2Bridge.Service already exists in our codebase
 
 ### 2.2 [ ] RuntimeFlags + Codex WebSocket flags
 
@@ -68,15 +54,6 @@ export default defineConfig({
 **Effort:** 30 min
 **What:** Add `RuntimeFlags.defaultLayer` to plugin layer. Gate `experimentalWebSockets` behind flag in Codex plugin.
 **Depends on:** RuntimeFlags already exists in our codebase
-
-### 2.3 [ ] Processor extractions
-
-**Files:** `packages/opencode/src/session/processor.ts` (MODIFY)
-**Effort:** 1h
-**What:** Extract three functions from inline logic:
-- `ensureToolCall()` — consolidates tool creation
-- `finishReasoning()` — flushes pending reasoning on step-finish
-- `toolResultOutput()` — normalizes both structured and raw tool result output
 
 ### 2.4 [ ] Session usage tracking migration
 
@@ -92,19 +69,13 @@ export default defineConfig({
 **What:** Extract tool resolution logic from `prompt.ts` into dedicated module. Handles registry tools + MCP tools with context, permissions, plugin hooks.
 **Depends on:** Our existing tool registry and MCP integration
 
-### 2.6 [ ] LLM request preparation
+### 2.6 [ ] LLM request preparation — DEFERRED
 
 **Files:** `packages/opencode/src/session/llm/request.ts` (NEW)
 **Effort:** 2h
 **What:** Consolidate system prompt assembly, message formatting, tool resolution, header construction, and provider-specific options into `LLMRequestPrep.prepare()`.
 **Note:** Adapted from upstream for our architecture
-
-### 2.7 [ ] Git service abstraction
-
-**Files:** `packages/core/src/git.ts` (NEW)
-**Effort:** 1h
-**What:** Clone, checkout, branch, status as Effect service
-**Why:** Cleaner than ad-hoc git calls
+**Status:** DEFERRED — 383-line `LLM.run()` works correctly; refactor is cleanliness-only, no bug to fix
 
 ---
 

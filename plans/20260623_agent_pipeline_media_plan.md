@@ -340,104 +340,207 @@ ToolRegistry.register({
 
 ## Module C: Multimedia TUI Output
 
-**Goal:** Render non-text tool outputs (images, audio, video) in the terminal UI.
+**Goal:** Render non-text tool outputs (images, audio, video) via child processes (chafa, mpv, ffmpeg). No custom escape sequences — proven approach from experiments.
 
-### C.1 Image rendering — terminal protocol + ASCII fallback
+**Test results (2026-06-23, Windows Terminal, cmd_runner --terminal wt):**
+| Renderer | Result | Use |
+|----------|--------|-----|
+| chafa `--format kitty` | No render | Drop |
+| chafa `--format sixel` | No render | Drop |
+| chafa `--format symbols --color-space rgb` | Works | **Primary image renderer** |
+| mpv `--vo=tct --tct-algo=half-blocks` | Works | **Video inline preview** |
+| mpv `--vo=gpu` (spawned) | Works | **Video full playback** |
+| mpv `--vo=null` (audio) | Works | **Audio playback** |
+
+### C.1 Image rendering — chafa symbols
 
 **File:** `packages/ui/src/components/media/image.tsx` (NEW)
-**Effort:** 1h
+**Effort:** 30 min
+
+Single renderer, single path. No protocol detection.
 
 ```typescript
-// Detect terminal capabilities
-function detectImageProtocol(): "kitty" | "iterm2" | "sixel" | "none" {
-  // kitty: $TERM == "xterm-kitty"
-  // iterm2: $TERM_PROGRAM == "iTerm.app"  
-  // sixel: $TERM includes "sixel"
-  // fallback: "none"
-}
-
-// Kitty protocol: \x1b_Gf=24,t=d,...\x1b\\  (base64 PNG)
-// iterm2: \x1b]1337;File=inline=1;size=12345;...\x07 (base64)
-// sixel: print sixel-encoded data
-// ASCII: convert to block characters (limited resolution)
-
-export function ImageDisplay(props: { 
-  data: Uint8Array
-  mime: string 
-  maxWidth?: number 
-  maxHeight?: number 
-}): JSX.Element {
-  const protocol = detectImageProtocol()
-  
-  if (protocol === "kitty") return <KittyImage data={props.data} />
-  if (protocol === "iterm2") return <ITerm2Image data={props.data} />
-  if (protocol === "sixel") return <SixelImage data={props.data} />
-  
-  // ASCII fallback
-  return <ASCIIArt data={props.data} maxWidth={props.maxWidth ?? 80} />
+export function ImageDisplay(props: { url: string; mime: string }): JSX.Element {
+  // 1. Write data URL bytes to temp file
+  // 2. Get terminal dimensions from TUI context
+  // 3. Spawn: chafa --format symbols --color-space rgb --size {W}x{H} temp.png
+  // 4. chafa output renders directly to terminal stdout
+  // 5. Clean up temp file
 }
 ```
 
-### C.2 Audio metadata display
+**Command template:**
+```
+chafa --format symbols --color-space rgb --size {cols}x{rows} {file}
+```
 
-**File:** `packages/ui/src/components/media/audio.tsx` (NEW)
-**Effort:** 30 min
-
-Display audio metadata as a card:
-- Duration, sample rate, channels, codec
-- "Play" action that opens default OS player via `open` / `xdg-open` / `start`
-- Waveform placeholder (simple ASCII bar chart)
-
-### C.3 Video metadata display
+### C.2 Video rendering — mpv tct (inline) + mpv gpu (external)
 
 **File:** `packages/ui/src/components/media/video.tsx` (NEW)
 **Effort:** 30 min
 
-Display video metadata as a card:
-- Duration, dimensions, fps, codec
-- "Open" action for external player
-- First-frame thumbnail via protocol or ASCII
+Two modes:
+1. **Thumbnail/inline preview**: `ffmpeg` extract first frame → `chafa` symbols
+2. **Full playback**: `start "" mpv --vo=gpu {file}` (opens separate window)
+3. **Inline tct preview**: `mpv --vo=tct --tct-algo=half-blocks --no-audio --length=5 {file}`
 
-### C.4 Tool attachment → media rendering
+Metadata card shows: duration, dimensions, fps, codec + [Play] button.
+
+### C.3 Audio rendering — metadata card + play
+
+**File:** `packages/ui/src/components/media/audio.tsx` (NEW)
+**Effort:** 20 min
+
+Metadata card: duration, sample rate, channels, codec.
+[Play] spawns: `mpv --vo=null {file}` (terminal-integrated playback).
+
+### C.4 Tool attachment → media routing
 
 **File:** `packages/ui/src/components/message-part.tsx` (MODIFY, ~line 1301)
-**Effort:** 45 min
+**Effort:** 30 min
 
-In `ToolPartDisplay`, detect when a tool has `attachments` with non-text mime types:
+In `ToolPartDisplay`, route by mime type on `attachments`:
 
 ```typescript
-// After existing tool render
 if (part().state.attachments?.length) {
   for (const att of part().state.attachments) {
-    if (att.mime.startsWith("image/")) {
-      // FilePart.url is a data URL (data:image/png;base64,...)
-      return <ImageDisplay url={att.url} mime={att.mime} />
-    }
-    if (att.mime.startsWith("audio/")) {
-      return <AudioCard metadata={att} />
-    }
-    if (att.mime.startsWith("video/")) {
-      return <VideoCard metadata={att} />
-    }
+    // FilePart.url is a data URL (data:image/png;base64,...)
+    if (att.mime.startsWith("image/")) return <ImageDisplay url={att.url} mime={att.mime} />
+    if (att.mime.startsWith("video/")) return <VideoCard url={att.url} metadata={att} />
+    if (att.mime.startsWith("audio/")) return <AudioCard url={att.url} metadata={att} />
   }
 }
 ```
 
-### C.5 Image display — data URL decode
+**Note:** No file part enrichment needed. `FilePart.url` (data URL) is already available — write to temp file, pass path to chafa/mpv.
 
-**File:** `packages/ui/src/components/media/image.tsx` (NEW, updated)
-**Effort:** included in C.1
+---
 
-`FilePart` stores binary data as a `url` field (data URL like `data:image/png;base64,...`), NOT as a `Uint8Array` content field. The image renderer must:
-1. Accept `url: string` (data URL)
-2. Decode the base64 payload from the data URL
-3. Pass decoded bytes to the terminal protocol renderer
+## Module D: Multimodal Message Model + Capability Injection
+
+**Goal:** Treat image, audio, video as first-class assistant message parts (not just tool attachments) and inject output capabilities into the system prompt so the model knows what it can produce.
+
+### D.1 Add `FilePart` to assistant message parts
+
+**File:** `packages/opencode/src/session/message-v2.ts` (MODIFY)
+**Effort:** 20 min
+
+Current union (line ~310):
+```typescript
+export const AssistantMessagePart = Schema.Union([
+  TextPart, ToolPart, ReasoningPart, StepStartPart, StepFinishPart
+])
+```
+
+New:
+```typescript
+export const AssistantMessagePart = Schema.Union([
+  TextPart, ToolPart, ReasoningPart, StepStartPart, StepFinishPart, FilePart
+])
+```
+
+### D.2 Handle provider `file` stream events in processor
+
+**File:** `packages/opencode/src/session/processor.ts` (MODIFY)
+**Effort:** 30 min
+
+Add handler for provider `file` events in `handleEvent()`:
+```typescript
+case "file": {
+  yield* session.updatePart({
+    id: PartID.ascending(),
+    messageID: ctx.assistantMessage.id,
+    sessionID: ctx.sessionID,
+    type: "file",
+    mime: value.mediaType,
+    url: value.url,
+    filename: value.filename,
+  })
+  return
+}
+```
+
+### D.3 Capability-aware system prompt injection
+
+**File:** `packages/opencode/src/session/system.ts` or `prompt.ts` (MODIFY)
+**Effort:** 20 min
+
+In `environment()` or prompt assembly, append capability line based on `model.capabilities.output`:
 
 ```typescript
-function dataUrlToBytes(url: string): Uint8Array {
-  const base64 = url.split(",")[1]
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+function outputCapabilityLine(model: Provider.Model): string | undefined {
+  const modalities = Object.entries(model.capabilities.output)
+    .filter(([_, supported]) => supported)
+    .map(([mod]) => mod)
+  if (modalities.length <= 1) return undefined  // text-only = no injection
+  return `Output modalities: ${modalities.join(", ")}`
 }
+// Result: "Output modalities: text, image" or "Output modalities: text, image, audio"
+```
+
+Placed as the last line of the system prompt — minimal token cost, maximal signaling.
+
+### D.4 Render `FilePart` in assistant messages in TUI
+
+**File:** `packages/ui/src/components/message-part.tsx` (MODIFY, ~line 1400)
+**Effort:** 30 min
+
+In the assistant message renderer, detect `FilePart` and route to chafa/mpv:
+```typescript
+const partMapping = {
+  // ...existing
+  file: (props) => {
+    const part = () => props.part as FilePart
+    if (part().mime.startsWith("image/")) return <ImageDisplay url={part().url} mime={part().mime} />
+    if (part().mime.startsWith("video/")) return <VideoCard url={part().url} metadata={part()} />
+    if (part().mime.startsWith("audio/")) return <AudioCard url={part().url} metadata={part()} />
+    return <span>{part().filename ?? part().mime}</span>  // unknown file type
+  }
+}
+```
+
+### D.5 Update `toModelMessagesEffect` for assistant media in context
+
+**File:** `packages/opencode/src/session/message-v2.ts` (MODIFY)
+**Effort:** 20 min
+
+When converting conversation history for the model, assistant-originated `FilePart` entries need to be included. The model may need to reference "the image I generated earlier." Current code only handles user-originated file parts and tool result attachments.
+
+---
+
+## Module Connection Diagram
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  User: "generate a spectrogram of this audio"            │
+│  UserMessage: [TextPart, FilePart(audio.mp3)]            │
+└──────────────────────┬───────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────┐
+│  System prompt includes:                                 │
+│  "Output modalities: text, image"     ← Module D.3       │
+│                                                          │
+│  Assistant calls capability tool:     ← Module A         │
+│  "Which models process audio→image?"                     │
+└──────────────────────┬───────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────┐
+│  Assistant picks model, generates image                  │
+│  Processor creates FilePart            ← Module D.2       │
+│  AssistantMessage: [TextPart, FilePart(spectrogram.png)] │
+└──────────────────────┬───────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────┐
+│  TUI renders:                                            │
+│  "Here's the spectrogram:"                               │
+│  ┌─────────────────────────────────┐                     │
+│  │ ██████░░░░██████     ← Module C │  ← Module D.4       │
+│  │ chafa symbols inline            │                     │
+│  └─────────────────────────────────┘                     │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -445,21 +548,21 @@ function dataUrlToBytes(url: string): Uint8Array {
 ## Implementation Order
 
 ```
-A.1 (YAML schema) ─┬─ A.2 (CapabilityService) ── A.3 (capability tool) ── A.4 (registry) ── A.5 (TUI renderer)
-                   │
-B.1 (agent types) ─┴─ B.2 (pipeline tool) ── B.3 (TUI renderer)
-                   
-C.1 (image) ──── C.2 (audio) ──── C.3 (video) ──── C.4 (attachments) ──── C.5 (file part)
+A.1 ── A.2 ── A.3 ── A.4 ── A.5     (Capability Tool)
+B.1 ── B.2 ── B.3                    (Agent Pipeline)
+C.1 ── C.2 ── C.3 ── C.4            (Media TUI Rendering)
+D.1 ── D.2 ── D.3 ── D.4 ── D.5     (Multimodal Messages + Injection)
 ```
 
-**Parallelizable:** Modules A, B, C can start in parallel. Within each, subtasks are sequential.
+**Parallelizable:** Modules A, B, C, D can start in parallel. D.1 (schema change) should go first within Module D since everything depends on it.
 
 | Module | Total Time |
 |--------|-----------|
 | A (Capability Tool) | 3.2h |
 | B (Agent Pipeline) | 3.0h |
-| C (Media TUI) | 3.1h |
-| **Total** | **~9.3h** |
+| C (Media TUI) | 1.8h |
+| D (Multimodal Messages) | 2.0h |
+| **Total** | **~10.0h** |
 
 ---
 
@@ -474,5 +577,8 @@ C.1 (image) ──── C.2 (audio) ──── C.3 (video) ──── C.4 (
 1. `bun run typecheck` — zero errors in `packages/opencode` and `packages/ui`
 2. `capability` tool appears in tool list and model can invoke it
 3. Pipeline chains two agents and second agent receives first agent's output
-4. Image attachment from a tool result renders in TUI (protocol or ASCII)
-5. Audio/video attachments show metadata card with open action
+4. Image attachment renders via chafa symbols in TUI (tool result + assistant message)
+5. Video attachment shows mpv tct preview + gpu playback button
+6. Audio attachment shows metadata card + mpv playback button
+7. Multimodal model receives `Output modalities: text, image` in its system prompt
+8. Assistant `FilePart` renders inline between `TextPart` entries in the same turn

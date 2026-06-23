@@ -565,16 +565,3 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   },
 })
 
-// ADID_ROLLBACK (from adm.exe)
-// SDID_ROLLBACK {
-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/cli/cmd/tui/context/sync.tsx"
-//   "update_script": "adm.exe"
-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/cli/cmd/tui/context/sync.tsx.backup_20260531T214405_119107"
-//   "created_at": "2026-05-31T13:44:05.132623+00:00"
-//   "backup_hash": "62827e7ecf2648fb2f35e3fe7a1cac90"
-//   "new_hash": "62827e7ecf2648fb2f35e3fe7a1cac90"
-//   "goal_id": "format_delta_recovery_case"
-//   "semantics": "Restore standard local indentation for the message.part.delta recovery branch."
-//   "update_attrs": {"relative_path": "packages/opencode/src/cli/cmd/tui/context/sync.tsx", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "case \"message.part.delta\": {\n  const parts = store.part[event.properties.messageID]\n  if (!parts) {\n    recoverSessionSync(event.properties)\n    break\n  }\n  const result = Binary.search(parts, event.properties.partID, (p) => p.id)\n  if (!result.found) {\n    recoverSessionSync(event.properties)\n    break\n  }\n  setStore(\n    \"part\",\n    event.properties.messageID,\n    produce((draft) => {\n      const part = draft[result.index]\n      const field = event.properties.field as keyof typeof part\n      const existing = part[field] as string | undefined\n      ;(part[field] as string) = (existing ?? \"\") + event.properties.delta\n    }),\n  )\n  break\n}", "replace_present": true}
-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/cli/cmd/tui/context/sync.tsx\""
-// }

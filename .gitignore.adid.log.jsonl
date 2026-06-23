@@ -1,1 +1,0 @@
-{"timestamp": "2026-05-19T08:18:26.976558+00:00", "command": "--patch-tool", "patch": "updates\\20260519T083200_gitignore_test_deep.patch", "op": "update", "src": ".gitignore", "dst": null, "backup": ".gitignore.backup_20260519T161826_958015", "md5_before": "c37d52347c61a7e0c1140aed743ed383", "md5_after": "97bba85241feadf6d47bdec3b05bbfe2", "exists_after": true}

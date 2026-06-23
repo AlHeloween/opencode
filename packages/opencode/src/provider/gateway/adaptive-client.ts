@@ -789,16 +789,3 @@ export function logGatewayStatus(): void {
 
 export { initLogger }
 
-// ADID_ROLLBACK (from adm.exe)
-// SDID_ROLLBACK {
-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/provider/gateway/adaptive-client.ts"
-//   "update_script": "adm.exe"
-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/provider/gateway/adaptive-client.ts.backup_20260517T202649_455778"
-//   "created_at": "2026-05-17T12:26:49.472980+00:00"
-//   "backup_hash": "63df25d91281247765b2c7c16b6ae0f1"
-//   "new_hash": "fc0c52540e09934d517a42399f4eb6db"
-//   "goal_id": "gateway_use_body_stream_detection"
-//   "semantics": "Use explicit gateway stream flag when present, otherwise infer stream intent from JSON body."
-//   "update_attrs": {"relative_path": "packages/opencode/src/provider/gateway/adaptive-client.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "const isStream = init?.gatewayStream || false", "replace_present": true}
-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/provider/gateway/adaptive-client.ts\""
-// }

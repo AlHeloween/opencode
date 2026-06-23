@@ -903,7 +903,7 @@ export function options(input: {
 
   if (input.model.api.npm === "@ai-sdk/azure") {
     result["store"] = true
-    result["promptCacheKey"] = promptCacheKey
+    result["prompt_cache_key"] = promptCacheKey
   }
 
   if (input.model.api.npm === "@openrouter/ai-sdk-provider" || input.model.api.npm === "@llmgateway/ai-sdk-provider") {
@@ -936,6 +936,13 @@ export function options(input: {
     result["thinking"] = { type: "enabled" }
   }
 
+  // NVIDIA NIM requires chat_template_kwargs for DeepSeek V4 reasoning models.
+  // Without this, the API hangs indefinitely.
+  // See: https://github.com/anomalyco/opencode/issues/24264
+  if (input.model.providerID === "nvidia" && input.model.api.id.includes("deepseek-v4")) {
+    result["chat_template_kwargs"] = { thinking: true }
+  }
+
   if (
     input.model.providerID === "openai" ||
     input.model.api.npm === "@ai-sdk/openai-compatible" ||
@@ -943,12 +950,12 @@ export function options(input: {
     input.model.providerID === "deepseek" ||
     input.providerOptions?.setCacheKey
   ) {
-    tlog.info("promptCacheKey set", {
+    tlog.info("prompt_cache_key set", {
       providerID: input.model.providerID,
       apiNpm: input.model.api.npm,
       promptCacheKey,
     })
-    result["promptCacheKey"] = promptCacheKey
+    result["prompt_cache_key"] = promptCacheKey
   }
 
   if (input.model.api.npm === "@ai-sdk/google" || input.model.api.npm === "@ai-sdk/google-vertex") {

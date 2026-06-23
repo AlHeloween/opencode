@@ -117,13 +117,13 @@ describe("ProviderTransform.options - setCacheKey", () => {
     headers: {},
   } as any
 
-  test("should set promptCacheKey when providerOptions.setCacheKey is true", () => {
+  test("should set prompt_cache_key when providerOptions.setCacheKey is true", () => {
     const result = ProviderTransform.options({
       model: mockModel,
       sessionID,
       providerOptions: { setCacheKey: true },
     })
-    expect(result.promptCacheKey).toBe(`${sessionID}:${mockModel.id}`)
+    expect(result.prompt_cache_key).toBe(`${sessionID}:${mockModel.id}`)
   })
 
   test("should use explicit cacheKey when provided", () => {
@@ -133,33 +133,33 @@ describe("ProviderTransform.options - setCacheKey", () => {
       cacheKey: `${sessionID}:build:${mockModel.id}`,
       providerOptions: { setCacheKey: true },
     })
-    expect(result.promptCacheKey).toBe(`${sessionID}:build:${mockModel.id}`)
+    expect(result.prompt_cache_key).toBe(`${sessionID}:build:${mockModel.id}`)
   })
 
-  test("should not set promptCacheKey when providerOptions.setCacheKey is false", () => {
+  test("should not set prompt_cache_key when providerOptions.setCacheKey is false", () => {
     const result = ProviderTransform.options({
       model: mockModel,
       sessionID,
       providerOptions: { setCacheKey: false },
     })
-    expect(result.promptCacheKey).toBeUndefined()
+    expect(result.prompt_cache_key).toBeUndefined()
   })
 
-  test("should not set promptCacheKey when providerOptions is undefined", () => {
+  test("should not set prompt_cache_key when providerOptions is undefined", () => {
     const result = ProviderTransform.options({
       model: mockModel,
       sessionID,
       providerOptions: undefined,
     })
-    expect(result.promptCacheKey).toBeUndefined()
+    expect(result.prompt_cache_key).toBeUndefined()
   })
 
-  test("should not set promptCacheKey when providerOptions does not have setCacheKey", () => {
+  test("should not set prompt_cache_key when providerOptions does not have setCacheKey", () => {
     const result = ProviderTransform.options({ model: mockModel, sessionID, providerOptions: {} })
-    expect(result.promptCacheKey).toBeUndefined()
+    expect(result.prompt_cache_key).toBeUndefined()
   })
 
-  test("should set promptCacheKey for openai provider regardless of setCacheKey", () => {
+  test("should set prompt_cache_key for openai provider regardless of setCacheKey", () => {
     const openaiModel = {
       ...mockModel,
       providerID: "openai",
@@ -170,7 +170,91 @@ describe("ProviderTransform.options - setCacheKey", () => {
       },
     }
     const result = ProviderTransform.options({ model: openaiModel, sessionID, providerOptions: {} })
-    expect(result.promptCacheKey).toBe(`${sessionID}:${openaiModel.id}`)
+    expect(result.prompt_cache_key).toBe(`${sessionID}:${openaiModel.id}`)
+  })
+
+  test("should set prompt_cache_key for openai-compatible providers (NVIDIA, DeepSeek, etc.)", () => {
+    const compatModel = {
+      ...mockModel,
+      providerID: "nvidia",
+      api: {
+        id: "deepseek-ai/deepseek-v4-pro",
+        url: "https://integrate.api.nvidia.com/v1",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    }
+    const result = ProviderTransform.options({ model: compatModel, sessionID, providerOptions: {} })
+    expect(result.prompt_cache_key).toBe(`${sessionID}:${compatModel.id}`)
+  })
+
+  test("should set prompt_cache_key for deepseek providerID", () => {
+    const dsModel = {
+      ...mockModel,
+      providerID: "deepseek",
+      api: {
+        id: "deepseek-v4-pro",
+        url: "https://api.deepseek.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    }
+    const result = ProviderTransform.options({ model: dsModel, sessionID, providerOptions: {} })
+    expect(result.prompt_cache_key).toBe(`${sessionID}:${dsModel.id}`)
+  })
+
+  test("should set prompt_cache_key for azure provider", () => {
+    const azureModel = {
+      ...mockModel,
+      providerID: "azure",
+      api: {
+        id: "gpt-4",
+        url: "https://azure.com",
+        npm: "@ai-sdk/azure",
+      },
+    }
+    const result = ProviderTransform.options({ model: azureModel, sessionID, providerOptions: {} })
+    expect(result.prompt_cache_key).toBe(`${sessionID}:${azureModel.id}`)
+  })
+
+  test("should set chat_template_kwargs for NVIDIA + DeepSeek V4", () => {
+    const nvDsModel = {
+      ...mockModel,
+      providerID: "nvidia",
+      api: {
+        id: "deepseek-ai/deepseek-v4-pro",
+        url: "https://integrate.api.nvidia.com/v1",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    }
+    const result = ProviderTransform.options({ model: nvDsModel, sessionID, providerOptions: {} })
+    expect(result.chat_template_kwargs).toEqual({ thinking: true })
+  })
+
+  test("should NOT set chat_template_kwargs for non-NVIDIA DeepSeek V4", () => {
+    const dsModel = {
+      ...mockModel,
+      providerID: "deepseek",
+      api: {
+        id: "deepseek-v4-pro",
+        url: "https://api.deepseek.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    }
+    const result = ProviderTransform.options({ model: dsModel, sessionID, providerOptions: {} })
+    expect(result.chat_template_kwargs).toBeUndefined()
+  })
+
+  test("should NOT set chat_template_kwargs for NVIDIA non-DeepSeek-V4 models", () => {
+    const nvOtherModel = {
+      ...mockModel,
+      providerID: "nvidia",
+      api: {
+        id: "meta/llama-3.3-70b-instruct",
+        url: "https://integrate.api.nvidia.com/v1",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    }
+    const result = ProviderTransform.options({ model: nvOtherModel, sessionID, providerOptions: {} })
+    expect(result.chat_template_kwargs).toBeUndefined()
   })
 
   test("should set store=false for openai provider", () => {

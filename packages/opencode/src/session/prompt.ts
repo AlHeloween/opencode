@@ -1272,7 +1272,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 instruction.system().pipe(Effect.orDie),
                 instruction.rules().pipe(Effect.orDie),
               ])
-              const sessionIdBanner = `[session: ${sessionID}]`
+              const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+              const sessionIdBanner = `[session: ${cacheNamespace}]`
               const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
               const format = lastUser.format ?? { type: "text" as const }
               if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
@@ -1554,8 +1555,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
               instruction.system().pipe(Effect.orDie),
               instruction.rules().pipe(Effect.orDie),
             ])
-            // Session ID as first system message for per-session cache namespace
-            const sessionIdBanner = `[session: ${sessionID}]`
+            // Cache namespace as first system message for provider prefix reuse.
+            const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+            const sessionIdBanner = `[session: ${cacheNamespace}]`
             const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)

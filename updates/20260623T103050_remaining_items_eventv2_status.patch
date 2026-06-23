@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: plans/20260623_remaining_items.md
+@@
+-- 2.1 [x] EventV2Bridge → `eventsBus.all()` replaces `bus.subscribeAll()`
++- 2.1 REVERTED — `eventsBus.all()` is invalid in this fork until legacy Bus producers migrate to EventV2; plugin hooks remain on `bus.subscribeAll()`
+*** End Patch

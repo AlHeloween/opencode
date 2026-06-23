@@ -114,7 +114,6 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const bus = yield* Bus.Service
-    const eventsBus = yield* EventV2Bridge.Service
     const config = yield* Config.Service
 
     const state = yield* InstanceState.make<State>(
@@ -244,8 +243,8 @@ export const layer = Layer.effect(
           }).pipe(Effect.ignore)
         }
 
-        // Subscribe to event stream via EventV2, fiber interrupted when scope closes
-        yield* eventsBus.all().pipe(
+        // Subscribe to legacy bus events until this fork completes the EventV2 producer migration.
+        yield* bus.subscribeAll().pipe(
           Stream.runForEach((input) =>
             Effect.sync(() => {
               for (const hook of hooks) {

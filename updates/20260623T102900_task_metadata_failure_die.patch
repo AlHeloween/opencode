@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/tool/task.test.ts
+@@
+-              metadata: () => Effect.dieMessage("metadata failed"),
++              metadata: () => Effect.die(new Error("metadata failed")),
+*** End Patch

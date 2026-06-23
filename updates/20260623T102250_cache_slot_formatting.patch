@@ -1,0 +1,216 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/plugin/index.ts
+@@
+-    const bus = yield* Bus.Service
+-const config = yield* Config.Service
++    const bus = yield* Bus.Service
++    const config = yield* Config.Service
+@@
+-        // Subscribe to legacy bus events until this fork completes the EventV2 producer migration.
+-yield* bus.subscribeAll().pipe(
+-  Stream.runForEach((input) =>
+-    Effect.sync(() => {
+-      for (const hook of hooks) {
+-        void hook["event"]?.({ event: input as any })
+-      }
+-    }),
+-  ),
+-  Effect.forkScoped,
+-)
++        // Subscribe to legacy bus events until this fork completes the EventV2 producer migration.
++        yield* bus.subscribeAll().pipe(
++          Stream.runForEach((input) =>
++            Effect.sync(() => {
++              for (const hook of hooks) {
++                void hook["event"]?.({ event: input as any })
++              }
++            }),
++          ),
++          Effect.forkScoped,
++        )
+*** Update File: packages/opencode/src/session/prompt.ts
+@@
+-              const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+-const sessionIdBanner = `[session: ${cacheNamespace}]`
+-const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
++              const cacheNamespace = lastUser.providerCacheKey ?? sessionID
++              const sessionIdBanner = `[session: ${cacheNamespace}]`
++              const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
+@@
+-            // Cache namespace as first system message for provider prefix reuse.
+-const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+-const sessionIdBanner = `[session: ${cacheNamespace}]`
+-const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
++            // Cache namespace as first system message for provider prefix reuse.
++            const cacheNamespace = lastUser.providerCacheKey ?? sessionID
++            const sessionIdBanner = `[session: ${cacheNamespace}]`
++            const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
+*** Update File: packages/opencode/src/tool/task.ts
+@@
+-      const ops = ctx.extra?.promptOps as TaskPromptOps
+-if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
+-
+-const cacheLease = session
+-  ? undefined
+-  : acquireTaskCacheLease({
+-      parentSessionID: ctx.sessionID,
+-      agent: next.name,
+-      providerID: model.providerID,
+-      modelID: model.modelID,
+-    })
+-
+-// Background execution: fork the task via Jobs.Service and return immediately
++      const ops = ctx.extra?.promptOps as TaskPromptOps
++      if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
++
++      const cacheLease = session
++        ? undefined
++        : acquireTaskCacheLease({
++            parentSessionID: ctx.sessionID,
++            agent: next.name,
++            providerID: model.providerID,
++            modelID: model.modelID,
++          })
++
++      // Background execution: fork the task via Jobs.Service and return immediately
+*** Update File: packages/opencode/test/tool/task.test.ts
+@@
+-  it.live("execute releases cache slot when metadata fails before prompt", () =>
+-  provideTmpdirInstance(() =>
+-    Effect.gen(function* () {
+-      const { chat, assistant } = yield* seed()
+-      const tool = yield* TaskTool
+-      const def = yield* tool.init()
+-      const promptOps = stubOps()
+-      const failed = yield* Effect.exit(
+-        def.execute(
+-          {
+-            description: "inspect bug",
+-            prompt: "look into the cache key path",
+-            subagent_type: "general",
+-          },
+-          {
+-            sessionID: chat.id,
+-            messageID: assistant.id,
+-            agent: "build",
+-            abort: new AbortController().signal,
+-            extra: { promptOps },
+-            messages: [],
+-            metadata: () => Effect.fail(new Error("metadata failed")),
+-            ask: () => Effect.void,
+-          },
+-        ),
+-      )
+-      const seen: string[] = []
+-
+-      expect(failed._tag).toBe("Failure")
+-      yield* executeTask(def, chat, assistant, stubOps({
+-        onPrompt: (input) => {
+-          if (input.providerCacheKey) seen.push(input.providerCacheKey)
+-        },
+-      }))
+-
+-      expect(seen).toHaveLength(1)
+-      expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
+-    }),
+-  ),
+-)
+-
+-it.live("execute isolates cache slots for concurrent fresh tasks", () =>
+-  provideTmpdirInstance(() =>
+-    Effect.gen(function* () {
++  it.live("execute releases cache slot when metadata fails before prompt", () =>
++    provideTmpdirInstance(() =>
++      Effect.gen(function* () {
++        const { chat, assistant } = yield* seed()
++        const tool = yield* TaskTool
++        const def = yield* tool.init()
++        const promptOps = stubOps()
++        const failed = yield* Effect.exit(
++          def.execute(
++            {
++              description: "inspect bug",
++              prompt: "look into the cache key path",
++              subagent_type: "general",
++            },
++            {
++              sessionID: chat.id,
++              messageID: assistant.id,
++              agent: "build",
++              abort: new AbortController().signal,
++              extra: { promptOps },
++              messages: [],
++              metadata: () => Effect.fail(new Error("metadata failed")),
++              ask: () => Effect.void,
++            },
++          ),
++        )
++        const seen: string[] = []
++
++        expect(failed._tag).toBe("Failure")
++        yield* executeTask(
++          def,
++          chat,
++          assistant,
++          stubOps({
++            onPrompt: (input) => {
++              if (input.providerCacheKey) seen.push(input.providerCacheKey)
++            },
++          }),
++        )
++
++        expect(seen).toHaveLength(1)
++        expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
++      }),
++    ),
++  )
++
++  it.live("execute isolates cache slots for concurrent fresh tasks", () =>
++    provideTmpdirInstance(() =>
++      Effect.gen(function* () {
+@@
+-        const { chat, assistant } = yield* seed()
+-        const tool = yield* TaskTool
+-        const def = yield* tool.init()
+-        const firstStarted = yield* Deferred.make<string>()
+-        const releaseFirst = yield* Deferred.make<void>()
+-        let secondKey = ""
+-        const firstOps: TaskPromptOps = {
+-          cancel: () => Effect.void,
+-          resolvePromptParts: (template) => Effect.succeed([{ type: "text" as const, text: template }]),
+-          prompt: (input) =>
+-            Effect.gen(function* () {
+-              yield* Deferred.succeed(firstStarted, input.providerCacheKey ?? "")
+-              yield* Deferred.await(releaseFirst)
+-              return reply(input, "first")
+-            }),
+-        }
+-        const secondOps = stubOps({
+-          text: "second",
+-          onPrompt: (input) => {
+-            secondKey = input.providerCacheKey ?? ""
+-          },
+-        })
++        const { chat, assistant } = yield* seed()
++        const tool = yield* TaskTool
++        const def = yield* tool.init()
++        const firstStarted = yield* Deferred.make<string>()
++        const releaseFirst = yield* Deferred.make<void>()
++        let secondKey = ""
++        const firstOps: TaskPromptOps = {
++          cancel: () => Effect.void,
++          resolvePromptParts: (template) => Effect.succeed([{ type: "text" as const, text: template }]),
++          prompt: (input) =>
++            Effect.gen(function* () {
++              yield* Deferred.succeed(firstStarted, input.providerCacheKey ?? "")
++              yield* Deferred.await(releaseFirst)
++              return reply(input, "first")
++            }),
++        }
++        const secondOps = stubOps({
++          text: "second",
++          onPrompt: (input) => {
++            secondKey = input.providerCacheKey ?? ""
++          },
++        })
+*** End Patch

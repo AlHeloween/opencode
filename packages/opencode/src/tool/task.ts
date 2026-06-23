@@ -153,15 +153,6 @@ export const TaskTool = Tool.define(
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
       }
-      const cacheLease = session
-        ? undefined
-        : acquireTaskCacheLease({
-            parentSessionID: ctx.sessionID,
-            agent: next.name,
-            providerID: model.providerID,
-            modelID: model.modelID,
-          })
-
       // Diagnostic: log when task agent model has different context window than parent
       const parentModel = { modelID: msg.info.modelID, providerID: msg.info.providerID }
       if (parentModel.modelID !== model.modelID || parentModel.providerID !== model.providerID) {
@@ -189,6 +180,15 @@ export const TaskTool = Tool.define(
 
       const ops = ctx.extra?.promptOps as TaskPromptOps
       if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
+
+      const cacheLease = session
+        ? undefined
+        : acquireTaskCacheLease({
+            parentSessionID: ctx.sessionID,
+            agent: next.name,
+            providerID: model.providerID,
+            modelID: model.modelID,
+          })
 
       // Background execution: fork the task via Jobs.Service and return immediately
       if (params.run_in_background) {

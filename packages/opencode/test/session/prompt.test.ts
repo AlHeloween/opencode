@@ -402,6 +402,36 @@ it.live("static loop returns assistant text through local provider", () =>
   ),
 )
 
+it.live("static loop uses provider cache key for cache-visible session banner", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ llm }) {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const session = yield* sessions.create({
+        title: "Prompt provider cache",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      const providerCacheKey = `${session.id}:general:test:test-model:task-1`
+
+      yield* prompt.prompt({
+        sessionID: session.id,
+        agent: "build",
+        noReply: true,
+        providerCacheKey,
+        parts: [{ type: "text", text: "hello" }],
+      })
+
+      yield* llm.text("world")
+      yield* prompt.loop({ sessionID: session.id })
+
+      const body = JSON.stringify((yield* llm.inputs)[0])
+      expect(body).toContain(`[session: ${providerCacheKey}]`)
+      expect(body).not.toContain(`[session: ${session.id}]`)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
 it.live("static loop consumes queued replies across turns", () =>
   provideTmpdirServer(
     Effect.fnUntraced(function* ({ llm }) {

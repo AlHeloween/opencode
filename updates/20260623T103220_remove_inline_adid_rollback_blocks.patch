@@ -1,0 +1,97 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/plugin/index.ts
+@@
+ export const defaultLayer = layer.pipe(Layer.provide(Bus.layer), Layer.provide(Config.defaultLayer), Layer.provide(RuntimeFlags.defaultLayer), Layer.provide(EventV2Bridge.defaultLayer))
+ 
+ export * as Plugin from "."
+-
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/plugin/index.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/plugin/index.ts.backup_20260623T182204_421390"
+-//   "created_at": "2026-06-23T10:22:04.431856+00:00"
+-//   "backup_hash": "cf54df72d82cdd4fa386a8e4a64bcf6c"
+-//   "new_hash": "cbccac6a94dd2bde2009723189c79e2c"
+-//   "goal_id": "plugin_restore_bus_subscribe_all"
+-//   "semantics": "Restore plugin hook delivery from the legacy Bus because this fork has not migrated its event producers to EventV2 yet."
+-//   "update_attrs": {"relative_path": "packages/opencode/src/plugin/index.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "// Subscribe to event stream via EventV2, fiber interrupted when scope closes\n        yield* eventsBus.all().pipe(\n          Stream.runForEach((input) =>\n            Effect.sync(() => {\n              for (const hook of hooks) {\n                void hook[\"event\"]?.({ event: input as any })\n              }\n            }),\n          ),\n          Effect.forkScoped,\n        )", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/plugin/index.ts\""
+-// }
+*** Update File: packages/opencode/src/session/prompt.ts
+@@
+ const quoteTrimRegex = /^["']|["']$/g
+ 
+ export * as SessionPrompt from "./prompt"
+-
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/session/prompt.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/session/prompt.ts.backup_20260623T182209_811931"
+-//   "created_at": "2026-06-23T10:22:09.836812+00:00"
+-//   "backup_hash": "9a89594062eac5d38794ae4007c0acc0"
+-//   "new_hash": "59c29bf489e6b8b10f51dc22e726bf37"
+-//   "goal_id": "prompt_loop_cache_namespace_banner"
+-//   "semantics": "Use the stable provider cache namespace in normal task-agent system prompt banners while preserving the physical session ID for storage and resume semantics."
+-//   "update_attrs": {"relative_path": "packages/opencode/src/session/prompt.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "// Session ID as first system message for per-session cache namespace\n            const sessionIdBanner = `[session: ${sessionID}]`\n            const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/session/prompt.ts\""
+-// }
+*** Update File: packages/opencode/src/tool/task.ts
+@@
+     }
+   }),
+ )
+-
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/tool/task.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/tool/task.ts.backup_20260623T182210_107608"
+-//   "created_at": "2026-06-23T10:22:10.120407+00:00"
+-//   "backup_hash": "37780f685a91d1a412a5973fa264ac9c"
+-//   "new_hash": "de203aac3d115926f3f09c1418629dff"
+-//   "goal_id": "task_acquire_cache_lease_after_prompt_ops_validation"
+-//   "semantics": "Acquire reusable task cache slots only once the task is guaranteed to have prompt operations and metadata has already been accepted."
+-//   "update_attrs": {"relative_path": "packages/opencode/src/tool/task.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "const ops = ctx.extra?.promptOps as TaskPromptOps\n      if (!ops) return yield* Effect.fail(new Error(\"TaskTool requires promptOps in ctx.extra\"))\n\n      // Background execution: fork the task via Jobs.Service and return immediately", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/tool/task.ts\""
+-// }
+*** Update File: packages/opencode/test/session/prompt.test.ts
+@@
+     ),
+   30_000,
+ )
+-
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts.backup_20260623T182211_984911"
+-//   "created_at": "2026-06-23T10:22:12.010399+00:00"
+-//   "backup_hash": "29a6549c6a0ef54c2731f4858ba42fb4"
+-//   "new_hash": "338eee799efb3f7336d9a949bfa040fc"
+-//   "goal_id": "prompt_test_provider_cache_key_banner"
+-//   "semantics": "Add a provider-request regression test proving providerCacheKey controls the cache-visible system banner instead of the physical child session ID."
+-//   "update_attrs": {"relative_path": "packages/opencode/test/session/prompt.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "it.live(\"static loop consumes queued replies across turns\", () =>\n  provideTmpdirServer(", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts\""
+-// }
+*** Update File: packages/opencode/test/tool/task.test.ts
+@@
+     ),
+   )
+ })
+-
+-// ADID_ROLLBACK (from adm.exe)
+-// SDID_ROLLBACK {
+-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/tool/task.test.ts"
+-//   "update_script": "adm.exe"
+-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/tool/task.test.ts.backup_20260623T182210_257983"
+-//   "created_at": "2026-06-23T10:22:10.285402+00:00"
+-//   "backup_hash": "4cf9c2e81d2591287fa97d7db2f0ea36"
+-//   "new_hash": "e623380599491f7b7efcb4cc6d21032a"
+-//   "goal_id": "task_test_release_cache_slot_after_early_failure"
+-//   "semantics": "Add a regression test proving failures before prompt execution do not consume reusable task cache slots."
+-//   "update_attrs": {"relative_path": "packages/opencode/test/tool/task.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "it.live(\"execute isolates cache slots for concurrent fresh tasks\", () =>\n    provideTmpdirInstance(() =>\n      Effect.gen(function* () {", "replace_present": true}
+-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/tool/task.test.ts\""
+-// }
+*** End Patch

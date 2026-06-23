@@ -1,0 +1,223 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_bd90f2ffcd6ba182910de2d11ad07eee name="plugin_subscribe_legacy_bus_until_eventv2_producer_migration" md5="bd90f2ffcd6ba182910de2d11ad07eee" size="58">
+    <file>packages/opencode/src/plugin/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    const bus = yield* Bus.Service
+    const eventsBus = yield* EventV2Bridge.Service
+    const config = yield* Config.Service</find_text>
+    <semantics>Remove unused EventV2 event stream service from the plugin layer while this fork still publishes plugin-visible events through the legacy Bus.</semantics>
+    <content_md5_bd90f2ffcd6ba182910de2d11ad07eee>
+      const bus = yield* Bus.Service
+      const config = yield* Config.Service
+    </content_md5_bd90f2ffcd6ba182910de2d11ad07eee>
+  </update_md5_bd90f2ffcd6ba182910de2d11ad07eee>
+  <update_md5_e17b7119a19e1611903b8efc8ee899ef name="plugin_restore_bus_subscribe_all" md5="e17b7119a19e1611903b8efc8ee899ef" size="238">
+    <file>packages/opencode/src/plugin/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        // Subscribe to event stream via EventV2, fiber interrupted when scope closes
+        yield* eventsBus.all().pipe(
+          Stream.runForEach((input) =&gt;
+            Effect.sync(() =&gt; {
+              for (const hook of hooks) {
+                void hook[&quot;event&quot;]?.({ event: input as any })
+              }
+            }),
+          ),
+          Effect.forkScoped,
+        )</find_text>
+    <semantics>Restore plugin hook delivery from the legacy Bus because this fork has not migrated its event producers to EventV2 yet.</semantics>
+    <content_md5_e17b7119a19e1611903b8efc8ee899ef>
+      // Subscribe to legacy bus events until this fork completes the EventV2 producer migration.
+      yield* bus.subscribeAll().pipe(
+        Stream.runForEach((input) =&gt;
+          Effect.sync(() =&gt; {
+            for (const hook of hooks) {
+              void hook[&quot;event&quot;]?.({ event: input as any })
+            }
+          }),
+        ),
+        Effect.forkScoped,
+      )
+    </content_md5_e17b7119a19e1611903b8efc8ee899ef>
+  </update_md5_e17b7119a19e1611903b8efc8ee899ef>
+  <update_md5_386fad339d48f862046b88d8750492ec name="prompt_compaction_cache_namespace_banner" md5="386fad339d48f862046b88d8750492ec" size="191">
+    <file>packages/opencode/src/session/prompt.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>              const sessionIdBanner = `[session: ${sessionID}]`
+              const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]</find_text>
+    <semantics>Use the stable provider cache namespace in task-agent system prompt banners so compaction requests do not poison a reused task cache key with a fresh child session ID.</semantics>
+    <content_md5_386fad339d48f862046b88d8750492ec>
+      const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+      const sessionIdBanner = `[session: ${cacheNamespace}]`
+      const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
+    </content_md5_386fad339d48f862046b88d8750492ec>
+  </update_md5_386fad339d48f862046b88d8750492ec>
+  <update_md5_45116c083fd79b0327dd3d79f5ccb84f name="prompt_loop_cache_namespace_banner" md5="45116c083fd79b0327dd3d79f5ccb84f" size="250">
+    <file>packages/opencode/src/session/prompt.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>            // Session ID as first system message for per-session cache namespace
+            const sessionIdBanner = `[session: ${sessionID}]`
+            const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]</find_text>
+    <semantics>Use the stable provider cache namespace in normal task-agent system prompt banners while preserving the physical session ID for storage and resume semantics.</semantics>
+    <content_md5_45116c083fd79b0327dd3d79f5ccb84f>
+      // Cache namespace as first system message for provider prefix reuse.
+      const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+      const sessionIdBanner = `[session: ${cacheNamespace}]`
+      const system = [sessionIdBanner, ...rules, ...instructions, ...env, ...(skills ? [skills] : [])]
+    </content_md5_45116c083fd79b0327dd3d79f5ccb84f>
+  </update_md5_45116c083fd79b0327dd3d79f5ccb84f>
+  <update_md5_56db02b2de8af77facbee255b883684e name="task_delay_cache_lease_until_after_early_validation" md5="56db02b2de8af77facbee255b883684e" size="69">
+    <file>packages/opencode/src/tool/task.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const cacheLease = session
+        ? undefined
+        : acquireTaskCacheLease({
+            parentSessionID: ctx.sessionID,
+            agent: next.name,
+            providerID: model.providerID,
+            modelID: model.modelID,
+          })
+
+      // Diagnostic: log when task agent model has different context window than parent</find_text>
+    <semantics>Stop acquiring reusable task cache slots before metadata and prompt operation validation can fail.</semantics>
+    <content_md5_56db02b2de8af77facbee255b883684e>
+      // Diagnostic: log when task agent model has different context window than parent
+    </content_md5_56db02b2de8af77facbee255b883684e>
+  </update_md5_56db02b2de8af77facbee255b883684e>
+  <update_md5_c9165feec24fc7a8d9f1e0f68ee47a5c name="task_acquire_cache_lease_after_prompt_ops_validation" md5="c9165feec24fc7a8d9f1e0f68ee47a5c" size="348">
+    <file>packages/opencode/src/tool/task.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const ops = ctx.extra?.promptOps as TaskPromptOps
+      if (!ops) return yield* Effect.fail(new Error(&quot;TaskTool requires promptOps in ctx.extra&quot;))
+
+      // Background execution: fork the task via Jobs.Service and return immediately</find_text>
+    <semantics>Acquire reusable task cache slots only once the task is guaranteed to have prompt operations and metadata has already been accepted.</semantics>
+    <content_md5_c9165feec24fc7a8d9f1e0f68ee47a5c>
+      const ops = ctx.extra?.promptOps as TaskPromptOps
+      if (!ops) return yield* Effect.fail(new Error(&quot;TaskTool requires promptOps in ctx.extra&quot;))
+      
+      const cacheLease = session
+        ? undefined
+        : acquireTaskCacheLease({
+            parentSessionID: ctx.sessionID,
+            agent: next.name,
+            providerID: model.providerID,
+            modelID: model.modelID,
+          })
+      
+      // Background execution: fork the task via Jobs.Service and return immediately
+    </content_md5_c9165feec24fc7a8d9f1e0f68ee47a5c>
+  </update_md5_c9165feec24fc7a8d9f1e0f68ee47a5c>
+  <update_md5_467f43b1db1338b9d01a3c45f27eaa5a name="task_test_release_cache_slot_after_early_failure" md5="467f43b1db1338b9d01a3c45f27eaa5a" size="951">
+    <file>packages/opencode/test/tool/task.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  it.live(&quot;execute isolates cache slots for concurrent fresh tasks&quot;, () =&gt;
+    provideTmpdirInstance(() =&gt;
+      Effect.gen(function* () {</find_text>
+    <semantics>Add a regression test proving failures before prompt execution do not consume reusable task cache slots.</semantics>
+    <content_md5_467f43b1db1338b9d01a3c45f27eaa5a>
+      it.live(&quot;execute releases cache slot when metadata fails before prompt&quot;, () =&gt;
+        provideTmpdirInstance(() =&gt;
+          Effect.gen(function* () {
+            const { chat, assistant } = yield* seed()
+            const tool = yield* TaskTool
+            const def = yield* tool.init()
+            const promptOps = stubOps()
+            const failed = yield* Effect.exit(
+              def.execute(
+                {
+                  description: &quot;inspect bug&quot;,
+                  prompt: &quot;look into the cache key path&quot;,
+                  subagent_type: &quot;general&quot;,
+                },
+                {
+                  sessionID: chat.id,
+                  messageID: assistant.id,
+                  agent: &quot;build&quot;,
+                  abort: new AbortController().signal,
+                  extra: { promptOps },
+                  messages: [],
+                  metadata: () =&gt; Effect.fail(new Error(&quot;metadata failed&quot;)),
+                  ask: () =&gt; Effect.void,
+                },
+              ),
+            )
+            const seen: string[] = []
+      
+            expect(failed._tag).toBe(&quot;Failure&quot;)
+            yield* executeTask(def, chat, assistant, stubOps({
+              onPrompt: (input) =&gt; {
+                if (input.providerCacheKey) seen.push(input.providerCacheKey)
+              },
+            }))
+      
+            expect(seen).toHaveLength(1)
+            expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
+          }),
+        ),
+      )
+      
+      it.live(&quot;execute isolates cache slots for concurrent fresh tasks&quot;, () =&gt;
+        provideTmpdirInstance(() =&gt;
+          Effect.gen(function* () {
+    </content_md5_467f43b1db1338b9d01a3c45f27eaa5a>
+  </update_md5_467f43b1db1338b9d01a3c45f27eaa5a>
+  <update_md5_a1846c5c14c80d95ab32b1c87797e36b name="prompt_test_provider_cache_key_banner" md5="a1846c5c14c80d95ab32b1c87797e36b" size="849">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>it.live(&quot;static loop consumes queued replies across turns&quot;, () =&gt;
+  provideTmpdirServer(</find_text>
+    <semantics>Add a provider-request regression test proving providerCacheKey controls the cache-visible system banner instead of the physical child session ID.</semantics>
+    <content_md5_a1846c5c14c80d95ab32b1c87797e36b>
+      it.live(&quot;static loop uses provider cache key for cache-visible session banner&quot;, () =&gt;
+        provideTmpdirServer(
+          Effect.fnUntraced(function* ({ llm }) {
+            const prompt = yield* SessionPrompt.Service
+            const sessions = yield* Session.Service
+            const session = yield* sessions.create({
+              title: &quot;Prompt provider cache&quot;,
+              permission: [{ permission: &quot;*&quot;, pattern: &quot;*&quot;, action: &quot;allow&quot; }],
+            })
+            const providerCacheKey = `${session.id}:general:test:test-model:task-1`
+      
+            yield* prompt.prompt({
+              sessionID: session.id,
+              agent: &quot;build&quot;,
+              noReply: true,
+              providerCacheKey,
+              parts: [{ type: &quot;text&quot;, text: &quot;hello&quot; }],
+            })
+      
+            yield* llm.text(&quot;world&quot;)
+            yield* prompt.loop({ sessionID: session.id })
+      
+            const body = JSON.stringify((yield* llm.inputs)[0])
+            expect(body).toContain(`[session: ${providerCacheKey}]`)
+            expect(body).not.toContain(`[session: ${session.id}]`)
+          }),
+          { git: true, config: providerCfg },
+        ),
+      )
+      
+      it.live(&quot;static loop consumes queued replies across turns&quot;, () =&gt;
+        provideTmpdirServer(
+    </content_md5_a1846c5c14c80d95ab32b1c87797e36b>
+  </update_md5_a1846c5c14c80d95ab32b1c87797e36b>
+</updates>

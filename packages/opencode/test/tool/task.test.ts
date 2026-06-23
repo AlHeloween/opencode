@@ -367,6 +367,52 @@ describe("tool.task", () => {
     ),
   )
 
+  it.live("execute releases cache slot when metadata fails before prompt", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        const promptOps = stubOps()
+        const failed = yield* Effect.exit(
+          def.execute(
+            {
+              description: "inspect bug",
+              prompt: "look into the cache key path",
+              subagent_type: "general",
+            },
+            {
+              sessionID: chat.id,
+              messageID: assistant.id,
+              agent: "build",
+              abort: new AbortController().signal,
+              extra: { promptOps },
+              messages: [],
+              metadata: () => Effect.die(new Error("metadata failed")),
+              ask: () => Effect.void,
+            },
+          ),
+        )
+        const seen: string[] = []
+
+        expect(failed._tag).toBe("Failure")
+        yield* executeTask(
+          def,
+          chat,
+          assistant,
+          stubOps({
+            onPrompt: (input) => {
+              if (input.providerCacheKey) seen.push(input.providerCacheKey)
+            },
+          }),
+        )
+
+        expect(seen).toHaveLength(1)
+        expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
+      }),
+    ),
+  )
+
   it.live("execute isolates cache slots for concurrent fresh tasks", () =>
     provideTmpdirInstance(() =>
       Effect.gen(function* () {

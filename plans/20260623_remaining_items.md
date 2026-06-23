@@ -6,7 +6,7 @@
 Resolved in prior plan (2026-06-23):
 - 1.4 REJECTED — `Effect.sync(() => tx(...))` is correct for sync `Database.transaction()`
 - 1.5 [x] Orphan reasoning delta guard
-- 2.1 [x] EventV2Bridge → `eventsBus.all()` replaces `bus.subscribeAll()`
+- 2.1 REVERTED — `eventsBus.all()` is invalid in this fork until legacy Bus producers migrate to EventV2; plugin hooks remain on `bus.subscribeAll()`
 - 2.3 [x] `ensureToolCall()` and `finishReasoning()` already extracted; `toolResultOutput()` no-op (AI SDK normalizes)
 - 2.7 [x] Git service abstraction — already exists at `packages/opencode/src/git/index.ts` (260 lines)
 

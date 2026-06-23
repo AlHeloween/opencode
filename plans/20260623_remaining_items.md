@@ -1,7 +1,15 @@
 # Remaining Items Plan
 
 **Created:** 2026-06-23 — carried forward from `20260601_complete_remaining_items.md` (now in `plans_completed/`)
-**Status:** Active — 12 open items across Parts 1-3; Part 4 is deferred scoping
+**Status:** Active — audited 2026-06-23. This is no longer a greenfield checklist; several items already exist in code and the remaining work is mostly validation, stabilization, or deferred architecture.
+
+Audit summary (2026-06-23):
+- `packages/opencode/drizzle.config.ts` already exists and matches the planned Drizzle Kit shape.
+- `packages/opencode/src/session/summary.ts` already skips diff computation when `config.snapshot === false`.
+- `RuntimeFlags.defaultLayer` is already provided to the plugin layer; WebSocket flag usage still needs a focused code audit.
+- `packages/opencode/src/session/tools.ts` already exists; future work should verify behavior/tests rather than create the module.
+- Attachment metadata handlers and required packages already exist for audio, image, archive, sensor, and video; remaining work is fixture coverage and runtime validation.
+- Session-level usage/cost columns already exist in schema and are accumulated in `processor.ts`; migration/backfill state still needs verification.
 
 Resolved in prior plan (2026-06-23):
 - 1.4 REJECTED — `Effect.sync(() => tx(...))` is correct for sync `Database.transaction()`
@@ -14,12 +22,14 @@ Resolved in prior plan (2026-06-23):
 
 ## Part 1: Quick Wins (Low Effort, High Value)
 
-### 1.1 [ ] `drizzle.config.ts` — Enable future migrations
+### 1.1 [x] `drizzle.config.ts` — Enable future migrations
 
 **File:** `packages/opencode/drizzle.config.ts` (NEW)
 **Effort:** 5 min
 **What:** Standard Drizzle Kit config pointing to our schema files
 **Why:** Enables `bun run db generate --name <slug>` for future schema changes
+
+**Audit:** Implemented at `packages/opencode/drizzle.config.ts`.
 
 ```ts
 import { defineConfig } from "drizzle-kit"
@@ -37,37 +47,43 @@ export default defineConfig({
 **What:** Filter out tool parts with `state.status === "error" && state.metadata?.interrupted === true` from assistant prefill logic
 **Why:** Prevents interrupted tools from appearing in model context
 
-### 1.3 [ ] Summary diff lazy compute
+### 1.3 [x] Summary diff lazy compute
 
 **File:** `packages/opencode/src/session/summary.ts` (MODIFY)
 **Effort:** 15 min
 **What:** Skip expensive diff computation when `config.snapshot === false`. Read diffs from stored message summary instead of recomputing.
 **Why:** Performance — diffs are expensive and often unused
 
+**Audit:** Implemented in `packages/opencode/src/session/summary.ts`; when `cfg?.snapshot === false`, summary counters are set without calling `computeDiff()`.
+
 ---
 
 ## Part 2: Medium Effort
 
-### 2.2 [ ] RuntimeFlags + Codex WebSocket flags
+### 2.2 [ ] RuntimeFlags + Codex WebSocket flags — audit remaining gate
 
 **Files:** `packages/opencode/src/plugin/index.ts` (MODIFY)
 **Effort:** 30 min
 **What:** Add `RuntimeFlags.defaultLayer` to plugin layer. Gate `experimentalWebSockets` behind flag in Codex plugin.
 **Depends on:** RuntimeFlags already exists in our codebase
 
-### 2.4 [ ] Session usage tracking migration
+**Audit:** `RuntimeFlags.defaultLayer` is already provided in `packages/opencode/src/plugin/index.ts`. Remaining work is to verify whether the Codex plugin actually gates `experimentalWebSockets` on `RuntimeFlags.experimentalWebSockets`.
+
+### 2.4 [ ] Session usage tracking migration — verify/backfill only
 
 **Files:** New migration file (NEW)
 **Effort:** 30 min
-**What:** Port upstream's `20260510033149_session_usage` migration — adds token tracking columns to session table
-**Note:** Adapt for our DB schema
+**What:** Verify migration/backfill behavior for existing databases that predate the session usage columns.
+**Audit:** `packages/opencode/src/session/session.sql.ts` already contains cost/token columns, and `packages/opencode/src/session/processor.ts` already accumulates session-level usage. Do not blindly port upstream as a new greenfield migration without checking local migration history.
 
-### 2.5 [ ] Tool resolution consolidation
+### 2.5 [x] Tool resolution consolidation
 
 **Files:** `packages/opencode/src/session/tools.ts` (NEW)
 **Effort:** 1.5h
 **What:** Extract tool resolution logic from `prompt.ts` into dedicated module. Handles registry tools + MCP tools with context, permissions, plugin hooks.
 **Depends on:** Our existing tool registry and MCP integration
+
+**Audit:** `packages/opencode/src/session/tools.ts` already exists. Future work should be limited to behavior gaps or tests found by code review.
 
 ### 2.6 [ ] LLM request preparation — DEFERRED
 
@@ -79,37 +95,39 @@ export default defineConfig({
 
 ---
 
-## Part 3: External Package Dependencies
+## Part 3: External Package Dependencies — verification backlog
 
-### 3.1 [ ] Audio metadata extraction
+Audit: the dependencies and handler files are already present. Treat this section as a fixture/test/runtime-validation backlog, not as new package-selection work.
+
+### 3.1 [ ] Audio metadata extraction — verify fixtures
 
 **Package:** `music-metadata`
 **File:** `packages/opencode/src/attachment/handlers/audio.ts` (MODIFY)
 **Effort:** 30 min
 **What:** Parse WAV/MP3/OGG headers to extract duration, sample rate, channels, codec
 
-### 3.2 [ ] Video keyframe extraction
+### 3.2 [ ] Video metadata extraction — verify fixtures
 
 **Package:** `fluent-ffmpeg` or metadata-only
 **File:** `packages/opencode/src/attachment/handlers/video.ts` (MODIFY)
 **Effort:** 45 min
 **What:** Extract duration, dimensions, fps from container headers (no full decode needed)
 
-### 3.3 [ ] HDF5 sensor reader
+### 3.3 [ ] HDF5 sensor reader — verify fixtures
 
 **Package:** `h5wasm`
 **File:** `packages/opencode/src/attachment/handlers/sensor.ts` (MODIFY)
 **Effort:** 1h
 **What:** Parse HDF5 files to extract dataset names, shapes, dtypes, attributes
 
-### 3.4 [ ] Image resizing
+### 3.4 [ ] Image resizing — verify fixtures
 
 **Package:** `sharp` or `jimp`
 **File:** `packages/opencode/src/attachment/handlers/image.ts` (MODIFY)
 **Effort:** 1h
 **What:** Resize images per `ConfigAttachment.image.max_width/max_height` before storage
 
-### 3.5 [ ] Archive file listing
+### 3.5 [ ] Archive file listing — verify fixtures
 
 **Package:** `adm-zip`, `tar-stream`
 **File:** `packages/opencode/src/attachment/handlers/archive.ts` (MODIFY)
@@ -151,14 +169,13 @@ These are scoped for awareness; implementation deferred to future sessions.
 ## Implementation Order
 
 ```
-Part 1 (Quick Wins) → Part 2 (Medium) → Part 3 (External)
+Plan audit/cleanup → focused remaining quick win → capability/media verification
      │                     │                    │
      ▼                     ▼                    ▼
-  1-2 hours             5-8 hours           3-4 hours
+  30-45 min             30-90 min           2-4 hours
 ```
 
-Parts 1 and 2 items can be done in parallel within each group.
-Part 3 items need `bun install` for each package first.
+Do not run Part 3 as dependency installation; packages already exist. Add focused fixtures and run handler tests instead.
 
 ---
 

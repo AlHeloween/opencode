@@ -1,0 +1,147 @@
+*** Begin Patch
+*** Update File: plans/20260623_remaining_items.md
+@@
+-**Status:** Active — 12 open items across Parts 1-3; Part 4 is deferred scoping
++**Status:** Active — audited 2026-06-23. This is no longer a greenfield checklist; several items already exist in code and the remaining work is mostly validation, stabilization, or deferred architecture.
++
++Audit summary (2026-06-23):
++- `packages/opencode/drizzle.config.ts` already exists and matches the planned Drizzle Kit shape.
++- `packages/opencode/src/session/summary.ts` already skips diff computation when `config.snapshot === false`.
++- `RuntimeFlags.defaultLayer` is already provided to the plugin layer; WebSocket flag usage still needs a focused code audit.
++- `packages/opencode/src/session/tools.ts` already exists; future work should verify behavior/tests rather than create the module.
++- Attachment metadata handlers and required packages already exist for audio, image, archive, sensor, and video; remaining work is fixture coverage and runtime validation.
++- Session-level usage/cost columns already exist in schema and are accumulated in `processor.ts`; migration/backfill state still needs verification.
+@@
+-### 1.1 [ ] `drizzle.config.ts` — Enable future migrations
++### 1.1 [x] `drizzle.config.ts` — Enable future migrations
+@@
+ **Why:** Enables `bun run db generate --name <slug>` for future schema changes
++
++**Audit:** Implemented at `packages/opencode/drizzle.config.ts`.
+@@
+-### 1.3 [ ] Summary diff lazy compute
++### 1.3 [x] Summary diff lazy compute
+@@
+ **Why:** Performance — diffs are expensive and often unused
++
++**Audit:** Implemented in `packages/opencode/src/session/summary.ts`; when `cfg?.snapshot === false`, summary counters are set without calling `computeDiff()`.
+@@
+-### 2.2 [ ] RuntimeFlags + Codex WebSocket flags
++### 2.2 [ ] RuntimeFlags + Codex WebSocket flags — audit remaining gate
+@@
+ **Depends on:** RuntimeFlags already exists in our codebase
++
++**Audit:** `RuntimeFlags.defaultLayer` is already provided in `packages/opencode/src/plugin/index.ts`. Remaining work is to verify whether the Codex plugin actually gates `experimentalWebSockets` on `RuntimeFlags.experimentalWebSockets`.
+@@
+-### 2.4 [ ] Session usage tracking migration
++### 2.4 [ ] Session usage tracking migration — verify/backfill only
+@@
+-**What:** Port upstream's `20260510033149_session_usage` migration — adds token tracking columns to session table
+-**Note:** Adapt for our DB schema
++**What:** Verify migration/backfill behavior for existing databases that predate the session usage columns.
++**Audit:** `packages/opencode/src/session/session.sql.ts` already contains cost/token columns, and `packages/opencode/src/session/processor.ts` already accumulates session-level usage. Do not blindly port upstream as a new greenfield migration without checking local migration history.
+@@
+-### 2.5 [ ] Tool resolution consolidation
++### 2.5 [x] Tool resolution consolidation
+@@
+-**What:** Extract tool resolution logic from `prompt.ts` into dedicated module. Handles registry tools + MCP tools with context, permissions, plugin hooks.
++**What:** Extract tool resolution logic from `prompt.ts` into dedicated module. Handles registry tools + MCP tools with context, permissions, plugin hooks.
+ **Depends on:** Our existing tool registry and MCP integration
++
++**Audit:** `packages/opencode/src/session/tools.ts` already exists. Future work should be limited to behavior gaps or tests found by code review.
+@@
+-## Part 3: External Package Dependencies
++## Part 3: External Package Dependencies — verification backlog
++
++Audit: the dependencies and handler files are already present. Treat this section as a fixture/test/runtime-validation backlog, not as new package-selection work.
+@@
+-### 3.1 [ ] Audio metadata extraction
++### 3.1 [ ] Audio metadata extraction — verify fixtures
+@@
+-### 3.2 [ ] Video keyframe extraction
++### 3.2 [ ] Video metadata extraction — verify fixtures
+@@
+-### 3.3 [ ] HDF5 sensor reader
++### 3.3 [ ] HDF5 sensor reader — verify fixtures
+@@
+-### 3.4 [ ] Image resizing
++### 3.4 [ ] Image resizing — verify fixtures
+@@
+-### 3.5 [ ] Archive file listing
++### 3.5 [ ] Archive file listing — verify fixtures
+@@
+-Part 1 (Quick Wins) → Part 2 (Medium) → Part 3 (External)
++Plan audit/cleanup → focused remaining quick win → capability/media verification
+@@
+-  1-2 hours             5-8 hours           3-4 hours
++  30-45 min             30-90 min           2-4 hours
+@@
+-Parts 1 and 2 items can be done in parallel within each group.
+-Part 3 items need `bun install` for each package first.
++Do not run Part 3 as dependency installation; packages already exist. Add focused fixtures and run handler tests instead.
+*** Update File: plans/20260623_agent_pipeline_media_plan.md
+@@
+-**Status:** Plan — three-module feature: capability tool, chained agents, TUI media output
++**Status:** Active but stale — audited 2026-06-23. Treat this as a mixed implementation/verification backlog, not a greenfield feature plan.
++
++## Audit Update — 2026-06-23
++
++Current code state:
++- `packages/opencode/src/capability/index.ts` exists, but needs stabilization before it is used as a foundation.
++- `packages/opencode/src/tool/capability.ts` exists and is registered in `packages/opencode/src/tool/registry.ts`, but it duplicates service logic and uses sync file reads plus loose typing.
++- `pipeline` is not implemented: no `packages/opencode/src/tool/pipeline.ts`, no pipeline registration, and no dedicated pipeline TUI renderer.
++- `coder`, `researcher`, and `media` native agents are not implemented; only `general` and `explore` exist as visible native subagents.
++- Attachment handlers and media dependencies already exist in `packages/opencode/src/attachment/handlers/`; the remaining media backend work is tests/fixtures/runtime validation.
++- `FilePart` already exists in the message union and user/tool media conversion paths exist; assistant-originated media rendering/context support still needs focused review.
++
++Recommended cleanup order:
++1. Stabilize capability service/tool and tests.
++2. Validate existing attachment handlers with fixtures.
++3. Add assistant media rendering/context only after the existing media path is proven.
++4. Implement `pipeline` last, after task-agent and capability foundations are stable.
+@@
+-### A.1 `models_capabilities.yaml` — Schema & template
++### A.1 `models_capabilities.yaml` — Schema & template — implemented, verify
+@@
+-### A.2 `CapabilityService` — Effect service
++### A.2 `CapabilityService` — Effect service — partial, stabilize
+@@
+ **Test:** Mock YAML, models.json, auth.json → verify correct filter/sort/annotate
++
++**Audit:** `packages/opencode/src/capability/index.ts` exists. It should be reviewed for complete layer provisioning, typed file access, schema decoding, and test coverage before more features depend on it.
+@@
+-### A.3 `capability` tool
++### A.3 `capability` tool — partial, repair
+@@
+ **Test:** Given mock service → tool returns formatted table
++
++**Audit:** `packages/opencode/src/tool/capability.ts` exists and is registered, but it duplicates capability service logic and uses sync file reads, `require`, loose model typing, and brittle model path discovery. Cleanup should make the tool call `Capability.Service`.
+@@
+-### A.4 Tool registration
++### A.4 Tool registration — implemented
+@@
+ Same 3-step pattern for `pipeline` tool.
++
++**Audit:** Capability is already imported, initialized, and included in the builtin tool list. Pipeline remains unimplemented.
+@@
+-### A.5 TUI renderer
++### A.5 TUI renderer — open
+@@
+-## Module B: Chained Agent Pipeline
++## Module B: Chained Agent Pipeline — open
+@@
+-### B.1 New agent types
++### B.1 New agent types — open
+@@
+-### B.2 `pipeline` tool
++### B.2 `pipeline` tool — open
+@@
+-### B.3 Pipeline TUI renderer
++### B.3 Pipeline TUI renderer — open
+@@
+-## Module C: Multimedia TUI Output
++## Module C: Multimedia TUI Output — open TUI layer, backend partly implemented
+@@
+-### D.1 Add `FilePart` to assistant message parts
++### D.1 Add `FilePart` to assistant message parts — already present, verify assistant semantics
+*** End Patch

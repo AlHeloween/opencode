@@ -1,7 +1,23 @@
 # Agent Pipeline & Media Capability Plan
 
 **Created:** 2026-06-23
-**Status:** Plan — three-module feature: capability tool, chained agents, TUI media output
+**Status:** Active but stale — audited 2026-06-23. Treat this as a mixed implementation/verification backlog, not a greenfield feature plan.
+
+## Audit Update — 2026-06-23
+
+Current code state:
+- `packages/opencode/src/capability/index.ts` exists, but needs stabilization before it is used as a foundation.
+- `packages/opencode/src/tool/capability.ts` exists and is registered in `packages/opencode/src/tool/registry.ts`, but it duplicates service logic and uses sync file reads plus loose typing.
+- `pipeline` is not implemented: no `packages/opencode/src/tool/pipeline.ts`, no pipeline registration, and no dedicated pipeline TUI renderer.
+- `coder`, `researcher`, and `media` native agents are not implemented; only `general` and `explore` exist as visible native subagents.
+- Attachment handlers and media dependencies already exist in `packages/opencode/src/attachment/handlers/`; the remaining media backend work is tests/fixtures/runtime validation.
+- `FilePart` already exists in the message union and user/tool media conversion paths exist; assistant-originated media rendering/context support still needs focused review.
+
+Recommended cleanup order:
+1. Stabilize capability service/tool and tests.
+2. Validate existing attachment handlers with fixtures.
+3. Add assistant media rendering/context only after the existing media path is proven.
+4. Implement `pipeline` last, after task-agent and capability foundations are stable.
 
 ---
 
@@ -9,7 +25,7 @@
 
 **Goal:** Assistant-usable tool that queries model capabilities from a portable YAML file next to the executable, cross-references with `auth.json` for API keys, and returns ranked model choices.
 
-### A.1 `models_capabilities.yaml` — Schema & template
+### A.1 `models_capabilities.yaml` — Schema & template — implemented, verify
 
 **File:** `{Global.Path.config}/models_capabilities.yaml` (NEW, next to executable)
 **Effort:** 30 min
@@ -45,7 +61,7 @@ models:
 **Output:** `CapabilityEntry[]`
 **Test:** Parse valid YAML, reject invalid, default `proven: false` / `tested_at: null`
 
-### A.2 `CapabilityService` — Effect service
+### A.2 `CapabilityService` — Effect service — partial, stabilize
 
 **File:** `packages/opencode/src/capability/index.ts` (NEW)
 **Effort:** 1h
@@ -89,7 +105,9 @@ LookupResult {
 
 **Test:** Mock YAML, models.json, auth.json → verify correct filter/sort/annotate
 
-### A.3 `capability` tool
+**Audit:** `packages/opencode/src/capability/index.ts` exists. It should be reviewed for complete layer provisioning, typed file access, schema decoding, and test coverage before more features depend on it.
+
+### A.3 `capability` tool — partial, repair
 
 **File:** `packages/opencode/src/tool/capability.ts` (NEW)
 **Effort:** 1h
@@ -145,7 +163,9 @@ imagen-4                 | google    | -      | ✗       | $0.02 / image
 
 **Test:** Given mock service → tool returns formatted table
 
-### A.4 Tool registration
+**Audit:** `packages/opencode/src/tool/capability.ts` exists and is registered, but it duplicates capability service logic and uses sync file reads, `require`, loose model typing, and brittle model path discovery. Cleanup should make the tool call `Capability.Service`.
+
+### A.4 Tool registration — implemented
 
 **File:** `packages/opencode/src/tool/registry.ts` (MODIFY)
 **Effort:** 10 min
@@ -169,7 +189,9 @@ Three insertion points (following the pattern of all 21 built-in tools):
 
 Same 3-step pattern for `pipeline` tool.
 
-### A.5 TUI renderer
+**Audit:** Capability is already imported, initialized, and included in the builtin tool list. Pipeline remains unimplemented.
+
+### A.5 TUI renderer — open
 
 **File:** `packages/ui/src/components/message-part.tsx` (MODIFY)
 **Effort:** 30 min
@@ -190,11 +212,11 @@ ToolRegistry.register({
 
 ---
 
-## Module B: Chained Agent Pipeline
+## Module B: Chained Agent Pipeline — open
 
 **Goal:** Compose multiple sub-agents sequentially where agent N's output feeds as context to agent N+1.
 
-### B.1 New agent types
+### B.1 New agent types — open
 
 **File:** `packages/opencode/src/agent/agent.ts` (MODIFY)
 **Effort:** 30 min
@@ -251,7 +273,7 @@ media: {
 - `packages/opencode/src/agent/prompt/researcher.txt`
 - `packages/opencode/src/agent/prompt/media.txt`
 
-### B.2 `pipeline` tool
+### B.2 `pipeline` tool — open
 
 **File:** `packages/opencode/src/tool/pipeline.ts` (NEW)
 **Effort:** 1.5h
@@ -310,7 +332,7 @@ export const PipelineTool = Tool.define("pipeline", Effect.gen(function* () {
 - Same `ctx` (Tool.Context) is threaded through to all sub-steps — sessionID/messageID/abort all propagate
 - One tool call = one pipeline = one tool result row in the TUI
 
-### B.3 Pipeline TUI renderer
+### B.3 Pipeline TUI renderer — open
 
 **File:** `packages/ui/src/components/message-part.tsx` (MODIFY)
 **Effort:** 45 min
@@ -338,7 +360,7 @@ ToolRegistry.register({
 
 ---
 
-## Module C: Multimedia TUI Output
+## Module C: Multimedia TUI Output — open TUI layer, backend partly implemented
 
 **Goal:** Render non-text tool outputs (images, audio, video) via child processes (chafa, mpv, ffmpeg). No custom escape sequences — proven approach from experiments.
 
@@ -420,7 +442,7 @@ if (part().state.attachments?.length) {
 
 **Goal:** Treat image, audio, video as first-class assistant message parts (not just tool attachments) and inject output capabilities into the system prompt so the model knows what it can produce.
 
-### D.1 Add `FilePart` to assistant message parts
+### D.1 Add `FilePart` to assistant message parts — already present, verify assistant semantics
 
 **File:** `packages/opencode/src/session/message-v2.ts` (MODIFY)
 **Effort:** 20 min

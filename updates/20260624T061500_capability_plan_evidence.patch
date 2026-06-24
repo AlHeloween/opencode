@@ -1,0 +1,51 @@
+*** Begin Patch
+*** Update File: plans/20260623_capability_stabilization_plan.md
+@@
+-**Scope:** Plan only. No implementation is authorized by this document.
++**Scope:** Capability stabilization record. Implementation was authorized separately by user approval of Candidate 2 plus the follow-up W5 continuation.
+@@
+-- write_lock: true for implementation until an implementation candidate is approved
++- write_lock: false
+ - target_scope: stabilize `capability` service, tool, tests, and plan traceability
+-- known_blockers: no capability test coverage was found during discovery
+-- oracle_status: Candidate 2 green; W5 implementation pending verification in this update
++- known_blockers: final explore-agent validation was not run in this turn
++- oracle_status: green for Candidate 2 and W5 local oracles
+ - provenance_path: implementation must use `updates/` descriptors and ADM verification
+@@
+-- [Exact] `packages/opencode/src/capability/index.ts` exists and defines `Capability.Service`.
+-- [Exact] `packages/opencode/src/tool/capability.ts` exists and is registered in `packages/opencode/src/tool/registry.ts`.
+-- [Exact] The tool currently duplicates lookup logic instead of delegating to `Capability.Service`.
+-- [Exact] The tool reads files synchronously and contains a brittle relative `models.json` path.
+-- [Exact] The service reads `models_capabilities.yaml` from `Global.Path.config`.
+-- [Exact] The service decodes YAML by casting parsed data rather than validating unknown input with the schema.
+-- [Exact] `Capability.defaultLayer` needs dependency review because the service requires provider and auth services.
+-- [Exact] No capability-specific tests were found in the searched `packages/opencode/test` tree.
+-- [Inferred] Stabilizing service and tool before TUI/media work gives the smallest safe dependency chain.
++- [Exact] `packages/opencode/src/capability/index.ts` defines `Capability.Service`, schema-decodes YAML, and uses provider/auth services for lookup.
++- [Exact] `packages/opencode/src/tool/capability.ts` delegates lookup to `Capability.Service`.
++- [Exact] `packages/opencode/src/tool/registry.ts` registers the `capability` tool and provides `Capability.defaultLayer`.
++- [Exact] `packages/opencode/test/capability/capability.test.ts` covers missing YAML, valid YAML, malformed YAML, filtering, sorting, formatted output, and schema rejection.
++- [Exact] `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` renders `capability` output through a dedicated terminal TUI `BlockTool`.
++- [Exact] W5 used terminal TUI evidence because generic terminal output is hidden by default.
++- [Inferred] The remaining media/pipeline work can now depend on the stabilized capability surface.
+@@
+ Documentation-only verification for this plan:
+ - Inspect exact diff for this file.
+ - Run `tools/adm.exe --verify-all plans`.
++- Run the explore task agent before moving this plan to `plans_completed/`.
+ 
+-Implementation verification for a later approved candidate:
+-- From `packages/opencode`: run targeted `bun test` for new capability tests.
+-- From `packages/opencode`: run `bun typecheck`.
+-- From repo root: run `bun turbo typecheck` only if shared or UI surfaces change.
+-- Run ADM `--verify-all` on changed source/test roots and `plans`.
++Implementation verification completed:
++- From `packages/opencode`: `bun test test/capability/capability.test.ts` passed.
++- From `packages/opencode`: `bun typecheck` passed through cmd_runner.
++- ADM `--verify-all packages\opencode\src\cli\cmd\tui\routes\session plans` passed.
++- ADM source/test verification for Candidate 2 passed before commit `4930517d5`.
+@@
+-    - Next: review whether generic tool output is sufficient before any TUI-specific work
++    - Next: run final explore-agent validation before archival or continue to the next active media/pipeline workstream
+*** End Patch

@@ -1,6 +1,6 @@
 # Repository Folder Map
 
-**Last updated:** 2026-06-16
+**Last updated:** 2026-06-24
 **Purpose:** Folder-based index of repository contents — purpose + key entrypoints for each directory.
 
 ---
@@ -45,14 +45,13 @@
 - `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
 
 ### `plans/` — Active Plans
-- `20260605_preexisting_provider_git_init.md` — Provider/git-init test failure fixes
-- `20260604_project_analysis_issues.md` — Project analysis issue backlog
-- `20260623_remaining_items.md` — Remaining implementation items (12 open across Parts 1-3)
+- `20260623_remaining_items.md` — Maintenance backlog: 5 actionable items (Part 3 handler tests, 3.5h) + 6 deferred items
 
-### `plans_completed/` — Completed Plans
-- `20260615_fix_premature_compaction_json_inflation.md` — Fixed premature compaction from JSON/4 token inflation
-- `20260615_real_tokenizer_integration.md` — Real BPE + tiktoken tokenizers for DeepSeek V4, Qwen3, GPT-5
-- Plus: performance, logging, security, shell migration, file locations, backups, session ops
+### `plans_completed/` — Completed Plans (84 plans)
+- `20260624_module_cd_plan.md` — Module C+D: Media TUI (chafa/mpv) + Multimodal messages
+- `20260623_agent_pipeline_media_plan.md` — 10h master plan: capability tool, agent pipeline, media TUI, multimodal messages
+- `20260623_capability_stabilization_plan.md` — Capability service/tool/TUI stabilization
+- Plus: performance, logging, security, shell migration, file locations, backups, session ops, cache, compaction, etc.
 
 ### `research_done/` — Completed Research Documents
 - `research_v4.md` — Fix-oriented security/correctness triage

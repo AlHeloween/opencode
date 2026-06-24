@@ -1,7 +1,7 @@
 # Remaining Items Plan
 
 **Created:** 2026-06-23 — carried forward from `20260601_complete_remaining_items.md` (now in `plans_completed/`)
-**Status:** Active — audited 2026-06-23. This is no longer a greenfield checklist; several items already exist in code and the remaining work is mostly validation, stabilization, or deferred architecture.
+**Status:** Active — audited 2026-06-24. 3 items remain actionable (Part 3 handler tests, 3.5h). 5 items deferred (architectural decisions pending). 2 stale deferred markers fixed today (4.1 ACP, 4.3 MCP OAuth — fully implemented).
 
 Audit summary (2026-06-23):
 - `packages/opencode/drizzle.config.ts` already exists and matches the planned Drizzle Kit shape.
@@ -142,14 +142,14 @@ Audit: the dependencies and handler files are already present. Treat this sectio
 
 These are scoped for awareness; implementation deferred to future sessions.
 
-### 4.1 [ ] ACP module
-**Scope:** 12 files, agent client protocol for third-party AI agent control
+### 4.1 [x] ACP module — stale marker fixed 2026-06-24
+**Audit:** Fully implemented. 3 source files (`acp/agent.ts` 1600+ lines, `acp/session.ts`, `acp/types.ts`) + 2 test files. Wired in `index.ts:29` via `AcpCommand`. **Scope was 12 files; actual implementation differs but module is complete.**
 
 ### 4.2 [ ] HTTP API v2 restructure
 **Scope:** Groups/handlers/middleware separation, cursor-based pagination
 
-### 4.3 [ ] MCP OAuth overhaul
-**Scope:** Remote MCP server authentication with PKCE
+### 4.3 [x] MCP OAuth overhaul — stale marker fixed 2026-06-24
+**Audit:** Fully implemented. 3 files: `mcp/oauth-provider.ts` (~130 lines), `mcp/oauth-callback.ts` (~232 lines), `mcp/auth.ts` (~120 lines). Full OAuth/PKCE flow with `startAuth()`, `finishAuth()`, `removeCredentials()`. Wired in `mcp/index.ts`.
 
 ### 4.4 [ ] Catalog service
 **Scope:** Centralized provider/model store — tied to architectural decision
@@ -198,3 +198,43 @@ Do not run Part 3 as dependency installation; packages already exist. Add focuse
 7. Embeddings table created via migration + inline SQL
 8. Audio/video handlers extract metadata from test fixtures
 9. Image handler resizes test image
+
+---
+
+## Current Status (audited 2026-06-24)
+
+### Done (Parts 1+2): 8/8 completed
+| Item | Status |
+|------|--------|
+| 1.1 drizzle.config.ts | [x] |
+| 1.2 isOrphanedInterruptedTool guard | [x] |
+| 1.3 Summary diff lazy compute | [x] |
+| 2.2 RuntimeFlags + Codex audit | [x] |
+| 2.4 Session usage migration | [x] |
+| 2.5 Tool resolution consolidation | [x] |
+| 2.6 LLM request prep | Deferred (no bug) |
+| 1.4 Effect.sync(() => tx()) | REJECTED |
+| 2.1 eventsBus.all() | REVERTED |
+| 2.3 ensureToolCall/finishReasoning | [x] |
+| 2.7 Git service abstraction | [x] |
+
+### Remaining (Part 3): 5 items, 3.5h
+| Item | Effort | What |
+|------|--------|------|
+| 3.1 Audio handler tests | 30min | Verify music-metadata fixtures |
+| 3.2 Video handler tests | 45min | Verify ffmpeg metadata extraction |
+| 3.3 HDF5 sensor tests | 1h | Verify h5wasm dataset parsing |
+| 3.4 Image resize tests | 1h | Verify sharp/jimp resize behavior |
+| 3.5 Archive handler tests | 30min | Verify adm-zip/tar-stream listing |
+
+### Deferred (Part 4): 6 items (4.1, 4.3 done)
+| Item | Status |
+|------|--------|
+| 4.1 ACP module | [x] Fully implemented |
+| 4.2 HTTP API v2 restructure | [ ] Partially exists, formal pattern not applied |
+| 4.3 MCP OAuth overhaul | [x] Fully implemented |
+| 4.4 Catalog service | [ ] Architectural decision pending |
+| 4.5 Auth V2 / Account service | [ ] Architectural decision pending |
+| 4.6 PluginV2 hook rename | [ ] Tied to Catalog adoption |
+| 4.7 FTS trigger for $.kind | [ ] No code |
+| 4.8 Remove inline SQL | [ ] Migration system exists, CORE_SCHEMA_SQL not yet removed |

@@ -1,6 +1,7 @@
 # Documentation Surface Index
 
 **Created:** 2026-05-18
+**Last Audited:** 2026-06-24
 **Maintainer:** Contributors to `anomalyco/opencode`
 
 This index tracks all documentation surfaces in the repository with ownership, entrypoints, and last-verified timestamps.
@@ -70,43 +71,23 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 | Document | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|
-| `plans/20260605_preexisting_provider_git_init.md` | OpenCode team | active | 2026-06-22 |
-| `plans/20260604_project_analysis_issues.md` | OpenCode team | active | 2026-06-22 |
-| `plans/20260623_remaining_items.md` | OpenCode team | active | 2026-06-23 |
+| `plans/20260623_remaining_items.md` | OpenCode team | active — 5 actionable (Part 3 handler tests), 6 deferred | 2026-06-24 |
 
 ---
 
-## Completed Plans (`plans_completed/`)
+## Completed Plans (`plans_completed/`) — 84 plans
 
-| Document | Owner | Status | Last Verified |
+| Key recent completions | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|
+| `plans_completed/20260624_module_cd_plan.md` | OpenCode team | completed | 2026-06-24 |
+| `plans_completed/20260623_agent_pipeline_media_plan.md` | OpenCode team | completed — all 4 modules | 2026-06-24 |
+| `plans_completed/20260623_capability_stabilization_plan.md` | OpenCode team | completed | 2026-06-24 |
+| `plans_completed/20260623_B_agent_pipeline.md` | OpenCode team | completed | 2026-06-24 |
+| `plans_completed/20260623_C_media_tui.md` | OpenCode team | completed | 2026-06-24 |
+| `plans_completed/20260623_D_multimodal.md` | OpenCode team | completed | 2026-06-24 |
 | `plans_completed/20260601_complete_remaining_items.md` | OpenCode team | completed | 2026-06-23 |
 | `plans_completed/PERF_PLAN.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/unified-logging.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/per-project-db-remaining.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/security-hardening-and-cleanup.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/bun-shell-migration.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/external-file-locations-redesign.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/per-edit-backups.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/session-delete-rename-fix.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/silent-catch-elimination.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/log-system-optimization.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/log-dedup.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/fix-global-paths-worktree-relative.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/remove-migrations-inline-schema.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/remove-protocol-overrides.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/deepseek-v4-features.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/fix-web-bundle-log-dependency.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/unified-task-model.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/backport-perf-hotfixes.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/perf-fixes.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/perf-fixes-2.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/bug-fixes-round-1.md` | OpenCode team | completed | 2026-05-18 |
-| `plans_completed/20260604_cache_poison_cold_start_deadlock_fix.md` | OpenCode team | completed | 2026-06-06 |
-| `plans_completed/20260605_recent_commit_correctness_fix.md` | OpenCode team | completed | 2026-06-06 |
-| `plans_completed/20260606_remove_watchdog_cache_side_effects.md` | OpenCode team | completed | 2026-06-07 |
-| `plans_completed/20260601_upstream_adoption_phase2.md` | OpenCode team | completed | 2026-06-01 |
-| `plans_completed/20260607_runtime_path_account_db_cleanup.md` | OpenCode team | completed | 2026-06-08 |
+| ... | ... | ... | ... |
 
 ---
 

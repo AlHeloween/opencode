@@ -1,0 +1,25 @@
+*** Begin Patch
+*** Update File: plans/20260623_capability_stabilization_plan.md
+@@
+-**Status:** Active - capability service, tool, tests, and TUI readiness complete; final plan-validation pass remains before archival
++**Status:** Completed - capability service, tool, tests, TUI readiness, and final explore validation are complete; archive-ready
+@@
+-- known_blockers: final explore-agent validation was not run in this turn
+-- oracle_status: green for Candidate 2 and W5 local oracles
++- known_blockers: none
++- oracle_status: green for Candidate 2, W5 local oracles, and final explore validation
+@@
+ - ADM `--verify-all packages\opencode\src\cli\cmd\tui\routes\session plans` passed.
+ - ADM source/test verification for Candidate 2 passed before commit `4930517d5`.
++- Explore task agent validation passed with `Verdict: CLEAN - Safe to Archive`, `Gaps: 0`, and all six workstreams verified against real code state.
+ 
+ ## Clean Next State
+ 
+-    - Done: Candidate 2 service/tool stabilization and W5 terminal TUI readiness
+-    - Pending: final plan-validation pass before archival
++    - Done: Candidate 2 service/tool stabilization, W5 terminal TUI readiness, and final explore validation
++    - Pending: move this plan to `plans_completed/`
+     - Blocked: none
+-    - Next: run final explore-agent validation before archival or continue to the next active media/pipeline workstream
++    - Next: archive this plan and continue to the next active media/pipeline workstream
+*** End Patch

@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: plans_completed/20260623_capability_stabilization_plan.md
+@@
+-**Status:** Completed - capability service, tool, tests, TUI readiness, and final explore validation are complete; archive-ready
++**Status:** Completed - capability service, tool, tests, TUI readiness, final explore validation, and archival are complete
+@@
+-    - Pending: move this plan to `plans_completed/`
++    - Pending: none
+     - Blocked: none
+-    - Next: archive this plan and continue to the next active media/pipeline workstream
++    - Next: continue to the next active media/pipeline workstream
+*** End Patch

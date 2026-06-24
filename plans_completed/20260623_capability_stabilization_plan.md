@@ -1,7 +1,7 @@
 # Capability Stabilization Plan
 
 **Created:** 2026-06-23
-**Status:** Active - capability service, tool, tests, and TUI readiness complete; final plan-validation pass remains before archival
+**Status:** Completed - capability service, tool, tests, TUI readiness, final explore validation, and archival are complete
 **Parent:** `plans/20260623_agent_pipeline_media_plan.md`
 **Scope:** Capability stabilization record. Implementation was authorized separately by user approval of Candidate 2 plus the follow-up W5 continuation.
 
@@ -11,8 +11,8 @@
 - governing_standard: ADID plus root `AGENTS.md`
 - write_lock: false
 - target_scope: stabilize `capability` service, tool, tests, and plan traceability
-- known_blockers: final explore-agent validation was not run in this turn
-- oracle_status: green for Candidate 2 and W5 local oracles
+- known_blockers: none
+- oracle_status: green for Candidate 2, W5 local oracles, and final explore validation
 - provenance_path: implementation must use `updates/` descriptors and ADM verification
 
 sv=[[capability,stabilization,service,tool,tests,provider,provenance], [0.22,0.20,0.16,0.15,0.12,0.10,0.05]]
@@ -167,7 +167,7 @@ Semantic deltas:
 - Do not create or use `.opencode/plans/`.
 
 Affected artifacts:
-- `plans/20260623_capability_stabilization_plan.md`
+- `plans_completed/20260623_capability_stabilization_plan.md`
 - `plans/20260623_agent_pipeline_media_plan.md`
 - `plans_completed/` only after completion
 
@@ -345,24 +345,25 @@ Implementation verification completed:
 - From `packages/opencode`: `bun typecheck` passed through cmd_runner.
 - ADM `--verify-all packages\opencode\src\cli\cmd\tui\routes\session plans` passed.
 - ADM source/test verification for Candidate 2 passed before commit `4930517d5`.
+- Explore task agent validation passed with `Verdict: CLEAN - Safe to Archive`, `Gaps: 0`, and all six workstreams verified against real code state.
 
 ## Clean Next State
 
-    - Done: Candidate 2 service/tool stabilization and W5 terminal TUI readiness
-    - Pending: final plan-validation pass before archival
+    - Done: Candidate 2 service/tool stabilization, W5 terminal TUI readiness, and final explore validation
+    - Pending: none
     - Blocked: none
-    - Next: run final explore-agent validation before archival or continue to the next active media/pipeline workstream
+    - Next: continue to the next active media/pipeline workstream
 
 <!-- ADID_ROLLBACK (from adm.exe)
   SDID_ROLLBACK {
-    "target_file": "D:\\zPython\\opencode\\plans/20260623_capability_stabilization_plan.md"
+    "target_file": "D:\\zPython\\opencode\\plans_completed/20260623_capability_stabilization_plan.md"
     "update_script": "adm.exe"
     "backup_path": "none"
     "created_at": "2026-06-24T05:27:01.720184+00:00"
     "new_hash": "afaea1bde543c2aec47eb2a74845edda"
     "goal_id": "create_capability_stabilization_plan"
     "semantics": "Create a documentation-only stabilization plan for capability service/tool work."
-    "update_attrs": {"relative_path": "plans/20260623_capability_stabilization_plan.md", "update_type": "text", "mode": "overwrite", "encoding": "utf-8", "find_pattern": null, "find_text": "", "replace_present": true}
-    "restore_cmd": "python -m adm \u002d\u002drollback \"D:\\zPython\\opencode\\plans/20260623_capability_stabilization_plan.md\""
+    "update_attrs": {"relative_path": "plans_completed/20260623_capability_stabilization_plan.md", "update_type": "text", "mode": "overwrite", "encoding": "utf-8", "find_pattern": null, "find_text": "", "replace_present": true}
+    "restore_cmd": "python -m adm \u002d\u002drollback \"D:\\zPython\\opencode\\plans_completed/20260623_capability_stabilization_plan.md\""
   }
 -->

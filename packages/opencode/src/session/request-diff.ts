@@ -425,6 +425,17 @@ function alignLines(prev: string[], curr: string[]): EditOp[] {
   let i = 0
   let j = 0
 
+  // Fast-path: skip common prefix. Most turns share an identical system
+  // prompt (byte-identical thanks to checkpoint caching). Skipping the
+  // prefix avoids O(window²) sync-point search for hundreds of identical
+  // lines — saving ~180K comparisons per diff on a typical session.
+  const minLen = Math.min(prev.length, curr.length)
+  while (i < minLen && prev[i] === curr[j]) {
+    ops.push({ type: "==", line: prev[i] })
+    i++
+    j++
+  }
+
   while (i < prev.length || j < curr.length) {
     if (i < prev.length && j < curr.length && prev[i] === curr[j]) {
       ops.push({ type: "==", line: prev[i] })

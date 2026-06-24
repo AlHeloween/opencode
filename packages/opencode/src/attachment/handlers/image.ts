@@ -21,7 +21,7 @@ async function resizeImage(buffer: Buffer, maxWidth: number, maxHeight: number):
     const meta = await image.metadata()
     if (!meta.width || !meta.height) return buffer
     if (meta.width <= maxWidth && meta.height <= maxHeight) return buffer
-    return image.resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true }).toBuffer()
+    return await image.resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true }).toBuffer()
   } catch {
     return buffer
   }

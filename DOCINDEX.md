@@ -29,7 +29,8 @@ This index tracks all documentation surfaces in the repository with ownership, e
 | Document | Owner | Entrypoint | Status | Last Verified |
 |----------|-------|------------|--------|---------------|
 | `docs/README.md` | OpenCode team | Docs directory index | production | 2026-05-18 |
-| `docs/ADID_Framework_15_3.md` | ADID team | Epistemic markers, semantic vectors, AGI Reasoning Kernel | production | 2026-05-18 |
+| `docs/ADID_Framework_15_3.md` | ADID team | Epistemic markers, semantic vectors, AGI Reasoning Kernel | production | 2026-06-24 |
+| `docs/architecture.md` | OpenCode team | System architecture diagrams: prompt, checkpoint, agents, media, cache/diff | production | 2026-06-24 |
 | `docs/external-file-locations.md` | OpenCode team | All file paths opencode reads/writes outside worktree | production | 2026-05-18 |
 
 ---

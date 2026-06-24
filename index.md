@@ -36,6 +36,7 @@
 
 ### `docs/` — Technical Documentation
 - `ADID_Framework_15_3.md` — Autodidactic Development & Intelligence Driver Framework v15.3
+- `architecture.md` — System architecture diagrams: prompt assembly, checkpoint, agents, media, cache/diff, data flow
 - `external-file-locations.md` — All file paths opencode reads/writes outside project worktree
 - `README.md` — Docs directory index
 

@@ -8,16 +8,16 @@
 Current code state:
 - `packages/opencode/src/capability/index.ts` exists and was stabilized with schema-decoded YAML, provider-backed lookup, deterministic ranking, and focused tests.
 - `packages/opencode/src/tool/capability.ts` exists, is registered in `packages/opencode/src/tool/registry.ts`, and delegates lookup to `Capability.Service`.
-- `pipeline` is not implemented: no `packages/opencode/src/tool/pipeline.ts`, no pipeline registration, and no dedicated pipeline TUI renderer.
-- `coder`, `researcher`, and `media` native agents are not implemented; only `general` and `explore` exist as visible native subagents.
-- Attachment handlers and media dependencies already exist in `packages/opencode/src/attachment/handlers/`; the remaining media backend work is tests/fixtures/runtime validation.
-- `FilePart` already exists in the message union and user/tool media conversion paths exist; assistant-originated media rendering/context support still needs focused review.
+- `packages/opencode/src/tool/pipeline.ts` exists, is registered in `packages/opencode/src/tool/registry.ts`, and has a terminal TUI renderer in `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx`.
+- `coder`, `researcher`, and `media` native agents are implemented with dedicated prompts in `packages/opencode/src/agent/prompt/`.
+- Attachment handlers and media dependencies already exist in `packages/opencode/src/attachment/handlers/`; the remaining media backend work is fixture coverage and runtime validation tracked in `plans/20260623_remaining_items.md`.
+- `FilePart` is part of the unified message union and terminal TUI renders image, video, and audio media through the media components.
 
 Recommended cleanup order:
-1. Stabilize capability service/tool and tests.
-2. Validate existing attachment handlers with fixtures.
-3. Add assistant media rendering/context only after the existing media path is proven.
-4. Implement `pipeline` last, after task-agent and capability foundations are stable.
+1. Stabilize capability service/tool and tests. [x]
+2. Validate existing attachment handlers with fixtures. [ ] Tracked in `plans/20260623_remaining_items.md`.
+3. Add assistant media rendering/context only after the existing media path is proven. [x]
+4. Implement `pipeline` last, after task-agent and capability foundations are stable. [x]
 
 ---
 
@@ -189,7 +189,7 @@ Three insertion points (following the pattern of all 21 built-in tools):
 
 Same 3-step pattern for `pipeline` tool.
 
-**Audit:** Capability is already imported, initialized, and included in the builtin tool list. Pipeline remains unimplemented.
+**Audit:** Capability and pipeline are imported, initialized, and included in the builtin tool list.
 
 ### A.5 Terminal TUI renderer — implemented
 
@@ -209,7 +209,7 @@ Register renderer in the terminal TUI switch:
 
 **Goal:** Compose multiple sub-agents sequentially where agent N's output feeds as context to agent N+1.
 
-### B.1 New agent types — open
+### B.1 New agent types — implemented
 
 **File:** `packages/opencode/src/agent/agent.ts` (MODIFY)
 **Effort:** 30 min
@@ -266,7 +266,7 @@ media: {
 - `packages/opencode/src/agent/prompt/researcher.txt`
 - `packages/opencode/src/agent/prompt/media.txt`
 
-### B.2 `pipeline` tool — open
+### B.2 `pipeline` tool — implemented
 
 **File:** `packages/opencode/src/tool/pipeline.ts` (NEW)
 **Effort:** 1.5h
@@ -325,10 +325,12 @@ export const PipelineTool = Tool.define("pipeline", Effect.gen(function* () {
 - Same `ctx` (Tool.Context) is threaded through to all sub-steps — sessionID/messageID/abort all propagate
 - One tool call = one pipeline = one tool result row in the TUI
 
-### B.3 Pipeline TUI renderer — open
+### B.3 Pipeline TUI renderer — implemented
 
 **File:** `packages/ui/src/components/message-part.tsx` (MODIFY)
 **Effort:** 45 min
+
+**Audit:** Implemented in the terminal TUI route at `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx`, matching this fork's active renderer surface.
 
 ```typescript
 ToolRegistry.register({

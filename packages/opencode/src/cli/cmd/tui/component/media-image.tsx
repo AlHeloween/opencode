@@ -1,11 +1,22 @@
-import { createSignal, onMount, Show, Switch, Match } from "solid-js"
+import { createSignal, onMount, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
-import { execSync } from "child_process"
+import { execFileSync } from "child_process"
 import { writeFileSync, unlinkSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
 import { which } from "@/util/which"
 import { Spinner } from "./spinner"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "tui.media.image" })
+
+function removeTempFile(file: string) {
+  try {
+    unlinkSync(file)
+  } catch (error) {
+    log.debug("failed to remove temp image", { error: String(error) })
+  }
+}
 
 function renderChafa(url: string): string | null {
   const base64 = url.split(",")[1]
@@ -26,15 +37,17 @@ function renderChafa(url: string): string | null {
     writeFileSync(tmpFile, Buffer.from(base64, "base64"))
     const cols = process.stdout.columns ?? 80
     const rows = Math.floor((process.stdout.rows ?? 24) * 0.45)
-    const output = execSync(
-      `${chafaPath} --format symbols --color-space rgb --size ${cols}x${rows} "${tmpFile}"`,
+    const output = execFileSync(
+      chafaPath,
+      ["--format", "symbols", "--color-space", "rgb", "--size", `${cols}x${rows}`, tmpFile],
       { encoding: "utf-8", timeout: 8000, maxBuffer: 4 * 1024 * 1024 },
     )
     return output
-  } catch {
+  } catch (error) {
+    log.debug("failed to render image with chafa", { error: String(error) })
     return null
   } finally {
-    try { unlinkSync(tmpFile) } catch { /* temp cleanup */ }
+    removeTempFile(tmpFile)
   }
 }
 
@@ -48,7 +61,7 @@ export function MediaImage(props: { url: string; mime: string }) {
     const result = renderChafa(props.url)
     if (result === null) {
       if (!which("chafa")) {
-        setError("chafa not installed — install chafa for terminal image rendering")
+        setError("chafa not installed - install chafa for terminal image rendering")
       } else {
         setError("Could not render image")
       }

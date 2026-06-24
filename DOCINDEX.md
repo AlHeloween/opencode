@@ -75,7 +75,7 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 ---
 
-## Completed Plans (`plans_completed/`) — 84 plans
+## Completed Plans (`plans_completed/`) — 95 plans
 
 | Key recent completions | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|

@@ -1,0 +1,20 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/cli/cmd/tui/component/media-video.tsx
+@@
+ type VideoMetadata = {
++  mime?: string
++  url?: string
++  filename?: string
+   duration?: number
+   width?: number
+   height?: number
+*** Update File: packages/opencode/src/cli/cmd/tui/component/media-audio.tsx
+@@
+ type AudioMetadata = {
++  mime?: string
++  url?: string
++  filename?: string
+   duration?: number
+   sampleRate?: number
+   channels?: number
+*** End Patch

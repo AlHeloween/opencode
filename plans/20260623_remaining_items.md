@@ -1,7 +1,7 @@
 # Remaining Items Plan
 
 **Created:** 2026-06-23 — carried forward from `20260601_complete_remaining_items.md` (now in `plans_completed/`)
-**Status:** Active — audited 2026-06-24. 3 items remain actionable (Part 3 handler tests, 3.5h). 5 items deferred (architectural decisions pending). 2 stale deferred markers fixed today (4.1 ACP, 4.3 MCP OAuth — fully implemented).
+**Status:** Active — audited 2026-06-24. 5 items remain actionable (Part 3 handler tests, 3.5h). 5 items deferred (architectural decisions pending). 2 stale deferred markers fixed today (4.1 ACP, 4.3 MCP OAuth — fully implemented).
 
 Audit summary (2026-06-23):
 - `packages/opencode/drizzle.config.ts` already exists and matches the planned Drizzle Kit shape.

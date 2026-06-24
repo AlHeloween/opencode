@@ -47,7 +47,7 @@
 ### `plans/` — Active Plans
 - `20260623_remaining_items.md` — Maintenance backlog: 5 actionable items (Part 3 handler tests, 3.5h) + 6 deferred items
 
-### `plans_completed/` — Completed Plans (84 plans)
+### `plans_completed/` — Completed Plans (95 plans)
 - `20260624_module_cd_plan.md` — Module C+D: Media TUI (chafa/mpv) + Multimodal messages
 - `20260623_agent_pipeline_media_plan.md` — 10h master plan: capability tool, agent pipeline, media TUI, multimodal messages
 - `20260623_capability_stabilization_plan.md` — Capability service/tool/TUI stabilization

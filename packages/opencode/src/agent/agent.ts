@@ -7,9 +7,12 @@ import { Truncate } from "@/tool/truncate"
 import { Auth } from "../auth"
 import { ProviderTransform } from "@/provider/transform"
 
+import PROMPT_CODER from "./prompt/coder.txt"
 import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_GENERAL from "./prompt/general.txt"
+import PROMPT_MEDIA from "./prompt/media.txt"
+import PROMPT_RESEARCHER from "./prompt/researcher.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
@@ -176,6 +179,68 @@ export const layer = Layer.effect(
             ),
             description: `Fast agent specialized for exploring codebases and researching conversation history. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase (eg. "how do API endpoints work?"), or search past conversations for decisions, patterns, and context. When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
             prompt: PROMPT_EXPLORE,
+            options: {},
+            mode: "subagent",
+            native: true,
+          },
+          coder: {
+            name: "coder",
+            description: `Specialized agent for implementing code changes. Has full edit, write, bash, and search access. Use for targeted implementation tasks after a plan or research phase.`,
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                todowrite: "deny",
+                task: "deny",
+              }),
+              user,
+            ),
+            prompt: PROMPT_CODER,
+            options: {},
+            mode: "subagent",
+            native: true,
+          },
+          researcher: {
+            name: "researcher",
+            description: `Specialized agent for information gathering. Read-only access to codebase search, web research, and conversation history. Use before planning or implementing to gather evidence.`,
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                "*": "deny",
+                read: "allow",
+                glob: "allow",
+                grep: "allow",
+                list: "allow",
+                bash: "allow",
+                webfetch: "allow",
+                universalsearch: "allow",
+                messagesearch: "allow",
+                "session-read": "allow",
+                external_directory: {
+                  "*": "ask",
+                  ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
+                },
+              }),
+              user,
+            ),
+            prompt: PROMPT_RESEARCHER,
+            options: {},
+            mode: "subagent",
+            native: true,
+          },
+          media: {
+            name: "media",
+            description: `Specialized agent for media generation and processing. Uses the capability tool to find models for image, audio, and video generation. Has write access for saving generated media.`,
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                todowrite: "deny",
+                task: "deny",
+                webfetch: "deny",
+                universalsearch: "deny",
+              }),
+              user,
+            ),
+            prompt: PROMPT_MEDIA,
             options: {},
             mode: "subagent",
             native: true,

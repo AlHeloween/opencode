@@ -1,7 +1,7 @@
 # Agent Pipeline & Media Capability Plan
 
 **Created:** 2026-06-23
-**Status:** Active — audited 2026-06-23, capability foundation updated 2026-06-24. Treat this as a mixed implementation/verification backlog, not a greenfield feature plan.
+**Status:** Active — Module A (capability) and Module B (pipeline) complete. Modules C (media TUI) and D (multimodal messages) remain.
 
 ## Audit Update — 2026-06-23
 
@@ -205,7 +205,7 @@ Register renderer in the terminal TUI switch:
 
 ---
 
-## Module B: Chained Agent Pipeline — open
+## Module B: Chained Agent Pipeline — [x] complete (2026-06-24)
 
 **Goal:** Compose multiple sub-agents sequentially where agent N's output feeds as context to agent N+1.
 

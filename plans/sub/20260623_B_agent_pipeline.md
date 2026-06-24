@@ -1,7 +1,7 @@
 # B — Agent Pipeline
 
 **Parent:** `plans/20260623_agent_pipeline_media_plan.md`
-**Status:** [ ] Pending
+**Status:** [x] Complete — implemented 2026-06-24
 **Effort:** 3.0h
 
 ---

@@ -17,6 +17,7 @@ import { MultiEditTool } from "./multiedit"
 import { UniversalSearchTool } from "./universalsearch"
 import { MessageSearchTool } from "./messagesearch"
 import { CapabilityTool } from "./capability"
+import { PipelineTool } from "./pipeline"
 import { Capability } from "@/capability"
 import { SessionReadTool } from "./session-read"
 import { JobOutputTool, JobWaitTool } from "./job_output"
@@ -130,6 +131,7 @@ export const layer: Layer.Layer<
     const joboutput = yield* JobOutputTool
     const jobwait = yield* JobWaitTool
     const capability = yield* CapabilityTool
+    const pipeline = yield* PipelineTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -225,6 +227,7 @@ export const layer: Layer.Layer<
           joboutput: Tool.init(joboutput),
           jobwait: Tool.init(jobwait),
           capability: Tool.init(capability),
+          pipeline: Tool.init(pipeline),
         })
 
         return {
@@ -251,6 +254,7 @@ export const layer: Layer.Layer<
             tool.joboutput,
             tool.jobwait,
             tool.capability,
+            tool.pipeline,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
           ],

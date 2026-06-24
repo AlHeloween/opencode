@@ -1,7 +1,7 @@
 # Remaining Items Plan
 
 **Created:** 2026-06-23 — carried forward from `20260601_complete_remaining_items.md` (now in `plans_completed/`)
-**Status:** Active — audited 2026-06-24. 5 items remain actionable (Part 3 handler tests, 3.5h). 5 items deferred (architectural decisions pending). 2 stale deferred markers fixed today (4.1 ACP, 4.3 MCP OAuth — fully implemented).
+**Status:** Active — audited 2026-06-24. Part 3 handler fixture/runtime validation complete. 6 items remain deferred (architecture/database decisions pending). 2 stale deferred markers fixed today (4.1 ACP, 4.3 MCP OAuth — fully implemented).
 
 Audit summary (2026-06-23):
 - `packages/opencode/drizzle.config.ts` already exists and matches the planned Drizzle Kit shape.
@@ -101,40 +101,45 @@ export default defineConfig({
 
 Audit: the dependencies and handler files are already present. Treat this section as a fixture/test/runtime-validation backlog, not as new package-selection work.
 
-### 3.1 [ ] Audio metadata extraction — verify fixtures
+### 3.1 [x] Audio metadata extraction — verify fixtures
 
 **Package:** `music-metadata`
 **File:** `packages/opencode/src/attachment/handlers/audio.ts` (MODIFY)
 **Effort:** 30 min
 **What:** Parse WAV/MP3/OGG headers to extract duration, sample rate, channels, codec
+**Audit (2026-06-24):** WAV fixture coverage added in `packages/opencode/test/attachment/handlers.test.ts`; `music-metadata` extracts sample rate, channels, and duration.
 
-### 3.2 [ ] Video metadata extraction — verify fixtures
+### 3.2 [x] Video metadata extraction — verify fixtures
 
 **Package:** `fluent-ffmpeg` or metadata-only
 **File:** `packages/opencode/src/attachment/handlers/video.ts` (MODIFY)
 **Effort:** 45 min
 **What:** Extract duration, dimensions, fps from container headers (no full decode needed)
+**Audit (2026-06-24):** MP4 `tkhd` fixture coverage added; handler extracts dimensions from container headers.
 
-### 3.3 [ ] HDF5 sensor reader — verify fixtures
+### 3.3 [x] HDF5 sensor reader — verify fixtures
 
 **Package:** `h5wasm`
 **File:** `packages/opencode/src/attachment/handlers/sensor.ts` (MODIFY)
 **Effort:** 1h
 **What:** Parse HDF5 files to extract dataset names, shapes, dtypes, attributes
+**Audit (2026-06-24):** HDF5 fixture coverage added; handler now uses the node `h5wasm` entrypoint, reads dataset shape/dtype, and extracts root sample-rate/unit attributes.
 
-### 3.4 [ ] Image resizing — verify fixtures
+### 3.4 [x] Image resizing — verify fixtures
 
 **Package:** `sharp` or `jimp`
 **File:** `packages/opencode/src/attachment/handlers/image.ts` (MODIFY)
 **Effort:** 1h
 **What:** Resize images per `ConfigAttachment.image.max_width/max_height` before storage
+**Audit (2026-06-24):** Generated PNG fixture coverage added; `sharp` metadata and resize output are verified.
 
-### 3.5 [ ] Archive file listing — verify fixtures
+### 3.5 [x] Archive file listing — verify fixtures
 
 **Package:** `adm-zip`, `tar-stream`
 **File:** `packages/opencode/src/attachment/handlers/archive.ts` (MODIFY)
 **Effort:** 30 min
 **What:** List files, sizes, compression ratio from archive headers
+**Audit (2026-06-24):** ZIP and TAR fixture coverage added; file count and uncompressed sizes are verified.
 
 ---
 
@@ -218,14 +223,14 @@ Do not run Part 3 as dependency installation; packages already exist. Add focuse
 | 2.3 ensureToolCall/finishReasoning | [x] |
 | 2.7 Git service abstraction | [x] |
 
-### Remaining (Part 3): 5 items, 3.5h
+### Completed (Part 3): 5 items verified
 | Item | Effort | What |
 |------|--------|------|
-| 3.1 Audio handler tests | 30min | Verify music-metadata fixtures |
-| 3.2 Video handler tests | 45min | Verify ffmpeg metadata extraction |
-| 3.3 HDF5 sensor tests | 1h | Verify h5wasm dataset parsing |
-| 3.4 Image resize tests | 1h | Verify sharp/jimp resize behavior |
-| 3.5 Archive handler tests | 30min | Verify adm-zip/tar-stream listing |
+| 3.1 Audio handler tests | 30min | [x] Verified music-metadata fixtures |
+| 3.2 Video handler tests | 45min | [x] Verified container metadata extraction |
+| 3.3 HDF5 sensor tests | 1h | [x] Verified h5wasm dataset parsing |
+| 3.4 Image resize tests | 1h | [x] Verified sharp resize behavior |
+| 3.5 Archive handler tests | 30min | [x] Verified adm-zip/tar-stream listing |
 
 ### Deferred (Part 4): 6 items (4.1, 4.3 done)
 | Item | Status |

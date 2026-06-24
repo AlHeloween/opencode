@@ -1,0 +1,24 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/attachment/handlers/sensor.ts
+@@
+-      for (const [key, entity] of file.items()) {
++      for (const key of file.keys()) {
++        const entity = file.get(key)
+         if (!(entity instanceof h5wasm.Dataset)) continue
+         channels.push(key)
+         shapes.push(entity.shape ?? [])
+         dtypes.push(String(entity.dtype ?? "unknown"))
+       }
+
+       try {
+-        sampleRate = Number(firstScalar(file.get_attribute("sample_rate", true) ?? file.get_attribute("sampleRate", true) ?? 0))
++        sampleRate = Number(firstScalar(file.get_attribute("sample_rate", true) ?? 0))
+       } catch (error) {
+-        log.debug("failed to read HDF5 sample rate", { error: error instanceof Error ? error.message : String(error) })
++        try {
++          sampleRate = Number(firstScalar(file.get_attribute("sampleRate", true) ?? 0))
++        } catch {
++          log.debug("failed to read HDF5 sample rate", { error: error instanceof Error ? error.message : String(error) })
++        }
+       }
+*** End Patch

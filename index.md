@@ -45,7 +45,7 @@
 - `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
 
 ### `plans/` — Active Plans
-- `20260623_remaining_items.md` — Maintenance backlog: 5 actionable items (Part 3 handler tests, 3.5h) + 6 deferred items
+- `20260623_remaining_items.md` — Maintenance backlog: Part 3 handler tests verified + 6 deferred items
 
 ### `plans_completed/` — Completed Plans (95 plans)
 - `20260624_module_cd_plan.md` — Module C+D: Media TUI (chafa/mpv) + Multimodal messages

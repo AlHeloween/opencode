@@ -71,7 +71,7 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 | Document | Owner | Status | Last Verified |
 |----------|-------|--------|---------------|
-| `plans/20260623_remaining_items.md` | OpenCode team | active — 5 actionable (Part 3 handler tests), 6 deferred | 2026-06-24 |
+| `plans/20260623_remaining_items.md` | OpenCode team | active — Part 3 verified, 6 deferred | 2026-06-24 |
 
 ---
 

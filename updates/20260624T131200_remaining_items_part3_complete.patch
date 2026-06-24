@@ -1,0 +1,65 @@
+*** Begin Patch
+*** Update File: plans/20260623_remaining_items.md
+@@
+-**Status:** Active — audited 2026-06-24. 5 items remain actionable (Part 3 handler tests, 3.5h). 5 items deferred (architectural decisions pending). 2 stale deferred markers fixed today (4.1 ACP, 4.3 MCP OAuth — fully implemented).
++**Status:** Active — audited 2026-06-24. Part 3 handler fixture/runtime validation complete. 6 items remain deferred (architecture/database decisions pending). 2 stale deferred markers fixed today (4.1 ACP, 4.3 MCP OAuth — fully implemented).
+@@
+-### 3.1 [ ] Audio metadata extraction — verify fixtures
++### 3.1 [x] Audio metadata extraction — verify fixtures
+@@
+ **Effort:** 30 min
+ **What:** Parse WAV/MP3/OGG headers to extract duration, sample rate, channels, codec
++**Audit (2026-06-24):** WAV fixture coverage added in `packages/opencode/test/attachment/handlers.test.ts`; `music-metadata` extracts sample rate, channels, and duration.
+
+-### 3.2 [ ] Video metadata extraction — verify fixtures
++### 3.2 [x] Video metadata extraction — verify fixtures
+@@
+ **Effort:** 45 min
+ **What:** Extract duration, dimensions, fps from container headers (no full decode needed)
++**Audit (2026-06-24):** MP4 `tkhd` fixture coverage added; handler extracts dimensions from container headers.
+
+-### 3.3 [ ] HDF5 sensor reader — verify fixtures
++### 3.3 [x] HDF5 sensor reader — verify fixtures
+@@
+ **Effort:** 1h
+ **What:** Parse HDF5 files to extract dataset names, shapes, dtypes, attributes
++**Audit (2026-06-24):** HDF5 fixture coverage added; handler now uses the node `h5wasm` entrypoint, reads dataset shape/dtype, and extracts root sample-rate/unit attributes.
+
+-### 3.4 [ ] Image resizing — verify fixtures
++### 3.4 [x] Image resizing — verify fixtures
+@@
+ **Effort:** 1h
+ **What:** Resize images per `ConfigAttachment.image.max_width/max_height` before storage
++**Audit (2026-06-24):** Generated PNG fixture coverage added; `sharp` metadata and resize output are verified.
+
+-### 3.5 [ ] Archive file listing — verify fixtures
++### 3.5 [x] Archive file listing — verify fixtures
+@@
+ **Effort:** 30 min
+ **What:** List files, sizes, compression ratio from archive headers
++**Audit (2026-06-24):** ZIP and TAR fixture coverage added; file count and uncompressed sizes are verified.
+@@
+-### Remaining (Part 3): 5 items, 3.5h
++### Completed (Part 3): 5 items verified
+ | Item | Effort | What |
+ |------|--------|------|
+-| 3.1 Audio handler tests | 30min | Verify music-metadata fixtures |
+-| 3.2 Video handler tests | 45min | Verify ffmpeg metadata extraction |
+-| 3.3 HDF5 sensor tests | 1h | Verify h5wasm dataset parsing |
+-| 3.4 Image resize tests | 1h | Verify sharp/jimp resize behavior |
+-| 3.5 Archive handler tests | 30min | Verify adm-zip/tar-stream listing |
++| 3.1 Audio handler tests | 30min | [x] Verified music-metadata fixtures |
++| 3.2 Video handler tests | 45min | [x] Verified container metadata extraction |
++| 3.3 HDF5 sensor tests | 1h | [x] Verified h5wasm dataset parsing |
++| 3.4 Image resize tests | 1h | [x] Verified sharp resize behavior |
++| 3.5 Archive handler tests | 30min | [x] Verified adm-zip/tar-stream listing |
+*** Update File: DOCINDEX.md
+@@
+-| `plans/20260623_remaining_items.md` | OpenCode team | active — 5 actionable (Part 3 handler tests), 6 deferred | 2026-06-24 |
++| `plans/20260623_remaining_items.md` | OpenCode team | active — Part 3 verified, 6 deferred | 2026-06-24 |
+*** Update File: index.md
+@@
+ ### `plans/` — Active Plans
+-- `20260623_remaining_items.md` — Maintenance backlog: 5 actionable items (Part 3 handler tests, 3.5h) + 6 deferred items
++- `20260623_remaining_items.md` — Maintenance backlog: Part 3 handler tests verified + 6 deferred items
+*** End Patch

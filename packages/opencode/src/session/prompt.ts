@@ -17,6 +17,7 @@ import { isOverflowFromContent, compactionTier } from "./overflow"
 import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
+import { Checkpoint } from "./checkpoint"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
@@ -1549,12 +1550,24 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
             }
 
-            const [skills, env, instructions, rules] = yield* Effect.all([
-              sys.skills(agent),
-              Effect.sync(() => sys.environment(model)),
-              instruction.system().pipe(Effect.orDie),
-              instruction.rules().pipe(Effect.orDie),
-            ])
+            // Attempt to load encrypted checkpoint for this session+model.
+            // If found, reuse systemPrompt + skip full assembly.
+            const checkpoint = yield* Checkpoint.load({
+              sessionID,
+              providerID: model.providerID,
+              modelID: model.id,
+              projectID: ctx.project.id,
+              worktree: ctx.worktree,
+            }).pipe(Effect.catch(() => Effect.succeed(null)))
+
+            const [skills, env, instructions, rules] = checkpoint
+              ? [undefined, [] as string[], [] as string[], [] as string[]] as const
+              : yield* Effect.all([
+                  sys.skills(agent),
+                  Effect.sync(() => sys.environment(model)),
+                  instruction.system().pipe(Effect.orDie),
+                  instruction.rules().pipe(Effect.orDie),
+                ])
             // Cache namespace as first system message for provider prefix reuse.
             const cacheNamespace = lastUser.providerCacheKey ?? sessionID
             const sessionIdBanner = `[session: ${cacheNamespace}]`
@@ -1683,6 +1696,25 @@ You should build your plan incrementally by writing to or editing this file. NOT
               cachedMsgs = undefined
               lastKnownId = undefined
             }
+            // Save encrypted checkpoint after successful turn.
+            // Fire-and-forget — don't block the loop on I/O.
+            yield* Effect.forkIn(scope)(
+              Checkpoint.save({
+                sessionID,
+                projectID: ctx.project.id,
+                worktree: ctx.worktree,
+                data: {
+                  kind: Checkpoint.CHECKPOINT_KIND,
+                  version: Checkpoint.CHECKPOINT_VERSION,
+                  systemPrompt: system,
+                  messages: modelMsgs,
+                  messageIDs: msgs.map((m) => m.info.id),
+                  model: { providerID: model.providerID, modelID: model.id },
+                  turn: step + 1,
+                  timestamp: Date.now(),
+                },
+              }),
+            )
             return "continue" as const
           }).pipe(
             Effect.ensuring(instruction.clear(handle.message.id)),

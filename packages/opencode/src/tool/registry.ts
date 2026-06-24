@@ -17,6 +17,7 @@ import { MultiEditTool } from "./multiedit"
 import { UniversalSearchTool } from "./universalsearch"
 import { MessageSearchTool } from "./messagesearch"
 import { CapabilityTool } from "./capability"
+import { Capability } from "@/capability"
 import { SessionReadTool } from "./session-read"
 import { JobOutputTool, JobWaitTool } from "./job_output"
 import * as Tool from "./tool"
@@ -96,6 +97,7 @@ export const layer: Layer.Layer<
   | Format.Service
   | Truncate.Service
   | Jobs.Service
+  | Capability.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -367,6 +369,7 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Ripgrep.defaultLayer),
     Layer.provide(Truncate.defaultLayer),
     Layer.provide(Jobs.defaultLayer),
+    Layer.provide(Capability.defaultLayer),
   ),
 )
 

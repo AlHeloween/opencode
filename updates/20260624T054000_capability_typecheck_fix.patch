@@ -1,0 +1,44 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/tool/capability.ts
+@@
+   description: DESCRIPTION,
+   parameters: Parameters,
+   execute: (params: Schema.Schema.Type<typeof Parameters>, _ctx: Tool.Context) => Effect.gen(function* () {
+-    const results = yield* capability.lookup(params)
++    const lookup = yield* capability.lookup(params).pipe(
++      Effect.matchEffect({
++        onSuccess: (results) => Effect.succeed({ type: "success" as const, results }),
++        onFailure: (error) => Effect.succeed({ type: "error" as const, error }),
++      }),
++    )
++
++    if (lookup.type === "error") {
++      return {
++        title: `Capability lookup: ${params.task}`,
++        metadata: { results: [], criteria: params },
++        output: `Capability lookup failed: ${lookup.error.message}`,
++      }
++    }
++
++    const results = lookup.results
+ 
+     if (results.length === 0) {
+       return {
+*** Update File: packages/opencode/src/tool/registry.ts
+@@
+ import { MessageSearchTool } from "./messagesearch"
+ import { CapabilityTool } from "./capability"
++import { Capability } from "@/capability"
+ import { SessionReadTool } from "./session-read"
+@@
+   | Truncate.Service
+   | Jobs.Service
++  | Capability.Service
+ > = Layer.effect(
+@@
+     Layer.provide(Truncate.defaultLayer),
+     Layer.provide(Jobs.defaultLayer),
++    Layer.provide(Capability.defaultLayer),
+   ),
+ )
+*** End Patch

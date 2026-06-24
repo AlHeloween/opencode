@@ -1,0 +1,48 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/capability/capability.test.ts
+@@
+ import { Global } from "@opencode-ai/core/global"
+ import { AppFileSystem } from "@opencode-ai/core/filesystem"
+ import { Agent } from "@/agent/agent"
+ import { Auth } from "@/auth"
+ import { Capability } from "@/capability"
++import { Permission } from "@/permission"
+ import { Provider } from "@/provider/provider"
+@@
+ function providerLayer(input: Record<ProviderID, Provider.Info> = providers) {
+@@
+   )
+ }
++
++function agentLayer() {
++  const agent: Agent.Info = {
++    name: "build",
++    mode: "primary",
++    native: true,
++    permission: Permission.fromConfig({ "*": "allow" }),
++    options: {},
++  }
++  return Layer.succeed(
++    Agent.Service,
++    Agent.Service.of({
++      get: Effect.fn("CapabilityTest.Agent.get")(() => Effect.succeed(agent)),
++      list: Effect.fn("CapabilityTest.Agent.list")(() => Effect.succeed([agent])),
++      defaultAgent: Effect.fn("CapabilityTest.Agent.defaultAgent")(() => Effect.succeed("build")),
++      generate: Effect.fn("CapabilityTest.Agent.generate")(() =>
++        Effect.succeed({
++          identifier: "build",
++          whenToUse: "test",
++          systemPrompt: "test",
++        }),
++      ),
++    }),
++  )
++}
+@@
+   return provideCapability(effect, { authProviders }).pipe(
+     Effect.provide(Truncate.defaultLayer),
+-    Effect.provide(Agent.defaultLayer),
++    Effect.provide(agentLayer()),
+   )
+ }
+*** End Patch

@@ -1,0 +1,25 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/session/prompt.test.ts
+@@
+ import { AppFileSystem } from "@opencode-ai/core/filesystem"
++import { Capability } from "@/capability"
+ import { SessionCompaction } from "../../src/session/compaction"
+@@
+     Layer.provide(Format.defaultLayer),
++    Layer.provide(Capability.layer),
+     Layer.provideMerge(todo),
+     Layer.provideMerge(question),
+*** Update File: packages/opencode/test/session/snapshot-tool-race.test.ts
+@@
+ import { Permission } from "../../src/permission"
+ import { Plugin } from "../../src/plugin"
+ import { Provider as ProviderSvc } from "@/provider/provider"
++import { Capability } from "@/capability"
+ import { Env } from "../../src/env"
+@@
+     Layer.provide(Ripgrep.defaultLayer),
+     Layer.provide(Format.defaultLayer),
++    Layer.provide(Capability.layer),
+     Layer.provideMerge(todo),
+     Layer.provideMerge(question),
+*** End Patch

@@ -1,0 +1,10 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/session/prompt.test.ts
+@@
+-    Layer.provide(Capability.layer),
++    Layer.provide(Capability.defaultLayer),
+*** Update File: packages/opencode/test/session/snapshot-tool-race.test.ts
+@@
+-    Layer.provide(Capability.layer),
++    Layer.provide(Capability.defaultLayer),
+*** End Patch

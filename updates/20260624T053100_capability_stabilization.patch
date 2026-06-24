@@ -1,0 +1,694 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/capability/index.ts
+@@
+-import path from "path"
+-import { Effect, Layer, Schema, Context } from "effect"
++import path from "path"
++import { Context, Effect, Layer, Schema } from "effect"
+ import { Global } from "@opencode-ai/core/global"
++import { AppFileSystem } from "@opencode-ai/core/filesystem"
+ import { Provider } from "@/provider/provider"
+ import { Auth } from "@/auth"
+ import { parse as parseYaml, stringify as stringifyYaml } from "yaml"
+@@
+ export const CapabilityEntry = Schema.Struct({
+   provider_id: Schema.String,
+   model_id: Schema.String,
+   provenance: Schema.Literals(["proven", "tested", "pending"]),
+@@
+ 
+ export const CapabilityFile = Schema.Struct({
+   version: Schema.Literal(1),
+   models: Schema.Array(CapabilityEntry),
+ })
+ export type CapabilityFile = Schema.Schema.Type<typeof CapabilityFile>
++
++export const Modality = Schema.Literals(["text", "image", "audio", "video", "pdf"])
++export type Modality = Schema.Schema.Type<typeof Modality>
+ 
+ // ─── Lookup types ────────────────────────────────────────────────────────────
+ 
+ export const LookupCriteria = Schema.Struct({
+   task: Schema.String,
+-  modality: Schema.optional(Schema.Literals(["image", "audio", "video", "text"])),
++  modality: Schema.optional(Modality),
+ })
+ export type LookupCriteria = Schema.Schema.Type<typeof LookupCriteria>
+@@
+-// ─── Helpers ─────────────────────────────────────────────────────────────────
++// ─── Helpers ─────────────────────────────────────────────────────────────────
+ 
+ const filePath = path.join(Global.Path.config, "models_capabilities.yaml")
++const decodeCapabilityFile = Schema.decodeUnknownSync(CapabilityFile)
+ 
+-function readYamlSync(): CapabilityFile | null {
+-  const fs = require("fs")
+-  if (!fs.existsSync(filePath)) return null
+-  try {
+-    const text = fs.readFileSync(filePath, "utf-8")
+-    const parsed = parseYaml(text)
+-    return parsed as CapabilityFile
+-  } catch {
+-    return null
+-  }
+-}
+-
+-function writeYamlSync(data: CapabilityFile): void {
+-  const fs = require("fs")
+-  const yaml = stringifyYaml(data, { lineWidth: 120 })
+-  fs.writeFileSync(filePath, yaml, { mode: 0o600 })
+-}
+-
+ function cacheKey(provider: string, model: string): string {
+   return `${provider}/${model}`
+ }
++
++function capabilityParts(model: Provider.Model, direction: "input" | "output") {
++  const modalities = direction === "output" ? model.capabilities.output : model.capabilities.input
++  return [
++    ...(model.capabilities.reasoning ? ["reasoning"] : []),
++    ...(model.capabilities.toolcall ? ["tools"] : []),
++    ...(model.capabilities.attachment ? ["attachments"] : []),
++    ...Object.entries(modalities).flatMap(([name, supported]) => (supported && name !== "text" ? [name] : [])),
++  ]
++}
+@@
+ export class Service extends Context.Service<Service, Interface>()("@opencode/Capability") {}
+ 
+ const DEFAULT_FILE: CapabilityFile = { version: 1 as const, models: [] }
+@@
+   Service,
+   Effect.gen(function* () {
+     const provider = yield* Provider.Service
+     const auth = yield* Auth.Service
++    const fs = yield* AppFileSystem.Service
+ 
+     const read = Effect.fn("Capability.read")(function* () {
+-      const result = yield* Effect.try({
+-        try: () => readYamlSync() ?? { ...DEFAULT_FILE },
+-        catch: (cause) => new CapabilityError({ message: "Failed to read capability YAML", cause }),
+-      })
+-      return result
++      if (!(yield* fs.existsSafe(filePath))) return { ...DEFAULT_FILE, models: [] }
++      const text = yield* fs
++        .readFileString(filePath)
++        .pipe(Effect.mapError((cause) => new CapabilityError({ message: "Failed to read capability YAML", cause })))
++      return yield* Effect.try({
++        try: () => decodeCapabilityFile(parseYaml(text)),
++        catch: (cause) => new CapabilityError({ message: "Invalid capability YAML", cause }),
++      })
+     })
+ 
+     const write = Effect.fn("Capability.write")(function* (data: CapabilityFile) {
+-      yield* Effect.try({
+-        try: () => writeYamlSync(data),
+-        catch: (cause) => new CapabilityError({ message: "Failed to write capability YAML", cause }),
+-      })
++      const yaml = stringifyYaml(data, { lineWidth: 120 })
++      yield* fs
++        .writeWithDirs(filePath, yaml, 0o600)
++        .pipe(Effect.mapError((cause) => new CapabilityError({ message: "Failed to write capability YAML", cause })))
+     })
+@@
+-      // Build capability lookup map from YAML
+       const capMap = new Map<string, CapabilityEntry>()
+-      for (const entry of file.models) {
+-        capMap.set(cacheKey(entry.provider_id, entry.model_id), entry)
+-      }
++      for (const entry of file.models) capMap.set(cacheKey(entry.provider_id, entry.model_id), entry)
+ 
+-      // Determine direction from task keywords
+       const task = criteria.task.toLowerCase()
+       const isGeneration =
+         task.includes("generate") ||
+@@
+       const direction = criteria.modality ? "output" : isGeneration ? "output" : "input"
+ 
+       const results: LookupResult[] = []
+ 
+       for (const [provID, provInfo] of Object.entries(providers)) {
+-        const hasProviderKey = provID in allKeys || provInfo.env.some((envVar) => process.env[envVar])
++        const hasProviderKey =
++          Object.prototype.hasOwnProperty.call(allKeys, provID) || provInfo.env.some((envVar) => process.env[envVar])
+ 
+         for (const model of Object.values(provInfo.models)) {
+-          const caps = model.capabilities
+-          const mods = direction === "output" ? caps.output : caps.input
++          const modalities = direction === "output" ? model.capabilities.output : model.capabilities.input
+ 
+-          // Filter by modality if specified
+-          if (criteria.modality) {
+-            const m = criteria.modality
+-            const modMap = mods as unknown as Record<string, boolean>
+-            if (!modMap[m]) continue
+-          }
++          if (criteria.modality && !modalities[criteria.modality]) continue
+ 
+           const entry = capMap.get(cacheKey(provID, model.id))
+-
+-          // Build human-readable capabilities string
+-          const capParts: string[] = []
+-          if (caps.reasoning) capParts.push("reasoning")
+-          if (caps.toolcall) capParts.push("tools")
+-          if (caps.attachment) capParts.push("attachments")
+-          const modMap = mods as unknown as Record<string, boolean>
+-          for (const k of Object.keys(modMap)) {
+-            if (modMap[k] && k !== "text") capParts.push(k)
+-          }
++          const parts = capabilityParts(model, direction)
+ 
+           const costStr = model.cost
+             ? `$${model.cost.input.toFixed(2)} / $${model.cost.output.toFixed(2)} per 1M tokens`
+@@
+             provenance: (entry?.provenance ?? "pending") as "proven" | "tested" | "pending",
+             tested_at: entry?.tested_at,
+             has_api_key: hasProviderKey,
+-            capabilities: capParts.length > 0 ? capParts.join(", ") : "text",
++            capabilities: parts.length > 0 ? parts.join(", ") : "text",
+             cost: costStr,
+             notes: entry?.notes,
+           })
+         }
+       }
+ 
+-      // Sort: proven → tested → pending, then has_api_key first, then alphabetically
++      // Sort by verification confidence first, then usable provider auth, then stable identity.
+       const pOrder: Record<string, number> = { proven: 0, tested: 1, pending: 2 }
+       results.sort((a, b) => {
+         const pa = pOrder[a.provenance] ?? 2
+         const pb = pOrder[b.provenance] ?? 2
+         if (pa !== pb) return pa - pb
+         if (a.has_api_key !== b.has_api_key) return a.has_api_key ? -1 : 1
++        const providerOrder = a.provider_id.localeCompare(b.provider_id)
++        if (providerOrder !== 0) return providerOrder
+         return a.model_id.localeCompare(b.model_id)
+       })
+@@
+   }),
+ )
+ 
+-export const defaultLayer = layer.pipe(Layer.provide(Auth.defaultLayer))
++export const defaultLayer = layer.pipe(
++  Layer.provide(AppFileSystem.defaultLayer),
++  Layer.provide(Auth.defaultLayer),
++  Layer.provide(Provider.defaultLayer),
++)
+ 
+ export * as Capability from "."
+*** Update File: packages/opencode/src/tool/capability.ts
+@@
+ import { Effect, Schema } from "effect"
+ import { Tool } from "@/tool/tool"
+-import { parse as parseYaml } from "yaml"
+-import path from "path"
+-import { Global } from "@opencode-ai/core/global"
+-
+-const filePath = path.join(Global.Path.config, "models_capabilities.yaml")
+-const authPath = path.join(Global.Path.config, "auth.json")
+-const modelsPath = path.join(
+-  path.dirname(path.dirname(path.dirname(path.dirname(__dirname)))),
+-  "packages",
+-  "opencode",
+-  "models.json",
+-)
+-
+-// ─── Sync helpers ────────────────────────────────────────────────────────────
+-
+-const fs = require("fs")
+-
+-function readYaml() {
+-  if (!fs.existsSync(filePath)) return null
+-  try { return parseYaml(fs.readFileSync(filePath, "utf-8")) } catch { return null }
+-}
+-
+-function readAuth(): Record<string, unknown> {
+-  try { return JSON.parse(fs.readFileSync(authPath, "utf-8")) } catch { return {} }
+-}
+-
+-function readModels(): Record<string, { env: string[]; models: Record<string, any> }> {
+-  const p = path.join(Global.Path.config, "..", "packages", "opencode", "models.json")
+-  try { return JSON.parse(fs.readFileSync(p, "utf-8")) } catch { return {} }
+-}
++import { Capability } from "@/capability"
+@@
+ export const Parameters = Schema.Struct({
+   task: Schema.String.annotate({
+@@
+     examples: ["generate an image from text", "process this audio file", "read this PDF"],
+   }),
+-  modality: Schema.optional(Schema.String.annotate({
+-    description: "Filter results to models supporting a specific output modality: image, audio, video, or text",
+-  })),
++  modality: Schema.optional(
++    Capability.Modality.annotate({
++      description: "Filter results to models supporting a specific output modality: text, image, audio, video, or pdf",
++    }),
++  ),
+ })
+ 
+-function buildModalities(
+-  mods: { input?: string[]; output?: string[] } | undefined,
+-): { input: Record<string, boolean>; output: Record<string, boolean> } {
+-  const empty = { text: true, audio: false, image: false, video: false, pdf: false }
+-  return {
+-    input: mods?.input ? Object.fromEntries(["text", "audio", "image", "video", "pdf"].map((k) => [k, mods.input!.includes(k)])) : empty,
+-    output: mods?.output ? Object.fromEntries(["text", "audio", "image", "video", "pdf"].map((k) => [k, mods.output!.includes(k)])) : empty,
+-  }
+-}
+-
+-export const CapabilityTool = Tool.define("capability", Effect.sync(() => ({
++export const CapabilityTool = Tool.define("capability", Effect.gen(function* () {
++  const capability = yield* Capability.Service
++  return {
+   description: DESCRIPTION,
+   parameters: Parameters,
+-  execute: (params: { task: string; modality?: string }, _ctx: Tool.Context) => {
+-    // Read all data sources
+-    const yaml = readYaml()
+-    const auth = readAuth()
+-    const allModels = readModels()
+-
+-    // Build lookup map from YAML
+-    const capMap = new Map<string, { provenance: string; tested_at?: string; notes?: string }>()
+-    if (yaml?.models) {
+-      for (const entry of yaml.models) {
+-        capMap.set(`${entry.provider_id}/${entry.model_id}`, entry)
+-      }
+-    }
+-
+-    const task = params.task.toLowerCase()
+-    const isGeneration =
+-      task.includes("generate") || task.includes("create") || task.includes("draw") ||
+-      task.includes("synthesize") || task.includes("produce")
+-    const direction = params.modality ? "output" : isGeneration ? "output" : "input"
+-
+-    interface Result {
+-      provider_id: string
+-      model_id: string
+-      provenance: string
+-      tested_at?: string
+-      has_api_key: boolean
+-      capabilities: string
+-      cost?: string
+-      notes?: string
+-    }
+-
+-    const results: Result[] = []
+-
+-    for (const [provID, provData] of Object.entries(allModels)) {
+-      if (!provData?.models) continue
+-      const hasProviderKey = provID in auth || (provData.env || []).some((envVar: string) => process.env[envVar])
+-
+-      for (const [modelID, model] of Object.entries(provData.models)) {
+-        if (!model) continue
+-        const mods = buildModalities(model.modalities)
+-        const modMap = direction === "output" ? mods.output : mods.input
+-
+-        if (params.modality) {
+-          if (!modMap[params.modality]) continue
+-        }
+-
+-        const entry = capMap.get(`${provID}/${modelID}`)
+-
+-        const capParts: string[] = []
+-        if (model.reasoning) capParts.push("reasoning")
+-        if (model.tool_call !== false) capParts.push("tools")
+-        if (model.attachment) capParts.push("attachments")
+-        for (const k of Object.keys(modMap)) {
+-          if (modMap[k] && k !== "text") capParts.push(k)
+-        }
+-
+-        const costStr = model.cost
+-          ? `$${model.cost.input?.toFixed?.(2) ?? "?"} / $${model.cost.output?.toFixed?.(2) ?? "?"} per 1M tokens`
+-          : undefined
+-
+-        results.push({
+-          provider_id: provID,
+-          model_id: modelID,
+-          provenance: entry?.provenance ?? "pending",
+-          tested_at: entry?.tested_at,
+-          has_api_key: hasProviderKey,
+-          capabilities: capParts.length > 0 ? capParts.join(", ") : "text",
+-          cost: costStr,
+-          notes: entry?.notes,
+-        })
+-      }
+-    }
+-
+-    // Sort
+-    const pOrder: Record<string, number> = { proven: 0, tested: 1, pending: 2 }
+-    results.sort((a, b) => {
+-      const pa = pOrder[a.provenance] ?? 2
+-      const pb = pOrder[b.provenance] ?? 2
+-      if (pa !== pb) return pa - pb
+-      if (a.has_api_key !== b.has_api_key) return a.has_api_key ? -1 : 1
+-      return a.model_id.localeCompare(b.model_id)
+-    })
++  execute: (params: Schema.Schema.Type<typeof Parameters>, _ctx: Tool.Context) => Effect.gen(function* () {
++    const results = yield* capability.lookup(params)
+ 
+     if (results.length === 0) {
+-      return Effect.succeed({
++      return {
+         title: `Capability lookup: ${params.task}`,
+         metadata: { results: [], criteria: params },
+         output: `No models found matching "${params.task}". Try broader keywords or check \`models_capabilities.yaml\` for available entries.`,
+-      })
++      }
+     }
+ 
+     const maxModelLen = Math.max(...results.map((r) => r.model_id.length), 8)
+@@
+       "Model".padEnd(maxModelLen + 2) +
+       "Provider".padEnd(maxProvLen + 2) +
+       "Status   Key    Capabilities"
+-    const sep = "─".repeat(header.length)
++    const sep = "-".repeat(header.length)
+ 
+     const rows = results.map((r) => {
+-      const si = r.provenance === "proven" ? "✓" : r.provenance === "tested" ? "○" : "·"
++      const si = r.provenance === "proven" ? "P" : r.provenance === "tested" ? "T" : "-"
+       const sl = r.provenance.padEnd(7)
+-      const ki = r.has_api_key ? "✓" : "✗"
++      const ki = r.has_api_key ? "Y" : "N"
+       return (
+         r.model_id.padEnd(maxModelLen + 2) +
+         r.provider_id.padEnd(maxProvLen + 2) +
+@@
+       sep,
+       "",
+-      "✓ = proven (tested, working)  ○ = tested (verified)  · = pending (untested)",
+-      "✓ = API key available          ✗ = no API key found",
++      "P = proven (tested, working)  T = tested (verified)  - = pending (untested)",
++      "Y = API key available         N = no API key found",
+       "",
+       ...results.filter((r) => r.cost && r.has_api_key).slice(0, 3).map((r) => `  ${r.model_id}: ${r.cost}`),
+     ].join("\n")
+ 
+-    return Effect.succeed({
++    return {
+       title: `Capability lookup: ${params.task}`,
+       metadata: { results, criteria: params },
+       output,
+-    })
+-  },
+-})))
++    }
++  }),
++  }
++}))
+*** Add File: packages/opencode/test/capability/capability.test.ts
++import { beforeEach, describe, expect, test } from "bun:test"
++import fs from "fs/promises"
++import path from "path"
++import { Effect, Exit, Layer, Schema } from "effect"
++import { Global } from "@opencode-ai/core/global"
++import { Agent } from "@/agent/agent"
++import { Auth } from "@/auth"
++import { Capability } from "@/capability"
++import { Provider } from "@/provider/provider"
++import { ModelID, ProviderID } from "@/provider/schema"
++import { CapabilityTool, Parameters } from "@/tool/capability"
++import { Tool } from "@/tool/tool"
++import { Truncate } from "@/tool/truncate"
++import { MessageID, SessionID } from "@/session/schema"
++import { ProviderTest } from "../fake/provider"
++
++const capabilityPath = path.join(Global.Path.config, "models_capabilities.yaml")
++
++const textModel = ProviderTest.model({
++  id: ModelID.make("text-model"),
++  cost: { input: 1, output: 2, cache: { read: 0.1, write: 0.2 } },
++})
++
++const imageModel = ProviderTest.model({
++  id: ModelID.make("image-model"),
++  cost: { input: 3, output: 4, cache: { read: 0.3, write: 0.4 } },
++  capabilities: {
++    ...textModel.capabilities,
++    reasoning: true,
++    output: { ...textModel.capabilities.output, image: true },
++  },
++})
++
++const visionModel = ProviderTest.model({
++  id: ModelID.make("vision-model"),
++  providerID: ProviderID.make("anthropic"),
++  capabilities: {
++    ...textModel.capabilities,
++    attachment: true,
++    input: { ...textModel.capabilities.input, image: true, pdf: true },
++  },
++})
++
++const providers: Record<ProviderID, Provider.Info> = {
++  [ProviderID.make("openai")]: ProviderTest.info(
++    {
++      id: ProviderID.make("openai"),
++      env: [],
++      models: { [textModel.id]: textModel, [imageModel.id]: imageModel },
++    },
++    textModel,
++  ),
++  [ProviderID.make("anthropic")]: ProviderTest.info(
++    {
++      id: ProviderID.make("anthropic"),
++      env: [],
++      models: { [visionModel.id]: visionModel },
++    },
++    visionModel,
++  ),
++}
++
++function authLayer(providerIDs: string[] = []) {
++  const entries = Object.fromEntries(
++    providerIDs.map((providerID) => [providerID, new Auth.Api({ type: "api", key: "" })]),
++  ) as Record<string, Auth.Info>
++  return Layer.succeed(
++    Auth.Service,
++    Auth.Service.of({
++      all: Effect.fn("CapabilityTest.Auth.all")(() => Effect.succeed(entries)),
++      get: Effect.fn("CapabilityTest.Auth.get")((providerID) => Effect.succeed(entries[providerID])),
++      set: Effect.fn("CapabilityTest.Auth.set")(() => Effect.void),
++      remove: Effect.fn("CapabilityTest.Auth.remove")(() => Effect.void),
++    }),
++  )
++}
++
++function providerLayer(input: Record<ProviderID, Provider.Info> = providers) {
++  return Layer.succeed(
++    Provider.Service,
++    Provider.Service.of({
++      list: Effect.fn("CapabilityTest.Provider.list")(() => Effect.succeed(input)),
++      getProvider: Effect.fn("CapabilityTest.Provider.getProvider")((providerID) =>
++        input[providerID] ? Effect.succeed(input[providerID]) : Effect.die(new Error(`Unknown provider ${providerID}`)),
++      ),
++      getModel: Effect.fn("CapabilityTest.Provider.getModel")((providerID, modelID) => {
++        const model = input[providerID]?.models[modelID]
++        return model ? Effect.succeed(model) : Effect.die(new Error(`Unknown model ${providerID}/${modelID}`))
++      }),
++      getLanguage: Effect.fn("CapabilityTest.Provider.getLanguage")(() =>
++        Effect.die(new Error("Capability tests do not load language models")),
++      ),
++      closest: Effect.fn("CapabilityTest.Provider.closest")(() => Effect.succeed(undefined)),
++      getSmallModel: Effect.fn("CapabilityTest.Provider.getSmallModel")(() => Effect.succeed(undefined)),
++      defaultModel: Effect.fn("CapabilityTest.Provider.defaultModel")(() =>
++        Effect.succeed({ providerID: ProviderID.make("openai"), modelID: ModelID.make("text-model") }),
++      ),
++    }),
++  )
++}
++
++function provideCapability<A, E, R>(
++  effect: Effect.Effect<A, E, R>,
++  options: { authProviders?: string[]; providerRows?: Record<ProviderID, Provider.Info> } = {},
++) {
++  return effect.pipe(
++    Effect.provide(Capability.layer),
++    Effect.provide(providerLayer(options.providerRows)),
++    Effect.provide(authLayer(options.authProviders)),
++  )
++}
++
++function provideTool<A, E, R>(effect: Effect.Effect<A, E, R>, authProviders: string[] = []) {
++  return provideCapability(effect, { authProviders }).pipe(
++    Effect.provide(Truncate.defaultLayer),
++    Effect.provide(Agent.defaultLayer),
++  )
++}
++
++const ctx: Tool.Context = {
++  sessionID: SessionID.descending(),
++  messageID: MessageID.ascending(),
++  agent: "build",
++  abort: new AbortController().signal,
++  messages: [],
++  metadata() {
++    return Effect.void
++  },
++  ask() {
++    return Effect.void
++  },
++}
++
++beforeEach(async () => {
++  await fs.rm(capabilityPath, { force: true })
++})
++
++describe("Capability.Service", () => {
++  test("returns an empty file when capability YAML is absent", async () => {
++    const result = await Effect.runPromise(provideCapability(Capability.Service.use((service) => service.read())))
++    expect(result).toEqual({ version: 1, models: [] })
++  })
++
++  test("decodes valid capability YAML", async () => {
++    await Bun.write(
++      capabilityPath,
++      [
++        "version: 1",
++        "models:",
++        "  - provider_id: openai",
++        "    model_id: image-model",
++        "    provenance: proven",
++        "    tested_at: '2026-06-23T00:00:00Z'",
++        "    notes: image generation verified",
++        "",
++      ].join("\n"),
++    )
++    const result = await Effect.runPromise(provideCapability(Capability.Service.use((service) => service.read())))
++    expect(result.models).toEqual([
++      {
++        provider_id: "openai",
++        model_id: "image-model",
++        provenance: "proven",
++        tested_at: "2026-06-23T00:00:00Z",
++        notes: "image generation verified",
++      },
++    ])
++  })
++
++  test("fails malformed capability YAML instead of silently ignoring it", async () => {
++    await Bun.write(capabilityPath, "version: 1\nmodels:\n  - provider_id: openai\n    model_id: [bad]\n")
++    const exit = await Effect.runPromiseExit(provideCapability(Capability.Service.use((service) => service.read())))
++    expect(Exit.isFailure(exit)).toBe(true)
++  })
++
++  test("filters by modality and annotates auth availability", async () => {
++    await Bun.write(
++      capabilityPath,
++      [
++        "version: 1",
++        "models:",
++        "  - provider_id: openai",
++        "    model_id: image-model",
++        "    provenance: proven",
++        "",
++      ].join("\n"),
++    )
++    const result = await Effect.runPromise(
++      provideCapability(Capability.Service.use((service) => service.lookup({ task: "generate an image", modality: "image" })), {
++        authProviders: ["openai"],
++      }),
++    )
++    expect(result.map((item) => item.model_id)).toEqual(["image-model"])
++    expect(result[0]).toMatchObject({
++      provider_id: "openai",
++      provenance: "proven",
++      has_api_key: true,
++    })
++    expect(result[0]?.capabilities).toContain("image")
++  })
++
++  test("sorts by provenance, auth availability, provider, and model", async () => {
++    await Bun.write(
++      capabilityPath,
++      [
++        "version: 1",
++        "models:",
++        "  - provider_id: openai",
++        "    model_id: text-model",
++        "    provenance: tested",
++        "  - provider_id: anthropic",
++        "    model_id: vision-model",
++        "    provenance: proven",
++        "",
++      ].join("\n"),
++    )
++    const result = await Effect.runPromise(
++      provideCapability(Capability.Service.use((service) => service.lookup({ task: "process image", modality: "text" })), {
++        authProviders: ["openai"],
++      }),
++    )
++    expect(result.map((item) => `${item.provider_id}/${item.model_id}:${item.provenance}:${item.has_api_key}`)).toEqual([
++      "anthropic/vision-model:proven:false",
++      "openai/text-model:tested:true",
++      "openai/image-model:pending:true",
++    ])
++  })
++})
++
++describe("CapabilityTool", () => {
++  test("delegates lookup to Capability.Service and returns formatted output", async () => {
++    await Bun.write(
++      capabilityPath,
++      [
++        "version: 1",
++        "models:",
++        "  - provider_id: openai",
++        "    model_id: image-model",
++        "    provenance: proven",
++        "",
++      ].join("\n"),
++    )
++    const info = await Effect.runPromise(provideTool(CapabilityTool, ["openai"]))
++    const tool = await Effect.runPromise(info.init())
++    const result = await Effect.runPromise(tool.execute({ task: "generate image", modality: "image" }, ctx))
++
++    expect(result.title).toBe("Capability lookup: generate image")
++    expect(result.output).toContain("image-model")
++    expect(result.output).toContain("P proven")
++    expect(result.metadata.results).toHaveLength(1)
++  })
++
++  test("rejects unsupported modality values at the parameter schema", () => {
++    expect(() => Schema.decodeUnknownSync(Parameters)({ task: "generate", modality: "spreadsheet" })).toThrow()
++  })
++})
+*** Update File: plans/20260623_capability_stabilization_plan.md
+@@
+-**Status:** Active
++**Status:** Active - Candidate 2 implementation in progress
+@@
+-    - [ ] W1: Validate and harden capability YAML read/write.
+-    - [ ] W2: Make service lookup deterministic and provider-backed.
+-    - [ ] W3: Make the tool delegate to `Capability.Service`.
+-    - [ ] W4: Add focused service/tool tests.
++    - [x] W1: Validate and harden capability YAML read/write.
++    - [x] W2: Make service lookup deterministic and provider-backed.
++    - [x] W3: Make the tool delegate to `Capability.Service`.
++    - [x] W4: Add focused service/tool tests.
+     - [ ] W5: Decide whether TUI needs more than generic tool output.
+-    - [ ] W6: Update active plans after implementation evidence.
++    - [x] W6: Update active plans after implementation evidence.
++
++    ## Implementation Update - 2026-06-24
++
++    Candidate 2 was selected for implementation.
++
++    Completed semantic deltas:
++    - Capability YAML now fails malformed content instead of silently returning empty data.
++    - Capability lookup uses provider service model capabilities instead of tool-local `models.json` discovery.
++    - Capability tool delegates to `Capability.Service`.
++    - Focused service/tool tests cover absent YAML, valid YAML, malformed YAML, modality filtering, auth annotation, ranking, formatted output, and schema rejection.
++
++    Remaining item:
++    - W5 remains open because TUI readiness is intentionally outside Candidate 2.
+@@
+-    - Done: detailed stabilization plan created
+-    - Pending: implementation candidate approval
++    - Done: Candidate 2 service/tool stabilization
++    - Pending: W5 TUI readiness decision
+     - Blocked: none
+-    - Next: choose Candidate 1, 2, or 3 for implementation
++    - Next: review whether generic tool output is sufficient before any TUI-specific work
+*** End Patch

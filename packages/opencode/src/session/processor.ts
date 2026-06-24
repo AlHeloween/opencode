@@ -436,6 +436,20 @@ export const layer: Layer.Layer<
             return
           }
 
+          case "file": {
+            const fileValue = value as { mediaType?: string; mime?: string; url?: string; filename?: string }
+            yield* session.updatePart({
+              id: PartID.ascending(),
+              messageID: ctx.assistantMessage.id,
+              sessionID: ctx.assistantMessage.sessionID,
+              type: "file",
+              mime: fileValue.mediaType ?? fileValue.mime ?? "application/octet-stream",
+              url: fileValue.url ?? "",
+              ...(fileValue.filename ? { filename: fileValue.filename } : {}),
+            } satisfies MessageV2.FilePart)
+            return
+          }
+
           case "error":
             if (
               typeof value.error === "string" &&

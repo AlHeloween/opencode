@@ -1,7 +1,7 @@
 # D — Multimodal Message Model + Capability Injection
 
 **Parent:** `plans/20260623_agent_pipeline_media_plan.md`
-**Status:** [ ] Pending
+**Status:** [x] Complete — implemented 2026-06-24
 **Effort:** 2.0h
 
 ---

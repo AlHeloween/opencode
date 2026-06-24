@@ -1,7 +1,7 @@
 # C — Media TUI Rendering
 
 **Parent:** `plans/20260623_agent_pipeline_media_plan.md`
-**Status:** [ ] Pending  
+**Status:** [x] Complete — implemented 2026-06-24  
 **Effort:** 1.8h
 
 **Smoke-tested:** chafa `--format symbols --color-space rgb` works. mpv `--vo=tct`/`--vo=gpu`/`--vo=null` work. Kitty/sixel do NOT render on Windows Terminal.

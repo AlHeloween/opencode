@@ -1000,6 +1000,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             ...(differentModel ? {} : { providerMetadata: part.metadata }),
           })
         }
+        if (part.type === "file") {
+          assistantMessage.parts.push({
+            type: "file",
+            url: part.url,
+            mediaType: part.mime,
+            ...(part.filename ? { filename: part.filename } : {}),
+          })
+        }
       }
       if (assistantMessage.parts.length > 0) {
         result.push(assistantMessage)

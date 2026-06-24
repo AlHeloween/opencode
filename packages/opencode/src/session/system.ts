@@ -127,6 +127,14 @@ export const layer = Layer.effect(
       environment(model) {
         const project = Instance.project
         const family = resolvePrompt(model).family
+        const outputModalityLine = ((): string | undefined => {
+          const out = model.capabilities.output
+          const modalities = Object.entries(out)
+            .filter(([_, supported]) => supported)
+            .map(([mod]) => mod)
+          if (modalities.length <= 1 && out.text) return undefined
+          return `Output modalities: ${modalities.join(", ")}`
+        })()
         return [
           [
             `You are a ${family} coding assistant.`,
@@ -138,6 +146,7 @@ export const layer = Layer.effect(
             `  Platform: ${process.platform}`,
             `</env>`,
             capabilities(),
+            ...(outputModalityLine ? [outputModalityLine] : []),
           ].join("\n"),
         ]
       },

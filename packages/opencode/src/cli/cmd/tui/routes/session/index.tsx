@@ -58,6 +58,9 @@ import type { DialogContext } from "@tui/ui/dialog"
 import { useKeybind } from "@tui/context/keybind"
 import { useDialog } from "../../ui/dialog"
 import { TodoItem } from "../../component/todo-item"
+import { MediaImage } from "../../component/media-image"
+import { MediaVideo } from "../../component/media-video"
+import { MediaAudio } from "../../component/media-audio"
 import { DialogMessage } from "./dialog-message"
 import type { PromptInfo } from "../../component/prompt/history"
 import { DialogConfirm } from "@tui/ui/dialog-confirm"
@@ -1516,6 +1519,7 @@ const PART_MAPPING = {
   text: TextPart,
   tool: ToolPart,
   reasoning: ReasoningPart,
+  file: FilePartRenderer,
 }
 
 function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
@@ -1698,14 +1702,17 @@ function GenericTool(props: ToolProps<any>) {
   const overflow = createMemo(() => lines().length > maxLines)
   const limited = createMemo(() => {
     if (expanded() || !overflow()) return output()
-    return [...lines().slice(0, maxLines), "…"].join("\n")
+    return [...lines().slice(0, maxLines), "\u2026"].join("\n")
   })
+  const attachments = createMemo(() =>
+    (props.part.state as any)?.attachments ?? [],
+  )
 
   return (
     <Show
       when={props.output && ctx.showGenericToolOutput()}
       fallback={
-        <InlineTool icon="⚙" pending="Writing command..." complete={true} part={props.part}>
+        <InlineTool icon="\u2699" pending="Writing command..." complete={true} part={props.part}>
           {props.tool} {input(props.input)}
         </InlineTool>
       }
@@ -1720,9 +1727,50 @@ function GenericTool(props: ToolProps<any>) {
           <Show when={overflow()}>
             <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : "Click to expand"}</text>
           </Show>
+          <Show when={attachments().length > 0}>
+            <For each={attachments()}>
+              {(att: { mime: string; url: string; filename?: string }) => (
+                <Switch>
+                  <Match when={att.mime.startsWith("image/")}>
+                    <MediaImage url={att.url} mime={att.mime} />
+                  </Match>
+                  <Match when={att.mime.startsWith("video/")}>
+                    <MediaVideo url={att.url} metadata={att} />
+                  </Match>
+                  <Match when={att.mime.startsWith("audio/")}>
+                    <MediaAudio url={att.url} metadata={att} />
+                  </Match>
+                </Switch>
+              )}
+            </For>
+          </Show>
         </box>
       </BlockTool>
     </Show>
+  )
+}
+
+function FilePartRenderer(props: { part: { mime: string; url: string; filename?: string } }) {
+  const { theme } = useTheme()
+  return (
+    <box paddingTop={1} paddingLeft={3} gap={1}>
+      <Switch>
+        <Match when={props.part.mime.startsWith("image/")}>
+          <MediaImage url={props.part.url} mime={props.part.mime} />
+        </Match>
+        <Match when={props.part.mime.startsWith("video/")}>
+          <MediaVideo url={props.part.url} metadata={props.part} />
+        </Match>
+        <Match when={props.part.mime.startsWith("audio/")}>
+          <MediaAudio url={props.part.url} metadata={props.part} />
+        </Match>
+        <Match when={true}>
+          <text fg={theme.textMuted}>
+            [File: {props.part.filename ?? props.part.mime}]
+          </text>
+        </Match>
+      </Switch>
+    </box>
   )
 }
 

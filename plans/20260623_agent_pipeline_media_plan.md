@@ -1,7 +1,7 @@
 # Agent Pipeline & Media Capability Plan
 
 **Created:** 2026-06-23
-**Status:** Active — Module A (capability) and Module B (pipeline) complete. Modules C (media TUI) and D (multimodal messages) remain.
+**Status:** [x] Complete — all 4 modules implemented 2026-06-24
 
 ## Audit Update — 2026-06-23
 
@@ -353,7 +353,7 @@ ToolRegistry.register({
 
 ---
 
-## Module C: Multimedia TUI Output — open TUI layer, backend partly implemented
+## Module C: Terminal Media TUI — [x] complete (2026-06-24)
 
 **Goal:** Render non-text tool outputs (images, audio, video) via child processes (chafa, mpv, ffmpeg). No custom escape sequences — proven approach from experiments.
 
@@ -431,11 +431,11 @@ if (part().state.attachments?.length) {
 
 ---
 
-## Module D: Multimodal Message Model + Capability Injection
+## Module D: Multimodal Message Model + Capability Injection — [x] complete (2026-06-24)
 
 **Goal:** Treat image, audio, video as first-class assistant message parts (not just tool attachments) and inject output capabilities into the system prompt so the model knows what it can produce.
 
-### D.1 Add `FilePart` to assistant message parts — already present, verify assistant semantics
+### D.1 Add `FilePart` to assistant message parts — [x] already satisfied (unified Part union)
 
 **File:** `packages/opencode/src/session/message-v2.ts` (MODIFY)
 **Effort:** 20 min

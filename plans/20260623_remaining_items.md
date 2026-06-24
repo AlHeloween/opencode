@@ -40,12 +40,14 @@ export default defineConfig({
 })
 ```
 
-### 1.2 [ ] `isOrphanedInterruptedTool()` guard
+### 1.2 [x] `isOrphanedInterruptedTool()` guard
 
 **File:** `packages/opencode/src/session/prompt.ts` (MODIFY)
 **Effort:** 15 min
 **What:** Filter out tool parts with `state.status === "error" && state.metadata?.interrupted === true` from assistant prefill logic
 **Why:** Prevents interrupted tools from appearing in model context
+
+**Audit (2026-06-24):** Already implemented at `prompt.ts:1135-1145`. Plan marker was stale.
 
 ### 1.3 [x] Summary diff lazy compute
 
@@ -60,21 +62,21 @@ export default defineConfig({
 
 ## Part 2: Medium Effort
 
-### 2.2 [ ] RuntimeFlags + Codex WebSocket flags — audit remaining gate
+### 2.2 [x] RuntimeFlags + Codex WebSocket flags — audit complete
 
 **Files:** `packages/opencode/src/plugin/index.ts` (MODIFY)
 **Effort:** 30 min
 **What:** Add `RuntimeFlags.defaultLayer` to plugin layer. Gate `experimentalWebSockets` behind flag in Codex plugin.
 **Depends on:** RuntimeFlags already exists in our codebase
 
-**Audit:** `RuntimeFlags.defaultLayer` is already provided in `packages/opencode/src/plugin/index.ts`. Remaining work is to verify whether the Codex plugin actually gates `experimentalWebSockets` on `RuntimeFlags.experimentalWebSockets`.
+**Audit (2026-06-24):** `RuntimeFlags.defaultLayer` already provided in `plugin/index.ts:297`. Codex plugin does NOT reference `experimentalWebSockets` or `RuntimeFlags` — it's a pure auth/OAuth plugin. No gating needed.
 
-### 2.4 [ ] Session usage tracking migration — verify/backfill only
+### 2.4 [x] Session usage tracking migration — confirmed exists
 
 **Files:** New migration file (NEW)
 **Effort:** 30 min
 **What:** Verify migration/backfill behavior for existing databases that predate the session usage columns.
-**Audit:** `packages/opencode/src/session/session.sql.ts` already contains cost/token columns, and `packages/opencode/src/session/processor.ts` already accumulates session-level usage. Do not blindly port upstream as a new greenfield migration without checking local migration history.
+**Audit (2026-06-24):** Schema has all 6 cost/token columns (`session.sql.ts:39-44`). Migration `20260601000001_session_usage_tracking.ts` exists with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` guards. Processor already accumulates usage.
 
 ### 2.5 [x] Tool resolution consolidation
 

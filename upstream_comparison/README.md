@@ -1,6 +1,7 @@
 # Upstream Comparison Tracker
 
 **Created:** 2026-05-18
+**Last Audited:** 2026-06-24
 **Purpose:** Track divergence between `Local_Development` (our branch) and upstream `dev` (anomalyco/opencode)
 
 ---

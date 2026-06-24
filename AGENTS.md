@@ -281,3 +281,22 @@ Research analyses are kept in `research_done/` for reference. Each surfaced bugs
 | `research_done/research_v2.md` | Deeper static analysis with specific bugs | 6 bugs (health-window off-by-one, N+1 query, route eviction, lexical path, h2 backpressure, structuredClone) | [x] All fixed (see `plans/20260519_perf_audit_followup.md` for h2 semaphore fix) |
 | `research_done/research_v3.md` | Runtime microbenchmarks + profiling playbook | Queue performance (674ms→4ms), throw/catch overhead (530x) | [x] Applied |
 | `research_done/research_v4.md` | Concrete fix-oriented security/correctness triage | 5 issues (Vite exposure, Electron updater, DB effects, process.exit, release workflow) | [x] All fixed (see `plans/20260518_deferred_items_plan.md`) |
+
+## Agent Inventory
+
+The project defines these built-in agents (`packages/opencode/src/agent/agent.ts`):
+
+| Agent | Mode | Prompt | Description |
+|-------|------|--------|-------------|
+| `build` | primary | provider family prompt | Default full-access development agent |
+| `plan` | primary | provider family prompt | Read-only planning (denies edits) |
+| `general` | subagent | `prompt/general.txt` | Planning, design, root-cause analysis |
+| `explore` | subagent | `prompt/explore.txt` | Fast file/code/conversation search |
+| `coder` | subagent | `prompt/coder.txt` | Code implementation (edit/write/bash) |
+| `researcher` | subagent | `prompt/researcher.txt` | Read-only research (code+web+history) |
+| `media` | subagent | `prompt/media.txt` | Media generation via capability tool |
+| `compaction` | primary (hidden) | none | Conversation summarization |
+| `title` | primary (hidden) | `prompt/title.txt` | Session title generation |
+| `summary` | primary (hidden) | `prompt/summary.txt` | Session summarization |
+
+**Tools of note:** `pipeline` chains subagents sequentially (researcher→coder, explore→general). `capability` looks up model output modalities against available API keys.

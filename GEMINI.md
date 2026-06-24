@@ -20,12 +20,15 @@ The project is a large-scale TypeScript monorepo managed with `bun` as the packa
 The architecture is based on a client-server model. The core logic resides in a server that can be run headlessly, and various clients (TUI, Web, Desktop) can connect to it.
 
 The monorepo is organized into multiple packages located in the `packages/` directory, including:
-*   `opencode`: The core business logic and CLI command.
-*   `console`: The terminal-based UI (TUI).
-*   `app`: Shared UI components used across the different frontends.
-*   `desktop`: The Tauri wrapper for the native desktop application.
-*   `web`: The web interface.
-*   `sdk`: The client SDK for interacting with the OpenCode server.
+*   `opencode`: The core AI agent engine, CLI/TUI server, tools, HTTP API, session management.
+*   `ui`: Shared SolidJS component library (40+ components), themes, diff engine.
+*   `app`: SolidJS SPA — web UI for chat, sessions, settings.
+*   `desktop`: The Tauri v2 desktop app (Rust + TypeScript).
+*   `desktop-electron`: Electron v41 alternative desktop app.
+*   `web`: Astro marketing site + Starlight docs (`opencode.ai`).
+*   `sdk/js`: Auto-generated TypeScript SDK client from OpenAPI.
+*   `enterprise`: SolidStart app for session sharing + sync.
+*   `plugin`: Plugin system API — hook definitions, tool helpers, TUI APIs.
 
 ## Building and Running
 

@@ -1,6 +1,6 @@
 ## The Autodidactic Development & Intelligence Driver (ADID) Framework #adid_framework
 **Version: 15.3**
-**Date: 2026-02-05**
+**Date: 2026-02-05 (last audited 2026-06-24)**
 **Status: Revision (Traceability update)**
 
 **15.3 change summary (Exact):**
@@ -622,4 +622,4 @@ or smart quotes. Use plain ASCII quotes ( " ' ) only.
 4. **Geo-Neutrality** Preferable (but not obligatory) .com/global docs. Avoid localizations for collaboration consistency.
 5. **Ambiguity Disclosure** State if documentation or search yields conflicting/unclear results, and suggest direct resolution.
 
-**See also:** Operational checklist and verification roots: `AGENTS.md`. Invocation and commands: `cursor_artifacts/skills/adm-exe/SKILL.md` (or project's `.cursor/skills`).
+**See also:** Operational checklist and verification roots: `AGENTS.md`. Invocation and commands: `artefacts/skills/adm-exe/SKILL.md` (or project's `.cursor/skills`, `.opencode/skills`).

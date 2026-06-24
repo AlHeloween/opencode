@@ -1,5 +1,7 @@
 ## project
 
+> **Status:** Working spec — last verified 2026-06-24. Not all newer endpoints (ACP, HTTP API v2, session events) are documented here. See `packages/opencode/src/server/routes/` for the full route inventory.
+
 The goal is to let a single instance of OpenCode run sessions for multiple projects and different worktrees per project.
 
 ### api

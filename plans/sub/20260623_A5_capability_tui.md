@@ -1,14 +1,14 @@
 # A.5 — Capability Tool TUI Renderer
 
 **Parent:** `plans/20260623_agent_pipeline_media_plan.md`
-**Status:** [ ] Pending
+**Status:** [x] Complete
 **Effort:** 15 min
 
 ---
 
 ## Abstract Definition
 
-Register a TUI component for the `capability` tool that renders the lookup table as formatted text in a `BasicTool` card. The tool already returns plaintext table output — the TUI renderer just needs to display it.
+Register a terminal TUI component for the `capability` tool that renders the lookup table as formatted text in a `BlockTool`. The tool already returns plaintext table output; the renderer displays it directly and keeps long tables expandable.
 
 ## Math Formalization
 
@@ -25,49 +25,35 @@ capability tool execute()
   └─→ returns { title, metadata, output }
          │
          ▼
-ToolPartDisplay (message-part.tsx ~line 1380)
+ToolPart (packages/opencode/src/cli/cmd/tui/routes/session/index.tsx)
   └─→ detects tool === "capability"
          │
          ▼
-CapabilityRenderer
-  └─→ BasicTool { icon, trigger, children: <pre><code>{output}</code></pre> }
+Capability
+  └─→ BlockTool { title: "# Capability lookup ...", children: output text, expandable when long }
 ```
 
 ## Files
 
 | File | Action | Lines |
 |------|--------|-------|
-| `packages/ui/src/components/message-part.tsx` | MODIFY — register renderer | +15 |
+| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | MODIFY — register terminal renderer | +45 |
 
 ## Code
 
 ```typescript
-// In message-part.tsx, after other ToolRegistry.register() calls (~line 1882):
+// In the terminal TUI ToolPart switch:
+<Match when={props.part.tool === "capability"}>
+  <Capability {...toolprops} />
+</Match>
 
-ToolRegistry.register({
-  name: "capability",
-  render(props) {
-    return (
-      <BasicTool
-        icon="search"
-        trigger={{
-          title: `Capability lookup`,
-          subtitle: props.input?.task ?? "",
-        }}
-      >
-        <pre data-slot="capability-output">
-          <code>{props.output}</code>
-        </pre>
-      </BasicTool>
-    )
-  },
-})
+// Capability renders completed output as an expandable BlockTool.
 ```
 
 ## Reason
 
-The tool already produces formatted output — the TUI just displays it. `BasicTool` with `icon="search"` and a `<pre><code>` block matches the existing `bash`/`read`/`grep` renderer pattern exactly. No custom component needed.
+The tool already produces formatted output. The terminal generic renderer can display unknown tool output, but `showGenericToolOutput` defaults to false, so capability results would otherwise collapse to a one-line generic marker. A dedicated renderer keeps this user-facing lookup readable without enabling every generic tool output block.
 
 ## Test
 
-Manual: invoke capability tool from a session, verify the formatted table appears in the TUI with proper monospace rendering.
+Oracle: `bun typecheck` from `packages/opencode` plus ADM verification on the TUI and plan roots. Manual follow-up remains useful for exact terminal layout, but the renderer follows the existing `BlockTool` output pattern used by shell output.

@@ -1,13 +1,13 @@
 # Agent Pipeline & Media Capability Plan
 
 **Created:** 2026-06-23
-**Status:** Active but stale — audited 2026-06-23. Treat this as a mixed implementation/verification backlog, not a greenfield feature plan.
+**Status:** Active — audited 2026-06-23, capability foundation updated 2026-06-24. Treat this as a mixed implementation/verification backlog, not a greenfield feature plan.
 
 ## Audit Update — 2026-06-23
 
 Current code state:
-- `packages/opencode/src/capability/index.ts` exists, but needs stabilization before it is used as a foundation.
-- `packages/opencode/src/tool/capability.ts` exists and is registered in `packages/opencode/src/tool/registry.ts`, but it duplicates service logic and uses sync file reads plus loose typing.
+- `packages/opencode/src/capability/index.ts` exists and was stabilized with schema-decoded YAML, provider-backed lookup, deterministic ranking, and focused tests.
+- `packages/opencode/src/tool/capability.ts` exists, is registered in `packages/opencode/src/tool/registry.ts`, and delegates lookup to `Capability.Service`.
 - `pipeline` is not implemented: no `packages/opencode/src/tool/pipeline.ts`, no pipeline registration, and no dedicated pipeline TUI renderer.
 - `coder`, `researcher`, and `media` native agents are not implemented; only `general` and `explore` exist as visible native subagents.
 - Attachment handlers and media dependencies already exist in `packages/opencode/src/attachment/handlers/`; the remaining media backend work is tests/fixtures/runtime validation.
@@ -61,7 +61,7 @@ models:
 **Output:** `CapabilityEntry[]`
 **Test:** Parse valid YAML, reject invalid, default `proven: false` / `tested_at: null`
 
-### A.2 `CapabilityService` — Effect service — partial, stabilize
+### A.2 `CapabilityService` — Effect service — implemented, verify in downstream use
 
 **File:** `packages/opencode/src/capability/index.ts` (NEW)
 **Effort:** 1h
@@ -105,9 +105,9 @@ LookupResult {
 
 **Test:** Mock YAML, models.json, auth.json → verify correct filter/sort/annotate
 
-**Audit:** `packages/opencode/src/capability/index.ts` exists. It should be reviewed for complete layer provisioning, typed file access, schema decoding, and test coverage before more features depend on it.
+**Audit:** `packages/opencode/src/capability/index.ts` now uses schema-decoded YAML, provider service model data, auth annotation, and deterministic sorting. Focused capability tests cover absent YAML, valid YAML, malformed YAML, filtering, auth annotation, and ranking.
 
-### A.3 `capability` tool — partial, repair
+### A.3 `capability` tool — implemented
 
 **File:** `packages/opencode/src/tool/capability.ts` (NEW)
 **Effort:** 1h
@@ -163,7 +163,7 @@ imagen-4                 | google    | -      | ✗       | $0.02 / image
 
 **Test:** Given mock service → tool returns formatted table
 
-**Audit:** `packages/opencode/src/tool/capability.ts` exists and is registered, but it duplicates capability service logic and uses sync file reads, `require`, loose model typing, and brittle model path discovery. Cleanup should make the tool call `Capability.Service`.
+**Audit:** `packages/opencode/src/tool/capability.ts` now delegates to `Capability.Service`, uses narrowed modality schema, and has focused tool coverage for formatted output and schema rejection.
 
 ### A.4 Tool registration — implemented
 
@@ -191,23 +191,16 @@ Same 3-step pattern for `pipeline` tool.
 
 **Audit:** Capability is already imported, initialized, and included in the builtin tool list. Pipeline remains unimplemented.
 
-### A.5 TUI renderer — open
+### A.5 Terminal TUI renderer — implemented
 
-**File:** `packages/ui/src/components/message-part.tsx` (MODIFY)
+**File:** `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` (MODIFY)
 **Effort:** 30 min
 
-Register renderer:
+Register renderer in the terminal TUI switch:
 ```typescript
-ToolRegistry.register({
-  name: "capability",
-  render(props) {
-    return (
-      <BasicTool icon="search" trigger={{ title: "Capability lookup", subtitle: props.input.task }}>
-        <pre><code>{props.output}</code></pre>
-      </BasicTool>
-    )
-  },
-})
+<Match when={props.part.tool === "capability"}>
+  <Capability {...toolprops} />
+</Match>
 ```
 
 ---

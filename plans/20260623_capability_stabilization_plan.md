@@ -1,7 +1,7 @@
 # Capability Stabilization Plan
 
 **Created:** 2026-06-23
-**Status:** Active - Candidate 2 implemented, W5 TUI readiness remains open
+**Status:** Active - capability service, tool, tests, and TUI readiness complete; final plan-validation pass remains before archival
 **Parent:** `plans/20260623_agent_pipeline_media_plan.md`
 **Scope:** Plan only. No implementation is authorized by this document.
 
@@ -12,7 +12,7 @@
 - write_lock: true for implementation until an implementation candidate is approved
 - target_scope: stabilize `capability` service, tool, tests, and plan traceability
 - known_blockers: no capability test coverage was found during discovery
-- oracle_status: pending
+- oracle_status: Candidate 2 green; W5 implementation pending verification in this update
 - provenance_path: implementation must use `updates/` descriptors and ADM verification
 
 sv=[[capability,stabilization,service,tool,tests,provider,provenance], [0.22,0.20,0.16,0.15,0.12,0.10,0.05]]
@@ -317,7 +317,7 @@ Pause implementation if:
     - [x] W2: Make service lookup deterministic and provider-backed.
     - [x] W3: Make the tool delegate to `Capability.Service`.
     - [x] W4: Add focused service/tool tests.
-    - [ ] W5: Decide whether TUI needs more than generic tool output.
+    - [x] W5: Decide whether TUI needs more than generic tool output.
     - [x] W6: Update active plans after implementation evidence.
 
     ## Implementation Update - 2026-06-24
@@ -330,8 +330,10 @@ Pause implementation if:
     - Capability tool delegates to `Capability.Service`.
     - Focused service/tool tests cover absent YAML, valid YAML, malformed YAML, modality filtering, auth annotation, ranking, formatted output, and schema rejection.
 
-    Remaining item:
-    - W5 remains open because TUI readiness is intentionally outside Candidate 2.
+    Follow-up update - 2026-06-24:
+    - W5 evidence showed the terminal TUI generic renderer hides generic output by default.
+    - A dedicated terminal `capability` renderer now displays lookup output as an expandable `BlockTool`.
+    - The web UI already has a `GenericTool` fallback, so no web renderer was added.
 
 ## Verification Plan
 
@@ -347,8 +349,8 @@ Implementation verification for a later approved candidate:
 
 ## Clean Next State
 
-    - Done: Candidate 2 service/tool stabilization
-    - Pending: W5 TUI readiness decision
+    - Done: Candidate 2 service/tool stabilization and W5 terminal TUI readiness
+    - Pending: final plan-validation pass before archival
     - Blocked: none
     - Next: review whether generic tool output is sufficient before any TUI-specific work
 

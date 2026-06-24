@@ -1,0 +1,184 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/cli/cmd/tui/routes/session/index.tsx
+@@
+ import type { WebFetchTool } from "@/tool/webfetch"
+ import type { UniversalSearchTool } from "@/tool/universalsearch"
++import type { CapabilityTool } from "@/tool/capability"
+ import type { TaskTool } from "@/tool/task"
+@@
+         <Match when={props.part.tool === "universalsearch"}>
+           <UniversalSearch {...toolprops} />
+         </Match>
++        <Match when={props.part.tool === "capability"}>
++          <Capability {...toolprops} />
++        </Match>
+         <Match when={props.part.tool === "write"}>
+           <Write {...toolprops} />
+@@
+ function UniversalSearch(props: ToolProps<typeof UniversalSearchTool>) {
+   const metadata = props.metadata as { mode?: string; resultsCount?: number; jobId?: string; status?: string }
+   const icon = props.input.source === "agent" ? "✦" : props.input.source === "code" ? "⌕" : "◈"
+@@
+   )
+ }
++
++function Capability(props: ToolProps<typeof CapabilityTool>) {
++  const { theme } = useTheme()
++  const output = createMemo(() => props.output?.trim() ?? "")
++  const [expanded, setExpanded] = createSignal(false)
++  const lines = createMemo(() => output().split("\n"))
++  const maxLines = 12
++  const overflow = createMemo(() => lines().length > maxLines)
++  const limited = createMemo(() => {
++    if (expanded() || !overflow()) return output()
++    return [...lines().slice(0, maxLines), "…"].join("\n")
++  })
++  const task = createMemo(() => props.input.task ?? "Capability lookup")
++
++  return (
++    <Switch>
++      <Match when={output()}>
++        <BlockTool
++          title={`# Capability lookup ${task()}`}
++          part={props.part}
++          onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
++        >
++          <box gap={1}>
++            <text fg={theme.text}>{limited()}</text>
++            <Show when={overflow()}>
++              <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : "Click to expand"}</text>
++            </Show>
++          </box>
++        </BlockTool>
++      </Match>
++      <Match when={true}>
++        <InlineTool icon="⌕" pending="Looking up capability..." complete={task()} part={props.part}>
++          Capability {task()}
++        </InlineTool>
++      </Match>
++    </Switch>
++  )
++}
+ 
+ function Task(props: ToolProps<typeof TaskTool>) {
+*** Update File: plans/20260623_capability_stabilization_plan.md
+@@
+-**Status:** Active - Candidate 2 implemented, W5 TUI readiness remains open
++**Status:** Active - capability service, tool, tests, and TUI readiness complete; final plan-validation pass remains before archival
+@@
+-- oracle_status: pending
++- oracle_status: Candidate 2 green; W5 implementation pending verification in this update
+@@
+-    - [ ] W5: Decide whether TUI needs more than generic tool output.
++    - [x] W5: Decide whether TUI needs more than generic tool output.
+@@
+-    Remaining item:
+-    - W5 remains open because TUI readiness is intentionally outside Candidate 2.
++    Follow-up update - 2026-06-24:
++    - W5 evidence showed the terminal TUI generic renderer hides generic output by default.
++    - A dedicated terminal `capability` renderer now displays lookup output as an expandable `BlockTool`.
++    - The web UI already has a `GenericTool` fallback, so no web renderer was added.
+@@
+-    - Done: Candidate 2 service/tool stabilization
+-    - Pending: W5 TUI readiness decision
++    - Done: Candidate 2 service/tool stabilization and W5 terminal TUI readiness
++    - Pending: final plan-validation pass before archival
+*** Update File: plans/sub/20260623_A5_capability_tui.md
+@@
+-**Status:** [ ] Pending
++**Status:** [x] Complete
+@@
+-Register a TUI component for the `capability` tool that renders the lookup table as formatted text in a `BasicTool` card. The tool already returns plaintext table output — the TUI renderer just needs to display it.
++Register a terminal TUI component for the `capability` tool that renders the lookup table as formatted text in a `BlockTool`. The tool already returns plaintext table output; the renderer displays it directly and keeps long tables expandable.
+@@
+-ToolPartDisplay (message-part.tsx ~line 1380)
++ToolPart (packages/opencode/src/cli/cmd/tui/routes/session/index.tsx)
+   └─→ detects tool === "capability"
+@@
+-CapabilityRenderer
+-  └─→ BasicTool { icon, trigger, children: <pre><code>{output}</code></pre> }
++Capability
++  └─→ BlockTool { title: "# Capability lookup ...", children: output text, expandable when long }
+@@
+-| `packages/ui/src/components/message-part.tsx` | MODIFY — register renderer | +15 |
++| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | MODIFY — register terminal renderer | +45 |
+@@
+-// In message-part.tsx, after other ToolRegistry.register() calls (~line 1882):
+-
+-ToolRegistry.register({
+-  name: "capability",
+-  render(props) {
+-    return (
+-      <BasicTool
+-        icon="search"
+-        trigger={{
+-          title: `Capability lookup`,
+-          subtitle: props.input?.task ?? "",
+-        }}
+-      >
+-        <pre data-slot="capability-output">
+-          <code>{props.output}</code>
+-        </pre>
+-      </BasicTool>
+-    )
+-  },
+-})
++// In the terminal TUI ToolPart switch:
++<Match when={props.part.tool === "capability"}>
++  <Capability {...toolprops} />
++</Match>
++
++// Capability renders completed output as an expandable BlockTool.
+ ```
+@@
+-The tool already produces formatted output — the TUI just displays it. `BasicTool` with `icon="search"` and a `<pre><code>` block matches the existing `bash`/`read`/`grep` renderer pattern exactly. No custom component needed.
++The tool already produces formatted output. The terminal generic renderer can display unknown tool output, but `showGenericToolOutput` defaults to false, so capability results would otherwise collapse to a one-line generic marker. A dedicated renderer keeps this user-facing lookup readable without enabling every generic tool output block.
+@@
+-Manual: invoke capability tool from a session, verify the formatted table appears in the TUI with proper monospace rendering.
++Oracle: `bun typecheck` from `packages/opencode` plus ADM verification on the TUI and plan roots. Manual follow-up remains useful for exact terminal layout, but the renderer follows the existing `BlockTool` output pattern used by shell output.
+*** Update File: plans/20260623_agent_pipeline_media_plan.md
+@@
+-**Status:** Active but stale — audited 2026-06-23. Treat this as a mixed implementation/verification backlog, not a greenfield feature plan.
++**Status:** Active — audited 2026-06-23, capability foundation updated 2026-06-24. Treat this as a mixed implementation/verification backlog, not a greenfield feature plan.
+@@
+-- `packages/opencode/src/capability/index.ts` exists, but needs stabilization before it is used as a foundation.
+-- `packages/opencode/src/tool/capability.ts` exists and is registered in `packages/opencode/src/tool/registry.ts`, but it duplicates service logic and uses sync file reads plus loose typing.
++- `packages/opencode/src/capability/index.ts` exists and was stabilized with schema-decoded YAML, provider-backed lookup, deterministic ranking, and focused tests.
++- `packages/opencode/src/tool/capability.ts` exists, is registered in `packages/opencode/src/tool/registry.ts`, and delegates lookup to `Capability.Service`.
+@@
+-### A.2 `CapabilityService` — Effect service — partial, stabilize
++### A.2 `CapabilityService` — Effect service — implemented, verify in downstream use
+@@
+-**Audit:** `packages/opencode/src/capability/index.ts` exists. It should be reviewed for complete layer provisioning, typed file access, schema decoding, and test coverage before more features depend on it.
++**Audit:** `packages/opencode/src/capability/index.ts` now uses schema-decoded YAML, provider service model data, auth annotation, and deterministic sorting. Focused capability tests cover absent YAML, valid YAML, malformed YAML, filtering, auth annotation, and ranking.
+@@
+-### A.3 `capability` tool — partial, repair
++### A.3 `capability` tool — implemented
+@@
+-**Audit:** `packages/opencode/src/tool/capability.ts` exists and is registered, but it duplicates capability service logic and uses sync file reads, `require`, loose model typing, and brittle model path discovery. Cleanup should make the tool call `Capability.Service`.
++**Audit:** `packages/opencode/src/tool/capability.ts` now delegates to `Capability.Service`, uses narrowed modality schema, and has focused tool coverage for formatted output and schema rejection.
+@@
+-### A.5 TUI renderer — open
++### A.5 Terminal TUI renderer — implemented
+@@
+-**File:** `packages/ui/src/components/message-part.tsx` (MODIFY)
++**File:** `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` (MODIFY)
+@@
+-Register renderer:
++Register renderer in the terminal TUI switch:
+ ```typescript
+-ToolRegistry.register({
+-  name: "capability",
+-  render(props) {
+-    return (
+-      <BasicTool icon="search" trigger={{ title: "Capability lookup", subtitle: props.input.task }}>
+-        <pre><code>{props.output}</code></pre>
+-      </BasicTool>
+-    )
+-  },
+-})
++<Match when={props.part.tool === "capability"}>
++  <Capability {...toolprops} />
++</Match>
+ ```
+*** End Patch

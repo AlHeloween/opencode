@@ -92,6 +92,7 @@ export type StreamInput = {
   tools: Record<string, Tool>
   retries?: number
   toolChoice?: "auto" | "required" | "none"
+  checkpoint?: boolean
 }
 
 export type StreamRequest = StreamInput & {
@@ -158,8 +159,9 @@ const live: Layer.Layer<
 
       const system: string[] = []
       // Checkpoint: input.system is pre-assembled with tools. Skip re-injection
-      // to preserve cache continuity. Only inject tools when system is fresh.
-      const isCheckpoint = input.system.some((s) => s.startsWith("[session:"))
+      // to preserve cache continuity. Only inject tools when system is fresh
+      // (no checkpoint) or after compaction (checkpoint invalidated).
+      const isCheckpoint = input.checkpoint === true
       const dynamicIndex = input.system.findIndex((item) => item.includes("Today's date:"))
       const stableSystem = isCheckpoint ? input.system : (dynamicIndex === -1 ? input.system : input.system.slice(0, dynamicIndex))
       const dynamicSystem = isCheckpoint

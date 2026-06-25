@@ -1307,6 +1307,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
                 tools,
                 model,
+                checkpoint: false,
               })
 
               // Diff logging for compaction turns (same capture format as normal turns)
@@ -1664,6 +1665,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               tools,
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
+              checkpoint: !!checkpointUsable,
             })
 
             // Store accurate fingerprint AFTER handle.process() completes.

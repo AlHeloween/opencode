@@ -113,7 +113,7 @@ export const layer = Layer.effect(
       `- **Media files**: You can read image metadata (EXIF data), and extract information from audio and video files`,
       `- **Web search**: The universalsearch tool can search the web, code repositories, or use an autonomous AI research agent via the Universal Search Service. All modes go through the same configured URL — never use any other port.`,
       `- **Code search**: Use universalsearch with source: "code" for direct code search via Sourcegraph`,
-      `- **Conversation search**: The messagesearch tool provides full-text search (FTS5) with BM25 and semantic ranking over your conversation history`,
+      `- **Conversation search**: The messagesearch tool provides full-text search with epistemic-weighted semantic ranking over your conversation history`,
       `- **Session reading**: The session-read tool reads full messages by index from any session, including summaries`,
       `- **Directory listing**: The list tool provides a tree-style directory listing with automatic ignore of common directories`,
       `- **Multi-edit**: The multiedit tool allows multiple sequential edits to a single file in one operation`,

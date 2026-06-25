@@ -2,42 +2,6 @@ import { describe, expect, test } from "bun:test"
 import { MessageV2 } from "../../src/session/message-v2"
 import { classifyText, formatSemanticVector } from "../../src/session/semantic-vector"
 
-describe("MessageV2.search", () => {
-  test("sanitizeFTSQuery: single word", () => {
-    const sanitizeFTSQuery = (query: string) =>
-      query
-        .split(/\s+/)
-        .map((w) => `"${w.replace(/"/g, '""')}"`)
-        .join(" ")
-
-    expect(sanitizeFTSQuery("hello")).toBe('"hello"')
-  })
-
-  test("sanitizeFTSQuery: multiple words", () => {
-    const sanitizeFTSQuery = (query: string) =>
-      query.split(/\s+/).map((w) => `"${w.replace(/"/g, '""')}"`).join(" ")
-    expect(sanitizeFTSQuery("hello world")).toBe('"hello" "world"')
-  })
-
-  test("sanitizeFTSQuery: quotes escaped", () => {
-    const sanitizeFTSQuery = (query: string) =>
-      query.split(/\s+/).map((w) => `"${w.replace(/"/g, '""')}"`).join(" ")
-    expect(sanitizeFTSQuery('say "hi"')).toBe('"say" """hi"""')
-  })
-
-  test("sanitizeFTSQuery: extra whitespace collapsed", () => {
-    const sanitizeFTSQuery = (query: string) =>
-      query.split(/\s+/).map((w) => `"${w.replace(/"/g, '""')}"`).join(" ")
-    expect(sanitizeFTSQuery("hello   world")).toBe('"hello" "world"')
-  })
-
-  test("sanitizeFTSQuery: empty string", () => {
-    const sanitizeFTSQuery = (query: string) =>
-      query.split(/\s+/).map((w) => `"${w.replace(/"/g, '""')}"`).join(" ")
-    expect(sanitizeFTSQuery("")).toBe('""')
-  })
-})
-
 describe("MessageV2.highlightSnippet", () => {
   test("highlights matched word with bold markdown", () => {
     const text = "This is a test message about TypeScript interfaces"

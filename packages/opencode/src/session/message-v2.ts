@@ -1460,13 +1460,6 @@ export interface SearchResult {
   rank: number
 }
 
-function sanitizeFTSQuery(query: string): string {
-  return query
-    .split(/\s+/)
-    .map((w) => `"${w.replace(/"/g, '""')}"`)
-    .join(" ")
-}
-
 export function search(input: {
   projectID: ProjectID
   worktree: string
@@ -1478,6 +1471,8 @@ export function search(input: {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const db = rawDb as any
 
+  const likePattern = `%${input.query}%`
+
   const rows = db
     .query(
       `
@@ -1486,27 +1481,29 @@ export function search(input: {
         p.message_id as messageID,
         p.session_id as sessionID,
         (SELECT COUNT(*) + 1 FROM message WHERE session_id = p.session_id AND time_created < m.time_created) as messageIndex,
-        fts.part_type,
-        fts.text_content as text,
-        fts.exact_coef,
-        fts.inferred_coef,
-        fts.hypothetical_coef,
-        fts.guess_coef,
-        fts.unknown_coef,
-        (fts.exact_coef * 10 + fts.inferred_coef * 7 + fts.hypothetical_coef * 4 + fts.guess_coef * 2 + fts.unknown_coef * 1) as semantic_rank,
-        bm25(part_fts) as rank
-      FROM part_fts fts
-      JOIN part p ON p.id = fts.part_id
+        COALESCE(json_extract(p.data, '$.type'), '') as part_type,
+        COALESCE(json_extract(p.data, '$.text'), json_extract(p.data, '$.state.output'), json_extract(p.data, '$.state.error'), json_extract(p.data, '$.filename'), '') as text,
+        COALESCE(json_extract(p.data, '$.exact_coef'), 0) as exact_coef,
+        COALESCE(json_extract(p.data, '$.inferred_coef'), 0) as inferred_coef,
+        COALESCE(json_extract(p.data, '$.hypothetical_coef'), 0) as hypothetical_coef,
+        COALESCE(json_extract(p.data, '$.guess_coef'), 0) as guess_coef,
+        COALESCE(json_extract(p.data, '$.unknown_coef'), 0) as unknown_coef,
+        (COALESCE(json_extract(p.data, '$.exact_coef'), 0) * 10 +
+         COALESCE(json_extract(p.data, '$.inferred_coef'), 0) * 7 +
+         COALESCE(json_extract(p.data, '$.hypothetical_coef'), 0) * 4 +
+         COALESCE(json_extract(p.data, '$.guess_coef'), 0) * 2 +
+         COALESCE(json_extract(p.data, '$.unknown_coef'), 0) * 1) as semantic_rank
+      FROM part p
       JOIN message m ON m.id = p.message_id
       JOIN session s ON s.id = p.session_id
       WHERE s.project_id = ?
-        AND part_fts MATCH ?
-      ORDER BY semantic_rank DESC, bm25(part_fts)
+        AND p.data LIKE ?
+      ORDER BY semantic_rank DESC
       LIMIT ?
     `,
     )
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    .all(input.projectID, sanitizeFTSQuery(input.query), input.limit || 50) as any[]
+    .all(input.projectID, likePattern, input.limit || 50) as any[]
 
   return rows.map((row) => ({
     messageID: row.messageID,
@@ -1516,7 +1513,7 @@ export function search(input: {
     partType: row.part_type,
     text: row.text,
     snippet: highlightSnippet(row.text, input.query),
-    rank: row.rank,
+    rank: row.semantic_rank as number,
   }))
 }
 

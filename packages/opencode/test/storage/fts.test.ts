@@ -12,7 +12,6 @@ function now(): number {
   return Date.now()
 }
 
-/** Open a fresh project DB and return the Drizzle client. */
 function openDB(worktree: string) {
   const projectID = ProjectID.make("proj_" + crypto.randomUUID())
   return {
@@ -21,29 +20,8 @@ function openDB(worktree: string) {
   }
 }
 
-describe("FTS5 triggers", () => {
-  test("part_fts virtual table and triggers exist after DB init", async () => {
-    await using tmp = await tmpdir()
-    const { db } = openDB(tmp.path)
-
-    const ftsExists = db.$client
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='part_fts'")
-      .get() as { name: string } | undefined
-    expect(ftsExists).not.toBeNull()
-    expect(ftsExists!.name).toBe("part_fts")
-
-    const triggers = db.$client
-      .prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'part_fts_%'")
-      .all() as Array<{ name: string }>
-    expect(triggers).toHaveLength(3)
-
-    const names = triggers.map((t) => t.name)
-    expect(names).toContain("part_fts_insert")
-    expect(names).toContain("part_fts_delete")
-    expect(names).toContain("part_fts_update")
-  })
-
-  test("INSERT trigger populates part_fts with text content", async () => {
+describe("message search (LIKE)", () => {
+  test("LIKE search finds inserted part text", async () => {
     await using tmp = await tmpdir()
     const { db, projectID } = openDB(tmp.path)
     const sessionID = SessionID.make("ses_" + crypto.randomUUID())
@@ -52,7 +30,6 @@ describe("FTS5 triggers", () => {
     const t = now()
     const textContent = "hello world — this is searchable test content"
 
-    // Insert session (needed for FK, FK enforcement is ON)
     db.$client
       .prepare(
         `INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
@@ -60,7 +37,6 @@ describe("FTS5 triggers", () => {
       )
       .run(sessionID, projectID, "test-slug", tmp.path, "Test Session", "0.0.0", t, t)
 
-    // Insert message
     db.$client
       .prepare(
         `INSERT INTO message (id, session_id, time_created, time_updated, data)
@@ -68,7 +44,6 @@ describe("FTS5 triggers", () => {
       )
       .run(messageID, sessionID, t, t, JSON.stringify({}))
 
-    // Insert part with text content — triggers part_fts_insert
     db.$client
       .prepare(
         `INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
@@ -83,23 +58,20 @@ describe("FTS5 triggers", () => {
         JSON.stringify({ type: "text", text: textContent }),
       )
 
-    // Verify FTS row exists with extracted text
-    const ftsRows = db.$client
-      .prepare("SELECT part_id, text_content FROM part_fts WHERE part_id = ?")
-      .all(partID) as Array<{ part_id: string; text_content: string }>
-    expect(ftsRows).toHaveLength(1)
-    expect(ftsRows[0].part_id).toBe(partID)
-    expect(ftsRows[0].text_content).toBe(textContent)
-
-    // Verify FTS5 full-text search finds the content
-    const searchResults = db.$client
-      .prepare("SELECT part_id FROM part_fts WHERE part_fts MATCH ?")
-      .all("searchable") as Array<{ part_id: string }>
-    expect(searchResults).toHaveLength(1)
-    expect(searchResults[0].part_id).toBe(partID)
+    // LIKE search should find the content
+    const results = db.$client
+      .prepare(
+        `SELECT p.id as partID, p.data FROM part p
+         JOIN message m ON m.id = p.message_id
+         JOIN session s ON s.id = p.session_id
+         WHERE s.project_id = ? AND p.data LIKE ?`,
+      )
+      .all(projectID, "%searchable%") as Array<{ partID: string }>
+    expect(results).toHaveLength(1)
+    expect(results[0].partID).toBe(partID)
   })
 
-  test("UPDATE trigger replaces old text in part_fts", async () => {
+  test("LIKE search is case-insensitive for ASCII", async () => {
     await using tmp = await tmpdir()
     const { db, projectID } = openDB(tmp.path)
     const sessionID = SessionID.make("ses_" + crypto.randomUUID())
@@ -121,47 +93,33 @@ describe("FTS5 triggers", () => {
       )
       .run(messageID, sessionID, t, t, JSON.stringify({}))
 
-    // Insert with initial text
     db.$client
       .prepare(
         `INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(partID, messageID, sessionID, t, t, JSON.stringify({ type: "text", text: "original text" }))
+      .run(
+        partID,
+        messageID,
+        sessionID,
+        t,
+        t,
+        JSON.stringify({ type: "text", text: "TypeScript Interfaces" }),
+      )
 
-    // Verify original text in FTS
-    const before = db.$client
-      .prepare("SELECT text_content FROM part_fts WHERE part_id = ?")
-      .get(partID) as { text_content: string }
-    expect(before.text_content).toBe("original text")
-
-    // Update the part — triggers part_fts_update (DELETE old + INSERT new)
-    const t2 = now()
-    db.$client
-      .prepare("UPDATE part SET data = ?, time_updated = ? WHERE id = ?")
-      .run(JSON.stringify({ type: "text", text: "updated text content" }), t2, partID)
-
-    // Verify FTS now has updated text (old removed, new present)
-    const afterRows = db.$client
-      .prepare("SELECT text_content FROM part_fts WHERE part_id = ?")
-      .all(partID) as Array<{ text_content: string }>
-    expect(afterRows).toHaveLength(1)
-    expect(afterRows[0].text_content).toBe("updated text content")
-
-    // Old text should NOT be findable
-    const oldSearch = db.$client
-      .prepare("SELECT part_id FROM part_fts WHERE part_fts MATCH ?")
-      .all("original") as Array<{ part_id: string }>
-    expect(oldSearch).toHaveLength(0)
-
-    // New text SHOULD be findable
-    const newSearch = db.$client
-      .prepare("SELECT part_id FROM part_fts WHERE part_fts MATCH ?")
-      .all("updated") as Array<{ part_id: string }>
-    expect(newSearch).toHaveLength(1)
+    // SQLite LIKE is case-insensitive for ASCII by default
+    const results = db.$client
+      .prepare(
+        `SELECT p.id FROM part p
+         JOIN message m ON m.id = p.message_id
+         JOIN session s ON s.id = p.session_id
+         WHERE s.project_id = ? AND p.data LIKE ?`,
+      )
+      .all(projectID, "%typescript%") as Array<{ id: string }>
+    expect(results).toHaveLength(1)
   })
 
-  test("DELETE trigger removes row from part_fts", async () => {
+  test("LIKE %pattern% finds partial matches", async () => {
     await using tmp = await tmpdir()
     const { db, projectID } = openDB(tmp.path)
     const sessionID = SessionID.make("ses_" + crypto.randomUUID())
@@ -183,71 +141,133 @@ describe("FTS5 triggers", () => {
       )
       .run(messageID, sessionID, t, t, JSON.stringify({}))
 
-    // Insert part
     db.$client
       .prepare(
         `INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(partID, messageID, sessionID, t, t, JSON.stringify({ type: "text", text: "deletable text" }))
+      .run(
+        partID,
+        messageID,
+        sessionID,
+        t,
+        t,
+        JSON.stringify({ type: "text", text: "reimplementation of cache checkpoint" }),
+      )
 
-    // Verify FTS row exists
-    const before = db.$client
-      .prepare("SELECT part_id FROM part_fts WHERE part_id = ?")
-      .get(partID) as { part_id: string } | undefined
-    expect(before).not.toBeNull()
-
-    // Delete the part — triggers part_fts_delete
-    db.$client.prepare("DELETE FROM part WHERE id = ?").run(partID)
-
-    // Verify FTS row is gone
-    const after = db.$client
-      .prepare("SELECT part_id FROM part_fts WHERE part_id = ?")
-      .get(partID) as { part_id: string } | undefined
-    expect(after).toBeNull()
-  })
-})
-
-describe("FTS5 durability", () => {
-  test("FTS5 survives WAL checkpoint", async () => {
-    await using tmp = await tmpdir()
-    const { db } = openDB(tmp.path)
-
-    // Force WAL checkpoint
-    db.$client.exec("PRAGMA wal_checkpoint(TRUNCATE)")
-
-    // Verify part_fts still exists
-    const ftsExists = db.$client
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='part_fts'")
-      .get() as { name: string } | undefined
-    expect(ftsExists).not.toBeNull()
-    expect(ftsExists!.name).toBe("part_fts")
-
-    // Triggers still registered
-    const triggers = db.$client
-      .prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'part_fts_%'")
-      .all() as Array<{ name: string }>
-    expect(triggers).toHaveLength(3)
+    // Partial word match should work (unlike FTS5 exact match)
+    const results = db.$client
+      .prepare(
+        `SELECT p.id FROM part p
+         JOIN message m ON m.id = p.message_id
+         JOIN session s ON s.id = p.session_id
+         WHERE s.project_id = ? AND p.data LIKE ?`,
+      )
+      .all(projectID, "%implement%") as Array<{ id: string }>
+    expect(results).toHaveLength(1)
   })
 
-  test("FTS5 survives VACUUM", async () => {
+  test("LIKE search returns empty for no match", async () => {
     await using tmp = await tmpdir()
-    const { db } = openDB(tmp.path)
+    const { db, projectID } = openDB(tmp.path)
+    const sessionID = SessionID.make("ses_" + crypto.randomUUID())
+    const messageID = MessageID.make("msg_" + crypto.randomUUID())
+    const partID = PartID.make("part_" + crypto.randomUUID())
+    const t = now()
 
-    // VACUUM rebuilds the database file; virtual tables must survive
-    db.$client.exec("VACUUM")
+    db.$client
+      .prepare(
+        `INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(sessionID, projectID, "test-slug", tmp.path, "Test", "0.0.0", t, t)
 
-    // Verify part_fts still exists after vacuum
-    const ftsExists = db.$client
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='part_fts'")
-      .get() as { name: string } | undefined
-    expect(ftsExists).not.toBeNull()
-    expect(ftsExists!.name).toBe("part_fts")
+    db.$client
+      .prepare(
+        `INSERT INTO message (id, session_id, time_created, time_updated, data)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(messageID, sessionID, t, t, JSON.stringify({}))
 
-    // Verify triggers are still present
-    const triggers = db.$client
-      .prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'part_fts_%'")
-      .all() as Array<{ name: string }>
-    expect(triggers).toHaveLength(3)
+    db.$client
+      .prepare(
+        `INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(partID, messageID, sessionID, t, t, JSON.stringify({ type: "text", text: "some content" }))
+
+    const results = db.$client
+      .prepare(
+        `SELECT p.id FROM part p
+         JOIN message m ON m.id = p.message_id
+         JOIN session s ON s.id = p.session_id
+         WHERE s.project_id = ? AND p.data LIKE ?`,
+      )
+      .all(projectID, "%nonexistent%") as Array<{ id: string }>
+    expect(results).toHaveLength(0)
+  })
+
+  test("epistemic coefficients stored in part.data are queryable", async () => {
+    await using tmp = await tmpdir()
+    const { db, projectID } = openDB(tmp.path)
+    const sessionID = SessionID.make("ses_" + crypto.randomUUID())
+    const messageID = MessageID.make("msg_" + crypto.randomUUID())
+    const partID = PartID.make("part_" + crypto.randomUUID())
+    const t = now()
+
+    db.$client
+      .prepare(
+        `INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(sessionID, projectID, "test-slug", tmp.path, "Test", "0.0.0", t, t)
+
+    db.$client
+      .prepare(
+        `INSERT INTO message (id, session_id, time_created, time_updated, data)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(messageID, sessionID, t, t, JSON.stringify({}))
+
+    db.$client
+      .prepare(
+        `INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        partID,
+        messageID,
+        sessionID,
+        t,
+        t,
+        JSON.stringify({
+          type: "text",
+          text: "The function returns a const value",
+          exact_coef: 8,
+          inferred_coef: 2,
+          hypothetical_coef: 0,
+          guess_coef: 0,
+          unknown_coef: 0,
+        }),
+      )
+
+    // Verify coefficients can be read via json_extract
+    const row = db.$client
+      .prepare(`SELECT json_extract(data, '$.exact_coef') as exact_coef FROM part WHERE id = ?`)
+      .get(partID) as { exact_coef: number }
+    expect(row.exact_coef).toBe(8)
+
+    // Verify semantic rank is computed correctly
+    const rankRow = db.$client
+      .prepare(`
+        SELECT
+          (COALESCE(json_extract(data, '$.exact_coef'), 0) * 10 +
+           COALESCE(json_extract(data, '$.inferred_coef'), 0) * 7 +
+           COALESCE(json_extract(data, '$.hypothetical_coef'), 0) * 4 +
+           COALESCE(json_extract(data, '$.guess_coef'), 0) * 2 +
+           COALESCE(json_extract(data, '$.unknown_coef'), 0) * 1) as rank
+        FROM part WHERE id = ?`)
+      .get(partID) as { rank: number }
+    expect(rankRow.rank).toBe(8 * 10 + 2 * 7) // 80 + 14 = 94
   })
 })

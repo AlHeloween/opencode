@@ -1,0 +1,243 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/checkpoint.ts
+@@
+ import fs from "fs"
+ import path from "path"
+ import { Effect } from "effect"
++import { Global } from "@opencode-ai/core/global"
+ import {
+-  baselinePath,
+   deriveKey,
+   encryptBaseline,
+   decryptBaseline,
+-  deleteBaselines,
+ } from "./request-diff"
+ import type { ModelMessage } from "ai"
+ 
+ export const CHECKPOINT_VERSION = 1
+ export const CHECKPOINT_KIND = "checkpoint" as const
++const CHECKPOINT_DIR = ".checkpoints"
+@@
+-function checkpointPath(sessionID: string, providerID: string, modelID: string): string {
+-  return baselinePath(sessionID, providerID, modelID)
++function sanitize(input: string): string {
++  return input.replace(/[^a-zA-Z0-9._-]/g, "-")
++}
++
++export function checkpointDir(_sessionID: string): string {
++  return path.join(Global.Path.log, CHECKPOINT_DIR)
++}
++
++export function checkpointPath(sessionID: string, providerID: string, modelID: string): string {
++  const safeProvider = sanitize(providerID)
++  const safeModel = sanitize(modelID)
++  const safeSid = sanitize(sessionID)
++  return path.join(checkpointDir(sessionID), `${safeProvider}_${safeModel}_${safeSid}.enc`)
+ }
+@@
+ export function remove(sessionID: string): Effect.Effect<void> {
+   return Effect.sync(() => {
+-    deleteBaselines(sessionID)
++    const dir = checkpointDir(sessionID)
++    if (!fs.existsSync(dir)) return
++
++    const safeSid = sanitize(sessionID)
++    for (const file of fs.readdirSync(dir)) {
++      if (file.endsWith(`_${safeSid}.enc`)) fs.unlinkSync(path.join(dir, file))
++    }
++    if (fs.readdirSync(dir).length === 0) fs.rmSync(dir, { recursive: true, force: true })
+   })
+ }
+*** Update File: packages/opencode/src/session/session.ts
+@@
+ import { Database } from "@/storage/db"
+ import { NotFoundError } from "@/storage/storage"
++import { Checkpoint } from "./checkpoint"
+ import { RequestDiff } from "./request-diff"
+@@
+-        // Clean up persisted diff baselines (filesystem side-effect after DB commit)
+-        RequestDiff.deleteBaselines(sessionID)
+-        Log.closeStreams(sessionID)
++      // Clean up persisted model request state after DB commit.
++      RequestDiff.deleteBaselines(sessionID)
++      yield* Checkpoint.remove(sessionID)
++      Log.closeStreams(sessionID)
+     })
+*** Update File: packages/opencode/src/session/prompt.ts
+@@
+-            // Attempt to load encrypted checkpoint for this session+model.
+-            // If found, reuse systemPrompt + skip full assembly.
++            const format = lastUser.format ?? { type: "text" as const }
++            const cacheNamespace = lastUser.providerCacheKey ?? sessionID
++            const sessionIdBanner = `[session: ${cacheNamespace}]`
++
++            // Attempt to load encrypted checkpoint for this session+model.
++            // Normal turns reuse the checkpointed system prompt exactly. Mutable
++            // prompt sources are refreshed only across compaction boundaries.
+             const checkpoint = yield* Checkpoint.load({
+               sessionID,
+               providerID: model.providerID,
+@@
+               worktree: ctx.worktree,
+             }).pipe(Effect.catch(() => Effect.succeed(null)))
++            const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
++            const checkpointUsable =
++              checkpoint &&
++              checkpoint.systemPrompt[0] === sessionIdBanner &&
++              checkpointHasStructuredPrompt === (format.type === "json_schema")
++                ? checkpoint
++                : undefined
+ 
+-            const [skills, env, instructions, rules] = checkpoint
++            const [skills, env, instructions, rules] = checkpointUsable
+               ? [undefined, [] as string[], [] as string[], [] as string[]] as const
+               : yield* Effect.all([
+                   sys.skills(agent),
+@@
+                   instruction.system().pipe(Effect.orDie),
+                   instruction.rules().pipe(Effect.orDie),
+                 ])
+-            // Cache namespace as first system message for provider prefix reuse.
+-            const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+-            const sessionIdBanner = `[session: ${cacheNamespace}]`
+-            const system = [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
+-            const format = lastUser.format ?? { type: "text" as const }
+-            if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
++            const system = checkpointUsable
++              ? [...checkpointUsable.systemPrompt]
++              : [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
++            if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+@@
+-            const modelMsgs =
+-              audit.cacheStable && modelMsgsCache
+-                ? (modelMsgsCache as ReturnType<typeof MessageV2.toModelMessagesEffect> extends Effect.Effect<infer A, any, any> ? A : never)
+-                : yield* MessageV2.toModelMessagesEffect(msgs, model)
+-            if (audit.cacheStable || !modelMsgsCache) {
++            const checkpointIDs = checkpointUsable ? new Set(checkpointUsable.messageIDs) : undefined
++            const checkpointDeltaMsgs = checkpointIDs ? msgs.filter((m) => !checkpointIDs.has(m.info.id)) : undefined
++            const modelMsgs = checkpointUsable
++              ? [
++                  ...checkpointUsable.messages,
++                  ...(yield* MessageV2.toModelMessagesEffect(checkpointDeltaMsgs ?? [], model)),
++                ]
++              : audit.cacheStable && modelMsgsCache
++                ? (modelMsgsCache as ReturnType<typeof MessageV2.toModelMessagesEffect> extends Effect.Effect<infer A, any, any> ? A : never)
++                : yield* MessageV2.toModelMessagesEffect(msgs, model)
++            if (!checkpointUsable && (audit.cacheStable || !modelMsgsCache)) {
+               modelMsgsCache = modelMsgs
+             }
+@@
+             if (result === "compact") {
+               yield* compaction.create({
+                 sessionID,
+@@
+               })
+               cachedMsgs = undefined
+               lastKnownId = undefined
++              modelMsgsCache = undefined
++              return "continue" as const
+             }
+             // Save encrypted checkpoint after successful turn.
+             // Fire-and-forget — don't block the loop on I/O.
++            const systemForCheckpoint = [...system]
+             yield* Effect.forkIn(scope)(
+-              Checkpoint.save({
+-                sessionID,
+-                projectID: ctx.project.id,
+-                worktree: ctx.worktree,
+-                data: {
+-                  kind: Checkpoint.CHECKPOINT_KIND,
+-                  version: Checkpoint.CHECKPOINT_VERSION,
+-                  systemPrompt: system,
+-                  messages: modelMsgs,
+-                  messageIDs: msgs.map((m) => m.info.id),
+-                  model: { providerID: model.providerID, modelID: model.id },
+-                  turn: step + 1,
+-                  timestamp: Date.now(),
+-                },
+-              }),
++              Effect.gen(function* () {
++                const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
++                const checkpointModelMsgs = yield* MessageV2.toModelMessagesEffect(checkpointMsgs, model)
++                yield* Checkpoint.save({
++                  sessionID,
++                  projectID: ctx.project.id,
++                  worktree: ctx.worktree,
++                  data: {
++                    kind: Checkpoint.CHECKPOINT_KIND,
++                    version: Checkpoint.CHECKPOINT_VERSION,
++                    systemPrompt: systemForCheckpoint,
++                    messages: checkpointModelMsgs,
++                    messageIDs: checkpointMsgs.map((m) => m.info.id),
++                    model: { providerID: model.providerID, modelID: model.id },
++                    turn: step + 1,
++                    timestamp: Date.now(),
++                  },
++                })
++              }),
+             )
+*** Update File: packages/opencode/test/session/checkpoint.test.ts
+@@
+-import { Checkpoint, type CheckpointData } from "../../src/session/checkpoint"
++import { Checkpoint, type CheckpointData } from "../../src/session/checkpoint"
++import { RequestDiff } from "../../src/session/request-diff"
+@@
+   await Effect.runPromise(Checkpoint.remove(`${SID}_d`))
+   await Effect.runPromise(Checkpoint.remove(`${SID}_e`))
+   await Effect.runPromise(Checkpoint.remove(`${SID}_f`))
++  await Effect.runPromise(Checkpoint.remove(`${SID}_g`))
++  RequestDiff.deleteBaselines(`${SID}_g`)
+ })
+@@
+-    const baselinesDir = path.join(Global.Path.log, ".baselines")
+-    const files = fs.readdirSync(baselinesDir).filter((f) => f.includes(sid))
++    const files = fs.readdirSync(Checkpoint.checkpointDir(sid)).filter((f) => f.includes(sid))
+     expect(files.length).toBe(1)
+     expect(files[0]).toEndWith(".enc")
+@@
+-    const baselinesDir = path.join(Global.Path.log, ".baselines")
+-    const files = fs.readdirSync(baselinesDir).filter((f) => f.includes(sid))
+-    const corruptPath = path.join(baselinesDir, files[0])
++    const files = fs.readdirSync(Checkpoint.checkpointDir(sid)).filter((f) => f.includes(sid))
++    const corruptPath = path.join(Checkpoint.checkpointDir(sid), files[0])
+     fs.writeFileSync(corruptPath, Buffer.from("not-valid-encrypted-data"))
+@@
+     expect(loaded).toBeNull()
+     expect(fs.existsSync(corruptPath)).toBeFalse()
+   })
++
++  test("checkpoint files do not overwrite request-diff baselines", async () => {
++    const sid = `${SID}_g`
++    const providerID = "shared-provider"
++    const modelID = "shared-model"
++    const meta: RequestDiff.DiffMeta = {
++      sessionID: sid,
++      providerID,
++      modelID,
++      turn: 1,
++      agent: "build",
++      timestamp: Date.now(),
++    }
++
++    RequestDiff.storePrev(sid, modelID, "diff baseline content", meta, TEST_PROJECT, TEST_WORKTREE)
++    await new Promise((resolve) => setTimeout(resolve, 200))
++    const diffPath = RequestDiff.baselinePath(sid, providerID, modelID)
++    expect(fs.existsSync(diffPath)).toBeTrue()
++
++    await Effect.runPromise(
++      Checkpoint.save({
++        sessionID: sid,
++        projectID: TEST_PROJECT,
++        worktree: TEST_WORKTREE,
++        data: makeCheckpointData({ model: { providerID, modelID } }),
++      }),
++    )
++
++    const checkpointPath = Checkpoint.checkpointPath(sid, providerID, modelID)
++    expect(checkpointPath).not.toBe(diffPath)
++    expect(fs.existsSync(checkpointPath)).toBeTrue()
++    expect(fs.existsSync(diffPath)).toBeTrue()
++    expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("diff baseline content")
++  })
+ })
+*** End Patch

@@ -12,17 +12,17 @@
 import fs from "fs"
 import path from "path"
 import { Effect } from "effect"
+import { Global } from "@opencode-ai/core/global"
 import {
-  baselinePath,
   deriveKey,
   encryptBaseline,
   decryptBaseline,
-  deleteBaselines,
 } from "./request-diff"
 import type { ModelMessage } from "ai"
 
 export const CHECKPOINT_VERSION = 1
 export const CHECKPOINT_KIND = "checkpoint" as const
+const CHECKPOINT_DIR = ".checkpoints"
 
 export interface CheckpointData {
   kind: typeof CHECKPOINT_KIND
@@ -35,8 +35,19 @@ export interface CheckpointData {
   timestamp: number
 }
 
-function checkpointPath(sessionID: string, providerID: string, modelID: string): string {
-  return baselinePath(sessionID, providerID, modelID)
+function sanitize(input: string): string {
+  return input.replace(/[^a-zA-Z0-9._-]/g, "-")
+}
+
+export function checkpointDir(_sessionID: string): string {
+  return path.join(Global.Path.log, CHECKPOINT_DIR)
+}
+
+export function checkpointPath(sessionID: string, providerID: string, modelID: string): string {
+  const safeProvider = sanitize(providerID)
+  const safeModel = sanitize(modelID)
+  const safeSid = sanitize(sessionID)
+  return path.join(checkpointDir(sessionID), `${safeProvider}_${safeModel}_${safeSid}.enc`)
 }
 
 async function writeAtomic(filePath: string, data: Buffer): Promise<void> {
@@ -104,7 +115,14 @@ export function load(input: {
 /** Remove all checkpoint files for a session. */
 export function remove(sessionID: string): Effect.Effect<void> {
   return Effect.sync(() => {
-    deleteBaselines(sessionID)
+    const dir = checkpointDir(sessionID)
+    if (!fs.existsSync(dir)) return
+
+    const safeSid = sanitize(sessionID)
+    for (const file of fs.readdirSync(dir)) {
+      if (file.endsWith(`_${safeSid}.enc`)) fs.unlinkSync(path.join(dir, file))
+    }
+    if (fs.readdirSync(dir).length === 0) fs.rmSync(dir, { recursive: true, force: true })
   })
 }
 

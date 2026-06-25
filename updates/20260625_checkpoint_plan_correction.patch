@@ -1,0 +1,25 @@
+*** Begin Patch
+*** Update File: plans/20260624_checkpoint_plan.md
+@@
+-**Status:** [x] Complete — core implemented 2026-06-24. Tasks 1-5 done, task 6 (docs) in progress.
++**Status:** Active — core checkpoint storage/reuse corrected 2026-06-25; documentation and deeper integration coverage remain pending.
+@@
+-│  Naming: .baselines/{provider}_{model}_{sid}.enc       │
++│  Naming: .checkpoints/{provider}_{model}_{sid}.enc      │
+@@
+-**Reuses:** `request-diff.ts` encryption (deriveKey, encryptBaseline, decryptBaseline, baselinePath)
++**Reuses:** `request-diff.ts` encryption helpers (`deriveKey`, `encryptBaseline`, `decryptBaseline`) but writes to a separate `.checkpoints/` namespace so request-diff `.baselines/` files cannot collide with checkpoints.
+@@
+-### 5. Modify: `session/request-diff.ts` (~10 lines)
++### 5. Storage separation from `session/request-diff.ts`
+ 
+-- Existing `encryptBaseline`/`decryptBaseline`/`deriveKey` reused directly
+-- Add `CHUNKED_PROMPT` marker to distinguish checkpoint from diff baseline
++- Existing `encryptBaseline`/`decryptBaseline`/`deriveKey` reused directly
++- Checkpoints use `session/checkpoint.ts::checkpointPath()` under `.checkpoints/`
++- Request-diff baselines remain under `.baselines/`
++- Regression coverage verifies checkpoint saves do not overwrite request-diff baselines
+@@
+-5. request-diff.ts marker        ← distinguish checkpoint from diff baseline
++5. checkpoint/request-diff path split ← separate checkpoint and diff baseline namespaces
+*** End Patch

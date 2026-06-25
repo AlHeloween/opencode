@@ -1341,7 +1341,30 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   auto: true,
                   overflow: !handle.message.finish,
                 })
+                return "continue" as const
               }
+              const systemForCheckpoint = [...system]
+              yield* Effect.forkIn(scope)(
+                Effect.gen(function* () {
+                  const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
+                  const checkpointModelMsgs = yield* MessageV2.toModelMessagesEffect(checkpointMsgs, model)
+                  yield* Checkpoint.save({
+                    sessionID,
+                    projectID: ctx.project.id,
+                    worktree: ctx.worktree,
+                    data: {
+                      kind: Checkpoint.CHECKPOINT_KIND,
+                      version: Checkpoint.CHECKPOINT_VERSION,
+                      systemPrompt: systemForCheckpoint,
+                      messages: checkpointModelMsgs,
+                      messageIDs: checkpointMsgs.map((m) => m.info.id),
+                      model: { providerID: model.providerID, modelID: model.id },
+                      turn: step + 1,
+                      timestamp: Date.now(),
+                    },
+                  })
+                }),
+              )
               return "continue" as const
             }).pipe(
               Effect.ensuring(instruction.clear(handle.message.id)),
@@ -1550,8 +1573,13 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
             }
 
+            const format = lastUser.format ?? { type: "text" as const }
+            const cacheNamespace = lastUser.providerCacheKey ?? sessionID
+            const sessionIdBanner = `[session: ${cacheNamespace}]`
+
             // Attempt to load encrypted checkpoint for this session+model.
-            // If found, reuse systemPrompt + skip full assembly.
+            // Normal turns reuse the checkpointed system prompt exactly. Mutable
+            // prompt sources are refreshed only across compaction boundaries.
             const checkpoint = yield* Checkpoint.load({
               sessionID,
               providerID: model.providerID,
@@ -1559,8 +1587,15 @@ You should build your plan incrementally by writing to or editing this file. NOT
               projectID: ctx.project.id,
               worktree: ctx.worktree,
             }).pipe(Effect.catch(() => Effect.succeed(null)))
+            const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
+            const checkpointUsable =
+              checkpoint &&
+              checkpoint.systemPrompt[0] === sessionIdBanner &&
+              checkpointHasStructuredPrompt === (format.type === "json_schema")
+                ? checkpoint
+                : undefined
 
-            const [skills, env, instructions, rules] = checkpoint
+            const [skills, env, instructions, rules] = checkpointUsable
               ? [undefined, [] as string[], [] as string[], [] as string[]] as const
               : yield* Effect.all([
                   sys.skills(agent),
@@ -1568,12 +1603,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   instruction.system().pipe(Effect.orDie),
                   instruction.rules().pipe(Effect.orDie),
                 ])
-            // Cache namespace as first system message for provider prefix reuse.
-            const cacheNamespace = lastUser.providerCacheKey ?? sessionID
-            const sessionIdBanner = `[session: ${cacheNamespace}]`
-            const system = [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
-            const format = lastUser.format ?? { type: "text" as const }
-            if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+            const system = checkpointUsable
+              ? [...checkpointUsable.systemPrompt]
+              : [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
+            if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
             // Snapshot system before handle.process() may mutate it via plugin hook.
             // llm.ts:176-186 passes system by reference to experimental.chat.system.transform
@@ -1605,11 +1638,17 @@ You should build your plan incrementally by writing to or editing this file. NOT
             // Invalidation: cleared when the loop exits (break) so the next
             // turn starts with a fresh conversion. Also cleared on cache break.
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            const modelMsgs =
-              audit.cacheStable && modelMsgsCache
+            const checkpointIDs = checkpointUsable ? new Set(checkpointUsable.messageIDs) : undefined
+            const checkpointDeltaMsgs = checkpointIDs ? msgs.filter((m) => !checkpointIDs.has(m.info.id)) : undefined
+            const modelMsgs = checkpointUsable
+              ? [
+                  ...checkpointUsable.messages,
+                  ...(yield* MessageV2.toModelMessagesEffect(checkpointDeltaMsgs ?? [], model)),
+                ]
+              : audit.cacheStable && modelMsgsCache
                 ? (modelMsgsCache as ReturnType<typeof MessageV2.toModelMessagesEffect> extends Effect.Effect<infer A, any, any> ? A : never)
                 : yield* MessageV2.toModelMessagesEffect(msgs, model)
-            if (audit.cacheStable || !modelMsgsCache) {
+            if (!checkpointUsable && (audit.cacheStable || !modelMsgsCache)) {
               modelMsgsCache = modelMsgs
             }
 
@@ -1695,24 +1734,31 @@ You should build your plan incrementally by writing to or editing this file. NOT
               })
               cachedMsgs = undefined
               lastKnownId = undefined
+              modelMsgsCache = undefined
+              return "continue" as const
             }
             // Save encrypted checkpoint after successful turn.
             // Fire-and-forget — don't block the loop on I/O.
+            const systemForCheckpoint = [...system]
             yield* Effect.forkIn(scope)(
-              Checkpoint.save({
-                sessionID,
-                projectID: ctx.project.id,
-                worktree: ctx.worktree,
-                data: {
-                  kind: Checkpoint.CHECKPOINT_KIND,
-                  version: Checkpoint.CHECKPOINT_VERSION,
-                  systemPrompt: system,
-                  messages: modelMsgs,
-                  messageIDs: msgs.map((m) => m.info.id),
-                  model: { providerID: model.providerID, modelID: model.id },
-                  turn: step + 1,
-                  timestamp: Date.now(),
-                },
+              Effect.gen(function* () {
+                const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
+                const checkpointModelMsgs = yield* MessageV2.toModelMessagesEffect(checkpointMsgs, model)
+                yield* Checkpoint.save({
+                  sessionID,
+                  projectID: ctx.project.id,
+                  worktree: ctx.worktree,
+                  data: {
+                    kind: Checkpoint.CHECKPOINT_KIND,
+                    version: Checkpoint.CHECKPOINT_VERSION,
+                    systemPrompt: systemForCheckpoint,
+                    messages: checkpointModelMsgs,
+                    messageIDs: checkpointMsgs.map((m) => m.info.id),
+                    model: { providerID: model.providerID, modelID: model.id },
+                    turn: step + 1,
+                    timestamp: Date.now(),
+                  },
+                })
               }),
             )
             return "continue" as const

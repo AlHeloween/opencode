@@ -1,7 +1,7 @@
 # Per-Model Encrypted Conversation Checkpoint Plan
 
 **Created:** 2026-06-24
-**Status:** [x] Complete — core implemented 2026-06-24. Tasks 1-5 done, task 6 (docs) in progress.
+**Status:** Active — core checkpoint storage/reuse corrected 2026-06-25; documentation and deeper integration coverage remain pending.
 **Effort:** ~6-8h
 
 ---
@@ -79,7 +79,7 @@ This achieves the **theoretical maximum** for agentic conversations: one system 
 │    timestamp: number                                   │
 │  }                                                    │
 │  Encrypted: AES-256-GCM, key = SHA-256(pid:wdir:sid)  │
-│  Naming: .baselines/{provider}_{model}_{sid}.enc       │
+│  Naming: .checkpoints/{provider}_{model}_{sid}.enc      │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -164,7 +164,7 @@ Checkpoint data:
   turn: number
 ```
 
-**Reuses:** `request-diff.ts` encryption (deriveKey, encryptBaseline, decryptBaseline, baselinePath)
+**Reuses:** `request-diff.ts` encryption helpers (`deriveKey`, `encryptBaseline`, `decryptBaseline`) but writes to a separate `.checkpoints/` namespace so request-diff `.baselines/` files cannot collide with checkpoints.
 
 ### 2. Modify: `session/prompt.ts` (~100 lines changed)
 
@@ -182,10 +182,12 @@ Checkpoint data:
 
 - `deleteSession()` → `checkpoint.delete(sessionID)`
 
-### 5. Modify: `session/request-diff.ts` (~10 lines)
+### 5. Storage separation from `session/request-diff.ts`
 
 - Existing `encryptBaseline`/`decryptBaseline`/`deriveKey` reused directly
-- Add `CHUNKED_PROMPT` marker to distinguish checkpoint from diff baseline
+- Checkpoints use `session/checkpoint.ts::checkpointPath()` under `.checkpoints/`
+- Request-diff baselines remain under `.baselines/`
+- Regression coverage verifies checkpoint saves do not overwrite request-diff baselines
 
 ### 6. Documentation updates (~30 min)
 
@@ -250,7 +252,7 @@ The checkpoint is ALWAYS a valid complete state. No partial writes (atomic renam
 2. prompt.ts delta integration   ← replace full-load with checkpoint+delta
 3. compaction.ts integration     ← accept checkpoint messages
 4. session.ts cleanup            ← delete checkpoint on session delete
-5. request-diff.ts marker        ← distinguish checkpoint from diff baseline
+5. checkpoint/request-diff path split ← separate checkpoint and diff baseline namespaces
 6. Documentation                 ← .baselines/ system + ADID Framework
 ```
 

@@ -1,0 +1,45 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/session/prompt.ts
+@@
+               if (result === "compact") {
+                 yield* compaction.create({
+                   sessionID,
+                   agent: lastUser.agent,
+                   model: lastUser.model,
+                   auto: true,
+                   overflow: !handle.message.finish,
+                 })
++                return "continue" as const
+               }
++              const systemForCheckpoint = [...system]
++              yield* Effect.forkIn(scope)(
++                Effect.gen(function* () {
++                  const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
++                  const checkpointModelMsgs = yield* MessageV2.toModelMessagesEffect(checkpointMsgs, model)
++                  yield* Checkpoint.save({
++                    sessionID,
++                    projectID: ctx.project.id,
++                    worktree: ctx.worktree,
++                    data: {
++                      kind: Checkpoint.CHECKPOINT_KIND,
++                      version: Checkpoint.CHECKPOINT_VERSION,
++                      systemPrompt: systemForCheckpoint,
++                      messages: checkpointModelMsgs,
++                      messageIDs: checkpointMsgs.map((m) => m.info.id),
++                      model: { providerID: model.providerID, modelID: model.id },
++                      turn: step + 1,
++                      timestamp: Date.now(),
++                    },
++                  })
++                }),
++              )
+               return "continue" as const
+             }).pipe(
+*** Update File: packages/opencode/test/session/checkpoint.test.ts
+@@
+ import { Checkpoint, type CheckpointData } from "../../src/session/checkpoint"
+ import { RequestDiff } from "../../src/session/request-diff"
+ import fs from "fs"
+ import path from "path"
+-import { Global } from "@opencode-ai/core/global"
+*** End Patch

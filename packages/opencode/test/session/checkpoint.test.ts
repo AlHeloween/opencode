@@ -1,9 +1,9 @@
 import { describe, expect, test, afterAll } from "bun:test"
 import { Effect } from "effect"
 import { Checkpoint, type CheckpointData } from "../../src/session/checkpoint"
+import { RequestDiff } from "../../src/session/request-diff"
 import fs from "fs"
 import path from "path"
-import { Global } from "@opencode-ai/core/global"
 
 function makeCheckpointData(overrides: Partial<CheckpointData> = {}): CheckpointData {
   return {
@@ -34,6 +34,8 @@ afterAll(async () => {
   await Effect.runPromise(Checkpoint.remove(`${SID}_d`))
   await Effect.runPromise(Checkpoint.remove(`${SID}_e`))
   await Effect.runPromise(Checkpoint.remove(`${SID}_f`))
+  await Effect.runPromise(Checkpoint.remove(`${SID}_g`))
+  RequestDiff.deleteBaselines(`${SID}_g`)
 })
 
 describe("Checkpoint", () => {
@@ -112,8 +114,7 @@ describe("Checkpoint", () => {
     const sid = `${SID}_e`
     await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: makeCheckpointData({ model: { providerID: "aw", modelID: "aw-model" } }) }))
 
-    const baselinesDir = path.join(Global.Path.log, ".baselines")
-    const files = fs.readdirSync(baselinesDir).filter((f) => f.includes(sid))
+    const files = fs.readdirSync(Checkpoint.checkpointDir(sid)).filter((f) => f.includes(sid))
     expect(files.length).toBe(1)
     expect(files[0]).toEndWith(".enc")
   })
@@ -124,9 +125,8 @@ describe("Checkpoint", () => {
     await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }))
 
     // Corrupt the file by overwriting with garbage
-    const baselinesDir = path.join(Global.Path.log, ".baselines")
-    const files = fs.readdirSync(baselinesDir).filter((f) => f.includes(sid))
-    const corruptPath = path.join(baselinesDir, files[0])
+    const files = fs.readdirSync(Checkpoint.checkpointDir(sid)).filter((f) => f.includes(sid))
+    const corruptPath = path.join(Checkpoint.checkpointDir(sid), files[0])
     fs.writeFileSync(corruptPath, Buffer.from("not-valid-encrypted-data"))
 
     const loaded = await Effect.runPromise(
@@ -134,5 +134,39 @@ describe("Checkpoint", () => {
     )
     expect(loaded).toBeNull()
     expect(fs.existsSync(corruptPath)).toBeFalse()
+  })
+
+  test("checkpoint files do not overwrite request-diff baselines", async () => {
+    const sid = `${SID}_g`
+    const providerID = "shared-provider"
+    const modelID = "shared-model"
+    const meta: RequestDiff.DiffMeta = {
+      sessionID: sid,
+      providerID,
+      modelID,
+      turn: 1,
+      agent: "build",
+      timestamp: Date.now(),
+    }
+
+    RequestDiff.storePrev(sid, modelID, "diff baseline content", meta, TEST_PROJECT, TEST_WORKTREE)
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    const diffPath = RequestDiff.baselinePath(sid, providerID, modelID)
+    expect(fs.existsSync(diffPath)).toBeTrue()
+
+    await Effect.runPromise(
+      Checkpoint.save({
+        sessionID: sid,
+        projectID: TEST_PROJECT,
+        worktree: TEST_WORKTREE,
+        data: makeCheckpointData({ model: { providerID, modelID } }),
+      }),
+    )
+
+    const checkpointPath = Checkpoint.checkpointPath(sid, providerID, modelID)
+    expect(checkpointPath).not.toBe(diffPath)
+    expect(fs.existsSync(checkpointPath)).toBeTrue()
+    expect(fs.existsSync(diffPath)).toBeTrue()
+    expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("diff baseline content")
   })
 })

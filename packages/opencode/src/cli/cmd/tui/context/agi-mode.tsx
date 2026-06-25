@@ -223,6 +223,7 @@ export function useAgiMode(currentSessionID?: string) {
       }
 
       // Reuse existing orchestrator session, or create new one
+      const existed = !!orchSessionID()
       let oid = orchSessionID()
       if (!oid) {
         const orchRes = await sdk.client.session.create({})
@@ -238,28 +239,45 @@ export function useAgiMode(currentSessionID?: string) {
           `# Orchestrator Memory\n\nCreated: ${new Date().toISOString()}\nSession: ${oid}\n\n---\n\n## Known Issues\n\n## Project Conventions\n\n## Requirements\n\n## Blocked Tasks\n`)
       }
 
-      // Kick off: orchestrator analyzes plans and generates first instruction
-      const messageID = MessageID.ascending()
-      const activePlans = planData().active.join(", ") || "none"
-      await sdk.client.session.promptAsync({
-        sessionID: oid,
-        messageID,
-        agent: "orchestrator",
-        parts: [{
-          type: "text" as const,
-          text: [
-            `Plan progress: ${progressBar()}.`,
-            `Active plans: ${activePlans}.`,
-            `Completed plans: ${planData().completed.length}.`,
-            "",
-            "Analyze the current state. Read the active plans to understand what needs to be done.",
-            "Check the dependency graph in the master plan.",
-            "Generate a clear, specific instruction for the main session to execute next.",
-            "The main session has full edit/write/bash/task permissions and will execute your instruction.",
-            "Focus on ONE actionable task per instruction. Be specific about files and expected outcomes.",
-          ].join("\n"),
-        }],
-      })
+      // Kick off orchestrator only on first activation — not on resume
+      if (!existed) {
+        const messageID = MessageID.ascending()
+        const activePlans = planData().active.join(", ") || "none"
+        await sdk.client.session.promptAsync({
+          sessionID: oid,
+          messageID,
+          agent: "orchestrator",
+          parts: [{
+            type: "text" as const,
+            text: [
+              `Plan progress: ${progressBar()}.`,
+              `Active plans: ${activePlans}.`,
+              `Completed plans: ${planData().completed.length}.`,
+              "",
+              "Analyze the current state. Read the active plans to understand what needs to be done.",
+              "Check the dependency graph in the master plan.",
+              "Generate a clear, specific instruction for the main session to execute next.",
+              "The main session has full edit/write/bash/task permissions and will execute your instruction.",
+              "Focus on ONE actionable task per instruction. Be specific about files and expected outcomes.",
+            ].join("\n"),
+          }],
+        })
+      } else {
+        // Resume: send continuation to kickstart auto-continue loop
+        await sdk.client.session.promptAsync({
+          sessionID: oid,
+          messageID: MessageID.ascending(),
+          agent: "orchestrator",
+          parts: [{
+            type: "text" as const,
+            text: [
+              `Resuming. Plan progress: ${progressBar()}.`,
+              `Active plans: ${planData().active.join(", ") || "none"}.`,
+              "Continue from where you left off. What's the next instruction?",
+            ].join("\n"),
+          }],
+        })
+      }
 
       setAgiMode(true)
       toast.show({ message: "AGI mode activated", variant: "success" })

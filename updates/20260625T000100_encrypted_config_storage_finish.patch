@@ -1,0 +1,191 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/config/config.test.ts
+@@
+ test("loads config with defaults when no files exist", async () => {
+   await using tmp = await tmpdir()
+   await Instance.provide({
+@@
+     },
+   })
+ })
++
++test("global config mirrors plaintext to encrypted storage and falls back when plaintext is removed", async () => {
++  await using globalTmp = await tmpdir()
++  await using projectTmp = await tmpdir({ git: true })
++  const previous = process.env.OPENCODE_TEST_CONFIG
++  process.env.OPENCODE_TEST_CONFIG = globalTmp.path
++  await clear(true)
++  try {
++    const configPath = path.join(globalTmp.path, "opencode.jsonc")
++    await writeConfig(globalTmp.path, { username: "secret-user" }, "opencode.jsonc")
++
++    await Instance.provide({
++      directory: projectTmp.path,
++      fn: async () => {
++        expect((await load()).username).toBe("secret-user")
++      },
++    })
++
++    expect(await fs.readFile(`${configPath}.enc`, "utf8")).not.toContain("secret-user")
++
++    await fs.rm(configPath)
++    await clear(true)
++    await Instance.provide({
++      directory: projectTmp.path,
++      fn: async () => {
++        expect((await load()).username).toBe("secret-user")
++      },
++    })
++  } finally {
++    process.env.OPENCODE_TEST_CONFIG = previous
++    await clear(true)
++  }
++})
++
++test("updateGlobal writes encrypted-only global config when no plaintext config exists", async () => {
++  await using globalTmp = await tmpdir()
++  await using projectTmp = await tmpdir({ git: true })
++  const previous = process.env.OPENCODE_TEST_CONFIG
++  process.env.OPENCODE_TEST_CONFIG = globalTmp.path
++  await clear(true)
++  try {
++    const configPath = path.join(globalTmp.path, "opencode.jsonc")
++    await saveGlobal({ username: "encrypted-only-user" } as Config.Info)
++
++    await expect(fs.stat(configPath)).rejects.toThrow()
++    expect(await fs.readFile(`${configPath}.enc`, "utf8")).not.toContain("encrypted-only-user")
++
++    await clear(true)
++    await Instance.provide({
++      directory: projectTmp.path,
++      fn: async () => {
++        expect((await load()).username).toBe("encrypted-only-user")
++      },
++    })
++  } finally {
++    process.env.OPENCODE_TEST_CONFIG = previous
++    await clear(true)
++  }
++})
+ 
+ test("loads JSON config file", async () => {
+   await using tmp = await tmpdir({
+*** Update File: packages/opencode/test/session/checkpoint.test.ts
+@@
+   await Effect.runPromise(Checkpoint.remove(`${SID}_e`))
+   await Effect.runPromise(Checkpoint.remove(`${SID}_f`))
+   await Effect.runPromise(Checkpoint.remove(`${SID}_g`))
++  await Effect.runPromise(Checkpoint.remove(`${SID}_h`))
+   RequestDiff.deleteBaselines(`${SID}_g`)
++  RequestDiff.deleteBaselines(`${SID}_h`)
+ })
+@@
+     expect(fs.existsSync(diffPath)).toBeTrue()
+     expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("diff baseline content")
+   })
++
++  test("checkpoint with stale key is discarded without touching request-diff baseline", async () => {
++    const sid = `${SID}_h`
++    const providerID = "key-provider"
++    const modelID = "key-model"
++    const data = makeCheckpointData({ model: { providerID, modelID }, systemPrompt: ["keyed checkpoint"] })
++    const meta: RequestDiff.DiffMeta = {
++      sessionID: sid,
++      providerID,
++      modelID,
++      turn: 1,
++      agent: "build",
++      timestamp: Date.now(),
++    }
++
++    RequestDiff.storePrev(sid, modelID, "baseline survives", meta, TEST_PROJECT, TEST_WORKTREE)
++    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }))
++    await new Promise((resolve) => setTimeout(resolve, 200))
++
++    const loaded = await Effect.runPromise(
++      Checkpoint.load({
++        sessionID: sid,
++        providerID,
++        modelID,
++        projectID: `${TEST_PROJECT}-other`,
++        worktree: TEST_WORKTREE,
++      }),
++    )
++
++    expect(loaded).toBeNull()
++    expect(fs.existsSync(Checkpoint.checkpointPath(sid, providerID, modelID))).toBeFalse()
++    expect(fs.existsSync(RequestDiff.baselinePath(sid, providerID, modelID))).toBeTrue()
++    expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("baseline survives")
++    RequestDiff.deleteBaselines(sid)
++  })
+ })
+*** Add File: plans_completed/20260625_encrypted_config_storage_plan.md
++---
++status: execution
++owner: codex
++last_verified: 2026-06-25
++reproduce:
++  - cd packages/opencode
++  - bun test test/auth/auth.test.ts test/config/config.test.ts test/session/checkpoint.test.ts test/session/request-diff.test.ts
++  - bun typecheck
++  - ../../tools/adm.exe --verify-all src/auth src/config src/util test/auth test/config test/session
++---
++
++# Encrypted Config Storage Plan
++
++## Goal
++
++Provide encrypted mirror storage for global `auth.json` and `opencode` config files while preserving existing plaintext behavior when plaintext files are present.
++
++## Abstract Definition
++
++Let `P` be a plaintext JSON or JSONC path under `Global.Path.config`, and let `E = P + ".enc"`.
++
++Read rule:
++
++```text
++read(P) =
++  parse(P) when exists(P)
++  decrypt_parse(E) when !exists(P) and exists(E)
++  empty/default otherwise
++```
++
++Write rule:
++
++```text
++write(P, value) =
++  write(P, value) and mirror(E, value) when exists(P)
++  encrypt_write(E, value) when !exists(P)
++```
++
++## Structural Diagram
++
++```text
++Auth.set/remove ─┬─ plaintext auth.json exists ── write auth.json + auth.json.enc
++                 └─ plaintext auth.json absent ── write auth.json.enc only
++
++Config.load ─────┬─ global config plaintext exists ── load plaintext + mirror .enc
++                 └─ plaintext absent, .enc exists ── decrypt .enc
++
++Config.updateGlobal ─┬─ selected plaintext exists ── preserve JSON/JSONC + mirror
++                     └─ no plaintext selected ───── encrypted-only opencode.jsonc.enc
++```
++
++## Tasks
++
++- [x] Add reusable encrypted JSON helper with AES-GCM payloads and local key material.
++- [x] Route auth read/write through plaintext-first encrypted mirror semantics.
++- [x] Route global config read/write through plaintext-first encrypted mirror semantics.
++- [x] Add auth/config/checkpoint regression tests for encrypted-only fallback and storage isolation.
++- [ ] Run focused Bun tests.
++- [ ] Run typecheck.
++- [ ] Run ADM verification.
++
++## Test Cases
++
++- Plaintext `auth.json` mirrors into `auth.json.enc`, and encrypted fallback works after plaintext removal.
++- Missing `auth.json` causes writes to use encrypted storage only.
++- Plaintext `opencode.jsonc` mirrors into `opencode.jsonc.enc`, and encrypted fallback works after plaintext removal.
++- Missing global config causes `updateGlobal` to write encrypted-only `opencode.jsonc.enc`.
++- Stale checkpoint key failure does not delete request-diff baselines.
+*** End Patch

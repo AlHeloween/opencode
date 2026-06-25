@@ -1,6 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
+import fs from "fs/promises"
+import path from "path"
 import { Auth } from "../../src/auth"
+import { Global } from "@opencode-ai/core/global"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
@@ -8,6 +11,26 @@ import { testEffect } from "../lib/effect"
 const node = CrossSpawnSpawner.defaultLayer
 
 const it = testEffect(Layer.mergeAll(Auth.defaultLayer, node))
+
+function withConfigDir<A, E, R>(dir: string, self: Effect.Effect<A, E, R>) {
+  return Effect.acquireUseRelease(
+    Effect.sync(() => {
+      const previous = process.env.OPENCODE_TEST_CONFIG
+      process.env.OPENCODE_TEST_CONFIG = dir
+      return previous
+    }),
+    () => self,
+    (previous) =>
+      Effect.sync(() => {
+        if (previous === undefined) delete process.env.OPENCODE_TEST_CONFIG
+        else process.env.OPENCODE_TEST_CONFIG = previous
+      }),
+  )
+}
+
+async function exists(filepath: string) {
+  return fs.stat(filepath).then(() => true).catch(() => false)
+}
 
 describe("Auth", () => {
   it.live("set normalizes trailing slashes in keys", () =>
@@ -81,6 +104,54 @@ describe("Auth", () => {
         const after = yield* auth.all()
         expect(after["anthropic"]).toBeUndefined()
       }),
+    ),
+  )
+
+  it.live("uses encrypted auth storage when auth.json is absent", () =>
+    provideTmpdirInstance((dir) =>
+      withConfigDir(
+        dir,
+        Effect.gen(function* () {
+          const auth = yield* Auth.Service
+          const authPath = path.join(Global.Path.config, "auth.json")
+          yield* auth.set("anthropic", {
+            type: "api",
+            key: "sk-encrypted-only",
+          })
+
+          expect(yield* Effect.promise(() => exists(authPath))).toBeFalse()
+          expect(yield* Effect.promise(() => exists(`${authPath}.enc`))).toBeTrue()
+          expect(yield* Effect.promise(() => fs.readFile(`${authPath}.enc`, "utf8"))).not.toContain("sk-encrypted-only")
+          expect((yield* auth.all()).anthropic?.type).toBe("api")
+        }),
+      ),
+    ),
+  )
+
+  it.live("mirrors plaintext auth to encrypted storage and falls back when plaintext is removed", () =>
+    provideTmpdirInstance((dir) =>
+      withConfigDir(
+        dir,
+        Effect.gen(function* () {
+          const authPath = path.join(Global.Path.config, "auth.json")
+          yield* Effect.promise(() =>
+            fs.writeFile(
+              authPath,
+              JSON.stringify({ anthropic: { type: "api", key: "sk-plaintext-mirror" } }, null, 2),
+            ),
+          )
+
+          const auth = yield* Auth.Service
+          expect((yield* auth.all()).anthropic?.type).toBe("api")
+          expect(yield* Effect.promise(() => exists(`${authPath}.enc`))).toBeTrue()
+          expect(yield* Effect.promise(() => fs.readFile(`${authPath}.enc`, "utf8"))).not.toContain("sk-plaintext-mirror")
+
+          yield* Effect.promise(() => fs.rm(authPath))
+          const data = yield* auth.all()
+          expect(data.anthropic?.type).toBe("api")
+          if (data.anthropic?.type === "api") expect(data.anthropic.key).toBe("sk-plaintext-mirror")
+        }),
+      ),
     ),
   )
 })

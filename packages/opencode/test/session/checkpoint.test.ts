@@ -35,7 +35,9 @@ afterAll(async () => {
   await Effect.runPromise(Checkpoint.remove(`${SID}_e`))
   await Effect.runPromise(Checkpoint.remove(`${SID}_f`))
   await Effect.runPromise(Checkpoint.remove(`${SID}_g`))
+  await Effect.runPromise(Checkpoint.remove(`${SID}_h`))
   RequestDiff.deleteBaselines(`${SID}_g`)
+  RequestDiff.deleteBaselines(`${SID}_h`)
 })
 
 describe("Checkpoint", () => {
@@ -168,5 +170,40 @@ describe("Checkpoint", () => {
     expect(fs.existsSync(checkpointPath)).toBeTrue()
     expect(fs.existsSync(diffPath)).toBeTrue()
     expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("diff baseline content")
+  })
+
+  test("checkpoint with stale key is discarded without touching request-diff baseline", async () => {
+    const sid = `${SID}_h`
+    const providerID = "key-provider"
+    const modelID = "key-model"
+    const data = makeCheckpointData({ model: { providerID, modelID }, systemPrompt: ["keyed checkpoint"] })
+    const meta: RequestDiff.DiffMeta = {
+      sessionID: sid,
+      providerID,
+      modelID,
+      turn: 1,
+      agent: "build",
+      timestamp: Date.now(),
+    }
+
+    RequestDiff.storePrev(sid, modelID, "baseline survives", meta, TEST_PROJECT, TEST_WORKTREE)
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }))
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    const loaded = await Effect.runPromise(
+      Checkpoint.load({
+        sessionID: sid,
+        providerID,
+        modelID,
+        projectID: `${TEST_PROJECT}-other`,
+        worktree: TEST_WORKTREE,
+      }),
+    )
+
+    expect(loaded).toBeNull()
+    expect(fs.existsSync(Checkpoint.checkpointPath(sid, providerID, modelID))).toBeFalse()
+    expect(fs.existsSync(RequestDiff.baselinePath(sid, providerID, modelID))).toBeTrue()
+    expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("baseline survives")
+    RequestDiff.deleteBaselines(sid)
   })
 })

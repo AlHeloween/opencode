@@ -1,13 +1,16 @@
 import path from "path"
 import { Effect, Layer, Record, Result, Schema, Context } from "effect"
 import { zod } from "@/util/effect-zod"
+import * as EncryptedJsonStorage from "@/util/encrypted-json"
 import { Global } from "@opencode-ai/core/global"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import * as Log from "@opencode-ai/core/util/log"
 
 export const OAUTH_DUMMY_KEY = "opencode-oauth-dummy-key"
 
-const file = path.join(Global.Path.config, "auth.json")
+function authFile() {
+  return path.join(Global.Path.config, "auth.json")
+}
 
 const fail = (message: string) => (cause: unknown) => new AuthError({ message, cause })
 
@@ -56,6 +59,38 @@ export const layer = Layer.effect(
     const fsys = yield* AppFileSystem.Service
     const decode = Schema.decodeUnknownOption(Info)
 
+    const readAuthData = Effect.fn("Auth.readAuthData")(function* () {
+      const file = authFile()
+      if (yield* fsys.existsSafe(file)) {
+        const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
+        yield* Effect.promise(() => EncryptedJsonStorage.mirrorJson(file, data))
+        return data
+      }
+
+      const encrypted = yield* Effect.promise(() => EncryptedJsonStorage.readText(file))
+      if (!encrypted) return {}
+      try {
+        return JSON.parse(encrypted) as Record<string, unknown>
+      } catch (err) {
+        Log.Default.warn("invalid encrypted auth JSON, using empty auth", { error: err })
+        return {}
+      }
+    })
+
+    const writeAuthData = Effect.fn("Auth.writeAuthData")(function* (data: Record<string, Info>) {
+      const file = authFile()
+      if (yield* fsys.existsSafe(file)) {
+        yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
+        yield* Effect.promise(() => EncryptedJsonStorage.mirrorJson(file, data))
+        return
+      }
+
+      yield* Effect.tryPromise({
+        try: () => EncryptedJsonStorage.writeJson(file, data),
+        catch: fail("Failed to write encrypted auth data"),
+      })
+    })
+
     const all = Effect.fn("Auth.all")(function* () {
       if (process.env.OPENCODE_AUTH_CONTENT) {
         try {
@@ -65,7 +100,7 @@ export const layer = Layer.effect(
         }
       }
 
-      const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
+      const data = yield* readAuthData()
       return Record.filterMap(data, (value) => Result.fromOption(decode(value), () => undefined))
     })
 
@@ -78,9 +113,7 @@ export const layer = Layer.effect(
       const data = yield* all()
       if (norm !== key) delete data[key]
       delete data[norm + "/"]
-      yield* fsys
-        .writeJson(file, { ...data, [norm]: info }, 0o600)
-        .pipe(Effect.mapError(fail("Failed to write auth data")))
+      yield* writeAuthData({ ...data, [norm]: info })
     })
 
     const remove = Effect.fn("Auth.remove")(function* (key: string) {
@@ -88,7 +121,7 @@ export const layer = Layer.effect(
       const data = yield* all()
       delete data[key]
       delete data[norm]
-      yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
+      yield* writeAuthData(data)
     })
 
     return Service.of({ get, all, set, remove })

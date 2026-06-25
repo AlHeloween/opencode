@@ -1,0 +1,21 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/auth/index.ts
+@@
+-const file = path.join(Global.Path.config, "auth.json")
++function authFile() {
++  return path.join(Global.Path.config, "auth.json")
++}
+@@
+ 
+     const readAuthData = Effect.fn("Auth.readAuthData")(function* () {
++      const file = authFile()
+       if (yield* fsys.existsSafe(file)) {
+         const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
+@@
+     })
+ 
+     const writeAuthData = Effect.fn("Auth.writeAuthData")(function* (data: Record<string, Info>) {
++      const file = authFile()
+       if (yield* fsys.existsSafe(file)) {
+         yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
+*** End Patch

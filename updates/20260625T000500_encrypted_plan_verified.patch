@@ -1,0 +1,9 @@
+*** Begin Patch
+*** Update File: plans_completed/20260625_encrypted_config_storage_plan.md
+@@
+-status: execution
++status: completed
+@@
+-- [ ] Run ADM verification.
++- [x] Run ADM verification.
+*** End Patch

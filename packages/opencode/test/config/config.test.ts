@@ -125,6 +125,91 @@ test("loads config with defaults when no files exist", async () => {
   })
 })
 
+test("global config mirrors plaintext to encrypted storage and falls back when plaintext is removed", async () => {
+  await using globalTmp = await tmpdir()
+  await using projectTmp = await tmpdir({ git: true })
+  const previous = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = globalTmp.path
+  await clear(true)
+  try {
+    const configPath = path.join(globalTmp.path, "opencode.jsonc")
+    await writeConfig(globalTmp.path, { username: "secret-user" }, "opencode.jsonc")
+
+    await Instance.provide({
+      directory: projectTmp.path,
+      fn: async () => {
+        expect((await load()).username).toBe("secret-user")
+      },
+    })
+
+    expect(await fs.readFile(`${configPath}.enc`, "utf8")).not.toContain("secret-user")
+
+    await fs.rm(configPath)
+    await clear(true)
+    await Instance.provide({
+      directory: projectTmp.path,
+      fn: async () => {
+        expect((await load()).username).toBe("secret-user")
+      },
+    })
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = previous
+    await clear(true)
+  }
+})
+
+test("updateGlobal writes encrypted-only global config when no plaintext config exists", async () => {
+  await using globalTmp = await tmpdir()
+  await using projectTmp = await tmpdir({ git: true })
+  const previous = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = globalTmp.path
+  await clear(true)
+  try {
+    const configPath = path.join(globalTmp.path, "opencode.jsonc")
+    await saveGlobal({ username: "encrypted-only-user" } as Config.Info)
+
+    await expect(fs.stat(configPath)).rejects.toThrow()
+    expect(await fs.readFile(`${configPath}.enc`, "utf8")).not.toContain("encrypted-only-user")
+
+    await clear(true)
+    await Instance.provide({
+      directory: projectTmp.path,
+      fn: async () => {
+        expect((await load()).username).toBe("encrypted-only-user")
+      },
+    })
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = previous
+    await clear(true)
+  }
+})
+
+test("legacy global config migration writes encrypted-only config when no plaintext config exists", async () => {
+  await using globalTmp = await tmpdir()
+  await using projectTmp = await tmpdir({ git: true })
+  const previous = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = globalTmp.path
+  await clear(true)
+  try {
+    const configPath = path.join(globalTmp.path, "config.json")
+    await Filesystem.write(path.join(globalTmp.path, "config"), 'username = "legacy-encrypted-user"')
+
+    await Instance.provide({
+      directory: projectTmp.path,
+      fn: async () => {
+        expect((await load()).username).toBe("legacy-encrypted-user")
+      },
+    })
+
+    await expect(fs.stat(configPath)).rejects.toThrow()
+    expect(await fs.readFile(`${configPath}.enc`, "utf8")).not.toContain("legacy-encrypted-user")
+    await expect(fs.stat(path.join(globalTmp.path, "config"))).rejects.toThrow()
+  } finally {
+    process.env.OPENCODE_TEST_CONFIG = previous
+    await clear(true)
+  }
+})
+
 test("loads JSON config file", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {

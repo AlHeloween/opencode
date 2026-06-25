@@ -1,0 +1,37 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/auth/auth.test.ts
+@@
+-          expect(await exists(authPath)).toBeFalse()
+-          expect(await exists(`${authPath}.enc`)).toBeTrue()
+-          expect(await fs.readFile(`${authPath}.enc`, "utf8")).not.toContain("sk-encrypted-only")
++          expect(yield* Effect.promise(() => exists(authPath))).toBeFalse()
++          expect(yield* Effect.promise(() => exists(`${authPath}.enc`))).toBeTrue()
++          expect(yield* Effect.promise(() => fs.readFile(`${authPath}.enc`, "utf8"))).not.toContain("sk-encrypted-only")
+           expect((yield* auth.all()).anthropic?.type).toBe("api")
+         }),
+       ),
+@@
+         Effect.gen(function* () {
+           const authPath = path.join(Global.Path.config, "auth.json")
+-          await fs.writeFile(
+-            authPath,
+-            JSON.stringify({ anthropic: { type: "api", key: "sk-plaintext-mirror" } }, null, 2),
++          yield* Effect.promise(() =>
++            fs.writeFile(
++              authPath,
++              JSON.stringify({ anthropic: { type: "api", key: "sk-plaintext-mirror" } }, null, 2),
++            ),
+           )
+ 
+           const auth = yield* Auth.Service
+           expect((yield* auth.all()).anthropic?.type).toBe("api")
+-          expect(await exists(`${authPath}.enc`)).toBeTrue()
+-          expect(await fs.readFile(`${authPath}.enc`, "utf8")).not.toContain("sk-plaintext-mirror")
++          expect(yield* Effect.promise(() => exists(`${authPath}.enc`))).toBeTrue()
++          expect(yield* Effect.promise(() => fs.readFile(`${authPath}.enc`, "utf8"))).not.toContain("sk-plaintext-mirror")
+ 
+-          await fs.rm(authPath)
++          yield* Effect.promise(() => fs.rm(authPath))
+           const data = yield* auth.all()
+           expect(data.anthropic?.type).toBe("api")
+*** End Patch

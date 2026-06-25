@@ -1,0 +1,60 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/config/config.ts
+@@
+               result = mergeDeep(result, rest)
+               const migrated = JSON.stringify(result, null, 2)
+               const target = path.join(Global.Path.config, "config.json")
+-              await fsNode.writeFile(target, migrated)
+-              await EncryptedJsonStorage.mirrorText(target, migrated)
++              if (existsSync(target)) {
++                await fsNode.writeFile(target, migrated)
++                await EncryptedJsonStorage.mirrorText(target, migrated)
++              } else {
++                await EncryptedJsonStorage.writeText(target, migrated)
++              }
+               await fsNode.unlink(legacy)
+             })
+*** Update File: packages/opencode/test/config/config.test.ts
+@@
+ test("updateGlobal writes encrypted-only global config when no plaintext config exists", async () => {
+   await using globalTmp = await tmpdir()
+   await using projectTmp = await tmpdir({ git: true })
+@@
+   }
+ })
+ 
++test("legacy global config migration writes encrypted-only config when no plaintext config exists", async () => {
++  await using globalTmp = await tmpdir()
++  await using projectTmp = await tmpdir({ git: true })
++  const previous = process.env.OPENCODE_TEST_CONFIG
++  process.env.OPENCODE_TEST_CONFIG = globalTmp.path
++  await clear(true)
++  try {
++    const configPath = path.join(globalTmp.path, "config.json")
++    await Filesystem.write(path.join(globalTmp.path, "config"), 'username = "legacy-encrypted-user"')
++
++    await Instance.provide({
++      directory: projectTmp.path,
++      fn: async () => {
++        expect((await load()).username).toBe("legacy-encrypted-user")
++      },
++    })
++
++    await expect(fs.stat(configPath)).rejects.toThrow()
++    expect(await fs.readFile(`${configPath}.enc`, "utf8")).not.toContain("legacy-encrypted-user")
++    await expect(fs.stat(path.join(globalTmp.path, "config"))).rejects.toThrow()
++  } finally {
++    process.env.OPENCODE_TEST_CONFIG = previous
++    await clear(true)
++  }
++})
++
+ test("loads JSON config file", async () => {
+   await using tmp = await tmpdir({
+     init: async (dir) => {
+*** Update File: plans_completed/20260625_encrypted_config_storage_plan.md
+@@
+ - Missing global config causes `updateGlobal` to write encrypted-only `opencode.jsonc.enc`.
++- Legacy global config migration writes encrypted-only `config.json.enc` when no plaintext `config.json` exists.
+ - Stale checkpoint key failure does not delete request-diff baselines.
+*** End Patch

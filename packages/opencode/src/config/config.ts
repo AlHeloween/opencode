@@ -17,6 +17,7 @@ import { existsSync } from "fs"
 import { GlobalBus } from "@/bus/global"
 import { Event } from "../server/event"
 import { Account } from "@/account/account"
+import * as EncryptedJsonStorage from "@/util/encrypted-json"
 import { isRecord } from "@/util/record"
 import type { ConsoleState } from "./console-state"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -332,12 +333,19 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Config") {}
 
-function globalConfigFile() {
-  const candidates = ["opencode.jsonc", "opencode.json", "config.json"].map((file) =>
-    path.join(Global.Path.config, file),
+const globalConfigNames = ["opencode.jsonc", "opencode.json", "config.json"]
+
+function isGlobalConfigFile(filepath: string) {
+  return (
+    path.resolve(path.dirname(filepath)) === path.resolve(Global.Path.config) &&
+    globalConfigNames.includes(path.basename(filepath))
   )
+}
+
+function globalConfigFile() {
+  const candidates = globalConfigNames.map((file) => path.join(Global.Path.config, file))
   for (const file of candidates) {
-    if (existsSync(file)) return file
+    if (existsSync(file) || existsSync(EncryptedJsonStorage.encryptedPath(file))) return file
   }
   return candidates[0]
 }
@@ -387,13 +395,30 @@ export const layer = Layer.effect(
     const npmSvc = yield* Npm.Service
 
     const readConfigFile = Effect.fnUntraced(function* (filepath: string) {
-      return yield* fs.readFileString(filepath).pipe(
+      const plaintextExists = yield* fs.existsSafe(filepath)
+      if (!plaintextExists && isGlobalConfigFile(filepath)) {
+        return yield* Effect.promise(() => EncryptedJsonStorage.readText(filepath))
+      }
+
+      const text = yield* fs.readFileString(filepath).pipe(
         Effect.catchIf(
           (e) => e.reason._tag === "NotFound",
           () => Effect.succeed(undefined),
         ),
         Effect.orDie,
       )
+      if (text && isGlobalConfigFile(filepath)) yield* Effect.promise(() => EncryptedJsonStorage.mirrorText(filepath, text))
+      return text
+    })
+
+    const writeConfigFile = Effect.fnUntraced(function* (filepath: string, text: string) {
+      if (!isGlobalConfigFile(filepath) || (yield* fs.existsSafe(filepath))) {
+        yield* fs.writeFileString(filepath, text).pipe(Effect.orDie)
+        if (isGlobalConfigFile(filepath)) yield* Effect.promise(() => EncryptedJsonStorage.mirrorText(filepath, text))
+        return
+      }
+
+      yield* Effect.tryPromise(() => EncryptedJsonStorage.writeText(filepath, text)).pipe(Effect.orDie)
     })
 
     const loadConfig = Effect.fnUntraced(function* (
@@ -414,7 +439,7 @@ export const layer = Layer.effect(
       if (!data.$schema) {
         data.$schema = "https://opencode.ai/config.json"
         const updated = text.replace(/^\s*\{/, '{\n  "$schema": "https://opencode.ai/config.json",')
-        yield* fs.writeFileString(options.path, updated).pipe(Effect.catch(() => Effect.void))
+        yield* writeConfigFile(options.path, updated).pipe(Effect.catch(() => Effect.void))
       }
       return data
     })
@@ -443,7 +468,14 @@ export const layer = Layer.effect(
               if (provider && model) result.model = `${provider}/${model}`
               result["$schema"] = "https://opencode.ai/config.json"
               result = mergeDeep(result, rest)
-              await fsNode.writeFile(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
+              const migrated = JSON.stringify(result, null, 2)
+              const target = path.join(Global.Path.config, "config.json")
+              if (existsSync(target)) {
+                await fsNode.writeFile(target, migrated)
+                await EncryptedJsonStorage.mirrorText(target, migrated)
+              } else {
+                await EncryptedJsonStorage.writeText(target, migrated)
+              }
               await fsNode.unlink(legacy)
             })
             .catch((e) => { log.debug("failed to migrate legacy config", { error: e instanceof Error ? e.message : String(e) }) }),
@@ -824,12 +856,12 @@ export const layer = Layer.effect(
       if (!file.endsWith(".jsonc")) {
         const existing = ConfigParse.effectSchema(Info, ConfigParse.jsonc(before, file), file)
         const merged = mergeDeep(writable(existing), patch)
-        yield* fs.writeFileString(file, JSON.stringify(merged, null, 2)).pipe(Effect.orDie)
+        yield* writeConfigFile(file, JSON.stringify(merged, null, 2))
         next = merged
       } else {
         const updated = patchJsonc(before, patch)
         next = ConfigParse.effectSchema(Info, ConfigParse.jsonc(updated, file), file)
-        yield* fs.writeFileString(file, updated).pipe(Effect.orDie)
+        yield* writeConfigFile(file, updated)
       }
 
       yield* invalidate()

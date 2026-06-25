@@ -148,7 +148,12 @@ export function DialogAgent() {
       footer: modelLabel,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
-        dialog.replace(() => <DialogModel targetAgent={agent.name} />)
+        dialog.replace(() => (
+          <DialogModel
+            targetAgent={agent.name}
+            onDone={() => dialog.replace(() => <DialogAgent />)}
+          />
+        ))
       },
     }
   }
@@ -161,7 +166,12 @@ export function DialogAgent() {
         {
           title: "Change model",
           onTrigger: (option: any) => {
-            dialog.replace(() => <DialogModel targetAgent={option.value} />)
+            dialog.replace(() => (
+              <DialogModel
+                targetAgent={option.value}
+                onDone={() => dialog.replace(() => <DialogAgent />)}
+              />
+            ))
           },
         },
         {

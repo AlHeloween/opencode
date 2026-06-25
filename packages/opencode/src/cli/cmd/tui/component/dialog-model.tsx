@@ -10,7 +10,7 @@ import { useKeybind } from "../context/keybind"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 
-export function DialogModel(props: { providerID?: string; targetAgent?: string }) {
+export function DialogModel(props: { providerID?: string; targetAgent?: string; onDone?: () => void }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
@@ -137,6 +137,7 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string }
     const list = local.model.variant.list()
     const cur = local.model.variant.selected()
     if (cur === "default" || (cur && list.includes(cur))) {
+      if (props.onDone) { props.onDone(); return }
       dialog.clear()
       return
     }
@@ -144,6 +145,7 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string }
       dialog.replace(() => <DialogVariant />)
       return
     }
+    if (props.onDone) { props.onDone(); return }
     dialog.clear()
   }
 

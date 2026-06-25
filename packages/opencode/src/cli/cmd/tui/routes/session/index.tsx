@@ -166,21 +166,25 @@ export function Session() {
   })
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
 
-  // AGI mode: merge orchestrator session messages into the main view
-  const mergedMessages = createMemo(() => {
-    const main = messages()
-    if (!agi.agiMode()) return main
-    const oid = agi.orchSessionID()
-    if (!oid) return main
-    const orch = sync.data.message[oid] ?? []
-    if (orch.length === 0) return main
-    const all = [...main.map((m) => ({ ...m, _source: "main" as const })), ...orch.map((m) => ({ ...m, _source: "orch" as const }))]
+  // Composite mode: show messages from ALL active sessions sorted by time
+  const [compositeMode, setCompositeMode] = createSignal(true)
+
+  const compositeMessages = createMemo(() => {
+    if (!compositeMode()) return messages()
+    // Merge messages from every session that has data in the store
+    const all: any[] = []
+    for (const [sid, msgs] of Object.entries(sync.data.message)) {
+      if (!msgs?.length) continue
+      for (const m of msgs) {
+        all.push({ ...m, _source: sid })
+      }
+    }
     all.sort((a, b) => (a.time.created ?? 0) - (b.time.created ?? 0))
     return all
   })
 
-  // Display messages: merged (main+orch) when AGI active, otherwise main only
-  const messagesList = createMemo(() => agi.agiMode() ? mergedMessages() : messages())
+  // Display messages: composite (all sessions) or main session only
+  const messagesList = createMemo(() => compositeMessages())
   const permissions = createMemo(() => {
     if (session()?.parentID) return []
     return children().flatMap((x) => sync.data.permission[x.id] ?? [])
@@ -577,6 +581,23 @@ export function Session() {
           sessionID: route.sessionID,
           modelID: selectedModel.modelID,
           providerID: selectedModel.providerID,
+        })
+        dialog.clear()
+      },
+    },
+    {
+      title: "Toggle composite view",
+      value: "session.composite",
+      category: "Session",
+      slash: {
+        name: "composite",
+      },
+      onSelect: (dialog) => {
+        setCompositeMode((prev) => !prev)
+        toast.show({
+          variant: "info",
+          message: compositeMode() ? "Composite: all sessions" : "Composite: current only",
+          duration: 2000,
         })
         dialog.clear()
       },
@@ -1228,13 +1249,13 @@ export function Session() {
                         lastUserId={lastUserId()}
                         allMessages={messagesList()}
                       />
-                      <Show when={(message as any)._source === "orch"}>
-                        <text fg={local.agent.color("orchestrator")}>── Orchestrator ──</text>
+                      <Show when={(message as any)._source !== undefined && (message as any)._source !== route.sessionID}>
+                        <text fg={local.agent.color("orchestrator")}>── {(message as any)._source === agi.orchSessionID() ? "Orchestrator" : "other session"} ──</text>
                       </Show>
                     </Match>
                     <Match when={message.role === "assistant"}>
-                      <Show when={(message as any)._source === "orch"}>
-                        <text fg={local.agent.color("orchestrator")}>── Orchestrator ──</text>
+                      <Show when={(message as any)._source !== undefined && (message as any)._source !== route.sessionID}>
+                        <text fg={local.agent.color("orchestrator")}>── {(message as any)._source === agi.orchSessionID() ? "Orchestrator" : "other session"} ──</text>
                       </Show>
                       <AssistantMessage
                         last={lastAssistant()?.id === message.id}

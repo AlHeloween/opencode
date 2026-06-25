@@ -1,7 +1,8 @@
 ---
-status: planned
+status: done
 owner: codex
 created: 2026-06-25
+completed: 2026-06-25
 priority: EMERGENCY
 reproduce:
   - cd packages/opencode

@@ -148,6 +148,27 @@ function dbUpdate(sqldb: Database, j: Job) {
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
+    // Concurrency gate: max 2 simultaneous background jobs
+    // Prevents resource exhaustion from unlimited parallel sub-agents.
+    // Plain JS semaphore — avoids Effect service dependency.
+    const maxJobs = 2
+    let running = 0
+    const waiters: Array<() => void> = []
+    const acquire = (): Promise<void> => {
+      if (running < maxJobs) {
+        running++
+        return Promise.resolve()
+      }
+      return new Promise<void>((resolve) => {
+        waiters.push(() => { running++; resolve() })
+      })
+    }
+    const release = (): void => {
+      running--
+      const next = waiters.shift()
+      if (next) next()
+    }
+
     // In-memory job store for live fiber access + SQLite for durability
     const jobs = new Map<string, Job>()
     const completed: Completion[] = []
@@ -187,7 +208,7 @@ export const layer = Layer.effect(
 
       const job: Job = {
         id, kind: input.kind, label: input.label, sessionID: input.sessionID,
-        status: "running", output: "", result: "", resultSurfaced: false,
+        status: "running", output: `[started] ${input.label}`, result: "", resultSurfaced: false,
         startedAt: Date.now(), finishedAt: 0,
         cancel: () => controller.abort(),
       }
@@ -303,7 +324,7 @@ export const layer = Layer.effect(
 
       const job: Job = {
         id, kind: input.kind, label: input.label, sessionID: input.sessionID,
-        status: "running", output: "", result: "", resultSurfaced: false,
+        status: "running", output: `[started] ${input.label}`, result: "", resultSurfaced: false,
         startedAt: Date.now(), finishedAt: 0,
         cancel: () => controller.abort(),
       }
@@ -313,10 +334,15 @@ export const layer = Layer.effect(
       persistJob(job)
       log.info("job started (effect)", { id, kind: input.kind, sessionID: input.sessionID })
 
+      yield* Effect.promise(() => acquire())
+
       input.run.pipe(
         Effect.tap((text) => Effect.sync(() => {
           const j = jobs.get(jobKey)
-          if (j) { j.output += text + "\n"; persistUpdate(j) }
+          if (j) {
+            j.output = j.output.replace(/^\[started\].*\n?/, "") + text + "\n"
+            persistUpdate(j)
+          }
         })),
         Effect.matchEffect({
           onSuccess: (result) => Effect.sync(() => {
@@ -324,6 +350,7 @@ export const layer = Layer.effect(
             if (!j) return
             if (controller.signal.aborted) { j.status = "killed" }
             else { j.status = "done"; j.result = result }
+            if (!j.output.includes("[started]")) j.output = result
             j.finishedAt = Date.now()
             persistUpdate(j)
             completed.push({
@@ -343,6 +370,7 @@ export const layer = Layer.effect(
             log.warn("job failed (effect)", { id, error: err.message })
           }),
         }),
+        Effect.ensuring(Effect.sync(() => release())),
         Effect.runFork,
       )
 

@@ -137,14 +137,16 @@ export function useAgiMode() {
 
       if (planData().active.length === 0) return // all plans done
 
+      // Capture instruction now — setTimeout delay could let state change
+      const oid = orchSessionID()
+      if (!oid) return
+      const instruction = lastAssistantText(oid)
+      if (!instruction) return
+
       clearTimeout(orchTimer)
       orchTimer = setTimeout(async () => {
-        const oid = orchSessionID()
-        if (!oid) return
-        const instruction = lastAssistantText(oid)
-        if (instruction) {
-          await sendToMain(instruction)
-        }
+        const ok = await sendToMain(instruction)
+        if (!ok) toast.show({ message: "AGI: failed to send instruction to main session", variant: "warning" })
       }, 1000)
     }
     // Main just finished executing → send result to orchestrator
@@ -154,13 +156,22 @@ export function useAgiMode() {
 
       if (planData().active.length === 0) return
 
+      // Safety: max 20 turns to prevent infinite loop
+      const t = turnCount() + 1
+      if (t > 20) {
+        toast.show({ message: "AGI: max turns (20) reached — deactivating", variant: "info" })
+        deactivate(true)
+        return
+      }
+
+      // Capture result now — setTimeout delay could let state change
+      const mid = mainSessionID()
+      if (!mid) return
+      const result = lastAssistantText(mid)
+      setTurnCount(t)
+
       clearTimeout(mainTimer)
       mainTimer = setTimeout(async () => {
-        const mid = mainSessionID()
-        if (!mid) return
-        const result = lastAssistantText(mid)
-        const t = turnCount() + 1
-        setTurnCount(t)
         // Compact orchestrator context every 5 turns
         if (t % 5 === 0) {
           compactOrchestrator().catch(() => {})
@@ -171,7 +182,8 @@ export function useAgiMode() {
           "Analyze progress against plans/. Check which tasks were completed.",
           "Generate the next instruction for the main session to execute.",
         ].filter(Boolean).join("\n\n")
-        await sendToOrchestrator(context)
+        const ok = await sendToOrchestrator(context)
+        if (!ok) toast.show({ message: "AGI: failed to send results to orchestrator", variant: "warning" })
       }, 1000)
     }
     else {

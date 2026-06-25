@@ -1,0 +1,42 @@
+Executes a binary directly with arguments — no shell interpretation, no quoting issues.
+
+IMPORTANT: Use this tool for running binaries with precise argument passing (bun, node, python, go, cargo, etc.). The arguments are passed directly to the binary — no shell expansion, no globbing, no quote interpretation. Each argument is a separate string.
+
+DO NOT use for file operations — use Read, Write, Edit, Grep, Glob instead.
+
+## Binary Resolution
+
+The binary is resolved from the system PATH. Common binaries:
+- `bun`, `node`, `python`, `python3`
+- `go`, `cargo`, `rustc`
+- `git`, `npm`, `npx`
+- `cmd_runner.exe`, `adm.exe` (Windows)
+
+## Output Handling
+
+If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output written to a file. Use Read with offset/limit to read specific sections.
+
+## Timeout
+
+Default timeout is 60000ms (1 minute). Use `timeout` for long-running commands. `cmd_runner.exe` auto-gets 10 min, `adm.exe` auto-gets 3 min.
+
+## Background Mode
+
+Set `run_in_background: true` to run as a tracked background job. Use `job_output` to read results, `job_wait` to wait for completion.
+
+## Examples
+
+Run a TypeScript file:
+```
+run({ binary: "bun", args: ["run", "script.ts"], workdir: "." })
+```
+
+Run inline JavaScript:
+```
+run({ binary: "bun", args: ["-e", "console.log(1+1)"], timeout: 5000 })
+```
+
+Check git status:
+```
+run({ binary: "git", args: ["status", "--short"] })
+```

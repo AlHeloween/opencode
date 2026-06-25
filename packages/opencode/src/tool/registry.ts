@@ -10,6 +10,7 @@ import { TaskTool } from "./task"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
+import { RunTool } from "./run"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { ListTool } from "./ls"
@@ -117,6 +118,7 @@ export const layer: Layer.Layer<
     const plan = yield* PlanExitTool
     const webfetch = yield* WebFetchTool
     const bash = yield* BashTool
+    const run = yield* RunTool
     const globtool = yield* GlobTool
     const writetool = yield* WriteTool
     const edit = yield* EditTool
@@ -206,6 +208,7 @@ export const layer: Layer.Layer<
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
           bash: Tool.init(bash),
+          run: Tool.init(run),
           read: Tool.init(read),
           glob: Tool.init(globtool),
           grep: Tool.init(greptool),
@@ -236,6 +239,7 @@ export const layer: Layer.Layer<
             tool.invalid,
             ...(questionEnabled ? [tool.question] : []),
             tool.bash,
+            tool.run,
             tool.read,
             tool.glob,
             tool.grep,

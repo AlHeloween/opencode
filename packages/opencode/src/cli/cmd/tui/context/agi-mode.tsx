@@ -19,6 +19,7 @@ import { createSignal, createMemo, createEffect, onCleanup } from "solid-js"
 import { useLocal } from "./local"
 import { useSync } from "./sync"
 import { useSDK } from "./sdk"
+import { useToast } from "../ui/toast"
 import { Global } from "@opencode-ai/core/global"
 import { getPlanStatus, formatProgressBar, type PlanStatus } from "@/util/plan-status"
 import { MessageID } from "@/session/schema"
@@ -32,6 +33,7 @@ export function useAgiMode() {
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
+  const toast = useToast()
   const [agiMode, setAgiMode] = createSignal(false)
   const [mainSessionID, setMainSessionID] = createSignal<string | undefined>()
   const [orchSessionID, setOrchSessionID] = createSignal<string | undefined>()
@@ -180,6 +182,7 @@ export function useAgiMode() {
     setMainSessionID(undefined)
     setTurnCount(0)
     setAgiMode(false)
+    toast.show({ message: "AGI mode deactivated", variant: "info" })
   }
 
   onCleanup(() => {
@@ -240,8 +243,10 @@ export function useAgiMode() {
       })
 
       setAgiMode(true)
+      toast.show({ message: "AGI mode activated", variant: "success" })
     } catch (err) {
       console.error("AGI mode activation failed:", err)
+      toast.show({ message: `AGI mode failed: ${err instanceof Error ? err.message : String(err)}`, variant: "error" })
       await deactivate()
     }
   }

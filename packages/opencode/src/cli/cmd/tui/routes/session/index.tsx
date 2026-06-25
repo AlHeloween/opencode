@@ -1226,6 +1226,7 @@ export function Session() {
                         parts={sync.data.part[message.id] ?? []}
                         pending={pending()}
                         lastUserId={lastUserId()}
+                        allMessages={messagesList()}
                       />
                       <Show when={(message as any)._source === "orch"}>
                         <text fg={local.agent.color("orchestrator")}>── Orchestrator ──</text>
@@ -1345,6 +1346,7 @@ function UserMessage(props: {
   index: number
   pending?: { id: string; parentID: string }
   lastUserId?: string
+  allMessages: any[]
 }) {
   const ctx = use()
   const local = useLocal()
@@ -1365,6 +1367,8 @@ function UserMessage(props: {
   const queued = createMemo(() => {
     if (!props.pending) return false
     if (props.lastUserId !== props.message.id) return false
+    // A message already replied to by any assistant is never queued
+    if (props.allMessages.some((m) => m.role === "assistant" && m.parentID === props.message.id)) return false
     return props.pending.parentID !== props.message.id
   })
   const color = createMemo(() => local.agent.color(props.message.agent))

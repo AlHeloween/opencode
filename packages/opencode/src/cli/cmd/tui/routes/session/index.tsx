@@ -193,11 +193,11 @@ export function Session() {
   const disabled = createMemo(() => permissions().length > 0 || questions().length > 0)
 
   const pending = createMemo(() => {
-    const msg = messages().findLast((x) => x.role === "assistant" && !x.time.completed)
-    if (!msg) return
-    // msg is narrowed to Assistant by findLast predicate (role === "assistant");
-    // TypeScript's findLast return type doesn't carry the narrowing through.
-    return { id: msg.id, parentID: (msg as { parentID: string }).parentID }
+    const msgs = messages()
+    const last = msgs.findLast((x) => x.role === "assistant")
+    // Only consider the LAST assistant pending — ignore older orphans
+    if (!last || last.time.completed) return
+    return { id: last.id, parentID: last.parentID }
   })
 
   const lastUserId = createMemo(() => {

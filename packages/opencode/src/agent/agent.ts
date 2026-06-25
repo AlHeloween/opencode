@@ -12,6 +12,7 @@ import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_GENERAL from "./prompt/general.txt"
 import PROMPT_MEDIA from "./prompt/media.txt"
+import PROMPT_ORCHESTRATOR from "./prompt/orchestrator.txt"
 import PROMPT_RESEARCHER from "./prompt/researcher.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
@@ -134,6 +135,36 @@ export const layer = Layer.effect(
                   "*": "deny",
                   [path.join("plans", "*.md")]: "allow",
                 },
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+          },
+          orchestrator: {
+            name: "orchestrator",
+            description: `Autonomous development orchestrator — drives plans to completion by delegating implementation to sub-agents and verifying results. Read-only reasoning engine based on ADID Framework Strategist2 + Analyst2 roles. Use in AGI mode for fully autonomous development flow.`,
+            options: {},
+            prompt: PROMPT_ORCHESTRATOR,
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                edit: "deny",
+                write: "deny",
+                bash: {
+                  "*": "deny",
+                  "bun typecheck": "allow",
+                  "bun test *": "allow",
+                },
+                task: "allow",
+                todowrite: "allow",
+                read: "allow",
+                glob: "allow",
+                grep: "allow",
+                list: "allow",
+                messagesearch: "allow",
+                "session-read": "allow",
+                question: "allow",
               }),
               user,
             ),

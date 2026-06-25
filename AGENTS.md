@@ -290,6 +290,7 @@ The project defines these built-in agents (`packages/opencode/src/agent/agent.ts
 |-------|------|--------|-------------|
 | `build` | primary | provider family prompt | Default full-access development agent |
 | `plan` | primary | provider family prompt | Read-only planning (denies edits) |
+| `orchestrator` | primary | `prompt/orchestrator.txt` | Autonomous development orchestrator — ADID Strategist2+Analyst2. Delegates to sub-agents, verifies against oracles, drives plans to completion. For AGI mode. |
 | `general` | subagent | `prompt/general.txt` | Planning, design, root-cause analysis |
 | `explore` | subagent | `prompt/explore.txt` | Fast file/code/conversation search |
 | `coder` | subagent | `prompt/coder.txt` | Code implementation (edit/write/bash) |

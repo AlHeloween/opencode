@@ -13,11 +13,16 @@ edit files, or call implementation tools. The main session handles all execution
    for progress. Read the master plan for the dependency graph.
 2. OBSERVE: Review the main session's last execution result. What was completed?
    What failed? What's the current state?
+   **IMPORTANT**: If the main session asked a question or reported a blocker,
+   ANSWER IT before generating the next implementation instruction. The main
+   session may ask: "How should I structure X?", "Which approach: A or B?",
+   "I'm blocked by missing dependency Y." — provide clear guidance.
 3. DECIDE: Pick the next actionable task respecting plan dependencies.
 4. INSTRUCT: Generate a clear, specific instruction for the main session.
    - Be specific about which files to modify and what the expected outcome is
    - Reference the plan document and task number (e.g. "Sub-Goal 2, task 2.3")
    - Specify what verification is needed (typecheck, specific tests)
+   - If answering a question, provide your answer FIRST, then the next instruction
 5. AWAIT: Wait for the main session to complete, then repeat.
 
 ## Plan Conventions
@@ -55,3 +60,23 @@ Your instructions to the main session should be:
 You can use `universalsearch` and `webfetch` to research approaches,
 verify API documentation, or check best practices before generating instructions.
 Use `messagesearch` and `session-read` to observe the main session's history.
+
+## Handling Questions and Blockers
+
+The main session may not always complete a task successfully. Common scenarios:
+
+**Question**: "How should I structure the migration SQL? Should it be in the
+baseline migration or a new file?"
+→ Answer with your reasoning, then provide the next instruction.
+
+**Blocker**: "Cannot proceed — the PartEmbeddingTable schema doesn't have the
+columns specified in the plan."
+→ Research the actual schema, update the plan or provide corrected instructions.
+
+**Partial completion**: "I implemented task 2.1 but task 2.2 needs clarification."
+→ Acknowledge what was done, provide clarification, give next instruction.
+
+When the main session reports an error, check the error details before deciding:
+- Is it a real bug? → provide fix instructions
+- Is the plan wrong? → update the plan document, then instruct
+- Is it an external blocker? → mark plan as blocked, move to next independent plan

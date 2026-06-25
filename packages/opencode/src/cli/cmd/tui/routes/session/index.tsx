@@ -156,7 +156,7 @@ export function Session() {
   const { theme } = useTheme()
   const promptRef = usePromptRef()
   const local = useLocal()
-  const agi = useAgiMode(route.sessionID)
+  const agi = useAgiMode(() => route.sessionID)
   const session = createMemo(() => sync.session.get(route.sessionID))
   const children = createMemo(() => {
     const parentID = session()?.parentID ?? session()?.id

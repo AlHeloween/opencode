@@ -213,7 +213,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   const renderer = useRenderer()
   const dialog = useDialog()
   const local = useLocal()
-  const agi = useAgiMode((route as any).sessionID)
+  const agi = useAgiMode(() => (route.data as any)?.sessionID as string | undefined)
   const kv = useKV()
   const command = useCommandDialog()
   const keybind = useKeybind()

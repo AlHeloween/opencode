@@ -23,22 +23,65 @@ import { useToast } from "../ui/toast"
 import { Global } from "@opencode-ai/core/global"
 import { getPlanStatus, formatProgressBar, type PlanStatus } from "@/util/plan-status"
 import { MessageID } from "@/session/schema"
-import { existsSync, mkdirSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from "fs"
 import path from "path"
+
+/** Persisted AGI state — survives TUI restarts and route navigation. */
+interface AgiState {
+  orchSessionID?: string
+  mainSessionID?: string
+}
+
+function loadAgiState(): AgiState {
+  try {
+    const file = path.join(Global.Path.state, "agi-state.json")
+    if (!existsSync(file)) return {}
+    return JSON.parse(readFileSync(file, "utf-8"))
+  } catch {
+    return {}
+  }
+}
+
+function saveAgiState(state: AgiState) {
+  try {
+    const file = path.join(Global.Path.state, "agi-state.json")
+    writeFileSync(file, JSON.stringify(state))
+  } catch { /* non-fatal */ }
+}
 
 /** Maximum length of main session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
 
-export function useAgiMode(currentSessionID?: string) {
+export function useAgiMode(currentSessionID: () => string | undefined) {
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
   const toast = useToast()
+
+  // Load persisted AGI state (survives TUI restarts, route navigation)
+  const persisted = loadAgiState()
   const [agiMode, setAgiMode] = createSignal(false)
-  const [mainSessionID, setMainSessionID] = createSignal<string | undefined>()
-  const [orchSessionID, setOrchSessionID] = createSignal<string | undefined>()
+  const [mainSessionID, setMainSessionIDRaw] = createSignal<string | undefined>(persisted.mainSessionID)
+  const [orchSessionID, setOrchSessionIDRaw] = createSignal<string | undefined>(persisted.orchSessionID)
   const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], total: 0, completion: 0 })
   const [turnCount, setTurnCount] = createSignal(0)
+
+  /** Set main session ID and persist. */
+  function setMainSessionID(id: string | undefined) {
+    setMainSessionIDRaw(id)
+    saveAgiState({ orchSessionID: orchSessionID(), mainSessionID: id })
+  }
+
+  /** Set orchestrator session ID and persist. */
+  function setOrchSessionID(id: string | undefined) {
+    setOrchSessionIDRaw(id)
+    saveAgiState({ orchSessionID: id, mainSessionID: mainSessionID() })
+  }
+
+  /** Validate that a session ID still exists in sync data. */
+  function sessionExists(sid: string): boolean {
+    return sync.data.session.some((s) => s.id === sid)
+  }
 
   function refreshPlanStatus() {
     const worktree = Global.Path.worktree || Global.Path.home
@@ -214,18 +257,22 @@ export function useAgiMode(currentSessionID?: string) {
 
     try {
       // Use current TUI session as main — reuse if already set
-      if (currentSessionID) {
-        setMainSessionID(currentSessionID)
-      } else if (!mainSessionID()) {
+      if (currentSessionID()) {
+        setMainSessionID(currentSessionID()!)
+      } else if (!mainSessionID() || !sessionExists(mainSessionID()!)) {
         const mainRes = await sdk.client.session.create({})
         if (mainRes.error) return
         setMainSessionID(mainRes.data.id)
       }
 
-      // Reuse existing orchestrator session, or create new one
-      const existed = !!orchSessionID()
-      let oid = orchSessionID()
-      if (!oid) {
+      // Reuse existing orchestrator session (persisted), or create new one
+      const persistedOid = orchSessionID()
+      const existed = persistedOid && sessionExists(persistedOid)
+      let oid: string
+      if (existed) {
+        oid = persistedOid!
+      } else {
+        if (persistedOid) setOrchSessionID(undefined) // clear stale reference
         const orchRes = await sdk.client.session.create({})
         if (orchRes.error) return
         oid = orchRes.data.id

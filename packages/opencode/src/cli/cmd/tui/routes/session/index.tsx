@@ -164,10 +164,15 @@ export function Session() {
       .filter((x) => x.parentID === parentID || x.id === parentID)
       .toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   })
-  const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
+    const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
 
   // Composite mode: show messages from ALL active sessions sorted by time
-  const [compositeMode, setCompositeMode] = createSignal(true)
+  const [compositeMode, setCompositeMode] = createSignal(false)
+
+  // Auto-enable composite when AGI mode activates
+  createEffect(() => {
+    if (agi.agiMode()) setCompositeMode(true)
+  })
 
   const compositeMessages = createMemo(() => {
     if (!compositeMode()) return messages()

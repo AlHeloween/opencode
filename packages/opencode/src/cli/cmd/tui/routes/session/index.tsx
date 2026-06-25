@@ -155,6 +155,8 @@ export function Session() {
   const kv = useKV()
   const { theme } = useTheme()
   const promptRef = usePromptRef()
+  const local = useLocal()
+  const agi = useAgiMode()
   const session = createMemo(() => sync.session.get(route.sessionID))
   const children = createMemo(() => {
     const parentID = session()?.parentID ?? session()?.id
@@ -405,9 +407,6 @@ export function Session() {
       scroll.scrollTo(scroll.scrollHeight)
     }, 50)
   }
-
-  const local = useLocal()
-  const agi = useAgiMode()
 
   function moveFirstChild() {
     if (children().length === 1) return

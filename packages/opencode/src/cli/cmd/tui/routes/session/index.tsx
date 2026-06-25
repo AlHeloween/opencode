@@ -33,6 +33,7 @@ import type {
   ReasoningPart,
 } from "@opencode-ai/sdk/v2"
 import { useLocal } from "@tui/context/local"
+import { useAgiMode } from "@tui/context/agi-mode"
 import { Locale } from "@/util/locale"
 import type { Tool } from "@/tool/tool"
 import type { ReadTool } from "@/tool/read"
@@ -179,6 +180,27 @@ export function Session() {
     // msg is narrowed to Assistant by findLast predicate (role === "assistant");
     // TypeScript's findLast return type doesn't carry the narrowing through.
     return { id: msg.id, parentID: (msg as { parentID: string }).parentID }
+  })
+
+  // AGI mode auto-continue: when assistant finishes processing, trigger next turn
+  let wasPending = false
+  createEffect(() => {
+    const p = pending()
+    if (!agi.agiMode()) {
+      wasPending = !!p
+      return
+    }
+    // Transition: was processing → now idle
+    if (wasPending && !p) {
+      wasPending = false
+      agi.refreshPlanStatus()
+      // Small delay to let the UI settle, then submit a continuation
+      setTimeout(() => {
+        command.trigger("prompt.submit")
+      }, 500)
+    } else {
+      wasPending = !!p
+    }
   })
 
   const lastUserId = createMemo(() => {
@@ -391,6 +413,7 @@ export function Session() {
   }
 
   const local = useLocal()
+  const agi = useAgiMode()
 
   function moveFirstChild() {
     if (children().length === 1) return
@@ -1243,6 +1266,9 @@ export function Session() {
                   on_submit={toBottom}
                   ref={bind}
                 >
+                  <Show when={agi.agiMode()}>
+                    <text>{agi.progressBar()}</text>
+                  </Show>
                   <Prompt
                     visible={visible()}
                     ref={bind}

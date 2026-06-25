@@ -29,6 +29,7 @@ import { SDKProvider, useSDK } from "@tui/context/sdk"
 import { StartupLoading } from "@tui/component/startup-loading"
 import { SyncProvider, useSync } from "@tui/context/sync"
 import { LocalProvider, useLocal } from "@tui/context/local"
+import { useAgiMode } from "@tui/context/agi-mode"
 import { DialogModel } from "@tui/component/dialog-model"
 import { DialogTaskSettings } from "@tui/component/dialog-task-settings"
 import { useConnected } from "@tui/component/use-connected"
@@ -212,6 +213,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   const renderer = useRenderer()
   const dialog = useDialog()
   const local = useLocal()
+  const agi = useAgiMode()
   const kv = useKV()
   const command = useCommandDialog()
   const keybind = useKeybind()
@@ -530,6 +532,18 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       hidden: true,
       onSelect: () => {
         local.agent.move(1)
+      },
+    },
+    {
+      title: "AGI mode",
+      value: "agi.toggle",
+      keybind: "agi_toggle",
+      category: "Agent",
+      slash: {
+        name: "agi",
+      },
+      onSelect: () => {
+        agi.toggleAgiMode()
       },
     },
     {

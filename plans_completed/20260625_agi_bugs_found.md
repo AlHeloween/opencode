@@ -85,10 +85,10 @@ deactivate() {
 
 ## Task Checklist
 
-- [ ] B6: Fix wrong sessionID for orchestrator message dialogs
-- [ ] B3: Clear setTimeout timers on deactivate
-- [ ] B7: Exclude orch messages from revert filter
-- [ ] I1: Auto-compact orchestrator every N turns
-- [ ] B4: Fix double toast on activation failure
-- [ ] Typecheck: `bun typecheck` from `packages/opencode/`
+- [x] B6: Fix wrong sessionID for orchestrator message dialogs
+- [x] B3: Clear setTimeout timers on deactivate
+- [x] B7: Exclude orch messages from revert filter
+- [x] I1: Auto-compact orchestrator every N turns
+- [x] B4: Fix double toast on activation failure
+- [x] Typecheck: `bun typecheck` from `packages/opencode/`
 - [ ] Build: `pwsh _build.ps1`

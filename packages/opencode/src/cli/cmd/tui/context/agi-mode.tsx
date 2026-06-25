@@ -29,7 +29,7 @@ import path from "path"
 /** Maximum length of main session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
 
-export function useAgiMode() {
+export function useAgiMode(currentSessionID: string) {
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
@@ -170,12 +170,13 @@ export function useAgiMode() {
       const result = lastAssistantText(mid)
       setTurnCount(t)
 
+      // Compact orchestrator every 5 turns to prevent context overflow
+      if (t % 5 === 0) {
+        compactOrchestrator()
+      }
+
       clearTimeout(mainTimer)
       mainTimer = setTimeout(async () => {
-        // Compact orchestrator context every 5 turns
-        if (t % 5 === 0) {
-          compactOrchestrator().catch(() => {})
-        }
         const context = [
           `Turn ${t} complete. Plan progress: ${progressBar()}.`,
           result ? `Last execution result:\n${result.slice(0, MAX_OUTPUT_CHARS)}` : "",
@@ -223,18 +224,13 @@ export function useAgiMode() {
     refreshPlanStatus()
 
     try {
+      // Use current TUI session as main execution — no new session, no wasted tokens
+      setMainSessionID(currentSessionID)
+
       // Create orchestrator session
       const orchRes = await sdk.client.session.create({})
       if (orchRes.error) return
       setOrchSessionID(orchRes.data.id)
-
-      // Create main execution session (separate from current TUI session)
-      const mainRes = await sdk.client.session.create({})
-      if (mainRes.error) {
-        try { await sdk.client.session.abort({ sessionID: orchRes.data.id }) } catch { /* ok */ }
-        return
-      }
-      setMainSessionID(mainRes.data.id)
 
       // Create memory file if it doesn't exist
       const dataDir = path.join(Global.Path.data, "memory")

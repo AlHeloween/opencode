@@ -1,7 +1,7 @@
 # Per-Model Encrypted Conversation Checkpoint Plan
 
 **Created:** 2026-06-24
-**Status:** Active — core checkpoint storage/reuse corrected 2026-06-25; documentation and deeper integration coverage remain pending.
+**Status:** Active — tasks 1 (checkpoint.ts), 2 (prompt.ts), 4 (session.ts) implemented; tasks 3 (compaction.ts), 5 (request-diff namespace), 6 (docs) pending.
 **Effort:** ~6-8h
 
 ---
@@ -168,7 +168,7 @@ Checkpoint data:
 
 **Reuses:** `request-diff.ts` encryption helpers (`deriveKey`, `encryptBaseline`, `decryptBaseline`) but writes to a separate `.checkpoints/` namespace so request-diff `.baselines/` files cannot collide with checkpoints.
 
-### 2. Modify: `session/prompt.ts` (~100 lines changed)
+### [x] 2. Modify: `session/prompt.ts` (~100 lines changed)
 
 - `runLoop()`: replace `Effect.all([sys.skills, ...])` + `toModelMessagesEffect()` with checkpoint load
 - Add delta-message read after checkpoint load
@@ -180,7 +180,7 @@ Checkpoint data:
 - Accept checkpoint messages as input (not DB-loaded messages)
 - Return compacted messages → written as new checkpoint
 
-### 4. Modify: `session/session.ts` (~5 lines)
+### [x] 4. Modify: `session/session.ts` (~5 lines)
 
 - `deleteSession()` → `checkpoint.delete(sessionID)`
 
@@ -263,13 +263,13 @@ master_plan_description: "Per-model encrypted conversation checkpoint — elimin
 
 SV for checkpoint module:
   Document: plans/20260624_checkpoint_plan.md
-  Done: ~17%
+  Done: ~50%
   [x] SV for task 1 — checkpoint.ts new module
-  [ ] SV for task 2 — prompt.ts delta integration
+  [x] SV for task 2 — prompt.ts delta integration
   [ ] SV for task 3 — compaction.ts integration
-  [ ] SV for task 4 — session.ts cleanup
+  [x] SV for task 4 — session.ts cleanup
   [ ] SV for task 5 — request-diff.ts marker
   [ ] SV for task 6 — documentation
 
-Done: ~17% (1/6 tasks complete)
+Done: ~50% (3/6 tasks complete)
 ```

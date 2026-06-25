@@ -163,6 +163,22 @@ export function Session() {
       .toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   })
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
+
+  // AGI mode: merge orchestrator session messages into the main view
+  const mergedMessages = createMemo(() => {
+    const main = messages()
+    if (!agi.agiMode()) return main
+    const oid = agi.orchSessionID()
+    if (!oid) return main
+    const orch = sync.data.message[oid] ?? []
+    if (orch.length === 0) return main
+    const all = [...main.map((m) => ({ ...m, _source: "main" as const })), ...orch.map((m) => ({ ...m, _source: "orch" as const }))]
+    all.sort((a, b) => (a.time.created ?? 0) - (b.time.created ?? 0))
+    return all
+  })
+
+  // Display messages: merged (main+orch) when AGI active, otherwise main only
+  const messagesList = createMemo(() => agi.agiMode() ? mergedMessages() : messages())
   const permissions = createMemo(() => {
     if (session()?.parentID) return []
     return children().flatMap((x) => sync.data.permission[x.id] ?? [])
@@ -341,14 +357,13 @@ export function Session() {
   // Helper: Find next visible message boundary in direction
   const findNextVisibleMessage = (direction: "next" | "prev"): string | null => {
     const children = scroll.getChildren()
-    const messagesList = messages()
     const scrollTop = scroll.y
 
     // Get visible messages sorted by position, filtering for valid non-synthetic, non-ignored content
     const visibleMessages = children
       .filter((c) => {
         if (!c.id) return false
-        const message = messagesList.find((m) => m.id === c.id)
+        const message = messagesList().find((m) => m.id === c.id)
         if (!message) return false
 
         // Check if message has valid non-synthetic, non-ignored text parts
@@ -1128,7 +1143,7 @@ export function Session() {
               scrollAcceleration={scrollAcceleration()}
             >
               <box height={1} />
-              <For each={messages()}>
+              <For each={messagesList()}>
                 {(message, index) => (
                   <Switch>
                     <Match when={message.id === revert()?.messageID}>
@@ -1213,8 +1228,14 @@ export function Session() {
                         pending={pending()}
                         lastUserId={lastUserId()}
                       />
+                      <Show when={(message as any)._source === "orch"}>
+                        <text fg={local.agent.color("orchestrator")}>── Orchestrator ──</text>
+                      </Show>
                     </Match>
                     <Match when={message.role === "assistant"}>
+                      <Show when={(message as any)._source === "orch"}>
+                        <text fg={local.agent.color("orchestrator")}>── Orchestrator ──</text>
+                      </Show>
                       <AssistantMessage
                         last={lastAssistant()?.id === message.id}
                         message={message as AssistantMessage}
@@ -1246,7 +1267,7 @@ export function Session() {
                   ref={bind}
                 >
                   <Show when={agi.agiMode()}>
-                    <text>{agi.progressBar()} | orch: {agi.orchStats().messages} msg, ~{agi.orchStats().tokens} tok</text>
+                    <text>{agi.progressBar()} | orch: {agi.orchStats().messages > 0 ? `${agi.orchStats().messages} msg, ~${agi.orchStats().tokens} tok` : "processing..."}</text>
                   </Show>
                   <Prompt
                     visible={visible()}

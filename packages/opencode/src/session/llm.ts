@@ -157,21 +157,27 @@ const live: Layer.Layer<
       })
 
       const system: string[] = []
+      // Checkpoint: input.system is pre-assembled with tools. Skip re-injection
+      // to preserve cache continuity. Only inject tools when system is fresh.
+      const isCheckpoint = input.system.some((s) => s.startsWith("[session:"))
       const dynamicIndex = input.system.findIndex((item) => item.includes("Today's date:"))
-      const stableSystem = dynamicIndex === -1 ? input.system : input.system.slice(0, dynamicIndex)
-      const dynamicSystem = [
-        ...(dynamicIndex === -1 ? [] : input.system.slice(dynamicIndex)),
-        ...(input.user.system ? [input.user.system] : []),
-      ]
-      system.push(
-        [
-          ...(reasoningPrefix ? [reasoningPrefix] : []),
-          // use agent prompt otherwise provider prompt
-          ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
-        ]
-          .filter((x) => x)
-          .join("\n"),
-      )
+      const stableSystem = isCheckpoint ? input.system : (dynamicIndex === -1 ? input.system : input.system.slice(0, dynamicIndex))
+      const dynamicSystem = isCheckpoint
+        ? []
+        : [
+            ...(dynamicIndex === -1 ? [] : input.system.slice(dynamicIndex)),
+            ...(input.user.system ? [input.user.system] : []),
+          ]
+      if (!isCheckpoint) {
+        system.push(
+          [
+            ...(reasoningPrefix ? [reasoningPrefix] : []),
+            ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+          ]
+            .filter((x) => x)
+            .join("\n"),
+        )
+      }
       if (stableSystem.length > 0) system.push(stableSystem.join("\n"))
       if (dynamicSystem.length > 0) system.push(dynamicSystem.join("\n"))
 

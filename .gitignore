@@ -39,6 +39,7 @@ artifacts/
 .tst/
 .opencode/project.db
 packages/opencode/.opencode/data/opencode.db
+docs/opencode.db.sql
 bin/
 bin_tst/
 dist/

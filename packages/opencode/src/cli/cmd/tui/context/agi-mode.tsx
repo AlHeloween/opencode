@@ -188,26 +188,13 @@ export function useAgiMode(currentSessionID?: string) {
     }
   })
 
-  /** Deactivate AGI mode. */
+  /** Deactivate AGI mode — pause, don't destroy. */
   async function deactivate(silent = false) {
     clearTimeout(orchTimer)
     clearTimeout(mainTimer)
     orchTimer = undefined
     mainTimer = undefined
-    const oid = orchSessionID()
-    if (oid) {
-      try { await sdk.client.session.abort({ sessionID: oid }) } catch { /* ok */ }
-    }
-    // If main was auto-created (no currentSession), abort it too
-    if (!currentSessionID) {
-      const mid = mainSessionID()
-      if (mid) {
-        try { await sdk.client.session.abort({ sessionID: mid }) } catch { /* ok */ }
-      }
-    }
-    setOrchSessionID(undefined)
-    setMainSessionID(undefined)
-    setTurnCount(0)
+    // Don't abort orchestrator — reuse on reactivation
     setAgiMode(false)
     if (!silent) toast.show({ message: "AGI mode deactivated", variant: "info" })
   }
@@ -226,33 +213,36 @@ export function useAgiMode(currentSessionID?: string) {
     refreshPlanStatus()
 
     try {
-      // Use current TUI session as main execution — no new session, no wasted tokens.
-      // Falls back to creating a new session if called from app.tsx (no route context).
+      // Use current TUI session as main — reuse if already set
       if (currentSessionID) {
         setMainSessionID(currentSessionID)
-      } else {
+      } else if (!mainSessionID()) {
         const mainRes = await sdk.client.session.create({})
         if (mainRes.error) return
         setMainSessionID(mainRes.data.id)
       }
 
-      // Create orchestrator session
-      const orchRes = await sdk.client.session.create({})
-      if (orchRes.error) return
-      setOrchSessionID(orchRes.data.id)
+      // Reuse existing orchestrator session, or create new one
+      let oid = orchSessionID()
+      if (!oid) {
+        const orchRes = await sdk.client.session.create({})
+        if (orchRes.error) return
+        oid = orchRes.data.id
+        setOrchSessionID(oid)
 
-      // Create memory file if it doesn't exist
-      const dataDir = path.join(Global.Path.data, "memory")
-      if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true })
-      const memoryFile = path.join(dataDir, `${orchRes.data.id}_orchestrator.md`)
-      if (!existsSync(memoryFile)) writeFileSync(memoryFile,
-        `# Orchestrator Memory\n\nCreated: ${new Date().toISOString()}\nSession: ${orchRes.data.id}\n\n---\n\n## Known Issues\n\n## Project Conventions\n\n## Requirements\n\n## Blocked Tasks\n`)
+        // Create memory file if it doesn't exist
+        const dataDir = path.join(Global.Path.data, "memory")
+        if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true })
+        const memoryFile = path.join(dataDir, `${oid}_orchestrator.md`)
+        if (!existsSync(memoryFile)) writeFileSync(memoryFile,
+          `# Orchestrator Memory\n\nCreated: ${new Date().toISOString()}\nSession: ${oid}\n\n---\n\n## Known Issues\n\n## Project Conventions\n\n## Requirements\n\n## Blocked Tasks\n`)
+      }
 
       // Kick off: orchestrator analyzes plans and generates first instruction
       const messageID = MessageID.ascending()
       const activePlans = planData().active.join(", ") || "none"
       await sdk.client.session.promptAsync({
-        sessionID: orchRes.data.id,
+        sessionID: oid,
         messageID,
         agent: "orchestrator",
         parts: [{

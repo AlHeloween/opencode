@@ -607,6 +607,31 @@ export function Session() {
       },
     },
     {
+      title: "Cleanup completed child sessions",
+      value: "session.cleanup",
+      category: "Session",
+      slash: { name: "cleanup" },
+      onSelect: async (dialog) => {
+        const childSessions = sync.data.session.filter(
+          (s) => s.parentID === route.sessionID,
+        )
+        if (childSessions.length === 0) {
+          toast.show({ variant: "info", message: "No child sessions to cleanup", duration: 2000 })
+          dialog.clear()
+          return
+        }
+        let cleaned = 0
+        for (const child of childSessions) {
+          try {
+            await sdk.client.session.delete({ sessionID: child.id })
+            cleaned++
+          } catch { /* skip */ }
+        }
+        toast.show({ variant: "success", message: `Cleaned up ${cleaned}/${childSessions.length} child sessions`, duration: 3000 })
+        dialog.clear()
+      },
+    },
+    {
       title: "Unshare session",
       value: "session.unshare",
       keybind: "session_unshare",

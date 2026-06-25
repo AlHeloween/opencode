@@ -22,13 +22,14 @@ export function DialogNavigation() {
   const sync = useSync()
 
   const rules = createMemo(() => {
-    // Cast through unknown since sync.data.config uses the SDK type
-    // which may not yet include the `navigation` field. The utility
-    // safely handles missing fields.
-    const config = sync.data.config as any
-    const autoGlobs = [Truncate.truncateGlob()]
-    const collected = EffectiveNavigation.collectNavigationRules(config, autoGlobs)
-    return EffectiveNavigation.deduplicateRules(collected)
+    try {
+      const config = sync.data.config as any
+      const autoGlobs = [Truncate.truncateGlob()]
+      const collected = EffectiveNavigation.collectNavigationRules(config, autoGlobs)
+      return EffectiveNavigation.deduplicateRules(collected)
+    } catch {
+      return []
+    }
   })
 
   const allowed = createMemo(() => rules().filter((r) => r.action === "allow"))

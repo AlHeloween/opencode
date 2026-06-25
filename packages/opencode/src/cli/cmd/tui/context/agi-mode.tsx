@@ -28,34 +28,6 @@ import path from "path"
 /** Maximum length of main session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
 
-const MEMORY_TEMPLATE = `# Orchestrator Memory
-
-This file persists across sessions and survives compaction.
-The orchestrator reads it on each turn and updates it with new findings.
-
----
-
-## Known Issues
-
-<!-- Recurring errors and fixes -->
-
-## Project Conventions
-
-<!-- Naming, testing, build patterns -->
-
-## Tool Usage Notes
-
-<!-- Quirks and workarounds -->
-
-## Requirements
-
-<!-- User-specified constraints -->
-
-## Blocked Tasks
-
-<!-- Plan: blocking factor -->
-`
-
 export function useAgiMode() {
   const local = useLocal()
   const sync = useSync()
@@ -238,11 +210,11 @@ export function useAgiMode() {
       setMainSessionID(mainRes.data.id)
 
       // Create memory file if it doesn't exist
-      const worktree = Global.Path.worktree || Global.Path.home
-      const memoryDir = path.join(worktree, "plans", "memory")
-      const memoryFile = path.join(memoryDir, "orchestrator-memory.md")
-      if (!existsSync(memoryDir)) mkdirSync(memoryDir, { recursive: true })
-      if (!existsSync(memoryFile)) writeFileSync(memoryFile, MEMORY_TEMPLATE)
+      const dataDir = path.join(Global.Path.data, "memory")
+      if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true })
+      const memoryFile = path.join(dataDir, `${orchRes.data.id}_orchestrator.md`)
+      if (!existsSync(memoryFile)) writeFileSync(memoryFile,
+        `# Orchestrator Memory\n\nCreated: ${new Date().toISOString()}\nSession: ${orchRes.data.id}\n\n---\n\n## Known Issues\n\n## Project Conventions\n\n## Requirements\n\n## Blocked Tasks\n`)
 
       // Kick off: orchestrator analyzes plans and generates first instruction
       const messageID = MessageID.ascending()

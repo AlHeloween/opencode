@@ -258,3 +258,21 @@ Pause. Go back to Gate 1. Follow every gate in order.
 - `fd -t f <pattern>` — files only (no directories)
 - `fd -e ts <pattern>` — filter by extension
 - NEVER use: `--exec`, `-x`, `--exec-batch`, `-X` (they execute arbitrary commands).
+
+## Agent Memory File
+
+Each agent session has a persistent memory file at:
+`.opencode/data/memory/{sessionID}_{agent}.md`
+
+This file survives compaction. Read it on each turn to restore context
+that would otherwise be lost. Update it with important findings:
+
+- Recurring errors and their fixes
+- Project-specific conventions
+- Tool usage quirks and workarounds
+- User-specified requirements or constraints
+- Decisions made and their rationale
+- Blocked tasks and blocking factors
+
+After compaction, re-read this file to recover lost context.
+Before compaction, update it with all important context from the current session.

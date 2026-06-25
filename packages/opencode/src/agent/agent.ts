@@ -152,7 +152,7 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 edit: {
                   "*": "deny",
-                  [path.join("plans", "memory", "orchestrator-memory.md")]: "allow",
+                  [path.join(".opencode", "data", "memory", "*_orchestrator.md")]: "allow",
                 },
                 write: "deny",
                 bash: "deny",

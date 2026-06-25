@@ -338,8 +338,8 @@ After (single config + encrypted mirror):
 ## Tasks
 
 ### Sub-Goal 1: Schema Extension (1 day)
-- [ ] 1.1 Add `server`, `client`, `features`, `experimental`, `gateway`, `terminal`, `debug`, `paths` schemas to `src/config/config.ts` `Info` type
-- [ ] 1.2 All new fields: `Schema.optional(...)` — existing configs work without migration
+- [x] 1.1 Add `server`, `client`, `features`, `experimental`, `gateway`, `terminal`, `debug`, `paths` schemas to `src/config/config.ts` `Info` type
+- [x] 1.2 All new fields: `Schema.optional(...)` — existing configs work without migration
 - [ ] 1.3 Add JSON Schema `$defs` for each new section at `opencode.ai/config.json`
 
 ### Sub-Goal 2: Env Var Migration Map (1 day)

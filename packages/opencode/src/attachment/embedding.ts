@@ -1,7 +1,9 @@
 export * as AttachmentEmbedding from "./embedding"
 
+import { and, eq } from "drizzle-orm"
 import { Effect } from "effect"
 import type { Info as UniversalAttachment } from "./schema"
+import { PartEmbeddingTable } from "@/session/session.sql"
 import type { Embedding, EmbedOptions } from "./handler"
 import type { Info as EmbeddingConfig } from "@/config/embedding"
 import { registry } from "./registry"
@@ -44,13 +46,20 @@ export function embedAttachment(
 
     for (const provider of providers) {
       for (const model of provider.models) {
-        const existing = db.$client.prepare(
-          `SELECT embedding, embedding_type, position_in_document, content_length FROM part_embedding WHERE part_id = ? AND model_id = ?`
-        ).all(attachment.id, model.id) as Array<{ embedding: string; embedding_type: string; position_in_document: number; content_length: number }>
+        const existing = db
+          .select({
+            embedding: PartEmbeddingTable.embedding,
+            embedding_type: PartEmbeddingTable.embedding_type,
+            position_in_document: PartEmbeddingTable.position_in_document,
+            content_length: PartEmbeddingTable.content_length,
+          })
+          .from(PartEmbeddingTable)
+          .where(and(eq(PartEmbeddingTable.part_id, attachment.id!), eq(PartEmbeddingTable.model_id, model.id)))
+          .all()
 
         if (existing.length > 0) {
           allEmbeddings.push(...existing.map((row) => ({
-            type: row.embedding_type, vector: JSON.parse(row.embedding) as number[],
+            type: row.embedding_type, vector: row.embedding as number[],
             position: row.position_in_document, length: row.content_length,
           })))
           continue
@@ -67,10 +76,22 @@ export function embedAttachment(
 
         for (const emb of modelEmbeddings) {
           const embId = `emb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-          db.$client.prepare(
-            `INSERT INTO part_embedding (id, part_id, session_id, message_id, embedding_type, embedding, position_in_document, content_length, model_id, model_dim, provider_priority, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).run(embId, attachment.id ?? "", attachment.sessionID ?? "", attachment.messageID ?? "",
-            emb.type, JSON.stringify(emb.vector), emb.position, emb.length, model.id, model.dim, model.priority ?? 1, Date.now())
+          db.insert(PartEmbeddingTable)
+            .values({
+              id: embId,
+              part_id: attachment.id ?? "",
+              session_id: (attachment.sessionID ?? "") as import("@/session/schema").SessionID,
+              message_id: (attachment.messageID ?? "") as import("@/session/schema").MessageID,
+              embedding_type: emb.type,
+              embedding: emb.vector,
+              position_in_document: emb.position,
+              content_length: emb.length,
+              model_id: model.id,
+              model_dim: model.dim,
+              provider_priority: model.priority ?? 1,
+              time_created: Date.now(),
+            })
+            .run()
         }
         allEmbeddings.push(...modelEmbeddings)
       }

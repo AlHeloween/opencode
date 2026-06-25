@@ -147,7 +147,9 @@ This achieves the **theoretical maximum** for agentic conversations: one system 
 
 ## Code Changes
 
-### 1. New Module: `session/checkpoint.ts` (NEW, ~300 lines)
+### [x] 1. New Module: `session/checkpoint.ts` (IMPLEMENTED, 129 lines actual)
+
+**Status:** Complete — `src/session/checkpoint.ts` exists with full `save()`/`load()`/`remove()` API, atomic writes, AES-256-GCM encryption reuse from `request-diff.ts`. Actual line count is 129 (compact implementation, not 300 as originally estimated).
 
 ```
 Checkpoint.Service:
@@ -261,13 +263,13 @@ master_plan_description: "Per-model encrypted conversation checkpoint — elimin
 
 SV for checkpoint module:
   Document: plans/20260624_checkpoint_plan.md
-  Done: 0%
-  SV for task 1 — checkpoint.ts new module
-  SV for task 2 — prompt.ts delta integration
-  SV for task 3 — compaction.ts integration
-  SV for task 4 — session.ts cleanup
-  SV for task 5 — request-diff.ts marker
-  SV for task 6 — documentation
+  Done: ~17%
+  [x] SV for task 1 — checkpoint.ts new module
+  [ ] SV for task 2 — prompt.ts delta integration
+  [ ] SV for task 3 — compaction.ts integration
+  [ ] SV for task 4 — session.ts cleanup
+  [ ] SV for task 5 — request-diff.ts marker
+  [ ] SV for task 6 — documentation
 
-Done: 0%
+Done: ~17% (1/6 tasks complete)
 ```

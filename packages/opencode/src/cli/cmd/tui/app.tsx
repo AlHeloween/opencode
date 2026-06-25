@@ -542,8 +542,12 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       slash: {
         name: "agi",
       },
-      onSelect: () => {
-        agi.toggleAgiMode()
+      onSelect: async () => {
+        try {
+          await agi.toggleAgiMode()
+        } catch (err) {
+          console.error("AGI mode toggle failed:", err)
+        }
       },
     },
     {

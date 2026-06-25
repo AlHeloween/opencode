@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, primaryKey, real, type AnySQLiteColumn } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, uniqueIndex, primaryKey, real, type AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import { ProjectTable } from "../project/project.sql"
 import type { MessageV2 } from "./message-v2"
 import type { SessionEntry } from "../v2/session-entry"
@@ -176,4 +176,16 @@ export const CacheFingerprintTable = sqliteTable(
     index("cache_fingerprint_session_idx").on(table.session_id),
   ],
 )
+
+/** Per-turn cache statistics for provider-side KV cache hit rate tracking. */
+export const CacheStatsTable = sqliteTable("cache_stats", {
+  id: text().primaryKey(),
+  session_id: text().notNull(),
+  model_id: text().notNull(),
+  turn: integer().notNull(),
+  timestamp: integer().notNull(),
+  data: text().notNull(),
+}, (table) => [
+  uniqueIndex("cache_stats_session_model_turn_idx").on(table.session_id, table.model_id, table.turn),
+])
 

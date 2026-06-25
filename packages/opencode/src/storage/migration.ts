@@ -1,7 +1,13 @@
 export * as DatabaseMigration from "./migration"
 
 import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite"
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
 import { migrations } from "./migration.gen"
+
+const MigrationTable = sqliteTable("migration", {
+  id: text().primaryKey(),
+  time_completed: integer().notNull(),
+})
 
 /**
  * Minimal interface for the database client — matches the shape of
@@ -42,7 +48,7 @@ export function applyOnly(db: DbClient, input: Migration[]): void {
 
   // Load completed migrations
   const completed = new Set(
-    (sqlite.prepare(`SELECT id FROM migration`).all() as Array<{ id: string }>).map((row) => row.id),
+    db.select({ id: MigrationTable.id }).from(MigrationTable).all().map((row) => row.id),
   )
 
   // Backfill: if no migrations tracked but tables exist, seed baseline
@@ -51,9 +57,10 @@ export function applyOnly(db: DbClient, input: Migration[]): void {
       `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'project'`,
     ).get() as { name: string } | undefined
     if (hasTables) {
-      sqlite.prepare(
-        `INSERT OR IGNORE INTO migration (id, time_completed) VALUES (?, ?)`,
-      ).run("20260601000000_baseline_local_development", now)
+      db.insert(MigrationTable)
+        .values({ id: "20260601000000_baseline_local_development", time_completed: now })
+        .onConflictDoNothing()
+        .run()
       completed.add("20260601000000_baseline_local_development")
     }
   }
@@ -65,14 +72,14 @@ export function applyOnly(db: DbClient, input: Migration[]): void {
       sqlite.exec(`BEGIN`)
       try {
         migration.up(db)
-        sqlite.prepare(`INSERT INTO migration (id, time_completed) VALUES (?, ?)`).run(migration.id, now)
+        db.insert(MigrationTable).values({ id: migration.id, time_completed: now }).run()
         sqlite.exec(`COMMIT`)
       } catch (e) {
         sqlite.exec(`ROLLBACK`)
         throw e
       }
     } else {
-      sqlite.prepare(`INSERT INTO migration (id, time_completed) VALUES (?, ?)`).run(migration.id, now)
+      db.insert(MigrationTable).values({ id: migration.id, time_completed: now }).run()
     }
   }
 }

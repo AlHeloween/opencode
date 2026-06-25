@@ -63,10 +63,17 @@ function createAndInitDb(dbPath: string): DrizzleClient {
     log.error("core schema failed", { error: String(e) })
     throw e
   }
-  try {
-    db.$client.exec(FTS_SCHEMA_SQL)
-  } catch (e) {
-    log.warn("FTS index creation failed (non-fatal)", { error: String(e) })
+  // @sql-intentional: Guard ensures idempotent FTS5 creation. Migration now handles fresh installs.
+  // Safety net for existing databases that haven't run the migration. Remove after next major release.
+  const hasFTS = db.$client
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='part_fts'")
+    .get()
+  if (!hasFTS) {
+    try {
+      db.$client.exec(FTS_SCHEMA_SQL)
+    } catch (e) {
+      log.warn("FTS index creation failed (non-fatal)", { error: String(e) })
+    }
   }
 
   return db

@@ -269,8 +269,28 @@ export const Info = Schema.Struct({
       mcp_timeout: Schema.optional(PositiveInt).annotate({
         description: "Timeout in milliseconds for model context protocol (MCP) requests",
       }),
+      masterSwitch: Schema.optional(Schema.Boolean),
+      httpApi: Schema.optional(Schema.Boolean),
+      fileWatcher: Schema.optional(Schema.Boolean),
+      disableFileWatcher: Schema.optional(Schema.Boolean),
+      planMode: Schema.optional(Schema.Boolean),
+      markdown: Schema.optional(Schema.Boolean),
+      iconDiscovery: Schema.optional(Schema.Boolean),
+      disableCopyOnSelect: Schema.optional(Schema.Boolean),
+      lspTy: Schema.optional(Schema.Boolean),
+      lspTool: Schema.optional(Schema.Boolean),
+      oxfmt: Schema.optional(Schema.Boolean),
+      websockets: Schema.optional(Schema.Boolean),
+      nativeLlm: Schema.optional(Schema.Boolean),
+      eventSystem: Schema.optional(Schema.Boolean),
+      workspaces: Schema.optional(Schema.Boolean),
+      exa: Schema.optional(Schema.Boolean),
+      questionTool: Schema.optional(Schema.Boolean),
+      experimentalModels: Schema.optional(Schema.Boolean),
+      bashTimeoutMs: Schema.optional(Schema.Number),
+      outputTokenMax: Schema.optional(Schema.Number),
     }),
-  ),
+  ).annotate({ description: "Experimental features" }),
   universal_search: Schema.optional(
     Schema.Struct({
       enabled: Schema.optional(Schema.Boolean).annotate({
@@ -294,6 +314,58 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  client: Schema.optional(
+    Schema.Struct({
+      type: Schema.optional(Schema.String).annotate({ description: "Client type identifier for user agent" }),
+    }),
+  ).annotate({ description: "Client configuration" }),
+  features: Schema.optional(
+    Schema.Struct({
+      disablePrune: Schema.optional(Schema.Boolean),
+      disableLspDownload: Schema.optional(Schema.Boolean),
+      disableModelsFetch: Schema.optional(Schema.Boolean),
+      disableMouse: Schema.optional(Schema.Boolean),
+      disableClaudeCode: Schema.optional(Schema.Boolean),
+      disableClaudeCodePrompt: Schema.optional(Schema.Boolean),
+      disableClaudeCodeSkills: Schema.optional(Schema.Boolean),
+      disableExternalSkills: Schema.optional(Schema.Boolean),
+      disableEmbeddedWebUI: Schema.optional(Schema.Boolean),
+      disableChannelDb: Schema.optional(Schema.Boolean),
+      disableProjectConfig: Schema.optional(Schema.Boolean),
+      disableShare: Schema.optional(Schema.Boolean),
+      autoShare: Schema.optional(Schema.Boolean),
+      pure: Schema.optional(Schema.Boolean),
+      strictConfigDeps: Schema.optional(Schema.Boolean),
+      fastBoot: Schema.optional(Schema.Boolean),
+    }),
+  ).annotate({ description: "Feature flags" }),
+  gateway: Schema.optional(
+    Schema.Struct({
+      logDir: Schema.optional(Schema.String).annotate({ description: "Gateway log directory" }),
+    }),
+  ).annotate({ description: "Gateway configuration" }),
+  terminal: Schema.optional(
+    Schema.Struct({
+      mode: Schema.optional(Schema.String).annotate({ description: "Terminal mode" }),
+      disableMouse: Schema.optional(Schema.Boolean),
+    }),
+  ).annotate({ description: "Terminal configuration" }),
+  debug: Schema.optional(
+    Schema.Struct({
+      showTTFD: Schema.optional(Schema.Boolean),
+      autoHeapSnapshot: Schema.optional(Schema.Boolean),
+      fakeVcs: Schema.optional(Schema.Boolean),
+    }),
+  ).annotate({ description: "Debug configuration" }),
+  paths: Schema.optional(
+    Schema.Struct({
+      modelsUrl: Schema.optional(Schema.String),
+      modelsPath: Schema.optional(Schema.String),
+      gitBashPath: Schema.optional(Schema.String),
+      pluginMetaFile: Schema.optional(Schema.String),
+      dbPath: Schema.optional(Schema.String),
+    }),
+  ).annotate({ description: "Path overrides" }),
 })
   .annotate({ identifier: "Config" })
   .pipe(

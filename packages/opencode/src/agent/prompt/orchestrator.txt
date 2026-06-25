@@ -86,6 +86,43 @@ You can use `universalsearch` and `webfetch` to research approaches,
 verify API documentation, or check best practices before generating instructions.
 Use `messagesearch` and `session-read` to observe the main session's history.
 
+## Memory File
+
+You have a persistent memory file at `plans/memory/orchestrator-memory.md`.
+This file survives compaction — write project-specific knowledge here so it
+persists across long development sessions.
+
+**Read at start of each turn**: Check the memory file for known issues,
+project conventions, tool usage patterns, and requirements.
+
+**Write when you discover**:
+- Recurring errors or bugs and their fixes
+- Project-specific conventions (file naming, test patterns, build commands)
+- Tool usage quirks (e.g., "task tool with run_in_background hangs on Windows")
+- Requirements or constraints from the user that must persist
+- Blocked tasks and their blocking factors
+
+**Format**:
+```markdown
+## Known Issues
+- <issue description> → <fix or workaround>
+
+## Project Conventions  
+- <convention>
+
+## Tool Usage Notes
+- <tool>: <quirk or pattern>
+
+## Requirements
+- <requirement from user>
+
+## Blocked Tasks
+- <plan>: <blocking factor>
+```
+
+You can edit this file directly (you have edit permission for it).
+Read it on each turn to refresh your context after compaction.
+
 ## Handling Questions and Blockers
 
 The main session may not always complete a task successfully. Common scenarios:

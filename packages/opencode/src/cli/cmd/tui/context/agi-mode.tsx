@@ -22,9 +22,39 @@ import { useSDK } from "./sdk"
 import { Global } from "@opencode-ai/core/global"
 import { getPlanStatus, formatProgressBar, type PlanStatus } from "@/util/plan-status"
 import { MessageID } from "@/session/schema"
+import { existsSync, mkdirSync, writeFileSync } from "fs"
+import path from "path"
 
 /** Maximum length of main session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
+
+const MEMORY_TEMPLATE = `# Orchestrator Memory
+
+This file persists across sessions and survives compaction.
+The orchestrator reads it on each turn and updates it with new findings.
+
+---
+
+## Known Issues
+
+<!-- Recurring errors and fixes -->
+
+## Project Conventions
+
+<!-- Naming, testing, build patterns -->
+
+## Tool Usage Notes
+
+<!-- Quirks and workarounds -->
+
+## Requirements
+
+<!-- User-specified constraints -->
+
+## Blocked Tasks
+
+<!-- Plan: blocking factor -->
+`
 
 export function useAgiMode() {
   const local = useLocal()
@@ -207,6 +237,13 @@ export function useAgiMode() {
       }
       setMainSessionID(mainRes.data.id)
 
+      // Create memory file if it doesn't exist
+      const worktree = Global.Path.worktree || Global.Path.home
+      const memoryDir = path.join(worktree, "plans", "memory")
+      const memoryFile = path.join(memoryDir, "orchestrator-memory.md")
+      if (!existsSync(memoryDir)) mkdirSync(memoryDir, { recursive: true })
+      if (!existsSync(memoryFile)) writeFileSync(memoryFile, MEMORY_TEMPLATE)
+
       // Kick off: orchestrator analyzes plans and generates first instruction
       const messageID = MessageID.ascending()
       const activePlans = planData().active.join(", ") || "none"
@@ -236,6 +273,30 @@ export function useAgiMode() {
     }
   }
 
+  /** Orchestrator session message count and token estimate. */
+  const orchStats = createMemo(() => {
+    const sid = orchSessionID()
+    if (!sid) return { messages: 0, tokens: 0 }
+    const msgs = sync.data.message[sid] ?? []
+    const parts = msgs.flatMap((m) => sync.data.part[m.id] ?? [])
+    const textLen = parts
+      .filter((p: any) => p.type === "text")
+      .reduce((sum: number, p: any) => sum + (p.text?.length ?? 0), 0)
+    return {
+      messages: msgs.length,
+      tokens: Math.ceil(textLen / 4),
+    }
+  })
+
+  /** Compact the orchestrator session. */
+  async function compactOrchestrator() {
+    const oid = orchSessionID()
+    if (!oid) return
+    try {
+      await sdk.client.session.summarize({ sessionID: oid })
+    } catch { /* may not be supported or session idle */ }
+  }
+
   return {
     agiMode,
     toggleAgiMode,
@@ -243,6 +304,8 @@ export function useAgiMode() {
     mainSessionID,
     planData,
     progressBar,
+    orchStats,
+    compactOrchestrator,
     refreshPlanStatus,
     deactivate,
   }

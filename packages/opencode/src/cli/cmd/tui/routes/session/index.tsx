@@ -1246,7 +1246,7 @@ export function Session() {
                   ref={bind}
                 >
                   <Show when={agi.agiMode()}>
-                    <text>{agi.progressBar()}</text>
+                    <text>{agi.progressBar()} | orch: {agi.orchStats().messages} msg, ~{agi.orchStats().tokens} tok</text>
                   </Show>
                   <Prompt
                     visible={visible()}

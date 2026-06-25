@@ -150,7 +150,10 @@ export const layer = Layer.effect(
             permission: Permission.merge(
               defaults,
               Permission.fromConfig({
-                edit: "deny",
+                edit: {
+                  "*": "deny",
+                  [path.join("plans", "memory", "orchestrator-memory.md")]: "allow",
+                },
                 write: "deny",
                 bash: "deny",
                 task: "deny",

@@ -1,18 +1,19 @@
 /**
  * AGI Mode context — autonomous development orchestration.
  *
- * When AGI mode activates:
- * 1. Creates a parallel hidden session with the orchestrator agent
- * 2. Injects initial message to start autonomous development
- * 3. Auto-continue: watches orchestrator session's pending state,
- *    sends continuation messages automatically
- * 4. Tracks plan completion progress
- * 5. Deactivates by aborting the orchestrator session
+ * Bidirectional flow:
+ *   Orchestrator (hidden session, reasoning) → generates instructions
+ *   Main session (build/plan) → executes, delegates to sub-agents
+ *   Orchestrator observes results → generates next instructions
  *
- * The orchestrator session runs in the background — it reads plans/,
- * delegates implementation to sub-agents (coder, explore), verifies,
- * and moves completed plans to plans_completed/. The main session
- * stays as build/plan, unaffected by AGI mode.
+ * When AGI mode activates:
+ * 1. Records the main session ID
+ * 2. Creates a parallel hidden session with the orchestrator agent
+ * 3. Sends initial message to orchestrator: "Analyze plans/ and generate first instruction"
+ * 4. When orchestrator completes: takes its output text, sends as user message
+ *    to the MAIN session for execution
+ * 5. When main session completes: passes result back to orchestrator for analysis
+ * 6. Loop until all plans completed or user interrupts
  */
 import { createSignal, createMemo, createEffect, onCleanup } from "solid-js"
 import { useLocal } from "./local"
@@ -22,16 +23,19 @@ import { Global } from "@opencode-ai/core/global"
 import { getPlanStatus, formatProgressBar, type PlanStatus } from "@/util/plan-status"
 import { MessageID } from "@/session/schema"
 
+/** Maximum length of main session output to pass back to orchestrator. */
+const MAX_OUTPUT_CHARS = 4000
+
 export function useAgiMode() {
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
   const [agiMode, setAgiMode] = createSignal(false)
+  const [mainSessionID, setMainSessionID] = createSignal<string | undefined>()
   const [orchSessionID, setOrchSessionID] = createSignal<string | undefined>()
   const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], total: 0, completion: 0 })
-  const [continueCount, setContinueCount] = createSignal(0)
+  const [turnCount, setTurnCount] = createSignal(0)
 
-  /** Refresh plan status from disk. */
   function refreshPlanStatus() {
     const worktree = Global.Path.worktree || Global.Path.home
     setPlanData(getPlanStatus(worktree))
@@ -39,64 +43,140 @@ export function useAgiMode() {
 
   const progressBar = createMemo(() => formatProgressBar(planData()))
 
-  /** Whether the orchestrator session has a pending (incomplete) assistant message. */
+  /** Pending state for orchestrator session. */
   const orchPending = createMemo(() => {
     const sid = orchSessionID()
-    if (!sid || !agiMode()) return
+    if (!sid) return
     const msgs = sync.data.message[sid] ?? []
     return msgs.findLast((x) => x.role === "assistant" && !x.time.completed)
   })
 
-  /** Auto-continue: when orchestrator assistant completes, send next continuation. */
-  let wasPending = false
-  createEffect(() => {
-    const p = orchPending()
-    if (!agiMode()) {
-      wasPending = !!p
-      return
+  /** Pending state for main session. */
+  const mainPending = createMemo(() => {
+    const sid = mainSessionID()
+    if (!sid) return
+    const msgs = sync.data.message[sid] ?? []
+    return msgs.findLast((x) => x.role === "assistant" && !x.time.completed)
+  })
+
+  /** Get the last assistant text from a session. */
+  function lastAssistantText(sessionID: string): string {
+    const msgs = sync.data.message[sessionID] ?? []
+    const last = msgs.findLast((x) => x.role === "assistant")
+    if (!last) return ""
+    const parts = sync.data.part[last.id] ?? []
+    return parts
+      .filter((p: any) => p.type === "text")
+      .map((p: any) => p.text ?? "")
+      .join("\n")
+      .slice(0, MAX_OUTPUT_CHARS)
+  }
+
+  /** Send instruction to main session for execution. */
+  async function sendToMain(instruction: string) {
+    const mid = mainSessionID()
+    if (!mid) return false
+    try {
+      await sdk.client.session.promptAsync({
+        sessionID: mid,
+        messageID: MessageID.ascending(),
+        parts: [{ type: "text" as const, text: instruction }],
+      })
+      return true
+    } catch {
+      return false
     }
-    // Transition: was processing → now idle
-    if (wasPending && !p) {
-      wasPending = false
+  }
+
+  /** Send context to orchestrator for analysis. */
+  async function sendToOrchestrator(context: string) {
+    const oid = orchSessionID()
+    if (!oid) return false
+    try {
+      await sdk.client.session.promptAsync({
+        sessionID: oid,
+        messageID: MessageID.ascending(),
+        agent: "orchestrator",
+        parts: [{ type: "text" as const, text: context }],
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Bidirectional auto-continue state machine.
+   *
+   * States:
+   *   IDLE → ORCH_THINKING → MAIN_EXECUTING → ORCH_THINKING → ...
+   *
+   * Transitions:
+   *   orch completes  → send orch output to main  → MAIN_EXECUTING
+   *   main completes  → send main result to orch   → ORCH_THINKING
+   */
+  let wasOrchPending = false
+  let wasMainPending = false
+
+  createEffect(() => {
+    if (!agiMode()) return
+
+    const op = orchPending()
+    const mp = mainPending()
+
+    // Orchestrator just finished thinking → send instruction to main
+    if (wasOrchPending && !op && !mp) {
+      wasOrchPending = false
       refreshPlanStatus()
 
-      // Check if all plans are completed
-      if (planData().active.length === 0) {
-        // All plans done — keep AGI mode active but stop auto-continue
-        return
-      }
+      if (planData().active.length === 0) return // all plans done
 
-      // Send continuation to orchestrator session
-      setTimeout(() => {
-        const sid = orchSessionID()
-        if (!sid) return
-        const n = continueCount() + 1
-        setContinueCount(n)
-        sdk.client.session.promptAsync({
-          sessionID: sid,
-          messageID: MessageID.ascending(),
-          agent: "orchestrator",
-          parts: [{
-            type: "text" as const,
-            text: `Continue autonomous development (turn ${n}). Plans: ${progressBar()}. Pick the next actionable plan and implement it.`,
-          }],
-        }).catch(() => { /* session may have been aborted */ })
+      setTimeout(async () => {
+        const oid = orchSessionID()
+        if (!oid) return
+        const instruction = lastAssistantText(oid)
+        if (instruction) {
+          await sendToMain(instruction)
+        }
       }, 1000)
-    } else {
-      wasPending = !!p
+    }
+    // Main just finished executing → send result to orchestrator
+    else if (wasMainPending && !mp && !op) {
+      wasMainPending = false
+      refreshPlanStatus()
+
+      if (planData().active.length === 0) return
+
+      setTimeout(async () => {
+        const mid = mainSessionID()
+        if (!mid) return
+        const result = lastAssistantText(mid)
+        const t = turnCount() + 1
+        setTurnCount(t)
+        const context = [
+          `Turn ${t} complete. Plan progress: ${progressBar()}.`,
+          result ? `Last execution result:\n${result.slice(0, MAX_OUTPUT_CHARS)}` : "",
+          "Analyze progress against plans/. Check which tasks were completed.",
+          "Generate the next instruction for the main session to execute.",
+        ].filter(Boolean).join("\n\n")
+        await sendToOrchestrator(context)
+      }, 1000)
+    }
+    else {
+      wasOrchPending = !!op
+      wasMainPending = !!mp
     }
   })
 
-  /** Deactivate AGI mode — abort orchestrator session. */
+  /** Deactivate AGI mode. */
   async function deactivate() {
-    const sid = orchSessionID()
-    if (sid) {
-      try {
-        await sdk.client.session.abort({ sessionID: sid })
-      } catch { /* session may already be stopped */ }
+    const oid = orchSessionID()
+    if (oid) {
+      try { await sdk.client.session.abort({ sessionID: oid }) } catch { /* ok */ }
     }
     setOrchSessionID(undefined)
-    setContinueCount(0)
+    setMainSessionID(undefined)
+    setTurnCount(0)
     setAgiMode(false)
   }
 
@@ -111,33 +191,48 @@ export function useAgiMode() {
       return
     }
 
-    // Activate: create parallel orchestrator session
-    const orchestrator = local.agent.list().find((a) => a.name === "orchestrator")
-    if (!orchestrator) return
+    refreshPlanStatus()
 
     try {
-      const res = await sdk.client.session.create({})
-      if (res.error) return
+      // Create orchestrator session
+      const orchRes = await sdk.client.session.create({})
+      if (orchRes.error) return
+      setOrchSessionID(orchRes.data.id)
 
-      const sessionID = res.data.id
-      setOrchSessionID(sessionID)
+      // Create main execution session (separate from current TUI session)
+      const mainRes = await sdk.client.session.create({})
+      if (mainRes.error) {
+        try { await sdk.client.session.abort({ sessionID: orchRes.data.id }) } catch { /* ok */ }
+        return
+      }
+      setMainSessionID(mainRes.data.id)
 
-      // Send initial message to kick off autonomous development
+      // Kick off: orchestrator analyzes plans and generates first instruction
       const messageID = MessageID.ascending()
+      const activePlans = planData().active.join(", ") || "none"
       await sdk.client.session.promptAsync({
-        sessionID,
+        sessionID: orchRes.data.id,
         messageID,
         agent: "orchestrator",
         parts: [{
           type: "text" as const,
-          text: "Start autonomous development. Read the plans/ directory, identify the next actionable plan respecting the dependency graph, and begin implementation by delegating to appropriate sub-agents. Report progress after each completed task.",
+          text: [
+            `Plan progress: ${progressBar()}.`,
+            `Active plans: ${activePlans}.`,
+            `Completed plans: ${planData().completed.length}.`,
+            "",
+            "Analyze the current state. Read the active plans to understand what needs to be done.",
+            "Check the dependency graph in the master plan.",
+            "Generate a clear, specific instruction for the main session to execute next.",
+            "The main session has full edit/write/bash/task permissions and will execute your instruction.",
+            "Focus on ONE actionable task per instruction. Be specific about files and expected outcomes.",
+          ].join("\n"),
         }],
       })
 
-      refreshPlanStatus()
       setAgiMode(true)
     } catch {
-      // Session creation failed — remain inactive
+      // Session creation failed
     }
   }
 
@@ -145,7 +240,7 @@ export function useAgiMode() {
     agiMode,
     toggleAgiMode,
     orchSessionID,
-    orchPending,
+    mainSessionID,
     planData,
     progressBar,
     refreshPlanStatus,

@@ -46,7 +46,13 @@ Independent items (no blocking dependencies):
 
 ## Task Summary
 
-### Priority Tasks (`plans/priority/` — execute first)
+### Emergency Tasks (`plans/emergency/` — fix first)
+
+| ID | Item | Plan File | Effort | Status |
+|----|------|-----------|--------|--------|
+| E1 | Background Job Fixes | `plans/emergency/background_job_fixes.md` | 1-2 days | [ ] Planned |
+
+### Priority Tasks (`plans/priority/` — execute second)
 
 | ID | Item | Plan File | Effort | Status |
 |----|------|-----------|--------|--------|
@@ -67,7 +73,10 @@ Independent items (no blocking dependencies):
 ## Recommended Execution Order
 
 ```
-Phase 0 (Priority — new):
+Phase 0 (Emergency — fix first):
+  Days 1-2: E1 Background Job Fixes (TUI corruption + no output + concurrency cap)
+
+Phase 1 (Priority — new):
   Days 1-10: P1 Config Consolidation (9.5 days) — blocks env var removal in other plans
   Days 11-14: P2 Cache Stats (3.5 days) — independent of config consolidation
 

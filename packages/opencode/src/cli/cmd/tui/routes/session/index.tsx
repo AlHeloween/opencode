@@ -171,7 +171,6 @@ export function Session() {
 
   const compositeMessages = createMemo(() => {
     if (!compositeMode()) return messages()
-    // Merge messages from every session that has data in the store
     const all: any[] = []
     for (const [sid, msgs] of Object.entries(sync.data.message)) {
       if (!msgs?.length) continue

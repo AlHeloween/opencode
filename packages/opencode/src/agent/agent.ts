@@ -143,13 +143,18 @@ export const layer = Layer.effect(
           },
           orchestrator: {
             name: "orchestrator",
+            color: "#90EE50",
             description: `Autonomous development orchestrator — drives plans to completion by delegating implementation to sub-agents and verifying results. Read-only reasoning engine based on ADID Framework Strategist2 + Analyst2 roles. Use in AGI mode for fully autonomous development flow.`,
             options: {},
             prompt: PROMPT_ORCHESTRATOR,
             permission: Permission.merge(
               defaults,
               Permission.fromConfig({
-                edit: "deny",
+                edit: {
+                  "*": "deny",
+                  [path.join("plans", "*.md")]: "allow",
+                  [path.join("plans", "**", "*.md")]: "allow",
+                },
                 write: "deny",
                 bash: {
                   "*": "deny",

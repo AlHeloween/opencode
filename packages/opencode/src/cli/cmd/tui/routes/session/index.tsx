@@ -182,27 +182,6 @@ export function Session() {
     return { id: msg.id, parentID: (msg as { parentID: string }).parentID }
   })
 
-  // AGI mode auto-continue: when assistant finishes processing, trigger next turn
-  let wasPending = false
-  createEffect(() => {
-    const p = pending()
-    if (!agi.agiMode()) {
-      wasPending = !!p
-      return
-    }
-    // Transition: was processing → now idle
-    if (wasPending && !p) {
-      wasPending = false
-      agi.refreshPlanStatus()
-      // Small delay to let the UI settle, then submit a continuation
-      setTimeout(() => {
-        command.trigger("prompt.submit")
-      }, 500)
-    } else {
-      wasPending = !!p
-    }
-  })
-
   const lastUserId = createMemo(() => {
     return messages().findLast((x) => x.role === "user")?.id
   })

@@ -46,10 +46,19 @@ Independent items (no blocking dependencies):
 
 ## Task Summary
 
+### Priority Tasks (`plans/priority/` — execute first)
+
+| ID | Item | Plan File | Effort | Status |
+|----|------|-----------|--------|--------|
+| P1 | Config Consolidation | `plans/priority/config_consolidation.md` | 9.5 days | [ ] Planned |
+| P2 | Cache Stats — Per-Message | `plans/priority/cache_stats.md` | 3.5 days | [ ] Planned |
+
+### Standard Tasks (`plans/`)
+
 | ID | Item | Plan File | Effort | Priority | Status |
 |----|------|-----------|--------|----------|--------|
 | 4.4 | Catalog Service | `plans/20260625_catalog_service_plan.md` | 8-12 days | High | [ ] Planned |
-| 4.5 | Auth V2 | `plans/20260625_auth_v2_plan.md` | 7-10 days | High | [ ] Planned |
+| 4.5 | Auth V2 | `plans/20260625_auth_v2_plan.md` | 15-19 days | High | [ ] Planned |
 | 4.6 | PluginV2 Rename | `plans/20260625_pluginv2_rename_plan.md` | 1 day | Medium | [ ] Blocked by 4.4 |
 | 4.1 | FTS Trigger Migration | `plans/20260625_fts_trigger_migration_plan.md` | 1 day | Low | [ ] Planned |
 | 4.2 | Inline SQL Cleanup | `plans/20260625_inline_sql_cleanup_plan.md` | 3-5 days | Low | [ ] Planned |
@@ -58,7 +67,11 @@ Independent items (no blocking dependencies):
 ## Recommended Execution Order
 
 ```
-Phase 1 (Quick wins, no dependencies):
+Phase 0 (Priority — new):
+  Days 1-10: P1 Config Consolidation (9.5 days) — blocks env var removal in other plans
+  Days 11-14: P2 Cache Stats (3.5 days) — independent of config consolidation
+
+Phase 1 (Quick wins):
   Day 1:    4.1 FTS Trigger Migration (1 day)
   Days 2-6: 4.2 Inline SQL Cleanup (3-5 days)
   
@@ -94,3 +107,4 @@ Each item is complete when:
 | Date | Change |
 |------|--------|
 | 2026-06-25 | Initial master plan with 6 items, all explorer-validated |
+| 2026-06-25 | Added 2 priority plans (P1 Config Consolidation, P2 Cache Stats). Revised Auth V2 plan: removed env var injection, added auth.enc exclusive + server auth → opencode.jsonc. Reasoning confirmed correct — no stripping needed. |

@@ -1288,7 +1288,12 @@ export function Session() {
                   ref={bind}
                 >
                   <Show when={agi.agiMode()}>
-                    <text>{agi.progressBar()} | orch: {agi.orchStats().messages > 0 ? `${agi.orchStats().messages} msg, ~${agi.orchStats().tokens} tok` : "processing..."}</text>
+                    <text fg={local.agent.color("orchestrator")}>
+                      [AGI ●] {agi.progressBar()} | orch: {agi.orchStats().messages > 0 ? `${agi.orchStats().messages} msg, ~${agi.orchStats().tokens} tok` : "thinking..."}
+                    </text>
+                  </Show>
+                  <Show when={!agi.agiMode()}>
+                    <text fg={theme.textMuted}>[AGI ○] disabled</text>
                   </Show>
                   <Prompt
                     visible={visible()}

@@ -50,8 +50,8 @@ Independent items (no blocking dependencies):
 
 | ID | Item | Plan File | Effort | Status |
 |----|------|-----------|--------|--------|
-| E1 | Background Job Fixes | `plans/emergency/background_job_fixes.md` | 1-2 days | [ ] Planned |
-| E2 | Orchestrator Agent + AGI Mode | `plans/emergency/orchestrator_agent_agi_mode.md` | 4 days | [ ] Planned |
+| E1 | Background Job Fixes | `plans_completed/20260625_background_job_fixes.md` | 1-2 days | [x] Done |
+| E2 | Orchestrator Agent + AGI Mode | `plans_completed/20260625_orchestrator_agent_agi_mode.md` | 4 days | [x] Done |
 
 ### Priority Tasks (`plans/priority/` — execute second)
 

@@ -240,8 +240,9 @@ export function useAgiMode() {
       })
 
       setAgiMode(true)
-    } catch {
-      // Session creation failed
+    } catch (err) {
+      console.error("AGI mode activation failed:", err)
+      await deactivate()
     }
   }
 

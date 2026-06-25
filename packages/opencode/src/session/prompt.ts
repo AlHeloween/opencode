@@ -1574,12 +1574,13 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }
 
             const format = lastUser.format ?? { type: "text" as const }
-            const cacheNamespace = lastUser.providerCacheKey ?? sessionID
-            const sessionIdBanner = `[session: ${cacheNamespace}]`
 
             // Attempt to load encrypted checkpoint for this session+model.
-            // Normal turns reuse the checkpointed system prompt exactly. Mutable
-            // prompt sources are refreshed only across compaction boundaries.
+            // Checkpoints are invalidated only on compaction or new session.
+            // Normal turns reuse the checkpointed system prompt exactly.
+            // No banner check — AES-256-GCM authenticated encryption guarantees
+            // integrity. Banner comparisons caused false invalidations wasting
+            // 300K+ tokens on rebuild when session context shifted.
             const checkpoint = yield* Checkpoint.load({
               sessionID,
               providerID: model.providerID,
@@ -1590,7 +1591,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
             const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
             const checkpointUsable =
               checkpoint &&
-              checkpoint.systemPrompt[0] === sessionIdBanner &&
               checkpointHasStructuredPrompt === (format.type === "json_schema")
                 ? checkpoint
                 : undefined
@@ -1605,7 +1605,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 ])
             const system = checkpointUsable
               ? [...checkpointUsable.systemPrompt]
-              : [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
+              : [`[session: ${sessionID}]`, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
             if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
             // Snapshot system before handle.process() may mutate it via plugin hook.

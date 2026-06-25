@@ -1207,7 +1207,7 @@ export function Session() {
                         )
                       })()}
                     </Match>
-                    <Match when={revert()?.messageID && message.id >= revert()!.messageID}>
+                    <Match when={revert()?.messageID && message.id >= revert()!.messageID && (message as any)._source !== "orch"}>
                       <></>
                     </Match>
                     <Match when={message.role === "user"}>
@@ -1218,7 +1218,7 @@ export function Session() {
                           dialog.replace(() => (
                             <DialogMessage
                               messageID={message.id}
-                              sessionID={route.sessionID}
+                              sessionID={((message as any)._source === "orch" ? agi.orchSessionID() : undefined) ?? route.sessionID}
                               setPrompt={(promptInfo) => prompt?.set(promptInfo)}
                             />
                           ))

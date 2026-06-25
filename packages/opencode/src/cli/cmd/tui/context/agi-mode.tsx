@@ -121,6 +121,8 @@ export function useAgiMode() {
    */
   let wasOrchPending = false
   let wasMainPending = false
+  let orchTimer: ReturnType<typeof setTimeout> | undefined
+  let mainTimer: ReturnType<typeof setTimeout> | undefined
 
   createEffect(() => {
     if (!agiMode()) return
@@ -135,7 +137,8 @@ export function useAgiMode() {
 
       if (planData().active.length === 0) return // all plans done
 
-      setTimeout(async () => {
+      clearTimeout(orchTimer)
+      orchTimer = setTimeout(async () => {
         const oid = orchSessionID()
         if (!oid) return
         const instruction = lastAssistantText(oid)
@@ -151,12 +154,17 @@ export function useAgiMode() {
 
       if (planData().active.length === 0) return
 
-      setTimeout(async () => {
+      clearTimeout(mainTimer)
+      mainTimer = setTimeout(async () => {
         const mid = mainSessionID()
         if (!mid) return
         const result = lastAssistantText(mid)
         const t = turnCount() + 1
         setTurnCount(t)
+        // Compact orchestrator context every 5 turns
+        if (t % 5 === 0) {
+          compactOrchestrator().catch(() => {})
+        }
         const context = [
           `Turn ${t} complete. Plan progress: ${progressBar()}.`,
           result ? `Last execution result:\n${result.slice(0, MAX_OUTPUT_CHARS)}` : "",
@@ -173,7 +181,11 @@ export function useAgiMode() {
   })
 
   /** Deactivate AGI mode. */
-  async function deactivate() {
+  async function deactivate(silent = false) {
+    clearTimeout(orchTimer)
+    clearTimeout(mainTimer)
+    orchTimer = undefined
+    mainTimer = undefined
     const oid = orchSessionID()
     if (oid) {
       try { await sdk.client.session.abort({ sessionID: oid }) } catch { /* ok */ }
@@ -182,7 +194,7 @@ export function useAgiMode() {
     setMainSessionID(undefined)
     setTurnCount(0)
     setAgiMode(false)
-    toast.show({ message: "AGI mode deactivated", variant: "info" })
+    if (!silent) toast.show({ message: "AGI mode deactivated", variant: "info" })
   }
 
   onCleanup(() => {
@@ -247,7 +259,7 @@ export function useAgiMode() {
     } catch (err) {
       console.error("AGI mode activation failed:", err)
       toast.show({ message: `AGI mode failed: ${err instanceof Error ? err.message : String(err)}`, variant: "error" })
-      await deactivate()
+      await deactivate(true)
     }
   }
 

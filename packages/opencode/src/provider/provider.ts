@@ -1311,8 +1311,8 @@ const layer: Layer.Layer<
 
         for (const hook of plugins) {
           const p = hook.catalog
-          const models = p?.transform
-          if (!p || !models) continue
+          const transform = p?.transform
+          if (!p || !transform) continue
 
           const providerID = ProviderID.make(p.id)
           if (disabled.has(providerID)) continue
@@ -1322,7 +1322,7 @@ const layer: Layer.Layer<
           const pluginAuth = yield* auth.get(providerID).pipe(Effect.orDie)
 
           provider.models = yield* Effect.promise(async () => {
-            const next = await models(provider, { auth: pluginAuth })
+            const next = await transform(provider, { auth: pluginAuth })
             return Object.fromEntries(
               Object.entries(next).map(([id, model]) => [
                 id,

@@ -66,7 +66,7 @@ Independent items (no blocking dependencies):
 |----|------|-----------|--------|----------|--------|
 | 4.4 | Catalog Service | `plans/20260625_catalog_service_plan.md` | 8-12 days | High | [ ] Planned |
 | 4.5 | Auth V2 | `plans/20260625_auth_v2_plan.md` | 15-19 days | High | [ ] Planned |
-| 4.6 | PluginV2 Rename | `plans/20260625_pluginv2_rename_plan.md` | 1 day | Medium | [ ] Blocked by 4.4 |
+| 4.6 | PluginV2 Rename | `plans_completed/20260625_pluginv2_rename_plan.md` | 1 day | Medium | [x] Done |
 | 4.1 | FTS Trigger Migration | `plans_completed/20260625_fts_trigger_migration_plan.md` | 1 day | Low | [x] Done |
 | 4.2 | Inline SQL Cleanup | `plans_completed/20260625_inline_sql_cleanup_plan.md` | 3-5 days | Low | [x] Done |
 | 4.3 | HTTP API v2 | `plans/20260625_http_api_v2_plan.md` | 2-4 weeks | Medium | [ ] Planned |

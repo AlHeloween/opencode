@@ -28,8 +28,10 @@ export const PricingConfig = Schema.Struct({
 export type PricingConfig = typeof PricingConfig.Type
 
 export const TokenizerConfig = Schema.Struct({
-  model: Schema.String,
-  pattern: Schema.optional(Schema.String),
+  source: Schema.Literals(["bundled", "huggingface", "tiktoken"]),
+  path: Schema.optional(Schema.String),
+  repo: Schema.optional(Schema.String),
+  type: Schema.Literals(["bpe", "openai", "custom"]),
 })
 export type TokenizerConfig = typeof TokenizerConfig.Type
 
@@ -81,3 +83,30 @@ export interface CatalogInterface {
 }
 
 export class Catalog extends Context.Service<Catalog, CatalogInterface>()("@opencode/Catalog") {}
+
+const BUILTIN_TOKENIZERS: Record<string, typeof TokenizerConfig.Type> = {
+  "deepseek-v4-pro": { source: "bundled", path: "deepseek-v4", type: "bpe" },
+  "deepseek-v4-flash": { source: "bundled", path: "deepseek-v4", type: "bpe" },
+  "*deepseek-v4*": { source: "bundled", path: "deepseek-v4", type: "bpe" },
+  "kat-coder-pro-v2": { source: "bundled", path: "qwen3", type: "bpe" },
+  "kwaipilot/kat-coder-pro-v2": { source: "bundled", path: "qwen3", type: "bpe" },
+  "*kat-coder*": { source: "bundled", path: "qwen3", type: "bpe" },
+  "*qwen3*": { source: "bundled", path: "qwen3", type: "bpe" },
+  "*Qwen3*": { source: "bundled", path: "qwen3", type: "bpe" },
+  "gpt-5": { source: "tiktoken", path: "o200k_base", type: "openai" },
+  "*gpt-5*": { source: "tiktoken", path: "o200k_base", type: "openai" },
+  "*gpt-4o*": { source: "tiktoken", path: "o200k_base", type: "openai" },
+  "*gpt-4*": { source: "tiktoken", path: "cl100k_base", type: "openai" },
+  "*gpt-3.5*": { source: "tiktoken", path: "cl100k_base", type: "openai" },
+}
+
+export function resolveTokenizer(modelID: string): typeof TokenizerConfig.Type | undefined {
+  if (BUILTIN_TOKENIZERS[modelID]) return BUILTIN_TOKENIZERS[modelID]
+  for (const [pattern, config] of Object.entries(BUILTIN_TOKENIZERS)) {
+    if (pattern.includes("*")) {
+      const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$", "i")
+      if (regex.test(modelID)) return config
+    }
+  }
+  return undefined
+}

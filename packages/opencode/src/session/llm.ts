@@ -159,18 +159,20 @@ const live: Layer.Layer<
 
       const system: string[] = []
       const isCheckpoint = input.checkpoint === true
-      // Reasoning prefix + provider prompt define the model's identity.
-      // Always injected — not stored in checkpoints. This means updating
-      // reasoning.txt in a new binary takes effect immediately (with a
-      // one-time cache miss per session, which is the correct tradeoff).
-      system.push(
-        [
-          ...(reasoningPrefix ? [reasoningPrefix] : []),
-          ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
-        ]
-          .filter((x) => x)
-          .join("\n"),
-      )
+      // Checkpoints are self-contained — they include reasoning prefix +
+      // provider prompt saved at creation time. Only inject these on the
+      // first turn (no checkpoint). This keeps checkpoints immune to
+      // binary updates that change reasoning.txt.
+      if (!isCheckpoint) {
+        system.push(
+          [
+            ...(reasoningPrefix ? [reasoningPrefix] : []),
+            ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+          ]
+            .filter((x) => x)
+            .join("\n"),
+        )
+      }
       // Stable system prompt — always pushed. Dates go to user messages only.
       if (input.system.length > 0) system.push(input.system.join("\n"))
       // User system message (non-checkpoint only) — volatile, excluded from cache.

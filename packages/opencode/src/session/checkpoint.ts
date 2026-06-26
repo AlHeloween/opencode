@@ -20,7 +20,7 @@ import {
 } from "./request-diff"
 import type { ModelMessage } from "ai"
 
-export const CHECKPOINT_VERSION = 1
+export const CHECKPOINT_VERSION = 2
 export const CHECKPOINT_KIND = "checkpoint" as const
 const CHECKPOINT_DIR = ".checkpoints"
 

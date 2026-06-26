@@ -1360,7 +1360,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 })
                 return "continue" as const
               }
-            const systemForCheckpoint = [...system]
+              const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
+              const providerPrompt = SystemPrompt.provider(model).join("\n")
+              const identityPrefix = [reasoningPrefix, providerPrompt].filter((x) => x).join("\n")
+              const systemForCheckpoint = identityPrefix ? [identityPrefix, ...system] : [...system]
               yield* Effect.forkIn(scope)(
                 Effect.gen(function* () {
                   const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
@@ -1766,7 +1769,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }
             // Save encrypted checkpoint after successful turn.
             // Fire-and-forget — don't block the loop on I/O.
-            const systemForCheckpoint = [...system]
+            const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
+            const providerPrompt = SystemPrompt.provider(model).join("\n")
+            const identityPrefix = [reasoningPrefix, providerPrompt].filter((x) => x).join("\n")
+            const systemForCheckpoint = identityPrefix ? [identityPrefix, ...system] : [...system]
             yield* Effect.forkIn(scope)(
               Effect.gen(function* () {
                 const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)

@@ -1360,7 +1360,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 })
                 return "continue" as const
               }
-              const systemForCheckpoint = [...system]
+            const systemForCheckpoint = [...system]
               yield* Effect.forkIn(scope)(
                 Effect.gen(function* () {
                   const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)

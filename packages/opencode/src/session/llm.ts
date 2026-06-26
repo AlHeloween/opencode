@@ -159,8 +159,10 @@ const live: Layer.Layer<
 
       const system: string[] = []
       const isCheckpoint = input.checkpoint === true
-      // Reasoning prefix and provider/agent prompt are always injected —
-      // they define the model's identity and must never be stripped.
+      // Reasoning prefix + provider prompt define the model's identity.
+      // Always injected — not stored in checkpoints. This means updating
+      // reasoning.txt in a new binary takes effect immediately (with a
+      // one-time cache miss per session, which is the correct tradeoff).
       system.push(
         [
           ...(reasoningPrefix ? [reasoningPrefix] : []),

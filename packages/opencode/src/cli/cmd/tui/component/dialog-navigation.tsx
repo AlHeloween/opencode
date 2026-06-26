@@ -26,7 +26,14 @@ export function DialogNavigation() {
       const config = sync.data.config as any
       const autoGlobs = [Truncate.truncateGlob()]
       const collected = EffectiveNavigation.collectNavigationRules(config, autoGlobs)
-      return EffectiveNavigation.deduplicateRules(collected)
+      const deduped = EffectiveNavigation.deduplicateRules(collected)
+      // Strip SolidJS reactive proxies — reconcile() wraps objects in
+      // getter proxies that fail @opentui/core <text> strict typeof checks.
+      return deduped.map((r) => ({
+        action: r.action,
+        displayPath: String(r.displayPath),
+        source: String(r.source),
+      }))
     } catch {
       return []
     }

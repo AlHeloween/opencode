@@ -66,6 +66,8 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 - **Plan-to-code gaps are bugs.** A plan claiming `[ ]` when code is done, or `[x]` when code is missing, is a bug — correct the plan immediately.
 - **Deduplicate overlapping plans.** If two active plans track the same item, pick one as canonical and remove from the other.
 - **Use `messagesearch` to verify task completion.** Before implementing any task, search conversation history for prior work on the same item. Re-doing completed work is a bug. If the task was already done, update the plan — never re-implement.
+- **Cross-reference grounding.** When reading a plan that references subordinate plan files at specific paths, verify against both `plans/` AND `plans_completed/` before reporting the subordinate's status. A reference found in `plans_completed/` means the master plan is stale — update it, don't propagate the error.
+- **Master plan synchronization.** After moving a plan to `plans_completed/`, scan all active plans in `plans/` for references to it. Update any tracking/master plan that lists the completed item — mark it `[x]` Done or move it to a "completed" section. A master plan with stale task status is a plan-to-code gap.
 
 ## Style Guide
 

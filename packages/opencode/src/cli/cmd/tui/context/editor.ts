@@ -231,7 +231,7 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
 
     return {
       enabled() {
-        return Boolean(resolveEditorConnection() || resolveZedDbPath())
+        return Boolean(resolveEditorConnection() || resolveZedDbPath() || process.env.VISUAL || process.env.EDITOR)
       },
       connected() {
         return store.status === "connected"

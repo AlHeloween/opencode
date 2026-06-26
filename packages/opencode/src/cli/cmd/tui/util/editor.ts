@@ -5,10 +5,14 @@ import { join } from "node:path"
 import { CliRenderer } from "@opentui/core"
 import { Filesystem } from "@/util/filesystem"
 import { Process } from "@/util/process"
+import * as Log from "@opencode-ai/core/util/log"
 
 export async function open(opts: { value: string; renderer: CliRenderer }): Promise<string | undefined> {
   const editor = process.env["VISUAL"] || process.env["EDITOR"]
-  if (!editor) return
+  if (!editor) {
+    Log.Default.warn("bug: editor not configured — set $EDITOR or $VISUAL")
+    return
+  }
 
   const filepath = join(tmpdir(), `${Date.now()}.md`)
   await using _ = defer(async () => rm(filepath, { force: true }))

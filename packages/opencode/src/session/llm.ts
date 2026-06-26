@@ -158,10 +158,20 @@ const live: Layer.Layer<
       })
 
       const system: string[] = []
-      // Checkpoint: input.system is pre-assembled with tools. Skip re-injection
-      // to preserve cache continuity. Only inject tools when system is fresh
-      // (no checkpoint) or after compaction (checkpoint invalidated).
       const isCheckpoint = input.checkpoint === true
+      // Reasoning prefix and provider/agent prompt are always injected —
+      // they define the model's identity and must never be stripped.
+      system.push(
+        [
+          ...(reasoningPrefix ? [reasoningPrefix] : []),
+          ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+        ]
+          .filter((x) => x)
+          .join("\n"),
+      )
+      // Volatile content (date, user system) goes to a second system message
+      // so the cache marker can exclude it. Checkpoints skip dynamic content
+      // entirely — dates must only appear in user messages.
       const dynamicIndex = input.system.findIndex((item) => item.includes("Today's date:"))
       const stableSystem = isCheckpoint ? input.system : (dynamicIndex === -1 ? input.system : input.system.slice(0, dynamicIndex))
       const dynamicSystem = isCheckpoint
@@ -170,16 +180,6 @@ const live: Layer.Layer<
             ...(dynamicIndex === -1 ? [] : input.system.slice(dynamicIndex)),
             ...(input.user.system ? [input.user.system] : []),
           ]
-      if (!isCheckpoint) {
-        system.push(
-          [
-            ...(reasoningPrefix ? [reasoningPrefix] : []),
-            ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
-          ]
-            .filter((x) => x)
-            .join("\n"),
-        )
-      }
       if (stableSystem.length > 0) system.push(stableSystem.join("\n"))
       if (dynamicSystem.length > 0) system.push(dynamicSystem.join("\n"))
 

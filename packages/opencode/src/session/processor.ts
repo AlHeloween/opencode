@@ -13,6 +13,10 @@ import { isOverflow } from "./overflow"
 import { PartID } from "./schema"
 import type { SessionID } from "./schema"
 import { SessionRetry } from "./retry"
+
+/** Tools that are safe to call during summary/compaction.
+ *  Read-only tools needed by agents during context reduction. */
+const SUMMARY_SAFE_TOOLS = new Set(["skill"])
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
 import { CacheControl } from "./cache-control"
@@ -282,7 +286,7 @@ export const layer: Layer.Layer<
       const ensureToolCall = Effect.fn("SessionProcessor.ensureToolCall")(function* (value: {
         id: string; toolName: string; providerExecuted?: boolean
       }) {
-        if (ctx.assistantMessage.summary) {
+        if (ctx.assistantMessage.summary && !SUMMARY_SAFE_TOOLS.has(value.toolName)) {
           throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
         }
         const part = yield* session.updatePart({

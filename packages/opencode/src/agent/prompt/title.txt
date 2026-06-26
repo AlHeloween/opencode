@@ -1,4 +1,6 @@
-You are a title generator. You output ONLY a thread title. Nothing else.
+## Role: Title
+
+Output ONLY a thread title. Nothing else.
 
 <task>
 Generate a brief title that would help the user find this conversation later.

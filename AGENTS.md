@@ -55,6 +55,32 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 | `src/session/compaction.ts` | Compaction message creation | Same agent as original turn; `summary: true` on assistant |
 | `src/session/message-v2.ts` | Message conversion | No mutable injection in `toModelMessagesEffect` |
 
+## Conversation Checkpoint System
+
+Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn prompt assembly and reduce DB reads to delta messages only.
+
+**How it works:**
+- After every successful provider response, the full model-ready state (system prompt + AI SDK messages) is encrypted (AES-256-GCM) and written to `{log}/.checkpoints/{provider}_{model}_{sid}.enc`
+- On startup or model switch, the checkpoint is loaded — system prompt + messages are ready without DB query or prompt assembly
+- Only messages NOT in the checkpoint (deltas) are loaded from DB and converted
+- On failure, the checkpoint is untouched — automatic rollback to previous known-good state
+
+**Files:**
+| File | Role |
+|------|------|
+| `src/session/checkpoint.ts` | Save/load/remove checkpoints, AES-256-GCM encryption (reuses `request-diff.ts` crypto) |
+| `src/session/prompt.ts` | Loads checkpoint at turn start (line 1602), saves after successful response (line 1767) |
+| `src/session/request-diff.ts` | Provides `deriveKey`/`encryptBaseline`/`decryptBaseline` — shared crypto primitives |
+
+**Namespaces:**
+- Checkpoints: `{log}/.checkpoints/` — per-model conversation state
+- Request-diff baselines: `{log}/.baselines/` — per-request diff snapshots
+- Separate directories, no collision possible
+
+**Compaction integration:** Compaction operates on checkpoint-loaded messages. After compaction produces a summary, `Checkpoint.save()` captures the new state. The pre-compaction checkpoint is used for diff logging (prompt.ts:1325). On the next turn, the compacted checkpoint is loaded with zero DB reads for old messages.
+
+**Rollback safety:** Atomic write via temp file + rename — no partial state ever touches disk.
+
 ## Discovery Rule
 
 - **Before reporting any file or module as "not found" or "missing", run `fd` to search for it.** `fd` searches ignored directories too; `glob`/`list` are bounded by `.gitignore`. Guessing absence without discovery is a bug. Same applies to "module X doesn't exist" claims — search first, report after.

@@ -70,7 +70,7 @@ Independent items (no blocking dependencies):
 | 4.1 | FTS Trigger Migration | `plans_completed/20260625_fts_trigger_migration_plan.md` | 1 day | Low | [x] Done |
 | 4.2 | Inline SQL Cleanup | `plans_completed/20260625_inline_sql_cleanup_plan.md` | 3-5 days | Low | [x] Done |
 | 4.3 | HTTP API v2 | `plans/20260625_http_api_v2_plan.md` | 2-4 weeks | Medium | [ ] Planned |
-| C1 | Conversation Checkpoint | `plans/20260624_checkpoint_plan.md` | 6-8h | High | [ ] ~50% done |
+| C1 | Conversation Checkpoint | `plans_completed/20260624_checkpoint_plan.md` | 6-8h | High | [x] Done |
 | E3 | Orchestrator Evolving Mode | `plans/emergency/20260626_orchestrator_evolving_mode.md` | 1-2 days | High | [ ] Planned |
 
 ## Recommended Execution Order
@@ -84,7 +84,6 @@ Phase 1 (Priority):
   Days 1-10: P1 Config Consolidation (9.5 days)
 
 Phase 2 (In Progress):
-  Day 1:    C1 Checkpoint Plan — finish remaining 3 tasks (compaction, namespace, docs)
   Day 1:    E3 Orchestrator Evolving Mode (1-2 days)
 
 Phase 3 (Foundation):

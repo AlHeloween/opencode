@@ -390,7 +390,7 @@ export const layer: Layer.Layer<
 
           case "tool-call": {
             ctx.toolCallEmitted = true
-            if (ctx.assistantMessage.summary) {
+            if (ctx.assistantMessage.summary && !SUMMARY_SAFE_TOOLS.has(value.toolName)) {
               throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
             }
             yield* updateToolCall(value.toolCallId, (match) => ({

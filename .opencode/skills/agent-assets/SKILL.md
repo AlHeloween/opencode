@@ -1,6 +1,6 @@
 ---
 name: agent-assets
-description: Maintain canonical artefacts and install agent receiver scaffolds (.cursor/.codex/~/.codex/.opencode).
+description: Maintain agent receiver scaffolds (.cursor, .codex, .opencode).
 ---
 
 # agent-assets
@@ -10,20 +10,10 @@ description: Maintain canonical artefacts and install agent receiver scaffolds (
 - Rules: `artefacts/rules/`
 - Skills: `artefacts/skills/`
 
-Agent folders are receivers (safe to delete): `.cursor/`, `.codex/`, `~/.codex/`, `.opencode/`.
+Agent folders are receivers (safe to delete/ recreate): `.cursor/`, `.codex/`, `.opencode/`.
 
 ## Workflow
 
-1. Edit canonical assets under the asset-source repository's rules and/or skills folders.
-2. Regenerate derived artefacts and scaffolds using that repository's real asset build command.
-
-Concrete fixture for expected script names: `artefacts/examples/project-agnostic/scripts/`.
-
-3. Install scaffolds into receivers using the repository's real sync command.
-
-Replace the fixture paths with real project scripts before running commands.
-
-## Targets
-
-- Install only one receiver:
-  - `python <real_asset_pipeline>/sync_agent_assets.py --targets opencode`
+1. Edit canonical assets under `artefacts/rules/` or `artefacts/skills/`
+2. Run `python scripts/build_artefacts.py`
+3. Run `python scripts/sync_agent_assets.py`

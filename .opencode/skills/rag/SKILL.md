@@ -36,7 +36,7 @@ adm --query my_project "how does the DQ signature work?"
 - `adm-rag --rag-status` prints the full environment status.
 - Default embedder: `BAAI/bge-base-en-v1.5` (768D) via `sentence_transformers`.
 - **`fd`** is bundled in `tools/` and used for gitignore-aware file discovery.
-- If running from the frozen `adm-rag.exe` without torch, the binary auto-delegates to the system `adm` (pip-installed) via `ADID_RAG_DELEGATE`.
+- If running from the frozen `adm-rag.exe` without torch, the binary auto-delegates to the system `adm` (pip-installed).
 
 ## Commands
 

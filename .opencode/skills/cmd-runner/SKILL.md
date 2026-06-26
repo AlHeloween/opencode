@@ -58,9 +58,6 @@ All subprocesses created by cmd_runner open with `SW_SHOWMINNOACTIVE`:
   - `.\cmd_runner.exe ...` (Delphi binary at repo root)
 - Release bundle:
   - `cmd_runner.exe ...` (preferred; no project package manager required)
-- Via adm (integration; keeps a single progress-log cycle):
-  - `tools/adm.exe --cmd-runner <cmd_runner args...>`
-  - Example: `tools/adm.exe --cmd-runner start -- <command ...>`
 
 ## Core workflow
 

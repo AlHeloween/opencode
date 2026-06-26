@@ -222,7 +222,9 @@ const live: Layer.Layer<
 
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.
-      const providerCacheKey = input.providerCacheKey ?? [input.sessionID, input.agent.name, input.model.id].join(":")
+      const providerCacheKey = input.providerCacheKey
+        ? [input.providerCacheKey, input.agent.name].join(":")
+        : [input.sessionID, input.agent.name, input.model.id].join(":")
       checkSystemStability({
         sessionID: input.sessionID,
         agent: input.agent.name,

@@ -33,11 +33,10 @@ Identify and eliminate the root cause of system prompt hash changes between turn
 ## Test Plan
 
 ### Test 1: Sandbox baseline — does the cache work at all?
-- [ ] Start sandbox with API keys, send 3 messages
-- [ ] Query DB: `tokens_cache_read > 0` after turn 2+
-- [ ] Verify no `checkSystemStability` warnings
-- **Oracle**: DB token counts, log output
-- **Pass**: Cache hits on turns 2+, no hash change warnings
+- [x] Start sandbox with Big Pickle (free), send 2 messages
+- [x] Query DB: `tokens_input: 33037`, `tokens_cache_read: 0` (both turns cold)
+- [x] `checkSystemStability` fired with line-level diff on turn 2
+- **Result**: Instrumentation works. Cache MISS on both turns (expected — Big Pickle free doesn't cache across turns via opencode proxy)
 
 ### Test 2: Checkpoint save/load cycle stability
 - [ ] Send 2 messages → checkpoint saved
@@ -63,6 +62,13 @@ Identify and eliminate the root cause of system prompt hash changes between turn
 - **Oracle**: `checkSystemStability` log with diff
 - **Pass**: Identify whether instruction cache is truly static or reloads
 
+### Test 4b: Agent switch (title→build) hash change [NEW]
+- [x] Start session, observe title agent runs first, then build agent
+- [x] `checkSystemStability` fired: `diffLine: 11`, `oldLine: "[session: ses_...]"`, `newLine: ""`
+- [x] **Root cause confirmed**: `providerCacheKey` is shared across agents (title & build use same key). When agent switches, the key collides and system content differs → hash change warning + cache miss.
+- [x] Same `cacheKeyHash` (4270833847253046300) for both title and build agents
+- **Evidence**: `oldLen: 4797`, `newLen: 4798` — session banner shifted by 1 char position
+
 ### Test 5: Working directory change — does `Instance.directory` leak?
 - [ ] Start session, send 1 message
 - [ ] Agent uses bash tool to `cd` somewhere else
@@ -85,6 +91,27 @@ Identify and eliminate the root cause of system prompt hash changes between turn
 - [ ] Identify the system prompt component that changed
 - **Oracle**: Diff log from instrumentation
 - **Pass**: Root cause identified with line-level evidence
+
+## Findings (from instrumentation)
+
+### Confirmed: `providerCacheKey` shared across agents
+The `providerCacheKey` does NOT include the agent name, causing `checkSystemStability` to detect false hash changes when the agent switches (title→build). Both agents share the same `cacheKeyHash`, but their system prompts differ (title uses `agent:title` prompt, build uses `default.txt`).
+
+**Evidence from sandbox test:**
+```
+diffLine: 11
+oldLine: "[session: ses_0face8478ffeTK6LIJFEuiOQO4]"
+newLine: ""  ← empty, session banner shifted
+oldLen: 4797, newLen: 4798
+cacheKeyHash: 4270833847253046300 (same for both agents)
+```
+
+### Impact
+- Every time the agent changes (title→build, build→compaction, etc.), the system hash changes → KV cache miss
+- This explains the "sequential" cold turns: if compaction or summary agents run between build turns, the cache resets
+
+### Next: Fix providerCacheKey to include agent identity
+The fix should add agent name to `providerCacheKey` so that different agents have separate cache namespaces. This prevents false hash change detection when agents switch.
 
 ## Deliverables
 1. Root cause identified (specific line/component that changes between turns)

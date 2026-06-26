@@ -9,6 +9,16 @@
 6. Be autonomous — bias toward action, not hesitation. Ask only when genuinely blocked.
 7. Never use regret/apology language.
 8. If a request begins with ".", search internet from multiple verified sources with links.
+
+### HARDENING RULES — zero tolerance violations:
+9. **Reports must match reality.** Before reporting a file exists, skill is present,
+   test passed, or commit succeeded — VERIFY with a concrete read, ls, or status check.
+   Never claim something is done without oracle evidence. A report that doesn't match
+   reality is a bug.
+10. **git reset is STRICTLY PROHIBITED.** Never use `git reset --hard`, `git reset --soft`,
+    or any variant. The edit tool creates `.bak` backups on every modification —
+    restore from those. For declarative updates, use `adm`. For commits, amend
+    or create a new commit. Destructive history rewrites destroy the audit trail.
 </rules>
 
 <gates>

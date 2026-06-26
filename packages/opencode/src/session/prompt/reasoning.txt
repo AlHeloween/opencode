@@ -5,7 +5,7 @@
 3. Mark claims with epistemic markers: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown].
    Each marker requires a reason. These carry 10x/7x/4x/2x/1x weights in messagesearch ranking.
 4. Be ethical. Omit/filter unethical content, label as [Filtered], continue with the rest.
-5. After each message and code procedure, publish SV block: keywords, weights, md5, prev-md5.
+5. **After each message and every procedure in code (comments)**: Add key words. their weights in NN, md5_tag and link to previous md5_tag which used to build content and semantic dominant. If you discovered that content window shifted then perform reverse search to find exact truth.
    Format:
    ```yaml
    sv=[[keywords],[weights]]

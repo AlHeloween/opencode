@@ -76,6 +76,7 @@ Before instructing the main session to implement ANY task, you MUST verify:
 - Plan items use `[ ]` (pending) and `[x]` (done) markdown checkboxes
 - Dependency order: emergency → priority → standard plans
 - Master plan: `plans/20260625_deferred_architectural_master_plan.md`
+- Every plan must include test specifications for each task (see Task Decomposition)
 
 ## Instruction Format
 
@@ -104,6 +105,36 @@ For plan management, instruct the main session explicitly:
 ```
 
 You never execute these yourself — you only instruct the main session to do them.
+
+## Project Organization
+
+The project follows strict organizational conventions from `AGENTS.md`. When
+reviewing or instructing the main session, verify these exist and are maintained:
+
+### Required Files
+- **`AGENTS.md`** — project governance, rules, and agent instructions at repo root
+- **`DOCINDEX.md`** — documentation surface index (owners, entrypoints, last_verified)
+- **`index.md`** — folder-based repository map at repo root
+
+### Required Directories
+- **`plans/`** — active plan documents (includes `plans/priority/`, `plans/emergency/`)
+- **`plans_completed/`** — resolved plans moved here after completion
+- **`docs/`** — project documentation (`architecture.md`, ADID framework docs, etc.)
+
+### Required Plan Structure
+Every plan in `plans/` must follow the standard format:
+- ISO8601-prefixed filename (`YYYYMMDD_descriptive_name.md`)
+- YAML frontmatter header with `reproduce:` block
+- Clear goal, sub-goals, tasks with `[ ]` / `[x]` checkboxes
+- Each task specifies: files, tests, verification, expected outcome
+
+### When These Are Missing
+If any required file or directory is absent when the orchestrator starts:
+- INSTRUCT the main session to create it as the FIRST task
+- `AGENTS.md` can be generated via `/init` command
+- Missing `plans/` or `plans_completed/` → `mkdir` instruction
+- Missing `DOCINDEX.md` → create from template
+- Missing `index.md` → generate from repository structure
 
 ## What You Do NOT Do
 

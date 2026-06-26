@@ -55,7 +55,7 @@ export function DialogNavigation() {
           {(rule) => (
             <box flexDirection="row" gap={1}>
               <text fg={theme.text} wrapMode="word">
-                {"✅ "}{rule.displayPath}
+                {"✅ "}{String(rule.displayPath)}
               </text>
               <text fg={theme.textMuted}>
                 ({sourceLabel(rule.source)})
@@ -71,7 +71,7 @@ export function DialogNavigation() {
           {(rule) => (
             <box flexDirection="row" gap={1}>
               <text fg={theme.text} wrapMode="word">
-                {"🚫 "}{rule.displayPath}
+                {"🚫 "}{String(rule.displayPath)}
               </text>
               <text fg={theme.textMuted}>
                 ({sourceLabel(rule.source)})

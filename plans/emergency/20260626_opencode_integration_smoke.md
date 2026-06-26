@@ -9,6 +9,11 @@
 - **Experiment dir:** `experiments/20260626T032900Z_sandbox_isolation_test/`
 - **Launcher:** `_run.cmd` — self-locating via `%~dp0`, clears all API keys, runs from source
 - **Launch:** `.\cmd_runner.exe start --shell cmd --cwd <exp_dir> -- _run.cmd`
+- **Send input (two-step, required):**
+  1. `.\cmd_runner.exe send <run_id> -- "<text>"` — types into prompt
+  2. `.\cmd_runner.exe send <run_id> --keys "ENTER"` — executes
+- **Close dialog:** `.\cmd_runner.exe send <run_id> --keys "ESC"`
+- **Toggle AGI:** `.\cmd_runner.exe send <run_id> --keys "ctrl+x,g"`
 - **Why bun run:** exact line numbers in stack traces, no build step, source changes take effect immediately
 
 ## Steps
@@ -19,22 +24,30 @@
 - **Verify:** No "bug:" entries in `.opencode/data/log/`
 
 ### Step 2 — Basic prompt
-- Send: `2+2=?`
+- `cmd_runner.exe send <run_id> -- "2+2=?"`
+- `cmd_runner.exe send <run_id> --keys "ENTER"`
 - **Verify:** Response contains `4`
 
 ### Step 3 — /dirs command
-- Send: `/dirs`
-- **Verify:** Agent Configuration dialog opens without crash (no TextNodeRenderable error)
+- `cmd_runner.exe send <run_id> -- "/dirs"`
+- `cmd_runner.exe send <run_id> --keys "ENTER"`
+- **Verify:** Directory Navigation dialog opens — shows allowed directories, no crash
+- `cmd_runner.exe send <run_id> --keys "ESC"` (close dialog)
 
-### Step 4 — AGI loop (1 plan)
+### Step 4 — /editor command
+- `cmd_runner.exe send <run_id> -- "/editor"`
+- `cmd_runner.exe send <run_id> --keys "ENTER"`
+- **Verify:** Editor opens (or investigate why not)
+
+### Step 5 — AGI loop (1 plan)
 - Create `plans/essay_agi.md` in experiment dir with content: "Write an essay about AGI"
-- Toggle AGI on via `<leader>g`
+- `cmd_runner.exe send <run_id> --keys "ctrl+x,g"` (toggle AGI on)
 - Wait for orchestrator to process
-- Toggle AGI off via `<leader>g`
+- `cmd_runner.exe send <run_id> --keys "ctrl+x,g"` (toggle AGI off)
 - **Verify:** `opencode.db` has exactly **2 sessions** (main + orch)
 
-### Step 5 — Add plan, re-run AGI
+### Step 6 — Add plan, re-run AGI
 - Add `plans/story_ai_history.md` with content: "Write a story about AI history"
-- Toggle AGI on via `<leader>g`
-- Toggle AGI off via `<leader>g`
+- `cmd_runner.exe send <run_id> --keys "ctrl+x,g"` (toggle AGI on)
+- `cmd_runner.exe send <run_id> --keys "ctrl+x,g"` (toggle AGI off)
 - **Verify:** `opencode.db` still has exactly **2 AGI sessions** (main + orch reused)

@@ -57,6 +57,11 @@ const MAX_OUTPUT_CHARS = 4000
  *  from app.tsx didn't update the badge in routes/session/index.tsx. */
 const [agiMode, setAgiMode] = createSignal(false)
 
+/** Module-level plan status — shared so refreshPlanStatus from any caller
+ *  updates the badge rendered by routes/session/index.tsx. */
+const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], total: 0, completion: 0 })
+const [turnCount, setTurnCount] = createSignal(0)
+
 export function useAgiMode(currentSessionID: () => string | undefined) {
   const local = useLocal()
   const sync = useSync()
@@ -67,8 +72,6 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   const persisted = loadAgiState()
   const [mainSessionID, setMainSessionIDRaw] = createSignal<string | undefined>(persisted.mainSessionID)
   const [orchSessionID, setOrchSessionIDRaw] = createSignal<string | undefined>(persisted.orchSessionID)
-  const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], total: 0, completion: 0 })
-  const [turnCount, setTurnCount] = createSignal(0)
 
   /** Set main session ID and persist. */
   function setMainSessionID(id: string | undefined) {

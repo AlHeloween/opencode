@@ -322,6 +322,9 @@ export const Info = Schema.Struct({
   features: Schema.optional(
     Schema.Struct({
       disablePrune: Schema.optional(Schema.Boolean),
+      disableAutoCompact: Schema.optional(Schema.Boolean),
+      disableTerminalTitle: Schema.optional(Schema.Boolean),
+      disableDefaultPlugins: Schema.optional(Schema.Boolean),
       disableLspDownload: Schema.optional(Schema.Boolean),
       disableModelsFetch: Schema.optional(Schema.Boolean),
       disableMouse: Schema.optional(Schema.Boolean),
@@ -848,12 +851,70 @@ export const layer = Layer.effect(
           })
         }
 
-        if (Flag.OPENCODE_DISABLE_AUTOCOMPACT) {
+        if (result.features?.disableAutoCompact) {
           result.compaction = { ...result.compaction, auto: false }
         }
-        if (Flag.OPENCODE_DISABLE_PRUNE) {
+        if (result.features?.disablePrune) {
           result.compaction = { ...result.compaction, prune: false }
         }
+
+        // Sync config-derived values into Flag so getters can read from
+        // opencode.jsonc first, falling back to env vars during the
+        // one-release deprecation transition.
+        Flag.fromConfig({
+          // Server auth
+          OPENCODE_SERVER_PASSWORD: result.server?.password,
+          OPENCODE_SERVER_USERNAME: result.server?.username,
+          // Client
+          OPENCODE_CLIENT: result.client?.type,
+          // Feature flags
+          OPENCODE_DISABLE_PRUNE: result.features?.disablePrune,
+          OPENCODE_DISABLE_AUTOCOMPACT: result.features?.disableAutoCompact,
+          OPENCODE_DISABLE_TERMINAL_TITLE: result.features?.disableTerminalTitle,
+          OPENCODE_DISABLE_DEFAULT_PLUGINS: result.features?.disableDefaultPlugins,
+          OPENCODE_DISABLE_LSP_DOWNLOAD: result.features?.disableLspDownload,
+          OPENCODE_DISABLE_MODELS_FETCH: result.features?.disableModelsFetch,
+          OPENCODE_DISABLE_MOUSE: result.features?.disableMouse,
+          OPENCODE_DISABLE_CLAUDE_CODE: result.features?.disableClaudeCode,
+          OPENCODE_DISABLE_CLAUDE_CODE_PROMPT: result.features?.disableClaudeCodePrompt,
+          OPENCODE_DISABLE_CLAUDE_CODE_SKILLS: result.features?.disableClaudeCodeSkills,
+          OPENCODE_DISABLE_EXTERNAL_SKILLS: result.features?.disableExternalSkills,
+          OPENCODE_DISABLE_EMBEDDED_WEB_UI: result.features?.disableEmbeddedWebUI,
+          OPENCODE_DISABLE_CHANNEL_DB: result.features?.disableChannelDb,
+          OPENCODE_DISABLE_PROJECT_CONFIG: result.features?.disableProjectConfig,
+          OPENCODE_DISABLE_SHARE: result.features?.disableShare,
+          OPENCODE_AUTO_SHARE: result.features?.autoShare,
+          OPENCODE_PURE: result.features?.pure,
+          OPENCODE_STRICT_CONFIG_DEPS: result.features?.strictConfigDeps,
+          // Experimental
+          OPENCODE_EXPERIMENTAL: result.experimental?.masterSwitch,
+          OPENCODE_EXPERIMENTAL_HTTPAPI: result.experimental?.httpApi,
+          OPENCODE_EXPERIMENTAL_FILEWATCHER: result.experimental?.fileWatcher,
+          OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: result.experimental?.disableFileWatcher,
+          OPENCODE_EXPERIMENTAL_PLAN_MODE: result.experimental?.planMode,
+          OPENCODE_EXPERIMENTAL_MARKDOWN: result.experimental?.markdown,
+          OPENCODE_EXPERIMENTAL_ICON_DISCOVERY: result.experimental?.iconDiscovery,
+          OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT: result.experimental?.disableCopyOnSelect,
+          OPENCODE_EXPERIMENTAL_LSP_TY: result.experimental?.lspTy,
+          OPENCODE_EXPERIMENTAL_LSP_TOOL: result.experimental?.lspTool,
+          OPENCODE_EXPERIMENTAL_OXFMT: result.experimental?.oxfmt,
+          OPENCODE_EXPERIMENTAL_WORKSPACES: result.experimental?.workspaces,
+          OPENCODE_ENABLE_EXA: result.experimental?.exa,
+          OPENCODE_ENABLE_QUESTION_TOOL: result.experimental?.questionTool,
+          OPENCODE_ENABLE_EXPERIMENTAL_MODELS: result.experimental?.experimentalModels,
+          OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS: result.experimental?.bashTimeoutMs,
+          OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX: result.experimental?.outputTokenMax,
+          // Debug
+          OPENCODE_SHOW_TTFD: result.debug?.showTTFD,
+          OPENCODE_AUTO_HEAP_SNAPSHOT: result.debug?.autoHeapSnapshot,
+          OPENCODE_FAKE_VCS: result.debug?.fakeVcs,
+          // Paths
+          OPENCODE_MODELS_URL: result.paths?.modelsUrl,
+          OPENCODE_MODELS_PATH: result.paths?.modelsPath,
+          OPENCODE_GIT_BASH_PATH: result.paths?.gitBashPath,
+          OPENCODE_PLUGIN_META_FILE: result.paths?.pluginMetaFile,
+          OPENCODE_DB: result.paths?.dbPath,
+        })
 
         return {
           config: result,
@@ -961,5 +1022,121 @@ export const defaultLayer = layer.pipe(
   Layer.provide(Account.defaultLayer),
   Layer.provide(Npm.defaultLayer),
 )
+
+// ── Env Var → Config Migration ────────────────────────────────────────────
+// Maps deprecated OPENCODE_* env vars to their config dot-paths.
+// Excludes: bootstrap vars (OPENCODE_CONFIG, OPENCODE_CONFIG_DIR, OPENCODE_TUI_CONFIG),
+//   internal IPC vars (OPENCODE_AUTH_CONTENT, OPENCODE_WORKSPACE_ID, OPENCODE_RUN_ID,
+//   OPENCODE_PROCESS_ROLE, OPENCODE_PID, OPENCODE_CONFIG_CONTENT),
+//   test-only vars (OPENCODE_TEST_*, OPENCODE_SKIP_MIGRATIONS, OPENCODE_EDITOR_SSE_PORT,
+//   OPENCODE_ZED_DB, OPENCODE_CALLER, OPENCODE_ROUTE, OPENCODE_PORT),
+//   and removed vars (OPENCODE_ALLOW_DOWNGRADE, OPENCODE_DISABLE_AUTOUPDATE,
+//   OPENCODE_ALWAYS_NOTIFY_UPDATE, OPENCODE_MIGRATIONS, OPENCODE_STREAM_STALL_TIMEOUT_MS).
+
+export const ENV_TO_CONFIG_MAP: Record<string, string> = {
+  // Server auth
+  OPENCODE_SERVER_PASSWORD: "server.password",
+  OPENCODE_SERVER_USERNAME: "server.username",
+  // Client
+  OPENCODE_CLIENT: "client.type",
+  // Feature flags
+  OPENCODE_DISABLE_PRUNE: "features.disablePrune",
+  OPENCODE_DISABLE_AUTOCOMPACT: "features.disableAutoCompact",
+  OPENCODE_DISABLE_TERMINAL_TITLE: "features.disableTerminalTitle",
+  OPENCODE_DISABLE_DEFAULT_PLUGINS: "features.disableDefaultPlugins",
+  OPENCODE_DISABLE_LSP_DOWNLOAD: "features.disableLspDownload",
+  OPENCODE_DISABLE_MODELS_FETCH: "features.disableModelsFetch",
+  OPENCODE_DISABLE_MOUSE: "features.disableMouse",
+  OPENCODE_DISABLE_CLAUDE_CODE: "features.disableClaudeCode",
+  OPENCODE_DISABLE_CLAUDE_CODE_PROMPT: "features.disableClaudeCodePrompt",
+  OPENCODE_DISABLE_CLAUDE_CODE_SKILLS: "features.disableClaudeCodeSkills",
+  OPENCODE_DISABLE_EXTERNAL_SKILLS: "features.disableExternalSkills",
+  OPENCODE_DISABLE_EMBEDDED_WEB_UI: "features.disableEmbeddedWebUI",
+  OPENCODE_DISABLE_CHANNEL_DB: "features.disableChannelDb",
+  OPENCODE_DISABLE_PROJECT_CONFIG: "features.disableProjectConfig",
+  OPENCODE_DISABLE_SHARE: "features.disableShare",
+  OPENCODE_AUTO_SHARE: "features.autoShare",
+  OPENCODE_PURE: "features.pure",
+  OPENCODE_STRICT_CONFIG_DEPS: "features.strictConfigDeps",
+  OPENCODE_FAST_BOOT: "features.fastBoot",
+  // Experimental
+  OPENCODE_EXPERIMENTAL: "experimental.masterSwitch",
+  OPENCODE_EXPERIMENTAL_HTTPAPI: "experimental.httpApi",
+  OPENCODE_EXPERIMENTAL_FILEWATCHER: "experimental.fileWatcher",
+  OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: "experimental.disableFileWatcher",
+  OPENCODE_EXPERIMENTAL_PLAN_MODE: "experimental.planMode",
+  OPENCODE_EXPERIMENTAL_MARKDOWN: "experimental.markdown",
+  OPENCODE_EXPERIMENTAL_ICON_DISCOVERY: "experimental.iconDiscovery",
+  OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT: "experimental.disableCopyOnSelect",
+  OPENCODE_EXPERIMENTAL_LSP_TY: "experimental.lspTy",
+  OPENCODE_EXPERIMENTAL_LSP_TOOL: "experimental.lspTool",
+  OPENCODE_EXPERIMENTAL_OXFMT: "experimental.oxfmt",
+  OPENCODE_EXPERIMENTAL_WEBSOCKETS: "experimental.websockets",
+  OPENCODE_EXPERIMENTAL_NATIVE_LLM: "experimental.nativeLlm",
+  OPENCODE_EXPERIMENTAL_EVENT_SYSTEM: "experimental.eventSystem",
+  OPENCODE_EXPERIMENTAL_WORKSPACES: "experimental.workspaces",
+  OPENCODE_ENABLE_EXA: "experimental.exa",
+  OPENCODE_EXPERIMENTAL_EXA: "experimental.exa",
+  OPENCODE_ENABLE_QUESTION_TOOL: "experimental.questionTool",
+  OPENCODE_ENABLE_EXPERIMENTAL_MODELS: "experimental.experimentalModels",
+  OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS: "experimental.bashTimeoutMs",
+  OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX: "experimental.outputTokenMax",
+  // Debug
+  OPENCODE_SHOW_TTFD: "debug.showTTFD",
+  OPENCODE_AUTO_HEAP_SNAPSHOT: "debug.autoHeapSnapshot",
+  OPENCODE_FAKE_VCS: "debug.fakeVcs",
+  // Paths
+  OPENCODE_GATEWAY_LOG_DIR: "gateway.logDir",
+  OPENCODE_MODELS_URL: "paths.modelsUrl",
+  OPENCODE_MODELS_PATH: "paths.modelsPath",
+  OPENCODE_GIT_BASH_PATH: "paths.gitBashPath",
+  OPENCODE_PLUGIN_META_FILE: "paths.pluginMetaFile",
+  OPENCODE_DB: "paths.dbPath",
+  // Terminal
+  OPENCODE_TERMINAL: "terminal.mode",
+}
+
+function parseEnvValue(raw: string): unknown {
+  const lower = raw.toLowerCase()
+  if (lower === "1" || lower === "true" || lower === "yes") return true
+  if (lower === "0" || lower === "false" || lower === "no") return false
+  const num = Number(raw)
+  if (!isNaN(num) && raw.trim() !== "") return num
+  return raw
+}
+
+function setNestedPath(obj: Record<string, unknown>, path: string[], value: unknown): void {
+  let current = obj
+  for (let i = 0; i < path.length - 1; i++) {
+    const key = path[i]
+    if (!current[key] || typeof current[key] !== "object") current[key] = {}
+    current = current[key] as Record<string, unknown>
+  }
+  current[path[path.length - 1]] = value
+}
+
+/** Apply deprecated env var values to config object. Returns merged config with overrides applied. */
+export function applyEnvOverrides(config: Info): Info {
+  const overrides: Record<string, unknown> = {}
+  for (const [envVar, configPath] of Object.entries(ENV_TO_CONFIG_MAP)) {
+    const raw = process.env[envVar]
+    if (raw === undefined) continue
+    const value = parseEnvValue(raw)
+    setNestedPath(overrides, configPath.split("."), value)
+    log.warn(`deprecated env var ${envVar} is set; migrate to opencode.jsonc → ${configPath}`)
+  }
+  return mergeDeep(config, overrides) as Info
+}
+
+/** Build an Info-shaped object from all currently-set deprecated env vars. */
+export function migrateFromEnv(): Info {
+  const overrides: Record<string, unknown> = {}
+  for (const [envVar, configPath] of Object.entries(ENV_TO_CONFIG_MAP)) {
+    const raw = process.env[envVar]
+    if (raw === undefined) continue
+    setNestedPath(overrides, configPath.split("."), parseEnvValue(raw))
+  }
+  return overrides as Info
+}
 
 export * as Config from "./config"

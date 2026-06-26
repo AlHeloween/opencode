@@ -14,7 +14,8 @@ const original = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const websocket = (() => () => new Response(null, { status: 501 })) as unknown as UpgradeWebSocket
 
 function app() {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = true
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
+
   return InstanceRoutes(websocket)
 }
 
@@ -30,7 +31,8 @@ async function readFirstChunk(response: Response) {
 }
 
 afterEach(async () => {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = original
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", original)
+
   await Instance.disposeAll()
   await resetDatabase()
 })

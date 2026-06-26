@@ -7,6 +7,12 @@ export const Server = Schema.Struct({
     description: "Port to listen on",
   }),
   hostname: Schema.optional(Schema.String).annotate({ description: "Hostname to listen on" }),
+  password: Schema.optional(Schema.String).annotate({
+    description: "Basic auth password for HTTP API. If set, all requests require Authorization header.",
+  }),
+  username: Schema.optional(Schema.String).annotate({
+    description: "Basic auth username for HTTP API. Defaults to 'opencode'.",
+  }),
   mdns: Schema.optional(Schema.Boolean).annotate({ description: "Enable mDNS service discovery" }),
   mdnsDomain: Schema.optional(Schema.String).annotate({
     description: "Custom domain name for mDNS service (default: opencode.local)",

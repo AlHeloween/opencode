@@ -343,21 +343,21 @@ After (single config + encrypted mirror):
 - [ ] 1.3 Add JSON Schema `$defs` for each new section at `opencode.ai/config.json`
 
 ### Sub-Goal 2: Env Var Migration Map (1 day)
-- [ ] 2.1 Create exhaustive `ENV_TO_CONFIG_MAP: Record<string, string>` mapping (env var → config dot-path)
-- [ ] 2.2 Implement `applyEnvOverrides(config: Info): Info` — reads old env vars, applies to config, logs deprecation warning
-- [ ] 2.3 Add `Config.migrateFromEnv()` utility for one-time migration
+- [x] 2.1 Create exhaustive `ENV_TO_CONFIG_MAP: Record<string, string>` mapping (env var → config dot-path)
+- [x] 2.2 Implement `applyEnvOverrides(config: Info): Info` — reads old env vars, applies to config, logs deprecation warning
+- [x] 2.3 Add `Config.migrateFromEnv()` utility for one-time migration
 
 ### Sub-Goal 3: Config Loading with Encrypted Fallback (1 day)
-- [ ] 3.1 Wire `opencode.jsonc` / `opencode.json` → `opencode.jsonc.enc` fallback in `readConfigFile()`
-- [ ] 3.2 Wire `writeConfigFile()` → `EncryptedJsonStorage.mirrorText()` for encrypted mirror
-- [ ] 3.3 Ensure fallback works for all config file candidates (`opencode.jsonc`, `opencode.json`, `config.json`)
+- [x] 3.1 Wire `opencode.jsonc` / `opencode.json` → `opencode.jsonc.enc` fallback in `readConfigFile()`
+- [x] 3.2 Wire `writeConfigFile()` → `EncryptedJsonStorage.mirrorText()` for encrypted mirror
+- [x] 3.3 Ensure fallback works for all config file candidates (`opencode.jsonc`, `opencode.json`, `config.json`)
 - [ ] 3.4 Add test: delete plaintext, encrypted fallback loads correct config
 
 ### Sub-Goal 4: Flag.ts Migration (2 days)
-- [ ] 4.1 Convert `Flag.*` getters from `process.env[VAR]` → read from `Config.Info` via `Config.Service`
-- [ ] 4.2 Keep env var as fallback during one-release transition with deprecation warning
+- [ ] 4.1 Convert `Flag.*` getters from `process.env[VAR]` → read from `Config.Info` via `Config.Service` (17/40+ done: all standalone booleans + 4 existing getters). Added `_setTest(key, value)` for test mutation support.
+- [x] 4.2 Keep env var as fallback during one-release transition with deprecation warning
 - [ ] 4.3 Update all 40+ flag definitions in `packages/core/src/flag/flag.ts`
-- [ ] 4.4 Add `Flag.fromConfig(config: Config.Info)` initialization
+- [x] 4.4 Add `Flag.fromConfig(config: Config.Info)` initialization
 - [ ] 4.5 Update all flag consumers to use config-based flags
 
 ### Sub-Goal 5: Feature Flag Consumers (1 day)

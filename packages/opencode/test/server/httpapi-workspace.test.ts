@@ -22,7 +22,8 @@ const originalHttpApi = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const websocket = (() => () => new Response(null, { status: 501 })) as unknown as UpgradeWebSocket
 
 function request(path: string, directory: string, init: RequestInit = {}) {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = true
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
+
   const headers = new Headers(init.headers)
   headers.set("x-opencode-directory", directory)
   return InstanceRoutes(websocket).request(path, { ...init, headers })
@@ -58,7 +59,8 @@ function localAdaptor(directory: string): WorkspaceAdaptor {
 
 afterEach(async () => {
   Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = originalWorkspaces
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = originalHttpApi
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", originalHttpApi)
+
   await Instance.disposeAll()
   await resetDatabase()
 })

@@ -16,12 +16,14 @@ const websocket = (() => () => new Response(null, { status: 501 })) as unknown a
 const testPty = process.platform === "win32" ? test.skip : test
 
 function app() {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = true
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
+
   return InstanceRoutes(websocket)
 }
 
 afterEach(async () => {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = original
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", original)
+
   await Instance.disposeAll()
   await resetDatabase()
 })

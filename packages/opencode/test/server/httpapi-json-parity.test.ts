@@ -20,7 +20,8 @@ const original = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const websocket = (() => () => new Response(null, { status: 501 })) as unknown as UpgradeWebSocket
 
 function app(experimental: boolean) {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = experimental
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", experimental)
+
   return InstanceRoutes(websocket)
 }
 
@@ -84,7 +85,8 @@ function expectJsonParity(input: {
 }
 
 afterEach(async () => {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = original
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", original)
+
   await Instance.disposeAll()
   await resetDatabase()
 })

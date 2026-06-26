@@ -17,7 +17,8 @@ const originalWorkspaces = Flag.OPENCODE_EXPERIMENTAL_WORKSPACES
 const websocket = (() => () => new Response(null, { status: 501 })) as unknown as UpgradeWebSocket
 
 function app() {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = true
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
+
   return InstanceRoutes(websocket)
 }
 
@@ -26,7 +27,8 @@ function runSession<A, E>(fx: Effect.Effect<A, E, Session.Service>) {
 }
 
 afterEach(async () => {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = originalHttpApi
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", originalHttpApi)
+
   Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = originalWorkspaces
   await Instance.disposeAll()
   await resetDatabase()

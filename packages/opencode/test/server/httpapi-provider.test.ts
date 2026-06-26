@@ -20,7 +20,8 @@ const oauthURL = "https://example.com/oauth"
 const oauthInstructions = "Finish OAuth"
 
 function app(experimental: boolean) {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = experimental
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", experimental)
+
   return InstanceRoutes(websocket)
 }
 
@@ -99,7 +100,8 @@ function withProviderProject<A, E, R>(self: (dir: string) => Effect.Effect<A, E,
 }
 
 afterEach(async () => {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = original
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", original)
+
   await Instance.disposeAll()
   await resetDatabase()
 })

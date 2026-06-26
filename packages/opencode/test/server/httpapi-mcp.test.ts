@@ -20,7 +20,8 @@ const websocket = (() => () => new Response(null, { status: 501 })) as unknown a
 const it = testEffect(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer))
 
 function app(experimental: boolean) {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = experimental
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", experimental)
+
   return InstanceRoutes(websocket)
 }
 
@@ -80,7 +81,8 @@ const readResponse = Effect.fnUntraced(function* (input: {
 })
 
 afterEach(async () => {
-  Flag.OPENCODE_EXPERIMENTAL_HTTPAPI = original
+  Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", original)
+
   await Instance.disposeAll()
   await resetDatabase()
 })

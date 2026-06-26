@@ -169,19 +169,10 @@ const live: Layer.Layer<
           .filter((x) => x)
           .join("\n"),
       )
-      // Volatile content (date, user system) goes to a second system message
-      // so the cache marker can exclude it. Checkpoints skip dynamic content
-      // entirely — dates must only appear in user messages.
-      const dynamicIndex = input.system.findIndex((item) => item.includes("Today's date:"))
-      const stableSystem = isCheckpoint ? input.system : (dynamicIndex === -1 ? input.system : input.system.slice(0, dynamicIndex))
-      const dynamicSystem = isCheckpoint
-        ? []
-        : [
-            ...(dynamicIndex === -1 ? [] : input.system.slice(dynamicIndex)),
-            ...(input.user.system ? [input.user.system] : []),
-          ]
-      if (stableSystem.length > 0) system.push(stableSystem.join("\n"))
-      if (dynamicSystem.length > 0) system.push(dynamicSystem.join("\n"))
+      // Stable system prompt — always pushed. Dates go to user messages only.
+      if (input.system.length > 0) system.push(input.system.join("\n"))
+      // User system message (non-checkpoint only) — volatile, excluded from cache.
+      if (!isCheckpoint && input.user.system) system.push(input.user.system)
 
       if (!loggedSystemPrompt) {
         loggedSystemPrompt = true

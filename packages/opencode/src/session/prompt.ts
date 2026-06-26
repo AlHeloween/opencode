@@ -1810,7 +1810,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
             const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
             const providerPrompt = SystemPrompt.provider(model).join("\n")
             const identityPrefix = [reasoningPrefix, providerPrompt].filter((x) => x).join("\n")
-            const systemForCheckpoint = identityPrefix ? [identityPrefix, ...system] : [...system]
+            const systemForCheckpoint = checkpointUsable
+              ? [...system] // checkpoint already contains identityPrefix
+              : identityPrefix ? [identityPrefix, ...system] : [...system]
             yield* Effect.forkIn(scope)(
               Effect.gen(function* () {
                 const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)

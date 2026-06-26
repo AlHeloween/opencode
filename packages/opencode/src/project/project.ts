@@ -251,11 +251,10 @@ export const layer: Layer.Layer<
           }
         }
 
-        // Search for .git FIRST — even when a local project boundary exists.
-        // hasLocalProjectBoundary was previously checked before git discovery,
-        // which broke projects that were cached as non-git but later gained
-        // a .git directory (or had one all along — ironclaw).
-        const dotgitMatches = yield* fs.up({ targets: [".git"], start: directory }).pipe(Effect.orDie)
+        // Search for .git within the launch directory only — never walk up
+        // to parent directories.  The launch directory is the sandbox boundary;
+        // crossing it without permission is forbidden.
+        const dotgitMatches = yield* fs.up({ targets: [".git"], start: directory, stop: directory }).pipe(Effect.orDie)
         const dotgit = dotgitMatches[0]
 
         if (!dotgit) {

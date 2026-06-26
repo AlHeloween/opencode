@@ -490,6 +490,7 @@ async function getCustomThemes() {
       Filesystem.up({
         targets: [".opencode"],
         start: process.cwd(),
+        stop: Global.Path.home,
       }),
     )),
   ]

@@ -35,6 +35,9 @@ opencode.exe
 
 artifacts/
 .temp/
+gateway.jsonc
+opencode.jsonc
+auth.json
 .opencode
 .opencode/data
 .tst/

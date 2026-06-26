@@ -17,26 +17,33 @@ Identify and eliminate the root cause of system prompt hash changes between turn
 - **File**: `packages/opencode/src/session/prompt/reasoning.txt`
 - **Change**: Removed `md5: <system-computed>` / `prev-md5: <previous-turn>` from Rule 5 SV format
 - **Why**: Prompt told model to output placeholders that no backend ever processes. Model faithfully output literal `<system-computed>` text. Hash chain was non-functional.
-- **Commit**: pending
+- **Commit**: `130883fd3c`
 
 ### [x] 2. Add content-diff logging to `checkSystemStability()`
 - **File**: `packages/opencode/src/session/llm.ts:58-100`
 - **Change**: Added `systemContentPrev` map to store previous content. On hash change, computes line-level diff and logs `diffLine`, `oldLine` (first 200 chars), `newLine` (first 200 chars), `oldLen`, `newLen`.
 - **Why**: Original code only logged numeric hashes — impossible to determine WHAT changed.
-- **Commit**: pending
+- **Commit**: `130883fd3c`
 
-### [x] 3. Sandbox environment
+### [x] 3. Fix `providerCacheKey` to include agent identity
+- **File**: `packages/opencode/src/session/llm.ts:225`
+- **Change**: When `providerCacheKey` is provided as override, append agent name: `[providerCacheKey, agent.name].join(":")`
+- **Why**: Title agent and build agent shared the same cache key, causing false hash change detection when agent switches. Caught by content-diff instrumentation: `diffLine: 11`, session banner shifted.
+- **Commit**: `ccc2112d14`
+
+### [x] 4. Sandbox environment
 - **Dir**: `experiments/20260626_cache_break_debug/`
 - **Files**: `_run.cmd` (isolated DB, cleared API keys), `AGENTS.md`, `.opencode/rules/`
 - **Why**: Reproduce cache breaks in isolation without polluting production DB.
+- **Commit**: `130883fd3c`
 
 ## Test Plan
 
 ### Test 1: Sandbox baseline — does the cache work at all?
 - [x] Start sandbox with Big Pickle (free), send 2 messages
-- [x] Query DB: `tokens_input: 33037`, `tokens_cache_read: 0` (both turns cold)
-- [x] `checkSystemStability` fired with line-level diff on turn 2
-- **Result**: Instrumentation works. Cache MISS on both turns (expected — Big Pickle free doesn't cache across turns via opencode proxy)
+- [x] DB: `tokens_input: 33039`, `tokens_cache_read: 0` (cache not supported by free opencode proxy)
+- [x] **Zero `checkSystemStability` warnings** — fix verified: no false positive from agent switch
+- **Note**: Big Pickle uses opencode proxy which doesn't support ephemeral KV caching. Cache read will always be 0 for free models. Direct provider (DeepSeek with API key) needed for cache hit verification.
 
 ### Test 2: Checkpoint save/load cycle stability
 - [ ] Send 2 messages → checkpoint saved
@@ -45,6 +52,7 @@ Identify and eliminate the root cause of system prompt hash changes between turn
 - [ ] Query `cache_fingerprints.db`: same `system_md5` on consecutive turns
 - **Oracle**: `checkSystemStability` log (should be silent), fingerprint DB
 - **Pass**: No hash changes, fingerprint stable
+- **Blocked**: Requires direct provider with API key for meaningful cache verification
 
 ### Test 3: Binary restart — does checkpoint survive restart?
 - [ ] Send 2 messages → checkpoint saved
@@ -65,9 +73,9 @@ Identify and eliminate the root cause of system prompt hash changes between turn
 ### Test 4b: Agent switch (title→build) hash change [NEW]
 - [x] Start session, observe title agent runs first, then build agent
 - [x] `checkSystemStability` fired: `diffLine: 11`, `oldLine: "[session: ses_...]"`, `newLine: ""`
-- [x] **Root cause confirmed**: `providerCacheKey` is shared across agents (title & build use same key). When agent switches, the key collides and system content differs → hash change warning + cache miss.
-- [x] Same `cacheKeyHash` (4270833847253046300) for both title and build agents
-- **Evidence**: `oldLen: 4797`, `newLen: 4798` — session banner shifted by 1 char position
+- [x] **Root cause confirmed**: `providerCacheKey` didn't include agent name when overridden. Title and build agents shared the same cache key but had different system prompts.
+- [x] **Fix applied** (`llm.ts:225`): always include `input.agent.name` in `providerCacheKey`
+- [x] **Committed**: `ccc2112d14`
 
 ### Test 5: Working directory change — does `Instance.directory` leak?
 - [ ] Start session, send 1 message

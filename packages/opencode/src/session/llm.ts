@@ -31,6 +31,7 @@ let loggedSystemPrompt = false
 /** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
   * LRU-evicted at 500 entries to prevent unbounded growth. */
 const systemContentHashes = new Map<string, number>()
+const systemContentPrev = new Map<string, string>()
 const MAX_HASHES = 500
 
 function stableStringify(input: unknown): string {
@@ -57,21 +58,44 @@ function hashInfo(input: unknown) {
 function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {
   const key = input.cacheKey
   const hash = Number(Bun.hash(input.content))
-  const prev = systemContentHashes.get(key)
-  if (prev !== undefined && prev !== hash) {
+  const prevHash = systemContentHashes.get(key)
+  const prevContent = systemContentPrev.get(key)
+  if (prevHash !== undefined && prevHash !== hash) {
+    const oldLines = (prevContent ?? "").split("\n")
+    const newLines = input.content.split("\n")
+    let diffLine = 0
+    let oldSample = ""
+    let newSample = ""
+    for (let i = 0; i < Math.max(oldLines.length, newLines.length); i++) {
+      if (oldLines[i] !== newLines[i]) {
+        diffLine = i + 1
+        oldSample = (oldLines[i] ?? "(missing)").slice(0, 200)
+        newSample = (newLines[i] ?? "(missing)").slice(0, 200)
+        break
+      }
+    }
     log.warn("bug: system prompt content changed mid-session", {
       sessionID: input.sessionID,
       agent: input.agent,
       modelID: input.modelID,
       cacheKeyHash: Number(Bun.hash(input.cacheKey)),
-      prevHash: prev,
+      prevHash,
       newHash: hash,
+      diffLine,
+      oldLine: oldSample,
+      newLine: newSample,
+      oldLen: (prevContent ?? "").length,
+      newLen: input.content.length,
     })
   }
   systemContentHashes.set(key, hash)
+  systemContentPrev.set(key, input.content)
   if (systemContentHashes.size > MAX_HASHES) {
     const first = systemContentHashes.keys().next().value
-    if (first !== undefined) systemContentHashes.delete(first)
+    if (first !== undefined) {
+      systemContentHashes.delete(first)
+      systemContentPrev.delete(first)
+    }
   }
 }
 

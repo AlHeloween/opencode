@@ -252,6 +252,7 @@ export const layer = Layer.effect(
             sessionID: input.sessionID,
             text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
           })
+          if (completed.length > 500) completed.shift()
         }
       }).pipe(Effect.runFork)
 
@@ -304,6 +305,25 @@ export const layer = Layer.effect(
         try {
           db.run("DELETE FROM job WHERE session_id = ? AND status != 'running'", [input.sessionID])
         } catch (e) { log.warn("job db cleanup failed", { error: String(e) }) }
+        // Evict completed/killed jobs from in-memory Map.
+        // The jobs Map accumulates forever without this — each background
+        // job adds MB-scale output strings that never release.
+        for (const [jk, job] of jobs) {
+          if (jk.startsWith(input.sessionID + "\x00") && job.status !== "running") {
+            jobs.delete(jk)
+            readOffsets.delete(jk + ":offset")
+          }
+        }
+        // Clean counters for sessions with no remaining live jobs.
+        let sessionHasLiveJobs = false
+        for (const [jk] of jobs) {
+          if (jk.startsWith(input.sessionID + "\x00")) { sessionHasLiveJobs = true; break }
+        }
+        if (!sessionHasLiveJobs) {
+          for (const [ck] of counters) {
+            if (ck.startsWith(input.sessionID + "\x00")) counters.delete(ck)
+          }
+        }
       }
       if (notes.length === 0) return ""
       return (
@@ -357,6 +377,7 @@ export const layer = Layer.effect(
               sessionID: input.sessionID,
               text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
             })
+            if (completed.length > 500) completed.shift()
             log.info("job completed (effect)", { id, status: j.status })
           }),
           onFailure: (err) => Effect.sync(() => {
@@ -367,6 +388,7 @@ export const layer = Layer.effect(
             j.finishedAt = Date.now()
             persistUpdate(j)
             completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed` })
+            if (completed.length > 500) completed.shift()
             log.warn("job failed (effect)", { id, error: err.message })
           }),
         }),

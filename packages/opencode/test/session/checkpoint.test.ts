@@ -16,6 +16,7 @@ function makeCheckpointData(overrides: Partial<CheckpointData> = {}): Checkpoint
     ],
     messageIDs: ["msg_001", "msg_002"],
     model: { providerID: "test-provider", modelID: "test-model" },
+    agent: "test-agent",
     turn: 3,
     timestamp: Date.now(),
     ...overrides,
@@ -138,57 +139,47 @@ describe("Checkpoint", () => {
     expect(fs.existsSync(corruptPath)).toBeFalse()
   })
 
-  test("checkpoint files do not overwrite request-diff baselines", async () => {
+  test("checkpoint save and load roundtrip", async () => {
     const sid = `${SID}_g`
-    const providerID = "shared-provider"
-    const modelID = "shared-model"
-    const meta: RequestDiff.DiffMeta = {
-      sessionID: sid,
-      providerID,
-      modelID,
-      turn: 1,
+    const providerID = "roundtrip-provider"
+    const modelID = "roundtrip-model"
+    const data = makeCheckpointData({
+      model: { providerID, modelID },
+      systemPrompt: ["[session: test_session]", "You are a test assistant."],
       agent: "build",
-      timestamp: Date.now(),
-    }
-
-    RequestDiff.storePrev(sid, modelID, "diff baseline content", meta, TEST_PROJECT, TEST_WORKTREE)
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    const diffPath = RequestDiff.baselinePath(sid, providerID, modelID)
-    expect(fs.existsSync(diffPath)).toBeTrue()
+    })
 
     await Effect.runPromise(
-      Checkpoint.save({
-        sessionID: sid,
-        projectID: TEST_PROJECT,
-        worktree: TEST_WORKTREE,
-        data: makeCheckpointData({ model: { providerID, modelID } }),
-      }),
+      Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }),
     )
 
-    const checkpointPath = Checkpoint.checkpointPath(sid, providerID, modelID)
-    expect(checkpointPath).not.toBe(diffPath)
-    expect(fs.existsSync(checkpointPath)).toBeTrue()
-    expect(fs.existsSync(diffPath)).toBeTrue()
-    expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("diff baseline content")
+    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID)
+    expect(fs.existsSync(cpPath)).toBeTrue()
+
+    const loaded = await Effect.runPromise(
+      Checkpoint.load({ sessionID: sid, providerID, modelID, projectID: TEST_PROJECT, worktree: TEST_WORKTREE }),
+    )
+
+    expect(loaded).not.toBeNull()
+    expect(loaded!.systemPrompt).toEqual(data.systemPrompt)
+    expect(loaded!.messages).toEqual(data.messages)
+    expect(loaded!.agent).toBe("build")
+    expect(loaded!.turn).toBe(3)
+    await Effect.runPromise(Checkpoint.remove(sid))
   })
 
-  test("checkpoint with stale key is discarded without touching request-diff baseline", async () => {
+  test("checkpoint with wrong project key returns null and cleans up", async () => {
     const sid = `${SID}_h`
     const providerID = "key-provider"
     const modelID = "key-model"
-    const data = makeCheckpointData({ model: { providerID, modelID }, systemPrompt: ["keyed checkpoint"] })
-    const meta: RequestDiff.DiffMeta = {
-      sessionID: sid,
-      providerID,
-      modelID,
-      turn: 1,
-      agent: "build",
-      timestamp: Date.now(),
-    }
+    const data = makeCheckpointData({ model: { providerID, modelID }, agent: "build" })
 
-    RequestDiff.storePrev(sid, modelID, "baseline survives", meta, TEST_PROJECT, TEST_WORKTREE)
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }))
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await Effect.runPromise(
+      Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }),
+    )
+
+    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID)
+    expect(fs.existsSync(cpPath)).toBeTrue()
 
     const loaded = await Effect.runPromise(
       Checkpoint.load({
@@ -200,10 +191,8 @@ describe("Checkpoint", () => {
       }),
     )
 
+    // Wrong project key → decryption fails → file deleted, null returned
     expect(loaded).toBeNull()
-    expect(fs.existsSync(Checkpoint.checkpointPath(sid, providerID, modelID))).toBeFalse()
-    expect(fs.existsSync(RequestDiff.baselinePath(sid, providerID, modelID))).toBeTrue()
-    expect(RequestDiff.getPrev(sid, modelID)?.formatted).toBe("baseline survives")
-    RequestDiff.deleteBaselines(sid)
+    expect(fs.existsSync(cpPath)).toBeFalse()
   })
 })

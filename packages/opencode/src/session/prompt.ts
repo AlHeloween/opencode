@@ -1310,7 +1310,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 checkpoint: false,
               })
 
-              // Diff logging for compaction turns (same capture format as normal turns)
+              // Diff logging for compaction turns — derives "previous" from the
+              // pre-compaction checkpoint instead of a separate .baselines store.
               const cfg2 = yield* config.get()
               if (cfg2.diff_requests !== false) {
                 const diffMeta: RequestDiff.DiffMeta = {
@@ -1321,16 +1322,31 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   agent: agent.name,
                   timestamp: Date.now(),
                 }
-                yield* Effect.promise(() =>
-                  RequestDiff.ensureBaseline(sessionID, model.id, model.providerID, ctx.project.id, ctx.worktree),
-                )
+                const compactionCheckpoint = yield* Checkpoint.load({
+                  sessionID,
+                  providerID: model.providerID,
+                  modelID: model.id,
+                  projectID: ctx.project.id,
+                  worktree: ctx.worktree,
+                }).pipe(Effect.catch(() => Effect.succeed(null)))
                 const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
-                const prev = RequestDiff.getPrev(sessionID, model.id)
-                if (prev) {
-                  const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)
+                if (compactionCheckpoint) {
+                  const prevMeta: RequestDiff.DiffMeta = {
+                    sessionID,
+                    modelID: compactionCheckpoint.model.modelID,
+                    providerID: compactionCheckpoint.model.providerID,
+                    turn: compactionCheckpoint.turn,
+                    agent: compactionCheckpoint.agent,
+                    timestamp: compactionCheckpoint.timestamp,
+                  }
+                  const prevFormatted = RequestDiff.formatRequest(
+                    compactionCheckpoint.systemPrompt,
+                    compactionCheckpoint.messages,
+                    prevMeta,
+                  )
+                  const diff = RequestDiff.diffRequest(prevFormatted, formatted, prevMeta, diffMeta)
                   if (diff) RequestDiff.writeDiff(diff, diffMeta)
                 }
-                RequestDiff.storePrev(sessionID, model.id, formatted, diffMeta, ctx.project.id, ctx.worktree)
               }
 
               if (result === "stop") return "break" as const
@@ -1360,6 +1376,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                       messages: checkpointModelMsgs,
                       messageIDs: checkpointMsgs.map((m) => m.info.id),
                       model: { providerID: model.providerID, modelID: model.id },
+                      agent: agent.name,
                       turn: step + 1,
                       timestamp: Date.now(),
                     },
@@ -1681,29 +1698,37 @@ You should build your plan incrementally by writing to or editing this file. NOT
               : currentFP
             CacheControl.storePrevFingerprint(sessionID, model.id, finalFP)
 
-            // Diff logging: capture the actual request content (system + modelMsgs)
-            // after the plugin may have modified `system` by reference during
-            // handle.process().  Writes unified diff to diffs/ folder for KV cache debugging.
+            // Diff logging — derives "previous" request from the loaded checkpoint
+            // instead of a separate .baselines store.  The checkpoint already holds
+            // the full conversation state (systemPrompt + messages) from the prior turn.
             const cfg = yield* config.get()
             if (cfg.diff_requests !== false) {
               const diffMeta: RequestDiff.DiffMeta = {
                 sessionID,
                 modelID: model.id,
                 providerID: model.providerID,
-                  turn: msgs.filter((m) => m.info.role === "user").length,
+                turn: msgs.filter((m) => m.info.role === "user").length,
                 agent: agent.name,
                 timestamp: Date.now(),
               }
-              yield* Effect.promise(() =>
-                RequestDiff.ensureBaseline(sessionID, model.id, model.providerID, ctx.project.id, ctx.worktree),
-              )
               const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
-              const prev = RequestDiff.getPrev(sessionID, model.id)
-              if (prev) {
-                const diff = RequestDiff.diffRequest(prev.formatted, formatted, prev.meta, diffMeta)
+              if (checkpointUsable) {
+                const prevMeta: RequestDiff.DiffMeta = {
+                  sessionID,
+                  modelID: checkpointUsable.model.modelID,
+                  providerID: checkpointUsable.model.providerID,
+                  turn: checkpointUsable.turn,
+                  agent: checkpointUsable.agent,
+                  timestamp: checkpointUsable.timestamp,
+                }
+                const prevFormatted = RequestDiff.formatRequest(
+                  checkpointUsable.systemPrompt,
+                  checkpointUsable.messages,
+                  prevMeta,
+                )
+                const diff = RequestDiff.diffRequest(prevFormatted, formatted, prevMeta, diffMeta)
                 if (diff) RequestDiff.writeDiff(diff, diffMeta)
               }
-              RequestDiff.storePrev(sessionID, model.id, formatted, diffMeta, ctx.project.id, ctx.worktree)
             }
 
             if (structured !== undefined) {
@@ -1757,6 +1782,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                     messages: checkpointModelMsgs,
                     messageIDs: checkpointMsgs.map((m) => m.info.id),
                     model: { providerID: model.providerID, modelID: model.id },
+                    agent: agent.name,
                     turn: step + 1,
                     timestamp: Date.now(),
                   },

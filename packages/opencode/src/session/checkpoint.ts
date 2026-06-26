@@ -31,6 +31,7 @@ export interface CheckpointData {
   messages: ModelMessage[]
   messageIDs: string[]
   model: { providerID: string; modelID: string }
+  agent: string
   turn: number
   timestamp: number
 }

@@ -296,67 +296,7 @@ describe("writeDiff", () => {
   })
 })
 
-describe("getPrev / storePrev", () => {
-  test("storePrev and getPrev round-trip", () => {
-    const sessionID = "ses_roundtrip_test"
-    const modelID = "test-model"
-    const meta = baseMeta({ sessionID })
-    const formatted = RequestDiff.formatRequest(makeSystem(), makeMessages(), meta)
-
-    // Store with modelID + dummy projectID/worktree
-    RequestDiff.storePrev(sessionID, modelID, formatted, meta, "proj_001", tmpDir())
-
-    // Retrieve by session+model
-    const prev = RequestDiff.getPrev(sessionID, modelID)
-    expect(prev).toBeDefined()
-    expect(prev!.formatted).toEqual(formatted)
-    expect(prev!.meta).toEqual(meta)
-  })
-
-  test("getPrev returns undefined for unknown session+model", () => {
-    const prev = RequestDiff.getPrev("ses_nonexistent", "any-model")
-    expect(prev).toBeUndefined()
-  })
-
-  test("storePrev overwrites previous baseline for same session+model", () => {
-    const sessionID = "ses_overwrite_test"
-    const modelID = "test-model"
-
-    const meta1 = baseMeta({ sessionID, turn: 1 })
-    const formatted1 = RequestDiff.formatRequest(makeSystem(), makeMessages(), meta1)
-    RequestDiff.storePrev(sessionID, modelID, formatted1, meta1, "proj_001", tmpDir())
-
-    const meta2 = baseMeta({ sessionID, turn: 2 })
-    const formatted2 = RequestDiff.formatRequest(makeSystem(), [{ role: "user", content: "another message" }], meta2)
-    RequestDiff.storePrev(sessionID, modelID, formatted2, meta2, "proj_001", tmpDir())
-
-    const prev = RequestDiff.getPrev(sessionID, modelID)
-    expect(prev).toBeDefined()
-    expect(prev!.meta.turn).toEqual(2)
-    expect(prev!.formatted).toContain("another message")
-  })
-
-  test("different models have separate baselines for same session", () => {
-    const sessionID = "ses_multimodel_test"
-
-    const meta1 = baseMeta({ sessionID, turn: 1, modelID: "model-a" })
-    const formatted1 = RequestDiff.formatRequest(makeSystem(), makeMessages(), meta1)
-    RequestDiff.storePrev(sessionID, "model-a", formatted1, meta1, "proj_001", tmpDir())
-
-    const meta2 = baseMeta({ sessionID, turn: 2, modelID: "model-b" })
-    const formatted2 = RequestDiff.formatRequest(makeSystem(), [{ role: "user", content: "model-b input" }], meta2)
-    RequestDiff.storePrev(sessionID, "model-b", formatted2, meta2, "proj_001", tmpDir())
-
-    const prevA = RequestDiff.getPrev(sessionID, "model-a")
-    const prevB = RequestDiff.getPrev(sessionID, "model-b")
-    expect(prevA).toBeDefined()
-    expect(prevB).toBeDefined()
-    expect(prevA!.meta.turn).toEqual(1)
-    expect(prevB!.meta.turn).toEqual(2)
-  })
-})
-
-// ── Encryption and persistence ───────────────────────────────────────────────
+// ── Encryption primitives (shared with checkpoint.ts) ────────────────────────
 
 describe("encryption", () => {
   test("encrypt + decrypt round-trip", async () => {
@@ -407,121 +347,20 @@ describe("encryption", () => {
   })
 })
 
-describe("persistent baselines", () => {
-  let worktree: string
-
-  beforeEach(() => {
-    worktree = path.join(os.tmpdir(), `opencode-test-baselines-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-    fs.mkdirSync(worktree, { recursive: true })
-    Global.initFromWorktree(worktree)
-  })
-
-  afterEach(() => {
-    fs.rmSync(worktree, { recursive: true, force: true })
-  })
-
-  test("storePrev writes encrypted baseline to disk", async () => {
-    const sessionID = "ses_persist_001"
-    const modelID = "test-model"
-    const providerID = "test-provider"
-    const meta = baseMeta({ sessionID, modelID, providerID })
+describe("deleteBaselines", () => {
+  test("deleteBaselines cleans countMap for session (no-op on no baselines dir)", () => {
+    const sessionID = "ses_cleanup_001"
+    // Write a diff to populate countMap, then verify deleteBaselines doesn't throw
+    const meta = baseMeta({ sessionID })
     const formatted = RequestDiff.formatRequest(makeSystem(), makeMessages(), meta)
-
-    RequestDiff.storePrev(sessionID, modelID, formatted, meta, "proj-001", worktree)
-
-    // Wait for async persistence (fire-and-forget writes asynchronously)
-    await new Promise((r) => setTimeout(r, 200))
-
-    const filePath = RequestDiff.baselinePath(sessionID, providerID, modelID)
-    expect(fs.existsSync(filePath)).toBeTrue()
-
-    // Verify it's valid encrypted data we can decrypt
-    const encrypted = fs.readFileSync(filePath)
-    const key = await RequestDiff.deriveKey("proj-001", worktree, sessionID)
-    const decrypted = await RequestDiff.decryptBaseline(encrypted, key)
-    const baseline = JSON.parse(decrypted)
-    expect(baseline.formatted).toEqual(formatted)
-    expect(baseline.meta.sessionID).toEqual(sessionID)
-  })
-
-  test("ensureBaseline loads from disk into prevMap", async () => {
-    const sessionID = "ses_load_001"
-    const modelID = "test-model"
-    const providerID = "test-provider"
-    const meta = baseMeta({ sessionID, modelID, providerID })
-    const formatted = RequestDiff.formatRequest(makeSystem(), makeMessages(), meta)
-
-    // Write to disk via storePrev
-    RequestDiff.storePrev(sessionID, modelID, formatted, meta, "proj-001", worktree)
-    await new Promise((r) => setTimeout(r, 200))
-
-    // Simulate restart: prevMap should be empty for this key (we used unique sessionID)
-    // ensureBaseline loads from disk
-    await RequestDiff.ensureBaseline(sessionID, modelID, providerID, "proj-001", worktree)
-
-    // Now getPrev should return the loaded baseline
-    const prev = RequestDiff.getPrev(sessionID, modelID)
-    expect(prev).toBeDefined()
-    expect(prev!.formatted).toEqual(formatted)
-  })
-
-  test("ensureBaseline is idempotent — no error on second call", async () => {
-    const sessionID = "ses_idempotent_001"
-    const modelID = "test-model"
-    const providerID = "test-provider"
-
-    // No disk file → ensureBaseline returns without error
-    await RequestDiff.ensureBaseline(sessionID, modelID, providerID, "proj-001", worktree)
-
-    // Second call should also succeed
-    await RequestDiff.ensureBaseline(sessionID, modelID, providerID, "proj-001", worktree)
-
-    // No baseline should exist
-    expect(RequestDiff.getPrev(sessionID, modelID)).toBeUndefined()
-  })
-
-  test("ensureBaseline handles corrupt file gracefully", async () => {
-    const sessionID = "ses_corrupt_001"
-    const modelID = "test-model"
-    const providerID = "test-provider"
-
-    // Write corrupt data to disk
-    const filePath = RequestDiff.baselinePath(sessionID, providerID, modelID)
-    fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    fs.writeFileSync(filePath, Buffer.from("this is not valid encrypted data"))
-
-    // Should not throw — silently deletes corrupt file
-    await RequestDiff.ensureBaseline(sessionID, modelID, providerID, "proj-001", worktree)
-
-    // Corrupt file should be deleted
-    expect(fs.existsSync(filePath)).toBeFalse()
-  })
-
-  test("deleteBaselines removes directory and clears prevMap", async () => {
-    const sessionID = "ses_delete_001"
-    const modelID = "test-model"
-    const providerID = "test-provider"
-    const meta = baseMeta({ sessionID, modelID, providerID })
-    const formatted = RequestDiff.formatRequest(makeSystem(), makeMessages(), meta)
-
-    // Persist a baseline
-    RequestDiff.storePrev(sessionID, modelID, formatted, meta, "proj-001", worktree)
-    await new Promise((r) => setTimeout(r, 200))
-
-    // Also store a second model for the same session
-    const meta2 = baseMeta({ sessionID, modelID: "other-model", providerID, turn: 2 })
-    RequestDiff.storePrev(sessionID, "other-model", formatted, meta2, "proj-001", worktree)
-    await new Promise((r) => setTimeout(r, 200))
-
-    // Delete
+    RequestDiff.writeDiff(RequestDiff.diffRequest(
+      RequestDiff.formatRequest(makeSystem(), [], baseMeta({ sessionID })),
+      formatted,
+      baseMeta({ sessionID }),
+      meta,
+    ) || "test diff", meta)
     RequestDiff.deleteBaselines(sessionID)
-
-    // Directory should be gone
-    const dir = RequestDiff.sessionDiffDir(sessionID)
-    expect(fs.existsSync(dir)).toBeFalse()
-
-    // prevMap entries should be cleared
-    expect(RequestDiff.getPrev(sessionID, modelID)).toBeUndefined()
-    expect(RequestDiff.getPrev(sessionID, "other-model")).toBeUndefined()
+    // No error = pass.  deleteBaselines now only cleans the counter map;
+    // diffs derive their "previous" from checkpoints.
   })
 })

@@ -1276,19 +1276,17 @@ You should build your plan incrementally by writing to or editing this file. NOT
               const cacheNamespace = lastUser.providerCacheKey ?? sessionID
               const sessionIdBanner = `[session: ${cacheNamespace}]`
               const system = [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
-              Log.Default.info("system assembly sizes", {
+              yield* Effect.sync(() => log.info("system assembly", {
                 sessionID,
-                banner: sessionIdBanner.length,
+                checkpoint: checkpointUsable ? "loaded" : "fresh",
+                bannerLen: sessionIdBanner.length,
                 rulesCount: rules.length,
                 rulesChars: rules.join("").length,
-                envCount: env.length,
                 envChars: env.join("").length,
-                skillsChars: (skills ?? "").length,
                 instrCount: instructions.length,
                 instrChars: instructions.join("").length,
                 totalChars: system.join("").length,
-                checkpoint: checkpointUsable ? "loaded" : "fresh",
-              })
+              }))
               const format = lastUser.format ?? { type: "text" as const }
               if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
@@ -1640,6 +1638,17 @@ You should build your plan incrementally by writing to or editing this file. NOT
             const system = checkpointUsable
               ? [...checkpointUsable.systemPrompt]
               : [`[session: ${sessionID}]`, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
+            yield* Effect.sync(() => log.info("system assembly", {
+              sessionID,
+              checkpoint: checkpointUsable ? "loaded" : "fresh",
+              bannerLen: system[0]?.length ?? 0,
+              rulesCount: rules.length,
+              rulesChars: rules.join("").length,
+              envChars: env.join("").length,
+              instrCount: instructions.length,
+              instrChars: instructions.join("").length,
+              totalChars: system.join("").length,
+            }))
             if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
             // Snapshot system before handle.process() may mutate it via plugin hook.

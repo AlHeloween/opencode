@@ -36,7 +36,7 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 - **System prompt** (`src/session/system.ts`, `src/session/prompt.ts` system construction): Must be byte-identical across all turns within a session. No dates, no counters, no `Date.now()`, no random values, no per-turn identifiers.
 - **Agent resolution**: Same agent must be used for consecutive turns (including compaction). Switching agents changes `sys.skills(agent)` output → different system prompt → cache break.
 - **Plugin hooks**: `experimental.chat.system.transform` in `llm.ts` receives `system[]` by reference. If a plugin modifies it, fingerprint must be computed AFTER the plugin runs, not before.
-- **Date/time**: `environmentDate()` (`system.ts:147`) returns the date string — it must ONLY be injected into user messages, never the system prompt.
+- **Date/time**: UTC timestamp is appended to user message text in `prompt.ts` (`new Date().toISOString()`). Never injected into the system prompt. No date extraction logic in `llm.ts`.
 - **Message conversion**: `toModelMessagesEffect()` must not inject timestamps, random IDs, or mutable content into converted messages.
 
 **Reporting rule:** If a proposed change has any probability of breaking KV cache continuity, the agent MUST:
@@ -48,7 +48,7 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 **Key files:**
 | File | What | Cache sensitivity |
 |------|------|-------------------|
-| `src/session/system.ts` | System prompt construction | `environment()` must be static; date goes to user messages only |
+| `src/session/system.ts` | System prompt construction | `environment()` must be static — no dates, no mutable values |
 | `src/session/prompt.ts` | System prompt assembly, fingerprint | System must be identical across paths; fingerprint stored post-plugin |
 | `src/session/cache-control.ts` | Fingerprint computation | `partFingerprint` uses MD5(content) for text, not length |
 | `src/session/llm.ts` | Plugin hook, provider request | Plugin can modify system by reference; fingerprint must be post-hook |

@@ -261,6 +261,9 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     }
 
     refreshPlanStatus()
+    // Reset turn count on each activation — module-level signal persists
+    // across sessions, so old counts would immediately hit the 20-turn limit.
+    setTurnCount(0)
     // Show enabled badge immediately — before any async work.
     // Previously setAgiMode(true) was at the end, after session creation
     // and orchestrator prompt, leaving the UI in "disabled" state during

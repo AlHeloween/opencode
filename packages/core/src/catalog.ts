@@ -63,15 +63,15 @@ export interface CatalogState {
   tokenizers: Map<string, typeof TokenizerConfig.Type>
 }
 
-export class ProviderNotFound extends Schema.TaggedError<ProviderNotFound>()("ProviderNotFound", {
+export class ProviderNotFound extends Schema.TaggedErrorClass<ProviderNotFound>()("ProviderNotFound", {
   providerID: Schema.String,
 }) {}
 
-export class ModelNotFound extends Schema.TaggedError<ModelNotFound>()("ModelNotFound", {
+export class ModelNotFound extends Schema.TaggedErrorClass<ModelNotFound>()("ModelNotFound", {
   modelID: Schema.String,
 }) {}
 
-export class DuplicateProvider extends Schema.TaggedError<DuplicateProvider>()("DuplicateProvider", {
+export class DuplicateProvider extends Schema.TaggedErrorClass<DuplicateProvider>()("DuplicateProvider", {
   providerID: Schema.String,
 }) {}
 
@@ -85,7 +85,7 @@ export interface CatalogInterface {
 
 export class Catalog extends Context.Service<Catalog, CatalogInterface>()("@opencode/Catalog") {}
 
-const BUILTIN_TOKENIZERS: Record<string, typeof TokenizerConfig.Type> = {
+export const BUILTIN_TOKENIZERS: Record<string, typeof TokenizerConfig.Type> = {
   "deepseek-v4-pro": { source: "bundled", path: "deepseek-v4", type: "bpe" },
   "deepseek-v4-flash": { source: "bundled", path: "deepseek-v4", type: "bpe" },
   "*deepseek-v4*": { source: "bundled", path: "deepseek-v4", type: "bpe" },
@@ -112,44 +112,39 @@ export function resolveTokenizer(modelID: string): typeof TokenizerConfig.Type |
   return undefined
 }
 
-export const layer = Layer.effect(
+const _state: CatalogState = {
+  providers: new Map(),
+  models: new Map(),
+  tokenizers: new Map(),
+}
+
+for (const def of BUILTIN_PROVIDERS) {
+  _state.providers.set(def.id, def)
+  for (const model of def.models) _state.models.set(model.id, model)
+}
+
+for (const [pattern, config] of Object.entries(BUILTIN_TOKENIZERS)) {
+  _state.tokenizers.set(pattern, config)
+}
+
+export const layer = Layer.succeed(
   Catalog,
-  Effect.sync(() => {
-    const state: CatalogState = {
-      providers: new Map(),
-      models: new Map(),
-      tokenizers: new Map(),
-    }
-
-    for (const def of BUILTIN_PROVIDERS) {
-      state.providers.set(def.id, def)
-      for (const model of def.models) state.models.set(model.id, model)
-    }
-
-    for (const [pattern, config] of Object.entries(BUILTIN_TOKENIZERS)) {
-      state.tokenizers.set(pattern, config)
-    }
-
-    return Catalog.of({
-      resolveProvider: (id) =>
-        Effect.sync(() => {
-          const def = state.providers.get(id)
-          if (!def) return Effect.fail(new ProviderNotFound({ providerID: id }))
-          return def
-        }),
-      resolveModel: (id) =>
-        Effect.sync(() => {
-          const def = state.models.get(id)
-          if (!def) return Effect.fail(new ModelNotFound({ modelID: id }))
-          return def
-        }),
-      listProviders: () => Effect.sync(() => Array.from(state.providers.values())),
-      listModels: (filter) =>
-        Effect.sync(() => {
-          const all = Array.from(state.models.values())
-          return filter?.provider ? all.filter((m) => m.provider === filter.provider) : all
-        }),
-      tokenizerFor: (modelID) => Effect.sync(() => resolveTokenizer(modelID)),
-    })
+  Catalog.of({
+    resolveProvider: (id) => {
+      const def = _state.providers.get(id)
+      return def ? Effect.succeed(def) : Effect.fail(new ProviderNotFound({ providerID: id }))
+    },
+    resolveModel: (id) => {
+      const def = _state.models.get(id)
+      return def ? Effect.succeed(def) : Effect.fail(new ModelNotFound({ modelID: id }))
+    },
+    listProviders: () => Effect.succeed(Array.from(_state.providers.values())),
+    listModels: (filter) =>
+      Effect.succeed(
+        filter?.provider
+          ? Array.from(_state.models.values()).filter((m) => m.provider === filter.provider)
+          : Array.from(_state.models.values()),
+      ),
+    tokenizerFor: (modelID) => Effect.succeed(resolveTokenizer(modelID)),
   }),
 )

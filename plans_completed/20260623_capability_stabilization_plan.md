@@ -354,16 +354,3 @@ Implementation verification completed:
     - Blocked: none
     - Next: continue to the next active media/pipeline workstream
 
-<!-- ADID_ROLLBACK (from adm.exe)
-  SDID_ROLLBACK {
-    "target_file": "D:\\zPython\\opencode\\plans_completed/20260623_capability_stabilization_plan.md"
-    "update_script": "adm.exe"
-    "backup_path": "none"
-    "created_at": "2026-06-24T05:27:01.720184+00:00"
-    "new_hash": "afaea1bde543c2aec47eb2a74845edda"
-    "goal_id": "create_capability_stabilization_plan"
-    "semantics": "Create a documentation-only stabilization plan for capability service/tool work."
-    "update_attrs": {"relative_path": "plans_completed/20260623_capability_stabilization_plan.md", "update_type": "text", "mode": "overwrite", "encoding": "utf-8", "find_pattern": null, "find_text": "", "replace_present": true}
-    "restore_cmd": "python -m adm \u002d\u002drollback \"D:\\zPython\\opencode\\plans_completed/20260623_capability_stabilization_plan.md\""
-  }
--->

@@ -1,4 +1,4 @@
-import { Effect, Layer, Context, Redacted, Option, Schema } from "effect"
+import { Effect, Layer, Context, Redacted, Schema } from "effect"
 import { Auth } from "./index"
 import { Account } from "@/account/account"
 
@@ -28,7 +28,6 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const auth = yield* Auth.Service
-    const account = yield* Account.Service
 
     const resolveCredential = (providerID: string, _accountID?: string) =>
       auth.get(providerID).pipe(
@@ -54,9 +53,38 @@ export const layer = Layer.effect(
 
     return Service.of({
       resolveCredential,
-      listCredentials: () => Effect.succeed([]),
-      setCredential: () => Effect.void,
-      migrateV1Credentials: () => Effect.succeed(0),
+      listCredentials: Effect.fn("AuthV2.listCredentials")(function* () {
+        const all = yield* auth.all().pipe(Effect.orDie)
+        const result: Credential[] = []
+        for (const [providerID, cred] of Object.entries(all)) {
+          if (!cred) continue
+          const key = cred.type === "api" ? (cred as { key: string }).key
+            : cred.type === "oauth" ? (cred as { access: string }).access
+            : (cred as { token: string }).token
+          result.push({
+            providerID,
+            type: cred.type,
+            value: Redacted.make(key),
+            source: "auth_enc" as const,
+          })
+        }
+        return result
+      }),
+      setCredential: Effect.fn("AuthV2.setCredential")(function* (
+        providerID: string,
+        credential: Auth.Info,
+        _accountID?: string,
+      ) {
+        yield* auth.set(providerID, credential).pipe(Effect.orDie)
+      }),
+      migrateV1Credentials: Effect.fn("AuthV2.migrateV1Credentials")(function* () {
+        const all = yield* auth.all().pipe(Effect.orDie)
+        let count = 0
+        for (const cred of Object.values(all)) {
+          if (cred) count++
+        }
+        return count
+      }),
     })
   }),
 ).pipe(

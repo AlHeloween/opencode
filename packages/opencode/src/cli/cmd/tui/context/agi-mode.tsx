@@ -52,6 +52,11 @@ function saveAgiState(state: AgiState) {
 /** Maximum length of main session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
 
+/** Module-level AGI mode signal — shared across all useAgiMode() call sites.
+ *  Previously each caller created its own createSignal(false), so toggling
+ *  from app.tsx didn't update the badge in routes/session/index.tsx. */
+const [agiMode, setAgiMode] = createSignal(false)
+
 export function useAgiMode(currentSessionID: () => string | undefined) {
   const local = useLocal()
   const sync = useSync()
@@ -60,7 +65,6 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
 
   // Load persisted AGI state (survives TUI restarts, route navigation)
   const persisted = loadAgiState()
-  const [agiMode, setAgiMode] = createSignal(false)
   const [mainSessionID, setMainSessionIDRaw] = createSignal<string | undefined>(persisted.mainSessionID)
   const [orchSessionID, setOrchSessionIDRaw] = createSignal<string | undefined>(persisted.orchSessionID)
   const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], total: 0, completion: 0 })

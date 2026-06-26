@@ -52,6 +52,16 @@ function saveAgiState(state: AgiState) {
 /** Maximum length of main session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
 
+/** Maximum number of auto-continue turns before safety deactivation.
+ *  TODO: make configurable via TUI settings dialog. */
+const MAX_TURNS = 100
+
+/** Maximum AGI session runtime in milliseconds before safety deactivation (24h). */
+const MAX_RUNTIME_MS = 24 * 60 * 60 * 1000
+
+/** Timestamp when AGI mode was last activated — used for runtime limit. */
+let activationStartedAt = 0
+
 /** Module-level AGI mode signal — shared across all useAgiMode() call sites.
  *  Previously each caller created its own createSignal(false), so toggling
  *  from app.tsx didn't update the badge in routes/session/index.tsx. */
@@ -206,10 +216,19 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
 
       if (planData().active.length === 0) return
 
-      // Safety: max 20 turns to prevent infinite loop
+      // Safety: max turns / max runtime to prevent infinite loop
       const t = turnCount() + 1
-      if (t > 20) {
-        toast.show({ message: "AGI: max turns (20) reached — deactivating", variant: "info" })
+      if (t > MAX_TURNS) {
+        toast.show({ message: `AGI: max turns (${MAX_TURNS}) reached — deactivating`, variant: "info" })
+        deactivate(true)
+        return
+      }
+
+      // Time-based limit: 24h max continuous AGI runtime
+      const elapsed = Date.now() - activationStartedAt
+      if (elapsed > MAX_RUNTIME_MS) {
+        const hours = Math.round(elapsed / 3600000)
+        toast.show({ message: `AGI: max runtime (${hours}h) reached — deactivating`, variant: "info" })
         deactivate(true)
         return
       }
@@ -264,6 +283,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     // Reset turn count on each activation — module-level signal persists
     // across sessions, so old counts would immediately hit the 20-turn limit.
     setTurnCount(0)
+    activationStartedAt = Date.now()
     // Show enabled badge immediately — before any async work.
     // Previously setAgiMode(true) was at the end, after session creation
     // and orchestrator prompt, leaving the UI in "disabled" state during

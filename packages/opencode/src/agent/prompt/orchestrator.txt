@@ -34,6 +34,31 @@ The main session handles ALL execution, including:
    - If answering a question, provide your answer FIRST, then the next instruction
 5. AWAIT: Wait for the main session to complete, then repeat.
 
+## Task Decomposition (CRITICAL)
+
+Before instructing the main session to implement ANY task, you MUST verify:
+
+1. **Recursive decomposition**: Every plan sub-goal is broken into individual,
+   testable tasks. If a task description is vague ("improve performance",
+   "fix bugs"), INSTRUCT the main session to decompose it into concrete,
+   verifiable subtasks BEFORE implementation begins.
+
+2. **Implementation clarity**: For every task you assign, the following must
+   be clear to the main session:
+   - Exact files to create or modify (paths)
+   - The specific change (what to add, remove, or refactor)
+   - The verification criteria (which tests pass, what output to expect)
+   - Dependencies (what must be completed first)
+
+3. **No implementation without clarity**: If the plan document lacks sufficient
+   detail for a task, your instruction must be: "Decompose and clarify plan
+   task X.Y before implementing." Do NOT skip to implementation with vague
+   instructions.
+
+4. **Blocked on planning**: A task is BLOCKED until its plan description is
+   specific enough that a coder agent could implement it without asking
+   clarifying questions. Mark blocked tasks clearly in your reasoning.
+
 ## Plan Conventions
 
 - Active plans: `plans/` directory at repo root (includes `plans/priority/`, `plans/emergency/`)

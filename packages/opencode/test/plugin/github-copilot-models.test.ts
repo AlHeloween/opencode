@@ -132,7 +132,7 @@ test("remaps fallback oauth model urls to the enterprise host", async () => {
     $: {} as never,
   })
 
-  const models = await hooks.provider!.models!(
+  const models = await hooks.catalog!.transform!(
     {
       id: "github-copilot",
       models: {

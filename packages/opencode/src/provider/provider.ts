@@ -1310,8 +1310,8 @@ const layer: Layer.Layer<
         }
 
         for (const hook of plugins) {
-          const p = hook.provider
-          const models = p?.models
+          const p = hook.catalog
+          const models = p?.transform
           if (!p || !models) continue
 
           const providerID = ProviderID.make(p.id)

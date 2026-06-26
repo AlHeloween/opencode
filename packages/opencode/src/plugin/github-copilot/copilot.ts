@@ -57,9 +57,9 @@ function fix(model: Model, url: string): Model {
 export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
   const sdk = input.client
   return {
-    provider: {
+    catalog: {
       id: "github-copilot",
-      async models(provider, ctx) {
+      async transform(provider, ctx) {
         if (ctx.auth?.type !== "oauth") {
           return Object.fromEntries(Object.entries(provider.models).map(([id, model]) => [id, fix(model, base())]))
         }

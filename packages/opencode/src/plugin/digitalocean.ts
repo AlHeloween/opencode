@@ -285,9 +285,9 @@ function parseRoutersJSON(raw: string | undefined): RouterEntry[] {
 
 export async function DigitalOceanAuthPlugin(input: PluginInput): Promise<Hooks> {
   return {
-    provider: {
+    catalog: {
       id: "digitalocean",
-      async models(provider, ctx) {
+      async transform(provider, ctx) {
         const baseModels = provider.models
         if (ctx.auth?.type !== "api") return baseModels
 

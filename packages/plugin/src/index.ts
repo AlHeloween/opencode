@@ -207,14 +207,19 @@ export type AuthOAuthResult = { url: string; instructions: string } & (
     }
 )
 
-export type ProviderHookContext = {
+export type CatalogHookContext = {
   auth?: Auth
 }
 
-export type ProviderHook = {
+export type CatalogHook = {
   id: string
-  models?: (provider: ProviderV2, ctx: ProviderHookContext) => Promise<Record<string, ModelV2>>
+  transform?: (provider: ProviderV2, ctx: CatalogHookContext) => Promise<Record<string, ModelV2>>
 }
+
+/** @deprecated Use CatalogHook instead. */
+export type ProviderHook = CatalogHook
+/** @deprecated Use CatalogHookContext instead. */
+export type ProviderHookContext = CatalogHookContext
 
 /** @deprecated Use AuthOAuthResult instead. */
 export type AuthOuathResult = AuthOAuthResult
@@ -226,7 +231,7 @@ export interface Hooks {
     [key: string]: ToolDefinition
   }
   auth?: AuthHook
-  provider?: ProviderHook
+  catalog?: CatalogHook
   /**
    * Called when a new message is received
    */

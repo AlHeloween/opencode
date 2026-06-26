@@ -57,7 +57,7 @@ Independent items (no blocking dependencies):
 
 | ID | Item | Plan File | Effort | Status |
 |----|------|-----------|--------|--------|
-| P1 | Config Consolidation | `plans/priority/config_consolidation.md` | 9.5 days | [ ] Planned |
+| P1 | Config Consolidation | `plans_completed/20260625_config_consolidation.md` | 9.5 days | [x] Done |
 | P2 | Cache Stats — Per-Message | `plans_completed/20260625_cache_stats.md` | 3.5 days | [x] Done |
 
 ### Standard Tasks (`plans/`)
@@ -80,8 +80,8 @@ Phase 0 (Emergency — done):
   [x] E1 Background Job Fixes
   [x] E2 Orchestrator Agent + AGI Mode
 
-Phase 1 (Priority):
-  Days 1-10: P1 Config Consolidation (9.5 days)
+Phase 1 (Priority — done):
+  [x] P1 Config Consolidation (9.5 days)
 
 Phase 2 (In Progress):
   Day 1:    E3 Orchestrator Evolving Mode (1-2 days)

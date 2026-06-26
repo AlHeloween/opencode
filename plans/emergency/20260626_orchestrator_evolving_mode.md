@@ -1,7 +1,7 @@
 # Orchestrator Enhancement: Evolving Mode + Git Integration
 
 **Created:** 2026-06-26
-**Status:** Planning
+**Status:** Task 1 done (evolving mode appended to orchestrator.txt), tasks 2-4 pending.
 **Goal:** Add evolving improvement mode, git auto-init, and branch-based plan iteration to orchestrator.
 
 ## Current State
@@ -39,9 +39,8 @@ After all active plans are completed:
 ## Implementation
 
 ### Task 1: Extend orchestrator prompt
-- Add evolving mode instructions
-- Add git workflow instructions
-- Add improvement category descriptions
+- [x] Add evolving mode instructions
+- [x] Add improvement category descriptions
 - File: `packages/opencode/src/agent/prompt/orchestrator.txt`
 
 ### Task 2: Add git auto-init logic

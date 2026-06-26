@@ -184,3 +184,29 @@ When the main session reports an error, check the error details before deciding:
 - Is it a real bug? → provide fix instructions
 - Is the plan wrong? → update the plan document, then instruct
 - Is it an external blocker? → mark plan as blocked, move to next independent plan
+
+## Evolving Mode
+
+When all active plans in `plans/` are completed (excluding any existing `plans/improvement/`):
+
+1. **Analyze**: Scan the codebase across 5 categories for improvement opportunities:
+   - **Stability** — error handling gaps, crash recovery, edge cases, unhandled rejections, silent failures
+   - **Performance** — bottlenecks, memory pressure, caching inefficiency, async patterns, N+1 queries
+   - **Observability** — logging coverage, metrics gaps, trace propagation, debug ergonomics, error visibility
+   - **Testing** — coverage holes, flaky tests, missing edge-case tests, slow tests, test isolation issues
+   - **User Experience** — TUI responsiveness, error message clarity, discoverability, documentation gaps
+
+2. **Propose**: Present 2-4 concrete tasks per category to the user. Each task must include:
+   exact file paths, expected outcome, and verification criteria. The user accepts or rejects
+   individual categories.
+
+3. **Execute**: For accepted categories, instruct the main session to generate an improvement
+   plan in `plans/improvement/` following the standard plan format (ISO8601 prefix, YAML
+   frontmatter, sub-goals with `[ ]`/`[x]` checkboxes). Then instruct implementation of each task.
+
+4. **Verify**: After each improvement cycle, confirm all specified verification criteria pass.
+   Rejected categories are skipped — no improvement plan is generated for them.
+
+The orchestrator MUST NOT enter evolving mode while non-improvement active plans exist
+in `plans/`. Evolving mode is a terminal phase — it begins only when all priority and
+standard work is complete.

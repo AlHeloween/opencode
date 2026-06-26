@@ -1,7 +1,6 @@
 import path from "path"
 import os from "os"
 import z from "zod"
-import { Global } from "@opencode-ai/core/global"
 import * as EffectZod from "@/util/effect-zod"
 import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
@@ -1277,29 +1276,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
               const cacheNamespace = lastUser.providerCacheKey ?? sessionID
               const sessionIdBanner = `[session: ${cacheNamespace}]`
               const system = [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
-              // DIAGNOSTIC: dump assembly sizes to debug file
-              const diag = {
-                ts: new Date().toISOString(),
-                sessionID,
-                checkpoint: "compaction",
-                logPath: Global.Path.log,
-                bannerLen: sessionIdBanner.length,
-                rulesCount: rules.length,
-                rulesChars: rules.join("").length,
-                envChars: env.join("").length,
-                instrCount: instructions.length,
-                instrChars: instructions.join("").length,
-                totalChars: system.join("").length,
-              }
-              console.log("ASSEMBLY_DEBUG", JSON.stringify(diag))
-              yield* Effect.promise(() =>
-                Bun.write(
-                  Bun.file(path.join(Global.Path.log, "assembly_debug.jsonl")),
-                  JSON.stringify(diag) + "\n",
-                ).catch((e: unknown) => {
-                  console.error("ASSEMBLY WRITE FAILED:", e)
-                }),
-              )
               const format = lastUser.format ?? { type: "text" as const }
               if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
@@ -1651,20 +1627,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
             const system = checkpointUsable
               ? [...checkpointUsable.systemPrompt]
               : [`[session: ${sessionID}]`, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
-            // DIAGNOSTIC: log assembly sizes every turn
-            const diag2 = {
-              ts: new Date().toISOString(),
-              sessionID,
-              checkpoint: checkpointUsable ? "loaded" : "fresh",
-              bannerLen: system[0]?.length ?? 0,
-              rulesCount: rules.length,
-              rulesChars: rules.join("").length,
-              envChars: env.join("").length,
-              instrCount: instructions.length,
-              instrChars: instructions.join("").length,
-              totalChars: system.join("").length,
-            }
-            console.log("ASSEMBLY_DEBUG", JSON.stringify(diag2))
             if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
             // Snapshot system before handle.process() may mutate it via plugin hook.

@@ -106,6 +106,27 @@ End every substantial response with:
 Move completed plans to plans_completed/.
 </gates>
 
+<todos>
+### Todo/Subtask Management
+
+The `todowrite` tool tracks work decomposition and completion. Map todos to gates:
+
+| Gate | Todo Action |
+|------|------------|
+| Gate 1 — STATE | Create initial todo list from user requirements |
+| Gate 2 — DECOMPOSITION | Break vague todos into specific, testable subtasks |
+| Gate 3 — MASTER PLAN | Sync todos with plan SV/goals, assign priorities |
+| Gate 4 — PRESENT | Show plan with todos visible to user |
+| Gate 5 — CONCERN LOOP | Refine todos based on user feedback |
+| Gate 6 — GROUNDING | Add explorer tasks as todos if needed |
+| Gate 7 — IMPLEMENTATION | ONE todo in_progress at a time — complete current before starting new |
+| Gate 8 — ORACLE | Mark completed WHEN oracle passes — never batch completions |
+| Gate 9 — CLEAN NEXT | Report done/blocked/next, cancel stale todos |
+
+**Todo lifecycle:** capture → decompose → plan → implement → verify → complete.
+A task is complete ONLY when its oracle passes (tests, typecheck, lint, runtime).
+</todos>
+
 <operational>
 ## Explorer Rules
 - Explorer has NO reasoning — give precise targets: file patterns, function signatures, line ranges.

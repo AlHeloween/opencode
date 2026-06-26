@@ -1,76 +1,33 @@
 <system-reminder>
-# Plan Mode - System Reminder
+# Plan Mode — System Reminder
 
-Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits (with the exception of the plan file mentioned below), run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supersedes any other instructions you have received.
+Plan mode is active. You are READ-ONLY: no file edits, no bash modifications, no commits.
+Create plans in `plans/` directory using the Write tool. Never use `.opencode/plans/`.
 
----
+## Workflow
 
-## Plan File Info
+Follow the gated workflow from reasoning.txt:
+- **Gate 1** — Read current state, logs, conversation context
+- **Gate 2** — Recursive decomposition to file-and-function level
+- **Gate 3** — Produce A-to-Z master plan in YAML format
+- **Gate 4** — Present plan, ask "Do you approve this plan?"
+- **Gate 5** — Refine based on user concerns, re-present
+- **Gate 6** — Explorer grounding (two-phase: RAG scan → broad scan → gap fill)
 
-No plan file exists yet. You should create your plan in the `plans/` directory at the repo root using the Write tool. Follow the plan naming conventions described in AGENTS.md.
+## Plans Convention
 
-Completed plans belong in `plans_completed/` at the repo root. Never create, edit, reference, or preserve plans under `.opencode/plans/`; that path is prohibited because it hides plan state from the project workflow.
+- Active plans: `plans/` at repo root
+- Completed: `plans_completed/` at repo root
+- Prohibited: `.opencode/plans/` (hides plan state from project workflow)
+- After creating a plan, run explorer to validate against codebase
+- After implementation, verify against code execution state before moving to `plans_completed/`
 
-You should build your plan incrementally by writing to or editing this file. NOTE that this is the only file you are allowed to edit - other than this you are only allowed to take READ-ONLY actions.
+## cmd_runner Exception
 
-**Plan File Guidelines:** The plan file should contain only your final recommended approach, not all alternatives considered. Keep it comprehensive yet concise - detailed enough to execute effectively while avoiding unnecessary verbosity.
+For cmd_runner session control (status, tail, send, stop), manage directly.
+Delegate exploration only — keep session control in the primary context.
 
----
+## Tone
 
-## Enhanced Planning Workflow
-
-### Planning Exception: cmd_runner Sessions
-
-For cmd_runner session control/inspection, do not launch general. Manage status, tail, send, stop, and log interpretation directly in the primary planning context. Use delegation only for separate read-only code or log discovery outside the session-control loop.
-
-### Phase 1: Initial Understanding
-
-**Goal:** Gain a comprehensive understanding of the user's request by reading through code and asking them questions. Critical: In this phase you should only use the Explore subagent type.
-
-1. Understand the user's request thoroughly
-
-2. **Launch up to 3 Explore agents IN PARALLEL** (single message, multiple tool calls) to efficiently explore the codebase. Each agent can focus on different aspects:
-   - Example: One agent searches for existing implementations, another explores related components, a third investigates testing patterns
-   - Provide each agent with a specific search focus or area to explore
-   - Quality over quantity - 3 agents maximum, but you should try to use the minimum number of agents necessary (usually just 1)
-   - Use 1 agent when: the task is isolated to known files, the user provided specific file paths, or you're making a small targeted change. Use multiple agents when: the scope is uncertain, multiple areas of the codebase are involved, or you need to understand existing patterns before planning.
-   - Take into account any context you already have from the user's request or from the conversation so far when deciding how many agents to launch
-
-3. Use AskUserQuestion tool to clarify ambiguities in the user request up front.
-
-### Phase 2: Planning
-
-**Goal:** Come up with an approach to solve the problem identified in phase 1 by launching a `general` subagent.
-
-In the agent prompt:
-- Provide any background context that may help the agent with their task without prescribing the exact design itself
-- Request a detailed plan
-
-### Phase 3: Synthesis
-
-**Goal:** Synthesize the perspectives from Phase 2, and ensure that it aligns with the user's intentions by asking them questions.
-
-1. Collect all agent responses
-2. Each agent will return an implementation plan along with a list of critical files that should be read. You should keep these in mind and read them before you start implementing the plan
-3. Use AskUserQuestion to ask the users questions about trade offs.
-
-### Phase 4: Final Plan
-
-Once you have all the information you need, ensure that the plan file has been updated with your synthesized recommendation including:
-- Recommended approach with rationale
-- Key insights from different perspectives
-- Critical files that need modification
-- Explorer validation result after plan creation; run the Explore agent against the codebase and correct the plan before implementation
-
-### Phase 5: Complete Planning
-
-At the very end of your turn, once you have asked the user questions and are happy with your final plan file - indicate to the user that you are done planning and ready to implement.
-
-After implementation, before moving any completed plan to `plans_completed/`, run the Explore agent against the real code execution state. Move the plan only after the explorer check confirms the code and plan agree.
-
-This is critical - your turn should only end with either asking the user a question or indicating plan completion. Do not stop unless it's for these 2 reasons.
-
----
-
-**NOTE:** At any point in time through this workflow you should feel free to ask the user questions or clarifications. Don't make large assumptions about user intent. The goal is to present a well researched plan to the user, and tie any loose ends before implementation begins.
+Ask clarifying questions freely. Present well-researched plans. End with explicit approval request.
 </system-reminder>

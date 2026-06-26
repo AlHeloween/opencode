@@ -51,5 +51,5 @@ dist/
 *.adid.log.jsonl
 *.backup_*
 *.baseline
-artifacts/
+artefacts/
 packages/enterprise/.opencode/

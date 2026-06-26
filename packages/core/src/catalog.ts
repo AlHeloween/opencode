@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
 
 export type ProviderID = string & { readonly __brand: "ProviderID" }
 export type ModelID = string & { readonly __brand: "ModelID" }
@@ -53,3 +53,31 @@ export const ProviderDef = Schema.Struct({
   capabilities: Schema.Array(ProviderCapability),
 })
 export type ProviderDef = typeof ProviderDef.Type
+
+export interface CatalogState {
+  providers: Map<string, typeof ProviderDef.Type>
+  models: Map<string, typeof ModelDef.Type>
+  tokenizers: Map<string, typeof TokenizerConfig.Type>
+}
+
+export class ProviderNotFound extends Schema.TaggedError<ProviderNotFound>()("ProviderNotFound", {
+  providerID: Schema.String,
+}) {}
+
+export class ModelNotFound extends Schema.TaggedError<ModelNotFound>()("ModelNotFound", {
+  modelID: Schema.String,
+}) {}
+
+export class DuplicateProvider extends Schema.TaggedError<DuplicateProvider>()("DuplicateProvider", {
+  providerID: Schema.String,
+}) {}
+
+export interface CatalogInterface {
+  readonly resolveProvider: (id: string) => Effect.Effect<typeof ProviderDef.Type, ProviderNotFound>
+  readonly resolveModel: (id: string) => Effect.Effect<typeof ModelDef.Type, ModelNotFound>
+  readonly listProviders: () => Effect.Effect<Array<typeof ProviderDef.Type>>
+  readonly listModels: (filter?: { provider?: string }) => Effect.Effect<Array<typeof ModelDef.Type>>
+  readonly tokenizerFor: (modelID: string) => Effect.Effect<typeof TokenizerConfig.Type | undefined>
+}
+
+export class Catalog extends Context.Service<Catalog, CatalogInterface>()("@opencode/Catalog") {}

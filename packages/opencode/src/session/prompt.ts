@@ -1278,22 +1278,27 @@ You should build your plan incrementally by writing to or editing this file. NOT
               const sessionIdBanner = `[session: ${cacheNamespace}]`
               const system = [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
               // DIAGNOSTIC: dump assembly sizes to debug file
+              const diag = {
+                ts: new Date().toISOString(),
+                sessionID,
+                checkpoint: "compaction",
+                logPath: Global.Path.log,
+                bannerLen: sessionIdBanner.length,
+                rulesCount: rules.length,
+                rulesChars: rules.join("").length,
+                envChars: env.join("").length,
+                instrCount: instructions.length,
+                instrChars: instructions.join("").length,
+                totalChars: system.join("").length,
+              }
+              console.log("ASSEMBLY_DEBUG", JSON.stringify(diag))
               yield* Effect.promise(() =>
                 Bun.write(
                   Bun.file(path.join(Global.Path.log, "assembly_debug.jsonl")),
-                  JSON.stringify({
-                    ts: new Date().toISOString(),
-                    sessionID,
-                    checkpoint: "compaction",
-                    bannerLen: sessionIdBanner.length,
-                    rulesCount: rules.length,
-                    rulesChars: rules.join("").length,
-                    envChars: env.join("").length,
-                    instrCount: instructions.length,
-                    instrChars: instructions.join("").length,
-                    totalChars: system.join("").length,
-                  }) + "\n",
-                ),
+                  JSON.stringify(diag) + "\n",
+                ).catch((e: unknown) => {
+                  console.error("ASSEMBLY WRITE FAILED:", e)
+                }),
               )
               const format = lastUser.format ?? { type: "text" as const }
               if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)

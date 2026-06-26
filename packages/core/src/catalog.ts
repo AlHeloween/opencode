@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect"
+import { BUILTIN_PROVIDERS } from "./catalog-providers"
 
 export type ProviderID = string & { readonly __brand: "ProviderID" }
 export type ModelID = string & { readonly __brand: "ModelID" }
@@ -110,3 +111,45 @@ export function resolveTokenizer(modelID: string): typeof TokenizerConfig.Type |
   }
   return undefined
 }
+
+export const layer = Layer.effect(
+  Catalog,
+  Effect.sync(() => {
+    const state: CatalogState = {
+      providers: new Map(),
+      models: new Map(),
+      tokenizers: new Map(),
+    }
+
+    for (const def of BUILTIN_PROVIDERS) {
+      state.providers.set(def.id, def)
+      for (const model of def.models) state.models.set(model.id, model)
+    }
+
+    for (const [pattern, config] of Object.entries(BUILTIN_TOKENIZERS)) {
+      state.tokenizers.set(pattern, config)
+    }
+
+    return Catalog.of({
+      resolveProvider: (id) =>
+        Effect.sync(() => {
+          const def = state.providers.get(id)
+          if (!def) return Effect.fail(new ProviderNotFound({ providerID: id }))
+          return def
+        }),
+      resolveModel: (id) =>
+        Effect.sync(() => {
+          const def = state.models.get(id)
+          if (!def) return Effect.fail(new ModelNotFound({ modelID: id }))
+          return def
+        }),
+      listProviders: () => Effect.sync(() => Array.from(state.providers.values())),
+      listModels: (filter) =>
+        Effect.sync(() => {
+          const all = Array.from(state.models.values())
+          return filter?.provider ? all.filter((m) => m.provider === filter.provider) : all
+        }),
+      tokenizerFor: (modelID) => Effect.sync(() => resolveTokenizer(modelID)),
+    })
+  }),
+)

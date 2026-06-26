@@ -254,6 +254,11 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     }
 
     refreshPlanStatus()
+    // Show enabled badge immediately — before any async work.
+    // Previously setAgiMode(true) was at the end, after session creation
+    // and orchestrator prompt, leaving the UI in "disabled" state during
+    // the entire activation sequence.
+    setAgiMode(true)
 
     try {
       // Use current TUI session as main — reuse if already set
@@ -261,7 +266,10 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         setMainSessionID(currentSessionID()!)
       } else if (!mainSessionID() || !sessionExists(mainSessionID()!)) {
         const mainRes = await sdk.client.session.create({})
-        if (mainRes.error) return
+        if (mainRes.error) {
+          setAgiMode(false)
+          return
+        }
         setMainSessionID(mainRes.data.id)
       }
 
@@ -274,7 +282,10 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       } else {
         if (persistedOid) setOrchSessionID(undefined) // clear stale reference
         const orchRes = await sdk.client.session.create({})
-        if (orchRes.error) return
+        if (orchRes.error) {
+          setAgiMode(false)
+          return
+        }
         oid = orchRes.data.id
         setOrchSessionID(oid)
 
@@ -326,7 +337,6 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         })
       }
 
-      setAgiMode(true)
       toast.show({ message: "AGI mode activated", variant: "success" })
     } catch (err) {
       console.error("AGI mode activation failed:", err)

@@ -89,9 +89,11 @@ export function DialogNavigation() {
       </Show>
 
       <box gap={1}>
-        <text fg={theme.textMuted}>
-          Use <text fg={theme.info}>opencode dirs allow/deny &lt;path&gt;</text> to configure.
-        </text>
+        <box>
+          <text fg={theme.textMuted}>Use </text>
+          <text fg={theme.info}>opencode dirs allow/deny &lt;path&gt;</text>
+          <text fg={theme.textMuted}> to configure.</text>
+        </box>
       </box>
 
       <box flexDirection="row" justifyContent="flex-end">

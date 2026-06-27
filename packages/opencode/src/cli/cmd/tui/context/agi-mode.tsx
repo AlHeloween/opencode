@@ -442,11 +442,16 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
             // The orchestrator may produce valid instructions in its agent's markdown format
             // instead of XML. Wrap the output as a worker directive directly.
             if (orchOutput.trim()) {
-              console.debug("AGI: no XML directives found, using entire orch output as fallback")
-              directives.push({
-                workerId: mainSessionID()!,
-                message: orchOutput.trim(),
-              })
+              // Skip self-closing worker tags — orch has no directive
+              if (/^<worker\d+_[^>]+\/>\s*$/.test(orchOutput.trim())) {
+                console.debug("AGI: self-closing worker tag, treating as empty")
+              } else {
+                console.debug("AGI: no XML directives found, using entire orch output as fallback")
+                directives.push({
+                  workerId: mainSessionID()!,
+                  message: orchOutput.trim(),
+                })
+              }
             } else {
               // Empty output — send continuation prompt
               console.debug("AGI: empty orch output, sending continuation")

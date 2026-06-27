@@ -108,16 +108,28 @@ function createImprovementBranch(worktree: string, cycleNumber: number): string 
  * Merge improvement branch back to main. Returns true if successful.
  */
 function mergeImprovementBranch(worktree: string, branchName: string): boolean {
+  const wt = Global.Path.worktree || Global.Path.home
   try {
-    // Checkout main/master
-    const mainBranch = execSync("git symbolic-ref refs/remotes/origin/HEAD", {
-      cwd: worktree,
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim().replace("refs/remotes/origin/", "")
+    // Try to detect main branch: origin/HEAD → main → master
+    let mainBranch = "main"
+    try {
+      mainBranch = execSync("git symbolic-ref refs/remotes/origin/HEAD", {
+        cwd: wt,
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim().replace("refs/remotes/origin/", "")
+    } catch {
+      // No remote HEAD — try common defaults
+      try {
+        execSync("git rev-parse --verify main", { cwd: wt, stdio: "ignore" })
+        mainBranch = "main"
+      } catch {
+        mainBranch = "master"
+      }
+    }
 
-    execSync(`git checkout ${mainBranch}`, { cwd: worktree, stdio: "ignore" })
-    execSync(`git merge ${branchName} --no-ff -m "merge ${branchName}"`, { cwd: worktree, stdio: "ignore" })
+    execSync(`git checkout ${mainBranch}`, { cwd: wt, stdio: "ignore" })
+    execSync(`git merge ${branchName} --no-ff -m "merge ${branchName}"`, { cwd: wt, stdio: "ignore" })
     return true
   } catch (e) {
     console.debug("branch merge failed", e)
@@ -274,7 +286,40 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       wasOrchPending = false
       refreshPlanStatus()
 
-      if (planData().active.length === 0) return // all plans done
+      // All plans done — check for evolving mode or branch workflow
+      if (planData().active.length === 0) {
+        const worktree = Global.Path.worktree || Global.Path.home
+
+        if (evolvingMode()) {
+          // Task 3: Branch-based workflow for evolving mode
+          const cycleNum = planData().completed.length
+          const branch = createImprovementBranch(worktree, cycleNum)
+          if (branch) {
+            toast.show({ message: `AGI: created improvement branch ${branch}`, variant: "info" })
+          }
+
+          // Instruct orchestrator to enter evolving mode
+          const oid = orchSessionID()
+          if (oid) {
+            sdk.client.session.promptAsync({
+              sessionID: oid,
+              messageID: MessageID.ascending(),
+              agent: "orchestrator",
+              parts: [{
+                type: "text" as const,
+                text: [
+                  "All active plans are complete.",
+                  "EVOLVING MODE: Enter evolving mode now.",
+                  "Analyze the codebase across Stability, Performance, Observability, Testing, and UX.",
+                  "Propose 2-4 concrete improvement tasks per category.",
+                  "Each task must include exact file paths, expected outcome, and verification criteria.",
+                ].join("\n"),
+              }],
+            }).catch((e) => console.debug("evolving mode prompt failed", e))
+          }
+        }
+        return
+      }
 
       // Capture instruction now — setTimeout delay could let state change
       const oid = orchSessionID()

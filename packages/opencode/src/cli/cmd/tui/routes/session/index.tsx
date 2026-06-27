@@ -1325,6 +1325,7 @@ export function Session() {
                   <Show when={agi.agiMode()}>
                     <text fg={local.agent.color("orchestrator")}>
                       [AGI ●] {agi.progressBar()} | orch: {agi.orchStats().messages > 0 ? `${agi.orchStats().messages} msg, ~${agi.orchStats().tokens} tok` : "thinking..."}
+                      {agi.evolvingMode() ? " | EVOLVING" : ""}
                     </text>
                   </Show>
                   <Show when={!agi.agiMode()}>

@@ -523,6 +523,7 @@ export const GithubRunCommand = cmd({
         await gitRun(args)
       }
 
+      let unsub: (() => void) | undefined
       try {
         if (useGithubToken) {
           const githubToken = process.env["GITHUB_TOKEN"]
@@ -566,7 +567,7 @@ export const GithubRunCommand = cmd({
             }),
           ),
         )
-        subscribeSessionEvents()
+        unsub = subscribeSessionEvents()
         shareId = await (async () => {
           if (share === false) return
           if (!share && repoData.data.private) return
@@ -704,6 +705,7 @@ export const GithubRunCommand = cmd({
         // Also output the clean error message for the action to capture
         //core.setOutput("prepare_error", e.message);
       } finally {
+        unsub?.()
         if (!useGithubToken) {
           await restoreGitConfig()
           await revokeAppToken()
@@ -899,7 +901,7 @@ export const GithubRunCommand = cmd({
         }
 
         let text = ""
-        Bus.subscribe(MessageV2.Event.PartUpdated, (evt) => {
+        const unsub = Bus.subscribe(MessageV2.Event.PartUpdated, (evt) => {
           if (evt.properties.part.sessionID !== session.id) return
           //if (evt.properties.part.messageID === messageID) return
           const part = evt.properties.part
@@ -926,6 +928,7 @@ export const GithubRunCommand = cmd({
             }
           }
         })
+        return unsub
       }
 
       async function summarize(response: string) {

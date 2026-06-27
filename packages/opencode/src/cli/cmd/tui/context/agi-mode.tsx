@@ -293,11 +293,15 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       return false
     }
     try {
-      await sdk.client.session.promptAsync({
+      const result = await sdk.client.session.promptAsync({
         sessionID,
         messageID: MessageID.ascending(),
         parts: [{ type: "text" as const, text }],
       })
+      if ("error" in result && result.error) {
+        console.debug("AGI: sendToWorker HTTP error", { sessionID, error: result.error })
+        return false
+      }
       return true
     } catch (e) {
       console.debug("AGI: sendToWorker failed", { sessionID, error: e })
@@ -311,12 +315,16 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     const oid = orchSessionID()
     if (!oid) return false
     try {
-      await sdk.client.session.promptAsync({
+      const result = await sdk.client.session.promptAsync({
         sessionID: oid,
         messageID: MessageID.ascending(),
         agent: "orchestrator",
         parts: [{ type: "text" as const, text: context }],
       })
+      if ("error" in result && result.error) {
+        console.debug("AGI: sendToOrchestrator HTTP error", { error: result.error })
+        return false
+      }
       return true
     } catch (e) {
       console.debug("AGI: sendToOrchestrator failed", { error: e })

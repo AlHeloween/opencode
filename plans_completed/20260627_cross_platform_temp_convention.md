@@ -85,6 +85,15 @@ Documented in reasoning.txt:
 - **Project tools ({worktree}/tools/):** local copies of rg, fd, grep, sed
 - **Detection:** Use `which` or `cmd /c where.exe` to check availability
 - **Rule:** Check tool exists before using. Prefer system-wide rg/fd over Git-provided utils.
+- **Prohibition:** rg/fd via Bash strictly prohibited — use opencode grep/glob tools instead
+
+## Plan Completion Criteria
+
+Fixed in `plan-status.ts`:
+- **Simple rule:** `[x]` and `[~]` both count as complete — only `[ ]` means incomplete
+- **Algorithm:** Check for `[ ]` items in plan files, not just count files
+- **Orchestrator:** Updated to use same criteria — no distinction between [x] and [~]
+- **Bug fixed:** Was counting files without checking checkbox states
 
 ## Verification
 
@@ -103,3 +112,8 @@ Documented in reasoning.txt:
 ## Commits
 
 - `a3e10eda34` — fix: add .temp/ to gitignore guardrails + cross-platform temp convention
+- `9100bdeb68` — docs: add shell command compatibility rules to reasoning.txt
+- `6f5f352bc4` — docs: add tool availability guide to reasoning.txt
+- `67a506c22d` — docs: add adm safe wrappers to tool availability rules
+- `80b7407861` — docs: prohibit rg/fd via Bash — use opencode toolset instead
+- `d8151493d6` — fix: simplify plan completion criteria — [x] and [~] both count as done

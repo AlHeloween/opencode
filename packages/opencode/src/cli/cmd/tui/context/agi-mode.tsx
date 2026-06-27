@@ -163,6 +163,8 @@ const [evolvingMode, setEvolvingMode] = createSignal(false)
  *  updates the badge rendered by routes/session/index.tsx. */
 const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], total: 0, completion: 0 })
 const [turnCount, setTurnCount] = createSignal(0)
+const [cycleCount, setCycleCount] = createSignal(0)
+const [totalCost, setTotalCost] = createSignal(0)
 
 export function useAgiMode(currentSessionID: () => string | undefined) {
   const local = useLocal()
@@ -293,7 +295,8 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
 
         if (evolvingMode()) {
           // Task 3: Branch-based workflow for evolving mode
-          const cycleNum = planData().completed.length
+          const cycleNum = cycleCount() + 1
+          setCycleCount(cycleNum)
           const branch = createImprovementBranch(worktree, cycleNum)
           if (branch) {
             toast.show({ message: `AGI: created improvement branch ${branch}`, variant: "info" })
@@ -310,10 +313,13 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
                 type: "text" as const,
                 text: [
                   "All active plans are complete.",
-                  "EVOLVING MODE: Enter evolving mode now.",
+                  `EVOLVING MODE: Cycle ${cycleNum} — Enter evolving mode now.`,
                   "Analyze the codebase across Stability, Performance, Observability, Testing, and UX.",
                   "Propose 2-4 concrete improvement tasks per category.",
                   "Each task must include exact file paths, expected outcome, and verification criteria.",
+                  "",
+                  "IMPORTANT: After you propose tasks, WAIT for user acceptance/rejection.",
+                  "Do NOT auto-execute — let the user decide which categories to pursue.",
                 ].join("\n"),
               }],
             }).catch((e) => console.debug("evolving mode prompt failed", e))
@@ -496,6 +502,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
             text: [
               `Resuming. Plan progress: ${progressBar()}.`,
               `Active plans: ${planData().active.join(", ") || "none"}.`,
+              `Cycles completed: ${cycleCount()}.`,
               "Continue from where you left off. What's the next instruction?",
             ].join("\n"),
           }],
@@ -534,6 +541,28 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     } catch (e) { console.debug("orchestrator compact failed", e) }
   }
 
+  /** Estimate cost based on token usage (approximate $/1M tokens). */
+  function estimateCost(): string {
+    const stats = orchStats()
+    const inputTokens = stats.tokens
+    const outputTokens = Math.ceil(inputTokens * 0.3) // rough estimate
+    const cost = (inputTokens * 0.000003) + (outputTokens * 0.000015) // GPT-4 rates
+    return `$${cost.toFixed(2)}`
+  }
+
+  /** Get full AGI status summary. */
+  function getAgiStatus(): string {
+    const stats = orchStats()
+    return [
+      `Turn: ${turnCount()}/${MAX_TURNS}`,
+      `Cycle: ${cycleCount()}`,
+      `Runtime: ${Math.round((Date.now() - activationStartedAt) / 60000)}m`,
+      `Orchestrator: ${stats.messages} messages, ~${stats.tokens} tokens`,
+      `Cost: ~${estimateCost()}`,
+      `Plan: ${progressBar()}`,
+    ].join(" | ")
+  }
+
   return {
     agiMode,
     toggleAgiMode,
@@ -547,5 +576,9 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     deactivate,
     evolvingMode,
     setEvolvingMode,
+    cycleCount,
+    totalCost,
+    estimateCost,
+    getAgiStatus,
   }
 }

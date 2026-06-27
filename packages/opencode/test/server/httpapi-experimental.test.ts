@@ -21,7 +21,7 @@ const testWorktreeMutations = process.platform === "win32" ? test.skip : test
 function app() {
   Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
 
-  return InstanceRoutes(websocket)
+  return InstanceRoutes()
 }
 
 function runSession<A, E>(fx: Effect.Effect<A, E, Session.Service>) {

@@ -17,7 +17,7 @@ const websocket = (() => () => new Response(null, { status: 501 })) as unknown a
 function app() {
   Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
 
-  return InstanceRoutes(websocket)
+  return InstanceRoutes()
 }
 
 async function waitDisposed(directory: string) {

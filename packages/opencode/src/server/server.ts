@@ -52,7 +52,7 @@ function create(opts: { cors?: string[] }) {
       app: app
         .use(InstanceMiddleware(Flag.OPENCODE_WORKSPACE_ID ? WorkspaceID.make(Flag.OPENCODE_WORKSPACE_ID) : undefined))
         .use(FenceMiddleware)
-        .route("/", InstanceRoutes(runtime.upgradeWebSocket)),
+        .route("/", InstanceRoutes()),
       runtime,
     }
   }
@@ -76,7 +76,7 @@ function create(opts: { cors?: string[] }) {
     app: app
       .route("/", ControlPlaneRoutes())
       .route("/", workspaceApp)
-      .route("/", InstanceRoutes(runtime.upgradeWebSocket))
+      .route("/", InstanceRoutes())
       .route("/", UIRoutes()),
     runtime,
   }

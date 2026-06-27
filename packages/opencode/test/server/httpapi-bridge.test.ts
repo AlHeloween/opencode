@@ -41,7 +41,7 @@ function app(input?: { password?: string; username?: string }) {
   Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
   Flag.OPENCODE_SERVER_PASSWORD = input?.password
   Flag.OPENCODE_SERVER_USERNAME = input?.username
-  return InstanceRoutes(websocket)
+  return InstanceRoutes()
 }
 
 function routeKey(route: ReturnType<typeof InstanceRoutes>["routes"][number]) {
@@ -109,9 +109,9 @@ afterEach(async () => {
 describe("HttpApi Hono bridge", () => {
   test("mounts experimental handlers for every legacy instance route", () => {
     Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", false)
-    const legacy = InstanceRoutes(websocket)
+    const legacy = InstanceRoutes()
     Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
-    const experimental = InstanceRoutes(websocket)
+    const experimental = InstanceRoutes()
 
     const bridge = experimental.routes.slice(0, experimental.routes.length - legacy.routes.length)
     const workspaceRoutes = WorkspaceRoutes().routes.map((route) => ({
@@ -127,9 +127,9 @@ describe("HttpApi Hono bridge", () => {
 
   test("mounts every Effect HttpApi route through the Hono bridge", () => {
     Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", false)
-    const legacy = InstanceRoutes(websocket)
+    const legacy = InstanceRoutes()
     Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
-    const experimental = InstanceRoutes(websocket)
+    const experimental = InstanceRoutes()
 
     const bridgeRoutes = new Set(
       experimental.routes.slice(0, experimental.routes.length - legacy.routes.length).map(routeKey),

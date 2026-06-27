@@ -1,10 +1,8 @@
 import { describeRoute, resolver, validator } from "hono-openapi"
 import { Hono } from "hono"
-import type { UpgradeWebSocket } from "hono/ws"
 import { Context, Effect } from "effect"
 import z from "zod"
 import { Format } from "@/format"
-import { TuiRoutes } from "./tui"
 import { Instance } from "@/project/instance"
 import { Vcs } from "@/project/vcs"
 import { Agent } from "@/agent/agent"
@@ -12,8 +10,6 @@ import { Skill } from "@/skill"
 import { Global } from "@opencode-ai/core/global"
 import { LSP } from "@/lsp/lsp"
 import { Command } from "@/command"
-import { QuestionRoutes } from "./question"
-import { PermissionRoutes } from "./permission"
 import { ExperimentalHttpApiServer } from "./httpapi/server"
 import { PtyPaths } from "./httpapi/pty"
 import { EventPaths } from "./httpapi/event"
@@ -25,20 +21,9 @@ import { SessionPaths } from "./httpapi/session"
 import { SyncPaths } from "./httpapi/sync"
 import { TuiPaths } from "./httpapi/tui"
 import { WorkspacePaths } from "./httpapi/workspace"
-import { ProjectRoutes } from "./project"
-import { SessionRoutes } from "./session"
-import { PtyRoutes } from "./pty"
-import { McpRoutes } from "./mcp"
-import { FileRoutes } from "./file"
-import { ConfigRoutes } from "./config"
-import { ExperimentalRoutes } from "./experimental"
-import { ProviderRoutes } from "./provider"
-import { EventRoutes } from "./event"
-import { SyncRoutes } from "./sync"
-import { InstanceMiddleware } from "./middleware"
 import { jsonRequest } from "./trace"
 
-export const InstanceRoutes = (upgrade: UpgradeWebSocket): Hono => {
+export const InstanceRoutes = (): Hono => {
   const app = new Hono()
 
   const handler = ExperimentalHttpApiServer.webHandler().handler
@@ -154,19 +139,6 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket): Hono => {
   app.post(WorkspacePaths.sessionRestore, (c) => handler(c.req.raw, context))
 
   return app
-    .route("/project", ProjectRoutes())
-    .route("/pty", PtyRoutes(upgrade))
-    .route("/config", ConfigRoutes())
-    .route("/experimental", ExperimentalRoutes())
-    .route("/session", SessionRoutes())
-    .route("/permission", PermissionRoutes())
-    .route("/question", QuestionRoutes())
-    .route("/provider", ProviderRoutes())
-    .route("/sync", SyncRoutes())
-    .route("/", FileRoutes())
-    .route("/", EventRoutes())
-    .route("/mcp", McpRoutes())
-    .route("/tui", TuiRoutes())
     .post(
       "/instance/dispose",
       describeRoute({

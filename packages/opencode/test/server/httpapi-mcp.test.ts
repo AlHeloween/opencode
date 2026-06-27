@@ -22,7 +22,7 @@ const it = testEffect(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer))
 function app(experimental: boolean) {
   Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", experimental)
 
-  return InstanceRoutes(websocket)
+  return InstanceRoutes()
 }
 
 function request(route: string, directory: string, init?: RequestInit) {

@@ -22,7 +22,7 @@ const websocket = (() => () => new Response(null, { status: 501 })) as unknown a
 function app(experimental: boolean) {
   Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", experimental)
 
-  return InstanceRoutes(websocket)
+  return InstanceRoutes()
 }
 
 function pathFor(path: string, params: Record<string, string>) {

@@ -26,7 +26,7 @@ function request(path: string, directory: string, init: RequestInit = {}) {
 
   const headers = new Headers(init.headers)
   headers.set("x-opencode-directory", directory)
-  return InstanceRoutes(websocket).request(path, { ...init, headers })
+  return InstanceRoutes().request(path, { ...init, headers })
 }
 
 function runSession<A, E>(fx: Effect.Effect<A, E, Session.Service>) {

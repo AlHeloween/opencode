@@ -18,7 +18,7 @@ const testPty = process.platform === "win32" ? test.skip : test
 function app() {
   Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
 
-  return InstanceRoutes(websocket)
+  return InstanceRoutes()
 }
 
 afterEach(async () => {

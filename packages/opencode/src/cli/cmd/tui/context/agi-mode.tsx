@@ -67,6 +67,7 @@ function ensureGitInit(worktree: string): boolean {
       writeFileSync(gitignore, [
         "node_modules/",
         ".opencode/data/",
+        ".temp/",
         "dist/",
         "build/",
         "*.log",

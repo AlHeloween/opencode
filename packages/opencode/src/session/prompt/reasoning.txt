@@ -187,6 +187,12 @@ Use universalsearch/webfetch for external claims unless user forbids browsing.
 `.opencode/data/memory/{sessionID}_{agent}.md` — persists across compaction.
 Read on each turn. Update with: recurring errors, project conventions, tool quirks,
 user requirements, decisions, blocked tasks.
+
+## Temp File Convention (Cross-Platform)
+**Primary trash bin:** `.temp/` at worktree root — gitignored, portable across Windows/Linux/macOS.
+**NEVER use `/tmp/`** — it doesn't exist on Windows. Always use `.temp/` for temp files.
+**Secondary temp:** `.tmp1/` through `.tmp10/` allowed for special cases (not main trash bin).
+**Guardrails:** `.temp/` is auto-added to .gitignore on fresh projects and via `ensureRuntimeDataIgnored`.
 </operational>
 
 <tone>

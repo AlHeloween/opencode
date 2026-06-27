@@ -3,11 +3,16 @@ import path from "path"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 
 const runtimeDataIgnore = ".opencode/data"
+const tempIgnore = ".temp"
 const acceptedRuntimeDataIgnores = new Set([
   runtimeDataIgnore,
   `${runtimeDataIgnore}/`,
   `/${runtimeDataIgnore}`,
   `/${runtimeDataIgnore}/`,
+  tempIgnore,
+  `${tempIgnore}/`,
+  `/${tempIgnore}`,
+  `/${tempIgnore}/`,
 ])
 
 function hasRuntimeDataIgnore(text: string) {
@@ -19,7 +24,12 @@ function hasRuntimeDataIgnore(text: string) {
 
 export function isRuntimeDataPath(file: string) {
   const normalized = file.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "")
-  return normalized === runtimeDataIgnore || normalized.startsWith(`${runtimeDataIgnore}/`)
+  return (
+    normalized === runtimeDataIgnore ||
+    normalized.startsWith(`${runtimeDataIgnore}/`) ||
+    normalized === tempIgnore ||
+    normalized.startsWith(`${tempIgnore}/`)
+  )
 }
 
 export const ensureRuntimeDataIgnored = Effect.fn("ProjectGitignore.ensureRuntimeDataIgnored")(function* (
@@ -30,7 +40,13 @@ export const ensureRuntimeDataIgnored = Effect.fn("ProjectGitignore.ensureRuntim
   const text = yield* fs.readFileString(file).pipe(Effect.catch(() => Effect.succeed("")))
   if (hasRuntimeDataIgnore(text)) return
 
+  // Add both .opencode/data and .temp if missing
+  const linesToAdd = []
+  if (!text.includes(".opencode/data")) linesToAdd.push(".opencode/data")
+  if (!text.includes(".temp")) linesToAdd.push(".temp")
+  if (linesToAdd.length === 0) return
+
   yield* fs
-    .writeFileString(file, `${text}${text && !text.endsWith("\n") ? "\n" : ""}${runtimeDataIgnore}\n`)
+    .writeFileString(file, `${text}${text && !text.endsWith("\n") ? "\n" : ""}${linesToAdd.join("\n")}\n`)
     .pipe(Effect.orDie)
 })

@@ -60,6 +60,7 @@ type Input = {
   assistantMessage: MessageV2.Assistant
   sessionID: SessionID
   model: Provider.Model
+  agentName?: string
 }
 
 export interface Interface {
@@ -77,6 +78,7 @@ interface ProcessorContext extends Input {
   toolcalls: Record<string, ToolCall>
   shouldBreak: boolean
   snapshot: string | undefined
+  currentSystemMd5: string | undefined
   blocked: boolean
   toolCallEmitted: boolean
   needsCompaction: boolean
@@ -171,6 +173,7 @@ export const layer: Layer.Layer<
         assistantMessage: input.assistantMessage,
         sessionID: input.sessionID,
         model: input.model,
+        agentName: input.agentName,
         toolcalls: {},
         shouldBreak: false,
         snapshot: initialSnapshot,
@@ -182,6 +185,7 @@ export const layer: Layer.Layer<
         reasoningMap: {},
         reasoningBuilders: {},
         recentToolCalls: [],
+        currentSystemMd5: undefined,
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
@@ -502,10 +506,12 @@ export const layer: Layer.Layer<
 
               // Post-send cache audit: compare actual DeepSeek cache behavior
               // against our pre-send MD5 prediction. Log mismatches as miscalculations.
-              const prevFP = CacheControl.getPrevFingerprint(ctx.sessionID, ctx.model.id)
+              const prevFP = CacheControl.getPrevFingerprint(ctx.sessionID, ctx.model.id, ctx.agentName)
               if (prevFP) {
-                // Pre-send prediction: audit.estimatedHitRatio > 0 means we expected some cache hits
-                const predictedWarm = prevFP.estimatedTokens > 0
+                // Pre-send prediction: cache is warm only if system prompt matches
+                // AND there were tokens in the previous request (provider cache exists).
+                // A system prompt change means the provider-side KV cache is invalidated.
+                const predictedWarm = ctx.currentSystemMd5 === prevFP.systemMd5 && prevFP.estimatedTokens > 0
                 if (predictedWarm !== cacheWarm) {
                   log.warn("bug: cache miscalculation", {
                     sessionID: ctx.sessionID,
@@ -775,6 +781,7 @@ export const layer: Layer.Layer<
         slog.info("process")
         ctx.needsCompaction = false
         ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
+        ctx.currentSystemMd5 = CacheControl.md5(streamInput.system.join("\n"))
 
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {

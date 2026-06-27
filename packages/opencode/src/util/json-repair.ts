@@ -22,6 +22,23 @@ export function repairJson(input: string): string | null {
   // Strategy 0: fast path — input is already valid JSON
   if (tryParse(candidate)) return candidate
 
+  // Strategy 0.5: convert single-quoted JSON to double-quoted.
+  // LLMs sometimes emit Python-style single-quoted JSON like
+  // {'key': 'value'}. Detect and convert before structural fixes.
+  if (candidate.includes("'")) {
+    const converted = convertSingleToDoubleQuotes(candidate)
+    if (converted !== candidate) {
+      if (tryParse(converted)) {
+        log.info("converted single-quoted JSON to double-quoted in tool call")
+        return converted
+      }
+      // Conversion produced different but still-invalid JSON — use converted
+      // version as the new candidate for subsequent structural repairs
+      // (e.g. trailing commas, unbalanced brackets).
+      candidate = converted
+    }
+  }
+
   // Strategy 1: escape unescaped control characters inside JSON strings.
   // LLMs often emit literal newlines (0x0A), tabs (0x09), or carriage
   // returns (0x0D) inside string values, which breaks JSON.parse().
@@ -87,6 +104,101 @@ function tryParse(json: string): boolean {
   } catch {
     return false
   }
+}
+
+/**
+ * Convert single-quoted JSON to double-quoted JSON.
+ *
+ * LLMs (especially those trained on Python) sometimes emit single-quoted
+ * JSON like {'key': 'value'}. This function uses a state machine to
+ * convert delimiter single quotes to double quotes while preserving:
+ * - Escaped single quotes inside strings (\' → \")
+ * - Double quotes inside single-quoted strings (escape them)
+ * - Apostrophes in English text (he's → he's, left as-is)
+ *
+ * Returns the converted string, or the original if no conversion was needed.
+ */
+function convertSingleToDoubleQuotes(input: string): string {
+  let result = ""
+  let inSingle = false
+  let inDouble = false
+  let escaped = false
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]
+
+    if (escaped) {
+      // Previous char was an unescaped backslash
+      if (inSingle && ch === "'") {
+        // \' inside single-quoted string = escaped single quote (value: ').
+        // Remove the backslash we already output, just emit the quote.
+        result = result.slice(0, -1)
+        result += "'"
+        escaped = false
+        continue
+      }
+      result += ch
+      escaped = false
+      continue
+    }
+
+    if (ch === "\\") {
+      result += ch
+      escaped = true
+      continue
+    }
+
+    if (inDouble) {
+      // Inside a double-quoted string — pass through everything
+      if (ch === '"') inDouble = false
+      result += ch
+      continue
+    }
+
+    if (inSingle) {
+      // Inside a single-quoted string
+      if (ch === "'") {
+        // End of single-quoted string → convert to double quote
+        inSingle = false
+        result += '"'
+        continue
+      }
+      if (ch === '"') {
+        // Double quote inside single-quoted string — escape it
+        result += '\\"'
+        continue
+      }
+      result += ch
+      continue
+    }
+
+    // Outside any string
+    if (ch === "'") {
+      // Check if this looks like a JSON string delimiter (not an apostrophe).
+      // JSON delimiters appear after: { [ , : or at start of value.
+      // Apostrophes appear mid-word (he's, don't, it's).
+      const prev = i > 0 ? input[i - 1] : ""
+      const isDelimiterPosition = !prev || /[{[,:]/.test(prev) || /\s/.test(prev)
+      if (isDelimiterPosition) {
+        inSingle = true
+        result += '"'
+        continue
+      }
+      // Apostrophe — leave as-is
+      result += ch
+      continue
+    }
+
+    if (ch === '"') {
+      inDouble = true
+      result += ch
+      continue
+    }
+
+    result += ch
+  }
+
+  return result
 }
 
 /**

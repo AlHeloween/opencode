@@ -92,18 +92,6 @@ This index tracks all documentation surfaces in the repository with ownership, e
 
 ---
 
-## Research (`research_done/`)
-
-| Document | Owner | Status | Last Verified |
-|----------|-------|--------|---------------|
-| `research_done/research_v4.md` | OpenCode team | reference | 2026-05-18 |
-| `research_done/research_v5_cache_collapse_investigation.md` | OpenCode team | reference | 2026-06-04 |
-| `research_done/research_cache_semantics.md` | OpenCode team | reference | 2026-06-09 |
-| `research_done/20260604_katcoder_cache_regression_investigation.md` | OpenCode team | reference | 2026-06-06 |
-| `research_done/20260605_preexisting_test_failures_fix.md` | OpenCode team | reference | 2026-06-06 |
-
----
-
 ## CI/CD Workflows (`.github/workflows/`)
 
 28 workflow files covering: typecheck, test (unit+e2e), publish, deploy, containers, PR/issue triage, docs, Nix, AI agent, stats. See `index.md` for the folder map.

@@ -44,11 +44,12 @@ export function checkpointDir(_sessionID: string): string {
   return path.join(Global.Path.log, CHECKPOINT_DIR)
 }
 
-export function checkpointPath(sessionID: string, providerID: string, modelID: string): string {
+export function checkpointPath(sessionID: string, providerID: string, modelID: string, agentName?: string): string {
   const safeProvider = sanitize(providerID)
   const safeModel = sanitize(modelID)
   const safeSid = sanitize(sessionID)
-  return path.join(checkpointDir(sessionID), `${safeProvider}_${safeModel}_${safeSid}.enc`)
+  const safeAgent = agentName ? sanitize(agentName) : ""
+  return path.join(checkpointDir(sessionID), `${safeProvider}_${safeModel}_${safeAgent ? safeAgent + "_" : ""}${safeSid}.enc`)
 }
 
 async function writeAtomic(filePath: string, data: Buffer): Promise<void> {
@@ -72,6 +73,7 @@ export function save(input: {
         input.sessionID,
         input.data.model.providerID,
         input.data.model.modelID,
+        input.data.agent,
       )
       const encKey = await deriveKey(input.projectID, input.worktree, input.sessionID)
       const plaintext = JSON.stringify(input.data)
@@ -89,9 +91,10 @@ export function load(input: {
   modelID: string
   projectID: string
   worktree: string
+  agentName?: string
 }): Effect.Effect<CheckpointData | null> {
   return Effect.promise(async () => {
-    const filePath = checkpointPath(input.sessionID, input.providerID, input.modelID)
+    const filePath = checkpointPath(input.sessionID, input.providerID, input.modelID, input.agentName)
     if (!fs.existsSync(filePath)) return null
 
     try {

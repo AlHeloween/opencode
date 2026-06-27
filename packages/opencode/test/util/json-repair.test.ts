@@ -237,4 +237,71 @@ describe("repairJson", () => {
     expect(result).toContain("Hint:")
     expect(result).toContain("malformed")
   })
+
+  // --- single-quote to double-quote conversion tests ---
+
+  test("converts single-quoted JSON to double-quoted", () => {
+    const input = "{'prompt':'hello','subagent_type':'explore'}"
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ prompt: "hello", subagent_type: "explore" })
+  })
+
+  test("converts single-quoted JSON with nested objects", () => {
+    const input = "{'key':'value','nested':{'a':'b'}}"
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ key: "value", nested: { a: "b" } })
+  })
+
+  test("converts single-quoted JSON with arrays", () => {
+    const input = "{'items':['a','b','c']}"
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ items: ["a", "b", "c"] })
+  })
+
+  test("handles escaped single quotes inside single-quoted strings", () => {
+    const input = `{'prompt':'it\\'s a test'}`
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!).prompt).toBe("it's a test")
+  })
+
+  test("handles double quotes inside single-quoted strings", () => {
+    const input = `{'prompt':'he said "hello"'}`
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!).prompt).toBe('he said "hello"')
+  })
+
+  test("handles double quotes inside single-quoted strings", () => {
+    const input = `{'prompt':'he said "hello"'}`
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!).prompt).toBe('he said "hello"')
+  })
+
+  test("preserves apostrophes in English text", () => {
+    // he's, don't — these are NOT delimiters
+    const input = '{"prompt":"he\'s a developer who doesn\'t write python"}'
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!).prompt).toBe("he's a developer who doesn't write python")
+  })
+
+  test("converts single-quoted JSON with trailing comma", () => {
+    const input = "{'prompt':'hello','subagent_type':'explore',}"
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ prompt: "hello", subagent_type: "explore" })
+  })
 })

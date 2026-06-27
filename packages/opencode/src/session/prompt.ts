@@ -1252,6 +1252,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 assistantMessage: msg,
                 sessionID,
                 model,
+                agentName: agent.name,
               })
 
             const outcome: "break" | "continue" = yield* Effect.gen(function* () {
@@ -1294,7 +1295,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 modelId: model.id,
                 providerId: model.providerID,
               })
-              CacheControl.storePrevFingerprint(sessionID, model.id, currentFP)
+              CacheControl.storePrevFingerprint(sessionID, model.id, currentFP, agent.name)
 
               const result = yield* handle.process({
                 user: lastUser,
@@ -1470,6 +1471,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               assistantMessage: msg,
               sessionID,
               model,
+              agentName: agent.name,
             })
             .pipe(Effect.onInterrupt(() => finalizeInterruptedAssistant))
 
@@ -1608,6 +1610,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               modelID: model.id,
               projectID: ctx.project.id,
               worktree: ctx.worktree,
+              agentName: agent.name,
             }).pipe(Effect.catch(() => Effect.succeed(null)))
             const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
             const checkpointUsable =
@@ -1643,7 +1646,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               modelId: model.id,
               providerId: model.providerID,
             }, CacheControl.toolSchemasFromRecord(tools))
-            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id)
+            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, agent.name)
             const audit = CacheControl.auditCache(prevFP, currentFP, agent.name)
             if (!audit.cacheStable) {
               Log.Default.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`, {
@@ -1699,7 +1702,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   providerId: model.providerID,
                 }, CacheControl.toolSchemasFromRecord(tools))
               : currentFP
-            CacheControl.storePrevFingerprint(sessionID, model.id, finalFP)
+            CacheControl.storePrevFingerprint(sessionID, model.id, finalFP, agent.name)
 
             // Diff logging — derives "previous" request from the loaded checkpoint
             // instead of a separate .baselines store.  The checkpoint already holds

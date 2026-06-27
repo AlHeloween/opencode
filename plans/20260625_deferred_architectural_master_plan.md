@@ -52,6 +52,7 @@ Independent items (no blocking dependencies):
 |----|------|-----------|--------|--------|
 | E1 | Background Job Fixes | `plans_completed/20260625_background_job_fixes.md` | 1-2 days | [x] Done |
 | E2 | Orchestrator Agent + AGI Mode | `plans_completed/20260625_orchestrator_agent_agi_mode.md` | 4 days | [x] Done |
+| E4 | Cache Prediction Bugs | `plans/emergency/20260627_cache_prediction_bugs.md` | 0.5-1 day | [x] Done |
 
 ### Priority Tasks (`plans/priority/` — execute second)
 
@@ -72,6 +73,7 @@ Independent items (no blocking dependencies):
 | 4.3 | HTTP API v2 | `plans/20260625_http_api_v2_plan.md` | 2-4 weeks | Medium | [ ] Planned |
 | C1 | Conversation Checkpoint | `plans_completed/20260624_checkpoint_plan.md` | 6-8h | High | [x] Done |
 | E3 | Orchestrator Evolving Mode | `plans/20260626_orchestrator_evolving_mode.md` | 1-2 days | High | [ ] Planned |
+| E4 | Cache Prediction Bugs | `plans/emergency/20260627_cache_prediction_bugs.md` | 0.5-1 day | High | [ ] Planned |
 
 ## Recommended Execution Order
 
@@ -93,7 +95,8 @@ Phase 2 (Foundation — done):
   [x] C1 Conversation Checkpoint (6-8h)
 
 Phase 3 (In Progress):
-  Day 1-2:  E3 Orchestrator Evolving Mode tasks 2-4 (1-2 days)
+  [x] E4 Cache Prediction Bugs (0.5-1 day) — fingerprint key, prediction logic, checkpoint mismatch
+  Day 2-3:  E3 Orchestrator Evolving Mode tasks 2-4 (1-2 days)
 
 Phase 4 (Next):
   Days 1-20: 4.3 HTTP API v2 (2-4 weeks)
@@ -113,7 +116,7 @@ Each item is complete when:
 - Typecheck: zero errors
 - Tests: all passing
 - Completed plans: 88 in `plans_completed/`
-- Active plans: 3 (this master + http-api-v2 + orchestrator-evolving-mode)
+- Active plans: 4 (this master + http-api-v2 + orchestrator-evolving-mode + cache-prediction-bugs)
 
 ## Revisions
 
@@ -123,3 +126,4 @@ Each item is complete when:
 | 2026-06-25 | Added 2 priority plans (P1 Config Consolidation, P2 Cache Stats). Revised Auth V2 plan: removed env var injection, added auth.enc exclusive + server auth → opencode.jsonc. |
 | 2026-06-26 | Marked 4.1, 4.2, P2 as done (moved to plans_completed/ 2026-06-25, master stale). Added C1 (Checkpoint Plan) and E3 (Orchestrator Evolving Mode) to tracking. Added hardening rule 10 (reference grounding) to reasoning.txt and AGENTS.md Plan Maintenance to prevent recurrence. |
 | 2026-06-27 | Updated execution order to reflect completed foundation items (4.4, 4.5, 4.6, 4.1, 4.2, C1). Phase 3 now shows E3 tasks 2-4 pending (tasks 1 done). Phase 4 is HTTP API v2. Master plan corrected to match actual completed state. |
+| 2026-06-27 | Added E4 (Cache Prediction Bugs) — discovered via debug experiment. 3 bugs: fingerprint key lacks agent name, wrong prediction logic, checkpoint mismatch causing system prompt change. Emergency priority. |

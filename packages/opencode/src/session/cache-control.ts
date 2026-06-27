@@ -231,8 +231,8 @@ export function requestFingerprint(
 const prevRequestCache = new Map<string, RequestFingerprint>()
 const MAX_FINGERPRINTS = 500
 
-function cacheStoreKey(sessionId: string, modelId: string): string {
-  return `${sessionId}:${modelId}`
+function cacheStoreKey(sessionId: string, modelId: string, agentName?: string): string {
+  return agentName ? `${sessionId}:${agentName}:${modelId}` : `${sessionId}:${modelId}`
 }
 
 let _fpDb: BunDatabase | undefined
@@ -241,7 +241,7 @@ function fpDb(): BunDatabase {
     _fpDb = new BunDatabase(FINGERPRINT_DB_PATH, { create: true })
     _fpDb.run("PRAGMA journal_mode = WAL")
     _fpDb.run(
-      "CREATE TABLE IF NOT EXISTS fingerprints (session_id TEXT NOT NULL, model_id TEXT NOT NULL, system_md5 TEXT NOT NULL, full_md5 TEXT NOT NULL, data TEXT NOT NULL, time_updated INTEGER NOT NULL, PRIMARY KEY (session_id, model_id))",
+      "CREATE TABLE IF NOT EXISTS fingerprints (session_id TEXT NOT NULL, agent_name TEXT NOT NULL DEFAULT '', model_id TEXT NOT NULL, system_md5 TEXT NOT NULL, full_md5 TEXT NOT NULL, data TEXT NOT NULL, time_updated INTEGER NOT NULL, PRIMARY KEY (session_id, agent_name, model_id))",
     )
   }
   return _fpDb
@@ -251,8 +251,9 @@ export function storePrevFingerprint(
   sessionId: string,
   modelId: string,
   fp: RequestFingerprint,
+  agentName?: string,
 ): void {
-  const key = cacheStoreKey(sessionId, modelId)
+  const key = cacheStoreKey(sessionId, modelId, agentName)
   prevRequestCache.set(key, fp)
   if (prevRequestCache.size > MAX_FINGERPRINTS) {
     const first = prevRequestCache.keys().next().value
@@ -265,9 +266,9 @@ export function storePrevFingerprint(
     const data = JSON.stringify(fp)
     fpDb()
       .query(
-        "INSERT OR REPLACE INTO fingerprints (session_id, model_id, system_md5, full_md5, data, time_updated) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT OR REPLACE INTO fingerprints (session_id, agent_name, model_id, system_md5, full_md5, data, time_updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(sessionId, modelId, fp.systemMd5, fp.fullMd5, data, now)
+      .run(sessionId, agentName ?? "", modelId, fp.systemMd5, fp.fullMd5, data, now)
   } catch {
     // Non-critical: in-memory cache still works for the current turn
   }
@@ -276,16 +277,17 @@ export function storePrevFingerprint(
 export function getPrevFingerprint(
   sessionId: string,
   modelId: string,
+  agentName?: string,
 ): RequestFingerprint | null {
-  const key = cacheStoreKey(sessionId, modelId)
+  const key = cacheStoreKey(sessionId, modelId, agentName)
   const cached = prevRequestCache.get(key)
   if (cached) return cached
 
   // Memory miss — try the separate SQLite DB
   try {
     const row = fpDb()
-      .query("SELECT data FROM fingerprints WHERE session_id = ? AND model_id = ?")
-      .get(sessionId, modelId) as { data: string } | undefined
+      .query("SELECT data FROM fingerprints WHERE session_id = ? AND agent_name = ? AND model_id = ?")
+      .get(sessionId, agentName ?? "", modelId) as { data: string } | undefined
     if (row) {
       const fp = JSON.parse(row.data) as RequestFingerprint
       prevRequestCache.set(key, fp)

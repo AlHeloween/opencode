@@ -36,7 +36,7 @@ At 50ms interval: 20 FPS × 14,400 = ~288,000 trig ops/second
 ### Implementation
 - [ ] Add `lastGridSize` ref tracking `size().width` and `size().height`
 - [ ] Split grid computation into resize-dependent + time-dependent memos
-- [ ] Reduce `setInterval` from `50` to `100`
+- [x] Reduce `setInterval` from `50` to `100`
 - [ ] Add focus check: if `!focused`, skip grid computation
 - [ ] Verify visual quality unchanged
 

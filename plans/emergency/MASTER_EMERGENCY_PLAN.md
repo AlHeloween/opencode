@@ -26,13 +26,15 @@
 ### Phase 3: P2 Medium ✅ DONE (silent catches)
 | Step | Item | Status |
 |------|------|--------|
-| 3.1-3.3 | A1-A5: CPU hotspots | ⏸️ Deferred |
+| 3.1 | A1: BG Pulse throttle (50→100ms) | ✅ |
+| 3.2-3.3 | A2-A5: CPU hotspots | ⏸️ Deferred |
 | 3.4 | C2-C5: Remaining silent catches | ✅ |
 
 ### Phase 4: P3 Low ⏸️ DEFERRED
 | Step | Item | Status |
 |------|------|--------|
-| 4.1-4.2 | B8-B9: Gateway/ScopedCache | ⏸️ Deferred |
+| 4.1 | B8: Gateway | ⏸️ Deferred |
+| 4.2 | B9: ScopedCache capacity limit | ✅ |
 | 4.3 | A3, A6-A8: CPU items | ⏸️ Deferred |
 | 4.4 | C8-C9, C12: Remaining bugs | ✅ (C8-C9), ⏸️ (C12) |
 
@@ -50,6 +52,8 @@
 | B3 | Session subscriptions cleanup | `004e07d3e6` |
 | B4 | Editor WebSocket cleanup | `004e07d3e6` |
 | Pipeline | Variant support + chain extension | `64e096367d` |
+| A1 | BG Pulse interval throttle 50→100ms | `205581a7a` |
+| B9 | ScopedCache capacity ∞→10000 | `205581a7a` |
 
 ## Deferred Items (reason)
 
@@ -58,5 +62,5 @@
 | C10 | Key migration design needed (backward compat) |
 | C12 | Processor race condition (complex async patterns) |
 | B6-B7 | Jobs Map / PTY (need deeper analysis) |
-| A1-A8 | CPU hotspots (performance profiling needed) |
-| B8-B9 | Gateway/ScopedCache (low priority) |
+| A2-A8 | CPU hotspots (performance profiling needed) |
+| B8 | Gateway (low priority) |

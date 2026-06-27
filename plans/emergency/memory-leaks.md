@@ -390,7 +390,7 @@ capacity: 10000  // Safe upper bound for per-directory caching
 ```
 
 ### Implementation
-- [ ] Change `Number.POSITIVE_INFINITY` to `10000`
+- [x] Change `Number.POSITIVE_INFINITY` to `10000`
 - [ ] Verify existing eviction behavior (LRU at capacity)
 - [ ] Test with many concurrent directories
 

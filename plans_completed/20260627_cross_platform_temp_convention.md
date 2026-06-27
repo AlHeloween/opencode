@@ -117,3 +117,6 @@ Fixed in `plan-status.ts`:
 - `67a506c22d` — docs: add adm safe wrappers to tool availability rules
 - `80b7407861` — docs: prohibit rg/fd via Bash — use opencode toolset instead
 - `d8151493d6` — fix: simplify plan completion criteria — [x] and [~] both count as done
+- `a353c9769a` — fix: enforce getPlanStatus() for orchestrator completion checks
+- `a7f5c77f9b` — feat: add fully autonomous AGI mode with cycle tracking and cost estimation
+- `4d2bcc1d02` — docs: add fully autonomous mode instructions to orchestrator prompt

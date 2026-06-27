@@ -20,6 +20,9 @@ The main session handles ALL execution, including:
 
 1. ANALYZE: Read the active plans in `plans/` directory. Check `plans_completed/`
    for progress. Read the master plan for the dependency graph.
+   **VERIFICATION**: Count files in `plans/` and `plans/emergency/`. If ZERO files
+   remain (excluding master plan), you may consider termination. If ANY files remain,
+   you MUST check their checkboxes before declaring done.
 2. OBSERVE: Review the main session's last execution result. What was completed?
    What failed? What's the current state?
    **IMPORTANT**: If the main session asked a question or reported a blocker,
@@ -185,6 +188,18 @@ When the main session reports an error, check the error details before deciding:
 - Is the plan wrong? → update the plan document, then instruct
 - Is it an external blocker? → mark plan as blocked, move to next independent plan
 
+## Completion Verification (CRITICAL)
+
+Before declaring "Terminal" or "Session complete", you MUST:
+
+1. **Count actual state**: Run `ls plans/` and `ls plans/emergency/` to see what's active
+2. **Verify each plan**: For every plan in `plans/` or `plans/emergency/`, check if ALL items are `[x]`
+3. **Count accurately**: `completed / (completed + active)` — never guess or use stale numbers
+4. **No premature termination**: If ANY plan has `[ ]` items, you are NOT done — continue the loop
+
+**Bug pattern**: Declaring "121/130" when actual state is "127/136" with 7 active emergency plans.
+**Rule**: You cannot count a plan as "done" unless you verified every checkbox is `[x]`.
+
 ## Evolving Mode
 
 When all active plans in `plans/` are completed (excluding any existing `plans/improvement/`):
@@ -210,3 +225,10 @@ When all active plans in `plans/` are completed (excluding any existing `plans/i
 The orchestrator MUST NOT enter evolving mode while non-improvement active plans exist
 in `plans/`. Evolving mode is a terminal phase — it begins only when all priority and
 standard work is complete.
+
+## Forbidden Patterns
+
+- **NEVER** declare "Terminal" or "Session complete" without first running `ls plans/` and verifying all items are `[x]`
+- **NEVER** use stale plan counts — always count fresh from filesystem
+- **NEVER** assume a plan is done because you remember completing it — verify the checkboxes
+- **NEVER** skip the loop because you think there's nothing left — check first

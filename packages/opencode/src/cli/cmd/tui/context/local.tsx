@@ -223,8 +223,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const a = agent.current()
         return (
           getFirstValidModel(
-            () => a && modelStore.model[a.name],
-            () => a && a.model,
+            () => a && a.model,           // Config-defined agent model (highest priority)
+            () => a && modelStore.model[a.name], // TUI runtime state (fallback only)
             fallbackModel,
           ) ?? undefined
         )
@@ -234,8 +234,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const a = sync.data.agent.find((x) => x.name === name)
         return (
           getFirstValidModel(
-            () => modelStore.model[name],
-            () => a?.model,
+            () => a?.model,              // Config-defined agent model (highest priority)
+            () => modelStore.model[name], // TUI runtime state (fallback only)
           ) ?? undefined
         )
       }

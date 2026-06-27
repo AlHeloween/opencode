@@ -192,14 +192,13 @@ When the main session reports an error, check the error details before deciding:
 
 Before declaring "Terminal" or "Session complete", you MUST:
 
-1. **Count actual state**: Use `getPlanStatus()` or run `ls plans/` and `ls plans/emergency/`
-2. **Verify each plan**: For every plan, check if it has ANY `[ ]` items
+1. **Count actual state**: Call `getPlanStatus()` — do NOT use `ls` or manual counting
+2. **Verify each plan**: The function checks for `[ ]` items automatically
 3. **Completion criteria**: `[x]` and `[~]` both count as complete — only `[ ]` means incomplete
-4. **Count accurately**: `completed / (completed + active)` — never guess or use stale numbers
-5. **No premature termination**: If ANY plan has `[ ]` items, you are NOT done — continue the loop
+4. **No premature termination**: If `status.active.length > 0`, you are NOT done — continue the loop
 
 **Bug pattern**: Declaring "121/130" when actual state is "127/136" with 7 active emergency plans.
-**Rule**: You cannot count a plan as "done" unless you verified it has zero `[ ]` items.
+**Rule**: Use `getPlanStatus()` — it reads checkboxes, not just file counts.
 
 ## Evolving Mode
 
@@ -229,8 +228,8 @@ standard work is complete.
 
 ## Forbidden Patterns
 
-- **NEVER** declare "Terminal" or "Session complete" without first verifying all plans have zero `[ ]` items
-- **NEVER** use stale plan counts — always count fresh from filesystem
-- **NEVER** assume a plan is done because you remember completing it — verify the checkboxes
-- **NEVER** skip the loop because you think there's nothing left — check first
+- **NEVER** declare "Terminal" or "Session complete" without first calling `getPlanStatus()`
+- **NEVER** use stale plan counts — always call `getPlanStatus()` fresh
+- **NEVER** assume a plan is done because you remember completing it — verify via `getPlanStatus()`
+- **NEVER** skip the loop because you think there's nothing left — check `status.active.length` first
 - **NEVER** distinguish between `[x]` and `[~]` for completion — both count as done

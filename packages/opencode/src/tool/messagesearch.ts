@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { Session } from "../session/session"
+import { Provider } from "@/provider/provider"
 import * as Tool from "./tool"
 
 import DESCRIPTION from "./messagesearch.txt"
@@ -19,6 +20,17 @@ export const Parameters = Schema.Struct({
 export const MessageSearchTool = Tool.define(
   "messagesearch",
   Effect.gen(function* () {
+    // Pre-build a model context limit lookup from all known providers.
+    // Resolved once at tool init, safe to close over at execute time.
+    const pvdr = yield* Provider.Service
+    const allProviders = yield* pvdr.list()
+    const contextMap = new Map<string, number>()
+    for (const [providerID, provider] of Object.entries(allProviders)) {
+      for (const [modelID, model] of Object.entries(provider.models)) {
+        contextMap.set(`${providerID}:${modelID}`, model.limit.context)
+      }
+    }
+
     return {
       description: DESCRIPTION,
       parameters: Parameters,
@@ -41,9 +53,21 @@ export const MessageSearchTool = Tool.define(
           const projectID = ins.project.id
           const worktree = ins.worktree
 
+          // Resolve model context limit for browse mode token-aware sizing
+          const modelContextLimit: number | undefined =
+            mode === "browse"
+              ? (() => {
+                  const lastUser = ctx.messages.findLast((msg) => msg.info.role === "user")
+                  if (!lastUser) return undefined
+                  const m = (lastUser.info as any).model
+                  if (!m?.providerID || !m?.modelID) return undefined
+                  return contextMap.get(`${m.providerID}:${m.modelID}`)
+                })()
+              : undefined
+
           const results = yield* Effect.sync(() => {
             const groups: Session.SearchSessionGroup[] = []
-            for (const group of Session.search({ projectID, worktree, query: params.query, limit: params.limit })) {
+            for (const group of Session.search({ projectID, worktree, query: params.query, limit: params.limit, modelContextLimit })) {
               groups.push(group)
             }
             return groups

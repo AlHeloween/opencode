@@ -965,8 +965,8 @@ export interface SearchSessionGroup {
   results: MessageV2.SearchResult[]
 }
 
-export function* search(input: { projectID: ProjectID; worktree: string; query?: string; limit?: number }) {
-  const results = MessageV2.search({ projectID: input.projectID, worktree: input.worktree, query: input.query, limit: input.limit })
+export function* search(input: { projectID: ProjectID; worktree: string; query?: string; limit?: number; modelContextLimit?: number }) {
+  const results = MessageV2.search({ projectID: input.projectID, worktree: input.worktree, query: input.query, limit: input.limit, modelContextLimit: input.modelContextLimit })
   const bySession = new Map<SessionID, MessageV2.SearchResult[]>()
   for (const result of results) {
     if (!bySession.has(result.sessionID)) bySession.set(result.sessionID, [])

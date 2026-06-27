@@ -1475,9 +1475,15 @@ export function search(input: {
   worktree: string
   query?: string
   limit?: number
+  modelContextLimit?: number
 }): SearchResult[] {
   if (!input.query || input.query.trim().length === 0) {
-    return browseSearch({ projectID: input.projectID, worktree: input.worktree, limit: input.limit })
+    return browseSearch({
+      projectID: input.projectID,
+      worktree: input.worktree,
+      limit: input.limit,
+      modelContextLimit: input.modelContextLimit,
+    })
   }
   return keywordSearch({ projectID: input.projectID, worktree: input.worktree, query: input.query, limit: input.limit })
 }
@@ -1543,6 +1549,7 @@ function browseSearch(input: {
   projectID: ProjectID
   worktree: string
   limit?: number
+  modelContextLimit?: number
 }): SearchResult[] {
   const rawDb = Database.getProjectDb(input.projectID, input.worktree).$client
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -1664,10 +1671,10 @@ function browseSearch(input: {
   }
 
   // Return the most recent user messages (tail-first), sized to ~10% model context.
-  // Estimate tokens with chars/4 heuristic; default context ~200K → tail up to 20K tokens.
+  // Floor at 20K tokens minimum, scale up for large-context models (1M → 100K).
   const limit = input.limit || 200
   const tail = results.slice(-limit)
-  const maxTailTokens = 20_000
+  const maxTailTokens = Math.max(20_000, (input.modelContextLimit ?? 200_000) * 0.1)
   let accum = 0
   const sized: SearchResult[] = []
   for (let i = tail.length - 1; i >= 0; i--) {

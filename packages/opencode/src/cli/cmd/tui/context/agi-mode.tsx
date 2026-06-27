@@ -341,6 +341,9 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   let dispatchTime: Record<string, number> = {}
   let activeWorkers: string[] = []
   let unsubError: (() => void) | undefined
+  /** Transition guard — only enter !ob dispatch path after observing orch go busy.
+   *  Prevents re-entry when the effect re-runs before orchestrator status updates. */
+  let wasOrchBusy = false
 
   createEffect(() => {
     if (!agiMode()) return
@@ -358,8 +361,16 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         break
 
       case "ORCH_BUSY":
+        // Track busy→idle transition — only act after observing orch go busy first
+        if (ob) {
+          wasOrchBusy = true
+          break
+        }
+        if (!wasOrchBusy) break
+        wasOrchBusy = false
+
         // Orchestrator finished processing → parse directives
-        if (!ob) {
+        {
           refreshPlanStatus()
 
           // Check if all plans are done
@@ -413,7 +424,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               "",
               "Your previous response did not contain worker directives.",
               "Produce EXACTLY ONE directive in this format:",
-              `<worker1_[${mainSessionID()}]>YOUR INSTRUCTION</worker1_[${mainSessionID()}>`,
+              `<worker1_${mainSessionID()}>YOUR INSTRUCTION</worker1_${mainSessionID()}>`,
             ].join("\n")).catch((e) => console.debug("continuation prompt failed", e))
             phase = "ORCH_BUSY"
             return
@@ -462,10 +473,11 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         break
 
       case "WORKERS_BUSY":
-        // Check if all workers are idle
+        // Check if all workers are idle — only treat known idle/error as done.
+        // A missing session_status entry (!s) means still starting, NOT idle.
         const allIdle = activeWorkers.every((wid) => {
           const s = sync.data.session_status?.[wid] as { type: string } | undefined
-          return !s || s.type === "idle" || s.type === "error"
+          return s?.type === "idle" || s?.type === "error"
         })
 
         if (allIdle) {
@@ -490,7 +502,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           "",
           "Analyze the results. What was accomplished? What's the next task?",
           `Produce EXACTLY ONE directive:`,
-          `<worker1_[${mainSessionID()}]>next instruction</worker1_[${mainSessionID()}>`,
+          `<worker1_${mainSessionID()}>next instruction</worker1_${mainSessionID()}>`,
         ].filter(Boolean).join("\n\n")
 
         sendToOrchestrator(context).then((ok) => {
@@ -617,7 +629,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               "BOOTSTRAP PHASE: Analyze the active plans. Read the dependency graph in the master plan.",
               "After analysis, produce your first task directive using this EXACT format:",
               "",
-              `<worker1_[${mainSessionID()}]>YOUR INSTRUCTION TEXT HERE</worker1_[${mainSessionID()}>`,
+              `<worker1_${mainSessionID()}>YOUR INSTRUCTION TEXT HERE</worker1_${mainSessionID()}>`,
               "",
               "Replace the placeholder with the actual session ID shown above.",
               "Focus on ONE actionable task. Be specific about files and expected outcomes.",
@@ -641,7 +653,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               `Cycles completed: ${cycleCount()}.`,
               "",
               "Continue from where you left off. Produce your next directive:",
-              `<worker1_[${mainSessionID()}]>next instruction</worker1_[${mainSessionID()}>`,
+              `<worker1_${mainSessionID()}>next instruction</worker1_${mainSessionID()}>`,
             ].join("\n"),
           }],
         })

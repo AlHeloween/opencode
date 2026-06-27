@@ -4,8 +4,11 @@
  * Reads the `plans/` and `plans_completed/` directories at the worktree root
  * and returns completion statistics. Used by the orchestrator agent and
  * the AGI mode TUI progress bar.
+ *
+ * Completion criteria: A plan is COMPLETE if it has NO [ ] items.
+ * [x] and [~] both count as complete — only [ ] means incomplete.
  */
-import { existsSync, readdirSync } from "fs"
+import { existsSync, readFileSync, readdirSync } from "fs"
 import path from "path"
 
 export interface PlanStatus {
@@ -13,6 +16,16 @@ export interface PlanStatus {
   completed: string[]
   total: number
   completion: number
+}
+
+/** Check if a plan file has any open [ ] items. */
+function hasOpenItems(filePath: string): boolean {
+  try {
+    const content = readFileSync(filePath, "utf-8")
+    return /^\s*- \[ \]/m.test(content)
+  } catch {
+    return false
+  }
 }
 
 /** Recursively collect .md filenames under a directory. */
@@ -40,8 +53,12 @@ export function getPlanStatus(worktree: string): PlanStatus {
   const plansDir = path.join(worktree, "plans")
   const completedDir = path.join(worktree, "plans_completed")
 
-  const completed = collectPlans(completedDir)
-  const active = collectPlans(plansDir)
+  const allCompleted = collectPlans(completedDir)
+  const allActive = collectPlans(plansDir)
+
+  // A plan is complete if it has NO [ ] items (only [x] and [~] allowed)
+  const completed = allCompleted.filter((f) => !hasOpenItems(path.join(completedDir, f)))
+  const active = allActive.filter((f) => hasOpenItems(path.join(plansDir, f)))
 
   const total = active.length + completed.length
   const completion = total > 0 ? Math.round((completed.length / total) * 100) : 0

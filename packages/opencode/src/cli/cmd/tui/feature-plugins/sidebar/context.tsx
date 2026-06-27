@@ -13,15 +13,23 @@ const money = new Intl.NumberFormat("en-US", {
 
 /** Compact number formatter — max 3 digits + symbol (e.g., 8M, 137k, 50k). */
 function compactNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).slice(0, 4)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).slice(0, 4)}k`
+  if (n >= 1_000_000) {
+    const v = (n / 1_000_000).toFixed(1).replace(/\.0$/, "")
+    return `${v}M`
+  }
+  if (n >= 1_000) {
+    const v = (n / 1_000).toFixed(1).replace(/\.0$/, "")
+    return `${v}k`
+  }
   return n.toString()
 }
 
 /** Format cache stats in compact form: 99%(161K read 860 miss). */
-function formatCacheStats(hitRate: number | null, read: number, miss: number): string {
+function formatCacheStats(hitRate: number | null, read: number, miss: number, lastRead?: number, lastMiss?: number): string {
   if (hitRate === null) return "cold"
-  return `${hitRate}%(${compactNum(read)} read ${compactNum(miss)} miss)`
+  const r = lastRead != null ? `(${compactNum(lastRead)})` : ""
+  const m = lastMiss != null ? `(${compactNum(lastMiss)})` : ""
+  return `${hitRate}%(${compactNum(read)}${r} read ${compactNum(miss)}${m} miss)`
 }
 
 interface ModelStatusDisplay {
@@ -60,7 +68,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
 
   // Calculate cache stats for all active sessions
   const allSessionStats = createMemo(() => {
-    const stats: Array<{ name: string; cacheRead: number; cacheMiss: number; hitRate: number | null }> = []
+    const stats: Array<{ name: string; cacheRead: number; cacheMiss: number; hitRate: number | null; lastCacheRead: number; lastCacheMiss: number }> = []
 
     // Current session stats
     const allAssistant = msg().filter((item): item is AssistantMessage =>
@@ -83,6 +91,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         cacheRead: sessionCacheRead,
         cacheMiss: sessionCacheMiss,
         hitRate,
+        lastCacheRead: last.tokens.cache.read,
+        lastCacheMiss: last.tokens.input,
       })
     }
 
@@ -102,11 +112,12 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             cacheRead += m.tokens.cache.read
             cacheMiss += m.tokens.input
           }
+          const orchLast = orchAssistant[orchAssistant.length - 1]
           const total = cacheRead + cacheMiss
           const hitRate = total > 0 && cacheRead > 0
             ? Math.round((cacheRead / total) * 100)
             : null
-          stats.push({ name: "orch", cacheRead, cacheMiss, hitRate })
+          stats.push({ name: "orch", cacheRead, cacheMiss, hitRate, lastCacheRead: orchLast.tokens.cache.read, lastCacheMiss: orchLast.tokens.input })
         }
       }
       if (mainSid && mainSid !== props.session_id) {
@@ -121,11 +132,12 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             cacheRead += m.tokens.cache.read
             cacheMiss += m.tokens.input
           }
+          const mainLast = mainAssistant[mainAssistant.length - 1]
           const total = cacheRead + cacheMiss
           const hitRate = total > 0 && cacheRead > 0
             ? Math.round((cacheRead / total) * 100)
             : null
-          stats.push({ name: "main", cacheRead, cacheMiss, hitRate })
+          stats.push({ name: "main", cacheRead, cacheMiss, hitRate, lastCacheRead: mainLast.tokens.cache.read, lastCacheMiss: mainLast.tokens.input })
         }
       }
     }
@@ -145,13 +157,14 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           cacheRead += m.tokens.cache.read
           cacheMiss += m.tokens.input
         }
+        const childLast = childAssistant[childAssistant.length - 1]
         const total = cacheRead + cacheMiss
         const hitRate = total > 0 && cacheRead > 0
           ? Math.round((cacheRead / total) * 100)
           : null
         // Use first word of title as label (e.g., "Explorer", "Coder")
         const label = child.title.split(" ")[0].toLowerCase() || child.id.slice(0, 6)
-        stats.push({ name: label, cacheRead, cacheMiss, hitRate })
+        stats.push({ name: label, cacheRead, cacheMiss, hitRate, lastCacheRead: childLast.tokens.cache.read, lastCacheMiss: childLast.tokens.input })
       }
     }
 
@@ -294,7 +307,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       {allSessionStats().length > 0 ? (
         allSessionStats().map((s) => (
           <text fg={(s.hitRate ?? 0) > 80 ? theme().success : (s.hitRate ?? 0) >= 40 ? theme().warning : theme().error}>
-            {s.name}: {formatCacheStats(s.hitRate, s.cacheRead, s.cacheMiss)}
+            {s.name}: {formatCacheStats(s.hitRate, s.cacheRead, s.cacheMiss, s.lastCacheRead, s.lastCacheMiss)}
           </text>
         ))
       ) : (

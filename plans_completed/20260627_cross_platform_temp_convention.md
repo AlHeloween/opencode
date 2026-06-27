@@ -77,6 +77,15 @@ Added to reasoning.txt:
 - Prefer cross-platform tools: `rg`, `fd`, `git`, `bun`, `node`
 - PowerShell equivalents documented for Unix utils
 
+## Tool Availability (Windows)
+
+Documented in reasoning.txt:
+- **System tools (C:\Windows\):** `rg.exe`, `fd.exe` — always available
+- **Git Unix utils (C:\Program Files\Git\usr\bin\):** `ls.exe`, `cat.exe`, etc. — may pipe incorrectly in PowerShell
+- **Project tools ({worktree}/tools/):** local copies of rg, fd, grep, sed
+- **Detection:** Use `which` or `cmd /c where.exe` to check availability
+- **Rule:** Check tool exists before using. Prefer system-wide rg/fd over Git-provided utils.
+
 ## Verification
 
 1. Fresh project init creates .gitignore with `.temp/`

@@ -71,7 +71,7 @@ Independent items (no blocking dependencies):
 | 4.2 | Inline SQL Cleanup | `plans_completed/20260625_inline_sql_cleanup_plan.md` | 3-5 days | Low | [x] Done |
 | 4.3 | HTTP API v2 | `plans/20260625_http_api_v2_plan.md` | 2-4 weeks | Medium | [ ] Planned |
 | C1 | Conversation Checkpoint | `plans_completed/20260624_checkpoint_plan.md` | 6-8h | High | [x] Done |
-| E3 | Orchestrator Evolving Mode | `plans/emergency/20260626_orchestrator_evolving_mode.md` | 1-2 days | High | [ ] Planned |
+| E3 | Orchestrator Evolving Mode | `plans/20260626_orchestrator_evolving_mode.md` | 1-2 days | High | [ ] Planned |
 
 ## Recommended Execution Order
 
@@ -82,18 +82,20 @@ Phase 0 (Emergency — done):
 
 Phase 1 (Priority — done):
   [x] P1 Config Consolidation (9.5 days)
+  [x] P2 Cache Stats (3.5 days)
 
-Phase 2 (In Progress):
-  Day 1:    E3 Orchestrator Evolving Mode (1-2 days)
+Phase 2 (Foundation — done):
+  [x] 4.4 Catalog Service (8-12 days)
+  [x] 4.5 Auth V2 (15-19 days)
+  [x] 4.6 PluginV2 Rename (1 day)
+  [x] 4.1 FTS Trigger Migration (1 day)
+  [x] 4.2 Inline SQL Cleanup (3-5 days)
+  [x] C1 Conversation Checkpoint (6-8h)
 
-Phase 3 (Foundation):
-  Days 1-12: 4.4 Catalog Service (8-12 days)
-  Day 13:    4.6 PluginV2 Rename (1 day, unblocked by 4.4 completion)
+Phase 3 (In Progress):
+  Day 1-2:  E3 Orchestrator Evolving Mode tasks 2-4 (1-2 days)
 
-Phase 4 (Integration):
-  Days 1-10: 4.5 Auth V2 (7-10 days)
-
-Phase 5 (Large restructuring):
+Phase 4 (Next):
   Days 1-20: 4.3 HTTP API v2 (2-4 weeks)
 ```
 
@@ -111,7 +113,7 @@ Each item is complete when:
 - Typecheck: zero errors
 - Tests: all passing
 - Completed plans: 88 in `plans_completed/`
-- Active plans: 7 (this master + 6 item plans: catalog, auth-v2, http-api-v2, pluginv2-rename, checkpoint, orchestrator-evolving, config-consolidation)
+- Active plans: 3 (this master + http-api-v2 + orchestrator-evolving-mode)
 
 ## Revisions
 
@@ -120,3 +122,4 @@ Each item is complete when:
 | 2026-06-25 | Initial master plan with 6 items, all explorer-validated |
 | 2026-06-25 | Added 2 priority plans (P1 Config Consolidation, P2 Cache Stats). Revised Auth V2 plan: removed env var injection, added auth.enc exclusive + server auth → opencode.jsonc. |
 | 2026-06-26 | Marked 4.1, 4.2, P2 as done (moved to plans_completed/ 2026-06-25, master stale). Added C1 (Checkpoint Plan) and E3 (Orchestrator Evolving Mode) to tracking. Added hardening rule 10 (reference grounding) to reasoning.txt and AGENTS.md Plan Maintenance to prevent recurrence. |
+| 2026-06-27 | Updated execution order to reflect completed foundation items (4.4, 4.5, 4.6, 4.1, 4.2, C1). Phase 3 now shows E3 tasks 2-4 pending (tasks 1 done). Phase 4 is HTTP API v2. Master plan corrected to match actual completed state. |

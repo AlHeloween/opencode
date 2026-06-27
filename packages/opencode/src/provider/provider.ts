@@ -4,6 +4,7 @@ import { Config } from "@/config/config"
 import { mapValues, mergeDeep, omit, pickBy, sortBy } from "remeda"
 import { NoSuchModelError, type Provider as SDK } from "ai"
 import * as Log from "@opencode-ai/core/util/log"
+import { errorMessage } from "@/util/error"
 import { Npm } from "@opencode-ai/core/npm"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Plugin } from "../plugin"
@@ -49,7 +50,7 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
         const id = setTimeout(() => {
           const err = new Error("SSE read timed out")
           ctl.abort(err)
-          void reader.cancel(err).catch(() => {})
+          void reader.cancel(err).catch((e) => Log.Default.warn("bug: stream reader cancel failed", { error: errorMessage(e) }))
           reject(err)
         }, ms)
 

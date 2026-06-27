@@ -22,7 +22,7 @@ void reader.cancel(err).catch((e) => Log.Default.warn("bug: stream reader cancel
 ```
 
 ### Implementation
-- [ ] Replace `.catch(() => {})` with `.catch((e) => Log.Default.warn(...))`
+- [x] Replace `.catch(() => {})` with `.catch((e) => Log.Default.warn(...))`
 - [ ] Verify error message format follows project conventions
 
 ### Test Cases
@@ -79,6 +79,7 @@ void Bus.publish(...).catch((e) => Log.Default.warn("config publish failed", { e
 ## C6-C7. Checkpoint Silent Catches [P0-CRITICAL]
 **File:** `packages/opencode/src/session/checkpoint.ts:84, 107, 113`
 **SV:** `[checkpoint, save, load, remove, silent-catch, corruption]`
+**Status:** ✅ DONE (2026-06-27)
 
 ### Current Code
 ```ts
@@ -121,10 +122,10 @@ catch (e) {
 ```
 
 ### Implementation
-- [ ] Replace `Effect.void` in save() with `Effect.catchAll` + Log.warn
-- [ ] Replace `catch { /* cleanup */ }` in load() with explicit error logging
-- [ ] Replace `catch { /* cleanup */ }` in remove() with debug logging
-- [ ] Add sessionID to log context for tracing
+- [x] Replace `Effect.void` in save() with `Effect.catchAll` + Log.warn
+- [x] Replace `catch { /* cleanup */ }` in load() with explicit error logging
+- [x] Replace `catch { /* cleanup */ }` in remove() with debug logging
+- [x] Add sessionID to log context for tracing
 
 ### Test Cases
 - [ ] Successful checkpoint save/load works (no regression)

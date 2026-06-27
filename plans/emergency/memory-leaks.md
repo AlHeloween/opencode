@@ -30,9 +30,9 @@ export function stop() {
 ```
 
 ### Implementation
-- [ ] Add `export function stop() { ... }` after the `setInterval` block
-- [ ] Verify `stop` is callable and timer is cleared
-- [ ] Add `stop` to module exports (check if `export *` pattern applies)
+- [x] Add `export function stop() { ... }` after the `setInterval` block
+- [x] Verify `stop` is callable and timer is cleared
+- [x] Add `stop` to module exports (check if `export *` pattern applies)
 
 ### Test Cases
 - [ ] `heap.start()` creates interval

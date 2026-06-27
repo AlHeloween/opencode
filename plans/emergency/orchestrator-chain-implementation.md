@@ -388,9 +388,9 @@ export function DialogPipeline() {
 
 ## Implementation Order
 
-1. [ ] Create `config/pipeline.ts` schema
-2. [ ] Extend `tool/pipeline.ts` with variant + context modes
-3. [ ] Add pipeline loading to `config/config.ts`
-4. [ ] Create `dialog-pipeline.tsx`
-5. [ ] Add TUI command and keybind
+1. [x] Create `config/pipeline.ts` schema
+2. [x] Extend `tool/pipeline.ts` with variant + context modes
+3. [x] Add pipeline loading to `config/config.ts`
+4. [x] Create `dialog-pipeline.tsx`
+5. [x] Add TUI command and keybind
 6. [ ] Test with sample pipeline

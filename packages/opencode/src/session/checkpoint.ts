@@ -57,7 +57,7 @@ export function checkpointPath(sessionID: string, providerID: string, modelID: s
 }
 
 async function writeAtomic(filePath: string, data: Buffer): Promise<void> {
-  const tmpPath = filePath + ".tmp." + Date.now().toString(36)
+  const tmpPath = filePath + ".tmp." + crypto.randomUUID()
   const dir = path.dirname(filePath)
   fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(tmpPath, data)

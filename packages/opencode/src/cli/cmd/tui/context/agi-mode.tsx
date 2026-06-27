@@ -427,6 +427,14 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           const oid = orchSessionID()
           if (!oid) return
           const orchOutput = lastAssistantText(oid)
+
+          // Detect terminal messages — orch declares session complete
+          if (/\b(session complete|terminating|deactivate agi)\b/i.test(orchOutput)) {
+            toast.show({ message: "AGI: orchestrator declared session complete — deactivating", variant: "success" })
+            deactivate()
+            return
+          }
+
           const directives = parseOrchestratorDirectives(orchOutput)
 
           if (directives.length === 0) {

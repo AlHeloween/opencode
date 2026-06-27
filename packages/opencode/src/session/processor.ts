@@ -291,7 +291,24 @@ export const layer: Layer.Layer<
         id: string; toolName: string; providerExecuted?: boolean
       }) {
         if (ctx.assistantMessage.summary && !SUMMARY_SAFE_TOOLS.has(value.toolName)) {
-          throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
+          log.debug("compaction tool call rejected", { tool: value.toolName })
+          const part = yield* session.updatePart({
+            id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
+            messageID: ctx.assistantMessage.id,
+            sessionID: ctx.assistantMessage.sessionID,
+            type: "tool",
+            tool: value.toolName,
+            callID: value.id,
+            state: { status: "pending", input: {}, raw: "" },
+          } satisfies MessageV2.ToolPart)
+          ctx.toolcalls[value.id] = {
+            done: yield* Deferred.make<void>(),
+            partID: part.id,
+            messageID: part.messageID,
+            sessionID: part.sessionID,
+          }
+          yield* failToolCall(value.id, "Tool calls are not available during summarization")
+          return
         }
         const part = yield* session.updatePart({
           id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
@@ -395,7 +412,9 @@ export const layer: Layer.Layer<
           case "tool-call": {
             ctx.toolCallEmitted = true
             if (ctx.assistantMessage.summary && !SUMMARY_SAFE_TOOLS.has(value.toolName)) {
-              throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
+              log.debug("compaction tool call rejected", { tool: value.toolName })
+              yield* failToolCall(value.toolCallId, "Tool calls are not available during summarization")
+              return
             }
             yield* updateToolCall(value.toolCallId, (match) => ({
               ...match,

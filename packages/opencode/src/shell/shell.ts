@@ -95,7 +95,7 @@ function resolve(file: string) {
 function win() {
   return Array.from(
     new Set(
-      [which("pwsh"), which("powershell"), gitbash(), process.env.COMSPEC || "cmd.exe"]
+      [process.env.COMSPEC || "cmd.exe", gitbash(), which("pwsh"), which("powershell")]
         .filter((item): item is string => Boolean(item))
         .map(full),
     ),

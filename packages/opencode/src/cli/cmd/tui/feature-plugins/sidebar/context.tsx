@@ -66,7 +66,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             timestamp: Date.now(),
           },
         }))
-      }).catch(() => {})
+      }).catch((e) => console.debug("sidebar balance fetch failed", e))
     }
   })
 

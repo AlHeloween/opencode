@@ -88,7 +88,7 @@ function getJobsDb(): Database {
 
   // Close previous if path changed
   if (_jobsDb) {
-    try { _jobsDb.close() } catch { /* ignore */ }
+    try { _jobsDb.close() } catch (e) { log.debug("jobs db close failed", { error: String(e) }) }
   }
 
   const dir = path.dirname(dbPath)

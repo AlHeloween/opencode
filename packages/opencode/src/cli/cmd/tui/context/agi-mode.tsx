@@ -46,7 +46,7 @@ function saveAgiState(state: AgiState) {
   try {
     const file = path.join(Global.Path.state, "agi-state.json")
     writeFileSync(file, JSON.stringify(state))
-  } catch { /* non-fatal */ }
+  } catch (e) { console.debug("agi state save failed", e) }
 }
 
 /** Maximum length of main session output to pass back to orchestrator. */
@@ -396,7 +396,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     if (!oid) return
     try {
       await sdk.client.session.summarize({ sessionID: oid })
-    } catch { /* may not be supported or session idle */ }
+    } catch (e) { console.debug("orchestrator compact failed", e) }
   }
 
   return {

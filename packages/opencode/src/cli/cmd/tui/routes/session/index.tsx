@@ -631,7 +631,7 @@ export function Session() {
           try {
             await sdk.client.session.delete({ sessionID: child.id })
             cleaned++
-          } catch { /* skip */ }
+          } catch (e) { console.debug("child session delete failed", e) }
         }
         toast.show({ variant: "success", message: `Cleaned up ${cleaned}/${childSessions.length} child sessions`, duration: 3000 })
         dialog.clear()

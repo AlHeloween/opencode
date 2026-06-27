@@ -1,7 +1,10 @@
 import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
 import type { Handler, TuiRenderResult, Embedding, EmbedOptions } from "../handler"
 import type { Info as UniversalAttachment } from "../schema"
 import type { Provider } from "@/provider/provider"
+
+const log = Log.create({ service: "attachment.video" })
 
 /**
  * Read video container metadata from headers without ffmpeg.
@@ -80,7 +83,7 @@ export const VideoHandler: Handler = {
             const buf = Buffer.from(attachment.url.slice(commaIdx + 1), "base64")
             const meta = readVideoMeta(buf)
             duration = meta.duration; width = meta.width; height = meta.height; fps = meta.fps
-          } catch { /* binary parse failed */ }
+          } catch (e) { log.debug("video metadata extraction failed", { error: String(e) }) }
         }
       }
       return {

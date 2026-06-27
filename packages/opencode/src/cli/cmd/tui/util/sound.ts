@@ -2,12 +2,15 @@ import { Player } from "cli-sound"
 import { mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { basename, join } from "node:path"
+import * as Log from "@opencode-ai/core/util/log"
 import { Process } from "@/util/process"
 import { which } from "@/util/which"
 import pulseA from "../asset/pulse-a.wav" with { type: "file" }
 import pulseB from "../asset/pulse-b.wav" with { type: "file" }
 import pulseC from "../asset/pulse-c.wav" with { type: "file" }
 import charge from "../asset/charge.wav" with { type: "file" }
+
+const log = Log.create({ service: "sound" })
 
 const FILE = [pulseA, pulseB, pulseC]
 
@@ -123,7 +126,7 @@ export function start() {
         },
       )
     })
-    .catch(() => {})
+    .catch((e) => log.debug("sound playback failed", { error: String(e) }))
 }
 
 export function stop(delay = 0) {

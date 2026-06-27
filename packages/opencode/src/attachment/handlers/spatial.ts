@@ -1,7 +1,10 @@
 import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
 import type { Handler, TuiRenderResult, Embedding, EmbedOptions } from "../handler"
 import type { Info as UniversalAttachment } from "../schema"
 import type { Provider } from "@/provider/provider"
+
+const log = Log.create({ service: "attachment.spatial" })
 
 /** Parse GLB binary header to get vertex count from mesh data */
 function readGLBMeta(buffer: Buffer): { vertexCount: number; format: string } {
@@ -72,7 +75,7 @@ export const SpatialHandler: Handler = {
               const meta = readGLTFMeta(text)
               vertexCount = meta.vertexCount; format = meta.format
             }
-          } catch { /* parse failed */ }
+          } catch (e) { log.debug("spatial metadata extraction failed", { error: String(e) }) }
         }
       }
       return {

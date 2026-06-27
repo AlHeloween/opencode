@@ -1,8 +1,11 @@
 import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
 import type { Handler, TuiRenderResult, Embedding, EmbedOptions } from "../handler"
 import type { Info as UniversalAttachment } from "../schema"
 import type { Provider } from "@/provider/provider"
 import { parseBuffer } from "music-metadata"
+
+const log = Log.create({ service: "attachment.audio" })
 
 async function extractAudioMeta(buffer: Buffer): Promise<{
   duration: number; sampleRate: number; channels: number; codec?: string
@@ -40,7 +43,7 @@ export const AudioHandler: Handler = {
             const meta = yield* Effect.tryPromise(() => extractAudioMeta(buf))
             duration = meta.duration; sampleRate = meta.sampleRate
             channels = meta.channels; codec = meta.codec
-          } catch { /* use defaults */ }
+          } catch (e) { log.debug("audio metadata extraction failed", { error: String(e) }) }
         }
       }
       return {

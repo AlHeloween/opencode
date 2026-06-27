@@ -97,9 +97,9 @@ export const layer = Layer.effect(
           const cb: ParcelWatcher.SubscribeCallback = Instance.bind((err, evts) => {
             if (err) return
             for (const evt of evts) {
-              if (evt.type === "create") void Bus.publish(Event.Updated, { file: evt.path, event: "add" }).catch(() => {})
-              if (evt.type === "update") void Bus.publish(Event.Updated, { file: evt.path, event: "change" }).catch(() => {})
-              if (evt.type === "delete") void Bus.publish(Event.Updated, { file: evt.path, event: "unlink" }).catch(() => {})
+              if (evt.type === "create") void Bus.publish(Event.Updated, { file: evt.path, event: "add" }).catch((e) => log.debug("watcher add publish failed", { file: evt.path, error: String(e) }))
+              if (evt.type === "update") void Bus.publish(Event.Updated, { file: evt.path, event: "change" }).catch((e) => log.debug("watcher change publish failed", { file: evt.path, error: String(e) }))
+              if (evt.type === "delete") void Bus.publish(Event.Updated, { file: evt.path, event: "unlink" }).catch((e) => log.debug("watcher unlink publish failed", { file: evt.path, error: String(e) }))
             }
           })
 

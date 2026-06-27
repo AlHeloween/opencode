@@ -1,8 +1,11 @@
 import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
 import type { Handler, TuiRenderResult, Embedding, EmbedOptions } from "../handler"
 import type { Info as UniversalAttachment } from "../schema"
 import type { Provider } from "@/provider/provider"
 import sharp from "sharp"
+
+const log = Log.create({ service: "attachment.image" })
 
 async function extractImageMeta(buffer: Buffer): Promise<{
   width: number; height: number; format?: string
@@ -44,7 +47,7 @@ export const ImageHandler: Handler = {
             const buf = Buffer.from(attachment.url.slice(commaIdx + 1), "base64")
             const meta = yield* Effect.tryPromise(() => extractImageMeta(buf))
             width = meta.width; height = meta.height
-          } catch { /* use defaults */ }
+          } catch (e) { log.debug("image metadata extraction failed", { error: String(e) }) }
         }
       }
       return {

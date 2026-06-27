@@ -68,7 +68,7 @@ export function DialogAgent() {
             }))
           }
         })
-        .catch(() => {})
+        .catch((e) => console.debug("agent balance fetch failed", e))
     }
   })
 

@@ -713,7 +713,7 @@ export function importFromDisk(worktree: string): Info | undefined {
     return undefined
   } finally {
     if (db) {
-      try { (db.$client as { close: () => void }).close() } catch { /* best effort */ }
+      try { (db.$client as { close: () => void }).close() } catch (e) { log.debug("project db close failed", { error: String(e) }) }
     }
   }
 }

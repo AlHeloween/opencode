@@ -1,7 +1,10 @@
 import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
 import type { Handler, TuiRenderResult, Embedding, EmbedOptions } from "../handler"
 import type { Info as UniversalAttachment } from "../schema"
 import type { Provider } from "@/provider/provider"
+
+const log = Log.create({ service: "attachment.data" })
 
 function detectJSONSchema(text: string): { rowCount: number; columnCount: number } {
   try {
@@ -50,7 +53,7 @@ export const DataHandler: Handler = {
               const schema = detectCSVSchema(text)
               rowCount = schema.rowCount; columnCount = schema.columnCount
             }
-          } catch { /* binary format, skip */ }
+          } catch (e) { log.debug("data schema detection failed", { error: String(e) }) }
         }
       }
       return {

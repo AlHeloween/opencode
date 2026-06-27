@@ -81,7 +81,7 @@ Target Architecture (Phase 2 — versioning):
 
 ## Phase 2 Tasks: Add API Versioning
 
-- [ ] 2.1 Prefix all HttpApi routes with `/v2` (single-line change in HttpApi composition: `HttpApi.make("opencode").prefix("/v2")`)
+- [BLOCKED] 2.1 Prefix all HttpApi routes with `/v2` — SDK generator restructures OpencodeClient on prefix change. Needs separate generator config plan before prefix can be applied. See: `packages/sdk/js/script/build.ts` generator restructures client API (instance→group methods) causing 160+ TS errors.
 - [ ] 2.2 Add OpenAPI version field: `info.version = "2.0.0"` in spec generation
 - [ ] 2.3 Add `/v1` proxy group that forwards to `/v2` for backward compatibility (if needed)
 - [ ] 2.4 Regenerate SDK from `/v2` OpenAPI spec

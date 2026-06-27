@@ -1458,9 +1458,30 @@ export interface SearchResult {
   text: string
   snippet: string
   rank: number
+  // Browse mode context
+  /** The role of this message part ("user" | "assistant") */
+  role?: string
+  /** Role of the preceding contextual message */
+  contextRole?: string
+  /** Message index of the preceding contextual message */
+  contextIndex?: number
+  /** Text of the preceding contextual message (first 500 chars) */
+  contextText?: string
 }
 
 export function search(input: {
+  projectID: ProjectID
+  worktree: string
+  query?: string
+  limit?: number
+}): SearchResult[] {
+  if (!input.query || input.query.trim().length === 0) {
+    return browseSearch({ projectID: input.projectID, worktree: input.worktree, limit: input.limit })
+  }
+  return keywordSearch({ projectID: input.projectID, worktree: input.worktree, query: input.query, limit: input.limit })
+}
+
+function keywordSearch(input: {
   projectID: ProjectID
   worktree: string
   query: string
@@ -1515,6 +1536,137 @@ export function search(input: {
     snippet: highlightSnippet(row.text, input.query),
     rank: row.semantic_rank as number,
   }))
+}
+
+function browseSearch(input: {
+  projectID: ProjectID
+  worktree: string
+  limit?: number
+}): SearchResult[] {
+  const rawDb = Database.getProjectDb(input.projectID, input.worktree).$client
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+  const db = rawDb as any
+
+  const rows = db
+    .query(
+      `
+      SELECT
+        p.id as partID,
+        p.message_id as messageID,
+        p.session_id as sessionID,
+        json_extract(m.data, '$.role') as role,
+        m.time_created as msg_time,
+        (SELECT COUNT(*) + 1 FROM message WHERE session_id = p.session_id AND time_created < m.time_created) as messageIndex,
+        COALESCE(json_extract(p.data, '$.type'), '') as part_type,
+        COALESCE(json_extract(p.data, '$.text'), '') as text
+      FROM part p
+      JOIN message m ON m.id = p.message_id
+      JOIN session s ON s.id = p.session_id
+      WHERE s.project_id = ?
+        AND json_extract(m.data, '$.role') IN ('user', 'assistant')
+        AND json_extract(p.data, '$.type') IN ('text', 'reasoning')
+      ORDER BY p.session_id, m.time_created ASC
+    `,
+    )
+    .all(input.projectID) as any[]
+
+  // Group text parts by message (a message may have multiple text parts)
+  const messageMap = new Map<string, {
+    messageID: string
+    sessionID: string
+    messageIndex: number
+    role: string
+    texts: string[]
+    firstPartID: string
+    msg_time: number
+  }>()
+
+  for (const row of rows) {
+    const key = `${row.sessionID}:${row.messageID}`
+    let msg = messageMap.get(key)
+    if (!msg) {
+      msg = {
+        messageID: row.messageID,
+        sessionID: row.sessionID,
+        messageIndex: row.messageIndex as number,
+        role: row.role,
+        texts: [],
+        firstPartID: row.partID,
+        msg_time: row.msg_time as number,
+      }
+      messageMap.set(key, msg)
+    }
+    if (row.text) msg.texts.push(row.text)
+  }
+
+  // Flatten to ordered messages per session
+  const sessions = new Map<string, Array<{
+    messageID: string
+    sessionID: string
+    messageIndex: number
+    role: string
+    text: string
+    partID: string
+    msg_time: number
+  }>>()
+
+  for (const msg of messageMap.values()) {
+    let list = sessions.get(msg.sessionID)
+    if (!list) {
+      list = []
+      sessions.set(msg.sessionID, list)
+    }
+    list.push({
+      messageID: msg.messageID,
+      sessionID: msg.sessionID,
+      messageIndex: msg.messageIndex,
+      role: msg.role,
+      text: msg.texts.join('\n').slice(0, 2000),
+      partID: msg.firstPartID,
+      msg_time: msg.msg_time,
+    })
+  }
+
+  // Sort each session's messages chronologically
+  for (const [, list] of sessions) {
+    list.sort((a, b) => a.msg_time - b.msg_time)
+  }
+
+  // Build user + preceding assistant pairs
+  const results: SearchResult[] = []
+  const limit = input.limit || 50
+
+  for (const [, msgs] of sessions) {
+    if (results.length >= limit) break
+    let lastAssistantIdx = 0
+    let lastAssistantText = ''
+
+    for (const msg of msgs) {
+      if (results.length >= limit) break
+
+      if (msg.role === 'assistant') {
+        lastAssistantIdx = msg.messageIndex
+        lastAssistantText = msg.text.slice(0, 500)
+      } else if (msg.role === 'user') {
+        results.push({
+          messageID: msg.messageID as MessageID,
+          partID: msg.partID as PartID,
+          sessionID: msg.sessionID as SessionID,
+          messageIndex: msg.messageIndex,
+          partType: 'text',
+          text: msg.text,
+          snippet: msg.text.slice(0, 200),
+          rank: 1,
+          role: 'user',
+          contextRole: lastAssistantText ? 'assistant' : undefined,
+          contextIndex: lastAssistantText ? lastAssistantIdx : undefined,
+          contextText: lastAssistantText || undefined,
+        })
+      }
+    }
+  }
+
+  return results
 }
 
 export function highlightSnippet(text: string, query: string, maxLen = 200): string {

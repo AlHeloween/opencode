@@ -1,4 +1,9 @@
-Search conversation history (messages and parts) using text matching across all sessions in the current project.
+Search or browse conversation history across all sessions in the current project.
+
+## Modes
+
+- **Search mode** (with `query`): LIKE-text search over all message content. Results are ordered by epistemic-weighted semantic rank.
+- **Browse mode** (no `query`): Returns all user messages chronologically per session, each preceded by its context (the preceding assistant message). No ranking.
 
 ## Search Engine
 
@@ -13,6 +18,17 @@ Search conversation history (messages and parts) using text matching across all 
 
 ## Output Format
 
+### Browse mode
+Results are grouped by session. Each user message is preceded by its preceding assistant response:
+```
+## Session: abc123
+### #4 [assistant]
+...previous assistant response...
+### #5 [user]
+> user query text
+```
+
+### Search mode
 Results are grouped by session. Each result includes:
 - Session ID
 - Message index (#N) and part type in brackets: `[text]`, `[tool]`, `[reasoning]`, etc.
@@ -25,7 +41,7 @@ Output is capped at 50KB. Use `session-read` to get full context around found me
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `query` | string | — | Search keywords or phrase |
+| `query` | string (optional) | — | Search keywords or phrase. Omit to browse all sessions. |
 | `limit` | number | 20 | Maximum results to return |
 
 ## When to Use
@@ -34,3 +50,4 @@ Output is capped at 50KB. Use `session-read` to get full context around found me
 - Find when a specific file, command, or error was discussed
 - Check if a task was already attempted before starting work
 - Get context before planning or executing
+- Browse all user messages (omit query) to get an overview of past sessions

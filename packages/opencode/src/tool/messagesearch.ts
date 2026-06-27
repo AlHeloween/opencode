@@ -8,8 +8,8 @@ import DESCRIPTION from "./messagesearch.txt"
 const MAX_OUTPUT = 50 * 1024
 
 export const Parameters = Schema.Struct({
-  query: Schema.String.annotate({
-    description: "The search query to find in conversation history",
+  query: Schema.optional(Schema.String).annotate({
+    description: "Search keywords or phrase. If empty, browses all user messages with context.",
   }),
   limit: Schema.optional(Schema.Number).annotate({
     description: "Maximum number of results to return (default: 20)",
@@ -22,15 +22,18 @@ export const MessageSearchTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { query: string; limit?: number }, ctx: Tool.Context) =>
+      execute: (params: { query?: string; limit?: number }, ctx: Tool.Context) =>
         Effect.gen(function* () {
+          const mode = params.query && params.query.trim().length > 0 ? "search" : "browse"
+
           yield* ctx.ask({
             permission: "messagesearch",
-            patterns: [params.query],
+            patterns: mode === "search" ? [params.query!] : ["*"],
             always: ["*"],
             metadata: {
-              query: params.query,
+              query: params.query || "(browse)",
               limit: params.limit,
+              mode,
             },
           })
 
@@ -48,8 +51,8 @@ export const MessageSearchTool = Tool.define(
 
           if (results.length === 0) {
             return {
-              title: `MessageSearch "${params.query}"`,
-              metadata: { query: params.query, results: 0 },
+              title: mode === "browse" ? "Browse Sessions" : `MessageSearch "${params.query}"`,
+              metadata: { query: params.query || "(browse)", mode, results: 0 },
               output: "No results found",
             }
           }
@@ -65,23 +68,53 @@ export const MessageSearchTool = Tool.define(
             output += header
             totalSize += header.length
 
-            for (const result of group.results) {
-              if (totalSize >= MAX_OUTPUT) break
+            if (mode === "browse") {
+              // Browse mode: show user messages with preceding assistant context
+              for (const result of group.results) {
+                if (totalSize >= MAX_OUTPUT) break
+                if (result.contextText) {
+                  const ctxEntry = [
+                    `### #${result.contextIndex} [assistant]`,
+                    result.contextText,
+                    "",
+                  ].join("\n")
+                  output += ctxEntry
+                  totalSize += ctxEntry.length
+                }
+                const userEntry = [
+                  `### #${result.messageIndex} [user]`,
+                  result.text ? `> ${result.text.slice(0, 400)}` : "",
+                  "",
+                ].join("\n")
+                if (userEntry.trim()) {
+                  output += userEntry
+                  totalSize += userEntry.length
+                }
+              }
+            } else {
+              // Search mode: existing behavior with rank
+              for (const result of group.results) {
+                if (totalSize >= MAX_OUTPUT) break
 
-              const entry = [
-                `### #${result.messageIndex} [${result.partType}] ${result.messageID}`,
-                `Snippet: ${result.snippet}`,
-                `Rank: ${result.rank}`,
-                "",
-              ].join("\n")
-              output += entry
-              totalSize += entry.length
+                const entry = [
+                  `### #${result.messageIndex} [${result.partType}] ${result.messageID}`,
+                  `Snippet: ${result.snippet}`,
+                  `Rank: ${result.rank}`,
+                  "",
+                ].join("\n")
+                output += entry
+                totalSize += entry.length
+              }
             }
           }
 
           return {
-            title: `MessageSearch "${params.query}"`,
-            metadata: { query: params.query, results: results.reduce((sum, g) => sum + g.results.length, 0) },
+            title: mode === "browse" ? "Browse Sessions" : `MessageSearch "${params.query}"`,
+            metadata: {
+              query: params.query || "(browse)",
+              mode,
+              results: results.reduce((sum, g) => sum + g.results.length, 0),
+            },
             output: output.slice(0, MAX_OUTPUT) || "No results found",
           }
         }).pipe(Effect.orDie),

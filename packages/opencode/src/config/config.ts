@@ -178,6 +178,20 @@ export const Info = Schema.Struct({
       [Schema.Record(Schema.String, ConfigAgent.Info)],
     ),
   ).annotate({ description: "Agent configuration, see https://opencode.ai/docs/agents" }),
+  pipelines: Schema.optional(Schema.Record(Schema.String, Schema.Struct({
+    description: Schema.optional(Schema.String),
+    steps: Schema.Array(Schema.Struct({
+      agent: Schema.String,
+      variant: Schema.optional(Schema.String),
+      prompt: Schema.String,
+      context: Schema.optional(Schema.Struct({
+        from: Schema.optional(Schema.Union([Schema.Number, Schema.Array(Schema.Number)])),
+        mode: Schema.optional(Schema.Literals(["full", "summary", "fields", "maxTokens"])),
+        fields: Schema.optional(Schema.Array(Schema.String)),
+        maxTokens: Schema.optional(Schema.Number),
+      })),
+    })),
+  }))).annotate({ description: "Named pipeline configurations for sequential agent execution" }),
   provider: Schema.optional(Schema.Record(Schema.String, ConfigProvider.Info)).annotate({
     description: "Custom provider configurations and model overrides",
   }),

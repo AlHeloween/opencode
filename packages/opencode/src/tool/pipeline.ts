@@ -8,6 +8,23 @@ import { Provider } from "@/provider/provider"
 import { MessageID } from "../session/schema"
 import type { TaskPromptOps } from "./task"
 
+const ContextMode = Schema.Literals(["full", "summary", "fields", "maxTokens"])
+
+const ContextConfig = Schema.Struct({
+  from: Schema.optional(Schema.Union([Schema.Number, Schema.Array(Schema.Number)])).annotate({
+    description: "Step index(es) to get context from. Default: previous step.",
+  }),
+  mode: Schema.optional(ContextMode).annotate({
+    description: "How to pass context: full (default), summary, fields, maxTokens",
+  }),
+  fields: Schema.optional(Schema.Array(Schema.String)).annotate({
+    description: "When mode=fields, extract lines containing these field names",
+  }),
+  maxTokens: Schema.optional(Schema.Number).annotate({
+    description: "When mode=maxTokens or summary, limit output to this many tokens",
+  }),
+})
+
 export const Parameters = Schema.Struct({
   steps: Schema.Array(
     Schema.Struct({
@@ -19,6 +36,12 @@ export const Parameters = Schema.Struct({
       }),
       prompt: Schema.String.annotate({
         description: "Task for this agent to perform",
+      }),
+      variant: Schema.optional(Schema.String).annotate({
+        description: "Model variant/reasoning effort: low, medium, high, max",
+      }),
+      context: Schema.optional(ContextConfig).annotate({
+        description: "How to receive context from previous steps",
       }),
     }),
   ).annotate({
@@ -44,6 +67,84 @@ interface PipelineStepResult {
   description: string
   output: string
   sessionID: string
+}
+
+interface ContextConfigType {
+  from?: number | number[] | readonly number[]
+  mode?: "full" | "summary" | "fields" | "maxTokens"
+  fields?: string[] | readonly string[]
+  maxTokens?: number
+}
+
+function prepareContext(
+  contextConfig: ContextConfigType | undefined,
+  stepIndex: number,
+  allResults: PipelineStepResult[],
+  originalPrompt: string,
+): string {
+  // First step always gets original prompt
+  if (stepIndex === 0) return originalPrompt
+
+  // No context config → use default (previous step output)
+  if (!contextConfig) {
+    const prev = allResults[stepIndex - 1]
+    return `${originalPrompt}\n\n## Context from previous step:\n${prev.output}`
+  }
+
+  // Determine source results
+  const fromValue = contextConfig.from
+  let sourceIndexes: number[]
+  if (fromValue === undefined) {
+    sourceIndexes = [stepIndex - 1]
+  } else if (Array.isArray(fromValue)) {
+    sourceIndexes = (fromValue as readonly number[]).filter((x): x is number => typeof x === "number")
+  } else {
+    sourceIndexes = [fromValue as number]
+  }
+
+  const sourceResults = sourceIndexes
+    .filter(i => i >= 0 && i < allResults.length)
+    .map(i => allResults[i])
+
+  if (sourceResults.length === 0) {
+    return `${originalPrompt}\n\n## Context from previous step:\n(No previous results available)`
+  }
+
+  // Apply context mode
+  switch (contextConfig.mode) {
+    case "summary":
+      return `${originalPrompt}\n\n## Summary of previous steps:\n${summarizeContext(sourceResults, contextConfig.maxTokens)}`
+
+    case "fields":
+      return `${originalPrompt}\n\n## Extracted fields:\n${extractFields(sourceResults, [...(contextConfig.fields ?? [])])}`
+
+    case "maxTokens":
+      return `${originalPrompt}\n\n## Context from previous steps (truncated):\n${truncateContext(sourceResults, contextConfig.maxTokens ?? 4000)}`
+
+    case "full":
+    default:
+      return `${originalPrompt}\n\n## Context from previous steps:\n${sourceResults.map(r => `### ${r.agent} — ${r.description}\n${r.output}`).join("\n\n")}`
+  }
+}
+
+function summarizeContext(results: PipelineStepResult[], maxTokens?: number): string {
+  // Take first 500 chars of each result as a simple summary
+  const combined = results.map(r => `${r.agent}: ${r.output.slice(0, 500)}`).join("\n\n")
+  return maxTokens ? combined.slice(0, maxTokens * 4) : combined
+}
+
+function extractFields(results: PipelineStepResult[], fields: string[]): string {
+  return results.flatMap(r =>
+    r.output.split("\n").filter(line =>
+      fields.some(f => line.toLowerCase().includes(f.toLowerCase()))
+    )
+  ).join("\n")
+}
+
+function truncateContext(results: PipelineStepResult[], maxTokens: number): string {
+  const maxChars = maxTokens * 4
+  const combined = results.map(r => `${r.agent}: ${r.output}`).join("\n\n")
+  return combined.slice(0, maxChars)
 }
 
 export const PipelineTool = Tool.define(
@@ -74,7 +175,6 @@ export const PipelineTool = Tool.define(
           // Capture ops ref for closure safety
           const promptOps = ops
           const results: PipelineStepResult[] = []
-          let context = ""
 
           const cfg = yield* config.get()
 
@@ -94,10 +194,8 @@ export const PipelineTool = Tool.define(
               continue
             }
 
-            const augmentedPrompt =
-              i === 0
-                ? step.prompt
-                : `${step.prompt}\n\n## Context from previous step:\n${context}`
+            // Use new context preparation with configurable modes
+            const augmentedPrompt = prepareContext(step.context, i, results, step.prompt)
 
             const subSession = yield* sessions.create({
               parentID: ctx.sessionID,
@@ -133,6 +231,7 @@ export const PipelineTool = Tool.define(
                   providerID: model.providerID,
                 },
                 agent: stepAgent.name,
+                variant: step.variant,  // NEW: pass variant per step
                 tools: {
                   todowrite: false,
                   task: false,
@@ -159,7 +258,6 @@ export const PipelineTool = Tool.define(
                   ) as { text?: string } | undefined)?.text ?? ""
                 : `Pipeline step ${i} failed: ${promptResult.message}`
 
-            context = outputText
             results.push({
               step: i,
               agent: stepAgent.name,

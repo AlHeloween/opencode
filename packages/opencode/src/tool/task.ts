@@ -138,7 +138,8 @@ export const TaskTool = Tool.define(
       const msg = yield* Effect.sync(() => MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }))
       if (msg.info.role !== "assistant") return yield* Effect.fail(new Error("Not an assistant message"))
 
-      const taskOverride = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
+      // First determine the model
+      const taskModelOverride = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
         Effect.map((x: any) => {
           if (x?.taskModel?.providerID && x?.taskModel?.modelID)
             return {
@@ -149,10 +150,24 @@ export const TaskTool = Tool.define(
         }),
         Effect.catch(() => Effect.succeed(undefined)),
       )
-      const model = taskOverride ?? next.model ?? {
+      const model = taskModelOverride ?? next.model ?? {
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
       }
+
+      // Now read agent-specific variant for this model
+      const taskVariant = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
+        Effect.map((x: any) => {
+          if (!next?.name) return undefined
+          const modelKey = `${model.providerID}/${model.modelID}`
+          const agentKey = `${next.name}/${modelKey}`
+          // Check agent-specific variant first, then fall back to model-level variant
+          if (x?.agentVariant?.[agentKey]) return x.agentVariant[agentKey]
+          if (x?.variant?.[modelKey]) return x.variant[modelKey]
+          return undefined
+        }),
+        Effect.catch(() => Effect.succeed(undefined)),
+      )
       // Diagnostic: log when task agent model has different context window than parent
       const parentModel = { modelID: msg.info.modelID, providerID: msg.info.providerID }
       if (parentModel.modelID !== model.modelID || parentModel.providerID !== model.providerID) {
@@ -212,6 +227,7 @@ export const TaskTool = Tool.define(
                   providerID: model.providerID,
                 },
                 agent: next.name,
+                variant: taskVariant,
                 tools: {
                   ...(canTodo ? {} : { todowrite: false }),
                   ...(canTask ? {} : { task: false }),

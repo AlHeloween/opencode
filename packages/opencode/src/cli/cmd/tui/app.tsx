@@ -34,6 +34,7 @@ import { DialogModel } from "@tui/component/dialog-model"
 import { DialogTaskSettings } from "@tui/component/dialog-task-settings"
 import { useConnected } from "@tui/component/use-connected"
 import { DialogMcp } from "@tui/component/dialog-mcp"
+import { DialogPipeline } from "@tui/component/dialog-pipeline"
 import { DialogStatus } from "@tui/component/dialog-status"
 import { DialogNavigation } from "@tui/component/dialog-navigation"
 import { DialogThemeList } from "@tui/component/dialog-theme-list"
@@ -457,6 +458,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       value: "task.model.list",
       keybind: "task_model_list",
       category: "Agent",
+      hidden: true, // Deprecated: Use /agents dialog for per-agent model and variant configuration
       onSelect: () => {
         dialog.replace(() => <DialogTaskSettings />)
       },
@@ -522,6 +524,18 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
       onSelect: () => {
         dialog.replace(() => <DialogMcp />)
+      },
+    },
+    {
+      title: "Run pipeline",
+      value: "pipeline.run",
+      keybind: "pipeline_run",
+      category: "Agent",
+      slash: {
+        name: "pipeline",
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogPipeline />)
       },
     },
     {

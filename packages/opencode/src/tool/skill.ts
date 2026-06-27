@@ -36,16 +36,20 @@ export const SkillTool = Tool.define(
             metadata: {},
           })
 
-          const dir = path.dirname(info.location)
-          const base = pathToFileURL(dir).href
-          const limit = 10
-          const files = yield* rg.files({ cwd: dir, follow: false, hidden: true, signal: ctx.abort }).pipe(
-            Stream.filter((file) => !file.includes("SKILL.md")),
-            Stream.map((file) => path.resolve(dir, file)),
-            Stream.take(limit),
-            Stream.runCollect,
-            Effect.map((chunk) => [...chunk].map((file) => `<file>${file}</file>`).join("\n")),
-          )
+          // Built-in skills have no real directory to scan
+          const isBuiltin = info.location.startsWith("builtin://")
+          const dir = isBuiltin ? "" : path.dirname(info.location)
+          const base = isBuiltin ? "(built-in)" : pathToFileURL(dir).href
+          
+          const files = isBuiltin
+            ? ""
+            : yield* rg.files({ cwd: dir, follow: false, hidden: true, signal: ctx.abort }).pipe(
+                Stream.filter((file) => !file.includes("SKILL.md")),
+                Stream.map((file) => path.resolve(dir, file)),
+                Stream.take(10),
+                Stream.runCollect,
+                Effect.map((chunk) => [...chunk].map((file) => `<file>${file}</file>`).join("\n")),
+              )
 
           return {
             title: `Loaded skill: ${info.name}`,
@@ -56,12 +60,12 @@ export const SkillTool = Tool.define(
               info.content.trim(),
               "",
               `Base directory for this skill: ${base}`,
-              "Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.",
-              "Note: file list is sampled.",
+              !isBuiltin ? "Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory." : "",
+              !isBuiltin ? "Note: file list is sampled." : "",
               "",
-              "<skill_files>",
+              !isBuiltin ? "<skill_files>" : "",
               files,
-              "</skill_files>",
+              !isBuiltin ? "</skill_files>" : "",
               "</skill_content>",
             ].join("\n"),
             metadata: {

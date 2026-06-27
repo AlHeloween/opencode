@@ -5,6 +5,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogModel } from "./dialog-model"
 import { getModelStatus } from "@/provider/balance"
+import { Keybind } from "@/util/keybind"
 import type { RGBA } from "@opentui/core"
 
 /**
@@ -135,6 +136,10 @@ export function DialogAgent() {
       ? `${model.providerID}/${model.modelID}`
       : "(no model configured)"
 
+    const agentVariant = local.model.variant.forAgent(agent.name)
+    const variantValue = agentVariant.current()
+    const variantLabel = variantValue ? ` · ${variantValue}` : ""
+
     const color: RGBA = local.agent.color(agent.name)
     const off = isDisabled(agent.name)
 
@@ -145,7 +150,7 @@ export function DialogAgent() {
       category,
       disabled: off,
       gutter: <text fg={color}>{off ? "○" : "●"}</text>,
-      footer: modelLabel,
+      footer: `${modelLabel}${variantLabel}`,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
         dialog.replace(() => (
@@ -172,6 +177,15 @@ export function DialogAgent() {
                 onDone={() => dialog.replace(() => <DialogAgent />)}
               />
             ))
+          },
+        },
+        {
+          title: "Cycle variant",
+          keybind: Keybind.parse("ctrl+t")[0],
+          onTrigger: (option: any) => {
+            local.model.variant.cycle(option.value)
+            // Force re-render by replacing dialog
+            dialog.replace(() => <DialogAgent />)
           },
         },
         {

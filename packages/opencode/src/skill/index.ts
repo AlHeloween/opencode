@@ -250,7 +250,7 @@ const loadSkills = Effect.fnUntraced(function* (state: State, discovered: Discov
   state.skills["compaction"] = {
     name: "compaction",
     description: "Summarize conversation history using the anchored summary template.",
-    location: new URL("./compaction/SKILL.md", import.meta.url).pathname,
+    location: "builtin://compaction",
     content: COMPACTION_SKILL_CONTENT,
   }
 

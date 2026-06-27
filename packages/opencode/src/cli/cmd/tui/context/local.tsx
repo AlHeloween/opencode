@@ -120,6 +120,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           modelID: string
         }[]
         variant: Record<string, string | undefined>
+        agentVariant: Record<string, string | undefined>
         taskModel:
           | {
               providerID: string
@@ -132,6 +133,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         recent: [],
         favorite: [],
         variant: {},
+        agentVariant: {},
         taskModel: undefined,
       })
 
@@ -150,6 +152,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           recent: modelStore.recent,
           favorite: modelStore.favorite,
           variant: modelStore.variant,
+          agentVariant: modelStore.agentVariant,
           agentModel: modelStore.model,
           taskModel: modelStore.taskModel,
         })
@@ -160,6 +163,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
+          if (typeof x.agentVariant === "object" && x.agentVariant !== null) setModelStore("agentVariant", x.agentVariant)
           if (typeof x.agentModel === "object" && x.agentModel !== null) setModelStore("model", x.agentModel)
           if (
             typeof x.taskModel === "object" &&
@@ -391,47 +395,67 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           })
         },
         variant: {
-          selected() {
-            const m = currentModel()
+          selected(agentName?: string) {
+            const m = agentName ? forAgent(agentName) : currentModel()
             if (!m) return undefined
+            const agentKey = agentName ?? agent.current()?.name
+            if (agentKey) {
+              const key = `${agentKey}/${m.providerID}/${m.modelID}`
+              const agentVar = modelStore.agentVariant[key]
+              if (agentVar) return agentVar
+            }
             const key = `${m.providerID}/${m.modelID}`
             return modelStore.variant[key]
           },
-          current() {
-            const v = this.selected()
+          current(agentName?: string) {
+            const v = this.selected(agentName)
             if (!v) return undefined
-            if (!this.list().includes(v)) return undefined
+            if (!this.list(agentName).includes(v)) return undefined
             return v
           },
-          list() {
-            const m = currentModel()
+          list(agentName?: string) {
+            const m = agentName ? forAgent(agentName) : currentModel()
             if (!m) return []
             const provider = sync.data.provider.find((x) => x.id === m.providerID)
             const info = provider?.models[m.modelID]
             if (!info?.variants) return []
             return Object.keys(info.variants)
           },
-          set(value: string | undefined) {
-            const m = currentModel()
+          set(value: string | undefined, agentName?: string) {
+            const m = agentName ? forAgent(agentName) : currentModel()
             if (!m) return
+            const agentKey = agentName ?? agent.current()?.name
+            if (agentKey) {
+              const key = `${agentKey}/${m.providerID}/${m.modelID}`
+              setModelStore("agentVariant", key, value ?? "default")
+            }
             const key = `${m.providerID}/${m.modelID}`
             setModelStore("variant", key, value ?? "default")
             save()
           },
-          cycle() {
-            const variants = this.list()
+          cycle(agentName?: string) {
+            const variants = this.list(agentName)
             if (variants.length === 0) return
-            const current = this.current()
+            const current = this.current(agentName)
             if (!current) {
-              this.set(variants[0])
+              this.set(variants[0], agentName)
               return
             }
             const index = variants.indexOf(current)
             if (index === -1 || index === variants.length - 1) {
-              this.set(undefined)
+              this.set(undefined, agentName)
               return
             }
-            this.set(variants[index + 1])
+            this.set(variants[index + 1], agentName)
+          },
+          forAgent(agentName: string) {
+            return {
+              selected: () => this.selected(agentName),
+              current: () => this.current(agentName),
+              list: () => this.list(agentName),
+              set: (value: string | undefined) => this.set(value, agentName),
+              cycle: () => this.cycle(agentName),
+            }
           },
         },
       }

@@ -82,6 +82,7 @@ unsub()
 ## B3. Session Route Subscriptions — Add onCleanup [P0-CRITICAL]
 **File:** `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx:290, 320`
 **SV:** `[event-on, subscription, onCleanup, session-route, solidjs]`
+**Status:** ✅ DONE (2026-06-27)
 
 ### Current Code
 ```ts
@@ -114,8 +115,8 @@ onCleanup(() => {
 ```
 
 ### Implementation
-- [ ] Store `event.on()` return values in named variables
-- [ ] Add `onCleanup(() => { unsub1(); unsub2() })` at component scope
+- [x] Store `event.on()` return values in named variables
+- [x] Add `onCleanup(() => { unsub1(); unsub2() })` at component scope
 - [ ] Verify subscriptions are cleared when navigating away from session route
 - [ ] Test with rapid session switching (10+ switches)
 
@@ -134,6 +135,7 @@ onCleanup(() => {
 ## B4. Editor WebSocket Listeners — Add removeEventListener [P0-CRITICAL]
 **File:** `packages/opencode/src/cli/cmd/tui/context/editor.ts:163, 178, 211`
 **SV:** `[addEventListener, removeEventListener, websocket, onCleanup, editor]`
+**Status:** ✅ DONE (2026-06-27)
 
 ### Current Code
 ```ts
@@ -170,9 +172,9 @@ onCleanup(() => {
 ```
 
 ### Implementation
-- [ ] Extract listener functions to named variables
-- [ ] Add `removeEventListener` for all three in `onCleanup`
-- [ ] Ensure remove happens BEFORE `ws.close()` (order matters)
+- [x] Extract listener functions to named variables
+- [x] Add `removeEventListener` for all three in `onCleanup`
+- [x] Ensure remove happens BEFORE `ws.close()` (order matters)
 
 ### Test Cases
 - [ ] WebSocket connects and receives messages

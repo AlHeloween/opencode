@@ -7,6 +7,7 @@ import {
   For,
   Match,
   on,
+  onCleanup,
   onMount,
   Show,
   Switch,
@@ -287,7 +288,7 @@ export function Session() {
   })
 
   let lastSwitch: string | undefined = undefined
-  event.on("message.part.updated", (evt) => {
+  const unsub1 = event.on("message.part.updated", (evt) => {
     const part = evt.properties.part
     if (part.type !== "tool") return
     if (part.sessionID !== route.sessionID) return
@@ -317,7 +318,7 @@ export function Session() {
   const dialog = useDialog()
   const renderer = useRenderer()
 
-  event.on("session.status", (evt) => {
+  const unsub2 = event.on("session.status", (evt) => {
     if (evt.properties.sessionID !== route.sessionID) return
     if (evt.properties.status.type !== "retry") return
     if (evt.properties.status.message !== SessionRetry.GO_UPSELL_MESSAGE) return
@@ -332,6 +333,11 @@ export function Session() {
       if (dontShowAgain) kv.set(GO_UPSELL_DONT_SHOW, true)
       kv.set(GO_UPSELL_LAST_SEEN_AT, Date.now())
     })
+  })
+
+  onCleanup(() => {
+    unsub1()
+    unsub2()
   })
 
   // Allow exit when in child session (prompt is hidden)

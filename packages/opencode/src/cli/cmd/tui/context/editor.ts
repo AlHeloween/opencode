@@ -97,6 +97,7 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
       let zedSelection: Promise<void> | undefined
       let lastZedSelectionKey: string | undefined
       const pending = new Map<number, string>()
+      let currentHandlers: { onOpen: () => void; onMessage: (e: MessageEvent) => void; onClose: () => void } | undefined
 
       const send = (payload: JsonRpcMessage) => {
         if (!socket || socket.readyState !== WebSocket.OPEN) return
@@ -160,7 +161,7 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
         const current = openEditorSocket(connection)
         socket = current
 
-        current.addEventListener("open", () => {
+        const onOpen = () => {
           if (socket !== current) {
             current.close()
             return
@@ -173,9 +174,9 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
             capabilities: {},
             clientInfo: { name: "opencode", version: "0.0.0" },
           })
-        })
+        }
 
-        current.addEventListener("message", (event) => {
+        const onMessage = (event: MessageEvent) => {
           const message = parseMessage(event.data)
           if (!message) return
 
@@ -206,9 +207,9 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
             send({ method: "notifications/initialized" })
             return
           }
-        })
+        }
 
-        current.addEventListener("close", () => {
+        const onClose = () => {
           if (socket !== current) return
 
           socket = undefined
@@ -217,7 +218,12 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
 
           setStore("status", "connecting")
           scheduleReconnect()
-        })
+        }
+
+        current.addEventListener("open", onOpen)
+        current.addEventListener("message", onMessage)
+        current.addEventListener("close", onClose)
+        currentHandlers = { onOpen, onMessage, onClose }
       }
 
       connect()
@@ -225,6 +231,11 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
       onCleanup(() => {
         closed = true
         if (reconnect) clearTimeout(reconnect)
+        if (socket && currentHandlers) {
+          socket.removeEventListener("open", currentHandlers.onOpen)
+          socket.removeEventListener("message", currentHandlers.onMessage)
+          socket.removeEventListener("close", currentHandlers.onClose)
+        }
         socket?.close()
       })
     })

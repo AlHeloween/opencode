@@ -166,21 +166,13 @@ const [turnCount, setTurnCount] = createSignal(0)
 const [cycleCount, setCycleCount] = createSignal(0)
 const [totalCost, setTotalCost] = createSignal(0)
 
-/** Idempotency guard: hash of last instruction sent from orchestrator → main.
- *  Prevents duplicate dispatch when createEffect fires multiple times for the
- *  same orchestrator completion (e.g., mid-turn compaction toggles pending state). */
-let lastSentOrchHash = ""
+/** Plan-state hash guard — prevents main->orch dispatch when no progress was made.
+ *  Hashes plan active/completed counts + task counts. If unchanged since last dispatch,
+ *  the orchestrator is in a stale feedback loop (reporting same status repeatedly). */
+let lastPlanHash = ""
 
-/** Idempotency guard: hash of last result sent from main → orchestrator. */
-let lastSentMainHash = ""
-
-function hashInstruction(text: string): string {
-  // Simple hash — not cryptographic, just equality check
-  let h = 0
-  for (let i = 0; i < text.length; i++) {
-    h = ((h << 5) - h + text.charCodeAt(i)) | 0
-  }
-  return h.toString(36)
+function hashPlanState(pd: PlanStatus): string {
+  return `${pd.completed.length}/${pd.totalPlans}:${pd.completedTasks}/${pd.totalTasks}`
 }
 
 export function useAgiMode(currentSessionID: () => string | undefined) {
@@ -236,10 +228,12 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     return s?.type === "busy" || s?.type === "compacting"
   })
 
-  /** Get the last assistant text from a session. */
+  /** Get the last completed assistant text from a session.
+   *  Only reads from messages with time.completed set — avoids capturing
+   *  partial streaming text from mid-stream responses. */
   function lastAssistantText(sessionID: string): string {
     const msgs = sync.data.message[sessionID] ?? []
-    const last = msgs.findLast((x) => x.role === "assistant")
+    const last = msgs.findLast((x) => x.role === "assistant" && x.time.completed)
     if (!last) return ""
     const parts = sync.data.part[last.id] ?? []
     return parts
@@ -253,15 +247,6 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   async function sendToMain(instruction: string) {
     const mid = mainSessionID()
     if (!mid) return false
-
-    // Idempotency guard: skip if this exact instruction was already sent
-    const h = hashInstruction(instruction)
-    if (h === lastSentOrchHash) {
-      console.debug("AGI: skipping duplicate instruction (hash match)")
-      return true
-    }
-    lastSentOrchHash = h
-
     try {
       await sdk.client.session.promptAsync({
         sessionID: mid,
@@ -278,15 +263,6 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   async function sendToOrchestrator(context: string) {
     const oid = orchSessionID()
     if (!oid) return false
-
-    // Idempotency guard: skip if this exact context was already sent
-    const h = hashInstruction(context)
-    if (h === lastSentMainHash) {
-      console.debug("AGI: skipping duplicate context (hash match)")
-      return true
-    }
-    lastSentMainHash = h
-
     try {
       await sdk.client.session.promptAsync({
         sessionID: oid,
@@ -384,6 +360,15 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
 
       if (planData().active.length === 0) return
 
+      // Plan-state guard: skip dispatch if no progress since last orch interaction.
+      // Breaks the feedback loop where orchestrator reports same status repeatedly.
+      const currentPlanHash = hashPlanState(planData())
+      if (currentPlanHash === lastPlanHash) {
+        console.debug("AGI: plan state unchanged, skipping dispatch to orchestrator")
+        return
+      }
+      lastPlanHash = currentPlanHash
+
       // Safety: max turns / max runtime to prevent infinite loop
       const t = turnCount() + 1
       if (t > MAX_TURNS) {
@@ -448,9 +433,8 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     }
 
     refreshPlanStatus()
-    // Reset idempotency guards and turn count on each activation
-    lastSentOrchHash = ""
-    lastSentMainHash = ""
+    // Reset guards and turn count on each activation
+    lastPlanHash = ""
     setTurnCount(0)
     // across sessions, so old counts would immediately hit the 20-turn limit.
     activationStartedAt = Date.now()

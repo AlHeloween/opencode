@@ -161,7 +161,7 @@ const [evolvingMode, setEvolvingMode] = createSignal(false)
 
 /** Module-level plan status — shared so refreshPlanStatus from any caller
  *  updates the badge rendered by routes/session/index.tsx. */
-const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], total: 0, completion: 0 })
+const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], misplaced: [], totalPlans: 0, totalTasks: 0, completedTasks: 0, completion: 0 })
 const [turnCount, setTurnCount] = createSignal(0)
 const [cycleCount, setCycleCount] = createSignal(0)
 const [totalCost, setTotalCost] = createSignal(0)

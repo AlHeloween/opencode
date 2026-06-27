@@ -322,7 +322,10 @@ export const layer: Layer.Layer<
     }) {
       // Stuck detection: track consecutive compactions per session.
       // If we compact on 3+ consecutive turns and context is still above
-      // the full threshold, emit a stuck event and pause auto-compaction.
+      // the full threshold, emit a stuck event, then RESET the counter and
+      // fall through to create the task — returning early would create an
+      // infinite loop in prompt.ts (overflow check → create() → return →
+      // overflow check → ...) that permanently freezes the session.
       if (input.auto && !input.forced) {
         const prev = compactionCounts.get(input.sessionID) ?? 0
         compactionCounts.set(input.sessionID, prev + 1)
@@ -335,7 +338,8 @@ export const layer: Layer.Layer<
             sessionID: input.sessionID,
             consecutiveCompacts: prev + 1,
           })
-          return
+          // Reset so the next compaction attempt creates a task instead of looping infinitely
+          compactionCounts.delete(input.sessionID)
         }
       } else if (!input.auto) {
         // Manual or forced compaction resets the counter

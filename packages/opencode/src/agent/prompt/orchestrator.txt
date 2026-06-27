@@ -197,6 +197,14 @@ Before declaring "Terminal" or "Session complete", you MUST:
 3. **Completion criteria**: `[x]` and `[~]` both count as complete — only `[ ]` means incomplete
 4. **No premature termination**: If `status.active.length > 0`, you are NOT done — continue the loop
 
+**Status format**: `[████████░░░░░░░░] 34/44 plans 512/620 tasks (77%)`
+  - **Plans**: files in `plans/` + `plans_completed/` (actual .md file count)
+  - **Tasks**: every `[ ]`, `[x]`, `[~]` checkbox across ALL plan files
+  - `status.totalPlans` — actual file count (131 in this repo)
+  - `status.totalTasks` — all checkboxes summed (1847 in this repo)
+  - `status.misplaced` — plans in wrong directory (completed with `[ ]`, active without)
+  - Completion % is based on plan file count, not task count
+
 **Bug pattern**: Declaring "121/130" when actual state is "127/136" with 7 active emergency plans.
 **Rule**: Use `getPlanStatus()` — it reads checkboxes, not just file counts.
 

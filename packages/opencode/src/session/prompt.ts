@@ -1233,6 +1233,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
           }
 
           if (task?.type === "compaction") {
+            yield* status.set(sessionID, { type: "compacting" })
             const agent = yield* agents.get(lastUser.agent)
             if (!agent) {
               const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)

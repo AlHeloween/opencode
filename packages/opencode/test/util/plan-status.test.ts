@@ -15,12 +15,12 @@ describe("PlanStatus", () => {
     mkdirSync(path.join(worktree, "plans", "emergency"), { recursive: true })
     mkdirSync(path.join(worktree, "plans_completed"), { recursive: true })
 
-    writeFileSync(path.join(worktree, "plans", "plan_a.md"), "# Plan A\n[ ] Task 1")
-    writeFileSync(path.join(worktree, "plans", "plan_b.md"), "# Plan B\n[ ] Task 2")
-    writeFileSync(path.join(worktree, "plans", "priority", "plan_c.md"), "# Priority C\n[ ] Task 3")
-    writeFileSync(path.join(worktree, "plans", "emergency", "plan_d.md"), "# Emergency D\n[ ] Task 4")
-    writeFileSync(path.join(worktree, "plans_completed", "plan_z.md"), "# Plan Z\n[x] Done")
-    writeFileSync(path.join(worktree, "plans_completed", "plan_y.md"), "# Plan Y\n[x] Done")
+    writeFileSync(path.join(worktree, "plans", "plan_a.md"), "# Plan A\n- [ ] Task 1")
+    writeFileSync(path.join(worktree, "plans", "plan_b.md"), "# Plan B\n- [ ] Task 2")
+    writeFileSync(path.join(worktree, "plans", "priority", "plan_c.md"), "# Priority C\n- [ ] Task 3")
+    writeFileSync(path.join(worktree, "plans", "emergency", "plan_d.md"), "# Emergency D\n- [ ] Task 4")
+    writeFileSync(path.join(worktree, "plans_completed", "plan_z.md"), "# Plan Z\n- [x] Done")
+    writeFileSync(path.join(worktree, "plans_completed", "plan_y.md"), "# Plan Y\n- [x] Done")
   })
 
   afterAll(() => {
@@ -31,7 +31,9 @@ describe("PlanStatus", () => {
     const status = getPlanStatus(worktree)
     expect(status.active.length).toBe(4) // plan_a, plan_b, priority/plan_c, emergency/plan_d
     expect(status.completed.length).toBe(2) // plan_z, plan_y
-    expect(status.total).toBe(6)
+    expect(status.totalPlans).toBe(6)
+    expect(status.totalTasks).toBe(6)
+    expect(status.completedTasks).toBe(2)
     expect(status.completion).toBe(33) // 2/6 = 33%
   })
 
@@ -43,7 +45,9 @@ describe("PlanStatus", () => {
     const status = getPlanStatus(emptyDir)
     expect(status.active.length).toBe(0)
     expect(status.completed.length).toBe(0)
-    expect(status.total).toBe(0)
+    expect(status.totalPlans).toBe(0)
+    expect(status.totalTasks).toBe(0)
+    expect(status.completedTasks).toBe(0)
     expect(status.completion).toBe(0)
     rmSync(emptyDir, { recursive: true, force: true })
   })
@@ -53,26 +57,28 @@ describe("PlanStatus", () => {
     const status = getPlanStatus(missing)
     expect(status.active.length).toBe(0)
     expect(status.completed.length).toBe(0)
-    expect(status.total).toBe(0)
+    expect(status.totalPlans).toBe(0)
+    expect(status.totalTasks).toBe(0)
   })
 
   test("formatProgressBar renders correct ASCII bar", () => {
     const status = getPlanStatus(worktree)
     const bar = formatProgressBar(status)
-    expect(bar).toContain("2/6")
+    expect(bar).toContain("2/6 plans")
+    expect(bar).toContain("2/6 tasks")
     expect(bar).toContain("33%")
     expect(bar).toContain("█")
     expect(bar).toContain("░")
   })
 
   test("formatProgressBar at 100% completion", () => {
-    const bar = formatProgressBar({ active: [], completed: ["a", "b", "c"], total: 3, completion: 100 })
+    const bar = formatProgressBar({ active: [], completed: ["a", "b", "c"], misplaced: [], totalPlans: 3, totalTasks: 0, completedTasks: 0, completion: 100 })
     expect(bar).toContain("3/3")
     expect(bar).toContain("100%")
   })
 
   test("formatProgressBar at 0% completion", () => {
-    const bar = formatProgressBar({ active: ["a"], completed: [], total: 1, completion: 0 })
+    const bar = formatProgressBar({ active: ["a"], completed: [], misplaced: [], totalPlans: 1, totalTasks: 0, completedTasks: 0, completion: 0 })
     expect(bar).toContain("0/1")
     expect(bar).toContain("0%")
   })

@@ -7,6 +7,9 @@
  *
  * Completion criteria: A plan is COMPLETE if it has NO [ ] items.
  * [x] and [~] both count as complete — only [ ] means incomplete.
+ *
+ * Task counting: Every [ ], [x], [~] checkbox across ALL plan files
+ * is counted. A checkbox is "done" if it is [x] or [~].
  */
 import { existsSync, readFileSync, readdirSync } from "fs"
 import path from "path"
@@ -14,7 +17,10 @@ import path from "path"
 export interface PlanStatus {
   active: string[]
   completed: string[]
-  total: number
+  misplaced: string[]
+  totalPlans: number
+  totalTasks: number
+  completedTasks: number
   completion: number
 }
 
@@ -25,6 +31,19 @@ function hasOpenItems(filePath: string): boolean {
     return /^\s*- \[ \]/m.test(content)
   } catch {
     return false
+  }
+}
+
+/** Count all task checkboxes in a plan file: returns { total, done }.
+ *  Done = [x] or [~], total = [ ] + [x] + [~]. */
+function countTasks(filePath: string): { total: number; done: number } {
+  try {
+    const content = readFileSync(filePath, "utf-8")
+    const pending = content.match(/^\s*- \[ \]/gm)?.length ?? 0
+    const done = content.match(/^\s*- \[[x~]\]/gm)?.length ?? 0
+    return { total: pending + done, done }
+  } catch {
+    return { total: 0, done: 0 }
   }
 }
 
@@ -60,16 +79,45 @@ export function getPlanStatus(worktree: string): PlanStatus {
   const completed = allCompleted.filter((f) => !hasOpenItems(path.join(completedDir, f)))
   const active = allActive.filter((f) => hasOpenItems(path.join(plansDir, f)))
 
-  const total = active.length + completed.length
-  const completion = total > 0 ? Math.round((completed.length / total) * 100) : 0
+  // Misplaced: plans in completedDir that still have [ ] items,
+  // or plans in plansDir that have NO [ ] items (should be moved)
+  const misplacedCompleted = allCompleted.filter((f) => hasOpenItems(path.join(completedDir, f)))
+  const misplacedActive = allActive.filter((f) => !hasOpenItems(path.join(plansDir, f)))
+  const misplaced = [...misplacedCompleted.map((f) => `plans_completed/${f}`), ...misplacedActive.map((f) => `plans/${f}`)]
 
-  return { active, completed, total, completion }
+  const totalPlans = allActive.length + allCompleted.length
+
+  // Count tasks across ALL plan files
+  let totalTasks = 0
+  let completedTasks = 0
+  for (const f of allCompleted) {
+    const { total, done } = countTasks(path.join(completedDir, f))
+    totalTasks += total
+    completedTasks += done
+  }
+  for (const f of allActive) {
+    const { total, done } = countTasks(path.join(plansDir, f))
+    totalTasks += total
+    completedTasks += done
+  }
+
+  const completion = totalPlans > 0 ? Math.round((completed.length / totalPlans) * 100) : 0
+
+  return {
+    active,
+    completed,
+    misplaced,
+    totalPlans,
+    totalTasks,
+    completedTasks,
+    completion,
+  }
 }
 
-/** Render a simple ASCII progress bar. */
+/** Render a simple ASCII progress bar with task-level stats. */
 export function formatProgressBar(status: PlanStatus): string {
   const width = 20
   const filled = Math.round((status.completion / 100) * width)
   const empty = width - filled
-  return `[${"█".repeat(filled)}${"░".repeat(empty)}] ${status.completed.length}/${status.total} plans completed (${status.completion}%)`
+  return `[${"█".repeat(filled)}${"░".repeat(empty)}] ${status.completed.length}/${status.totalPlans} plans ${status.completedTasks}/${status.totalTasks} tasks (${status.completion}%)`
 }

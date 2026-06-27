@@ -166,6 +166,23 @@ const [turnCount, setTurnCount] = createSignal(0)
 const [cycleCount, setCycleCount] = createSignal(0)
 const [totalCost, setTotalCost] = createSignal(0)
 
+/** Idempotency guard: hash of last instruction sent from orchestrator → main.
+ *  Prevents duplicate dispatch when createEffect fires multiple times for the
+ *  same orchestrator completion (e.g., mid-turn compaction toggles pending state). */
+let lastSentOrchHash = ""
+
+/** Idempotency guard: hash of last result sent from main → orchestrator. */
+let lastSentMainHash = ""
+
+function hashInstruction(text: string): string {
+  // Simple hash — not cryptographic, just equality check
+  let h = 0
+  for (let i = 0; i < text.length; i++) {
+    h = ((h << 5) - h + text.charCodeAt(i)) | 0
+  }
+  return h.toString(36)
+}
+
 export function useAgiMode(currentSessionID: () => string | undefined) {
   const local = useLocal()
   const sync = useSync()
@@ -234,6 +251,15 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   async function sendToMain(instruction: string) {
     const mid = mainSessionID()
     if (!mid) return false
+
+    // Idempotency guard: skip if this exact instruction was already sent
+    const h = hashInstruction(instruction)
+    if (h === lastSentOrchHash) {
+      console.debug("AGI: skipping duplicate instruction (hash match)")
+      return true
+    }
+    lastSentOrchHash = h
+
     try {
       await sdk.client.session.promptAsync({
         sessionID: mid,
@@ -250,6 +276,15 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   async function sendToOrchestrator(context: string) {
     const oid = orchSessionID()
     if (!oid) return false
+
+    // Idempotency guard: skip if this exact context was already sent
+    const h = hashInstruction(context)
+    if (h === lastSentMainHash) {
+      console.debug("AGI: skipping duplicate context (hash match)")
+      return true
+    }
+    lastSentMainHash = h
+
     try {
       await sdk.client.session.promptAsync({
         sessionID: oid,
@@ -411,9 +446,11 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     }
 
     refreshPlanStatus()
-    // Reset turn count on each activation — module-level signal persists
-    // across sessions, so old counts would immediately hit the 20-turn limit.
+    // Reset idempotency guards and turn count on each activation
+    lastSentOrchHash = ""
+    lastSentMainHash = ""
     setTurnCount(0)
+    // across sessions, so old counts would immediately hit the 20-turn limit.
     activationStartedAt = Date.now()
     // Show enabled badge immediately — before any async work.
     // Previously setAgiMode(true) was at the end, after session creation

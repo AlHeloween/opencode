@@ -345,7 +345,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
    * Error handling:
    *   session.error event → deactivate, report error
    */
-  let phase: LoopPhase = "BOOTSTRAP"
+  const [phase, setPhase] = createSignal<LoopPhase>("BOOTSTRAP")
   let dispatchTime: Record<string, number> = {}
   let activeWorkers: string[] = []
   let unsubError: (() => void) | undefined
@@ -359,7 +359,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     const ob = orchBusy()
     const mb = mainBusy()
 
-    switch (phase) {
+    switch (phase()) {
       case "BOOTSTRAP":
         // Initial prompt already sent in toggleAgiMode — wait for orch to go busy.
         // Seed the message-ID tracker so we don't re-dispatch on resume from persisted state.
@@ -370,7 +370,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
             const last = msgs.findLast((x: any) => x.role === "assistant" && x.time.completed)
             if (last) lastDispatchedOrchMsgID = last.id
           }
-          phase = "ORCH_BUSY"
+          setPhase("ORCH_BUSY")
           console.debug("AGI: BOOTSTRAP → ORCH_BUSY")
         }
         break
@@ -416,7 +416,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
                   "IMPORTANT: After you propose tasks, WAIT for user acceptance/rejection.",
                   "Do NOT auto-execute — let the user decide which categories to pursue.",
                 ].join("\n")).catch((e) => console.debug("evolving mode prompt failed", e))
-                phase = "ORCH_BUSY"
+                setPhase("ORCH_BUSY")
               }
             }
             // No evolving mode — deactivate
@@ -457,13 +457,13 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
                 "...your full instruction...",
                 `</worker1_${mainSessionID()}>`,
               ].join("\n")).catch((e) => console.debug("continuation prompt failed", e))
-              phase = "ORCH_BUSY"
+              setPhase("ORCH_BUSY")
               return
             }
           }
 
           // Dispatch to workers
-          phase = "ORCH_DISPATCH"
+          setPhase("ORCH_DISPATCH")
           console.debug("AGI: ORCH_BUSY → ORCH_DISPATCH", { directives: directives.length })
 
           // Safety: max turns / max runtime
@@ -499,7 +499,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           }
 
           // Transition to WORKERS_BUSY
-          phase = "WORKERS_BUSY"
+          setPhase("WORKERS_BUSY")
           console.debug("AGI: ORCH_DISPATCH → WORKERS_BUSY", { workers: activeWorkers })
         }
         break
@@ -513,7 +513,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         })
 
         if (allIdle) {
-          phase = "WORKERS_COLLECT"
+          setPhase("WORKERS_COLLECT")
           console.debug("AGI: WORKERS_BUSY → WORKERS_COLLECT")
         }
         break
@@ -549,7 +549,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         // Clear dispatch state, transition back to ORCH_BUSY
         dispatchTime = {}
         activeWorkers = []
-        phase = "ORCH_BUSY"
+        setPhase("ORCH_BUSY")
         console.debug("AGI: WORKERS_COLLECT → ORCH_BUSY")
         break
     }
@@ -562,7 +562,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     unsubError = undefined
 
     // Reset phase
-    phase = "BOOTSTRAP"
+    setPhase("BOOTSTRAP")
     dispatchTime = {}
     activeWorkers = []
 
@@ -706,7 +706,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       }
 
       // Set phase to BOOTSTRAP — wait for orchestrator to go busy
-      phase = "BOOTSTRAP"
+      setPhase("BOOTSTRAP")
       toast.show({ message: "AGI mode activated", variant: "success" })
     } catch (err) {
       console.error("AGI mode activation failed:", err)

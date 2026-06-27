@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
-import { batch, createEffect, createMemo } from "solid-js"
+import { batch, createMemo } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { useTheme } from "@tui/context/theme"
 import { uniqueBy } from "remeda"
@@ -104,13 +104,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const model = iife(() => {
       const [modelStore, setModelStore] = createStore<{
         ready: boolean
-        model: Record<
-          string,
-          {
-            providerID: string
-            modelID: string
-          }
-        >
         recent: {
           providerID: string
           modelID: string
@@ -129,7 +122,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           | undefined
       }>({
         ready: false,
-        model: {},
         recent: [],
         favorite: [],
         variant: {},
@@ -153,7 +145,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           favorite: modelStore.favorite,
           variant: modelStore.variant,
           agentVariant: modelStore.agentVariant,
-          agentModel: modelStore.model,
           taskModel: modelStore.taskModel,
         })
       }
@@ -164,7 +155,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
           if (typeof x.agentVariant === "object" && x.agentVariant !== null) setModelStore("agentVariant", x.agentVariant)
-          if (typeof x.agentModel === "object" && x.agentModel !== null) setModelStore("model", x.agentModel)
           if (
             typeof x.taskModel === "object" &&
             x.taskModel !== null &&
@@ -223,8 +213,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const a = agent.current()
         return (
           getFirstValidModel(
-            () => a && a.model,           // Config-defined agent model (highest priority)
-            () => a && modelStore.model[a.name], // TUI runtime state (fallback only)
+            () => a && a.model,  // Config-defined agent model (single source of truth)
             fallbackModel,
           ) ?? undefined
         )
@@ -232,12 +221,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       function forAgent(name: string) {
         const a = sync.data.agent.find((x) => x.name === name)
-        return (
-          getFirstValidModel(
-            () => a?.model,              // Config-defined agent model (highest priority)
-            () => modelStore.model[name], // TUI runtime state (fallback only)
-          ) ?? undefined
-        )
+        return a?.model ?? undefined
       }
 
       function taskModel() {
@@ -310,7 +294,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (!val) return
           const a = agent.current()
           if (!a) return
-          setModelStore("model", a.name, { ...val })
+          this.set(val, { recent: true, agent: a.name })
         },
         cycleFavorite(direction: 1 | -1) {
           const favorites = modelStore.favorite.filter((item) => isModelValid(item))
@@ -338,14 +322,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (!next) return
           const a = agent.current()
           if (!a) return
-          setModelStore("model", a.name, { ...next })
-          const uniq = uniqueBy([next, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
-          if (uniq.length > 10) uniq.pop()
-          setModelStore(
-            "recent",
-            uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
-          )
-          save()
+          this.set(next, { recent: true, agent: a.name })
         },
         set(model: { providerID: string; modelID: string }, options?: { recent?: boolean; agent?: string }) {
           batch(() => {
@@ -359,7 +336,22 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
-            setModelStore("model", agentName, model)
+            // Persist agent model to opencode.jsonc (single source of truth)
+            if (options?.agent) {
+              void sdk.client.global.config
+                .update({
+                  config: {
+                    agent: {
+                      [agentName]: { model: `${model.providerID}/${model.modelID}` },
+                    },
+                  },
+                })
+                .catch((e: unknown) =>
+                  Log.Default.warn("bug: failed to persist agent model to config", {
+                    error: e instanceof Error ? e.message : String(e),
+                  }),
+                )
+            }
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
               if (uniq.length > 10) uniq.pop()
@@ -478,24 +470,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       },
     }
 
-    // Automatically update model when agent changes
-    createEffect(() => {
-      const value = agent.current()
-      if (!value) return
-      if (value.model) {
-        if (isModelValid(value.model))
-          model.set({
-            providerID: value.model.providerID,
-            modelID: value.model.modelID,
-          })
-        else
-          toast.show({
-            variant: "warning",
-            message: `Agent ${value.name}'s configured model ${value.model.providerID}/${value.model.modelID} is not valid`,
-            duration: 3000,
-          })
-      }
-    })
+
 
     const result = {
       model,

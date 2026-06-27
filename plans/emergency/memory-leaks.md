@@ -208,7 +208,7 @@ try {
 ```
 
 ### Implementation
-- [ ] Add `unsub()` call in `finally` block after command logic
+- [x] Add `unsub()` call in `finally` block after command logic
 - [ ] Verify command still functions correctly
 
 ### Test Cases

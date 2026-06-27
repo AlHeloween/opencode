@@ -7,6 +7,7 @@
 ## C1. Stream Cancel — Silent Catch [P1-HIGH]
 **File:** `packages/opencode/src/provider/provider.ts:52`
 **SV:** `[stream, cancel, reader, silent-catch, error]`
+**Status:** ✅ DONE (2026-06-27)
 
 ### Current Code
 ```ts
@@ -23,7 +24,7 @@ void reader.cancel(err).catch((e) => Log.Default.warn("bug: stream reader cancel
 
 ### Implementation
 - [x] Replace `.catch(() => {})` with `.catch((e) => Log.Default.warn(...))`
-- [ ] Verify error message format follows project conventions
+- [x] Verify error message format follows project conventions
 
 ### Test Cases
 - [ ] Normal stream cancel works (no error logged)
@@ -40,6 +41,7 @@ void reader.cancel(err).catch((e) => Log.Default.warn("bug: stream reader cancel
 - `packages/opencode/src/cli/cmd/tui/util/sound.ts:126`
 
 **SV:** `[file-watcher, config, bus-publish, sound, debug-log]`
+**Status:** ✅ DONE (2026-06-27) — 9 instances across 6 files
 
 ### Current Code (all follow same pattern)
 ```ts
@@ -64,10 +66,10 @@ void Bus.publish(...).catch((e) => Log.Default.warn("config publish failed", { e
 ```
 
 ### Implementation
-- [ ] Replace `.catch(() => {})` in watcher.ts with debug log
-- [ ] Replace `.catch(() => {})` in command.ts with warn log
-- [ ] Replace `.catch(() => {})` in agent.ts (2 locations) with warn log
-- [ ] Replace `.catch(() => {})` in sound.ts with debug log
+- [x] Replace `.catch(() => {})` in watcher.ts with debug log
+- [x] Replace `.catch(() => {})` in command.ts with warn log
+- [x] Replace `.catch(() => {})` in agent.ts (2 locations) with warn log
+- [x] Replace `.catch(() => {})` in sound.ts with debug log
 
 ### Test Cases
 - [ ] Each catch logs at appropriate level (debug vs warn)
@@ -145,6 +147,7 @@ catch (e) {
 - `packages/opencode/src/jobs/index.ts:91`
 
 **SV:** `[project, jobs, best-effort, ignore, comment-catch]`
+**Status:** ✅ DONE (2026-06-27) — 10 instances across 7 files
 
 ### Current Code
 ```ts
@@ -172,8 +175,8 @@ catch (e) {
 ```
 
 ### Implementation
-- [ ] Replace `catch { /* comment */ }` in project.ts with debug log
-- [ ] Replace `catch { /* comment */ }` in jobs.ts with debug log
+- [x] Replace `catch { /* comment */ }` in project.ts with debug log
+- [x] Replace `catch { /* comment */ }` in jobs.ts with debug log
 
 ### Test Cases
 - [ ] Each catch logs at debug level
@@ -256,6 +259,7 @@ const encrypted = {
 ## C11. Checkpoint Temp File Collision [P1-MEDIUM]
 **File:** `packages/opencode/src/session/checkpoint.ts:56`
 **SV:** `[temp-file, collision, UUID, atomicity, race-condition]`
+**Status:** ✅ DONE (2026-06-27)
 
 ### Current Code
 ```ts
@@ -280,8 +284,8 @@ const tmpPath = filePath + ".tmp." + crypto.randomUUID()
 ```
 
 ### Implementation
-- [ ] Replace `Date.now().toString(36)` with `crypto.randomUUID()`
-- [ ] Verify `crypto` is imported (check existing imports)
+- [x] Replace `Date.now().toString(36)` with `crypto.randomUUID()`
+- [x] Verify `crypto` is imported (check existing imports)
 
 ### Test Cases
 - [ ] Two concurrent saves produce different temp paths

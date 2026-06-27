@@ -349,9 +349,9 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   let dispatchTime: Record<string, number> = {}
   let activeWorkers: string[] = []
   let unsubError: (() => void) | undefined
-  /** Transition guard — only enter !ob dispatch path after observing orch go busy.
-   *  Prevents re-entry when the effect re-runs before orchestrator status updates. */
-  let wasOrchBusy = false
+  /** Message-ID dedup — only dispatch when orchestrator has new output.
+   *  Level-triggered: works whether or not the effect observed the busy state. */
+  let lastDispatchedOrchMsgID = ""
 
   createEffect(() => {
     if (!agiMode()) return
@@ -361,23 +361,33 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
 
     switch (phase) {
       case "BOOTSTRAP":
-        // Initial prompt already sent in toggleAgiMode — wait for orch to go busy
+        // Initial prompt already sent in toggleAgiMode — wait for orch to go busy.
+        // Seed the message-ID tracker so we don't re-dispatch on resume from persisted state.
         if (ob) {
+          const oid = orchSessionID()
+          if (oid) {
+            const msgs = sync.data.message[oid] ?? []
+            const last = msgs.findLast((x: any) => x.role === "assistant" && x.time.completed)
+            if (last) lastDispatchedOrchMsgID = last.id
+          }
           phase = "ORCH_BUSY"
           console.debug("AGI: BOOTSTRAP → ORCH_BUSY")
         }
         break
 
       case "ORCH_BUSY":
-        // Track busy→idle transition — only act after observing orch go busy first
-        if (ob) {
-          wasOrchBusy = true
-          break
-        }
-        if (!wasOrchBusy) break
-        wasOrchBusy = false
+        // Wait for orchestrator to go idle before reading new output
+        if (ob) break
 
-        // Orchestrator finished processing → parse directives
+        // Level-triggered: only dispatch if there's a NEW completed assistant message
+        const oid2 = orchSessionID()
+        if (!oid2) break
+        const orchMsgs = sync.data.message[oid2] ?? []
+        const lastCompleted = orchMsgs.findLast((x: any) => x.role === "assistant" && x.time.completed)
+        if (!lastCompleted || lastCompleted.id === lastDispatchedOrchMsgID) break
+        lastDispatchedOrchMsgID = lastCompleted.id
+
+        // Orchestrator has new completed output → parse directives
         {
           refreshPlanStatus()
 

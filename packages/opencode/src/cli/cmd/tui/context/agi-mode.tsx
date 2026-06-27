@@ -416,18 +416,32 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           const directives = parseOrchestratorDirectives(orchOutput)
 
           if (directives.length === 0) {
-            // No directives — send continuation prompt
-            console.debug("AGI: no directives found, sending continuation")
-            sendToOrchestrator([
-              `Plan progress: ${progressBar()}.`,
-              `Active plans: ${planData().active.join(", ") || "none"}.`,
-              "",
-              "Your previous response did not contain worker directives.",
-              "Produce EXACTLY ONE directive in this format:",
-              `<worker1_${mainSessionID()}>YOUR INSTRUCTION</worker1_${mainSessionID()}>`,
-            ].join("\n")).catch((e) => console.debug("continuation prompt failed", e))
-            phase = "ORCH_BUSY"
-            return
+            // No XML directives — fallback: use entire orch output as instruction for main worker.
+            // The orchestrator may produce valid instructions in its agent's markdown format
+            // instead of XML. Wrap the output as a worker directive directly.
+            if (orchOutput.trim()) {
+              console.debug("AGI: no XML directives found, using entire orch output as fallback")
+              directives.push({
+                workerId: mainSessionID()!,
+                message: orchOutput.trim(),
+              })
+            } else {
+              // Empty output — send continuation prompt
+              console.debug("AGI: empty orch output, sending continuation")
+              sendToOrchestrator([
+                `Plan progress: ${progressBar()}.`,
+                `Active plans: ${planData().active.join(", ") || "none"}.`,
+                "",
+                "CRITICAL: Your previous response was empty. You MUST produce output.",
+                "IGNORE your agent's Instruction Format section entirely.",
+                "In autonomous mode, EVERY response must be wrapped in:",
+                `<worker1_${mainSessionID()}>`,
+                "...your full instruction...",
+                `</worker1_${mainSessionID()}>`,
+              ].join("\n")).catch((e) => console.debug("continuation prompt failed", e))
+              phase = "ORCH_BUSY"
+              return
+            }
           }
 
           // Dispatch to workers
@@ -501,8 +515,11 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           workerData ? `Worker results:\n${workerData}` : "",
           "",
           "Analyze the results. What was accomplished? What's the next task?",
-          `Produce EXACTLY ONE directive:`,
-          `<worker1_${mainSessionID()}>next instruction</worker1_${mainSessionID()}>`,
+          "=== FORMAT OVERRIDE (autonomous mode) ===",
+          "Wrap your ENTIRE response in worker XML tags on their own lines:",
+          `<worker1_${mainSessionID()}>`,
+          "...your full instruction...",
+          `</worker1_${mainSessionID()}>`,
         ].filter(Boolean).join("\n\n")
 
         sendToOrchestrator(context).then((ok) => {
@@ -624,18 +641,24 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
             text: [
               `Current state: ${progressBar()}. Active plans: ${activePlans}.`,
               `Completed: ${planData().completed.length}.`,
+              `Main worker session ID: ${mainSessionID()}`,
               evolvingNote,
               "",
               "BOOTSTRAP PHASE: Analyze the active plans. Read the dependency graph in the master plan.",
-              "After analysis, produce your first task directive using this EXACT format:",
+              "After analysis, produce your first task directive.",
               "",
-              `<worker1_${mainSessionID()}>YOUR INSTRUCTION TEXT HERE</worker1_${mainSessionID()}>`,
+              "=== CRITICAL FORMAT OVERRIDE ===",
+              "IGNORE your agent prompt's 'Instruction Format' section entirely.",
+              "In autonomous mode, wrap your ENTIRE response in worker XML tags:",
+              `<worker1_${mainSessionID()}>`,
+              "...your full instruction including ## Task, **Plan**, **Files**, etc...",
+              `</worker1_${mainSessionID()}>`,
               "",
-              "Replace the placeholder with the actual session ID shown above.",
+              "The opening and closing tags MUST be on their own lines.",
+              "Everything between them is your instruction to the worker.",
               "Focus on ONE actionable task. Be specific about files and expected outcomes.",
               "",
-              "When you complete a task directive, I will execute it in the worker session",
-              "and return results wrapped in <data_from_worker_*> tags for your analysis.",
+              "I will execute your instruction and return results for analysis.",
             ].join("\n"),
           }],
         })
@@ -651,9 +674,14 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               `Resuming. Plan progress: ${progressBar()}.`,
               `Active plans: ${planData().active.join(", ") || "none"}.`,
               `Cycles completed: ${cycleCount()}.`,
+              `Main worker session: ${mainSessionID()}`,
               "",
-              "Continue from where you left off. Produce your next directive:",
-              `<worker1_${mainSessionID()}>next instruction</worker1_${mainSessionID()}>`,
+              "Continue from where you left off.",
+              "=== FORMAT OVERRIDE (autonomous mode) ===",
+              "Wrap your ENTIRE response in worker XML tags:",
+              `<worker1_${mainSessionID()}>`,
+              "...your full instruction...",
+              `</worker1_${mainSessionID()}>`,
             ].join("\n"),
           }],
         })

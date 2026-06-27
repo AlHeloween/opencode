@@ -15,6 +15,19 @@ const fmt = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 })
 
+/** Compact number formatter — max 3 digits + symbol (e.g., 8M, 137K, 50K). */
+function compactNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).slice(0, 4)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).slice(0, 4)}K`
+  return n.toString()
+}
+
+/** Format cache stats in compact form: 99%(8M read 50K miss). */
+function formatCacheStats(hitRate: number | null, read: number, miss: number): string {
+  if (hitRate === null) return "cold"
+  return `${hitRate}%(${compactNum(read)} read ${compactNum(miss)} miss)`
+}
+
 interface ModelStatusDisplay {
   type: "balance" | "usage" | "unavailable"
   currency?: string
@@ -166,14 +179,14 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
       {state().cacheRead > 0 ? (
         <text fg={state().cacheHitRate! > 80 ? theme().success : state().cacheHitRate! >= 40 ? theme().warning : theme().error}>
-          Cache: {state().cacheHitRate}% hit ({fmt.format(state().cacheRead)} read · {fmt.format(state().cacheInput)} miss)
+          Cache: {formatCacheStats(state().cacheHitRate, state().cacheRead, state().cacheInput)}
         </text>
       ) : state().cacheInput > 0 ? (
-        <text fg={theme().textMuted}>Cache: cold (no cached tokens)</text>
+        <text fg={theme().textMuted}>Cache: cold</text>
       ) : null}
       {state().sessionCacheRead! > 0 && state().sessionCacheHitRate !== null && state().sessionCacheHitRate !== state().cacheHitRate ? (
         <text fg={state().sessionCacheHitRate! > 80 ? theme().success : state().sessionCacheHitRate! >= 40 ? theme().warning : theme().error}>
-          Session: {state().sessionCacheHitRate}% ({fmt.format(state().sessionCacheRead!)} read · {fmt.format(state().sessionCacheInput!)} miss)
+          Session: {formatCacheStats(state().sessionCacheHitRate, state().sessionCacheRead!, state().sessionCacheInput!)}
         </text>
       ) : null}
       {state().reasoning > 0 && (

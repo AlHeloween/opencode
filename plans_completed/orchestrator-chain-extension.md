@@ -283,12 +283,14 @@ Each agent compacts independently:
 - Coder agent compacts at 70% context → preserves code review
 - General agent compacts at 90% context → preserves synthesis
 
+**Status:** Design complete, implemented in orchestrator-chain-implementation
+
 ## Implementation Order
 
-1. [ ] Create pipeline config schema (`config/pipeline.ts`)
-2. [ ] Implement chain executor in orchestrator
-3. [ ] Add context preparation function
-4. [ ] Create pipeline selection dialog
-5. [ ] Add TUI command and keybind
-6. [ ] Test with sample pipelines
-7. [ ] Document pipeline configuration
+1. [x] Create pipeline config schema (`config/pipeline.ts`)
+2. [x] Implement chain executor in orchestrator
+3. [x] Add context preparation function
+4. [x] Create pipeline selection dialog
+5. [x] Add TUI command and keybind
+6. [~] Test with sample pipelines (deferred to runtime)
+7. [x] Document pipeline configuration

@@ -393,4 +393,4 @@ export function DialogPipeline() {
 3. [x] Add pipeline loading to `config/config.ts`
 4. [x] Create `dialog-pipeline.tsx`
 5. [x] Add TUI command and keybind
-6. [ ] Test with sample pipeline
+6. [~] Test with sample pipeline (code complete, deferred to runtime)

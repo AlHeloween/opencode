@@ -2,7 +2,7 @@
 > sv=[[agent, variant, reasoning-effort, dialog, task-model, unification, config],[0.22,0.20,0.18,0.15,0.12,0.08,0.05]]
 > abstract="Unify agent selection into /agents dialog as single source of truth. Add per-agent variant (reasoning effort) display and cycling. Deprecate separate ctrl+x o task model override."
 
-**Status:** Tasks 1,2,4 DONE (2026-06-27). Tasks 3,5,6 pending.
+**Status:** Tasks 1-5 DONE (2026-06-27). Task 6 deferred.
 
 ## Problem
 
@@ -54,7 +54,7 @@ Make `/agents` the single source of truth for ALL agents (primary + subagent) wi
 
 1. [x] Extend local.tsx variant storage to be agent-aware
 2. [x] Update dialog-agent.tsx with variant display + cycling
-3. [ ] Update prompt/index.tsx to use agent-aware variant
+3. [x] Update prompt/index.tsx to use agent-aware variant
 4. [x] Update task.ts to read variant from agent config
-5. [ ] Deprecate ctrl+x o keybind
-6. [ ] Test end-to-end flow
+5. [x] Deprecate ctrl+x o keybind
+6. [~] Test end-to-end flow (deferred to runtime testing)

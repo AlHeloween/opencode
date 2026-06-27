@@ -10,11 +10,6 @@ const money = new Intl.NumberFormat("en-US", {
   currency: "USD",
 })
 
-const fmt = new Intl.NumberFormat("en-US", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-})
-
 /** Compact number formatter — max 3 digits + symbol (e.g., 8M, 137K, 50K). */
 function compactNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).slice(0, 4)}M`
@@ -22,7 +17,7 @@ function compactNum(n: number): string {
   return n.toString()
 }
 
-/** Format cache stats in compact form: 99%(8M read 50K miss). */
+/** Format cache stats in compact form: 99%(161K read 860 miss). */
 function formatCacheStats(hitRate: number | null, read: number, miss: number): string {
   if (hitRate === null) return "cold"
   return `${hitRate}%(${compactNum(read)} read ${compactNum(miss)} miss)`

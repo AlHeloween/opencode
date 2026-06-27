@@ -231,6 +231,24 @@ export type EventSessionBalanceUpdated = {
   }
 }
 
+export type EventSessionModelStatusUpdated = {
+  type: "session.model_status_updated"
+  properties: {
+    sessionID: string
+    providerID: string
+    type: string
+    currency?: string
+    totalBalance?: string
+    isAvailable?: boolean
+    windows?: Array<{
+      label: string
+      usedPercent: number
+      resetAt: number
+    }>
+    reason?: string
+  }
+}
+
 export type QuestionOption = {
   /**
    * Display text (1-5 words, concise)
@@ -595,6 +613,7 @@ export type UserMessage = {
   tools?: {
     [key: string]: boolean
   }
+  providerCacheKey?: string
 }
 
 export type AssistantMessage = {
@@ -1169,6 +1188,7 @@ export type GlobalEvent = {
     | EventSessionDiff
     | EventSessionError
     | EventSessionBalanceUpdated
+    | EventSessionModelStatusUpdated
     | EventQuestionAsked
     | EventQuestionReplied
     | EventQuestionRejected
@@ -1229,6 +1249,14 @@ export type ServerConfig = {
    * Hostname to listen on
    */
   hostname?: string
+  /**
+   * Basic auth password for HTTP API. If set, all requests require Authorization header.
+   */
+  password?: string
+  /**
+   * Basic auth username for HTTP API. Defaults to 'opencode'.
+   */
+  username?: string
   /**
    * Enable mDNS service discovery
    */
@@ -1745,6 +1773,9 @@ export type Config = {
      */
     force_ratio?: number
   }
+  /**
+   * Experimental features
+   */
   experimental?: {
     disable_paste_summary?: boolean
     /**
@@ -1763,6 +1794,26 @@ export type Config = {
      * Timeout in milliseconds for model context protocol (MCP) requests
      */
     mcp_timeout?: number
+    masterSwitch?: boolean
+    httpApi?: boolean
+    fileWatcher?: boolean
+    disableFileWatcher?: boolean
+    planMode?: boolean
+    markdown?: boolean
+    iconDiscovery?: boolean
+    disableCopyOnSelect?: boolean
+    lspTy?: boolean
+    lspTool?: boolean
+    oxfmt?: boolean
+    websockets?: boolean
+    nativeLlm?: boolean
+    eventSystem?: boolean
+    workspaces?: boolean
+    exa?: boolean
+    questionTool?: boolean
+    experimentalModels?: boolean
+    bashTimeoutMs?: number
+    outputTokenMax?: number
   }
   universal_search?: {
     /**
@@ -1787,6 +1838,76 @@ export type Config = {
      * Sourcegraph API token
      */
     token?: string
+  }
+  /**
+   * Client configuration
+   */
+  client?: {
+    /**
+     * Client type identifier for user agent
+     */
+    type?: string
+  }
+  /**
+   * Feature flags
+   */
+  features?: {
+    disablePrune?: boolean
+    disableAutoCompact?: boolean
+    disableTerminalTitle?: boolean
+    disableDefaultPlugins?: boolean
+    disableLspDownload?: boolean
+    disableModelsFetch?: boolean
+    disableMouse?: boolean
+    disableClaudeCode?: boolean
+    disableClaudeCodePrompt?: boolean
+    disableClaudeCodeSkills?: boolean
+    disableExternalSkills?: boolean
+    disableEmbeddedWebUI?: boolean
+    disableChannelDb?: boolean
+    disableProjectConfig?: boolean
+    disableShare?: boolean
+    autoShare?: boolean
+    pure?: boolean
+    strictConfigDeps?: boolean
+    fastBoot?: boolean
+  }
+  /**
+   * Gateway configuration
+   */
+  gateway?: {
+    /**
+     * Gateway log directory
+     */
+    logDir?: string
+  }
+  /**
+   * Terminal configuration
+   */
+  terminal?: {
+    /**
+     * Terminal mode
+     */
+    mode?: string
+    disableMouse?: boolean
+  }
+  /**
+   * Debug configuration
+   */
+  debug?: {
+    showTTFD?: boolean
+    autoHeapSnapshot?: boolean
+    fakeVcs?: boolean
+  }
+  /**
+   * Path overrides
+   */
+  paths?: {
+    modelsUrl?: string
+    modelsPath?: string
+    gitBashPath?: string
+    pluginMetaFile?: string
+    dbPath?: string
   }
 }
 
@@ -2170,6 +2291,7 @@ export type Event =
   | EventSessionDiff
   | EventSessionError
   | EventSessionBalanceUpdated
+  | EventSessionModelStatusUpdated
   | EventQuestionAsked
   | EventQuestionReplied
   | EventQuestionRejected
@@ -3907,6 +4029,7 @@ export type SessionPromptData = {
     format?: OutputFormat
     system?: string
     variant?: string
+    providerCacheKey?: string
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -4107,6 +4230,7 @@ export type SessionPromptAsyncData = {
     format?: OutputFormat
     system?: string
     variant?: string
+    providerCacheKey?: string
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {

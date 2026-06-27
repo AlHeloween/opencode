@@ -3559,6 +3559,9 @@
                   "variant": {
                     "type": "string"
                   },
+                  "providerCacheKey": {
+                    "type": "string"
+                  },
                   "parts": {
                     "type": "array",
                     "items": {
@@ -4041,6 +4044,9 @@
                     "type": "string"
                   },
                   "variant": {
+                    "type": "string"
+                  },
+                  "providerCacheKey": {
                     "type": "string"
                   },
                   "parts": {
@@ -4586,6 +4592,166 @@
           {
             "lang": "js",
             "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.permission.respond({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/session/{sessionID}/backups": {
+      "get": {
+        "operationId": "session.backups.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspace",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses.*"
+            },
+            "required": true
+          }
+        ],
+        "summary": "List backups",
+        "description": "List edit backups for a session so they can be browsed and restored.",
+        "responses": {
+          "200": {
+            "description": "Backup entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "filename": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "type": "string"
+                      },
+                      "originalPath": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["filename", "timestamp"]
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.session.backups.list({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/session/{sessionID}/backups/restore": {
+      "post": {
+        "operationId": "session.backups.restore",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspace",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses.*"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Restore backup",
+        "description": "Restore a file from an edit backup. Copies the .bak file over the original.",
+        "responses": {
+          "200": {
+            "description": "Restored file path",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string"
+                  }
+                },
+                "required": ["filename"]
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.session.backups.restore({\n  ...\n})"
           }
         ]
       }
@@ -8066,6 +8232,112 @@
         },
         "required": ["type", "properties"]
       },
+      "Event.session.balance_updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.balance_updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "providerID": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "totalBalance": {
+                "type": "string"
+              },
+              "grantedBalance": {
+                "type": "string"
+              },
+              "toppedUpBalance": {
+                "type": "string"
+              },
+              "isAvailable": {
+                "type": "boolean"
+              },
+              "calculatedCostSinceLast": {
+                "type": "number"
+              },
+              "costValidationDelta": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "sessionID",
+              "providerID",
+              "currency",
+              "totalBalance",
+              "grantedBalance",
+              "toppedUpBalance",
+              "isAvailable"
+            ]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.session.model_status_updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.model_status_updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "providerID": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "totalBalance": {
+                "type": "string"
+              },
+              "isAvailable": {
+                "type": "boolean"
+              },
+              "windows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "usedPercent": {
+                      "type": "number"
+                    },
+                    "resetAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["label", "usedPercent", "resetAt"]
+                }
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": ["sessionID", "providerID", "type"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
       "QuestionOption": {
         "type": "object",
         "properties": {
@@ -8371,6 +8643,56 @@
               }
             },
             "required": ["sessionID"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.session.compaction.notice": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.compaction.notice"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "ratio": {
+                "type": "number"
+              },
+              "tier": {
+                "type": "string",
+                "const": "soft"
+              }
+            },
+            "required": ["sessionID", "ratio", "tier"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.session.compaction.stuck": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session.compaction.stuck"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses.*"
+              },
+              "consecutiveCompacts": {
+                "type": "number"
+              }
+            },
+            "required": ["sessionID", "consecutiveCompacts"]
           }
         },
         "required": ["type", "properties"]
@@ -8948,6 +9270,9 @@
             "additionalProperties": {
               "type": "boolean"
             }
+          },
+          "providerCacheKey": {
+            "type": "string"
           }
         },
         "required": ["id", "sessionID", "role", "time", "agent", "model"]
@@ -9064,6 +9389,9 @@
                   }
                 },
                 "required": ["read", "write"]
+              },
+              "cacheRatio": {
+                "type": "number"
               }
             },
             "required": ["input", "output", "reasoning", "cache"]
@@ -9114,6 +9442,12 @@
               "sessionID": {
                 "type": "string",
                 "pattern": "^ses.*"
+              },
+              "projectID": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
               },
               "info": {
                 "$ref": "#/components/schemas/Message"
@@ -9194,6 +9528,27 @@
               "type": "string"
             },
             "additionalProperties": {}
+          },
+          "semantic_vector": {
+            "type": "string"
+          },
+          "dominant_topic": {
+            "type": "string"
+          },
+          "exact_coef": {
+            "type": "number"
+          },
+          "inferred_coef": {
+            "type": "number"
+          },
+          "hypothetical_coef": {
+            "type": "number"
+          },
+          "guess_coef": {
+            "type": "number"
+          },
+          "unknown_coef": {
+            "type": "number"
           }
         },
         "required": ["id", "sessionID", "messageID", "type", "text"]
@@ -9725,6 +10080,9 @@
                   }
                 },
                 "required": ["read", "write"]
+              },
+              "cacheRatio": {
+                "type": "number"
               }
             },
             "required": ["input", "output", "reasoning", "cache"]
@@ -9894,9 +10252,8 @@
           "overflow": {
             "type": "boolean"
           },
-          "tail_start_id": {
-            "type": "string",
-            "pattern": "^msg.*"
+          "tail_count": {
+            "type": "number"
           }
         },
         "required": ["id", "sessionID", "messageID", "type", "auto"]
@@ -9954,6 +10311,12 @@
               "sessionID": {
                 "type": "string",
                 "pattern": "^ses.*"
+              },
+              "projectID": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
               },
               "part": {
                 "$ref": "#/components/schemas/Part"
@@ -10120,6 +10483,39 @@
               }
             },
             "required": ["messageID"]
+          },
+          "cost": {
+            "type": "number"
+          },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "number"
+              },
+              "output": {
+                "type": "number"
+              },
+              "reasoning": {
+                "type": "number"
+              },
+              "cache": {
+                "type": "object",
+                "properties": {
+                  "read": {
+                    "type": "number"
+                  },
+                  "write": {
+                    "type": "number"
+                  }
+                },
+                "required": ["read", "write"]
+              },
+              "cacheRatio": {
+                "type": "number"
+              }
+            },
+            "required": ["input", "output", "reasoning", "cache"]
           }
         },
         "required": ["id", "slug", "projectID", "directory", "title", "version", "time"]
@@ -10221,6 +10617,12 @@
                 "type": "string",
                 "pattern": "^ses.*"
               },
+              "projectID": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
+              },
               "info": {
                 "$ref": "#/components/schemas/Message"
               }
@@ -10295,6 +10697,12 @@
               "sessionID": {
                 "type": "string",
                 "pattern": "^ses.*"
+              },
+              "projectID": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
               },
               "part": {
                 "$ref": "#/components/schemas/Part"
@@ -10725,6 +11133,12 @@
                 "$ref": "#/components/schemas/Event.session.error"
               },
               {
+                "$ref": "#/components/schemas/Event.session.balance_updated"
+              },
+              {
+                "$ref": "#/components/schemas/Event.session.model_status_updated"
+              },
+              {
                 "$ref": "#/components/schemas/Event.question.asked"
               },
               {
@@ -10744,6 +11158,12 @@
               },
               {
                 "$ref": "#/components/schemas/Event.session.compacted"
+              },
+              {
+                "$ref": "#/components/schemas/Event.session.compaction.notice"
+              },
+              {
+                "$ref": "#/components/schemas/Event.session.compaction.stuck"
               },
               {
                 "$ref": "#/components/schemas/Event.tui.prompt.append"
@@ -10865,6 +11285,14 @@
             "description": "Hostname to listen on",
             "type": "string"
           },
+          "password": {
+            "description": "Basic auth password for HTTP API. If set, all requests require Authorization header.",
+            "type": "string"
+          },
+          "username": {
+            "description": "Basic auth username for HTTP API. Defaults to 'opencode'.",
+            "type": "string"
+          },
           "mdns": {
             "description": "Enable mDNS service discovery",
             "type": "boolean"
@@ -10946,10 +11374,13 @@
               "webfetch": {
                 "$ref": "#/components/schemas/PermissionActionConfig"
               },
-              "websearch": {
+              "universalsearch": {
                 "$ref": "#/components/schemas/PermissionActionConfig"
               },
-              "codesearch": {
+              "messagesearch": {
+                "$ref": "#/components/schemas/PermissionActionConfig"
+              },
+              "session-read": {
                 "$ref": "#/components/schemas/PermissionActionConfig"
               },
               "lsp": {
@@ -11487,6 +11918,10 @@
             "description": "Enable or disable snapshot tracking. When false, filesystem snapshots are not recorded and undoing or reverting will not undo/redo file changes. Defaults to true.",
             "type": "boolean"
           },
+          "diff_requests": {
+            "description": "Log unified diffs between consecutive LLM requests to diffs/ folder for KV cache debugging. Defaults to true.",
+            "type": "boolean"
+          },
           "plugin": {
             "type": "array",
             "items": {
@@ -11755,6 +12190,26 @@
           "permission": {
             "$ref": "#/components/schemas/PermissionConfig"
           },
+          "navigation": {
+            "description": "Directory navigation permissions for external tool access",
+            "type": "object",
+            "properties": {
+              "allow": {
+                "description": "Directories to always allow for external tool access. Paths are expanded (~/ => home).",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "deny": {
+                "description": "Directories to always deny for external tool access. Takes precedence over allow rules.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "tools": {
             "type": "object",
             "propertyNames": {
@@ -11819,10 +12274,23 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 9007199254740991
+              },
+              "soft_ratio": {
+                "description": "Fraction of context window at which to emit a notice (default: 0.5). Does not compact.",
+                "type": "number"
+              },
+              "full_ratio": {
+                "description": "Fraction of context window at which to trigger normal compaction (default: 0.8).",
+                "type": "number"
+              },
+              "force_ratio": {
+                "description": "Fraction of context window at which to force compaction, bypassing economics check (default: 0.9).",
+                "type": "number"
               }
             }
           },
           "experimental": {
+            "description": "Experimental features",
             "type": "object",
             "properties": {
               "disable_paste_summary": {
@@ -11830,10 +12298,6 @@
               },
               "batch_tool": {
                 "description": "Enable the batch tool",
-                "type": "boolean"
-              },
-              "openTelemetry": {
-                "description": "Enable OpenTelemetry spans for AI SDK calls (using the 'experimental_telemetry' flag)",
                 "type": "boolean"
               },
               "primary_tools": {
@@ -11852,6 +12316,228 @@
                 "type": "integer",
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991
+              },
+              "masterSwitch": {
+                "type": "boolean"
+              },
+              "httpApi": {
+                "type": "boolean"
+              },
+              "fileWatcher": {
+                "type": "boolean"
+              },
+              "disableFileWatcher": {
+                "type": "boolean"
+              },
+              "planMode": {
+                "type": "boolean"
+              },
+              "markdown": {
+                "type": "boolean"
+              },
+              "iconDiscovery": {
+                "type": "boolean"
+              },
+              "disableCopyOnSelect": {
+                "type": "boolean"
+              },
+              "lspTy": {
+                "type": "boolean"
+              },
+              "lspTool": {
+                "type": "boolean"
+              },
+              "oxfmt": {
+                "type": "boolean"
+              },
+              "websockets": {
+                "type": "boolean"
+              },
+              "nativeLlm": {
+                "type": "boolean"
+              },
+              "eventSystem": {
+                "type": "boolean"
+              },
+              "workspaces": {
+                "type": "boolean"
+              },
+              "exa": {
+                "type": "boolean"
+              },
+              "questionTool": {
+                "type": "boolean"
+              },
+              "experimentalModels": {
+                "type": "boolean"
+              },
+              "bashTimeoutMs": {
+                "type": "number"
+              },
+              "outputTokenMax": {
+                "type": "number"
+              }
+            }
+          },
+          "universal_search": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable the universal search service (default: true)",
+                "type": "boolean"
+              },
+              "url": {
+                "description": "URL of the universal search service (default: http://127.0.0.1:3005)",
+                "type": "string"
+              }
+            }
+          },
+          "sourcegraph": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable Sourcegraph code search integration",
+                "type": "boolean"
+              },
+              "url": {
+                "description": "Sourcegraph instance URL",
+                "type": "string"
+              },
+              "token": {
+                "description": "Sourcegraph API token",
+                "type": "string"
+              }
+            }
+          },
+          "client": {
+            "description": "Client configuration",
+            "type": "object",
+            "properties": {
+              "type": {
+                "description": "Client type identifier for user agent",
+                "type": "string"
+              }
+            }
+          },
+          "features": {
+            "description": "Feature flags",
+            "type": "object",
+            "properties": {
+              "disablePrune": {
+                "type": "boolean"
+              },
+              "disableAutoCompact": {
+                "type": "boolean"
+              },
+              "disableTerminalTitle": {
+                "type": "boolean"
+              },
+              "disableDefaultPlugins": {
+                "type": "boolean"
+              },
+              "disableLspDownload": {
+                "type": "boolean"
+              },
+              "disableModelsFetch": {
+                "type": "boolean"
+              },
+              "disableMouse": {
+                "type": "boolean"
+              },
+              "disableClaudeCode": {
+                "type": "boolean"
+              },
+              "disableClaudeCodePrompt": {
+                "type": "boolean"
+              },
+              "disableClaudeCodeSkills": {
+                "type": "boolean"
+              },
+              "disableExternalSkills": {
+                "type": "boolean"
+              },
+              "disableEmbeddedWebUI": {
+                "type": "boolean"
+              },
+              "disableChannelDb": {
+                "type": "boolean"
+              },
+              "disableProjectConfig": {
+                "type": "boolean"
+              },
+              "disableShare": {
+                "type": "boolean"
+              },
+              "autoShare": {
+                "type": "boolean"
+              },
+              "pure": {
+                "type": "boolean"
+              },
+              "strictConfigDeps": {
+                "type": "boolean"
+              },
+              "fastBoot": {
+                "type": "boolean"
+              }
+            }
+          },
+          "gateway": {
+            "description": "Gateway configuration",
+            "type": "object",
+            "properties": {
+              "logDir": {
+                "description": "Gateway log directory",
+                "type": "string"
+              }
+            }
+          },
+          "terminal": {
+            "description": "Terminal configuration",
+            "type": "object",
+            "properties": {
+              "mode": {
+                "description": "Terminal mode",
+                "type": "string"
+              },
+              "disableMouse": {
+                "type": "boolean"
+              }
+            }
+          },
+          "debug": {
+            "description": "Debug configuration",
+            "type": "object",
+            "properties": {
+              "showTTFD": {
+                "type": "boolean"
+              },
+              "autoHeapSnapshot": {
+                "type": "boolean"
+              },
+              "fakeVcs": {
+                "type": "boolean"
+              }
+            }
+          },
+          "paths": {
+            "description": "Path overrides",
+            "type": "object",
+            "properties": {
+              "modelsUrl": {
+                "type": "string"
+              },
+              "modelsPath": {
+                "type": "string"
+              },
+              "gitBashPath": {
+                "type": "string"
+              },
+              "pluginMetaFile": {
+                "type": "string"
+              },
+              "dbPath": {
+                "type": "string"
               }
             }
           }
@@ -12487,6 +13173,39 @@
             },
             "required": ["messageID"]
           },
+          "cost": {
+            "type": "number"
+          },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "number"
+              },
+              "output": {
+                "type": "number"
+              },
+              "reasoning": {
+                "type": "number"
+              },
+              "cache": {
+                "type": "object",
+                "properties": {
+                  "read": {
+                    "type": "number"
+                  },
+                  "write": {
+                    "type": "number"
+                  }
+                },
+                "required": ["read", "write"]
+              },
+              "cacheRatio": {
+                "type": "number"
+              }
+            },
+            "required": ["input", "output", "reasoning", "cache"]
+          },
           "project": {
             "anyOf": [
               {
@@ -12966,6 +13685,12 @@
             "$ref": "#/components/schemas/Event.session.error"
           },
           {
+            "$ref": "#/components/schemas/Event.session.balance_updated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.model_status_updated"
+          },
+          {
             "$ref": "#/components/schemas/Event.question.asked"
           },
           {
@@ -12985,6 +13710,12 @@
           },
           {
             "$ref": "#/components/schemas/Event.session.compacted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.compaction.notice"
+          },
+          {
+            "$ref": "#/components/schemas/Event.session.compaction.stuck"
           },
           {
             "$ref": "#/components/schemas/Event.tui.prompt.append"

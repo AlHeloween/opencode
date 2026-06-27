@@ -40,7 +40,7 @@ export const make = <A, E = never, R = never>(
 ): Effect.Effect<InstanceState<A, E, Exclude<R, Scope.Scope>>, never, R | Scope.Scope> =>
   Effect.gen(function* () {
     const cache = yield* ScopedCache.make<string, A, E, R>({
-      capacity: Number.POSITIVE_INFINITY,
+      capacity: 10000,
       lookup: () =>
         Effect.gen(function* () {
           return yield* init(yield* context)

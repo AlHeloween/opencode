@@ -13,12 +13,16 @@ import fs from "fs"
 import path from "path"
 import { Effect } from "effect"
 import { Global } from "@opencode-ai/core/global"
+import * as Log from "@opencode-ai/core/util/log"
+import { errorMessage } from "@/util/error"
 import {
   deriveKey,
   encryptBaseline,
   decryptBaseline,
 } from "./request-diff"
 import type { ModelMessage } from "ai"
+
+const log = Log.create({ service: "checkpoint" })
 
 export const CHECKPOINT_VERSION = 2
 export const CHECKPOINT_KIND = "checkpoint" as const
@@ -81,7 +85,14 @@ export function save(input: {
       await writeAtomic(filePath, encrypted)
     },
     catch: (error) => new Error("Failed to save checkpoint", { cause: error }),
-  }).pipe(Effect.catch(() => Effect.void))
+  }).pipe(Effect.catch(() => Effect.sync(() => {
+    log.warn("bug: checkpoint save failed", {
+      sessionID: input.sessionID,
+      providerID: input.data.model.providerID,
+      modelID: input.data.model.modelID,
+      agent: input.data.agent,
+    })
+  })))
 }
 
 /** Load checkpoint from encrypted file. Returns null if not found or corrupt. */
@@ -104,13 +115,18 @@ export function load(input: {
       const data: CheckpointData = JSON.parse(plaintext)
 
       if (data.kind !== CHECKPOINT_KIND || data.version !== CHECKPOINT_VERSION) {
-        try { fs.unlinkSync(filePath) } catch { /* cleanup */ }
+        try { fs.unlinkSync(filePath) } catch (e) {
+          log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e) })
+        }
         return null
       }
 
       return data
-    } catch {
-      try { fs.unlinkSync(filePath) } catch { /* cleanup */ }
+    } catch (e) {
+      log.warn("bug: checkpoint load failed, falling back to DB", { sessionID: input.sessionID, error: errorMessage(e) })
+      try { fs.unlinkSync(filePath) } catch (e2) {
+        log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e2) })
+      }
       return null
     }
   })
@@ -124,7 +140,11 @@ export function remove(sessionID: string): Effect.Effect<void> {
 
     const safeSid = sanitize(sessionID)
     for (const file of fs.readdirSync(dir)) {
-      if (file.endsWith(`_${safeSid}.enc`)) fs.unlinkSync(path.join(dir, file))
+      if (file.endsWith(`_${safeSid}.enc`)) {
+        try { fs.unlinkSync(path.join(dir, file)) } catch (e) {
+          log.debug("checkpoint remove failed", { sessionID, file, error: errorMessage(e) })
+        }
+      }
     }
     if (fs.readdirSync(dir).length === 0) fs.rmSync(dir, { recursive: true, force: true })
   })

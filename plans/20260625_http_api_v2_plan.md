@@ -75,7 +75,7 @@ Target Architecture (Phase 2 — versioning):
 - [ ] 1.6 Remove `OPENCODE_EXPERIMENTAL_HTTPAPI` flag gating
 - [ ] 1.7 Delete legacy Hono route files from `src/server/routes/instance/` (16 non-httpapi files: session, config, project, provider, file, pty, mcp, sync, question, permission, experimental, tui, event, trace, middleware + index.ts trimmed)
 - [ ] 1.8 Trim legacy Hono route registration from `src/server/routes/instance/index.ts` (remove lines 159-403, keep standalone endpoint refs if HttpApi lacks equivalents)
-- [ ] 1.9 Verify standalone endpoints (/instance, /path, /vcs, /vcs/diff, /command, /agent, /skill, /lsp, /formatter) have HttpApi equivalents
+- [x] 1.9 Verify standalone endpoints (/instance, /path, /vcs, /vcs/diff, /command, /agent, /skill, /lsp, /formatter) have HttpApi equivalents
 - [ ] 1.10 Update `server.ts` to always use HttpApi web handler (remove flag gating)
 - [ ] 1.11 Run typecheck + full test suite
 

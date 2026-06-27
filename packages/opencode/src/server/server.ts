@@ -62,16 +62,14 @@ function create(opts: { cors?: string[] }) {
     .use(InstanceMiddleware())
     .route("/experimental/workspace", WorkspaceRoutes())
     .use(WorkspaceRouterMiddleware(runtime.upgradeWebSocket))
-  if (Flag.OPENCODE_EXPERIMENTAL_HTTPAPI) {
-    const handler = ExperimentalHttpApiServer.webHandler().handler
-    const context = Context.empty() as Context.Context<unknown>
-    workspaceApp.get(WorkspacePaths.adaptors, (c) => handler(c.req.raw, context))
-    workspaceApp.get(WorkspacePaths.list, (c) => handler(c.req.raw, context))
-    workspaceApp.post(WorkspacePaths.list, (c) => handler(c.req.raw, context))
-    workspaceApp.get(WorkspacePaths.status, (c) => handler(c.req.raw, context))
-    workspaceApp.delete(WorkspacePaths.remove, (c) => handler(c.req.raw, context))
-    workspaceApp.post(WorkspacePaths.sessionRestore, (c) => handler(c.req.raw, context))
-  }
+  const handler = ExperimentalHttpApiServer.webHandler().handler
+  const context = Context.empty() as Context.Context<unknown>
+  workspaceApp.get(WorkspacePaths.adaptors, (c) => handler(c.req.raw, context))
+  workspaceApp.get(WorkspacePaths.list, (c) => handler(c.req.raw, context))
+  workspaceApp.post(WorkspacePaths.list, (c) => handler(c.req.raw, context))
+  workspaceApp.get(WorkspacePaths.status, (c) => handler(c.req.raw, context))
+  workspaceApp.delete(WorkspacePaths.remove, (c) => handler(c.req.raw, context))
+  workspaceApp.post(WorkspacePaths.sessionRestore, (c) => handler(c.req.raw, context))
   workspaceApp.route("/", workspaceLegacyApp)
 
   return {

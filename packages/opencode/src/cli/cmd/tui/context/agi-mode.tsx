@@ -1,24 +1,27 @@
 /**
- * AGI Mode context — autonomous development orchestration.
+ * AGI Mode context — status-driven autonomous development orchestration.
  *
- * Bidirectional flow:
- *   Orchestrator (hidden session, reasoning) → generates instructions
- *   Main session (build/plan) → executes, delegates to sub-agents
- *   Orchestrator observes results → generates next instructions
+ * Architecture:
+ *   Orchestrator (hidden session, reasoning agent) → produces worker directives
+ *   Workers (main session + future sessions) → execute tasks
+ *   AGI loop observes session_status signals only — no hash guessing, no duplicate suppression
  *
- * When AGI mode activates:
- * 1. Records the main session ID
- * 2. Creates a parallel hidden session with the orchestrator agent
- * 3. Sends initial message to orchestrator: "Analyze plans/ and generate first instruction"
- * 4. When orchestrator completes: takes its output text, sends as user message
- *    to the MAIN session for execution
- * 5. When main session completes: passes result back to orchestrator for analysis
- * 6. Loop until all plans completed or user interrupts
+ * State machine phases:
+ *   BOOTSTRAP        → initial prompt sent to orchestrator, waiting for orch busy
+ *   ORCH_BUSY        → orchestrator processing, waiting for orch idle
+ *   ORCH_DISPATCH    → orchestrator idle, parse directives, dispatch to workers
+ *   WORKERS_BUSY     → waiting for all workers to complete
+ *   WORKERS_COLLECT  → all workers idle, collect output, send to orchestrator
+ *
+ * Error handling:
+ *   session.error event → deactivate AGI loop, report error for debugging
+ *   MAX_TURNS / MAX_RUNTIME → safety deactivation
  */
 import { createSignal, createMemo, createEffect, onCleanup } from "solid-js"
 import { useLocal } from "./local"
 import { useSync } from "./sync"
 import { useSDK } from "./sdk"
+import { useEvent } from "./event"
 import { useToast } from "../ui/toast"
 import { Global } from "@opencode-ai/core/global"
 import { getPlanStatus, formatProgressBar, type PlanStatus } from "@/util/plan-status"
@@ -26,6 +29,7 @@ import { MessageID } from "@/session/schema"
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "fs"
 import path from "path"
 import { execSync } from "child_process"
+import { errorMessage } from "@/util/error"
 
 /** Persisted AGI state — survives TUI restarts and route navigation. */
 interface AgiState {
@@ -138,7 +142,7 @@ function mergeImprovementBranch(worktree: string, branchName: string): boolean {
   }
 }
 
-/** Maximum length of main session output to pass back to orchestrator. */
+/** Maximum length of worker session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
 
 /** Maximum number of auto-continue turns before safety deactivation.
@@ -166,19 +170,25 @@ const [turnCount, setTurnCount] = createSignal(0)
 const [cycleCount, setCycleCount] = createSignal(0)
 const [totalCost, setTotalCost] = createSignal(0)
 
-/** Plan-state hash guard — prevents main->orch dispatch when no progress was made.
- *  Hashes plan active/completed counts + task counts. If unchanged since last dispatch,
- *  the orchestrator is in a stale feedback loop (reporting same status repeatedly). */
-let lastPlanHash = ""
+/** AGI loop phases — status-driven state machine. */
+type LoopPhase =
+  | "BOOTSTRAP"       // initial prompt sent to orch, waiting for orch busy
+  | "ORCH_BUSY"       // orchestrator processing
+  | "ORCH_DISPATCH"   // orch idle → parse directives → dispatch to workers
+  | "WORKERS_BUSY"    // waiting for all workers to complete
+  | "WORKERS_COLLECT" // all workers idle → collect output → send to orch
 
-function hashPlanState(pd: PlanStatus): string {
-  return `${pd.completed.length}/${pd.totalPlans}:${pd.completedTasks}/${pd.totalTasks}`
+/** Worker directive parsed from orchestrator output. */
+interface WorkerDirective {
+  workerId: string
+  message: string
 }
 
 export function useAgiMode(currentSessionID: () => string | undefined) {
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
+  const event = useEvent()
   const toast = useToast()
 
   // Load persisted AGI state (survives TUI restarts, route navigation)
@@ -243,24 +253,61 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       .slice(0, MAX_OUTPUT_CHARS)
   }
 
-  /** Send instruction to main session for execution. */
-  async function sendToMain(instruction: string) {
-    const mid = mainSessionID()
-    if (!mid) return false
+  /** Collect worker messages since a given timestamp.
+   *  Returns concatenated text from all completed assistant messages after the timestamp. */
+  function collectWorkerMessages(sessionID: string, sinceTimestamp: number): string {
+    const msgs = sync.data.message[sessionID] ?? []
+    const relevant = msgs.filter((m) => {
+      if (m.role !== "assistant") return false
+      if (!m.time.completed) return false
+      return m.time.completed > sinceTimestamp
+    })
+    return relevant
+      .flatMap((m) => sync.data.part[m.id] ?? [])
+      .filter((p: any) => p.type === "text")
+      .map((p: any) => p.text ?? "")
+      .join("\n")
+      .slice(0, MAX_OUTPUT_CHARS)
+  }
+
+  /** Parse orchestrator directives from text output.
+   *  Format: <worker1_[sessionID]>message</worker1_[sessionID]> */
+  function parseOrchestratorDirectives(text: string): WorkerDirective[] {
+    const directives: WorkerDirective[] = []
+    const regex = /<worker\d+_([a-zA-Z0-9_-]+)>([\s\S]*?)<\/worker\d+_\1>/g
+    let match
+    while ((match = regex.exec(text)) !== null) {
+      directives.push({
+        workerId: match[1],
+        message: match[2].trim(),
+      })
+    }
+    return directives
+  }
+
+  /** Send message to a worker session.
+   *  Verifies session exists before dispatch. Returns true on success. */
+  async function sendToWorker(sessionID: string, text: string): Promise<boolean> {
+    if (!sessionExists(sessionID)) {
+      console.debug("AGI: worker session does not exist", { sessionID })
+      return false
+    }
     try {
       await sdk.client.session.promptAsync({
-        sessionID: mid,
+        sessionID,
         messageID: MessageID.ascending(),
-        parts: [{ type: "text" as const, text: instruction }],
+        parts: [{ type: "text" as const, text }],
       })
       return true
-    } catch {
+    } catch (e) {
+      console.debug("AGI: sendToWorker failed", { sessionID, error: e })
       return false
     }
   }
 
-  /** Send context to orchestrator for analysis. */
-  async function sendToOrchestrator(context: string) {
+  /** Send context to orchestrator for analysis.
+   *  No guards — status-driven dispatch only. */
+  async function sendToOrchestrator(context: string): Promise<boolean> {
     const oid = orchSessionID()
     if (!oid) return false
     try {
@@ -271,25 +318,29 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         parts: [{ type: "text" as const, text: context }],
       })
       return true
-    } catch {
+    } catch (e) {
+      console.debug("AGI: sendToOrchestrator failed", { error: e })
       return false
     }
   }
 
   /**
-   * Bidirectional auto-continue state machine.
+   * Status-driven state machine.
    *
-   * States:
-   *   IDLE → ORCH_THINKING → MAIN_EXECUTING → ORCH_THINKING → ...
+   * Phases:
+   *   BOOTSTRAP → ORCH_BUSY → ORCH_DISPATCH → WORKERS_BUSY → WORKERS_COLLECT → ORCH_BUSY → ...
    *
-   * Transitions:
-   *   orch completes  → send orch output to main  → MAIN_EXECUTING
-   *   main completes  → send main result to orch   → ORCH_THINKING
+   * Transitions driven by session_status signals only:
+   *   orch busy→idle  → parse directives, dispatch to workers
+   *   workers busy→idle → collect output, send to orchestrator
+   *
+   * Error handling:
+   *   session.error event → deactivate, report error
    */
-  let wasOrchBusy = false
-  let wasMainBusy = false
-  let orchTimer: ReturnType<typeof setTimeout> | undefined
-  let mainTimer: ReturnType<typeof setTimeout> | undefined
+  let phase: LoopPhase = "BOOTSTRAP"
+  let dispatchTime: Record<string, number> = {}
+  let activeWorkers: string[] = []
+  let unsubError: (() => void) | undefined
 
   createEffect(() => {
     if (!agiMode()) return
@@ -297,34 +348,36 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     const ob = orchBusy()
     const mb = mainBusy()
 
-    // Orchestrator just finished (busy → idle) → send instruction to main
-    if (wasOrchBusy && !ob && !mb) {
-      wasOrchBusy = false
-      refreshPlanStatus()
+    switch (phase) {
+      case "BOOTSTRAP":
+        // Initial prompt already sent in toggleAgiMode — wait for orch to go busy
+        if (ob) {
+          phase = "ORCH_BUSY"
+          console.debug("AGI: BOOTSTRAP → ORCH_BUSY")
+        }
+        break
 
-      // All plans done — check for evolving mode or branch workflow
-      if (planData().active.length === 0) {
-        const worktree = Global.Path.worktree || Global.Path.home
+      case "ORCH_BUSY":
+        // Orchestrator finished processing → parse directives
+        if (!ob) {
+          refreshPlanStatus()
 
-        if (evolvingMode()) {
-          // Task 3: Branch-based workflow for evolving mode
-          const cycleNum = cycleCount() + 1
-          setCycleCount(cycleNum)
-          const branch = createImprovementBranch(worktree, cycleNum)
-          if (branch) {
-            toast.show({ message: `AGI: created improvement branch ${branch}`, variant: "info" })
-          }
+          // Check if all plans are done
+          if (planData().active.length === 0) {
+            const worktree = Global.Path.worktree || Global.Path.home
 
-          // Instruct orchestrator to enter evolving mode
-          const oid = orchSessionID()
-          if (oid) {
-            sdk.client.session.promptAsync({
-              sessionID: oid,
-              messageID: MessageID.ascending(),
-              agent: "orchestrator",
-              parts: [{
-                type: "text" as const,
-                text: [
+            if (evolvingMode()) {
+              // Evolving mode: create improvement branch, instruct orchestrator
+              const cycleNum = cycleCount() + 1
+              setCycleCount(cycleNum)
+              const branch = createImprovementBranch(worktree, cycleNum)
+              if (branch) {
+                toast.show({ message: `AGI: created improvement branch ${branch}`, variant: "info" })
+              }
+
+              const oid = orchSessionID()
+              if (oid) {
+                sendToOrchestrator([
                   "All active plans are complete.",
                   `EVOLVING MODE: Cycle ${cycleNum} — Enter evolving mode now.`,
                   "Analyze the codebase across Stability, Performance, Observability, Testing, and UX.",
@@ -333,89 +386,139 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
                   "",
                   "IMPORTANT: After you propose tasks, WAIT for user acceptance/rejection.",
                   "Do NOT auto-execute — let the user decide which categories to pursue.",
-                ].join("\n"),
-              }],
-            }).catch((e) => console.debug("evolving mode prompt failed", e))
+                ].join("\n")).catch((e) => console.debug("evolving mode prompt failed", e))
+                phase = "ORCH_BUSY"
+              }
+            }
+            // No evolving mode — deactivate
+            else {
+              toast.show({ message: "AGI: all plans complete", variant: "success" })
+              deactivate()
+            }
+            return
           }
+
+          // Parse orchestrator output for worker directives
+          const oid = orchSessionID()
+          if (!oid) return
+          const orchOutput = lastAssistantText(oid)
+          const directives = parseOrchestratorDirectives(orchOutput)
+
+          if (directives.length === 0) {
+            // No directives — send continuation prompt
+            console.debug("AGI: no directives found, sending continuation")
+            sendToOrchestrator([
+              `Plan progress: ${progressBar()}.`,
+              `Active plans: ${planData().active.join(", ") || "none"}.`,
+              "",
+              "Your previous response did not contain worker directives.",
+              "Produce EXACTLY ONE directive in this format:",
+              `<worker1_[${mainSessionID()}]>YOUR INSTRUCTION</worker1_[${mainSessionID()}>`,
+            ].join("\n")).catch((e) => console.debug("continuation prompt failed", e))
+            phase = "ORCH_BUSY"
+            return
+          }
+
+          // Dispatch to workers
+          phase = "ORCH_DISPATCH"
+          console.debug("AGI: ORCH_BUSY → ORCH_DISPATCH", { directives: directives.length })
+
+          // Safety: max turns / max runtime
+          const t = turnCount() + 1
+          if (t > MAX_TURNS) {
+            toast.show({ message: `AGI: max turns (${MAX_TURNS}) reached — deactivating`, variant: "info" })
+            deactivate(true)
+            return
+          }
+
+          const elapsed = Date.now() - activationStartedAt
+          if (elapsed > MAX_RUNTIME_MS) {
+            const hours = Math.round(elapsed / 3600000)
+            toast.show({ message: `AGI: max runtime (${hours}h) reached — deactivating`, variant: "info" })
+            deactivate(true)
+            return
+          }
+
+          setTurnCount(t)
+
+          // Dispatch directives to workers
+          activeWorkers = directives.map((d) => d.workerId)
+          dispatchTime = {}
+          const now = Date.now()
+
+          for (const directive of directives) {
+            dispatchTime[directive.workerId] = now
+            sendToWorker(directive.workerId, directive.message).then((ok) => {
+              if (!ok) {
+                toast.show({ message: `AGI: failed to dispatch to worker ${directive.workerId.slice(0, 8)}`, variant: "warning" })
+              }
+            })
+          }
+
+          // Transition to WORKERS_BUSY
+          phase = "WORKERS_BUSY"
+          console.debug("AGI: ORCH_DISPATCH → WORKERS_BUSY", { workers: activeWorkers })
         }
-        return
-      }
+        break
 
-      // Capture instruction now — setTimeout delay could let state change
-      const oid = orchSessionID()
-      if (!oid) return
-      const instruction = lastAssistantText(oid)
-      if (!instruction) return
+      case "WORKERS_BUSY":
+        // Check if all workers are idle
+        const allIdle = activeWorkers.every((wid) => {
+          const s = sync.data.session_status?.[wid] as { type: string } | undefined
+          return !s || s.type === "idle" || s.type === "error"
+        })
 
-      clearTimeout(orchTimer)
-      orchTimer = setTimeout(async () => {
-        const ok = await sendToMain(instruction)
-        if (!ok) toast.show({ message: "AGI: failed to send instruction to main session", variant: "warning" })
-      }, 1000)
-    }
-    // Main just finished executing → send result to orchestrator
-    else if (wasMainBusy && !mb && !ob) {
-      wasMainBusy = false
-      refreshPlanStatus()
+        if (allIdle) {
+          phase = "WORKERS_COLLECT"
+          console.debug("AGI: WORKERS_BUSY → WORKERS_COLLECT")
+        }
+        break
 
-      if (planData().active.length === 0) return
+      case "WORKERS_COLLECT":
+        // Collect output from all workers, send to orchestrator
+        const workerData = activeWorkers
+          .map((wid) => {
+            const output = collectWorkerMessages(wid, dispatchTime[wid] ?? 0)
+            return output ? `<data_from_worker_${wid}>${output}</data_from_worker_${wid}>` : ""
+          })
+          .filter(Boolean)
+          .join("\n\n")
 
-      // Plan-state guard: skip dispatch if no progress since last orch interaction.
-      // Breaks the feedback loop where orchestrator reports same status repeatedly.
-      const currentPlanHash = hashPlanState(planData())
-      if (currentPlanHash === lastPlanHash) {
-        console.debug("AGI: plan state unchanged, skipping dispatch to orchestrator")
-        return
-      }
-      lastPlanHash = currentPlanHash
-
-      // Safety: max turns / max runtime to prevent infinite loop
-      const t = turnCount() + 1
-      if (t > MAX_TURNS) {
-        toast.show({ message: `AGI: max turns (${MAX_TURNS}) reached — deactivating`, variant: "info" })
-        deactivate(true)
-        return
-      }
-
-      // Time-based limit: 24h max continuous AGI runtime
-      const elapsed = Date.now() - activationStartedAt
-      if (elapsed > MAX_RUNTIME_MS) {
-        const hours = Math.round(elapsed / 3600000)
-        toast.show({ message: `AGI: max runtime (${hours}h) reached — deactivating`, variant: "info" })
-        deactivate(true)
-        return
-      }
-
-      // Capture result now — setTimeout delay could let state change
-      const mid = mainSessionID()
-      if (!mid) return
-      const result = lastAssistantText(mid)
-      setTurnCount(t)
-
-      clearTimeout(mainTimer)
-      mainTimer = setTimeout(async () => {
         const context = [
-          `Turn ${t} complete. Plan progress: ${progressBar()}.`,
-          result ? `Last execution result:\n${result.slice(0, MAX_OUTPUT_CHARS)}` : "",
-          "Analyze progress against plans/. Check which tasks were completed.",
-          "Generate the next instruction for the main session to execute.",
+          `Turn ${turnCount()} complete. Plan progress: ${progressBar()}.`,
+          workerData ? `Worker results:\n${workerData}` : "",
+          "",
+          "Analyze the results. What was accomplished? What's the next task?",
+          `Produce EXACTLY ONE directive:`,
+          `<worker1_[${mainSessionID()}]>next instruction</worker1_[${mainSessionID()}>`,
         ].filter(Boolean).join("\n\n")
-        const ok = await sendToOrchestrator(context)
-        if (!ok) toast.show({ message: "AGI: failed to send results to orchestrator", variant: "warning" })
-      }, 1000)
-    }
-    else {
-      wasOrchBusy = ob
-      wasMainBusy = mb
+
+        sendToOrchestrator(context).then((ok) => {
+          if (!ok) {
+            toast.show({ message: "AGI: failed to send results to orchestrator", variant: "warning" })
+          }
+        })
+
+        // Clear dispatch state, transition back to ORCH_BUSY
+        dispatchTime = {}
+        activeWorkers = []
+        phase = "ORCH_BUSY"
+        console.debug("AGI: WORKERS_COLLECT → ORCH_BUSY")
+        break
     }
   })
 
   /** Deactivate AGI mode — pause, don't destroy. */
   async function deactivate(silent = false) {
-    clearTimeout(orchTimer)
-    clearTimeout(mainTimer)
-    orchTimer = undefined
-    mainTimer = undefined
+    // Unsubscribe from error events
+    unsubError?.()
+    unsubError = undefined
+
+    // Reset phase
+    phase = "BOOTSTRAP"
+    dispatchTime = {}
+    activeWorkers = []
+
     // Don't abort orchestrator — reuse on reactivation
     setAgiMode(false)
     if (!silent) toast.show({ message: "AGI mode deactivated", variant: "info" })
@@ -433,19 +536,14 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     }
 
     refreshPlanStatus()
-    // Reset guards and turn count on each activation
-    lastPlanHash = ""
+    // Reset turn count on each activation
     setTurnCount(0)
-    // across sessions, so old counts would immediately hit the 20-turn limit.
     activationStartedAt = Date.now()
     // Show enabled badge immediately — before any async work.
-    // Previously setAgiMode(true) was at the end, after session creation
-    // and orchestrator prompt, leaving the UI in "disabled" state during
-    // the entire activation sequence.
     setAgiMode(true)
 
     try {
-      // Task 2: Git auto-init — ensure .git exists before orchestrator starts
+      // Git auto-init — ensure .git exists before orchestrator starts
       const worktree = Global.Path.worktree || Global.Path.home
       if (!ensureGitInit(worktree)) {
         toast.show({ message: "AGI: git init failed — continuing without git", variant: "warning" })
@@ -487,6 +585,17 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           `# Orchestrator Memory\n\nCreated: ${new Date().toISOString()}\nSession: ${oid}\n\n---\n\n## Known Issues\n\n## Project Conventions\n\n## Requirements\n\n## Blocked Tasks\n`)
       }
 
+      // Subscribe to session.error events for main and orchestrator sessions
+      unsubError = event.on("session.error", (evt) => {
+        const sid = evt.properties.sessionID
+        if (!sid) return
+        if (sid === orchSessionID() || sid === mainSessionID()) {
+          const msg = errorMessage(evt.properties.error)
+          toast.show({ message: `AGI: session error in ${sid.slice(0, 8)}: ${msg}`, variant: "error", duration: 8000 })
+          deactivate(true)
+        }
+      })
+
       // Kick off orchestrator only on first activation — not on resume
       if (!existed) {
         const messageID = MessageID.ascending()
@@ -501,16 +610,20 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           parts: [{
             type: "text" as const,
             text: [
-              `Plan progress: ${progressBar()}.`,
-              `Active plans: ${activePlans}.`,
-              `Completed plans: ${planData().completed.length}.`,
+              `Current state: ${progressBar()}. Active plans: ${activePlans}.`,
+              `Completed: ${planData().completed.length}.`,
               evolvingNote,
               "",
-              "Analyze the current state. Read the active plans to understand what needs to be done.",
-              "Check the dependency graph in the master plan.",
-              "Generate a clear, specific instruction for the main session to execute next.",
-              "The main session has full edit/write/bash/task permissions and will execute your instruction.",
-              "Focus on ONE actionable task per instruction. Be specific about files and expected outcomes.",
+              "BOOTSTRAP PHASE: Analyze the active plans. Read the dependency graph in the master plan.",
+              "After analysis, produce your first task directive using this EXACT format:",
+              "",
+              `<worker1_[${mainSessionID()}]>YOUR INSTRUCTION TEXT HERE</worker1_[${mainSessionID()}>`,
+              "",
+              "Replace the placeholder with the actual session ID shown above.",
+              "Focus on ONE actionable task. Be specific about files and expected outcomes.",
+              "",
+              "When you complete a task directive, I will execute it in the worker session",
+              "and return results wrapped in <data_from_worker_*> tags for your analysis.",
             ].join("\n"),
           }],
         })
@@ -526,12 +639,16 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               `Resuming. Plan progress: ${progressBar()}.`,
               `Active plans: ${planData().active.join(", ") || "none"}.`,
               `Cycles completed: ${cycleCount()}.`,
-              "Continue from where you left off. What's the next instruction?",
+              "",
+              "Continue from where you left off. Produce your next directive:",
+              `<worker1_[${mainSessionID()}]>next instruction</worker1_[${mainSessionID()}>`,
             ].join("\n"),
           }],
         })
       }
 
+      // Set phase to BOOTSTRAP — wait for orchestrator to go busy
+      phase = "BOOTSTRAP"
       toast.show({ message: "AGI mode activated", variant: "success" })
     } catch (err) {
       console.error("AGI mode activation failed:", err)

@@ -441,19 +441,6 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Switch model",
-      value: "model.list",
-      keybind: "model_list",
-      suggested: true,
-      category: "Agent",
-      slash: {
-        name: "models",
-      },
-      onSelect: () => {
-        dialog.replace(() => <DialogModel />)
-      },
-    },
-    {
       title: "Task model",
       value: "task.model.list",
       keybind: "task_model_list",
@@ -507,6 +494,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       title: "Switch agent",
       value: "agent.list",
       keybind: "agent_list",
+      suggested: true,
       category: "Agent",
       slash: {
         name: "agents",

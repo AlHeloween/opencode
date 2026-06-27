@@ -259,6 +259,32 @@ export const layer = Layer.effect(
               : normalizeNL(p.text).startsWith(normalizeNL(text))),
         )
 
+      // Compaction reminder: if the most recent assistant message is a compaction
+      // summary, inject a system-reminder telling the model it can use
+      // messagesearch to browse previous context.
+      const hasCompactionSummary = input.messages.some(
+        (msg) => msg.info.role === "assistant" && (msg.info as { summary?: unknown }).summary === true,
+      )
+      if (hasCompactionSummary && input.agent.name !== "plan") {
+        const COMPACTION_REMINDER = `<system-reminder>
+Your conversation history was compacted to stay within context limits.
+A structured summary of previous work is in the assistant message above.
+Use \`messagesearch\` without a query to browse recent messages, or
+with a query to search for specific topics.
+</system-reminder>`
+        if (!hasSynthetic(COMPACTION_REMINDER, "prefix")) {
+          const part = yield* sessions.updatePart({
+            id: PartID.ascending(),
+            messageID: userMessage.info.id,
+            sessionID: userMessage.info.sessionID,
+            type: "text",
+            text: COMPACTION_REMINDER,
+            synthetic: true,
+          })
+          userMessage.parts.push(part)
+        }
+      }
+
       if (!Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE) {
         if (input.agent.name === "plan") {
           if (!hasSynthetic(PROMPT_PLAN)) {

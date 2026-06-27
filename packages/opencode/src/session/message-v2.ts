@@ -25,6 +25,7 @@ import { registry } from "@/attachment/registry"
 import { fromMime as classifyKind } from "@/attachment/kind"
 import { iife } from "@/util/iife"
 import { errorMessage } from "@/util/error"
+import { Token } from "@/util/token"
 import { isMedia } from "@/util/media"
 import type { SystemError } from "bun"
 import type { Provider } from "@/provider/provider"
@@ -1632,18 +1633,14 @@ function browseSearch(input: {
     list.sort((a, b) => a.msg_time - b.msg_time)
   }
 
-  // Build user + preceding assistant pairs
+  // Build user + preceding assistant pairs (all of them)
   const results: SearchResult[] = []
-  const limit = input.limit || 50
 
   for (const [, msgs] of sessions) {
-    if (results.length >= limit) break
     let lastAssistantIdx = 0
     let lastAssistantText = ''
 
     for (const msg of msgs) {
-      if (results.length >= limit) break
-
       if (msg.role === 'assistant') {
         lastAssistantIdx = msg.messageIndex
         lastAssistantText = msg.text.slice(0, 500)
@@ -1666,7 +1663,21 @@ function browseSearch(input: {
     }
   }
 
-  return results
+  // Return the most recent user messages (tail-first), sized to ~10% model context.
+  // Estimate tokens with chars/4 heuristic; default context ~200K → tail up to 20K tokens.
+  const limit = input.limit || 200
+  const tail = results.slice(-limit)
+  const maxTailTokens = 20_000
+  let accum = 0
+  const sized: SearchResult[] = []
+  for (let i = tail.length - 1; i >= 0; i--) {
+    const r = tail[i]!
+    const t = Token.estimate(r.text) + (r.contextText ? Token.estimate(r.contextText) : 0)
+    accum += t
+    if (accum > maxTailTokens && sized.length > 0) break
+    sized.unshift(r)
+  }
+  return sized.length > 0 ? sized : tail.slice(-1)
 }
 
 export function highlightSnippet(text: string, query: string, maxLen = 200): string {

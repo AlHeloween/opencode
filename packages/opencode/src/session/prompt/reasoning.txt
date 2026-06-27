@@ -200,6 +200,13 @@ user requirements, decisions, blocked tasks.
 **PowerShell equivalents:** `Get-ChildItem`, `Get-Content`, `Select-Object -First`, `Select-String`, `Get-ChildItem -Recurse`, `Compare-Object`, `Sort-Object -Unique`
 **Safe cross-platform:** `rg` (ripgrep), `fd`, `git`, `bun`, `node` — work everywhere
 **Rule:** Prefer `rg`/`fd`/`git` over Unix utils. If using bash syntax, guard with platform check.
+
+## Tool Availability (Windows)
+**System tools (C:\Windows\):** `rg.exe`, `fd.exe` — always available
+**Git Unix utils (C:\Program Files\Git\usr\bin\):** `ls.exe`, `cat.exe`, `tail.exe`, `head.exe`, `grep.exe`, `diff.exe`, `sort.exe` — available if Git installed, but may pipe incorrectly in PowerShell
+**Project tools ({worktree}/tools/):** `rg.exe`, `fd.exe`, `grep.exe`, `sed.exe`, `cmd_runner.exe`, `adm.exe`
+**Detection:** Use `which` (from `@/util/which`) or `cmd /c where.exe <tool>` to check availability
+**Rule:** Check tool exists before using. Prefer system-wide rg/fd over Git-provided utils.
 </operational>
 
 <tone>

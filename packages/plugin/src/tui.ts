@@ -5,6 +5,7 @@ import type {
   FilePart,
   LspStatus,
   McpStatus,
+  Session,
   Todo,
   Message,
   Part,
@@ -273,6 +274,7 @@ export type TuiState = {
   readonly vcs: { branch?: string } | undefined
   session: {
     count: () => number
+    list: () => ReadonlyArray<Session>
     diff: (sessionID: string) => ReadonlyArray<TuiSidebarFileItem>
     todo: (sessionID: string) => ReadonlyArray<TuiSidebarTodoItem>
     messages: (sessionID: string) => ReadonlyArray<Message>

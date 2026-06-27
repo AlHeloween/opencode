@@ -37,7 +37,17 @@ interface ModelStatusDisplay {
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
-  const cost = createMemo(() => msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0))
+  const cost = createMemo(() => {
+    let total = msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
+    // Include sub-agent session costs
+    const allSessions = props.api.state.session.list()
+    const childSessions = allSessions.filter((s) => s.parentID === props.session_id)
+    for (const child of childSessions) {
+      const childMsgs = props.api.state.session.messages(child.id)
+      total += childMsgs.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
+    }
+    return total
+  })
   const [providerStatus, setProviderStatus] = createSignal<Record<string, ModelStatusDisplay>>({})
 
   // Get AGI mode sessions if active
@@ -117,6 +127,31 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             : null
           stats.push({ name: "main", cacheRead, cacheMiss, hitRate })
         }
+      }
+    }
+
+    // Active sub-agent sessions (children of current session)
+    const allSessions = props.api.state.session.list()
+    const childSessions = allSessions.filter((s) => s.parentID === props.session_id)
+    for (const child of childSessions) {
+      const childMsgs = props.api.state.session.messages(child.id)
+      const childAssistant = childMsgs.filter((m): m is AssistantMessage =>
+        m.role === "assistant" && m.tokens.output > 0,
+      )
+      if (childAssistant.length > 0) {
+        let cacheRead = 0
+        let cacheMiss = 0
+        for (const m of childAssistant) {
+          cacheRead += m.tokens.cache.read
+          cacheMiss += m.tokens.input
+        }
+        const total = cacheRead + cacheMiss
+        const hitRate = total > 0 && cacheRead > 0
+          ? Math.round((cacheRead / total) * 100)
+          : null
+        // Use first word of title as label (e.g., "Explorer", "Coder")
+        const label = child.title.split(" ")[0].toLowerCase() || child.id.slice(0, 6)
+        stats.push({ name: label, cacheRead, cacheMiss, hitRate })
       }
     }
 

@@ -11,10 +11,10 @@ const money = new Intl.NumberFormat("en-US", {
   currency: "USD",
 })
 
-/** Compact number formatter — max 3 digits + symbol (e.g., 8M, 137K, 50K). */
+/** Compact number formatter — max 3 digits + symbol (e.g., 8M, 137k, 50k). */
 function compactNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).slice(0, 4)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).slice(0, 4)}K`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).slice(0, 4)}k`
   return n.toString()
 }
 
@@ -265,12 +265,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       ) : (
         <text fg={theme().textMuted}>Cache: cold</text>
       )}
-      {state().reasoning > 0 && (
-        <text fg={theme().textMuted}>R{compactNum(state().reasoning)}</text>
-      )}
-      {state().output > 0 && (
+      {(state().reasoning > 0 || state().output > 0) && (
         <text fg={theme().textMuted}>
-          {compactNum(state().output)}{state().outputLimit > 0 ? `/${compactNum(state().outputLimit)}` : ""} tok
+          Output: {state().reasoning > 0 ? `R${compactNum(state().reasoning)}, ` : ""}{compactNum(state().output)}{state().outputLimit > 0 ? `/${compactNum(state().outputLimit)}` : ""} tok
         </text>
       )}
       {cost() > 0 && <text fg={theme().textMuted}>{money.format(cost())} spent</text>}

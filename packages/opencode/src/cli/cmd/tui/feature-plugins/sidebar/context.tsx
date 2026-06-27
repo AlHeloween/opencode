@@ -172,18 +172,13 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       </text>
       <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
       <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
-      {state().cacheRead > 0 ? (
-        <text fg={state().cacheHitRate! > 80 ? theme().success : state().cacheHitRate! >= 40 ? theme().warning : theme().error}>
-          Cache: {formatCacheStats(state().cacheHitRate, state().cacheRead, state().cacheInput)}
+      {state().cacheRead > 0 || state().sessionCacheRead! > 0 ? (
+        <text fg={(state().sessionCacheHitRate ?? state().cacheHitRate)! > 80 ? theme().success : (state().sessionCacheHitRate ?? state().cacheHitRate)! >= 40 ? theme().warning : theme().error}>
+          Cache: {state().sessionCacheHitRate ?? state().cacheHitRate ?? 0}% {compactNum(state().sessionCacheRead ?? 0)}({compactNum(state().cacheRead)}) read · {compactNum(state().sessionCacheInput ?? 0)}({compactNum(state().cacheInput)}) miss
         </text>
-      ) : state().cacheInput > 0 ? (
+      ) : (
         <text fg={theme().textMuted}>Cache: cold</text>
-      ) : null}
-      {state().sessionCacheRead! > 0 && state().sessionCacheHitRate !== null && state().sessionCacheHitRate !== state().cacheHitRate ? (
-        <text fg={state().sessionCacheHitRate! > 80 ? theme().success : state().sessionCacheHitRate! >= 40 ? theme().warning : theme().error}>
-          Session: {formatCacheStats(state().sessionCacheHitRate, state().sessionCacheRead!, state().sessionCacheInput!)}
-        </text>
-      ) : null}
+      )}
       {state().reasoning > 0 && (
         <text fg={theme().textMuted}>Reasoning: {state().reasoning.toLocaleString()} tokens</text>
       )}

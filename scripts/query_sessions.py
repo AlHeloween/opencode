@@ -124,6 +124,107 @@ def query_sessions(
         conn.close()
 
 
+def query_messages(
+    db_path: str,
+    session_ids: list[str] | None = None,
+    since: int | None = None,
+    until: int | None = None,
+    limit: int = 200,
+) -> list[dict]:
+    """Query messages across sessions, sorted by time_created."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        query = """
+            SELECT
+                m.id,
+                m.session_id,
+                m.time_created,
+                json_extract(m.data, '$.role') as role,
+                json_extract(m.data, '$.agent') as agent,
+                json_extract(m.data, '$.mode') as mode,
+                p.id as part_id,
+                json_extract(p.data, '$.type') as part_type,
+                json_extract(p.data, '$.text') as text,
+                json_extract(p.data, '$.tool') as tool,
+                json_extract(p.data, '$.state') as state
+            FROM message m
+            LEFT JOIN part p ON p.message_id = m.id
+            WHERE 1=1
+        """
+        params: list = []
+
+        if session_ids:
+            placeholders = ",".join("?" * len(session_ids))
+            query += f" AND m.session_id IN ({placeholders})"
+            params.extend(session_ids)
+        if since:
+            query += " AND m.time_created >= ?"
+            params.append(since)
+        if until:
+            query += " AND m.time_created <= ?"
+            params.append(until)
+
+        query += " ORDER BY m.time_created ASC, p.id ASC LIMIT ?"
+        params.append(limit)
+
+        cursor = conn.execute(query, params)
+        # Group parts by message
+        messages: dict[str, dict] = {}
+        for row in cursor.fetchall():
+            mid = row["id"]
+            if mid not in messages:
+                messages[mid] = {
+                    "id": mid,
+                    "session_id": row["session_id"],
+                    "time_created": row["time_created"],
+                    "role": row["role"],
+                    "agent": row["agent"],
+                    "parts": [],
+                }
+            if row["part_id"]:
+                part = {
+                    "type": row["part_type"],
+                    "text": (row["text"] or "")[:200],
+                    "tool": row["tool"],
+                }
+                messages[mid]["parts"].append(part)
+
+        return sorted(messages.values(), key=lambda m: m["time_created"])
+    finally:
+        conn.close()
+
+
+def format_messages_timeline(messages: list[dict]) -> str:
+    """Format messages as a timeline sorted by time."""
+    if not messages:
+        return "No messages found."
+
+    lines = []
+    header = f"{'Time':<24} {'Session':<30} {'Role':<12} {'Agent':<14} {'Content'}"
+    lines.append(header)
+    lines.append("-" * 120)
+
+    for m in messages:
+        ts = datetime.fromtimestamp(m["time_created"] / 1000, tz=timezone.utc).isoformat()
+        sid = m["session_id"][:28]
+        role = m["role"] or "?"
+        agent = m["agent"] or ""
+        parts_summary = " | ".join(
+            p["text"][:80] or p["tool"] or p["type"]
+            for p in m["parts"]
+        )[:80]
+        lines.append(f"{ts:<24} {sid:<30} {role:<12} {agent:<14} {parts_summary}")
+
+    lines.append(f"\nTotal: {len(messages)} message(s)")
+    return "\n".join(lines)
+
+
+def format_messages_json(messages: list[dict]) -> str:
+    """Format messages as JSON."""
+    return json.dumps(messages, indent=2, default=str)
+
+
 def format_table(sessions: list[dict]) -> str:
     """Format sessions as a table."""
     if not sessions:
@@ -186,6 +287,8 @@ def main():
     parser.add_argument("--project", help="Filter by project ID")
     parser.add_argument("--limit", type=int, default=50, help="Maximum sessions to return")
     parser.add_argument("--events", action="store_true", help="Include event counts")
+    parser.add_argument("--messages", action="store_true", help="Show messages timeline (sorted by time) instead of sessions")
+    parser.add_argument("--session", nargs="*", help="Filter messages to specific session IDs")
     parser.add_argument("--format", choices=["table", "json", "csv"], default="table", help="Output format")
     args = parser.parse_args()
 
@@ -203,7 +306,22 @@ def main():
     since_ms = parse_iso_date(args.since) if args.since else None
     until_ms = parse_iso_date(args.until) if args.until else None
 
-    # Query
+    # Messages timeline mode
+    if args.messages:
+        messages = query_messages(
+            db_path=db_path,
+            session_ids=args.session or None,
+            since=since_ms,
+            until=until_ms,
+            limit=args.limit,
+        )
+        if args.format == "json":
+            print(format_messages_json(messages))
+        else:
+            print(format_messages_timeline(messages))
+        return
+
+    # Sessions mode
     sessions = query_sessions(
         db_path=db_path,
         since=since_ms,

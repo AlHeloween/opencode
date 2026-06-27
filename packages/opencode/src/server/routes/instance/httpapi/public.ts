@@ -36,11 +36,10 @@ export const PublicApi = HttpApi.make("opencode")
   .addHttpApi(SyncApi)
   .addHttpApi(TuiApi)
   .addHttpApi(WorkspaceApi)
-  .prefix("/v2")
   .annotateMerge(
     OpenApi.annotations({
       title: "opencode",
-      version: "2.0.0",
+      version: "1.0.0",
       description: "opencode api",
     }),
   )

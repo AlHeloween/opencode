@@ -218,20 +218,22 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
 
   const progressBar = createMemo(() => formatProgressBar(planData()))
 
-  /** Pending state for orchestrator session. */
-  const orchPending = createMemo(() => {
+  /** Whether the orchestrator session is busy (runLoop active).
+   *  Uses session_status from sync — transitions to idle only when runLoop fully
+   *  exits, not on intermediate assistant completions during tool-call rounds. */
+  const orchBusy = createMemo(() => {
     const sid = orchSessionID()
-    if (!sid) return
-    const msgs = sync.data.message[sid] ?? []
-    return msgs.findLast((x) => x.role === "assistant" && !x.time.completed)
+    if (!sid) return false
+    const s = sync.data.session_status?.[sid] as { type: string } | undefined
+    return s?.type === "busy" || s?.type === "compacting"
   })
 
-  /** Pending state for main session. */
-  const mainPending = createMemo(() => {
+  /** Whether the main session is busy (runLoop active). */
+  const mainBusy = createMemo(() => {
     const sid = mainSessionID()
-    if (!sid) return
-    const msgs = sync.data.message[sid] ?? []
-    return msgs.findLast((x) => x.role === "assistant" && !x.time.completed)
+    if (!sid) return false
+    const s = sync.data.session_status?.[sid] as { type: string } | undefined
+    return s?.type === "busy" || s?.type === "compacting"
   })
 
   /** Get the last assistant text from a session. */
@@ -308,20 +310,20 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
    *   orch completes  → send orch output to main  → MAIN_EXECUTING
    *   main completes  → send main result to orch   → ORCH_THINKING
    */
-  let wasOrchPending = false
-  let wasMainPending = false
+  let wasOrchBusy = false
+  let wasMainBusy = false
   let orchTimer: ReturnType<typeof setTimeout> | undefined
   let mainTimer: ReturnType<typeof setTimeout> | undefined
 
   createEffect(() => {
     if (!agiMode()) return
 
-    const op = orchPending()
-    const mp = mainPending()
+    const ob = orchBusy()
+    const mb = mainBusy()
 
-    // Orchestrator just finished thinking → send instruction to main
-    if (wasOrchPending && !op && !mp) {
-      wasOrchPending = false
+    // Orchestrator just finished (busy → idle) → send instruction to main
+    if (wasOrchBusy && !ob && !mb) {
+      wasOrchBusy = false
       refreshPlanStatus()
 
       // All plans done — check for evolving mode or branch workflow
@@ -376,8 +378,8 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       }, 1000)
     }
     // Main just finished executing → send result to orchestrator
-    else if (wasMainPending && !mp && !op) {
-      wasMainPending = false
+    else if (wasMainBusy && !mb && !ob) {
+      wasMainBusy = false
       refreshPlanStatus()
 
       if (planData().active.length === 0) return
@@ -418,8 +420,8 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       }, 1000)
     }
     else {
-      wasOrchPending = !!op
-      wasMainPending = !!mp
+      wasOrchBusy = ob
+      wasMainBusy = mb
     }
   })
 

@@ -150,4 +150,69 @@ export function remove(sessionID: string): Effect.Effect<void> {
   })
 }
 
+/** Find session ID of latest checkpoint matching provider/model/agent. */
+export function findLatest(input: {
+  providerID: string
+  modelID: string
+  agentName: string
+  excludeSessionID?: string
+}): Effect.Effect<string | null> {
+  return Effect.sync(() => {
+    const dir = checkpointDir("")
+    if (!fs.existsSync(dir)) return null
+
+    const prefix = `${sanitize(input.providerID)}_${sanitize(input.modelID)}_${sanitize(input.agentName)}_`
+    const exclude = input.excludeSessionID ? sanitize(input.excludeSessionID) : null
+
+    let latest: { sessionID: string; mtime: number } | null = null
+    for (const file of fs.readdirSync(dir)) {
+      if (!file.startsWith(prefix) || !file.endsWith(".enc")) continue
+      const sid = file.slice(prefix.length, -".enc".length)
+      if (exclude && sid === exclude) continue
+      const stat = fs.statSync(path.join(dir, file))
+      if (!latest || stat.mtimeMs > latest.mtime) {
+        latest = { sessionID: sid, mtime: stat.mtimeMs }
+      }
+    }
+    return latest?.sessionID ?? null
+  })
+}
+
+/** Clone checkpoint from a previous session to a new session.
+ *  Strips session-specific state (messages, turns) — keeps only system
+ *  prompt for KV cache continuity across same-agent+model invocations. */
+export function clone(input: {
+  sourceSessionID: string
+  destSessionID: string
+  providerID: string
+  modelID: string
+  agentName: string
+  projectID: string
+  worktree: string
+}): Effect.Effect<void> {
+  return Effect.flatMap(
+    load({
+      sessionID: input.sourceSessionID,
+      providerID: input.providerID,
+      modelID: input.modelID,
+      projectID: input.projectID,
+      worktree: input.worktree,
+      agentName: input.agentName,
+    }),
+    (data) => {
+      if (!data) return Effect.void
+      return save({
+        sessionID: input.destSessionID,
+        projectID: input.projectID,
+        worktree: input.worktree,
+        data: { ...data, messages: [], messageIDs: [], turn: 0, timestamp: Date.now() },
+      })
+    },
+  ).pipe(
+    Effect.catch((e) =>
+      Effect.sync(() => log.warn("bug: checkpoint clone failed", { error: errorMessage(e) })),
+    ),
+  )
+}
+
 export * as Checkpoint from "./checkpoint"

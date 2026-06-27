@@ -6,6 +6,8 @@ import { MessageV2 } from "../session/message-v2"
 import { Agent } from "../agent/agent"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
+import { InstanceState } from "@/effect/instance-state"
+import { Checkpoint } from "../session/checkpoint"
 import { Effect, Exit, Schema } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { Global } from "@opencode-ai/core/global"
@@ -181,6 +183,28 @@ export const TaskTool = Tool.define(
             taskModel: `${model.providerID}/${model.modelID}`,
             taskContext: taskResolved.limit?.context,
             subagent: next.name,
+          })
+        }
+      }
+
+      // Clone checkpoint from previous same-agent session for KV cache continuity
+      if (!session) {
+        const ins = yield* InstanceState.context
+        const sourceSid = yield* Checkpoint.findLatest({
+          providerID: model.providerID,
+          modelID: model.modelID,
+          agentName: next.name,
+          excludeSessionID: nextSession.id,
+        })
+        if (sourceSid) {
+          yield* Checkpoint.clone({
+            sourceSessionID: sourceSid,
+            destSessionID: nextSession.id,
+            providerID: model.providerID,
+            modelID: model.modelID,
+            agentName: next.name,
+            projectID: ins.project.id,
+            worktree: ins.worktree,
           })
         }
       }

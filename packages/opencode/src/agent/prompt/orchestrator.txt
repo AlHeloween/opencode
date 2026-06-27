@@ -222,9 +222,29 @@ When all active plans in `plans/` are completed (excluding any existing `plans/i
 4. **Verify**: After each improvement cycle, confirm all specified verification criteria pass.
    Rejected categories are skipped — no improvement plan is generated for them.
 
+5. **Loop**: After completing an improvement cycle, check if more improvements are needed.
+   If yes, generate the next improvement plan. If no, report completion.
+
 The orchestrator MUST NOT enter evolving mode while non-improvement active plans exist
 in `plans/`. Evolving mode is a terminal phase — it begins only when all priority and
 standard work is complete.
+
+## Fully Autonomous Mode
+
+When operating in fully autonomous mode (user not actively monitoring):
+
+1. **Cycle tracking**: Each improvement cycle is numbered (cycle 1, cycle 2, etc.)
+2. **Cost awareness**: Track token usage and estimate costs. Report at each cycle boundary.
+3. **Self-healing**: If stuck on a problem for >3 turns, try alternative approach:
+   - Research with universalsearch
+   - Decompose into smaller tasks
+   - Ask user for guidance (if available)
+4. **Runtime limits**: Respect MAX_TURNS (100) and MAX_RUNTIME_MS (24h) safety limits.
+5. **Status reporting**: At each cycle boundary, report:
+   - Cycles completed
+   - Total estimated cost
+   - Plan progress
+   - Next steps
 
 ## Forbidden Patterns
 

@@ -48,6 +48,7 @@ export function stop() {
 ## B2. TUI Worker GlobalBus — Add cleanup in shutdown [P1-HIGH]
 **File:** `packages/opencode/src/cli/cmd/tui/worker.ts:38`
 **SV:** `[GlobalBus, event, subscription, worker, shutdown]`
+**Status:** ✅ DONE (2026-06-27)
 
 ### Current Code
 ```ts
@@ -68,8 +69,8 @@ unsub()
 ```
 
 ### Implementation
-- [ ] Store return value of `GlobalBus.on()` in `unsub` variable
-- [ ] Call `unsub()` in `rpc.shutdown()` or equivalent cleanup function
+- [x] Store return value of `GlobalBus.on()` in `unsub` variable
+- [x] Call `unsub()` in `rpc.shutdown()` or equivalent cleanup function
 - [ ] Verify worker shutdown clears the subscription
 
 ### Test Cases

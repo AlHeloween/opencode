@@ -69,12 +69,21 @@ Added "Temp File Convention (Cross-Platform)" section:
 - `.tmp1-10/` = secondary, special cases only
 - Guardrails auto-add `.temp/` to .gitignore
 
+## Shell Command Compatibility
+
+Added to reasoning.txt:
+- Shell is pwsh on Windows, bash on Linux/macOS
+- Unix commands (`ls -la`, `cat`, `head`, `tail`, `grep`, `find`, `diff`) fail on Windows
+- Prefer cross-platform tools: `rg`, `fd`, `git`, `bun`, `node`
+- PowerShell equivalents documented for Unix utils
+
 ## Verification
 
 1. Fresh project init creates .gitignore with `.temp/`
 2. Existing projects get `.temp/` added via `ensureRuntimeDataIgnored`
 3. No `/tmp/` usage in codebase
 4. `isRuntimeDataPath()` returns true for `.temp/` paths
+5. Shell commands use cross-platform tools or platform checks
 
 ## Related
 

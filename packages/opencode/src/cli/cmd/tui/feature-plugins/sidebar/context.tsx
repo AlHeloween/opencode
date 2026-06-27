@@ -294,7 +294,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       {allSessionStats().length > 0 ? (
         allSessionStats().map((s) => (
           <text fg={(s.hitRate ?? 0) > 80 ? theme().success : (s.hitRate ?? 0) >= 40 ? theme().warning : theme().error}>
-            {s.name}: {s.hitRate ?? 0}% {compactNum(s.cacheRead)}({compactNum(s.cacheMiss)}) read · {compactNum(s.cacheMiss)}({compactNum(s.cacheRead)}) miss
+            {s.name}: {formatCacheStats(s.hitRate, s.cacheRead, s.cacheMiss)}
           </text>
         ))
       ) : (

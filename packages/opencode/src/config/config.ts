@@ -902,7 +902,6 @@ export const layer = Layer.effect(
           OPENCODE_STRICT_CONFIG_DEPS: result.features?.strictConfigDeps,
           // Experimental
           OPENCODE_EXPERIMENTAL: result.experimental?.masterSwitch,
-          OPENCODE_EXPERIMENTAL_HTTPAPI: result.experimental?.httpApi,
           OPENCODE_EXPERIMENTAL_FILEWATCHER: result.experimental?.fileWatcher,
           OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: result.experimental?.disableFileWatcher,
           OPENCODE_EXPERIMENTAL_PLAN_MODE: result.experimental?.planMode,
@@ -1075,7 +1074,6 @@ export const ENV_TO_CONFIG_MAP: Record<string, string> = {
   OPENCODE_FAST_BOOT: "features.fastBoot",
   // Experimental
   OPENCODE_EXPERIMENTAL: "experimental.masterSwitch",
-  OPENCODE_EXPERIMENTAL_HTTPAPI: "experimental.httpApi",
   OPENCODE_EXPERIMENTAL_FILEWATCHER: "experimental.fileWatcher",
   OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: "experimental.disableFileWatcher",
   OPENCODE_EXPERIMENTAL_PLAN_MODE: "experimental.planMode",

@@ -213,7 +213,7 @@ try {
 
 ### Test Cases
 - [ ] GitHub command executes correctly
-- [ ] No subscription leak after command completes
+- [x] No subscription leak after command completes
 
 ---
 

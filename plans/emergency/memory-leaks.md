@@ -7,6 +7,7 @@
 ## B1. heap.ts — Add stop() Export [P0-CRITICAL]
 **File:** `packages/opencode/src/cli/heap.ts:53-56`
 **SV:** `[setInterval, clearInterval, stop, timer, heap-profiling]`
+**Status:** ✅ DONE (2026-06-27)
 
 ### Current Code
 ```ts

@@ -72,8 +72,8 @@ Independent items (no blocking dependencies):
 | 4.2 | Inline SQL Cleanup | `plans_completed/20260625_inline_sql_cleanup_plan.md` | 3-5 days | Low | [x] Done |
 | 4.3 | HTTP API v2 | `plans/20260625_http_api_v2_plan.md` | 2-4 weeks | Medium | [ ] Planned |
 | C1 | Conversation Checkpoint | `plans_completed/20260624_checkpoint_plan.md` | 6-8h | High | [x] Done |
-| E3 | Orchestrator Evolving Mode | `plans/20260626_orchestrator_evolving_mode.md` | 1-2 days | High | [ ] Planned |
-| E4 | Cache Prediction Bugs | `plans/emergency/20260627_cache_prediction_bugs.md` | 0.5-1 day | High | [ ] Planned |
+| E3 | Orchestrator Evolving Mode | `plans_completed/20260626_orchestrator_evolving_mode.md` | 1-2 days | High | [x] Done |
+| E4 | Cache Prediction Bugs | `plans_completed/20260627_cache_prediction_bugs.md` | 0.5-1 day | High | [x] Done |
 
 ## Recommended Execution Order
 
@@ -94,9 +94,9 @@ Phase 2 (Foundation — done):
   [x] 4.2 Inline SQL Cleanup (3-5 days)
   [x] C1 Conversation Checkpoint (6-8h)
 
-Phase 3 (In Progress):
+Phase 3 (Done):
   [x] E4 Cache Prediction Bugs (0.5-1 day) — fingerprint key, prediction logic, checkpoint mismatch
-  Day 2-3:  E3 Orchestrator Evolving Mode tasks 2-4 (1-2 days)
+  [x] E3 Orchestrator Evolving Mode (1-2 days) — git init, branch workflow, evolving toggle
 
 Phase 4 (Next):
   Days 1-20: 4.3 HTTP API v2 (2-4 weeks)
@@ -115,8 +115,8 @@ Each item is complete when:
 - Working tree: clean
 - Typecheck: zero errors
 - Tests: all passing
-- Completed plans: 88 in `plans_completed/`
-- Active plans: 4 (this master + http-api-v2 + orchestrator-evolving-mode + cache-prediction-bugs)
+- Completed plans: 90 in `plans_completed/`
+- Active plans: 2 (this master + http-api-v2)
 
 ## Revisions
 
@@ -127,3 +127,4 @@ Each item is complete when:
 | 2026-06-26 | Marked 4.1, 4.2, P2 as done (moved to plans_completed/ 2026-06-25, master stale). Added C1 (Checkpoint Plan) and E3 (Orchestrator Evolving Mode) to tracking. Added hardening rule 10 (reference grounding) to reasoning.txt and AGENTS.md Plan Maintenance to prevent recurrence. |
 | 2026-06-27 | Updated execution order to reflect completed foundation items (4.4, 4.5, 4.6, 4.1, 4.2, C1). Phase 3 now shows E3 tasks 2-4 pending (tasks 1 done). Phase 4 is HTTP API v2. Master plan corrected to match actual completed state. |
 | 2026-06-27 | Added E4 (Cache Prediction Bugs) — discovered via debug experiment. 3 bugs: fingerprint key lacks agent name, wrong prediction logic, checkpoint mismatch causing system prompt change. Emergency priority. |
+| 2026-06-27 | Marked E3 (Orchestrator Evolving Mode) and E4 (Cache Prediction Bugs) as Done. Moved both plans to plans_completed/. Phase 3 complete. 121/130 plans archived. |

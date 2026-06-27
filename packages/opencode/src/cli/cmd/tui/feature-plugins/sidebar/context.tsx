@@ -2,6 +2,7 @@ import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import { createMemo, createSignal, onCleanup, onMount } from "solid-js"
 import { getModelStatus } from "@/provider/balance"
+import { useAgiMode } from "@tui/context/agi-mode"
 
 const id = "internal:sidebar-context"
 
@@ -38,6 +39,89 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
   const cost = createMemo(() => msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0))
   const [providerStatus, setProviderStatus] = createSignal<Record<string, ModelStatusDisplay>>({})
+
+  // Get AGI mode sessions if active
+  let agiMode: ReturnType<typeof useAgiMode> | undefined
+  try {
+    agiMode = useAgiMode(() => props.session_id)
+  } catch {
+    // Not in AGI context
+  }
+
+  // Calculate cache stats for all active sessions
+  const allSessionStats = createMemo(() => {
+    const stats: Array<{ name: string; cacheRead: number; cacheMiss: number; hitRate: number | null }> = []
+
+    // Current session stats
+    const allAssistant = msg().filter((item): item is AssistantMessage =>
+      item.role === "assistant" && item.tokens.output > 0,
+    )
+    const last = allAssistant[allAssistant.length - 1]
+    if (last) {
+      let sessionCacheRead = 0
+      let sessionCacheMiss = 0
+      for (const m of allAssistant) {
+        sessionCacheRead += m.tokens.cache.read
+        sessionCacheMiss += m.tokens.input
+      }
+      const total = sessionCacheRead + sessionCacheMiss
+      const hitRate = total > 0 && sessionCacheRead > 0
+        ? Math.round((sessionCacheRead / total) * 100)
+        : null
+      stats.push({
+        name: "current",
+        cacheRead: sessionCacheRead,
+        cacheMiss: sessionCacheMiss,
+        hitRate,
+      })
+    }
+
+    // AGI mode sessions (orchestrator, main)
+    if (agiMode) {
+      const orchSid = agiMode.orchSessionID()
+      const mainSid = agiMode.mainSessionID()
+      if (orchSid && orchSid !== props.session_id) {
+        const orchMsgs = props.api.state.session.messages(orchSid)
+        const orchAssistant = orchMsgs.filter((m): m is AssistantMessage =>
+          m.role === "assistant" && m.tokens.output > 0,
+        )
+        if (orchAssistant.length > 0) {
+          let cacheRead = 0
+          let cacheMiss = 0
+          for (const m of orchAssistant) {
+            cacheRead += m.tokens.cache.read
+            cacheMiss += m.tokens.input
+          }
+          const total = cacheRead + cacheMiss
+          const hitRate = total > 0 && cacheRead > 0
+            ? Math.round((cacheRead / total) * 100)
+            : null
+          stats.push({ name: "orch", cacheRead, cacheMiss, hitRate })
+        }
+      }
+      if (mainSid && mainSid !== props.session_id) {
+        const mainMsgs = props.api.state.session.messages(mainSid)
+        const mainAssistant = mainMsgs.filter((m): m is AssistantMessage =>
+          m.role === "assistant" && m.tokens.output > 0,
+        )
+        if (mainAssistant.length > 0) {
+          let cacheRead = 0
+          let cacheMiss = 0
+          for (const m of mainAssistant) {
+            cacheRead += m.tokens.cache.read
+            cacheMiss += m.tokens.input
+          }
+          const total = cacheRead + cacheMiss
+          const hitRate = total > 0 && cacheRead > 0
+            ? Math.round((cacheRead / total) * 100)
+            : null
+          stats.push({ name: "main", cacheRead, cacheMiss, hitRate })
+        }
+      }
+    }
+
+    return stats
+  })
 
   // Listen for standardised model status updates — all providers
   const unsub = (props.api.event as any).on("session.model_status_updated", (evt: any) => {
@@ -172,23 +256,24 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       </text>
       <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
       <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
-      {state().cacheRead > 0 || state().sessionCacheRead! > 0 ? (
-        <text fg={(state().sessionCacheHitRate ?? state().cacheHitRate)! > 80 ? theme().success : (state().sessionCacheHitRate ?? state().cacheHitRate)! >= 40 ? theme().warning : theme().error}>
-          Cache: {state().sessionCacheHitRate ?? state().cacheHitRate ?? 0}% {compactNum(state().sessionCacheRead ?? 0)}({compactNum(state().cacheRead)}) read · {compactNum(state().sessionCacheInput ?? 0)}({compactNum(state().cacheInput)}) miss
-        </text>
+      {allSessionStats().length > 0 ? (
+        allSessionStats().map((s) => (
+          <text fg={(s.hitRate ?? 0) > 80 ? theme().success : (s.hitRate ?? 0) >= 40 ? theme().warning : theme().error}>
+            {s.name}: {s.hitRate ?? 0}% {compactNum(s.cacheRead)}({compactNum(s.cacheMiss)}) read · {compactNum(s.cacheMiss)}({compactNum(s.cacheRead)}) miss
+          </text>
+        ))
       ) : (
         <text fg={theme().textMuted}>Cache: cold</text>
       )}
       {state().reasoning > 0 && (
-        <text fg={theme().textMuted}>Reasoning: {state().reasoning.toLocaleString()} tokens</text>
+        <text fg={theme().textMuted}>R{compactNum(state().reasoning)}</text>
       )}
       {state().output > 0 && (
         <text fg={theme().textMuted}>
-          Output: {state().output.toLocaleString()}
-          {state().outputLimit > 0 ? ` / ${state().outputLimit.toLocaleString()} tokens` : " tokens"}
+          {compactNum(state().output)}{state().outputLimit > 0 ? `/${compactNum(state().outputLimit)}` : ""} tok
         </text>
       )}
-      <text fg={theme().textMuted}>{money.format(cost())} spent</text>
+      {cost() > 0 && <text fg={theme().textMuted}>{money.format(cost())} spent</text>}
       {(() => {
         const pid = state().providerID
         if (!pid) return null

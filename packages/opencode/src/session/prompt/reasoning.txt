@@ -205,8 +205,9 @@ user requirements, decisions, blocked tasks.
 **System tools (C:\Windows\):** `rg.exe`, `fd.exe` — always available
 **Git Unix utils (C:\Program Files\Git\usr\bin\):** `ls.exe`, `cat.exe`, `tail.exe`, `head.exe`, `grep.exe`, `diff.exe`, `sort.exe` — available if Git installed, but may pipe incorrectly in PowerShell
 **Project tools ({worktree}/tools/):** `rg.exe`, `fd.exe`, `grep.exe`, `sed.exe`, `cmd_runner.exe`, `adm.exe`
+**Safe wrappers:** `adm --sed` (sed with auto-backup), `adm --rg` (rg with search context) — prefer over raw sed/rg for file modifications
 **Detection:** Use `which` (from `@/util/which`) or `cmd /c where.exe <tool>` to check availability
-**Rule:** Check tool exists before using. Prefer system-wide rg/fd over Git-provided utils.
+**Rule:** Check tool exists before using. Prefer adm wrappers for sed/rg to get backup safety.
 </operational>
 
 <tone>

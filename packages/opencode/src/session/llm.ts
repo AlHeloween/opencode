@@ -453,7 +453,9 @@ const live: Layer.Layer<
           // Attempt JSON repair on malformed tool call arguments before
           // falling back to the "invalid" tool (LLMs often emit extra brackets
           // or trailing commas that can be auto-fixed).
-          const repaired = repairJson(String(failed.toolCall.input))
+          // Strip null bytes first — they break JSON.parse even before repairJson runs.
+          const rawInput = String(failed.toolCall.input).replace(/\x00/g, "")
+          const repaired = repairJson(rawInput)
           if (repaired !== null) {
             l.info("repaired malformed JSON in tool call", {
               tool: failed.toolCall.toolName,

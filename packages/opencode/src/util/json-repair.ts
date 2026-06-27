@@ -19,7 +19,13 @@ export function repairJson(input: string): string | null {
   let candidate = input.trim()
   if (candidate.length === 0) return null
 
-  // Strategy 0: fast path — input is already valid JSON
+  // Strategy 0: strip control characters (0x00-0x1F except 0x09 tab, 0x0A LF, 0x0D CR)
+  // before any repair attempt. JSON spec forbids control characters outside strings,
+  // and LLMs occasionally emit null bytes or other control chars that break JSON.parse.
+  candidate = candidate.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+  if (candidate.length === 0) return null
+
+  // Strategy 0.5: fast path — input is already valid JSON
   if (tryParse(candidate)) return candidate
 
   // Strategy 0.5: convert single-quoted JSON to double-quoted.

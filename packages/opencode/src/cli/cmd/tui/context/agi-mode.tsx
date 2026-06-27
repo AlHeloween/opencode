@@ -25,6 +25,7 @@ import { getPlanStatus, formatProgressBar, type PlanStatus } from "@/util/plan-s
 import { MessageID } from "@/session/schema"
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "fs"
 import path from "path"
+import { execSync } from "child_process"
 
 /** Persisted AGI state — survives TUI restarts and route navigation. */
 interface AgiState {
@@ -49,6 +50,81 @@ function saveAgiState(state: AgiState) {
   } catch (e) { console.debug("agi state save failed", e) }
 }
 
+/**
+ * Ensure git is initialized in the worktree. Returns true if ready.
+ * If .git is missing, runs git init + creates .gitignore + initial commit.
+ */
+function ensureGitInit(worktree: string): boolean {
+  const gitDir = path.join(worktree, ".git")
+  if (existsSync(gitDir)) return true
+
+  try {
+    execSync("git init", { cwd: worktree, stdio: "ignore" })
+
+    // Create .gitignore if missing
+    const gitignore = path.join(worktree, ".gitignore")
+    if (!existsSync(gitignore)) {
+      writeFileSync(gitignore, [
+        "node_modules/",
+        ".opencode/data/",
+        "dist/",
+        "build/",
+        "*.log",
+        ".env",
+        ".env.local",
+      ].join("\n"))
+    }
+
+    // Initial commit
+    execSync("git add -A", { cwd: worktree, stdio: "ignore" })
+    execSync('git commit -m "initial commit (auto-init by AGI mode)" --allow-empty', { cwd: worktree, stdio: "ignore" })
+    return true
+  } catch (e) {
+    console.debug("git init failed", e)
+    return false
+  }
+}
+
+/**
+ * Create an improvement branch and return the branch name.
+ * Returns undefined if branch creation fails.
+ */
+function createImprovementBranch(worktree: string, cycleNumber: number): string | undefined {
+  const branchName = `improvement/cycle-${cycleNumber}`
+  try {
+    // Check current branch
+    const currentBranch = execSync("git branch --show-current", { cwd: worktree, encoding: "utf-8" }).trim()
+
+    // Create and checkout new branch
+    execSync(`git checkout -b ${branchName}`, { cwd: worktree, stdio: "ignore" })
+    return branchName
+  } catch (e) {
+    console.debug("branch creation failed", e)
+    return undefined
+  }
+}
+
+/**
+ * Merge improvement branch back to main. Returns true if successful.
+ */
+function mergeImprovementBranch(worktree: string, branchName: string): boolean {
+  try {
+    // Checkout main/master
+    const mainBranch = execSync("git symbolic-ref refs/remotes/origin/HEAD", {
+      cwd: worktree,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim().replace("refs/remotes/origin/", "")
+
+    execSync(`git checkout ${mainBranch}`, { cwd: worktree, stdio: "ignore" })
+    execSync(`git merge ${branchName} --no-ff -m "merge ${branchName}"`, { cwd: worktree, stdio: "ignore" })
+    return true
+  } catch (e) {
+    console.debug("branch merge failed", e)
+    return false
+  }
+}
+
 /** Maximum length of main session output to pass back to orchestrator. */
 const MAX_OUTPUT_CHARS = 4000
 
@@ -66,6 +142,9 @@ let activationStartedAt = 0
  *  Previously each caller created its own createSignal(false), so toggling
  *  from app.tsx didn't update the badge in routes/session/index.tsx. */
 const [agiMode, setAgiMode] = createSignal(false)
+
+/** Module-level evolving mode signal — when true, orchestrator generates improvement plans after all active plans complete. */
+const [evolvingMode, setEvolvingMode] = createSignal(false)
 
 /** Module-level plan status — shared so refreshPlanStatus from any caller
  *  updates the badge rendered by routes/session/index.tsx. */
@@ -291,6 +370,12 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     setAgiMode(true)
 
     try {
+      // Task 2: Git auto-init — ensure .git exists before orchestrator starts
+      const worktree = Global.Path.worktree || Global.Path.home
+      if (!ensureGitInit(worktree)) {
+        toast.show({ message: "AGI: git init failed — continuing without git", variant: "warning" })
+      }
+
       // Use current TUI session as main — reuse if already set
       if (currentSessionID()) {
         setMainSessionID(currentSessionID()!)
@@ -331,6 +416,9 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       if (!existed) {
         const messageID = MessageID.ascending()
         const activePlans = planData().active.join(", ") || "none"
+        const evolvingNote = evolvingMode()
+          ? "\n\nIMPORTANT: Evolving mode is ENABLED. When all active plans complete, you MUST enter evolving mode as described in your instructions. Analyze the codebase across Stability, Performance, Observability, Testing, and UX categories."
+          : ""
         await sdk.client.session.promptAsync({
           sessionID: oid,
           messageID,
@@ -341,6 +429,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               `Plan progress: ${progressBar()}.`,
               `Active plans: ${activePlans}.`,
               `Completed plans: ${planData().completed.length}.`,
+              evolvingNote,
               "",
               "Analyze the current state. Read the active plans to understand what needs to be done.",
               "Check the dependency graph in the master plan.",
@@ -410,5 +499,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     compactOrchestrator,
     refreshPlanStatus,
     deactivate,
+    evolvingMode,
+    setEvolvingMode,
   }
 }

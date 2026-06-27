@@ -1,7 +1,7 @@
 # Orchestrator Enhancement: Evolving Mode + Git Integration
 
 **Created:** 2026-06-26
-**Status:** Task 1 done (evolving mode appended to orchestrator.txt), tasks 2-4 pending.
+**Status:** Tasks 1-4 DONE (2026-06-27)
 **Goal:** Add evolving improvement mode, git auto-init, and branch-based plan iteration to orchestrator.
 
 ## Current State
@@ -44,17 +44,17 @@ After all active plans are completed:
 - File: `packages/opencode/src/agent/prompt/orchestrator.txt`
 
 ### Task 2: Add git auto-init logic
-- Before orchestrator loop starts, check for `.git/`
-- If missing, generate `git init` + `.gitignore` instruction
+- [x] Before orchestrator loop starts, check for `.git/`
+- [x] If missing, generate `git init` + `.gitignore` instruction
 - File: `packages/opencode/src/cli/cmd/tui/context/agi-mode.tsx`
 
 ### Task 3: Add branch-based workflow
-- After plan completion detected, create branch
-- Execute on branch, evaluate results
-- Merge or abandon based on outcome
+- [x] After plan completion detected, create branch
+- [x] Execute on branch, evaluate results
+- [x] Merge or abandon based on outcome
 - File: `packages/opencode/src/cli/cmd/tui/context/agi-mode.tsx`
 
 ### Task 4: Add evolving toggle to TUI
-- Toggle for "evolving mode" in AGI settings
-- Visual indicator when evolving mode is active
+- [x] Toggle for "evolving mode" in AGI settings
+- [x] Visual indicator when evolving mode is active
 - File: `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx`

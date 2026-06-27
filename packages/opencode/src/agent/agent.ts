@@ -155,7 +155,7 @@ export const layer = Layer.effect(
                   [path.join(".opencode", "data", "memory", "*_orchestrator.md")]: "allow",
                 },
                 write: "deny",
-                bash: "deny",
+                bash: "allow",
                 task: "deny",
                 todowrite: "deny",
                 read: "allow",

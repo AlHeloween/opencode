@@ -239,18 +239,14 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   })
 
   /** Get the last completed assistant text from a session.
-   *  Only reads from messages with time.completed set — avoids capturing
-   *  partial streaming text from mid-stream responses. */
+   *  Takes only the LAST text part — avoids concatenating tool-call echoes. */
   function lastAssistantText(sessionID: string): string {
     const msgs = sync.data.message[sessionID] ?? []
     const last = msgs.findLast((x) => x.role === "assistant" && x.time.completed)
     if (!last) return ""
     const parts = sync.data.part[last.id] ?? []
-    return parts
-      .filter((p: any) => p.type === "text")
-      .map((p: any) => p.text ?? "")
-      .join("\n")
-      .slice(0, MAX_OUTPUT_CHARS)
+    const lastText = parts.findLast((p: any) => p.type === "text")
+    return ((lastText as any)?.text ?? "").slice(0, MAX_OUTPUT_CHARS)
   }
 
   /** Collect worker messages since a given timestamp.

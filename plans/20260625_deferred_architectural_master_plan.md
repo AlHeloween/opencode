@@ -115,7 +115,7 @@ Each item is complete when:
 - Working tree: clean
 - Typecheck: zero errors
 - Tests: all passing
-- Completed plans: 130 in `plans_completed/`
+- Completed plans: 131 in `plans_completed/`
 - Active plans: 6 (this master + http-api-v2 + 4 emergency plans with deferred items)
 
 ## Revisions

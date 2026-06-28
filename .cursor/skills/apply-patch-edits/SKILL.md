@@ -10,8 +10,8 @@ description: Use apply_patch-only edits for AGENTS.md + canonical skills/rules t
 Use this skill whenever you need to edit any of:
 
 - `AGENTS.md`
-- Canonical agent rules: `artefacts/rules/**`
-- Canonical agent skills: `artefacts/skills/**/SKILL.md`
+- Canonical agent rules: `.cursor/rules/` (source: `<assets_dir>/rules/`)
+- Canonical agent skills: `.cursor/skills/` (source: `<assets_dir>/skills/`)
 
 These files are high-churn coordination surfaces; in multi-agent work, in-place manual edits tend to create
 cross-conflicts and ambiguous provenance.
@@ -22,10 +22,10 @@ cross-conflicts and ambiguous provenance.
 2. Do not edit receiver copies under `.codex/`, `~/.codex/`, `.cursor/`, `.opencode/` directly.
 3. After editing canonical assets, sync receivers so installs and tooling stay consistent. Use the asset-source repository's real build/sync commands.
 
-Concrete fixture for expected script names: `artefacts/examples/project-agnostic/scripts/`.
+Reference fixture: `<asset_repo>/scripts/sync_agent_assets.py`
 
 If you changed only canonical skills and want a faster sync of receiver skill folders:
 
 ~~~bash
-python <real_asset_pipeline>/sync_skills_from_artefacts.py --prune
+python <real_asset_pipeline>/sync_skills_from_assets.py --prune
 ~~~

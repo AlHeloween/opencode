@@ -30,13 +30,13 @@ Provide a reliable workflow for building and running Delphi DUnit tests (console
 
 ## Typical project layout
 
-- Test project: `artefacts\examples\project-agnostic\tests\ProjectTests.dpr`
-- Test units: `artefacts\examples\project-agnostic\tests\TestCore.pas`, `artefacts\examples\project-agnostic\tests\TestServices.pas`
+- Test project: `<assets_dir>\docs\examples\project-agnostic\tests\ProjectTests.dpr`
+- Test units: `<assets_dir>\docs\examples\project-agnostic\tests\TestCore.pas`, `<assets_dir>\docs\examples\project-agnostic\tests\TestServices.pas`
 
 ## How to add a new test
 
 1. Add a new unit such as `tests\TestSomething.pas`.
-2. Register it in the local DUnit project file. See `artefacts\examples\project-agnostic\tests\ProjectTests.dpr` for the documentation fixture.
+2. Register it in the local DUnit project file. See `<assets_dir>\docs\examples\project-agnostic\tests\ProjectTests.dpr` for the documentation fixture.
 3. Re-run the local DUnit test command.
 
 ## Notes

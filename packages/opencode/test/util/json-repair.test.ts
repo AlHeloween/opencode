@@ -304,4 +304,41 @@ describe("repairJson", () => {
     expect(() => JSON.parse(result!)).not.toThrow()
     expect(JSON.parse(result!)).toEqual({ prompt: "hello", subagent_type: "explore" })
   })
+
+  test("handles English apostrophes inside single-quoted JSON values", () => {
+    // The exact bug: single-quoted JSON with "user's" (apostrophe in value)
+    // LLM outputs raw unescaped ' inside single-quoted JSON:
+    // {'prompt': 'Search user's files', ...}
+    // The ' after "user" was previously treated as closing delimiter.
+    const input = "{'prompt': 'Search user's files and index them', 'subagent_type': 'explore'}"
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    const parsed = JSON.parse(result!)
+    expect(parsed.prompt).toBe("Search user's files and index them")
+    expect(parsed.subagent_type).toBe("explore")
+  })
+
+  test("handles multiple contractions in single-quoted JSON values", () => {
+    // Multiple English contractions in prompt text — raw unescaped apostrophes
+    const input = "{'prompt': 'he doesn't know what he's talking about', 'subagent_type': 'explore'}"
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    const parsed = JSON.parse(result!)
+    expect(parsed.prompt).toBe("he doesn't know what he's talking about")
+    expect(parsed.subagent_type).toBe("explore")
+  })
+
+  test("handles possessive apostrophe in single-quoted JSON task prompt", () => {
+    // The exact scenario from the bug report: task tool delegation with
+    // possessive "user's" / "project's" in the prompt
+    const input = "{'prompt': 'Find the project's configuration and read the user's settings', 'subagent_type': 'explore'}"
+    const result = repairJson(input)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    const parsed = JSON.parse(result!)
+    expect(parsed.prompt).toBe("Find the project's configuration and read the user's settings")
+    expect(parsed.subagent_type).toBe("explore")
+  })
 })

@@ -164,6 +164,16 @@ function convertSingleToDoubleQuotes(input: string): string {
     if (inSingle) {
       // Inside a single-quoted string
       if (ch === "'") {
+        // Detect English apostrophes (e.g., "user's", "don't", "it's")
+        // vs. closing delimiters. A closing ' is never followed by a letter
+        // — it's followed by comma, brace, space, or EOF. An apostrophe
+        // mid-word IS followed by a letter (e.g., "user's" → 's).
+        const next = i + 1 < input.length ? input[i + 1] : ""
+        if (next && /[a-zA-Z]/.test(next)) {
+          // English apostrophe inside a word — keep as string content
+          result += "'"
+          continue
+        }
         // End of single-quoted string → convert to double quote
         inSingle = false
         result += '"'

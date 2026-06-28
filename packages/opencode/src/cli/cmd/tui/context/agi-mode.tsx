@@ -170,6 +170,22 @@ const [turnCount, setTurnCount] = createSignal(0)
 const [cycleCount, setCycleCount] = createSignal(0)
 const [totalCost, setTotalCost] = createSignal(0)
 
+/** Module-level AGI session IDs — shared across all useAgiMode() call sites
+ *  so that session route and sidebar see the same sessions as app.tsx. */
+const persistedAgiState = loadAgiState()
+const [mainSessionID, setMainSessionID] = createSignal<string | undefined>(persistedAgiState.mainSessionID)
+const [orchSessionID, setOrchSessionID] = createSignal<string | undefined>(persistedAgiState.orchSessionID)
+
+/** Shared state machine — all useAgiMode() instances share these variables
+ *  so only the first to react to each transition dispatches work.
+ *  Previously each call site had its own state machine, causing 3x duplicate messages
+ *  when all three independently dispatched the same orchestrator directives. */
+const [phase, setPhase] = createSignal<LoopPhase>("BOOTSTRAP")
+let lastDispatchedOrchMsgID = ""
+let dispatchTime: Record<string, number> = {}
+let activeWorkers: string[] = []
+let unsubError: (() => void) | undefined
+
 /** AGI loop phases — status-driven state machine. */
 type LoopPhase =
   | "BOOTSTRAP"       // initial prompt sent to orch, waiting for orch busy
@@ -191,20 +207,17 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   const event = useEvent()
   const toast = useToast()
 
-  // Load persisted AGI state (survives TUI restarts, route navigation)
-  const persisted = loadAgiState()
-  const [mainSessionID, setMainSessionIDRaw] = createSignal<string | undefined>(persisted.mainSessionID)
-  const [orchSessionID, setOrchSessionIDRaw] = createSignal<string | undefined>(persisted.orchSessionID)
+
 
   /** Set main session ID and persist. */
-  function setMainSessionID(id: string | undefined) {
-    setMainSessionIDRaw(id)
+  function persistMainSessionID(id: string | undefined) {
+    setMainSessionID(id)
     saveAgiState({ orchSessionID: orchSessionID(), mainSessionID: id })
   }
 
   /** Set orchestrator session ID and persist. */
-  function setOrchSessionID(id: string | undefined) {
-    setOrchSessionIDRaw(id)
+  function persistOrchSessionID(id: string | undefined) {
+    setOrchSessionID(id)
     saveAgiState({ orchSessionID: id, mainSessionID: mainSessionID() })
   }
 
@@ -341,13 +354,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
    * Error handling:
    *   session.error event → deactivate, report error
    */
-  const [phase, setPhase] = createSignal<LoopPhase>("BOOTSTRAP")
-  let dispatchTime: Record<string, number> = {}
-  let activeWorkers: string[] = []
-  let unsubError: (() => void) | undefined
-  /** Message-ID dedup — only dispatch when orchestrator has new output.
-   *  Level-triggered: works whether or not the effect observed the busy state. */
-  let lastDispatchedOrchMsgID = ""
+
 
   createEffect(() => {
     if (!agiMode()) return
@@ -607,14 +614,14 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
 
       // Use current TUI session as main — reuse if already set
       if (currentSessionID()) {
-        setMainSessionID(currentSessionID()!)
+        persistMainSessionID(currentSessionID()!)
       } else if (!mainSessionID() || !sessionExists(mainSessionID()!)) {
         const mainRes = await sdk.client.session.create({})
         if (mainRes.error) {
           setAgiMode(false)
           return
         }
-        setMainSessionID(mainRes.data.id)
+        persistMainSessionID(mainRes.data.id)
       }
 
       // Reuse existing orchestrator session (persisted), or create new one
@@ -624,14 +631,14 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       if (existed) {
         oid = persistedOid!
       } else {
-        if (persistedOid) setOrchSessionID(undefined) // clear stale reference
+        if (persistedOid) persistOrchSessionID(undefined) // clear stale reference
         const orchRes = await sdk.client.session.create({})
         if (orchRes.error) {
           setAgiMode(false)
           return
         }
         oid = orchRes.data.id
-        setOrchSessionID(oid)
+        persistOrchSessionID(oid)
 
         // Create memory file if it doesn't exist
         const dataDir = path.join(Global.Path.data, "memory")

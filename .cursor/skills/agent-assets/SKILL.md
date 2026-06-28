@@ -7,8 +7,8 @@ description: Maintain canonical artefacts and install agent receiver scaffolds (
 
 ## Canonical sources
 
-- Rules: `artefacts/rules/`
-- Skills: `artefacts/skills/`
+- Rules: `.cursor/rules/` (installed from `<assets_dir>/rules/`)
+- Skills: `.cursor/skills/` (installed from `<assets_dir>/skills/`)
 
 Agent folders are receivers (safe to delete): `.cursor/`, `.codex/`, `~/.codex/`, `.opencode/`.
 
@@ -17,7 +17,7 @@ Agent folders are receivers (safe to delete): `.cursor/`, `.codex/`, `~/.codex/`
 1. Edit canonical assets under the asset-source repository's rules and/or skills folders.
 2. Regenerate derived artefacts and scaffolds using that repository's real asset build command.
 
-Concrete fixture for expected script names: `artefacts/examples/project-agnostic/scripts/`.
+Reference fixture: `<asset_repo>/scripts/build_assets.py` — replace `<asset_repo>` with the actual source repository root.
 
 3. Install scaffolds into receivers using the repository's real sync command.
 

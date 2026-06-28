@@ -92,7 +92,7 @@ Bundled binary split note:
 
 ## Building Executables
 
-When working in the `adm` source repository, use its local build script. In other projects, treat executable builds as project-specific and inspect the local build documentation first. Concrete fixture for expected script names: `artefacts/examples/project-agnostic/scripts/`.
+When working in the `adm` source repository, use its local build script. In other projects, treat executable builds as project-specific and inspect the local build documentation first. Reference fixture: `<assets_dir>/scripts/_build.py` — replace `<assets_dir>` with the actual source repository root.
 
 ~~~bash
 # Build all executables with Nuitka (recommended)

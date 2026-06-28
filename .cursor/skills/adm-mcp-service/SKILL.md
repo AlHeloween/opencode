@@ -26,9 +26,7 @@ Codex can launch `adm` as a stdio MCP server and call the RAG tools through it.
 
 - Add server (writes to `~/.codex/config.toml`):
   - `codex mcp add project_rag --cwd <real_project_root> -- <real_project_root>\\tools\\adm-rag.exe --mcp`
-- Concrete documentation fixture:
-  - `artefacts/examples/project-agnostic/README.md`
-  - Replace `artefacts/examples/project-agnostic` with the real project root before running MCP commands.
+- Reference fixture: `<assets_dir>/README.md` — replace `<assets_dir>` with the real project root before running MCP commands.
 - Verify:
   - `codex mcp list`
   - `codex mcp get project_rag`

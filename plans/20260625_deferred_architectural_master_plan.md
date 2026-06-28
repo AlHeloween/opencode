@@ -128,3 +128,4 @@ Each item is complete when:
 | 2026-06-27 | Updated execution order to reflect completed foundation items (4.4, 4.5, 4.6, 4.1, 4.2, C1). Phase 3 now shows E3 tasks 2-4 pending (tasks 1 done). Phase 4 is HTTP API v2. Master plan corrected to match actual completed state. |
 | 2026-06-27 | Added E4 (Cache Prediction Bugs) — discovered via debug experiment. 3 bugs: fingerprint key lacks agent name, wrong prediction logic, checkpoint mismatch causing system prompt change. Emergency priority. |
 | 2026-06-27 | Marked E3 (Orchestrator Evolving Mode) and E4 (Cache Prediction Bugs) as Done. Moved both plans to plans_completed/. Phase 3 complete. 121/130 plans archived. |
+| 2026-06-28 | Fixed plan-to-code gap in HTTP API v2 plan — marked tasks 1.6/1.7/1.8 as done based on code reality. Added orchestrator plan capability (`plans_completed/20260628_orchestrator_plan_capability.md`) — orchestrator can now `edit`/`write` plans/*.md and use `task` tool for delegation. |

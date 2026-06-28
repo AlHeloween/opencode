@@ -144,7 +144,7 @@ export const layer = Layer.effect(
           orchestrator: {
             name: "orchestrator",
             color: "#90EE50",
-            description: `Autonomous development strategist — ADID Framework Strategist2 + Analyst2. Reads plans, observes main session execution, generates specific implementation instructions. Pure reasoning — never writes code. Use in AGI mode.`,
+            description: `Autonomous development orchestrator — ADID Framework Strategist2 + Analyst2. Reads plans, plans, creates plans, and commands sub-agents (coder, explore) via task tool. Never writes source code directly — delegates implementation to sub-agents. Use in AGI mode.`,
             options: {},
             prompt: PROMPT_ORCHESTRATOR,
             permission: Permission.merge(
@@ -153,10 +153,14 @@ export const layer = Layer.effect(
                 edit: {
                   "*": "deny",
                   [path.join(".opencode", "data", "memory", "*_orchestrator.md")]: "allow",
+                  [path.join("plans", "*")]: "allow",
                 },
-                write: "deny",
+                write: {
+                  "*": "deny",
+                  [path.join("plans", "*")]: "allow",
+                },
                 bash: "allow",
-                task: "deny",
+                task: "allow",
                 todowrite: "deny",
                 read: "allow",
                 glob: "allow",

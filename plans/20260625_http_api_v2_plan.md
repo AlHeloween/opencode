@@ -1,11 +1,12 @@
 ---
-status: planned
+status: execution
 owner: codex
 created: 2026-06-25
+updated: 2026-06-28
 reproduce:
   - cd packages/opencode
   - bun typecheck
-  - OPENCODE_EXPERIMENTAL_HTTPAPI=1 bun run src/server/server.ts --test-endpoints
+  - bun run src/server/server.ts --test-endpoints
 ---
 
 # HTTP API v2 Restructure Plan
@@ -16,16 +17,11 @@ Complete the migration from legacy Hono routes to the Effect HttpApi system, eli
 
 ## Abstract Definition
 
-The server currently maintains **two complete API implementations** using identical URL paths:
+The server previously maintained **two complete API implementations** using identical URL paths. The `OPENCODE_EXPERIMENTAL_HTTPAPI` flag has been removed, the legacy Hono route files have been deleted, and `src/server/routes/instance/index.ts` now proxies all instance endpoints through `ExperimentalHttpApiServer.webHandler().handler`. The Effect HttpApi layer is the sole runtime implementation.
 
-| Layer | Technology | Status | Path Prefix |
-|-------|-----------|--------|-------------|
-| Legacy | Hono + `hono-openapi` + Zod | Default (production) | Same paths |
-| HttpApi | Effect `HttpApi`/`HttpApiBuilder` | Behind `OPENCODE_EXPERIMENTAL_HTTPAPI` flag | Same paths |
+Remaining Phase 1 work: audit HttpApi endpoint coverage, add missing endpoints, add integration tests, verify schema parity, and regenerate the SDK from the HttpApi OpenAPI spec.
 
-Both layers expose the same ~80 endpoints with identical request/response schemas. The HttpApi layer is the architectural successor — it uses Effect's native HTTP primitives, proper dependency injection, and typed error handling. Once parity is verified, the legacy layer can be removed.
-
-Additionally, there is **no URL-path API versioning** (`/v1/`, `/v2/`). The "v2" naming refers to SDK generation, not URL structure. Adding version prefixes would enable API evolution without breaking existing clients.
+Phase 2 (API versioning) is blocked by the SDK generator — see [BLOCKED] 2.1.
 
 ## Formalization
 
@@ -45,18 +41,15 @@ Target state (Phase 2): /v2/ prefix added to all routes (or E replaces root-leve
 ## Structural Diagram
 
 ```
-Current Architecture (corrected after explorer validation):
+Current Architecture (after Phase 1 partial completion):
   request → Hono App
-    ├── ALWAYS: Legacy Hono routes (src/server/routes/instance/*.ts) — 16 files
-    ├── IF flag: Effect HttpApi handlers registered on top (via index.ts:45-157)
-    │     → Both layers active simultaneously for most paths
-    └── Standalone endpoints (/instance, /path, /vcs, /command, /agent, /skill,
-        /lsp, /formatter) registered outside flag block — MAY lack HttpApi equivalents
-
-Target Architecture (Phase 1 — deduplication):
-  request → Hono App
-    └── Effect HttpApi (sole implementation, flag removed)
-        Legacy routes deleted from src/server/routes/instance/ (non-httpapi files)
+    ├── `InstanceRoutes()` in index.ts — thin proxy routing 50+ endpoint paths through
+    │   `ExperimentalHttpApiServer.webHandler().handler`, via individual `app.get/post()`
+    │   registrations. HttpApi is the runtime implementation.
+    ├── 8 standalone endpoints (/instance/dispose, /path, /vcs, /vcs/diff, /command,
+    │   /agent, /skill, /lsp, /formatter) — direct Hono+Effect handlers in index.ts:142-372
+    │   using `hono-openapi` + `describeRoute`.
+    └── Legacy Hono route files: deleted (only index.ts, middleware.ts, trace.ts, tui.ts remain)
 
 Target Architecture (Phase 2 — versioning):
   request → Hono App
@@ -67,17 +60,28 @@ Target Architecture (Phase 2 — versioning):
 
 ## Phase 1 Tasks: Remove Legacy Route Duplication
 
-- [ ] 1.1 Audit HttpApi coverage: identify any endpoints in legacy Hono routes NOT present in HttpApi
-- [ ] 1.2 Implement missing endpoints in HttpApi (if any found)
-- [ ] 1.3 Add HttpApi integration tests for all ~80 endpoints
-- [ ] 1.4 Verify request/response schema parity between Hono and HttpApi for every endpoint
+- [x] 1.1 Audit HttpApi coverage: identify any endpoints handled by `InstanceRoutes()` that lack HttpApi equivalents — inspect `InstancePaths`, `SessionPaths`, `McpPaths`, etc. in `index.ts:26-141` vs `httpapi/*.ts` files
+  - **Result**: 109 paths proxied, 109 HttpApi endpoints → **0 gaps. Full coverage.**
+  - **Bug found**: 9 InstancePaths (lines 65-73) are **dual-registered** with standalone handlers (lines 142-372). See task 1.12.
+  - **Orphan**: ControlApi (3 endpoints) and GlobalApi (5 endpoints) defined in `httpapi/*.ts` but **unwired in server.ts**. See task 1.13.
+- [x] 1.2 Implement missing endpoints in HttpApi (if any found)
+  - **Result**: None needed — coverage is complete.
+- [ ] 1.3 Add HttpApi integration tests for all endpoints
+- [ ] 1.4 Verify request/response schema parity between old `describeRoute` OpenAPI output and HttpApi-generated OpenAPI spec
 - [ ] 1.5 Run the full SDK regeneration pipeline against HttpApi OpenAPI output
-- [ ] 1.6 Remove `OPENCODE_EXPERIMENTAL_HTTPAPI` flag gating
-- [ ] 1.7 Delete legacy Hono route files from `src/server/routes/instance/` (16 non-httpapi files: session, config, project, provider, file, pty, mcp, sync, question, permission, experimental, tui, event, trace, middleware + index.ts trimmed)
-- [ ] 1.8 Trim legacy Hono route registration from `src/server/routes/instance/index.ts` (remove lines 159-403, keep standalone endpoint refs if HttpApi lacks equivalents)
-- [x] 1.9 Verify standalone endpoints (/instance, /path, /vcs, /vcs/diff, /command, /agent, /skill, /lsp, /formatter) have HttpApi equivalents
-- [x] 1.10 Update `server.ts` to always use HttpApi web handler (remove flag gating)
-- [x] 1.11 Run typecheck + full test suite
+- [x] 1.6 Remove `OPENCODE_EXPERIMENTAL_HTTPAPI` flag gating — flag removed from codebase (confirmed: zero grep hits)
+- [x] 1.7 Delete legacy Hono route files — 14 legacy files deleted. Only `index.ts` (rewritten proxy), `middleware.ts`, `trace.ts`, `tui.ts` remain
+- [x] 1.8 Trim legacy index.ts — `index.ts` now routes 50+ paths through `ExperimentalHttpApiServer.webHandler().handler`. Only 8 standalone endpoints retain direct handlers
+- [x] 1.9 Verify standalone endpoints have HttpApi equivalents — confirmed standalone endpoints use `InstancePaths` constants pointing to HttpApi.
+  - **Audit found dual registration bug**: 9 InstancePaths registered BOTH as HttpApi proxy (lines 65-73) AND as standalone handlers (lines 142-372). See task 1.12.
+- [x] 1.10 Update `server.ts` — flag removed, `InstanceRoutes()` used unconditionally, routes through HttpApi handler
+- [x] 1.11 Run typecheck — passes (zero errors)
+- [ ] 1.12 Fix dual registration of 9 InstancePaths in `index.ts` (lines 65-73 proxy + lines 142-372 standalone). Only ONE registration should exist. Two options:
+  - **Option A (preferred)**: Remove proxy lines 65-73 (keep standalone handlers), since standalone handlers already proxy through Effect via `jsonRequest` helpers. Add `describeRoute` annotations directly.
+  - **Option B**: Remove standalone handlers (lines 142-372), keep proxy only. Would lose `describeRoute` OpenAPI metadata for these 9 endpoints — must verify HttpApi generates equivalent OpenAPI for them.
+  - **Decision needed**: Compare OpenAPI output of both paths before deciding.
+- [ ] 1.13 Wire orphan HttpApi groups (ControlApi, GlobalApi) in server.ts, or delete them if unused. Currently defined in `public.ts` but `HttpApiBuilder.layer(...)` is never called for them in server.ts.
+- [ ] 1.14 Reconcile EventApi — currently uses raw `HttpRouter.add` instead of `HttpApiBuilder.layer`. Migrate to standard `HttpApiBuilder.layer`.
 
 ## Phase 2 Tasks: Add API Versioning
 

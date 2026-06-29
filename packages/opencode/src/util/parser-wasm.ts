@@ -5,6 +5,7 @@
  * Replaces 22 separate CDN round-trips with a single local load path.
  */
 import PARSER_CONFIG from "../../parsers-config"
+import { readWasmAsset } from "./wasm-path"
 
 type GrammarEntry = {
   filetype: string
@@ -22,17 +23,12 @@ async function loadLocalWasm(urlString: string): Promise<Uint8Array | null> {
   const cached = grammarCache.get(filename)
   if (cached !== undefined) return cached
 
-  try {
-    // Try local path first: ../../wasm/core/pkg/grammars/<filename>
-    const localPath = `../../wasm/core/pkg/grammars/${filename}`
-    const file = Bun.file(localPath)
-    if (await file.exists()) {
-      const buf = new Uint8Array(await file.arrayBuffer())
-      grammarCache.set(filename, buf)
-      return buf
-    }
-  } catch {
-    // Local file not found — try CDN fallback
+  // Try local path via wasm-path.ts (works in dev and compiled binary)
+  const asset = await readWasmAsset(`grammars/${filename}`)
+  if (asset.bytes) {
+    const buf = new Uint8Array(asset.bytes)
+    grammarCache.set(filename, buf)
+    return buf
   }
 
   // CDN fallback

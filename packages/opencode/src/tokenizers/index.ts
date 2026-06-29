@@ -1,10 +1,11 @@
 import type { Provider } from "@/provider/provider"
-import type { TokenizerInstance } from "./types"
+import type { TokenizerInstance, TokenizerModel } from "./types"
 import type { TokenizerConfig } from "./types"
 import { resolveTokenizer } from "./registry"
 import { loadDeepSeekV4, getDeepSeekV4 } from "./deepseek-v4/loader"
 import { loadQwen3, getQwen3 } from "./qwen3/loader"
 import { openaiTokenizer, getOpenaiTokenizer } from "./tiktoken-adapter"
+import { BpeWasmTokenizer } from "./bpe-wasm"
 import { Token } from "@/util/token"
 
 /**
@@ -24,6 +25,12 @@ function resolveConfig(model: Provider.Model): TokenizerConfig | undefined {
     if (config) return config
   }
   return undefined
+}
+
+/** Load a generic BPE tokenizer from a TokenizerModel. WASM only — returns undefined if unavailable. */
+async function loadBPE(model: TokenizerModel): Promise<TokenizerInstance | undefined> {
+  const tok = await BpeWasmTokenizer.load(model)
+  return tok ?? undefined
 }
 
 /** Load a tokenizer from its config */

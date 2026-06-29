@@ -1,0 +1,24 @@
+# Build configuration for tree-sitter WASM module.
+#
+# Prerequisites:
+#   1. Install LLVM/Clang with wasm32 support:
+#      - Windows: Install LLVM from https://llvm.org/builds/ (ensure "Add LLVM to PATH" is checked)
+#      - Or install wasi-sdk from https://github.com/WebAssembly/wasi-sdk/releases
+#   2. Add the wasm32 target: rustup target add wasm32-unknown-unknown
+#   3. Ensure clang.exe and llvm-ar.exe are on PATH
+#
+# Build command:
+#   cd packages/wasm/core
+#   wasm-pack build --target bundler
+#
+# If you get "fatal error: 'stdlib.h' file not found", you need wasi-sdk or
+# a clang installation with wasm32 sysroot support.
+
+[build]
+target = "wasm32-unknown-unknown"
+
+[target.wasm32-unknown-unknown]
+# Use clang from LLVM installation. Adjust path if LLVM is installed elsewhere.
+# On most systems, clang is already on PATH and this is not needed.
+# cc = "clang"
+# ar = "llvm-ar"

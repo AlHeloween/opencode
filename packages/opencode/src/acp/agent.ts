@@ -49,7 +49,7 @@ import { Todo } from "@/session/todo"
 import { Result, Schema } from "effect"
 import { LoadAPIKeyError } from "ai"
 import type { AssistantMessage, Event, OpencodeClient, SessionMessageResponse, ToolPart } from "@opencode-ai/sdk/v2"
-import { applyPatch } from "diff"
+import { applyPatch } from "@/util/diff-wasm"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 type ModeOption = { id: string; name: string; description?: string }
@@ -1706,7 +1706,7 @@ function parseUri(
 
 function getNewContent(fileOriginal: string, unifiedDiff: string): string | undefined {
   const result = applyPatch(fileOriginal, unifiedDiff)
-  if (result === false) {
+  if (!result) {
     log.error("Failed to apply unified diff (context mismatch)")
     return undefined
   }

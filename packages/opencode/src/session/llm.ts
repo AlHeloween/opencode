@@ -23,10 +23,14 @@ import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
 import * as Option from "effect/Option"
-import { repairJson, diagnoseParseError } from "@/util/json-repair"
+import { diagnoseParseError } from "@/util/diagnose-parse-error"
+import { repairJsonWasm } from "@/util/json-repair-wasm"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
+
+// Cache for token estimation — avoids re-serializing messages+system when count is unchanged
+let _cachedTokenEstimate: { count: number; value: number } | undefined
 
 /** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
   * LRU-evicted at 500 entries to prevent unbounded growth. */
@@ -259,7 +263,16 @@ const live: Layer.Layer<
       const messages = isOpenaiOauth || isWorkflow
         ? input.messages
         : input.messages
-      const contentTokens = Math.ceil((JSON.stringify(messages).length + JSON.stringify(system).length) / 4)
+
+      // Cached token estimate — only recompute when message count changes
+      let contentTokens: number
+      const msgCount = messages.length
+      if (_cachedTokenEstimate && _cachedTokenEstimate.count === msgCount) {
+        contentTokens = _cachedTokenEstimate.value
+      } else {
+        contentTokens = Math.ceil((JSON.stringify(messages).length + JSON.stringify(system).length) / 4)
+        _cachedTokenEstimate = { count: msgCount, value: contentTokens }
+      }
 
       const params = yield* plugin.trigger(
         "chat.params",
@@ -450,12 +463,12 @@ const live: Layer.Layer<
               toolName: lower,
             }
           }
-          // Attempt JSON repair on malformed tool call arguments before
-          // falling back to the "invalid" tool (LLMs often emit extra brackets
-          // or trailing commas that can be auto-fixed).
-          // Strip null bytes first — they break JSON.parse even before repairJson runs.
+          // Attempt JSON repair on malformed tool call arguments using WASM
+          // before falling back to the "invalid" tool. If WASM returns null,
+          // the tool call is treated as irreparably broken.
+          // Strip null bytes first — they break JSON.parse.
           const rawInput = String(failed.toolCall.input).replace(/\x00/g, "")
-          const repaired = repairJson(rawInput)
+          const repaired = await repairJsonWasm(rawInput)
           if (repaired !== null) {
             l.info("repaired malformed JSON in tool call", {
               tool: failed.toolCall.toolName,

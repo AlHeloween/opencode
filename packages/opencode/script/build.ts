@@ -165,8 +165,16 @@ for (const item of targets) {
   await Bun.build({
     conditions: ["browser"],
     tsconfig: "./tsconfig.json",
-    plugins: [plugin],
-    external: ["node-gyp"],
+    plugins: [
+      plugin,
+      {
+        name: "wasm-external",
+        setup(build) {
+          build.onResolve({ filter: /\/pkg\/(rdiff|json_repair|diffy)\// }, (args) => ({ path: args.path, external: true }))
+        },
+      },
+    ],
+    external: ["node-gyp", "*.wasm"],
     format: "esm",
     minify: true,
     splitting: true,

@@ -5,7 +5,7 @@ import { Bus } from "../bus"
 import { FileWatcher } from "../file/watcher"
 import { Instance } from "../project/instance"
 import { Patch } from "../patch"
-import { createTwoFilesPatch, diffLines } from "diff"
+import { createPatch, diffStats } from "@/util/diff-wasm"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { trimDiff } from "./edit"
 import { LSP } from "@/lsp/lsp"
@@ -77,14 +77,11 @@ export const ApplyPatchTool = Tool.define(
             const newContent =
               hunk.contents.length === 0 || hunk.contents.endsWith("\n") ? hunk.contents : `${hunk.contents}\n`
             const next = Bom.split(newContent)
-            const diff = trimDiff(createTwoFilesPatch(filePath, filePath, oldContent, next.text))
+            const diff = trimDiff(createPatch(oldContent, next.text) ?? "")
 
-            let additions = 0
-            let deletions = 0
-            for (const change of diffLines(oldContent, next.text)) {
-              if (change.added) additions += change.count || 0
-              if (change.removed) deletions += change.count || 0
-            }
+            const statsA = diffStats(oldContent, next.text)
+            const additions = statsA?.additions ?? 0
+            const deletions = statsA?.deletions ?? 0
 
             fileChanges.push({
               filePath,
@@ -124,14 +121,11 @@ export const ApplyPatchTool = Tool.define(
               return yield* Effect.fail(new Error(`apply_patch verification failed: ${error}`))
             }
 
-            const diff = trimDiff(createTwoFilesPatch(filePath, filePath, oldContent, newContent))
+            const diff = trimDiff(createPatch(oldContent, newContent) ?? "")
 
-            let additions = 0
-            let deletions = 0
-            for (const change of diffLines(oldContent, newContent)) {
-              if (change.added) additions += change.count || 0
-              if (change.removed) deletions += change.count || 0
-            }
+            const statsU = diffStats(oldContent, newContent)
+            const additions = statsU?.additions ?? 0
+            const deletions = statsU?.deletions ?? 0
 
             const movePath = hunk.move_path ? path.resolve(Instance.directory, hunk.move_path) : undefined
             yield* assertExternalDirectoryEffect(ctx, movePath)
@@ -163,7 +157,7 @@ export const ApplyPatchTool = Tool.define(
               ),
             )
             const contentToDelete = source.text
-            const deleteDiff = trimDiff(createTwoFilesPatch(filePath, filePath, contentToDelete, ""))
+            const deleteDiff = trimDiff(createPatch(contentToDelete, "") ?? "")
 
             const deletions = contentToDelete.split("\n").length
 

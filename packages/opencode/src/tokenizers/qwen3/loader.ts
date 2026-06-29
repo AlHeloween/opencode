@@ -1,10 +1,10 @@
 import type { TokenizerModel, TokenizerInstance } from "../types"
-import { BPETokenizer } from "../bpe-encoder"
+import { BpeWasmTokenizer } from "../bpe-wasm"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tokenizer.qwen3" })
 
-let tokenizer: BPETokenizer | undefined
+let tokenizer: BpeWasmTokenizer | undefined
 let loadAttempted = false
 
 async function loadModel(): Promise<TokenizerModel | undefined> {
@@ -29,7 +29,12 @@ export async function loadQwen3(): Promise<TokenizerInstance | undefined> {
     log.debug("model.json not found, qwen3 tokenizer unavailable")
     return undefined
   }
-  tokenizer = new BPETokenizer(model)
+  const loaded = await BpeWasmTokenizer.load(model)
+  if (!loaded) {
+    log.debug("failed to load qwen3 WASM tokenizer")
+    return undefined
+  }
+  tokenizer = loaded
   log.debug("qwen3 tokenizer loaded", { vocabSize: model.vocabSize })
   return tokenizer
 }

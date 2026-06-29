@@ -169,6 +169,18 @@ function Invoke-Build {
         Write-Success "Markdownify binary copied"
     }
 
+    # Copy WASM modules to dist (external to binary, loaded at runtime)
+    $WasmPkgDir = Join-Path $Root "packages\wasm\core\pkg"
+    $WasmDistDir = Join-Path $DistDir "wasm\core\pkg"
+    if (Test-Path $WasmPkgDir) {
+        New-Item -ItemType Directory -Path $WasmDistDir -Force | Out-Null
+        Copy-Item -Recurse -Force "$WasmPkgDir\rdiff" $WasmDistDir
+        Copy-Item -Recurse -Force "$WasmPkgDir\json_repair" $WasmDistDir
+        Copy-Item -Recurse -Force "$WasmPkgDir\diffy" $WasmDistDir
+        Copy-Item "$WasmPkgDir\tokenizer.wasm" $WasmDistDir
+        Write-Success "WASM modules copied to dist"
+    }
+
     # SDK (from sdk/js package)
     $sdkDir = [IO.Path]::Combine($Root, "packages", "sdk", "js", "dist")
     if (Test-Path $sdkDir) {

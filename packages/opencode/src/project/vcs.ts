@@ -1,5 +1,5 @@
 import { Effect, Layer, Context, Schema, Stream, Scope } from "effect"
-import { formatPatch, structuredPatch } from "diff"
+import { createPatch } from "@/util/diff-wasm"
 import path from "path"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
@@ -52,7 +52,7 @@ const files = Effect.fnUntraced(function* (
 ) {
   const base = ref ? yield* git.prefix(cwd) : ""
   const patch = (file: string, before: string, after: string) =>
-    formatPatch(structuredPatch(file, file, before, after, "", "", { context: Number.MAX_SAFE_INTEGER }))
+    createPatch(before, after) ?? ""
   const next = yield* Effect.forEach(
     list,
     (item) =>

@@ -53,3 +53,5 @@ dist/
 *.baseline
 artefacts/
 packages/enterprise/.opencode/
+packages/wasm/stringzilla/
+packages/wasm/external/

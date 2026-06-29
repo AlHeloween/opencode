@@ -1,0 +1,29 @@
+[package]
+name = "opencode-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WASM modules for opencode: tree-sitter parsers"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tree-sitter = "0.24"
+tree-sitter-bash = "0.25"
+tree-sitter-powershell = "0.26"
+tree-sitter-python = "0.25"
+tree-sitter-rust = "0.24"
+tree-sitter-go = "0.25"
+tree-sitter-cpp = "0.23"
+tree-sitter-json = "0.24"
+tree-sitter-yaml = "0.7"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

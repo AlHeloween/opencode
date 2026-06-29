@@ -7,7 +7,7 @@ import * as path from "path"
 import { Effect, Schema, Semaphore } from "effect"
 import * as Tool from "./tool"
 import { LSP } from "@/lsp/lsp"
-import { createTwoFilesPatch, diffLines } from "diff"
+import { createPatch, diffStats } from "@/util/diff-wasm"
 import DESCRIPTION from "./edit.txt"
 import { File } from "../file"
 import { FileWatcher } from "../file/watcher"
@@ -138,7 +138,7 @@ export const EditTool = Tool.define(
                 contentOld = source.text
                 if (existed) yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
                 contentNew = next.text
-                diff = trimDiff(createTwoFilesPatch(filePath, filePath, contentOld, contentNew))
+                diff = trimDiff(createPatch(contentOld, contentNew) ?? "")
                 yield* ctx.ask({
                   permission: "edit",
                   patterns: [path.relative(Instance.worktree, filePath)],
@@ -177,12 +177,7 @@ export const EditTool = Tool.define(
               contentNew = next.text
 
               diff = trimDiff(
-                createTwoFilesPatch(
-                  filePath,
-                  filePath,
-                  normalizeLineEndings(contentOld),
-                  normalizeLineEndings(contentNew),
-                ),
+                createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)) ?? "",
               )
               yield* ctx.ask({
                 permission: "edit",
@@ -204,21 +199,17 @@ export const EditTool = Tool.define(
                 event: "change",
               })
               diff = trimDiff(
-                createTwoFilesPatch(
-                  filePath,
-                  filePath,
-                  normalizeLineEndings(contentOld),
-                  normalizeLineEndings(contentNew),
-                ),
+                createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)) ?? "",
               )
             }).pipe(Effect.orDie),
           )
 
           let additions = 0
           let deletions = 0
-          for (const change of diffLines(contentOld, contentNew)) {
-            if (change.added) additions += change.count || 0
-            if (change.removed) deletions += change.count || 0
+          const stats = diffStats(contentOld, contentNew)
+          if (stats) {
+            additions = stats.additions
+            deletions = stats.deletions
           }
           const filediff: Snapshot.FileDiff = {
             file: filePath,

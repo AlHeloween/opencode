@@ -1,4 +1,6 @@
-import { parseDiffFromFile, type FileDiffMetadata } from "@pierre/diffs"
+import { diffLinesSync } from "../util/diff-wasm"
+
+type FileDiffMetadata = { name: string; deletionLines: string[]; additionLines: string[] }
 import { formatPatch, parsePatch, structuredPatch } from "diff"
 import type { SnapshotFileDiff, VcsFileDiff } from "@opencode-ai/sdk/v2"
 
@@ -65,11 +67,16 @@ function patch(diff: ReviewDiff) {
   }
 }
 
-function file(file: string, patch: string, before: string, after: string) {
+function file(name: string, patch: string, before: string, after: string): FileDiffMetadata {
   const hit = cache.get(patch)
   if (hit) return hit
 
-  const value = parseDiffFromFile({ name: file, contents: before }, { name: file, contents: after })
+  const wasmLines = diffLinesSync(before, after)
+  const value: FileDiffMetadata = {
+    name,
+    deletionLines: wasmLines?.deletionLines ?? [],
+    additionLines: wasmLines?.additionLines ?? [],
+  }
   cache.set(patch, value)
   return value
 }

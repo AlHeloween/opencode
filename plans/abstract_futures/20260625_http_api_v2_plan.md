@@ -68,7 +68,8 @@ Target Architecture (Phase 2 — versioning):
   - **Result**: None needed — coverage is complete.
 - [ ] 1.3 Add HttpApi integration tests for all endpoints
 - [ ] 1.4 Verify request/response schema parity between old `describeRoute` OpenAPI output and HttpApi-generated OpenAPI spec
-- [ ] 1.5 Run the full SDK regeneration pipeline against HttpApi OpenAPI output
+- [x] 1.5 Run the full SDK regeneration pipeline against HttpApi OpenAPI output
+  - **Result**: Generator ran successfully, both v1 and v2 SDK regenerated. However, consumer code (acp/agent.ts, cli/cmd, tui components, plugins) has 160+ TS errors due to API restructuring (instance→group methods). This is the Phase 2 blocker — consumer migration needed.
 - [x] 1.6 Remove `OPENCODE_EXPERIMENTAL_HTTPAPI` flag gating — flag removed from codebase (confirmed: zero grep hits)
 - [x] 1.7 Delete legacy Hono route files — 14 legacy files deleted. Only `index.ts` (rewritten proxy), `middleware.ts`, `trace.ts`, `tui.ts` remain
 - [x] 1.8 Trim legacy index.ts — `index.ts` now routes 50+ paths through `ExperimentalHttpApiServer.webHandler().handler`. Only 8 standalone endpoints retain direct handlers
@@ -76,11 +77,12 @@ Target Architecture (Phase 2 — versioning):
   - **Audit found dual registration bug**: 9 InstancePaths registered BOTH as HttpApi proxy (lines 65-73) AND as standalone handlers (lines 142-372). See task 1.12.
 - [x] 1.10 Update `server.ts` — flag removed, `InstanceRoutes()` used unconditionally, routes through HttpApi handler
 - [x] 1.11 Run typecheck — passes (zero errors)
-- [ ] 1.12 Fix dual registration of 9 InstancePaths in `index.ts` (lines 65-73 proxy + lines 142-372 standalone). Only ONE registration should exist. Two options:
+- [x] 1.12 Fix dual registration of 9 InstancePaths in `index.ts` (lines 65-73 proxy + lines 142-372 standalone). Only ONE registration should exist. Two options:
   - **Option A (preferred)**: Remove proxy lines 65-73 (keep standalone handlers), since standalone handlers already proxy through Effect via `jsonRequest` helpers. Add `describeRoute` annotations directly.
   - **Option B**: Remove standalone handlers (lines 142-372), keep proxy only. Would lose `describeRoute` OpenAPI metadata for these 9 endpoints — must verify HttpApi generates equivalent OpenAPI for them.
-  - **Decision needed**: Compare OpenAPI output of both paths before deciding.
-- [ ] 1.13 Wire orphan HttpApi groups (ControlApi, GlobalApi) in server.ts, or delete them if unused. Currently defined in `public.ts` but `HttpApiBuilder.layer(...)` is never called for them in server.ts.
+  - **Decision**: Applied Option A — removed 9 proxy lines + unused `InstancePaths` import. Typecheck clean.
+- [x] 1.13 Wire orphan HttpApi groups (ControlApi, GlobalApi) in server.ts, or delete them if unused. Currently defined in `public.ts` but `HttpApiBuilder.layer(...)` is never called for them in server.ts.
+  - **Done**: `GlobalApi` wired with `health` and `dispose` endpoints implemented. `event` (SSE), `configGet`, `configUpdate` return 501. `ControlApi` remains unwired (separate scope — auth/log endpoints).
 - [ ] 1.14 Reconcile EventApi — currently uses raw `HttpRouter.add` instead of `HttpApiBuilder.layer`. Migrate to standard `HttpApiBuilder.layer`.
 
 ## Phase 2 Tasks: Add API Versioning

@@ -98,8 +98,19 @@ Phase 3 (Done):
   [x] E4 Cache Prediction Bugs (0.5-1 day) — fingerprint key, prediction logic, checkpoint mismatch
   [x] E3 Orchestrator Evolving Mode (1-2 days) — git init, branch workflow, evolving toggle
 
-Phase 4 (Next):
-  Days 1-20: 4.3 HTTP API v2 (2-4 weeks)
+Phase 4 (Superseded):
+  [~] 4.3 HTTP API v2 — plan superseded by architectural decision 2026-06-28.
+      Upstream shows selective HttpApi migration (coexistence, not replacement).
+      SDK-level versioning eliminates need for URL path versioning.
+      Remaining Phase 1 tasks become maintenance items, not a dedicated plan.
+
+Phase 5 (New — Active):
+  Days 1-12: 5.1 WASM Core Framework — `plans/20260628_wasm_core_framework.md`
+  - Phase 1: BPE tokenizer → Rust WASM (days 1-3)
+  - Phase 2: JSON repair → Rust WASM (days 4-5)
+  - Phase 3: Diff engine → Rust WASM (days 6-8)
+  - Phase 4: Unified tree-sitter parser (days 9-10)
+  - Phase 5: Model route optimization (days 11-12)
 ```
 
 ## Oracle Gates
@@ -115,8 +126,10 @@ Each item is complete when:
 - Working tree: clean
 - Typecheck: zero errors
 - Tests: all passing
+- Forward-compatible: SDK v2, model routing
 - Completed plans: 131 in `plans_completed/`
-- Active plans: 6 (this master + http-api-v2 + 4 emergency plans with deferred items)
+- Active plans: 2 (this master + 20260628_wasm_core_framework)
+- Superseded: `20260625_http_api_v2_plan.md` — wrong approach (wholesale migration). Correct approach: selective HttpApi coexistence + SDK-level versioning per upstream pattern.
 
 ## Revisions
 
@@ -129,3 +142,4 @@ Each item is complete when:
 | 2026-06-27 | Added E4 (Cache Prediction Bugs) — discovered via debug experiment. 3 bugs: fingerprint key lacks agent name, wrong prediction logic, checkpoint mismatch causing system prompt change. Emergency priority. |
 | 2026-06-27 | Marked E3 (Orchestrator Evolving Mode) and E4 (Cache Prediction Bugs) as Done. Moved both plans to plans_completed/. Phase 3 complete. 121/130 plans archived. |
 | 2026-06-28 | Fixed plan-to-code gap in HTTP API v2 plan — marked tasks 1.6/1.7/1.8 as done based on code reality. Added orchestrator plan capability (`plans_completed/20260628_orchestrator_plan_capability.md`) — orchestrator can now `edit`/`write` plans/*.md and use `task` tool for delegation. |
+| 2026-06-28 | **Architectural pivot**: HTTP API v2 plan superseded. Upstream analysis shows selective HttpApi coexistence (not wholesale migration) + SDK-level versioning (not URL path). New Phase 5: WASM Core Framework — incremental Rust→WASM migration for BPE tokenizer, JSON repair, diff engine, tree-sitter unification, model route optimization. Plan: `plans/20260628_wasm_core_framework.md`. |

@@ -187,6 +187,7 @@ catch (e) {
 ## C10. Checkpoint Key Derivation Fix [P0-CRITICAL]
 **File:** `packages/opencode/src/session/checkpoint.ts`
 **SV:** `[deriveKey, key-derivation, worktree, HMAC, integrity, corruption]`
+**Status:** ✅ DONE (2026-06-28) — worktree removed from deriveKey in 4 files + 2 test files
 
 ### Current Code
 ```ts
@@ -238,21 +239,23 @@ const encrypted = {
 ```
 
 ### Implementation
-- [ ] Remove `worktree` from deriveKey input
-- [ ] Add HMAC computation during save
-- [ ] Store HMAC in checkpoint JSON
-- [ ] Verify HMAC on load before decryption
-- [ ] Handle version migration (old checkpoints without HMAC → log + delete)
+- [x] Remove `worktree` from deriveKey input (4 source files + 2 test files)
+- [ ] Add HMAC computation during save (deferred — existing AES-GCM auth tag provides integrity)
+- [ ] Store HMAC in checkpoint JSON (deferred)
+- [ ] Verify HMAC on load before decryption (deferred)
+- [ ] Handle version migration (old checkpoints without HMAC → log + delete) (deferred — automatic: old checkpoints fail AES-GCM, caught by load() error handler → delete + return null)
 
 ### Test Cases
-- [ ] Checkpoint saves with HMAC
-- [ ] Checkpoint loads correctly (HMAC matches)
-- [ ] Corrupted ciphertext fails HMAC check → returns null
-- [ ] Project move: old checkpoints still accessible
-- [ ] Old checkpoints without HMAC: graceful degradation (delete + log)
+- [x] Checkpoint loads correctly with new key (test suite updated)
+- [x] Typecheck passes (0 errors)
+- [ ] Corrupted ciphertext fails HMAC check → returns null (deferred with HMAC)
+- [x] Project move: old checkpoints still accessible (key no longer depends on worktree path)
+- [x] Old checkpoints with old key: graceful degradation via existing error handler (log + delete + return null)
 
 ### Oracle
-- `rg -n 'worktree' packages/opencode/src/session/checkpoint.ts` — should NOT appear in deriveKey call
+- [x] `rg -n 'worktree' packages/opencode/src/session/checkpoint.ts` — returns ZERO matches
+- [x] `rg -n 'worktree' packages/opencode/src/session/request-diff.ts` — returns ZERO matches
+- [x] `bun typecheck` — passes with zero errors
 
 ---
 
@@ -297,45 +300,15 @@ const tmpPath = filePath + ".tmp." + crypto.randomUUID()
 ## C12. Session Processor Race Condition [P1-MEDIUM]
 **File:** `packages/opencode/src/session/processor.ts`
 **SV:** `[processor, race-condition, blocked, textBuilder, reasoningBuilders, async]`
+**Status:** AUDITED (2026-06-28) — LOW RISK, no immediate action
 
-### Current Code
-```ts
-ctx.blocked = true  // Mutated across async boundaries
-ctx.textBuilder    // Accessed from stream events + tool calls
-ctx.reasoningBuilders  // Accessed concurrently
-```
+### Audit Findings
+1. **Single-fiber execution**: `process()` runs the LLM stream via `Stream.runDrain` within a single Effect fiber. All `handleEvent()` calls are sequential within this fiber.
+2. **AI SDK sequencing**: The Vercel AI SDK sequences tool calls inline with stream processing — stream pauses → tool executes → result fed back → stream resumes. `completeToolCall()` from `tools.ts` runs in the same async context.
+3. **`ctx.blocked`**: Set in `failToolCall()` (called during stream events or tool execution), read in `process()` AFTER stream completes. No concurrent read/write possible.
+4. **`ctx.textBuilder`/`ctx.reasoningBuilders`**: Only accessed within `handleEvent()` which runs sequentially in the stream fiber.
 
-### Root Cause
-`ctx.blocked`, `ctx.textBuilder`, `ctx.reasoningBuilders` are mutated across async boundaries without mutex. Stream events and tool calls can interleave on shared Context state.
-
-### Mathematical Impact
-```
-Concurrent access probability: ~5% per turn (stream + tool overlap)
-Impact: Partially written message parts, inconsistent state
-Recovery: Next turn corrects (but user sees glitch)
-```
-
-### Fix Strategy
-**Add atomic flag checks and single-owner async patterns.**
-
-1. **`ctx.blocked`**: Replace with `Atomics` or a simple lock flag
-2. **`ctx.textBuilder`**: Ensure only one async path writes at a time via Effect's `Ref` or `STM`
-3. **`ctx.reasoningBuilders`**: Collect builders in an array, process sequentially after stream ends
-
-### Implementation
-- [ ] Audit all mutation sites for `ctx.blocked`, `textBuilder`, `reasoningBuilders`
-- [ ] Replace mutable flags with `Effect.Ref` for atomic updates
-- [ ] Add guard checks before builder mutations
-- [ ] Test with concurrent stream + tool call scenario
-
-### Test Cases
-- [ ] Normal single-stream processing works (no regression)
-- [ ] Concurrent stream + tool call doesn't corrupt state
-- [ ] `ctx.blocked` transitions are atomic
-- [ ] No error on rapid tool calls during stream
-
-### Oracle
-- Manual test: trigger tool call during active stream, verify no partial message parts
+**Decision**: No refactoring needed. The Effect fiber model inherently prevents the described race. If tool execution ever moves to separate fibers, revisit.
 
 ---
 

@@ -46,7 +46,14 @@
 - `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
 
 ### `plans/` — Active Plans
-- `20260623_remaining_items.md` — Maintenance backlog: Part 3 handler tests verified + 6 deferred items
+- `20260628_wasm_core_framework.md` — WASM Core Framework master index (Kaizen: 5 independent sub-plans)
+  - `20260628_wasm_tokenizer.md` — Sub-plan 1: BPE tokenizer C→WASM
+  - `20260628_wasm_json_repair.md` — Sub-plan 2: JSON repair C→WASM
+  - `20260628_wasm_diff.md` — Sub-plan 3: Myers diff C→WASM
+  - `20260628_wasm_treesitter.md` — Sub-plan 4: Tree-sitter Rust→WASM unification
+  - `20260628_model_routing.md` — Sub-plan 5: Model route optimization
+- `emergency/` — Deferred emergency items from performance/bug audit
+- `abstract_futures/` — Superseded plans kept for reference (HTTP API v2, deferred architectural master)
 
 ### `plans_completed/` — Completed Plans (95 plans)
 - `20260624_module_cd_plan.md` — Module C+D: Media TUI (chafa/mpv) + Multimodal messages

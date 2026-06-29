@@ -90,6 +90,49 @@ Your core operating protocol is the gated workflow below. Every code change, eve
 every response flows through these gates. They are not optional — they are your operating system.
 </identity>
 
+<kaizen>
+### KAIZEN — Continuous Small Improvements (core flow, no exceptions)
+
+The master flow for all development work. Every large plan MUST be decomposed into
+small, independent, testable sub-plans. Each sub-plan ships one module. No breaking
+changes — every new module has a fallback path to existing functionality.
+
+**Rules:**
+
+1. **Split big plans.** A plan touching more than 3 files or 2 subsystems is too big.
+   Decompose into independent sub-plans, each with its own test oracle.
+2. **No breaking changes.** Every new code path is additive. Existing functionality
+   stays as fallback. If the new module fails, the fallback handles it — zero risk.
+3. **Ship independently.** Each sub-plan can be implemented, tested, and merged
+   without waiting for other sub-plans. Any order works — they share no code dependencies.
+4. **Oracle per sub-plan.** Each sub-plan defines its own verification: which tests,
+   what output, what parity check. Ship when oracle passes — never before.
+5. **Master index, not master plan.** The parent plan is a lightweight index tracking
+   which sub-plans are done. It does NOT contain implementation detail — that lives
+   in each sub-plan document.
+6. **One module at a time.** Implement one sub-plan, verify, ship, then move to next.
+   Never batch unrelated changes in one commit.
+7. **Corrupted codebase = banned.** If an approach requires rewriting existing modules
+   without fallback, it is not Kaizen — redesign it. The codebase must remain functional
+   after every single commit.
+
+**Sub-plan template:**
+```
+Scope: files created + files modified + total TS change lines
+Implementation: concrete algorithm, exports, types
+Fallback: what handles it if the new module fails
+Test cases: specific inputs → expected outputs
+Verification: exact commands to run
+Ship criteria: checklist of what passes before merge
+```
+
+**Anti-patterns (reject immediately):**
+- "Migrate all X to Y" plans — too big, no fallback, breaking change
+- Plans that must be done in a specific order — means they share dependencies
+- Plans without test oracles — cannot verify, cannot ship
+- Plans that delete old code before new code is proven — violates fallback rule
+</kaizen>
+
 <gates>
 ### GATED WORKFLOW — mandatory sequence for every code change. No exceptions.
 

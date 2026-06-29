@@ -177,8 +177,33 @@ function Invoke-Build {
         Copy-Item -Recurse -Force "$WasmPkgDir\rdiff" $WasmDistDir
         Copy-Item -Recurse -Force "$WasmPkgDir\json_repair" $WasmDistDir
         Copy-Item -Recurse -Force "$WasmPkgDir\diffy" $WasmDistDir
+        Copy-Item -Recurse -Force "$WasmPkgDir\grammars" $WasmDistDir
         Copy-Item "$WasmPkgDir\tokenizer.wasm" $WasmDistDir
-        Write-Success "WASM modules copied to dist"
+$TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "tree-sitter.wasm" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } | Select-Object -First 1
+if ($TreeSitterRuntimeWasm) {
+    Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir "tree-sitter.wasm")
+}
+$PowerShellGrammarWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "tree-sitter-powershell.wasm" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($PowerShellGrammarWasm) {
+    Copy-Item $PowerShellGrammarWasm.FullName (Join-Path $WasmDistDir "grammars\tree-sitter-powershell.wasm")
+}
+$RequiredWasmAssets = @(
+    "tokenizer.wasm",
+"tree-sitter.wasm",
+"diffy\diffy_wasm_bg.wasm",
+    "json_repair\json_repair_bg.wasm",
+    "rdiff\rdiff_bg.wasm",
+    "grammars\tree-sitter-bash.wasm",
+    "grammars\tree-sitter-powershell.wasm"
+)
+foreach ($asset in $RequiredWasmAssets) {
+    $assetPath = Join-Path $WasmDistDir $asset
+    if (-not (Test-Path $assetPath)) {
+        throw "Required WASM asset missing from dist: $asset"
+    }
+}
+
+Write-Success "WASM modules copied to dist"
     }
 
     # SDK (from sdk/js package)

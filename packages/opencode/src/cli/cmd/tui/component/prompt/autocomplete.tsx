@@ -95,27 +95,9 @@ export function Autocomplete(props: {
     input: "keyboard" as "keyboard" | "mouse",
   })
 
-  const [positionTick, setPositionTick] = createSignal(0)
-
-  createEffect(() => {
-    if (store.visible) {
-      let lastPos = { x: 0, y: 0, width: 0 }
-      const interval = setInterval(() => {
-        const anchor = props.anchor()
-        if (anchor.x !== lastPos.x || anchor.y !== lastPos.y || anchor.width !== lastPos.width) {
-          lastPos = { x: anchor.x, y: anchor.y, width: anchor.width }
-          setPositionTick((t) => t + 1)
-        }
-      }, 50)
-
-      onCleanup(() => clearInterval(interval))
-    }
-  })
-
   const position = createMemo(() => {
     if (!store.visible) return { x: 0, y: 0, width: 0 }
     dimensions()
-    positionTick()
     const anchor = props.anchor()
     const parent = anchor.parent
     const parentX = parent?.x ?? 0
@@ -653,7 +635,6 @@ export function Autocomplete(props: {
   const height = createMemo(() => {
     const count = options().length || 1
     if (!store.visible) return Math.min(10, count)
-    positionTick()
     return Math.min(10, count, Math.max(1, props.anchor().y))
   })
 

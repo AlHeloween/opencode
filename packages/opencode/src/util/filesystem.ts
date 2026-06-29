@@ -6,6 +6,17 @@ import { Readable } from "stream"
 import { pipeline } from "stream/promises"
 import { Glob } from "@opencode-ai/core/util/glob"
 
+// Short-lived cache to avoid repeated filesystem traversal in hot paths
+const CACHE_TTL = 5000 // 5 seconds
+
+interface CacheEntry<T> {
+  result: T
+  timestamp: number
+}
+
+const _findUpCache = new Map<string, CacheEntry<string[]>>()
+const _globUpCache = new Map<string, CacheEntry<string[]>>()
+
 // Fast sync version for metadata checks
 export async function exists(p: string): Promise<boolean> {
   return existsSync(p)
@@ -183,6 +194,12 @@ export async function findUp(
   stop?: string,
   options?: { rootFirst?: boolean },
 ) {
+  const cacheKey = `${JSON.stringify(target)}::${start}::${stop ?? ""}::${options?.rootFirst ? "rf" : ""}`
+  const cached = _findUpCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.result
+  }
+
   const dirs = [start]
   let current = start
   while (true) {
@@ -201,6 +218,8 @@ export async function findUp(
       if (await exists(search)) result.push(search)
     }
   }
+
+  _findUpCache.set(cacheKey, { result, timestamp: Date.now() })
   return result
 }
 
@@ -220,6 +239,12 @@ export async function* up(options: { targets: string[]; start: string; stop?: st
 }
 
 export async function globUp(pattern: string, start: string, stop?: string) {
+  const cacheKey = `${pattern}::${start}::${stop ?? ""}`
+  const cached = _globUpCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.result
+  }
+
   let current = start
   const result = []
   while (true) {
@@ -239,6 +264,8 @@ export async function globUp(pattern: string, start: string, stop?: string) {
     if (parent === current) break
     current = parent
   }
+
+  _globUpCache.set(cacheKey, { result, timestamp: Date.now() })
   return result
 }
 

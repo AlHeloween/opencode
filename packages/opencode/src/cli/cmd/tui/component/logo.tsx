@@ -600,7 +600,7 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
 
   const start = () => {
     if (timer) return
-    timer = setInterval(tick, 16)
+    timer = setInterval(tick, 33)
   }
 
   onCleanup(() => {

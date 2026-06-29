@@ -1161,15 +1161,21 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
           // Filter out orphaned interrupted tool parts — they were never completed
           // and their partial output should not appear in the model context.
-          const isOrphanedInterruptedTool = (part: { type: string; state?: { status?: string; metadata?: Record<string, unknown> } }): boolean =>
-            part.type === "tool" &&
-            part.state?.status === "error" &&
-            part.state?.metadata?.interrupted === true
+          // Fast path: skip expensive map+filter if no message has orphaned tool parts.
+          const hasOrphanedTools = msgs.some((msg) =>
+            msg.parts.some((p) =>
+              p.type === "tool" && p.state?.status === "error" && p.state?.metadata?.interrupted
+            )
+          )
 
-          msgs = msgs.map((msg) => ({
-            ...msg,
-            parts: msg.parts.filter((p) => !isOrphanedInterruptedTool(p)),
-          }))
+          if (hasOrphanedTools) {
+            msgs = msgs.map((msg) => ({
+              ...msg,
+              parts: msg.parts.filter((p) =>
+                !(p.type === "tool" && p.state?.status === "error" && p.state?.metadata?.interrupted === true)
+              ),
+            }))
+          }
           // Keep cache in sync — msgs.map() creates new message objects.
           // Without this, mutations to msgs (system-reminder, background-jobs)
           // are lost when cachedMsgs is reused on the next iteration.
@@ -1355,7 +1361,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   providerID: model.providerID,
                   modelID: model.id,
                   projectID: ctx.project.id,
-                  worktree: ctx.worktree,
                 }).pipe(Effect.catch(() => Effect.succeed(null)))
                 const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
                 if (compactionCheckpoint) {
@@ -1399,7 +1404,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   yield* Checkpoint.save({
                     sessionID,
                     projectID: ctx.project.id,
-                    worktree: ctx.worktree,
                     data: {
                       kind: Checkpoint.CHECKPOINT_KIND,
                       version: Checkpoint.CHECKPOINT_VERSION,
@@ -1636,7 +1640,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
               providerID: model.providerID,
               modelID: model.id,
               projectID: ctx.project.id,
-              worktree: ctx.worktree,
               agentName: agent.name,
             }).pipe(Effect.catch(() => Effect.succeed(null)))
             const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
@@ -1812,7 +1815,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 yield* Checkpoint.save({
                   sessionID,
                   projectID: ctx.project.id,
-                  worktree: ctx.worktree,
                   data: {
                     kind: Checkpoint.CHECKPOINT_KIND,
                     version: Checkpoint.CHECKPOINT_VERSION,

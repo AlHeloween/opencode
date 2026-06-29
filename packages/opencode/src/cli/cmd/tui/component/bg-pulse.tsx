@@ -26,7 +26,9 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
   const { theme } = useTheme()
   const [now, setNow] = createSignal(performance.now())
   const [size, setSize] = createSignal<{ width: number; height: number }>({ width: 0, height: 0 })
+  const [focused, setFocused] = createSignal(true)
   let box: BoxRenderable | undefined
+  let prevGrid: RGBA[][] | undefined
 
   const timer = setInterval(() => setNow(performance.now()), 100)
   onCleanup(() => clearInterval(timer))
@@ -39,31 +41,37 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
   onMount(() => {
     sync()
     box?.on("resize", sync)
+    box?.on("focus", () => setFocused(true))
+    box?.on("blur", () => setFocused(false))
   })
 
   onCleanup(() => {
     box?.off("resize", sync)
+    box?.off("focus", () => setFocused(true))
+    box?.off("blur", () => setFocused(false))
   })
 
-  const grid = createMemo(() => {
+  // Ring states depend on time — lightweight O(RINGS) computation per tick
+  const ringStates = createMemo(() => {
     const t = now()
     const w = size().width
     const h = size().height
-    if (w === 0 || h === 0) return [] as RGBA[][]
+    if (w === 0 || h === 0) return []
     const cxv = props.centerX ?? w / 2
     const cyv = props.centerY ?? h / 2
     const reach = Math.hypot(Math.max(cxv, w - cxv), Math.max(cyv, h - cyv) * 2) + TAIL
-    const ringStates = Array.from({ length: RINGS }, (_, i) => {
+    return Array.from({ length: RINGS }, (_, i) => {
       const offset = i / RINGS
       const phase = (t / PERIOD + offset - PHASE_OFFSET + 1) % 1
       const envelope = Math.sin(phase * Math.PI)
       const eased = envelope * envelope * (3 - 2 * envelope)
-      return {
-        head: phase * reach,
-        eased,
-      }
+      return { head: phase * reach, eased, reach }
     })
-    const normalizedMasks = props.masks?.map((m) => {
+  })
+
+  // Normalized masks depend only on props.masks — recomputed only when masks change
+  const normalizedMasks = createMemo(() => {
+    return props.masks?.map((m) => {
       const pad = m.pad ?? 2
       return {
         left: m.x - pad,
@@ -74,6 +82,23 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
         strength: m.strength ?? 0.85,
       }
     })
+  })
+
+  // Grid pixel computation — O(w × h × RINGS), only recomputed when dependencies change
+  const grid = createMemo(() => {
+    // Focus gating: skip recomputation when terminal is not focused
+    if (!focused()) {
+      return prevGrid ?? []
+    }
+    const states = ringStates()
+    if (states.length === 0) return [] as RGBA[][]
+    const t = now()
+    const w = size().width
+    const h = size().height
+    const cxv = props.centerX ?? w / 2
+    const cyv = props.centerY ?? h / 2
+    const reach = Math.hypot(Math.max(cxv, w - cxv), Math.max(cyv, h - cyv) * 2) + TAIL
+    const nms = normalizedMasks()
     const rows = [] as RGBA[][]
     for (let y = 0; y < h; y++) {
       const row = [] as RGBA[]
@@ -82,7 +107,7 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
         const dy = (y + 0.5 - cyv) * 2
         const dist = Math.hypot(dx, dy)
         let level = 0
-        for (const ring of ringStates) {
+        for (const ring of states) {
           const delta = dist - ring.head
           const crest = Math.abs(delta) < WIDTH ? 0.5 + 0.5 * Math.cos((delta / WIDTH) * Math.PI) : 0
           const tail = delta < 0 && delta > -TAIL ? (1 + delta / TAIL) ** 2.3 : 0
@@ -91,8 +116,8 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
         const edgeFalloff = Math.max(0, 1 - (dist / (reach * 0.85)) ** 2)
         const breath = (0.5 + 0.5 * Math.sin(t * BREATH_SPEED)) * BREATH_AMP
         let maskAtten = 1
-        if (normalizedMasks) {
-          for (const m of normalizedMasks) {
+        if (nms) {
+          for (const m of nms) {
             if (x < m.left || x > m.right || y < m.top || y > m.bottom) continue
             const inX = Math.min(x - m.left, m.right - x)
             const inY = Math.min(y - m.top, m.bottom - y)
@@ -107,6 +132,7 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
       }
       rows.push(row)
     }
+    prevGrid = rows
     return rows
   })
 

@@ -300,7 +300,7 @@ describe("writeDiff", () => {
 
 describe("encryption", () => {
   test("encrypt + decrypt round-trip", async () => {
-    const key = await RequestDiff.deriveKey("proj-001", "/tmp/test", "ses-001")
+    const key = await RequestDiff.deriveKey("proj-001", "ses-001")
     const plaintext = JSON.stringify({
       formatted: "=== META ===\nsession: ses-001\n=== SYSTEM ===\nhello\n=== MESSAGES ===\n[user] #1\ntest",
       meta: baseMeta({ sessionID: "ses-001" }),
@@ -313,9 +313,9 @@ describe("encryption", () => {
   })
 
   test("deriveKey is deterministic — same inputs → same key material", async () => {
-    const a = await RequestDiff.deriveKey("proj-A", "/tmp/A", "ses-A")
-    const b = await RequestDiff.deriveKey("proj-A", "/tmp/A", "ses-A")
-    const c = await RequestDiff.deriveKey("proj-B", "/tmp/A", "ses-A")
+    const a = await RequestDiff.deriveKey("proj-A", "ses-A")
+    const b = await RequestDiff.deriveKey("proj-A", "ses-A")
+    const c = await RequestDiff.deriveKey("proj-B", "ses-A")
 
     // Same inputs → same key (encrypt with one, decrypt with other)
     const plaintext = "test determinism"
@@ -328,8 +328,8 @@ describe("encryption", () => {
   })
 
   test("different sessions produce different keys", async () => {
-    const k1 = await RequestDiff.deriveKey("p", "/tmp", "ses-1")
-    const k2 = await RequestDiff.deriveKey("p", "/tmp", "ses-2")
+    const k1 = await RequestDiff.deriveKey("p", "ses-1")
+    const k2 = await RequestDiff.deriveKey("p", "ses-2")
 
     const plaintext = "session isolation"
     const enc = await RequestDiff.encryptBaseline(plaintext, k1)
@@ -337,7 +337,7 @@ describe("encryption", () => {
   })
 
   test("tampered ciphertext fails decryption", async () => {
-    const key = await RequestDiff.deriveKey("p", "/tmp", "s")
+    const key = await RequestDiff.deriveKey("p", "s")
     const encrypted = await RequestDiff.encryptBaseline("test", key)
 
     // Flip a byte in the ciphertext

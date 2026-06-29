@@ -113,10 +113,9 @@ function formatModelMessage(msg: ModelMessage, index: number): string {
  */
 export async function deriveKey(
   projectID: string,
-  worktree: string,
   sessionID: string,
 ): Promise<CryptoKey> {
-  const material = `${projectID}:${worktree}:${sessionID}${KEY_DERIVATION_SALT}`
+  const material = `${projectID}:${sessionID}${KEY_DERIVATION_SALT}`
   const keyBytes = createHash("sha256").update(material).digest()
   return crypto.subtle.importKey("raw", new Uint8Array(keyBytes), "AES-GCM", false, ["encrypt", "decrypt"])
 }

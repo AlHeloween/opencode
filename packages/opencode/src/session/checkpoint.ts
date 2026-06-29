@@ -68,7 +68,6 @@ async function writeAtomic(filePath: string, data: Buffer): Promise<void> {
 export function save(input: {
   sessionID: string
   projectID: string
-  worktree: string
   data: CheckpointData
 }): Effect.Effect<void> {
   return Effect.tryPromise({
@@ -79,7 +78,7 @@ export function save(input: {
         input.data.model.modelID,
         input.data.agent,
       )
-      const encKey = await deriveKey(input.projectID, input.worktree, input.sessionID)
+      const encKey = await deriveKey(input.projectID, input.sessionID)
       const plaintext = JSON.stringify(input.data)
       const encrypted = await encryptBaseline(plaintext, encKey)
       await writeAtomic(filePath, encrypted)
@@ -101,7 +100,6 @@ export function load(input: {
   providerID: string
   modelID: string
   projectID: string
-  worktree: string
   agentName?: string
 }): Effect.Effect<CheckpointData | null> {
   return Effect.promise(async () => {
@@ -109,7 +107,7 @@ export function load(input: {
     if (!fs.existsSync(filePath)) return null
 
     try {
-      const encKey = await deriveKey(input.projectID, input.worktree, input.sessionID)
+      const encKey = await deriveKey(input.projectID, input.sessionID)
       const encrypted = fs.readFileSync(filePath)
       const plaintext = await decryptBaseline(encrypted, encKey)
       const data: CheckpointData = JSON.parse(plaintext)
@@ -188,7 +186,6 @@ export function clone(input: {
   modelID: string
   agentName: string
   projectID: string
-  worktree: string
 }): Effect.Effect<void> {
   return Effect.flatMap(
     load({
@@ -196,7 +193,6 @@ export function clone(input: {
       providerID: input.providerID,
       modelID: input.modelID,
       projectID: input.projectID,
-      worktree: input.worktree,
       agentName: input.agentName,
     }),
     (data) => {
@@ -204,7 +200,6 @@ export function clone(input: {
       return save({
         sessionID: input.destSessionID,
         projectID: input.projectID,
-        worktree: input.worktree,
         data: { ...data, messages: [], messageIDs: [], turn: 0, timestamp: Date.now() },
       })
     },

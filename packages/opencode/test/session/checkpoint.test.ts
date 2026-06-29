@@ -24,7 +24,6 @@ function makeCheckpointData(overrides: Partial<CheckpointData> = {}): Checkpoint
 }
 
 const TEST_PROJECT = "checkpoint-test-project"
-const TEST_WORKTREE = "/tmp/checkpoint-test-worktree"
 const SID = `ses_ckpt_${Date.now().toString(36)}`
 
 // Clean up after all tests
@@ -46,11 +45,11 @@ describe("Checkpoint", () => {
     const data = makeCheckpointData({ model: { providerID: "rt", modelID: "rt-model" } })
 
     await Effect.runPromise(
-      Checkpoint.save({ sessionID: SID, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }),
+      Checkpoint.save({ sessionID: SID, projectID: TEST_PROJECT, data }),
     )
 
     const loaded = await Effect.runPromise(
-      Checkpoint.load({ sessionID: SID, providerID: "rt", modelID: "rt-model", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }),
+      Checkpoint.load({ sessionID: SID, providerID: "rt", modelID: "rt-model", projectID: TEST_PROJECT, agentName: "test-agent" }),
     )
 
     expect(loaded).not.toBeNull()
@@ -64,7 +63,7 @@ describe("Checkpoint", () => {
 
   test("load returns null when no checkpoint exists", async () => {
     const loaded = await Effect.runPromise(
-      Checkpoint.load({ sessionID: `${SID}_nonexistent`, providerID: "x", modelID: "x", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }),
+      Checkpoint.load({ sessionID: `${SID}_nonexistent`, providerID: "x", modelID: "x", projectID: TEST_PROJECT, }),
     )
     expect(loaded).toBeNull()
   })
@@ -74,11 +73,11 @@ describe("Checkpoint", () => {
     const first = makeCheckpointData({ model: { providerID: "ow", modelID: "ow-model" }, turn: 1, systemPrompt: ["first"] })
     const second = makeCheckpointData({ model: { providerID: "ow", modelID: "ow-model" }, turn: 2, systemPrompt: ["second"] })
 
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: first }))
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: second }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data: first }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data: second }))
 
     const loaded = await Effect.runPromise(
-      Checkpoint.load({ sessionID: sid, providerID: "ow", modelID: "ow-model", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }),
+      Checkpoint.load({ sessionID: sid, providerID: "ow", modelID: "ow-model", projectID: TEST_PROJECT, agentName: "test-agent" }),
     )
     expect(loaded).not.toBeNull()
     expect(loaded!.turn).toBe(2)
@@ -90,11 +89,11 @@ describe("Checkpoint", () => {
     const dataA = makeCheckpointData({ model: { providerID: "im", modelID: "model-a" }, systemPrompt: ["Model A"] })
     const dataB = makeCheckpointData({ model: { providerID: "im", modelID: "model-b" }, systemPrompt: ["Model B"] })
 
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: dataA }))
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: dataB }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data: dataA }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data: dataB }))
 
-    const loadedA = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "im", modelID: "model-a", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }))
-    const loadedB = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "im", modelID: "model-b", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }))
+    const loadedA = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "im", modelID: "model-a", projectID: TEST_PROJECT, agentName: "test-agent" }))
+    const loadedB = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "im", modelID: "model-b", projectID: TEST_PROJECT, agentName: "test-agent" }))
 
     expect(loadedA!.systemPrompt).toEqual(["Model A"])
     expect(loadedB!.systemPrompt).toEqual(["Model B"])
@@ -102,20 +101,20 @@ describe("Checkpoint", () => {
 
   test("remove deletes all checkpoint files for session", async () => {
     const sid = `${SID}_d`
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: makeCheckpointData({ model: { providerID: "rm", modelID: "rm-a" } }) }))
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: makeCheckpointData({ model: { providerID: "rm", modelID: "rm-b" } }) }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data: makeCheckpointData({ model: { providerID: "rm", modelID: "rm-a" } }) }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data: makeCheckpointData({ model: { providerID: "rm", modelID: "rm-b" } }) }))
 
     await Effect.runPromise(Checkpoint.remove(sid))
 
-    const loadedA = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "rm", modelID: "rm-a", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }))
-    const loadedB = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "rm", modelID: "rm-b", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }))
+    const loadedA = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "rm", modelID: "rm-a", projectID: TEST_PROJECT, agentName: "test-agent" }))
+    const loadedB = await Effect.runPromise(Checkpoint.load({ sessionID: sid, providerID: "rm", modelID: "rm-b", projectID: TEST_PROJECT, agentName: "test-agent" }))
     expect(loadedA).toBeNull()
     expect(loadedB).toBeNull()
   })
 
   test("atomic write — only .enc file exists, no .tmp leftovers", async () => {
     const sid = `${SID}_e`
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data: makeCheckpointData({ model: { providerID: "aw", modelID: "aw-model" } }) }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data: makeCheckpointData({ model: { providerID: "aw", modelID: "aw-model" } }) }))
 
     const files = fs.readdirSync(Checkpoint.checkpointDir(sid)).filter((f) => f.includes(sid))
     expect(files.length).toBe(1)
@@ -125,7 +124,7 @@ describe("Checkpoint", () => {
   test("load handles corrupt file gracefully", async () => {
     const sid = `${SID}_f`
     const data = makeCheckpointData({ model: { providerID: "cr", modelID: "cr-model" } })
-    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }))
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data }))
 
     // Corrupt the file by overwriting with garbage
     const files = fs.readdirSync(Checkpoint.checkpointDir(sid)).filter((f) => f.includes(sid))
@@ -133,7 +132,7 @@ describe("Checkpoint", () => {
     fs.writeFileSync(corruptPath, Buffer.from("not-valid-encrypted-data"))
 
     const loaded = await Effect.runPromise(
-      Checkpoint.load({ sessionID: sid, providerID: "cr", modelID: "cr-model", projectID: TEST_PROJECT, worktree: TEST_WORKTREE }),
+      Checkpoint.load({ sessionID: sid, providerID: "cr", modelID: "cr-model", projectID: TEST_PROJECT, agentName: "test-agent" }),
     )
     expect(loaded).toBeNull()
     expect(fs.existsSync(corruptPath)).toBeFalse()
@@ -150,14 +149,14 @@ describe("Checkpoint", () => {
     })
 
     await Effect.runPromise(
-      Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }),
+      Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data }),
     )
 
-    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID)
+    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID, "build")
     expect(fs.existsSync(cpPath)).toBeTrue()
 
     const loaded = await Effect.runPromise(
-      Checkpoint.load({ sessionID: sid, providerID, modelID, projectID: TEST_PROJECT, worktree: TEST_WORKTREE }),
+      Checkpoint.load({ sessionID: sid, providerID, modelID, projectID: TEST_PROJECT, agentName: "build" }),
     )
 
     expect(loaded).not.toBeNull()
@@ -175,10 +174,10 @@ describe("Checkpoint", () => {
     const data = makeCheckpointData({ model: { providerID, modelID }, agent: "build" })
 
     await Effect.runPromise(
-      Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, worktree: TEST_WORKTREE, data }),
+      Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data }),
     )
 
-    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID)
+    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID, "build")
     expect(fs.existsSync(cpPath)).toBeTrue()
 
     const loaded = await Effect.runPromise(
@@ -187,7 +186,7 @@ describe("Checkpoint", () => {
         providerID,
         modelID,
         projectID: `${TEST_PROJECT}-other`,
-        worktree: TEST_WORKTREE,
+        agentName: "build",
       }),
     )
 

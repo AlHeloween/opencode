@@ -98,6 +98,14 @@ export const TaskTool = Tool.define(
         return yield* Effect.fail(new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`))
       }
 
+      // Enforce subagent delegation restrictions: calling agent's subagents list limits which types it can spawn
+      const caller = yield* agent.get(ctx.agent)
+      if (caller?.subagents && !caller.subagents.includes(params.subagent_type)) {
+        return yield* Effect.fail(
+          new Error(`Agent "${ctx.agent}" cannot delegate to "${params.subagent_type}". Allowed: ${caller.subagents.join(", ")}`),
+        )
+      }
+
       const canTask = next.permission.some((rule) => rule.permission === id)
       const canTodo = next.permission.some((rule) => rule.permission === "todowrite")
 
@@ -204,7 +212,6 @@ export const TaskTool = Tool.define(
             modelID: model.modelID,
             agentName: next.name,
             projectID: ins.project.id,
-            worktree: ins.worktree,
           })
         }
       }

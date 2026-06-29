@@ -171,7 +171,7 @@ export const layer = Layer.effect(
 
     // In-memory job store for live fiber access + SQLite for durability
     const MAX_JOBS = 1000
-    const JOB_TTL = 5 * 60 * 1000 // 5 minutes
+    const JOB_TTL = 30 * 60 * 1000 // 30 minutes
     const jobs = new Map<string, Job>()
     const completed: Completion[] = []
     const readOffsets = new Map<string, number>()
@@ -195,6 +195,16 @@ export const layer = Layer.effect(
           jobs.delete(id)
           readOffsets.delete(id + ":offset")
         }
+      }
+      // Clean counters for sessions with no remaining jobs
+      const activeSessions = new Set<string>()
+      for (const [jk] of jobs) {
+        const sep = jk.indexOf("\x00")
+        if (sep > 0) activeSessions.add(jk.slice(0, sep))
+      }
+      for (const [ck] of counters) {
+        const sep = ck.indexOf("\x00")
+        if (sep > 0 && !activeSessions.has(ck.slice(0, sep))) counters.delete(ck)
       }
     }
 
@@ -326,30 +336,12 @@ export const layer = Layer.effect(
           completed.splice(i, 1)
         }
       }
-      // Clean up completed rows from DB for this session
+      // Clean up completed rows from DB for this session — only after TTL, not every drain
+      // (previously deleted on every drain, causing job_output to lose completed jobs)
       if (notes.length > 0) {
-        try {
-          db.run("DELETE FROM job WHERE session_id = ? AND status != 'running'", [input.sessionID])
-        } catch (e) { log.warn("job db cleanup failed", { error: String(e) }) }
-        // Evict completed/killed jobs from in-memory Map.
-        // The jobs Map accumulates forever without this — each background
-        // job adds MB-scale output strings that never release.
-        for (const [jk, job] of jobs) {
-          if (jk.startsWith(input.sessionID + "\x00") && job.status !== "running") {
-            jobs.delete(jk)
-            readOffsets.delete(jk + ":offset")
-          }
-        }
-        // Clean counters for sessions with no remaining live jobs.
-        let sessionHasLiveJobs = false
-        for (const [jk] of jobs) {
-          if (jk.startsWith(input.sessionID + "\x00")) { sessionHasLiveJobs = true; break }
-        }
-        if (!sessionHasLiveJobs) {
-          for (const [ck] of counters) {
-            if (ck.startsWith(input.sessionID + "\x00")) counters.delete(ck)
-          }
-        }
+        // Do NOT delete from DB or in-memory Map on drain — let JOB_TTL handle cleanup.
+        // Previously: aggressive cleanup on every drain caused job_output to return
+        // empty/failed for completed jobs that the user hadn't inspected yet.
       }
       if (notes.length === 0) return ""
       return (

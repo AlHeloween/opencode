@@ -77,7 +77,7 @@ function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
 
   return {
     externalOutputMode: "passthrough",
-    targetFps: 60,
+    targetFps: 30,
     gatherStats: false,
     exitOnCtrlC: false,
     useKittyKeyboard: {},

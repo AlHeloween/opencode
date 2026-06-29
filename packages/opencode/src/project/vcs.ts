@@ -52,7 +52,7 @@ const files = Effect.fnUntraced(function* (
 ) {
   const base = ref ? yield* git.prefix(cwd) : ""
   const patch = (file: string, before: string, after: string) =>
-    createPatch(before, after) ?? ""
+    Effect.promise(() => createPatch(before, after))
   const next = yield* Effect.forEach(
     list,
     (item) =>
@@ -62,7 +62,7 @@ const files = Effect.fnUntraced(function* (
         const stat = map.get(item.file)
         return {
           file: item.file,
-          patch: patch(item.file, before, after),
+          patch: (yield* patch(item.file, before, after)) ?? "",
           additions: stat?.additions ?? (item.status === "added" ? count(after) : 0),
           deletions: stat?.deletions ?? (item.status === "deleted" ? count(before) : 0),
           status: item.status,

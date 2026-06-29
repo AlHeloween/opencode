@@ -49,7 +49,7 @@ export const WriteTool = Tool.define(
           const contentOld = source.text
           const contentNew = next.text
 
-          const diff = trimDiff(createPatch(contentOld, contentNew) ?? "")
+          const diff = trimDiff((yield* Effect.promise(() => createPatch(contentOld, contentNew))) ?? "")
           yield* ctx.ask({
             permission: "edit",
             patterns: [path.relative(Instance.worktree, filepath)],

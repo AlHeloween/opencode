@@ -9,13 +9,71 @@ export interface Policy {
 
 export function defaultPolicy(): Policy {
   return {
-    minLaunchIntervalMs: 500,
-    streamMinLaunchIntervalMs: 500,
+    minLaunchIntervalMs: 50,
+    streamMinLaunchIntervalMs: 50,
     maxInflight: 10,
     maxStreams: 8,
     cooldownMs: 15000,
-    jitterMs: 100,
+    jitterMs: 10,
   }
+}
+
+// Providers with no rate limits — skip adaptive throttling entirely.
+// These get zero-interval, high-concurrency defaults.
+const UNLIMITED_PROVIDERS = new Set(["deepseek", "opencode"])
+
+// Known provider rate limits (RPM). Used as initial bounds for adaptive policy.
+// Key = provider ID, value = requests per minute.
+const PROVIDER_RPM: Record<string, number> = {
+  kat_coder: 60,
+  openai: 500,
+  anthropic: 50,
+  google: 60,
+  groq: 30,
+  mistral: 500,
+  together: 1000,
+  fireworks: 1000,
+  xai: 60,
+}
+
+function extractProvider(key: string): string | undefined {
+  const match = key.match(/^provider=([^|]+)/)
+  return match ? match[1] : undefined
+}
+
+export function isUnlimitedProvider(key: string): boolean {
+  const provider = extractProvider(key)
+  return provider ? UNLIMITED_PROVIDERS.has(provider) : false
+}
+
+/** Returns the initial policy for a given route key, using known provider limits. */
+export function providerPolicy(key: string): Policy {
+  if (isUnlimitedProvider(key)) {
+    return {
+      minLaunchIntervalMs: 0,
+      streamMinLaunchIntervalMs: 0,
+      maxInflight: 500,
+      maxStreams: 500,
+      cooldownMs: 0,
+      jitterMs: 0,
+    }
+  }
+
+  const provider = extractProvider(key)
+  const rpm = provider ? PROVIDER_RPM[provider] : undefined
+  if (rpm !== undefined) {
+    const intervalMs = Math.round(60000 / rpm)
+    return {
+      minLaunchIntervalMs: intervalMs,
+      streamMinLaunchIntervalMs: intervalMs,
+      maxInflight: Math.min(100, Math.max(5, Math.round(rpm / 10))),
+      maxStreams: Math.min(50, Math.max(4, Math.round(rpm / 8))),
+      cooldownMs: 15000,
+      jitterMs: Math.round(intervalMs * 0.2),
+    }
+  }
+
+  return defaultPolicy()
 }
 
 const MAX_LAUNCH_INTERVAL_MS = 600000
@@ -130,8 +188,9 @@ export function getOrCreateRoute(store: AdjustmentStoreData, key: string, now: n
   const existing = store.routes[key]
   if (existing) return existing
 
+  const initialPolicy = providerPolicy(key)
   const adjustment: RouteAdjustment = {
-    policy: defaultPolicy(),
+    policy: initialPolicy,
     streamingPreference: defaultStreamingPreference(),
     health: {
       successRate: 1.0,
@@ -146,8 +205,8 @@ export function getOrCreateRoute(store: AdjustmentStoreData, key: string, now: n
     },
     limitsObserved: {
       remoteMaxConcurrentStreams: null,
-      lastKnownGoodInflight: defaultPolicy().maxInflight,
-      lastKnownGoodStreams: defaultPolicy().maxStreams,
+      lastKnownGoodInflight: initialPolicy.maxInflight,
+      lastKnownGoodStreams: initialPolicy.maxStreams,
     },
     confidence: 0.3,
     updatedAt: now,
@@ -188,7 +247,7 @@ export function updateHealth(
 const DELAY_HISTORY_SIZE = 100
 const DELAY_DECAY_FACTOR = 0.15
 const DELAY_GROWTH_FACTOR = 1.5
-const DEFAULT_MIN_LAUNCH_INTERVAL = 500
+const DEFAULT_MIN_LAUNCH_INTERVAL = 50
 
 function computeMedian(values: number[]): number {
   if (values.length === 0) return 0
@@ -204,7 +263,17 @@ export function adaptPolicy(
   adjustment: RouteAdjustment,
   success: boolean,
   score: number,
+  routeKeyStr?: string,
 ): { policy: Policy; consecutiveSuccesses: number; lastSafeDelayMs: number; delayHistory: number[] } {
+  // Unlimited providers: never adapt — return policy as-is.
+  if (routeKeyStr && isUnlimitedProvider(routeKeyStr)) {
+    return {
+      policy: { ...adjustment.policy },
+      consecutiveSuccesses: adjustment.consecutiveSuccesses,
+      lastSafeDelayMs: adjustment.lastSafeDelayMs,
+      delayHistory: adjustment.delayHistory,
+    }
+  }
   const policy = { ...adjustment.policy }
   let consecutiveSuccesses = adjustment.consecutiveSuccesses
   let lastSafeDelayMs = adjustment.lastSafeDelayMs

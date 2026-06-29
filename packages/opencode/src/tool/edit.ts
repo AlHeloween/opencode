@@ -138,7 +138,7 @@ export const EditTool = Tool.define(
                 contentOld = source.text
                 if (existed) yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
                 contentNew = next.text
-                diff = trimDiff(createPatch(contentOld, contentNew) ?? "")
+                diff = trimDiff((yield* Effect.promise(() => createPatch(contentOld, contentNew))) ?? "")
                 yield* ctx.ask({
                   permission: "edit",
                   patterns: [path.relative(Instance.worktree, filePath)],
@@ -177,7 +177,7 @@ export const EditTool = Tool.define(
               contentNew = next.text
 
               diff = trimDiff(
-                createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)) ?? "",
+                (yield* Effect.promise(() => createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)))) ?? "",
               )
               yield* ctx.ask({
                 permission: "edit",
@@ -199,14 +199,14 @@ export const EditTool = Tool.define(
                 event: "change",
               })
               diff = trimDiff(
-                createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)) ?? "",
+                (yield* Effect.promise(() => createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)))) ?? "",
               )
             }).pipe(Effect.orDie),
           )
 
           let additions = 0
           let deletions = 0
-          const stats = diffStats(contentOld, contentNew)
+          const stats = yield* Effect.promise(() => diffStats(contentOld, contentNew))
           if (stats) {
             additions = stats.additions
             deletions = stats.deletions

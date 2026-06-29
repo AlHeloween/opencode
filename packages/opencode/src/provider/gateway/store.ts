@@ -11,6 +11,7 @@ import {
   defaultStreamingPreference,
   adaptPolicy as adaptPolicyFn,
   enforcePolicyFloors,
+  isUnlimitedProvider,
 } from "./adjustment-store"
 import * as HealthWindow from "./health-window"
 import type { HealthMetrics } from "./health-window"
@@ -274,10 +275,11 @@ export function getRoute(key: RouteKey): RouteAdjustment {
     return created
   }
   if (
-    route.policy.minLaunchIntervalMs <= 0 ||
+    !isUnlimitedProvider(keyStr) &&
+    (route.policy.minLaunchIntervalMs <= 0 ||
     route.policy.maxInflight <= 0 ||
     route.policy.maxStreams <= 0 ||
-    route.policy.minLaunchIntervalMs > 600000
+    route.policy.minLaunchIntervalMs > 600000)
   ) {
     route.policy = enforcePolicyFloors(route.policy)
     s.dirty = true
@@ -487,7 +489,7 @@ export function adaptRoutePolicy(key: RouteKey, success: boolean, score: number)
   const existing = s.data.routes[keyStr]
   if (!existing) return
 
-  const adapted = adaptPolicyFn(existing, success, score)
+  const adapted = adaptPolicyFn(existing, success, score, keyStr)
   s.data.routes[keyStr] = {
     ...existing,
     policy: adapted.policy,

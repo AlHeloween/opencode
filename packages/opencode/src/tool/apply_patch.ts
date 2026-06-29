@@ -77,9 +77,9 @@ export const ApplyPatchTool = Tool.define(
             const newContent =
               hunk.contents.length === 0 || hunk.contents.endsWith("\n") ? hunk.contents : `${hunk.contents}\n`
             const next = Bom.split(newContent)
-            const diff = trimDiff(createPatch(oldContent, next.text) ?? "")
+            const diff = trimDiff((yield* Effect.promise(() => createPatch(oldContent, next.text))) ?? "")
 
-            const statsA = diffStats(oldContent, next.text)
+            const statsA = yield* Effect.promise(() => diffStats(oldContent, next.text))
             const additions = statsA?.additions ?? 0
             const deletions = statsA?.deletions ?? 0
 
@@ -121,9 +121,9 @@ export const ApplyPatchTool = Tool.define(
               return yield* Effect.fail(new Error(`apply_patch verification failed: ${error}`))
             }
 
-            const diff = trimDiff(createPatch(oldContent, newContent) ?? "")
+            const diff = trimDiff((yield* Effect.promise(() => createPatch(oldContent, newContent))) ?? "")
 
-            const statsU = diffStats(oldContent, newContent)
+            const statsU = yield* Effect.promise(() => diffStats(oldContent, newContent))
             const additions = statsU?.additions ?? 0
             const deletions = statsU?.deletions ?? 0
 
@@ -157,7 +157,7 @@ export const ApplyPatchTool = Tool.define(
               ),
             )
             const contentToDelete = source.text
-            const deleteDiff = trimDiff(createPatch(contentToDelete, "") ?? "")
+            const deleteDiff = trimDiff((yield* Effect.promise(() => createPatch(contentToDelete, ""))) ?? "")
 
             const deletions = contentToDelete.split("\n").length
 

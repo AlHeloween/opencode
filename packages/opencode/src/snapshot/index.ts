@@ -290,7 +290,7 @@ export const layer: Layer.Layer<
                 }
                 result.push({
                   file: row.file,
-                  patch: createPatch(before, after) ?? "",
+                  patch: (yield* Effect.promise(() => createPatch(before, after))) ?? "",
                   additions: row.additions,
                   deletions: row.deletions,
                   status: row.status,

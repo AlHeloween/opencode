@@ -7,37 +7,43 @@ export interface DiffHunk {
   length?: number
 }
 
-let _diffy: {
+type DiffyModule = {
   diff_create_patch(original: string, modified: string): string
   diff_apply(base: string, patch_text: string): string
   diff_parse(patch_text: string): string
   diff_stats(original: string, modified: string): string
-} | null = null
-let _initFailed = false
+}
 
-function loadDiffy() {
+let _diffy: DiffyModule | null = null
+let _initPromise: Promise<DiffyModule | null> | null = null
+
+async function loadDiffy(): Promise<DiffyModule | null> {
   if (_diffy) return _diffy
-  if (_initFailed) return null
-  try {
+  if (_initPromise) return _initPromise
+  _initPromise = (async () => {
     const paths = [
-      () => require("../../../wasm/core/pkg/diffy/diffy_wasm.js"),
-      () => require("../../wasm/core/pkg/diffy/diffy_wasm.js"),
-      () => require("../../../../packages/wasm/core/pkg/diffy/diffy_wasm.js"),
+      new URL("../../wasm/core/pkg/diffy/diffy_wasm.js", import.meta.url).href,
+      new URL("../../../wasm/core/pkg/diffy/diffy_wasm.js", import.meta.url).href,
+      new URL("../../../../packages/wasm/core/pkg/diffy/diffy_wasm.js", import.meta.url).href,
     ]
-    for (const load of paths) {
+    for (const url of paths) {
       try {
-        _diffy = load() as typeof _diffy
-        return _diffy
-      } catch { /* try next */ }
+        const mod = await import(url)
+        const diffyMod = mod as DiffyModule
+        if (typeof diffyMod.diff_create_patch === "function") {
+          _diffy = diffyMod
+          return diffyMod
+        }
+      } catch { /* try next path */ }
     }
-  } catch { /* all failed */ }
-  _initFailed = true
-  return null
+    return null
+  })()
+  return _initPromise
 }
 
 /** Create a unified diff patch between original and modified text. */
-export function createPatch(original: string, modified: string): string | null {
-  const d = loadDiffy()
+export async function createPatch(original: string, modified: string): Promise<string | null> {
+  const d = await loadDiffy()
   if (!d) return null
   try {
     const patch = d.diff_create_patch(original, modified)
@@ -46,8 +52,8 @@ export function createPatch(original: string, modified: string): string | null {
 }
 
 /** Apply a unified diff patch to base text. Returns patched text or null. */
-export function applyPatch(base: string, patchText: string): string | null {
-  const d = loadDiffy()
+export async function applyPatch(base: string, patchText: string): Promise<string | null> {
+  const d = await loadDiffy()
   if (!d) return null
   try {
     return d.diff_apply(base, patchText)
@@ -55,8 +61,8 @@ export function applyPatch(base: string, patchText: string): string | null {
 }
 
 /** Parse unified diff text into structured hunks JSON. */
-export function parsePatch(patchText: string): string | null {
-  const d = loadDiffy()
+export async function parsePatch(patchText: string): Promise<string | null> {
+  const d = await loadDiffy()
   if (!d) return null
   try {
     const json = d.diff_parse(patchText)
@@ -65,8 +71,8 @@ export function parsePatch(patchText: string): string | null {
 }
 
 /** Count additions and deletions between two texts. */
-export function diffStats(original: string, modified: string): { additions: number; deletions: number } | null {
-  const d = loadDiffy()
+export async function diffStats(original: string, modified: string): Promise<{ additions: number; deletions: number } | null> {
+  const d = await loadDiffy()
   if (!d) return null
   try {
     const json = d.diff_stats(original, modified)
@@ -75,8 +81,8 @@ export function diffStats(original: string, modified: string): { additions: numb
 }
 
 /** Compute line-level hunks between two texts. */
-export function computeDiffWasm(oldText: string, newText: string): DiffHunk[] | null {
-  const d = loadDiffy()
+export async function computeDiffWasm(oldText: string, newText: string): Promise<DiffHunk[] | null> {
+  const d = await loadDiffy()
   if (!d) return null
   try {
     const json = d.diff_parse(d.diff_create_patch(oldText, newText))

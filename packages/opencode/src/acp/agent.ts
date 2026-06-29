@@ -248,7 +248,7 @@ export class Agent implements ACPAgent {
               const filepath = typeof metadata["filepath"] === "string" ? metadata["filepath"] : ""
               const diff = typeof metadata["diff"] === "string" ? metadata["diff"] : ""
               const content = (await Filesystem.exists(filepath)) ? await Filesystem.readText(filepath) : ""
-              const newContent = getNewContent(content, diff)
+              const newContent = await getNewContent(content, diff)
 
               if (newContent) {
                 void this.connection.writeTextFile({
@@ -1704,8 +1704,8 @@ function parseUri(
   }
 }
 
-function getNewContent(fileOriginal: string, unifiedDiff: string): string | undefined {
-  const result = applyPatch(fileOriginal, unifiedDiff)
+async function getNewContent(fileOriginal: string, unifiedDiff: string): Promise<string | undefined> {
+  const result = await applyPatch(fileOriginal, unifiedDiff)
   if (!result) {
     log.error("Failed to apply unified diff (context mismatch)")
     return undefined

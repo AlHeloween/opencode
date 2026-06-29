@@ -1,0 +1,2 @@
+@echo off  
+"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\bin\Hostx64\x64\clang.cmd" %%*  

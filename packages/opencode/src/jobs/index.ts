@@ -170,10 +170,33 @@ export const layer = Layer.effect(
     }
 
     // In-memory job store for live fiber access + SQLite for durability
+    const MAX_JOBS = 1000
+    const JOB_TTL = 5 * 60 * 1000 // 5 minutes
     const jobs = new Map<string, Job>()
     const completed: Completion[] = []
     const readOffsets = new Map<string, number>()
     const counters = new Map<string, number>()
+
+    function evictStaleJobs() {
+      const now = Date.now()
+      // TTL eviction: remove jobs older than JOB_TTL
+      for (const [id, job] of jobs) {
+        if (now - job.startedAt > JOB_TTL) {
+          jobs.delete(id)
+          readOffsets.delete(id + ":offset")
+        }
+      }
+      // Enforce max size: remove oldest entries if over limit
+      if (jobs.size > MAX_JOBS) {
+        const entries = [...jobs.entries()]
+        entries.sort((a, b) => a[1].startedAt - b[1].startedAt)
+        const toDelete = entries.slice(0, entries.length - MAX_JOBS)
+        for (const [id] of toDelete) {
+          jobs.delete(id)
+          readOffsets.delete(id + ":offset")
+        }
+      }
+    }
 
     // Initialize jobs DB
     const db = getJobsDb()
@@ -293,6 +316,9 @@ export const layer = Layer.effect(
     })
 
     const drainCompletedNote = Effect.fn("Jobs.drainCompletedNote")(function* (input: { sessionID: SessionID }) {
+      // Evict stale jobs before processing
+      evictStaleJobs()
+
       const notes: string[] = []
       for (let i = completed.length - 1; i >= 0; i--) {
         if (completed[i].sessionID === input.sessionID) {

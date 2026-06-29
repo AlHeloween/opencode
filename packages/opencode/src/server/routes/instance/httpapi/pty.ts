@@ -207,6 +207,8 @@ export const ptyConnectRoute = HttpRouter.add(
     const socket = yield* Effect.orDie((yield* HttpServerRequest.HttpServerRequest).upgrade)
     const write = yield* socket.writer
     let closed = false
+    const closeListeners: Array<() => void> = []
+    const errorListeners: Array<() => void> = []
     const adapter = {
       get readyState() {
         return closed ? 3 : 1
@@ -220,7 +222,12 @@ export const ptyConnectRoute = HttpRouter.add(
       close: (code?: number, reason?: string) => {
         if (closed) return
         closed = true
+        for (const cb of closeListeners) cb()
         Effect.runFork(write(new Socket.CloseEvent(code, reason)).pipe(Effect.catch(() => Effect.void)))
+      },
+      on: (event: "close" | "error", cb: () => void) => {
+        if (event === "close") closeListeners.push(cb)
+        else if (event === "error") errorListeners.push(cb)
       },
     }
     const handler = yield* pty.connect(params.ptyID, adapter, cursor)

@@ -41,6 +41,7 @@ type Socket = {
   data?: unknown
   send: (data: string | Uint8Array | ArrayBuffer) => void
   close: (code?: number, reason?: string) => void
+  on?: (event: "close" | "error", cb: () => void) => void
 }
 
 const sock = (ws: Socket) => (ws.data && typeof ws.data === "object" ? ws.data : ws)
@@ -339,6 +340,18 @@ export const layer = Layer.effect(
 
       const cleanup = () => {
         session.subscribers.delete(sub)
+      }
+
+      // Clean up on WebSocket close/error to prevent stale subscriber entries
+      // when connections drop without an explicit close frame.
+      if (ws.on) {
+        ws.on("close", () => {
+          cleanup()
+        })
+
+        ws.on("error", () => {
+          ws.close() // Triggers the close handler above
+        })
       }
 
       const start = session.bufferCursor

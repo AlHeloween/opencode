@@ -1,6 +1,12 @@
 import { Config } from "@/config/config"
-import { Schema } from "effect"
-import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
+import { InstanceRef } from "@/effect/instance-ref"
+import { Instance } from "@/project/instance"
+import { Effect, Layer, Schema } from "effect"
+import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
+import { HttpServerResponse } from "effect/unstable/http"
+import { InstallationVersion } from "@opencode-ai/core/installation/version"
+
+const version = InstallationVersion
 
 const GlobalHealth = Schema.Struct({
   healthy: Schema.Literal(true),
@@ -74,3 +80,22 @@ export const GlobalApi = HttpApi.make("global").add(
     )
     .annotateMerge(OpenApi.annotations({ title: "global", description: "Global server routes." })),
 )
+
+export const globalHandlers = Layer.unwrap(
+  Effect.gen(function* () {
+    const dispose = Effect.fn("GlobalHttpApi.dispose")(function* () {
+      const instance = yield* InstanceRef
+      yield* Effect.promise(() => Instance.dispose(instance))
+      return true
+    })
+
+    return HttpApiBuilder.group(GlobalApi, "global", (handlers) =>
+      handlers
+        .handle("health", Effect.fn("GlobalHttpApi.health")(() => Effect.succeed({ healthy: true as const, version })))
+        .handle("dispose", dispose)
+        .handle("event", () => Effect.succeed(HttpServerResponse.empty({ status: 501 })))
+        .handle("configGet", () => Effect.succeed(HttpServerResponse.empty({ status: 501 })))
+        .handle("configUpdate", () => Effect.succeed(HttpServerResponse.empty({ status: 501 })))
+    )
+  }),
+).pipe(Layer.provide(Config.defaultLayer))

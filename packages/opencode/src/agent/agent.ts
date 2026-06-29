@@ -47,6 +47,9 @@ export const Info = Schema.Struct({
   prompt: Schema.optional(Schema.String),
   options: Schema.Record(Schema.String, Schema.Unknown),
   steps: Schema.optional(Schema.Number),
+  subagents: Schema.optional(Schema.Array(Schema.String)).annotate({
+    description: "Allowed sub-agent types for task delegation. Omitted means all allowed.",
+  }),
 })
   .annotate({ identifier: "Agent" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -128,6 +131,7 @@ export const layer = Layer.effect(
             options: {},
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 question: "allow",
                 plan_exit: "allow",
@@ -136,7 +140,6 @@ export const layer = Layer.effect(
                   [path.join("plans", "*.md")]: "allow",
                 },
               }),
-              user,
             ),
             mode: "primary",
             native: true,
@@ -144,11 +147,12 @@ export const layer = Layer.effect(
           orchestrator: {
             name: "orchestrator",
             color: "#90EE50",
-            description: `Autonomous development orchestrator — ADID Framework Strategist2 + Analyst2. Reads plans, plans, creates plans, and commands sub-agents (coder, explore) via task tool. Never writes source code directly — delegates implementation to sub-agents. Use in AGI mode.`,
+            description: `Autonomous development orchestrator`,
             options: {},
             prompt: PROMPT_ORCHESTRATOR,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 edit: {
                   "*": "deny",
@@ -171,20 +175,20 @@ export const layer = Layer.effect(
                 universalsearch: "allow",
                 webfetch: "allow",
               }),
-              user,
             ),
             mode: "primary",
             native: true,
+            subagents: ["explore"],
           },
           general: {
             name: "general",
             description: `General-purpose subagent for planning, design alternatives, root-cause analysis, and multi-step implementation strategy. Use this after explore has gathered scope evidence, or when a focused non-explore subtask should run in parallel.`,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 todowrite: "deny",
               }),
-              user,
             ),
             prompt: PROMPT_GENERAL,
             options: {},
@@ -195,6 +199,7 @@ export const layer = Layer.effect(
             name: "explore",
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 "*": "deny",
                 grep: "allow",
@@ -211,7 +216,6 @@ export const layer = Layer.effect(
                   ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
                 },
               }),
-              user,
             ),
             description: `Fast agent specialized for exploring codebases and researching conversation history. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase (eg. "how do API endpoints work?"), or search past conversations for decisions, patterns, and context. When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
             prompt: PROMPT_EXPLORE,
@@ -224,11 +228,11 @@ export const layer = Layer.effect(
             description: `Specialized agent for implementing code changes. Has full edit, write, bash, and search access. Use for targeted implementation tasks after a plan or research phase.`,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 todowrite: "deny",
                 task: "deny",
               }),
-              user,
             ),
             prompt: PROMPT_CODER,
             options: {},
@@ -240,6 +244,7 @@ export const layer = Layer.effect(
             description: `Specialized agent for information gathering. Read-only access to codebase search, web research, and conversation history. Use before planning or implementing to gather evidence.`,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 "*": "deny",
                 read: "allow",
@@ -256,7 +261,6 @@ export const layer = Layer.effect(
                   ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
                 },
               }),
-              user,
             ),
             prompt: PROMPT_RESEARCHER,
             options: {},
@@ -268,13 +272,13 @@ export const layer = Layer.effect(
             description: `Specialized agent for media generation and processing. Uses the capability tool to find models for image, audio, and video generation. Has write access for saving generated media.`,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 todowrite: "deny",
                 task: "deny",
                 webfetch: "deny",
                 universalsearch: "deny",
               }),
-              user,
             ),
             prompt: PROMPT_MEDIA,
             options: {},
@@ -288,10 +292,10 @@ export const layer = Layer.effect(
             hidden: true,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 "*": "deny",
               }),
-              user,
             ),
             options: {},
           },
@@ -304,10 +308,10 @@ export const layer = Layer.effect(
             temperature: 0.5,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 "*": "deny",
               }),
-              user,
             ),
             prompt: PROMPT_TITLE,
           },
@@ -319,10 +323,10 @@ export const layer = Layer.effect(
             hidden: true,
             permission: Permission.merge(
               defaults,
+              user,
               Permission.fromConfig({
                 "*": "deny",
               }),
-              user,
             ),
             prompt: PROMPT_SUMMARY,
           },

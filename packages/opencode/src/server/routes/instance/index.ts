@@ -15,7 +15,6 @@ import { PtyPaths } from "./httpapi/pty"
 import { EventPaths } from "./httpapi/event"
 import { ExperimentalPaths } from "./httpapi/experimental"
 import { FilePaths } from "./httpapi/file"
-import { InstancePaths } from "./httpapi/instance"
 import { McpPaths } from "./httpapi/mcp"
 import { SessionPaths } from "./httpapi/session"
 import { SyncPaths } from "./httpapi/sync"
@@ -62,15 +61,7 @@ export const InstanceRoutes = (): Hono => {
   app.get(FilePaths.list, (c) => handler(c.req.raw, context))
   app.get(FilePaths.content, (c) => handler(c.req.raw, context))
   app.get(FilePaths.status, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.path, (c) => handler(c.req.raw, context))
-  app.post(InstancePaths.dispose, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.vcs, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.vcsDiff, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.command, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.agent, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.skill, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.lsp, (c) => handler(c.req.raw, context))
-  app.get(InstancePaths.formatter, (c) => handler(c.req.raw, context))
+
   app.get(McpPaths.status, (c) => handler(c.req.raw, context))
   app.post(McpPaths.status, (c) => handler(c.req.raw, context))
   app.post(McpPaths.auth, (c) => handler(c.req.raw, context))

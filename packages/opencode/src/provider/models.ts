@@ -149,7 +149,39 @@ export const Data = lazy(async () => {
   })
 })
 
-export async function get() {
+// Cache for lazily-loaded per-provider data (avoids loading full registry)
+const providerCache = new Map<string, Provider>()
+const providerLoadPromises = new Map<string, Promise<Provider | undefined>>()
+
+export async function loadProvider(providerID: string): Promise<Provider | undefined> {
+  if (providerCache.has(providerID)) return providerCache.get(providerID)
+  let promise = providerLoadPromises.get(providerID)
+  if (promise) return promise
+  promise = (async () => {
+    try {
+      const mod = await import(`./models/${providerID}.json`)
+      const provider = mod.default as Provider
+      providerCache.set(providerID, provider)
+      return provider
+    } catch {
+      return undefined
+    }
+  })()
+  providerLoadPromises.set(providerID, promise)
+  return promise
+}
+
+export async function get(): Promise<Record<string, Provider>>
+export async function get(providerID: string): Promise<Record<string, Provider> | undefined>
+export async function get(providerID?: string) {
+  if (providerID) {
+    const provider = await loadProvider(providerID)
+    if (provider) return { [providerID]: provider } as Record<string, Provider>
+    // Fall back to full registry load
+    const all = await Data()
+    if ((all as Record<string, Provider>)[providerID]) return { [providerID]: (all as Record<string, Provider>)[providerID] }
+    return undefined
+  }
   const result = await Data()
   return result as Record<string, Provider>
 }

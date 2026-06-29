@@ -15,6 +15,7 @@ import { authorizationLayer } from "./auth"
 import { ConfigApi, configHandlers } from "./config"
 import { eventRoute } from "./event"
 import { FileApi, fileHandlers } from "./file"
+import { GlobalApi, globalHandlers } from "./global"
 import { ExperimentalApi, experimentalHandlers } from "./experimental"
 import { InstanceApi, instanceHandlers } from "./instance"
 import { McpApi, mcpHandlers } from "./mcp"
@@ -80,6 +81,7 @@ export const routes = Layer.mergeAll(
   HttpApiBuilder.layer(ConfigApi).pipe(Layer.provide(configHandlers)),
   HttpApiBuilder.layer(ExperimentalApi).pipe(Layer.provide(experimentalHandlers)),
   HttpApiBuilder.layer(FileApi).pipe(Layer.provide(fileHandlers)),
+  HttpApiBuilder.layer(GlobalApi).pipe(Layer.provide(globalHandlers)),
   HttpApiBuilder.layer(InstanceApi).pipe(Layer.provide(instanceHandlers)),
   HttpApiBuilder.layer(McpApi).pipe(Layer.provide(mcpHandlers)),
   HttpApiBuilder.layer(ProjectApi).pipe(Layer.provide(projectHandlers)),

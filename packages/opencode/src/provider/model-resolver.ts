@@ -1,6 +1,8 @@
-import { ModelsDev } from "./models"
+import { ModelsDev, loadProvider } from "./models"
 import { ConfigProvider } from "../config/provider"
 import { mergeDeep } from "remeda"
+
+const PRIORITY_PROVIDERS = ["deepseek", "opencode", "sdk-next", "kat-coder"] as const
 
 type ConfigModels = NonNullable<ConfigProvider.Info["models"]>
 type ConfigModel = ConfigModels[string]
@@ -32,20 +34,20 @@ export interface ResolvedModel {
   configOverrides: string[]
 }
 
-export async function resolveModel(providerID: string, modelID: string): Promise<ResolvedModel | undefined> {
-  const modelsDev = await ModelsDev.get()
-  const cacheModel = modelsDev[providerID]?.models?.[modelID]
-
-  if (!cacheModel) return undefined
-
-  const resolved: ResolvedModel = {
+function buildResolvedModel(
+  providerID: string,
+  modelID: string,
+  cacheModel: ModelsDev.Model,
+  providerData: ModelsDev.Provider | undefined,
+): ResolvedModel {
+  return {
     providerID,
     modelID,
     source: "cache",
     parameters: {
       provider: {
-        npm: cacheModel.provider?.npm ?? modelsDev[providerID]?.npm,
-        api: cacheModel.provider?.api ?? modelsDev[providerID]?.api,
+        npm: cacheModel.provider?.npm ?? providerData?.npm,
+        api: cacheModel.provider?.api ?? providerData?.api,
       },
       limit: {
         context: cacheModel.limit?.context,
@@ -88,8 +90,28 @@ export async function resolveModel(providerID: string, modelID: string): Promise
     resolvedFields: buildFieldList(cacheModel),
     configOverrides: [],
   }
+}
 
-  return resolved
+async function resolvePriorityProvider(providerID: string, modelID: string): Promise<ResolvedModel | undefined> {
+  const providerData = await loadProvider(providerID)
+  if (!providerData) return undefined
+  const cacheModel = providerData.models?.[modelID]
+  if (!cacheModel) return undefined
+  return buildResolvedModel(providerID, modelID, cacheModel, providerData)
+}
+
+async function resolveGeneralProvider(providerID: string, modelID: string): Promise<ResolvedModel | undefined> {
+  const modelsDev = await ModelsDev.get()
+  const cacheModel = modelsDev[providerID]?.models?.[modelID]
+  if (!cacheModel) return undefined
+  return buildResolvedModel(providerID, modelID, cacheModel, modelsDev[providerID])
+}
+
+export async function resolveModel(providerID: string, modelID: string): Promise<ResolvedModel | undefined> {
+  if ((PRIORITY_PROVIDERS as readonly string[]).includes(providerID)) {
+    return resolvePriorityProvider(providerID, modelID)
+  }
+  return resolveGeneralProvider(providerID, modelID)
 }
 
 export async function resolveWithConfig(
@@ -97,8 +119,19 @@ export async function resolveWithConfig(
   modelID: string,
   configModel: ConfigModel,
 ): Promise<ResolvedModel> {
-  const modelsDev = await ModelsDev.get()
-  const cacheModel = modelsDev[providerID]?.models?.[modelID]
+  // Try priority path first for known priority providers
+  let cacheModel: ModelsDev.Model | undefined
+  let providerData: ModelsDev.Provider | undefined
+  if ((PRIORITY_PROVIDERS as readonly string[]).includes(providerID)) {
+    providerData = await loadProvider(providerID)
+    cacheModel = providerData?.models?.[modelID]
+  }
+  // Fall back to general path
+  if (!cacheModel) {
+    const modelsDev = await ModelsDev.get()
+    cacheModel = modelsDev[providerID]?.models?.[modelID]
+    providerData = modelsDev[providerID]
+  }
 
   if (!cacheModel) {
     return {
@@ -121,8 +154,8 @@ export async function resolveWithConfig(
 
   const cacheBase = {
     provider: {
-      npm: cacheModel.provider?.npm ?? modelsDev[providerID]?.npm,
-      api: cacheModel.provider?.api ?? modelsDev[providerID]?.api,
+      npm: cacheModel.provider?.npm ?? providerData?.npm,
+      api: cacheModel.provider?.api ?? providerData?.api,
     },
     limit: {
       context: cacheModel.limit?.context,

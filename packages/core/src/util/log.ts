@@ -8,6 +8,9 @@ import z from "zod"
 export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
 export type Level = z.infer<typeof Level>
 
+const LEVEL_ORDER: Record<Level, number> = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 }
+let minLevel: Level = "INFO"
+
 const keep = 100
 
 export type Logger = {
@@ -32,6 +35,7 @@ export const Default = create({ service: "default" })
 
 export interface Options {
   print?: boolean
+  logLevel?: Level
 }
 
 const bugEntries = new Map<string, { id: string; message: string; count: number; payloads: unknown[] }>()
@@ -198,6 +202,7 @@ function canDedup(level: Level, message: string): boolean {
 
 export async function init(options: Options = {}) {
   printLogs = options.print ?? false
+  minLevel = options.logLevel ?? "INFO"
   await cleanup(Global.Path.log)
   mkdirSync(Global.Path.log, { recursive: true })
   // Close any previous streams
@@ -366,8 +371,13 @@ export function create(tags?: Record<string, any>) {
     })
   }
 
+  function shouldLog(level: Level): boolean {
+    return LEVEL_ORDER[level] >= LEVEL_ORDER[minLevel]
+  }
+
   const result: Logger = {
     debug(message?: any, extra?: Record<string, any>) {
+      if (!shouldLog("DEBUG")) return
       const msg = String(message ?? "")
       let caller: string | undefined
       if (canDedup("DEBUG", msg)) {
@@ -379,6 +389,7 @@ export function create(tags?: Record<string, any>) {
       routeWrite(build("DEBUG", message, extra, caller), extra)
     },
     info(message?: any, extra?: Record<string, any>) {
+      if (!shouldLog("INFO")) return
       const msg = String(message ?? "")
       let caller: string | undefined
       if (canDedup("INFO", msg)) {
@@ -390,9 +401,11 @@ export function create(tags?: Record<string, any>) {
       routeWrite(build("INFO", message, extra, caller), extra)
     },
     error(message?: any, extra?: Record<string, any>) {
+      if (!shouldLog("ERROR")) return
       routeWrite(build("ERROR", message, extra), extra)
     },
     warn(message?: any, extra?: Record<string, any>) {
+      if (!shouldLog("WARN")) return
       if (typeof message === "string" && message.startsWith("bug:")) {
         const caller = getCaller() ?? "unknown"
         const key = caller + " " + message

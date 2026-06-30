@@ -78,6 +78,11 @@ const cli = yargs(args)
     describe: "print logs to stderr",
     type: "boolean",
   })
+  .option("log-level", {
+    describe: "minimum log level (DEBUG, INFO, WARN, ERROR)",
+    type: "string",
+    choices: ["DEBUG", "INFO", "WARN", "ERROR"],
+  })
   .option("pure", {
     describe: "run without external plugins",
     type: "boolean",
@@ -90,6 +95,7 @@ const cli = yargs(args)
 
     await Log.init({
       print: process.argv.includes("--print-logs"),
+      logLevel: (opts["log-level"] as Log.Level | undefined) ?? "INFO",
     })
 
     Heap.start()

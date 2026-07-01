@@ -15,10 +15,15 @@ fs.mkdirSync(GRAMMAR_DIR, { recursive: true })
 
 let downloaded = 0
 let skipped = 0
+let local = 0
 let failed = 0
 
 for (const url of wasmUrls) {
   if (!url) continue
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    local++
+    continue
+  }
   const filename = path.basename(new URL(url).pathname)
   const dest = path.join(GRAMMAR_DIR, filename)
   if (fs.existsSync(dest)) {
@@ -42,4 +47,4 @@ for (const url of wasmUrls) {
   }
 }
 
-console.log(`\n${downloaded} downloaded, ${skipped} cached, ${failed} failed`)
+console.log(`\n${downloaded} downloaded, ${skipped} cached, ${local} local, ${failed} failed`)

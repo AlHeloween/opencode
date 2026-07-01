@@ -7,11 +7,10 @@ import DESCRIPTION from "./bash.txt"
 import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "../project/instance"
 import { lazy } from "@/util/lazy"
-import { resolveWasmAssetPath } from "@/util/wasm-path"
+import { readWasmAsset } from "@/util/wasm-path"
 import { Language, type Node } from "web-tree-sitter"
 
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
-import { fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Shell } from "@/shell/shell"
@@ -103,13 +102,6 @@ type Chunk = {
 }
 
 export const log = Log.create({ service: "bash-tool" })
-
-const resolveWasm = (asset: string) => {
-  if (asset.startsWith("file://")) return fileURLToPath(asset)
-  if (asset.startsWith("/") || /^[a-z]:/i.test(asset)) return asset
-  const url = new URL(asset, import.meta.url)
-  return fileURLToPath(url)
-}
 
 function parts(node: Node) {
   const out: Part[] = []
@@ -325,25 +317,24 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
 }
 const parser = lazy(async () => {
   const { Parser } = await import("web-tree-sitter")
-  const { default: treeWasm } = await import("web-tree-sitter/tree-sitter.wasm" as string, {
-    with: { type: "wasm" },
-  })
-  const treePath = (await resolveWasmAssetPath("tree-sitter.wasm")) ?? resolveWasm(treeWasm)
-  // web-tree-sitter types require full EmscriptenModule, but runtime only needs locateFile
+  const treeWasm = await readWasmAsset("tree-sitter.wasm")
+  if (!treeWasm.bytes) {
+    throw new Error("tree-sitter runtime WASM unavailable; tried: " + JSON.stringify(treeWasm.tried))
+  }
+  // web-tree-sitter types require full EmscriptenModule, but runtime accepts wasmBinary.
   await (Parser.init as any)({
-    locateFile() {
-      return treePath
-    },
+    wasmBinary: treeWasm.bytes,
   })
-  const { default: bashWasm } = await import("tree-sitter-bash/tree-sitter-bash.wasm" as string, {
-    with: { type: "wasm" },
-  })
-  const { default: psWasm } = await import("tree-sitter-powershell/tree-sitter-powershell.wasm" as string, {
-    with: { type: "wasm" },
-  })
-  const bashPath = (await resolveWasmAssetPath("grammars/tree-sitter-bash.wasm")) ?? resolveWasm(bashWasm)
-  const psPath = (await resolveWasmAssetPath("grammars/tree-sitter-powershell.wasm")) ?? resolveWasm(psWasm)
-  const [bashLanguage, psLanguage] = await Promise.all([Language.load(bashPath), Language.load(psPath)])
+  const [bashWasm, psWasm] = await Promise.all([
+    readWasmAsset("grammars/tree-sitter-bash.wasm"),
+    readWasmAsset("grammars/tree-sitter-powershell.wasm"),
+  ])
+  if (!bashWasm.bytes) throw new Error("bash grammar WASM unavailable; tried: " + JSON.stringify(bashWasm.tried))
+  if (!psWasm.bytes) throw new Error("PowerShell grammar WASM unavailable; tried: " + JSON.stringify(psWasm.tried))
+  const [bashLanguage, psLanguage] = await Promise.all([
+    Language.load(new Uint8Array(bashWasm.bytes)),
+    Language.load(new Uint8Array(psWasm.bytes)),
+  ])
   const bash = new Parser()
   bash.setLanguage(bashLanguage)
   const ps = new Parser()

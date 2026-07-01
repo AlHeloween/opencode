@@ -53,7 +53,7 @@ async function loadWasm(): Promise<WebAssembly.Module | null> {
 
     try {
       _wasmModule = await WebAssembly.compile(asset.bytes)
-      Log.Default.warn("bpe-wasm: loaded WASM from " + asset.path)
+      Log.Default.info("bpe-wasm: loaded WASM from " + asset.path)
       return _wasmModule
     } catch (err) {
       Log.Default.error("bpe-wasm: load failed: " + (err instanceof Error ? err.message : String(err)))
@@ -223,4 +223,3 @@ const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
 }
 
 export * as BpeWasmTokenizerMod from "./bpe-wasm"
-

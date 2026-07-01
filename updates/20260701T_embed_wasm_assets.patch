@@ -1,0 +1,152 @@
+*** Begin Patch
+*** Add File: packages/opencode/src/util/wasm-embedded.ts
++import * as Log from "@opencode-ai/core/util/log"
++
++import tokenizerWasm from "../../../wasm/core/pkg/tokenizer.wasm" with { type: "file" }
++import diffyWasm from "../../../wasm/core/pkg/diffy/diffy_wasm_bg.wasm" with { type: "file" }
++import jsonRepairWasm from "../../../wasm/core/pkg/json_repair/json_repair_bg.wasm" with { type: "file" }
++import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: "file" }
++import treeSitterRuntimeWasm from "web-tree-sitter/tree-sitter.wasm" with { type: "file" }
++import treeSitterBashWasm from "tree-sitter-bash/tree-sitter-bash.wasm" with { type: "file" }
++import treeSitterPowerShellWasm from "tree-sitter-powershell/tree-sitter-powershell.wasm" with { type: "file" }
++
++const embeddedWasmAssets = new Map([
++  ["tokenizer.wasm", tokenizerWasm],
++  ["diffy/diffy_wasm_bg.wasm", diffyWasm],
++  ["json_repair/json_repair_bg.wasm", jsonRepairWasm],
++  ["rdiff/rdiff_bg.wasm", rdiffWasm],
++  ["tree-sitter.wasm", treeSitterRuntimeWasm],
++  ["grammars/tree-sitter-bash.wasm", treeSitterBashWasm],
++  ["grammars/tree-sitter-powershell.wasm", treeSitterPowerShellWasm],
++])
++
++function normalizeWasmAsset(relativePath: string) {
++  return relativePath.replaceAll("\\", "/").replace(/^\/+/, "")
++}
++
++export function embeddedWasmAssetPath(relativePath: string) {
++  return embeddedWasmAssets.get(normalizeWasmAsset(relativePath))
++}
++
++export async function readEmbeddedWasmAsset(relativePath: string) {
++  const assetPath = embeddedWasmAssetPath(relativePath)
++  if (!assetPath) return { bytes: null, path: null, tried: [] as string[] }
++  try {
++    return { bytes: await Bun.file(assetPath).arrayBuffer(), path: assetPath, tried: [assetPath] }
++  } catch (err) {
++    Log.Default.warn(
++      "wasm-embedded: failed to read embedded WASM asset " +
++        normalizeWasmAsset(relativePath) +
++        ": " +
++        (err instanceof Error ? err.message : String(err)),
++    )
++    return { bytes: null, path: null, tried: [assetPath] }
++  }
++}
++
++export * as WasmEmbedded from "./wasm-embedded"
+*** Update File: packages/opencode/src/util/wasm-path.ts
+@@
+ import path from "path"
+ import { fileURLToPath } from "url"
++import { readEmbeddedWasmAsset } from "./wasm-embedded"
+ 
+-type LoadedWasmAsset = {
++export type LoadedWasmAsset = {
+   bytes: ArrayBuffer | null
+   path: string | null
+   tried: string[]
+ }
+@@
+ export async function readWasmAsset(relativePath: string): Promise<LoadedWasmAsset> {
++  const embedded = await readEmbeddedWasmAsset(relativePath)
++  if (embedded.bytes) return embedded
++
+   const tried = wasmAssetCandidates(relativePath)
+   for (const candidate of tried) {
+     const file = Bun.file(candidate)
+     if (!(await file.exists())) continue
+-    return { bytes: await file.arrayBuffer(), path: candidate, tried }
++    return { bytes: await file.arrayBuffer(), path: candidate, tried: [...embedded.tried, ...tried] }
+   }
+-  return { bytes: null, path: null, tried }
++  return { bytes: null, path: null, tried: [...embedded.tried, ...tried] }
+ }
+ 
+ export * as WasmPath from "./wasm-path"
+*** Update File: packages/opencode/src/tool/bash.ts
+@@
+ import * as Log from "@opencode-ai/core/util/log"
+ import { Instance } from "../project/instance"
+ import { lazy } from "@/util/lazy"
+-import { resolveWasmAssetPath } from "@/util/wasm-path"
++import { readWasmAsset } from "@/util/wasm-path"
+ import { Language, type Node } from "web-tree-sitter"
+ 
+ import { AppFileSystem } from "@opencode-ai/core/filesystem"
+-import { fileURLToPath } from "url"
+ import { Config } from "@/config/config"
+@@
+-const resolveWasm = (asset: string) => {
+-  if (asset.startsWith("file://")) return fileURLToPath(asset)
+-  if (asset.startsWith("/") || /^[a-z]:/i.test(asset)) return asset
+-  const url = new URL(asset, import.meta.url)
+-  return fileURLToPath(url)
+-}
+-
+ function parts(node: Node) {
+@@
+ }
+ const parser = lazy(async () => {
+   const { Parser } = await import("web-tree-sitter")
+-  const { default: treeWasm } = await import("web-tree-sitter/tree-sitter.wasm" as string, {
+-    with: { type: "wasm" },
+-  })
+-  const treePath = (await resolveWasmAssetPath("tree-sitter.wasm")) ?? resolveWasm(treeWasm)
+-  // web-tree-sitter types require full EmscriptenModule, but runtime only needs locateFile
++  const treeWasm = await readWasmAsset("tree-sitter.wasm")
++  if (!treeWasm.bytes) {
++    throw new Error("tree-sitter runtime WASM unavailable; tried: " + JSON.stringify(treeWasm.tried))
++  }
++  // web-tree-sitter types require full EmscriptenModule, but runtime accepts wasmBinary.
+   await (Parser.init as any)({
+-    locateFile() {
+-      return treePath
+-    },
++    wasmBinary: treeWasm.bytes,
+   })
+-  const { default: bashWasm } = await import("tree-sitter-bash/tree-sitter-bash.wasm" as string, {
+-    with: { type: "wasm" },
+-  })
+-  const { default: psWasm } = await import("tree-sitter-powershell/tree-sitter-powershell.wasm" as string, {
+-    with: { type: "wasm" },
+-  })
+-  const bashPath = (await resolveWasmAssetPath("grammars/tree-sitter-bash.wasm")) ?? resolveWasm(bashWasm)
+-  const psPath = (await resolveWasmAssetPath("grammars/tree-sitter-powershell.wasm")) ?? resolveWasm(psWasm)
+-  const [bashLanguage, psLanguage] = await Promise.all([Language.load(bashPath), Language.load(psPath)])
++  const [bashWasm, psWasm] = await Promise.all([
++    readWasmAsset("grammars/tree-sitter-bash.wasm"),
++    readWasmAsset("grammars/tree-sitter-powershell.wasm"),
++  ])
++  if (!bashWasm.bytes) throw new Error("bash grammar WASM unavailable; tried: " + JSON.stringify(bashWasm.tried))
++  if (!psWasm.bytes) throw new Error("PowerShell grammar WASM unavailable; tried: " + JSON.stringify(psWasm.tried))
++  const [bashLanguage, psLanguage] = await Promise.all([
++    Language.load(new Uint8Array(bashWasm.bytes)),
++    Language.load(new Uint8Array(psWasm.bytes)),
++  ])
+   const bash = new Parser()
+   bash.setLanguage(bashLanguage)
+*** Update File: packages/opencode/src/util/parser-wasm.ts
+@@
+  */
+ import PARSER_CONFIG from "../../parsers-config"
++import * as Log from "@opencode-ai/core/util/log"
+ import { readWasmAsset } from "./wasm-path"
+@@
+-  } catch {
++  } catch (err) {
++    Log.Default.debug("parser-wasm: CDN fallback failed for " + filename + ": " + String(err))
+     grammarCache.set(filename, null)
+     return null
+   }
+*** End Patch

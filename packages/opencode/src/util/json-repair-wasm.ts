@@ -68,7 +68,7 @@ if (!asset.bytes) {
       _wasm = instance.exports as unknown as JsonRepairExports
       _cachedMemory = null
       _wasm.__wbindgen_start()
-      Log.Default.warn("json-repair: WASM loaded from " + asset.path)
+      Log.Default.info("json-repair: WASM loaded from " + asset.path)
       return _wasm
     } catch (err) {
       Log.Default.error("json-repair: FATAL load failed: " + (err instanceof Error ? err.message : String(err)))
@@ -107,4 +107,3 @@ export async function initJsonRepair(): Promise<boolean> {
 }
 
 export * as JsonRepairWasmMod from "./json-repair-wasm"
-

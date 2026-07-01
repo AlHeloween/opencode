@@ -1,0 +1,21 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/tokenizers/bpe-wasm.ts
+@@
+-      Log.Default.warn("bpe-wasm: loaded WASM from " + asset.path)
++      Log.Default.info("bpe-wasm: loaded WASM from " + asset.path)
+*** Update File: packages/opencode/src/util/diff-wasm.ts
+@@
+-Log.Default.warn("diff-wasm: loaded WASM from " + asset.path)
++Log.Default.info("diff-wasm: loaded WASM from " + asset.path)
+@@
+-      Log.Default.warn("diff-wasm: WASM loaded successfully")
++      Log.Default.info("diff-wasm: WASM loaded successfully")
+*** Update File: packages/opencode/src/util/json-repair-wasm.ts
+@@
+-      Log.Default.warn("json-repair: WASM loaded from " + asset.path)
++      Log.Default.info("json-repair: WASM loaded from " + asset.path)
+*** Update File: packages/opencode/src/util/wasm-health.ts
+@@
+-    Log.Default.warn("wasm-health: all " + results.length + " modules loaded")
++    Log.Default.info("wasm-health: all " + results.length + " modules loaded")
+*** End Patch

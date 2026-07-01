@@ -1,0 +1,8 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/util/wasm-health.ts
+@@
+     initTokenizer().then((ok) => ({ name: "tokenizer", ok })),
+     initJsonRepair().then((ok) => ({ name: "json_repair", ok })),
++    checkAsset("rdiff", "rdiff/rdiff_bg.wasm"),
+     checkAsset("tree_sitter_runtime", "tree-sitter.wasm"),
+*** End Patch

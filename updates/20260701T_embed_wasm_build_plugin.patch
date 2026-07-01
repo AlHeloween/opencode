@@ -1,0 +1,22 @@
+*** Begin Patch
+*** Update File: packages/opencode/script/build.ts
+@@
+-    plugins: [
+-      plugin,
+-      {
+-        name: "wasm-external",
+-        setup(build) {
+-          build.onResolve({ filter: /\/pkg\/(rdiff|json_repair|diffy)\// }, (args) => ({ path: args.path, external: true }))
+-          // Keep tree-sitter runtime + npm grammar WASM external — loaded via dynamic import()
+-          // with type:"wasm" which returns a path string, not a compiled WebAssembly.Module.
+-          // Only match npm package paths (e.g. web-tree-sitter/tree-sitter.wasm),
+-          // NOT @opentui/core/assets/ grammars (those need embedding).
+-          build.onResolve(
+-            { filter: /\/(web-tree-sitter\/tree-sitter|tree-sitter-bash\/tree-sitter-bash|tree-sitter-powershell\/tree-sitter-powershell)\.wasm$/ },
+-            (args) => ({ path: args.path, external: true }),
+-          )
+-        },
+-      },
+-    ],
++    plugins: [plugin],
+*** End Patch

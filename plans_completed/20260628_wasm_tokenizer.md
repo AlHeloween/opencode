@@ -97,4 +97,4 @@ bun typecheck                               # clean
 - [x] Real bundled Qwen3 tokenizer model loads through WASM
 - [x] Tokenizer WASM test file passes without skip-on-null behavior
 - [x] Typecheck clean
-- [x] Compiled executable loads `tokenizer.wasm` from `dist/wasm/core/pkg`
+- [x] Compiled executable loads embedded `tokenizer.wasm`; `dist/wasm/core/pkg` remains a fallback sidecar path

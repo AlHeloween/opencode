@@ -62,7 +62,7 @@ if (!asset.bytes) {
   Log.Default.warn("diff-wasm: no WASM file found, tried: " + JSON.stringify(asset.tried))
   return null
 }
-Log.Default.warn("diff-wasm: loaded WASM from " + asset.path)
+Log.Default.info("diff-wasm: loaded WASM from " + asset.path)
 
       const imports = {
         "./diffy_wasm_bg.js": {
@@ -89,7 +89,7 @@ Log.Default.warn("diff-wasm: loaded WASM from " + asset.path)
       _wasm = instance.exports as unknown as DiffyExports
       _cachedMemory = null
       _wasm.__wbindgen_start()
-      Log.Default.warn("diff-wasm: WASM loaded successfully")
+      Log.Default.info("diff-wasm: WASM loaded successfully")
       return _wasm
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -182,4 +182,3 @@ export async function computeDiffWasm(oldText: string, newText: string): Promise
 }
 
 export * as DiffWasmMod from "./diff-wasm"
-

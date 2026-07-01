@@ -98,10 +98,10 @@ bun typecheck                      # clean
 
 - [x] TypeScript typecheck passes (`bun typecheck`)
 - [x] Prebuilt grammar download/cache path replaces wasm-pack build for Windows packaging
-- [x] `bash.ts` prefers packaged `dist/wasm/core/pkg` runtime and grammar assets
-- [x] `_build.ps1` copies `tree-sitter.wasm`, `tree-sitter-bash.wasm`, and `tree-sitter-powershell.wasm`
-- [x] `_build.ps1 -SkipTests -SkipTypecheck` passes and asserts required TreeSitter assets in dist
-- [x] Compiled `dist/bin/opencode.exe debug wait` enters bootstrap with packaged wasm assets present
+- [x] `bash.ts` prefers embedded TreeSitter runtime and grammar assets with packaged sidecars as fallback
+- [x] `_build.ps1` embeds TreeSitter assets into the executable and copies sidecar fallbacks
+- [x] `_build.ps1 -SkipTests -SkipTypecheck` passes and asserts required TreeSitter fallback assets in dist
+- [x] Compiled `dist/bin/opencode.exe debug wait` enters bootstrap and verifies embedded TreeSitter assets without sidecars
 
 ## Notes
 

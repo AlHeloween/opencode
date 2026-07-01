@@ -1,0 +1,4 @@
+line 1: hello world
+line 2: this is a test
+line 3: EDITED - this line was modified
+line 4: final line

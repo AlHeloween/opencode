@@ -169,7 +169,7 @@ function Invoke-Build {
         Write-Success "Markdownify binary copied"
     }
 
-    # Copy WASM modules to dist (external to binary, loaded at runtime)
+    # Copy WASM modules to dist as fallback sidecars; runtime prefers embedded assets.
     $WasmPkgDir = Join-Path $Root "packages\wasm\core\pkg"
     $WasmDistDir = Join-Path $DistDir "wasm\core\pkg"
     if (Test-Path $WasmPkgDir) {
@@ -194,6 +194,7 @@ $RequiredWasmAssets = @(
     "json_repair\json_repair_bg.wasm",
     "rdiff\rdiff_bg.wasm",
     "grammars\tree-sitter-bash.wasm",
+    "grammars\tree-sitter-pascal.wasm",
     "grammars\tree-sitter-powershell.wasm"
 )
 foreach ($asset in $RequiredWasmAssets) {

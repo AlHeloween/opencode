@@ -94,4 +94,4 @@ bun typecheck                                 # clean
 - [x] JSON repair WASM module loads in Bun tests
 - [x] Malformed object syntax repairs to valid JSON
 - [x] Typecheck clean
-- [x] Compiled executable loads `json_repair_bg.wasm` from `dist/wasm/core/pkg`
+- [x] Compiled executable loads embedded `json_repair_bg.wasm`; `dist/wasm/core/pkg` remains a fallback sidecar path

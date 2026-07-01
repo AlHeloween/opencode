@@ -1,7 +1,8 @@
 import path from "path"
 import { fileURLToPath } from "url"
+import { readEmbeddedWasmAsset } from "./wasm-embedded"
 
-type LoadedWasmAsset = {
+export type LoadedWasmAsset = {
   bytes: ArrayBuffer | null
   path: string | null
   tried: string[]
@@ -42,13 +43,16 @@ export async function resolveWasmAssetPath(relativePath: string): Promise<string
 }
 
 export async function readWasmAsset(relativePath: string): Promise<LoadedWasmAsset> {
+  const embedded = await readEmbeddedWasmAsset(relativePath)
+  if (embedded.bytes) return embedded
+
   const tried = wasmAssetCandidates(relativePath)
   for (const candidate of tried) {
     const file = Bun.file(candidate)
     if (!(await file.exists())) continue
-    return { bytes: await file.arrayBuffer(), path: candidate, tried }
+    return { bytes: await file.arrayBuffer(), path: candidate, tried: [...embedded.tried, ...tried] }
   }
-  return { bytes: null, path: null, tried }
+  return { bytes: null, path: null, tried: [...embedded.tried, ...tried] }
 }
 
 export * as WasmPath from "./wasm-path"

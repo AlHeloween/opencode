@@ -286,5 +286,13 @@ export default {
         ],
       },
     },
+    {
+      filetype: "pascal",
+      wasm: "grammars/tree-sitter-pascal.wasm",
+      queries: {
+        highlights: ["https://raw.githubusercontent.com/Isopod/tree-sitter-pascal/master/queries/highlights.scm"],
+        locals: ["https://raw.githubusercontent.com/Isopod/tree-sitter-pascal/master/queries/locals.scm"],
+      },
+    },
   ],
 }

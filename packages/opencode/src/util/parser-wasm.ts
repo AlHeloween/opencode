@@ -5,6 +5,7 @@
  * Replaces 22 separate CDN round-trips with a single local load path.
  */
 import PARSER_CONFIG from "../../parsers-config"
+import * as Log from "@opencode-ai/core/util/log"
 import { readWasmAsset } from "./wasm-path"
 
 type GrammarEntry = {
@@ -41,7 +42,8 @@ async function loadLocalWasm(urlString: string): Promise<Uint8Array | null> {
     const buf = new Uint8Array(await resp.arrayBuffer())
     grammarCache.set(filename, buf)
     return buf
-  } catch {
+  } catch (err) {
+    Log.Default.debug("parser-wasm: CDN fallback failed for " + filename + ": " + String(err))
     grammarCache.set(filename, null)
     return null
   }

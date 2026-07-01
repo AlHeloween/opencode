@@ -1,0 +1,10 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/util/wasm-embedded.ts
+@@
+-  ["diffy/diffy_wasm_bg.wasm", diffyWasm],
+-  ["json_repair/json_repair_bg.wasm", jsonRepairWasm],
+-  ["rdiff/rdiff_bg.wasm", rdiffWasm],
++  ["diffy/diffy_wasm_bg.wasm", diffyWasm as unknown as string],
++  ["json_repair/json_repair_bg.wasm", jsonRepairWasm as unknown as string],
++  ["rdiff/rdiff_bg.wasm", rdiffWasm as unknown as string],
+*** End Patch

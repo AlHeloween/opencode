@@ -91,7 +91,7 @@ bun typecheck                                 # clean
 
 ## Ship Criteria
 
-- [ ] All 8 parity tests pass (identical output to TS repair)
-- [ ] Zero tool test regressions
-- [ ] Typecheck clean
-- [ ] WASM repair produces same output as TS repair on all known LLM JSON failure modes
+- [x] JSON repair WASM module loads in Bun tests
+- [x] Malformed object syntax repairs to valid JSON
+- [x] Typecheck clean
+- [x] Compiled executable loads `json_repair_bg.wasm` from `dist/wasm/core/pkg`

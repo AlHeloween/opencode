@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_4e05ee1ffead79167ac71c36ec1d2d41 name="tui_slot_register_generic_implementation" md5="4e05ee1ffead79167ac71c36ec1d2d41" size="106">
+    <file>packages/opencode/src/cli/cmd/tui/plugin/slots.tsx</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>export type HostSlots = {
+  register&lt;Slots extends Record&lt;string, object&gt;&gt;(plugin: HostSlotPlugin&lt;Slots&gt;): () =&gt; void
+}</find_text>
+    <semantics>Use a parser-safe generic function property for host slot registration so implementations can remain generic without overload syntax.</semantics>
+    <content_md5_4e05ee1ffead79167ac71c36ec1d2d41>
+      export type HostSlots = {
+        register: &lt;Slots extends Record&lt;string, object&gt;&gt;(plugin: HostSlotPlugin&lt;Slots&gt;) =&gt; () =&gt; void
+      }
+    </content_md5_4e05ee1ffead79167ac71c36ec1d2d41>
+  </update_md5_4e05ee1ffead79167ac71c36ec1d2d41>
+</updates>

@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_3c9f17dc4c8f2811d77a1ff72984a4a9 name="reasoning_prompt_header_newline" md5="3c9f17dc4c8f2811d77a1ff72984a4a9" size="34">
+    <file>packages/opencode/src/session/prompt/reasoning.txt</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>Reasoning protocol prompt:&lt;identity&gt;</find_text>
+    <semantics>Put the verifier classification header on its own line so the original identity tag remains visually separated.</semantics>
+    <content_md5_3c9f17dc4c8f2811d77a1ff72984a4a9>
+      Reasoning protocol prompt:
+      &lt;identity&gt;
+    </content_md5_3c9f17dc4c8f2811d77a1ff72984a4a9>
+  </update_md5_3c9f17dc4c8f2811d77a1ff72984a4a9>
+</updates>

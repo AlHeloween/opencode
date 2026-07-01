@@ -105,7 +105,7 @@ Phase 4 (Superseded):
       Remaining Phase 1 tasks become maintenance items, not a dedicated plan.
 
 Phase 5 (New — Active):
-  Days 1-12: 5.1 WASM Core Framework — `plans/20260628_wasm_core_framework.md`
+  Days 1-12: 5.1 WASM Core Framework — `plans_completed/20260628_wasm_core_framework.md`
   - Phase 1: BPE tokenizer → Rust WASM (days 1-3)
   - Phase 2: JSON repair → Rust WASM (days 4-5)
   - Phase 3: Diff engine → Rust WASM (days 6-8)
@@ -142,4 +142,4 @@ Each item is complete when:
 | 2026-06-27 | Added E4 (Cache Prediction Bugs) — discovered via debug experiment. 3 bugs: fingerprint key lacks agent name, wrong prediction logic, checkpoint mismatch causing system prompt change. Emergency priority. |
 | 2026-06-27 | Marked E3 (Orchestrator Evolving Mode) and E4 (Cache Prediction Bugs) as Done. Moved both plans to plans_completed/. Phase 3 complete. 121/130 plans archived. |
 | 2026-06-28 | Fixed plan-to-code gap in HTTP API v2 plan — marked tasks 1.6/1.7/1.8 as done based on code reality. Added orchestrator plan capability (`plans_completed/20260628_orchestrator_plan_capability.md`) — orchestrator can now `edit`/`write` plans/*.md and use `task` tool for delegation. |
-| 2026-06-28 | **Architectural pivot**: HTTP API v2 plan superseded. Upstream analysis shows selective HttpApi coexistence (not wholesale migration) + SDK-level versioning (not URL path). New Phase 5: WASM Core Framework — incremental Rust→WASM migration for BPE tokenizer, JSON repair, diff engine, tree-sitter unification, model route optimization. Plan: `plans/20260628_wasm_core_framework.md`. |
+| 2026-06-28 | **Architectural pivot**: HTTP API v2 plan superseded. Upstream analysis shows selective HttpApi coexistence (not wholesale migration) + SDK-level versioning (not URL path). New Phase 5: WASM Core Framework — incremental Rust→WASM migration for BPE tokenizer, JSON repair, diff engine, tree-sitter unification, model route optimization. Plan: `plans_completed/20260628_wasm_core_framework.md`. |

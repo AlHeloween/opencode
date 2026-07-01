@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_8fdc1de24925614b0b45b7617c72f648 name="build_asserts_required_wasm_assets" md5="8fdc1de24925614b0b45b7617c72f648" size="385">
+    <file>_build.ps1</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        Write-Success &quot;WASM modules copied to dist&quot;</find_text>
+    <semantics>Fail the release collection step immediately when required runtime wasm assets are not present in dist.</semantics>
+    <content_md5_8fdc1de24925614b0b45b7617c72f648>
+      $RequiredWasmAssets = @(
+          &quot;tokenizer.wasm&quot;,
+          &quot;diffy\diffy_wasm_bg.wasm&quot;,
+          &quot;json_repair\json_repair_bg.wasm&quot;,
+          &quot;rdiff\rdiff_bg.wasm&quot;,
+          &quot;grammars\tree-sitter-bash.wasm&quot;,
+          &quot;grammars\tree-sitter-powershell.wasm&quot;
+      )
+      foreach ($asset in $RequiredWasmAssets) {
+          $assetPath = Join-Path $WasmDistDir $asset
+          if (-not (Test-Path $assetPath)) {
+              throw &quot;Required WASM asset missing from dist: $asset&quot;
+          }
+      }
+      
+      Write-Success &quot;WASM modules copied to dist&quot;
+    </content_md5_8fdc1de24925614b0b45b7617c72f648>
+  </update_md5_8fdc1de24925614b0b45b7617c72f648>
+</updates>

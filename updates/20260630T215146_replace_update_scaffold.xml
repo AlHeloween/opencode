@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_b2623e0bb6b959d7561088de3ff26d12 name="tui_slot_register_indent" md5="b2623e0bb6b959d7561088de3ff26d12" size="185">
+    <file>packages/opencode/src/cli/cmd/tui/plugin/slots.tsx</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    register: &lt;Slots extends Record&lt;string, object&gt;&gt;(plugin: HostSlotPlugin&lt;Slots&gt;) =&gt; {
+  if (!isHostSlotPlugin(plugin)) return () =&gt; {}
+  return reg.register(plugin as HostSlotPlugin&lt;Record&lt;string, object&gt;&gt;)
+},</find_text>
+    <semantics>Restore conventional indentation after the generic register implementation change.</semantics>
+    <content_md5_b2623e0bb6b959d7561088de3ff26d12>
+      register: &lt;Slots extends Record&lt;string, object&gt;&gt;(plugin: HostSlotPlugin&lt;Slots&gt;) =&gt; {
+        if (!isHostSlotPlugin(plugin)) return () =&gt; {}
+        return reg.register(plugin as HostSlotPlugin&lt;Record&lt;string, object&gt;&gt;)
+      },
+    </content_md5_b2623e0bb6b959d7561088de3ff26d12>
+  </update_md5_b2623e0bb6b959d7561088de3ff26d12>
+</updates>

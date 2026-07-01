@@ -1,0 +1,10 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/tool/bash.test.ts
+@@
+       },
+     })
+-  })
++  }, SHELL_TEST_TIMEOUT)
+ 
+   describe("tool.bash stripCommand", () => {
+*** End Patch

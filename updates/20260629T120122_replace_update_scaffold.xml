@@ -1,0 +1,283 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_d93814aea1e4c8d628bc868ff220a106 name="create_shared_wasm_asset_resolver" md5="d93814aea1e4c8d628bc868ff220a106" size="1415">
+    <file>packages/opencode/src/util/wasm-path.ts</file>
+    <update_type>text</update_type>
+    <mode>overwrite</mode>
+    <encoding>utf-8</encoding>
+    <line_endings>LF</line_endings>
+    <semantics>Create one resolver that checks packaged dist, repo package, and explicit OPENCODE_WASM_ROOT locations before wasm loaders give up.</semantics>
+    <content_md5_d93814aea1e4c8d628bc868ff220a106>
+      import path from &quot;path&quot;
+      import { fileURLToPath } from &quot;url&quot;
+      
+      type LoadedWasmAsset = {
+        bytes: ArrayBuffer | null
+        path: string | null
+        tried: string[]
+      }
+      
+      function unique(values: string[]) {
+        return [...new Set(values.filter(Boolean).map((value) =&gt; path.normalize(value)))]
+      }
+      
+      function rootCandidates() {
+        const execDir = path.dirname(process.execPath)
+        const sourceRoot = fileURLToPath(new URL(&quot;../../../wasm/core/pkg/&quot;, import.meta.url))
+        return unique([
+          process.env.OPENCODE_WASM_ROOT ?? &quot;&quot;,
+          path.resolve(execDir, &quot;../wasm/core/pkg&quot;),
+          path.resolve(execDir, &quot;../../wasm/core/pkg&quot;),
+          path.resolve(execDir, &quot;../../../wasm/core/pkg&quot;),
+          path.resolve(process.cwd(), &quot;wasm/core/pkg&quot;),
+          path.resolve(process.cwd(), &quot;../wasm/core/pkg&quot;),
+          path.resolve(process.cwd(), &quot;../../wasm/core/pkg&quot;),
+          path.resolve(process.cwd(), &quot;packages/wasm/core/pkg&quot;),
+          path.resolve(process.cwd(), &quot;../packages/wasm/core/pkg&quot;),
+          path.resolve(process.cwd(), &quot;../../packages/wasm/core/pkg&quot;),
+          sourceRoot,
+        ])
+      }
+      
+      export function wasmAssetCandidates(relativePath: string) {
+        const normalized = relativePath.replaceAll(&quot;\\&quot;, &quot;/&quot;).replace(/^\/+/, &quot;&quot;)
+        return rootCandidates().map((root) =&gt; path.resolve(root, normalized))
+      }
+      
+      export async function readWasmAsset(relativePath: string): Promise&lt;LoadedWasmAsset&gt; {
+        const tried = wasmAssetCandidates(relativePath)
+        for (const candidate of tried) {
+          const file = Bun.file(candidate)
+          if (!(await file.exists())) continue
+          return { bytes: await file.arrayBuffer(), path: candidate, tried }
+        }
+        return { bytes: null, path: null, tried }
+      }
+      
+      export * as WasmPath from &quot;./wasm-path&quot;
+    </content_md5_d93814aea1e4c8d628bc868ff220a106>
+  </update_md5_d93814aea1e4c8d628bc868ff220a106>
+  <update_md5_bf797816233775d6b4c9265bed98ddc1 name="diffy_loader_use_shared_wasm_resolver_import" md5="bf797816233775d6b4c9265bed98ddc1" size="82">
+    <file>packages/opencode/src/util/diff-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>import { resolve, dirname } from &quot;path&quot;
+import * as Log from &quot;@opencode-ai/core/util/log&quot;</find_text>
+    <semantics>Remove execDir-only path construction from the diffy loader imports.</semantics>
+    <content_md5_bf797816233775d6b4c9265bed98ddc1>
+      import { readWasmAsset } from &quot;./wasm-path&quot;
+      import * as Log from &quot;@opencode-ai/core/util/log&quot;
+    </content_md5_bf797816233775d6b4c9265bed98ddc1>
+  </update_md5_bf797816233775d6b4c9265bed98ddc1>
+  <update_md5_f0ff2ea95258948ffd20568a8fa212cb name="diffy_loader_use_shared_wasm_resolver_body" md5="f0ff2ea95258948ffd20568a8fa212cb" size="220">
+    <file>packages/opencode/src/util/diff-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const baseDir = dirname(process.execPath)
+      const paths = [
+        resolve(baseDir, &quot;../wasm/core/pkg/diffy/diffy_wasm_bg.wasm&quot;),
+        resolve(baseDir, &quot;../../wasm/core/pkg/diffy/diffy_wasm_bg.wasm&quot;),
+        resolve(baseDir, &quot;../../../wasm/core/pkg/diffy/diffy_wasm_bg.wasm&quot;),
+      ]
+      let bytes: ArrayBuffer | null = null
+      let loadedPath = &quot;&quot;
+      for (const p of paths) {
+        try {
+          const file = Bun.file(p)
+          bytes = await file.arrayBuffer()
+          loadedPath = p
+          break
+        } catch { /* try next */ }
+      }
+      if (!bytes) { Log.Default.warn(&quot;diff-wasm: no WASM file found, tried: &quot; + JSON.stringify(paths)); return null }
+      Log.Default.warn(&quot;diff-wasm: loaded WASM from &quot; + loadedPath)</find_text>
+    <semantics>Load diffy from the shared resolver so dev, dist, and explicit wasm roots all work and missing assets report attempted paths.</semantics>
+    <content_md5_f0ff2ea95258948ffd20568a8fa212cb>
+      const asset = await readWasmAsset(&quot;diffy/diffy_wasm_bg.wasm&quot;)
+      if (!asset.bytes) {
+        Log.Default.warn(&quot;diff-wasm: no WASM file found, tried: &quot; + JSON.stringify(asset.tried))
+        return null
+      }
+      Log.Default.warn(&quot;diff-wasm: loaded WASM from &quot; + asset.path)
+    </content_md5_f0ff2ea95258948ffd20568a8fa212cb>
+  </update_md5_f0ff2ea95258948ffd20568a8fa212cb>
+  <update_md5_127da17283e5dd30e04f79b89a4b44f1 name="diffy_compile_shared_resolver_bytes" md5="127da17283e5dd30e04f79b89a4b44f1" size="46">
+    <file>packages/opencode/src/util/diff-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const mod = await WebAssembly.compile(bytes)</find_text>
+    <semantics>Compile diffy from resolver bytes after the null guard proves the asset is available.</semantics>
+    <content_md5_127da17283e5dd30e04f79b89a4b44f1>
+      const mod = await WebAssembly.compile(asset.bytes)
+    </content_md5_127da17283e5dd30e04f79b89a4b44f1>
+  </update_md5_127da17283e5dd30e04f79b89a4b44f1>
+  <update_md5_bf797816233775d6b4c9265bed98ddc1 name="json_repair_loader_use_shared_wasm_resolver_import" md5="bf797816233775d6b4c9265bed98ddc1" size="82">
+    <file>packages/opencode/src/util/json-repair-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>import { resolve, dirname } from &quot;path&quot;
+import * as Log from &quot;@opencode-ai/core/util/log&quot;</find_text>
+    <semantics>Remove execDir-only path construction from the json-repair loader imports.</semantics>
+    <content_md5_bf797816233775d6b4c9265bed98ddc1>
+      import { readWasmAsset } from &quot;./wasm-path&quot;
+      import * as Log from &quot;@opencode-ai/core/util/log&quot;
+    </content_md5_bf797816233775d6b4c9265bed98ddc1>
+  </update_md5_bf797816233775d6b4c9265bed98ddc1>
+  <update_md5_84c6f515637673aada8a9ccd9a2c15df name="json_repair_loader_use_shared_wasm_resolver_body" md5="84c6f515637673aada8a9ccd9a2c15df" size="182">
+    <file>packages/opencode/src/util/json-repair-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const baseDir = dirname(process.execPath)
+      const paths = [
+        resolve(baseDir, &quot;../wasm/core/pkg/json_repair/json_repair_bg.wasm&quot;),
+        resolve(baseDir, &quot;../../wasm/core/pkg/json_repair/json_repair_bg.wasm&quot;),
+        resolve(baseDir, &quot;../../../wasm/core/pkg/json_repair/json_repair_bg.wasm&quot;),
+      ]
+      let bytes: ArrayBuffer | null = null
+      let loadedPath = &quot;&quot;
+      for (const p of paths) {
+        try {
+          const file = Bun.file(p)
+          bytes = await file.arrayBuffer()
+          loadedPath = p
+          break
+        } catch { /* try next */ }
+      }
+      if (!bytes) {
+        Log.Default.error(&quot;json-repair: FATAL - WASM file not found at any path&quot;)
+        return null
+      }</find_text>
+    <semantics>Load json-repair from the shared resolver and surface every attempted path when unavailable.</semantics>
+    <content_md5_84c6f515637673aada8a9ccd9a2c15df>
+      const asset = await readWasmAsset(&quot;json_repair/json_repair_bg.wasm&quot;)
+      if (!asset.bytes) {
+        Log.Default.error(&quot;json-repair: FATAL - WASM file not found, tried: &quot; + JSON.stringify(asset.tried))
+        return null
+      }
+    </content_md5_84c6f515637673aada8a9ccd9a2c15df>
+  </update_md5_84c6f515637673aada8a9ccd9a2c15df>
+  <update_md5_127da17283e5dd30e04f79b89a4b44f1 name="json_repair_compile_shared_resolver_bytes" md5="127da17283e5dd30e04f79b89a4b44f1" size="46">
+    <file>packages/opencode/src/util/json-repair-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const mod = await WebAssembly.compile(bytes)</find_text>
+    <semantics>Compile json-repair from resolver bytes after the null guard proves the asset is available.</semantics>
+    <content_md5_127da17283e5dd30e04f79b89a4b44f1>
+      const mod = await WebAssembly.compile(asset.bytes)
+    </content_md5_127da17283e5dd30e04f79b89a4b44f1>
+  </update_md5_127da17283e5dd30e04f79b89a4b44f1>
+  <update_md5_c963b1c670bf67a73b36bf4d8eae14ae name="json_repair_log_shared_resolver_path" md5="c963b1c670bf67a73b36bf4d8eae14ae" size="57">
+    <file>packages/opencode/src/util/json-repair-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      Log.Default.warn(&quot;json-repair: WASM loaded from &quot; + loadedPath)</find_text>
+    <semantics>Report the actual json-repair asset chosen by the shared resolver.</semantics>
+    <content_md5_c963b1c670bf67a73b36bf4d8eae14ae>
+      Log.Default.warn(&quot;json-repair: WASM loaded from &quot; + asset.path)
+    </content_md5_c963b1c670bf67a73b36bf4d8eae14ae>
+  </update_md5_c963b1c670bf67a73b36bf4d8eae14ae>
+  <update_md5_4b2a4f69416f9c67316313fcadd1b08b name="tokenizer_loader_use_shared_wasm_resolver_import" md5="4b2a4f69416f9c67316313fcadd1b08b" size="144">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>import type { TokenizerInstance, TokenizerModel } from &quot;./types&quot;
+import { resolve, dirname } from &quot;path&quot;</find_text>
+    <semantics>Use shared wasm asset resolution and logging in the tokenizer loader instead of execDir-only path guesses.</semantics>
+    <content_md5_4b2a4f69416f9c67316313fcadd1b08b>
+      import { readWasmAsset } from &quot;@/util/wasm-path&quot;
+      import * as Log from &quot;@opencode-ai/core/util/log&quot;
+      import type { TokenizerInstance, TokenizerModel } from &quot;./types&quot;
+    </content_md5_4b2a4f69416f9c67316313fcadd1b08b>
+  </update_md5_4b2a4f69416f9c67316313fcadd1b08b>
+  <update_md5_e5210559092dcb145d518153f8469326 name="tokenizer_loader_use_shared_wasm_resolver_body" md5="e5210559092dcb145d518153f8469326" size="387">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    try {
+      // Try relative path first (from packages/opencode/src/tokenizers/)
+      const baseDir = dirname(process.execPath)
+      const paths = [
+        resolve(baseDir, &quot;../wasm/core/pkg/tokenizer.wasm&quot;),
+        resolve(baseDir, &quot;../../wasm/core/pkg/tokenizer.wasm&quot;),
+      ]
+      for (const p of paths) {
+        try {
+          let bytes: ArrayBuffer
+          try {
+            const file = Bun.file(p)
+            bytes = await file.arrayBuffer()
+          } catch {
+            const resp = await fetch(p)
+            if (!resp.ok) continue
+            bytes = await resp.arrayBuffer()
+          }
+          _wasmModule = await WebAssembly.compile(bytes)
+          return _wasmModule
+        } catch {
+          // Try next path
+        }
+      }
+      return null
+    } catch {
+      return null
+    }</find_text>
+    <semantics>Load tokenizer.wasm from the shared resolver and log missing or invalid assets instead of silently returning null.</semantics>
+    <content_md5_e5210559092dcb145d518153f8469326>
+      const asset = await readWasmAsset(&quot;tokenizer.wasm&quot;)
+      if (!asset.bytes) {
+        Log.Default.warn(&quot;bpe-wasm: no WASM file found, tried: &quot; + JSON.stringify(asset.tried))
+        return null
+      }
+      
+      try {
+        _wasmModule = await WebAssembly.compile(asset.bytes)
+        Log.Default.warn(&quot;bpe-wasm: loaded WASM from &quot; + asset.path)
+        return _wasmModule
+      } catch (err) {
+        Log.Default.error(&quot;bpe-wasm: load failed: &quot; + (err instanceof Error ? err.message : String(err)))
+        return null
+      }
+    </content_md5_e5210559092dcb145d518153f8469326>
+  </update_md5_e5210559092dcb145d518153f8469326>
+  <update_md5_1e84f3485d99572f7e69ba905dca8d20 name="tokenizer_log_rejected_model" md5="1e84f3485d99572f7e69ba905dca8d20" size="174">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+      if (handle &lt; 0) return null</find_text>
+    <semantics>Expose tokenizer model initialization rejection instead of silently falling back.</semantics>
+    <content_md5_1e84f3485d99572f7e69ba905dca8d20>
+      const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+      if (handle &lt; 0) {
+        Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+        return null
+      }
+    </content_md5_1e84f3485d99572f7e69ba905dca8d20>
+  </update_md5_1e84f3485d99572f7e69ba905dca8d20>
+  <update_md5_7cf4d621c716ab62bb60c3271527bc33 name="tokenizer_log_initialization_failure" md5="7cf4d621c716ab62bb60c3271527bc33" size="127">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    } catch {
+      return null
+    }</find_text>
+    <semantics>Log tokenizer instantiation failures instead of silent fallback so wasm packaging mistakes become visible.</semantics>
+    <content_md5_7cf4d621c716ab62bb60c3271527bc33>
+      } catch (err) {
+        Log.Default.warn(&quot;bpe-wasm: tokenizer initialization failed: &quot; + (err instanceof Error ? err.message : String(err)))
+        return null
+      }
+    </content_md5_7cf4d621c716ab62bb60c3271527bc33>
+  </update_md5_7cf4d621c716ab62bb60c3271527bc33>
+</updates>

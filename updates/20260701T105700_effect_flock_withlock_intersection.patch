@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: packages/core/src/util/effect-flock.ts
+@@
+-  export interface WithLock {
+-    (key: string, dir?: string): <A, E, R>(body: Effect.Effect<A, E, R>) => Effect.Effect<A, E | LockError, R>
+-    <A, E, R>(body: Effect.Effect<A, E, R>, key: string, dir?: string): Effect.Effect<A, E | LockError, R>
+-  }
++  export type WithLockBody = <A, E, R>(body: Effect.Effect<A, E, R>) => Effect.Effect<A, E | LockError, R>
++
++  export type WithLock = ((key: string, dir?: string) => WithLockBody) &
++    (<A, E, R>(body: Effect.Effect<A, E, R>, key: string, dir?: string) => Effect.Effect<A, E | LockError, R>)
+*** End Patch

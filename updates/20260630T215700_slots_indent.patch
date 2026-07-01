@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/cli/cmd/tui/plugin/slots.tsx
+@@
+-    register: <Slots extends Record<string, object>>(plugin: HostSlotPlugin<Slots>) => {
+-  if (!isHostSlotPlugin(plugin)) return () => {}
+-  return reg.register(plugin as HostSlotPlugin<Record<string, object>>)
+-},
++    register: <Slots extends Record<string, object>>(plugin: HostSlotPlugin<Slots>) => {
++      if (!isHostSlotPlugin(plugin)) return () => {}
++      return reg.register(plugin as HostSlotPlugin<Record<string, object>>)
++    },
+*** End Patch

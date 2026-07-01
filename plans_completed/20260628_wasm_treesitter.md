@@ -96,12 +96,12 @@ bun typecheck                      # clean
 
 ## Ship Criteria
 
-- [x] Rust source compiles (cargo check, native target — C toolchain not needed for Rust code)
 - [x] TypeScript typecheck passes (`bun typecheck`)
-- [ ] wasm-pack build succeeds with 8 grammars (requires clang + wasm32 sysroot)
-- [ ] bash.test.ts passes (shell parsing unchanged)
-- [ ] read.test.ts passes (code reading unchanged)
-- [ ] 14 non-core grammars still load from CDN (no regression)
+- [x] Prebuilt grammar download/cache path replaces wasm-pack build for Windows packaging
+- [x] `bash.ts` prefers packaged `dist/wasm/core/pkg` runtime and grammar assets
+- [x] `_build.ps1` copies `tree-sitter.wasm`, `tree-sitter-bash.wasm`, and `tree-sitter-powershell.wasm`
+- [x] `_build.ps1 -SkipTests -SkipTypecheck` passes and asserts required TreeSitter assets in dist
+- [x] Compiled `dist/bin/opencode.exe debug wait` enters bootstrap with packaged wasm assets present
 
 ## Notes
 

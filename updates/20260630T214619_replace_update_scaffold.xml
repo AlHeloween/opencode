@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_2b8fde810142194067ea99fccc24ab11 name="tui_slot_register_type_simplify" md5="2b8fde810142194067ea99fccc24ab11" size="104">
+    <file>packages/opencode/src/cli/cmd/tui/plugin/slots.tsx</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>export type HostSlots = {
+  register: {
+    (plugin: HostSlotPlugin): () =&gt; void
+    &lt;Slots extends Record&lt;string, object&gt;&gt;(plugin: HostSlotPlugin&lt;Slots&gt;): () =&gt; void
+  }
+}</find_text>
+    <semantics>Simplify host slot register type from overloaded object call signatures to a single generic method signature so the ADID verifier parser accepts the file while preserving plugin registration behavior.</semantics>
+    <content_md5_2b8fde810142194067ea99fccc24ab11>
+      export type HostSlots = {
+        register&lt;Slots extends Record&lt;string, object&gt;&gt;(plugin: HostSlotPlugin&lt;Slots&gt;): () =&gt; void
+      }
+    </content_md5_2b8fde810142194067ea99fccc24ab11>
+  </update_md5_2b8fde810142194067ea99fccc24ab11>
+</updates>

@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_1724e18aeefd2cea20238826306d24a6 name="diff_wasm_type_actual_diffy_parse_shape" md5="1724e18aeefd2cea20238826306d24a6" size="176">
+    <file>packages/opencode/src/util/diff-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>export interface DiffHunk {
+  type: &quot;equal&quot; | &quot;delete&quot; | &quot;insert&quot;
+  oldStart?: number
+  newStart?: number
+  oldEnd?: number
+  newEnd?: number
+  length?: number
+}</find_text>
+    <semantics>Align the public computeDiffWasm hunk type with the JSON shape returned by diffy diff_parse.</semantics>
+    <content_md5_1724e18aeefd2cea20238826306d24a6>
+      export interface DiffLine {
+        kind: &quot;context&quot; | &quot;delete&quot; | &quot;insert&quot;
+        content: string
+      }
+      
+      export interface DiffHunk {
+        old_start: number
+        old_count: number
+        new_start: number
+        new_count: number
+        lines: DiffLine[]
+      }
+    </content_md5_1724e18aeefd2cea20238826306d24a6>
+  </update_md5_1724e18aeefd2cea20238826306d24a6>
+  <update_md5_4913b65930ae1584132b6e88f18ff38d name="bpe_wasm_tests_use_real_bundled_models" md5="4913b65930ae1584132b6e88f18ff38d" size="1069">
+    <file>packages/opencode/test/tokenizers/bpe-wasm.test.ts</file>
+    <update_type>text</update_type>
+    <mode>overwrite</mode>
+    <encoding>utf-8</encoding>
+    <line_endings>LF</line_endings>
+    <semantics>Replace skip-on-null synthetic tokenizer tests with real bundled model load and runtime assertions.</semantics>
+    <content_md5_4913b65930ae1584132b6e88f18ff38d>
+      import { describe, expect, test } from &quot;bun:test&quot;
+      import { initTokenizer } from &quot;@/tokenizers/bpe-wasm&quot;
+      import { loadDeepSeekV4 } from &quot;@/tokenizers/deepseek-v4/loader&quot;
+      import { loadQwen3 } from &quot;@/tokenizers/qwen3/loader&quot;
+      
+      describe(&quot;bpe-wasm&quot;, () =&gt; {
+        test(&quot;loads tokenizer wasm module&quot;, async () =&gt; {
+          expect(await initTokenizer()).toBeTrue()
+        })
+      
+        test(&quot;loads DeepSeek V4 bundled tokenizer model&quot;, async () =&gt; {
+          const tokenizer = await loadDeepSeekV4()
+          expect(tokenizer).toBeDefined()
+          const ids = tokenizer!.encode(&quot;hello world&quot;)
+          expect(tokenizer!.countTokens(&quot;hello world&quot;)).toBeGreaterThan(0)
+          expect(ids.length).toBeGreaterThan(0)
+          expect(ids.every((id) =&gt; Number.isInteger(id))).toBeTrue()
+          expect(tokenizer!.decode(ids.slice(0, 5)).length).toBeGreaterThan(0)
+        })
+      
+        test(&quot;loads Qwen3 bundled tokenizer model&quot;, async () =&gt; {
+          const tokenizer = await loadQwen3()
+          expect(tokenizer).toBeDefined()
+          const ids = tokenizer!.encode(&quot;hello world&quot;)
+          expect(tokenizer!.countTokens(&quot;hello world&quot;)).toBeGreaterThan(0)
+          expect(ids.length).toBeGreaterThan(0)
+          expect(ids.every((id) =&gt; Number.isInteger(id))).toBeTrue()
+          expect(tokenizer!.decode(ids.slice(0, 5)).length).toBeGreaterThan(0)
+        })
+      })
+    </content_md5_4913b65930ae1584132b6e88f18ff38d>
+  </update_md5_4913b65930ae1584132b6e88f18ff38d>
+  <update_md5_d7b2484d4a43ace6a025c6f5d4f2709d name="diff_wasm_tests_require_loaded_diffy" md5="d7b2484d4a43ace6a025c6f5d4f2709d" size="913">
+    <file>packages/opencode/test/util/diff-wasm.test.ts</file>
+    <update_type>text</update_type>
+    <mode>overwrite</mode>
+    <encoding>utf-8</encoding>
+    <line_endings>LF</line_endings>
+    <semantics>Replace skip-on-null diff tests with assertions for loaded diffy wasm patch, stats, and parsed hunk shape.</semantics>
+    <content_md5_d7b2484d4a43ace6a025c6f5d4f2709d>
+      import { describe, expect, test } from &quot;bun:test&quot;
+      import { computeDiffWasm, createPatch, diffStats, initDiffy } from &quot;../../src/util/diff-wasm&quot;
+      
+      describe(&quot;diff-wasm&quot;, () =&gt; {
+        test(&quot;loads diffy wasm module&quot;, async () =&gt; {
+          expect(await initDiffy()).toBeTrue()
+        })
+      
+        test(&quot;creates unified patches with additions&quot;, async () =&gt; {
+          const patch = await createPatch(&quot;a\nb&quot;, &quot;a\nc\nb&quot;)
+          expect(patch).not.toBeNull()
+          expect(patch!).toContain(&quot;+c&quot;)
+        })
+      
+        test(&quot;computes addition and deletion stats&quot;, async () =&gt; {
+          expect(await diffStats(&quot;a\nb&quot;, &quot;a\nc\nb&quot;)).toEqual({ additions: 1, deletions: 0 })
+          expect(await diffStats(&quot;a\nc\nb&quot;, &quot;a\nb&quot;)).toEqual({ additions: 0, deletions: 1 })
+        })
+      
+        test(&quot;parses diff hunks from diffy output shape&quot;, async () =&gt; {
+          const result = await computeDiffWasm(&quot;a\nb&quot;, &quot;a\nc\nb&quot;)
+          expect(result).not.toBeNull()
+          expect(result!).toHaveLength(1)
+          expect(result![0].old_start).toBe(1)
+          expect(result![0].new_start).toBe(1)
+          expect(result![0].lines.map((line) =&gt; line.kind)).toEqual([&quot;context&quot;, &quot;insert&quot;, &quot;context&quot;])
+        })
+      })
+    </content_md5_d7b2484d4a43ace6a025c6f5d4f2709d>
+  </update_md5_d7b2484d4a43ace6a025c6f5d4f2709d>
+  <update_md5_c10ff6a7a22b490af50c8178a2fc7232 name="json_repair_wasm_tests_require_loaded_module" md5="c10ff6a7a22b490af50c8178a2fc7232" size="366">
+    <file>packages/opencode/test/util/json-repair-wasm.test.ts</file>
+    <update_type>text</update_type>
+    <mode>overwrite</mode>
+    <encoding>utf-8</encoding>
+    <line_endings>LF</line_endings>
+    <semantics>Add json-repair wasm load and repair parity tests so missing assets are not silently skipped.</semantics>
+    <content_md5_c10ff6a7a22b490af50c8178a2fc7232>
+      import { describe, expect, test } from &quot;bun:test&quot;
+      import { initJsonRepair, repairJsonWasm } from &quot;../../src/util/json-repair-wasm&quot;
+      
+      describe(&quot;json-repair-wasm&quot;, () =&gt; {
+        test(&quot;loads json-repair wasm module&quot;, async () =&gt; {
+          expect(await initJsonRepair()).toBeTrue()
+        })
+      
+        test(&quot;repairs malformed object syntax&quot;, async () =&gt; {
+          expect(await repairJsonWasm(&quot;{foo: 1, bar: [true,]}&quot;)).toBe(&#x27;{&quot;bar&quot;:[true],&quot;foo&quot;:1}&#x27;)
+        })
+      })
+    </content_md5_c10ff6a7a22b490af50c8178a2fc7232>
+  </update_md5_c10ff6a7a22b490af50c8178a2fc7232>
+  <update_md5_72ac5e9f6a63ac2392784a7ce9c0e379 name="build_assert_required_wasm_assets" md5="72ac5e9f6a63ac2392784a7ce9c0e379" size="659">
+    <file>_build.ps1</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        Copy-Item -Recurse -Force &quot;$WasmPkgDir\rdiff&quot; $WasmDistDir
+        Copy-Item -Recurse -Force &quot;$WasmPkgDir\json_repair&quot; $WasmDistDir
+        Copy-Item -Recurse -Force &quot;$WasmPkgDir\diffy&quot; $WasmDistDir
+        Copy-Item -Recurse -Force &quot;$WasmPkgDir\grammars&quot; $WasmDistDir
+        Copy-Item &quot;$WasmPkgDir\tokenizer.wasm&quot; $WasmDistDir
+        Write-Success &quot;WASM modules copied to dist&quot;</find_text>
+    <semantics>Fail the executable build if any required wasm runtime asset is missing from dist after the copy step.</semantics>
+    <content_md5_72ac5e9f6a63ac2392784a7ce9c0e379>
+      Copy-Item -Recurse -Force &quot;$WasmPkgDir\rdiff&quot; $WasmDistDir
+      Copy-Item -Recurse -Force &quot;$WasmPkgDir\json_repair&quot; $WasmDistDir
+      Copy-Item -Recurse -Force &quot;$WasmPkgDir\diffy&quot; $WasmDistDir
+      Copy-Item -Recurse -Force &quot;$WasmPkgDir\grammars&quot; $WasmDistDir
+      Copy-Item &quot;$WasmPkgDir\tokenizer.wasm&quot; $WasmDistDir
+      
+      $RequiredWasmAssets = @(
+          &quot;tokenizer.wasm&quot;,
+          &quot;diffy\diffy_wasm_bg.wasm&quot;,
+          &quot;json_repair\json_repair_bg.wasm&quot;,
+          &quot;rdiff\rdiff_bg.wasm&quot;,
+          &quot;grammars\tree-sitter-bash.wasm&quot;,
+          &quot;grammars\tree-sitter-powershell.wasm&quot;
+      )
+      foreach ($asset in $RequiredWasmAssets) {
+          $assetPath = Join-Path $WasmDistDir $asset
+          if (-not (Test-Path $assetPath)) {
+              throw &quot;Required WASM asset missing from dist: $asset&quot;
+          }
+      }
+      
+      Write-Success &quot;WASM modules copied to dist&quot;
+    </content_md5_72ac5e9f6a63ac2392784a7ce9c0e379>
+  </update_md5_72ac5e9f6a63ac2392784a7ce9c0e379>
+</updates>

@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_289e42e5f2553bc0055d23b7bd6f5196 name="format_tokenizer_exports_and_set_stack_pointer" md5="289e42e5f2553bc0055d23b7bd6f5196" size="494">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const exports = instance.exports as {
+        __stack_pointer: WebAssembly.Global
+bpe_init: (vp: number, vl: number, mp: number, ml: number) =&gt; number
+bpe_free: (h: number) =&gt; void
+memory: WebAssembly.Memory
+      }
+
+      const ioBase = MODEL_SCRATCH_OFFSET + modelSize
+if (ioBase + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+  Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+  return null
+}
+const memView = new Uint8Array(memory.buffer)
+const vocabPtr = MODEL_SCRATCH_OFFSET</find_text>
+    <semantics>Format tokenizer wasm exports and move the stack pointer before writing model/runtime buffers.</semantics>
+    <content_md5_289e42e5f2553bc0055d23b7bd6f5196>
+      const exports = instance.exports as {
+        __stack_pointer: WebAssembly.Global
+        bpe_init: (vp: number, vl: number, mp: number, ml: number) =&gt; number
+        bpe_free: (h: number) =&gt; void
+        memory: WebAssembly.Memory
+      }
+      
+      const ioBase = MODEL_SCRATCH_OFFSET + modelSize
+      if (ioBase + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
+      const memView = new Uint8Array(memory.buffer)
+      const vocabPtr = MODEL_SCRATCH_OFFSET
+    </content_md5_289e42e5f2553bc0055d23b7bd6f5196>
+  </update_md5_289e42e5f2553bc0055d23b7bd6f5196>
+</updates>

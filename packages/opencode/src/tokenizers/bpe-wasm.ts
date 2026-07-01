@@ -1,12 +1,41 @@
+import { readWasmAsset } from "@/util/wasm-path"
+import * as Log from "@opencode-ai/core/util/log"
 import type { TokenizerInstance, TokenizerModel } from "./types"
 
 // The WASM module's global data (vocab, merges, cache) occupies addresses
 // 0 through ~264 MB. I/O buffers use the last page of memory to avoid
 // corrupting the module's internal state.
 const IO_PAGE_OFFSET = 65536  // use last 64KB page of allocated memory
+const MODEL_SCRATCH_OFFSET = 8 * 1024 * 1024
+const STACK_GUARD_BYTES = 1024 * 1024
+const MAX_TOKEN_BYTES = 255
+const MAX_MERGE_KEY_BYTES = 513
+const MAX_MERGES = 131072
+const MODULE_MIN_PAGES = 4230
+const MODULE_MAX_PAGES = 8192
+const modelEncoder = new TextEncoder()
 
 let _wasmModule: WebAssembly.Module | null = null
 let _initPromise: Promise<WebAssembly.Module | null> | null = null
+
+function prepareModel(model: TokenizerModel) {
+  const vocabEntries = Object.entries(model.vocab).filter(([key]) => modelEncoder.encode(key).length <= MAX_TOKEN_BYTES)
+  const mergeEntries = Object.entries(model.merges)
+    .filter(([key]) => modelEncoder.encode(key).length <= MAX_MERGE_KEY_BYTES)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, MAX_MERGES)
+  const omittedVocab = Object.keys(model.vocab).length - vocabEntries.length
+  const omittedMerges = Object.keys(model.merges).length - mergeEntries.length
+
+  if (omittedVocab > 0 || omittedMerges > 0) {
+    Log.Default.warn("bpe-wasm: model exceeds wasm parser limits", { omittedVocab, omittedMerges })
+  }
+
+  return {
+    vocabBytes: modelEncoder.encode(JSON.stringify(Object.fromEntries(vocabEntries))),
+    mergesBytes: modelEncoder.encode(JSON.stringify(Object.fromEntries(mergeEntries))),
+  }
+}
 
 /**
  * Lazily load and compile the WASM module.
@@ -16,35 +45,28 @@ async function loadWasm(): Promise<WebAssembly.Module | null> {
   if (_wasmModule) return _wasmModule
   if (_initPromise) return _initPromise
   _initPromise = (async () => {
-    try {
-      // Try relative path first (from packages/opencode/src/tokenizers/)
-      const paths = [
-        new URL("../../wasm/core/pkg/tokenizer.wasm", import.meta.url),
-        new URL("../../../wasm/core/pkg/tokenizer.wasm", import.meta.url),
-      ]
-      for (const url of paths) {
-        try {
-          let bytes: ArrayBuffer
-          try {
-            const file = Bun.file(url)
-            bytes = await file.arrayBuffer()
-          } catch {
-            const resp = await fetch(url)
-            if (!resp.ok) continue
-            bytes = await resp.arrayBuffer()
-          }
-          _wasmModule = await WebAssembly.compile(bytes)
-          return _wasmModule
-        } catch {
-          // Try next path
-        }
-      }
+    const asset = await readWasmAsset("tokenizer.wasm")
+    if (!asset.bytes) {
+      Log.Default.warn("bpe-wasm: no WASM file found, tried: " + JSON.stringify(asset.tried))
       return null
-    } catch {
+    }
+
+    try {
+      _wasmModule = await WebAssembly.compile(asset.bytes)
+      Log.Default.warn("bpe-wasm: loaded WASM from " + asset.path)
+      return _wasmModule
+    } catch (err) {
+      Log.Default.error("bpe-wasm: load failed: " + (err instanceof Error ? err.message : String(err)))
       return null
     }
   })()
   return _initPromise
+}
+
+/** Eager health check — call at startup. */
+export async function initTokenizer(): Promise<boolean> {
+  const mod = await loadWasm()
+  return mod !== null
 }
 
 /**
@@ -54,20 +76,23 @@ async function loadWasm(): Promise<WebAssembly.Module | null> {
 export class BpeWasmTokenizer implements TokenizerInstance {
   readonly model: TokenizerModel
   private handle: number
-  private wasmInstance: WebAssembly.Instance
-  private memory: WebAssembly.Memory
+private wasmInstance: WebAssembly.Instance
+private memory: WebAssembly.Memory
+private ioBase: number
 
   private constructor(
     model: TokenizerModel,
-    handle: number,
-    instance: WebAssembly.Instance,
-    memory: WebAssembly.Memory,
-  ) {
-    this.model = model
-    this.handle = handle
-    this.wasmInstance = instance
-    this.memory = memory
-  }
+      handle: number,
+  instance: WebAssembly.Instance,
+  memory: WebAssembly.Memory,
+  ioBase: number,
+) {
+  this.model = model
+  this.handle = handle
+  this.wasmInstance = instance
+  this.memory = memory
+  this.ioBase = ioBase
+}
 
   /**
    * Load and initialize a WASM tokenizer.
@@ -78,45 +103,45 @@ export class BpeWasmTokenizer implements TokenizerInstance {
     if (!mod) return null
 
     try {
-      const vocabJson = JSON.stringify(model.vocab)
-      const mergesJson = JSON.stringify(model.merges)
-
-      const vocabBytes = new TextEncoder().encode(vocabJson)
-      const mergesBytes = new TextEncoder().encode(mergesJson)
-
-      // Allocate WASM memory: vocab + merges + work buffer
-      // NOTE: WASM module requires minimum 4230 pages (~264 MB) for static data
-      const totalSize = vocabBytes.length + mergesBytes.length + 4096
-      const neededPages = Math.ceil(totalSize / 65536)
-      const minModulePages = 4230  // from WASM module import minimum
-      const initialPages = Math.max(minModulePages, neededPages)
-      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: 8192 })
+      const { vocabBytes, mergesBytes } = prepareModel(model)
+      const modelSize = vocabBytes.length + mergesBytes.length + 128
+      const initialPages = Math.max(
+        MODULE_MIN_PAGES,
+        Math.ceil((MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET) / 65536),
+      )
+      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
       const instance = await WebAssembly.instantiate(mod, {
         env: { memory },
       })
 
       const exports = instance.exports as {
-        bpe_init: (vp: number, vl: number, mp: number, ml: number) => number
-        bpe_free: (h: number) => void
-        memory: WebAssembly.Memory
-      }
+  __stack_pointer: WebAssembly.Global
+  bpe_init: (vp: number, vl: number, mp: number, ml: number) => number
+  bpe_free: (h: number) => void
+  memory: WebAssembly.Memory
+}
 
-      const ioBase = memory.buffer.byteLength - IO_PAGE_OFFSET
-      const memView = new Uint8Array(memory.buffer)
+const ioBase = MODEL_SCRATCH_OFFSET + modelSize
+if (ioBase + IO_PAGE_OFFSET > memory.buffer.byteLength) {
+  Log.Default.warn("bpe-wasm: insufficient memory for tokenizer model JSON")
+  return null
+}
+const memView = new Uint8Array(memory.buffer)
+const vocabPtr = MODEL_SCRATCH_OFFSET
+memView.set(vocabBytes, vocabPtr)
+const mergesPtr = MODEL_SCRATCH_OFFSET + vocabBytes.length + 64
+memView.set(mergesBytes, mergesPtr)
 
-      // Write vocab JSON at safe high address (past module globals)
-      const vocabPtr = ioBase
-      memView.set(vocabBytes, vocabPtr)
+const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+if (handle < 0) {
+  Log.Default.warn("bpe-wasm: tokenizer initialization rejected model")
+  return null
+}
+exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
 
-      // Write merges JSON
-      const mergesPtr = ioBase + vocabBytes.length + 64
-      memView.set(mergesBytes, mergesPtr)
-
-      const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
-      if (handle < 0) return null
-
-      return new BpeWasmTokenizer(model, handle, instance, memory)
-    } catch {
+return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
+    } catch (err) {
+      Log.Default.warn("bpe-wasm: tokenizer initialization failed: " + (err instanceof Error ? err.message : String(err)))
       return null
     }
   }
@@ -126,9 +151,7 @@ export class BpeWasmTokenizer implements TokenizerInstance {
     const textBytes = new TextEncoder().encode(text)
     const memView = new Uint8Array(this.memory.buffer)
 
-    // Write text to the safe I/O page (past module globals)
-    const ioBase = this.memory.buffer.byteLength - IO_PAGE_OFFSET
-    const textPtr = ioBase
+    const textPtr = this.ioBase
     if (textPtr + textBytes.length > this.memory.buffer.byteLength) {
       return 0
     }
@@ -145,10 +168,9 @@ export class BpeWasmTokenizer implements TokenizerInstance {
     const textBytes = new TextEncoder().encode(text)
     const memView = new Uint8Array(this.memory.buffer)
 
-    const ioBase = this.memory.buffer.byteLength - IO_PAGE_OFFSET
-    const textPtr = ioBase
-    const outIdsPtr = ioBase + textBytes.length + 64
-    const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
+    const textPtr = this.ioBase
+const outIdsPtr = Math.ceil((this.ioBase + textBytes.length + 64) / 4) * 4
+const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
 
     if (outIdsPtr + textBytes.length >= this.memory.buffer.byteLength) {
       return []
@@ -181,8 +203,7 @@ export class BpeWasmTokenizer implements TokenizerInstance {
   decode(ids: number[]): string {
     if (!ids.length) return ""
     const memView = new Uint8Array(this.memory.buffer)
-    const ioBase = this.memory.buffer.byteLength - IO_PAGE_OFFSET
-    const outTextPtr = ioBase
+    const outTextPtr = this.ioBase
     const maxOut = this.memory.buffer.byteLength - outTextPtr - 1
 
     const exports = this.wasmInstance.exports as {
@@ -202,3 +223,4 @@ export class BpeWasmTokenizer implements TokenizerInstance {
 }
 
 export * as BpeWasmTokenizerMod from "./bpe-wasm"
+

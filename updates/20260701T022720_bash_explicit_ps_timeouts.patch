@@ -1,0 +1,20 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/tool/bash.test.ts
+@@
+               expect(bashReq!.patterns).toContain(`Get-Content ${file}`)
+             },
+           })
+         }),
++        { timeout: SHELL_TEST_TIMEOUT },
+       )
+     }
+@@
+               expect(bashReq!.always).not.toContain("a *")
+             },
+           })
+         }),
++        { timeout: SHELL_TEST_TIMEOUT },
+       )
+     }
+   }
+*** End Patch

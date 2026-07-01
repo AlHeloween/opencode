@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_8db71cbac83e1052fc04afa10777184a name="format_tokenizer_model_init_and_runtime_stack_order" md5="8db71cbac83e1052fc04afa10777184a" size="677">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const ioBase = MODEL_SCRATCH_OFFSET + modelSize
+if (ioBase + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+  Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+  return null
+}
+exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
+const memView = new Uint8Array(memory.buffer)
+const vocabPtr = MODEL_SCRATCH_OFFSET
+      memView.set(vocabBytes, vocabPtr)
+      const mergesPtr = MODEL_SCRATCH_OFFSET + vocabBytes.length + 64
+      memView.set(mergesBytes, mergesPtr)
+
+      const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+      if (handle &lt; 0) {
+  Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+  return null
+}
+exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
+
+return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)</find_text>
+    <semantics>Keep the default stack during model parsing, then raise the stack only after tokenizer initialization succeeds.</semantics>
+    <content_md5_8db71cbac83e1052fc04afa10777184a>
+      const ioBase = MODEL_SCRATCH_OFFSET + modelSize
+      if (ioBase + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      const memView = new Uint8Array(memory.buffer)
+      const vocabPtr = MODEL_SCRATCH_OFFSET
+      memView.set(vocabBytes, vocabPtr)
+      const mergesPtr = MODEL_SCRATCH_OFFSET + vocabBytes.length + 64
+      memView.set(mergesBytes, mergesPtr)
+      
+      const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+      if (handle &lt; 0) {
+        Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+        return null
+      }
+      exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
+      
+      return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
+    </content_md5_8db71cbac83e1052fc04afa10777184a>
+  </update_md5_8db71cbac83e1052fc04afa10777184a>
+</updates>

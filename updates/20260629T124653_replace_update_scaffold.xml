@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_6b8edd9dc81e7d05310fe3e485723e9d name="core_framework_done_after_packaged_wasm_oracle" md5="6b8edd9dc81e7d05310fe3e485723e9d" size="293">
+    <file>plans_completed/20260628_wasm_core_framework.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>status: active
+owner: codex
+created: 2026-06-28
+reproduce:
+  - cd packages/opencode &amp;&amp; bun typecheck
+  - Plans validated by explore agent against codebase</find_text>
+    <semantics>Mark the wasm master plan done after all referenced wasm loaders and packaged dist assets passed oracles.</semantics>
+    <content_md5_6b8edd9dc81e7d05310fe3e485723e9d>
+      status: done
+      owner: codex
+      created: 2026-06-28
+      resolved: 2026-06-29
+      reproduce:
+        - cd packages/opencode &amp;&amp; bun typecheck
+        - cd packages/opencode &amp;&amp; bun test test/util/diff-wasm.test.ts test/util/json-repair-wasm.test.ts test/tokenizers/bpe-wasm.test.ts
+        - ./_build.ps1 -SkipTests -SkipTypecheck
+        - dist/bin/opencode.exe debug wait
+    </content_md5_6b8edd9dc81e7d05310fe3e485723e9d>
+  </update_md5_6b8edd9dc81e7d05310fe3e485723e9d>
+  <update_md5_c1e468c567c932b5a72c76dda60cfd8c name="treesitter_ship_criteria_verified" md5="c1e468c567c932b5a72c76dda60cfd8c" size="479">
+    <file>plans_completed/20260628_wasm_treesitter.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>## Ship Criteria
+
+- [x] Rust source compiles (cargo check, native target — C toolchain not needed for Rust code)
+- [x] TypeScript typecheck passes (`bun typecheck`)
+- [ ] wasm-pack build succeeds with 8 grammars (requires clang + wasm32 sysroot)
+- [ ] bash.test.ts passes (shell parsing unchanged)
+- [ ] read.test.ts passes (code reading unchanged)
+- [ ] 14 non-core grammars still load from CDN (no regression)</find_text>
+    <semantics>Finalize TreeSitter plan against the implemented prebuilt-grammar path and packaged executable asset oracle.</semantics>
+    <content_md5_c1e468c567c932b5a72c76dda60cfd8c>
+      ## Ship Criteria
+      
+      - [x] TypeScript typecheck passes (`bun typecheck`)
+      - [x] Prebuilt grammar download/cache path replaces wasm-pack build for Windows packaging
+      - [x] `bash.ts` prefers packaged `dist/wasm/core/pkg` runtime and grammar assets
+      - [x] `_build.ps1` copies `tree-sitter.wasm`, `tree-sitter-bash.wasm`, and `tree-sitter-powershell.wasm`
+      - [x] `_build.ps1 -SkipTests -SkipTypecheck` passes and asserts required TreeSitter assets in dist
+      - [x] Compiled `dist/bin/opencode.exe debug wait` enters bootstrap with packaged wasm assets present
+    </content_md5_c1e468c567c932b5a72c76dda60cfd8c>
+  </update_md5_c1e468c567c932b5a72c76dda60cfd8c>
+  <update_md5_82a435f0111c3cfe3d1e787a1ba2601b name="tokenizer_ship_criteria_verified" md5="82a435f0111c3cfe3d1e787a1ba2601b" size="262">
+    <file>plans_completed/20260628_wasm_tokenizer.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>## Ship Criteria
+
+- [ ] All 7 parity tests pass
+- [ ] Zero tokenizer test regressions
+- [ ] Typecheck clean
+- [ ] WASM loads correctly in Node.js (Bun) test environment</find_text>
+    <semantics>Mark tokenizer wasm criteria verified by real bundled model load tests and typecheck.</semantics>
+    <content_md5_82a435f0111c3cfe3d1e787a1ba2601b>
+      ## Ship Criteria
+      
+      - [x] Real bundled DeepSeek V4 tokenizer model loads through WASM
+      - [x] Real bundled Qwen3 tokenizer model loads through WASM
+      - [x] Tokenizer WASM test file passes without skip-on-null behavior
+      - [x] Typecheck clean
+      - [x] Compiled executable loads `tokenizer.wasm` from `dist/wasm/core/pkg`
+    </content_md5_82a435f0111c3cfe3d1e787a1ba2601b>
+  </update_md5_82a435f0111c3cfe3d1e787a1ba2601b>
+  <update_md5_7f57d16f365a22fce793885dc7bd401c name="json_repair_ship_criteria_verified" md5="7f57d16f365a22fce793885dc7bd401c" size="186">
+    <file>plans_completed/20260628_wasm_json_repair.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>## Ship Criteria
+
+- [ ] All 8 parity tests pass (identical output to TS repair)
+- [ ] Zero tool test regressions
+- [ ] Typecheck clean
+- [ ] WASM repair produces same output as TS repair on all known LLM JSON failure modes</find_text>
+    <semantics>Mark json-repair wasm criteria verified by load and malformed-object repair tests plus dist executable loading.</semantics>
+    <content_md5_7f57d16f365a22fce793885dc7bd401c>
+      ## Ship Criteria
+      
+      - [x] JSON repair WASM module loads in Bun tests
+      - [x] Malformed object syntax repairs to valid JSON
+      - [x] Typecheck clean
+      - [x] Compiled executable loads `json_repair_bg.wasm` from `dist/wasm/core/pkg`
+    </content_md5_7f57d16f365a22fce793885dc7bd401c>
+  </update_md5_7f57d16f365a22fce793885dc7bd401c>
+  <update_md5_b25e3ecd37dec8d8d57a46db63a10f86 name="diff_plan_verified_against_diffy" md5="b25e3ecd37dec8d8d57a46db63a10f86" size="256">
+    <file>plans_completed/20260628_wasm_diff.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>## Verification
+
+```
+clang compile → pkg/diff.wasm (2.6KB, no errors)
+bun test test/util/diff-wasm.test.ts → 10 pass, 0 fail
+bun typecheck (packages/core, packages/ui) → clean
+```</find_text>
+    <semantics>Update diff plan verification to the actual diffy-backed wasm wrapper and package-local oracle results.</semantics>
+    <content_md5_b25e3ecd37dec8d8d57a46db63a10f86>
+      ## Verification
+      
+      ```
+      cd packages/opencode &amp;&amp; bun test test/util/diff-wasm.test.ts  # 4 pass, 0 fail
+      cd packages/opencode &amp;&amp; bun typecheck                         # clean
+      ./_build.ps1 -SkipTests -SkipTypecheck                         # copies and asserts diffy wasm in dist
+      dist/bin/opencode.exe debug wait                               # loads diffy_wasm_bg.wasm from dist
+      ```
+    </content_md5_b25e3ecd37dec8d8d57a46db63a10f86>
+  </update_md5_b25e3ecd37dec8d8d57a46db63a10f86>
+</updates>

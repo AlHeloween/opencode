@@ -1,0 +1,24 @@
+*** Begin Patch
+*** Update File: packages/core/src/filesystem.ts
+@@
+-import { dirname, join, relative, resolve as pathResolve } from "path"
++import { dirname, isAbsolute, join, relative, resolve as pathResolve } from "path"
+@@
+   export function contains(parent: string, child: string) {
+-    return !relative(parent, child).startsWith("..")
++    const rel = relative(parent, child)
++    return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))
+   }
+ }
+*** Update File: packages/opencode/src/util/filesystem.ts
+@@
+-import { dirname, join, relative, resolve as pathResolve, win32 } from "path"
++import { dirname, isAbsolute, join, relative, resolve as pathResolve, win32 } from "path"
+@@
+ export function contains(parent: string, child: string) {
+-  return !relative(parent, child).startsWith("..")
++  const rel = relative(parent, child)
++  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))
+ }
+*** Delete File: packages/opencode/.temp/20260701_probe_bash_permissions.ts
+*** End Patch

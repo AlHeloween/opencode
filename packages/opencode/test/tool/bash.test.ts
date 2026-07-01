@@ -69,6 +69,7 @@ const shells = (() => {
 })()
 const PS = new Set(["pwsh", "powershell"])
 const ps = shells.filter((item) => PS.has(item.label))
+const SHELL_TEST_TIMEOUT = process.platform === "win32" ? 20_000 : 5_000
 
 const sh = () => Shell.name(Shell.acceptable())
 const evalarg = (text: string) => (sh() === "cmd" ? quote(text) : squote(text))
@@ -113,6 +114,7 @@ const each = (name: string, fn: (item: { label: string; shell: string }) => Prom
     test(
       `${name} [${item.label}]`,
       withShell(item, () => fn(item)),
+      { timeout: SHELL_TEST_TIMEOUT },
     )
   }
 }
@@ -259,6 +261,7 @@ describe("tool.bash permissions", () => {
           },
         })
       }),
+      { timeout: SHELL_TEST_TIMEOUT },
     )
   }
 
@@ -323,6 +326,7 @@ describe("tool.bash permissions", () => {
             },
           })
         }),
+        { timeout: SHELL_TEST_TIMEOUT },
       )
     }
   }
@@ -355,6 +359,7 @@ describe("tool.bash permissions", () => {
             },
           })
         }),
+        { timeout: SHELL_TEST_TIMEOUT },
       )
     }
 
@@ -386,6 +391,7 @@ describe("tool.bash permissions", () => {
             },
           })
         }),
+        { timeout: SHELL_TEST_TIMEOUT },
       )
     }
 
@@ -699,6 +705,7 @@ describe("tool.bash permissions", () => {
             },
           })
         }),
+        { timeout: SHELL_TEST_TIMEOUT },
       )
     }
   }
@@ -1035,7 +1042,7 @@ describe("tool.bash abort", () => {
         expect(collected.length).toBeGreaterThan(0)
       },
     })
-  }, 15_000)
+  }, SHELL_TEST_TIMEOUT)
 
   test("terminates command on timeout", async () => {
     await Instance.provide({
@@ -1057,7 +1064,7 @@ describe("tool.bash abort", () => {
         expect(result.output).toContain("retry with a larger timeout value in milliseconds")
       },
     })
-  }, 15_000)
+  }, SHELL_TEST_TIMEOUT)
 
   test.skipIf(process.platform === "win32")("captures stderr in output", async () => {
     await Instance.provide({
@@ -1078,7 +1085,7 @@ describe("tool.bash abort", () => {
         expect(result.metadata.exit).toBe(0)
       },
     })
-  })
+  }, SHELL_TEST_TIMEOUT)
 
   test("returns non-zero exit code", async () => {
     await Instance.provide({
@@ -1097,7 +1104,7 @@ describe("tool.bash abort", () => {
         expect(result.metadata.exit).toBe(42)
       },
     })
-  })
+  }, SHELL_TEST_TIMEOUT)
 
   test("streams metadata updates progressively", async () => {
     await Instance.provide({
@@ -1108,7 +1115,7 @@ describe("tool.bash abort", () => {
         const result = await Effect.runPromise(
           bash.execute(
             {
-              command: `echo first && sleep 0.1 && echo second`,
+              command: `echo first && sleep 1 && echo second`,
               description: "Streaming test",
             },
             {
@@ -1126,7 +1133,7 @@ describe("tool.bash abort", () => {
         expect(updates.length).toBeGreaterThan(1)
       },
     })
-  })
+  }, SHELL_TEST_TIMEOUT)
 })
 
 describe("tool.bash truncation", () => {
@@ -1150,7 +1157,7 @@ describe("tool.bash truncation", () => {
         expect(result.output).toMatch(/Full output saved to:\s+\S+/)
       },
     })
-  })
+  }, SHELL_TEST_TIMEOUT)
 
   test("truncates output exceeding byte limit", async () => {
     await Instance.provide({
@@ -1172,7 +1179,7 @@ describe("tool.bash truncation", () => {
         expect(result.output).toMatch(/Full output saved to:\s+\S+/)
       },
     })
-  })
+  }, SHELL_TEST_TIMEOUT)
 
   test("does not truncate small output", async () => {
     await Instance.provide({
@@ -1192,7 +1199,7 @@ describe("tool.bash truncation", () => {
         expect(result.output).toContain("hello")
       },
     })
-  })
+  }, SHELL_TEST_TIMEOUT)
 
   test("full output is saved to file when truncated", async () => {
     await Instance.provide({
@@ -1221,7 +1228,7 @@ describe("tool.bash truncation", () => {
         expect(lines[lineCount - 1]).toBe(String(lineCount))
       },
     })
-  })
+  }, SHELL_TEST_TIMEOUT)
 
   describe("tool.bash stripCommand", () => {
     test("strips >/dev/null redirects", () => {

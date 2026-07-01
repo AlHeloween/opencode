@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_4b7972eab9f42cdafb079aa0bea1be20 name="tokenizer_define_stack_guard_size" md5="4b7972eab9f42cdafb079aa0bea1be20" size="93">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const MODEL_SCRATCH_OFFSET = 8 * 1024 * 1024
+const MAX_TOKEN_BYTES = 255</find_text>
+    <semantics>Reserve space below the high wasm stack pointer for tokenizer runtime calls with large local arrays.</semantics>
+    <content_md5_4b7972eab9f42cdafb079aa0bea1be20>
+      const MODEL_SCRATCH_OFFSET = 8 * 1024 * 1024
+      const STACK_GUARD_BYTES = 1024 * 1024
+      const MAX_TOKEN_BYTES = 255
+    </content_md5_4b7972eab9f42cdafb079aa0bea1be20>
+  </update_md5_4b7972eab9f42cdafb079aa0bea1be20>
+  <update_md5_e97e7d81776a34de55a6a0cd2cc3d870 name="tokenizer_include_stack_pointer_export" md5="e97e7d81776a34de55a6a0cd2cc3d870" size="142">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        bpe_init: (vp: number, vl: number, mp: number, ml: number) =&gt; number
+        bpe_free: (h: number) =&gt; void
+        memory: WebAssembly.Memory</find_text>
+    <semantics>Expose the mutable wasm stack pointer export used to move runtime stack away from the low default.</semantics>
+    <content_md5_e97e7d81776a34de55a6a0cd2cc3d870>
+      __stack_pointer: WebAssembly.Global
+      bpe_init: (vp: number, vl: number, mp: number, ml: number) =&gt; number
+      bpe_free: (h: number) =&gt; void
+      memory: WebAssembly.Memory
+    </content_md5_e97e7d81776a34de55a6a0cd2cc3d870>
+  </update_md5_e97e7d81776a34de55a6a0cd2cc3d870>
+  <update_md5_a75bd709b474f3ea9bffd9b2c533ff07 name="tokenizer_move_stack_pointer_after_instantiation" md5="a75bd709b474f3ea9bffd9b2c533ff07" size="243">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      if (ioBase + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      const memView = new Uint8Array(memory.buffer)</find_text>
+    <semantics>Move the tokenizer wasm stack pointer high enough to avoid out-of-bounds traps from bpe_count and bpe_encode local buffers.</semantics>
+    <content_md5_a75bd709b474f3ea9bffd9b2c533ff07>
+      if (ioBase + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
+      const memView = new Uint8Array(memory.buffer)
+    </content_md5_a75bd709b474f3ea9bffd9b2c533ff07>
+  </update_md5_a75bd709b474f3ea9bffd9b2c533ff07>
+</updates>

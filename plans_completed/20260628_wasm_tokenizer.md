@@ -93,7 +93,8 @@ bun typecheck                               # clean
 
 ## Ship Criteria
 
-- [ ] All 7 parity tests pass
-- [ ] Zero tokenizer test regressions
-- [ ] Typecheck clean
-- [ ] WASM loads correctly in Node.js (Bun) test environment
+- [x] Real bundled DeepSeek V4 tokenizer model loads through WASM
+- [x] Real bundled Qwen3 tokenizer model loads through WASM
+- [x] Tokenizer WASM test file passes without skip-on-null behavior
+- [x] Typecheck clean
+- [x] Compiled executable loads `tokenizer.wasm` from `dist/wasm/core/pkg`

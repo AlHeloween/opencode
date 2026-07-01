@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_cf67c78725f905a09acb9a57001411c5 name="tokenizer_define_model_scratch_offset" md5="cf67c78725f905a09acb9a57001411c5" size="120">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const IO_PAGE_OFFSET = 65536  // use last 64KB page of allocated memory
+const MAX_TOKEN_BYTES = 255</find_text>
+    <semantics>Reserve a stable low scratch offset for tokenizer model JSON that avoids the wasm stack and the final runtime I/O page.</semantics>
+    <content_md5_cf67c78725f905a09acb9a57001411c5>
+      const IO_PAGE_OFFSET = 65536  // use last 64KB page of allocated memory
+      const MODEL_SCRATCH_OFFSET = 8 * 1024 * 1024
+      const MAX_TOKEN_BYTES = 255
+    </content_md5_cf67c78725f905a09acb9a57001411c5>
+  </update_md5_cf67c78725f905a09acb9a57001411c5>
+  <update_md5_c59e92e66729451fdf403d6c1eadaad4 name="tokenizer_allocate_space_for_fixed_model_scratch" md5="c59e92e66729451fdf403d6c1eadaad4" size="270">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const modelSize = vocabBytes.length + mergesBytes.length + 128
+      const initialPages = Math.max(MODULE_MIN_PAGES, Math.ceil((modelSize + IO_PAGE_OFFSET) / 65536))
+      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })</find_text>
+    <semantics>Ensure the imported memory can hold the fixed model scratch region plus model JSON before the final I/O page.</semantics>
+    <content_md5_c59e92e66729451fdf403d6c1eadaad4>
+      const modelSize = vocabBytes.length + mergesBytes.length + 128
+      const initialPages = Math.max(
+        MODULE_MIN_PAGES,
+        Math.ceil((MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET) / 65536),
+      )
+      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
+    </content_md5_c59e92e66729451fdf403d6c1eadaad4>
+  </update_md5_c59e92e66729451fdf403d6c1eadaad4>
+  <update_md5_17374c41f4e966262ccc1effc21bb8a7 name="tokenizer_place_model_at_fixed_scratch_offset" md5="17374c41f4e966262ccc1effc21bb8a7" size="229">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const modelBase = memory.buffer.byteLength - IO_PAGE_OFFSET - modelSize
+      if (modelBase &lt; 0) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      const memView = new Uint8Array(memory.buffer)
+
+      const vocabPtr = modelBase</find_text>
+    <semantics>Use the fixed low model scratch offset instead of placing initialization JSON near the wasm stack.</semantics>
+    <content_md5_17374c41f4e966262ccc1effc21bb8a7>
+      if (MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      const memView = new Uint8Array(memory.buffer)
+      
+      const vocabPtr = MODEL_SCRATCH_OFFSET
+    </content_md5_17374c41f4e966262ccc1effc21bb8a7>
+  </update_md5_17374c41f4e966262ccc1effc21bb8a7>
+</updates>

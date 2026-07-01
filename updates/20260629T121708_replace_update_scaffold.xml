@@ -1,0 +1,120 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_3c9448e72516f097a42e33526ac98ce3 name="tokenizer_store_runtime_io_base" md5="3c9448e72516f097a42e33526ac98ce3" size="112">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  private handle: number
+  private wasmInstance: WebAssembly.Instance
+  private memory: WebAssembly.Memory</find_text>
+    <semantics>Track the low scratch region used for tokenizer runtime text and output buffers.</semantics>
+    <content_md5_3c9448e72516f097a42e33526ac98ce3>
+      private handle: number
+      private wasmInstance: WebAssembly.Instance
+      private memory: WebAssembly.Memory
+      private ioBase: number
+    </content_md5_3c9448e72516f097a42e33526ac98ce3>
+  </update_md5_3c9448e72516f097a42e33526ac98ce3>
+  <update_md5_1e7458e97ae99c5d4ef3bfd3aadf9308 name="tokenizer_constructor_accepts_io_base" md5="1e7458e97ae99c5d4ef3bfd3aadf9308" size="183">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    handle: number,
+    instance: WebAssembly.Instance,
+    memory: WebAssembly.Memory,
+  ) {
+    this.model = model
+    this.handle = handle
+    this.wasmInstance = instance
+    this.memory = memory
+  }</find_text>
+    <semantics>Pass the runtime scratch base into tokenizer instances so calls do not use the wasm stack page.</semantics>
+    <content_md5_1e7458e97ae99c5d4ef3bfd3aadf9308>
+        handle: number,
+        instance: WebAssembly.Instance,
+        memory: WebAssembly.Memory,
+        ioBase: number,
+      ) {
+        this.model = model
+        this.handle = handle
+        this.wasmInstance = instance
+        this.memory = memory
+        this.ioBase = ioBase
+      }
+    </content_md5_1e7458e97ae99c5d4ef3bfd3aadf9308>
+  </update_md5_1e7458e97ae99c5d4ef3bfd3aadf9308>
+  <update_md5_4fd2528f1a6228f13f5935a08d5a450d name="tokenizer_reserve_runtime_io_after_model_json" md5="4fd2528f1a6228f13f5935a08d5a450d" size="247">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      if (MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      const memView = new Uint8Array(memory.buffer)
+      const vocabPtr = MODEL_SCRATCH_OFFSET</find_text>
+    <semantics>Reserve runtime I/O immediately after model initialization JSON instead of using the final stack-adjacent page.</semantics>
+    <content_md5_4fd2528f1a6228f13f5935a08d5a450d>
+      const ioBase = MODEL_SCRATCH_OFFSET + modelSize
+      if (ioBase + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      const memView = new Uint8Array(memory.buffer)
+      const vocabPtr = MODEL_SCRATCH_OFFSET
+    </content_md5_4fd2528f1a6228f13f5935a08d5a450d>
+  </update_md5_4fd2528f1a6228f13f5935a08d5a450d>
+  <update_md5_aa87afb85121a60f6513ed1f24fab580 name="tokenizer_construct_with_runtime_io_base" md5="aa87afb85121a60f6513ed1f24fab580" size="62">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      return new BpeWasmTokenizer(model, handle, instance, memory)</find_text>
+    <semantics>Construct tokenizer instances with their reserved runtime I/O base.</semantics>
+    <content_md5_aa87afb85121a60f6513ed1f24fab580>
+      return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
+    </content_md5_aa87afb85121a60f6513ed1f24fab580>
+  </update_md5_aa87afb85121a60f6513ed1f24fab580>
+  <update_md5_09adb6912b6910d1360fae824163f8da name="tokenizer_count_uses_runtime_io_base" md5="09adb6912b6910d1360fae824163f8da" size="24">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    // Write text to the safe I/O page (past module globals)
+    const ioBase = this.memory.buffer.byteLength - IO_PAGE_OFFSET
+    const textPtr = ioBase</find_text>
+    <semantics>Use the reserved low runtime I/O base for token counting instead of the stack-adjacent final memory page.</semantics>
+    <content_md5_09adb6912b6910d1360fae824163f8da>
+      const textPtr = this.ioBase
+    </content_md5_09adb6912b6910d1360fae824163f8da>
+  </update_md5_09adb6912b6910d1360fae824163f8da>
+  <update_md5_eb9bab41ad5454c1ebe14badbf21af3f name="tokenizer_encode_uses_runtime_io_base" md5="eb9bab41ad5454c1ebe14badbf21af3f" size="70">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    const ioBase = this.memory.buffer.byteLength - IO_PAGE_OFFSET
+    const textPtr = ioBase
+    const outIdsPtr = ioBase + textBytes.length + 64</find_text>
+    <semantics>Use the reserved low runtime I/O base for encode input and output buffers.</semantics>
+    <content_md5_eb9bab41ad5454c1ebe14badbf21af3f>
+      const textPtr = this.ioBase
+      const outIdsPtr = this.ioBase + textBytes.length + 64
+    </content_md5_eb9bab41ad5454c1ebe14badbf21af3f>
+  </update_md5_eb9bab41ad5454c1ebe14badbf21af3f>
+  <update_md5_80c4bbd26eb83a557b302b06932f546f name="tokenizer_decode_uses_runtime_io_base" md5="80c4bbd26eb83a557b302b06932f546f" size="27">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    const ioBase = this.memory.buffer.byteLength - IO_PAGE_OFFSET
+    const outTextPtr = ioBase</find_text>
+    <semantics>Use the reserved low runtime I/O base for decode output buffers.</semantics>
+    <content_md5_80c4bbd26eb83a557b302b06932f546f>
+      const outTextPtr = this.ioBase
+    </content_md5_80c4bbd26eb83a557b302b06932f546f>
+  </update_md5_80c4bbd26eb83a557b302b06932f546f>
+</updates>

@@ -1,0 +1,152 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_f3d1741396f54f756def33ca5808fdd1 name="wasm_path_exposes_asset_path_resolution" md5="f3d1741396f54f756def33ca5808fdd1" size="517">
+    <file>packages/opencode/src/util/wasm-path.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>export async function readWasmAsset(relativePath: string): Promise&lt;LoadedWasmAsset&gt; {
+  const tried = wasmAssetCandidates(relativePath)
+  for (const candidate of tried) {
+    const file = Bun.file(candidate)
+    if (!(await file.exists())) continue
+    return { bytes: await file.arrayBuffer(), path: candidate, tried }
+  }
+  return { bytes: null, path: null, tried }
+}</find_text>
+    <semantics>Expose path-only wasm asset resolution so web-tree-sitter can load packaged grammar files from dist.</semantics>
+    <content_md5_f3d1741396f54f756def33ca5808fdd1>
+      export async function resolveWasmAssetPath(relativePath: string): Promise&lt;string | undefined&gt; {
+        for (const candidate of wasmAssetCandidates(relativePath)) {
+          if (await Bun.file(candidate).exists()) return candidate
+        }
+        return undefined
+      }
+      
+      export async function readWasmAsset(relativePath: string): Promise&lt;LoadedWasmAsset&gt; {
+        const tried = wasmAssetCandidates(relativePath)
+        for (const candidate of tried) {
+          const file = Bun.file(candidate)
+          if (!(await file.exists())) continue
+          return { bytes: await file.arrayBuffer(), path: candidate, tried }
+        }
+        return { bytes: null, path: null, tried }
+      }
+    </content_md5_f3d1741396f54f756def33ca5808fdd1>
+  </update_md5_f3d1741396f54f756def33ca5808fdd1>
+  <update_md5_d71c0b61468302b860c7b05f9018567b name="bash_prefers_packaged_treesitter_wasm" md5="d71c0b61468302b860c7b05f9018567b" size="79">
+    <file>packages/opencode/src/tool/bash.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>import { lazy } from &quot;@/util/lazy&quot;</find_text>
+    <semantics>Add shared wasm resolver access to the bash parser runtime.</semantics>
+    <content_md5_d71c0b61468302b860c7b05f9018567b>
+      import { lazy } from &quot;@/util/lazy&quot;
+      import { resolveWasmAssetPath } from &quot;@/util/wasm-path&quot;
+    </content_md5_d71c0b61468302b860c7b05f9018567b>
+  </update_md5_d71c0b61468302b860c7b05f9018567b>
+  <update_md5_d36b143b29c7a0c8200f1b80865f4e48 name="bash_grammar_loader_prefers_dist_assets" md5="d36b143b29c7a0c8200f1b80865f4e48" size="737">
+    <file>packages/opencode/src/tool/bash.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>  const treePath = resolveWasm(treeWasm)
+  // web-tree-sitter types require full EmscriptenModule, but runtime only needs locateFile
+  await (Parser.init as any)({
+    locateFile() {
+      return treePath
+    },
+  })
+  const { default: bashWasm } = await import(&quot;tree-sitter-bash/tree-sitter-bash.wasm&quot; as string, {
+    with: { type: &quot;wasm&quot; },
+  })
+  const { default: psWasm } = await import(&quot;tree-sitter-powershell/tree-sitter-powershell.wasm&quot; as string, {
+    with: { type: &quot;wasm&quot; },
+  })
+  const bashPath = resolveWasm(bashWasm)
+  const psPath = resolveWasm(psWasm)
+  const [bashLanguage, psLanguage] = await Promise.all([Language.load(bashPath), Language.load(psPath)])</find_text>
+    <semantics>Make bash and PowerShell grammar loading prefer packaged dist wasm assets, with package wasm imports as development fallback.</semantics>
+    <content_md5_d36b143b29c7a0c8200f1b80865f4e48>
+      const treePath = (await resolveWasmAssetPath(&quot;tree-sitter.wasm&quot;)) ?? resolveWasm(treeWasm)
+      // web-tree-sitter types require full EmscriptenModule, but runtime only needs locateFile
+      await (Parser.init as any)({
+        locateFile() {
+          return treePath
+        },
+      })
+      const { default: bashWasm } = await import(&quot;tree-sitter-bash/tree-sitter-bash.wasm&quot; as string, {
+        with: { type: &quot;wasm&quot; },
+      })
+      const { default: psWasm } = await import(&quot;tree-sitter-powershell/tree-sitter-powershell.wasm&quot; as string, {
+        with: { type: &quot;wasm&quot; },
+      })
+      const bashPath = (await resolveWasmAssetPath(&quot;grammars/tree-sitter-bash.wasm&quot;)) ?? resolveWasm(bashWasm)
+      const psPath = (await resolveWasmAssetPath(&quot;grammars/tree-sitter-powershell.wasm&quot;)) ?? resolveWasm(psWasm)
+      const [bashLanguage, psLanguage] = await Promise.all([Language.load(bashPath), Language.load(psPath)])
+    </content_md5_d36b143b29c7a0c8200f1b80865f4e48>
+  </update_md5_d36b143b29c7a0c8200f1b80865f4e48>
+  <update_md5_3b7a245c8f848f83cc3a9a83474219dd name="build_copies_treesitter_runtime_fallback_assets" md5="3b7a245c8f848f83cc3a9a83474219dd" size="700">
+    <file>_build.ps1</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        Copy-Item &quot;$WasmPkgDir\tokenizer.wasm&quot; $WasmDistDir
+        $RequiredWasmAssets = @(</find_text>
+    <semantics>Stage web-tree-sitter runtime wasm and PowerShell grammar fallback into dist before the required-asset assertion runs.</semantics>
+    <content_md5_3b7a245c8f848f83cc3a9a83474219dd>
+      Copy-Item &quot;$WasmPkgDir\tokenizer.wasm&quot; $WasmDistDir
+      $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root &quot;node_modules&quot;) -Recurse -Filter &quot;tree-sitter.wasm&quot; -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match &quot;web-tree-sitter&quot; -and $_.FullName -notmatch &quot;\\debug\\&quot; } | Select-Object -First 1
+      if ($TreeSitterRuntimeWasm) {
+          Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir &quot;tree-sitter.wasm&quot;)
+      }
+      $PowerShellGrammarWasm = Get-ChildItem (Join-Path $Root &quot;node_modules&quot;) -Recurse -Filter &quot;tree-sitter-powershell.wasm&quot; -ErrorAction SilentlyContinue | Select-Object -First 1
+      if ($PowerShellGrammarWasm) {
+          Copy-Item $PowerShellGrammarWasm.FullName (Join-Path $WasmDistDir &quot;grammars\tree-sitter-powershell.wasm&quot;)
+      }
+      $RequiredWasmAssets = @(
+    </content_md5_3b7a245c8f848f83cc3a9a83474219dd>
+  </update_md5_3b7a245c8f848f83cc3a9a83474219dd>
+  <update_md5_85685d99bfbc1ee137b4fd69114002a2 name="build_asserts_treesitter_runtime_asset" md5="85685d99bfbc1ee137b4fd69114002a2" size="63">
+    <file>_build.ps1</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    &quot;tokenizer.wasm&quot;,
+    &quot;diffy\diffy_wasm_bg.wasm&quot;,</find_text>
+    <semantics>Require the web-tree-sitter runtime wasm in packaged dist alongside grammar wasm assets.</semantics>
+    <content_md5_85685d99bfbc1ee137b4fd69114002a2>
+      &quot;tokenizer.wasm&quot;,
+      &quot;tree-sitter.wasm&quot;,
+      &quot;diffy\diffy_wasm_bg.wasm&quot;,
+    </content_md5_85685d99bfbc1ee137b4fd69114002a2>
+  </update_md5_85685d99bfbc1ee137b4fd69114002a2>
+  <update_md5_624808a25631b92e0546b73948afd991 name="bootstrap_logs_wasm_health_failures" md5="624808a25631b92e0546b73948afd991" size="92">
+    <file>packages/opencode/src/cli/bootstrap.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>import { checkWasmModules } from &quot;@/util/wasm-health&quot;</find_text>
+    <semantics>Make wasm health check failures observable at startup instead of swallowing rejected promises.</semantics>
+    <content_md5_624808a25631b92e0546b73948afd991>
+      import { checkWasmModules } from &quot;@/util/wasm-health&quot;
+      import * as Log from &quot;@opencode-ai/core/util/log&quot;
+    </content_md5_624808a25631b92e0546b73948afd991>
+  </update_md5_624808a25631b92e0546b73948afd991>
+  <update_md5_5e07b6f9817997141a867da079b1e596 name="bootstrap_no_silent_wasm_health_catch" md5="5e07b6f9817997141a867da079b1e596" size="196">
+    <file>packages/opencode/src/cli/bootstrap.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      // Run WASM health check after app runtime is initialized (log system ready)
+      checkWasmModules().catch(() =&gt; {})</find_text>
+    <semantics>Log unexpected wasm-health exceptions so startup diagnostics cannot silently disappear.</semantics>
+    <content_md5_5e07b6f9817997141a867da079b1e596>
+      // Run WASM health check after app runtime is initialized (log system ready)
+      checkWasmModules().catch((err) =&gt; {
+        Log.Default.error(&quot;wasm-health: startup check failed: &quot; + (err instanceof Error ? err.message : String(err)))
+      })
+    </content_md5_5e07b6f9817997141a867da079b1e596>
+  </update_md5_5e07b6f9817997141a867da079b1e596>
+</updates>

@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_2b446e0c92d0edc12adae29268fdb561 name="format_tokenizer_rejected_model_block" md5="2b446e0c92d0edc12adae29268fdb561" size="357">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+if (handle &lt; 0) {
+  Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+  return null
+}
+
+      return new BpeWasmTokenizer(model, handle, instance, memory)
+    } catch (err) {
+  Log.Default.warn(&quot;bpe-wasm: tokenizer initialization failed: &quot; + (err instanceof Error ? err.message : String(err)))
+  return null
+}
+  }</find_text>
+    <semantics>Restore normal indentation around tokenizer wasm initialization diagnostics after applying the loader change.</semantics>
+    <content_md5_2b446e0c92d0edc12adae29268fdb561>
+          const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+          if (handle &lt; 0) {
+            Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+            return null
+          }
+      
+          return new BpeWasmTokenizer(model, handle, instance, memory)
+        } catch (err) {
+          Log.Default.warn(&quot;bpe-wasm: tokenizer initialization failed: &quot; + (err instanceof Error ? err.message : String(err)))
+          return null
+        }
+      }
+    </content_md5_2b446e0c92d0edc12adae29268fdb561>
+  </update_md5_2b446e0c92d0edc12adae29268fdb561>
+</updates>

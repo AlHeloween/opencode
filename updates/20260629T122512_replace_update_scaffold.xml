@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_1675f22bca2789bcc9bf3eeb262a8f67 name="tokenizer_align_encode_output_pointer" md5="1675f22bca2789bcc9bf3eeb262a8f67" size="156">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>    const textPtr = this.ioBase
+const outIdsPtr = this.ioBase + textBytes.length + 64
+    const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)</find_text>
+    <semantics>Align tokenizer encode output to an Int32 boundary before reading IDs from wasm memory.</semantics>
+    <content_md5_1675f22bca2789bcc9bf3eeb262a8f67>
+      const textPtr = this.ioBase
+      const outIdsPtr = Math.ceil((this.ioBase + textBytes.length + 64) / 4) * 4
+      const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
+    </content_md5_1675f22bca2789bcc9bf3eeb262a8f67>
+  </update_md5_1675f22bca2789bcc9bf3eeb262a8f67>
+</updates>

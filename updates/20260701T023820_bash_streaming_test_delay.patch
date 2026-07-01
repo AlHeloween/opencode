@@ -1,0 +1,9 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/tool/bash.test.ts
+@@
+             {
+-              command: `echo first && sleep 0.1 && echo second`,
++              command: `echo first && sleep 1 && echo second`,
+               description: "Streaming test",
+             },
+*** End Patch

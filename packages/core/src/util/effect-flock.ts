@@ -71,12 +71,14 @@ export namespace EffectFlock {
   // Service
   // ---------------------------------------------------------------------------
 
+  export type WithLockBody = <A, E, R>(body: Effect.Effect<A, E, R>) => Effect.Effect<A, E | LockError, R>
+
+  export type WithLock = ((key: string, dir?: string) => WithLockBody) &
+    (<A, E, R>(body: Effect.Effect<A, E, R>, key: string, dir?: string) => Effect.Effect<A, E | LockError, R>)
+
   export interface Interface {
     readonly acquire: (key: string, dir?: string) => Effect.Effect<void, LockError, Scope.Scope>
-    readonly withLock: {
-      (key: string, dir?: string): <A, E, R>(body: Effect.Effect<A, E, R>) => Effect.Effect<A, E | LockError, R>
-      <A, E, R>(body: Effect.Effect<A, E, R>, key: string, dir?: string): Effect.Effect<A, E | LockError, R>
-    }
+    readonly withLock: WithLock
   }
 
   export class Service extends Context.Service<Service, Interface>()("EffectFlock") {}

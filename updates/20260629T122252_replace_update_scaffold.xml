@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_60b99c891d159fba3bd72884c0928b08 name="tokenizer_move_stack_after_successful_init" md5="60b99c891d159fba3bd72884c0928b08" size="41">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
+      const memView = new Uint8Array(memory.buffer)</find_text>
+    <semantics>Do not move the tokenizer wasm stack before bpe_init because the large model parser relies on its default initialization stack.</semantics>
+    <content_md5_60b99c891d159fba3bd72884c0928b08>
+      const memView = new Uint8Array(memory.buffer)
+    </content_md5_60b99c891d159fba3bd72884c0928b08>
+  </update_md5_60b99c891d159fba3bd72884c0928b08>
+  <update_md5_974eb2799ff353bb7619323ea480127c name="tokenizer_raise_stack_before_runtime_calls" md5="974eb2799ff353bb7619323ea480127c" size="223">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      if (handle &lt; 0) {
+        Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+        return null
+      }
+
+      return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)</find_text>
+    <semantics>Move the tokenizer wasm stack after model initialization succeeds and before runtime tokenization calls can trap.</semantics>
+    <content_md5_974eb2799ff353bb7619323ea480127c>
+      if (handle &lt; 0) {
+        Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+        return null
+      }
+      exports.__stack_pointer.value = memory.buffer.byteLength - STACK_GUARD_BYTES
+      
+      return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
+    </content_md5_974eb2799ff353bb7619323ea480127c>
+  </update_md5_974eb2799ff353bb7619323ea480127c>
+</updates>

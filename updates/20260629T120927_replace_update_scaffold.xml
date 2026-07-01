@@ -1,0 +1,117 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_c6d5d9dec88cbeb3f81eb5f5243a62c4 name="tokenizer_define_wasm_model_limits" md5="c6d5d9dec88cbeb3f81eb5f5243a62c4" size="219">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const IO_PAGE_OFFSET = 65536  // use last 64KB page of allocated memory</find_text>
+    <semantics>Declare the tokenizer wasm parser limits used to prepare model JSON before initialization.</semantics>
+    <content_md5_c6d5d9dec88cbeb3f81eb5f5243a62c4>
+      const IO_PAGE_OFFSET = 65536  // use last 64KB page of allocated memory
+      const MAX_TOKEN_BYTES = 255
+      const MAX_MERGE_KEY_BYTES = 513
+      const MAX_MERGES = 131072
+      const MODULE_MIN_PAGES = 4230
+      const MODULE_MAX_PAGES = 8192
+      const modelEncoder = new TextEncoder()
+    </content_md5_c6d5d9dec88cbeb3f81eb5f5243a62c4>
+  </update_md5_c6d5d9dec88cbeb3f81eb5f5243a62c4>
+  <update_md5_d7b11f984083d230e3d88664e3f4b2b0 name="tokenizer_prepare_supported_model_json" md5="d7b11f984083d230e3d88664e3f4b2b0" size="849">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>let _wasmModule: WebAssembly.Module | null = null
+let _initPromise: Promise&lt;WebAssembly.Module | null&gt; | null = null</find_text>
+    <semantics>Filter model entries to the C tokenizer wasm parser limits before serializing them for bpe_init.</semantics>
+    <content_md5_d7b11f984083d230e3d88664e3f4b2b0>
+      let _wasmModule: WebAssembly.Module | null = null
+      let _initPromise: Promise&lt;WebAssembly.Module | null&gt; | null = null
+      
+      function prepareModel(model: TokenizerModel) {
+        const vocabEntries = Object.entries(model.vocab).filter(([key]) =&gt; modelEncoder.encode(key).length &lt;= MAX_TOKEN_BYTES)
+        const mergeEntries = Object.entries(model.merges)
+          .filter(([key]) =&gt; modelEncoder.encode(key).length &lt;= MAX_MERGE_KEY_BYTES)
+          .sort((a, b) =&gt; a[1] - b[1])
+          .slice(0, MAX_MERGES)
+        const omittedVocab = Object.keys(model.vocab).length - vocabEntries.length
+        const omittedMerges = Object.keys(model.merges).length - mergeEntries.length
+      
+        if (omittedVocab &gt; 0 || omittedMerges &gt; 0) {
+          Log.Default.warn(&quot;bpe-wasm: model exceeds wasm parser limits&quot;, { omittedVocab, omittedMerges })
+        }
+      
+        return {
+          vocabBytes: modelEncoder.encode(JSON.stringify(Object.fromEntries(vocabEntries))),
+          mergesBytes: modelEncoder.encode(JSON.stringify(Object.fromEntries(mergeEntries))),
+        }
+      }
+    </content_md5_d7b11f984083d230e3d88664e3f4b2b0>
+  </update_md5_d7b11f984083d230e3d88664e3f4b2b0>
+  <update_md5_ec52e88fd7ebed2a4bcad1f10ec9f2f6 name="tokenizer_use_prepared_model_bytes" md5="ec52e88fd7ebed2a4bcad1f10ec9f2f6" size="49">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const vocabJson = JSON.stringify(model.vocab)
+      const mergesJson = JSON.stringify(model.merges)
+
+      const vocabBytes = new TextEncoder().encode(vocabJson)
+      const mergesBytes = new TextEncoder().encode(mergesJson)</find_text>
+    <semantics>Serialize only tokenizer model entries supported by the current C wasm parser ABI.</semantics>
+    <content_md5_ec52e88fd7ebed2a4bcad1f10ec9f2f6>
+      const { vocabBytes, mergesBytes } = prepareModel(model)
+    </content_md5_ec52e88fd7ebed2a4bcad1f10ec9f2f6>
+  </update_md5_ec52e88fd7ebed2a4bcad1f10ec9f2f6>
+  <update_md5_79510e85fa4e2fa57ec21fd1b5dc3f2c name="tokenizer_allocate_model_scratch_space_by_size" md5="79510e85fa4e2fa57ec21fd1b5dc3f2c" size="248">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      // Allocate WASM memory: vocab + merges + work buffer
+      // NOTE: WASM module requires minimum 4230 pages (~264 MB) for static data
+      const totalSize = vocabBytes.length + mergesBytes.length + 4096
+      const neededPages = Math.ceil(totalSize / 65536)
+      const minModulePages = 4230  // from WASM module import minimum
+      const initialPages = Math.max(minModulePages, neededPages)
+      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: 8192 })</find_text>
+    <semantics>Allocate enough wasm memory for model JSON plus a reserved final I/O page instead of writing large model JSON into the 64KB I/O page.</semantics>
+    <content_md5_79510e85fa4e2fa57ec21fd1b5dc3f2c>
+      const modelSize = vocabBytes.length + mergesBytes.length + 128
+      const initialPages = Math.max(MODULE_MIN_PAGES, Math.ceil((modelSize + IO_PAGE_OFFSET) / 65536))
+      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
+    </content_md5_79510e85fa4e2fa57ec21fd1b5dc3f2c>
+  </update_md5_79510e85fa4e2fa57ec21fd1b5dc3f2c>
+  <update_md5_e528b7a7ef2fd3e2faee0dcf44ed54a6 name="tokenizer_place_model_before_io_page" md5="e528b7a7ef2fd3e2faee0dcf44ed54a6" size="334">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>      const ioBase = memory.buffer.byteLength - IO_PAGE_OFFSET
+      const memView = new Uint8Array(memory.buffer)
+
+      // Write vocab JSON at safe high address (past module globals)
+      const vocabPtr = ioBase
+      memView.set(vocabBytes, vocabPtr)
+
+      // Write merges JSON
+      const mergesPtr = ioBase + vocabBytes.length + 64
+      memView.set(mergesBytes, mergesPtr)</find_text>
+    <semantics>Keep the final page free for runtime text I/O and place initialization JSON in a sized scratch region before it.</semantics>
+    <content_md5_e528b7a7ef2fd3e2faee0dcf44ed54a6>
+      const modelBase = memory.buffer.byteLength - IO_PAGE_OFFSET - modelSize
+      if (modelBase &lt; 0) {
+        Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+        return null
+      }
+      const memView = new Uint8Array(memory.buffer)
+      
+      const vocabPtr = modelBase
+      memView.set(vocabBytes, vocabPtr)
+      
+      const mergesPtr = modelBase + vocabBytes.length + 64
+      memView.set(mergesBytes, mergesPtr)
+    </content_md5_e528b7a7ef2fd3e2faee0dcf44ed54a6>
+  </update_md5_e528b7a7ef2fd3e2faee0dcf44ed54a6>
+</updates>

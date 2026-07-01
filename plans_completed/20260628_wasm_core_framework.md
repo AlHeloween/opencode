@@ -1,10 +1,13 @@
 ---
-status: active
+status: done
 owner: codex
 created: 2026-06-28
+resolved: 2026-06-29
 reproduce:
   - cd packages/opencode && bun typecheck
-  - Plans validated by explore agent against codebase
+  - cd packages/opencode && bun test test/util/diff-wasm.test.ts test/util/json-repair-wasm.test.ts test/tokenizers/bpe-wasm.test.ts
+  - ./_build.ps1 -SkipTests -SkipTypecheck
+  - dist/bin/opencode.exe debug wait
 ---
 
 # WASM Core Framework — Kaizen Master Index

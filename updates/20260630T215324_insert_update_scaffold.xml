@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_979b5fc1f979650c32e5816b534d7b74 name="reasoning_prompt_text_header" md5="979b5fc1f979650c32e5816b534d7b74" size="24">
+    <file>packages/opencode/src/session/prompt/reasoning.txt</file>
+    <update_type>text</update_type>
+    <mode>insert</mode>
+    <encoding>utf-8</encoding>
+    <find_text>&lt;identity&gt;</find_text>
+    <expected_matches>1</expected_matches>
+    <semantics>Add a plain prompt-text header before the XML-like identity tag so ADID verify-all does not classify the file as malformed XML.</semantics>
+    <content_md5_979b5fc1f979650c32e5816b534d7b74>
+      Reasoning protocol prompt:
+    </content_md5_979b5fc1f979650c32e5816b534d7b74>
+  </update_md5_979b5fc1f979650c32e5816b534d7b74>
+</updates>

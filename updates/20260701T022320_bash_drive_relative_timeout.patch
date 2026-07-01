@@ -1,0 +1,28 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/tool/bash.ts
+@@
+           const file = yield* cygpath(shell, text)
+           if (file) return file
+         }
+-        return AppFileSystem.normalizePath(path.resolve(root, AppFileSystem.windowsPath(text)))
++        const file = AppFileSystem.windowsPath(text)
++        return AppFileSystem.normalizePath(path.resolve(root, /^[A-Za-z]:(?![\\/])/.test(file) ? file.slice(2) : file))
+       }
+       return path.resolve(root, text)
+     })
+*** Update File: packages/opencode/test/tool/bash.test.ts
+@@
+             },
+           })
+         }),
++        { timeout: SHELL_TEST_TIMEOUT },
+       )
+     }
+@@
+             },
+           })
+         }),
++        { timeout: SHELL_TEST_TIMEOUT },
+       )
+     }
+*** End Patch

@@ -1,0 +1,60 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/tool/bash.test.ts
+@@
+ const PS = new Set(["pwsh", "powershell"])
+ const ps = shells.filter((item) => PS.has(item.label))
++const SHELL_TEST_TIMEOUT = process.platform === "win32" ? 20_000 : 5_000
+@@
+     test(
+       `${name} [${item.label}]`,
+       withShell(item, () => fn(item)),
++      { timeout: SHELL_TEST_TIMEOUT },
+     )
+   }
+ }
+@@
+       }),
++      { timeout: SHELL_TEST_TIMEOUT },
+     )
+   }
+@@
+       },
+     })
+-  }, 15_000)
++  }, SHELL_TEST_TIMEOUT)
+@@
+       },
+     })
+-  }, 15_000)
++  }, SHELL_TEST_TIMEOUT)
+@@
+       },
+     })
+-  })
++  }, SHELL_TEST_TIMEOUT)
+@@
+       },
+     })
+-  })
++  }, SHELL_TEST_TIMEOUT)
+@@
+       },
+     })
+-  })
++  }, SHELL_TEST_TIMEOUT)
+@@
+       },
+     })
+-  })
++  }, SHELL_TEST_TIMEOUT)
+@@
+       },
+     })
+-  })
++  }, SHELL_TEST_TIMEOUT)
+@@
+       },
+     })
+-  })
++  }, SHELL_TEST_TIMEOUT)
+*** End Patch

@@ -1,0 +1,20 @@
+*** Begin Patch
+*** Update File: packages/core/src/util/effect-flock.ts
+@@
+-  export interface Interface {
+-    readonly acquire: (key: string, dir?: string) => Effect.Effect<void, LockError, Scope.Scope>
+-    readonly withLock: {
+-      (key: string, dir?: string): <A, E, R>(body: Effect.Effect<A, E, R>) => Effect.Effect<A, E | LockError, R>
+-      <A, E, R>(body: Effect.Effect<A, E, R>, key: string, dir?: string): Effect.Effect<A, E | LockError, R>
+-    }
+-  }
++  export interface WithLock {
++    (key: string, dir?: string): <A, E, R>(body: Effect.Effect<A, E, R>) => Effect.Effect<A, E | LockError, R>
++    <A, E, R>(body: Effect.Effect<A, E, R>, key: string, dir?: string): Effect.Effect<A, E | LockError, R>
++  }
++
++  export interface Interface {
++    readonly acquire: (key: string, dir?: string) => Effect.Effect<void, LockError, Scope.Scope>
++    readonly withLock: WithLock
++  }
+*** End Patch

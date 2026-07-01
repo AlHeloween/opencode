@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_d41d8cd98f00b204e9800998ecf8427e name="strip_wasm_path_inline_adid_rollback" md5="d41d8cd98f00b204e9800998ecf8427e" size="0">
+    <file>packages/opencode/src/util/wasm-path.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_pattern>(?s)\n\n// ADID_ROLLBACK \(from adm\.exe\).*?\z</find_pattern>
+    <semantics>Remove inline rollback metadata from the shared wasm resolver source while preserving sidecar ADID provenance.</semantics>
+    <content_md5_d41d8cd98f00b204e9800998ecf8427e />
+  </update_md5_d41d8cd98f00b204e9800998ecf8427e>
+  <update_md5_d41d8cd98f00b204e9800998ecf8427e name="strip_diff_wasm_inline_adid_rollback" md5="d41d8cd98f00b204e9800998ecf8427e" size="0">
+    <file>packages/opencode/src/util/diff-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_pattern>(?s)\n\n// ADID_ROLLBACK \(from adm\.exe\).*?\z</find_pattern>
+    <semantics>Remove inline rollback metadata from diff wasm source while preserving sidecar ADID provenance.</semantics>
+    <content_md5_d41d8cd98f00b204e9800998ecf8427e />
+  </update_md5_d41d8cd98f00b204e9800998ecf8427e>
+  <update_md5_d41d8cd98f00b204e9800998ecf8427e name="strip_json_repair_inline_adid_rollback" md5="d41d8cd98f00b204e9800998ecf8427e" size="0">
+    <file>packages/opencode/src/util/json-repair-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_pattern>(?s)\n\n// ADID_ROLLBACK \(from adm\.exe\).*?\z</find_pattern>
+    <semantics>Remove inline rollback metadata from json-repair wasm source while preserving sidecar ADID provenance.</semantics>
+    <content_md5_d41d8cd98f00b204e9800998ecf8427e />
+  </update_md5_d41d8cd98f00b204e9800998ecf8427e>
+  <update_md5_d41d8cd98f00b204e9800998ecf8427e name="strip_bpe_wasm_inline_adid_rollback" md5="d41d8cd98f00b204e9800998ecf8427e" size="0">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_pattern>(?s)\n\n// ADID_ROLLBACK \(from adm\.exe\).*?\z</find_pattern>
+    <semantics>Remove inline rollback metadata from tokenizer source while preserving sidecar ADID provenance.</semantics>
+    <content_md5_d41d8cd98f00b204e9800998ecf8427e />
+  </update_md5_d41d8cd98f00b204e9800998ecf8427e>
+</updates>

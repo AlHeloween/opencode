@@ -7,6 +7,7 @@ import DESCRIPTION from "./bash.txt"
 import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "../project/instance"
 import { lazy } from "@/util/lazy"
+import { resolveWasmAssetPath } from "@/util/wasm-path"
 import { Language, type Node } from "web-tree-sitter"
 
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -129,7 +130,9 @@ function parts(node: Node) {
       child.type !== "word" &&
       child.type !== "string" &&
       child.type !== "raw_string" &&
-      child.type !== "concatenation"
+      child.type !== "concatenation" &&
+      child.type !== "generic_token" &&
+      child.type !== "array_literal_expression"
     ) {
       continue
     }
@@ -325,7 +328,7 @@ const parser = lazy(async () => {
   const { default: treeWasm } = await import("web-tree-sitter/tree-sitter.wasm" as string, {
     with: { type: "wasm" },
   })
-  const treePath = resolveWasm(treeWasm)
+  const treePath = (await resolveWasmAssetPath("tree-sitter.wasm")) ?? resolveWasm(treeWasm)
   // web-tree-sitter types require full EmscriptenModule, but runtime only needs locateFile
   await (Parser.init as any)({
     locateFile() {
@@ -338,8 +341,8 @@ const parser = lazy(async () => {
   const { default: psWasm } = await import("tree-sitter-powershell/tree-sitter-powershell.wasm" as string, {
     with: { type: "wasm" },
   })
-  const bashPath = resolveWasm(bashWasm)
-  const psPath = resolveWasm(psWasm)
+  const bashPath = (await resolveWasmAssetPath("grammars/tree-sitter-bash.wasm")) ?? resolveWasm(bashWasm)
+  const psPath = (await resolveWasmAssetPath("grammars/tree-sitter-powershell.wasm")) ?? resolveWasm(psWasm)
   const [bashLanguage, psLanguage] = await Promise.all([Language.load(bashPath), Language.load(psPath)])
   const bash = new Parser()
   bash.setLanguage(bashLanguage)
@@ -373,7 +376,8 @@ export const BashTool = Tool.define(
           const file = yield* cygpath(shell, text)
           if (file) return file
         }
-        return AppFileSystem.normalizePath(path.resolve(root, AppFileSystem.windowsPath(text)))
+        const file = AppFileSystem.windowsPath(text)
+        return AppFileSystem.normalizePath(path.resolve(root, /^[A-Za-z]:(?![\\/])/.test(file) ? file.slice(2) : file))
       }
       return path.resolve(root, text)
     })

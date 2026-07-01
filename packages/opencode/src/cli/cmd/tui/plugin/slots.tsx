@@ -10,10 +10,7 @@ export type HostSlotPlugin<Slots extends Record<string, object> = {}> = SolidPlu
 
 export type HostPluginApi = TuiPluginApi
 export type HostSlots = {
-  register: {
-    (plugin: HostSlotPlugin): () => void
-    <Slots extends Record<string, object>>(plugin: HostSlotPlugin<Slots>): () => void
-  }
+  register: <Slots extends Record<string, object>>(plugin: HostSlotPlugin<Slots>) => () => void
 }
 
 function empty<Name extends string>(_props: TuiSlotProps<Name>) {
@@ -53,9 +50,9 @@ export function setupSlots(api: HostPluginApi): HostSlots {
   const slot = createSlot<RuntimeSlotMap, TuiSlotContext>(reg)
   view = (props) => slot(props)
   return {
-    register(plugin: HostSlotPlugin) {
+    register: <Slots extends Record<string, object>>(plugin: HostSlotPlugin<Slots>) => {
       if (!isHostSlotPlugin(plugin)) return () => {}
-      return reg.register(plugin)
+      return reg.register(plugin as HostSlotPlugin<Record<string, object>>)
     },
   }
 }

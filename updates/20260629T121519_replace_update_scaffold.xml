@@ -1,0 +1,213 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_c94feea012234d0a9bf3a353eea57951 name="replace_tokenizer_loader_with_sized_scratch_buffer" md5="c94feea012234d0a9bf3a353eea57951" size="2639">
+    <file>packages/opencode/src/tokenizers/bpe-wasm.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>async function loadWasm(): Promise&lt;WebAssembly.Module | null&gt; {
+  if (_wasmModule) return _wasmModule
+  if (_initPromise) return _initPromise
+  _initPromise = (async () =&gt; {
+    const asset = await readWasmAsset(&quot;tokenizer.wasm&quot;)
+if (!asset.bytes) {
+  Log.Default.warn(&quot;bpe-wasm: no WASM file found, tried: &quot; + JSON.stringify(asset.tried))
+  return null
+}
+
+try {
+  _wasmModule = await WebAssembly.compile(asset.bytes)
+  Log.Default.warn(&quot;bpe-wasm: loaded WASM from &quot; + asset.path)
+  return _wasmModule
+} catch (err) {
+  Log.Default.error(&quot;bpe-wasm: load failed: &quot; + (err instanceof Error ? err.message : String(err)))
+  return null
+}
+  })()
+  return _initPromise
+}
+
+/** Eager health check — call at startup. */
+export async function initTokenizer(): Promise&lt;boolean&gt; {
+  const mod = await loadWasm()
+  return mod !== null
+}
+
+/**
+ * WASM-backed BPE tokenizer. Falls back to TS implementation if WASM fails to load.
+ * Implements the TokenizerInstance interface.
+ */
+export class BpeWasmTokenizer implements TokenizerInstance {
+  readonly model: TokenizerModel
+  private handle: number
+  private wasmInstance: WebAssembly.Instance
+  private memory: WebAssembly.Memory
+
+  private constructor(
+    model: TokenizerModel,
+    handle: number,
+    instance: WebAssembly.Instance,
+    memory: WebAssembly.Memory,
+  ) {
+    this.model = model
+    this.handle = handle
+    this.wasmInstance = instance
+    this.memory = memory
+  }
+
+  /**
+   * Load and initialize a WASM tokenizer.
+   * Returns null if WASM is unavailable or initialization fails.
+   */
+  static async load(model: TokenizerModel): Promise&lt;BpeWasmTokenizer | null&gt; {
+    const mod = await loadWasm()
+    if (!mod) return null
+
+    try {
+      const { vocabBytes, mergesBytes } = prepareModel(model)
+
+      const modelSize = vocabBytes.length + mergesBytes.length + 128
+const initialPages = Math.max(MODULE_MIN_PAGES, Math.ceil((modelSize + IO_PAGE_OFFSET) / 65536))
+const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
+      const instance = await WebAssembly.instantiate(mod, {
+        env: { memory },
+      })
+
+      const exports = instance.exports as {
+        bpe_init: (vp: number, vl: number, mp: number, ml: number) =&gt; number
+        bpe_free: (h: number) =&gt; void
+        memory: WebAssembly.Memory
+      }
+
+      const modelBase = memory.buffer.byteLength - IO_PAGE_OFFSET - modelSize
+if (modelBase &lt; 0) {
+  Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+  return null
+}
+const memView = new Uint8Array(memory.buffer)
+
+const vocabPtr = modelBase
+memView.set(vocabBytes, vocabPtr)
+
+const mergesPtr = modelBase + vocabBytes.length + 64
+memView.set(mergesBytes, mergesPtr)
+
+          const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+    if (handle &lt; 0) {
+      Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+      return null
+    }
+
+    return new BpeWasmTokenizer(model, handle, instance, memory)
+  } catch (err) {
+    Log.Default.warn(&quot;bpe-wasm: tokenizer initialization failed: &quot; + (err instanceof Error ? err.message : String(err)))
+    return null
+  }
+}
+
+  countTokens(text: string): number {</find_text>
+    <semantics>Replace the malformed tokenizer loader section with the shared asset resolver, parser-limit sanitization, and a fixed low model scratch region.</semantics>
+    <content_md5_c94feea012234d0a9bf3a353eea57951>
+      async function loadWasm(): Promise&lt;WebAssembly.Module | null&gt; {
+        if (_wasmModule) return _wasmModule
+        if (_initPromise) return _initPromise
+        _initPromise = (async () =&gt; {
+          const asset = await readWasmAsset(&quot;tokenizer.wasm&quot;)
+          if (!asset.bytes) {
+            Log.Default.warn(&quot;bpe-wasm: no WASM file found, tried: &quot; + JSON.stringify(asset.tried))
+            return null
+          }
+      
+          try {
+            _wasmModule = await WebAssembly.compile(asset.bytes)
+            Log.Default.warn(&quot;bpe-wasm: loaded WASM from &quot; + asset.path)
+            return _wasmModule
+          } catch (err) {
+            Log.Default.error(&quot;bpe-wasm: load failed: &quot; + (err instanceof Error ? err.message : String(err)))
+            return null
+          }
+        })()
+        return _initPromise
+      }
+      
+      /** Eager health check — call at startup. */
+      export async function initTokenizer(): Promise&lt;boolean&gt; {
+        const mod = await loadWasm()
+        return mod !== null
+      }
+      
+      /**
+       * WASM-backed BPE tokenizer. Falls back to TS implementation if WASM fails to load.
+       * Implements the TokenizerInstance interface.
+       */
+      export class BpeWasmTokenizer implements TokenizerInstance {
+        readonly model: TokenizerModel
+        private handle: number
+        private wasmInstance: WebAssembly.Instance
+        private memory: WebAssembly.Memory
+      
+        private constructor(
+          model: TokenizerModel,
+          handle: number,
+          instance: WebAssembly.Instance,
+          memory: WebAssembly.Memory,
+        ) {
+          this.model = model
+          this.handle = handle
+          this.wasmInstance = instance
+          this.memory = memory
+        }
+      
+        /**
+         * Load and initialize a WASM tokenizer.
+         * Returns null if WASM is unavailable or initialization fails.
+         */
+        static async load(model: TokenizerModel): Promise&lt;BpeWasmTokenizer | null&gt; {
+          const mod = await loadWasm()
+          if (!mod) return null
+      
+          try {
+            const { vocabBytes, mergesBytes } = prepareModel(model)
+            const modelSize = vocabBytes.length + mergesBytes.length + 128
+            const initialPages = Math.max(
+              MODULE_MIN_PAGES,
+              Math.ceil((MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET) / 65536),
+            )
+            const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
+            const instance = await WebAssembly.instantiate(mod, {
+              env: { memory },
+            })
+      
+            const exports = instance.exports as {
+              bpe_init: (vp: number, vl: number, mp: number, ml: number) =&gt; number
+              bpe_free: (h: number) =&gt; void
+              memory: WebAssembly.Memory
+            }
+      
+            if (MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET &gt; memory.buffer.byteLength) {
+              Log.Default.warn(&quot;bpe-wasm: insufficient memory for tokenizer model JSON&quot;)
+              return null
+            }
+            const memView = new Uint8Array(memory.buffer)
+            const vocabPtr = MODEL_SCRATCH_OFFSET
+            memView.set(vocabBytes, vocabPtr)
+            const mergesPtr = MODEL_SCRATCH_OFFSET + vocabBytes.length + 64
+            memView.set(mergesBytes, mergesPtr)
+      
+            const handle = exports.bpe_init(vocabPtr, vocabBytes.length, mergesPtr, mergesBytes.length)
+            if (handle &lt; 0) {
+              Log.Default.warn(&quot;bpe-wasm: tokenizer initialization rejected model&quot;)
+              return null
+            }
+      
+            return new BpeWasmTokenizer(model, handle, instance, memory)
+          } catch (err) {
+            Log.Default.warn(&quot;bpe-wasm: tokenizer initialization failed: &quot; + (err instanceof Error ? err.message : String(err)))
+            return null
+          }
+        }
+      
+        countTokens(text: string): number {
+    </content_md5_c94feea012234d0a9bf3a353eea57951>
+  </update_md5_c94feea012234d0a9bf3a353eea57951>
+</updates>

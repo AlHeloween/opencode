@@ -1,0 +1,145 @@
+---
+status: planned
+owner: codex
+created: 2026-06-25
+reproduce:
+  - cd packages/opencode && bun typecheck
+  - plans/ validated by explore agent against codebase
+---
+
+# Deferred Architectural Items — Master Implementation Plan
+
+## Goal
+
+Complete the 6 remaining deferred architectural items from the `20260623_remaining_items.md` audit. These are not bugs — they work correctly today — but represent design improvements for long-term maintainability.
+
+## Items and Dependencies
+
+```
+                                    ┌─────────────────────┐
+                                    │  4.4 Catalog Service │ ← foundation; blocks PluginV2 rename
+                                    └──────────┬──────────┘
+                                               │
+                    ┌──────────────────────────┼──────────────────────┐
+                    │                          │                      │
+                    v                          v                      v
+    ┌───────────────────────────┐  ┌─────────────────────┐  ┌──────────────────┐
+    │ 4.6 PluginV2 Hook Rename  │  │ 4.5 Auth V2          │  │ (provider/model) │
+    │ provider.update → catalog │  │ Account integration   │  │ resolution path  │
+    │ blocked: Catalog adoption │  │ independent of Cat   │  │ unified by Cat   │
+    └───────────────────────────┘  └─────────────────────┘  └──────────────────┘
+
+Independent items (no blocking dependencies):
+┌─────────────────────────────────────┐
+│ 4.1 FTS Trigger Migration           │ ← schema management cleanup
+│ Work: 1 day, 5 tests                │
+└─────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│ 4.2 Inline SQL Cleanup              │ ← code quality improvement
+│ Work: 3-5 days, 8 tests             │
+└─────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│ 4.3 HTTP API v2 Restructure         │ ← deduplication + versioning
+│ Work: 2-4 weeks                     │
+└─────────────────────────────────────┘
+```
+
+## Task Summary
+
+### Emergency Tasks (`plans/emergency/` — fix first)
+
+| ID | Item | Plan File | Effort | Status |
+|----|------|-----------|--------|--------|
+| E1 | Background Job Fixes | `plans_completed/20260625_background_job_fixes.md` | 1-2 days | [x] Done |
+| E2 | Orchestrator Agent + AGI Mode | `plans_completed/20260625_orchestrator_agent_agi_mode.md` | 4 days | [x] Done |
+| E4 | Cache Prediction Bugs | `plans/emergency/20260627_cache_prediction_bugs.md` | 0.5-1 day | [x] Done |
+
+### Priority Tasks (`plans/priority/` — execute second)
+
+| ID | Item | Plan File | Effort | Status |
+|----|------|-----------|--------|--------|
+| P1 | Config Consolidation | `plans_completed/20260625_config_consolidation.md` | 9.5 days | [x] Done |
+| P2 | Cache Stats — Per-Message | `plans_completed/20260625_cache_stats.md` | 3.5 days | [x] Done |
+
+### Standard Tasks (`plans/`)
+
+| ID | Item | Plan File | Effort | Priority | Status |
+|----|------|-----------|--------|----------|--------|
+| 4.4 | Catalog Service | `plans_completed/20260625_catalog_service_plan.md` | 8-12 days | High | [x] Done |
+| 4.5 | Auth V2 | `plans_completed/20260625_auth_v2_plan.md` | 15-19 days | High | [x] Done |
+| 4.6 | PluginV2 Rename | `plans_completed/20260625_pluginv2_rename_plan.md` | 1 day | Medium | [x] Done |
+| 4.1 | FTS Trigger Migration | `plans_completed/20260625_fts_trigger_migration_plan.md` | 1 day | Low | [x] Done |
+| 4.2 | Inline SQL Cleanup | `plans_completed/20260625_inline_sql_cleanup_plan.md` | 3-5 days | Low | [x] Done |
+| 4.3 | HTTP API v2 | `plans/20260625_http_api_v2_plan.md` | 2-4 weeks | Medium | [ ] Planned |
+| C1 | Conversation Checkpoint | `plans_completed/20260624_checkpoint_plan.md` | 6-8h | High | [x] Done |
+| E3 | Orchestrator Evolving Mode | `plans_completed/20260626_orchestrator_evolving_mode.md` | 1-2 days | High | [x] Done |
+| E4 | Cache Prediction Bugs | `plans_completed/20260627_cache_prediction_bugs.md` | 0.5-1 day | High | [x] Done |
+
+## Recommended Execution Order
+
+```
+Phase 0 (Emergency — done):
+  [x] E1 Background Job Fixes
+  [x] E2 Orchestrator Agent + AGI Mode
+
+Phase 1 (Priority — done):
+  [x] P1 Config Consolidation (9.5 days)
+  [x] P2 Cache Stats (3.5 days)
+
+Phase 2 (Foundation — done):
+  [x] 4.4 Catalog Service (8-12 days)
+  [x] 4.5 Auth V2 (15-19 days)
+  [x] 4.6 PluginV2 Rename (1 day)
+  [x] 4.1 FTS Trigger Migration (1 day)
+  [x] 4.2 Inline SQL Cleanup (3-5 days)
+  [x] C1 Conversation Checkpoint (6-8h)
+
+Phase 3 (Done):
+  [x] E4 Cache Prediction Bugs (0.5-1 day) — fingerprint key, prediction logic, checkpoint mismatch
+  [x] E3 Orchestrator Evolving Mode (1-2 days) — git init, branch workflow, evolving toggle
+
+Phase 4 (Superseded):
+  [~] 4.3 HTTP API v2 — plan superseded by architectural decision 2026-06-28.
+      Upstream shows selective HttpApi migration (coexistence, not replacement).
+      SDK-level versioning eliminates need for URL path versioning.
+      Remaining Phase 1 tasks become maintenance items, not a dedicated plan.
+
+Phase 5 (New — Active):
+  Days 1-12: 5.1 WASM Core Framework — `plans_completed/20260628_wasm_core_framework.md`
+  - Phase 1: BPE tokenizer → Rust WASM (days 1-3)
+  - Phase 2: JSON repair → Rust WASM (days 4-5)
+  - Phase 3: Diff engine → Rust WASM (days 6-8)
+  - Phase 4: Unified tree-sitter parser (days 9-10)
+  - Phase 5: Model route optimization (days 11-12)
+```
+
+## Oracle Gates
+
+Each item is complete when:
+- Typecheck passes with zero errors
+- All new tests pass
+- Existing tests continue passing (no regressions)
+- Plan document moved to `plans_completed/`
+
+## Current State
+
+- Working tree: clean
+- Typecheck: zero errors
+- Tests: all passing
+- Forward-compatible: SDK v2, model routing
+- Completed plans: 131 in `plans_completed/`
+- Active plans: 2 (this master + 20260628_wasm_core_framework)
+- Superseded: `20260625_http_api_v2_plan.md` — wrong approach (wholesale migration). Correct approach: selective HttpApi coexistence + SDK-level versioning per upstream pattern.
+
+## Revisions
+
+| Date | Change |
+|------|--------|
+| 2026-06-25 | Initial master plan with 6 items, all explorer-validated |
+| 2026-06-25 | Added 2 priority plans (P1 Config Consolidation, P2 Cache Stats). Revised Auth V2 plan: removed env var injection, added auth.enc exclusive + server auth → opencode.jsonc. |
+| 2026-06-26 | Marked 4.1, 4.2, P2 as done (moved to plans_completed/ 2026-06-25, master stale). Added C1 (Checkpoint Plan) and E3 (Orchestrator Evolving Mode) to tracking. Added hardening rule 10 (reference grounding) to reasoning.txt and AGENTS.md Plan Maintenance to prevent recurrence. |
+| 2026-06-27 | Updated execution order to reflect completed foundation items (4.4, 4.5, 4.6, 4.1, 4.2, C1). Phase 3 now shows E3 tasks 2-4 pending (tasks 1 done). Phase 4 is HTTP API v2. Master plan corrected to match actual completed state. |
+| 2026-06-27 | Added E4 (Cache Prediction Bugs) — discovered via debug experiment. 3 bugs: fingerprint key lacks agent name, wrong prediction logic, checkpoint mismatch causing system prompt change. Emergency priority. |
+| 2026-06-27 | Marked E3 (Orchestrator Evolving Mode) and E4 (Cache Prediction Bugs) as Done. Moved both plans to plans_completed/. Phase 3 complete. 121/130 plans archived. |
+| 2026-06-28 | Fixed plan-to-code gap in HTTP API v2 plan — marked tasks 1.6/1.7/1.8 as done based on code reality. Added orchestrator plan capability (`plans_completed/20260628_orchestrator_plan_capability.md`) — orchestrator can now `edit`/`write` plans/*.md and use `task` tool for delegation. |
+| 2026-06-28 | **Architectural pivot**: HTTP API v2 plan superseded. Upstream analysis shows selective HttpApi coexistence (not wholesale migration) + SDK-level versioning (not URL path). New Phase 5: WASM Core Framework — incremental Rust→WASM migration for BPE tokenizer, JSON repair, diff engine, tree-sitter unification, model route optimization. Plan: `plans_completed/20260628_wasm_core_framework.md`. |

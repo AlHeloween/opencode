@@ -1,0 +1,20 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/storage/db.ts
+@@
+ export function close() {
+   for (const [dbPath, db] of pathClientCache) {
+     try {
++      db.run("PRAGMA wal_checkpoint(TRUNCATE)")
++    } catch (err) {
++      log.warn("failed to checkpoint DB client before close", { dbPath, error: err })
++    }
++    try {
+       db.$client.close()
+     } catch (err) {
+       log.warn("failed to close DB client", { dbPath, error: err })
+     }
+   }
+   pathClientCache.clear()
++  Bun.gc(true)
+ }
+*** End Patch

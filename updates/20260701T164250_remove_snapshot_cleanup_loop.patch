@@ -1,0 +1,15 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-        yield* cleanup().pipe(
+-          Effect.catchCause((cause) => {
+-            log.error("cleanup loop failed", { cause: Cause.pretty(cause) })
+-            return Effect.void
+-          }),
+-          Effect.repeat(Schedule.spaced(Duration.hours(1))),
+-          Effect.delay(Duration.minutes(1)),
+-          Effect.forkScoped,
+-        )
+-
+         return { cleanup, track, patch, restore, revert, diff, diffFull }
+*** End Patch

@@ -1,0 +1,15 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+               const existed = yield* exists(state.gitdir)
+-              yield* fs.ensureDir(state.gitdir).pipe(Effect.orDie)
+               if (!existed) {
+-                yield* git(["init"], {
+-                  env: { GIT_DIR: state.gitdir, GIT_WORK_TREE: state.worktree },
+-                })
++                yield* fs.ensureDir(path.dirname(state.gitdir)).pipe(Effect.orDie)
++                yield* git(["init", "--bare", state.gitdir], { cwd: state.worktree })
++                yield* git(["--git-dir", state.gitdir, "config", "core.bare", "false"])
++                yield* git(["--git-dir", state.gitdir, "config", "core.worktree", state.worktree])
+                 yield* git(["--git-dir", state.gitdir, "config", "core.autocrlf", "false"])
+*** End Patch

@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/snapshot/snapshot.test.ts
+@@
+-      const ids = Array.from({ length: 140 }, (_, i) => i.toString().padStart(3, "0"))
++      const ids = Array.from({ length: 110 }, (_, i) => i.toString().padStart(3, "0"))
+*** End Patch

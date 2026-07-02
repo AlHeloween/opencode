@@ -249,12 +249,18 @@ export function closeProjectDb(projectID: ProjectID) {
 export function close() {
   for (const [dbPath, db] of pathClientCache) {
     try {
+      db.run("PRAGMA wal_checkpoint(TRUNCATE)")
+    } catch (err) {
+      log.warn("failed to checkpoint DB client before close", { dbPath, error: err })
+    }
+    try {
       db.$client.close()
     } catch (err) {
       log.warn("failed to close DB client", { dbPath, error: err })
     }
   }
   pathClientCache.clear()
+  Bun.gc(true)
 }
 
 export type TxOrDb = Transaction | Client

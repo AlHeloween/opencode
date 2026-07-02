@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_271da972eba562327e86c620eebf3d04 name="exclude_runtime_snapshot_inputs" md5="271da972eba562327e86c620eebf3d04" size="373">
+    <file>packages/opencode/src/snapshot/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>          const untracked = new Set(other.text.split(&quot;\0&quot;).filter(Boolean).map(slash))
+          const files = Array.from(new Set([...tracked.text.split(&quot;\0&quot;), ...untracked].filter(Boolean).map(slash))).filter(
+            (item) =&gt; item !== &quot;.jj&quot; &amp;&amp; !item.startsWith(&quot;.jj/&quot;),
+          )
+</find_text>
+    <semantics>Keep opencode runtime state and snapshot objects out of the snapshot candidate set.</semantics>
+    <content_md5_271da972eba562327e86c620eebf3d04>
+      const untracked = new Set(other.text.split(&quot;\0&quot;).filter(Boolean).map(slash))
+      const isRuntimePath = (item: string) =&gt;
+        item === &quot;.jj&quot; ||
+        item.startsWith(&quot;.jj/&quot;) ||
+        item === &quot;.opencode&quot; ||
+        item.startsWith(&quot;.opencode/&quot;) ||
+        item === &quot;logs&quot; ||
+        item.startsWith(&quot;logs/&quot;)
+      const files = Array.from(new Set([...tracked.text.split(&quot;\0&quot;), ...untracked].filter(Boolean).map(slash))).filter(
+        (item) =&gt; !isRuntimePath(item),
+      )
+    </content_md5_271da972eba562327e86c620eebf3d04>
+  </update_md5_271da972eba562327e86c620eebf3d04>
+</updates>

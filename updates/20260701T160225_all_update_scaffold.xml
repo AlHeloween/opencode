@@ -1,0 +1,523 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_b1bf112fbd597bb587a46333d83513ba name="content_addressed_snapshot_backend" md5="b1bf112fbd597bb587a46333d83513ba" size="14999">
+    <file>packages/opencode/src/snapshot/index.ts</file>
+    <update_type>text</update_type>
+    <mode>overwrite</mode>
+    <encoding>utf-8</encoding>
+    <line_endings>LF</line_endings>
+    <semantics>Replace colocated jj with content-addressed snapshot manifests and objects stored outside git.</semantics>
+    <content_md5_b1bf112fbd597bb587a46333d83513ba>
+      import { Duration, Effect, Layer, Schedule, Schema, Semaphore, Context, Stream } from &quot;effect&quot;
+      import { ChildProcess, ChildProcessSpawner } from &quot;effect/unstable/process&quot;
+      import { createPatch, diffStats } from &quot;@/util/diff-wasm&quot;
+      import path from &quot;path&quot;
+      import type { Dirent } from &quot;fs&quot;
+      import * as NodeFs from &quot;fs/promises&quot;
+      import z from &quot;zod&quot;
+      import { CrossSpawnSpawner } from &quot;@opencode-ai/core/cross-spawn-spawner&quot;
+      import { InstanceState } from &quot;@/effect/instance-state&quot;
+      import { AppFileSystem } from &quot;@opencode-ai/core/filesystem&quot;
+      import { Hash } from &quot;@opencode-ai/core/util/hash&quot;
+      import { Config } from &quot;@/config/config&quot;
+      import { Global } from &quot;@opencode-ai/core/global&quot;
+      import * as Log from &quot;@opencode-ai/core/util/log&quot;
+      import { withStatics } from &quot;@/util/schema&quot;
+      import { zod } from &quot;@/util/effect-zod&quot;
+      
+      export const Patch = Schema.Struct({
+        hash: Schema.String,
+        files: Schema.mutable(Schema.Array(Schema.String)),
+      }).pipe(withStatics((s) =&gt; ({ zod: zod(s) })))
+      export type Patch = typeof Patch.Type
+      
+      export const FileDiff = Schema.Struct({
+        file: Schema.String,
+        patch: Schema.String,
+        additions: Schema.Number,
+        deletions: Schema.Number,
+        status: Schema.optional(Schema.Literals([&quot;added&quot;, &quot;deleted&quot;, &quot;modified&quot;])),
+      })
+        .annotate({ identifier: &quot;SnapshotFileDiff&quot; })
+        .pipe(withStatics((s) =&gt; ({ zod: zod(s) })))
+      export type FileDiff = typeof FileDiff.Type
+      
+      const log = Log.create({ service: &quot;snapshot&quot; })
+      const prune = Duration.toMillis(Duration.days(7))
+      const limit = 2 * 1024 * 1024
+      
+      interface GitResult {
+        readonly code: ChildProcessSpawner.ExitCode
+        readonly text: string
+        readonly stderr: string
+      }
+      
+      interface SnapshotEntry {
+        readonly path: string
+        readonly kind: &quot;file&quot; | &quot;symlink&quot;
+        readonly hash?: string
+        readonly size?: number
+        readonly link?: string
+        readonly linkType?: &quot;file&quot; | &quot;dir&quot;
+      }
+      
+      interface SnapshotManifest {
+        readonly version: 1
+        readonly worktree: string
+        readonly entries: readonly SnapshotEntry[]
+      }
+      
+      type State = Omit&lt;Interface, &quot;init&quot;&gt;
+      
+      export interface Interface {
+        readonly init: () =&gt; Effect.Effect&lt;void&gt;
+        readonly cleanup: () =&gt; Effect.Effect&lt;void&gt;
+        readonly track: () =&gt; Effect.Effect&lt;string | undefined&gt;
+        readonly patch: (hash: string) =&gt; Effect.Effect&lt;Patch&gt;
+        readonly restore: (snapshot: string) =&gt; Effect.Effect&lt;void&gt;
+        readonly revert: (patches: Patch[]) =&gt; Effect.Effect&lt;void&gt;
+        readonly diff: (hash: string) =&gt; Effect.Effect&lt;string&gt;
+        readonly diffFull: (from: string, to: string) =&gt; Effect.Effect&lt;FileDiff[]&gt;
+      }
+      
+      export class Service extends Context.Service&lt;Service, Interface&gt;()(&quot;@opencode/Snapshot&quot;) {}
+      
+      export const layer: Layer.Layer&lt;
+        Service,
+        never,
+        AppFileSystem.Service | ChildProcessSpawner.ChildProcessSpawner | Config.Service
+      &gt; = Layer.effect(
+        Service,
+        Effect.gen(function* () {
+          const fs = yield* AppFileSystem.Service
+          const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
+          const config = yield* Config.Service
+          const locks = new Map&lt;string, Semaphore.Semaphore&gt;()
+      
+          const lock = (key: string) =&gt; {
+            const hit = locks.get(key)
+            if (hit) return hit
+            const next = Semaphore.makeUnsafe(1)
+            locks.set(key, next)
+            return next
+          }
+      
+          const state = yield* InstanceState.make&lt;State&gt;(
+            Effect.fn(&quot;Snapshot.state&quot;)(function* (ctx) {
+              const state = {
+                directory: ctx.directory,
+                worktree: ctx.worktree,
+                store: path.join(Global.Path.data, &quot;snapshot&quot;, ctx.project.id, Hash.fast(ctx.worktree)),
+                vcs: ctx.project.vcs,
+              }
+      
+              const objects = path.join(state.store, &quot;objects&quot;)
+              const snapshots = path.join(state.store, &quot;snapshots&quot;)
+              const enc = new TextEncoder()
+              const feed = (list: string[]) =&gt; Stream.make(enc.encode(list.join(&quot;\0&quot;) + &quot;\0&quot;))
+              const slash = (value: string) =&gt; value.replaceAll(&quot;\\&quot;, &quot;/&quot;)
+              const absolute = (rel: string) =&gt; slash(path.join(state.worktree, rel))
+              const locked = &lt;A, E, R&gt;(fx: Effect.Effect&lt;A, E, R&gt;) =&gt; lock(state.store).withPermits(1)(fx)
+              const exists = (file: string) =&gt; fs.exists(file).pipe(Effect.orElseSucceed(() =&gt; false))
+              const remove = (file: string) =&gt; fs.remove(file, { recursive: true, force: true }).pipe(Effect.catch(() =&gt; Effect.void))
+      
+              const git = Effect.fnUntraced(
+                function* (cmd: string[], opts?: { stdin?: ChildProcess.CommandInput }) {
+                  const proc = ChildProcess.make(&quot;git&quot;, [&quot;-C&quot;, state.worktree, &quot;-c&quot;, &quot;core.quotepath=false&quot;, ...cmd], {
+                    cwd: state.directory,
+                    extendEnv: true,
+                    stdin: opts?.stdin,
+                  })
+                  const handle = yield* spawner.spawn(proc)
+                  const [text, stderr] = yield* Effect.all(
+                    [Stream.mkString(Stream.decodeText(handle.stdout)), Stream.mkString(Stream.decodeText(handle.stderr))],
+                    { concurrency: 2 },
+                  )
+                  const code = yield* handle.exitCode
+                  return { code, text, stderr } satisfies GitResult
+                },
+                Effect.scoped,
+                Effect.catch((err) =&gt;
+                  Effect.succeed({
+                    code: ChildProcessSpawner.ExitCode(1),
+                    text: &quot;&quot;,
+                    stderr: err instanceof Error ? err.message : String(err),
+                  }),
+                ),
+              )
+      
+              const enabled = Effect.fnUntraced(function* () {
+                if (state.vcs !== &quot;git&quot;) return false
+                return (yield* config.get()).snapshot !== false
+              })
+      
+              const listCandidates = Effect.fnUntraced(function* () {
+                const [tracked, other] = yield* Effect.all(
+                  [
+                    git([&quot;ls-files&quot;, &quot;-z&quot;, &quot;--cached&quot;, &quot;--&quot;, &quot;.&quot;]),
+                    git([&quot;ls-files&quot;, &quot;-z&quot;, &quot;--others&quot;, &quot;--exclude-standard&quot;, &quot;--&quot;, &quot;.&quot;]),
+                  ],
+                  { concurrency: 2 },
+                )
+                if (tracked.code !== 0 || other.code !== 0) {
+                  log.warn(&quot;failed to list snapshot files&quot;, {
+                    trackedCode: tracked.code,
+                    trackedStderr: tracked.stderr,
+                    otherCode: other.code,
+                    otherStderr: other.stderr,
+                  })
+                  return { files: [] as string[], untracked: new Set&lt;string&gt;() }
+                }
+      
+                const untracked = new Set(other.text.split(&quot;\0&quot;).filter(Boolean).map(slash))
+                const files = Array.from(new Set([...tracked.text.split(&quot;\0&quot;), ...untracked].filter(Boolean).map(slash))).filter(
+                  (item) =&gt; item !== &quot;.jj&quot; &amp;&amp; !item.startsWith(&quot;.jj/&quot;),
+                )
+                if (!files.length) return { files, untracked }
+      
+                const ignored = yield* git([&quot;check-ignore&quot;, &quot;--no-index&quot;, &quot;--stdin&quot;, &quot;-z&quot;], { stdin: feed(files) })
+                if (ignored.code !== 0 &amp;&amp; ignored.code !== 1) return { files, untracked }
+                const ignoredSet = new Set(ignored.text.split(&quot;\0&quot;).filter(Boolean).map(slash))
+                return {
+                  files: files.filter((item) =&gt; !ignoredSet.has(item)),
+                  untracked,
+                }
+              })
+      
+              const objectPath = (hash: string) =&gt; path.join(objects, hash.slice(0, 2), hash)
+      
+              const writeObject = Effect.fnUntraced(function* (bytes: Uint8Array) {
+                const hash = Hash.fast(Buffer.from(bytes))
+                const target = objectPath(hash)
+                if (!(yield* exists(target))) {
+                  yield* fs.ensureDir(path.dirname(target)).pipe(Effect.orDie)
+                  yield* fs.writeFile(target, bytes).pipe(Effect.orDie)
+                }
+                return hash
+              })
+      
+              const readObject = Effect.fnUntraced(function* (hash: string) {
+                return yield* fs.readFile(objectPath(hash)).pipe(Effect.orElseSucceed(() =&gt; new Uint8Array()))
+              })
+      
+              const ensureParent = Effect.fnUntraced(function* (dir: string) {
+                if (dir === state.worktree || dir === path.dirname(dir)) return
+                const stat = yield* Effect.tryPromise(() =&gt; NodeFs.lstat(dir)).pipe(Effect.catch(() =&gt; Effect.succeed(undefined)))
+                if (stat?.isDirectory()) return
+                if (stat) yield* remove(dir)
+                yield* ensureParent(path.dirname(dir))
+                yield* fs.ensureDir(dir).pipe(Effect.orDie)
+              })
+      
+              const readManifest = Effect.fnUntraced(function* (hash: string) {
+                const file = path.join(snapshots, `${hash}.json`)
+                const raw = yield* fs.readFileString(file).pipe(Effect.catch(() =&gt; Effect.succeed(&quot;&quot;)))
+                if (!raw) return
+                const parsed = JSON.parse(raw) as Partial&lt;SnapshotManifest&gt;
+                if (parsed.version !== 1 || !Array.isArray(parsed.entries)) return
+                return {
+                  version: 1,
+                  worktree: typeof parsed.worktree === &quot;string&quot; ? parsed.worktree : state.worktree,
+                  entries: parsed.entries
+                    .flatMap((entry) =&gt; {
+                      if (!entry || typeof entry.path !== &quot;string&quot;) return []
+                      if (entry.kind === &quot;file&quot; &amp;&amp; typeof entry.hash === &quot;string&quot;) return [entry as SnapshotEntry]
+                      if (entry.kind === &quot;symlink&quot; &amp;&amp; typeof entry.link === &quot;string&quot;) return [entry as SnapshotEntry]
+                      return []
+                    })
+                    .sort((a, b) =&gt; a.path.localeCompare(b.path)),
+                } satisfies SnapshotManifest
+              })
+      
+              const scan = Effect.fnUntraced(function* () {
+                const candidates = yield* listCandidates()
+                const entries = yield* Effect.all(
+                  candidates.files.map((rel) =&gt;
+                    Effect.gen(function* () {
+                      const full = path.join(state.worktree, rel)
+                      const stat = yield* Effect.tryPromise(() =&gt; NodeFs.lstat(full)).pipe(Effect.catch(() =&gt; Effect.succeed(undefined)))
+                      if (!stat) return
+                      if (stat.isDirectory()) return
+                      if (stat.isSymbolicLink()) {
+                        const link = yield* Effect.tryPromise(() =&gt; NodeFs.readlink(full)).pipe(Effect.catch(() =&gt; Effect.succeed(&quot;&quot;)))
+                        if (!link) return
+                        const target = yield* Effect.tryPromise(() =&gt; NodeFs.stat(full)).pipe(Effect.catch(() =&gt; Effect.succeed(undefined)))
+                        return {
+                          path: rel,
+                          kind: &quot;symlink&quot;,
+                          link,
+                          linkType: target?.isDirectory() ? &quot;dir&quot; : &quot;file&quot;,
+                        } satisfies SnapshotEntry
+                      }
+                      if (!stat.isFile()) return
+                      if (candidates.untracked.has(rel) &amp;&amp; stat.size &gt; limit) return
+                      const bytes = yield* fs.readFile(full).pipe(Effect.catch(() =&gt; Effect.succeed(new Uint8Array())))
+                      return {
+                        path: rel,
+                        kind: &quot;file&quot;,
+                        hash: yield* writeObject(bytes),
+                        size: bytes.length,
+                      } satisfies SnapshotEntry
+                    }),
+                  ),
+                  { concurrency: 8 },
+                )
+                return entries.filter((entry): entry is SnapshotEntry =&gt; Boolean(entry)).sort((a, b) =&gt; a.path.localeCompare(b.path))
+              })
+      
+              const hashManifest = (manifest: SnapshotManifest) =&gt;
+                Hash.fast(JSON.stringify({ version: manifest.version, entries: manifest.entries }))
+      
+              const writeManifest = Effect.fnUntraced(function* (manifest: SnapshotManifest) {
+                const hash = hashManifest(manifest)
+                yield* fs.ensureDir(snapshots).pipe(Effect.orDie)
+                yield* fs.writeFileString(path.join(snapshots, `${hash}.json`), JSON.stringify(manifest, null, 2)).pipe(Effect.orDie)
+                return hash
+              })
+      
+              const entryMap = (manifest: SnapshotManifest) =&gt; new Map(manifest.entries.map((entry) =&gt; [entry.path, entry]))
+      
+              const changed = (before: SnapshotEntry | undefined, after: SnapshotEntry | undefined) =&gt; {
+                if (!before &amp;&amp; after) return true
+                if (before &amp;&amp; !after) return true
+                if (!before || !after) return false
+                if (before.kind !== after.kind) return true
+                if (before.kind === &quot;file&quot;) return before.hash !== after.hash
+                return before.link !== after.link || before.linkType !== after.linkType
+              }
+      
+              const compare = (before: SnapshotManifest, after: SnapshotManifest) =&gt; {
+                const left = entryMap(before)
+                const right = entryMap(after)
+                return Array.from(new Set([...left.keys(), ...right.keys()]))
+                  .sort((a, b) =&gt; a.localeCompare(b))
+                  .flatMap((file) =&gt; (changed(left.get(file), right.get(file)) ? [{ file, before: left.get(file), after: right.get(file) }] : []))
+              }
+      
+              const currentManifest = Effect.fnUntraced(function* () {
+                return {
+                  version: 1,
+                  worktree: state.worktree,
+                  entries: yield* scan(),
+                } satisfies SnapshotManifest
+              })
+      
+              const restoreEntry = Effect.fnUntraced(function* (entry: SnapshotEntry) {
+                const full = path.join(state.worktree, entry.path)
+                yield* ensureParent(path.dirname(full))
+                if (entry.kind === &quot;symlink&quot;) {
+                  yield* remove(full)
+                  yield* Effect.tryPromise(() =&gt; NodeFs.symlink(entry.link ?? &quot;&quot;, full, entry.linkType === &quot;dir&quot; ? &quot;dir&quot; : &quot;file&quot;)).pipe(
+                    Effect.catch((err) =&gt; {
+                      log.warn(&quot;failed to restore symlink snapshot entry&quot;, { file: full, error: String(err) })
+                      return Effect.void
+                    }),
+                  )
+                  return
+                }
+                const stat = yield* Effect.tryPromise(() =&gt; NodeFs.lstat(full)).pipe(Effect.catch(() =&gt; Effect.succeed(undefined)))
+                if (stat &amp;&amp; !stat.isFile()) yield* remove(full)
+                yield* fs.writeWithDirs(full, yield* readObject(entry.hash ?? &quot;&quot;)).pipe(Effect.orDie)
+              })
+      
+              const entryText = Effect.fnUntraced(function* (entry: SnapshotEntry | undefined) {
+                if (!entry) return &quot;&quot;
+                if (entry.kind === &quot;symlink&quot;) return entry.link ?? &quot;&quot;
+                const bytes = yield* readObject(entry.hash ?? &quot;&quot;)
+                if (bytes.includes(0)) return
+                return yield* Effect.try({
+                  try: () =&gt; new TextDecoder(&quot;utf-8&quot;, { fatal: true }).decode(bytes),
+                  catch: () =&gt; undefined,
+                })
+              })
+      
+              const fileDiff = Effect.fnUntraced(function* (file: string, before: SnapshotEntry | undefined, after: SnapshotEntry | undefined) {
+                const status = !before ? &quot;added&quot; : !after ? &quot;deleted&quot; : &quot;modified&quot;
+                const oldText = yield* entryText(before)
+                const newText = yield* entryText(after)
+                if (oldText === undefined || newText === undefined) {
+                  return { file, patch: &quot;&quot;, additions: 0, deletions: 0, status } satisfies FileDiff
+                }
+                const stats = (yield* Effect.promise(() =&gt; diffStats(oldText, newText))) ?? { additions: 0, deletions: 0 }
+                return {
+                  file,
+                  patch: (yield* Effect.promise(() =&gt; createPatch(oldText, newText))) ?? &quot;&quot;,
+                  additions: stats.additions,
+                  deletions: stats.deletions,
+                  status,
+                } satisfies FileDiff
+              })
+      
+              const cleanup = Effect.fnUntraced(function* () {
+                return yield* locked(
+                  Effect.gen(function* () {
+                    if (!(yield* enabled())) return
+                    if (!(yield* exists(snapshots))) return
+                    const now = Date.now()
+                    const entries = yield* Effect.tryPromise(() =&gt; NodeFs.readdir(snapshots, { withFileTypes: true })).pipe(
+                      Effect.catch(() =&gt; Effect.succeed([] as Dirent[])),
+                    )
+                    yield* Effect.all(
+                      entries
+                        .filter((entry) =&gt; entry.isFile() &amp;&amp; entry.name.endsWith(&quot;.json&quot;))
+                        .map((entry) =&gt;
+                          Effect.gen(function* () {
+                            const file = path.join(snapshots, entry.name)
+                            const stat = yield* Effect.tryPromise(() =&gt; NodeFs.stat(file)).pipe(Effect.catch(() =&gt; Effect.succeed(undefined)))
+                            if (stat &amp;&amp; now - stat.mtimeMs &gt; prune) yield* remove(file)
+                          }),
+                        ),
+                      { concurrency: 8 },
+                    )
+                  }),
+                )
+              })
+      
+              const track = Effect.fnUntraced(function* () {
+                return yield* locked(
+                  Effect.gen(function* () {
+                    if (!(yield* enabled())) return
+                    const hash = yield* writeManifest(yield* currentManifest())
+                    log.info(&quot;tracking&quot;, { hash, store: state.store })
+                    return hash
+                  }),
+                )
+              })
+      
+              const patch = Effect.fnUntraced(function* (hash: string) {
+                return yield* locked(
+                  Effect.gen(function* () {
+                    const before = yield* readManifest(hash)
+                    if (!before) return { hash, files: [] }
+                    const after = yield* currentManifest()
+                    return {
+                      hash,
+                      files: compare(before, after).map((item) =&gt; absolute(item.file)),
+                    }
+                  }),
+                )
+              })
+      
+              const restore = Effect.fnUntraced(function* (snapshot: string) {
+                return yield* locked(
+                  Effect.gen(function* () {
+                    log.info(&quot;restore&quot;, { snapshot })
+                    const manifest = yield* readManifest(snapshot)
+                    if (!manifest) return
+                    for (const entry of manifest.entries) yield* restoreEntry(entry)
+                  }),
+                )
+              })
+      
+              const revert = Effect.fnUntraced(function* (patches: Patch[]) {
+                return yield* locked(
+                  Effect.gen(function* () {
+                    const ops: { hash: string; file: string; rel: string }[] = []
+                    const seen = new Set&lt;string&gt;()
+                    for (const item of patches) {
+                      for (const file of item.files) {
+                        if (seen.has(file)) continue
+                        seen.add(file)
+                        ops.push({
+                          hash: item.hash,
+                          file,
+                          rel: slash(path.relative(state.worktree, file)),
+                        })
+                      }
+                    }
+      
+                    for (const op of ops) {
+                      const manifest = yield* readManifest(op.hash)
+                      const entry = manifest ? entryMap(manifest).get(op.rel) : undefined
+                      log.info(&quot;reverting&quot;, { file: op.file, hash: op.hash })
+                      if (entry) {
+                        yield* restoreEntry(entry)
+                        continue
+                      }
+                      yield* remove(op.file)
+                    }
+                  }),
+                )
+              })
+      
+              const diff = Effect.fnUntraced(function* (hash: string) {
+                return yield* locked(
+                  Effect.gen(function* () {
+                    const before = yield* readManifest(hash)
+                    if (!before) return &quot;&quot;
+                    const after = yield* currentManifest()
+                    const rows = compare(before, after)
+                    const diffs = yield* Effect.all(rows.map((row) =&gt; fileDiff(row.file, row.before, row.after)), { concurrency: 4 })
+                    return diffs
+                      .map((item) =&gt; item.patch || (item.status ? `diff --git a/${item.file} b/${item.file}\n` : &quot;&quot;))
+                      .filter(Boolean)
+                      .join(&quot;\n&quot;)
+                      .trim()
+                  }),
+                )
+              })
+      
+              const diffFull = Effect.fnUntraced(function* (from: string, to: string) {
+                return yield* locked(
+                  Effect.gen(function* () {
+                    const before = yield* readManifest(from)
+                    const after = yield* readManifest(to)
+                    if (!before || !after) return [] as FileDiff[]
+                    return yield* Effect.all(
+                      compare(before, after).map((row) =&gt; fileDiff(row.file, row.before, row.after)),
+                      { concurrency: 4 },
+                    )
+                  }),
+                )
+              })
+      
+              yield* cleanup().pipe(
+                Effect.catch(() =&gt; Effect.void),
+                Effect.repeat(Schedule.spaced(Duration.hours(1))),
+                Effect.delay(Duration.minutes(1)),
+                Effect.forkScoped,
+              )
+      
+              return { cleanup, track, patch, restore, revert, diff, diffFull }
+            }),
+          )
+      
+          return Service.of({
+            init: Effect.fn(&quot;Snapshot.init&quot;)(function* () {
+              yield* InstanceState.get(state)
+            }),
+            cleanup: Effect.fn(&quot;Snapshot.cleanup&quot;)(function* () {
+              return yield* InstanceState.useEffect(state, (s) =&gt; s.cleanup())
+            }),
+            track: Effect.fn(&quot;Snapshot.track&quot;)(function* () {
+              return yield* InstanceState.useEffect(state, (s) =&gt; s.track())
+            }),
+            patch: Effect.fn(&quot;Snapshot.patch&quot;)(function* (hash: string) {
+              return yield* InstanceState.useEffect(state, (s) =&gt; s.patch(hash))
+            }),
+            restore: Effect.fn(&quot;Snapshot.restore&quot;)(function* (snapshot: string) {
+              return yield* InstanceState.useEffect(state, (s) =&gt; s.restore(snapshot))
+            }),
+            revert: Effect.fn(&quot;Snapshot.revert&quot;)(function* (patches: Patch[]) {
+              return yield* InstanceState.useEffect(state, (s) =&gt; s.revert(patches))
+            }),
+            diff: Effect.fn(&quot;Snapshot.diff&quot;)(function* (hash: string) {
+              return yield* InstanceState.useEffect(state, (s) =&gt; s.diff(hash))
+            }),
+            diffFull: Effect.fn(&quot;Snapshot.diffFull&quot;)(function* (from: string, to: string) {
+              return yield* InstanceState.useEffect(state, (s) =&gt; s.diffFull(from, to))
+            }),
+          })
+        }),
+      )
+      
+      export const defaultLayer = layer.pipe(
+        Layer.provide(CrossSpawnSpawner.defaultLayer),
+        Layer.provide(AppFileSystem.defaultLayer),
+        Layer.provide(Config.defaultLayer),
+      )
+      
+      export * as Snapshot from &quot;.&quot;
+    </content_md5_b1bf112fbd597bb587a46333d83513ba>
+  </update_md5_b1bf112fbd597bb587a46333d83513ba>
+</updates>

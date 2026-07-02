@@ -1,0 +1,36 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+         const ignore = Effect.fnUntraced(function* (files: string[]) {
+           if (!files.length) return new Set<string>()
+           const check = yield* git(
+-            [
+-              ...quote,
+-              "--git-dir",
+-              path.join(state.worktree, ".git"),
+-              "--work-tree",
+-              state.worktree,
+-              "check-ignore",
+-              "--no-index",
+-              "-z",
+-              "--",
+-              ...files,
+-            ],
+-            { cwd: state.directory },
++            [...quote, "check-ignore", "--no-index", "--non-matching", "--verbose", "-z", "--stdin"],
++            {
++              cwd: state.worktree,
++              stdin: Stream.make(new TextEncoder().encode(files.join("\0") + "\0")),
++            },
+           )
+-          if (check.code !== 0 && check.code !== 1) return new Set<string>()
+-          return new Set(check.text.split("\0").filter(Boolean))
++          if (check.code !== 0) return new Set<string>()
++          const ignored = new Set<string>()
++          const parts = check.text.split("\0")
++          for (let i = 0; i + 3 < parts.length; i += 4) {
++            if (parts[i] || parts[i + 1] || parts[i + 2]) ignored.add(parts[i + 3]!)
++          }
++          return ignored
+         })
+*** End Patch

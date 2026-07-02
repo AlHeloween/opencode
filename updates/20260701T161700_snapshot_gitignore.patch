@@ -1,0 +1,100 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-        const enc = new TextEncoder()
+-        const feed = (list: string[]) => Stream.make(enc.encode(list.join("\0") + "\0"))
+         const slash = (value: string) => value.replaceAll("\\", "/")
+         const absolute = (rel: string) => slash(path.join(state.worktree, rel))
+         const locked = <A, E, R>(fx: Effect.Effect<A, E, R>) => lock(state.store).withPermits(1)(fx)
+         const exists = (file: string) => fs.exists(file).pipe(Effect.orElseSucceed(() => false))
+         const remove = (file: string) => fs.remove(file, { recursive: true, force: true }).pipe(Effect.catch(() => Effect.void))
++        const runtimeIgnore = ".opencode/data"
++
++        const ensureRuntimeIgnore = Effect.fnUntraced(function* () {
++          const file = path.join(state.worktree, ".gitignore")
++          const text = yield* fs.readFileString(file).pipe(Effect.orElseSucceed(() => ""))
++          if (text.split(/\r?\n/).includes(runtimeIgnore)) return
++          yield* fs.writeFileString(file, `${text}${text && !text.endsWith("\n") ? "\n" : ""}${runtimeIgnore}\n`).pipe(
++            Effect.orDie,
++          )
++        })
+ 
+         const git = Effect.fnUntraced(
+-          function* (cmd: string[], opts?: { stdin?: ChildProcess.CommandInput }) {
++          function* (cmd: string[]) {
+             const proc = ChildProcess.make("git", ["-C", state.worktree, "-c", "core.quotepath=false", ...cmd], {
+               cwd: state.directory,
+               extendEnv: true,
+-              stdin: opts?.stdin,
++              stdin: "ignore",
+             })
+@@
+-        const listCandidates = Effect.fnUntraced(function* () {
+-          const [tracked, other] = yield* Effect.all(
+-            [
+-              git(["ls-files", "-z", "--cached", "--", "."]),
+-              git(["ls-files", "-z", "--others", "--exclude-standard", "--", "."]),
+-            ],
+-            { concurrency: 2 },
+-          )
+-          if (tracked.code !== 0 || other.code !== 0) {
++        const listCandidates = Effect.fnUntraced(function* () {
++          const [tracked, ignored, other] = yield* Effect.all(
++            [
++              git(["ls-files", "-z", "--cached", "--", "."]),
++              git(["ls-files", "-z", "--cached", "--ignored", "--exclude-standard", "--", "."]),
++              git(["ls-files", "-z", "--others", "--exclude-standard", "--", "."]),
++            ],
++            { concurrency: 3 },
++          )
++          if (tracked.code !== 0 || ignored.code !== 0 || other.code !== 0) {
+             log.warn("failed to list snapshot files", {
+               trackedCode: tracked.code,
+               trackedStderr: tracked.stderr,
++              ignoredCode: ignored.code,
++              ignoredStderr: ignored.stderr,
+               otherCode: other.code,
+               otherStderr: other.stderr,
+             })
+             return { files: [] as string[], untracked: new Set<string>() }
+           }
+ 
+           const untracked = new Set(other.text.split("\0").filter(Boolean).map(slash))
+-const isRuntimePath = (item: string) =>
+-  item === ".jj" ||
+-  item.startsWith(".jj/") ||
+-  item === ".opencode" ||
+-  item.startsWith(".opencode/") ||
+-  item === "logs" ||
+-  item.startsWith("logs/")
+-const files = Array.from(new Set([...tracked.text.split("\0"), ...untracked].filter(Boolean).map(slash))).filter(
+-  (item) => !isRuntimePath(item),
+-)
+-          if (!files.length) return { files, untracked }
+-
+-          const ignored = yield* git(["check-ignore", "--no-index", "--stdin", "-z"], { stdin: feed(files) })
+-          if (ignored.code !== 0 && ignored.code !== 1) return { files, untracked }
+           const ignoredSet = new Set(ignored.text.split("\0").filter(Boolean).map(slash))
++          const isRuntimePath = (item: string) =>
++            item === ".jj" ||
++            item.startsWith(".jj/") ||
++            item === ".opencode" ||
++            item.startsWith(".opencode/") ||
++            item === "logs" ||
++            item.startsWith("logs/")
++          const files = Array.from(new Set([...tracked.text.split("\0"), ...untracked].filter(Boolean).map(slash))).filter(
++            (item) => !ignoredSet.has(item) && !isRuntimePath(item),
++          )
+           return {
+-            files: files.filter((item) => !ignoredSet.has(item)),
++            files,
+             untracked,
+           }
+         })
+@@
+         const currentManifest = Effect.fnUntraced(function* () {
++          yield* ensureRuntimeIgnore()
+           return {
+             version: 1,
+             worktree: state.worktree,
+*** End Patch

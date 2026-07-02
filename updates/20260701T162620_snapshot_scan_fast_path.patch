@@ -1,0 +1,102 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-        const globalExcludePath = Effect.fnUntraced(function* () {
++        const globalExcludePath = () => {
+           const global = process.env.GIT_CONFIG_GLOBAL
+           if (!global) return
+-          const text = yield* fs.readFileString(global).pipe(Effect.orElseSucceed(() => ""))
+-          return text.match(/^\s*excludesFile\s*=\s*(.+?)\s*$/m)?.[1]
+-        })
++          return NodeFs.readFile(global, "utf8")
++            .then((text) => text.match(/^\s*excludesFile\s*=\s*(.+?)\s*$/m)?.[1])
++            .catch(() => undefined)
++        }
+ 
+-        const ignoreMatcher = Effect.fnUntraced(function* () {
++        const ignoreMatcher = async () => {
+           const ig = ignore()
+-          const add = (text: string) => {
+-            if (text) ig.add(text)
+-          }
+-          add(yield* fs.readFileString(path.join(state.worktree, ".gitignore")).pipe(Effect.orElseSucceed(() => "")))
+-          add(yield* fs.readFileString(path.join(state.worktree, ".git", "info", "exclude")).pipe(Effect.orElseSucceed(() => "")))
+-          const global = yield* globalExcludePath()
+-          if (global) add(yield* fs.readFileString(global).pipe(Effect.orElseSucceed(() => "")))
++          const add = (text: string | undefined) => text && ig.add(text)
++          add(await NodeFs.readFile(path.join(state.worktree, ".gitignore"), "utf8").catch(() => ""))
++          add(await NodeFs.readFile(path.join(state.worktree, ".git", "info", "exclude"), "utf8").catch(() => ""))
++          const global = await globalExcludePath()
++          if (global) add(await NodeFs.readFile(global, "utf8").catch(() => ""))
+           return ig
+-        })
++        }
+ 
+         const listCandidates = Effect.fnUntraced(function* () {
+-          const ig = yield* ignoreMatcher()
+-          const isRuntimePath = (item: string) =>
+-            item === ".jj" ||
+-            item.startsWith(".jj/") ||
+-            item === ".opencode" ||
+-            item.startsWith(".opencode/") ||
+-            item === "logs" ||
+-            item.startsWith("logs/")
+-          const files: string[] = []
+-          const walk = Effect.fnUntraced(function* (dir: string) {
+-            const entries = yield* Effect.tryPromise(() => NodeFs.readdir(dir, { withFileTypes: true })).pipe(
+-              Effect.catch(() => Effect.succeed([] as Dirent[])),
+-            )
+-            yield* Effect.all(
+-              entries.map((entry) =>
+-                Effect.gen(function* () {
+-                  const absolute = path.join(dir, entry.name)
+-                  const rel = slash(path.relative(state.worktree, absolute))
+-                  if (!rel || rel === ".git" || rel.startsWith(".git/") || isRuntimePath(rel)) return
+-                  if (ig.ignores(entry.isDirectory() ? `${rel}/` : rel)) return
+-                  if (entry.isDirectory()) {
+-                    yield* walk(absolute)
+-                    return
+-                  }
+-                  files.push(rel)
+-                }),
+-              ),
+-              { concurrency: 8 },
+-            )
+-          })
+-          yield* walk(state.worktree)
+-          return {
+-            files: files.sort((a, b) => a.localeCompare(b)),
+-            untracked: new Set(files),
+-          }
++          return yield* Effect.promise(async () => {
++            const ig = await ignoreMatcher()
++            const isRuntimePath = (item: string) =>
++              item === ".jj" ||
++              item.startsWith(".jj/") ||
++              item === ".opencode" ||
++              item.startsWith(".opencode/") ||
++              item === "logs" ||
++              item.startsWith("logs/")
++            const files: string[] = []
++            const walk = async (dir: string) => {
++              const entries = await NodeFs.readdir(dir, { withFileTypes: true }).catch(() => [] as Dirent[])
++              await Promise.all(
++                entries.map(async (entry) => {
++                  const absolute = path.join(dir, entry.name)
++                  const rel = slash(path.relative(state.worktree, absolute))
++                  if (!rel || rel === ".git" || rel.startsWith(".git/") || isRuntimePath(rel)) return
++                  if (ig.ignores(entry.isDirectory() ? `${rel}/` : rel)) return
++                  if (entry.isDirectory()) return walk(absolute)
++                  files.push(rel)
++                }),
++              )
++            }
++            await walk(state.worktree)
++            const sorted = files.sort((a, b) => a.localeCompare(b))
++            return {
++              files: sorted,
++              untracked: new Set(sorted),
++            }
++          })
+         })
+*** End Patch

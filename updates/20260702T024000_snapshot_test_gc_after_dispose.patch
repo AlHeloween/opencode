@@ -1,0 +1,8 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/snapshot/snapshot.test.ts
+@@
+ afterEach(async () => {
+   await Instance.disposeAll()
++  Bun.gc(true)
+ })
+*** End Patch

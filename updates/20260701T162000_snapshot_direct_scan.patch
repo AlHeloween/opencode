@@ -1,0 +1,153 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-import { Duration, Effect, Layer, Schedule, Schema, Semaphore, Context, Stream } from "effect"
+-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
++import { Duration, Effect, Layer, Schedule, Schema, Semaphore, Context } from "effect"
+ import { createPatch, diffStats } from "@/util/diff-wasm"
++import ignore from "ignore"
+ import path from "path"
+ import type { Dirent } from "fs"
+ import * as NodeFs from "fs/promises"
+ import z from "zod"
+-import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+@@
+-interface GitResult {
+-  readonly code: ChildProcessSpawner.ExitCode
+-  readonly text: string
+-  readonly stderr: string
+-}
+-
+ interface SnapshotEntry {
+@@
+ export const layer: Layer.Layer<
+   Service,
+   never,
+-  AppFileSystem.Service | ChildProcessSpawner.ChildProcessSpawner | Config.Service
++  AppFileSystem.Service | Config.Service
+ > = Layer.effect(
+   Service,
+   Effect.gen(function* () {
+     const fs = yield* AppFileSystem.Service
+-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
+     const config = yield* Config.Service
+@@
+-        const git = Effect.fnUntraced(
+-          function* (cmd: string[]) {
+-            const proc = ChildProcess.make("git", ["-C", state.worktree, "-c", "core.quotepath=false", ...cmd], {
+-              cwd: state.directory,
+-              extendEnv: true,
+-              stdin: "ignore",
+-            })
+-            const handle = yield* spawner.spawn(proc)
+-            const [text, stderr] = yield* Effect.all(
+-              [Stream.mkString(Stream.decodeText(handle.stdout)), Stream.mkString(Stream.decodeText(handle.stderr))],
+-              { concurrency: 2 },
+-            )
+-            const code = yield* handle.exitCode
+-            return { code, text, stderr } satisfies GitResult
+-          },
+-          Effect.scoped,
+-          Effect.catch((err) =>
+-            Effect.succeed({
+-              code: ChildProcessSpawner.ExitCode(1),
+-              text: "",
+-              stderr: err instanceof Error ? err.message : String(err),
+-            }),
+-          ),
+-        )
+-
+         const enabled = Effect.fnUntraced(function* () {
+           if (state.vcs !== "git") return false
+           return (yield* config.get()).snapshot !== false
+         })
+ 
++        const globalExcludePath = Effect.fnUntraced(function* () {
++          const global = process.env.GIT_CONFIG_GLOBAL
++          if (!global) return
++          const text = yield* fs.readFileString(global).pipe(Effect.orElseSucceed(() => ""))
++          return text.match(/^\s*excludesFile\s*=\s*(.+?)\s*$/m)?.[1]
++        })
++
++        const ignoreMatcher = Effect.fnUntraced(function* () {
++          const ig = ignore()
++          const add = (text: string) => {
++            if (text) ig.add(text)
++          }
++          add(yield* fs.readFileString(path.join(state.worktree, ".gitignore")).pipe(Effect.orElseSucceed(() => "")))
++          add(yield* fs.readFileString(path.join(state.worktree, ".git", "info", "exclude")).pipe(Effect.orElseSucceed(() => "")))
++          const global = yield* globalExcludePath()
++          if (global) add(yield* fs.readFileString(global).pipe(Effect.orElseSucceed(() => "")))
++          return ig
++        })
++
+         const listCandidates = Effect.fnUntraced(function* () {
+-          const [tracked, ignored, other] = yield* Effect.all(
+-            [
+-              git(["ls-files", "-z", "--cached", "--", "."]),
+-              git(["ls-files", "-z", "--cached", "--ignored", "--exclude-standard", "--", "."]),
+-              git(["ls-files", "-z", "--others", "--exclude-standard", "--", "."]),
+-            ],
+-            { concurrency: 3 },
+-          )
+-          if (tracked.code !== 0 || ignored.code !== 0 || other.code !== 0) {
+-            log.warn("failed to list snapshot files", {
+-              trackedCode: tracked.code,
+-              trackedStderr: tracked.stderr,
+-              ignoredCode: ignored.code,
+-              ignoredStderr: ignored.stderr,
+-              otherCode: other.code,
+-              otherStderr: other.stderr,
+-            })
+-            return { files: [] as string[], untracked: new Set<string>() }
+-          }
+-
+-          const untracked = new Set(other.text.split("\0").filter(Boolean).map(slash))
+-          const ignoredSet = new Set(ignored.text.split("\0").filter(Boolean).map(slash))
++          const ig = yield* ignoreMatcher()
+           const isRuntimePath = (item: string) =>
+             item === ".jj" ||
+             item.startsWith(".jj/") ||
+@@
+             item === "logs" ||
+             item.startsWith("logs/")
+-          const files = Array.from(new Set([...tracked.text.split("\0"), ...untracked].filter(Boolean).map(slash))).filter(
+-            (item) => !ignoredSet.has(item) && !isRuntimePath(item),
+-          )
++          const files: string[] = []
++          const walk = Effect.fnUntraced(function* (dir: string) {
++            const entries = yield* Effect.tryPromise(() => NodeFs.readdir(dir, { withFileTypes: true })).pipe(
++              Effect.catch(() => Effect.succeed([] as Dirent[])),
++            )
++            yield* Effect.all(
++              entries.map((entry) =>
++                Effect.gen(function* () {
++                  const absolute = path.join(dir, entry.name)
++                  const rel = slash(path.relative(state.worktree, absolute))
++                  if (!rel || rel === ".git" || rel.startsWith(".git/") || isRuntimePath(rel)) return
++                  if (ig.ignores(entry.isDirectory() ? `${rel}/` : rel)) return
++                  if (entry.isDirectory()) {
++                    yield* walk(absolute)
++                    return
++                  }
++                  files.push(rel)
++                }),
++              ),
++              { concurrency: 8 },
++            )
++          })
++          yield* walk(state.worktree)
+           return {
+-            files,
+-            untracked,
++            files: files.sort((a, b) => a.localeCompare(b)),
++            untracked: new Set(files),
+           }
+         })
+@@
+ export const defaultLayer = layer.pipe(
+-  Layer.provide(CrossSpawnSpawner.defaultLayer),
+   Layer.provide(AppFileSystem.defaultLayer),
+   Layer.provide(Config.defaultLayer),
+ )
+*** End Patch

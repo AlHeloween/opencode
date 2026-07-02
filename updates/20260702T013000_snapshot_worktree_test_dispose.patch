@@ -1,0 +1,21 @@
+*** Begin Patch
+*** Update File: packages/opencode/test/snapshot/snapshot.test.ts
+@@
+   } finally {
++    await Instance.disposeAll()
+     await $`git worktree remove --force ${worktreePath}`.cwd(tmp.path).quiet().nothrow()
+     await $`rm -rf ${worktreePath}`.quiet()
+   }
+@@
+   } finally {
++    await Instance.disposeAll()
+     await $`git worktree remove --force ${worktreePath}`.cwd(tmp.path).quiet().nothrow()
+     await $`rm -rf ${worktreePath}`.quiet()
+     await $`rm -f ${tmp.path}/worktree.txt`.quiet()
+@@
+   } finally {
++    await Instance.disposeAll()
+     await $`git worktree remove --force ${worktreePath}`.cwd(tmp.path).quiet().nothrow()
+     await $`rm -rf ${worktreePath}`.quiet()
+     await $`rm -f ${tmp.path}/shared.txt`.quiet()
+*** End Patch

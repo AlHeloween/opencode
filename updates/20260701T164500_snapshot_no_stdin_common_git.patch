@@ -1,0 +1,41 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-        const enc = new TextEncoder()
+-        const feed = (list: string[]) => Stream.make(enc.encode(list.join("\0") + "\0"))
+-
+         const git = Effect.fnUntraced(
+@@
+               "check-ignore",
+               "--no-index",
+-              "--stdin",
+               "-z",
++              "--",
++              ...files,
+             ],
+-            {
+-              cwd: state.directory,
+-              stdin: feed(files),
+-            },
++            { cwd: state.directory },
+           )
+@@
+-              ...args(["rm", "--cached", "-f", "--ignore-unmatch", "--pathspec-from-file=-", "--pathspec-file-nul"]),
++              ...args(["rm", "--cached", "-f", "--ignore-unmatch", "--", ...files]),
+             ],
+-            {
+-              cwd: state.directory,
+-              stdin: feed(files),
+-            },
++            { cwd: state.directory },
+           )
+@@
+-            [...cfg, ...args(["add", "--all", "--sparse", "--pathspec-from-file=-", "--pathspec-file-nul"])],
+-            {
+-              cwd: state.directory,
+-              stdin: feed(files),
+-            },
++            [...cfg, ...args(["add", "--all", "--sparse", "--", ...files])],
++            { cwd: state.directory },
+           )
+*** End Patch

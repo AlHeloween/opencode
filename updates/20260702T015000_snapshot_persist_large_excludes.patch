@@ -1,0 +1,24 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+         const exists = (file: string) => fs.exists(file).pipe(Effect.orDie)
+         const read = (file: string) => fs.readFileString(file).pipe(Effect.catch(() => Effect.succeed("")))
+         const remove = (file: string) => fs.remove(file).pipe(Effect.catch(() => Effect.void))
+         const locked = <A, E, R>(fx: Effect.Effect<A, E, R>) => lock(state.gitdir).withPermits(1)(fx)
++        const blocked = new Set<string>()
+@@
+         const add = Effect.fnUntraced(function* () {
+           yield* ensureRuntimeDataIgnored(fs, state.worktree)
+-          yield* sync()
++          yield* sync(Array.from(blocked))
+@@
+-          const block = new Set(untracked.filter((item) => large.has(item)))
+-          yield* sync(Array.from(block))
++          const block = untracked.filter((item) => large.has(item))
++          for (const item of block) blocked.add(item)
++          yield* sync(Array.from(blocked))
+           // Stage only the allowed candidate paths so snapshot updates stay scoped.
+-          yield* stage(allow.filter((item) => !block.has(item)))
++          yield* stage(allow.filter((item) => !blocked.has(item)))
+         })
+*** End Patch

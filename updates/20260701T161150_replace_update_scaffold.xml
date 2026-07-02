@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_de9abb71e3cc4c896f46d4fca3ef4244 name="indent_runtime_snapshot_filter" md5="de9abb71e3cc4c896f46d4fca3ef4244" size="301">
+    <file>packages/opencode/src/snapshot/index.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const isRuntimePath = (item: string) =&gt;
+  item === &quot;.jj&quot; ||
+  item.startsWith(&quot;.jj/&quot;) ||
+  item === &quot;.opencode&quot; ||
+  item.startsWith(&quot;.opencode/&quot;) ||
+  item === &quot;logs&quot; ||
+  item.startsWith(&quot;logs/&quot;)
+const files = Array.from(new Set([...tracked.text.split(&quot;\0&quot;), ...untracked].filter(Boolean).map(slash))).filter(
+  (item) =&gt; !isRuntimePath(item),
+)
+</find_text>
+    <semantics>Keep the runtime path filter inside the surrounding function indentation.</semantics>
+    <content_md5_de9abb71e3cc4c896f46d4fca3ef4244>
+      const isRuntimePath = (item: string) =&gt;
+        item === &quot;.jj&quot; ||
+        item.startsWith(&quot;.jj/&quot;) ||
+        item === &quot;.opencode&quot; ||
+        item.startsWith(&quot;.opencode/&quot;) ||
+        item === &quot;logs&quot; ||
+        item.startsWith(&quot;logs/&quot;)
+      const files = Array.from(new Set([...tracked.text.split(&quot;\0&quot;), ...untracked].filter(Boolean).map(slash))).filter(
+        (item) =&gt; !isRuntimePath(item),
+      )
+    </content_md5_de9abb71e3cc4c896f46d4fca3ef4244>
+  </update_md5_de9abb71e3cc4c896f46d4fca3ef4244>
+</updates>

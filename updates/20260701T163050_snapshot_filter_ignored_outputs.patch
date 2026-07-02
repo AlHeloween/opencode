@@ -1,0 +1,53 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+         const compare = (before: SnapshotManifest, after: SnapshotManifest) => {
+           const left = entryMap(before)
+           const right = entryMap(after)
+@@
+             .flatMap((file) => (changed(left.get(file), right.get(file)) ? [{ file, before: left.get(file), after: right.get(file) }] : []))
+         }
+ 
++        const ignored = Effect.fnUntraced(function* (files: string[]) {
++          const ig = yield* Effect.promise(() => ignoreMatcher())
++          return new Set(files.filter((file) => ig.ignores(file)))
++        })
++
+         const currentManifest = Effect.fnUntraced(function* () {
+           yield* ensureRuntimeIgnore()
+@@
+               if (!before) return { hash, files: [] }
+               const after = yield* currentManifest()
++              const rows = compare(before, after)
++              const ignoredFiles = yield* ignored(rows.map((item) => item.file))
+               return {
+                 hash,
+-                files: compare(before, after).map((item) => absolute(item.file)),
++                files: rows.filter((item) => !ignoredFiles.has(item.file)).map((item) => absolute(item.file)),
+               }
+             }),
+           )
+@@
+               const before = yield* readManifest(hash)
+               if (!before) return ""
+               const after = yield* currentManifest()
+-              const rows = compare(before, after)
++              const rows = compare(before, after)
++              const ignoredFiles = yield* ignored(rows.map((item) => item.file))
+               const diffs = yield* Effect.all(rows.map((row) => fileDiff(row.file, row.before, row.after)), { concurrency: 4 })
+               return diffs
++                .filter((item) => !ignoredFiles.has(item.file))
+                 .map((item) => item.patch || (item.status ? `diff --git a/${item.file} b/${item.file}\n` : ""))
+                 .filter(Boolean)
+@@
+               const before = yield* readManifest(from)
+               const after = yield* readManifest(to)
+               if (!before || !after) return [] as FileDiff[]
++              const rows = compare(before, after)
++              const ignoredFiles = yield* ignored(rows.map((item) => item.file))
+               return yield* Effect.all(
+-                compare(before, after).map((row) => fileDiff(row.file, row.before, row.after)),
++                rows.filter((row) => !ignoredFiles.has(row.file)).map((row) => fileDiff(row.file, row.before, row.after)),
+                 { concurrency: 4 },
+               )
+*** End Patch

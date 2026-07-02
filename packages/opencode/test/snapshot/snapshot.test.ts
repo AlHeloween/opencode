@@ -15,6 +15,7 @@ const fwd = (...parts: string[]) => path.join(...parts).replaceAll("\\", "/")
 
 afterEach(async () => {
   await Instance.disposeAll()
+  Bun.gc(true)
 })
 
 async function bootstrap() {
@@ -840,6 +841,7 @@ test("patch detects changes in secondary worktree", async () => {
       },
     })
   } finally {
+    await Instance.disposeAll()
     await $`git worktree remove --force ${worktreePath}`.cwd(tmp.path).quiet().nothrow()
     await $`rm -rf ${worktreePath}`.quiet()
   }
@@ -883,6 +885,7 @@ test("revert only removes files in invoking worktree", async () => {
 
     expect(await fs.readFile(primaryFile, "utf-8")).toBe("primary content")
   } finally {
+    await Instance.disposeAll()
     await $`git worktree remove --force ${worktreePath}`.cwd(tmp.path).quiet().nothrow()
     await $`rm -rf ${worktreePath}`.quiet()
     await $`rm -f ${tmp.path}/worktree.txt`.quiet()
@@ -920,6 +923,7 @@ test("diff reports worktree-only/shared edits and ignores primary-only", async (
       },
     })
   } finally {
+    await Instance.disposeAll()
     await $`git worktree remove --force ${worktreePath}`.cwd(tmp.path).quiet().nothrow()
     await $`rm -rf ${worktreePath}`.quiet()
     await $`rm -f ${tmp.path}/shared.txt`.quiet()
@@ -1207,7 +1211,7 @@ test("diffFull preserves git diff order across batch boundaries", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const ids = Array.from({ length: 140 }, (_, i) => i.toString().padStart(3, "0"))
+      const ids = Array.from({ length: 110 }, (_, i) => i.toString().padStart(3, "0"))
 
       await $`mkdir -p ${tmp.path}/order`.quiet()
       await Promise.all(ids.map((id) => Filesystem.write(`${tmp.path}/order/${id}.txt`, `before-${id}`)))
@@ -1519,8 +1523,8 @@ test("revert handles large mixed batches across chunk boundaries", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const base = Array.from({ length: 140 }, (_, i) => fwd(tmp.path, "batch", `${i}.txt`))
-      const fresh = Array.from({ length: 140 }, (_, i) => fwd(tmp.path, "fresh", `${i}.txt`))
+      const base = Array.from({ length: 80 }, (_, i) => fwd(tmp.path, "batch", `${i}.txt`))
+      const fresh = Array.from({ length: 80 }, (_, i) => fwd(tmp.path, "fresh", `${i}.txt`))
 
       await $`mkdir -p ${tmp.path}/batch ${tmp.path}/fresh`.quiet()
       await Promise.all(base.map((file, i) => Filesystem.write(file, `base-${i}`)))

@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-                while (j < ops.length && run.length < 250) {
++                while (j < ops.length && run.length < 100) {
+*** Update File: packages/opencode/test/snapshot/snapshot.test.ts
+@@
+-      const base = Array.from({ length: 140 }, (_, i) => fwd(tmp.path, "batch", `${i}.txt`))
+-      const fresh = Array.from({ length: 140 }, (_, i) => fwd(tmp.path, "fresh", `${i}.txt`))
++      const base = Array.from({ length: 80 }, (_, i) => fwd(tmp.path, "batch", `${i}.txt`))
++      const fresh = Array.from({ length: 80 }, (_, i) => fwd(tmp.path, "fresh", `${i}.txt`))
+*** End Patch

@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-              stdin: opts?.stdin,
++              stdin: opts?.stdin ?? "ignore",
+*** End Patch

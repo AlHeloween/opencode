@@ -1,0 +1,31 @@
+*** Begin Patch
+*** Update File: packages/opencode/src/snapshot/index.ts
+@@
+-                const result = yield* git([...core, ...args(["checkout", op.hash, "--", op.file])], {
++                const result = yield* git([...core, ...args(["checkout", op.hash, "--", op.rel])], {
+                   cwd: state.worktree,
+                 })
+@@
+-                while (j < ops.length && run.length < 100) {
++                while (j < ops.length && run.length < 250) {
+@@
+-                    [...core, ...args(["checkout", first.hash, "--", ...list.map((item) => item.file)])],
++                    [...core, ...args(["checkout", first.hash, "--", ...list.map((item) => item.rel)])],
+@@
+-                for (const op of run) {
+-                  if (have.has(op.rel)) continue
+-                  log.info("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
+-                  yield* remove(op.file)
+-                }
++                yield* Effect.all(
++                  run
++                    .filter((op) => !have.has(op.rel))
++                    .map((op) =>
++                      Effect.gen(function* () {
++                        log.info("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
++                        yield* remove(op.file)
++                      }),
++                    ),
++                  { concurrency: 16 },
++                )
+*** End Patch

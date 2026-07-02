@@ -674,16 +674,27 @@ export function Session() {
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch((e) => Log.Default.debug("session abort failed", { error: String(e) }))
         const revert = session()?.revert?.messageID
         const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
-        if (!message) return
-        void sdk.client.session
-          .revert({
-            sessionID: route.sessionID,
-            messageID: message.id,
-          })
+        if (!message) {
+          toast.show({ message: "No message to undo", variant: "info" })
+          return
+        }
+        await sdk.client.session
+          .revert(
+            {
+              sessionID: route.sessionID,
+              messageID: message.id,
+            },
+            { throwOnError: true },
+          )
           .then(() => {
             toBottom()
           })
+          .catch((error) => {
+            Log.Default.warn("bug: session revert failed", { error: String(error) })
+            toast.show({ message: `Undo failed: ${error instanceof Error ? error.message : String(error)}`, variant: "error" })
+          })
         const parts = sync.data.part[message.id]
+        if (!parts) return
         prompt?.set(
           parts.reduce(
             (agg, part) => {
@@ -708,22 +719,38 @@ export function Session() {
       slash: {
         name: "redo",
       },
-      onSelect: (dialog) => {
+      onSelect: async (dialog) => {
         dialog.clear()
         const messageID = session()?.revert?.messageID
         if (!messageID) return
         const message = messages().find((x) => x.role === "user" && x.id > messageID)
         if (!message) {
-          void sdk.client.session.unrevert({
-            sessionID: route.sessionID,
-          })
-          prompt?.set({ input: "", parts: [] })
+          await sdk.client.session
+            .unrevert(
+              { sessionID: route.sessionID },
+              { throwOnError: true },
+            )
+            .then(() => {
+              prompt?.set({ input: "", parts: [] })
+            })
+            .catch((error) => {
+              Log.Default.warn("bug: session unrevert failed", { error: String(error) })
+              toast.show({ message: `Redo failed: ${error instanceof Error ? error.message : String(error)}`, variant: "error" })
+            })
           return
         }
-        void sdk.client.session.revert({
-          sessionID: route.sessionID,
-          messageID: message.id,
-        })
+        await sdk.client.session
+          .revert(
+            {
+              sessionID: route.sessionID,
+              messageID: message.id,
+            },
+            { throwOnError: true },
+          )
+          .catch((error) => {
+            Log.Default.warn("bug: session revert (redo) failed", { error: String(error) })
+            toast.show({ message: `Redo failed: ${error instanceof Error ? error.message : String(error)}`, variant: "error" })
+          })
       },
     },
     {

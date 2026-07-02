@@ -1,6 +1,6 @@
 import type { Argv, InferredOptionTypes } from "yargs"
 import { Config } from "@/config/config"
-import { AppRuntime } from "@/effect/app-runtime"
+import { ManagedRuntime } from "effect"
 
 const options = {
   port: {
@@ -36,8 +36,14 @@ export type NetworkOptions = InferredOptionTypes<typeof options>
 export function withNetworkOptions<T>(yargs: Argv<T>) {
   return yargs.options(options)
 }
+
+// Minimal runtime for Config only — avoids building the full AppRuntime
+// (50+ services) which requires an Instance ALS context that doesn't exist
+// during standalone `serve` startup.
+const configRuntime = ManagedRuntime.make(Config.defaultLayer)
+
 export async function resolveNetworkOptions(args: NetworkOptions) {
-  const config = await AppRuntime.runPromise(Config.Service.use((cfg) => cfg.getGlobal()))
+  const config = await configRuntime.runPromise(Config.Service.use((cfg) => cfg.getGlobal()))
   return resolveNetworkOptionsNoConfig(args, config)
 }
 

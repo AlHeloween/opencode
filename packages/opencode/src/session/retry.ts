@@ -2,6 +2,7 @@ import type { NamedError } from "@opencode-ai/core/util/error"
 import { Cause, Clock, Duration, Effect, Schedule } from "effect"
 import { MessageV2 } from "./message-v2"
 import { iife } from "@/util/iife"
+import * as Log from "@opencode-ai/core/util/log"
 
 export type Err = ReturnType<NamedError["toObject"]>
 
@@ -84,7 +85,8 @@ export function retryable(error: Err) {
       }
 
       return JSON.parse(error.data.message)
-    } catch {
+    } catch (e) {
+      Log.Default.warn("bug: failed to parse retryable error message", { error: String(e), raw: error.data?.message })
       return undefined
     }
   })

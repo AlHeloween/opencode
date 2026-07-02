@@ -17,7 +17,17 @@ export function evaluate(permission: string, pattern: string, ...rulesets: Rule[
         Wildcard.match(permission, rule.permission) &&
         Wildcard.match(pattern, rule.pattern),
     )
-    if (agentDeny) return agentDeny
+    if (agentDeny) {
+      // A wildcard deny (e.g. "*": "deny") should not be absolute when the same
+      // agent ruleset has a more specific rule for this permission later in the
+      // array. Otherwise the catch-all shadows the specific allows (e.g. explore
+      // agent: "*": "deny" + "grep": "allow" → grep wrongly denied).
+      const denyIdx = rulesets[0].lastIndexOf(agentDeny)
+      const hasSpecificOverride = rulesets[0].slice(denyIdx + 1).some(
+        (rule) => rule.permission === permission,
+      )
+      if (!hasSpecificOverride) return agentDeny
+    }
   }
 
   // Standard precedence: last matching rule wins among merged rules

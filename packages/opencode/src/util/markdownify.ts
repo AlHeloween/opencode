@@ -25,6 +25,7 @@ function binCandidates(name: string) {
   }
 
   add(path.join(Global.Path.bin, name))
+  add(path.join(Global.Path.config, "tools", name))
   add(path.join(Global.Path.config, name))
   add(path.join(path.dirname(process.execPath), name))
 

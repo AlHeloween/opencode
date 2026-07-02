@@ -291,6 +291,10 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | ChildPro
           const system = yield* Effect.sync(() => which(process.platform === "win32" ? "rg.exe" : "rg"))
           if (system && (yield* fs.isFile(system).pipe(Effect.orDie))) return system
 
+          // Bundled: next to executable (portable layout)
+          const bundled = path.join(Global.Path.config, "tools", `rg${process.platform === "win32" ? ".exe" : ""}`)
+          if (yield* fs.isFile(bundled).pipe(Effect.orDie)) return bundled
+
           const target = path.join(Global.Path.bin, `rg${process.platform === "win32" ? ".exe" : ""}`)
           if (yield* fs.isFile(target).pipe(Effect.orDie)) return target
 

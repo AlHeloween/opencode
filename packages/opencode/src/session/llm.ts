@@ -404,7 +404,8 @@ const live: Layer.Layer<
                 const parsed = JSON.parse(t.args) as Record<string, unknown>
                 const title = (parsed?.title ?? parsed?.name ?? "") as string
                 return title ? `${t.name}: ${title}` : t.name
-              } catch {
+              } catch (e) {
+                Log.Default.warn("bug: failed to parse tool approval args", { error: String(e), args: t.args })
                 return t.name
               }
             })
@@ -423,7 +424,8 @@ const live: Layer.Layer<
             for (const name of uniqueNames) approvedToolsForSession.add(name)
             workflowModel.sessionPreapprovedTools = [...(workflowModel.sessionPreapprovedTools ?? []), ...uniqueNames]
             return { approved: true }
-          } catch {
+          } catch (e) {
+            Log.Default.warn("bug: workflow tool approval failed", { error: String(e) })
             return { approved: false }
           } finally {
             unsub?.()

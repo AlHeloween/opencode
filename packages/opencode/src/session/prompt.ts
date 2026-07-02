@@ -1612,7 +1612,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 const svc = yield* Effect.serviceOption(Jobs.Service)
                 if (svc._tag === "None") return ""
                 return yield* svc.value.drainCompletedNote({ sessionID })
-              } catch {
+              } catch (e) {
+                Log.Default.warn("bug: failed to drain completed jobs", { error: String(e), sessionID })
                 return ""
               }
             })

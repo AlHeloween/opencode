@@ -55,3 +55,4 @@ artefacts/
 packages/enterprise/.opencode/
 packages/wasm/stringzilla/
 packages/wasm/external/
+.reasonix

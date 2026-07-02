@@ -50,6 +50,58 @@ export const listBackups = Effect.fn("EditBackup.list")(function* (sessionID: st
   )
 })
 
+export const checkFileConflicts = Effect.fn("EditBackup.checkConflicts")(
+  function* (sessionID: string, affectedFiles: string[]) {
+    const afs = yield* AppFileSystem.Service
+    const dir = backupDir(sessionID)
+
+    const exists = yield* afs.existsSafe(dir)
+    if (!exists) return [] as { file: string; bakFile: string }[]
+
+    const entries = yield* afs.readDirectory(dir).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+    const bakFiles = entries.filter((e) => e.endsWith(".bak"))
+
+    // Build map: originalPath -> latest .bak file (sorted by name = timestamp)
+    const bakMap = new Map<string, string>()
+    for (const filename of bakFiles.sort()) {
+      const metaPath = path.join(dir, filename + ".meta.json")
+      yield* afs
+        .readFileString(metaPath)
+        .pipe(
+          Effect.map((text) => {
+            const meta = JSON.parse(text) as { originalPath: string }
+            if (meta.originalPath) bakMap.set(meta.originalPath, filename)
+          }),
+          Effect.catch(() => Effect.void),
+        )
+    }
+
+    // Check each affected file against its latest .bak
+    const conflicts: { file: string; bakFile: string }[] = []
+    for (const file of affectedFiles) {
+      const bakFile = bakMap.get(file)
+      if (!bakFile) continue
+
+      const currentContent = yield* afs
+        .readFileString(file)
+        .pipe(Effect.catch(() => Effect.succeed(null)))
+      if (currentContent === null) continue
+
+      const bakContent = yield* afs
+        .readFileString(path.join(dir, bakFile))
+        .pipe(Effect.catch(() => Effect.succeed(null)))
+      if (bakContent === null) continue
+
+      // Normalize line endings for comparison
+      if (currentContent.replaceAll("\r\n", "\n") !== bakContent.replaceAll("\r\n", "\n")) {
+        conflicts.push({ file, bakFile })
+      }
+    }
+
+    return conflicts
+  },
+)
+
 export const restoreBackup = Effect.fn("EditBackup.restore")(
   function* (sessionID: string, filename: string) {
     const afs = yield* AppFileSystem.Service

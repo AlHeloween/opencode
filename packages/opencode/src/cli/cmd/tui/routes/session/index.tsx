@@ -1174,11 +1174,13 @@ export function Session() {
     const info = revertInfo()
     if (!info) return
     if (!info.messageID) return
+    const conflicts = (info as any).conflicts as { file: string; bakFile: string }[] | undefined
     return {
       messageID: info.messageID,
       reverted: revertRevertedMessages(),
       diff: info.diff,
       diffFiles: revertDiffFiles(),
+      conflicts,
     }
   })
 
@@ -1267,6 +1269,11 @@ export function Session() {
                                 <span style={{ fg: theme.text }}>{keybind.print("messages_redo")}</span> or /redo to
                                 restore
                               </text>
+                              <Show when={revert()!.conflicts?.length}>
+                                <text fg={theme.warning}>
+                                  ⚠ {revert()!.conflicts!.length} file(s) modified since assistant — undo will overwrite
+                                </text>
+                              </Show>
                               <Show when={revert()!.diffFiles?.length}>
                                 <box marginTop={1}>
                                   <For each={revert()!.diffFiles}>

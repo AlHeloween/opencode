@@ -37,6 +37,28 @@ const limit = 2 * 1024 * 1024
 const core = ["-c", "core.longpaths=true", "-c", "core.symlinks=true"]
 const cfg = ["-c", "core.autocrlf=false", ...core]
 const quote = [...cfg, "-c", "core.quotepath=false"]
+const maxArgLength = process.platform === "win32" ? 24_000 : 120_000
+
+function chunkArgs(prefix: readonly string[], items: readonly string[]) {
+  const chunks: string[][] = []
+  let current: string[] = []
+  let length = prefix.reduce((sum, item) => sum + item.length + 1, 0)
+
+  for (const item of items) {
+    const nextLength = item.length + 1
+    if (current.length && length + nextLength > maxArgLength) {
+      chunks.push(current)
+      current = []
+      length = prefix.reduce((sum, value) => sum + value.length + 1, 0)
+    }
+    current.push(item)
+    length += nextLength
+  }
+
+  if (current.length) chunks.push(current)
+  return chunks
+}
+
 interface GitResult {
   readonly code: ChildProcessSpawner.ExitCode
   readonly text: string
@@ -139,26 +161,30 @@ export const layer: Layer.Layer<
 
         const drop = Effect.fnUntraced(function* (files: string[]) {
           if (!files.length) return
-          yield* git(
-            [
-              ...cfg,
-              ...args(["rm", "--cached", "-f", "--ignore-unmatch", "--", ...files]),
-            ],
-            { cwd: state.directory },
-          )
+          const prefix = [...cfg, ...args(["rm", "--cached", "-f", "--ignore-unmatch", "--"])]
+          for (const chunk of chunkArgs(prefix, files)) {
+            const result = yield* git([...prefix, ...chunk], { cwd: state.directory })
+            if (result.code === 0) continue
+            log.warn("failed to remove ignored snapshot files", {
+              exitCode: result.code,
+              stderr: result.stderr,
+              count: chunk.length,
+            })
+          }
         })
 
         const stage = Effect.fnUntraced(function* (files: string[]) {
           if (!files.length) return
-          const result = yield* git(
-            [...cfg, ...args(["add", "--all", "--sparse", "--", ...files])],
-            { cwd: state.directory },
-          )
-          if (result.code === 0) return
-          log.warn("failed to add snapshot files", {
-            exitCode: result.code,
-            stderr: result.stderr,
-          })
+          const prefix = [...cfg, ...args(["add", "--all", "--sparse", "--"])]
+          for (const chunk of chunkArgs(prefix, files)) {
+            const result = yield* git([...prefix, ...chunk], { cwd: state.directory })
+            if (result.code === 0) continue
+            log.warn("failed to add snapshot files", {
+              exitCode: result.code,
+              stderr: result.stderr,
+              count: chunk.length,
+            })
+          }
         })
 
         const exists = (file: string) => fs.exists(file).pipe(Effect.orDie)

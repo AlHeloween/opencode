@@ -456,6 +456,31 @@ test("very long filenames", async () => {
   })
 })
 
+test("track batches many long paths without exceeding spawn argv limits", async () => {
+  await using tmp = await bootstrap()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const before = await run(tmp.path, (snapshot) => snapshot.track())
+      expect(before).toBeTruthy()
+
+      const ids = Array.from({ length: 320 }, (_, index) => index.toString().padStart(3, "0"))
+      const directory = `${tmp.path}/many-long-paths`
+      const stem = "segment".repeat(20)
+      await $`mkdir -p ${directory}`.quiet()
+      await Promise.all(
+        ids.map((id) => Filesystem.write(fwd(directory, `${id}-${stem}.txt`), `content-${id}`)),
+      )
+
+      const after = await run(tmp.path, (snapshot) => snapshot.track())
+      expect(after).toBeTruthy()
+
+      const diff = await run(tmp.path, (snapshot) => snapshot.diffFull(before!, after!))
+      expect(diff).toHaveLength(ids.length)
+    },
+  })
+})
+
 test("hidden files", async () => {
   await using tmp = await bootstrap()
   await Instance.provide({

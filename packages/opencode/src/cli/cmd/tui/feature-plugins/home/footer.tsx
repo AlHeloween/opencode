@@ -1,7 +1,9 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { createMemo, createResource, Match, Show, Switch } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
 import { formatProjectDirectory } from "../../util/directory-display"
+import { existsSync } from "fs"
+import path from "path"
 
 const id = "internal:home-footer"
 
@@ -62,6 +64,23 @@ function Version(props: { api: TuiPluginApi }) {
   )
 }
 
+function SnapshotBackend() {
+  const theme = () => "textMuted"
+  const backend = createMemo(() => {
+    const worktree = Global.Path.worktree || Global.Path.home
+    return existsSync(path.join(worktree, ".jj")) ? "jj" : "git"
+  })
+
+  return (
+    <box flexShrink={0} gap={1} flexDirection="row">
+      <text>
+        <span style={{ fg: backend() === "jj" ? "#88c0d0" : "#bf616a" }}>●</span>{" "}
+        <span style={{ fg: "#d8dee9" }}>{backend()}</span>
+      </text>
+    </box>
+  )
+}
+
 function View(props: { api: TuiPluginApi }) {
   return (
     <box
@@ -76,6 +95,7 @@ function View(props: { api: TuiPluginApi }) {
     >
       <Directory api={props.api} />
       <Mcp api={props.api} />
+      <SnapshotBackend />
       <box flexGrow={1} />
       <Version api={props.api} />
     </box>

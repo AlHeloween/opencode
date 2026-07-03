@@ -349,6 +349,12 @@ export const layer: Layer.Layer<
           Effect.forkScoped,
         )
 
+        // Eagerly init jj repo on first access (don't wait for track())
+        yield* ensureInit().pipe(Effect.catch((err) => {
+          log.warn("bug: jj eager init failed", { error: String(err) })
+          return Effect.void
+        }))
+
         return { cleanup: () => Effect.void, track, opId, opRestore, patch, restore, revert, diff, diffFull }
       }),
     )

@@ -58,3 +58,11 @@ packages/wasm/external/
 .reasonix
 src.bak/
 **/src.bak
+
+# VCS isolation — prevent cross-tracking between git and jj
+.jj
+**/.jj
+.jj/
+**/.jj/
+.git/
+**/.git/

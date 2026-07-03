@@ -8,7 +8,7 @@ import { errorMessage } from "@/util/error"
 import { Npm } from "@opencode-ai/core/npm"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Plugin } from "../plugin"
-import { type LanguageModelV3 } from "@ai-sdk/provider"
+import { type LanguageModelV4 } from "@ai-sdk/provider"
 import * as ModelsDev from "./models"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -87,7 +87,7 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 }
 
 type BundledSDK = {
-  languageModel(modelId: string): LanguageModelV3
+  languageModel(modelId: string): any
 }
 
 const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>> = {
@@ -790,7 +790,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: true,
         async getModel(_sdk: any, modelID: string, _options?: Record<string, any>) {
           // Model IDs use Unified API format: provider/model (e.g., "anthropic/claude-sonnet-4-5")
-          return aigateway(unified(modelID))
+          return aigateway(unified(modelID) as any) as any
         },
         options: {},
       }
@@ -927,7 +927,7 @@ export interface Interface {
   readonly list: () => Effect.Effect<Record<ProviderID, Info>>
   readonly getProvider: (providerID: ProviderID) => Effect.Effect<Info>
   readonly getModel: (providerID: ProviderID, modelID: ModelID) => Effect.Effect<Model>
-  readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV3>
+  readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV4>
   readonly closest: (
     providerID: ProviderID,
     query: string[],
@@ -937,7 +937,7 @@ export interface Interface {
 }
 
 interface State {
-  models: Map<string, LanguageModelV3>
+  models: Map<string, LanguageModelV4>
   providers: Record<ProviderID, Info>
   sdk: Map<string, BundledSDK>
   modelLoaders: Record<string, CustomModelLoader>
@@ -1075,7 +1075,7 @@ const layer: Layer.Layer<
         const database = mapValues(modelsDev, fromModelsDevProvider)
 
         const providers: Record<ProviderID, Info> = {} as Record<ProviderID, Info>
-        const languages = new Map<string, LanguageModelV3>()
+        const languages = new Map<string, LanguageModelV4>()
         const modelLoaders: {
           [providerID: string]: CustomModelLoader
         } = {}

@@ -363,6 +363,7 @@ const live: Layer.Layer<
               toolCallId: _requestID,
               messages: input.messages,
               abortSignal: input.abort,
+              context: {},
             })
             const output = typeof result === "string" ? result : (result?.output ?? JSON.stringify(result))
             return {
@@ -454,6 +455,11 @@ const live: Layer.Layer<
           })
         },
         async experimental_repairToolCall(failed) {
+          l.info("repair callback invoked", {
+            tool: failed.toolCall.toolName,
+            inputLen: String(failed.toolCall.input).length,
+            error: failed.error.message,
+          })
           const lower = failed.toolCall.toolName.toLowerCase()
           if (lower !== failed.toolCall.toolName && tools[lower]) {
             l.info("repairing tool call", {

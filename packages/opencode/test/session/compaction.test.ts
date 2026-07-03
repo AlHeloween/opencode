@@ -392,6 +392,7 @@ function reply(
         rawFinishReason: "stop",
         response: { id: "res", modelId: "test-model", timestamp: new Date() },
         providerMetadata: undefined,
+        performance: { effectiveOutputTokensPerSecond: 0, outputTokensPerSecond: 0, inputTokensPerSecond: 0, effectiveTotalTokensPerSecond: 0, stepTimeMs: 0, responseTimeMs: 0, toolExecutionMs: {}, timeToFirstOutputMs: undefined },
         usage: {
           inputTokens: 1,
           outputTokens: 1,

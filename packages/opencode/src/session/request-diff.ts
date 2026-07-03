@@ -205,7 +205,7 @@ function formatMessageContent(msg: ModelMessage): string {
         if (part.type === "tool-approval-request") return `[tool-approval-request] approvalId=${part.approvalId} toolCallId=${part.toolCallId}`
         if (part.type === "tool-approval-response") return `[tool-approval-response] approvalId=${part.approvalId} approved=${part.approved}`
         // Exhaustive: all known part types handled above
-        const _exhaustive: never = part
+        const _exhaustive = part as never
         return `[${(_exhaustive as { type: string }).type}]`
       })
       .join("\n")

@@ -355,7 +355,7 @@ describe("session.message-v2.toModelMessage", () => {
               type: "content",
               value: [
                 { type: "text", text: "ok" },
-                { type: "media", mediaType: "image/png", data: "Zm9v" },
+                { type: "file-data", mediaType: "image/png", data: "Zm9v" },
               ],
             },
             providerOptions: { openai: { tool: "meta" } },
@@ -442,7 +442,7 @@ describe("session.message-v2.toModelMessage", () => {
         type: "content",
         value: [
           { type: "text", text: "Image read successfully" },
-          { type: "media", mediaType: "image/jpeg", data: jpeg },
+          { type: "file-data", mediaType: "image/jpeg", data: jpeg },
         ],
       },
     })

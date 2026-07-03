@@ -2,6 +2,7 @@ import { Effect, Layer, Context, Schema } from "effect"
 import path from "path"
 import { Bus } from "../bus"
 import { Snapshot } from "../snapshot"
+import * as SnapshotJj from "../snapshot/jj"
 import { Storage } from "@/storage/storage"
 import { SyncEvent } from "../sync"
 import * as Log from "@opencode-ai/core/util/log"
@@ -210,7 +211,7 @@ export const defaultLayer = Layer.suspend(() =>
   layer.pipe(
     Layer.provide(SessionRunState.defaultLayer),
     Layer.provide(Session.defaultLayer),
-    Layer.provide(Snapshot.defaultLayer),
+    Layer.provide(SnapshotJj.defaultLayer),
     Layer.provide(Storage.defaultLayer),
     Layer.provide(Bus.layer),
     Layer.provide(SessionSummary.defaultLayer),

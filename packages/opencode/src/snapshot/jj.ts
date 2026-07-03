@@ -8,21 +8,19 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import type { Interface, Patch, FileDiff } from "."
+import { Service as SnapshotService, type Interface, type Patch, type FileDiff } from "."
 
 const log = Log.create({ service: "snapshot-jj" })
 const FILE_SIZE_LIMIT = 2 * 1024 * 1024
 
 type State = Omit<Interface, "init">
 
-export class JjService extends Context.Service<JjService, Interface>()("@opencode/SnapshotJj") {}
-
 export const layer: Layer.Layer<
-  JjService,
+  SnapshotService,
   never,
   AppFileSystem.Service | ChildProcessSpawner.ChildProcessSpawner | Config.Service
 > = Layer.effect(
-  JjService,
+  SnapshotService,
   Effect.gen(function* () {
     const fs = yield* AppFileSystem.Service
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
@@ -308,7 +306,7 @@ export const layer: Layer.Layer<
       }),
     )
 
-    return JjService.of({
+    return SnapshotService.of({
       init: Effect.fn("SnapshotJj.init")(function* () {
         yield* InstanceState.get(state)
       }),

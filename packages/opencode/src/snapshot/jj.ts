@@ -170,6 +170,19 @@ export const layer: Layer.Layer<
           )
         })
 
+        const opRestore = Effect.fnUntraced(function* (targetOpId: string) {
+          return yield* locked(
+            Effect.gen(function* () {
+              log.info("op restore", { opId: targetOpId })
+              yield* ensureInit()
+              yield* checkLock()
+              const result = yield* jj(["op", "restore", targetOpId], { cwd: worktree })
+              if (result.code === 0) return
+              log.error("jj op restore failed", { opId: targetOpId, stderr: result.stderr })
+            }).pipe(Effect.orDie),
+          )
+        })
+
         const patch = Effect.fnUntraced(function* (hash: string) {
           return yield* locked(
             Effect.gen(function* () {
@@ -315,7 +328,7 @@ export const layer: Layer.Layer<
           Effect.forkScoped,
         )
 
-        return { cleanup: () => Effect.void, track, opId, patch, restore, revert, diff, diffFull }
+        return { cleanup: () => Effect.void, track, opId, opRestore, patch, restore, revert, diff, diffFull }
       }),
     )
 
@@ -331,6 +344,9 @@ export const layer: Layer.Layer<
       }),
       opId: Effect.fn("SnapshotJj.opId")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.opId())
+      }),
+      opRestore: Effect.fn("SnapshotJj.opRestore")(function* (opId: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.opRestore(opId))
       }),
       patch: Effect.fn("SnapshotJj.patch")(function* (hash: string) {
         return yield* InstanceState.useEffect(state, (s) => s.patch(hash))

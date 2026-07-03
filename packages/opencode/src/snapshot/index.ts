@@ -50,6 +50,7 @@ export interface Interface {
   readonly cleanup: () => Effect.Effect<void>
   readonly track: () => Effect.Effect<string | undefined>
   readonly opId: () => Effect.Effect<string | undefined>
+  readonly opRestore: (opId: string) => Effect.Effect<void>
   readonly patch: (hash: string) => Effect.Effect<Patch>
   readonly restore: (snapshot: string) => Effect.Effect<void>
   readonly revert: (patches: Patch[]) => Effect.Effect<void>
@@ -755,7 +756,7 @@ export const layer: Layer.Layer<
           Effect.forkScoped,
         )
 
-        return { cleanup, track, opId: () => Effect.succeed(undefined), patch, restore, revert, diff, diffFull }
+        return { cleanup, track, opId: () => Effect.succeed(undefined), opRestore: () => Effect.void, patch, restore, revert, diff, diffFull }
       }),
     )
 
@@ -771,6 +772,9 @@ export const layer: Layer.Layer<
       }),
       opId: Effect.fn("Snapshot.opId")(function* () {
         return undefined
+      }),
+      opRestore: Effect.fn("Snapshot.opRestore")(function* (_opId: string) {
+        // git backend: no-op
       }),
       patch: Effect.fn("Snapshot.patch")(function* (hash: string) {
         return yield* InstanceState.useEffect(state, (s) => s.patch(hash))

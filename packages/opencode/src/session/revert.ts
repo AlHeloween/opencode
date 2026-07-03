@@ -156,7 +156,12 @@ export const layer = Layer.effect(
       yield* state.assertNotBusy(input.sessionID)
       const session = yield* sessions.get(input.sessionID)
       if (!session.revert) return session
-      if (session.revert.snapshot) yield* snap.restore(session.revert!.snapshot!)
+      // Prefer jj op restore (full session rollback) when op_id is available
+      if (session.revert.op_id) {
+        yield* snap.opRestore(session.revert.op_id)
+      } else if (session.revert.snapshot) {
+        yield* snap.restore(session.revert.snapshot)
+      }
       yield* sessions.clearRevert(input.sessionID)
       return yield* sessions.get(input.sessionID)
     })

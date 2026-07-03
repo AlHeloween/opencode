@@ -19,6 +19,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Global } from "@opencode-ai/core/global"
 import * as Bom from "@/util/bom"
+import { execFile } from "child_process"
 
 const MAX_BACKUPS_PER_SESSION = 50
 
@@ -26,6 +27,17 @@ function formatTimestamp() {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
+}
+
+function isGitIgnored(filePath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile(
+      "git",
+      ["check-ignore", "--stdin"],
+      { cwd: Instance.worktree, timeout: 5000 },
+      (error, stdout) => resolve(error ? false : stdout.trim().length > 0),
+    )
+  })
 }
 
 function writeBackup(
@@ -39,6 +51,9 @@ function writeBackup(
     const absFile = path.resolve(filePath)
     const dataDir = path.resolve(Global.Path.data) + path.sep
     if (absFile.startsWith(dataDir)) return
+
+    // Skip backup for gitignored files (e.g. wasi-sdk, node_modules, build artifacts)
+    if (yield* Effect.promise(() => isGitIgnored(filePath))) return
 
     const dir = path.join(Global.Path.data, "backups", sessionID)
     const safeName = filePath.replace(/[/\\:]/g, "_").replace(/^_+/, "")

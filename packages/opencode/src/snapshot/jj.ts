@@ -73,8 +73,8 @@ export const layer: Layer.Layer<
         )
 
         // Self-healing bootstrap: init jj repo if missing
-        // Ensure .gitignore has jj/git isolation patterns
-        const jjIgnorePatterns = [".jj", "**/.jj", ".jj/", "**/.jj/"]
+        // Ensure .gitignore has VCS isolation patterns (prevent cross-tracking)
+        const jjIgnorePatterns = [".jj", "**/.jj", ".jj/", "**/.jj/", ".git/", "**/.git/"]
         const ensureGitignore = Effect.fnUntraced(function* () {
           const gitignorePath = path.join(worktree, ".gitignore")
           const content = yield* fs.readFileString(gitignorePath).pipe(Effect.catch(() => Effect.succeed("")))
@@ -82,7 +82,7 @@ export const layer: Layer.Layer<
           if (missing.length === 0) return
           log.info("adding jj isolation patterns to .gitignore", { missing })
           const separator = content && !content.endsWith("\n") ? "\n" : ""
-          const block = `\n# jj snapshot isolation\n${missing.join("\n")}\n`
+          const block = `\n# VCS isolation (prevent cross-tracking)\n${missing.join("\n")}\n`
           yield* fs.writeFileString(gitignorePath, `${content}${separator}${block}`).pipe(Effect.orDie)
         })
 

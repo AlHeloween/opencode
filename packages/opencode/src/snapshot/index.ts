@@ -48,7 +48,7 @@ type State = Omit<Interface, "init">
 export interface Interface {
   readonly init: () => Effect.Effect<void>
   readonly cleanup: () => Effect.Effect<void>
-  readonly track: () => Effect.Effect<string | undefined>
+  readonly track: (files?: string[]) => Effect.Effect<string | undefined>
   readonly opId: () => Effect.Effect<string | undefined>
   readonly opRestore: (opId: string) => Effect.Effect<void>
   readonly patch: (hash: string) => Effect.Effect<Patch>
@@ -767,7 +767,7 @@ export const layer: Layer.Layer<
       cleanup: Effect.fn("Snapshot.cleanup")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.cleanup())
       }),
-      track: Effect.fn("Snapshot.track")(function* () {
+      track: Effect.fn("Snapshot.track")(function* (_files?: string[]) {
         return yield* InstanceState.useEffect(state, (s) => s.track())
       }),
       opId: Effect.fn("Snapshot.opId")(function* () {

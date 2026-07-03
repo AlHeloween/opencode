@@ -127,12 +127,18 @@ export const layer: Layer.Layer<
           }
         })
 
-        const track = Effect.fnUntraced(function* () {
+        const track = Effect.fnUntraced(function* (files?: string[]) {
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* enabled())) return undefined
               yield* ensureInit()
               yield* checkLock()
+
+              // Explicitly track new files before snapshotting
+              if (files?.length) {
+                const rels = files.map((f) => path.relative(worktree, f).replaceAll("\\", "/"))
+                yield* jj(["file", ...rels], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+              }
 
               const before = yield* jj(["--ignore-working-copy", "log", "--no-graph", "-r", "@", "--template", "commit_id"], {
                 cwd: worktree,
@@ -339,8 +345,8 @@ export const layer: Layer.Layer<
       cleanup: Effect.fn("SnapshotJj.cleanup")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.cleanup())
       }),
-      track: Effect.fn("SnapshotJj.track")(function* () {
-        return yield* InstanceState.useEffect(state, (s) => s.track())
+      track: Effect.fn("SnapshotJj.track")(function* (files?: string[]) {
+        return yield* InstanceState.useEffect(state, (s) => s.track(files))
       }),
       opId: Effect.fn("SnapshotJj.opId")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.opId())

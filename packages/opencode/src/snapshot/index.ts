@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema, Semaphore, Context, Stream } from "effect"
+import { Cause, Duration, Effect, Layer, Schedule, Schema, Semaphore, Context, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { formatPatch, structuredPatch } from "diff"
 import path from "path"
@@ -37,28 +37,6 @@ const limit = 2 * 1024 * 1024
 const core = ["-c", "core.longpaths=true", "-c", "core.symlinks=true"]
 const cfg = ["-c", "core.autocrlf=false", ...core]
 const quote = [...cfg, "-c", "core.quotepath=false"]
-const maxArgLength = process.platform === "win32" ? 24_000 : 120_000
-
-function chunkArgs(prefix: readonly string[], items: readonly string[]) {
-  const chunks: string[][] = []
-  let current: string[] = []
-  let length = prefix.reduce((sum, item) => sum + item.length + 1, 0)
-
-  for (const item of items) {
-    const nextLength = item.length + 1
-    if (current.length && length + nextLength > maxArgLength) {
-      chunks.push(current)
-      current = []
-      length = prefix.reduce((sum, value) => sum + value.length + 1, 0)
-    }
-    current.push(item)
-    length += nextLength
-  }
-
-  if (current.length) chunks.push(current)
-  return chunks
-}
-
 interface GitResult {
   readonly code: ChildProcessSpawner.ExitCode
   readonly text: string
@@ -112,6 +90,9 @@ export const layer: Layer.Layer<
 
         const args = (cmd: string[]) => ["--git-dir", state.gitdir, "--work-tree", state.worktree, ...cmd]
 
+        const enc = new TextEncoder()
+        const feed = (list: string[]) => Stream.make(enc.encode(list.join("\0") + "\0"))
+
         const git = Effect.fnUntraced(
           function* (
             cmd: string[],
@@ -121,7 +102,7 @@ export const layer: Layer.Layer<
               cwd: opts?.cwd,
               env: opts?.env,
               extendEnv: true,
-              stdin: opts?.stdin ?? "ignore",
+              stdin: opts?.stdin,
             })
             const handle = yield* spawner.spawn(proc)
             const [text, stderr] = yield* Effect.all(
@@ -144,54 +125,60 @@ export const layer: Layer.Layer<
         const ignore = Effect.fnUntraced(function* (files: string[]) {
           if (!files.length) return new Set<string>()
           const check = yield* git(
-            [...quote, "check-ignore", "--no-index", "--non-matching", "--verbose", "-z", "--stdin"],
+            [
+              ...quote,
+              "--git-dir",
+              path.join(state.worktree, ".git"),
+              "--work-tree",
+              state.worktree,
+              "check-ignore",
+              "--no-index",
+              "--stdin",
+              "-z",
+            ],
             {
-              cwd: state.worktree,
-              stdin: Stream.make(new TextEncoder().encode(files.join("\0") + "\0")),
+              cwd: state.directory,
+              stdin: feed(files),
             },
           )
-          if (check.code !== 0) return new Set<string>()
-          const ignored = new Set<string>()
-          const parts = check.text.split("\0")
-          for (let i = 0; i + 3 < parts.length; i += 4) {
-            if (parts[i] || parts[i + 1] || parts[i + 2]) ignored.add(parts[i + 3]!)
-          }
-          return ignored
+          if (check.code !== 0 && check.code !== 1) return new Set<string>()
+          return new Set(check.text.split("\0").filter(Boolean))
         })
 
         const drop = Effect.fnUntraced(function* (files: string[]) {
           if (!files.length) return
-          const prefix = [...cfg, ...args(["rm", "--cached", "-f", "--ignore-unmatch", "--"])]
-          for (const chunk of chunkArgs(prefix, files)) {
-            const result = yield* git([...prefix, ...chunk], { cwd: state.directory })
-            if (result.code === 0) continue
-            log.warn("failed to remove ignored snapshot files", {
-              exitCode: result.code,
-              stderr: result.stderr,
-              count: chunk.length,
-            })
-          }
+          yield* git(
+            [
+              ...cfg,
+              ...args(["rm", "--cached", "-f", "--ignore-unmatch", "--pathspec-from-file=-", "--pathspec-file-nul"]),
+            ],
+            {
+              cwd: state.directory,
+              stdin: feed(files),
+            },
+          )
         })
 
         const stage = Effect.fnUntraced(function* (files: string[]) {
           if (!files.length) return
-          const prefix = [...cfg, ...args(["add", "--all", "--sparse", "--"])]
-          for (const chunk of chunkArgs(prefix, files)) {
-            const result = yield* git([...prefix, ...chunk], { cwd: state.directory })
-            if (result.code === 0) continue
-            log.warn("failed to add snapshot files", {
-              exitCode: result.code,
-              stderr: result.stderr,
-              count: chunk.length,
-            })
-          }
+          const result = yield* git(
+            [...cfg, ...args(["add", "--all", "--sparse", "--pathspec-from-file=-", "--pathspec-file-nul"])],
+            {
+              cwd: state.directory,
+              stdin: feed(files),
+            },
+          )
+          if (result.code === 0) return
+          log.warn("failed to add snapshot files", {
+            exitCode: result.code,
+            stderr: result.stderr,
+          })
         })
 
         const exists = (file: string) => fs.exists(file).pipe(Effect.orDie)
         const read = (file: string) => fs.readFileString(file).pipe(Effect.catch(() => Effect.succeed("")))
         const remove = (file: string) => fs.remove(file).pipe(Effect.catch(() => Effect.void))
         const locked = <A, E, R>(fx: Effect.Effect<A, E, R>) => lock(state.gitdir).withPermits(1)(fx)
-        const blocked = new Set<string>()
 
         const enabled = Effect.fnUntraced(function* () {
           if (state.vcs !== "git") return false
@@ -223,7 +210,7 @@ export const layer: Layer.Layer<
 
         const add = Effect.fnUntraced(function* () {
           yield* ensureRuntimeDataIgnored(fs, state.worktree)
-          yield* sync(Array.from(blocked))
+          yield* sync()
           const [diff, other] = yield* Effect.all(
             [
               git([...quote, ...args(["diff-files", "--name-only", "-z", "--", "."])], {
@@ -281,11 +268,10 @@ export const layer: Layer.Layer<
               { concurrency: 8 },
             )).filter((item): item is string => Boolean(item)),
           )
-          const block = untracked.filter((item) => large.has(item))
-          for (const item of block) blocked.add(item)
-          yield* sync(Array.from(blocked))
+          const block = new Set(untracked.filter((item) => large.has(item)))
+          yield* sync(Array.from(block))
           // Stage only the allowed candidate paths so snapshot updates stay scoped.
-          yield* stage(allow.filter((item) => !blocked.has(item)))
+          yield* stage(allow.filter((item) => !block.has(item)))
         })
 
         const cleanup = Effect.fnUntraced(function* () {
@@ -409,7 +395,7 @@ export const layer: Layer.Layer<
 
               const single = Effect.fnUntraced(function* (op: (typeof ops)[number]) {
                 log.info("reverting", { file: op.file, hash: op.hash })
-                const result = yield* git([...core, ...args(["checkout", op.hash, "--", op.rel])], {
+                const result = yield* git([...core, ...args(["checkout", op.hash, "--", op.file])], {
                   cwd: state.worktree,
                 })
                 if (result.code === 0) return
@@ -475,7 +461,7 @@ export const layer: Layer.Layer<
                 if (list.length) {
                   log.info("reverting", { hash: first.hash, files: list.length })
                   const result = yield* git(
-                    [...core, ...args(["checkout", first.hash, "--", ...list.map((item) => item.rel)])],
+                    [...core, ...args(["checkout", first.hash, "--", ...list.map((item) => item.file)])],
                     {
                       cwd: state.worktree,
                     },
@@ -493,17 +479,11 @@ export const layer: Layer.Layer<
                   }
                 }
 
-                yield* Effect.all(
-                  run
-                    .filter((op) => !have.has(op.rel))
-                    .map((op) =>
-                      Effect.gen(function* () {
-                        log.info("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
-                        yield* remove(op.file)
-                      }),
-                    ),
-                  { concurrency: 16 },
-                )
+                for (const op of run) {
+                  if (have.has(op.rel)) continue
+                  log.info("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
+                  yield* remove(op.file)
+                }
 
                 i = j
               }
@@ -746,6 +726,16 @@ export const layer: Layer.Layer<
             }),
           )
         })
+
+        yield* cleanup().pipe(
+          Effect.catchCause((cause) => {
+            log.error("cleanup loop failed", { cause: Cause.pretty(cause) })
+            return Effect.void
+          }),
+          Effect.repeat(Schedule.spaced(Duration.hours(1))),
+          Effect.delay(Duration.minutes(1)),
+          Effect.forkScoped,
+        )
 
         return { cleanup, track, patch, restore, revert, diff, diffFull }
       }),

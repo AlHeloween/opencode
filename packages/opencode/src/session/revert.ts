@@ -141,6 +141,11 @@ export const layer = Layer.effect(
           files: diffs.length,
         },
       })
+      // When no file patches exist (read-only tool calls), clean up messages
+      // immediately instead of waiting for the next summarize cycle.
+      if (patches.length === 0) {
+        yield* cleanup(yield* sessions.get(input.sessionID))
+      }
       return yield* sessions.get(input.sessionID)
     })
 

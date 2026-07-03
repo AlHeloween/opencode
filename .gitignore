@@ -56,3 +56,5 @@ packages/enterprise/.opencode/
 packages/wasm/stringzilla/
 packages/wasm/external/
 .reasonix
+src.bak/
+**/src.bak

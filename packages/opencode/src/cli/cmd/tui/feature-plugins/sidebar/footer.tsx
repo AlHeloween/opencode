@@ -2,6 +2,8 @@ import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plug
 import { createMemo, Show } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
 import { formatProjectDirectory } from "../../util/directory-display"
+import { existsSync } from "fs"
+import * as nodePath from "path"
 
 const id = "internal:sidebar-footer"
 
@@ -75,6 +77,17 @@ function View(props: { api: TuiPluginApi }) {
           <b>Code</b>
         </span>{" "}
         <span>{props.api.app.version}</span>
+      </text>
+      <text fg={theme().textMuted}>
+        {(() => {
+          const worktree = Global.Path.worktree || Global.Path.home
+          const isJj = existsSync(nodePath.join(worktree, ".jj"))
+          return (
+            <span>
+              <span style={{ fg: isJj ? "#88c0d0" : "#bf616a" }}>●</span> {isJj ? "jj" : "git"}
+            </span>
+          )
+        })()}
       </text>
     </box>
   )

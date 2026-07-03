@@ -120,9 +120,9 @@ export const layer = Layer.effect(
           yield* ensureIgnoreGlob()
 
           if (yield* fs.exists(repoPath)) {
-            // Open repo if not already open
-            yield* fossil(["open", repoPath], { cwd: worktree }).pipe(
-              Effect.catch(() => Effect.void), // Already open is fine
+            // Open repo if not already open (--keep preserves local files)
+            yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
+              Effect.catch(() => Effect.void),
             )
             return
           }
@@ -168,7 +168,7 @@ export const layer = Layer.effect(
 
               // Get current version before commit
               const before = yield* fossil(["info", "current"], { cwd: worktree })
-              const beforeHash = before.text.match(/uuid:\s+([a-f0-9]+)/)?.[1]?.trim() ?? ""
+              const beforeHash = before.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim() ?? ""
 
               // Commit snapshot
               const commitResult = yield* fossil(["commit", "-m", "auto-snapshot", "--no-warnings"], {
@@ -198,7 +198,7 @@ export const layer = Layer.effect(
               yield* ensureInit()
               // Fossil doesn't have a separate op log — use version hash as op ID
               const result = yield* fossil(["info", "current"], { cwd: worktree })
-              const hash = result.text.match(/uuid:\s+([a-f0-9]+)/)?.[1]?.trim()
+              const hash = result.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim()
               return result.code === 0 ? hash : undefined
             }).pipe(Effect.orDie),
           )
@@ -220,14 +220,20 @@ export const layer = Layer.effect(
           return yield* locked(
             Effect.gen(function* () {
               yield* ensureInit()
-              const result = yield* fossil(["diff", "--from", hash, "--to", "current", "--name-only"], {
+              const result = yield* fossil(["diff", "--from", hash, "--brief"], {
                 cwd: worktree,
               })
               const files = result.text
                 .trim()
                 .split("\n")
                 .filter(Boolean)
-                .map((f) => path.join(worktree, f.trim()).replaceAll("\\", "/"))
+                .map((line) => {
+                  // "CHANGED file.txt" or "ADDED file.txt" format
+                  const match = line.match(/^[A-Z]+\s+(.+)$/)
+                  return match?.[1]?.trim() ?? ""
+                })
+                .filter(Boolean)
+                .map((f) => path.join(worktree, f).replaceAll("\\", "/"))
 
               return { hash, files }
             }).pipe(Effect.orDie),
@@ -258,7 +264,7 @@ export const layer = Layer.effect(
                   seen.add(file)
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
                   log.info("reverting", { file: rel, from: item.hash })
-                  const result = yield* fossil(["revert", rel, "--rev", item.hash], { cwd: worktree })
+                  const result = yield* fossil(["revert", rel, "-r", item.hash], { cwd: worktree })
                   if (result.code !== 0) {
                     log.info("file not in snapshot, attempting delete", { file: rel })
                     yield* fs.remove(file).pipe(Effect.catch(() => Effect.void))
@@ -289,7 +295,7 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               yield* ensureInit()
 
-              const statusResult = yield* fossil(["diff", "--from", from, "--to", to, "--stat"], {
+              const statusResult = yield* fossil(["diff", "--from", from, "--to", to, "--numstat"], {
                 cwd: worktree,
               })
               if (statusResult.code !== 0) return []
@@ -298,9 +304,11 @@ export const layer = Layer.effect(
                 .trim()
                 .split("\n")
                 .filter(Boolean)
+                .filter((line) => !line.includes("TOTAL") && !line.includes("INSERTED"))
                 .map((line) => {
-                  const match = line.match(/^(.+?)[\s|]/)
-                  return match?.[1]?.trim() ?? ""
+                  // "  1  0 file.txt" format
+                  const parts = line.trim().split(/\s+/)
+                  return parts.length >= 3 ? parts[2] : ""
                 })
                 .filter(Boolean)
 
@@ -308,9 +316,10 @@ export const layer = Layer.effect(
               for (const file of files) {
                 const rel = path.join(worktree, file).replaceAll("\\", "/")
                 const statLine = statusResult.text.split("\n").find((l) => l.includes(file)) ?? ""
-                const numMatch = statLine.match(/(\d+)\s+insertion.*?(\d+)\s+deletion/)
-                const additions = numMatch ? parseInt(numMatch[1]) : 0
-                const deletions = numMatch ? parseInt(numMatch[2]) : 0
+                // numstat format: "  INSERTED  DELETED  file.txt"
+                const parts = statLine.trim().split(/\s+/)
+                const additions = parts.length >= 2 ? parseInt(parts[0]) || 0 : 0
+                const deletions = parts.length >= 3 ? parseInt(parts[1]) || 0 : 0
 
                 result.push({
                   file: rel,

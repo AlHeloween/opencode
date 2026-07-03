@@ -13,7 +13,7 @@ import { File } from "@/file"
 import { FileWatcher } from "@/file/watcher"
 import { Storage } from "@/storage/storage"
 import { Snapshot } from "@/snapshot"
-import * as SnapshotJj from "@/snapshot/jj"
+import * as SnapshotFossil from "@/snapshot/fossil"
 import { Plugin } from "@/plugin"
 import { Provider } from "@/provider/provider"
 import { ProviderAuth } from "@/provider/auth"
@@ -67,7 +67,7 @@ export const AppLayer = Layer.mergeAll(
   File.defaultLayer,
   FileWatcher.defaultLayer,
   Storage.defaultLayer,
-  SnapshotJj.defaultLayer,
+  SnapshotFossil.defaultLayer,
   Plugin.defaultLayer,
   Provider.defaultLayer,
   ProviderAuth.defaultLayer,

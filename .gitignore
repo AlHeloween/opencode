@@ -68,3 +68,7 @@ external/
 **/.jj/
 .git/
 **/.git/
+
+# Fossil
+*.fsl
+.fossil-settings/

@@ -65,16 +65,24 @@ function Version(props: { api: TuiPluginApi }) {
 }
 
 function SnapshotBackend() {
-  const theme = () => "textMuted"
   const backend = createMemo(() => {
     const worktree = Global.Path.worktree || Global.Path.home
-    return existsSync(nodePath.join(worktree, ".jj")) ? "jj" : "git"
+    if (existsSync(nodePath.join(worktree, ".jj"))) return "jj"
+    if (existsSync(nodePath.join(worktree, ".fsl"))) return "fossil"
+    return "git"
+  })
+  const color = createMemo(() => {
+    switch (backend()) {
+      case "jj": return "#88c0d0"
+      case "fossil": return "#a3be8c"
+      default: return "#bf616a"
+    }
   })
 
   return (
     <box flexShrink={0} gap={1} flexDirection="row">
       <text>
-        <span style={{ fg: backend() === "jj" ? "#88c0d0" : "#bf616a" }}>●</span>{" "}
+        <span style={{ fg: color() }}>●</span>{" "}
         <span style={{ fg: "#d8dee9" }}>{backend()}</span>
       </text>
     </box>

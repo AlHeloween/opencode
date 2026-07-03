@@ -1,7 +1,7 @@
 import { Effect, Layer, Context, Schema } from "effect"
 import { Bus } from "@/bus"
 import { Snapshot } from "@/snapshot"
-import * as SnapshotJj from "@/snapshot/jj"
+import * as SnapshotFossil from "@/snapshot/fossil"
 import { Storage } from "@/storage/storage"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
@@ -193,7 +193,7 @@ export const layer = Layer.effect(
 export const defaultLayer = Layer.suspend(() =>
   layer.pipe(
     Layer.provide(Session.defaultLayer),
-    Layer.provide(SnapshotJj.defaultLayer),
+    Layer.provide(SnapshotFossil.defaultLayer),
     Layer.provide(Storage.defaultLayer),
     Layer.provide(Bus.layer),
   ),

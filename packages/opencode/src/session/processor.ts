@@ -6,7 +6,7 @@ import { Config } from "@/config/config"
 import { Permission } from "@/permission"
 import { Plugin } from "@/plugin"
 import { Snapshot } from "@/snapshot"
-import * as SnapshotJj from "@/snapshot/jj"
+import * as SnapshotFossil from "@/snapshot/fossil"
 import * as Session from "./session"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
@@ -903,7 +903,7 @@ export const layer: Layer.Layer<
 export const defaultLayer = Layer.suspend(() =>
   layer.pipe(
     Layer.provide(Session.defaultLayer),
-    Layer.provide(SnapshotJj.defaultLayer),
+    Layer.provide(SnapshotFossil.defaultLayer),
     Layer.provide(Agent.defaultLayer),
     Layer.provide(LLM.defaultLayer),
     Layer.provide(Permission.defaultLayer),

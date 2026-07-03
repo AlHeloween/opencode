@@ -82,9 +82,12 @@ function View(props: { api: TuiPluginApi }) {
         {(() => {
           const worktree = Global.Path.worktree || Global.Path.home
           const isJj = existsSync(nodePath.join(worktree, ".jj"))
+          const isFossil = existsSync(nodePath.join(worktree, ".fsl"))
+          const backend = isJj ? "jj" : isFossil ? "fossil" : "git"
+          const color = isJj ? "#88c0d0" : isFossil ? "#a3be8c" : "#bf616a"
           return (
             <span>
-              <span style={{ fg: isJj ? "#88c0d0" : "#bf616a" }}>●</span> {isJj ? "jj" : "git"}
+              <span style={{ fg: color }}>●</span> {backend}
             </span>
           )
         })()}

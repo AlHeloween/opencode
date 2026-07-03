@@ -59,6 +59,8 @@ packages/wasm/external/
 src.bak/
 **/src.bak
 
+external/
+
 # VCS isolation — prevent cross-tracking between git and jj
 .jj
 **/.jj

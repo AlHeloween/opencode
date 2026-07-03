@@ -3,7 +3,7 @@ import { createMemo, createResource, Match, Show, Switch } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
 import { formatProjectDirectory } from "../../util/directory-display"
 import { existsSync } from "fs"
-import path from "path"
+import * as nodePath from "path"
 
 const id = "internal:home-footer"
 
@@ -68,7 +68,7 @@ function SnapshotBackend() {
   const theme = () => "textMuted"
   const backend = createMemo(() => {
     const worktree = Global.Path.worktree || Global.Path.home
-    return existsSync(path.join(worktree, ".jj")) ? "jj" : "git"
+    return existsSync(nodePath.join(worktree, ".jj")) ? "jj" : "git"
   })
 
   return (

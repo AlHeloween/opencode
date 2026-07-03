@@ -89,9 +89,13 @@ interface ProcessorContext extends Input {
   recentToolCalls: { toolName: string; input: unknown }[]
   streamStartTime: number | undefined
   firstTokenLogged: boolean
+  hasWriteToolCall: boolean
 }
 
 type StreamEvent = Event
+
+/** Tools that can modify the filesystem — snapshot tracking only needed after these. */
+const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch", "bash", "run", "task", "pipeline"])
 
 export function cacheRatio(tokens: { input: number; cache: { read: number; write: number } }) {
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
@@ -190,6 +194,7 @@ export const layer: Layer.Layer<
         currentSystemMd5: undefined,
         streamStartTime: undefined,
         firstTokenLogged: false,
+        hasWriteToolCall: false,
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
@@ -423,6 +428,7 @@ export const layer: Layer.Layer<
 
           case "tool-call": {
             ctx.toolCallEmitted = true
+            if (WRITE_TOOLS.has(value.toolName)) ctx.hasWriteToolCall = true
             if (ctx.assistantMessage.summary && !SUMMARY_SAFE_TOOLS.has(value.toolName)) {
               log.debug("compaction tool call rejected", { tool: value.toolName })
               yield* failToolCall(value.toolCallId, "Tool calls are not available during summarization")
@@ -561,7 +567,7 @@ export const layer: Layer.Layer<
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: yield* snapshot.track(),
+              snapshot: ctx.hasWriteToolCall ? yield* snapshot.track() : ctx.snapshot,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",

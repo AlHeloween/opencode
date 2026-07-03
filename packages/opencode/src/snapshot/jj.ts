@@ -73,7 +73,22 @@ export const layer: Layer.Layer<
         )
 
         // Self-healing bootstrap: init jj repo if missing
+        // Ensure .gitignore has jj/git isolation patterns
+        const jjIgnorePatterns = [".jj", "**/.jj", ".jj/", "**/.jj/"]
+        const ensureGitignore = Effect.fnUntraced(function* () {
+          const gitignorePath = path.join(worktree, ".gitignore")
+          const content = yield* fs.readFileString(gitignorePath).pipe(Effect.catch(() => Effect.succeed("")))
+          const missing = jjIgnorePatterns.filter((p) => !content.includes(p))
+          if (missing.length === 0) return
+          log.info("adding jj isolation patterns to .gitignore", { missing })
+          const separator = content && !content.endsWith("\n") ? "\n" : ""
+          const block = `\n# jj snapshot isolation\n${missing.join("\n")}\n`
+          yield* fs.writeFileString(gitignorePath, `${content}${separator}${block}`).pipe(Effect.orDie)
+        })
+
         const ensureInit = Effect.fnUntraced(function* () {
+          yield* ensureGitignore()
+
           const jjRepoDir = path.join(jjDir, ".jj")
           if (yield* fs.exists(jjRepoDir)) return
 

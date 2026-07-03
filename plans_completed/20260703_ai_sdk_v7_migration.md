@@ -1,7 +1,8 @@
 # Plan: AI SDK v6 → v7 Migration
 
 **Created:** 2026-07-03T03:25
-**Status:** active
+**Status:** completed
+**Completed:** 2026-07-03T03:45
 **Goal:** Migrate from ai@6.0.184 to ai@7.x to fix tool call JSON parsing issues with mimo-v2.5-pro
 
 ## Scope

@@ -8,7 +8,7 @@ import { errorMessage } from "@/util/error"
 import { Npm } from "@opencode-ai/core/npm"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Plugin } from "../plugin"
-import { type LanguageModelV4 } from "@ai-sdk/provider"
+import { type LanguageModelV3, type LanguageModelV4 } from "@ai-sdk/provider"
 import * as ModelsDev from "./models"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -87,7 +87,7 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 }
 
 type BundledSDK = {
-  languageModel(modelId: string): any
+  languageModel(modelId: string): LanguageModelV3 | LanguageModelV4
 }
 
 const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>> = {

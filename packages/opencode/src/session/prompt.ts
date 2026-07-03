@@ -1806,9 +1806,13 @@ You should build your plan incrementally by writing to or editing this file. NOT
             const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
             const providerPrompt = SystemPrompt.provider(model).join("\n")
             const identityPrefix = [reasoningPrefix, providerPrompt].filter((x) => x).join("\n")
+            // Strip trailing newlines from identityPrefix to prevent double-\n
+            // when checkpoint is replayed via input.system.join("\n") in llm.ts.
+            // The .txt prompt files end with \n, and join("\n") adds another.
+            const cleanIdentity = identityPrefix.replace(/\n+$/, "")
             const systemForCheckpoint = checkpointUsable
               ? [...system] // checkpoint already contains identityPrefix
-              : identityPrefix ? [identityPrefix, ...system] : [...system]
+              : cleanIdentity ? [cleanIdentity, ...system] : [...system]
             yield* Effect.forkIn(scope)(
               Effect.gen(function* () {
                 const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)

@@ -157,6 +157,19 @@ export const layer: Layer.Layer<
           )
         })
 
+        const opId = Effect.fnUntraced(function* () {
+          return yield* locked(
+            Effect.gen(function* () {
+              if (!(yield* enabled())) return undefined
+              yield* ensureInit()
+              const result = yield* jj(["--ignore-working-copy", "op", "log", "--no-graph", "--limit", "1", "--template", "self.id()"], {
+                cwd: worktree,
+              })
+              return result.code === 0 ? result.text.trim() : undefined
+            }).pipe(Effect.orDie),
+          )
+        })
+
         const patch = Effect.fnUntraced(function* (hash: string) {
           return yield* locked(
             Effect.gen(function* () {
@@ -302,7 +315,7 @@ export const layer: Layer.Layer<
           Effect.forkScoped,
         )
 
-        return { cleanup: () => Effect.void, track, patch, restore, revert, diff, diffFull }
+        return { cleanup: () => Effect.void, track, opId, patch, restore, revert, diff, diffFull }
       }),
     )
 
@@ -315,6 +328,9 @@ export const layer: Layer.Layer<
       }),
       track: Effect.fn("SnapshotJj.track")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.track())
+      }),
+      opId: Effect.fn("SnapshotJj.opId")(function* () {
+        return yield* InstanceState.useEffect(state, (s) => s.opId())
       }),
       patch: Effect.fn("SnapshotJj.patch")(function* (hash: string) {
         return yield* InstanceState.useEffect(state, (s) => s.patch(hash))

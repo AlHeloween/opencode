@@ -168,6 +168,7 @@ const Revert = Schema.Struct({
   messageID: MessageID,
   partID: optionalOmitUndefined(PartID),
   snapshot: optionalOmitUndefined(Schema.String),
+  op_id: optionalOmitUndefined(Schema.String),
   diff: optionalOmitUndefined(Schema.String),
   conflicts: optionalOmitUndefined(Schema.Array(Schema.Struct({
     file: Schema.String,

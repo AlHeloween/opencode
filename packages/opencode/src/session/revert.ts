@@ -125,6 +125,7 @@ export const layer = Layer.effect(
       }
 
       rev.snapshot = session.revert?.snapshot ?? (yield* snap.track())
+      rev.op_id = session.revert?.op_id ?? (yield* snap.opId())
       if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
       yield* snap.revert(patches)
       if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot as string)

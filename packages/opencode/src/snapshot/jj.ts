@@ -42,7 +42,7 @@ export const layer: Layer.Layer<
         const locked = <A, E, R>(fx: Effect.Effect<A, E, R>) => lock(jjDir).withPermits(1)(fx)
 
         const enabled = Effect.fnUntraced(function* () {
-          if (ctx.project.vcs !== "git") return false
+          // jj works with or without git (native backend)
           return (yield* config.get()).snapshot !== false
         })
 
@@ -99,7 +99,7 @@ export const layer: Layer.Layer<
           const tmpDir = path.join(Global.Path.data, "jj", `_init_${Date.now()}`)
           yield* fs.ensureDir(tmpDir).pipe(Effect.orDie)
 
-          const initResult = yield* jj(["git", "init", tmpDir], { cwd: worktree })
+          const initResult = yield* jj(["debug", "init-simple", tmpDir], { cwd: worktree })
           if (initResult.code !== 0) {
             log.warn("jj git init failed", { stderr: initResult.stderr })
             yield* fs.remove(tmpDir).pipe(Effect.catch(() => Effect.void))

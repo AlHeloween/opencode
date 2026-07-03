@@ -10,7 +10,23 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Service as SnapshotService, type Interface, type Patch, type FileDiff } from "."
 
 const log = Log.create({ service: "snapshot-fossil" })
-const FOSSIL_BIN = path.join(Global.Path.home, "external", "fossil", "fossil.exe")
+
+// Find fossil binary: tools/ relative to executable, then PATH
+function findFossil(): string {
+  // 1. tools/ relative to executable (e.g. opencode.exe/tools/fossil.exe)
+  const execDir = path.dirname(process.execPath)
+  const toolsPath = path.join(execDir, "tools", "fossil.exe")
+  if (require("fs").existsSync(toolsPath)) return toolsPath
+
+  // 2. tools/ relative to worktree
+  const worktreeTools = path.join(Global.Path.home, "tools", "fossil.exe")
+  if (require("fs").existsSync(worktreeTools)) return worktreeTools
+
+  // 3. Fallback: hope it's on PATH
+  return "fossil"
+}
+
+const FOSSIL_BIN = findFossil()
 
 type State = Omit<Interface, "init">
 

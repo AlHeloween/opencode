@@ -54,7 +54,7 @@ dist/
 artefacts/
 packages/enterprise/.opencode/
 packages/wasm/stringzilla/
-packages/wasm/external/wasi-sdk/
+packages/wasm/external/
 .reasonix
 src.bak/
 **/src.bak

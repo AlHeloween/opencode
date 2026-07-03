@@ -292,6 +292,8 @@ export const layer: Layer.Layer<
           )
         })
 
+        let lastTrackHash: string | undefined
+
         const track = Effect.fnUntraced(function* () {
           return yield* locked(
             Effect.gen(function* () {
@@ -305,12 +307,27 @@ export const layer: Layer.Layer<
                 yield* git(["--git-dir", state.gitdir, "config", "core.autocrlf", "false"])
                 yield* git(["--git-dir", state.gitdir, "config", "core.longpaths", "true"])
                 yield* git(["--git-dir", state.gitdir, "config", "core.symlinks", "true"])
-                yield* git(["--git-dir", state.gitdir, "config", "core.fsmonitor", "false"])
+                yield* git(["--git-dir", state.gitdir, "config", "core.fsmonitor", "true"])
                 log.info("initialized")
+              }
+              // Fast path: if worktree unchanged since last track, skip add() and return cached hash
+              if (lastTrackHash) {
+                const [dirty, untracked] = yield* Effect.all(
+                  [
+                    git([...quote, ...args(["diff-files", "--quiet", "--", "."])], { cwd: state.directory }),
+                    git([...quote, ...args(["ls-files", "--others", "--exclude-standard", "-z", "--", "."])], { cwd: state.directory }),
+                  ],
+                  { concurrency: 2 },
+                )
+                if (dirty.code === 0 && untracked.text.length === 0) {
+                  log.info("tracking (cached)", { hash: lastTrackHash })
+                  return lastTrackHash
+                }
               }
               yield* add()
               const result = yield* git(args(["write-tree"]), { cwd: state.directory })
               const hash = result.text.trim()
+              lastTrackHash = hash
               log.info("tracking", { hash, cwd: state.directory, git: state.gitdir })
               return hash
             }),

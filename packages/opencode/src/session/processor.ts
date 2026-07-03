@@ -87,6 +87,8 @@ interface ProcessorContext extends Input {
   reasoningMap: Record<string, MessageV2.ReasoningPart>
   reasoningBuilders: Record<string, StringBuilder>
   recentToolCalls: { toolName: string; input: unknown }[]
+  streamStartTime: number | undefined
+  firstTokenLogged: boolean
 }
 
 type StreamEvent = Event
@@ -186,6 +188,8 @@ export const layer: Layer.Layer<
         reasoningBuilders: {},
         recentToolCalls: [],
         currentSystemMd5: undefined,
+        streamStartTime: undefined,
+        firstTokenLogged: false,
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
@@ -364,10 +368,18 @@ export const layer: Layer.Layer<
       const handleEvent = Effect.fnUntraced(function* (value: StreamEvent) {
         switch (value.type) {
           case "start":
+            ctx.streamStartTime = Date.now()
             yield* status.set(ctx.sessionID, { type: "busy" })
             return
 
           case "reasoning-start":
+            if (!ctx.firstTokenLogged && ctx.streamStartTime) {
+              ctx.firstTokenLogged = true
+              log.info("ttfb", {
+                durationMs: Date.now() - ctx.streamStartTime,
+                tokenType: "reasoning",
+              })
+            }
             if (value.id in ctx.reasoningMap) return
             ctx.reasoningMap[value.id] = {
               id: PartID.ascending(),
@@ -493,7 +505,7 @@ export const layer: Layer.Layer<
             throw value.error
 
           case "start-step":
-            if (!ctx.snapshot) ctx.snapshot = yield* snapshot.track()
+            // snapshot already captured at processor create — no need to re-track
             yield* session.updatePart({
               id: PartID.ascending(),
               messageID: ctx.assistantMessage.id,
@@ -521,6 +533,7 @@ export const layer: Layer.Layer<
                 inputTokens: usage.tokens.input,
                 cacheReadTokens: usage.tokens.cache.read,
                 cacheWriteTokens: usage.tokens.cache.write,
+                totalDurationMs: ctx.streamStartTime ? Date.now() - ctx.streamStartTime : undefined,
               })
 
               // Post-send cache audit: compare actual DeepSeek cache behavior
@@ -645,6 +658,13 @@ export const layer: Layer.Layer<
           }
 
           case "text-start":
+            if (!ctx.firstTokenLogged && ctx.streamStartTime) {
+              ctx.firstTokenLogged = true
+              log.info("ttfb", {
+                durationMs: Date.now() - ctx.streamStartTime,
+                tokenType: "text",
+              })
+            }
             ctx.currentText = {
               id: PartID.ascending(),
               messageID: ctx.assistantMessage.id,

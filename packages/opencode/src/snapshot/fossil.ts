@@ -97,6 +97,8 @@ export const layer = Layer.effect(
             let p = line.trim()
             // Skip negation patterns (not supported in Fossil)
             if (p.startsWith("!")) continue
+            // Remove leading / (Fossil patterns are always root-relative)
+            if (p.startsWith("/")) p = p.slice(1)
             // Remove trailing / (Fossil has no directory-only distinction)
             if (p.endsWith("/")) p = p.slice(0, -1)
             // Replace **/ with nothing (* already matches / in Fossil)
@@ -118,7 +120,7 @@ export const layer = Layer.effect(
 
           const gitignorePatterns = yield* translateGitignore()
           // Add our own patterns
-          const extraPatterns = ["*.fsl", ".fossil-settings", ".jj", ".git"]
+          const extraPatterns = ["*.fsl", ".jj", ".git"]
           const allPatterns = [...extraPatterns, ...gitignorePatterns.split("\n").filter(Boolean)]
 
           const existing = yield* fs.readFileString(ignorePath).pipe(Effect.catch(() => Effect.succeed("")))

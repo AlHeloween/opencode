@@ -223,11 +223,11 @@ export const layer = Layer.effect(
         const opRestore = Effect.fnUntraced(function* (targetVersion: string) {
           return yield* locked(
             Effect.gen(function* () {
-              log.info("fossil update", { version: targetVersion })
+              log.info("fossil checkout (opRestore)", { version: targetVersion })
               yield* ensureInit()
-              const result = yield* fossil(["update", targetVersion], { cwd: worktree })
+              const result = yield* fossil(["checkout", targetVersion], { cwd: worktree })
               if (result.code === 0) return
-              log.error("fossil update failed", { version: targetVersion, stderr: result.stderr })
+              log.error("fossil checkout failed", { version: targetVersion, stderr: result.stderr })
             }).pipe(Effect.orDie),
           )
         })
@@ -259,11 +259,11 @@ export const layer = Layer.effect(
         const restore = Effect.fnUntraced(function* (snapshot: string) {
           return yield* locked(
             Effect.gen(function* () {
-              log.info("restore", { version: snapshot })
+              log.info("restore (checkout)", { version: snapshot })
               yield* ensureInit()
-              const result = yield* fossil(["update", snapshot], { cwd: worktree })
+              const result = yield* fossil(["checkout", snapshot], { cwd: worktree })
               if (result.code === 0) return
-              log.error("fossil restore failed", { snapshot, stderr: result.stderr })
+              log.error("fossil checkout failed", { snapshot, stderr: result.stderr })
             }).pipe(Effect.orDie),
           )
         })

@@ -68,7 +68,8 @@ function SnapshotBackend() {
   const backend = createMemo(() => {
     const worktree = Global.Path.worktree || Global.Path.home
     if (existsSync(nodePath.join(worktree, ".jj"))) return "jj"
-    if (existsSync(nodePath.join(worktree, ".fsl"))) return "fossil"
+    // Fossil checkout markers: _FOSSIL_ (Windows) or _fossil (Unix)
+    if (existsSync(nodePath.join(worktree, "_FOSSIL_")) || existsSync(nodePath.join(worktree, "_fossil"))) return "fossil"
     return "git"
   })
   const color = createMemo(() => {

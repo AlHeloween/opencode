@@ -120,7 +120,7 @@ export const layer = Layer.effect(
 
           const gitignorePatterns = yield* translateGitignore()
           // Add our own patterns
-          const extraPatterns = ["*.fsl", ".jj", ".git"]
+          const extraPatterns = ["*.fsl", ".jj", ".git", "_FOSSIL_", "_fossil"]
           const allPatterns = [...extraPatterns, ...gitignorePatterns.split("\n").filter(Boolean)]
 
           const existing = yield* fs.readFileString(ignorePath).pipe(Effect.catch(() => Effect.succeed("")))

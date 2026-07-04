@@ -2,6 +2,12 @@ Fast content search tool that works with any codebase size. Searches file conten
 
 Use this tool when searching file contents for specific patterns. Use Glob when searching by filename.
 
+## Important: Pattern Syntax
+
+- Use `|` for OR (e.g., `foo|bar`). Do NOT escape it as `\|` — that's a literal backslash+pipe, not an OR operator.
+- Patterns are passed to ripgrep via `-e` flag, so patterns starting with `-` work correctly.
+- No need to double-escape backslashes in regex — `function\s+\w+` is correct as-is.
+
 ## Parameters
 
 | Parameter | Type | Default | Description |

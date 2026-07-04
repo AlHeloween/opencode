@@ -1,6 +1,6 @@
 # Repository Folder Map
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-07-04
 **Purpose:** Folder-based index of repository contents — purpose + key entrypoints for each directory.
 
 ---
@@ -38,6 +38,8 @@
 - `ADID_Framework_15_3.md` — Autodidactic Development & Intelligence Driver Framework v15.3
 - `architecture.md` — System architecture diagrams: prompt assembly, checkpoint, agents, media, cache/diff, data flow
 - `external-file-locations.md` — All file paths opencode reads/writes outside project worktree
+- `fossil-search-research.md` — Fossil SCM search architecture: FTS5, grep, regex engine, tokenization
+- `bun-gemini-research.md` — Bun + Gemini research notes
 - `README.md` — Docs directory index
 
 ### `specs/` — Architecture Specifications
@@ -46,19 +48,17 @@
 - `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
 
 ### `plans/` — Active Plans
-- `20260628_wasm_core_framework.md` — WASM Core Framework master index (Kaizen: 5 independent sub-plans)
-  - `20260628_wasm_tokenizer.md` — Sub-plan 1: BPE tokenizer C→WASM
-  - `20260628_wasm_json_repair.md` — Sub-plan 2: JSON repair C→WASM
-  - `20260628_wasm_diff.md` — Sub-plan 3: Myers diff C→WASM
-  - `20260628_wasm_treesitter.md` — Sub-plan 4: Tree-sitter Rust→WASM unification
-  - `20260628_model_routing.md` — Sub-plan 5: Model route optimization
+- `2026-06-29_aisdk-wasi-migration.md` — Migrate Provider + Gateway Layer to Rust via aisdk + WASI (planning)
 - `emergency/` — Deferred emergency items from performance/bug audit
 - `abstract_futures/` — Superseded plans kept for reference (HTTP API v2, deferred architectural master)
 
-### `plans_completed/` — Completed Plans (95 plans)
+### `plans_completed/` — Completed Plans (100+ plans)
+- `vcs-master-plan/` — Fossil SCM snapshot backend: binary discovery, command validation, ignore translation, init lifecycle, track/snapshot, rollback, TUI integration, migration cleanup
+- `2026-07-03-jj-research-report.md` — Jujutsu VCS research (superseded by Fossil)
+- `2026-07-03_jj-integration-research.md` — jj integration task spec (solved via Fossil)
+- `2026-07-03_snapshot-performance-fix.md` — Snapshot performance fix (Fossil backend resolves)
 - `20260624_module_cd_plan.md` — Module C+D: Media TUI (chafa/mpv) + Multimodal messages
-- `20260623_agent_pipeline_media_plan.md` — 10h master plan: capability tool, agent pipeline, media TUI, multimodal messages
-- `20260623_capability_stabilization_plan.md` — Capability service/tool/TUI stabilization
+- `20260623_agent_pipeline_media_plan.md` — 10h master plan: capability tool, agent pipeline, media TUI, multimimodal messages
 - Plus: performance, logging, security, shell migration, file locations, backups, session ops, cache, compaction, etc.
 
 ### `obsolete/` — Deprecated Reference Artifacts
@@ -82,11 +82,21 @@
 ### `tools/` — Tool Binaries
 - `adm.exe`, `adm` — ADID Update Manager (declarative updates, verification, RAG)
 - `cmd_runner.exe` — Windows ConPTY command runner with log bridge
+- `fossil.exe` (in `external/fossil/`) — Fossil SCM v2.28 for snapshot backend + historical code search
 
 ### `sdks/` — External SDKs
 - `vscode/` — VS Code extension
 
-### `.opencode/` — OpenCode Agent Configuration
+### `packages/opencode/src/snapshot/` — Snapshot Backends
+- `index.ts` — Git-based snapshot (fallback): bare repo, `git write-tree`, `git checkout-index`
+- `jj.ts` — Jujutsu snapshot (alternative, dormant): native backend, `jj status`, `jj restore`
+- `fossil.ts` — **Fossil snapshot (active)**: standalone `.fsl` repo, `fossil commit`, `fossil checkout`, `.gitignore` → ignore-glob translator
+
+### `packages/opencode/src/tool/` — Agent Tools
+- `edit.ts` — File edit with fuzzy cascade matching, `.bak` backups (gitignore-aware)
+- `bash.ts` — Shell command execution via cmd_runner
+- `fossil-grep.ts` — Search historical file versions using Fossil's NFA regex engine
+- `grep.ts` — ripgrep-based current working copy search (uses `-e` flag)
 - `rules/` — Agent rule files (ADID framework, semantic coding)
 - `skills/` — Agent skill definitions (adm-exe, cmd-runner, rag, etc.)
 - `data/` — Runtime data (gitignored, portable)

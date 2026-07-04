@@ -61,17 +61,13 @@ Replace the current git-based snapshot system (`src/snapshot/index.ts`) with a s
 **Solution:** Robust init sequence with state machine.
 
 ### Plan 5: Track & Snapshot (`5_track-snapshot.md`)
-**Problem:** File tracking and snapshot flow untested end-to-end.
-**Solution:** Test-driven implementation with real fossil operations.
+**Status: DONE** — 7 tests, track/restore/history verified.
 
 ### Plan 6: Rollback & Undo (`6_rollback-undo.md`)
-**Problem:** Session-level rollback via `op_id` untested.
-**Solution:** Verify `fossil update <hash>` and `fossil undo` work correctly.
+**Status: PARTIAL** — 5/7 tests pass, 2 skipped (fossil update behavior in test env). Manual testing confirms close+open+update works.
 
 ### Plan 7: TUI Integration (`7_tui-integration.md`)
-**Problem:** Indicator doesn't detect active backend.
-**Solution:** Check for `.fsl` checkout marker, not just `.fossil` file.
+**Status: DONE** — _FOSSIL_/_fossil checkout marker detection.
 
-### Plan 8: Migration from jj (`8_migration-cleanup.md`)
-**Problem:** jj.ts still exists, runtimes still import it.
-**Solution:** Clean migration path with git snapshot as ultimate fallback.
+### Plan 8: Migration Cleanup (`8_migration-cleanup.md`)
+**Status: DONE** — All runtimes use fossil, jj.ts not imported, git snapshot as fallback.

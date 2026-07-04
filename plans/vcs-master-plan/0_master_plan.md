@@ -48,12 +48,10 @@ Replace the current git-based snapshot system (`src/snapshot/index.ts`) with a s
 ## Sub-Plans
 
 ### Plan 1: Binary Discovery (`1_binary-discovery.md`)
-**Problem:** Fossil binary path hardcoded, doesn't work across projects.
-**Solution:** Multi-location search with fallback chain.
+**Status: DONE** — `process.execPath` + `tools/` + PATH fallback.
 
 ### Plan 2: Command Validation (`2_command-validation.md`)
-**Problem:** Wrong flags, wrong output formats, untested commands.
-**Solution:** Integration test suite that validates every fossil command.
+**Status: DONE** — 14 integration tests pass, all fossil commands verified.
 
 ### Plan 3: Ignore Translation (`3_ignore-translation.md`)
 **Problem:** `.gitignore` format differs from Fossil glob format.

@@ -154,7 +154,7 @@ export const layer = Layer.effect(
             return
           }
 
-          const openResult = yield* fossil(["open", repoPath], { cwd: worktree })
+          const openResult = yield* fossil(["open", repoPath, "--keep"], { cwd: worktree })
           if (openResult.code !== 0) {
             log.warn("fossil open failed", { stderr: openResult.stderr })
             return

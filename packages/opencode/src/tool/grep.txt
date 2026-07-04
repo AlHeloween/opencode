@@ -1,12 +1,14 @@
-Fast content search tool that works with any codebase size. Searches file contents using regular expressions. Supports full regex syntax (e.g., `log.*Error`, `function\s+\w+`).
+Fast content search tool that works with any codebase size. Searches file contents using regular expressions.
+
+This tool uses **ripgrep** with the **Rust regex engine**, which follows extended regex syntax (ERE). This avoids many common regex pitfalls — no backtracking surprises, no ReDoS vulnerabilities, and consistent behavior across platforms.
 
 Use this tool when searching file contents for specific patterns. Use Glob when searching by filename.
 
 ## Important: Pattern Syntax
 
-- Use `|` for OR (e.g., `foo|bar`). Do NOT escape it as `\|` — that's a literal backslash+pipe, not an OR operator.
-- Patterns are passed to ripgrep via `-e` flag, so patterns starting with `-` work correctly.
-- No need to double-escape backslashes in regex — `function\s+\w+` is correct as-is.
+- Use `|` for OR (e.g., `foo|bar`). In Rust regex `\|` is a literal pipe character, not an operator.
+- Patterns are passed via `-e` flag, so patterns starting with `-` work correctly.
+- No need to double-escape backslashes — `function\s+\w+` is correct as-is.
 
 ## Parameters
 

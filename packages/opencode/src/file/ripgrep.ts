@@ -214,7 +214,7 @@ function searchArgs(input: SearchInput) {
     for (const glob of input.glob) args.push(`--glob=${glob}`)
   }
   if (input.limit) args.push(`--max-count=${input.limit}`)
-  args.push("--", input.pattern, ...(input.file ?? ["."]))
+  args.push("-e", input.pattern, ...(input.file ?? ["."]))
   return args
 }
 

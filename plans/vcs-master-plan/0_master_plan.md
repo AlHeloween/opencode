@@ -54,8 +54,7 @@ Replace the current git-based snapshot system (`src/snapshot/index.ts`) with a s
 **Status: DONE** — 14 integration tests pass, all fossil commands verified.
 
 ### Plan 3: Ignore Translation (`3_ignore-translation.md`)
-**Problem:** `.gitignore` format differs from Fossil glob format.
-**Solution:** Tested translator with edge case coverage.
+**Status: DONE** — 12 unit tests + 4 integration tests, all patterns verified.
 
 ### Plan 4: Init Lifecycle (`4_init-lifecycle.md`)
 **Problem:** Self-healing init has multiple failure modes.

@@ -311,7 +311,7 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               yield* ensureInit()
 
-              const statusResult = yield* fossil(["diff", "--from", from, "--to", to, "--numstat"], {
+              const statusResult = yield* fossil(["diff", "--from", from, "--to", to, "-s"], {
                 cwd: worktree,
               })
               if (statusResult.code !== 0) return []

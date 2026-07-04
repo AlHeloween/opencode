@@ -1,0 +1,19 @@
+Search through historical versions of tracked files using Fossil's regex engine.
+
+This tool searches ALL committed versions of files (not just the current working copy), moving backwards in time from the most recent commit. It uses Fossil's built-in NFA regex engine which is safe from ReDoS attacks.
+
+Use this tool when you need to:
+- Find when a function or variable was introduced or changed
+- Search for code that existed in previous versions but was removed
+- Trace the history of a specific pattern across commits
+- Find which commit introduced a bug or change
+
+Unlike the regular grep tool (which only searches the current working copy), this tool searches through the entire version history of tracked files.
+
+Regex dialect: POSIX extended regular expressions (no backreferences, no lookaround, no backtracking — guaranteed O(nm) complexity).
+
+Limitations:
+- Only searches files tracked by Fossil (use 'fossil ls' to see tracked files)
+- Searches in reverse chronological order (newest first)
+- No recursive directory flag (-R is reserved by Fossil for --repository)
+- Always includes line numbers in output

@@ -174,11 +174,25 @@ export const layer = Layer.effect(
               if (!(yield* enabled())) return undefined
               yield* ensureInit()
 
-              // Add new files if provided
+              // Add explicitly provided files
               if (files?.length) {
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
                   yield* fossil(["add", rel, "--ignore", ""], { cwd: worktree }).pipe(
+                    Effect.catch(() => Effect.void),
+                  )
+                }
+              }
+
+              // Auto-detect changed tracked files and commit them
+              const changes = yield* fossil(["changes", "--differ"], { cwd: worktree })
+              if (changes.code === 0 && changes.text.trim()) {
+                // "EDITED a.txt\nEDITED b.txt" → extract filenames
+                const changedFiles = changes.text.trim().split("\n")
+                  .map((l) => l.replace(/^[A-Z]+\s+/, "").trim())
+                  .filter(Boolean)
+                if (changedFiles.length) {
+                  yield* fossil(["add", ...changedFiles], { cwd: worktree }).pipe(
                     Effect.catch(() => Effect.void),
                   )
                 }
@@ -313,10 +327,27 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               yield* ensureInit()
 
+              // Get numstat (insertions/deletions per file)
               const statusResult = yield* fossil(["diff", "--from", from, "--to", to, "-s"], {
                 cwd: worktree,
               })
               if (statusResult.code !== 0) return []
+
+              // Get brief status (ADDED/DELETED/EDITED/CHANGED per file)
+              const briefResult = yield* fossil(["diff", "--from", from, "--to", to, "--brief"], {
+                cwd: worktree,
+              })
+              const statusMap = new Map<string, "added" | "deleted" | "modified">()
+              if (briefResult.code === 0) {
+                for (const line of briefResult.text.trim().split("\n").filter(Boolean)) {
+                  const match = line.match(/^(ADDED|DELETED|EDITED|CHANGED|UPDATE)\s+(.+)$/)
+                  if (match) {
+                    const status = match[1]
+                    const file = match[2].trim()
+                    statusMap.set(file, status === "ADDED" ? "added" : status === "DELETED" ? "deleted" : "modified")
+                  }
+                }
+              }
 
               const files = statusResult.text
                 .trim()
@@ -324,7 +355,6 @@ export const layer = Layer.effect(
                 .filter(Boolean)
                 .filter((line) => !line.includes("TOTAL") && !line.includes("INSERTED"))
                 .map((line) => {
-                  // "  1  0 file.txt" format
                   const parts = line.trim().split(/\s+/)
                   return parts.length >= 3 ? parts[2] : ""
                 })
@@ -334,7 +364,6 @@ export const layer = Layer.effect(
               for (const file of files) {
                 const rel = path.join(worktree, file).replaceAll("\\", "/")
                 const statLine = statusResult.text.split("\n").find((l) => l.includes(file)) ?? ""
-                // numstat format: "  INSERTED  DELETED  file.txt"
                 const parts = statLine.trim().split(/\s+/)
                 const additions = parts.length >= 2 ? parseInt(parts[0]) || 0 : 0
                 const deletions = parts.length >= 3 ? parseInt(parts[1]) || 0 : 0
@@ -344,7 +373,7 @@ export const layer = Layer.effect(
                   patch: "",
                   additions,
                   deletions,
-                  status: "modified" as const,
+                  status: statusMap.get(file) ?? "modified",
                 })
               }
 

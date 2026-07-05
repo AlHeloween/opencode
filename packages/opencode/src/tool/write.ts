@@ -3,7 +3,7 @@ import * as path from "path"
 import { Effect } from "effect"
 import * as Tool from "./tool"
 import { LSP } from "@/lsp/lsp"
-import { createPatch } from "@/util/diff-wasm"
+import { createPatch, diffStats } from "@/util/diff-wasm"
 import DESCRIPTION from "./write.txt"
 import { Bus } from "../bus"
 import { File } from "../file"
@@ -88,12 +88,21 @@ export const WriteTool = Tool.define(
             output += `\n\nLSP errors detected in other files:\n${block}`
           }
 
+          const stats = yield* Effect.promise(() => diffStats(contentOld, contentNew))
+          const filediff = {
+            file: filepath,
+            patch: diff,
+            additions: stats?.additions ?? 0,
+            deletions: stats?.deletions ?? 0,
+          }
+
           return {
             title: path.relative(Instance.worktree, filepath),
             metadata: {
               diagnostics,
               filepath,
               exists: exists,
+              filediff,
             },
             output,
           }

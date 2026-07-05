@@ -174,7 +174,7 @@ export const layer = Layer.effect(
               if (!(yield* enabled())) return undefined
               yield* ensureInit()
 
-              // Add explicitly provided files (new files from write tool)
+              // Ensure changed files are tracked before commit
               if (files?.length) {
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
@@ -312,7 +312,7 @@ export const layer = Layer.effect(
 
         const getEarliestCommit = Effect.fnUntraced(function* () {
           const result = yield* fossil(
-            ["--ignore-working-copy", "log", "--no-graph", "--limit", "1", "--template", "commit_id", "--reverse"],
+            ["log", "--no-graph", "--limit", "1", "--template", "commit_id", "--reverse"],
             { cwd: worktree },
           )
           return result.code === 0 ? result.text.trim().split("\n")[0]?.trim() : undefined
@@ -320,7 +320,7 @@ export const layer = Layer.effect(
 
         const resolveHash = Effect.fnUntraced(function* (hash: string) {
           // Check if hash exists in fossil repo
-          const check = yield* fossil(["--ignore-working-copy", "info", hash], { cwd: worktree })
+          const check = yield* fossil(["info", hash], { cwd: worktree })
           if (check.code === 0) return hash
           // Hash not found (e.g. old git hash) — fallback to earliest fossil commit
           const earliest = yield* getEarliestCommit()

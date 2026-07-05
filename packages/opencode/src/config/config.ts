@@ -119,6 +119,10 @@ export const Info = Schema.Struct({
     description:
       "Enable or disable snapshot tracking. When false, filesystem snapshots are not recorded and undoing or reverting will not undo/redo file changes. Defaults to true.",
   }),
+  external_directory_mode: Schema.optional(Schema.Literals(["deny", "ask", "allow"])).annotate({
+    description:
+      "How to handle external directory access: 'deny' always blocks, 'ask' prompts user (default), 'allow' always permits.",
+  }),
   diff_requests: Schema.optional(Schema.Boolean).annotate({
     description:
       "Log unified diffs between consecutive LLM requests to diffs/ folder for KV cache debugging. Defaults to true.",

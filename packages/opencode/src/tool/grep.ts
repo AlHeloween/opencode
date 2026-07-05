@@ -10,6 +10,32 @@ import * as Tool from "./tool"
 
 const MAX_LINE_LENGTH = 2000
 
+/**
+ * Convert common regex patterns to Rust regex (ERE) format.
+ * LLMs often generate BRE-style patterns (e.g. \| for OR) that don't
+ * work in ripgrep's Rust regex engine where | is OR and \| is literal pipe.
+ */
+function toRustRegex(pattern: string): string {
+  // BRE \| → ERE | (OR operator)
+  // But not \\| (escaped backslash + pipe) or [|] (character class)
+  // Strategy: replace \| with | but preserve \\|
+  let result = ""
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] === "\\" && i + 1 < pattern.length && pattern[i + 1] === "|") {
+      // Check if it's \\| (escaped backslash) — keep as-is
+      if (i > 0 && pattern[i - 1] === "\\") {
+        result += "|"
+      } else {
+        result += "|"
+      }
+      i++ // skip the |
+    } else {
+      result += pattern[i]
+    }
+  }
+  return result
+}
+
 export const Parameters = Schema.Struct({
   pattern: Schema.String.annotate({ description: "The regex pattern to search for in file contents" }),
   path: Schema.optional(Schema.String).annotate({
@@ -31,21 +57,25 @@ export const GrepTool = Tool.define(
       parameters: Parameters,
       execute: (params: { pattern: string; path?: string; include?: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          const empty = {
-            title: params.pattern,
-            metadata: { matches: 0, truncated: false },
-            output: "No files found",
-          }
           if (!params.pattern) {
             throw new Error("pattern is required")
           }
 
+          // Normalize regex for Rust engine (BRE → ERE)
+          const pattern = toRustRegex(params.pattern)
+
+          const empty = {
+            title: pattern,
+            metadata: { matches: 0, truncated: false },
+            output: "No files found",
+          }
+
           yield* ctx.ask({
             permission: "grep",
-            patterns: [params.pattern],
+            patterns: [pattern],
             always: ["*"],
             metadata: {
-              pattern: params.pattern,
+              pattern,
               path: params.path,
               include: params.include,
             },
@@ -66,7 +96,7 @@ export const GrepTool = Tool.define(
 
           const result = yield* rg.search({
             cwd,
-            pattern: params.pattern,
+            pattern,
             glob: params.include ? [params.include] : undefined,
             file,
             signal: ctx.abort,

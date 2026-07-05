@@ -13,17 +13,13 @@ export function MediaMermaid(props: { source: string }) {
   const [loaded, setLoaded] = createSignal(false)
   const [error, setError] = createSignal<string | null>(null)
 
-  onMount(() => {
+  onMount(async () => {
     try {
-      const result = renderMermaidToText(props.source, {
+      const result = await renderMermaidToText(props.source, {
         theme: mode() === "dark" ? "dark" : "default",
       })
       if (result === null) {
-        if (!which("chafa")) {
-          setError("chafa not installed - install chafa for terminal diagram rendering")
-        } else {
-          setError("Could not render diagram")
-        }
+        setError("Could not render diagram")
       }
       setOutput(result)
     } catch (err) {

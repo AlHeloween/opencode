@@ -345,12 +345,14 @@ export const layer = Layer.effect(
               const statusResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "-s"], {
                 cwd: worktree,
               })
+              log.info("diffFull numstat", { code: statusResult.code, text: statusResult.text.slice(0, 200) })
               if (statusResult.code !== 0) return []
 
               // Get brief status (ADDED/DELETED/EDITED/CHANGED per file)
               const briefResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief"], {
                 cwd: worktree,
               })
+              log.info("diffFull brief", { code: briefResult.code, text: briefResult.text.slice(0, 200) })
               const statusMap = new Map<string, "added" | "deleted" | "modified">()
               if (briefResult.code === 0) {
                 for (const line of briefResult.text.trim().split("\n").filter(Boolean)) {
@@ -391,6 +393,7 @@ export const layer = Layer.effect(
                 })
               }
 
+              log.info("diffFull result", { count: result.length })
               return result
             }).pipe(Effect.orDie),
           )

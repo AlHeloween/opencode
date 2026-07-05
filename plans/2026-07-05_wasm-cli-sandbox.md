@@ -1,17 +1,18 @@
-# Plan: WASM CLI Path Validation Sandbox
+# Plan: WASM CLI Path Validation — Agent Feedback
 
 **Created:** 2026-07-05T11:12Z
+**Updated:** 2026-07-05T11:40Z
 **Status:** Research
-**Severity:** High — security improvement for autonomous agent execution
+**Severity:** High — security + self-correction for autonomous agent
 
 ## Goal
 
-Validate CLI command paths through a WASM sandbox BEFORE executing the real command on the host. This acts as a "firewall for CLI" — tree-sitter parses the command, sandbox validates paths, executor runs only if validation passes.
+Validate CLI command paths through a WASM sandbox BEFORE executing, and **return the validation report to the agent** so it can self-correct. The sandbox does NOT block — it informs. The agent is smart enough to fix its own commands if given clear feedback.
 
 ## Architecture
 
 ```
-Agent generates: "rm -rf D:\zPython\opencode\node_modules\cache"
+Agent generates: "rm -rf D:\D:\zPython\cache"
                           │
                           ▼
               ┌─────────────────────┐
@@ -21,33 +22,67 @@ Agent generates: "rm -rf D:\zPython\opencode\node_modules\cache"
                          │
                          ▼
               ┌─────────────────────┐
-              │  Path Sandbox (WASM)│ ← validate paths against rules
+              │  Path Validator     │ ← check paths against rules
+              │  - Path exists?     │
+              │  - Valid format?     │
               │  - Inside worktree? │
-              │  - Not system dir?  │
               │  - Not .git/?       │
               └──────────┬──────────┘
                          │
                     ┌────┴────┐
-                    │ PASS?   │
+                    │ Issues? │
                     └────┬────┘
-                   yes   │   no → reject + feedback
-                         ▼
-              ┌─────────────────────┐
-              │  Host Executor      │ ← run real command
-              │  (cmd.exe / bash)   │
-              └─────────────────────┘
+              yes        │        no
+               ▼         │         ▼
+    ┌──────────────┐     │   ┌──────────────┐
+    │ Return report│     │   │ Execute cmd  │
+    │ to agent     │     │   │ (host shell) │
+    │ (agent fixes)│     │   └──────────────┘
+    └──────────────┘     │
+                         │
+         Agent retries   │
+         with fixed cmd  │
 ```
+
+## Key Principle: Feedback, Not Blocking
+
+The validator produces a structured report:
+```
+⚠ Path issues detected:
+  1. D:\D:\zPython\cache — invalid: double drive letter
+  2. /tmp/build — outside worktree (use external_directory permission)
+  
+Suggested fix: rm -rf D:\zPython\cache
+```
+
+The agent sees this report as tool output and can retry with corrected paths. This is:
+- **Safer** than silent blocking (agent learns from mistakes)
+- **Faster** than WASM sandbox for every command (only validate paths, not execute)
+- **Simpler** to implement (no WASM compilation needed initially)
 
 ## Implementation Phases
 
-### Phase 1: Path Extraction WASM Module
-**What:** Compile a C/Rust module to WASM that extracts file paths from command strings.
-**Why:** tree-sitter already parses commands in-process. We need a fast, sandboxed path validator.
-**Output:** `path_validator.wasm` — takes command string + allowed roots, returns pass/fail + violations.
+### Phase 1: Simple Path Validator (no WASM, pure TypeScript)
+**What:** Add `validatePaths()` to bash.ts that checks extracted paths before execution.
+**Checks:** Path format, existence, worktree boundary, system dirs.
+**Output:** Warning string appended to tool output if issues found.
+**No WASM yet** — just regex + fs checks.
 
-### Phase 2: Integration with bash.ts
-**What:** Call the WASM validator in `bash.ts` before `cmd()` execution.
-**Why:** Currently bash.ts uses tree-sitter + regex for path extraction. WASM sandbox adds deterministic validation.
+### Phase 2: WASM Path Validator
+**What:** Compile path validation to WASM for deterministic, sandboxed checking.
+**Why:** TypeScript validator can be bypassed; WASM is tamper-proof.
+**Distribution:** `packages/wasm/core/pkg/path_validator.wasm`
+
+### Phase 3: Configurable Rules
+**What:** Validation rules in config (allowed roots, blocked patterns, etc.).
+
+## Acceptance Criteria
+
+- [ ] Agent receives clear feedback when paths have issues
+- [ ] Agent can self-correct based on feedback
+- [ ] No performance overhead > 10ms per validation
+- [ ] Works on Windows (D:\ paths) and Linux (/ paths)
+- [ ] Integration with existing permission system Currently bash.ts uses tree-sitter + regex for path extraction. WASM sandbox adds deterministic validation.
 **Where:** `src/tool/bash.ts` — before the `cmd()` call.
 
 ### Phase 3: Configurable Rules

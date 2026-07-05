@@ -386,6 +386,41 @@ export const BashTool = Tool.define(
       return yield* resolvePath(next, cwd, shell)
     })
 
+    const validatePaths = Effect.fn("BashTool.validatePaths")(function* (
+      paths: string[],
+      worktree: string,
+    ) {
+      const issues: string[] = []
+      for (const p of paths) {
+        // Double drive letter: D:\D:\path
+        if (/^[A-Za-z]:[\\\/][A-Za-z]:/.test(p)) {
+          issues.push(`"${p}" — invalid: double drive letter`)
+          continue
+        }
+        // System directories
+        if (/^(C:\\Windows|\/etc|\/usr|\/bin|\/sbin|\/var|\/root)(\\|\/|$)/i.test(p)) {
+          issues.push(`"${p}" — blocked: system directory`)
+          continue
+        }
+        // .git directory mutations
+        if (/[\\/]\.git([\\/]|$)/.test(p)) {
+          issues.push(`"${p}" — blocked: .git directory`)
+          continue
+        }
+        // Path doesn't exist (for non-glob paths)
+        if (!p.includes("*") && !p.includes("?")) {
+          try {
+            const resolved = path.isAbsolute(p) ? p : path.resolve(worktree, p)
+            if (!require("fs").existsSync(resolved)) {
+              issues.push(`"${p}" — path does not exist`)
+            }
+          } catch {}
+        }
+      }
+      if (issues.length === 0) return undefined
+      return `⚠ Path issues detected:\n${issues.map((i, n) => `  ${n + 1}. ${i}`).join("\n")}`
+    })
+
     const collect = Effect.fn("BashTool.collect")(function* (root: Node, cwd: string, ps: boolean, shell: string) {
       const scan: Scan = {
         dirs: new Set<string>(),
@@ -641,6 +676,11 @@ export const BashTool = Tool.define(
               const root = yield* parse(params.command, ps)
               const scan = yield* collect(root, cwd, ps, shell)
               if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
+
+              // Validate paths before execution — inform agent of issues
+              const allPaths = Array.from(scan.dirs)
+              const pathWarnings = yield* validatePaths(allPaths, Instance.worktree)
+
               yield* ask(ctx, scan)
 
               // Background mode: fork into JobManager, return immediately
@@ -672,7 +712,7 @@ export const BashTool = Tool.define(
                 } as any
               }
 
-              return yield* run(
+              const result = yield* run(
                 {
                   shell,
                   command: params.command,
@@ -683,6 +723,13 @@ export const BashTool = Tool.define(
                 },
                 ctx,
               )
+
+              // Prepend path validation warnings to output
+              if (pathWarnings) {
+                result.output = `${pathWarnings}\n\n${result.output}`
+              }
+
+              return result
             }),
         }
       })

@@ -281,8 +281,9 @@ export const layer = Layer.effect(
                   if (seen.has(file)) continue
                   seen.add(file)
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
-                  log.info("reverting", { file: rel, from: item.hash })
-                  const result = yield* fossil(["revert", rel, "-r", item.hash], { cwd: worktree })
+                  const resolvedHash = yield* resolveHash(item.hash)
+                  log.info("reverting", { file: rel, from: resolvedHash })
+                  const result = yield* fossil(["revert", rel, "-r", resolvedHash], { cwd: worktree })
                   if (result.code !== 0) {
                     log.info("file not in snapshot, attempting delete", { file: rel })
                     yield* fs.remove(file).pipe(Effect.catch(() => Effect.void))
@@ -302,10 +303,29 @@ export const layer = Layer.effect(
           return yield* locked(
             Effect.gen(function* () {
               yield* ensureInit()
-              const result = yield* fossil(["diff", "--from", hash], { cwd: worktree })
+              const resolved = yield* resolveHash(hash)
+              const result = yield* fossil(["diff", "--from", resolved], { cwd: worktree })
               return result.code === 0 ? result.text.trim() : ""
             }).pipe(Effect.orDie),
           )
+        })
+
+        const getEarliestCommit = Effect.fnUntraced(function* () {
+          const result = yield* fossil(
+            ["--ignore-working-copy", "log", "--no-graph", "--limit", "1", "--template", "commit_id", "--reverse"],
+            { cwd: worktree },
+          )
+          return result.code === 0 ? result.text.trim().split("\n")[0]?.trim() : undefined
+        })
+
+        const resolveHash = Effect.fnUntraced(function* (hash: string) {
+          // Check if hash exists in fossil repo
+          const check = yield* fossil(["--ignore-working-copy", "info", hash], { cwd: worktree })
+          if (check.code === 0) return hash
+          // Hash not found (e.g. old git hash) — fallback to earliest fossil commit
+          const earliest = yield* getEarliestCommit()
+          log.warn("hash not found in fossil, using earliest", { hash, fallback: earliest })
+          return earliest ?? hash
         })
 
         const diffFull = Effect.fnUntraced(function* (from: string, to: string) {
@@ -313,14 +333,18 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               yield* ensureInit()
 
+              // Resolve hashes — fallback for old git hashes
+              const resolvedFrom = yield* resolveHash(from)
+              const resolvedTo = yield* resolveHash(to)
+
               // Get numstat (insertions/deletions per file)
-              const statusResult = yield* fossil(["diff", "--from", from, "--to", to, "-s"], {
+              const statusResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "-s"], {
                 cwd: worktree,
               })
               if (statusResult.code !== 0) return []
 
               // Get brief status (ADDED/DELETED/EDITED/CHANGED per file)
-              const briefResult = yield* fossil(["diff", "--from", from, "--to", to, "--brief"], {
+              const briefResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief"], {
                 cwd: worktree,
               })
               const statusMap = new Map<string, "added" | "deleted" | "modified">()

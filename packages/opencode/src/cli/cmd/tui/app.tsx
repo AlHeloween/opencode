@@ -36,7 +36,7 @@ import { useConnected } from "@tui/component/use-connected"
 import { DialogMcp } from "@tui/component/dialog-mcp"
 import { DialogPipeline } from "@tui/component/dialog-pipeline"
 import { DialogStatus } from "@tui/component/dialog-status"
-import { DialogNavigation } from "@tui/component/dialog-navigation"
+import { DialogPermissions } from "@tui/component/dialog-navigation"
 import { DialogThemeList } from "@tui/component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
@@ -626,14 +626,14 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       category: "System",
     },
     {
-      title: "Directory navigation",
+      title: "Permissions",
       keybind: "navigation_settings",
       value: "navigation.settings",
       slash: {
-        name: "dirs",
+        name: "permissions",
       },
       onSelect: () => {
-        dialog.replace(() => <DialogNavigation />)
+        dialog.replace(() => <DialogPermissions />)
       },
       category: "System",
     },

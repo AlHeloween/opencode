@@ -311,11 +311,15 @@ export const layer = Layer.effect(
         })
 
         const getEarliestCommit = Effect.fnUntraced(function* () {
+          // fossil uses "timeline" not "log"; --reverse with limit 1 gives earliest commit
           const result = yield* fossil(
-            ["log", "--no-graph", "--limit", "1", "--template", "commit_id", "--reverse"],
+            ["timeline", "--limit", "1", "--format", "%H", "--reverse"],
             { cwd: worktree },
           )
-          return result.code === 0 ? result.text.trim().split("\n")[0]?.trim() : undefined
+          if (result.code !== 0) return undefined
+          const hash = result.text.trim().split("\n")[0]?.trim()
+          // fossil may return 64-char SHA3-256 or 40-char; either works with fossil commands
+          return hash?.slice(0, 40) || undefined
         })
 
         const resolveHash = Effect.fnUntraced(function* (hash: string) {

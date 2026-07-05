@@ -91,6 +91,7 @@ interface ProcessorContext extends Input {
   streamStartTime: number | undefined
   firstTokenLogged: boolean
   hasWriteToolCall: boolean
+  changedFiles: Set<string>
 }
 
 type StreamEvent = Event
@@ -196,6 +197,7 @@ export const layer: Layer.Layer<
         streamStartTime: undefined,
         firstTokenLogged: false,
         hasWriteToolCall: false,
+        changedFiles: new Set<string>(),
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
@@ -293,6 +295,9 @@ export const layer: Layer.Layer<
             attachments: output.attachments,
           },
         })
+        // Track changed files for snapshot
+        const filediff = output.metadata?.filediff as { file?: string } | undefined
+        if (filediff?.file) ctx.changedFiles.add(filediff.file)
         yield* settleToolCall(toolCallID)
       })
 
@@ -568,7 +573,7 @@ export const layer: Layer.Layer<
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: ctx.hasWriteToolCall ? yield* snapshot.track() : ctx.snapshot,
+              snapshot: ctx.hasWriteToolCall ? yield* snapshot.track([...ctx.changedFiles]) : ctx.snapshot,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",

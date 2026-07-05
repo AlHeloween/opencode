@@ -24,6 +24,7 @@ import { Spinner } from "@tui/component/spinner"
 import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
+import { renderMermaidToText } from "@/util/mermaid"
 import type {
   AssistantMessage,
   Part,
@@ -1682,16 +1683,30 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
 
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
   const ctx = use()
-  const { theme, syntax } = useTheme()
+  const { theme, syntax, mode } = useTheme()
+
+  // Pre-process text to render Mermaid code blocks as ASCII
+  const processedText = createMemo(() => {
+    const text = props.part.text.trim()
+    // Detect mermaid code blocks and render them
+    return text.replace(/```mermaid\n([\s\S]*?)```/g, (match, code) => {
+      try {
+        const rendered = renderMermaidToText(code.trim(), { theme: mode() === "dark" ? "dark" : "default" })
+        if (rendered) return rendered
+      } catch {}
+      return match // fallback to original
+    })
+  })
+
   return (
-    <Show when={props.part.text.trim()}>
+    <Show when={processedText()}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
         <Switch>
           <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
             <markdown
               syntaxStyle={syntax()}
               streaming={true}
-              content={props.part.text.trim()}
+              content={processedText()}
               conceal={ctx.conceal()}
               fg={theme.markdownText}
               bg={theme.background}
@@ -1703,7 +1718,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
               drawUnstyledText={false}
               streaming={true}
               syntaxStyle={syntax()}
-              content={props.part.text.trim()}
+              content={processedText()}
               conceal={ctx.conceal()}
               fg={theme.text}
             />

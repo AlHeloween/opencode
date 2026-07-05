@@ -1685,12 +1685,12 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   const ctx = use()
   const { theme, syntax, mode } = useTheme()
 
-  // Pre-process text to render Mermaid code blocks as ASCII
   const [processedText, setProcessedText] = createSignal(props.part.text.trim())
 
-  // Detect and render mermaid code blocks asynchronously
   onMount(async () => {
     const text = props.part.text.trim()
+    if (!text.includes("```mermaid")) return
+
     const mermaidRegex = /```mermaid\n([\s\S]*?)```/g
     let match: RegExpExecArray | null
     let result = text
@@ -1699,18 +1699,16 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
     while ((match = mermaidRegex.exec(text)) !== null) {
       hasMermaid = true
       try {
-        const rendered = await renderMermaidToText(match[1].trim(), { theme: mode() === "dark" ? "dark" : "default" })
-        if (rendered) {
-          result = result.replace(match[0], rendered)
-        }
+        const rendered = await renderMermaidToText(match[1].trim(), {
+          theme: mode() === "dark" ? "dark" : "default",
+        })
+        if (rendered) result = result.replace(match[0], rendered)
       } catch {
         // keep original code block on error
       }
     }
 
-    if (hasMermaid) {
-      setProcessedText(result)
-    }
+    if (hasMermaid) setProcessedText(result)
   })
 
   return (

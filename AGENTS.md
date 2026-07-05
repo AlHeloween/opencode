@@ -191,6 +191,34 @@ const table = sqliteTable("session", {
 - To restore: copy the `.bak` file over the original file (no git, no adm needed).
 - Each session keeps up to 50 backups; oldest are deleted first.
 
+## Fossil Snapshot System
+
+Real-time working copy tracking with undo/redo and session-level rollback. See `plans/fossil-snapshot-system.md` for full documentation.
+
+**Key points:**
+- **Backend**: Fossil SCM (single `.fsl` file, 20+ years stable, portable)
+- **Repo location**: `{data}/fossil/{projectID}/snapshot.fsl`
+- **Binary**: `external/fossil/fossil.exe` (v2.28)
+- **No colocated mode** — Fossil must NOT share `.git` with the project
+- **Self-healing initialization** — if `.fsl` or data deleted, auto-recreate
+- **`.gitignore` respected** — translated to Fossil `ignore-glob` patterns
+- **Performance safe** — no scanning 5000+ files per operation
+
+**Key functions:**
+- `track(files?)` — Creates snapshot of current working copy
+- `diffFull(from, to)` — Returns file-level diffs between two commits
+- `restore(hash)` — Restores working copy to specific commit
+
+**Integration:**
+- Session processor tracks changed files from tool results
+- Summary system computes diffs for "Modified Files" display
+- TUI indicator shows fossil (green `●`) / jj (blue) / git (red)
+
+**Troubleshooting:**
+- If "Modified Files" shows 0 diffs, check logs for `resolveHash` fallback warnings
+- Ensure `fossil info <hash>` works for stored hashes
+- Verify `fossil timeline` returns commits
+
 ## opencode paths
 
 - opencode is fully portable — all data lives under `{worktree}/.opencode/data/` (gitignored). Config and auth files live next to the executable.

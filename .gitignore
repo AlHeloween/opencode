@@ -72,3 +72,4 @@ external/
 # Fossil
 *.fsl
 .fossil-settings/
+"_FOSSIL_"  

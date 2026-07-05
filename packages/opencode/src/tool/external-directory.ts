@@ -28,8 +28,8 @@ export const assertExternalDirectoryEffect = Effect.fn("Tool.assertExternalDirec
 
   const kind = options?.kind ?? "file"
   const dir = kind === "directory" ? full : path.dirname(full)
-  // Always use forward slashes in permission patterns for cross-platform matching
-  const glob = path.join(dir, "*").replaceAll("\\", "/")
+  // Use native separators for paths — Wildcard.match normalizes \ → / during comparison
+  const glob = path.join(dir, "*")
 
   yield* ctx.ask({
     permission: "external_directory",

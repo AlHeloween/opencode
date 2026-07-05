@@ -275,10 +275,7 @@ const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolea
 
 const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan) {
   if (scan.dirs.size > 0) {
-    const globs = Array.from(scan.dirs).map((dir) => {
-      if (process.platform === "win32") return AppFileSystem.normalizePathPattern(path.join(dir, "*"))
-      return path.join(dir, "*")
-    })
+    const globs = Array.from(scan.dirs).map((dir) => path.join(dir, "*"))
     yield* ctx.ask({
       permission: "external_directory",
       patterns: globs,

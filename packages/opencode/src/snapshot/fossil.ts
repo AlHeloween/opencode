@@ -174,7 +174,7 @@ export const layer = Layer.effect(
               if (!(yield* enabled())) return undefined
               yield* ensureInit()
 
-              // Add explicitly provided files
+              // Add explicitly provided files (new files from write tool)
               if (files?.length) {
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
@@ -184,25 +184,11 @@ export const layer = Layer.effect(
                 }
               }
 
-              // Auto-detect changed tracked files and commit them
-              const changes = yield* fossil(["changes", "--differ"], { cwd: worktree })
-              if (changes.code === 0 && changes.text.trim()) {
-                // "EDITED a.txt\nEDITED b.txt" → extract filenames
-                const changedFiles = changes.text.trim().split("\n")
-                  .map((l) => l.replace(/^[A-Z]+\s+/, "").trim())
-                  .filter(Boolean)
-                if (changedFiles.length) {
-                  yield* fossil(["add", ...changedFiles], { cwd: worktree }).pipe(
-                    Effect.catch(() => Effect.void),
-                  )
-                }
-              }
-
               // Get current version before commit
               const before = yield* fossil(["info", "current"], { cwd: worktree })
               const beforeHash = before.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim() ?? ""
 
-              // Commit snapshot
+              // Commit only already-tracked changes (don't add new untracked files)
               const commitResult = yield* fossil(["commit", "-m", "auto-snapshot", "--no-warnings"], {
                 cwd: worktree,
               })

@@ -17,19 +17,21 @@ When a model is forced to print its doubts, confidence levels, and decomposition
 Markers are not decoration — they are a chain of confidence degradation. Each level is one step removed from direct evidence:
 
 ```
-Exact → Inferred → Hypothetical → Guess → Unknown → Hallucination
+Exact → Inferred → | → Hypothetical → Guess → | → Unknown
+ факт    логика    |    "а что если"   фантастика |    бред
+                   |                            |
+              граница факта                 граница смысла
 ```
 
 | Marker | Weight | Basis | Action |
 |--------|--------|-------|--------|
 | `[Exact]` | 10x | Direct observation (terminal output, test result, file read) | Trust, proceed |
 | `[Inferred]` | 7x | Logical chain from Exact facts | Trust if chain is sound |
-| `[Hypothetical]` | 4x | Logical chain from Inferred conclusions | Verify before anchoring |
-| `[Guess]` | 2x | Chain from Hypothetical reasoning | **Stop, research** |
-| `[Unknown]` | 1x | No data beyond this point | **Stop, find data** |
-| Hallucination | 0x | Beyond Unknown — model is inventing | **Never reach this** |
+| `[Hypothetical]` | 4x | "What if" reasoning — useful for exploration, not grounded in fact | Verify before anchoring |
+| `[Guess]` | 2x | Building on Hypothetical — creative but not factual | **Stop, research** |
+| `[Unknown]` | 1x | Beyond meaning — model is babbling | **Stop, find data** |
 
-Unknown is the boundary. Beyond it, the model generates plausible-sounding but ungrounded text. The gated workflow forces the model to stop at Unknown rather than crossing into hallucination.
+The boundary between grounded reasoning and invention is between **Inferred** and **Hypothetical**. Inferred is the last level where the model relies on facts. Hypothetical is "what if the Earth was flat" — sometimes useful for exploration, but not a fact. Unknown is beyond meaning entirely.
 
 ### k-Medoids vs k-Means
 

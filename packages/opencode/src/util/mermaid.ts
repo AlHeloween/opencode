@@ -22,7 +22,7 @@ export function renderMermaidToSvg(source: string, options?: MermaidRenderOption
     if (options?.theme) return renderSvgWithConfig(source, undefined, options.theme)
     return renderSvg(source)
   } catch (error) {
-    log.debug("WASM mermaid render failed", { error: String(error) })
+    log.warn("WASM mermaid render failed", { error: String(error) })
     return null
   }
 }
@@ -58,7 +58,7 @@ export async function renderSvgToText(svg: string): Promise<string | null> {
 
     return ansi
   } catch (error) {
-    log.debug("chafa-wasm render failed", { error: String(error) })
+    log.warn("chafa-wasm render failed", { error: String(error) })
     return null
   }
 }

@@ -8,6 +8,7 @@ Use this tool when you need to find files by name patterns. Use Grep when search
 |-----------|------|---------|-------------|
 | `pattern` | string | — | Glob pattern to match (e.g., `**/*.ts`) |
 | `path` | string | workspace root | Directory to search in |
+| `noIgnore` | boolean | false | When true, bypasses .gitignore — returns files from node_modules, logs, .opencode/data, and other ignored paths |
 
 ## Limits
 

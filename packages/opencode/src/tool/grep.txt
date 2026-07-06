@@ -17,6 +17,7 @@ Use this tool when searching file contents for specific patterns. Use Glob when 
 | `pattern` | string | — | Regex pattern to search for in file contents |
 | `path` | string | workspace root | Directory to search in |
 | `include` | string | — | File glob to filter results (e.g., `*.ts`, `*.{js,jsx}`) |
+| `noIgnore` | boolean | false | When true, bypasses .gitignore — searches node_modules, logs, .opencode/data, and other ignored paths |
 
 ## Output
 

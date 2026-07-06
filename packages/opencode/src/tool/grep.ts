@@ -44,6 +44,9 @@ export const Parameters = Schema.Struct({
   include: Schema.optional(Schema.String).annotate({
     description: 'File pattern to include in the search (e.g. "*.js", "*.{ts,tsx}")',
   }),
+  noIgnore: Schema.optional(Schema.Boolean).annotate({
+    description: "When true, ignores .gitignore and searches all files including node_modules, logs, and .opencode/data. Use this to search dependency code or runtime data. Default: false.",
+  }),
 })
 
 export const GrepTool = Tool.define(
@@ -55,7 +58,7 @@ export const GrepTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { pattern: string; path?: string; include?: string }, ctx: Tool.Context) =>
+      execute: (params: { pattern: string; path?: string; include?: string; noIgnore?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           if (!params.pattern) {
             throw new Error("pattern is required")
@@ -100,6 +103,7 @@ export const GrepTool = Tool.define(
             glob: params.include ? [params.include] : undefined,
             file,
             signal: ctx.abort,
+            noIgnore: params.noIgnore,
           })
           if (result.items.length === 0) return empty
 

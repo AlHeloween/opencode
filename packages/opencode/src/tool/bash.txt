@@ -64,6 +64,13 @@ Usage notes:
 
 Both bash and PowerShell are supported. The shell is auto-detected from the system (`${os}` / `${shell}`). PowerShell commands should use PowerShell syntax; bash commands should use bash syntax.
 
+**When shell is `cmd` (Windows default):** Use Windows command syntax:
+- `dir` (not `ls`), `type` (not `cat`), `copy` (not `cp`), `move` (not `mv`), `set` (not `export`)
+- Chain with `&&`. Pipe with `|`. Redirect with `>` and `2>&1`.
+- `nul` for null device (not `/dev/null`).
+- Quote paths with double quotes: `dir "C:\path with spaces"`
+- DO NOT use `rg`, `fd`, `grep`, `head`, `tail`, `sed`, `awk` in cmd — use the dedicated tools instead.
+
 # Committing changes with git
 
 Only create commits when requested by the user. If unclear, ask first. When the user asks you to create a new git commit, follow these steps carefully:

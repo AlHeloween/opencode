@@ -13,6 +13,9 @@ export const Parameters = Schema.Struct({
   path: Schema.optional(Schema.String).annotate({
     description: `The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior. Must be a valid directory path if provided.`,
   }),
+  noIgnore: Schema.optional(Schema.Boolean).annotate({
+    description: "When true, ignores .gitignore and lists all matching files including those in node_modules, logs, and .opencode/data. Default: false.",
+  }),
 })
 
 export const GlobTool = Tool.define(
@@ -24,7 +27,7 @@ export const GlobTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { pattern: string; path?: string }, ctx: Tool.Context) =>
+      execute: (params: { pattern: string; path?: string; noIgnore?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
           yield* ctx.ask({
@@ -47,7 +50,7 @@ export const GlobTool = Tool.define(
 
           const limit = 100
           let truncated = false
-          const files = yield* rg.files({ cwd: search, glob: [params.pattern], signal: ctx.abort }).pipe(
+          const files = yield* rg.files({ cwd: search, glob: [params.pattern], signal: ctx.abort, noIgnore: params.noIgnore }).pipe(
             Stream.mapEffect((file) =>
               Effect.gen(function* () {
                 const full = path.resolve(search, file)

@@ -266,12 +266,14 @@ Real-time working copy tracking with undo/redo and session-level rollback. See `
 
 ## Searching in Gitignored Directories
 
-- The `glob` and `list` tools are bounded by `.gitignore` — they will not return results from `logs/`, `.opencode/data/`, `node_modules/`, or other ignored paths.
-- To search gitignored directories (logs, runtime data), use `rg -nu` (ripgrep with `--no-ignore`) via the Bash tool:
-  ```bash
-  rg -nu 'error|ERROR|bug:' .opencode/data/log
-  rg -nu '' .opencode/data/log | head -50
+- The `glob`, `grep`, and `list` tools are bounded by `.gitignore` — they will not return results from `logs/`, `.opencode/data/`, `node_modules/`, or other ignored paths.
+- To search gitignored directories (logs, runtime data, dependencies), pass `noIgnore: true` to `grep` or `glob`:
   ```
+  grep("pattern", { noIgnore: true })
+  glob("**/opentui/**", { noIgnore: true })
+  ```
+- The `list` tool does not support `noIgnore` — use `glob` with `noIgnore: true` instead.
+- For logs specifically: `rg -nu 'error|ERROR|bug:' .opencode/data/log` via the Bash tool (on Unix) or `run` tool (`run({ binary: "rg", args: ["-nu", "pattern", "path"] })`) on any platform.
 
 ## Type Checking
 
@@ -326,6 +328,7 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 ## Dependency Notes
 
 - **Desktop TypeScript version** (`packages/desktop/`, `packages/desktop-electron/`): Both pin `typescript@~5.6.2` while the rest of the monorepo uses `5.8.2` (via root catalog). This is intentional — Tauri Specta bindings and Electron tooling have known compatibility constraints with TS 5.8. Do not upgrade these packages without verifying Tauri/Electron builds.
+- **@opentui vs @opencode-ai/ui**: `@opentui/core` and `@opentui/solid` (catalog: `0.1.105`) are **external** dependencies installed in `node_modules/@opentui/`. The monorepo's own UI library is `@opencode-ai/ui` in `packages/ui/`. To search `@opentui` source, use `glob("**/opentui/**", { noIgnore: true })`.
 
 ## Completed Research
 

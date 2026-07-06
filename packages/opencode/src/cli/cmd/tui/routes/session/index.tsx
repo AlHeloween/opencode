@@ -1688,7 +1688,8 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   const [mermaidText, setMermaidText] = createSignal<string | null>(null)
   const processedText = createMemo(() => mermaidText() ?? props.part.text.trim())
 
-  onMount(async () => {
+  // Watch for mermaid blocks and render when detected
+  createEffect(() => {
     const text = props.part.text.trim()
     if (!text.includes("```mermaid")) return
 
@@ -1700,16 +1701,17 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
     while ((match = mermaidRegex.exec(text)) !== null) {
       hasMermaid = true
       try {
-        const rendered = await renderMermaidToText(match[1].trim(), {
+        renderMermaidToText(match[1].trim(), {
           theme: mode() === "dark" ? "dark" : "default",
+        }).then((rendered) => {
+          if (rendered) setMermaidText(result.replace(match![0], rendered))
+        }).catch(() => {
+          // keep original code block on error
         })
-        if (rendered) result = result.replace(match[0], rendered)
       } catch {
         // keep original code block on error
       }
     }
-
-    if (hasMermaid) setMermaidText(result)
   })
 
   return (

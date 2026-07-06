@@ -14,17 +14,22 @@ When a model is forced to print its doubts, confidence levels, and decomposition
 
 ### Epistemic Markers as Actionable Signals
 
-Markers are not decoration — they are decision gates:
+Markers are not decoration — they are a chain of confidence degradation. Each level is one step removed from direct evidence:
 
-| Marker | Weight | Meaning | Action |
-|--------|--------|---------|--------|
-| `[Exact]` | 10x | Verified via direct observation | Trust, proceed |
-| `[Inferred]` | 7x | Reasoned from Exact data | Trust if chain is sound |
-| `[Hypothetical]` | 4x | Balanced, needs validation | Verify before anchoring |
-| `[Guess]` | 2x | Speculation, weak signal | **Stop, research** |
-| `[Unknown]` | 1x | No data | **Stop, find data** |
+```
+Exact → Inferred → Hypothetical → Guess → Unknown → Hallucination
+```
 
-When a model outputs `[Guess]` or `[Unknown]`, the correct action is to pause and research the fact — not to proceed with hallucinated confidence. This turns model uncertainty from a bug into a feature.
+| Marker | Weight | Basis | Action |
+|--------|--------|-------|--------|
+| `[Exact]` | 10x | Direct observation (terminal output, test result, file read) | Trust, proceed |
+| `[Inferred]` | 7x | Logical chain from Exact facts | Trust if chain is sound |
+| `[Hypothetical]` | 4x | Logical chain from Inferred conclusions | Verify before anchoring |
+| `[Guess]` | 2x | Chain from Hypothetical reasoning | **Stop, research** |
+| `[Unknown]` | 1x | No data beyond this point | **Stop, find data** |
+| Hallucination | 0x | Beyond Unknown — model is inventing | **Never reach this** |
+
+Unknown is the boundary. Beyond it, the model generates plausible-sounding but ungrounded text. The gated workflow forces the model to stop at Unknown rather than crossing into hallucination.
 
 ### k-Medoids vs k-Means
 

@@ -294,14 +294,18 @@ const live: Layer.Layer<
         },
       )
 
-      // Log output token budget for diagnostics
-      const maxOut = ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens)
+      // For reasoning models, max_tokens includes both reasoning and output tokens.
+      // Reasoning can consume 50-80% of the budget, so we need to account for that.
+      const rawMaxOutput = ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens)
+      const maxOut = input.model.capabilities.reasoning ? Math.min(rawMaxOutput * 3, input.model.limit.output || rawMaxOutput * 3) : rawMaxOutput
       log.info("output token budget", {
         model: input.model.id,
         provider: input.model.providerID,
         limitOutput: input.model.limit.output,
         contentTokens,
+        rawMaxOutput: rawMaxOutput,
         maxOutputTokens: maxOut,
+        reasoning: input.model.capabilities.reasoning,
       })
 
       const { headers } = yield* plugin.trigger(
@@ -512,7 +516,7 @@ const live: Layer.Layer<
         activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
         tools,
         toolChoice: input.toolChoice,
-        maxOutputTokens: params.maxOutputTokens,
+        maxOutputTokens: maxOut,
         abortSignal: input.abort,
         ...(isOpenaiOauth || isWorkflow
           ? {}

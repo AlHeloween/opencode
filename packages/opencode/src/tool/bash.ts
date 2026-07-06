@@ -300,7 +300,7 @@ function normalizeCommandPaths(command: string): string {
 }
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
-  const stripped = stripCommand(command, shell)
+  const { command: stripped, message: stripMessage } = stripCommand(command, shell)
   const normalized = process.platform === "win32" ? normalizeCommandPaths(stripped) : stripped
   if (process.platform === "win32" && Shell.ps(shell)) {
     return ChildProcess.make(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", normalized], {

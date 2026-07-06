@@ -1232,42 +1232,42 @@ describe("tool.bash truncation", () => {
 
   describe("tool.bash stripCommand", () => {
     test("strips >/dev/null redirects", () => {
-      expect(stripCommand("echo hello >/dev/null", "bash")).toBe("echo hello")
-      expect(stripCommand("cat file 2>/dev/null", "bash")).toBe("cat file")
-      expect(stripCommand("ls -la 1>/dev/null", "bash")).toBe("ls -la")
+      expect(stripCommand("echo hello >/dev/null", "bash").command).toBe("echo hello")
+      expect(stripCommand("cat file 2>/dev/null", "bash").command).toBe("cat file")
+      expect(stripCommand("ls -la 1>/dev/null", "bash").command).toBe("ls -la")
     })
 
     test("strips >nul redirects (cmd)", () => {
-      expect(stripCommand("echo hello >nul", "cmd")).toBe("echo hello")
-      expect(stripCommand("dir 2>nul", "cmd")).toBe("dir")
-      expect(stripCommand("type file.txt 1>nul", "cmd")).toBe("type file.txt")
+      expect(stripCommand("echo hello >nul", "cmd").command).toBe("echo hello")
+      expect(stripCommand("dir 2>nul", "cmd").command).toBe("dir")
+      expect(stripCommand("type file.txt 1>nul", "cmd").command).toBe("type file.txt")
     })
 
     test("strips >$null redirects (PowerShell)", () => {
-      expect(stripCommand("echo hello >$null", "pwsh")).toBe("echo hello")
-      expect(stripCommand("Get-ChildItem 2>$null", "pwsh")).toBe("Get-ChildItem")
-      expect(stripCommand("ls 1>$null", "pwsh")).toBe("ls")
+      expect(stripCommand("echo hello >$null", "pwsh").command).toBe("echo hello")
+      expect(stripCommand("Get-ChildItem 2>$null", "pwsh").command).toBe("Get-ChildItem")
+      expect(stripCommand("ls 1>$null", "pwsh").command).toBe("ls")
     })
 
     test("strips | Out-Null pipes (PowerShell)", () => {
-      expect(stripCommand("echo hello | Out-Null", "pwsh")).toBe("echo hello")
-      expect(stripCommand("Get-Process | Out-Null", "pwsh")).toBe("Get-Process")
+      expect(stripCommand("echo hello | Out-Null", "pwsh").command).toBe("echo hello")
+      expect(stripCommand("Get-Process | Out-Null", "pwsh").command).toBe("Get-Process")
     })
 
     test("strips combined redirects", () => {
-      expect(stripCommand("cmd >/dev/null 2>&1", "bash")).toBe("cmd 2>&1")
-      expect(stripCommand("cmd >nul 2>&1", "cmd")).toBe("cmd 2>&1")
+      expect(stripCommand("cmd >/dev/null 2>&1", "bash").command).toBe("cmd 2>&1")
+      expect(stripCommand("cmd >nul 2>&1", "cmd").command).toBe("cmd 2>&1")
     })
 
     test("does not modify commands without redirects", () => {
-      expect(stripCommand("echo hello world", "bash")).toBe("echo hello world")
-      expect(stripCommand("git status", "bash")).toBe("git status")
-      expect(stripCommand("npm install", "cmd")).toBe("npm install")
+      expect(stripCommand("echo hello world", "bash").command).toBe("echo hello world")
+      expect(stripCommand("git status", "bash").command).toBe("git status")
+      expect(stripCommand("npm install", "cmd").command).toBe("npm install")
     })
 
     test("preserves meaningful parts of command", () => {
-      expect(stripCommand("echo output > file.txt", "bash")).toBe("echo output > file.txt")
-      expect(stripCommand("cat /dev/null", "bash")).toBe("cat /dev/null")
+      expect(stripCommand("echo output > file.txt", "bash").command).toBe("echo output > file.txt")
+      expect(stripCommand("cat /dev/null", "bash").command).toBe("cat /dev/null")
     })
   })
 })

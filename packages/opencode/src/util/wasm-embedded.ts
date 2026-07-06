@@ -32,6 +32,7 @@ import treeSitterScalaWasm from "../../../wasm/core/pkg/grammars/tree-sitter-sca
 import treeSitterSwiftWasm from "../../../wasm/core/pkg/grammars/tree-sitter-swift.wasm" with { type: "file" }
 import treeSitterTomlWasm from "../../../wasm/core/pkg/grammars/tree-sitter-toml.wasm" with { type: "file" }
 import treeSitterYamlWasm from "../../../wasm/core/pkg/grammars/tree-sitter-yaml.wasm" with { type: "file" }
+import chafaWasm from "../../../wasm/core/pkg/chafa.wasm" with { type: "file" }
 
 const embeddedTreeSitterGrammarAssets = [
   ["grammars/tree-sitter-bash.wasm", treeSitterBashWasm],
@@ -71,6 +72,7 @@ const embeddedWasmAssets = new Map([
   ["json_repair/json_repair_bg.wasm", jsonRepairWasm as unknown as string],
   ["rdiff/rdiff_bg.wasm", rdiffWasm as unknown as string],
   ["tree-sitter.wasm", treeSitterRuntimeWasm],
+  ["chafa.wasm", chafaWasm],
   ...embeddedTreeSitterGrammarAssets,
 ])
 

@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index 0000000..0000001 100644
+--- a/package.json
++++ b/package.json
+@@ -32,6 +32,9 @@
+   "exports": {
+     ".": {
+       "types": "./dist/chafa.d.ts",
+       "default": "./dist/chafa.js"
+-    }
++    },
++    "./dist/chafa.wasm": "./dist/chafa.wasm"
+   },

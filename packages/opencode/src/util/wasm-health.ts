@@ -25,6 +25,7 @@ export async function checkWasmModules(): Promise<void> {
     initJsonRepair().then((ok) => ({ name: "json_repair", ok })),
     checkAsset("rdiff", "rdiff/rdiff_bg.wasm"),
     checkAsset("tree_sitter_runtime", "tree-sitter.wasm"),
+    checkAsset("chafa", "chafa.wasm"),
     ...embeddedTreeSitterGrammarAssetPaths.map((asset) =>
       checkAsset(asset.replace("grammars/tree-sitter-", "tree_sitter_").replace(".wasm", ""), asset),
     ),

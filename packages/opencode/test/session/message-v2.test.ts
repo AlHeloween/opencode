@@ -448,6 +448,110 @@ describe("session.message-v2.toModelMessage", () => {
     })
   })
 
+  test("preserves image tool-result media for openai-compatible models with image capabilities", async () => {
+    // Models that declare capabilities.input.image should keep image attachments
+    // in tool results regardless of the provider SDK.
+    const visionModel: Provider.Model = {
+      ...model,
+      id: ModelID.make("openai-compatible/vision-model"),
+      providerID: ProviderID.make("openai-compatible"),
+      api: {
+        id: "vision-model",
+        url: "https://api.example.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+      capabilities: {
+        ...model.capabilities,
+        input: {
+          ...model.capabilities.input,
+          image: true, // vision-capable model
+        },
+      },
+    }
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).toString("base64")
+    const userID = "m-user-vision"
+    const assistantID = "m-assistant-vision"
+    const input: MessageV2.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [
+          {
+            ...basePart(userID, "u1-vision"),
+            type: "text",
+            text: "describe this image",
+          },
+        ] as MessageV2.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID, undefined, {
+          providerID: visionModel.providerID,
+          modelID: visionModel.id,
+        }),
+        parts: [
+          {
+            ...basePart(assistantID, "a1-vision"),
+            type: "tool",
+            callID: "call-vision-1",
+            tool: "read",
+            state: {
+              status: "completed",
+              input: { filePath: "/tmp/screenshot.png" },
+              output: "Image loaded",
+              title: "Read",
+              metadata: {},
+              time: { start: 0, end: 1 },
+              attachments: [
+                {
+                  ...basePart(assistantID, "file-vision-1"),
+                  type: "file",
+                  mime: "image/png",
+                  filename: "screenshot.png",
+                  url: `data:image/png;base64,${png}`,
+                },
+              ],
+            },
+          },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    expect(await MessageV2.toModelMessages(input, visionModel)).toStrictEqual([
+      {
+        role: "user",
+        content: [{ type: "text", text: "describe this image" }],
+      },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-vision-1",
+            toolName: "read",
+            input: { filePath: "/tmp/screenshot.png" },
+            providerExecuted: undefined,
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call-vision-1",
+            toolName: "read",
+            output: {
+              type: "content",
+              value: [
+                { type: "text", text: "Image loaded" },
+                { type: "media" as any, mediaType: "image/png", data: png },
+              ],
+            },
+          },
+        ],
+      } as any,
+    ])
+  })
+
   test("omits provider metadata when assistant model differs", async () => {
     const userID = "m-user"
     const assistantID = "m-assistant"

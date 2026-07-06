@@ -445,12 +445,8 @@ export function topK(model: Provider.Model) {
   return undefined
 }
 
-export function systemPromptPrefix(model: Provider.Model) {
-  const id = model.id.toLowerCase()
-  if (id.includes("deepseek")) return PROMPT_REASONING
-  if (id.includes("claude")) return PROMPT_REASONING
-  if (id.includes("kat-coder")) return PROMPT_REASONING
-  return undefined
+export function systemPromptPrefix(_model: Provider.Model) {
+  return PROMPT_REASONING
 }
 
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]

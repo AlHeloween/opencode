@@ -80,6 +80,54 @@ describe("ProviderTransform.maxOutputTokens", () => {
       ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 8_192 }), undefined, 10_000),
     ).toBe(8_192)
   })
+
+  test("fallback path: uses dynamic without artificial floor when native token limit is zero", () => {
+    // Models with limit.output === 0 use the fallback path.
+    // Previously Math.max(dynamic, 8192) enforced an 8K floor — removed now.
+    // With 4K content: dynamic = 1K, OUTPUT_TOKEN_MAX = 32K, result = min(32K, 1K) = 1K
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 0 }), undefined, 4_000)).toBe(1_000)
+  })
+
+  test("fallback path: clamps at OUTPUT_TOKEN_MAX", () => {
+    // With 200K content: dynamic = 50K, result = min(32K, 50K) = 32K
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 0 }), undefined, 200_000)).toBe(32_000)
+  })
+})
+
+describe("ProviderTransform.systemPromptPrefix", () => {
+  const createModel = (id: string): Provider.Model => ({
+    id: ModelID.zod.parse(id),
+    providerID: ProviderID.zod.parse("test"),
+    api: {
+      id: id.split("/").pop()!,
+      url: "https://example.com",
+      npm: "@ai-sdk/openai-compatible",
+    },
+    name: id,
+    capabilities: {
+      temperature: true,
+      reasoning: false,
+      attachment: false,
+      toolcall: true,
+      input: { text: true, audio: false, image: false, video: false, pdf: false },
+      output: { text: true, audio: false, image: false, video: false, pdf: false },
+      interleaved: false,
+    },
+    cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+    limit: { context: 128_000, output: 8_192 },
+    status: "active",
+    options: {},
+    headers: {},
+    release_date: "2026-01-01",
+  })
+
+  test("returns PROMPT_REASONING for all models", () => {
+    expect(ProviderTransform.systemPromptPrefix(createModel("deepseek/deepseek-v4-pro"))).toBeString()
+    expect(ProviderTransform.systemPromptPrefix(createModel("anthropic/claude-sonnet-4"))).toBeString()
+    expect(ProviderTransform.systemPromptPrefix(createModel("openai/gpt-4"))).toBeString()
+    expect(ProviderTransform.systemPromptPrefix(createModel("google/gemini-2.0-flash"))).toBeString()
+    expect(ProviderTransform.systemPromptPrefix(createModel("nvidia/llama-3.3"))).toBeString()
+  })
 })
 
 describe("ProviderTransform.options - setCacheKey", () => {

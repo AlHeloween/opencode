@@ -1685,7 +1685,8 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   const ctx = use()
   const { theme, syntax, mode } = useTheme()
 
-  const [processedText, setProcessedText] = createSignal(props.part.text.trim())
+  const [mermaidText, setMermaidText] = createSignal<string | null>(null)
+  const processedText = createMemo(() => mermaidText() ?? props.part.text.trim())
 
   onMount(async () => {
     const text = props.part.text.trim()
@@ -1708,7 +1709,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
       }
     }
 
-    if (hasMermaid) setProcessedText(result)
+    if (hasMermaid) setMermaidText(result)
   })
 
   return (

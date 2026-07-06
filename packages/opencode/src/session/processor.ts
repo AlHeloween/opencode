@@ -322,7 +322,21 @@ export const layer: Layer.Layer<
             messageID: part.messageID,
             sessionID: part.sessionID,
           }
-          yield* failToolCall(value.id, "Tool calls are not available during summarization")
+          // Use "completed" with rejection metadata instead of "error" —
+          // compaction tool rejection is expected behavior, not an error.
+          // This allows the prompt loop to exit normally after summarization.
+          yield* session.updatePart({
+            ...part,
+            state: {
+              status: "completed",
+              input: {},
+              output: "Tool calls are not available during summarization",
+              title: value.toolName,
+              metadata: { compactionRejected: true },
+              time: { start: Date.now(), end: Date.now() },
+            },
+          } satisfies MessageV2.ToolPart)
+          yield* settleToolCall(value.id)
           return
         }
         const part = yield* session.updatePart({

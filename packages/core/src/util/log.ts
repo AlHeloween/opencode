@@ -3,6 +3,7 @@ import fs from "fs/promises"
 import { createWriteStream, mkdirSync, type WriteStream } from "fs"
 import { EOL } from "os"
 import * as Global from "../global"
+import { InstallationVersion } from "../installation/version"
 import z from "zod"
 
 export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
@@ -335,6 +336,7 @@ export function create(tags?: Record<string, any>) {
       message,
       model,
       session_id: sessionID,
+      version: InstallationVersion,
     }
     if (resolvedCaller) entry.caller = resolvedCaller
     if (tags && Object.keys(tags).length > 0) {

@@ -1307,9 +1307,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 instruction.system().pipe(Effect.orDie),
                 instruction.rules().pipe(Effect.orDie),
               ])
-              const cacheNamespace = lastUser.providerCacheKey ?? sessionID
-              const sessionIdBanner = `[session: ${cacheNamespace}]`
-              const system = [sessionIdBanner, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
+              const system = [...rules, ...env, ...(skills ? [skills] : []), ...instructions]
               const format = lastUser.format ?? { type: "text" as const }
               if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
@@ -1660,7 +1658,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 ])
             const system = checkpointUsable
               ? [...checkpointUsable.systemPrompt]
-              : [`[session: ${sessionID}]`, ...rules, ...env, ...(skills ? [skills] : []), ...instructions]
+              : [...rules, ...env, ...(skills ? [skills] : []), ...instructions]
             if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
             // Snapshot system before handle.process() may mutate it via plugin hook.

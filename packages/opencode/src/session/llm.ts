@@ -203,6 +203,10 @@ const live: Layer.Layer<
       }
       // Stable system prompt — always pushed. Dates go to user messages only.
       if (input.system.length > 0) system.push(input.system.join("\n"))
+      // Session banner — placed AFTER cached prefix so task-N changes
+      // don't invalidate the provider KV cache for the stable prefix.
+      const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
+      system.push(banner)
       // User system message (non-checkpoint only) — volatile, excluded from cache.
       if (!isCheckpoint && input.user.system) system.push(input.user.system)
 

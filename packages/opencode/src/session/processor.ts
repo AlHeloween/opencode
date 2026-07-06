@@ -534,6 +534,13 @@ export const layer: Layer.Layer<
               metadata: value.providerMetadata,
             })
             ctx.assistantMessage.finish = value.finishReason
+            log.info("finish-step", {
+              sessionID: ctx.sessionID,
+              modelID: ctx.model.id,
+              finishReason: value.finishReason,
+              inputTokens: usage.tokens.input,
+              outputTokens: usage.tokens.output,
+            })
             ctx.assistantMessage.cost += usage.cost
             ctx.assistantMessage.tokens = usage.tokens
             if (usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0) {

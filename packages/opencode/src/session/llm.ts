@@ -294,6 +294,16 @@ const live: Layer.Layer<
         },
       )
 
+      // Log output token budget for diagnostics
+      const maxOut = ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens)
+      log.info("output token budget", {
+        model: input.model.id,
+        provider: input.model.providerID,
+        limitOutput: input.model.limit.output,
+        contentTokens,
+        maxOutputTokens: maxOut,
+      })
+
       const { headers } = yield* plugin.trigger(
         "chat.headers",
         {

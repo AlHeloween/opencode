@@ -119,8 +119,49 @@ export async function createPatch(original: string, modified: string): Promise<s
       .filter((l) => !l.startsWith("\\ No newline"))
       .join("\n")
       .trimEnd() + "\n"
-    return trimmed
+    return recountHunks(trimmed)
   } catch (err) { Log.Default.warn("diff-wasm: createPatch ERROR: " + String(err)); return null }
+}
+
+/** Recalculate hunk header line counts after post-processing may have
+ *  added or removed lines from the hunk body (e.g. \\ No newline stripping).
+ *  Prevents "Hunk at line N contained invalid line" from npm diff parser. */
+function recountHunks(patchText: string): string {
+  const lines = patchText.split("\n")
+  const out: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]!
+    const headerMatch = line.match(/^@@ -(\d+),(\d+) \+(\d+),(\d+) @@(.*)$/)
+    if (!headerMatch) {
+      out.push(line)
+      i++
+      continue
+    }
+    const oldStart = parseInt(headerMatch[1]!, 10)
+    const newStart = parseInt(headerMatch[3]!, 10)
+    const trailer = headerMatch[5]!
+    // Count actual body lines and collect them for re-emission
+    const bodyLines: string[] = []
+    i++
+    while (i < lines.length) {
+      const bodyLine = lines[i]!
+      if (bodyLine === "") { i++; continue }
+      if (bodyLine.startsWith("@@") || bodyLine.startsWith("---") || bodyLine.startsWith("+++")) break
+      bodyLines.push(bodyLine)
+      i++
+    }
+    let oldCount = 0
+    let newCount = 0
+    for (const bl of bodyLines) {
+      const prefix = bl[0]!
+      if (prefix === " " || prefix === "-") oldCount++
+      if (prefix === " " || prefix === "+") newCount++
+    }
+    out.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@${trailer}`)
+    for (const bl of bodyLines) out.push(bl)
+  }
+  return out.join("\n")
 }
 
 export async function applyPatch(base: string, patchText: string): Promise<string | null> {

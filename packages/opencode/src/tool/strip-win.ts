@@ -12,9 +12,9 @@ const NUL_REDIRECTS = [
   /\s+Out-Null/gi,
 ]
 
-// Detect SSH commands — /dev/null is valid on remote Linux
-function isSshCommand(command: string): boolean {
-  return /\b(ssh|sshpass|scp|sftp|rsync)\b/.test(command)
+// Detect SSH/cmd_runner commands — /dev/null is valid on remote Linux
+function isRemoteCommand(command: string): boolean {
+  return /\b(ssh|sshpass|scp|sftp|rsync|cmd_runner)\b/.test(command)
 }
 
 export interface StripResult {
@@ -27,7 +27,7 @@ export function stripCommand(command: string, shell: string): StripResult {
   let result = command
   let converted = false
   let message: string | undefined
-  const ssh = isSshCommand(command)
+  const ssh = isRemoteCommand(command)
 
   // On Windows, convert Linux redirects to Windows equivalents
   // BUT: if command is SSH to remote Linux, /dev/null is valid there

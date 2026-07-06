@@ -77,6 +77,27 @@ Most users want quick answers. The gated workflow adds overhead: decomposition t
 
 For simple tasks ("rename this variable"), the workflow is overkill. For complex tasks ("fix this rendering bug across 3 subsystems"), it prevents the model from hallucinating solutions that look correct but fail at runtime.
 
+## The Three Layers That Survive Compaction
+
+When the content window shifts and old messages are compacted, three layers survive:
+
+1. **Epistemic markers** — `[Exact]`, `[Inferred]`, `[Guess]`, etc. survive in the text and preserve confidence levels
+2. **SV vectors** — `sv=[[keywords],[weights]]` survive in summary and preserve "what was this about"
+3. **Messagesearch weights** — epistemic weights are indexed and allow reverse search even when originals are lost
+
+Without these, after compaction the model loses the distinction between "I verified this" and "I assumed this".
+
+### Semantic Vectors (SV)
+
+Every message appends a semantic vector: `sv=[[3-9 keywords],[normalized weights summing to 1.0]]`
+
+This captures the **intent** of the conversation segment. After compaction, when the full text is gone, the SV tells you:
+- What the segment was about
+- How to interpret the remaining data
+- Whether the segment is relevant to a current search
+
+Any conversation has an "setup" — an intent, a context, a topic. The SV vector fixes this in compact form so you can read the data correctly even after the original context is lost.
+
 ## When to Use
 
 - Complex multi-file changes

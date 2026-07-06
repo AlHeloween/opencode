@@ -1,4 +1,4 @@
-import { createSignal, onMount, Switch, Match } from "solid-js"
+import { createSignal, createEffect, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { execFileSync } from "child_process"
 import { writeFileSync, unlinkSync } from "fs"
@@ -20,10 +20,16 @@ function removeTempFile(file: string) {
 
 function renderChafa(url: string): string | null {
   const base64 = url.split(",")[1]
-  if (!base64 || base64.length === 0) return null
+  if (!base64 || base64.length === 0) {
+    log.warn("bug: renderChafa: no base64 data in url")
+    return null
+  }
 
   const chafaPath = which("chafa")
-  if (!chafaPath) return null
+  if (!chafaPath) {
+    log.warn("bug: renderChafa: chafa binary not found in PATH")
+    return null
+  }
 
   const ext = url.startsWith("data:image/png") ? ".png"
     : url.startsWith("data:image/jpeg") ? ".jpg"
@@ -37,14 +43,16 @@ function renderChafa(url: string): string | null {
     writeFileSync(tmpFile, Buffer.from(base64, "base64"))
     const cols = process.stdout.columns ?? 80
     const rows = Math.floor((process.stdout.rows ?? 24) * 0.45)
+    log.debug("renderChafa: calling chafa", { chafaPath, cols, rows, tmpFile })
     const output = execFileSync(
       chafaPath,
       ["--format", "symbols", "--color-space", "rgb", "--size", `${cols}x${rows}`, tmpFile],
       { encoding: "utf-8", timeout: 8000, maxBuffer: 4 * 1024 * 1024 },
     )
+    log.debug("renderChafa: success", { outputLength: output.length })
     return output
   } catch (error) {
-    log.debug("failed to render image with chafa", { error: String(error) })
+    log.warn("bug: renderChafa: chafa execution failed", { error: String(error) })
     return null
   } finally {
     removeTempFile(tmpFile)
@@ -57,7 +65,8 @@ export function MediaImage(props: { url: string; mime: string }) {
   const [loaded, setLoaded] = createSignal(false)
   const [error, setError] = createSignal<string | null>(null)
 
-  onMount(() => {
+  createEffect(() => {
+    if (!props.url) return
     const result = renderChafa(props.url)
     if (result === null) {
       if (!which("chafa")) {

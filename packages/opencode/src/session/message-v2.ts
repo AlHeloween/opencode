@@ -793,8 +793,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   // OpenAI-compatible APIs only support string content in tool results, so we need
   // to extract media and inject as user messages. Other SDKs (anthropic, google,
   // bedrock) handle type: "content" with media parts natively.
+  //
+  // Models that declare image input capabilities (via modalities.input) can receive
+  // images directly, regardless of provider SDK.
   const supportsMediaInToolResult = (attachment: { mime: string }) => {
     const kind = classifyKind(attachment.mime)
+    if (kind === "image" && model.capabilities?.input?.image) return true
     if (kind === "image" && model.api.npm === "@ai-sdk/amazon-bedrock") return true
     if (kind === "image" && model.api.npm === "@ai-sdk/xai") return true
     return registry.isMedia(attachment.mime) && model.api.npm !== "@ai-sdk/openai-compatible"

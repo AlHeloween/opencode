@@ -445,8 +445,12 @@ export function topK(model: Provider.Model) {
   return undefined
 }
 
-export function systemPromptPrefix(_model: Provider.Model) {
-  return PROMPT_REASONING
+export function systemPromptPrefix(model: Provider.Model) {
+  const id = model.id.toLowerCase()
+  if (id.includes("deepseek")) return PROMPT_REASONING
+  if (id.includes("claude")) return PROMPT_REASONING
+  if (id.includes("kat-coder")) return PROMPT_REASONING
+  return undefined
 }
 
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]
@@ -1155,7 +1159,7 @@ export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number, 
     }
     return native
   }
-  if (dynamic !== undefined) return Math.min(OUTPUT_TOKEN_MAX, Math.max(dynamic, 8192))
+  if (dynamic !== undefined) return Math.min(OUTPUT_TOKEN_MAX, dynamic)
   return OUTPUT_TOKEN_MAX
 }
 

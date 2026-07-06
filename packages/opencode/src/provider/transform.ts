@@ -450,6 +450,7 @@ export function systemPromptPrefix(model: Provider.Model) {
   if (id.includes("deepseek")) return PROMPT_REASONING
   if (id.includes("claude")) return PROMPT_REASONING
   if (id.includes("kat-coder")) return PROMPT_REASONING
+  if (id.includes("mimo")) return PROMPT_REASONING
   return undefined
 }
 

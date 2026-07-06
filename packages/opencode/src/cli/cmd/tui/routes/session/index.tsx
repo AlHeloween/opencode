@@ -1685,47 +1685,47 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   const ctx = use()
   const { theme, syntax, mode } = useTheme()
 
-  const [mermaidText, setMermaidText] = createSignal<string | null>(null)
-  const processedText = createMemo(() => mermaidText() ?? props.part.text.trim())
+  const baseText = createMemo(() => props.part.text.trim())
+  const [mermaidResult, setMermaidResult] = createSignal<string | undefined>()
 
-  // Watch for mermaid blocks and render when detected
-  createEffect(() => {
-    const text = props.part.text.trim()
-    if (!text.includes("```mermaid")) return
-
-    console.error("[mermaid] detected block, rendering...")
+  // React to text changes during streaming — re-render mermaid when text updates
+  createEffect(on(baseText, async (text) => {
+    if (!text.includes("```mermaid")) {
+      setMermaidResult(undefined)
+      return
+    }
 
     const mermaidRegex = /```mermaid\n([\s\S]*?)```/g
-    let m: RegExpExecArray | null
+    let match: RegExpExecArray | null
     let result = text
-    let pending = 0
+    let hasMermaid = false
 
-    while ((m = mermaidRegex.exec(text)) !== null) {
-      const captured = m
-      const source = captured[1].trim()
-      pending++
-      renderMermaidToText(source, {
-        theme: mode() === "dark" ? "dark" : "default",
-      }).then((rendered) => {
-        if (rendered) result = result.replace(captured[0], rendered)
-      }).catch(() => {
+    while ((match = mermaidRegex.exec(text)) !== null) {
+      hasMermaid = true
+      try {
+        const rendered = await renderMermaidToText(match[1].trim(), {
+          theme: mode() === "dark" ? "dark" : "default",
+        })
+        if (rendered) result = result.replace(match[0], rendered)
+      } catch {
         // keep original code block on error
-      }).finally(() => {
-        pending--
-        if (pending === 0 && result !== text) setMermaidText(result)
-      })
+      }
     }
-  })
+
+    if (hasMermaid) setMermaidResult(result)
+  }))
+
+  const displayText = createMemo(() => mermaidResult() ?? baseText())
 
   return (
-    <Show when={processedText()}>
+    <Show when={displayText()}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
         <Switch>
           <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
             <markdown
               syntaxStyle={syntax()}
               streaming={true}
-              content={processedText()}
+              content={displayText()}
               conceal={ctx.conceal()}
               fg={theme.markdownText}
               bg={theme.background}
@@ -1737,7 +1737,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
               drawUnstyledText={false}
               streaming={true}
               syntaxStyle={syntax()}
-              content={processedText()}
+              content={displayText()}
               conceal={ctx.conceal()}
               fg={theme.text}
             />

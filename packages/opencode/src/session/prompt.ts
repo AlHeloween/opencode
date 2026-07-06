@@ -1394,8 +1394,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 return "continue" as const
               }
               const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
-              const providerPrompt = SystemPrompt.provider(model).join("\n")
-              const identityPrefix = [reasoningPrefix, providerPrompt].filter((x) => x).join("\n")
+              const agentPrompt = agent.prompt ?? ""
+              const identityPrefix = [reasoningPrefix, agentPrompt].filter((x) => x).join("\n")
               const systemForCheckpoint = identityPrefix ? [identityPrefix, ...system] : [...system]
               yield* Effect.forkIn(scope)(
                 Effect.gen(function* () {
@@ -1804,8 +1804,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
             // Save encrypted checkpoint after successful turn.
             // Fire-and-forget — don't block the loop on I/O.
             const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
-            const providerPrompt = SystemPrompt.provider(model).join("\n")
-            const identityPrefix = [reasoningPrefix, providerPrompt].filter((x) => x).join("\n")
+            const agentPrompt = agent.prompt ?? ""
+            const identityPrefix = [reasoningPrefix, agentPrompt].filter((x) => x).join("\n")
             // Strip trailing newlines from identityPrefix to prevent double-\n
             // when checkpoint is replayed via input.system.join("\n") in llm.ts.
             // The .txt prompt files end with \n, and join("\n") adds another.

@@ -176,7 +176,7 @@ const live: Layer.Layer<
       const isOpenaiOauth = item.id === "openai" && info?.type === "oauth"
 
       const reasoningPrefix = ProviderTransform.systemPromptPrefix(input.model)
-      const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : SystemPrompt.providerName(input.model)
+      const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : "reasoning-only"
 
       l.info("system prompt", {
         reasoning: !!reasoningPrefix,
@@ -195,7 +195,7 @@ const live: Layer.Layer<
         system.push(
           [
             ...(reasoningPrefix ? [reasoningPrefix] : []),
-            ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+            ...(input.agent.prompt ? [input.agent.prompt] : []),
           ]
             .filter((x) => x)
             .join("\n"),

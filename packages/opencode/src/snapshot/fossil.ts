@@ -161,7 +161,7 @@ export const layer = Layer.effect(
           }
 
           // Initial empty commit
-          yield* fossil(["commit", "-m", "opencode-init", "--no-warnings"], { cwd: worktree }).pipe(
+          yield* fossil(["commit", "-m", "opencode-init", "--no-warnings", "--allow-fork"], { cwd: worktree }).pipe(
             Effect.catch(() => Effect.void),
           )
 
@@ -178,9 +178,26 @@ export const layer = Layer.effect(
               if (files?.length) {
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
-                  yield* fossil(["add", rel, "--ignore", ""], { cwd: worktree }).pipe(
+                  yield* fossil(["add", rel], { cwd: worktree }).pipe(
                     Effect.catch(() => Effect.void),
                   )
+                }
+              }
+
+              // Handle missing tracked files — remove them from tracking so
+              // they don't block the commit (fossil requires all tracked files
+              // to exist on disk before committing).
+              const missingResult = yield* fossil(["changes", "--missing"], { cwd: worktree }).pipe(
+                Effect.catch(() => Effect.succeed({ code: 1, text: "", stderr: "" })),
+              )
+              if (missingResult.code === 0 && missingResult.text.trim()) {
+                for (const line of missingResult.text.trim().split("\n")) {
+                  const file = line.replace(/^MISSING\s+/, "").trim()
+                  if (file) {
+                    yield* fossil(["rm", file], { cwd: worktree }).pipe(
+                      Effect.catch(() => Effect.void),
+                    )
+                  }
                 }
               }
 
@@ -188,14 +205,16 @@ export const layer = Layer.effect(
               const before = yield* fossil(["info", "current"], { cwd: worktree })
               const beforeHash = before.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim() ?? ""
 
-              // Commit only already-tracked changes (don't add new untracked files)
-              const commitResult = yield* fossil(["commit", "-m", "auto-snapshot", "--no-warnings"], {
+              // Use --allow-fork: when autosync is enabled (Fossil default),
+              // commits that would create a fork are rejected unless --allow-fork
+              // is passed. Since this is a snapshot system where fork topology
+              // doesn't matter, always allow forking.
+              const commitResult = yield* fossil(["commit", "-m", "auto-snapshot", "--no-warnings", "--allow-fork"], {
                 cwd: worktree,
               })
 
               if (commitResult.code !== 0) {
-                // Nothing to commit — return current version
-                log.info("tracking (no changes)", { hash: beforeHash })
+                log.info("tracking commit failed", { hash: beforeHash, stderr: commitResult.stderr })
                 return beforeHash
               }
 
@@ -292,7 +311,7 @@ export const layer = Layer.effect(
               }
 
               // Seal the revert
-              yield* fossil(["commit", "-m", "revert", "--no-warnings"], { cwd: worktree }).pipe(
+              yield* fossil(["commit", "-m", "revert", "--no-warnings", "--allow-fork"], { cwd: worktree }).pipe(
                 Effect.catch(() => Effect.void),
               )
             }).pipe(Effect.orDie),

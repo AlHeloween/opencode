@@ -22,7 +22,7 @@ export function renderMermaidToSvg(source: string, options?: MermaidRenderOption
     if (options?.theme) return renderSvgWithConfig(source, undefined, options.theme)
     return renderSvg(source)
   } catch (error) {
-    log.warn("WASM mermaid render failed", { error: String(error) })
+    log.debug("WASM mermaid render failed", { error: String(error) })
     return null
   }
 }
@@ -37,30 +37,28 @@ export async function renderSvgToText(svg: string): Promise<string | null> {
     const pngBuffer = pngData.asPng()
 
     const chafa = await getChafa()
+    const imageToAnsi = chafa.imageToAnsi as (
+      buffer: ArrayBuffer,
+      options: Record<string, unknown>,
+    ) => Promise<{ ansi: string }>
 
     const cols = process.stdout.columns ?? 80
     const rows = Math.floor((process.stdout.rows ?? 24) * 0.6)
 
-    // chafa-wasm imageToAnsi is callback-based: (buffer, options, callback)
-    const ansi: string = await new Promise((resolve, reject) => {
-      chafa.imageToAnsi(pngBuffer.buffer as ArrayBuffer, {
-        format: chafa.ChafaPixelMode.CHAFA_PIXEL_MODE_SYMBOLS.value,
-        height: rows,
-        width: cols,
-        colors: chafa.ChafaCanvasMode.CHAFA_CANVAS_MODE_TRUECOLOR.value,
-        colorSpace: chafa.ChafaColorSpace.CHAFA_COLOR_SPACE_RGB.value,
-        symbols: "block+border+space-wide-inverted",
-        preprocess: true,
-        threshold: 0.5,
-      }, (err: unknown, result: { ansi: string }) => {
-        if (err) reject(err)
-        else resolve(result.ansi)
-      })
+    const { ansi } = await imageToAnsi(pngBuffer.buffer as ArrayBuffer, {
+      format: chafa.ChafaPixelMode.CHAFA_PIXEL_MODE_SYMBOLS.value,
+      height: rows,
+      width: cols,
+      colors: chafa.ChafaCanvasMode.CHAFA_CANVAS_MODE_TRUECOLOR.value,
+      colorSpace: chafa.ChafaColorSpace.CHAFA_COLOR_SPACE_RGB.value,
+      symbols: "block+border+space-wide-inverted",
+      preprocess: true,
+      threshold: 0.5,
     })
 
     return ansi
   } catch (error) {
-    log.warn("chafa-wasm render failed", { error: String(error) })
+    log.debug("chafa-wasm render failed", { error: String(error) })
     return null
   }
 }

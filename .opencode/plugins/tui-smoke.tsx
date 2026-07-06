@@ -1,4 +1,5 @@
 /** @jsxImportSource @opentui/solid */
+import { createSignal, onMount, Show } from "@opentui/solid"
 import { useKeyboard, useTerminalDimensions, type JSX } from "@opentui/solid"
 import { RGBA, VignetteEffect } from "@opentui/core"
 import type {
@@ -10,7 +11,7 @@ import type {
   TuiSlotPlugin,
 } from "@opencode-ai/plugin/tui"
 
-const tabs = ["overview", "counter", "help"]
+const tabs = ["overview", "counter", "mermaid", "help"]
 const bind = {
   modal: "ctrl+shift+m",
   screen: "ctrl+shift+o",
@@ -179,8 +180,13 @@ const opts = [
     description: "Switch to counter tab",
   },
   {
-    title: "Help",
+    title: "Mermaid",
     value: 2,
+    description: "Test mermaid WASM rendering",
+  },
+  {
+    title: "Help",
+    value: 3,
     description: "Switch to help tab",
   },
 ]
@@ -264,6 +270,76 @@ const picker = (api: TuiPluginApi, route: Route, value: State) => {
       }}
     />
   ))
+}
+
+const MermaidSmokeTest = (props: { skin: Skin }) => {
+  const [svg, setSvg] = createSignal<string | null>(null)
+  const [ansi, setAnsi] = createSignal<string | null>(null)
+  const [error, setError] = createSignal<string | null>(null)
+  const [loading, setLoading] = createSignal(true)
+
+  const testSource = `graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[OK]
+    B -->|No| D[Fail]
+    C --> E[End]
+    D --> E`
+
+  onMount(async () => {
+    try {
+      const { renderMermaidToSvg, renderSvgToText } = await import("../../../packages/opencode/src/util/mermaid")
+      const svgResult = renderMermaidToSvg(testSource, { theme: "dark" })
+      setSvg(svgResult)
+      if (svgResult) {
+        const ansiResult = await renderSvgToText(svgResult)
+        setAnsi(ansiResult)
+      }
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setLoading(false)
+    }
+  })
+
+  return (
+    <box flexDirection="column" gap={1} overflow="hidden">
+      <text fg={props.skin.accent}>
+        <b>Mermaid WASM Smoke Test</b>
+      </text>
+
+      <text fg={props.skin.muted}>Source:</text>
+      <box border borderColor={props.skin.border} paddingLeft={1} paddingRight={1}>
+        <text fg={props.skin.text}>{testSource}</text>
+      </box>
+
+      <Show when={loading()}>
+        <text fg={props.skin.muted}>Rendering...</text>
+      </Show>
+
+      <Show when={error()}>
+        <text fg="red">Error: {error()}</text>
+      </Show>
+
+      <Show when={svg() && !loading()}>
+        <text fg={props.skin.muted}>SVG: {svg()!.length} chars</text>
+      </Show>
+
+      <Show when={svg() === null && !loading() && !error()}>
+        <text fg="yellow">SVG render returned null (WASM module not loaded?)</text>
+      </Show>
+
+      <Show when={ansi() && !loading()}>
+        <text fg={props.skin.muted}>Rendered ({ansi()!.length} chars):</text>
+        <box border borderColor={props.skin.border} paddingLeft={1} paddingRight={1} overflow="hidden">
+          <text>{ansi()}</text>
+        </box>
+      </Show>
+
+      <Show when={ansi() === null && svg() && !loading()}>
+        <text fg="yellow">chafa-wasm render returned null</text>
+      </Show>
+    </box>
+  )
 }
 
 const Screen = (props: {
@@ -483,6 +559,10 @@ const Screen = (props: {
           ) : null}
 
           {value.tab === 2 ? (
+            <MermaidSmokeTest skin={skin} />
+          ) : null}
+
+          {value.tab === 3 ? (
             <box flexDirection="column" gap={1}>
               <text fg={skin.muted}>
                 {props.keys.print("modal")} modal | {props.keys.print("alert")} alert | {props.keys.print("confirm")}{" "}

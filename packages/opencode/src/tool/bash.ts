@@ -300,9 +300,7 @@ function normalizeCommandPaths(command: string): string {
 }
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
-  // Only strip null redirects for cmd.exe/PowerShell — bash uses /dev/null legitimately
-  const isBash = shell.includes("bash") || shell.includes("sh")
-  const stripped = isBash ? command : stripCommand(command, shell)
+  const stripped = stripCommand(command, shell)
   const normalized = process.platform === "win32" ? normalizeCommandPaths(stripped) : stripped
   if (process.platform === "win32" && Shell.ps(shell)) {
     return ChildProcess.make(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", normalized], {
@@ -407,6 +405,11 @@ export const BashTool = Tool.define(
         // .git directory mutations
         if (/[\\/]\.git([\\/]|$)/.test(p)) {
           issues.push(`"${p}" — blocked: .git directory`)
+          continue
+        }
+        // Linux-specific paths that don't exist on Windows
+        if (process.platform === "win32" && /^\/(dev|proc|sys)(\/|$)/.test(p)) {
+          issues.push(`"${p}" — blocked: Linux-specific path, does not exist on Windows`)
           continue
         }
         // Path doesn't exist (for non-glob paths)

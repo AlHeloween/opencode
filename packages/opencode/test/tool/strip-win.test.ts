@@ -16,11 +16,23 @@ test("strips PowerShell $null redirects", () => {
   expect(stripCommand("dir > $null", "powershell")).toBe("dir")
 })
 
-test("strips Unix /dev/null redirects", () => {
-  expect(stripCommand("ls >/dev/null", "bash")).toBe("ls")
-  expect(stripCommand("ls 2>/dev/null", "bash")).toBe("ls")
-  expect(stripCommand("ls >/dev/null 2>&1", "bash")).toBe("ls 2>&1")
-  expect(stripCommand("ls > /dev/null", "bash")).toBe("ls")
+test("converts Unix /dev/null redirects to nul on Windows", () => {
+  // On Windows, /dev/null doesn't exist — convert to nul
+  const isWindows = process.platform === "win32"
+  if (isWindows) {
+    expect(stripCommand("ls >/dev/null", "bash")).toBe("ls")
+    expect(stripCommand("ls 2>/dev/null", "bash")).toBe("ls")
+    expect(stripCommand("ls >/dev/null 2>&1", "bash")).toBe("ls 2>&1")
+    expect(stripCommand("ls > /dev/null", "bash")).toBe("ls")
+  }
+})
+
+test("preserves Unix /dev/null redirects on Linux/macOS", () => {
+  const isWindows = process.platform === "win32"
+  if (!isWindows) {
+    expect(stripCommand("ls >/dev/null", "bash")).toBe("ls >/dev/null")
+    expect(stripCommand("ls 2>/dev/null", "bash")).toBe("ls 2>/dev/null")
+  }
 })
 
 test("strips Out-Null pipe", () => {

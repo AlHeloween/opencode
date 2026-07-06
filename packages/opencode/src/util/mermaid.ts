@@ -37,23 +37,25 @@ export async function renderSvgToText(svg: string): Promise<string | null> {
     const pngBuffer = pngData.asPng()
 
     const chafa = await getChafa()
-    const imageToAnsi = chafa.imageToAnsi as (
-      buffer: ArrayBuffer,
-      options: Record<string, unknown>,
-    ) => Promise<{ ansi: string }>
 
     const cols = process.stdout.columns ?? 80
     const rows = Math.floor((process.stdout.rows ?? 24) * 0.6)
 
-    const { ansi } = await imageToAnsi(pngBuffer.buffer as ArrayBuffer, {
-      format: chafa.ChafaPixelMode.CHAFA_PIXEL_MODE_SYMBOLS.value,
-      height: rows,
-      width: cols,
-      colors: chafa.ChafaCanvasMode.CHAFA_CANVAS_MODE_TRUECOLOR.value,
-      colorSpace: chafa.ChafaColorSpace.CHAFA_COLOR_SPACE_RGB.value,
-      symbols: "block+border+space-wide-inverted",
-      preprocess: true,
-      threshold: 0.5,
+    // chafa-wasm imageToAnsi is callback-based: (buffer, options, callback)
+    const ansi: string = await new Promise((resolve, reject) => {
+      chafa.imageToAnsi(pngBuffer.buffer as ArrayBuffer, {
+        format: chafa.ChafaPixelMode.CHAFA_PIXEL_MODE_SYMBOLS.value,
+        height: rows,
+        width: cols,
+        colors: chafa.ChafaCanvasMode.CHAFA_CANVAS_MODE_TRUECOLOR.value,
+        colorSpace: chafa.ChafaColorSpace.CHAFA_COLOR_SPACE_RGB.value,
+        symbols: "block+border+space-wide-inverted",
+        preprocess: true,
+        threshold: 0.5,
+      }, (err: unknown, result: { ansi: string }) => {
+        if (err) reject(err)
+        else resolve(result.ansi)
+      })
     })
 
     return ansi

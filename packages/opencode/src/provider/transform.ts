@@ -1159,7 +1159,7 @@ export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number, 
     }
     return native
   }
-  if (dynamic !== undefined) return Math.min(OUTPUT_TOKEN_MAX, dynamic)
+  if (dynamic !== undefined) return Math.min(OUTPUT_TOKEN_MAX, Math.max(dynamic, 8192))
   return OUTPUT_TOKEN_MAX
 }
 

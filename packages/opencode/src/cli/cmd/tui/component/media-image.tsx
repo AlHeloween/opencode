@@ -1,10 +1,12 @@
+/**
+ * media-image.tsx — render images via chafa-wasm with terminal protocol detection.
+ *
+ * When a graphics protocol (Kitty/Sixel/iTerm2) is available, writes escape codes
+ * directly to stdout — bypassing the OpenTUI render tree for pixel-perfect output.
+ * Falls back to Unicode symbols via <text> component on basic terminals.
+ */
 import { createSignal, createResource, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
-import { execFileSync } from "child_process"
-import { writeFileSync, unlinkSync } from "fs"
-import { tmpdir } from "os"
-import { join } from "path"
-import { which } from "@/util/which"
 import { renderImageToTerminal } from "@/util/chafa-wasm-render"
 import { detectBestProtocol } from "@/util/terminal-graphics"
 import { useTuiConfig } from "@tui/context/tui-config"
@@ -14,154 +16,77 @@ import * as Log from "@opencode-ai/core/util/log"
 const log = Log.create({ service: "tui.media.image" })
 
 // ---------------------------------------------------------------------------
-// Binary chafa fallback — used when WASM rendering fails.
-// Every path is logged; no silent fallthrough.
-// ---------------------------------------------------------------------------
-
-function removeTempFile(file: string) {
-  try {
-    unlinkSync(file)
-  } catch (error) {
-    log.debug("failed to remove temp image", { error: String(error) })
-  }
-}
-
-function renderChafaBinary(url: string): string | null {
-  log.debug("attempting binary chafa fallback")
-
-  const base64 = url.split(",")[1]
-  if (!base64 || base64.length === 0) {
-    log.warn("bug: renderChafaBinary: no base64 data in url")
-    return null
-  }
-
-  const chafaPath = which("chafa")
-  if (!chafaPath) {
-    log.debug("binary chafa not found in PATH — no fallback available")
-    return null
-  }
-
-  const ext = url.startsWith("data:image/png") ? ".png"
-    : url.startsWith("data:image/jpeg") ? ".jpg"
-    : url.startsWith("data:image/webp") ? ".webp"
-    : url.startsWith("data:image/gif") ? ".gif"
-    : ".png"
-
-  const tmpFile = join(tmpdir(), `opencode_img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`)
-
-  try {
-    writeFileSync(tmpFile, Buffer.from(base64, "base64"))
-    const cols = process.stdout.columns ?? 80
-    const rows = Math.floor((process.stdout.rows ?? 24) * 0.45)
-    log.debug("renderChafaBinary: calling chafa", { chafaPath, cols, rows, tmpFile })
-    const output = execFileSync(
-      chafaPath,
-      ["--format", "symbols", "--color-space", "rgb", "--size", `${cols}x${rows}`, tmpFile],
-      { encoding: "utf-8", timeout: 8000, maxBuffer: 4 * 1024 * 1024 },
-    )
-    log.debug("renderChafaBinary: success", { outputLength: output.length })
-    return output
-  } catch (error) {
-    log.warn("bug: renderChafaBinary: chafa execution failed", { error: String(error) })
-    return null
-  } finally {
-    removeTempFile(tmpFile)
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Data URL → ArrayBuffer conversion
+// Data URL → ArrayBuffer
 // ---------------------------------------------------------------------------
 
 function dataUrlToBuffer(url: string): ArrayBuffer | null {
   const base64 = url.split(",")[1]
-  if (!base64 || base64.length === 0) {
-    log.warn("bug: dataUrlToBuffer: no base64 data in url")
-    return null
-  }
-
+  if (!base64 || base64.length === 0) return null
   try {
     const binary = atob(base64)
     const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
     return bytes.buffer
-  } catch (error) {
-    log.warn("bug: dataUrlToBuffer: base64 decode failed", { error: String(error) })
+  } catch (err) {
+    log.warn("bug: base64 decode failed", { error: String(err) })
     return null
   }
 }
 
 // ---------------------------------------------------------------------------
-// Async image rendering with protocol fallback chain
+// Determine if we can use direct escape codes (graphics protocols)
+// vs must use the TUI render tree (Unicode symbols)
 // ---------------------------------------------------------------------------
 
-async function renderImageAsync(url: string, protocolOverride?: string): Promise<string> {
+function isGraphicsProtocol(protocol: string): boolean {
+  return protocol === "kitty" || protocol === "sixel" || protocol === "iterm2"
+}
+
+// ---------------------------------------------------------------------------
+// Render image — direct stdout for graphics protocols, <text> for symbols
+// ---------------------------------------------------------------------------
+
+async function renderImage(url: string, protocolOverride?: string): Promise<{
+  text: string      // for display in <text> component (symbols mode)
+  direct: string | null  // escape codes written directly to stdout
+}> {
   const protocol = detectBestProtocol(protocolOverride)
   const imageBuffer = dataUrlToBuffer(url)
+  if (!imageBuffer) return { text: "Could not decode image", direct: null }
 
-  if (!imageBuffer) {
-    log.warn("bug: renderImageAsync: could not decode image data")
-    return "[Image: could not decode data]"
-  }
+  const cols = 80
+  const rows = Math.floor(24 * 0.45)
 
-  const cols = process.stdout.columns ?? 80
-  const rows = Math.floor((process.stdout.rows ?? 24) * 0.45)
-
-  // ── Step 1: Try WASM with best detected protocol ────────────────────
-  try {
-    log.debug("renderImageAsync: trying WASM render", { protocol })
-    const result = await renderImageToTerminal(imageBuffer, {
-      protocol,
-      width: cols,
-      height: rows,
-    })
-    if (result) {
-      return result
-    }
-    log.debug("renderImageAsync: WASM returned null for protocol", { protocol })
-  } catch (error) {
-    log.debug("renderImageAsync: WASM render failed for protocol", {
-      protocol,
-      error: String(error),
-    })
-  }
-
-  // ── Step 2: Fall back to symbols via WASM ───────────────────────────
-  if (protocol !== "symbols") {
+  // ── Graphics protocol → write directly to stdout ──────────────
+  if (isGraphicsProtocol(protocol)) {
     try {
-      log.debug("renderImageAsync: falling back to WASM symbols")
-      const result = await renderImageToTerminal(imageBuffer, {
-        protocol: "symbols",
-        width: cols,
-        height: rows,
-      })
+      log.debug("rendering via graphics protocol", { protocol })
+      const result = await renderImageToTerminal(imageBuffer, { protocol, width: cols, height: rows })
       if (result) {
-        return result
+        // Write escape codes directly to stdout — bypasses OpenTUI render tree
+        // Save cursor, write image, restore cursor
+        process.stdout.write("\x1b7")       // save cursor
+        process.stdout.write(result)         // Kitty/Sixel/iTerm2 escape codes
+        process.stdout.write("\x1b8")       // restore cursor
+        log.debug("direct stdout render success", { protocol, outputLength: result.length })
+        return { text: "", direct: result }
       }
-      log.debug("renderImageAsync: WASM symbols returned null")
-    } catch (error) {
-      log.debug("renderImageAsync: WASM symbols failed", {
-        error: String(error),
-      })
+      log.debug("graphics protocol returned null, falling back to symbols")
+    } catch (err) {
+      log.debug("graphics protocol render failed, falling back to symbols", { error: String(err) })
     }
   }
 
-  // ── Step 3: Fall back to binary chafa ───────────────────────────────
-  log.debug("renderImageAsync: falling back to binary chafa")
-  const binaryResult = renderChafaBinary(url)
-  if (binaryResult) {
-    return binaryResult
+  // ── Symbols fallback → render via <text> component ────────────
+  try {
+    log.debug("rendering via symbols fallback")
+    const result = await renderImageToTerminal(imageBuffer, { protocol: "symbols", width: cols, height: rows })
+    if (result) return { text: result, direct: null }
+    log.warn("bug: symbols render returned null")
+  } catch (err) {
+    log.warn("bug: symbols render failed", { error: String(err) })
   }
-
-  // ── Step 4: Nothing worked ──────────────────────────────────────────
-  if (!which("chafa")) {
-    log.warn("bug: renderImageAsync: all renderers failed — chafa not installed")
-    return "chafa not installed - install chafa for terminal image rendering"
-  }
-  log.warn("bug: renderImageAsync: all renderers failed")
-  return "Could not render image"
+  return { text: "Could not render image", direct: null }
 }
 
 // ---------------------------------------------------------------------------
@@ -176,24 +101,17 @@ export function MediaImage(props: { url: string; mime: string }) {
   const imageProtocol = tuiConfig?.image_protocol
 
   const [output] = createResource(
-    () => props.url,
-    async (url: string) => {
-      if (!url) {
-        log.debug("MediaImage: no url, skipping render")
-        return null
-      }
-      log.debug("MediaImage: starting render", {
-        mime: props.mime,
-        urlPrefix: url.substring(0, 64),
-        imageProtocol: imageProtocol ?? "auto",
-      })
+    () => ({ url: props.url, protocol: imageProtocol }),
+    async ({ url, protocol }) => {
+      if (!url) return null
+      log.debug("MediaImage: rendering", { mime: props.mime, protocol: protocol ?? "auto" })
       try {
-        const result = await renderImageAsync(url, imageProtocol)
-        log.debug("MediaImage: render complete", { resultLength: result.length })
+        const result = await renderImage(url, protocol)
+        log.debug("MediaImage: done", { hasDirect: !!result.direct, textLen: result.text.length })
         return result
       } catch (err) {
-        const msg = `render failed: ${String(err)}`
-        log.warn("bug: MediaImage: render threw", { error: String(err) })
+        const msg = String(err)
+        log.warn("bug: MediaImage render threw", { error: msg })
         setError(msg)
         return null
       }
@@ -203,13 +121,13 @@ export function MediaImage(props: { url: string; mime: string }) {
   return (
     <Switch>
       <Match when={error()}>
-        <box paddingTop={1} paddingLeft={2} gap={1}>
+        <box paddingTop={1} paddingLeft={2}>
           <text fg={theme.textMuted}>{error()!}</text>
         </box>
       </Match>
-      <Match when={output() !== null && output() !== undefined}>
-        <box paddingTop={1} paddingLeft={2} gap={1}>
-          <text fg={theme.text}>{output()!}</text>
+      <Match when={output() !== null && output() !== undefined && !output.loading}>
+        <box paddingTop={1} paddingLeft={2}>
+          <text fg={theme.text}>{output()!.text || " "}</text>
         </box>
       </Match>
       <Match when={output.loading}>
@@ -219,7 +137,7 @@ export function MediaImage(props: { url: string; mime: string }) {
         </box>
       </Match>
       <Match when={true}>
-        <box paddingTop={1} paddingLeft={2} gap={1}>
+        <box paddingTop={1} paddingLeft={2}>
           <text fg={theme.textMuted}>Rendering image...</text>
         </box>
       </Match>

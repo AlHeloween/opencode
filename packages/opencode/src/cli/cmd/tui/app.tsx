@@ -39,6 +39,7 @@ import { DialogStatus } from "@tui/component/dialog-status"
 import { DialogPermissions } from "@tui/component/dialog-navigation"
 import { DialogThemeList } from "@tui/component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
+import { DialogTuiConfig } from "./ui/dialog-tui-config"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
 import { DialogAgent } from "@tui/component/dialog-agent"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
@@ -665,6 +666,18 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
         if (locked()) unlock()
         else lock()
         dialog.clear()
+      },
+      category: "System",
+    },
+    {
+      title: "TUI Settings",
+      value: "tui.settings",
+      slash: {
+        name: "tui",
+        aliases: ["settings", "config"],
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogTuiConfig />)
       },
       category: "System",
     },

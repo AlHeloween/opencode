@@ -30,17 +30,21 @@ export async function renderSvgToText(svg: string): Promise<string | null> {
     const pngBuffer = pngData.asPng()
 
     const chafa = await getChafa()
-    const imageToAnsi = chafa.imageToAnsi as (
-      buffer: ArrayBuffer,
-      options: Record<string, unknown>,
-    ) => Promise<{ ansi: string }>
 
     const cols = process.stdout.columns ?? 80
     const rows = Math.floor((process.stdout.rows ?? 24) * 0.6)
 
     const cfg = buildChafaConfig(chafa, { width: cols, height: rows })
 
-    const { ansi } = await imageToAnsi(pngBuffer.buffer as ArrayBuffer, cfg)
+    const ansi = await new Promise<string>((resolve, reject) => {
+      chafa.imageToAnsi(pngBuffer.buffer as ArrayBuffer, cfg, (err: unknown, result: { ansi: string }) => {
+        if (err) {
+          reject(err)
+          return
+        }
+        resolve(result.ansi)
+      })
+    })
 
     return ansi
   } catch (error) {

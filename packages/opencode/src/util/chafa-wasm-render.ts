@@ -90,15 +90,17 @@ export async function renderImageToTerminal(
     imageBytes: imageBuffer.byteLength,
   })
 
-  // chafa-wasm imageToAnsi is callback-based; promisify it.
-  // The function signature is:
-  //   imageToAnsi(buffer, options, callback) where callback(err, { ansi })
-  const imageToAnsi = chafa.imageToAnsi as (
-    buffer: ArrayBuffer,
-    options: Record<string, unknown>,
-  ) => Promise<{ ansi: string }>
-
-  const { ansi } = await imageToAnsi(imageBuffer, fullConfig)
+  // chafa-wasm imageToAnsi is callback-based: (buffer, options, callback)
+  // where callback is (error, { ansi }). Promisify explicitly.
+  const ansi = await new Promise<string>((resolve, reject) => {
+    chafa.imageToAnsi(imageBuffer, fullConfig, (err: unknown, result: { ansi: string }) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      resolve(result.ansi)
+    })
+  })
 
   if (!ansi || ansi.length === 0) {
     log.warn("bug: chafa-wasm produced empty output", {

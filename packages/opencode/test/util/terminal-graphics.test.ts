@@ -72,7 +72,7 @@ describe("util.terminal-graphics", () => {
     )
   })
 
-  test("detects wezterm → sixel (widest compat)", () => {
+  test("detects wezterm → kitty (preferred protocol)", () => {
     withEnv(
       {
         KITTY_WINDOW_ID: undefined,
@@ -81,7 +81,7 @@ describe("util.terminal-graphics", () => {
         WT_SESSION: undefined,
       },
       () => {
-        expect(detectGraphicsProtocol()).toBe("sixel")
+        expect(detectGraphicsProtocol()).toBe("kitty")
       },
     )
   })

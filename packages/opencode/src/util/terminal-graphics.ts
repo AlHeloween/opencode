@@ -53,9 +53,11 @@ export function detectGraphicsProtocol(override?: string): GraphicsProtocol {
     return "iterm2"
   }
   if (termProgram === "WezTerm") {
-    // WezTerm supports all three graphics protocols; prefer Kitty if no explicit signal
-    log.debug("WezTerm detected — preferring sixel (widest compat in WezTerm)")
-    return "sixel"
+    // WezTerm supports all three graphics protocols.
+    // Prefer Kitty (24-bit, animation) — requires enable_kitty_graphics=true in wezterm.lua.
+    // Falls back through the render chain: Kitty → symbols → binary chafa if not enabled.
+    log.debug("WezTerm detected — preferring Kitty protocol (enable_kitty_graphics=true in wezterm.lua)")
+    return "kitty"
   }
 
   // ── Sixel ───────────────────────────────────────────────────────────

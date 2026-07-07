@@ -1,0 +1,1 @@
+wezterm start --cwd . -- opencode.exe

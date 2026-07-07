@@ -1,7 +1,14 @@
+/**
+ * Mermaid diagram rendering — SVG via WASM, then PNG for 3D display.
+ *
+ * Pipeline: Mermaid source → mermaid-wasm-renderer (SVG) → resvg-js (PNG)
+ * The PNG data URL is passed to <image-plane> in the TUI.
+ *
+ * No chafa — OpenTUI's WebGPU pipeline handles the rendering.
+ */
 import { renderSvg, renderSvgWithConfig } from "mermaid-wasm-renderer"
 import { Resvg } from "@resvg/resvg-js"
 import * as Log from "@opencode-ai/core/util/log"
-import { getChafa, buildChafaConfig } from "@/util/chafa-wasm-render"
 
 const log = Log.create({ service: "mermaid.renderer" })
 
@@ -20,45 +27,42 @@ export function renderMermaidToSvg(source: string, options?: MermaidRenderOption
   }
 }
 
-/** Render SVG to ANSI text using resvg + chafa-wasm */
-export async function renderSvgToText(svg: string): Promise<string | null> {
+/** Render SVG to PNG data URL — ready for <image-plane> */
+export function renderSvgToPngDataUrl(svg: string): string | null {
   try {
     const resvg = new Resvg(svg, {
       fitTo: { mode: "width", value: (process.stdout.columns ?? 80) * 8 },
     })
     const pngData = resvg.render()
     const pngBuffer = pngData.asPng()
-
-    const chafa = await getChafa()
-
-    const cols = process.stdout.columns ?? 80
-    const rows = Math.floor((process.stdout.rows ?? 24) * 0.6)
-
-    const cfg = buildChafaConfig(chafa, { width: cols, height: rows })
-
-    const ansi = await new Promise<string>((resolve, reject) => {
-      chafa.imageToAnsi(pngBuffer.buffer as ArrayBuffer, cfg, (err: unknown, result: { ansi: string }) => {
-        if (err) {
-          reject(err)
-          return
-        }
-        resolve(result.ansi)
-      })
-    })
-
-    return ansi
+    const base64 = Buffer.from(pngBuffer).toString("base64")
+    return `data:image/png;base64,${base64}`
   } catch (error) {
-    log.debug("chafa-wasm render failed", { error: String(error) })
+    log.debug("resvg PNG render failed", { error: String(error) })
     return null
   }
 }
 
-/** Render Mermaid source to ANSI text: mermaid-rs → SVG → resvg → PNG → chafa → ANSI */
-export async function renderMermaidToText(
+/** Render Mermaid source to PNG data URL */
+export function renderMermaidToPngDataUrl(
   source: string,
   options?: MermaidRenderOptions,
-): Promise<string | null> {
+): string | null {
   const svg = renderMermaidToSvg(source, options)
   if (!svg) return null
-  return renderSvgToText(svg)
+  return renderSvgToPngDataUrl(svg)
+}
+
+// ── Backward compat: old name → new pipeline ─────────────────────
+/** @deprecated Use renderMermaidToPngDataUrl + <image-plane> */
+export async function renderSvgToText(_svg: string): Promise<string | null> {
+  return null
+}
+
+/** @deprecated Use renderMermaidToPngDataUrl + <image-plane> */
+export async function renderMermaidToText(
+  _source: string,
+  _options?: MermaidRenderOptions,
+): Promise<string | null> {
+  return null
 }

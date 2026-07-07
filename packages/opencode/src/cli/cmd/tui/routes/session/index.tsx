@@ -24,7 +24,7 @@ import { Spinner } from "@tui/component/spinner"
 import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
-import { renderMermaidToText } from "@/util/mermaid"
+import { renderMermaidToPngDataUrl } from "@/util/mermaid"
 import type {
   AssistantMessage,
   Part,
@@ -1697,33 +1697,37 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
 
   // Async mermaid rendering: runs when text changes and is finalized (has time.end).
   const [renderedMermaid, setRenderedMermaid] = createSignal<string | null>(null)
+  const [mermaidDataUrl, setMermaidDataUrl] = createSignal<string | null>(null)
   createEffect(
     on(
       () => props.part.time?.end,
       async (end) => {
         if (!end) return
-        if (renderedMermaid()) return // already rendered for this part
+        if (mermaidDataUrl()) return
         const text = props.part.text
         if (!text.includes("```mermaid")) return
 
         const mermaidRegex = /```mermaid\n([\s\S]*?)```/g
-        let match: RegExpExecArray | null
+        let match: RegExpExecArray | null = null
         let result = text
         let hasMermaid = false
 
         while ((match = mermaidRegex.exec(text)) !== null) {
           hasMermaid = true
           try {
-            const rendered = await renderMermaidToText(match[1].trim(), {
+            const pngDataUrl = renderMermaidToPngDataUrl(match[1].trim(), {
               theme: mode() === "dark" ? "dark" : "default",
             })
-            if (rendered) result = result.replace(match[0], rendered)
+            if (pngDataUrl) {
+              setMermaidDataUrl(pngDataUrl)
+              result = result.replace(match[0], "")
+            }
           } catch {
             // keep original code block on error
           }
         }
 
-        if (hasMermaid) setRenderedMermaid(result)
+        if (hasMermaid) setRenderedMermaid(result.trim())
       },
     ),
   )
@@ -2182,6 +2186,9 @@ function Read(props: ToolProps<typeof ReadTool>) {
     if (!value || !Array.isArray(value)) return []
     return value.filter((p): p is string => typeof p === "string")
   })
+  const attachments = createMemo(() =>
+    (props.part.state as any)?.attachments ?? [],
+  )
   return (
     <>
       <InlineTool
@@ -2202,6 +2209,23 @@ function Read(props: ToolProps<typeof ReadTool>) {
           </box>
         )}
       </For>
+      <Show when={attachments().length > 0}>
+        <For each={attachments()}>
+          {(att: { mime: string; url: string; filename?: string }) => (
+            <Switch>
+              <Match when={att.mime.startsWith("image/")}>
+                <MediaImage url={att.url} mime={att.mime} />
+              </Match>
+              <Match when={att.mime.startsWith("video/")}>
+                <MediaVideo url={att.url} metadata={att} />
+              </Match>
+              <Match when={att.mime.startsWith("audio/")}>
+                <MediaAudio url={att.url} metadata={att} />
+              </Match>
+            </Switch>
+          )}
+        </For>
+      </Show>
     </>
   )
 }
@@ -2218,10 +2242,32 @@ function Grep(props: ToolProps<typeof GrepTool>) {
 }
 
 function WebFetch(props: ToolProps<typeof WebFetchTool>) {
+  const attachments = createMemo(() =>
+    (props.part.state as any)?.attachments ?? [],
+  )
   return (
-    <InlineTool icon="%" pending="Fetching from the web..." complete={props.input.url} part={props.part}>
-      WebFetch {props.input.url}
-    </InlineTool>
+    <>
+      <InlineTool icon="%" pending="Fetching from the web..." complete={props.input.url} part={props.part}>
+        WebFetch {props.input.url}
+      </InlineTool>
+      <Show when={attachments().length > 0}>
+        <For each={attachments()}>
+          {(att: { mime: string; url: string; filename?: string }) => (
+            <Switch>
+              <Match when={att.mime.startsWith("image/")}>
+                <MediaImage url={att.url} mime={att.mime} />
+              </Match>
+              <Match when={att.mime.startsWith("video/")}>
+                <MediaVideo url={att.url} metadata={att} />
+              </Match>
+              <Match when={att.mime.startsWith("audio/")}>
+                <MediaAudio url={att.url} metadata={att} />
+              </Match>
+            </Switch>
+          )}
+        </For>
+      </Show>
+    </>
   )
 }
 

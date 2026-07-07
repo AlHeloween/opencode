@@ -13,21 +13,23 @@ type AudioMetadata = {
 
 export function MediaAudio(props: { url: string; metadata?: AudioMetadata }) {
   const { theme } = useTheme()
-  const mpvPath = which("mpv")
 
   const meta = props.metadata ?? {}
   const duration = meta.duration ? `${meta.duration}s` : "?"
   const sampleRate = meta.sampleRate ? `${(meta.sampleRate / 1000).toFixed(1)}kHz` : "?"
   const channels = meta.channels ? `${meta.channels}ch` : "?"
   const codec = meta.codec ?? "?"
+  const filename = meta.filename ? ` | ${meta.filename}` : ""
 
   return (
-    <box paddingTop={1} paddingLeft={2} gap={1}>
-      <text fg={theme.textMuted}>
-        Audio | {duration} | {sampleRate} | {channels} | {codec}
+    <box paddingTop={1} paddingLeft={2} paddingBottom={1} gap={1}>
+      <text fg={theme.text}>
+        🔊 {duration} | {sampleRate} | {channels} | {codec}{filename}
       </text>
       <text fg={theme.textMuted}>
-        {mpvPath ? "mpv available for external playback" : "mpv not installed - audio playback unavailable"}
+        {which("mpv")
+          ? "mpv available — use `mpv <file>` for playback"
+          : "mpv not installed — install for audio playback"}
       </text>
     </box>
   )

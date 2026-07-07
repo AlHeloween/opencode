@@ -1,23 +1,21 @@
 /**
- * media-image.tsx — render images via chafa-wasm with terminal protocol detection.
- *
- * When a graphics protocol (Kitty/Sixel/iTerm2) is available, writes escape codes
- * directly to stdout — bypassing the OpenTUI render tree for pixel-perfect output.
- * Falls back to Unicode symbols via <text> component on basic terminals.
+ * MediaImage — renders images using the best available method:
+ *   1. <image-plane> — OpenTUI 3D renderable (GPU, no escape code issues)
+ *   2. chafa-wasm symbols — Unicode block characters (always works)
  */
 import { createSignal, createResource, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { renderImageToTerminal } from "@/util/chafa-wasm-render"
-import { detectBestProtocol } from "@/util/terminal-graphics"
+import { detectBestProtocol, detectGraphicsProtocol } from "@/util/terminal-graphics"
 import { useTuiConfig } from "@tui/context/tui-config"
 import { Spinner } from "./spinner"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tui.media.image" })
 
-// ---------------------------------------------------------------------------
-// Data URL → ArrayBuffer
-// ---------------------------------------------------------------------------
+function isGraphicsProtocol(p: string) {
+  return p === "kitty" || p === "sixel" || p === "iterm2"
+}
 
 function dataUrlToBuffer(url: string): ArrayBuffer | null {
   const base64 = url.split(",")[1]
@@ -33,65 +31,29 @@ function dataUrlToBuffer(url: string): ArrayBuffer | null {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Determine if we can use direct escape codes (graphics protocols)
-// vs must use the TUI render tree (Unicode symbols)
-// ---------------------------------------------------------------------------
+async function render(url: string, override?: string): Promise<{ text: string; use3D: boolean }> {
+  const protocol = detectBestProtocol(override)
 
-function isGraphicsProtocol(protocol: string): boolean {
-  return protocol === "kitty" || protocol === "sixel" || protocol === "iterm2"
-}
-
-// ---------------------------------------------------------------------------
-// Render image — direct stdout for graphics protocols, <text> for symbols
-// ---------------------------------------------------------------------------
-
-async function renderImage(url: string, protocolOverride?: string): Promise<{
-  text: string      // for display in <text> component (symbols mode)
-  direct: string | null  // escape codes written directly to stdout
-}> {
-  const protocol = detectBestProtocol(protocolOverride)
-  const imageBuffer = dataUrlToBuffer(url)
-  if (!imageBuffer) return { text: "Could not decode image", direct: null }
-
-  const cols = 80
-  const rows = Math.floor(24 * 0.45)
-
-  // ── Graphics protocol → write directly to stdout ──────────────
+  // ── Graphics terminal: use <image-plane> 3D renderable ──────────
   if (isGraphicsProtocol(protocol)) {
-    try {
-      log.debug("rendering via graphics protocol", { protocol })
-      const result = await renderImageToTerminal(imageBuffer, { protocol, width: cols, height: rows })
-      if (result) {
-        // Write escape codes directly to stdout — bypasses OpenTUI render tree
-        // Save cursor, write image, restore cursor
-        process.stdout.write("\x1b7")       // save cursor
-        process.stdout.write(result)         // Kitty/Sixel/iTerm2 escape codes
-        process.stdout.write("\x1b8")       // restore cursor
-        log.debug("direct stdout render success", { protocol, outputLength: result.length })
-        return { text: "", direct: result }
-      }
-      log.debug("graphics protocol returned null, falling back to symbols")
-    } catch (err) {
-      log.debug("graphics protocol render failed, falling back to symbols", { error: String(err) })
-    }
+    log.debug("using 3D image-plane renderable", { protocol })
+    return { text: "", use3D: true }
   }
 
-  // ── Symbols fallback → render via <text> component ────────────
+  // ── Symbols fallback ────────────────────────────────────────────
+  const buf = dataUrlToBuffer(url)
+  if (!buf) return { text: "Could not decode image", use3D: false }
+
   try {
-    log.debug("rendering via symbols fallback")
-    const result = await renderImageToTerminal(imageBuffer, { protocol: "symbols", width: cols, height: rows })
-    if (result) return { text: result, direct: null }
-    log.warn("bug: symbols render returned null")
+    const cols = 80
+    const rows = Math.floor(24 * 0.45)
+    const result = await renderImageToTerminal(buf, { protocol: "symbols", width: cols, height: rows })
+    return { text: result ?? "Could not render image", use3D: false }
   } catch (err) {
     log.warn("bug: symbols render failed", { error: String(err) })
+    return { text: "Could not render image", use3D: false }
   }
-  return { text: "Could not render image", direct: null }
 }
-
-// ---------------------------------------------------------------------------
-// SolidJS component
-// ---------------------------------------------------------------------------
 
 export function MediaImage(props: { url: string; mime: string }) {
   const { theme } = useTheme()
@@ -106,9 +68,7 @@ export function MediaImage(props: { url: string; mime: string }) {
       if (!url) return null
       log.debug("MediaImage: rendering", { mime: props.mime, protocol: protocol ?? "auto" })
       try {
-        const result = await renderImage(url, protocol)
-        log.debug("MediaImage: done", { hasDirect: !!result.direct, textLen: result.text.length })
-        return result
+        return await render(url, protocol)
       } catch (err) {
         const msg = String(err)
         log.warn("bug: MediaImage render threw", { error: msg })
@@ -125,9 +85,14 @@ export function MediaImage(props: { url: string; mime: string }) {
           <text fg={theme.textMuted}>{error()!}</text>
         </box>
       </Match>
-      <Match when={output() !== null && output() !== undefined && !output.loading}>
+      {/* 3D renderable for graphics-capable terminals */}
+      <Match when={output()?.use3D}>
+        <image-plane url={props.url} mime={props.mime} width={70} />
+      </Match>
+      {/* Unicode symbols for basic terminals */}
+      <Match when={output() !== null && !output.loading && !output()?.use3D}>
         <box paddingTop={1} paddingLeft={2}>
-          <text fg={theme.text}>{output()!.text || " "}</text>
+          <text fg={theme.text}>{output()!.text}</text>
         </box>
       </Match>
       <Match when={output.loading}>

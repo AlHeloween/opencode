@@ -63,7 +63,6 @@
     "@types/mime-types": "3.0.1",
     "@types/npm-package-arg": "6.1.4",
     "@types/semver": "^7.5.8",
-    "@types/three": "0.185.0",
     "@types/turndown": "5.0.5",
     "@types/which": "3.0.4",
     "@types/yargs": "17.0.33",

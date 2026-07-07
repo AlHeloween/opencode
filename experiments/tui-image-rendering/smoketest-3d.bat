@@ -1,41 +1,27 @@
 @echo off
 :: OpenTUI 3D Smoketest launcher
-:: Opens in Windows Terminal if available, otherwise WezTerm, else falls back to direct run.
-setlocal enabledelayedexpansion
+setlocal
 set "ROOT=%~dp0..\.."
-set "CWD=%ROOT%\packages\opencode"
-set "SCRIPT=experiments\tui-image-rendering\smoketest-3d.tsx"
+set "PKG=%ROOT%\packages\opencode"
+set "SCRIPT=%PKG%\experiments\tui-image-rendering\smoketest-3d.tsx"
 
 :: Find bun
-set "BUN="
-where bun >nul 2>nul
-if %errorlevel% equ 0 set "BUN=bun"
-if "%BUN%"=="" (
-    if exist "%ROOT%\tools\bun.exe" set "BUN=%ROOT%\tools\bun.exe"
-)
-if "%BUN%"=="" (
-    echo bun not found in PATH or tools\
-    pause
-    exit /b 1
+for %%i in (bun) do set "BUN=%%~$PATH:i"
+if "%BUN%"=="" if exist "%ROOT%\tools\bun.exe" set "BUN=%ROOT%\tools\bun.exe"
+if "%BUN%"=="" (echo bun not found & pause & exit /b 1)
+
+:: Windows Terminal
+where wt >nul 2>nul && (
+    start wt -d "%PKG%" cmd /c "%BUN% run %SCRIPT% %*"
+    exit /b 0
 )
 
-:: Try Windows Terminal first
-where wt >nul 2>nul
-if %errorlevel% equ 0 (
-    start wt -d "%CWD%" "%BUN%" run "%SCRIPT%"
-    goto :done
+:: WezTerm
+where wezterm >nul 2>nul && (
+    start wezterm start --cwd "%PKG%" -- "%BUN%" run "%SCRIPT%"
+    exit /b 0
 )
 
-:: Try WezTerm
-where wezterm >nul 2>nul
-if %errorlevel% equ 0 (
-    start wezterm start --cwd "%CWD%" -- "%BUN%" run "%SCRIPT%"
-    goto :done
-)
-
-:: Fallback: direct
-echo Running in current terminal...
-cd /d "%CWD%"
-"%BUN%" run "%SCRIPT%"
-
-:done
+:: Fallback
+cd /d "%PKG%"
+"%BUN%" run "%SCRIPT%" %*

@@ -1,6 +1,7 @@
 import z from "zod"
 import { ConfigPlugin } from "@/config/plugin"
 import { ConfigKeybinds } from "@/config/keybinds"
+import { GRAPHICS_PROTOCOL_PRIORITY } from "@/util/chafa-wasm-render"
 
 const KeybindOverride = z
   .object(
@@ -24,6 +25,10 @@ export const TuiOptions = z.object({
     .optional()
     .describe("Control diff rendering style: 'auto' adapts to terminal width, 'stacked' always shows single column"),
   mouse: z.boolean().optional().describe("Enable or disable mouse capture (default: true)"),
+  image_protocol: z
+    .enum([...GRAPHICS_PROTOCOL_PRIORITY, "auto"] as [string, ...string[]])
+    .optional()
+    .describe("Terminal image rendering protocol: 'auto' (detect), 'kitty', 'sixel', 'iterm2', or 'symbols' (default: auto)"),
 })
 
 export const TuiInfo = z

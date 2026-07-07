@@ -1,16 +1,9 @@
 import { renderSvg, renderSvgWithConfig } from "mermaid-wasm-renderer"
 import { Resvg } from "@resvg/resvg-js"
-import Chafa from "chafa-wasm"
 import * as Log from "@opencode-ai/core/util/log"
+import { getChafa, buildChafaConfig } from "@/util/chafa-wasm-render"
 
 const log = Log.create({ service: "mermaid.renderer" })
-
-let chafaInstance: Awaited<ReturnType<typeof Chafa>> | null = null
-
-async function getChafa() {
-  if (!chafaInstance) chafaInstance = await Chafa()
-  return chafaInstance
-}
 
 export interface MermaidRenderOptions {
   theme?: "default" | "dark" | "forest" | "neutral" | "modern"
@@ -45,16 +38,9 @@ export async function renderSvgToText(svg: string): Promise<string | null> {
     const cols = process.stdout.columns ?? 80
     const rows = Math.floor((process.stdout.rows ?? 24) * 0.6)
 
-    const { ansi } = await imageToAnsi(pngBuffer.buffer as ArrayBuffer, {
-      format: chafa.ChafaPixelMode.CHAFA_PIXEL_MODE_SYMBOLS.value,
-      height: rows,
-      width: cols,
-      colors: chafa.ChafaCanvasMode.CHAFA_CANVAS_MODE_TRUECOLOR.value,
-      colorSpace: chafa.ChafaColorSpace.CHAFA_COLOR_SPACE_RGB.value,
-      symbols: "block+border+space-wide-inverted",
-      preprocess: true,
-      threshold: 0.5,
-    })
+    const cfg = buildChafaConfig(chafa, { width: cols, height: rows })
+
+    const { ansi } = await imageToAnsi(pngBuffer.buffer as ArrayBuffer, cfg)
 
     return ansi
   } catch (error) {

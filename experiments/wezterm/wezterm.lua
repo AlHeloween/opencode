@@ -31,7 +31,7 @@ config.font_size = 13.0
 -- ---------------------------------------------------------------------------
 -- Theme
 -- ---------------------------------------------------------------------------
-config.color_scheme = "Tokyo Night"
+config.color_scheme = "Dracula"
 
 -- ---------------------------------------------------------------------------
 -- Graphics — Kitty protocol for opencode inline images (24-bit, animation)

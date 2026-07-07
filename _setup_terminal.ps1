@@ -75,7 +75,7 @@ config.font = wezterm.font("JetBrains Mono")
 config.font_size = 13.0
 
 -- Theme
-config.color_scheme = "Tokyo Night"
+config.color_scheme = "Dracula"
 
 -- Launch menu -- right-click '+' tab button
 config.launch_menu = {

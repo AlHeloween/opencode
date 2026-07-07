@@ -64,30 +64,54 @@ local config = wezterm.config_builder()
 config.enable_kitty_graphics = true
 
 -- Font
-config.font = wezterm.font("Cascadia Code")
+-- Window
+config.window_decorations = "TITLE | RESIZE"
+config.window_padding = { left = 8, right = 8, top = 8, bottom = 8 }
+config.window_background_opacity = 0.95
+config.win32_system_backdrop = "Acrylic"
+
+-- Font -- built-in JetBrains Mono with Nerd Font icons
+config.font = wezterm.font("JetBrains Mono")
 config.font_size = 13.0
 
 -- Theme
-config.color_scheme = "Catppuccin Mocha"
+config.color_scheme = "Tokyo Night"
 
--- Window
-config.initial_cols = 140
-config.initial_rows = 40
-config.window_decorations = "RESIZE"
-config.use_fancy_tab_bar = false
-config.max_fps = 60
-config.audible_bell = "Disabled"
-config.hide_mouse_cursor_when_typing = false
+-- Launch menu -- right-click '+' tab button
+config.launch_menu = {
+  { label = "PowerShell", args = { "powershell.exe", "-NoLogo" } },
+  { label = "CMD",        args = { "cmd.exe" } },
+}
 
--- Copy/paste (Windows-style)
+-- Leader key: Ctrl+A (tmux-style pane management)
+config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 1000 }
+
+-- Keys
 config.keys = {
+  -- Copy/paste
   { key = "c", mods = "CTRL",       action = wezterm.action.CopyTo("Clipboard") },
   { key = "C", mods = "CTRL|SHIFT", action = wezterm.action.CopyTo("Clipboard") },
   { key = "v", mods = "CTRL",       action = wezterm.action.PasteFrom("Clipboard") },
   { key = "V", mods = "CTRL|SHIFT", action = wezterm.action.PasteFrom("Clipboard") },
+  -- Tabs
   { key = "T", mods = "CTRL|SHIFT", action = wezterm.action.SpawnTab("CurrentPaneDomain") },
   { key = "w", mods = "CTRL",       action = wezterm.action.CloseCurrentTab({ confirm = true }) },
+  -- Leader + | : vertical split  |  Leader + - : horizontal split
+  { key = "|", mods = "LEADER", action = wezterm.action.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+  { key = "-", mods = "LEADER", action = wezterm.action.SplitVertical({ domain = "CurrentPaneDomain" }) },
+  -- Leader + arrows : navigate panes
+  { key = "LeftArrow",  mods = "LEADER", action = wezterm.action.ActivatePaneDirection("Left") },
+  { key = "RightArrow", mods = "LEADER", action = wezterm.action.ActivatePaneDirection("Right") },
+  { key = "UpArrow",    mods = "LEADER", action = wezterm.action.ActivatePaneDirection("Up") },
+  { key = "DownArrow",  mods = "LEADER", action = wezterm.action.ActivatePaneDirection("Down") },
 }
+
+config.initial_cols = 140
+config.initial_rows = 40
+config.use_fancy_tab_bar = false
+config.max_fps = 60
+config.audible_bell = "Disabled"
+config.hide_mouse_cursor_when_typing = false
 
 return config
 "@ | Out-File -FilePath $WezTermConfig -Encoding UTF8

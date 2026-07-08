@@ -1,5 +1,5 @@
 /**
- * MediaImage — renders images via @opentui/core/3d (Three.js + WebGPU).
+ * MediaImage — renders images via @opentui/three (Three.js + WebGPU).
  *
  * Single path: <image-plane> → TexturePlaneRenderable → ThreeRenderable → WebGPU.
  * No chafa, no escape codes — OpenTUI's native 3D pipeline is the only renderer.

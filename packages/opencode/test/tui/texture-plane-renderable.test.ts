@@ -78,7 +78,7 @@ describe("TexturePlaneRenderable", () => {
   test("TextureUtils.loadTextureFromFile loads mini PNG", async () => {
     const f = writTempPng()
     try {
-      const { TextureUtils } = await import("@opentui/core/3d")
+      const { TextureUtils } = await import("@opentui/three")
       const texture = await TextureUtils.loadTextureFromFile(f)
       expect(texture).not.toBeNull()
       expect((texture!.image as any).width).toBe(1)
@@ -92,7 +92,7 @@ describe("TexturePlaneRenderable", () => {
     const f = join(tmpdir(), `test_bad_${Date.now()}.png`)
     writeFileSync(f, Buffer.from("not a png"))
     try {
-      const { TextureUtils } = await import("@opentui/core/3d")
+      const { TextureUtils } = await import("@opentui/three")
       const texture = await TextureUtils.loadTextureFromFile(f)
       expect(texture).toBeNull()
     } finally {

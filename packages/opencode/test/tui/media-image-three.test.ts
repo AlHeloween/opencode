@@ -1,5 +1,5 @@
 /**
- * Test suite: @opentui/core/3d pipeline for image rendering
+ * Test suite: @opentui/three pipeline for image rendering
  * ============================================================================
  * Validates the 3D rendering path for images-as-textures-on-planes.
  * This is the foundation for future 3D GUI themes.
@@ -23,26 +23,26 @@ import * as THREE from "three"
 // API surface — verify all expected exports exist
 // ---------------------------------------------------------------------------
 
-describe("@opentui/core/3d API surface", () => {
+describe("@opentui/three API surface", () => {
   test("exports ThreeRenderable", async () => {
-    const m = await import("@opentui/core/3d")
+    const m = await import("@opentui/three")
     expect(m.ThreeRenderable).toBeDefined()
     expect(typeof m.ThreeRenderable).toBe("function")
   })
 
   test("exports ThreeCliRenderer", async () => {
-    const m = await import("@opentui/core/3d")
+    const m = await import("@opentui/three")
     expect(m.ThreeCliRenderer).toBeDefined()
     expect(typeof m.ThreeCliRenderer).toBe("function")
   })
 
   test("exports CLICanvas", async () => {
-    const m = await import("@opentui/core/3d")
+    const m = await import("@opentui/three")
     expect(m.CLICanvas).toBeDefined()
   })
 
   test("exports TextureUtils", async () => {
-    const m = await import("@opentui/core/3d")
+    const m = await import("@opentui/three")
     expect(m.TextureUtils).toBeDefined()
     expect(typeof m.TextureUtils.loadTextureFromFile).toBe("function")
     expect(typeof m.TextureUtils.createCheckerboard).toBe("function")
@@ -51,7 +51,7 @@ describe("@opentui/core/3d API surface", () => {
   })
 
   test("exports SuperSampleType enum", async () => {
-    const m = await import("@opentui/core/3d")
+    const m = await import("@opentui/three")
     expect(m.SuperSampleType).toBeDefined()
     expect(m.SuperSampleType.NONE).toBeDefined()
     expect(m.SuperSampleType.GPU).toBeDefined()
@@ -59,7 +59,7 @@ describe("@opentui/core/3d API surface", () => {
   })
 
   test("exports SpriteUtils and animation classes", async () => {
-    const m = await import("@opentui/core/3d")
+    const m = await import("@opentui/three")
     expect(m.SpriteUtils).toBeDefined()
     expect(m.SpriteAnimator).toBeDefined()
     expect(m.TiledSprite).toBeDefined()
@@ -73,7 +73,7 @@ describe("@opentui/core/3d API surface", () => {
 
 describe("TextureUtils", () => {
   test("loadTextureFromFile loads dragon.jpg with correct dimensions", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = await TextureUtils.loadTextureFromFile(
       "D:/zPython/opencode/experiments/vision/dragon.jpg",
     )
@@ -84,7 +84,7 @@ describe("TextureUtils", () => {
   })
 
   test("loadTextureFromFile loads smaller test.png", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = await TextureUtils.loadTextureFromFile(
       "D:/zPython/opencode/experiments/vision/test.png",
     )
@@ -94,7 +94,7 @@ describe("TextureUtils", () => {
   })
 
   test("loadTextureFromFile returns null for non-existent file", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = await TextureUtils.loadTextureFromFile(
       "D:/zPython/opencode/experiments/vision/does_not_exist.jpg",
     )
@@ -102,7 +102,7 @@ describe("TextureUtils", () => {
   })
 
   test("createCheckerboard produces valid texture", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = TextureUtils.createCheckerboard(256)
     expect(texture).toBeDefined()
     const img = texture.image as { width: number; height: number }
@@ -111,7 +111,7 @@ describe("TextureUtils", () => {
   })
 
   test("createGradient produces valid texture", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = TextureUtils.createGradient(128)
     expect(texture).toBeDefined()
     const img = texture.image as { width: number; height: number }
@@ -120,7 +120,7 @@ describe("TextureUtils", () => {
   })
 
   test("createNoise produces valid texture", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = TextureUtils.createNoise(128)
     expect(texture).toBeDefined()
     const img = texture.image as { width: number; height: number }
@@ -164,7 +164,7 @@ describe("Three.js geometry for image rendering", () => {
   })
 
   test("TextureData → Mesh pipeline doesn't throw", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = await TextureUtils.loadTextureFromFile(
       "D:/zPython/opencode/experiments/vision/dragon.jpg",
     )
@@ -187,7 +187,7 @@ describe("Three.js geometry for image rendering", () => {
   })
 
   test("checkerboard texture on plane", () => {
-    const { TextureUtils } = require("@opentui/core/3d")
+    const { TextureUtils } = require("@opentui/three")
     // Note: createCheckerboard is synchronous (procedural)
     const texture = TextureUtils.createCheckerboard(256, "#ff0000", "#00ff00", 32)
     const geometry = new THREE.PlaneGeometry(80, 40)
@@ -208,7 +208,7 @@ describe("CliRenderer dependency analysis", () => {
     // This confirms: ThreeCliRenderer CANNOT be used standalone.
     // It must be constructed within the OpenTUI render tree where
     // a CliRenderer instance is available (via useRenderer()).
-    const { ThreeCliRenderer } = await import("@opentui/core/3d")
+    const { ThreeCliRenderer } = await import("@opentui/three")
 
     // Constructor signature: (cliRenderer: CliRenderer, options)
     // Attempting to construct without CliRenderer should throw
@@ -221,7 +221,7 @@ describe("CliRenderer dependency analysis", () => {
   test("TextureUtils does NOT require CliRenderer", async () => {
     // TextureUtils is fully standalone — uses sharp internally,
     // returns standard Three.js Texture objects.
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     const texture = await TextureUtils.loadTextureFromFile(
       "D:/zPython/opencode/experiments/vision/dragon.jpg",
     )
@@ -230,7 +230,7 @@ describe("CliRenderer dependency analysis", () => {
   })
 
   test("Procedural textures are fully standalone", async () => {
-    const { TextureUtils } = await import("@opentui/core/3d")
+    const { TextureUtils } = await import("@opentui/three")
     // All procedural methods work without any terminal context
     const checker = TextureUtils.createCheckerboard(64)
     const gradient = TextureUtils.createGradient(64)

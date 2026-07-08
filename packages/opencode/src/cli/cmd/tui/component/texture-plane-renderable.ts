@@ -1,7 +1,7 @@
 /**
  * TexturePlaneRenderable — renders an image as a textured 3D plane in the OpenTUI tree.
  *
- * Uses @opentui/core/3d ThreeRenderable internally for GPU → block-char conversion.
+ * Uses @opentui/three ThreeRenderable internally for GPU → block-char conversion.
  * Three.js is a static import — required for standalone binary bundling.
  *
  * Registered as <image-plane> via extend() in app.tsx.
@@ -20,17 +20,20 @@ export interface TexturePlaneOptions extends RenderableOptions<TexturePlaneRende
 export class TexturePlaneRenderable extends Renderable {
   private url: string
   private mime: string
+  private childAdded = false
 
   constructor(ctx: RenderContext, options: TexturePlaneOptions) {
     super(ctx, options)
     this.url = options.url
     this.mime = options.mime ?? "image/png"
+    // Default height for portrait images (492×960 → ~0.5 aspect)
+    if (!options.height) this.height = Math.round((this.width || 70) / 0.5)
     this.setup(ctx)
   }
 
   private async setup(ctx: RenderContext): Promise<void> {
     try {
-      const opentui3d = await import("@opentui/core/3d")
+      const opentui3d = await import("@opentui/three")
       const { TextureUtils, ThreeRenderable, SuperSampleType } = opentui3d as any
 
       const { writeFileSync, unlinkSync, existsSync } = await import("fs")
@@ -51,8 +54,9 @@ export class TexturePlaneRenderable extends Renderable {
         const texW = texture.image.width as number
         const texH = texture.image.height as number
         const aspect = texH > 0 ? texW / texH : 1
-        const pw = this.width ?? 60
-        const ph = pw / aspect
+        const pw = this.width
+        const ph = Math.round(pw / aspect)
+        this.height = ph
 
         const geometry = new (THREE as any).PlaneGeometry(pw, ph)
         const material = new (THREE as any).MeshBasicMaterial({ map: texture })
@@ -65,11 +69,17 @@ export class TexturePlaneRenderable extends Renderable {
         const renderable = new ThreeRenderable(ctx, {
           scene,
           camera,
+          width: pw,
+          height: ph,
           renderer: { superSample: SuperSampleType.GPU, alpha: false },
           autoAspect: false,
         })
+        if (this.isDestroyed) return
+
         this.add(renderable)
-        log.debug("TexturePlaneRenderable: scene ready", { texW, texH })
+        this.childAdded = true
+        this.requestRender()
+        log.debug("TexturePlaneRenderable: child ready", { pw, ph })
       } finally {
         try { if (existsSync(tmpFile)) unlinkSync(tmpFile) } catch { /* cleanup */ }
       }

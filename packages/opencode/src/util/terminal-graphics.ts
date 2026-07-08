@@ -1,10 +1,12 @@
 import * as Log from "@opencode-ai/core/util/log"
-import { GRAPHICS_PROTOCOL_PRIORITY, type GraphicsProtocol } from "@/util/chafa-wasm-render"
 
 const log = Log.create({ service: "util.terminal-graphics" })
 
+export const GRAPHICS_PROTOCOLS = ["kitty", "sixel", "iterm2", "symbols"] as const
+export type GraphicsProtocol = (typeof GRAPHICS_PROTOCOLS)[number]
+
 function isGraphicsProtocol(value: string): value is GraphicsProtocol {
-  return (GRAPHICS_PROTOCOL_PRIORITY as readonly string[]).includes(value)
+  return (GRAPHICS_PROTOCOLS as readonly string[]).includes(value)
 }
 
 // ---------------------------------------------------------------------------

@@ -143,6 +143,7 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+            subagents: ["explore"],
           },
           orchestrator: {
             name: "orchestrator",

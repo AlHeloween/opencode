@@ -75,7 +75,7 @@ import { DialogVariant } from "./component/dialog-variant"
 import { TexturePlaneRenderable } from "./component/texture-plane-renderable"
 
 // Register custom renderable for 3D image rendering
-extend({ imagePlane: TexturePlaneRenderable })
+extend({ "image-plane": TexturePlaneRenderable })
 
 function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
   const mouseEnabled = !Flag.OPENCODE_DISABLE_MOUSE && (_config.mouse ?? true)
@@ -841,7 +841,10 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
 
   event.on("session.error", (evt) => {
     const error = evt.properties.error
-    if (error && typeof error === "object" && error.name === "MessageAbortedError") return
+    if (error && typeof error === "object") {
+      if (error.name === "MessageAbortedError") return
+      if (error.name === "ContextOverflowError") return  // auto-handled by compaction
+    }
     const message = errorMessage(error)
     Log.Default.error("session.error", { sessionID: evt.properties.sessionID, message })
 
@@ -858,6 +861,14 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       variant: "info",
       message: `Context at ${pct}% — compaction will trigger at 80%`,
       duration: 4000,
+    })
+  })
+
+  event.on("session.compaction.stuck", (evt) => {
+    toast.show({
+      variant: "warning",
+      message: "Compaction struggling — try sending a shorter message or start a new session.",
+      duration: 8000,
     })
   })
 

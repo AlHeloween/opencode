@@ -652,6 +652,8 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       unsubError = event.on("session.error", (evt) => {
         const sid = evt.properties.sessionID
         if (!sid) return
+        const err = evt.properties.error
+        if (err && typeof err === "object" && err.name === "ContextOverflowError") return  // auto-handled
         if (sid === orchSessionID() || sid === mainSessionID()) {
           const msg = errorMessage(evt.properties.error)
           toast.show({ message: `AGI: session error in ${sid.slice(0, 8)}: ${msg}`, variant: "error", duration: 8000 })

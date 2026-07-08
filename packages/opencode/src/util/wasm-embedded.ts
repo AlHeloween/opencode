@@ -32,6 +32,7 @@ import treeSitterScalaWasm from "../../../wasm/core/pkg/grammars/tree-sitter-sca
 import treeSitterSwiftWasm from "../../../wasm/core/pkg/grammars/tree-sitter-swift.wasm" with { type: "file" }
 import treeSitterTomlWasm from "../../../wasm/core/pkg/grammars/tree-sitter-toml.wasm" with { type: "file" }
 import treeSitterYamlWasm from "../../../wasm/core/pkg/grammars/tree-sitter-yaml.wasm" with { type: "file" }
+import treeSitterZigWasm from "../../../wasm/core/pkg/grammars/tree-sitter-zig.wasm" with { type: "file" }
 
 const embeddedTreeSitterGrammarAssets = [
   ["grammars/tree-sitter-bash.wasm", treeSitterBashWasm],
@@ -61,6 +62,7 @@ const embeddedTreeSitterGrammarAssets = [
   ["grammars/tree-sitter-swift.wasm", treeSitterSwiftWasm],
   ["grammars/tree-sitter-toml.wasm", treeSitterTomlWasm],
   ["grammars/tree-sitter-yaml.wasm", treeSitterYamlWasm],
+  ["grammars/tree-sitter-zig.wasm", treeSitterZigWasm],
 ] as const
 
 export const embeddedTreeSitterGrammarAssetPaths = embeddedTreeSitterGrammarAssets.map((asset) => asset[0])

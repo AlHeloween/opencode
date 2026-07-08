@@ -294,5 +294,14 @@ export default {
         locals: ["https://raw.githubusercontent.com/Isopod/tree-sitter-pascal/master/queries/locals.scm"],
       },
     },
+    {
+      filetype: "zig",
+      wasm: "grammars/tree-sitter-zig.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-zig/master/queries/highlights.scm",
+        ],
+      },
+    },
   ],
 }

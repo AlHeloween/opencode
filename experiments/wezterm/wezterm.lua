@@ -19,6 +19,7 @@ config.initial_cols = 140
 config.initial_rows = 40
 config.window_decorations = "TITLE | RESIZE"
 config.window_padding = { left = 8, right = 8, top = 8, bottom = 8 }
+config.window_close_confirmation = "NeverPrompt"    -- no prompt on window close (X / Alt+F4)
 config.window_background_opacity = 0.95
 config.win32_system_backdrop = "Acrylic"
 
@@ -69,7 +70,7 @@ config.keys = {
   { key = "V", mods = "CTRL|SHIFT", action = wezterm.action.PasteFrom("Clipboard") },
   -- Tabs
   { key = "T", mods = "CTRL|SHIFT", action = wezterm.action.SpawnTab("CurrentPaneDomain") },
-  { key = "w", mods = "CTRL",       action = wezterm.action.CloseCurrentTab({ confirm = true }) },
+  { key = "w", mods = "CTRL",       action = wezterm.action.CloseCurrentTab({ confirm = false }) },
   -- Leader + | : vertical split
   { key = "|", mods = "LEADER", action = wezterm.action.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
   -- Leader + - : horizontal split

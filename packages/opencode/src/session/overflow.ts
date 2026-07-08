@@ -4,6 +4,7 @@ import { ProviderTransform } from "@/provider/transform"
 import { Token } from "@/util/token"
 import { Tokenizers } from "@/tokenizers/index"
 import type { MessageV2 } from "./message-v2"
+import { TokenCalibration } from "./token-calibration"
 
 const COMPACTION_BUFFER = 20_000
 
@@ -83,14 +84,18 @@ function estimateContentTokens(msgs: MessageV2.WithParts[], model: Provider.Mode
 
   if (chars === 0) return 0
 
+  const charsEstimate = Math.ceil(chars / 4)
+
   // Prefer real tokenizer for exact count (resolves via api.id → name → family)
   const tok = Tokenizers.getTokenizerSync(model)
-  if (tok) {
-    return tok.countTokens(fragments.join("\n"))
-  }
+  const tokEstimate = tok ? tok.countTokens(fragments.join("\n")) : 0
 
-  // Fallback: chars/4 heuristic
-  return Math.ceil(chars / 4)
+  // Use max(tokenizer, chars/4) — tokenizer may undercount for some models,
+  // chars/4 slightly overcounts for real conversation data (safe side).
+  const raw = Math.max(tokEstimate, charsEstimate)
+
+  // Apply provider-calibrated correction factor (default 1.0)
+  return Math.ceil(raw * TokenCalibration.getFactor(model))
 }
 
 /** Estimate overflow from extracted text content rather than stored token

@@ -62,6 +62,40 @@ function isOverflow(message: string) {
   return /^4(00|13)\s*(status code)?\s*\(no body\)/i.test(message)
 }
 
+/** Extract token counts from a provider overflow error message.
+ *  Returns the model's actual context limit and/or the input token count
+ *  if the provider includes them in the error. */
+export function extractTokenLimits(message: string): {
+  contextLimit?: number
+  inputTokens?: number
+} {
+  const limitPatterns = [
+    /maximum context length is (\d[\d,]*)/i,
+    /context length is only (\d[\d,]*)/i,
+    /exceeds the limit of (\d[\d,]*)/i,
+    /maximum prompt length is (\d[\d,]*)/i,
+    /too large for model with (\d[\d,]*) maximum/i,
+  ]
+  let contextLimit: number | undefined
+  for (const p of limitPatterns) {
+    const m = message.match(p)
+    if (m) { contextLimit = parseInt(m[1]!.replace(/,/g, ""), 10); break }
+  }
+
+  const inputPatterns = [
+    /input token count[^\d]*(\d[\d,]*)/i,
+    /(\d[\d,]*) tokens.*exceeds/i,
+    /prompt.*?(\d[\d,]*)\s*tokens/i,
+  ]
+  let inputTokens: number | undefined
+  for (const p of inputPatterns) {
+    const m = message.match(p)
+    if (m) { inputTokens = parseInt(m[1]!.replace(/,/g, ""), 10); break }
+  }
+
+  return { contextLimit, inputTokens }
+}
+
 function message(providerID: ProviderID, e: APICallError) {
   return iife(() => {
     const msg = e.message

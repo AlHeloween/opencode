@@ -192,6 +192,7 @@ export interface Interface {
     auto: boolean
     overflow?: boolean
     forced?: boolean
+    previousCheckpointIDs?: string[]
   }) => Effect.Effect<void>
   readonly selectMessages: (input: {
     messages: MessageV2.WithParts[]
@@ -319,6 +320,9 @@ export const layer: Layer.Layer<
       overflow?: boolean
       /** Whether compaction was forced (bypassing economics). */
       forced?: boolean
+      /** Message IDs from a previous checkpoint — used as compaction boundary.
+       *  When provided, messages NOT in this set become the tail (delta). */
+      previousCheckpointIDs?: string[]
     }) {
       // Stuck detection: track consecutive compactions per session.
       // If we compact on 3+ consecutive turns and context is still above
@@ -369,6 +373,7 @@ export const layer: Layer.Layer<
         type: "compaction",
         auto: input.auto,
         overflow: input.overflow,
+        ...(input.previousCheckpointIDs?.length ? { previousCheckpointIDs: input.previousCheckpointIDs } : {}),
       })
     })
 
@@ -417,6 +422,7 @@ export const create = fn(
     model: z.object({ providerID: ProviderID.zod, modelID: ModelID.zod }),
     auto: z.boolean(),
     overflow: z.boolean().optional(),
+    previousCheckpointIDs: z.array(z.string()).optional(),
   }),
   (input) => runPromise((svc) => svc.create(input)),
 )

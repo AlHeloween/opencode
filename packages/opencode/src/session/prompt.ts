@@ -1250,9 +1250,26 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }
 
             // Split messages into head (for summarization) and tail (preserved verbatim).
-            // Sets tail_count on the compaction part so filterCompactedEffect can
-            // identify which messages to keep after the boundary.
-            const selected = yield* compaction.selectMessages({ messages: msgs, model })
+            // If previousCheckpointIDs is available, use checkpoint as the boundary
+            // (everything in the checkpoint = head, everything after = tail/delta).
+            // Otherwise fall back to selectMessages() heuristics.
+            const cpIDs = (task as { previousCheckpointIDs?: string[] }).previousCheckpointIDs
+            let selected: { head: MessageV2.WithParts[]; tail: MessageV2.WithParts[] }
+            if (cpIDs?.length) {
+              const idSet = new Set(cpIDs)
+              const head: MessageV2.WithParts[] = []
+              const tail: MessageV2.WithParts[] = []
+              let inTail = false
+              for (const m of msgs) {
+                if (!inTail && !idSet.has(m.info.id)) inTail = true
+                if (inTail) tail.push(m)
+                else head.push(m)
+              }
+              selected = { head, tail }
+              log.info("compaction using checkpoint boundary", { headLen: head.length, tailLen: tail.length })
+            } else {
+              selected = yield* compaction.selectMessages({ messages: msgs, model })
+            }
             if (selected.tail.length > 0) {
               task.tail_count = selected.tail.length
               yield* sessions.updatePart(task)
@@ -1317,7 +1334,12 @@ You should build your plan incrementally by writing to or editing this file. NOT
               // output matches what was actually sent to the provider.
               const systemForDiff = [...system]
 
-              const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
+              // Use selected.head (messages before last turn) for summarization,
+              // not the full msgs array. The tail is preserved separately via tail_count.
+              const modelMsgs = yield* MessageV2.toModelMessagesEffect(
+                selected.head.length > 0 ? selected.head : msgs,
+                model,
+              )
 
               // Compute and store compaction turn fingerprint so the next
               // normal turn has a valid cache baseline.
@@ -1382,12 +1404,23 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
               if (result === "stop") return "break" as const
               if (result === "compact") {
+                // Try to load previous checkpoint for checkpoint-based compaction.
+                // The previous checkpoint has fewer messages — guaranteed to fit the summarizer.
+                const prevCheckpoint = yield* Checkpoint.loadPrevious({
+                  sessionID,
+                  providerID: model.providerID,
+                  modelID: model.id,
+                  projectID: ctx.project.id,
+                  agentName: agent.name,
+                }).pipe(Effect.catch(() => Effect.succeed(null)))
+
                 yield* compaction.create({
                   sessionID,
                   agent: lastUser.agent,
                   model: lastUser.model,
                   auto: true,
                   overflow: !handle.message.finish,
+                  previousCheckpointIDs: prevCheckpoint?.messageIDs,
                 })
                 return "continue" as const
               }
@@ -1450,7 +1483,18 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }
 
             const forced = tier === "force"
-            yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true, overflow: true, forced })
+            const prevCP = yield* Checkpoint.loadPrevious({
+              sessionID,
+              providerID: model.providerID,
+              modelID: model.id,
+              projectID: ctx.project.id,
+              agentName: lastUser.agent,
+            }).pipe(Effect.catch(() => Effect.succeed(null)))
+            yield* compaction.create({
+              sessionID, agent: lastUser.agent, model: lastUser.model,
+              auto: true, overflow: true, forced,
+              previousCheckpointIDs: prevCP?.messageIDs,
+            })
             cachedMsgs = undefined
             lastKnownId = undefined
             continue

@@ -231,6 +231,7 @@ export const CompactionPart = Schema.Struct({
   auto: Schema.Boolean,
   overflow: Schema.optional(Schema.Boolean),
   tail_count: Schema.optional(Schema.Number),
+  previousCheckpointIDs: Schema.optional(Schema.Array(Schema.String)),
 })
   .annotate({ identifier: "CompactionPart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))

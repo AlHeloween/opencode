@@ -11,6 +11,8 @@ import * as Session from "./session"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
 import { isOverflow } from "./overflow"
+import { TokenCalibration } from "./token-calibration"
+import { ProviderError } from "@/provider/error"
 import { PartID } from "./schema"
 import type { SessionID } from "./schema"
 import { SessionRetry } from "./retry"
@@ -835,7 +837,11 @@ export const layer: Layer.Layer<
         const error = parse(e)
         if (MessageV2.ContextOverflowError.isInstance(error)) {
           ctx.needsCompaction = true
-          yield* bus.publish(Session.Event.Error, { sessionID: ctx.sessionID, error })
+          // Calibrate token estimator from provider's ground-truth error message
+          const tokenInfo = ProviderError.extractTokenLimits(error.data.message)
+          if (tokenInfo.contextLimit || tokenInfo.inputTokens) {
+            TokenCalibration.update(ctx.model, tokenInfo, ctx.assistantMessage.tokens?.input)
+          }
           return
         }
         ctx.assistantMessage.error = error

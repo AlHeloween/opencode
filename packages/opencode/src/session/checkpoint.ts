@@ -27,6 +27,7 @@ const log = Log.create({ service: "checkpoint" })
 export const CHECKPOINT_VERSION = 2
 export const CHECKPOINT_KIND = "checkpoint" as const
 const CHECKPOINT_DIR = ".checkpoints"
+const CHECKPOINT_SLOTS = 2
 
 export interface CheckpointData {
   kind: typeof CHECKPOINT_KIND
@@ -56,6 +57,47 @@ export function checkpointPath(sessionID: string, providerID: string, modelID: s
   return path.join(checkpointDir(sessionID), `${safeProvider}_${safeModel}_${safeAgent ? safeAgent + "_" : ""}${safeSid}.enc`)
 }
 
+/** Return slot file paths for rotating checkpoints. */
+function checkpointSlotPaths(
+  sessionID: string, providerID: string, modelID: string, agentName?: string,
+): string[] {
+  const base = checkpointPath(sessionID, providerID, modelID, agentName)
+  return Array.from({ length: CHECKPOINT_SLOTS }, (_, i) =>
+    base.replace(/\.enc$/, `_S${i}.enc`),
+  )
+}
+
+/** Pick the slot with the OLDER mtime (or first non-existing slot). */
+function olderSlot(slots: string[]): string {
+  return slots.reduce((oldest, p) => {
+    const oTime = fs.existsSync(oldest) ? fs.statSync(oldest).mtimeMs : 0
+    const pTime = fs.existsSync(p) ? fs.statSync(p).mtimeMs : 0
+    return pTime <= oTime ? p : oldest
+  })
+}
+
+/** Try to decrypt and parse a checkpoint file. Returns null on failure. */
+async function tryLoadSlot(filePath: string, encKey: CryptoKey): Promise<CheckpointData | null> {
+  try {
+    const encrypted = fs.readFileSync(filePath)
+    const plaintext = await decryptBaseline(encrypted, encKey)
+    const data: CheckpointData = JSON.parse(plaintext)
+    if (data.kind !== CHECKPOINT_KIND || data.version !== CHECKPOINT_VERSION) {
+      try { fs.unlinkSync(filePath) } catch (e) {
+        log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e) })
+      }
+      return null
+    }
+    return data
+  } catch (e) {
+    log.warn("bug: checkpoint slot load failed", { filePath, error: errorMessage(e) })
+    try { fs.unlinkSync(filePath) } catch (e2) {
+      log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e2) })
+    }
+    return null
+  }
+}
+
 async function writeAtomic(filePath: string, data: Buffer): Promise<void> {
   const tmpPath = filePath + ".tmp." + crypto.randomUUID()
   const dir = path.dirname(filePath)
@@ -64,7 +106,8 @@ async function writeAtomic(filePath: string, data: Buffer): Promise<void> {
   fs.renameSync(tmpPath, filePath)
 }
 
-/** Save checkpoint to encrypted file. Fire-and-forget safe — wraps in Effect. */
+/** Save checkpoint to encrypted file with 2-slot rotation.
+ *  Writes to the slot with the OLDER mtime, preserving the newer slot as backup. */
 export function save(input: {
   sessionID: string
   projectID: string
@@ -72,12 +115,13 @@ export function save(input: {
 }): Effect.Effect<void> {
   return Effect.tryPromise({
     try: async () => {
-      const filePath = checkpointPath(
+      const slots = checkpointSlotPaths(
         input.sessionID,
         input.data.model.providerID,
         input.data.model.modelID,
         input.data.agent,
       )
+      const filePath = olderSlot(slots)
       const encKey = await deriveKey(input.projectID, input.sessionID)
       const plaintext = JSON.stringify(input.data)
       const encrypted = await encryptBaseline(plaintext, encKey)
@@ -94,7 +138,7 @@ export function save(input: {
   })))
 }
 
-/** Load checkpoint from encrypted file. Returns null if not found or corrupt. */
+/** Load checkpoint from rotating slots. Tries newest slot first (by mtime). */
 export function load(input: {
   sessionID: string
   providerID: string
@@ -103,34 +147,54 @@ export function load(input: {
   agentName?: string
 }): Effect.Effect<CheckpointData | null> {
   return Effect.promise(async () => {
-    const filePath = checkpointPath(input.sessionID, input.providerID, input.modelID, input.agentName)
-    if (!fs.existsSync(filePath)) return null
+    const slots = checkpointSlotPaths(input.sessionID, input.providerID, input.modelID, input.agentName)
+    const existing = slots
+      .filter((p) => fs.existsSync(p))
+      .map((p) => ({ path: p, mtime: fs.statSync(p).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime)
 
-    try {
-      const encKey = await deriveKey(input.projectID, input.sessionID)
-      const encrypted = fs.readFileSync(filePath)
-      const plaintext = await decryptBaseline(encrypted, encKey)
-      const data: CheckpointData = JSON.parse(plaintext)
+    if (existing.length === 0) return null
 
-      if (data.kind !== CHECKPOINT_KIND || data.version !== CHECKPOINT_VERSION) {
-        try { fs.unlinkSync(filePath) } catch (e) {
-          log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e) })
-        }
-        return null
-      }
-
-      return data
-    } catch (e) {
-      log.warn("bug: checkpoint load failed, falling back to DB", { sessionID: input.sessionID, error: errorMessage(e) })
-      try { fs.unlinkSync(filePath) } catch (e2) {
-        log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e2) })
-      }
-      return null
+    const encKey = await deriveKey(input.projectID, input.sessionID)
+    for (const { path: filePath } of existing) {
+      const data = await tryLoadSlot(filePath, encKey)
+      if (data) return data
     }
+
+    log.warn("bug: all checkpoint slots corrupt", { sessionID: input.sessionID })
+    return null
   })
 }
 
-/** Remove all checkpoint files for a session. */
+/** Load the OLDER checkpoint slot (for compaction fallback).
+ *  Returns the checkpoint with the older mtime — guaranteed to have fewer messages. */
+export function loadPrevious(input: {
+  sessionID: string
+  providerID: string
+  modelID: string
+  projectID: string
+  agentName?: string
+}): Effect.Effect<CheckpointData | null> {
+  return Effect.promise(async () => {
+    const slots = checkpointSlotPaths(input.sessionID, input.providerID, input.modelID, input.agentName)
+    const existing = slots
+      .filter((p) => fs.existsSync(p))
+      .map((p) => ({ path: p, mtime: fs.statSync(p).mtimeMs }))
+      .sort((a, b) => a.mtime - b.mtime)  // ASCENDING — oldest first
+
+    if (existing.length === 0) return null
+
+    const encKey = await deriveKey(input.projectID, input.sessionID)
+    for (const { path: filePath } of existing) {
+      const data = await tryLoadSlot(filePath, encKey)
+      if (data) return data
+    }
+
+    return null
+  })
+}
+
+/** Remove all checkpoint files for a session (both slot and legacy formats). */
 export function remove(sessionID: string): Effect.Effect<void> {
   return Effect.sync(() => {
     const dir = checkpointDir(sessionID)
@@ -138,7 +202,8 @@ export function remove(sessionID: string): Effect.Effect<void> {
 
     const safeSid = sanitize(sessionID)
     for (const file of fs.readdirSync(dir)) {
-      if (file.endsWith(`_${safeSid}.enc`)) {
+      // Match both legacy (_sid.enc) and slot format (_sid_S0.enc, _sid_S1.enc)
+      if (file.includes(`_${safeSid}_S`) || file.endsWith(`_${safeSid}.enc`)) {
         try { fs.unlinkSync(path.join(dir, file)) } catch (e) {
           log.debug("checkpoint remove failed", { sessionID, file, error: errorMessage(e) })
         }
@@ -165,7 +230,9 @@ export function findLatest(input: {
     let latest: { sessionID: string; mtime: number } | null = null
     for (const file of fs.readdirSync(dir)) {
       if (!file.startsWith(prefix) || !file.endsWith(".enc")) continue
-      const sid = file.slice(prefix.length, -".enc".length)
+      // Strip optional _S{N} slot suffix from session ID
+      const raw = file.slice(prefix.length, -".enc".length)
+      const sid = raw.replace(/_S\d+$/, "")
       if (exclude && sid === exclude) continue
       const stat = fs.statSync(path.join(dir, file))
       if (!latest || stat.mtimeMs > latest.mtime) {

@@ -1744,6 +1744,15 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
           content={displayText()}
           conceal={ctx.conceal()}
           fg={theme.text}
+          onHighlight={(highlights: any, context: any) => {
+            Log.Default.debug("tree-sitter highlight completed", {
+              partId: props.part.id,
+              filetype: context?.filetype,
+              highlightCount: highlights?.length ?? 0,
+              contentLength: context?.content?.length ?? 0,
+            })
+            return highlights
+          }}
         />
         <Show when={mermaidDataUrl()}>
           <image-plane url={mermaidDataUrl()!} mime="image/png" width={70} />

@@ -1668,7 +1668,7 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
       >
         <code
           filetype="markdown"
-          drawUnstyledText={false}
+          drawUnstyledText={true}
           streaming={true}
           syntaxStyle={subtleSyntax()}
           content={"_Thinking:_ " + content()}
@@ -1738,7 +1738,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
         <code
           filetype="markdown"
-          drawUnstyledText={false}
+          drawUnstyledText={true}
           streaming={true}
           syntaxStyle={syntax()}
           content={displayText()}

@@ -1745,6 +1745,9 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
           conceal={ctx.conceal()}
           fg={theme.text}
         />
+        <Show when={mermaidDataUrl()}>
+          <image-plane url={mermaidDataUrl()!} mime="image/png" width={70} />
+        </Show>
       </box>
     </Show>
   )

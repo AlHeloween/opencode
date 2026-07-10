@@ -1,0 +1,56 @@
+{
+  "test_time": "2026-07-10T05:22:39.582Z",
+  "auth": {
+    "type": "oauth",
+    "accountId": "e37ccc5e-b18a-47ec-aab9-02c44aa3edcd"
+  },
+  "api": "https://chatgpt.com/backend-api/codex/responses",
+  "total_models": 7,
+  "tested": 7,
+  "passed": 6,
+  "failed": 1,
+  "results": [
+    {
+      "id": "codex-auto-review",
+      "status": "ok",
+      "response_time_ms": 2665,
+      "sample": "4"
+    },
+    {
+      "id": "gpt-5.4",
+      "status": "ok",
+      "response_time_ms": 738,
+      "sample": "4"
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "status": "ok",
+      "response_time_ms": 612,
+      "sample": "4"
+    },
+    {
+      "id": "gpt-5.5",
+      "status": "ok",
+      "response_time_ms": 511,
+      "sample": "4"
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "status": "error",
+      "response_time_ms": 352,
+      "error": "Model not found gpt-5.6-luna"
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "status": "ok",
+      "response_time_ms": 671,
+      "sample": "4"
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "status": "ok",
+      "response_time_ms": 526,
+      "sample": "4"
+    }
+  ]
+}

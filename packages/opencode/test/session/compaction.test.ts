@@ -8,7 +8,8 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
-import { isOverflowFromContent } from "../../src/session/overflow"
+import { chunkHead, extractAnchors, validateSummary } from "../../src/session/compaction"
+import { isOverflowFromContent, estimateContentTokens } from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
@@ -1409,5 +1410,205 @@ describe("isOverflowFromContent", () => {
   test("returns false for empty message array", () => {
     const model = deepseekV4Model()
     expect(isOverflowFromContent({ cfg: defaultCfg(), msgs: [], model })).toBe(false)
+  })
+})
+
+// --- estimateContentTokens tests (overflow.ts) ---
+
+describe("estimateContentTokens", () => {
+  test("counts text from text parts only", () => {
+    const msgs = [
+      makeMsg("user", [{ type: "text", text: "x".repeat(4000) }]),
+      makeMsg("assistant", [{ type: "text", text: "x".repeat(1000) }]),
+    ]
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const count = estimateContentTokens(msgs, model)
+    // 5000 chars / 4 = 1250 tokens (chars/4 heuristic, no tokenizer for test model)
+    expect(count).toBe(1250)
+  })
+
+  test("skips non-text parts (metadata-only)", () => {
+    const msgs = [
+      makeMsg("assistant", [
+        { type: "tool", tool: "bash", callID: "c1", state: { status: "running", input: {}, time: { start: 0 } } },
+      ]),
+    ]
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const count = estimateContentTokens(msgs, model)
+    expect(count).toBe(0)
+  })
+
+  test("includes completed tool output", () => {
+    const msgs = [
+      makeMsg("assistant", [
+        {
+          type: "tool",
+          tool: "bash",
+          callID: "c1",
+          state: { status: "completed", output: "x".repeat(4000), input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" },
+        },
+      ]),
+    ]
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const count = estimateContentTokens(msgs, model)
+    expect(count).toBe(1000)
+  })
+
+  test("includes reasoning text", () => {
+    const msgs = [
+      makeMsg("assistant", [
+        { type: "reasoning", text: "x".repeat(4000) },
+        { type: "text", text: "x".repeat(4000) },
+      ]),
+    ]
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const count = estimateContentTokens(msgs, model)
+    expect(count).toBe(2000)
+  })
+
+  test("skips ignored text parts", () => {
+    const msgs = [
+      makeMsg("user", [
+        { type: "text", text: "x".repeat(4000) },
+        { type: "text", text: "x".repeat(40000), ignored: true },
+      ]),
+    ]
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const count = estimateContentTokens(msgs, model)
+    expect(count).toBe(1000)
+  })
+
+  test("returns 0 for empty messages", () => {
+    const model = createModel({ context: 100_000, output: 32_000 })
+    expect(estimateContentTokens([], model)).toBe(0)
+  })
+})
+
+// --- chunkHead tests (compaction.ts) ---
+
+describe("chunkHead", () => {
+  function manyMessages(count: number, charsPerMsg: number): MessageV2.WithParts[] {
+    return Array.from({ length: count }, (_, i) =>
+      makeMsg("user", [{ type: "text", text: "x".repeat(charsPerMsg) }]),
+    )
+  }
+
+  test("returns single chunk when head fits within threshold", () => {
+    // 5 small messages = 5K tokens on a 100K context model
+    const head = manyMessages(5, 2000)
+    const cfg = { compaction: { auto: true } } as Config.Info
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const chunks = chunkHead({ head, cfg, model })
+    expect(chunks.length).toBe(1)
+    expect(chunks[0]).toEqual(head)
+  })
+
+  test("splits large head into multiple chunks", () => {
+    // 30 messages at 4000 chars each = 120K chars = 30K tokens
+    // On a 50K context model (usable ~42.5K), this should split
+    const head = manyMessages(30, 4000)
+    const cfg = { compaction: { auto: true } } as Config.Info
+    const model = createModel({ context: 50_000, output: 16_000 })
+    const chunks = chunkHead({ head, cfg, model })
+    expect(chunks.length).toBeGreaterThan(1)
+    // All messages accounted for
+    const totalMsgs = chunks.reduce((sum, c) => sum + c.length, 0)
+    expect(totalMsgs).toBe(30)
+  })
+
+  test("returns single chunk for empty head", () => {
+    const cfg = { compaction: { auto: true } } as Config.Info
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const chunks = chunkHead({ head: [], cfg, model })
+    expect(chunks.length).toBe(1)
+    expect(chunks[0]).toEqual([])
+  })
+})
+
+// --- extractAnchors tests (compaction.ts) ---
+
+describe("extractAnchors", () => {
+  test("extracts file paths from text parts", () => {
+    const msgs = [
+      makeMsg("user", [{ type: "text", text: "Fixed bug in src/session/compaction.ts" }]),
+      makeMsg("assistant", [{ type: "text", text: "Check packages/opencode/src/config/config.ts" }]),
+    ]
+    const anchors = extractAnchors(msgs)
+    expect(anchors).toEqual(
+      expect.arrayContaining([expect.stringMatching(/compaction\.ts/), expect.stringMatching(/config\.ts/)]),
+    )
+  })
+
+  test("extracts error strings", () => {
+    const msgs = [
+      makeMsg("assistant", [{ type: "text", text: "Error: Cannot read properties of undefined" }]),
+      makeMsg("user", [{ type: "text", text: "TypeError: foo.bar is not a function in render()" }]),
+    ]
+    const anchors = extractAnchors(msgs)
+    expect(anchors.length).toBeGreaterThan(0)
+    expect(anchors.some((a) => a.includes("Error"))).toBe(true)
+    expect(anchors.some((a) => a.includes("TypeError"))).toBe(true)
+  })
+
+  test("extracts command strings", () => {
+    const msgs = [
+      makeMsg("user", [{ type: "text", text: "I ran bun test test/session/compaction.test.ts" }]),
+      makeMsg("assistant", [{ type: "tool", tool: "bash", callID: "c1", state: { status: "completed", output: "git status", input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" } }]),
+    ]
+    const anchors = extractAnchors(msgs)
+    expect(anchors.some((a) => a.includes("bun test"))).toBe(true)
+  })
+
+  test("returns empty array for empty messages", () => {
+    expect(extractAnchors([])).toEqual([])
+  })
+
+  test("returns empty array for messages with no anchors", () => {
+    const msgs = [makeMsg("user", [{ type: "text", text: "Hello" }])]
+    expect(extractAnchors([])).toEqual([])
+  })
+})
+
+// --- validateSummary tests (compaction.ts) ---
+
+describe("validateSummary", () => {
+  const validSummary = `## Goal
+- Complete the implementation of the chunked summarization feature for cross-model sessions
+
+## Commands & Outcomes
+- ran bun test test/session/compaction.test.ts and all 47 tests passed
+- ran bun typecheck and no errors were found
+
+## Errors & Fixes
+- Fixed estimate() using JSON serialization which inflated token counts 3-5x
+- Fixed usable() to prefer observed context limit from provider error messages
+
+## Relevant Files
+- src/session/compaction.ts
+- src/session/overflow.ts
+`
+
+  test("passes valid summary with multiple sections", () => {
+    const result = validateSummary(validSummary)
+    expect(result).toEqual({ valid: true })
+  })
+
+  test("rejects empty summary", () => {
+    const result = validateSummary("")
+    expect(result).not.toEqual({ valid: true })
+    expect((result as { valid: false; reason: string }).reason).toContain("too_short")
+  })
+
+  test("rejects very short summary", () => {
+    const result = validateSummary("hello world")
+    expect(result).not.toEqual({ valid: true })
+    expect((result as { valid: false; reason: string }).reason).toContain("too_short")
+  })
+
+  test("rejects summary with only one section header", () => {
+    const text = "## Goal\n- test\n\nSome random text without other sections that should be long enough to pass the minimum length check of 200 characters. This text needs to be substantial enough that we can test the section header validation separately from the length validation. So let me keep typing until I reach the required threshold of 200 characters which should be enough for this test to work correctly."
+    const result = validateSummary(text)
+    expect(result).not.toEqual({ valid: true })
+    expect((result as { valid: false; reason: string }).reason).toContain("missing_sections")
   })
 })

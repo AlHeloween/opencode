@@ -17,7 +17,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
-import { isOverflow as overflow, usable } from "./overflow"
+import { isOverflow as overflow, usable, estimateContentTokens } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
 
@@ -45,9 +45,26 @@ export const Event = {
       consecutiveCompacts: Schema.Number,
     }),
   ),
+  CompactionChunkProgress: BusEvent.define(
+    "session.compaction.chunk_progress",
+    Schema.Struct({
+      sessionID: SessionID,
+      chunk: Schema.Number,
+      total: Schema.Number,
+    }),
+  ),
 }
 
 const MAX_CONSECUTIVE_COMPACTS = 3
+
+/** Chunk head into multiple pieces when head tokens exceed this fraction of usable window. */
+const CHUNK_THRESHOLD_RATIO = 0.7
+/** Each chunk targets this fraction of the usable window (leaves room for instruction + output). */
+const CHUNK_TARGET_RATIO = 0.5
+/** Minimum characters a summary must contain to pass the quality guard. */
+const MIN_SUMMARY_LENGTH = 200
+/** Section headers the summarizer should produce — used for quality validation. */
+const SECTION_HEADERS = ["## Goal", "## Constraints & Preferences", "## Progress", "## Commands & Outcomes", "## Errors & Fixes", "## Key Decisions", "## Next Steps", "## Critical Context", "## Relevant Files"]
 
 export const PRUNE_MINIMUM = 20_000
 export const PRUNE_PROTECT = 40_000
@@ -161,6 +178,105 @@ function preserveRecentBudget(input: { cfg: Config.Info; model: Provider.Model }
   )
 }
 
+/** Split head messages into chunks that each fit within the usable window.
+  * Each chunk targets CHUNK_TARGET_RATIO * usable tokens and splits at turn boundaries. */
+export function chunkHead(input: {
+  head: MessageV2.WithParts[]
+  cfg: Config.Info
+  model: Provider.Model
+}): MessageV2.WithParts[][] {
+  // Only split if the head exceeds the chunk threshold
+  const headTokens = estimateContentTokens(input.head, input.model)
+  const available = usable(input)
+  if (headTokens <= available * CHUNK_THRESHOLD_RATIO) {
+    return [input.head]
+  }
+
+  // Walk through turns, splitting at CHUNK_TARGET boundaries
+  const allTurns = turns(input.head)
+  const target = available * CHUNK_TARGET_RATIO
+  const chunks: MessageV2.WithParts[][] = []
+  let currentStart = 0
+  let currentTokens = 0
+
+  for (const turn of allTurns) {
+    const turnMsgs = input.head.slice(turn.start, turn.end)
+    const turnTokens = estimateContentTokens(turnMsgs, input.model)
+
+    // If adding this turn would exceed target and we have at least one turn
+    if (currentTokens + turnTokens > target && currentStart < turn.start) {
+      chunks.push(input.head.slice(currentStart, turn.start))
+      currentStart = turn.start
+      currentTokens = 0
+    }
+    currentTokens += turnTokens
+  }
+
+  // Collect remaining messages
+  if (currentStart < input.head.length) {
+    chunks.push(input.head.slice(currentStart))
+  }
+
+  // If chunking produced nothing useful, return the head as-is
+  return chunks.length > 1 ? chunks : [input.head]
+}
+
+/** Extract searchable anchors (file paths, error strings, commands) from messages.
+  * These help messagesearch find compacted content. */
+export function extractAnchors(messages: MessageV2.WithParts[]): string[] {
+  // Collect all text from message parts
+  const fragments: string[] = []
+  for (const msg of messages) {
+    for (const part of msg.parts) {
+      if (part.type === "text" && !part.ignored) {
+        fragments.push(part.text)
+      } else if (part.type === "reasoning") {
+        fragments.push(part.text)
+      } else if (part.type === "tool" && part.state.status === "completed") {
+        fragments.push(part.state.output)
+      }
+    }
+  }
+  const text = fragments.join("\n")
+
+  const anchors = new Set<string>()
+
+  // File paths: any path-like string with known extensions
+  for (const match of text.matchAll(/\b(?:[\w-]+\/)+[\w.-]+\.(?:ts|tsx|js|jsx|json|md|sql|css|html|cjs|mjs|rs|go|py|rb|java|swift|kt|ex|exs|pas|dpr|dproj)\b/gi)) {
+    if (match[0].length > 5 && match[0].length < 200) anchors.add(match[0])
+  }
+
+  // Error strings: common error markers + their context
+  for (const match of text.matchAll(/(?:Error|error|Cannot|Failed|Unable|TypeError|ReferenceError|SyntaxError|RangeError)[^\n]{0,80}/g)) {
+    const trimmed = match[0].trim()
+    if (trimmed.length > 5 && trimmed.length < 200) anchors.add(trimmed)
+  }
+
+  // Commands: tool invocations
+  for (const match of text.matchAll(/\b(bun|npm|npx|git|cargo|python|node|docker|kubectl|drizzle|pnpm|yarn|deno|go|rustc|zig|make|cmake|mvn|gradle)\s+[^\n]{0,60}/gi)) {
+    anchors.add(match[0].trim())
+  }
+
+  // Deduplicate, sort, and limit to reasonable size
+  return [...anchors].sort().slice(0, 30)
+}
+
+/** Validate that a compaction summary is substantive enough.
+  * Returns { valid: true } or { valid: false, reason } for the quality guard. */
+export function validateSummary(summary: string): { valid: true } | { valid: false; reason: string } {
+  if (!summary || summary.trim().length < MIN_SUMMARY_LENGTH) {
+    return { valid: false, reason: `too_short: ${summary.trim().length} chars < ${MIN_SUMMARY_LENGTH} required` }
+  }
+
+  // Check for section headers from the SUMMARY_TEMPLATE
+  const matchedHeaders = SECTION_HEADERS.filter((h) => summary.includes(h))
+  if (matchedHeaders.length < 2) {
+    return { valid: false, reason: `missing_sections: found ${matchedHeaders.length} section headers, need at least 2` }
+  }
+
+  return { valid: true }
+}
+
 function turns(messages: MessageV2.WithParts[]) {
   const result: Turn[] = []
   for (let i = 0; i < messages.length; i++) {
@@ -231,12 +347,13 @@ export const layer: Layer.Layer<
       return overflow({ cfg: yield* config.get(), tokens: input.tokens, model: input.model })
     })
 
-    const estimate = Effect.fn("SessionCompaction.estimate")(function* (input: {
+    const estimate = Effect.fn("SessionCompaction.estimate")(function* (_input: {
       messages: MessageV2.WithParts[]
       model: Provider.Model
     }) {
-      const msgs = yield* MessageV2.toModelMessagesEffect(input.messages, input.model)
-      return Token.estimate(JSON.stringify(msgs))
+      // Use content-based token estimation (same as overflow detection)
+      // instead of JSON serialization which inflates counts 3-5x
+      return estimateContentTokens(_input.messages, _input.model)
     })
 
     const select = Effect.fn("SessionCompaction.select")(function* (input: {

@@ -13,7 +13,7 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
-import { isOverflowFromContent, compactionTier } from "./overflow"
+import { isOverflowFromContent, compactionTier, estimateContentTokens, usable } from "./overflow"
 import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
@@ -1275,6 +1275,21 @@ You should build your plan incrementally by writing to or editing this file. NOT
               yield* sessions.updatePart(task)
             }
 
+            // Determine if the head needs chunking (exceeds usable window)
+            const headTokens = estimateContentTokens(selected.head, model)
+            const usableWindow = usable({ cfg: yield* config.get(), model })
+            const needsChunking = selected.head.length > 0 && headTokens > usableWindow * 0.7
+            const chunks = needsChunking
+              ? SessionCompaction.chunkHead({ head: selected.head, cfg: yield* config.get(), model })
+              : []
+            if (needsChunking && chunks.length > 1) {
+              log.info("compaction head exceeds usable window, chunking", {
+                headTokens,
+                usableWindow,
+                chunks: chunks.length,
+              })
+            }
+
             const maxSteps = agent.steps ?? Infinity
             const isLastStep = step >= maxSteps
             msgs = yield* insertReminders({ messages: msgs, agent, session })
@@ -1334,12 +1349,55 @@ You should build your plan incrementally by writing to or editing this file. NOT
               // output matches what was actually sent to the provider.
               const systemForDiff = [...system]
 
-              // Use selected.head (messages before last turn) for summarization,
-              // not the full msgs array. The tail is preserved separately via tail_count.
+              // Compute modelMsgs from head for diff logging (same regardless of chunking)
               const modelMsgs = yield* MessageV2.toModelMessagesEffect(
                 selected.head.length > 0 ? selected.head : msgs,
                 model,
               )
+
+              // Chunked summarization: split head into chunks that fit model context
+              // and process each chunk sequentially through the LLM.
+              const baseProcessArgs = {
+                user: lastUser,
+                agent,
+                permission: session.permission,
+                sessionID,
+                parentSessionID: session.parentID,
+                providerCacheKey: lastUser.providerCacheKey,
+                system,
+                tools,
+                model,
+                checkpoint: false,
+              }
+
+              let result: "compact" | "stop" | "continue" | undefined
+              if (needsChunking && chunks.length > 1) {
+                for (let ci = 0; ci < chunks.length; ci++) {
+                  yield* bus.publish(SessionCompaction.Event.CompactionChunkProgress, {
+                    sessionID,
+                    chunk: ci + 1,
+                    total: chunks.length,
+                  })
+
+                  const chunkMsgs = yield* MessageV2.toModelMessagesEffect(chunks[ci], model)
+                  const anchors = SessionCompaction.extractAnchors(chunks[ci])
+                  const anchorMsg = anchors.length > 0
+                    ? { role: "user" as const, content: `Include these key terms in your summary: ${anchors.join(", ")}` }
+                    : undefined
+
+                  const messages = anchorMsg
+                    ? [anchorMsg, ...chunkMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])]
+                    : [...chunkMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])]
+
+                  result = yield* handle.process({ ...baseProcessArgs, messages })
+                  if (result === "stop") break
+                }
+              } else {
+                result = yield* handle.process({
+                  ...baseProcessArgs,
+                  messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
+                })
+              }
 
               // Compute and store compaction turn fingerprint so the next
               // normal turn has a valid cache baseline.
@@ -1350,19 +1408,16 @@ You should build your plan incrementally by writing to or editing this file. NOT
               })
               CacheControl.storePrevFingerprint(sessionID, model.id, currentFP, agent.name)
 
-              const result = yield* handle.process({
-                user: lastUser,
-                agent,
-                permission: session.permission,
-                sessionID,
-                parentSessionID: session.parentID,
-                providerCacheKey: lastUser.providerCacheKey,
-                system,
-                messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
-                tools,
-                model,
-                checkpoint: false,
-              })
+              // Quality guard: validate the summary is substantive enough.
+              // If too short or missing structure, warn so it doesn't silently destroy memory.
+              const summaryParts = MessageV2.parts(handle.message.id)
+              const summaryText = summaryParts
+                .filter((p): p is MessageV2.TextPart => p.type === "text")
+                .map((p) => p.text).join("\n\n")
+              const quality = SessionCompaction.validateSummary(summaryText)
+              if (!quality.valid) {
+                log.warn("bug: compaction summary below quality threshold", { reason: quality.reason })
+              }
 
               // Diff logging for compaction turns — derives "previous" from the
               // pre-compaction checkpoint instead of a separate .baselines store.

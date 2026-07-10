@@ -44,7 +44,9 @@ export function usable(input: { cfg: Config.Info; model: Provider.Model }) {
   const context = input.model.limit.context
   if (context === 0) return 0
 
-  const limit = input.model.limit.input ?? context
+  // Prefer observed context limit from provider error messages over model definition
+  const observedLimit = TokenCalibration.getObservedLimit(input.model)
+  const limit = observedLimit ?? input.model.limit.input ?? context
   const reserved = input.cfg.compaction?.reserved ?? Math.min(COMPACTION_BUFFER, Math.floor(limit * 0.15))
   return Math.max(0, limit - reserved)
 }
@@ -61,7 +63,7 @@ export function isOverflow(input: { cfg: Config.Info; tokens: MessageV2.Assistan
 /** Extract text content from message parts and count tokens.
   * Uses the real BPE tokenizer if available for the model;
   * falls back to chars/4 heuristic otherwise. */
-function estimateContentTokens(msgs: MessageV2.WithParts[], model: Provider.Model): number {
+export function estimateContentTokens(msgs: MessageV2.WithParts[], model: Provider.Model): number {
   // Collect actual text fragments from content-bearing parts
   const fragments: string[] = []
   let chars = 0

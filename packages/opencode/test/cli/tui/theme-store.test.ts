@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-const { DEFAULT_THEMES, allThemes, addTheme, hasTheme, resolveTheme } = await import(
+const { DEFAULT_THEMES, allThemes, addTheme, generateSyntax, hasTheme, resolveTheme } = await import(
   "../../../src/cli/cmd/tui/context/theme"
 )
 
@@ -48,4 +48,26 @@ test("resolveTheme rejects circular color refs", () => {
   item.theme.primary = "one"
 
   expect(() => resolveTheme(item, "dark")).toThrow("Circular color reference")
+})
+
+test("generateSyntax maps scopes to distinct colors", () => {
+  const theme = resolveTheme(DEFAULT_THEMES.opencode, "dark")
+  const syntax = generateSyntax(theme)
+
+  try {
+    // Verify different scopes get different colors
+    const defaultFg = syntax.getStyle("default")?.fg
+    const stringFg = syntax.getStyle("string")?.fg
+    const keywordFg = syntax.getStyle("keyword")?.fg
+
+    expect(defaultFg).toBeDefined()
+    expect(stringFg).toBeDefined()
+    expect(keywordFg).toBeDefined()
+
+    // Colors should differ from default text color
+    expect(stringFg?.equals(defaultFg)).toBe(false)
+    expect(keywordFg?.equals(defaultFg)).toBe(false)
+  } finally {
+    syntax.destroy()
+  }
 })

@@ -55,6 +55,7 @@ import type { TaskTool } from "@/tool/task"
 import type { QuestionTool } from "@/tool/question"
 import type { SkillTool } from "@/tool/skill"
 import { useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
+import { Flag } from "@opencode-ai/core/flag/flag"
 import { useSDK } from "@tui/context/sdk"
 import { useCommandDialog } from "@tui/component/dialog-command"
 import type { DialogContext } from "@tui/ui/dialog"
@@ -1673,7 +1674,6 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
           syntaxStyle={subtleSyntax()}
           content={"_Thinking:_ " + content()}
           conceal={ctx.conceal()}
-          fg={theme.textMuted}
         />
       </box>
     </Show>
@@ -1736,24 +1736,37 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   return (
     <Show when={displayText()}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <code
-          filetype="markdown"
-          drawUnstyledText={true}
-          streaming={true}
-          syntaxStyle={syntax()}
-          content={displayText()}
-          conceal={ctx.conceal()}
-          fg={theme.text}
-          onHighlight={(highlights: any, context: any) => {
-            Log.Default.debug("tree-sitter highlight completed", {
-              partId: props.part.id,
-              filetype: context?.filetype,
-              highlightCount: highlights?.length ?? 0,
-              contentLength: context?.content?.length ?? 0,
-            })
-            return highlights
-          }}
-        />
+        <Switch>
+          <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+            <markdown
+              syntaxStyle={syntax()}
+              streaming={true}
+              content={displayText()}
+              conceal={ctx.conceal()}
+              fg={theme.markdownText}
+              bg={theme.background}
+            />
+          </Match>
+          <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+            <code
+              filetype="markdown"
+              drawUnstyledText={true}
+              streaming={true}
+              syntaxStyle={syntax()}
+              content={displayText()}
+              conceal={ctx.conceal()}
+              onHighlight={(highlights: any, context: any) => {
+                Log.Default.debug("tree-sitter highlight completed", {
+                  partId: props.part.id,
+                  filetype: context?.filetype,
+                  highlightCount: highlights?.length ?? 0,
+                  contentLength: context?.content?.length ?? 0,
+                })
+                return highlights
+              }}
+            />
+          </Match>
+        </Switch>
         <Show when={mermaidDataUrl()}>
           <image-plane url={mermaidDataUrl()!} mime="image/png" width={70} />
         </Show>
@@ -2144,7 +2157,6 @@ function Write(props: ToolProps<typeof WriteTool>) {
           <line_number fg={theme.textMuted} minWidth={3} paddingRight={1}>
             <code
               conceal={false}
-              fg={theme.text}
               filetype={filetype(props.input.filePath!)}
               syntaxStyle={syntax()}
               content={code()}

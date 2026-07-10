@@ -57,15 +57,16 @@ Use this skill when a command may be:
 ### 1) Start a run
 
 ```
-cmd_runner start [--terminal HOST[=ARGS]] [--raw] [--cwd PATH] -- <command ...>
+cmd_runner start [--terminal HOST[=ARGS]] [--raw|--no-raw] [--cwd PATH] -- <command ...>
 ```
 
 - Prints `run_id` and `inbox=` path.
 - Auto-tails last 5 lines after 500ms (default; `--auto-tail 0` to disable).
 - `--shell cmd|pwsh|bash` — explicit shell wrapper.
 - `--terminal` — select terminal host (see Terminal section below).
-- `--raw` — use raw pipes (no ConPTY) for image protocol capture.
-- `--raw=auto` (default) — auto-detect: enables raw when image-capable terminal detected.
+- `--raw` — force raw pipes (no ConPTY, non-interactive batch commands only).
+- `--no-raw` — force ConPTY (interactive mode, default).
+- Default: ConPTY (interactive) — supports full send/inbox, TUI apps, interactive shells.
 
 ### 2) Check status
 
@@ -148,14 +149,19 @@ First terminal found on PATH is used. Omit `--terminal` for auto-detection.
 
 ## Image capture (--raw)
 
-When running image-rendering commands (`chafa`, `timg`, etc.):
+**Important:** Raw mode is for non-interactive batch commands only. It does NOT support:
+- Interactive input (send/inbox)
+- TUI applications
+- Shell sessions
+
+When running image-rendering batch commands (`chafa`, `timg`, etc.):
 
 ```
 cmd_runner start --raw -- <image_command ...>
 ```
 
 - Raw pipes bypass ConPTY filtering — Kitty/Sixel/iTerm2 escape sequences survive.
-- Output is captured in logs with `[IMG:KITTY:b64payload]` markers.
+- Output is captured in logs with `[IMG:...]` markers.
 - Text-based tools (`tail`, `assert`, `snapshot`) work on clean text.
 - `--no-raw` forces ConPTY mode (no image capture in logs).
 

@@ -79,15 +79,38 @@ if (!asset.bytes) {
 }
 
 /**
+ * Normalize Unicode smart/curly quotes, dashes, and other common LLM
+ * Unicode artefacts to their ASCII equivalents before JSON repair.
+ * JSON.parse does not accept U+201C/U+201D (curly double quotes) or
+ * U+2018/U+2019 (curly single quotes), and the WASM json-repair crate
+ * only handles ASCII single quotes, not Unicode variants.
+ */
+function normalizeUnicode(input: string): string {
+  return input
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'") // single smart quotes
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"') // double smart quotes
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015]/g, "-") // dashes
+    .replace(/\u00A0/g, " ") // non-breaking space
+}
+
+/**
  * Attempt to repair malformed JSON using json-repair crate (Rust -> WASM).
  * Returns the repaired JSON string, or null if WASM is unavailable
  * or repair fails.
+ *
+ * Automatically normalizes Unicode smart quotes and dashes before
+ * passing to WASM, since the Rust crate only handles ASCII quotes.
  */
 export async function repairJsonWasm(input: string): Promise<string | null> {
   const wasm = await loadRepair()
   if (!wasm) return null
   try {
-    const [ptr, len] = passString(wasm, input)
+    // Normalize Unicode smart quotes before WASM repair.
+    // The Rust json-repair crate handles ASCII single quotes but not
+    // Unicode smart/curly quotes (U+201C/U+201D/U+2018/U+2019) which
+    // LLMs commonly emit. JSON.parse also rejects them.
+    const normalized = normalizeUnicode(input)
+    const [ptr, len] = passString(wasm, normalized)
     const ret = wasm.json_repair(ptr, len)
     const result = readString(wasm, ret[0], ret[1])
     wasm.__wbindgen_free(ret[0], ret[1], 1)

@@ -165,4 +165,55 @@ describe("json-repair-wasm", () => {
     expect(result).not.toBeNull()
     expect(() => JSON.parse(result!)).not.toThrow()
   })
+
+  // --- Smart/curly quotes (common LLM error) ---
+  test("normalizes double smart quotes (U+201C/U+201D) to straight quotes", async () => {
+    const left = "\u201C"
+    const right = "\u201D"
+    const result = await repairJsonWasm(`{${left}key${right}: ${left}value${right}}`)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ key: "value" })
+  })
+
+  test("normalizes single smart quotes (U+2018/U+2019) to straight quotes", async () => {
+    const left = "\u2018"
+    const right = "\u2019"
+    // Smart single quotes should be converted to ASCII single quotes,
+    // which the WASM repair then converts to double quotes
+    const result = await repairJsonWasm(`{${left}key${right}: ${left}value${right}}`)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+  })
+
+  test("handles mixed smart quotes with malformed JSON", async () => {
+    // Smart quotes + missing commas + truncated — realistic LLM output
+    const result = await repairJsonWasm(`{\u201Ca\u201D: 1 \u201Cb\u201D: \u201Chello\u201D`)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+  })
+
+  test("handles smart quotes inside string values", async () => {
+    // Smart quotes inside string values get normalized to ASCII quotes,
+    // which the WASM repair then handles. The result is valid JSON even
+    // though the original Unicode characters are flattened.
+    const result = await repairJsonWasm(`{"text": "\u201Chello world\u201D"}`)
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+  })
+
+  test("normalizes non-breaking spaces", async () => {
+    const result = await repairJsonWasm('{"key":\u00A0"value"}')
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+    expect(JSON.parse(result!)).toEqual({ key: "value" })
+  })
+
+  test("handles em-dashes in string values", async () => {
+    // Em-dashes get normalized to ASCII hyphens by the Unicode normalization.
+    // The result is valid JSON.
+    const result = await repairJsonWasm('{"text": "hello\u2014world"}')
+    expect(result).not.toBeNull()
+    expect(() => JSON.parse(result!)).not.toThrow()
+  })
 })

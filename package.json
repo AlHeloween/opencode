@@ -81,7 +81,7 @@
       "@solidjs/meta": "0.29.4",
       "@solidjs/router": "0.15.4",
       "@solidjs/start": "1.3.2",
-      "solid-js": "1.9.10",
+      "solid-js": "1.9.12",
       "vite-plugin-solid": "2.11.10",
       "@lydell/node-pty": "1.2.0-beta.10"
     }
@@ -137,7 +137,6 @@
   },
   "patchedDependencies": {
     "@npmcli/agent@4.0.0": "patches/@npmcli%2Fagent@4.0.0.patch",
-    "@standard-community/standard-openapi@0.2.9": "patches/@standard-community%2Fstandard-openapi@0.2.9.patch",
-    "solid-js@1.9.10": "patches/solid-js@1.9.10.patch"
+    "@standard-community/standard-openapi@0.2.9": "patches/@standard-community%2Fstandard-openapi@0.2.9.patch"
   }
 }

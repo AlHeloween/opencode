@@ -301,7 +301,17 @@ const live: Layer.Layer<
       // For reasoning models, max_tokens includes both reasoning and output tokens.
       // Reasoning can consume 50-80% of the budget, so we need to account for that.
       const rawMaxOutput = ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens)
-      const maxOut = input.model.capabilities.reasoning ? Math.min(rawMaxOutput * 3, input.model.limit.output || rawMaxOutput * 3) : rawMaxOutput
+      let maxOut: number | undefined = input.model.capabilities.reasoning ? Math.min(rawMaxOutput * 3, input.model.limit.output || rawMaxOutput * 3) : rawMaxOutput
+
+      // OpenAI Responses API reasoning models (gpt-5.x, o-series) reject
+      // max_output_tokens with "Unsupported parameter: max_output_tokens".
+      // The @ai-sdk/openai Responses model sends max_output_tokens for all
+      // models, but the API rejects it for reasoning models. Drop the cap so
+      // the API falls back to the model's default output budget.
+      // See: https://github.com/anomalyco/opencode/issues/5421
+      if (input.model.providerID === "openai" && input.model.capabilities.reasoning) {
+        maxOut = undefined
+      }
       log.info("output token budget", {
         model: input.model.id,
         provider: input.model.providerID,

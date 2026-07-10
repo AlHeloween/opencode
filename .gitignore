@@ -29,7 +29,7 @@ test_deep/
 UPCOMING_CHANGELOG.md
 logs/
 *.bun-build
-bun.lock
+# Lockfile is tracked (bun.lock text format)
 tsconfig.tsbuildinfo
 opencode.exe
 

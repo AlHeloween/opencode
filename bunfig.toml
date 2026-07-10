@@ -1,6 +1,6 @@
 [install]
 exact = true
-saveTextLockfile = false
+saveTextLockfile = true
 
 [test]
 root = "./do-not-run-tests-from-root"

@@ -1669,7 +1669,7 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
       >
         <code
           filetype="markdown"
-          drawUnstyledText={false}
+          drawUnstyledText={true}
           streaming={true}
           syntaxStyle={subtleSyntax()}
           content={"_Thinking:_ " + content()}
@@ -1764,7 +1764,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                     <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
                       <code
                         filetype="markdown"
-                        drawUnstyledText={false}
+                        drawUnstyledText={true}
                         streaming={true}
                         syntaxStyle={syntax()}
                         content={markdown!}

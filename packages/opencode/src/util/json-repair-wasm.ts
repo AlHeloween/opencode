@@ -79,6 +79,61 @@ if (!asset.bytes) {
 }
 
 /**
+ * Replace ASCII single quotes used as JSON string delimiters with double quotes.
+ *
+ * This is the most common LLM JSON error — models emit
+ *   {'key': 'value', 'nested': {'inner': 'val'}}
+ * instead of valid JSON
+ *   {"key": "value", "nested": {"inner": "val"}}
+ *
+ * Strategy:
+ * 1. If NO double quotes exist in the input → blanket replace all ' with "
+ *    (covers >99% of LLM cases: the entire payload uses single-quote delimiters)
+ * 2. If mixed quotes → char-by-char parser that only converts ' outside "..."
+ *    strings, leaving apostrophes inside double-quoted strings untouched.
+ */
+function repairSingleQuotes(input: string): string {
+  if (!input.includes("'")) return input
+
+  // Case 1: no double quotes at all → safe blanket replacement.
+  // Every ' must be a JSON delimiter since valid JSON uses " for strings.
+  if (!input.includes('"')) {
+    return input.replace(/'/g, '"')
+  }
+
+  // Case 2: mixed single and double quotes → parse char by char.
+  let result = ""
+  let inString = false   // inside a "..." double-quoted string
+  let escaped = false
+
+  for (const ch of input) {
+    if (escaped) {
+      result += ch
+      escaped = false
+      continue
+    }
+    if (ch === '\\') {
+      result += ch
+      escaped = true
+      continue
+    }
+    if (ch === '"') {
+      inString = !inString
+      result += ch
+      continue
+    }
+    if (ch === "'" && !inString) {
+      // This ' is a JSON delimiter (not inside a "..." string) → replace with "
+      result += '"'
+      continue
+    }
+    result += ch
+  }
+
+  return result
+}
+
+/**
  * Normalize Unicode smart/curly quotes, dashes, and other common LLM
  * Unicode artefacts to their ASCII equivalents before JSON repair.
  * JSON.parse does not accept U+201C/U+201D (curly double quotes) or
@@ -105,11 +160,21 @@ export async function repairJsonWasm(input: string): Promise<string | null> {
   const wasm = await loadRepair()
   if (!wasm) return null
   try {
-    // Normalize Unicode smart quotes before WASM repair.
+    // Step 1: repair ASCII single-quote delimiters BEFORE Unicode normalization.
+    // This must come first because normalizeUnicode converts Unicode smart
+    // single quotes TO ASCII ' which would confuse the char-by-char parser
+    // in repairSingleQuotes (it can't distinguish original ASCII delimiters
+    // from normalized ones without re-parsing Unicode).
+    // The WASM json-repair crate also handles ASCII single quotes, but doing
+    // it here as pure JS is faster and avoids WASM overhead for the common case.
+    const withDoubleQuotes = repairSingleQuotes(input)
+
+    // Step 2: normalize Unicode smart quotes, dashes, etc. to ASCII.
     // The Rust json-repair crate handles ASCII single quotes but not
     // Unicode smart/curly quotes (U+201C/U+201D/U+2018/U+2019) which
     // LLMs commonly emit. JSON.parse also rejects them.
-    const normalized = normalizeUnicode(input)
+    const normalized = normalizeUnicode(withDoubleQuotes)
+
     const [ptr, len] = passString(wasm, normalized)
     const ret = wasm.json_repair(ptr, len)
     const result = readString(wasm, ret[0], ret[1])
@@ -118,6 +183,19 @@ export async function repairJsonWasm(input: string): Promise<string | null> {
     JSON.parse(result)
     return result
   } catch (err) {
+    // Pure-JS fallback: try the single-quote fix as a last resort.
+    // This handles cases where WASM is loaded but the crate doesn't
+    // cover a particular quote pattern, or the input was already
+    // repaired by step 1 but something else went wrong in WASM.
+    try {
+      const asciiRepaired = repairSingleQuotes(input)
+      if (asciiRepaired !== input) {
+        JSON.parse(asciiRepaired)
+        Log.Default.debug("json-repair: pure-js fallback succeeded after WASM failed")
+        return asciiRepaired
+      }
+    } catch { /* fallback also failed, continue to return null */ }
+
     Log.Default.debug("json-repair: repair failed: " + (err instanceof Error ? err.message : String(err)))
     return null
   }

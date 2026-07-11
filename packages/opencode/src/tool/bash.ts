@@ -293,16 +293,16 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan) 
   })
 })
 
-function normalizeCommandPaths(command: string): string {
+export function normalizeCommandPaths(command: string): string {
   // Replace \ with / in Windows paths (D:\path → D:/path)
-  // Works in cmd.exe, PowerShell, and bash — universal fix
+  // Only applied for POSIX shells (gated by Shell.posix() in cmd())
   return command.replace(/([A-Za-z]:)[\\/]/g, (_, drive) => drive + "/")
 }
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
   const result = stripCommand(command, shell)
   const stripped = result.command
-  const normalized = process.platform === "win32" ? normalizeCommandPaths(stripped) : stripped
+  const normalized = process.platform === "win32" && Shell.posix(shell) ? normalizeCommandPaths(stripped) : stripped
   if (process.platform === "win32" && Shell.ps(shell)) {
     return ChildProcess.make(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", normalized], {
       cwd,

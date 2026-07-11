@@ -29,6 +29,39 @@ import { repairJsonWasm } from "@/util/json-repair-wasm"
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
 
+// ── Tool Schema Serialization ────────────────────────────────────────────────
+
+/** Extract raw JSON schema from an AI SDK Tool, handling the jsonSchema wrapper. */
+function getToolSchema(t: Tool): Record<string, any> {
+  try {
+    const params = (t as any).parameters ?? (t as any).inputSchema
+    if (!params) return {}
+    if (typeof params.jsonSchema === "function") return params.jsonSchema()
+    if (typeof params.jsonSchema === "object") return params.jsonSchema
+    return params
+  } catch { return {} }
+}
+
+/** Serialize all tool schemas into a text block for the system prompt.
+ *  Sorted alphabetically by name — every invocation produces the same bytes. */
+function serializeToolSchemas(tools: Record<string, Tool>): string {
+  const names = Object.keys(tools).sort()
+  if (names.length === 0) return ""
+  const lines: string[] = ["", "## Available Tools", ""]
+  for (const name of names) {
+    lines.push(`### ${name}`)
+    if (tools[name].description) lines.push(tools[name].description!)
+    const schema = getToolSchema(tools[name])
+    if (schema && typeof schema === "object" && Object.keys(schema).length > 0) {
+      lines.push("```json")
+      lines.push(JSON.stringify(schema, null, 2))
+      lines.push("```")
+    }
+    lines.push("")
+  }
+  return lines.join("\n")
+}
+
 // Cache for token estimation — avoids re-serializing messages+system when count is unchanged
 let _cachedTokenEstimate: { count: number; value: number } | undefined
 
@@ -191,14 +224,21 @@ const live: Layer.Layer<
       //    Always first so every invocation shares a KV cache prefix.
       system.push(UNIVERSAL_ENV)
 
+      // 1. Tool schemas — all tools from the registry, serialized as text.
+      //    Always the same per project, so always in the cached prefix.
+      //    The AI SDK's `tools` parameter is still passed separately for
+      //    tool calling — this text is just for the model's understanding.
+      const toolSchemaText = serializeToolSchemas(input.tools)
+      if (toolSchemaText) system.push(toolSchemaText)
+
       const isCheckpoint = input.checkpoint === true
 
-      // 1. Identity — reasoning prefix + agent prompt.
-      //    Always pushed at system[1], even for checkpoints.
+      // 2. Identity — reasoning prefix + agent prompt.
+      //    Always pushed, even for checkpoints.
       //    On checkpoint: the stored systemPrompt[0] is also the identity, but we
-      //    push it fresh here so system[1] has the same content every turn.
-      //    This keeps the KV cache prefix (system[0] + system[1]) structurally stable
-      //    regardless of whether a checkpoint is loaded.
+      //    push it fresh here so it has the same content every turn.
+      //    The collapse merges identity into the tail (system[2]+) while preserving
+      //    system[0] (UE) + system[1] (tool schemas) as the cached prefix.
       system.push(
         [
           ...(reasoningPrefix ? [reasoningPrefix] : []),
@@ -208,20 +248,32 @@ const live: Layer.Layer<
           .join("\n"),
       )
 
-      // 2. Per-path env info + rules + skills + instructions — from prompt.ts.
+      // 3. Per-path env info + rules + skills + instructions — from prompt.ts.
       //    On checkpoint: skip the stored identity prefix (systemPrompt[0])
       //    to avoid duplicating what was pushed above. The remaining entries
-      //    (env + rules + skills + instructions) slot into system[2].
+      //    (env + rules + skills + instructions) slot after identity.
       const systemInput = isCheckpoint && input.system.length > 0
         ? input.system.slice(1)
         : input.system
       if (systemInput.length > 0) system.push(systemInput.join("\n"))
 
-      // 3. Session banner — appended after the cacheable prefix so task-N changes
-      //    don't invalidate the provider KV cache for the stable prefix.
+      // 4. Active/inactive tools line — short, changes per agent.
+      //    Placed BEFORE the session banner so the collapsed tail contains
+      //    all volatile content while the prefix (UE + schemas) stays cached.
+      const activeToolSet = resolveTools(input)
+      const activeNames = Object.keys(activeToolSet).sort()
+      const allNames = Object.keys(input.tools).sort()
+      const inactiveNames = allNames.filter((n) => !activeNames.includes(n))
+      const toolsLine = inactiveNames.length > 0
+        ? `Active tools: ${activeNames.join(", ")}\nInactive: ${inactiveNames.join(", ")}`
+        : `Active tools: ${activeNames.join(", ")}`
+      system.push(toolsLine)
+
+      // 5. Session banner — appended after all cacheable content so task-N
+      //    and session-ID changes land in the collapsed tail.
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
       system.push(banner)
-      // 4. User system message (non-checkpoint only) — volatile, excluded from cache.
+      // 6. User system message (non-checkpoint only) — volatile, excluded from cache.
       if (!isCheckpoint && input.user.system) system.push(input.user.system)
 
       if (!loggedSystemPrompt) {
@@ -234,7 +286,10 @@ const live: Layer.Layer<
         { sessionID: input.sessionID, model: input.model },
         { system },
       )
-      // Keep volatile context out of the first two cached system messages.
+      // Collapse: preserve system[0] (UNIVERSAL_ENV) and system[1] (tool schemas)
+      // as the cached prefix. Everything from index 2+ (identity, env, rules,
+      // skills, instructions, active-tools line, banner, user system) merges
+      // into the collapsed tail.
       if (system.length > 2 && system[0] === header) {
         const second = system[1]
         const tail = system.slice(2)

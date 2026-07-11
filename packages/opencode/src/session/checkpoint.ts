@@ -24,7 +24,7 @@ import type { ModelMessage } from "ai"
 
 const log = Log.create({ service: "checkpoint" })
 
-export const CHECKPOINT_VERSION = 2
+export const CHECKPOINT_VERSION = 3
 export const CHECKPOINT_KIND = "checkpoint" as const
 const CHECKPOINT_DIR = ".checkpoints"
 const CHECKPOINT_SLOTS = 2

@@ -95,6 +95,41 @@ export interface Interface {
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
 }
 
+// Module-level constant: capabilities description (purely static, same for every invocation).
+const CAPABILITIES_TEXT = [
+  `## Capabilities`,
+  ``,
+  `You have powerful tools at your disposal. Here are some key capabilities you should be aware of:`,
+  ``,
+  `- **Document conversion**: The read tool can extract text and convert many file formats to markdown, including PDFs, Word documents (.docx, .odt), Excel spreadsheets (.xlsx, .ods, .csv), PowerPoint presentations (.pptx, .odp), and plain text formats (.txt, .md, .json, .xml, .html)`,
+  `- **Archive reading**: You can read the contents of compressed archives including .zip, .tar, .gz, and .7z files`,
+  `- **Media files**: You can read image metadata (EXIF data), and extract information from audio and video files`,
+  `- **Terminal image rendering**: Images in tool outputs are rendered inline using the best available terminal graphics protocol (Kitty, Sixel, iTerm2, or Unicode symbols). Configure via \`image_protocol\` in tui.json (values: "auto", "kitty", "sixel", "iterm2", "symbols"). WezTerm is the recommended cross-platform terminal (supports all three graphics protocols).`,
+  `- **Visual output**: Use Mermaid only in complete \`mermaid\` fenced blocks. Return generated images and videos as real media attachments; do not emit \`<image-plane>\`, XML separators, ANSI escape codes, base64 data, or Markdown URLs expecting inline TUI rendering. Video attachments provide a thumbnail preview; playback is external.`,
+  `- **Web search**: The universalsearch tool can search the web, code repositories, or use an autonomous AI research agent via the Universal Search Service. All modes go through the same configured URL — never use any other port.`,
+  `- **Code search**: Use universalsearch with source: "code" for direct code search via Sourcegraph`,
+  `- **Conversation search**: The messagesearch tool provides full-text search with epistemic-weighted semantic ranking over your conversation history`,
+  `- **Session reading**: The session-read tool reads full messages by index from any session, including summaries`,
+  `- **Directory listing**: The list tool provides a tree-style directory listing with automatic ignore of common directories`,
+  `- **Multi-edit**: The multiedit tool allows multiple sequential edits to a single file in one operation`,
+  `- **Web fetching**: The webfetch tool can retrieve and convert web pages to markdown, text, or HTML format`,
+  `- **Sub-agents**: The task tool can spawn specialized sub-agents for focused work on specific domains`,
+  ``,
+  `When a user asks you to read or analyze a file, consider using the read tool — it supports far more formats than plain text. If a file type is unfamiliar, try reading it rather than assuming you cannot.`,
+].join("\n")
+
+/**
+ * Universal env block — 100% immutable across sessions and projects.
+ * Always placed as system[0] in the provider-facing system array.
+ * Contains only the generic identity + static capabilities.
+ * No per-path, per-model, or per-session content.
+ */
+export const UNIVERSAL_ENV = [
+  "You are a coding assistant.",
+  "",
+  CAPABILITIES_TEXT,
+].join("\n")
+
 export class Service extends Context.Service<Service, Interface>()("@opencode/SystemPrompt") {}
 
 export const layer = Layer.effect(
@@ -103,32 +138,9 @@ export const layer = Layer.effect(
     const skill = yield* Skill.Service
     const rg = yield* Ripgrep.Service
 
-    const capabilities = () => [
-      `## Capabilities`,
-      ``,
-      `You have powerful tools at your disposal. Here are some key capabilities you should be aware of:`,
-      ``,
-      `- **Document conversion**: The read tool can extract text and convert many file formats to markdown, including PDFs, Word documents (.docx, .odt), Excel spreadsheets (.xlsx, .ods, .csv), PowerPoint presentations (.pptx, .odp), and plain text formats (.txt, .md, .json, .xml, .html)`,
-      `- **Archive reading**: You can read the contents of compressed archives including .zip, .tar, .gz, and .7z files`,
-      `- **Media files**: You can read image metadata (EXIF data), and extract information from audio and video files`,
-      `- **Terminal image rendering**: Images in tool outputs are rendered inline using the best available terminal graphics protocol (Kitty, Sixel, iTerm2, or Unicode symbols). Configure via \`image_protocol\` in tui.json (values: "auto", "kitty", "sixel", "iterm2", "symbols"). WezTerm is the recommended cross-platform terminal (supports all three graphics protocols).`,
-      `- **Visual output**: Use Mermaid only in complete \`mermaid\` fenced blocks. Return generated images and videos as real media attachments; do not emit \`<image-plane>\`, XML separators, ANSI escape codes, base64 data, or Markdown URLs expecting inline TUI rendering. Video attachments provide a thumbnail preview; playback is external.`,
-      `- **Web search**: The universalsearch tool can search the web, code repositories, or use an autonomous AI research agent via the Universal Search Service. All modes go through the same configured URL — never use any other port.`,
-      `- **Code search**: Use universalsearch with source: "code" for direct code search via Sourcegraph`,
-      `- **Conversation search**: The messagesearch tool provides full-text search with epistemic-weighted semantic ranking over your conversation history`,
-      `- **Session reading**: The session-read tool reads full messages by index from any session, including summaries`,
-      `- **Directory listing**: The list tool provides a tree-style directory listing with automatic ignore of common directories`,
-      `- **Multi-edit**: The multiedit tool allows multiple sequential edits to a single file in one operation`,
-      `- **Web fetching**: The webfetch tool can retrieve and convert web pages to markdown, text, or HTML format`,
-      `- **Sub-agents**: The task tool can spawn specialized sub-agents for focused work on specific domains`,
-      ``,
-      `When a user asks you to read or analyze a file, consider using the read tool — it supports far more formats than plain text. If a file type is unfamiliar, try reading it rather than assuming you cannot.`,
-    ].join("\n")
-
     return Service.of({
       environment(model) {
         const project = Instance.project
-        const family = resolvePrompt(model).family
         const outputModalityLine = ((): string | undefined => {
           const out = model.capabilities.output
           const modalities = Object.entries(out)
@@ -139,7 +151,6 @@ export const layer = Layer.effect(
         })()
         return [
           [
-            `You are a ${family} coding assistant.`,
             `Here is some useful information about the environment you are running in:`,
             `<env>`,
             `  Working directory: ${Instance.directory}`,
@@ -147,7 +158,6 @@ export const layer = Layer.effect(
             `  Is directory a git repo: ${project.vcs === "git" ? "yes" : "no"}`,
             `  Platform: ${process.platform}`,
             `</env>`,
-            capabilities(),
             ...(outputModalityLine ? [outputModalityLine] : []),
           ].join("\n"),
         ]

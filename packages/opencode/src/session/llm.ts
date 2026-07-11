@@ -11,7 +11,7 @@ import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
 import { Plugin } from "@/plugin"
-import { SystemPrompt } from "./system"
+import { SystemPrompt, UNIVERSAL_ENV } from "./system"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
@@ -186,28 +186,42 @@ const live: Layer.Layer<
       })
 
       const system: string[] = []
+
+      // 0. Universal env — 100% immutable across sessions and projects.
+      //    Always first so every invocation shares a KV cache prefix.
+      system.push(UNIVERSAL_ENV)
+
       const isCheckpoint = input.checkpoint === true
-      // Checkpoints are self-contained — they include reasoning prefix +
-      // provider prompt saved at creation time. Only inject these on the
-      // first turn (no checkpoint). This keeps checkpoints immune to
-      // binary updates that change reasoning.txt.
-      if (!isCheckpoint) {
-        system.push(
-          [
-            ...(reasoningPrefix ? [reasoningPrefix] : []),
-            ...(input.agent.prompt ? [input.agent.prompt] : []),
-          ]
-            .filter((x) => x)
-            .join("\n"),
-        )
-      }
-      // Stable system prompt — always pushed. Dates go to user messages only.
-      if (input.system.length > 0) system.push(input.system.join("\n"))
-      // Session banner — placed AFTER cached prefix so task-N changes
-      // don't invalidate the provider KV cache for the stable prefix.
+
+      // 1. Identity — reasoning prefix + agent prompt.
+      //    Always pushed at system[1], even for checkpoints.
+      //    On checkpoint: the stored systemPrompt[0] is also the identity, but we
+      //    push it fresh here so system[1] has the same content every turn.
+      //    This keeps the KV cache prefix (system[0] + system[1]) structurally stable
+      //    regardless of whether a checkpoint is loaded.
+      system.push(
+        [
+          ...(reasoningPrefix ? [reasoningPrefix] : []),
+          ...(input.agent.prompt ? [input.agent.prompt] : []),
+        ]
+          .filter((x) => x)
+          .join("\n"),
+      )
+
+      // 2. Per-path env info + rules + skills + instructions — from prompt.ts.
+      //    On checkpoint: skip the stored identity prefix (systemPrompt[0])
+      //    to avoid duplicating what was pushed above. The remaining entries
+      //    (env + rules + skills + instructions) slot into system[2].
+      const systemInput = isCheckpoint && input.system.length > 0
+        ? input.system.slice(1)
+        : input.system
+      if (systemInput.length > 0) system.push(systemInput.join("\n"))
+
+      // 3. Session banner — appended after the cacheable prefix so task-N changes
+      //    don't invalidate the provider KV cache for the stable prefix.
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
       system.push(banner)
-      // User system message (non-checkpoint only) — volatile, excluded from cache.
+      // 4. User system message (non-checkpoint only) — volatile, excluded from cache.
       if (!isCheckpoint && input.user.system) system.push(input.user.system)
 
       if (!loggedSystemPrompt) {

@@ -467,6 +467,12 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
               headers.set("ChatGPT-Account-Id", authWithAccount.accountId)
             }
 
+            // Identify as Codex CLI for first-party model access (e.g. Luna)
+            // Without these, the backend treats requests as "3rd party" and
+            // restricts access to certain models.
+            headers.set("originator", "codex_cli_rs")
+            headers.set("User-Agent", "Codex/0.300.0")
+
             // Rewrite URL to Codex endpoint
             const parsed =
               requestInput instanceof URL

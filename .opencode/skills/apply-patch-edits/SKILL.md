@@ -3,31 +3,24 @@ name: apply-patch-edits
 description: Use apply_patch-only edits for AGENTS.md + canonical skills/rules to avoid cross-agent conflicts.
 ---
 
-# apply-patch-edits
+"""
+Apply-patch edits skill — defined in opencode_prompts_kernel.py as typed dict.
+"""
 
-## When to use
+from opencode_prompts_kernel import APPLY_PATCH_EDITS
 
-Use this skill whenever you need to edit any of:
+# === SCOPE ===
+for k, v in APPLY_PATCH_EDITS["scope"].items():
+    # {k}: {v}
 
-- `AGENTS.md`
-- Canonical agent rules: `artefacts/rules/` (installed to `.cursor/rules/`, `.codex/rules/`, `.opencode/rules/`)
-- Canonical agent skills: `artefacts/skills/` (installed to `.cursor/skills/`, `.codex/skills/`, `.opencode/skills/`)
+# === CONSTRAINTS ===
+for k, v in APPLY_PATCH_EDITS["constraints"].items():
+    # {k}: {v}
 
-These files are high-churn coordination surfaces; in multi-agent work, in-place manual edits tend to create
-cross-conflicts and ambiguous provenance.
+# === STEPS ===
+for s in APPLY_PATCH_EDITS["steps"]:
+    # {s}
 
-## Rules
-
-1. Make changes only via the `apply_patch` tool (atomic, reviewable diffs).
-2. Do not edit receiver copies under `.codex/`, `~/.codex/`, `.cursor/`, `.opencode/` directly.
-3. After editing canonical assets, sync receivers so installs and tooling stay consistent:
-
-~~~bash
-python scripts/internal/sync_agent_assets.py --targets all
-~~~
-
-If you changed only canonical skills and want a faster sync of receiver skill folders:
-
-~~~bash
-python scripts/internal/sync_skills_from_artefacts.py --prune
-~~~
+# === FORBIDDEN ===
+for f in APPLY_PATCH_EDITS["forbidden_actions"]:
+    # DO NOT: {f}

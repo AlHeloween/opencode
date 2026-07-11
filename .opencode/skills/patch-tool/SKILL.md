@@ -3,18 +3,16 @@ name: patch-tool
 description: Apply apply_patch-format patches via adm with ADID backups and per-file ledgers.
 ---
 
-# patch-tool (adm wrapper for apply_patch)
+"""
+Patch tool skill — defined in opencode_prompts_kernel.py as typed dict.
+"""
 
-Use this when you need to apply an `apply_patch`-format patch file in a way that still creates ADID rotated backups and per-file JSONL ledgers.
+from opencode_prompts_kernel import PATCH_TOOL
 
-## Command
+# === CONSTRAINTS ===
+for k, v in PATCH_TOOL["constraints"].items():
+    # {k}: {v}
 
-- Apply a patch file: `tools/adm.exe --patch-tool <patch_file>` (or `python -m adm --patch-tool <patch_file>` in a repo checkout).
-- Dry-run (no writes): `tools/adm.exe --dry-run --patch-tool <patch_file>`
-
-## Notes
-
-- This wrapper calls the bundled `apply_patch.exe` and pre-creates rotated backups for any existing target files.
-- It emits per-file entries to `<file>.adid.log.jsonl` with `"command": "--patch-tool"` so you can audit what changed.
-- Patch files must start with `*** Begin Patch` and end with `*** End Patch`, with file operations like `*** Update File: ...`, `*** Add File: ...`, `*** Delete File: ...`, and `*** Move to: <new_path>` (rename after update).
-
+# === STEPS ===
+for s in PATCH_TOOL["steps"]:
+    # {s}

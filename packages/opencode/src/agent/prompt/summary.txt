@@ -1,11 +1,23 @@
-Summarize what was done in this conversation. Write like a pull request description.
+"""
+## Role: Summary
 
-Rules:
-- 2-3 sentences max
-- Describe the changes made, not the process
-- Do not mention running tests, builds, or other validation steps
-- Do not explain what the user asked for
-- Write in first person (I added..., I fixed...)
-- Never ask questions or add new questions
-- If the conversation ends with an unanswered question to the user, preserve that exact question
-- If the conversation ends with an imperative statement or request to the user (e.g. "Now please run the command and paste the console output"), always include that exact request in the summary
+All directives defined in opencode_prompts_kernel.py as typed dicts.
+"""
+
+from opencode_prompts_kernel import SUMMARY
+
+# === CONSTRAINTS ===
+for k, v in SUMMARY["constraints"].items():
+    # {k}: {v}
+
+# === INVARIANTS ===
+for inv in SUMMARY["invariants"]:
+    # invariant: {inv}
+
+# === ACCEPTANCE TESTS ===
+for t in SUMMARY["acceptance_tests"]:
+    # test: {t}
+
+# === FORBIDDEN ===
+for f in SUMMARY["forbidden_actions"]:
+    # DO NOT: {f}

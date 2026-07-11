@@ -3,43 +3,24 @@ name: agent-assets
 description: Maintain canonical artefacts and install agent receiver scaffolds (.cursor/.codex/~/.codex/.opencode).
 ---
 
-# agent-assets
+"""
+Agent assets skill — defined in opencode_prompts_kernel.py as typed dict.
+"""
 
-## Canonical sources
+from opencode_prompts_kernel import AGENT_ASSETS
 
-- Rules: `artefacts/rules/` (installed to `artefacts/scaffolds/{cursor,codex,opencode}/rules/`)
-- Skills: `artefacts/skills/` (installed to `artefacts/scaffolds/{cursor,codex,opencode}/skills/`)
+# === SCOPE ===
+for k, v in AGENT_ASSETS["scope"].items():
+    # {k}: {v}
 
-Agent folders are receivers (safe to delete): `.cursor/`, `.codex/`, `~/.codex/`, `.opencode/`.
+# === CONSTRAINTS ===
+for k, v in AGENT_ASSETS["constraints"].items():
+    # {k}: {v}
 
-## Workflow
+# === STEPS ===
+for s in AGENT_ASSETS["steps"]:
+    # {s}
 
-1. Edit canonical assets under `artefacts/rules/` and/or `artefacts/skills/`.
-2. Regenerate derived artefacts and scaffolds:
-
-~~~bash
-python scripts/internal/build_artefacts.py
-~~~
-
-3. Install scaffolds into receivers:
-
-~~~bash
-python scripts/internal/sync_agent_assets.py --targets opencode
-python scripts/internal/sync_agent_assets.py --targets cursor,codex
-python scripts/internal/sync_agent_assets.py --targets all
-~~~
-
-## Targets
-
-- Install only one receiver:
-  - `python scripts/internal/sync_agent_assets.py --targets opencode`
-- Install all receivers:
-  - `python scripts/internal/sync_agent_assets.py --targets all`
-
-## Skills-only sync (faster)
-
-If you changed only canonical skills and want a faster sync of receiver skill folders:
-
-~~~bash
-python scripts/internal/sync_skills_from_artefacts.py --prune
-~~~
+# === FORBIDDEN ===
+for f in AGENT_ASSETS["forbidden_actions"]:
+    # DO NOT: {f}

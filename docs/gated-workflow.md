@@ -1,108 +1,54 @@
-# Gated Workflow & Epistemic Markers
+"""
+Gated Workflow & Epistemic Markers — defined as Python data.
 
-## Overview
+This describes the structured thinking framework injected into the system prompt.
+"""
 
-The gated workflow (`reasoning.txt`) is a structured thinking framework injected into the system prompt for ALL models. It forces models to externalize their reasoning process, which multi-head attention then encodes into context weights automatically.
+from dataclasses import dataclass, field
 
-This is not "just instructions" — it is a transformer-native technique for maximizing model capability.
+@dataclass
+class EpistemicMarker:
+    label: str
+    weight: int
+    basis: str
+    action: str
 
-## Why It Works
+@dataclass
+class GatedWorkflow:
+    """Structured reasoning framework — 9 gates for code changes."""
+    
+    markers: list[EpistemicMarker] = field(default_factory=lambda: [
+        EpistemicMarker("[Exact]", 10, "Direct observation (terminal, test, file read)", "Trust, proceed"),
+        EpistemicMarker("[Inferred]", 7, "Logical chain from Exact facts", "Trust if chain is sound"),
+        EpistemicMarker("[Hypothetical]", 4, "'What if' reasoning", "Verify before anchoring"),
+        EpistemicMarker("[Guess]", 2, "Building on Hypothetical — creative", "Stop, research"),
+        EpistemicMarker("[Unknown]", 1, "Beyond meaning — model is babbling", "Stop, find data"),
+    ])
+    
+    gates: list[str] = field(default_factory=lambda: [
+        "1. STATE: Read current state (files, logs, tests). Ground in observations.",
+        "2. DECOMPOSITION: Break into subtasks using Sierpinski/k-medoids.",
+        "3. MASTER PLAN: Produce plan with subtasks, oracles, ship criteria.",
+        "4. PRESENT & ASK: Show plan, wait for approval. No code until approved.",
+        "5. CONCERN LOOP: If concerns raised, return to Gate 2.",
+        "6. GROUNDING: Verify assumptions with explore agent or web search.",
+        "7. IMPLEMENTATION: Implement exactly what plan specifies.",
+        "8. ORACLE VERIFICATION: Verify with tests/compiler/runtime.",
+        "9. CLEAN NEXT STATE: Report done/blocked/next.",
+    ])
+    
+    compaction_survivors: list[str] = field(default_factory=lambda: [
+        "Epistemic markers ([Exact], [Inferred]) survive in text — preserve confidence levels",
+        "SV vectors (sv=[[keywords],[weights]]) survive in summary — preserve topic",
+        "Messagesearch weights — allow reverse search even when originals lost",
+    ])
+    
+    k_medoids_vs_k_means: str = (
+        "k-medoids uses real data points (medoids) as representatives; "
+        "k-means uses abstract averages (centroids) that may not exist. "
+        "Every subtask must be a real, executable unit with a verifiable oracle."
+    )
 
-### Externalized Reasoning
-
-When a model is forced to print its doubts, confidence levels, and decomposition steps in the prompt, multi-head attention captures these as context. A model that says "I'm not sure about X" internally but never externalizes it will hallucinate with false confidence. A model that writes `[Guess] (single observation, no confirmed mechanism)` in the prompt creates an attention anchor that influences all subsequent decisions.
-
-### Epistemic Markers as Actionable Signals
-
-Markers are not decoration — they are a chain of confidence degradation. Each level is one step removed from direct evidence:
-
-```
-Exact → Inferred → | → Hypothetical → Guess → | → Unknown
- факт    логика    |    "а что если"   фантастика |    бред
-                   |                            |
-              граница факта                 граница смысла
-```
-
-| Marker | Weight | Basis | Action |
-|--------|--------|-------|--------|
-| `[Exact]` | 10x | Direct observation (terminal output, test result, file read) | Trust, proceed |
-| `[Inferred]` | 7x | Logical chain from Exact facts | Trust if chain is sound |
-| `[Hypothetical]` | 4x | "What if" reasoning — useful for exploration, not grounded in fact | Verify before anchoring |
-| `[Guess]` | 2x | Building on Hypothetical — creative but not factual | **Stop, research** |
-| `[Unknown]` | 1x | Beyond meaning — model is babbling | **Stop, find data** |
-
-The boundary between grounded reasoning and invention is between **Inferred** and **Hypothetical**. Inferred is the last level where the model relies on facts. Hypothetical is "what if the Earth was flat" — sometimes useful for exploration, but not a fact. Unknown is beyond meaning entirely.
-
-### k-Medoids vs k-Means
-
-The workflow uses k-medoids (real, representative objects) instead of k-means (abstract averages):
-
-- **k-means**: centroid is an *average* — may not correspond to anything real
-- **k-medoids**: medoid is an *actual data point* that best represents the cluster
-
-In practice: every subtask must be a real, executable unit (file path, test command, specific function), not a fuzzy summary like "improve the codebase". This grounds the model's reasoning in verifiable reality.
-
-### Recursive Decomposition (Sierpinski)
-
-Tasks are decomposed fractally — each subtask has the same structural shape as its parent:
-
-```
-Task: Mermaid rendering in TUI
-├── Subtask 1: mermaid-rs → SVG [oracle: standalone test]
-├── Subtask 2: resvg SVG → PNG [oracle: standalone test]
-├── Subtask 3: chafa PNG → ANSI [oracle: standalone test]
-├── Subtask 4: TextPart integration [oracle: smoke plugin]
-└── Subtask 5: Streaming detection [oracle: smoke plugin]
-```
-
-Each leaf must be at file-and-function level with a verifiable oracle (test, typecheck, runtime output). A subtask without an oracle is not complete.
-
-## The Gates
-
-Every code change flows through these gates sequentially:
-
-1. **Gate 1 — STATE**: Read current state (files, logs, tests). Ground in concrete observations.
-2. **Gate 2 — DECOMPOSITION**: Break into subtasks using Sierpinski/k-medoids.
-3. **Gate 3 — MASTER PLAN**: Produce plan with subtasks, oracles, ship criteria.
-4. **Gate 4 — PRESENT & ASK**: Show plan, wait for approval. No code until approved.
-5. **Gate 5 — CONCERN LOOP**: If concerns raised, return to Gate 2.
-6. **Gate 6 — GROUNDING**: Verify assumptions with explore agent or web search.
-7. **Gate 7 — IMPLEMENTATION**: Implement exactly what plan specifies.
-8. **Gate 8 — ORACLE VERIFICATION**: Verify with tests/compiler/runtime. Task complete ONLY when oracle passes.
-9. **Gate 9 — CLEAN NEXT STATE**: Report done/blocked/next.
-
-## Why Most People Don't Need This
-
-Most users want quick answers. The gated workflow adds overhead: decomposition takes time, verification requires running tests, epistemic markers force the model to say "I don't know" instead of guessing.
-
-For simple tasks ("rename this variable"), the workflow is overkill. For complex tasks ("fix this rendering bug across 3 subsystems"), it prevents the model from hallucinating solutions that look correct but fail at runtime.
-
-## The Three Layers That Survive Compaction
-
-When the content window shifts and old messages are compacted, three layers survive:
-
-1. **Epistemic markers** — `[Exact]`, `[Inferred]`, `[Guess]`, etc. survive in the text and preserve confidence levels
-2. **SV vectors** — `sv=[[keywords],[weights]]` survive in summary and preserve "what was this about"
-3. **Messagesearch weights** — epistemic weights are indexed and allow reverse search even when originals are lost
-
-Without these, after compaction the model loses the distinction between "I verified this" and "I assumed this".
-
-### Semantic Vectors (SV)
-
-Every message appends a semantic vector: `sv=[[3-9 keywords],[normalized weights summing to 1.0]]`
-
-This captures the **intent** of the conversation segment. After compaction, when the full text is gone, the SV tells you:
-- What the segment was about
-- How to interpret the remaining data
-- Whether the segment is relevant to a current search
-
-Any conversation has an "setup" — an intent, a context, a topic. The SV vector fixes this in compact form so you can read the data correctly even after the original context is lost.
-
-## When to Use
-
-- Complex multi-file changes
-- Debugging where root cause is unclear
-- Architecture decisions
-- Any task where "the model said it works" is not sufficient verification
-
-The gated workflow ensures every claim is grounded, every subtask has an oracle, and every decision is traceable to evidence.
+WORKFLOW = GatedWorkflow()
+# {len(WORKFLOW.markers)} markers, {len(WORKFLOW.gates)} gates
+# Boundary between grounded reasoning and invention: Inferred → Hypothetical

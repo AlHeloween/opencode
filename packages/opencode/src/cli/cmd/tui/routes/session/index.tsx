@@ -1674,6 +1674,7 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
           syntaxStyle={subtleSyntax()}
           content={"_Thinking:_ " + content()}
           conceal={ctx.conceal()}
+          fg={theme.textMuted}
         />
       </box>
     </Show>
@@ -1771,13 +1772,21 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
               syntaxStyle={syntax()}
               content={markdownText()}
               conceal={ctx.conceal()}
+              fg={theme.text}
               onHighlight={(highlights: any, context: any) => {
-                Log.Default.debug("tree-sitter highlight completed", {
+                Log.Default.warn("bug: tree-sitter highlight result", {
                   partId: props.part.id,
                   filetype: context?.filetype,
                   highlightCount: highlights?.length ?? 0,
                   contentLength: context?.content?.length ?? 0,
+                  contentPreview: String(context?.content).slice(0, 60),
                 })
+                if (!highlights || highlights.length === 0) {
+                  Log.Default.warn("bug: tree-sitter returned ZERO highlights", {
+                    partId: props.part.id,
+                    content: String(context?.content).slice(0, 200),
+                  })
+                }
                 return highlights
               }}
             />

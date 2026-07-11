@@ -150,6 +150,10 @@ async function main() {
           body: JSON.stringify({
             model: model.slug,
             input: [{ role: "user", content: [{ type: "input_text", text: "2+2=?" }] }],
+            reasoning: { effort: "low" },
+            parallel_tool_calls: true,
+            tool_choice: "auto",
+            include: ["reasoning.encrypted_content"],
             store: false,
             stream: true,
           }),

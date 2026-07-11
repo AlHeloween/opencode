@@ -1,5 +1,5 @@
 {
-  "test_time": "2026-07-10T05:22:39.582Z",
+  "test_time": "2026-07-10T23:58:34.029Z",
   "auth": {
     "type": "oauth",
     "accountId": "e37ccc5e-b18a-47ec-aab9-02c44aa3edcd"
@@ -13,43 +13,43 @@
     {
       "id": "codex-auto-review",
       "status": "ok",
-      "response_time_ms": 2665,
+      "response_time_ms": 980,
       "sample": "4"
     },
     {
       "id": "gpt-5.4",
       "status": "ok",
-      "response_time_ms": 738,
+      "response_time_ms": 444,
       "sample": "4"
     },
     {
       "id": "gpt-5.4-mini",
       "status": "ok",
-      "response_time_ms": 612,
+      "response_time_ms": 602,
       "sample": "4"
     },
     {
       "id": "gpt-5.5",
       "status": "ok",
-      "response_time_ms": 511,
+      "response_time_ms": 578,
       "sample": "4"
     },
     {
       "id": "gpt-5.6-luna",
       "status": "error",
-      "response_time_ms": 352,
+      "response_time_ms": 337,
       "error": "Model not found gpt-5.6-luna"
     },
     {
       "id": "gpt-5.6-sol",
       "status": "ok",
       "response_time_ms": 671,
-      "sample": "4"
+      "sample": "."
     },
     {
       "id": "gpt-5.6-terra",
       "status": "ok",
-      "response_time_ms": 526,
+      "response_time_ms": 435,
       "sample": "4"
     }
   ]

@@ -1,169 +1,50 @@
-# Repository Folder Map
+"""
+Repository Folder Map — defined as typed Python data.
 
-**Last updated:** 2026-07-04
-**Purpose:** Folder-based index of repository contents — purpose + key entrypoints for each directory.
+All directories tracked in the RepoMap dataclass below.
+Use this as the canonical reference for project layout.
+"""
 
----
+from dataclasses import dataclass, field
 
-## Top-Level Directories
+@dataclass
+class DirEntry:
+    path: str
+    purpose: str
+    entrypoint: str = ""
 
-### `packages/` — Main Monorepo Packages (21 packages)
-| Subfolder | Purpose | Key Entrypoint |
-|-----------|---------|----------------|
-| `opencode/` | Core CLI/TUI server — AI agent engine, tools, HTTP API, session mgmt, tokenizers (BPE + tiktoken) | `src/index.ts` |
-| `app/` | SolidJS SPA — web UI for chat, sessions, settings | `src/entry.tsx` |
-| `core/` | Shared utilities — global paths, filesystem, npm resolution, Effect services | `src/global.ts` |
-| `ui/` | Shared SolidJS component library (40+ components), themes, Pierre diff engine | `package.json` exports 14 entrypoints |
-| `sdk/js/` | Auto-generated TypeScript SDK client + server from OpenAPI | `src/index.ts` |
-| `plugin/` | Plugin system API — hook definitions, tool helpers, TUI APIs | `src/index.ts` |
-| `desktop/` | Tauri v2 desktop app (Rust + TypeScript) | `src/index.tsx` (renderer), `src-tauri/src/main.rs` (Rust) |
-| `desktop-electron/` | Electron v41 alternative desktop app | `src/main/index.ts` (main), `src/renderer/index.tsx` (renderer) |
-| `web/` | Astro marketing site + Starlight docs (`opencode.ai`) | `src/pages/[...slug].md.ts` |
-| `enterprise/` | SolidStart app for session sharing + sync | `src/app.tsx` |
-| `function/` | Cloudflare Worker — sharing sync, GitHub App token exchange | `src/api.ts` |
-| `console/app/` | SaaS dashboard — billing, workspaces, admin (SolidStart) | Vite/SolidStart root |
-| `console/core/` | SaaS business logic — accounts, billing, Drizzle schemas | `src/account.ts`, `src/workspace.ts` |
-| `console/function/` | Cloudflare Worker — OpenAuth, log processing | `src/auth.ts` |
-| `console/mail/` | Email templates (React/jsx-email) | `emails/templates/` |
-| `console/resource/` | SST resource definitions (Cloudflare + Node) | `resource.cloudflare.ts` |
-| `script/` | Shared build script utilities (version mgmt) | `src/index.ts` |
-| `storybook/` | UI component Storybook dev tool | `.storybook/preview.tsx` |
-| `containers/` | CI/CD Docker images (base, bun-node, rust, tauri, publish) | `base/Dockerfile` |
-| `brand/` | Brand/logo assets (SVG + PNG) | `mark.svg`, `mark-512x512.png` |
-| `slack/` | Slack integration | — |
+@dataclass
+class RepoMap:
+    """Complete folder-based repository index."""
+    last_updated: str = "2026-07-04"
+    
+    packages: list[DirEntry] = field(default_factory=lambda: [
+        DirEntry("packages/opencode/", "Core CLI/TUI server — AI agent, tools, HTTP API, session mgmt", "src/index.ts"),
+        DirEntry("packages/app/", "SolidJS SPA — web UI for chat, sessions, settings", "src/entry.tsx"),
+        DirEntry("packages/core/", "Shared utilities — global paths, filesystem, npm resolution, Effect", "src/global.ts"),
+        DirEntry("packages/ui/", "Shared SolidJS components (40+), themes, Pierre diff engine", "package.json"),
+        DirEntry("packages/sdk/js/", "Auto-generated TypeScript SDK from OpenAPI", "src/index.ts"),
+        DirEntry("packages/plugin/", "Plugin system API — hooks, tool helpers, TUI APIs", "src/index.ts"),
+        DirEntry("packages/desktop/", "Tauri v2 desktop app (Rust + TypeScript)", "src/index.tsx, src-tauri/src/main.rs"),
+        DirEntry("packages/desktop-electron/", "Electron v41 desktop app", "src/main/index.ts"),
+        DirEntry("packages/web/", "Astro marketing site + Starlight docs (opencode.ai)", "src/pages/[...slug].md.ts"),
+        DirEntry("packages/enterprise/", "SolidStart app — session sharing + sync", "src/app.tsx"),
+        DirEntry("packages/function/", "Cloudflare Worker — sharing sync, GitHub App token", "src/api.ts"),
+        DirEntry("packages/console/app/", "SaaS dashboard — billing, workspaces, admin", "Vite/SolidStart root"),
+        DirEntry("packages/console/core/", "SaaS business logic — accounts, billing, Drizzle", "src/account.ts"),
+        DirEntry("packages/console/function/", "Cloudflare Worker — OpenAuth, log processing", "src/auth.ts"),
+        DirEntry("packages/console/mail/", "Email templates (React/jsx-email)", "emails/templates/"),
+        DirEntry("packages/console/resource/", "SST resource definitions", "resource.cloudflare.ts"),
+        DirEntry("packages/script/", "Shared build script utilities (version mgmt)", "src/index.ts"),
+        DirEntry("packages/storybook/", "UI component Storybook", ".storybook/preview.tsx"),
+        DirEntry("packages/containers/", "CI/CD Docker images", "base/Dockerfile"),
+        DirEntry("packages/brand/", "Brand/logo assets (SVG + PNG)", "mark.svg"),
+        DirEntry("packages/slack/", "Slack integration", ""),
+    ])
 
----
+REPO = RepoMap()
 
-### `docs/` — Technical Documentation
-- `ADID_Framework_15_3.md` — Autodidactic Development & Intelligence Driver Framework v15.3
-- `architecture.md` — System architecture diagrams: prompt assembly, checkpoint, agents, media, cache/diff, data flow
-- `external-file-locations.md` — All file paths opencode reads/writes outside project worktree
-- `fossil-search-research.md` — Fossil SCM search architecture: FTS5, grep, regex engine, tokenization
-- `bun-gemini-research.md` — Bun + Gemini research notes
-- `README.md` — Docs directory index
-
-### `specs/` — Architecture Specifications
-- `project.md` — API spec for project/session management
-- `v2/` — v2 API proposals
-- `effect/` — Effect migration patterns (migration, schema, tools, routes, HTTP API, facades, instance-context, loose-ends, server-package)
-
-### `plans/` — Active Plans
-- `2026-06-29_aisdk-wasi-migration.md` — Migrate Provider + Gateway Layer to Rust via aisdk + WASI (planning)
-- `emergency/` — Deferred emergency items from performance/bug audit
-- `abstract_futures/` — Superseded plans kept for reference (HTTP API v2, deferred architectural master)
-
-### `plans_completed/` — Completed Plans (100+ plans)
-- `vcs-master-plan/` — Fossil SCM snapshot backend: binary discovery, command validation, ignore translation, init lifecycle, track/snapshot, rollback, TUI integration, migration cleanup
-- `2026-07-03-jj-research-report.md` — Jujutsu VCS research (superseded by Fossil)
-- `2026-07-03_jj-integration-research.md` — jj integration task spec (solved via Fossil)
-- `2026-07-03_snapshot-performance-fix.md` — Snapshot performance fix (Fossil backend resolves)
-- `20260624_module_cd_plan.md` — Module C+D: Media TUI (chafa/mpv) + Multimodal messages
-- `20260623_agent_pipeline_media_plan.md` — 10h master plan: capability tool, agent pipeline, media TUI, multimimodal messages
-- Plus: performance, logging, security, shell migration, file locations, backups, session ops, cache, compaction, etc.
-
-### `obsolete/` — Deprecated Reference Artifacts
-- `plans/` — Retired active plans that were superseded or invalidated by later architectural decisions
-
----
-
-### `infra/` — Infrastructure-as-Code (SST)
-- `app.js` — App deployment
-- `console.js` — Console deployment
-- `enterprise.js` — Enterprise deployment
-
-### `scripts/` — Build & Dev Scripts
-- `build_artefacts.py` — Agent artefact builder
-- `sync_agent_assets.py` — Agent asset sync
-- `dev_env_windows.cmd`, `dev_env_windows.ps1` — Dev environment setup
-
-### `script/` — Repository Scripts
-- Root-level utility scripts
-
-### `tools/` — Tool Binaries
-- `adm.exe`, `adm` — ADID Update Manager (declarative updates, verification, RAG)
-- `cmd_runner.exe` — Windows ConPTY command runner with log bridge
-- `fossil.exe` (in `external/fossil/`) — Fossil SCM v2.28 for snapshot backend + historical code search
-
-### `sdks/` — External SDKs
-- `vscode/` — VS Code extension
-
-### `packages/opencode/src/snapshot/` — Snapshot Backends
-- `index.ts` — Git-based snapshot (fallback): bare repo, `git write-tree`, `git checkout-index`
-- `jj.ts` — Jujutsu snapshot (alternative, dormant): native backend, `jj status`, `jj restore`
-- `fossil.ts` — **Fossil snapshot (active)**: standalone `.fsl` repo, `fossil commit`, `fossil checkout`, `.gitignore` → ignore-glob translator
-
-### `packages/opencode/src/tool/` — Agent Tools
-- `edit.ts` — File edit with fuzzy cascade matching, `.bak` backups (gitignore-aware)
-- `bash.ts` — Shell command execution via cmd_runner
-- `fossil-grep.ts` — Search historical file versions using Fossil's NFA regex engine
-- `grep.ts` — ripgrep-based current working copy search (uses `-e` flag)
-- `rules/` — Agent rule files (ADID framework, semantic coding)
-- `skills/` — Agent skill definitions (adm-exe, cmd-runner, rag, etc.)
-- `data/` — Runtime data (gitignored, portable)
-
-### `.github/` — GitHub Configuration
-- `workflows/` — 28 CI/CD workflows (typecheck, test, publish, deploy, triage, docs, etc.)
-- `PULL_REQUEST_TEMPLATE.md`
-- `CODEOWNERS`
-
-### `artifacts/` — Build Artifacts
-Compiled binaries, packages, and installers.
-
-### `bin/` — Binary Outputs
-Compiled CLI executables.
-
-### `dist/` — Distribution Builds
-Production build output directory.
-
-### `experiments/` — Experiments
-Short-lived experimental code — not for mainline.
-
-### `futures/` — Future Work
-Planned features / drafts not yet ready for mainline.
-
-### `obsolete/` — Deprecated Artifacts
-Kept for reference only.
-
-### `makeups/` — Stubs/Makeups
-Explicit stubs when something cannot be executed for real.
-
-### `updates/` — ADID Update Descriptors (Source of Truth)
-XML descriptors for declarative code changes, verification, and rollback.
-
-### `logs/` — Runtime Logs (gitignored)
-cmd_runner and application runtime logs.
-
-### `.opencode/data/log/` — Runtime Logs & KV Cache Diffs (gitignored)
-Single flat directory, no subdirectories. All metadata encoded in filename:
-
-`{time_ms}_{operation}_{model}_{session_id}.{ext}`
-
-| Component | Values | Example |
-|-----------|--------|---------|
-| `time_ms` | `Date.now()` epoch millis — primal sort index | `1718446605473` |
-| `operation` | `log` (JSONL entries), `diff` (request comparison), `payload` (large spillover) | `log` |
-| `model` | Sanitized model ID or `system` | `claude-sonnet-4-20250514` |
-| `session_id` | Session ID or `internal` | `ses_abc123` |
-| `ext` | `jsonl`, `diff`, `json` | `jsonl` |
-
-Lexical sort = chronological sort. Retention: 100 latest log files. Diff baselines encrypted in `log/.baselines/`. Enabled by default (config `diff_requests`). Streams created lazily per `(model, session_id, op)`, closed via `Log.closeStreams()` on session delete.
-
-### `nix/` — Nix Build Support
-Nix flake for reproducible builds.
-
----
-
-## Key Files at Root
-
-| File | Purpose |
-|------|---------|
-| `package.json` | Monorepo root — workspaces, scripts, dependency catalog |
-| `bunfig.toml` | Bun configuration (preloads, test preload) |
-| `turbo.json` | Turborepo task pipeline |
-| `tsconfig.json` | Root TypeScript config |
-| `sst.config.ts` | SST (Serverless Stack) deployment config |
-| `bun.lock` | Dependency lockfile |
-| `_build.ps1`, `_build_rust.ps1` | Build scripts |
-| `cmd_runner.exe` | Windows ConPTY command runner |
-| `adm.exe` | ADID Update Manager |
-| `adm.json` | ADID configuration |
+# {len(REPO.packages)} packages tracked
+# Docs: docs/, specs/plans/, plans_completed/
+# Tools: tools/, external/
+# Key files at root: package.json, bunfig.toml, turbo.json, tsconfig.json, sst.config.ts

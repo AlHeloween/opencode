@@ -1,3 +1,9 @@
+"""
+Agent governance — defined in opencode_prompts_kernel.py.
+
+from opencode_prompts_kernel import GOVERNANCE_RULES, CODING_AGENT_DIRECTIVES, DefaultPromptDirectives
+"""
+
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `dev`.
@@ -83,7 +89,14 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 ## Discovery Rule
 
-- **Before reporting any file or module as "not found" or "missing", run `fd` to search for it.** `fd` searches ignored directories too; `glob`/`list` are bounded by `.gitignore`. Guessing absence without discovery is a bug. Same applies to "module X doesn't exist" claims — search first, report after.
+```python
+# From opencode_prompts_kernel.py: CODING_AGENT_DIRECTIVES
+DISCOVERY_RULES = {
+    "search_before_report": True,
+    "fd_over_glob": "fd searches ignored dirs; glob/list bounded by .gitignore",
+    "no_absence_guessing": "Search first, report after. Guessing absence is a bug.",
+}
+```
 
 ## Plan Maintenance
 
@@ -97,15 +110,19 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 ## Style Guide
 
-### General Principles
-
-- Keep things in one function unless composable or reusable
-- Avoid `try`/`catch` where possible
-- Avoid using the `any` type
-- Use Bun APIs when possible, like `Bun.file()`
-- Rely on type inference when possible; avoid explicit type annotations or interfaces unless necessary for exports or clarity
-- Prefer functional array methods (flatMap, filter, map) over for loops; use type guards on filter to maintain type inference downstream
-- In `src/config`, follow the existing self-export pattern at the top of the file (for example `export * as ConfigAgent from "./agent"`) when adding a new config module.
+```python
+STYLE_RULES = {
+    "general": [
+        "Keep things in one function unless composable or reusable",
+        "Avoid try/catch where possible",
+        "Avoid the 'any' type",
+        "Use Bun APIs when possible (Bun.file())",
+        "Rely on type inference; avoid explicit annotations unless needed for exports",
+        "Prefer functional array methods over for loops",
+        "Use type guards on filter to maintain type inference",
+    ],
+}
+```
 
 Reduce total variable count by inlining when a value is only used once.
 

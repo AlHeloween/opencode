@@ -1710,6 +1710,15 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   const { theme, syntax, mode } = useTheme()
 
   const segments = createMemo(() => splitTextSegments(props.part.text))
+  const markdownText = createMemo(() =>
+    segments()
+      .filter((s) => s.type === "markdown")
+      .map((s) => s.text)
+      .join(""),
+  )
+  const mermaidSegments = createMemo(() =>
+    segments().filter((s): s is Extract<TextSegment, { type: "mermaid" }> => s.type === "mermaid"),
+  )
 
   // Render Mermaid only after the text part is finalized. Each diagram remains
   // isolated from neighboring Markdown so image insertion cannot reset it.
@@ -1741,58 +1750,48 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   )
 
   return (
-    <Show when={segments().length > 0}>
+    <Show when={markdownText() || mermaidSegments().length > 0}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <For each={segments()}>
-          {(segment, index) => {
-            const markdown = segment.type === "markdown" ? segment.text : undefined
-            const mermaid = segment.type === "mermaid" ? segment : undefined
-            return (
-              <Switch>
-                <Match when={markdown}>
-                  <Switch>
-                    <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
-                      <markdown
-                        syntaxStyle={syntax()}
-                        streaming={true}
-                        content={markdown!}
-                        conceal={ctx.conceal()}
-                        fg={theme.markdownText}
-                        bg={theme.background}
-                      />
-                    </Match>
-                    <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
-                      <code
-                        filetype="markdown"
-                        drawUnstyledText={true}
-                        streaming={true}
-                        syntaxStyle={syntax()}
-                        content={markdown!}
-                        conceal={ctx.conceal()}
-                        onHighlight={(highlights: any, context: any) => {
-                          Log.Default.debug("tree-sitter highlight completed", {
-                            partId: props.part.id,
-                            filetype: context?.filetype,
-                            highlightCount: highlights?.length ?? 0,
-                            contentLength: context?.content?.length ?? 0,
-                          })
-                          return highlights
-                        }}
-                      />
-                    </Match>
-                  </Switch>
-                </Match>
-                <Match when={mermaid}>
-                  <Show
-                    when={mermaidDataUrls()[index()]}
-                    fallback={<text fg={theme.text}>{mermaid!.raw}</text>}
-                  >
-                    <image-plane url={mermaidDataUrls()[index()]!} mime="image/png" width={70} />
-                  </Show>
-                </Match>
-              </Switch>
-            )
-          }}
+        <Switch>
+          <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+            <markdown
+              syntaxStyle={syntax()}
+              streaming={true}
+              content={markdownText()}
+              conceal={ctx.conceal()}
+              fg={theme.markdownText}
+              bg={theme.background}
+            />
+          </Match>
+          <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+            <code
+              filetype="markdown"
+              drawUnstyledText={true}
+              streaming={true}
+              syntaxStyle={syntax()}
+              content={markdownText()}
+              conceal={ctx.conceal()}
+              onHighlight={(highlights: any, context: any) => {
+                Log.Default.debug("tree-sitter highlight completed", {
+                  partId: props.part.id,
+                  filetype: context?.filetype,
+                  highlightCount: highlights?.length ?? 0,
+                  contentLength: context?.content?.length ?? 0,
+                })
+                return highlights
+              }}
+            />
+          </Match>
+        </Switch>
+        <For each={mermaidSegments()}>
+          {(segment, index) => (
+            <Show
+              when={mermaidDataUrls()[index()]}
+              fallback={<text fg={theme.text}>{segment.raw}</text>}
+            >
+              <image-plane url={mermaidDataUrls()[index()]!} mime="image/png" width={70} />
+            </Show>
+          )}
         </For>
       </box>
     </Show>

@@ -12,7 +12,6 @@ import PROMPT_DEFAULT from "../../src/session/prompt/default.txt"
 import PROMPT_GPT from "../../src/session/prompt/gpt.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
-import PROMPT_PLAN_REMINDER_ANTHROPIC from "../../src/session/prompt/plan-reminder-anthropic.txt"
 import TASK_DESCRIPTION from "../../src/tool/task.txt"
 
 function mockModel(apiId: string, providerId = "test"): Provider.Model {
@@ -50,14 +49,14 @@ describe("session.system", () => {
   test("plan reminders use general as planning subagent, not plan", async () => {
     const dynamic = await Bun.file(path.join(import.meta.dir, "../../src/session/prompt.ts")).text()
 
-    expect(PROMPT_PLAN_REMINDER_ANTHROPIC).toContain("`general` subagent")
-    expect(PROMPT_PLAN_REMINDER_ANTHROPIC).not.toContain("Plan subagent")
-    expect(PROMPT_PLAN_REMINDER_ANTHROPIC).not.toContain("Plan agent")
+    expect(PROMPT_PLAN).toContain("`general` subagent")
+    expect(PROMPT_PLAN).not.toContain("Plan subagent")
+    expect(PROMPT_PLAN).not.toContain("Plan agent")
     expect(dynamic).toContain("Launch general agent(s) to design the implementation")
     expect(dynamic).toContain("Launch at least 1 general agent")
     expect(dynamic).not.toContain("Launch at least 1 Plan agent")
 
-    for (const prompt of [PROMPT_PLAN, PROMPT_PLAN_REMINDER_ANTHROPIC, dynamic]) {
+    for (const prompt of [PROMPT_PLAN, dynamic]) {
       expect(prompt).toContain("cmd_runner session control/inspection")
       expect(prompt).toContain("do not launch general")
       expect(prompt).toContain("plans_completed")

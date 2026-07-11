@@ -30,25 +30,7 @@ const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60
 const CWD = new Set(["cd", "popd", "pushd", "push-location", "set-location"])
 const FILES = new Set([
   ...CWD,
-  "rm",
-  "cp",
-  "mv",
-  "mkdir",
-  "touch",
-  "chmod",
-  "chown",
-  "cat",
-  // Leave PowerShell aliases out for now. Common ones like cat/cp/mv/rm/mkdir
-  // already hit the entries above, and alias normalization should happen in one
-  // place later so we do not risk double-prompting.
-  "get-content",
-  "set-content",
-  "add-content",
-  "copy-item",
-  "move-item",
-  "remove-item",
-  "new-item",
-  "rename-item",
+  "cat", "chmod", "chown", "cp", "ln", "mkdir", "mv", "rm", "touch",
 ])
 const FLAGS = new Set(["-destination", "-literalpath", "-path"])
 const SWITCHES = new Set(["-confirm", "-debug", "-force", "-nonewline", "-recurse", "-verbose", "-whatif"])
@@ -62,17 +44,9 @@ const UNSAFE_FD_FLAGS = new Set(["--exec", "-x", "--exec-batch", "-X"])
 // These are purely informational/display commands that don't modify filesystem state.
 // When combined with shell redirections (> |), the redirection check catches them.
 const SAFE = new Set([
-  // cmd/batch — display/console only (no file/system mutations)
-  "cls", "color", "dir", "find", "findstr", "help", "more", "prompt",
-  "sort", "title", "tree", "type", "ver", "vol",
   // bash/POSIX — info/utility only
-  "basename", "dirname", "env", "grep", "head", "ls", "printf", "pwd",
-  "sort", "tail", "true", "false", "uniq", "wc", "which", "whoami",
-  // cross-platform (works in cmd, bash, and PowerShell)
-  "echo",
-  // PowerShell equivalents (lowercased for matching via tokens[0]?.toLowerCase())
-  "get-childitem", "get-content", "get-location", "select-string",
-  "write-host", "write-output",
+  "basename", "dirname", "echo", "env", "false", "grep", "head", "ls",
+  "printf", "pwd", "sort", "tail", "true", "uniq", "wc", "which", "whoami",
 ])
 
 function hasRedirection(node: Node): boolean {
@@ -357,21 +331,26 @@ const parser = lazy(async () => {
   await (Parser.init as any)({
     wasmBinary: treeWasm.bytes,
   })
-  const [bashWasm, psWasm] = await Promise.all([
+  const [bashWasm, cmdWasm, psWasm] = await Promise.all([
     readWasmAsset("grammars/tree-sitter-bash.wasm"),
+    readWasmAsset("grammars/tree-sitter-batch.wasm"),
     readWasmAsset("grammars/tree-sitter-powershell.wasm"),
   ])
   if (!bashWasm.bytes) throw new Error("bash grammar WASM unavailable; tried: " + JSON.stringify(bashWasm.tried))
+  if (!cmdWasm.bytes) throw new Error("batch grammar WASM unavailable; tried: " + JSON.stringify(cmdWasm.tried))
   if (!psWasm.bytes) throw new Error("PowerShell grammar WASM unavailable; tried: " + JSON.stringify(psWasm.tried))
-  const [bashLanguage, psLanguage] = await Promise.all([
+  const [bashLanguage, cmdLanguage, psLanguage] = await Promise.all([
     Language.load(new Uint8Array(bashWasm.bytes)),
+    Language.load(new Uint8Array(cmdWasm.bytes)),
     Language.load(new Uint8Array(psWasm.bytes)),
   ])
   const bash = new Parser()
   bash.setLanguage(bashLanguage)
+  const cmd = new Parser()
+  cmd.setLanguage(cmdLanguage)
   const ps = new Parser()
   ps.setLanguage(psLanguage)
-  return { bash, ps }
+  return { bash, cmd, ps }
 })
 
 // TODO: we may wanna rename this tool so it works better on other shells
@@ -683,11 +662,7 @@ export const BashTool = Tool.define(
         const shell = Shell.acceptable(cfg.shell)
         const name = Shell.name(shell)
         const chain =
-          name === "powershell"
-            ? "If the commands depend on each other and must run sequentially, avoid '&&' in this shell because Windows PowerShell 5.1 does not support it. Use PowerShell conditionals such as `cmd1; if ($?) { cmd2 }` when later commands must depend on earlier success."
-            : name === "cmd"
-              ? "If the commands depend on each other and must run sequentially, use '&&' to chain them together (e.g., `git add . && git commit -m \"message\" && git push`). For instance, if one operation must complete before another starts (like mkdir before cp, Write before Bash for git operations, or git add before git commit), run these operations sequentially instead."
-              : "If the commands depend on each other and must run sequentially, use a single Bash call with '&&' to chain them together (e.g., `git add . && git commit -m \"message\" && git push`). For instance, if one operation must complete before another starts (like mkdir before cp, Write before Bash for git operations, or git add before git commit), run these operations sequentially instead."
+          "If the commands depend on each other and must run sequentially, use a single Bash call with '&&' to chain them together (e.g., `git add . && git commit -m \"message\" && git push`). For instance, if one operation must complete before another starts (like mkdir before cp, Write before Bash for git operations, or git add before git commit), run these operations sequentially instead."
         log.info("bash tool using shell", { shell })
 
         const limits = yield* trunc.limits()

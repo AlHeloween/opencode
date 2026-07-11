@@ -76,6 +76,12 @@ function meta(file: string) {
 }
 
 function ok(file: string) {
+  const n = name(file)
+  // On Windows, deny bash shell — only cmd.exe and PowerShell are supported.
+  // This prevents quoting issues with cmd.exe's /s /c wrapper and keeps
+  // the shell environment predictable. If the user has Git Bash installed,
+  // its commands can be run through cmd.exe.
+  if (process.platform === "win32" && n === "bash") return false
   return meta(file)?.deny !== true
 }
 

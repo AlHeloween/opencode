@@ -1,0 +1,37 @@
+Executes a Windows cmd.exe command with optional timeout.
+
+Be aware: OS: ${os}, Shell: cmd
+
+All commands run in the current working directory by default. Use the `workdir` parameter to run in a different directory. AVOID using `cd <directory> && <command>` patterns.
+
+IMPORTANT: This tool is for simple cmd.exe commands. For interactive, long-running, or complex terminal sessions (including PowerShell and Git Bash), use the `cmd_runner` skill instead.
+
+## Windows Path Quoting
+
+Paths with spaces MUST be double-quoted: `takeown /f "C:\Program Files\app"` NOT `takeown /f C:\Program Files\app`.
+DO NOT escape quotes with backslashes — cmd.exe does not understand `\"`. Prefer `""` inside a quoted string for literal quotes.
+
+## Permission Scanning
+
+Commands are parsed with a batch grammar to detect filesystem-affecting operations. The permission system prompts for approval before executing dangerous commands.
+
+## Output Handling
+
+If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output written to a file.
+
+## Timeout
+
+The default timeout is 60000ms (1 minute). You can specify an optional timeout in milliseconds.
+
+Before executing:
+
+1. Always quote file paths with spaces in double quotes.
+2. Use Windows syntax: `dir`, `type`, `copy`, `move`, `del`, `mkdir`, `takeown`.
+3. Chain with `&&`. Pipe with `|`. Redirect with `>` and `2>&1`.
+4. Use `nul` for null device.
+5. DO NOT use `grep`, `rg`, `head`, `tail`, `sed`, `awk` — use dedicated tools.
+6. For interactive/long-running commands, use `cmd_runner` skill.
+
+Usage notes:
+  - The command argument is required.
+  - Use `workdir` instead of `cd <directory>`.

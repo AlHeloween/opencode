@@ -1,0 +1,29 @@
+Executes a PowerShell command with optional timeout.
+
+Be aware: OS: ${os}, Shell: powershell
+
+All commands run in the current working directory by default. Use the `workdir` parameter to run in a different directory.
+
+## Permission Scanning
+
+Commands are parsed with a PowerShell grammar (tree-sitter-powershell) to detect filesystem-affecting operations. The permission system prompts for approval before executing dangerous commands.
+
+## Output Handling
+
+If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output written to a file.
+
+## Timeout
+
+The default timeout is 60000ms (1 minute).
+
+Before executing:
+
+1. Always quote file paths with spaces in double quotes
+2. Use PowerShell syntax for commands
+3. Avoid `&&` — use `; if ($?) { }` for conditional chaining
+4. Use PowerShell-native commands (Get-ChildItem, Get-Content, etc.)
+5. After ensuring proper quoting, execute the command
+
+Usage notes:
+  - The command argument is required
+  - Use workdir parameter instead of `Set-Location`

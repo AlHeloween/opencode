@@ -2,6 +2,7 @@ import { PlanExitTool } from "./plan"
 import { Session } from "@/session/session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
+import { CmdTool } from "./cmd"
 import { EditTool } from "./edit"
 import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
@@ -119,6 +120,7 @@ export const layer: Layer.Layer<
     const plan = yield* PlanExitTool
     const webfetch = yield* WebFetchTool
     const bash = yield* BashTool
+    const cmd = yield* CmdTool
     const run = yield* RunTool
     const globtool = yield* GlobTool
     const writetool = yield* WriteTool
@@ -210,6 +212,7 @@ export const layer: Layer.Layer<
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
           bash: Tool.init(bash),
+          cmd: Tool.init(cmd),
           run: Tool.init(run),
           read: Tool.init(read),
           glob: Tool.init(globtool),
@@ -242,6 +245,7 @@ export const layer: Layer.Layer<
             tool.invalid,
             ...(questionEnabled ? [tool.question] : []),
             tool.bash,
+            tool.cmd,
             tool.run,
             tool.read,
             tool.glob,
@@ -264,6 +268,7 @@ export const layer: Layer.Layer<
             tool.capability,
             tool.pipeline,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
+            ...(process.platform === "win32" ? [tool.cmd] : []),
             ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
           ],
           task: tool.task,

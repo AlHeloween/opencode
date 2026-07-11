@@ -27,7 +27,7 @@ import { Jobs } from "@/jobs"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
-const CWD = new Set(["cd", "push-location", "set-location"])
+const CWD = new Set(["cd", "popd", "pushd", "push-location", "set-location"])
 const FILES = new Set([
   ...CWD,
   "rm",
@@ -57,6 +57,27 @@ const SWITCHES = new Set(["-confirm", "-debug", "-force", "-nonewline", "-recurs
 // Mirrors Codex safe-command logic: block code-exec flags, allow all others.
 const UNSAFE_RG_FLAGS = new Set(["--pre", "--hostname-bin", "--search-zip", "-z"])
 const UNSAFE_FD_FLAGS = new Set(["--exec", "-x", "--exec-batch", "-X"])
+
+// Known-safe read-only commands that never trigger permission scanning.
+// These are purely informational/display commands that don't modify filesystem state.
+// When combined with shell redirections (> |), the redirection check catches them.
+const SAFE = new Set([
+  // cmd/batch — display/console only (no file/system mutations)
+  "cls", "color", "dir", "find", "findstr", "help", "more", "prompt",
+  "sort", "title", "tree", "type", "ver", "vol",
+  // bash/POSIX — info/utility only
+  "basename", "dirname", "env", "grep", "head", "ls", "printf", "pwd",
+  "sort", "tail", "true", "false", "uniq", "wc", "which", "whoami",
+  // cross-platform (works in cmd, bash, and PowerShell)
+  "echo",
+  // PowerShell equivalents (lowercased for matching via tokens[0]?.toLowerCase())
+  "get-childitem", "get-content", "get-location", "select-string",
+  "write-host", "write-output",
+])
+
+function hasRedirection(node: Node): boolean {
+  return node.descendantsOfType("redirection").length > 0
+}
 
 function isKnownSafeCommand(parts: Part[]): boolean {
   const cmd = parts[0]?.text?.toLowerCase()
@@ -203,11 +224,17 @@ function prefix(text: string) {
   return text.slice(0, match.index)
 }
 
-function pathArgs(list: Part[], ps: boolean) {
+function pathArgs(list: Part[], ps: boolean, shell: string) {
   if (!ps) {
+    const isCmd = !Shell.posix(shell)
     return list
       .slice(1)
-      .filter((item) => !item.text.startsWith("-") && !(list[0]?.text === "chmod" && item.text.startsWith("+")))
+      .filter(
+        (item) =>
+          !item.text.startsWith("-") &&
+          !(isCmd && item.text.startsWith("/")) &&
+          !(list[0]?.text === "chmod" && item.text.startsWith("+")),
+      )
       .map((item) => item.text)
   }
 
@@ -439,8 +466,14 @@ export const BashTool = Tool.define(
           continue
         }
 
+        // Skip known-safe read-only commands entirely (no path scanning, no pattern scanning).
+        // But if the command has shell redirections (> |), it can write files — don't skip it.
+        if (cmd && SAFE.has(cmd) && !hasRedirection(node)) {
+          continue
+        }
+
         if (cmd && FILES.has(cmd)) {
-          for (const arg of pathArgs(command, ps)) {
+          for (const arg of pathArgs(command, ps, shell)) {
             const resolved = yield* argPath(arg, cwd, ps, shell)
             log.info("resolved path", { arg, resolved })
             if (!resolved || Instance.containsPath(resolved)) continue

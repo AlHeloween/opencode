@@ -207,12 +207,20 @@ export const layer = Layer.effect(
       const deferred = yield* Deferred.make<void, RejectedError | CorrectedError>()
       pending.set(id, { info, deferred })
       yield* bus.publish(Event.Asked, info)
-      return yield* Effect.ensuring(
-        Deferred.await(deferred),
-        Effect.sync(() => {
+
+      // Wait for user response with a 60-second timeout.
+      // If no response within the timeout, auto-deny (RejectedError).
+      // The ensuring block cleans up the pending entry regardless of outcome.
+      const result = yield* Deferred.await(deferred).pipe(
+        Effect.timeoutOption("60 seconds"),
+        Effect.ensuring(Effect.sync(() => {
           pending.delete(id)
-        }),
+        })),
       )
+
+      if (result._tag === "None") {
+        return yield* new RejectedError()
+      }
     })
 
     const reply = Effect.fn("Permission.reply")(function* (input: ReplyInput) {

@@ -477,6 +477,12 @@ export const BashTool = Tool.define(
             const resolved = yield* argPath(arg, cwd, ps, shell)
             log.info("resolved path", { arg, resolved })
             if (!resolved || Instance.containsPath(resolved)) continue
+
+            // Only prompt for external directories that actually exist.
+            // Non-existent/corrupted paths (e.g., from incorrect resolution)
+            // should never trigger a permission prompt.
+            if (!(yield* fs.existsSafe(resolved))) continue
+
             const dir = (yield* fs.isDir(resolved)) ? resolved : path.dirname(resolved)
             scan.dirs.add(dir)
           }

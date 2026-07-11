@@ -37,14 +37,16 @@ Mermaid source → mermaid-wasm-renderer (Rust WASM) → SVG → @resvg/resvg-js
 
 | # | Location | Severity | Description |
 |---|----------|----------|-------------|
-| 1 | `session/index.tsx:1723-1725` | **High** | **Silent `catch {}` block** — no logging at all. Violates AGENTS.md rule: "Silent catch blocks are bugs. If an error can occur, it must be logged." |
-| 2 | `session/index.tsx` vs `media-mermaid.tsx` | Medium | **Inconsistent error logging** — `media-mermaid.tsx` logs at `debug` level, but `session/index.tsx` swallows errors silently. Same error class, different observability. |
+| 1 | `session/index.tsx:1731-1736` | **Resolved** | Inline Mermaid exceptions now log the part ID, segment, and error; lower-level renderer failures log their own errors before returning `null`. |
+| 2 | `session/index.tsx` vs `media-mermaid.tsx` | **Resolved** | Inline and standalone Mermaid rendering now both provide debug-level failure logging. |
+| 3 | `session/index.tsx:1687-1806` | **Resolved** | Complete, line-anchored Mermaid blocks are split into ordered segments, allowing multiple diagrams while isolating adjacent independent Markdown prose. |
 
 ### ⚠️ Non-Bug Observations
 
 | Item | Note |
 |------|------|
 | **Under-specified test** | `mermaid.test.ts:69-74` — test for invalid input accepts both `null` and `string` return, acknowledging upstream non-determinism. Not a bug, but limits regression detection. |
+| **TUI segmentation coverage** | Multiple Mermaid blocks and Markdown-neighbor ordering are covered by the implementation but not by an automated TUI test; retain the manual session verification below. |
 | **Upstream constraints** | `mermaid-wasm-renderer` and `@resvg/resvg-js` have known limitations (complex SVG features, font injection). These are upstream issues, not local bugs. |
 | **No bug reports collected** | `.opencode/data/bugs/messages.json` does not exist — no mermaid-related bugs have been collected via the exit bug report mechanism. |
 
@@ -56,7 +58,7 @@ Mermaid source → mermaid-wasm-renderer (Rust WASM) → SVG → @resvg/resvg-js
 |------|-------|------|
 | `packages/opencode/src/util/mermaid.ts` | 68 | Core rendering pipeline |
 | `packages/opencode/src/cli/cmd/tui/component/media-mermaid.tsx` | 49 | Standalone mermaid component |
-| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | 1680-1761 | Inline mermaid in session messages |
+| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | 1680-1806 | Inline Mermaid segmentation and rendering in session messages |
 | `packages/opencode/test/util/mermaid.test.ts` | 80 | Test suite (9 tests, all passing) |
 
 ---
@@ -77,9 +79,9 @@ cd packages/opencode && bun typecheck
 
 ### Manual test (inline rendering)
 1. Start opencode TUI: `opencode.exe`
-2. Ask model to generate a mermaid diagram (e.g., "draw a flowchart of a login process")
-3. Verify diagram renders as PNG image in session view
-4. Verify code block is removed from text after rendering
+2. Ask model to generate two Mermaid diagrams with Markdown prose before, between, and after them.
+3. Verify both diagrams render as PNG images in their original order.
+4. Verify independent surrounding Markdown prose remains formatted and Mermaid source is not sent through the normal Markdown renderer.
 
 ### Manual test (standalone component)
 1. Use `/media` or equivalent command that invokes `MediaMermaid` component
@@ -89,25 +91,9 @@ cd packages/opencode && bun typecheck
 
 ## Recommendation
 
-**Fix the silent catch block** (Bug #1). This is a clear violation of the project's error logging policy and makes debugging impossible when mermaid rendering fails in the session view.
+Resolved in the visual-output stabilization change. The inline Mermaid catch now logs the part ID and error at debug level, matching the standalone component's observability behavior.
 
-**Fix:**
-```typescript
-// Line 1723 in session/index.tsx — change from:
-} catch {
-  // keep original code block on error
-}
-
-// To:
-} catch (err) {
-  Log.Default.debug("mermaid render failed in TextPart", { error: String(err) })
-  // keep original code block on error
-}
-```
-
-The `Log` import already exists at line 100 of the same file.
-
-**Priority:** High — this is a policy violation that creates an observability blind spot.
+**Priority:** Resolved.
 
 ---
 

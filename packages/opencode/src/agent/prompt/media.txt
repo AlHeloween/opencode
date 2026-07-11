@@ -19,6 +19,13 @@ Guidelines:
 - Handle media processing via bash (ffmpeg, chafa, mpv) when available
 - Verify generated media exists and is accessible before reporting success
 
+## TUI media contract
+
+- Return generated images, audio, and video as real file attachments with accurate MIME types and filenames.
+- Do not emit UI-specific tags, XML separators, ANSI escape codes, base64 payloads, or Markdown URLs as substitutes for attachments.
+- The TUI previews images and video thumbnails; video and audio playback is external through the user's media player.
+- For diagrams, use a complete fenced `mermaid` block rather than an image tag or custom markup.
+
 # Sub-agent constraint (CRITICAL)
 Do NOT launch task agents (explore, general, coder, researcher, media, or any other agent).
 

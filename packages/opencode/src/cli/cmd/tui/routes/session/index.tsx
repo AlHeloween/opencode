@@ -1669,8 +1669,8 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
       >
         <code
           filetype="markdown"
-          drawUnstyledText={true}
-          streaming={true}
+          drawUnstyledText={false}
+          streaming={!props.part.time?.end}
           syntaxStyle={subtleSyntax()}
           content={"_Thinking:_ " + content()}
           conceal={ctx.conceal()}
@@ -1680,96 +1680,126 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
   )
 }
 
+type TextSegment =
+  | { type: "markdown"; text: string }
+  | { type: "mermaid"; raw: string; source: string }
+
+function splitTextSegments(text: string): TextSegment[] {
+  const input = text.trim()
+  if (!input) return []
+
+  const segments: TextSegment[] = []
+  const mermaidRegex = /(^|\r?\n)([ \t]{0,3}```mermaid(?:[ \t]+[^\r\n]*)?\r?\n([\s\S]*?)\r?\n[ \t]{0,3}```[ \t]*(?=\r?$|\r?\n))/gim
+  let cursor = 0
+  let match: RegExpExecArray | null = null
+
+  while ((match = mermaidRegex.exec(input)) !== null) {
+    const markdown = input.slice(cursor, match.index + match[1].length)
+    if (markdown) segments.push({ type: "markdown", text: markdown })
+    segments.push({ type: "mermaid", raw: match[2], source: match[3].trim() })
+    cursor = mermaidRegex.lastIndex
+  }
+
+  const markdown = input.slice(cursor)
+  if (markdown) segments.push({ type: "markdown", text: markdown })
+  return segments.length > 0 ? segments : [{ type: "markdown", text: input }]
+}
+
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
   const ctx = use()
   const { theme, syntax, mode } = useTheme()
 
-  const rawText = createMemo(() => props.part.text)
-  const processedText = createMemo(() => {
-    const text = rawText()
-    if (!text.includes("```mermaid")) return text.trim()
-    // Synchronous first pass: keep mermaid code blocks as-is.
-    // Full async mermaid rendering is deferred to an effect below
-    // to avoid blocking reactive updates during streaming.
-    return text.trim()
-  })
+  const segments = createMemo(() => splitTextSegments(props.part.text))
 
-  // Async mermaid rendering: runs when text changes and is finalized (has time.end).
-  const [renderedMermaid, setRenderedMermaid] = createSignal<string | null>(null)
-  const [mermaidDataUrl, setMermaidDataUrl] = createSignal<string | null>(null)
+  // Render Mermaid only after the text part is finalized. Each diagram remains
+  // isolated from neighboring Markdown so image insertion cannot reset it.
+  const [mermaidDataUrls, setMermaidDataUrls] = createSignal<Record<number, string>>({})
   createEffect(
     on(
       () => props.part.time?.end,
       async (end) => {
         if (!end) return
-        if (mermaidDataUrl()) return
-        const text = props.part.text
-        if (!text.includes("```mermaid")) return
-
-        const mermaidRegex = /```mermaid\n([\s\S]*?)```/g
-        let match: RegExpExecArray | null = null
-        let result = text
-        let hasMermaid = false
-
-        while ((match = mermaidRegex.exec(text)) !== null) {
-          hasMermaid = true
+        const rendered: Record<number, string> = {}
+        for (const [index, segment] of segments().entries()) {
+          if (segment.type !== "mermaid") continue
           try {
-            const pngDataUrl = renderMermaidToPngDataUrl(match[1].trim(), {
+            const pngDataUrl = renderMermaidToPngDataUrl(segment.source, {
               theme: mode() === "dark" ? "dark" : "default",
             })
-            if (pngDataUrl) {
-              setMermaidDataUrl(pngDataUrl)
-              result = result.replace(match[0], "")
-            }
-          } catch {
-            // keep original code block on error
+            if (pngDataUrl) rendered[index] = pngDataUrl
+          } catch (error) {
+            Log.Default.debug("mermaid render failed in TextPart", {
+              partId: props.part.id,
+              segment: index,
+              error: String(error),
+            })
           }
         }
-
-        if (hasMermaid) setRenderedMermaid(result.trim())
+        setMermaidDataUrls(rendered)
       },
     ),
   )
 
-  const displayText = createMemo(() => renderedMermaid() ?? processedText())
+  // Mark streaming complete when the part has finalized (time.end set).
+  // OpenTUI's markdown/code renderables keep the trailing block unstable while
+  // streaming=true. Keeping it always-true can cause the trailing block to
+  // lose syntax highlighting on re-render. See opentui MarkdownOptions docs.
+  const streaming = createMemo(() => !props.part.time?.end)
 
   return (
-    <Show when={displayText()}>
+    <Show when={segments().length > 0}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <Switch>
-          <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
-            <markdown
-              syntaxStyle={syntax()}
-              streaming={true}
-              content={displayText()}
-              conceal={ctx.conceal()}
-              fg={theme.markdownText}
-              bg={theme.background}
-            />
-          </Match>
-          <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
-            <code
-              filetype="markdown"
-              drawUnstyledText={true}
-              streaming={true}
-              syntaxStyle={syntax()}
-              content={displayText()}
-              conceal={ctx.conceal()}
-              onHighlight={(highlights: any, context: any) => {
-                Log.Default.debug("tree-sitter highlight completed", {
-                  partId: props.part.id,
-                  filetype: context?.filetype,
-                  highlightCount: highlights?.length ?? 0,
-                  contentLength: context?.content?.length ?? 0,
-                })
-                return highlights
-              }}
-            />
-          </Match>
-        </Switch>
-        <Show when={mermaidDataUrl()}>
-          <image-plane url={mermaidDataUrl()!} mime="image/png" width={70} />
-        </Show>
+        <For each={segments()}>
+          {(segment, index) => {
+            const markdown = segment.type === "markdown" ? segment.text : undefined
+            const mermaid = segment.type === "mermaid" ? segment : undefined
+            return (
+              <Switch>
+                <Match when={markdown}>
+                  <Switch>
+                    <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+                      <markdown
+                        syntaxStyle={syntax()}
+                        streaming={streaming()}
+                        content={markdown!}
+                        conceal={ctx.conceal()}
+                        fg={theme.markdownText}
+                        bg={theme.background}
+                      />
+                    </Match>
+                    <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+                      <code
+                        filetype="markdown"
+                        drawUnstyledText={false}
+                        streaming={streaming()}
+                        syntaxStyle={syntax()}
+                        content={markdown!}
+                        conceal={ctx.conceal()}
+                        onHighlight={(highlights: any, context: any) => {
+                          Log.Default.debug("tree-sitter highlight completed", {
+                            partId: props.part.id,
+                            filetype: context?.filetype,
+                            highlightCount: highlights?.length ?? 0,
+                            contentLength: context?.content?.length ?? 0,
+                          })
+                          return highlights
+                        }}
+                      />
+                    </Match>
+                  </Switch>
+                </Match>
+                <Match when={mermaid}>
+                  <Show
+                    when={mermaidDataUrls()[index()]}
+                    fallback={<text fg={theme.text}>{mermaid!.raw}</text>}
+                  >
+                    <image-plane url={mermaidDataUrls()[index()]!} mime="image/png" width={70} />
+                  </Show>
+                </Match>
+              </Switch>
+            )
+          }}
+        </For>
       </box>
     </Show>
   )

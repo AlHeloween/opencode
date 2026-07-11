@@ -611,9 +611,31 @@ export function AssistantParts(props: {
       ),
   )
 
+  // Structural key that only changes when parts are added/removed/reordered,
+  // NOT when text content updates (delta streaming). This prevents the
+  // grouping memo from re-evaluating on every text delta.
+  // Format: "messageID:partID:type;messageID:partID:type;..."
+  const structuralKey = createMemo(() => {
+    const parts: string[] = []
+    for (const message of props.messages) {
+      const messageParts = list(data.store.part?.[message.id], emptyParts)
+      for (const part of messageParts) {
+        if (!renderable(part, props.showReasoningSummaries ?? true)) continue
+        parts.push(`${message.id}:${part.id}:${part.type}`)
+      }
+    }
+    return parts.join(";")
+  })
+
+  // Group parts caching: only recompute groups when structural key changes.
+  const groupedCache = new Map<string, PartGroup[]>()
   const grouped = createMemo(
-    () =>
-      groupParts(
+    () => {
+      const key = structuralKey()
+      const cached = groupedCache.get(key)
+      if (cached) return cached
+
+      const result = groupParts(
         props.messages.flatMap((message) =>
           list(data.store.part?.[message.id], emptyParts)
             .filter((part) => renderable(part, props.showReasoningSummaries ?? true))
@@ -622,7 +644,11 @@ export function AssistantParts(props: {
               part,
             })),
         ),
-      ),
+      )
+      groupedCache.clear()
+      groupedCache.set(key, result)
+      return result
+    },
     [] as PartGroup[],
     { equals: sameGroups },
   )
@@ -827,16 +853,33 @@ export function AssistantMessageDisplay(props: {
 }) {
   const emptyTools: ToolPart[] = []
   const part = createMemo(() => index(props.parts))
+
+  // Structural key for grouping — only changes when parts are added/removed/reordered
+  const structuralKey = createMemo(() =>
+    props.parts
+      .filter((p) => renderable(p, props.showReasoningSummaries ?? true))
+      .map((p) => `${p.id}:${p.type}`)
+      .join(";"),
+  )
+
+  const groupedCache = new Map<string, PartGroup[]>()
   const grouped = createMemo(
-    () =>
-      groupParts(
+    () => {
+      const key = structuralKey()
+      const cached = groupedCache.get(key)
+      if (cached) return cached
+      const result = groupParts(
         props.parts
           .filter((part) => renderable(part, props.showReasoningSummaries ?? true))
           .map((part) => ({
             messageID: props.message.id,
             part,
           })),
-      ),
+      )
+      groupedCache.clear()
+      groupedCache.set(key, result)
+      return result
+    },
     [] as PartGroup[],
     { equals: sameGroups },
   )

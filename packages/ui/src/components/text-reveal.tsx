@@ -54,7 +54,9 @@ export function TextReveal(props: {
   const widen = (next: number) => {
     if (next <= 0) return
     if (props.growOnly ?? true) {
-      const prev = Number.parseFloat(width())
+      const raw = width()
+      // width() can be "auto" on first render — treat as 0 for comparison
+      const prev = raw === "auto" ? 0 : Number.parseFloat(raw)
       if (Number.isFinite(prev) && next <= prev) return
     }
     setState("width", `${next}px`)

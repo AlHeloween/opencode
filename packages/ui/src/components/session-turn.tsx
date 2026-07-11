@@ -201,8 +201,14 @@ export function SessionTurn(
   const pending = createMemo(() => {
     if (typeof props.active === "boolean") return
     const messages = allMessages() ?? emptyMessages
+    // Only consider assistant messages that belong to THIS session
+    // (avoids matching pending messages from child/sub-agent sessions
+    // that share the same messages array via composite mode).
     return messages.findLast(
-      (item): item is AssistantMessage => item.role === "assistant" && typeof item.time.completed !== "number",
+      (item): item is AssistantMessage =>
+        item.role === "assistant" &&
+        item.sessionID === props.sessionID &&
+        typeof item.time.completed !== "number",
     )
   })
 

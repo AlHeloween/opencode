@@ -176,13 +176,25 @@ export function Session() {
     if (agi.agiMode()) setCompositeMode(true)
   })
 
+  // Stable message cache keyed by message ID to preserve object identity
+  // across memo re-evaluations. Only creates new wrappers when underlying
+  // message data actually changes (detected via reference comparison).
+  const compositeCache = new Map<string, { _source: string } & { id: string }>()
+
   const compositeMessages = createMemo(() => {
     if (!compositeMode()) return messages()
     const all: any[] = []
     for (const [sid, msgs] of Object.entries(sync.data.message)) {
       if (!msgs?.length) continue
       for (const m of msgs) {
-        all.push({ ...m, _source: sid })
+        const existing = compositeCache.get(m.id)
+        if (existing && existing._source === sid && (existing as any).time?.created === m.time?.created) {
+          all.push(existing)
+        } else {
+          const wrapped = Object.assign({}, m, { _source: sid })
+          compositeCache.set(m.id, wrapped as any)
+          all.push(wrapped as any)
+        }
       }
     }
     all.sort((a, b) => (a.time.created ?? 0) - (b.time.created ?? 0))

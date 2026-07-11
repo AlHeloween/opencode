@@ -111,6 +111,91 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     const fullSyncedSessions = new Set<string>()
     let syncedWorkspace = project.workspace.current()
 
+    // Buffer deltas that arrive before the part is in the store.
+    // Keyed by messageID → partID → accumulated delta text.
+    const deltaBuffer = new Map<string, Map<string, string>>()
+
+    // Debounce recovery sync calls per session to prevent cascading thrash.
+    const recoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+    // Fields that may receive incremental text deltas (safe for string concatenation).
+    const DELTA_SAFE_FIELDS = new Set(["text", "output"])
+
+    function flushDeltaBuffer(messageID: string) {
+      const buffer = deltaBuffer.get(messageID)
+      if (!buffer) return
+      deltaBuffer.delete(messageID)
+
+      const parts = store.part[messageID]
+      if (!parts) return
+
+      for (const [partID, accumulated] of buffer) {
+        const result = Binary.search(parts, partID, (p) => p.id)
+        if (!result.found) {
+          // Part still not in store — schedule a targeted recovery
+          debouncedRecoverySync({ sessionID: "", messageID, partID })
+          continue
+        }
+        // Store each buffered field individually. Accumulated text may contain
+        // multiple field values if the same partID received deltas for different
+        // fields before the part arrived, but in practice the first delta
+        // triggers recovery which fetches the full part.
+        setStore(
+          "part",
+          messageID,
+          produce((draft) => {
+            const part = draft[result.index]
+            const existing = (part as any).text ?? ""
+            ;(part as any).text = existing + accumulated
+          }),
+        )
+      }
+    }
+
+    function debouncedRecoverySync(input: { sessionID?: string; messageID: string; partID: string }) {
+      // Use messageID as dedupe key so multiple deltas for the same
+      // message only trigger one recovery.
+      const key = input.messageID
+      const existing = recoveryTimers.get(key)
+      if (existing) clearTimeout(existing)
+      recoveryTimers.set(
+        key,
+        setTimeout(() => {
+          recoveryTimers.delete(key)
+          const sessionID = input.sessionID || ""
+          // Find which session this message belongs to
+          const sid = sessionID || findSessionForMessage(input.messageID)
+          if (sid) {
+            void syncSession(sid, { force: true }).catch((error) => {
+              Log.Default.warn("session delta recovery sync failed", {
+                sessionID: sid,
+                messageID: input.messageID,
+                partID: input.partID,
+                error: error instanceof Error ? error.message : String(error),
+              })
+            })
+          }
+        }, 300),
+      )
+    }
+
+    function findSessionForMessage(messageID: string): string | undefined {
+      for (const [sid, messages] of Object.entries(store.message)) {
+        if (messages?.some((m) => m.id === messageID)) return sid
+      }
+      return undefined
+    }
+
+    function hasActiveParts(messageID: string): boolean {
+      const parts = store.part[messageID]
+      if (!parts || parts.length === 0) return false
+      return parts.some((part) => {
+        if (part.type !== "tool") return false
+        // Only tool parts have state.status — text/reasoning parts are static
+        return (part as any).state?.status === "pending" || (part as any).state?.status === "running"
+      })
+    }
+
     async function syncSession(sessionID: string, input: { force?: boolean } = {}) {
         if (!input.force && fullSyncedSessions.has(sessionID)) return
         const [session, messages, todo, diff] = await Promise.all([
@@ -136,15 +221,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         fullSyncedSessions.add(sessionID)
       }
 
+      // Legacy wrapper kept for backward compatibility.
       function recoverSessionSync(input: { sessionID: string; messageID: string; partID: string }) {
-        void syncSession(input.sessionID, { force: true }).catch((error) => {
-          Log.Default.warn("session delta recovery sync failed", {
-            sessionID: input.sessionID,
-            messageID: input.messageID,
-            partID: input.partID,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        })
+        debouncedRecoverySync(input)
       }
 
       event.subscribe((event) => {
@@ -302,24 +381,28 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               draft.splice(result.index, 0, event.properties.info)
             }),
           )
+          // Only evict oldest messages if they are fully completed
+          // (no pending/running parts). Never evict mid-stream.
           const updated = store.message[event.properties.info.sessionID]
           if (updated.length > 100) {
             const oldest = updated[0]
-            batch(() => {
-              setStore(
-                "message",
-                event.properties.info.sessionID,
-                produce((draft) => {
-                  draft.shift()
-                }),
-              )
-              setStore(
-                "part",
-                produce((draft) => {
-                  delete draft[oldest.id]
-                }),
-              )
-            })
+            if (oldest && !hasActiveParts(oldest.id)) {
+              batch(() => {
+                setStore(
+                  "message",
+                  event.properties.info.sessionID,
+                  produce((draft) => {
+                    draft.shift()
+                  }),
+                )
+                setStore(
+                  "part",
+                  produce((draft) => {
+                    delete draft[oldest.id]
+                  }),
+                )
+              })
+            }
           }
           break
         }
@@ -341,6 +424,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const parts = store.part[event.properties.part.messageID]
           if (!parts) {
             setStore("part", event.properties.part.messageID, [event.properties.part])
+            // Flush any deltas that arrived before this part
+            flushDeltaBuffer(event.properties.part.messageID)
             break
           }
           const result = Binary.search(parts, event.properties.part.id, (p) => p.id)
@@ -355,28 +440,49 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               draft.splice(result.index, 0, event.properties.part)
             }),
           )
+          // Flush any deltas that arrived before this part
+          flushDeltaBuffer(event.properties.part.messageID)
           break
         }
 
         case "message.part.delta": {
-        const parts = store.part[event.properties.messageID]
+        const { messageID, partID, field, delta } = event.properties
+
+        // Only apply delta to known string-type fields to avoid corrupting
+        // status enums, numeric values, or other non-concatenable fields.
+        if (typeof field !== "string" || !DELTA_SAFE_FIELDS.has(field)) break
+
+        const parts = store.part[messageID]
         if (!parts) {
-          recoverSessionSync(event.properties)
+          // Buffer delta — the part may arrive shortly in part.updated
+          let buffer = deltaBuffer.get(messageID)
+          if (!buffer) {
+            buffer = new Map()
+            deltaBuffer.set(messageID, buffer)
+          }
+          const existing = buffer.get(partID) ?? ""
+          buffer.set(partID, existing + delta)
           break
         }
-        const result = Binary.search(parts, event.properties.partID, (p) => p.id)
+        const result = Binary.search(parts, partID, (p) => p.id)
         if (!result.found) {
-          recoverSessionSync(event.properties)
+          // Buffer delta — part may arrive shortly
+          let buffer = deltaBuffer.get(messageID)
+          if (!buffer) {
+            buffer = new Map()
+            deltaBuffer.set(messageID, buffer)
+          }
+          const existing = buffer.get(partID) ?? ""
+          buffer.set(partID, existing + delta)
           break
         }
         setStore(
           "part",
-          event.properties.messageID,
+          messageID,
           produce((draft) => {
             const part = draft[result.index]
-            const field = event.properties.field as keyof typeof part
-            const existing = part[field] as string | undefined
-            ;(part[field] as string) = (existing ?? "") + event.properties.delta
+            const existing = (part as any)[field] ?? ""
+            ;(part as any)[field] = existing + delta
           }),
         )
         break

@@ -42,6 +42,29 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       }
     }
 
+    // Stable color palette for agents — uses name hash for deterministic
+    // assignment regardless of array ordering or config reload order.
+    const AGENT_COLORS = [
+      "secondary",
+      "accent",
+      "success",
+      "warning",
+      "primary",
+      "error",
+      "info",
+      "info",
+      "secondary",
+      "accent",
+    ] as const
+
+    function stableAgentColorIndex(name: string): number {
+      let hash = 0
+      for (let i = 0; i < name.length; i++) {
+        hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0
+      }
+      return Math.abs(hash) % AGENT_COLORS.length
+    }
+
     const agent = iife(() => {
       const agents = createMemo(() => sync.data.agent.filter((x) => x.mode !== "subagent" && !x.hidden))
       const visibleAgents = createMemo(() => sync.data.agent.filter((x) => !x.hidden))
@@ -49,15 +72,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         current: undefined as string | undefined,
       })
       const { theme } = useTheme()
-      const colors = createMemo(() => [
-        theme.secondary,
-        theme.accent,
-        theme.success,
-        theme.warning,
-        theme.primary,
-        theme.error,
-        theme.info,
-      ])
       return {
         list() {
           return agents()
@@ -86,17 +100,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           })
         },
         color(name: string) {
-          const index = visibleAgents().findIndex((x) => x.name === name)
-          if (index === -1) return colors()[0]
-          const agent = visibleAgents()[index]
+          const agent = visibleAgents().find((x) => x.name === name)
 
           if (agent?.color) {
             const color = agent.color
             if (color.startsWith("#")) return RGBA.fromHex(color)
-            // already validated by config, just satisfying TS here
             return theme[color as keyof typeof theme] as RGBA
           }
-          return colors()[index % colors().length]
+
+          // Use stable name-based hash instead of array index so reordering
+          // the agents array doesn't change which color an agent gets.
+          const colorKey = AGENT_COLORS[stableAgentColorIndex(name)]
+          return theme[colorKey] as RGBA
         },
       }
     })

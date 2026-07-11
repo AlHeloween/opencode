@@ -50,7 +50,8 @@ function serializeToolSchemas(tools: Record<string, Tool>): string {
   const lines: string[] = ["", "## Available Tools", ""]
   for (const name of names) {
     lines.push(`### ${name}`)
-    if (tools[name].description) lines.push(tools[name].description!)
+    const desc = tools[name].description
+    if (desc) lines.push(typeof desc === "string" ? desc : desc({ context: undefined }))
     const schema = getToolSchema(tools[name])
     if (schema && typeof schema === "object" && Object.keys(schema).length > 0) {
       lines.push("```json")

@@ -1670,7 +1670,7 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         <code
           filetype="markdown"
           drawUnstyledText={false}
-          streaming={!props.part.time?.end}
+          streaming={true}
           syntaxStyle={subtleSyntax()}
           content={"_Thinking:_ " + content()}
           conceal={ctx.conceal()}
@@ -1740,12 +1740,6 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
     ),
   )
 
-  // Mark streaming complete when the part has finalized (time.end set).
-  // OpenTUI's markdown/code renderables keep the trailing block unstable while
-  // streaming=true. Keeping it always-true can cause the trailing block to
-  // lose syntax highlighting on re-render. See opentui MarkdownOptions docs.
-  const streaming = createMemo(() => !props.part.time?.end)
-
   return (
     <Show when={segments().length > 0}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
@@ -1760,7 +1754,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                     <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
                       <markdown
                         syntaxStyle={syntax()}
-                        streaming={streaming()}
+                        streaming={true}
                         content={markdown!}
                         conceal={ctx.conceal()}
                         fg={theme.markdownText}
@@ -1771,7 +1765,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                       <code
                         filetype="markdown"
                         drawUnstyledText={false}
-                        streaming={streaming()}
+                        streaming={true}
                         syntaxStyle={syntax()}
                         content={markdown!}
                         conceal={ctx.conceal()}

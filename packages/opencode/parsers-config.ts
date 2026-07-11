@@ -1,5 +1,5 @@
 export default {
-  // NOTE: FOR markdown, javascript and typescript, we use the opentui built-in parsers
+  // NOTE: FOR javascript and typescript, we use the opentui built-in parsers
   // Warn: when taking queries from the nvim-treesitter repo, make sure to include the query dependencies as well
   //       marked with for example `; inherits: ecma` at the top of the file. Just put the dependencies before the actual query.
   //       ALSO: Some queries use breaking changes in the nvim-treesitter repo, that are not compatible with the (web-)tree-sitter parser.
@@ -300,6 +300,36 @@ export default {
       queries: {
         highlights: [
           "https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-zig/master/queries/highlights.scm",
+        ],
+      },
+    },
+    {
+      filetype: "markdown",
+      wasm: "https://github.com/tree-sitter-grammars/tree-sitter-markdown/releases/download/v0.5.3/tree-sitter-markdown.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/markdown/highlights.scm",
+        ],
+        injections: [
+          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/markdown/injections.scm",
+        ],
+      },
+    },
+    {
+      filetype: "powershell",
+      wasm: "grammars/tree-sitter-powershell.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/powershell/highlights.scm",
+        ],
+      },
+    },
+    {
+      filetype: "bat",
+      wasm: "grammars/tree-sitter-batch.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/batch/highlights.scm",
         ],
       },
     },

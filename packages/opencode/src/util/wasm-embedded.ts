@@ -6,6 +6,7 @@ import jsonRepairWasm from "../../../wasm/core/pkg/json_repair/json_repair_bg.wa
 import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: "file" }
 import treeSitterRuntimeWasm from "web-tree-sitter/tree-sitter.wasm" with { type: "file" }
 import treeSitterBashWasm from "../../../wasm/core/pkg/grammars/tree-sitter-bash.wasm" with { type: "file" }
+import treeSitterBatchWasm from "../../../wasm/core/pkg/grammars/tree-sitter-batch.wasm" with { type: "file" }
 import treeSitterCWasm from "../../../wasm/core/pkg/grammars/tree-sitter-c.wasm" with { type: "file" }
 import treeSitterCSharpWasm from "../../../wasm/core/pkg/grammars/tree-sitter-c_sharp.wasm" with { type: "file" }
 import treeSitterClojureWasm from "../../../wasm/core/pkg/grammars/tree-sitter-clojure.wasm" with { type: "file" }
@@ -20,6 +21,8 @@ import treeSitterJsonWasm from "../../../wasm/core/pkg/grammars/tree-sitter-json
 import treeSitterJuliaWasm from "../../../wasm/core/pkg/grammars/tree-sitter-julia.wasm" with { type: "file" }
 import treeSitterKotlinWasm from "../../../wasm/core/pkg/grammars/tree-sitter-kotlin.wasm" with { type: "file" }
 import treeSitterLuaWasm from "../../../wasm/core/pkg/grammars/tree-sitter-lua.wasm" with { type: "file" }
+import treeSitterMarkdownWasm from "../../../wasm/core/pkg/grammars/tree-sitter-markdown.wasm" with { type: "file" }
+import treeSitterMarkdownInlineWasm from "../../../wasm/core/pkg/grammars/tree-sitter-markdown_inline.wasm" with { type: "file" }
 import treeSitterNixWasm from "../../../wasm/core/pkg/grammars/tree-sitter-nix.wasm" with { type: "file" }
 import treeSitterOcamlWasm from "../../../wasm/core/pkg/grammars/tree-sitter-ocaml.wasm" with { type: "file" }
 import treeSitterPascalWasm from "../../../wasm/core/pkg/grammars/tree-sitter-pascal.wasm" with { type: "file" }
@@ -36,6 +39,7 @@ import treeSitterZigWasm from "../../../wasm/core/pkg/grammars/tree-sitter-zig.w
 
 const embeddedTreeSitterGrammarAssets = [
   ["grammars/tree-sitter-bash.wasm", treeSitterBashWasm],
+  ["grammars/tree-sitter-batch.wasm", treeSitterBatchWasm],
   ["grammars/tree-sitter-c.wasm", treeSitterCWasm],
   ["grammars/tree-sitter-c_sharp.wasm", treeSitterCSharpWasm],
   ["grammars/tree-sitter-clojure.wasm", treeSitterClojureWasm],
@@ -50,6 +54,8 @@ const embeddedTreeSitterGrammarAssets = [
   ["grammars/tree-sitter-julia.wasm", treeSitterJuliaWasm],
   ["grammars/tree-sitter-kotlin.wasm", treeSitterKotlinWasm],
   ["grammars/tree-sitter-lua.wasm", treeSitterLuaWasm],
+  ["grammars/tree-sitter-markdown.wasm", treeSitterMarkdownWasm],
+  ["grammars/tree-sitter-markdown_inline.wasm", treeSitterMarkdownInlineWasm],
   ["grammars/tree-sitter-nix.wasm", treeSitterNixWasm],
   ["grammars/tree-sitter-ocaml.wasm", treeSitterOcamlWasm],
   ["grammars/tree-sitter-pascal.wasm", treeSitterPascalWasm],

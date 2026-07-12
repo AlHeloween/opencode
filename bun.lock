@@ -681,6 +681,7 @@
   "patchedDependencies": {
     "@standard-community/standard-openapi@0.2.9": "patches/@standard-community%2Fstandard-openapi@0.2.9.patch",
     "@opentui/core@0.4.3": "patches/@opentui%2Fcore@0.4.3.patch",
+    "@opentui/three@0.4.3": "patches/@opentui%2Fthree@0.4.3.patch",
   },
   "overrides": {
     "@types/bun": "catalog:",

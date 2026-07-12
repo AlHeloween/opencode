@@ -2060,6 +2060,72 @@ No preamble, postamble, or code explanation unless asked.""",
 
 
 # ======================================================================
+# §P7. GROUNDING & EXECUTABLE SEARCH — evidence hierarchy + platform search
+# ======================================================================
+#
+# Two cross-cutting rules that apply to all agents and all platforms:
+#   1. Evidence grounding hierarchy — internal knowledge < web search < verification
+#   2. Platform-aware executable search — where.exe on Windows, which on Linux
+# ======================================================================
+
+GROUNDING_RULES = _spec(
+    intent="""Evidence-gathering hierarchy and platform-specific executable search.
+Internal knowledge is the weakest evidence. When internal grounding is insufficient
+(InfoMarkLevel below Inferred), the agent MUST search externally (web search, docs,
+code search via universalsearch/webfetch) before claiming absence or uncertainty.
+Executable discovery must use the platform-native resolver — where.exe on Windows,
+which on Linux/macOS — never assume PATH resolution or hardcoded paths.""",
+
+    state={
+        "evidence_hierarchy": [
+            "1. Direct observation (oracle output, test results, measurements)",
+            "2. Verified external source (web search, documentation, code search)",
+            "3. Inferred from grounded evidence (high-confidence reasoning)",
+            "4. Hypothetical (requires external validation before acting)",
+            "5. Guessing (never act on guesses — always escalate to search first)",
+        ],
+        "platform_executable_search": {
+            "win32": "where.exe <name>  — Windows native, checks PATH + current dir",
+            "linux": "which <name>      — POSIX standard, checks PATH",
+            "darwin": "which <name>     — POSIX standard, checks PATH",
+        },
+    },
+
+    scope="all agent operations, evidence gathering, executable discovery before file operations",
+
+    constraints={
+        "grounding_hierarchy_enforced": True,
+        "search_before_uncertainty": True,
+        "platform_executable_search": True,
+        "no_path_hardcoding": True,
+        "web_search_for_grounding": True,
+    },
+
+    invariants=[
+        "Before claiming 'not found' or 'I don't know', agent must have searched externally",
+        "Internal knowledge alone is never sufficient for answers below Inferred confidence",
+        "Executable location must use where.exe (Windows) or which (Linux/macOS) — never assume",
+        "Universal search (universalsearch/webfetch) must precede hypothetical claims",
+        "Platform detection via os.name / sys.platform determines which search tool to use",
+    ],
+
+    acceptance_tests=[
+        "Agent searches externally before claiming uncertainty",
+        "Executable paths resolved via where.exe/which, not hardcoded",
+        "Evidence hierarchy respected: Exact > Verified External > Inferred > Hypothetical > Guess",
+    ],
+
+    forbidden_actions=[
+        "Claiming 'I don't know' or 'not found' without external search",
+        "Hardcoding executable paths (e.g., C:\\Program Files\\...)",
+        "Assuming PATH contains an executable without verifying via where.exe/which",
+        "Using internal guesswork when web search is available and needed",
+        "Bypassing the evidence hierarchy for convenience",
+    ],
+)
+
+
+# ======================================================================
 # SELF-TEST
 # ======================================================================
 
@@ -2079,6 +2145,7 @@ _ALL_SPECS = {
     "CODING_AGENT_DIRECTIVES": CODING_AGENT_DIRECTIVES,
     "GOVERNANCE": GOVERNANCE,
     "DEFAULT_PROMPT": DEFAULT_PROMPT,
+    "GROUNDING_RULES": GROUNDING_RULES,
 }
 
 # ======================================================================

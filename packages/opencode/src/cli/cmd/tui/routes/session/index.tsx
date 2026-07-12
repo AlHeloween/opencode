@@ -101,8 +101,21 @@ import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { SessionRetry } from "@/session/retry"
 import { getRevertDiffFiles } from "../../util/revert-diff"
 import * as Log from "@opencode-ai/core/util/log"
+import { embeddedWasmAssetPath } from "@/util/wasm-embedded"
 
-addDefaultParsers(parsers.parsers)
+// Resolve parser WASM paths to local files before registering with the OpenTUI worker.
+// The parsers-config.ts uses CDN URLs, but the same WASM grammars are bundled in the
+// binary via wasm-embedded.ts. Local paths load faster and work offline.
+const resolvedParsers = parsers.parsers.map((parser) => {
+  const filename = parser.wasm.split("/").pop() ?? ""
+  const localKey = `grammars/${filename}`
+  const localPath = embeddedWasmAssetPath(localKey) as string | undefined
+  if (localPath) {
+    return { ...parser, wasm: localPath }
+  }
+  return parser
+})
+addDefaultParsers(resolvedParsers)
 
 const GO_UPSELL_LAST_SEEN_AT = "go_upsell_last_seen_at"
 const GO_UPSELL_DONT_SHOW = "go_upsell_dont_show"

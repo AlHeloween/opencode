@@ -3,6 +3,10 @@
 **Status:** production  
 **Last Updated:** 2026-07-12
 
+> **3D terminal rendering note:** Three.js WebGPU via `@opentui/three` has known issues
+> on this platform (see §14). The working 3D pipeline uses GPU compute shaders + Sixel
+> output via Python `wgpu` — see `experiments/20260712-rotating-cube-3d/test_cube.py`.
+
 ---
 
 ## 1. Overview
@@ -669,3 +673,67 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 | `node_modules/@opentui/core/index.js` | 8289-8300 | `createListRenderable()` list rendering |
 | `node_modules/@opentui/core/index-6xr3rbbe.js` | 3335-3358 | `ensureVisibleTextBeforeHighlight()` |
 | `patches/@opentui%2Fcore@0.4.3.patch` | 1-23 | Patch: markdown list/heading + streaming guard fix |
+
+---
+
+## 14. 3D Terminal Rendering — Current Status
+
+### Working Pipeline (Python wgpu + Sixel)
+
+```
+WGSL compute shader (GPU)
+  → map_sync readback → numpy → pixel array
+    → Sixel escape codes → terminal (WezTerm/WT)
+```
+
+The working 3D rendering approach uses Python's `wgpu` package for WebGPU
+bindings and outputs directly via the Sixel protocol. Key advantages:
+
+| Aspect | How it works |
+|--------|-------------|
+| **Rendering** | WGSL compute shader does rotation, projection, line rasterization on GPU |
+| **Readback** | `map_sync()` — synchronous, no double-map hazard |
+| **Output** | Raw pixel bits (uint32 ON/OFF) → Sixel → terminal |
+| **Dep**s | `python-wgpu`, `numpy` |
+| **Files** | `experiments/20260712-rotating-cube-3d/test_cube.py` |
+| **Run** | `python test_cube.py` (with DXC DLLs in PATH) |
+
+The `resolve_and_inject_dependencies()` function in `test_cube.py` handles
+DXC DLL discovery automatically using `os.add_dll_directory()`.
+
+### Blocked Pipeline (@opentui/three + bun-webgpu)
+
+```
+Three.js WebGPURenderer
+  → CLICanvas.readPixelsIntoBuffer()
+    → setCellWithAlphaBlending("\u2588", pixelColor, ...)
+      → FFI boundary → U+FFFD (replacement char)
+```
+
+The `@opentui/three` package (`CLICanvas.readPixelsIntoBuffer`) passes the
+character `\u2588` (█) through bun's FFI to the native `bufferSetCellWithAlphaBlending`
+function. At the FFI boundary the character is corrupted to `U+FFFD` in all
+supersampling modes (none, CPU, GPU). This is an upstream bug in
+`@opentui/three`'s canvas readback pipeline.
+
+| Issue | Status | Fix location |
+|-------|--------|-------------|
+| DXC DLL not found | ✅ Fixed | Copy x64 DLLs from Windows SDK or install DXC |
+| `getMappedRange` + `getMappedRangePtr` overlap | ✅ Fixed | Patch in `patches/@opentui%2Fthree@0.4.3.patch` |
+| `setCellWithAlphaBlending` char → U+FFFD | ❌ Upstream | `@opentui/three` `CLICanvas.readPixelsIntoBuffer()` |
+
+### Quick Test Commands
+
+```bash
+# Working: Python WGSL + Sixel (WebGPU, needs DXC DLLs in PATH)
+python packages/opencode/experiments/20260712-rotating-cube-3d/test_cube.py
+
+# Working: Python software raster + Sixel (no GPU needed)
+python packages/opencode/experiments/20260712-rotating-cube-3d/term_rend.py
+
+# Working: Three.js WebGL in browser
+# Open packages/opencode/experiments/20260712-rotating-cube-3d/web.html
+
+# Not working: Three.js WebGPU in terminal (U+FFFD bug)
+bun run packages/opencode/experiments/20260712-rotating-cube-3d/smoke.ts
+```

@@ -1,3 +1,24 @@
+diff --git a/index-xt9f071j.js b/index-xt9f071j.js
+index 179a27f7b9efcf0a56196e6044993919ae183c9c..ab8c8b142fa9d709d8180b99cb9415dbd361607b 100644
+--- a/index-xt9f071j.js
++++ b/index-xt9f071j.js
+@@ -3382,8 +3382,14 @@ class CodeRenderable extends TextBufferRenderable {
+         }
+         if (this.isDestroyed)
+           return;
+-        const styledText = new StyledText(chunks);
+-        this.textBuffer.setStyledText(styledText);
++        // Preserve initialStyledText for markdown — tree-sitter's
++        // markdown grammar doesn't capture strong/em/codespan inline
++        // formatting, so its output would overwrite rich styled text
++        // with structural-only highlights (black and white).
++        if (!(this._initialStyledText && filetype === "markdown")) {
++          const styledText = new StyledText(chunks);
++          this.textBuffer.setStyledText(styledText);
++        }
+         this.setRenderedLineSources(renderedLineSources);
+       } else {
+         this.textBuffer.setText(content);
 diff --git a/index.js b/index.js
 index c7badbef2f345f9d228d40c64a69d6570512fd8d..5ada0ea608d657ad8059539e751a148dbb0e6dec 100644
 --- a/index.js

@@ -347,6 +347,39 @@ When `initialStyledText` is `undefined`:
 
 **Pre-patch:** The streaming guard (`if (!this._streaming) return;`) prevented `initialStyledText` from being generated for static (non-streaming) content, leaving all non-separately-rendered blocks dependent on tree-sitter for inline formatting.
 
+### 5h. Tree-Sitter Overwrite Bug (Race Condition)
+
+Even with `initialStyledText` correctly populated, a second issue occurs: **tree-sitter's async `startHighlight()` unconditionally overwrites the styled text buffer** when it completes, even when its highlights are less rich than `initialStyledText`.
+
+```
+Timeline:
+  1. createInitialStyledText → chunks with markup.strong, markup.italic ✅
+  2. CodeRenderable renders initialStyledText → user sees bold/italic ✅
+  3. [async tree-sitter starts...]
+  4. tree-sitter completes → highlights: [heading.1, list.marker] only
+     → treeSitterToTextChunks → chunks WITHOUT markup.strong/markup.italic
+     → textBuffer.setStyledText(chunks)  ← OVERWRITES rich text ❌
+  5. User sees flat text — "bw" (black and white) ❌
+```
+
+**Root cause:** tree-sitter's `markdown` grammar `highlights.scm` query captures structural nodes (heading markers, list bullets, code fences) but **not** inline formatting (`strong`, `em`, `codespan`, `del`, `link`). When `treeSitterToTextChunks()` converts these structural highlights to styled text chunks, inline formatting like `**bold**` becomes plain text instead of `markup.strong`.
+
+**Fix:** In `CodeRenderable.startHighlight()`, skip the `textBuffer.setStyledText()` overwrite when `initialStyledText` is available and `filetype === "markdown"`:
+
+```javascript
+// Before (index-xt9f071j.js:3385-3386):
+const styledText = new StyledText(chunks);
+this.textBuffer.setStyledText(styledText);
+
+// After (PATCHED):
+if (!(this._initialStyledText && filetype === "markdown")) {
+    const styledText = new StyledText(chunks);
+    this.textBuffer.setStyledText(styledText);
+}
+```
+
+This preserves the richer inline formatting from `marked`'s `x.lexInline()` tokenizer, which correctly handles `strong`, `em`, `codespan`, `del`, and `link` tokens.
+
 ### 5e. renderInlineContent — Inline Token Rendering
 
 Maps marked inline token types to OpenTUI styled text chunks:

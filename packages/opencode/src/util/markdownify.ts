@@ -33,7 +33,8 @@ async function tryLoadWasm(): Promise<boolean> {
       const mod: any = await import("../../../wasm/markdownify/pkg/markdownify_wasm.js")
 
       // Initialize with pre-loaded bytes (avoids URL/fetch path)
-      await mod.default(new Uint8Array(asset.bytes))
+      // wasm-bindgen v0.2.100 deprecated positional init args; pass a single object
+      await mod.default({ module_or_path: new Uint8Array(asset.bytes) })
 
       _wasmConvert = mod.convert_to_markdown
       _wasmIsSupported = mod.is_supported_extension

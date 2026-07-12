@@ -154,7 +154,15 @@ const ctx = createContext<DialogContext>()
 export function DialogProvider(props: ParentProps) {
   const value = init()
   const renderer = useRenderer()
-  const toast = useToast()
+  // Toast context is optional — it's only used for copy-on-select (DOM events).
+  // During SolidJS SSR evaluation (e.g., during test module import), no
+  // ToastProvider is available, so gracefully degrade instead of throwing.
+  let toast: ReturnType<typeof useToast> | undefined
+  try {
+    toast = useToast()
+  } catch {
+    toast = undefined
+  }
   return (
     <ctx.Provider value={value}>
       {props.children}
@@ -164,13 +172,14 @@ export function DialogProvider(props: ParentProps) {
         onMouseDown={(evt) => {
           if (!Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
           if (evt.button !== MouseButton.RIGHT) return
+          if (!toast) return
 
           if (!Selection.copy(renderer, toast)) return
           evt.preventDefault()
           evt.stopPropagation()
         }}
         onMouseUp={
-          !Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT ? () => Selection.copy(renderer, toast) : undefined
+          !Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT && toast ? () => Selection.copy(renderer, toast) : undefined
         }
       >
         <Show when={value.stack.length}>

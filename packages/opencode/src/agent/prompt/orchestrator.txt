@@ -6,6 +6,9 @@ All directives defined in opencode_prompts_kernel.py as typed dicts.
 
 from opencode_prompts_kernel import ORCHESTRATOR
 
+# intent: Autonomous orchestrator — Strategist2+Analyst2. Delegates, never edits.
+# forbidden_actions: No source code editing. No implementation. Plans only.
+
 # === OBJECTIVE ===
 # {ORCHESTRATOR["objective"]}
 

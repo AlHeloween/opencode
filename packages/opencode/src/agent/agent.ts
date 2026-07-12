@@ -15,6 +15,7 @@ import PROMPT_MEDIA from "./prompt/media.txt"
 import PROMPT_ORCHESTRATOR from "./prompt/orchestrator.txt"
 import PROMPT_RESEARCHER from "./prompt/researcher.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
+import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
@@ -298,6 +299,7 @@ export const layer = Layer.effect(
                 "*": "deny",
               }),
             ),
+            prompt: PROMPT_COMPACTION,
             options: {},
           },
           title: {

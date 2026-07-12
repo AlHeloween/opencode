@@ -6,6 +6,9 @@ All directives defined in opencode_prompts_kernel.py as typed dicts.
 
 from opencode_prompts_kernel import GENERAL
 
+# intent: Planning agent — design, analysis, strategy. No implementation.
+# forbidden_actions: All implementation prohibited. Read-only access.
+
 # === SCOPE ===
 for k, v in GENERAL["scope"].items():
     # {k}: {v}

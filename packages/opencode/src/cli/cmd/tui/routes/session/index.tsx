@@ -25,7 +25,7 @@ import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import { renderMermaidToPngDataUrl } from "@/util/mermaid"
-import { indexedMermaidSegments, splitTextSegments } from "./text-segments"
+  import { indexedMermaidSegments, splitTextSegments } from "./text-segments"
 import type {
   AssistantMessage,
   Part,
@@ -1694,39 +1694,75 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
   )
 }
 
+/**
+ * Heal incomplete markdown formatting for streaming display.
+ * Closes unclosed **bold**, *italic*, ~~strikethrough~~, and `inline code`
+ * that appeared outside fenced code blocks. This significantly reduces
+ * tree-sitter zero-highlights events during streaming, because an unclosed
+ * formatting span causes the parser to fail the entire block.
+ * Operates on text outside code blocks to avoid false-positive counts
+ * from formatting markers inside code.
+ */
+function healMarkdown(text: string): string {
+  // Strip content inside fenced code blocks and inline code spans
+  // before counting markers. Remaining text is formatting-significant.
+  const outsideCode = text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]*`/g, "")
+
+  const close: string[] = []
+  // **bold** — pairs of exactly **
+  if ((outsideCode.match(/\*\*/g) || []).length % 2 !== 0) close.push("**")
+  // *italic* — single * not part of **
+  if ((outsideCode.match(/(?<!\*)\*(?!\*)/g) || []).length % 2 !== 0) close.push("*")
+  // ~~strikethrough~~
+  if ((outsideCode.match(/~~/g) || []).length % 2 !== 0) close.push("~~")
+  // `inline code` — single backtick
+  if ((outsideCode.match(/(?<!`)`(?!`)/g) || []).length % 2 !== 0) close.push("`")
+
+  return close.length ? text + close.join("") : text
+}
+
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
   const ctx = use()
   const { theme, syntax, mode } = useTheme()
 
   const segments = createMemo(() => splitTextSegments(props.part.text))
 
-  // Render Mermaid only after the text part is finalized. Each diagram remains
-  // isolated from neighboring Markdown so image insertion cannot reset it.
+  // Progressive mermaid rendering — render each completed mermaid block as soon
+  // as its fence closes, instead of waiting for the entire text part to finalize.
+  // This means the diagram appears mid-stream when the LLM finishes the ```mermaid
+  // block but continues writing after it.
+  // Track previously rendered sources to skip re-rendering unchanged blocks.
   const [mermaidDataUrls, setMermaidDataUrls] = createSignal<Record<number, string>>({})
-  createEffect(
-    on(
-      () => props.part.time?.end,
-      async (end) => {
-        if (!end) return
-        const rendered: Record<number, string> = {}
-        for (const { index, segment } of indexedMermaidSegments(segments())) {
-          try {
-            const pngDataUrl = renderMermaidToPngDataUrl(segment.source, {
-              theme: mode() === "dark" ? "dark" : "default",
-            })
-            if (pngDataUrl) rendered[index] = pngDataUrl
-          } catch (error) {
-            Log.Default.debug("mermaid render failed in TextPart", {
-              partId: props.part.id,
-              segment: index,
-              error: String(error),
-            })
-          }
-        }
-        setMermaidDataUrls(rendered)
-      },
-    ),
-  )
+  const renderedSources = new Map<number, string>()
+  createEffect(() => {
+    // Watch segments() reactively — re-runs when streaming adds content
+    const currentSegments = segments()
+    let changed = false
+    const rendered: Record<number, string> = { ...mermaidDataUrls() }
+    for (const { index, segment } of indexedMermaidSegments(currentSegments)) {
+      // Skip if this block's source hasn't changed since last render
+      if (renderedSources.get(index) === segment.source) {
+        if (rendered[index]) continue
+      }
+      changed = true
+      renderedSources.set(index, segment.source)
+      try {
+        const pngDataUrl = renderMermaidToPngDataUrl(segment.source, {
+          theme: mode() === "dark" ? "dark" : "default",
+        })
+        if (pngDataUrl) rendered[index] = pngDataUrl
+      } catch (error) {
+        Log.Default.debug("mermaid render failed in TextPart", {
+          partId: props.part.id,
+          segment: index,
+          error: String(error),
+        })
+      }
+    }
+    // Only update signal if something changed — prevents unnecessary re-renders
+    // on every streaming tick when mermaid blocks are unchanged
+    if (changed) setMermaidDataUrls(rendered)
+  })
 
   return (
     <Show when={segments().length > 0}>
@@ -1751,7 +1787,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                     drawUnstyledText={false}
                     streaming={true}
                     syntaxStyle={syntax()}
-                    content={segment.text}
+                    content={healMarkdown(segment.text)}
                     conceal={ctx.conceal()}
                     fg={theme.text}
   onHighlight={(() => {

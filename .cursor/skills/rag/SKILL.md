@@ -2,6 +2,33 @@
 name: rag
 description: Index/query local repositories using adm RAG (adm.json + sqlite) with BGE embedder, dual-quaternion ranking, fd file discovery, and MCP HTTP daemon.
 ---
+intent:
+Skill definition — see opencode_prompts_kernel.py for canonical typed dict.
+This file is a reference copy; all authoritative definitions live in the kernel.
+
+state:
+source: opencode_prompts_kernel.py (canonical typed dict)
+
+scope:
+- skill-specific operations
+- tool usage within skill domain
+- All behavior defined in opencode_prompts_kernel.py as typed Python dict
+
+constraints:
+- Follow kernel specification for all operations
+- All behavior defined in opencode_prompts_kernel.py
+
+invariants:
+- Canonical definition lives in opencode_prompts_kernel.py
+- This file is a reference copy
+
+forbidden_actions:
+- Deviating from kernel specification
+- Using undefined or implicit behavior
+
+acceptance_tests:
+- Behavior matches kernel spec
+- All operations repeatable from kernel definition
 
 # rag (adm RAG)
 

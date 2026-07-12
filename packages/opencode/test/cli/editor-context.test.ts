@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite"
 import path from "node:path"
 import { expect, test } from "bun:test"
-import { offsetToPosition, resolveZedSelection } from "../../../src/cli/cmd/tui/context/editor-zed"
-import { tmpdir } from "../../fixture/fixture"
+import { offsetToPosition, resolveZedSelection } from "../../src/cli/cmd/tui/context/editor-zed"
+import { tmpdir } from "../fixture/fixture"
 
 type ZedFixtureOptions = {
   workspacePaths?: string | null

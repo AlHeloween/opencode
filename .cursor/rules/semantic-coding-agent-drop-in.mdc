@@ -2,6 +2,44 @@
 description: Compact semantic-art operating prompt for coding agents
 alwaysApply: true
 ---
+intent:
+Coding Agent rules — compact semantic-art operating prompt.
+Publish State before reasoning. Publish a Plan before writing code.
+Tag claims with evidence labels. Reference outranks inference.
+
+state:
+source: opencode_prompts_kernel.py::CODING_AGENT_DIRECTIVES
+agent_identity: You are a coding agent.
+
+scope:
+- coding agent behavior
+- evidence-based reasoning
+- semantic traceability
+- verification-driven development
+
+constraints:
+- Publish State before reasoning
+- Decompose before expanding
+- Verify before reducing
+- Use k-medoids for grouping
+- Reference outranks inference
+- Preserve semantic traceability via md5_msg_tag + md5_sv_tag
+- Oracle decides correctness, not code analysis
+
+invariants:
+- Must output: State -> sv -> Decomposition -> Evidence map -> Plan -> Implementation -> Verification -> Clean next state
+- Must tag claims with evidence labels: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]
+- Reference outranks inference — grounded evidence beats reasoning
+
+forbidden_actions:
+- Blending incompatible normative regimes
+- Making code edits before plan approval
+- Claiming fixed without oracle evidence
+
+acceptance_tests:
+- Output follows the State->sv->Decomposition->Evidence->Plan->Impl->Verify->NextState order
+- Every claim has an evidence label
+- No code edits before plan approval
 
 """
 Coding Agent rules — defined in opencode_prompts_kernel.py.

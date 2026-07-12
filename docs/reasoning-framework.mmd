@@ -1,0 +1,91 @@
+```mermaid
+flowchart LR
+    subgraph Inputs["Input Files"]
+        ATXT["agent/*.txt"]
+        STXT["session/*.txt"]
+        SMD["SKILL.md"]
+        MDC[".mdc rules"]
+        AMD["AGENTS.md"]
+    end
+
+    subgraph Layer1["Layer 1: PromptSpec Schema"]
+        VAL["validate_prompt_file()"]
+        SPEC["7-field contract
+intent | state | scope
+constraints | invariants
+forbidden_actions | acceptance_tests"]
+    end
+
+    subgraph Layer2a["Layer 2a: Syntax Projection"]
+        SYNTAX["SYNTAX_PROJECTION
+7 fields × 7 formats"]
+        PACKS["PROJECTION_PACKS
+Python | TS | Markdown | YAML"]
+        GRAMMAR["TREESITTER_GRAMMARS
+tree-sitter parser names"]
+    end
+
+    subgraph Layer2b["Layer 2b: Epistemic Projection"]
+        RESEARCH["Universal Research Kernel
+question_type | ontology | evidence
+uncertainty | falsifiers"]
+        DISC["9 Discipline Projections
+Natural Sci | Social Sci"]
+        SUBDISC["Sub-disciplines
+Physics | Chem | Bio
+Econ | Psych | Sociol | History"]
+        PREC["PRECEDENCE rules
+safety→universal | style→local"]
+    end
+
+    subgraph Layer3["Layer 3: IR Compilation"]
+        IR["compile_to_ir()
+expand_from_ir()
+validate_symbols()
+validate_ir_equivalence()"]
+        PREFIX["Immutable Namespace Prefixes
+_k kernel | _py Python | _ts TS
+_sci science | _soc social"]
+        IMMUT["MappingProxyType
+Runtime immutability guarantee"]
+    end
+
+    subgraph CI["290 Pytest Tests"]
+        T1["165 kernel & contract tests"]
+        T2["60 prompt schema conformance"]
+        T3["18 syntax projection"]
+        T4["25 epistemic projection"]
+        T5["22 IR compilation"]
+    end
+
+    Inputs --> VAL
+    VAL --> SPEC
+    SPEC --> SYNTAX
+    SYNTAX --> PACKS
+    PACKS --> GRAMMAR
+    SPEC --> RESEARCH
+    RESEARCH --> DISC
+    DISC --> SUBDISC
+    SUBDISC --> PREC
+    SPEC --> IR
+    IR --> PREFIX
+    PREFIX --> IMMUT
+    SYNTAX --> T3
+    RESEARCH --> T4
+    DISC --> T4
+    SUBDISC --> T4
+    PREC --> T4
+    IR --> T5
+    PREFIX --> T5
+    IMMUT --> T5
+    VAL --> T2
+    SPEC --> T2
+    VAL --> T1
+    SPEC --> T1
+
+    style Layer1 fill:#1a1a2e,stroke:#e94560,stroke-width:2px
+    style Layer2a fill:#16213e,stroke:#0f3460,stroke-width:2px
+    style Layer2b fill:#16213e,stroke:#0f3460,stroke-width:2px
+    style Layer3 fill:#1a1a2e,stroke:#e94560,stroke-width:2px
+    style CI fill:#0f3460,stroke:#e94560,stroke-width:2px
+```

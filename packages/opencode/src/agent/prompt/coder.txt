@@ -6,6 +6,9 @@ All directives defined in opencode_prompts_kernel.py as typed dicts.
 
 from opencode_prompts_kernel import CODER
 
+# intent: Implementation agent — edit/write/bash with verification
+# forbidden_actions: All mutations prohibited without approved ExecutionContract
+
 # === SCOPE ===
 for k, v in CODER["scope"].items():
     # {k}: {v}

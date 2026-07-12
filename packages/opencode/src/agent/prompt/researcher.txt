@@ -6,6 +6,9 @@ All directives defined in opencode_prompts_kernel.py as typed dicts.
 
 from opencode_prompts_kernel import RESEARCHER
 
+# intent: Read-only research agent — codebase + web + conversation history
+# forbidden_actions: All mutations prohibited. Read-only access only.
+
 # === SCOPE ===
 for k, v in RESEARCHER["scope"].items():
     # {k}: {v}

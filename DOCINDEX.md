@@ -36,7 +36,9 @@ class DocIndex:
     
     technical_docs: list[DocRecord] = field(default_factory=lambda: [
         DocRecord("docs/README.md", "OpenCode team", "Docs directory index"),
-        DocRecord("docs/ADID_Framework_15_3.md", "ADID team", "Epistemic markers, semantic vectors, AGI Reasoning Kernel"),
+        DocRecord("docs/ADID_Framework_15_4.md", "ADID team", "Epistemic markers, semantic vectors, AGI Reasoning Kernel, Python-native kernel"),
+        DocRecord("opencode_prompts_kernel.py", "opencode team", "Reasoning kernel: enums, contracts, validators, state machine, bug fix protocol, 32 project specs"),
+        DocRecord("tests/test_reasoning_kernel.py", "opencode team", "165 pytest tests covering all kernel algorithms, contract validation, classification, state machine, integration"),
         DocRecord("docs/architecture.md", "OpenCode team", "System architecture: prompt, checkpoint, agents, media, cache/diff"),
         DocRecord("docs/external-file-locations.md", "OpenCode team", "File paths opencode reads/writes outside worktree"),
     ])

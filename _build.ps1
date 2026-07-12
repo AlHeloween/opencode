@@ -73,6 +73,12 @@ function Invoke-Check {
         $allPassed = $false
     }
 
+    # Check 0c: Reasoning framework self-test (290 pytest tests)
+    $reasoningPassed = Test-ReasoningFramework
+    if (-not $reasoningPassed) {
+        $allPassed = $false
+    }
+
     # Check 1: Typecheck
     if (-not $SkipTypecheck) {
         $allPassed = $allPassed -and (Test-Command "Typecheck" {
@@ -137,6 +143,97 @@ function Sync-KernelPrompt {
     return $true
 }
 
+# ═══════════════════════════════════════════════════════════
+# REASONING FRAMEWORK SELF-TEST
+# ═══════════════════════════════════════════════════════════
+function Test-ReasoningFramework {
+    Write-Host "  Testing reasoning framework..." -ForegroundColor Yellow
+
+    # 1. Verify Python import works (kernel compiles)
+    # Use forward slashes to avoid Python SyntaxWarning on Windows backslash escapes
+    $importRoot = $Root.Replace("\", "/")
+    $importTest = python -c "import sys; sys.path.insert(0, '$importRoot'); import opencode_prompts_kernel as k; print(f'OK: {len(k._KERNEL_SYMBOLS)} symbols, {len(k.PROJECTION_LIBRARY)} projections')" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error- "Kernel import failed"
+        Write-Host "  $importTest" -ForegroundColor Red
+        return $false
+    }
+    Write-Success "Kernel imports ($importTest)"
+
+    # 2. Verify IR roundtrip (compile → expand = identity)
+    $irTest = python -c @"
+import sys; sys.path.insert(0, '$importRoot')
+import opencode_prompts_kernel as k
+r = {'invariants': ['must balance'], 'constraints': ['must be safe']}
+ir = k.compile_to_ir(r)
+e = k.expand_from_ir(ir)
+assert e == r, 'Roundtrip failed'
+errs = k.validate_ir_equivalence(r, ir)
+assert len(errs) == 0, f'Equivalence errors: {errs}'
+print('OK: compile/expand/validate all pass')
+"@ 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error- "IR roundtrip failed"
+        Write-Host "  $irTest" -ForegroundColor Red
+        return $false
+    }
+    Write-Success "IR compilation roundtrip (identity)"
+
+    # 3. Verify MappingProxyType immutability
+    $immutTest = python -c @"
+import sys; sys.path.insert(0, '$importRoot')
+import opencode_prompts_kernel as k
+try:
+    k._KERNEL_SYMBOLS['_k_hack'] = 'value'
+    print('FAIL: mutation should raise TypeError')
+    exit(1)
+except TypeError:
+    print('OK: mutation blocked')
+"@ 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error- "Immutability check failed"
+        Write-Host "  $immutTest" -ForegroundColor Red
+        return $false
+    }
+    Write-Success "MappingProxyType immutability (TypeError on write)"
+
+    # 4. Run full pytest suite (290 tests)
+    $testOutput = python -m pytest $Root\tests\ -q --tb=no 2>&1
+    $testExitCode = $LASTEXITCODE
+    if ($testExitCode -ne 0) {
+        Write-Error- "pytest suite failed (exit code: $testExitCode)"
+        Write-Host "  $testOutput" -ForegroundColor Red
+        return $false
+    }
+    # Extract summary line: "290 passed in X.XXs"
+    $summaryLine = ($testOutput -split "`n") | Where-Object { $_ -match "passed" } | Select-Object -Last 1
+    Write-Success "pytest: $summaryLine"
+
+    # 5. Verify discipline projection hierarchy consistency
+    $hierarchyTest = python -c @"
+import sys; sys.path.insert(0, '$importRoot')
+import opencode_prompts_kernel as k
+checks = 0
+for name, proj in k.PROJECTION_LIBRARY.items():
+    if proj.parent:
+        assert proj.parent in k.PROJECTION_LIBRARY, f'{name}: parent {proj.parent} not found'
+        checks += 1
+    kp = proj.kernel_projection or {}
+    has_inv = bool(kp.get('invariants', []))
+    has_forb = bool(kp.get('forbidden_actions', []))
+    assert has_inv or has_forb, f'{name}: no invariants or forbidden_actions'
+print(f'OK: {checks} parent relationships verified')
+"@ 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error- "Discipline hierarchy check failed"
+        Write-Host "  $hierarchyTest" -ForegroundColor Red
+        return $false
+    }
+    Write-Success "Discipline projection hierarchy ($hierarchyTest)"
+
+    return $true
+}
+
 function Invoke-Build {
     Write-Step "Building"
 
@@ -152,6 +249,12 @@ function Invoke-Build {
     $kernelSynced = Sync-KernelPrompt
     if (-not $kernelSynced) {
         throw "Kernel prompt sync failed"
+    }
+
+    # Step 0b: Reasoning framework self-test (290 pytest tests)
+    $reasoningPassed = Test-ReasoningFramework
+    if (-not $reasoningPassed) {
+        throw "Reasoning framework self-test failed — kernel integrity broken"
     }
 
     # Build Rust WASM modules next

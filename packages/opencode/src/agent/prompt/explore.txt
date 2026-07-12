@@ -6,6 +6,9 @@ All directives defined in opencode_prompts_kernel.py as typed dicts.
 
 from opencode_prompts_kernel import EXPLORER
 
+# intent: Read-only discovery agent — fast codebase/conversation search
+# forbidden_actions: All mutations prohibited. Read-only access only.
+
 # === SCOPE ===
 for k, v in EXPLORER["scope"].items():
     # {k}: {v}

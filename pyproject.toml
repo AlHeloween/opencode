@@ -1,0 +1,16 @@
+[project]
+name = "opencode"
+version = "1.14.28"
+description = "AI-powered development platform — reasoning kernel, agent prompts, and protocol specifications"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["opencode_prompts_kernel*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

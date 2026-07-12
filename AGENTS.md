@@ -1,7 +1,73 @@
+intent:
+Root AGENTS.md — project-wide governance and conventions for opencode.
+Agent governance, coding standards, KV cache continuity, backup/restore, testing.
+
+state:
+default_branch: dev
+local_main: may not exist — use dev or origin/dev for diffs
+upstream: anomalyco/opencode (branch has architectural divergence)
+
+scope:
+- agent governance rules
+- TypeScript style standards
+- security and secrets management
+- bug policy
+- KV cache continuity
+- conversation checkpoint system
+- discovery rules
+- plan maintenance
+- style guide (TypeScript, schema, control flow)
+- backup & restore
+- fossil snapshot system
+- opencode path architecture
+- testing conventions
+- TUI testing with cmd_runner
+- auto-generated code
+- dependency notes
+- completed research
+- agent inventory
+
+constraints:
+- See opencode_prompts_kernel.py for GOVERNANCE dict (all rules as typed Python data)
+- Default branch is dev, NOT main
+- Never expose secrets to public git
+- Silent catch {} blocks are bugs — every catch must log
+- Plan-to-code gaps are bugs — correct immediately
+- KV cache must be byte-stable across session turns
+- No .opencode/plans/ directory — only plans/ and plans_completed/
+- After plan changes, run explore agent to validate
+- Tests cannot run from repo root — run from package dirs
+- Avoid mocks in tests — test actual implementation
+
+invariants:
+- Default branch is dev — never assume main exists
+- Every catch block must log (debug for expected, warn("bug:...") for unexpected)
+- Silent catch {} is always a bug
+- Plan documents must match actual code state
+- .opencode/plans/ is prohibited for plan storage
+
+forbidden_actions:
+- Exposing secrets (API keys, tokens, passwords, private keys) to git
+- Using silent catch {} blocks
+- Labeling errors as "pre-existing" — every error is a deliverable
+- Planning from .opencode/plans/ directory
+- Breaking KV cache continuity (system prompt must be byte-stable)
+- Running tests from repo root
+- Changing Global.Path.home from worktree to os.homedir()
+
+acceptance_tests:
+- git status confirms dev branch
+- No catch {} blocks without log statements
+- Plan files in plans/ match actual code state
+- KV cache fingerprint stable across consecutive turns
+
 """
 Agent governance — defined in opencode_prompts_kernel.py.
 
 from opencode_prompts_kernel import GOVERNANCE_RULES, CODING_AGENT_DIRECTIVES, DefaultPromptDirectives
+
+Architecture documentation: docs/reasoning-framework.md (full stack diagram)
+                           docs/reasoning-framework.mmd (Mermaid diagram)
 """
 
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.

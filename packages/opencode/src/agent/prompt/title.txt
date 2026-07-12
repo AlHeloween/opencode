@@ -6,6 +6,9 @@ All directives defined in opencode_prompts_kernel.py as typed dicts.
 
 from opencode_prompts_kernel import TITLE
 
+# intent: Title generation — single line, max 50 chars. No tools.
+# forbidden_actions: No tool usage. No response to question — generate title only.
+
 # === CONSTRAINTS ===
 for k, v in TITLE["constraints"].items():
     # {k}: {v}

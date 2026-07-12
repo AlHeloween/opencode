@@ -1,7 +1,8 @@
 # OpenCode Architecture & System Design (2026-06-24)
 
 **Status:** production
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-07-12
+**See also:** `docs/reasoning-framework.md` — PromptSpec schema, syntax/disciplinary projections, IR compilation
 
 ---
 

@@ -78,7 +78,7 @@ Note: `.codex/rules/` and `.cursor/rules/` are mirrors — update canonical `art
 
 | # | File | Lines | Current Style | Pythonization Target |
 |---|------|-------|---------------|---------------------|
-| 35 | `docs/ADID_Framework_15_3.md` | 800+ | Prose + some code | Reference `_prompts` conversion already done |
+| 35 | `docs/ADID_Framework_15_4.md` (was 15.3) | 800+ | Prose + Python kernel | Reference `_prompts` conversion done, superseded by `opencode_prompts_kernel.py` |
 | 36 | `docs/architecture.md` | 200+ | ASCII diagrams + prose | Architecture dataclasses |
 | 37 | `docs/gated-workflow.md` | 31 | Prose | `GatedWorkflow` dataclass |
 | 38 | `docs/external-file-locations.md` | — | Prose list | `ExternalPaths` dataclass |

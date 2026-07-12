@@ -1,3 +1,44 @@
+intent:
+Database guide, module shape, Effect rules, bug reporting, and debugging for packages/opencode.
+Drizzle schema conventions, Effect patterns, module shape, log debugging.
+
+state:
+package: packages/opencode
+database: SQLite via Drizzle
+language: TypeScript (Effect framework)
+
+scope:
+- database schema and migrations
+- module shape conventions (no export namespace)
+- Effect framework coding rules
+- bug report mechanism
+- log debugging
+
+constraints:
+- Database: snake_case naming, <entity>_id join columns
+- Module: no export namespace — use flat exports with self-reexport
+- Effect: use Effect.gen, Effect.fn, Schema.Class, not legacy patterns
+- All caught errors must log — silent catch {} is a bug
+- Use warn("bug: ...") for unexpected failures, debug(...) for expected
+- Use explore agent for codebase searching
+
+invariants:
+- Every catch block must call a log function
+- Use export * as Foo at bottom of file for namespace projection
+- Never use export namespace Foo
+- Database naming is always snake_case
+
+forbidden_actions:
+- Using export namespace Foo
+- Silent catch {} blocks (no logging)
+- Using tsc directly — always use bun typecheck
+- Running tests from repo root
+
+acceptance_tests:
+- All catch blocks have log statements
+- No export namespace usage
+- Typecheck passes via bun typecheck
+
 # opencode database guide
 
 ## Database

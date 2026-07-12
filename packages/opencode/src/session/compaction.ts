@@ -72,52 +72,7 @@ const TOOL_OUTPUT_MAX_CHARS = 2_000
 const PRUNE_PROTECTED_TOOLS = ["skill"]
 const DEFAULT_PRESERVE_RECENT_TOKENS = 10_000
 const MIN_PRESERVE_RECENT_TOKENS = 2_000
-const SUMMARY_TEMPLATE = `Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
-<template>
-## Goal
-- [single-sentence task summary]
 
-## Constraints & Preferences
-- [user constraints, preferences, specs, or "(none)"]
-
-## Progress
-### Done
-- [completed work or "(none)"]
-
-### In Progress
-- [current work or "(none)"]
-
-### Blocked
-- [blockers or "(none)"]
-
-## Commands & Outcomes
-- [commands run (builds, tests, git) and their relevant results, or "(none)"]
-
-## Errors & Fixes
-- [problems encountered and how they were resolved, or "(none)"]
-
-## Key Decisions
-- [decision and why, or "(none)"]
-
-## Next Steps
-- [ordered next actions or "(none)"]
-
-## Critical Context
-- [important technical facts, errors, open questions, or "(none)"]
-
-## Relevant Files
-- [file or directory path: why it matters, or "(none)"]
-</template>
-
-Rules:
-- Keep every section, even when empty.
-- Use terse bullets, not prose paragraphs.
-- Preserve exact file paths, commands, error strings, and identifiers when known.
-- Summarize only the conversation history provided. Focus on details that still matter for continuing the work.
-- Do not answer the conversation. Do not mention that you are summarizing, compacting, or merging context.
-- Respond in the same language as the conversation.
-- Place completed, immutable facts before in-progress or changed facts. Preserve original wording of unchanged facts exactly.
-- When updating a previous summary, keep facts that are still true at the same position with the same wording. Add new or changed facts at the end of their section.`
 type Turn = {
   start: number
   end: number
@@ -156,19 +111,6 @@ function completedCompactions(messages: MessageV2.WithParts[]) {
     if (userIndex === undefined) return []
     return [{ userIndex, assistantIndex, summary: summaryText(msg) }]
   })
-}
-
-function buildInstruction(input: { previousSummary?: string; context: string[] }) {
-  const anchor = input.previousSummary
-    ? [
-        "Update the anchored summary below using the conversation history above.",
-        "Preserve still-true details, remove stale details, and merge in the new facts.",
-        "<previous-summary>",
-        input.previousSummary,
-        "</previous-summary>",
-      ].join("\n")
-    : "Create a new anchored summary from the conversation history above."
-  return [anchor, ...input.context].join("\n\n")
 }
 
 function preserveRecentBudget(input: { cfg: Config.Info; model: Provider.Model }) {
@@ -506,7 +448,49 @@ export const layer: Layer.Layer<
         messageID: msg.id,
         sessionID: msg.sessionID,
         type: "text",
-        text: "Please create a structured summary of the conversation history. Do not use any tools — just produce the summary.",
+        text: `Please create a structured summary of the conversation history. Do not use any tools — just produce the summary.
+
+Use this exact structure:
+
+## Goal
+- [single-sentence task summary]
+
+## Constraints & Preferences
+- [user constraints, preferences, specs, or "(none)"]
+
+## Progress
+### Done
+- [completed work or "(none)"]
+
+### In Progress
+- [current work or "(none)"]
+
+### Blocked
+- [blockers or "(none)"]
+
+## Commands & Outcomes
+- [commands run (builds, tests, git) and their relevant results, or "(none)"]
+
+## Errors & Fixes
+- [problems encountered and how they were resolved, or "(none)"]
+
+## Key Decisions
+- [decision and why, or "(none)"]
+
+## Next Steps
+- [ordered next actions or "(none)"]
+
+## Critical Context
+- [important technical facts, errors, open questions, or "(none)"]
+
+## Relevant Files
+- [file or directory path: why it matters, or "(none)"]
+
+Rules:
+- Keep every section, even when empty.
+- Use terse bullets, not prose paragraphs.
+- Preserve exact file paths, commands, error strings, and identifiers when known.
+- Do not answer the conversation. Do not mention that you are summarizing, compacting, or merging context.`,
         synthetic: true,
       })
       yield* session.updatePart({

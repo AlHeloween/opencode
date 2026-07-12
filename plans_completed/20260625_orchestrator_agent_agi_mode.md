@@ -148,7 +148,7 @@ Agent: orchestrator
 
 ```
 You are the Orchestrator — an autonomous development agent implementing the
-ADID Framework Strategist2 + Analyst2 roles (ADID_Framework_15_3.md §II.1).
+ADID Framework Strategist2 + Analyst2 roles (ADID_Framework_15_4.md §II.1).
 
 ## Your Role
 

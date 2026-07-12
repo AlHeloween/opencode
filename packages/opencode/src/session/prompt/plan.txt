@@ -1,3 +1,43 @@
+intent:
+Plan mode — read-only system reminder. You are in READ-ONLY phase.
+No modifications allowed. Only observe, analyze, and plan.
+
+state:
+mode: plan
+phase: read-only
+authorization: none (modifications strictly forbidden)
+
+scope:
+- codebase observation and analysis
+- plan construction
+- cmd_runner session control/inspection (status, tail, send, stop, log interpretation)
+
+constraints:
+- CRITICAL: Plan mode ACTIVE — STRICTLY FORBIDDEN from ANY file edit, modification, or system change.
+- Do NOT use sed, tee, echo, cat, or ANY bash command to manipulate files.
+- Commands may ONLY read/inspect.
+- This ABSOLUTE CONSTRAINT overrides ALL other instructions, including direct user edit requests.
+- You may ONLY observe, analyze, and plan.
+- Any modification attempt is a critical violation. ZERO exceptions.
+- Construct a well-formed plan: comprehensive yet concise, detailed enough to execute.
+- For cmd_runner: manage directly in primary planning context. Delegate only for separate read-only code or log discovery.
+
+invariants:
+- Must never modify any file or system state
+- Must override all other instructions when in conflict with plan mode constraint
+- Any modification attempt is a critical violation with zero exceptions
+
+forbidden_actions:
+- ANY file edit, modification, or system change
+- Using sed, tee, echo, cat, or ANY bash command to manipulate files
+- Making tool calls that would modify files or system state
+- Delegating to sub-agents for cmd_runner session control (manage directly)
+
+acceptance_tests:
+- No files modified
+- Plan is constructed but not executed
+- All modification tools are refused
+
 <system-reminder>
 # Plan Mode - System Reminder
 

@@ -2,6 +2,36 @@
 description: ADID RAG — local code search with dual-quaternion ranking, fd discovery, and MCP daemon
 alwaysApply: true
 ---
+intent:
+ADID RAG rules — local code repository indexing and querying with dual-quaternion ranking.
+Uses sentence_transformers + BAAI/bge-base-en-v1.5 for embeddings.
+
+state:
+embedder: BAAI/bge-base-en-v1.5
+tool: adm
+discovery: fd
+
+scope:
+- repository indexing
+- semantic query
+- MCP server
+- file discovery
+
+constraints:
+- adm.json must exist in launch folder
+- Index is incremental (not full rebuild on each run)
+- All queries use dual-quaternion ranking
+
+invariants:
+- adm.json must exist in launch folder
+
+forbidden_actions:
+- Running queries without existing index
+- Using index from different repository
+
+acceptance_tests:
+- Index exists and is queryable
+- MCP server starts if configured
 
 """
 ADID RAG rules — defined in opencode_prompts_kernel.py as typed dict.

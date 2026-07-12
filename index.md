@@ -16,7 +16,7 @@ class DirEntry:
 @dataclass
 class RepoMap:
     """Complete folder-based repository index."""
-    last_updated: str = "2026-07-04"
+    last_updated: str = "2026-07-12"
     
     packages: list[DirEntry] = field(default_factory=lambda: [
         DirEntry("packages/opencode/", "Core CLI/TUI server — AI agent, tools, HTTP API, session mgmt", "src/index.ts"),
@@ -46,5 +46,8 @@ REPO = RepoMap()
 
 # {len(REPO.packages)} packages tracked
 # Docs: docs/, specs/plans/, plans_completed/
+#   docs/rendering.md       — Full rendering pipeline: LLM → terminal, TUI components, streaming, mermaid, images
+#   docs/architecture.md    — Prompt system, checkpoint, compaction, KV cache
+#   docs/ADID_Framework_15_4.md — ADID update manager framework
 # Tools: tools/, external/
 # Key files at root: package.json, bunfig.toml, turbo.json, tsconfig.json, sst.config.ts

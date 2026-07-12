@@ -1240,11 +1240,11 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
           if (task?.type === "compaction") {
             yield* status.set(sessionID, { type: "compacting" })
-            const agent = yield* agents.get(lastUser.agent)
+            // Use the compaction agent for compaction turns — it has the structured
+            // spec prompt (compaction.txt) and denies all tools.
+            const agent = yield* agents.get("compaction")
             if (!agent) {
-              const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
-              const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
-              const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
+              const error = new NamedError.Unknown({ message: 'Compaction agent not found. Ensure "compaction" is defined in agent registry.' })
               yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
               throw error
             }

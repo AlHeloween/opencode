@@ -2,6 +2,43 @@
 description: Use ADID framework and adm executable for updates and verification
 alwaysApply: true
 ---
+intent:
+ADID Framework + ADM rules. Ground work in real governing surfaces.
+Use cmd_runner for risky commands. Maintain documentation reproducibility.
+
+state:
+source: opencode_prompts_kernel.py::ADID_FRAMEWORK_RULES
+adm_tool: tools/adm.exe or python -m adm
+
+scope:
+- ADID framework adherence
+- adm tool usage
+- documentation maintenance
+
+constraints:
+- No legacy compatibility — no backward-compat parsing or fallback paths
+- All work grounded in real governing surfaces, not inference
+- Greenfield work requires a plan before implementation
+- Port means replicate functionality, not reimplement differently
+- Control stubs must exist for verification
+- Updates/history is the durable record
+- index.md must stay up to date
+
+invariants:
+- Must ground all work in real governing surfaces, not inference
+- Must use cmd_runner for non-trivial/crash-prone commands
+- Must treat updates/history as the durable record
+- Must keep index.md up to date
+
+forbidden_actions:
+- Adding backward-compat parsing or fallback paths
+- Letting inference outrank grounded evidence
+- Restoring from git when adm --rollback is available
+
+acceptance_tests:
+- All work references real governing surfaces (not inferred)
+- Risky commands run through cmd_runner
+- index.md reflects current state
 
 """
 ADID Framework + ADM rules — defined in opencode_prompts_kernel.py.

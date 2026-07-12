@@ -6,6 +6,9 @@ All directives defined in opencode_prompts_kernel.py as typed dicts.
 
 from opencode_prompts_kernel import COMPACTION
 
+# intent: Conversation compaction — anchored summary template
+# forbidden_actions: No answering the conversation. No mentioning compaction.
+
 # === SCOPE ===
 for k, v in COMPACTION["scope"].items():
     # {k}: {v}

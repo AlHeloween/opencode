@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect"
+import path from "path"
 import { InstanceState } from "@/effect/instance-state"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Tool from "./tool"
@@ -29,18 +30,56 @@ export const Parameters = Schema.Struct({
 type Metadata = {
   resultCount: number
   mode: string
-  nodeCount?: number
-  edgeCount?: number
-  fileCount?: number
+  nodeCount: number
+  edgeCount: number
   hasCodegraph: boolean
+}
+
+// Lazy CodeGraph loader — never crashes at startup. If the import fails (e.g. in
+// a compiled binary where require.resolve() in npm-sdk.js won't work), the tool
+// gracefully reports "not available" instead of taking down the whole application.
+let cgLoadAttempted = false
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cgModule: any = null
+
+async function ensureCodeGraph(): Promise<any> {
+  if (cgLoadAttempted) return cgModule
+  cgLoadAttempted = true
+
+  try {
+    // Try direct platform bundle import
+    const target = `${process.platform}-${process.arch}`
+    cgModule = await import(/* @vite-ignore */ `@colbymchenry/codegraph-${target}/lib/dist/index.js`)
+    return cgModule
+  } catch {
+    try {
+      cgModule = await import("@colbymchenry/codegraph")
+      return cgModule
+    } catch {
+      try {
+        const os = await import("os")
+        const fs = await import("fs")
+        const pjPath = require.resolve("@colbymchenry/codegraph/package.json")
+        const pj = JSON.parse(fs.readFileSync(pjPath, "utf-8"))
+        const target = `${process.platform}-${process.arch}`
+        const base = process.env.CODEGRAPH_INSTALL_DIR || path.join(os.homedir(), ".codegraph")
+        const lib = path.join(base, "bundles", `${target}-${pj.version}`, "lib", "dist", "index.js")
+        if (fs.existsSync(lib)) {
+          cgModule = await import(/* @vite-ignore */ lib)
+          return cgModule
+        }
+      } catch {
+        // Exhausted
+      }
+      Log.Default.debug("codegraph: not available — install @colbymchenry/codegraph to enable the codegraph tool")
+      return null
+    }
+  }
 }
 
 export const CodeGraphTool = Tool.define(
   "codegraph",
   Effect.gen(function* () {
-    // Lazy import CodeGraph — it's heavy and may not be needed this session
-    const CgModule = yield* Effect.promise(async () => import("@colbymchenry/codegraph"))
-
     return {
       description: DESCRIPTION,
       parameters: Parameters,
@@ -71,246 +110,77 @@ export const CodeGraphTool = Tool.define(
           const mode = params.mode ?? "explore"
           const depth = params.depth ?? 2
 
-          // Check if CodeGraph is initialized
-          if (!CgModule.CodeGraph.isInitialized(projectRoot)) {
+          // Lazy load CodeGraph
+          const CgModule = yield* Effect.promise(() => ensureCodeGraph())
+          if (!CgModule) {
             return {
-              title: "CodeGraph not initialized",
-              metadata: {
-                resultCount: 0,
-                mode,
-                hasCodegraph: false,
-              },
+              title: "CodeGraph not available",
+              metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: false },
               output: [
-                `CodeGraph is not initialized in "${projectRoot}".`,
+                "CodeGraph is not available. To enable the codegraph tool:",
                 "",
-                "Run `codegraph init` to build the index, or use this command from the project root.",
-                "Once initialized, codegraph_explore gives you instant structural answers from a pre-built knowledge graph.",
+                "  1. Install the dependency in the project:",
+                `     bun add @colbymchenry/codegraph`,
+                "",
+                "  2. Initialize the index in your project root:",
+                "     codegraph init",
+                "",
+                "CodeGraph provides a pre-indexed knowledge graph of every symbol,",
+                "call edge, and dependency — one tool call replaces multiple grep + Read loops.",
               ].join("\n"),
             }
           }
 
-          // Open existing CodeGraph instance
-          const cg = yield* Effect.tryPromise({
+          if (!CgModule.CodeGraph.isInitialized(projectRoot)) {
+            return {
+              title: "CodeGraph not initialized",
+              metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: true },
+              output: [
+                `CodeGraph is installed but not initialized in "${projectRoot}".`,
+                "",
+                "Run `codegraph init` to build the index.",
+                "Once initialized, codegraph_explore gives you instant structural answers.",
+              ].join("\n"),
+            }
+          }
+
+          // Open the graph (read-only, auto-sync)
+          const cg: any = yield* Effect.tryPromise({
             try: () => CgModule.CodeGraph.open(projectRoot, { sync: true, readOnly: true }),
             catch: (err) => new Error(`Failed to open CodeGraph: ${err}`),
           })
 
           try {
             let output: string
-            let resultCount = 0
             let nodeCount = 0
             let edgeCount = 0
 
             switch (mode) {
-              case "search": {
-                // Full-text search for symbols
-                const results = cg.searchNodes(params.query, { limit: 30 })
-                resultCount = results.length
-                output = formatSearchResults(results, cg)
+              case "search":
+                output = yield* searchMode(cg, params.query)
                 break
-              }
-
-              case "trace": {
-                // Find symbol by name, then get callers + callees
-                const symbols = cg.searchNodes(params.query, { limit: 5 })
-                if (symbols.length === 0) {
-                  output = `No symbols found matching "${params.query}".`
-                  break
-                }
-
-                const lines: string[] = []
-                for (const sym of symbols.slice(0, 3)) {
-                  const node = cg.getNode(sym.node_id)
-                  if (!node) continue
-
-                  lines.push(`## ${sym.node_name} (${sym.node_kind}) — ${sym.file_path}:${sym.start_line}`)
-                  lines.push("")
-
-                  // Get source code
-                  const code = yield* Effect.promise(() => cg.getCode(sym.node_id))
-                  if (code) {
-                    lines.push("```" + inferFiletype(sym.file_path))
-                    lines.push(code)
-                    lines.push("```")
-                    lines.push("")
-                  }
-
-                  // Callers (who calls this)
-                  const callers = cg.getCallers(sym.node_id, depth)
-                  if (callers.length > 0) {
-                    lines.push("### Called by (" + callers.length + ")")
-                    for (const c of callers.slice(0, 10)) {
-                      const callerCode = yield* Effect.promise(() => cg.getCode(c.node.id))
-                      const snippet = callerCode
-                        ? callerCode.split("\n").slice(0, 3).join("\n")
-                        : ""
-                      lines.push(`- ${c.node.name} (${c.node.file}:${c.node.start_line})`)
-                      if (snippet) {
-                        lines.push("  ```" + inferFiletype(c.node.file))
-                        lines.push("  " + snippet.split("\n").join("\n  "))
-                        lines.push("  ```")
-                      }
-                    }
-                    lines.push("")
-                  }
-
-                  // Callees (what this calls)
-                  const callees = cg.getCallees(sym.node_id, depth)
-                  if (callees.length > 0) {
-                    lines.push("### Calls (" + callees.length + ")")
-                    for (const c of callees.slice(0, 10)) {
-                      const calleeCode = yield* Effect.promise(() => cg.getCode(c.node.id))
-                      const snippet = calleeCode
-                        ? calleeCode.split("\n").slice(0, 3).join("\n")
-                        : ""
-                      lines.push(`- ${c.node.name} (${c.node.file}:${c.node.start_line})`)
-                      if (snippet) {
-                        lines.push("  ```" + inferFiletype(c.node.file))
-                        lines.push("  " + snippet.split("\n").join("\n  "))
-                        lines.push("  ```")
-                      }
-                    }
-                    lines.push("")
-                  }
-
-                  resultCount++
-                }
-
-                output = lines.join("\n")
-                const stats = cg.getStats()
-                nodeCount = stats.nodeCount ?? 0
-                edgeCount = stats.edgeCount ?? 0
+              case "trace":
+                output = yield* traceMode(cg, params.query, depth)
                 break
-              }
-
-              case "impact": {
-                // Find symbol, then compute impact radius
-                const symbols = cg.searchNodes(params.query, { limit: 5 })
-                if (symbols.length === 0) {
-                  output = `No symbols found matching "${params.query}".`
-                  break
-                }
-
-                const sym = symbols[0]
-                const subgraph = cg.getImpactRadius(sym.node_id, depth)
-                const lines: string[] = [
-                  `## Impact radius: ${sym.node_name} (${sym.node_kind})`,
-                  `  File: ${sym.file_path}:${sym.start_line}`,
-                  "",
-                ]
-
-                const nodes = subgraph.nodes ?? []
-                const edges = subgraph.edges ?? []
-                nodeCount = nodes.length
-                edgeCount = edges.length
-                lines.push(`**${nodeCount} nodes** affected, **${edgeCount} edges**`)
-
-                if (nodes.length > 0) {
-                  lines.push("")
-                  lines.push("### Affected symbols")
-                  for (const n of nodes.slice(0, 20)) {
-                    const code = yield* Effect.promise(() => cg.getCode(n.id).catch(() => null))
-                    const snippet = code
-                      ? code.split("\n").slice(0, 2).join("\n")
-                      : ""
-                    lines.push(`- ${n.name} (${n.kind}, ${n.file}:${n.start_line})`)
-                    if (snippet) {
-                      lines.push("  ```" + inferFiletype(n.file))
-                      lines.push("  " + snippet.split("\n").join("\n  "))
-                      lines.push("  ```")
-                    }
-                  }
-                }
-
-                output = lines.join("\n")
+              case "impact":
+                output = yield* impactMode(cg, params.query, depth)
                 break
-              }
-
-              case "path": {
-                // Parse "from -> to" in the query
-                const parts = params.query.split("->").map((s) => s.trim())
-                if (parts.length < 2) {
-                  output = `Path mode requires "from -> to" syntax in the query. Example: "Class.method -> Other.func"`
-                  break
-                }
-
-                const [fromQ, toQ] = parts
-                const fromResults = cg.searchNodes(fromQ, { limit: 3 })
-                const toResults = cg.searchNodes(toQ, { limit: 3 })
-
-                if (fromResults.length === 0 || toResults.length === 0) {
-                  output = [
-                    `Could not find symbols.`,
-                    fromResults.length === 0 ? `  From "${fromQ}": not found` : "",
-                    toResults.length === 0 ? `  To "${toQ}": not found` : "",
-                  ].filter(Boolean).join("\n")
-                  break
-                }
-
-                const path = cg.findPath(fromResults[0].node_id, toResults[0].node_id)
-                if (!path) {
-                  output = [
-                    `No path found between "${fromResults[0].node_name}" and "${toResults[0].node_name}".`,
-                    `  They may not be connected in the call graph.`,
-                  ].join("\n")
-                  break
-                }
-
-                const lines: string[] = [
-                  `## Path: ${fromResults[0].node_name} → ${toResults[0].node_name}`,
-                  `  (${path.length} hops)`,
-                  "",
-                ]
-                for (const hop of path) {
-                  const code = hop.node
-                    ? yield* Effect.promise(() => cg.getCode(hop.node.id).catch(() => null))
-                    : null
-                  const snippet = code
-                    ? code.split("\n").slice(0, 2).join("\n")
-                    : ""
-                  lines.push(`  → ${hop.node?.name ?? "?"} (${hop.node?.file ?? "?"}:${hop.node?.start_line ?? "?"})`)
-                  if (snippet) {
-                    lines.push("    ```" + inferFiletype(hop.node?.file ?? ""))
-                    lines.push("    " + snippet.split("\n").join("\n    "))
-                    lines.push("    ```")
-                  }
-                }
-
-                output = lines.join("\n")
+              case "path":
+                output = yield* pathMode(cg, params.query)
                 break
-              }
+              default: // explore
+                output = yield* exploreMode(cg, params.query, depth)
+            }
 
-              default: // "explore"
-              {
-                const context = yield* Effect.promise(() =>
-                  cg.buildContext(params.query, {
-                    maxNodes: 30,
-                    includeCode: true,
-                    format: "markdown",
-                    maxCallers: depth,
-                    maxCallees: depth,
-                  }),
-                )
-
-                const contextStr = typeof context === "string" ? context : JSON.stringify(context, null, 2)
-                output = contextStr
-                const stats = cg.getStats()
-                nodeCount = stats.nodeCount ?? 0
-                edgeCount = stats.edgeCount ?? 0
-                resultCount = 1
-                break
-              }
+            const stats = cg.getStats?.()
+            if (stats) {
+              nodeCount = stats.nodeCount ?? 0
+              edgeCount = stats.edgeCount ?? 0
             }
 
             return {
               title: `CodeGraph: ${params.query.slice(0, 60)}`,
-              metadata: {
-                resultCount,
-                mode,
-                nodeCount,
-                edgeCount,
-                hasCodegraph: true,
-              },
+              metadata: { resultCount: 1, mode, nodeCount, edgeCount, hasCodegraph: true },
               output,
             }
           } finally {
@@ -321,76 +191,138 @@ export const CodeGraphTool = Tool.define(
   }),
 )
 
-function formatSearchResults(
-  results: Array<{ node_id: string; node_name: string; node_kind: string; file_path: string; start_line: number; snippet?: string }>,
-  cg: import("@colbymchenry/codegraph").CodeGraph,
-): string {
-  if (results.length === 0) return "No results found."
+// === Mode implementations using `any` type for the cg instance ===
+// The CodeGraph class has a private constructor so InstanceType can't be used.
+// All methods are duck-typed from the library's public API.
 
-  const lines: string[] = [`Found ${results.length} symbol(s):`, ""]
-  for (const r of results.slice(0, 30)) {
-    lines.push(`- ${r.node_name} (${r.node_kind}) — ${r.file_path}:${r.start_line}`)
-    if (r.snippet) {
-      lines.push("  ```" + inferFiletype(r.file_path))
-      lines.push("  " + r.snippet.split("\n").join("\n  "))
-      lines.push("  ```")
+function searchMode(cg: any, query: string): Effect.Effect<string> {
+  return Effect.sync(() => {
+    const results = cg.searchNodes(query, { limit: 30 })
+    if (!results || results.length === 0) return "No symbols found."
+
+    const lines: string[] = [`Found ${results.length} symbol(s):`, ""]
+    for (const r of results) {
+      const n = r.node
+      lines.push(`- ${n.name} (${n.kind}) — ${n.filePath}:${n.startLine}`)
     }
-  }
-
-  if (results.length > 30) {
-    lines.push("", `(Showing first 30 of ${results.length} results)`)
-  }
-
-  return lines.join("\n")
+    if (results.length > 30) {
+      lines.push("", `(Showing first 30 of ${results.length} results)`)
+    }
+    return lines.join("\n")
+  })
 }
 
-const EXTENSION_MAP: Record<string, string> = {
-  ts: "typescript",
-  tsx: "typescript",
-  js: "javascript",
-  jsx: "javascript",
-  py: "python",
-  rs: "rust",
-  go: "go",
-  java: "java",
-  cs: "csharp",
-  rb: "ruby",
-  php: "php",
-  vue: "vue",
-  svelte: "svelte",
-  astro: "astro",
-  swift: "swift",
-  kt: "kotlin",
-  scala: "scala",
-  dart: "dart",
-  lua: "lua",
-  pas: "pascal",
-  dpr: "pascal",
-  c: "c",
-  cpp: "cpp",
-  h: "c",
-  hpp: "cpp",
-  css: "css",
-  json: "json",
-  yaml: "yaml",
-  yml: "yaml",
-  toml: "toml",
-  md: "markdown",
-  sql: "sql",
-  sh: "bash",
-  bash: "bash",
-  zsh: "bash",
-  ps1: "powershell",
-  bat: "batch",
-  cmd: "batch",
+function traceMode(cg: any, query: string, depth: number): Effect.Effect<string> {
+  return Effect.sync(() => {
+    const results = cg.searchNodes(query, { limit: 5 })
+    if (!results || results.length === 0) return `No symbols found matching "${query}".`
+
+    const lines: string[] = []
+    for (const r of results.slice(0, 3)) {
+      const n = r.node
+      lines.push(`## ${n.name} (${n.kind}) — ${n.filePath}:${n.startLine}`)
+
+      const callers = cg.getCallers(n.id, depth)
+      if (callers?.length > 0) {
+        lines.push("", `### Called by (${callers.length})`)
+        for (const c of callers.slice(0, 10)) {
+          lines.push(`- ${c.node.name} (${c.node.kind}) — ${c.node.filePath}:${c.node.startLine}`)
+        }
+      }
+
+      const callees = cg.getCallees(n.id, depth)
+      if (callees?.length > 0) {
+        lines.push("", `### Calls (${callees.length})`)
+        for (const c of callees.slice(0, 10)) {
+          lines.push(`- ${c.node.name} (${c.node.kind}) — ${c.node.filePath}:${c.node.startLine}`)
+        }
+      }
+      lines.push("")
+    }
+    return lines.join("\n")
+  })
 }
 
-function inferFiletype(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase() ?? ""
-  return EXTENSION_MAP[ext] ?? ext
+function impactMode(cg: any, query: string, depth: number): Effect.Effect<string> {
+  return Effect.sync(() => {
+    const results = cg.searchNodes(query, { limit: 5 })
+    if (!results || results.length === 0) return `No symbols found matching "${query}".`
+
+    const sym = results[0].node
+    const subgraph = cg.getImpactRadius(sym.id, depth)
+    const nodes = subgraph?.nodes ? [...subgraph.nodes.values()] : []
+    const edges = subgraph?.edges ?? []
+
+    const lines: string[] = [
+      `## Impact radius: ${sym.name} (${sym.kind})`,
+      `  File: ${sym.filePath}:${sym.startLine}`,
+      "",
+      `**${nodes.length} nodes** affected, **${edges.length} edges**`,
+    ]
+    if (nodes.length > 0) {
+      lines.push("", "### Affected symbols")
+      for (const n of nodes.slice(0, 20)) {
+        lines.push(`- ${n.name} (${n.kind}) — ${n.filePath}:${n.startLine}`)
+      }
+    }
+    return lines.join("\n")
+  })
 }
 
-// Need 'path' for directory resolution
-import path from "path"
+function pathMode(cg: any, query: string): Effect.Effect<string> {
+  return Effect.sync(() => {
+    const parts = query.split("->").map((s) => s.trim())
+    if (parts.length < 2) {
+      return 'Path mode requires "from -> to" syntax. Example: "Class.method -> Other.func"'
+    }
+
+    const [fromQ, toQ] = parts
+    const fromResults = cg.searchNodes(fromQ, { limit: 3 })
+    const toResults = cg.searchNodes(toQ, { limit: 3 })
+
+    if (!fromResults?.length || !toResults?.length) {
+      return ["Could not find symbols.",
+        fromResults?.length ? "" : `  From "${fromQ}": not found`,
+        toResults?.length ? "" : `  To "${toQ}": not found`,
+      ].filter(Boolean).join("\n")
+    }
+
+    const fromNode = fromResults[0].node
+    const toNode = toResults[0].node
+    const pathResult = cg.findPath(fromNode.id, toNode.id)
+
+    if (!pathResult) {
+      return [
+        `No path found between "${fromNode.name}" and "${toNode.name}".`,
+        `  They may not be connected in the call graph.`,
+      ].join("\n")
+    }
+
+    const lines: string[] = [
+      `## Path: ${fromNode.name} \u2192 ${toNode.name}`,
+      `  (${pathResult.length} hops)`,
+      "",
+    ]
+    for (const hop of pathResult) {
+      if (hop.node) {
+        lines.push(`  \u2192 ${hop.node.name} (${hop.node.kind}) — ${hop.node.filePath}:${hop.node.startLine}`)
+      }
+    }
+    return lines.join("\n")
+  })
+}
+
+function exploreMode(cg: any, query: string, depth: number): Effect.Effect<string> {
+  return Effect.promise(async () => {
+    const context = await cg.buildContext(query, {
+      maxNodes: 30,
+      includeCode: true,
+      format: "markdown",
+      maxCallers: depth,
+      maxCallees: depth,
+    })
+    return typeof context === "string" ? context : JSON.stringify(context, null, 2)
+  })
+}
 
 export * as CodeGraph from "./codegraph"

@@ -75,10 +75,24 @@ new Core.TextRenderable(renderer, {
   fg: "#888899", zIndex: 20,
 })
 
-// Render a single frame
-const buffer = fbR.frameBuffer
-await engine.drawScene(scene, buffer, 0.016)
-log("drawScene: OK (no supersampling)")
+// Test 1: Direct buffer write — verify FrameBufferRenderable display works
+// Must use RGBA.fromValues() — plain objects fail at the native FFI boundary.
+const buf = fbR.frameBuffer
+const RGBA = (Core as any).RGBA
+const greenC = RGBA.fromValues(0, 1, 0, 1)
+const blackC = RGBA.fromValues(0, 0, 0, 1)
+for (let y = 5; y < 10; y++) {
+  for (let x = 5; x < 30; x++) {
+    buf.setCellWithAlphaBlending(x, y, "\u2588", greenC, blackC)
+  }
+}
+log("Direct buffer write: OK (green bar)")
+
+// Skip WebGPU render for now — just testing the buffer display path.
+// Uncomment below to test WebGPU:
+// await engine.drawScene(scene, buf, 0.016)
+// log("drawScene: OK (no supersampling)")
+log("Skipping WebGPU render — showing direct buffer write only")
 
 // Idle
 renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {

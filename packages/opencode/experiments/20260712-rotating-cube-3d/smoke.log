@@ -1,0 +1,22 @@
+[2026-07-12T12:59:19.681Z] Frame #300: rot=(12.81,25.63) dt=65.9
+[2026-07-12T13:01:15.556Z] Log: D:\zPython\opencode\packages\opencode\experiments\20260712-rotating-cube-3d\smoke.log
+[2026-07-12T13:01:15.556Z] Bun: 1.4.0 rev 7a5293cef99b1c19c1de921da3c112eadaf148b1
+[2026-07-12T13:01:15.557Z] Platform: win32 arch: x64
+[2026-07-12T13:01:15.557Z] CWD: d:\zPython\opencode\packages\opencode
+[2026-07-12T13:01:15.602Z] Terminal: 150×40
+[2026-07-12T13:01:15.606Z] Scene: cube + 3 lights
+[2026-07-12T13:01:15.717Z] ThreeRenderable: OK (init lazy, frame callback registered)
+[2026-07-12T13:06:40.538Z] Log: D:\zPython\opencode\packages\opencode\experiments\20260712-rotating-cube-3d\smoke.log
+[2026-07-12T13:06:40.539Z] Bun: 1.4.0 rev 7a5293cef99b1c19c1de921da3c112eadaf148b1  Platform: win32 x64
+[2026-07-12T13:06:40.579Z] Terminal: 140×40
+[2026-07-12T13:06:40.582Z] Scene ready: cube + 3 lights
+[2026-07-12T13:06:40.584Z] FrameBufferRenderable created
+[2026-07-12T13:06:41.120Z] ThreeCliRenderer constructor OK
+[2026-07-12T13:06:42.923Z] ThreeCliRenderer init OK — WebGPU ready, camera set
+[2026-07-12T13:07:03.660Z] Log: D:\zPython\opencode\packages\opencode\experiments\20260712-rotating-cube-3d\smoke.log
+[2026-07-12T13:07:03.660Z] Bun: 1.4.0 rev 7a5293cef99b1c19c1de921da3c112eadaf148b1  Platform: win32 x64
+[2026-07-12T13:07:03.689Z] Terminal: 150×40
+[2026-07-12T13:07:03.692Z] Scene ready: cube + 3 lights
+[2026-07-12T13:07:03.694Z] FrameBufferRenderable created
+[2026-07-12T13:07:04.159Z] ThreeCliRenderer constructor OK
+[2026-07-12T13:07:05.964Z] ThreeCliRenderer init OK — WebGPU ready, camera set

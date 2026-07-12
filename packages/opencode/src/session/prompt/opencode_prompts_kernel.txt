@@ -2074,15 +2074,23 @@ Every search must follow the ordered priority chain — do not skip levels.
 Internal knowledge is the weakest evidence. When internal grounding is insufficient
 (InfoMarkLevel below Inferred), escalate through the chain before claiming absence.
 
+Workflow principle: fuzzy first, then targeted, then internet, then build.
+  1. Fuzzy queries first — codegraph (code), messagesearch (past conversations) — check what we already know
+  2. Targeted search — universalsearch for internet, glob/grep for filesystem — now with evidence from step 1
+  3. Internet check — before building something, verify it doesn't already exist. Don't reinvent the wheel.
+  4. Hardware check FIRST — before any GPU/compute work, always check local hardware (nvidia-smi, etc.).
+     Hardware state is easy to forget during compaction — the agent may think it has a GPU when it doesn't,
+     or think it doesn't have one when it does. Always verify with nvidia-smi before writing GPU code.
+
 Grounding priority chain (fastest/exact first, broadest/recursive last):
   1. where.exe / which      — OS PATH lookup for executables (instant, exact)
   2. codegraph              — pre-indexed code graph for structural code questions
   3. messagesearch          — conversation/session history search
   4. universalsearch        — web search, code search (Sourcegraph), agent research
-  5. glob                   — file pattern matching (bounded by .gitignore)
-  6. grep                   — content search (bounded by .gitignore)
-  Fallback: rg, fd          — unbounded recursive search (bypass .gitignore)
-  Hardware: nvidia-smi etc. — local hardware diagnostics (GPU, memory, etc.)""",
+  5. glob                   — file pattern matching (default: .gitignore-bounded; noIgnore=true bypasses)
+  6. grep                   — content search (default: .gitignore-bounded; noIgnore=true bypasses)
+  7. rg / fd               — unbounded recursive search (bypass .gitignore)
+  8. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)""",
 
     state={
         "search_priority_chain": [
@@ -2118,6 +2126,8 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "grounding_hierarchy_enforced": True,
         "search_before_uncertainty": True,
         "follow_priority_chain": "Do NOT skip levels. Always try #1 before #2, #2 before #3, etc. Escalate only when current level returns empty or insufficient.",
+        "fuzzy_then_targeted_then_internet": "Step 1: fuzzy queries (codegraph, messagesearch) for what we already know. Step 2: targeted searches (universalsearch, glob/grep) informed by step 1. Step 3: check if solution already exists before building from scratch.",
+        "hardware_check_first": "Before any GPU/compute work, ALWAYS check local hardware (nvidia-smi, etc.). Hardware state drifts during compaction — never assume GPU availability from memory.",
         "where_before_rg": "where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6/#7 when #1 returns empty.",
         "codegraph_before_grep": "codegraph tool is #2 for code structure — before glob (#5), grep (#6), or rg (#7). AST-parsed results from one call replace multi-file grep + Read loops.",
         "messagesearch_before_universalsearch": "messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context.",
@@ -2129,6 +2139,9 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Before claiming 'not found' or 'I don't know', agent must escalate through the priority chain",
         "Internal knowledge alone is never sufficient for answers below Inferred confidence",
         "Tool selection MUST follow priority chain order — do NOT skip to grep when codegraph answers in one call",
+        "Fuzzy queries first (#2 codegraph, #3 messagesearch) before random internet search (#4 universalsearch)",
+        "Check if solution already exists before building from scratch — don't reinvent the wheel",
+        "Hardware check BEFORE any GPU/compute work — nvidia-smi (#8) is Exact evidence. Never assume GPU from memory or conversation context.",
         "where.exe/which (priority #1) before any file search for executable location",
         "codegraph (priority #2) before glob/grep/Read for any code structure question",
         "messagesearch (priority #3) before universalsearch for conversation context",
@@ -2152,6 +2165,9 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
     forbidden_actions=[
         "Skipping priority chain levels without justification",
         "Claiming 'I don't know' or 'not found' without escalating through the chain",
+        "Going straight to internet search without first checking local indexes (codegraph, messagesearch)",
+        "Building from scratch without checking if existing solution exists — don't reinvent the wheel",
+        "Writing GPU code without first verifying actual hardware state via nvidia-smi",
         "Hardcoding executable paths (e.g., C:\\Program Files\\...)",
         "Using grep/glob/Read when codegraph tool can answer in one call",
         "Using rg/fd (always unbounded) when default glob/grep (.gitignore-bounded) suffices — use noIgnore=true on glob/grep first if you need to bypass .gitignore",

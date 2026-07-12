@@ -368,6 +368,16 @@ export const make = Effect.gen(function* () {
           const extra = fds(command.options)
           const dir = yield* cwd(command.options)
 
+          // On Windows, when calling cmd.exe directly (no shell mode), Node.js
+          // escapes inner quotes with \" via maybeQuote(), but cmd.exe does not
+          // understand \" escaping — it treats \" as \ followed by ", which breaks
+          // quoted paths with spaces like "C:\Program Files\...". Use verbatim
+          // arguments so the command string is passed literally to cmd.exe.
+          const useVerbatim =
+            !command.options.shell &&
+            process.platform === "win32" &&
+            /[\\/]cmd(?:\.exe)?$|^cmd(?:\.exe)?$/i.test(command.command)
+
           const [proc, signal] = yield* Effect.acquireRelease(
             spawn(command, {
               cwd: dir,
@@ -376,6 +386,7 @@ export const make = Effect.gen(function* () {
               detached: command.options.detached ?? process.platform !== "win32",
               shell: command.options.shell,
               windowsHide: process.platform === "win32",
+              windowsVerbatimArguments: useVerbatim || undefined,
             }),
             Effect.fnUntraced(function* ([proc, signal]) {
               const done = yield* Deferred.isDone(signal)

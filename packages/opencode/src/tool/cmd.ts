@@ -19,7 +19,6 @@ import { Plugin } from "@/plugin"
 import { Effect, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
-import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 
 const MAX_METADATA_LENGTH = 30_000
@@ -28,91 +27,120 @@ const CWD = new Set(["cd", "pushd", "popd"])
 
 // Known-safe read-only cmd commands that never trigger permission scanning.
 const SAFE = new Set([
-  "cls", "color", "date", "dir", "echo", "find", "findstr", "help",
-  "more", "path", "prompt", "sort", "time", "title", "tree", "type",
-  "ver", "vol",
+  "cls",
+  "color",
+  "dir",
+  "echo",
+  "find",
+  "findstr",
+  "help",
+  "more",
+  "path",
+  "prompt",
+  "sort",
+  "title",
+  "tree",
+  "type",
+  "ver",
+  "vol",
 ])
 
 // Filesystem-affecting cmd commands that need path scanning.
 const FILES = new Set([
   ...CWD,
-  "attrib", "copy", "del", "erase", "expand", "icacls", "mkdir",
-  "mklink", "move", "openfiles", "rd", "rename", "ren", "replace",
-  "rmdir", "takeown", "xcopy", "robocopy",
+  "attrib",
+  "copy",
+  "del",
+  "erase",
+  "expand",
+  "icacls",
+  "mkdir",
+  "mklink",
+  "move",
+  "openfiles",
+  "rd",
+  "rename",
+  "ren",
+  "replace",
+  "rmdir",
+  "takeown",
+  "xcopy",
+  "robocopy",
 ])
 
-interface Part { type: string; text: string }
+const POWERSHELL_SAFE = new Set(["get-location", "write-host", "write-output"])
+const POWERSHELL_FILES = new Set([
+  "add-content",
+  "copy-item",
+  "get-content",
+  "move-item",
+  "new-item",
+  "pop-location",
+  "push-location",
+  "remove-item",
+  "rename-item",
+  "set-content",
+  "set-location",
+])
 
-interface Scan { dirs: Set<string>; patterns: Set<string>; always: Set<string> }
+interface Part {
+  type: string
+  text: string
+}
 
-interface Chunk { text: string; size: number }
+interface Scan {
+  dirs: Set<string>
+  patterns: Set<string>
+  always: Set<string>
+}
+
+interface Chunk {
+  text: string
+  size: number
+}
 
 export const log = Log.create({ service: "cmd-tool" })
 
 // --- Batch grammar AST helpers ---
 
-    function parts(node: Node, ps: boolean): Part[] {
+function parts(node: Node, ps: boolean): Part[] {
   const out: Part[] = []
   if (ps) {
-    // PowerShell grammar AST traversal
     for (let i = 0; i < node.childCount; i++) {
       const child = node.child(i)
       if (!child) continue
-      if (child.type === "command") {
+      if (child.type === "command_elements") {
         for (let j = 0; j < child.childCount; j++) {
           const item = child.child(j)
-          if (!item) continue
-          if (item.type === "command_name" || item.type === "command_name_expr") {
-            out.push({ type: item.type, text: item.text })
-          } else if (item.type === "command_elements") {
-            for (let k = 0; k < item.childCount; k++) {
-              const arg = item.child(k)
-              if (!arg || arg.type === "redirection" || arg.type === "command_argument_sep") continue
-              out.push({ type: arg.type, text: arg.text })
-            }
-          }
+          if (!item || item.type === "redirection" || item.type === "command_argument_sep") continue
+          out.push({ type: item.type, text: item.text })
         }
+        continue
       }
-      if (child.type === "redirection") continue
+      if (child.type === "command_name" || child.type === "command_name_expr") {
+        out.push({ type: child.type, text: child.text })
+      }
     }
     return out
   }
 
-  // Batch grammar AST traversal
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i)
     if (!child) continue
-    if (child.type === "cmd") {
-      for (let j = 0; j < child.childCount; j++) {
-        const item = child.child(j)
-        if (!item) continue
-        if (item.type === "command_name") {
-          out.push({ type: "command_name", text: item.text })
-        }
-        if (item.type === "argument_list") {
-          for (let k = 0; k < item.childCount; k++) {
-            const arg = item.child(k)
-            if (!arg) continue
-            if (arg.type === "command_option" || arg.type === "argument_value" || arg.type === "string") {
-              out.push({ type: arg.type, text: arg.text })
-            } else if (arg.type !== "line_continuation") {
-              out.push({ type: arg.type, text: arg.text })
-            }
-          }
-        }
+    if (child.type === "command_name") {
+      out.push({ type: child.type, text: child.text })
+      continue
+    }
+    if (child.type !== "argument_list") continue
+    for (let j = 0; j < child.childCount; j++) {
+      const item = child.child(j)
+      if (!item || item.type === "line_continuation") continue
+      if (item.type === "command_option" || item.type === "argument_value" || item.type === "string") {
+        out.push({ type: item.type, text: item.text })
+        continue
       }
-      continue
+      out.push({ type: item.type, text: item.text })
     }
-    if (child.type === "redirection" || child.type === "redirect_stmt" ||
-        child.type === "pipe_stmt" || child.type === "cond_exec" ||
-        child.type === "command_sep" || child.type === "comment" ||
-        child.type === "label" || child.type === "variable_assignment" ||
-        child.type === "if_stmt" || child.type === "for_stmt" ||
-        child.type === "goto_stmt" || child.type === "call_stmt" ||
-        child.type === "exit_stmt" || child.type === "paren_expression") {
-      continue
-    }
-    out.push({ type: child.type, text: child.text })
   }
   return out
 }
@@ -130,8 +158,7 @@ function commands(node: Node, ps: boolean): Node[] {
 
 function hasRedirection(node: Node, ps: boolean): boolean {
   if (ps) return node.descendantsOfType("redirection").length > 0
-  return node.descendantsOfType("redirection").length > 0 ||
-    node.descendantsOfType("redirect_stmt").length > 0
+  return node.descendantsOfType("redirection").length > 0 || node.descendantsOfType("redirect_stmt").length > 0
 }
 
 function home(text: string) {
@@ -188,14 +215,37 @@ function pathArgs(list: Part[]): string[] {
   return list
     .slice(1)
     .filter((item) => !item.text.startsWith("-") && !item.text.startsWith("/"))
-    .map((item) => item.text)
+    .map((item) => {
+      const text = item.text
+      if (text.length >= 2 && text[0] === text.at(-1) && (text[0] === '"' || text[0] === "'")) {
+        return text.slice(1, -1)
+      }
+      return text
+    })
 }
 
 // Detect if a cmd.exe command is actually a PowerShell invocation.
 // When running through cmd.exe, `powershell -Command "..."` and `pwsh -Command "..."`
 // should be parsed with the PowerShell grammar for correct AST traversal.
 function isPowerShellCommand(command: string): boolean {
-  return /^(powershell|pwsh)(\.exe)?\b/i.test(command.trim())
+  const executable = command
+    .trim()
+    .match(/^(?:"([^"]+)"|'([^']+)'|(\S+))/)
+    ?.slice(1)
+    .find(Boolean)
+  if (!executable) return false
+  return /^(powershell|pwsh)(\.exe)?$/i.test(path.win32.basename(executable))
+}
+
+function powerShellScript(command: string) {
+  if (!isPowerShellCommand(command)) return
+  const match = command.trim().match(/^(?:"[^"]+"|'[^']+'|\S+)[\s\S]*?\s-(?:command|c)\s+([\s\S]+)$/i)
+  if (!match) return
+  const script = match[1].trim()
+  if (script.length >= 2 && script[0] === script.at(-1) && (script[0] === '"' || script[0] === "'")) {
+    return script.slice(1, -1)
+  }
+  return script
 }
 
 const parser = lazy(async () => {
@@ -225,8 +275,11 @@ const parser = lazy(async () => {
 })
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
-  return ChildProcess.make(command, [], {
-    shell,
+  // Use cmd /c directly (no shell mode) to avoid Node.js escaping inner
+  // quotes with \" — cmd.exe does not understand \" escaping and breaks
+  // on paths with spaces like "C:\Program Files\...".
+  // CrossSpawnSpawner auto-detects cmd.exe and sets windowsVerbatimArguments.
+  return ChildProcess.make(shell, ["/c", command], {
     cwd,
     env,
     stdin: "ignore",
@@ -258,13 +311,16 @@ export const CmdTool = Tool.define(
       const issues: string[] = []
       for (const p of paths) {
         if (/^[A-Za-z]:[\\\/][A-Za-z]:/.test(p)) {
-          issues.push(`"${p}" — invalid: double drive letter`); continue
+          issues.push(`"${p}" — invalid: double drive letter`)
+          continue
         }
         if (/^(C:\\Windows)(\\|\/|$)/i.test(p)) {
-          issues.push(`"${p}" — blocked: system directory`); continue
+          issues.push(`"${p}" — blocked: system directory`)
+          continue
         }
         if (/[\\/]\.git([\\/]|$)/.test(p)) {
-          issues.push(`"${p}" — blocked: .git directory`); continue
+          issues.push(`"${p}" — blocked: .git directory`)
+          continue
         }
         if (!p.includes("*") && !p.includes("?")) {
           try {
@@ -272,7 +328,9 @@ export const CmdTool = Tool.define(
             if (!require("fs").existsSync(resolved)) {
               issues.push(`"${p}" — path does not exist`)
             }
-          } catch {}
+          } catch (error) {
+            log.debug("failed to validate command path", { path: p, error })
+          }
         }
       }
       if (issues.length === 0) return undefined
@@ -284,9 +342,11 @@ export const CmdTool = Tool.define(
       for (const node of commands(root, ps)) {
         const command = parts(node, ps)
         const tokens = command.map((item) => item.text)
-        const cmdName = tokens[0]
-        if (cmdName && SAFE.has(cmdName) && !hasRedirection(node, ps)) continue
-        if (cmdName && FILES.has(cmdName)) {
+        const cmdName = tokens[0]?.toLowerCase()
+        const safe = ps ? POWERSHELL_SAFE : SAFE
+        const files = ps ? POWERSHELL_FILES : FILES
+        if (cmdName && safe.has(cmdName) && !hasRedirection(node, ps)) continue
+        if (cmdName && files.has(cmdName)) {
           for (const arg of pathArgs(command)) {
             const resolved = yield* argPath(arg, cwd)
             if (!resolved || Instance.containsPath(resolved)) continue
@@ -309,11 +369,35 @@ export const CmdTool = Tool.define(
         yield* ctx.ask({ permission: "external_directory", patterns: globs, always: globs, metadata: {} })
       }
       if (scan.patterns.size === 0) return
-      yield* ctx.ask({ permission: "bash" as any, patterns: Array.from(scan.patterns), always: Array.from(scan.always), metadata: {} })
+      yield* ctx.ask({
+        permission: "bash" as any,
+        patterns: Array.from(scan.patterns),
+        always: Array.from(scan.always),
+        metadata: {},
+      })
+    })
+
+    const shellEnv = Effect.fn("CmdTool.shellEnv")(function* (ctx: Tool.Context, cwd: string) {
+      const extra = yield* plugin.trigger(
+        "shell.env",
+        { cwd, sessionID: ctx.sessionID, callID: ctx.callID },
+        { env: {} },
+      )
+      return {
+        ...process.env,
+        ...extra.env,
+      }
     })
 
     const run = Effect.fn("CmdTool.run")(function* (
-      input: { shell: string; command: string; cwd: string; env: NodeJS.ProcessEnv; timeout: number; description: string },
+      input: {
+        shell: string
+        command: string
+        cwd: string
+        env: NodeJS.ProcessEnv
+        timeout: number
+        description: string
+      },
       ctx: Tool.Context,
     ) {
       const limits = yield* trunc.limits()
@@ -355,7 +439,13 @@ export const CmdTool = Tool.define(
                 if (fullBytes > limits.maxBytes) {
                   return trunc.write(chunks.join("")).pipe(
                     Effect.andThen((next) =>
-                      Effect.sync(() => { file = next; cut = true; sink = createWriteStream(next, { flags: "a" }); chunks.length = 0; fullBytes = 0 }),
+                      Effect.sync(() => {
+                        file = next
+                        cut = true
+                        sink = createWriteStream(next, { flags: "a" })
+                        chunks.length = 0
+                        fullBytes = 0
+                      }),
                     ),
                     Effect.andThen(ctx.metadata({ metadata: { output: last, description: input.description } })),
                   )
@@ -380,14 +470,23 @@ export const CmdTool = Tool.define(
             timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
           ])
 
-          if (exit.kind === "abort") { aborted = true; yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie) }
-          if (exit.kind === "timeout") { expired = true; yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie) }
+          if (exit.kind === "abort") {
+            aborted = true
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+          }
+          if (exit.kind === "timeout") {
+            expired = true
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+          }
           return exit.kind === "exit" ? exit.code : null
         }),
       ).pipe(Effect.orDie)
 
       const meta: string[] = []
-      if (expired) meta.push(`cmd tool terminated command after exceeding timeout ${input.timeout} ms. If this command is waiting for interactive keyboard input, run it through cmd_runner instead.`)
+      if (expired)
+        meta.push(
+          `cmd tool terminated command after exceeding timeout ${input.timeout} ms. If this command is waiting for interactive keyboard input, run it through cmd_runner instead.`,
+        )
       if (aborted) meta.push("User aborted the command")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
@@ -399,34 +498,42 @@ export const CmdTool = Tool.define(
       if (meta.length > 0) output += "\n\n<cmd_metadata>\n" + meta.join("\n") + "\n</cmd_metadata>"
       if (sink) {
         const stream = sink
-        yield* Effect.promise(() => new Promise<void>((resolve) => {
-          let settled = false
-          const done = () => { if (!settled) { settled = true; resolve() } }
-          stream.end(() => done())
-          stream.on("error", () => done())
-        }))
+        yield* Effect.promise(
+          () =>
+            new Promise<void>((resolve) => {
+              let settled = false
+              const done = () => {
+                if (!settled) {
+                  settled = true
+                  resolve()
+                }
+              }
+              stream.end(() => done())
+              stream.on("error", () => done())
+            }),
+        )
       }
       return {
         title: input.description,
-        metadata: { output: last || preview(output), exit: code, description: input.description, truncated: cut, ...(cut && file ? { outputPath: file } : {}) },
+        metadata: {
+          output: last || preview(output),
+          exit: code,
+          description: input.description,
+          truncated: cut,
+          ...(cut && file ? { outputPath: file } : {}),
+        },
         output,
       }
     })
 
-    const limits = yield* trunc.limits()
-    const instance = yield* InstanceState.context
-
     return {
-      description: DESCRIPTION.replaceAll("${directory}", instance.directory)
-        .replaceAll("${os}", process.platform)
-        .replaceAll("${maxLines}", String(limits.maxLines))
-        .replaceAll("${maxBytes}", String(limits.maxBytes)),
+      description: DESCRIPTION.replaceAll("${os}", process.platform)
+        .replaceAll("${maxLines}", String(Truncate.MAX_LINES))
+        .replaceAll("${maxBytes}", String(Truncate.MAX_BYTES)),
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          const cwd = params.workdir
-            ? yield* resolvePath(params.workdir, Instance.directory)
-            : Instance.directory
+          const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
           if (params.timeout !== undefined && params.timeout < 0) {
             throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
           }
@@ -438,9 +545,10 @@ export const CmdTool = Tool.define(
           const shell = process.env.COMSPEC || "cmd.exe"
 
           const p = yield* Effect.promise(() => parser())
-          const ps = isPowerShellCommand(params.command)
+          const script = powerShellScript(params.command)
+          const ps = script !== undefined
           const engine = ps ? p.ps : p.batch
-          const tree = engine.parse(params.command)
+          const tree = engine.parse(script ?? params.command)
           if (!tree) throw new Error("Failed to parse command")
           const root = tree.rootNode
           const scan = yield* collect(root, cwd, ps)
@@ -449,27 +557,45 @@ export const CmdTool = Tool.define(
           const allPaths = Array.from(scan.dirs)
           const pathWarnings = yield* validatePaths(allPaths, Instance.worktree)
           yield* ask(ctx, scan)
+          const env = yield* shellEnv(ctx, cwd)
 
           if (params.run_in_background) {
             const jobSvc = yield* Effect.serviceOption(Jobs.Service)
             if (jobSvc._tag === "None") {
-              return yield* run({ shell, command: params.command, cwd, env: process.env, timeout, description: params.description }, ctx)
+              return yield* run(
+                { shell, command: params.command, cwd, env, timeout, description: params.description },
+                ctx,
+              )
             }
             const jobID = yield* jobSvc.value.startEffect({
-              sessionID: ctx.sessionID, kind: "bash" as any, label: params.description || params.command.slice(0, 80),
+              sessionID: ctx.sessionID,
+              kind: "bash" as any,
+              label: params.description || params.command.slice(0, 80),
               run: Effect.gen(function* () {
-                const result = yield* run({ shell, command: params.command, cwd, env: process.env, timeout, description: params.description }, ctx)
+                const result = yield* run(
+                  { shell, command: params.command, cwd, env, timeout, description: params.description },
+                  ctx,
+                )
                 return result.output
               }),
             })
             return {
               title: `Background cmd ${jobID}`,
               output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use job_output to read its output, or job_wait to wait for completion.`,
-              metadata: { jobID, output: "", exit: null as number | null, description: params.description || params.command.slice(0, 80), truncated: false },
+              metadata: {
+                jobID,
+                output: "",
+                exit: null as number | null,
+                description: params.description || params.command.slice(0, 80),
+                truncated: false,
+              },
             } as any
           }
 
-          const result = yield* run({ shell, command: params.command, cwd, env: process.env, timeout, description: params.description }, ctx)
+          const result = yield* run(
+            { shell, command: params.command, cwd, env, timeout, description: params.description },
+            ctx,
+          )
           if (pathWarnings) result.output = `${pathWarnings}\n\n${result.output}`
           return result
         }),

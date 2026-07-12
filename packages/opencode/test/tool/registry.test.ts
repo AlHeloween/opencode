@@ -17,6 +17,20 @@ afterEach(async () => {
 })
 
 describe("tool.registry", () => {
+  it.live(
+    "exposes unique platform-appropriate built-in tool IDs",
+    () =>
+      provideTmpdirInstance(() =>
+        Effect.gen(function* () {
+          const registry = yield* ToolRegistry.Service
+          const ids = yield* registry.ids()
+          expect(new Set(ids).size).toBe(ids.length)
+          expect(ids.filter((id) => id === "cmd")).toHaveLength(process.platform === "win32" ? 1 : 0)
+        }),
+      ),
+    10_000,
+  )
+
   it.live("loads tools from .opencode/tool (singular)", () =>
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {

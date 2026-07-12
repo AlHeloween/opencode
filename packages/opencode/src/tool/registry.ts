@@ -245,7 +245,6 @@ export const layer: Layer.Layer<
             tool.invalid,
             ...(questionEnabled ? [tool.question] : []),
             tool.bash,
-            tool.cmd,
             tool.run,
             tool.read,
             tool.glob,

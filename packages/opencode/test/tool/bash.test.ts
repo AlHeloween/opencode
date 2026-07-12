@@ -293,6 +293,39 @@ describe("tool.bash permissions", () => {
   })
 
   if (process.platform === "win32") {
+    if (ps[0]) {
+      test(
+        "PowerShell filesystem commands request external_directory permission",
+        withShell(ps[0], async () => {
+          await using project = await tmpdir()
+          await using outside = await tmpdir()
+          const target = path.join(outside.path, "outside.txt")
+          await Bun.write(target, "keep")
+          await Instance.provide({
+            directory: project.path,
+            fn: async () => {
+              const tool = await initBash()
+              const requests: Array<Omit<Permission.Request, "id" | "sessionID" | "tool">> = []
+              const stop = new Error("stop after permission")
+              await expect(
+                Effect.runPromise(
+                  tool.execute(
+                    {
+                      command: `Remove-Item -LiteralPath '${target}'`,
+                      description: "Remove external file",
+                    },
+                    capture(requests, stop),
+                  ),
+                ),
+              ).rejects.toThrow(stop.message)
+              expect(requests[0]).toMatchObject({ permission: "external_directory" })
+              expect(await Bun.file(target).exists()).toBe(true)
+            },
+          })
+        }),
+      )
+    }
+
     if (bash) {
       test(
         "asks for nested bash command permissions [bash]",
@@ -1010,225 +1043,261 @@ describe("tool.bash permissions", () => {
 })
 
 describe("tool.bash abort", () => {
-  test("preserves output when aborted", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const controller = new AbortController()
-        const collected: string[] = []
-        const res = await Effect.runPromise(
-          bash.execute(
-            {
-              command: `echo before && sleep 30`,
-              description: "Long running command",
-            },
-            {
-              ...ctx,
-              abort: controller.signal,
-              metadata: (input) =>
-                Effect.sync(() => {
-                  const output = (input.metadata as { output?: string })?.output
-                  if (output && output.includes("before") && !controller.signal.aborted) {
-                    collected.push(output)
-                    controller.abort()
-                  }
-                }),
-            },
-          ),
-        )
-        expect(res.output).toContain("before")
-        expect(res.output).toContain("User aborted the command")
-        expect(collected.length).toBeGreaterThan(0)
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test(
+    "preserves output when aborted",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const controller = new AbortController()
+          const collected: string[] = []
+          const res = await Effect.runPromise(
+            bash.execute(
+              {
+                command: `echo before && sleep 30`,
+                description: "Long running command",
+              },
+              {
+                ...ctx,
+                abort: controller.signal,
+                metadata: (input) =>
+                  Effect.sync(() => {
+                    const output = (input.metadata as { output?: string })?.output
+                    if (output && output.includes("before") && !controller.signal.aborted) {
+                      collected.push(output)
+                      controller.abort()
+                    }
+                  }),
+              },
+            ),
+          )
+          expect(res.output).toContain("before")
+          expect(res.output).toContain("User aborted the command")
+          expect(collected.length).toBeGreaterThan(0)
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
-  test("terminates command on timeout", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: `echo started && sleep 60`,
-              description: "Timeout test",
-              timeout: 500,
-            },
-            ctx,
-          ),
-        )
-        expect(result.output).toContain("started")
-        expect(result.output).toContain("bash tool terminated command after exceeding timeout")
-        expect(result.output).toContain("retry with a larger timeout value in milliseconds")
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test(
+    "terminates command on timeout",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: `echo started && sleep 60`,
+                description: "Timeout test",
+                timeout: 500,
+              },
+              ctx,
+            ),
+          )
+          expect(result.output).toContain("started")
+          expect(result.output).toContain("bash tool terminated command after exceeding timeout")
+          expect(result.output).toContain("retry with a larger timeout value in milliseconds")
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
-  test.skipIf(process.platform === "win32")("captures stderr in output", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: `echo stdout_msg && echo stderr_msg >&2`,
-              description: "Stderr test",
-            },
-            ctx,
-          ),
-        )
-        expect(result.output).toContain("stdout_msg")
-        expect(result.output).toContain("stderr_msg")
-        expect(result.metadata.exit).toBe(0)
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test.skipIf(process.platform === "win32")(
+    "captures stderr in output",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: `echo stdout_msg && echo stderr_msg >&2`,
+                description: "Stderr test",
+              },
+              ctx,
+            ),
+          )
+          expect(result.output).toContain("stdout_msg")
+          expect(result.output).toContain("stderr_msg")
+          expect(result.metadata.exit).toBe(0)
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
-  test("returns non-zero exit code", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: `exit 42`,
-              description: "Non-zero exit",
-            },
-            ctx,
-          ),
-        )
-        expect(result.metadata.exit).toBe(42)
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test(
+    "returns non-zero exit code",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: `exit 42`,
+                description: "Non-zero exit",
+              },
+              ctx,
+            ),
+          )
+          expect(result.metadata.exit).toBe(42)
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
-  test("streams metadata updates progressively", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const updates: string[] = []
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: `echo first && sleep 1 && echo second`,
-              description: "Streaming test",
-            },
-            {
-              ...ctx,
-              metadata: (input) =>
-                Effect.sync(() => {
-                  const output = (input.metadata as { output?: string })?.output
-                  if (output) updates.push(output)
-                }),
-            },
-          ),
-        )
-        expect(result.output).toContain("first")
-        expect(result.output).toContain("second")
-        expect(updates.length).toBeGreaterThan(1)
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test(
+    "streams metadata updates progressively",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const updates: string[] = []
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: `echo first && sleep 1 && echo second`,
+                description: "Streaming test",
+              },
+              {
+                ...ctx,
+                metadata: (input) =>
+                  Effect.sync(() => {
+                    const output = (input.metadata as { output?: string })?.output
+                    if (output) updates.push(output)
+                  }),
+              },
+            ),
+          )
+          expect(result.output).toContain("first")
+          expect(result.output).toContain("second")
+          expect(updates.length).toBeGreaterThan(1)
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 })
 
 describe("tool.bash truncation", () => {
-  test("truncates output exceeding line limit", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const lineCount = Truncate.MAX_LINES + 500
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: fill("lines", lineCount),
-              description: "Generate lines exceeding limit",
-            },
-            ctx,
-          ),
-        )
-        mustTruncate(result)
-        expect(result.output).toMatch(/\.\.\.output truncated\.\.\./)
-        expect(result.output).toMatch(/Full output saved to:\s+\S+/)
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test(
+    "truncates output exceeding line limit",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const lineCount = Truncate.MAX_LINES + 500
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: fill("lines", lineCount),
+                description: "Generate lines exceeding limit",
+              },
+              ctx,
+            ),
+          )
+          mustTruncate(result)
+          expect(result.output).toMatch(/\.\.\.output truncated\.\.\./)
+          expect(result.output).toMatch(/Full output saved to:\s+\S+/)
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
-  test("truncates output exceeding byte limit", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const byteCount = Truncate.MAX_BYTES + 10000
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: fill("bytes", byteCount),
-              description: "Generate bytes exceeding limit",
-            },
-            ctx,
-          ),
-        )
-        mustTruncate(result)
-        expect(result.output).toMatch(/\.\.\.output truncated\.\.\./)
-        expect(result.output).toMatch(/Full output saved to:\s+\S+/)
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test(
+    "truncates output exceeding byte limit",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const byteCount = Truncate.MAX_BYTES + 10000
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: fill("bytes", byteCount),
+                description: "Generate bytes exceeding limit",
+              },
+              ctx,
+            ),
+          )
+          mustTruncate(result)
+          expect(result.output).toMatch(/\.\.\.output truncated\.\.\./)
+          expect(result.output).toMatch(/Full output saved to:\s+\S+/)
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
-  test("does not truncate small output", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: "echo hello",
-              description: "Echo hello",
-            },
-            ctx,
-          ),
-        )
-        expect((result.metadata as { truncated?: boolean }).truncated).toBe(false)
-        expect(result.output).toContain("hello")
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+  test(
+    "does not truncate small output",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: "echo hello",
+                description: "Echo hello",
+              },
+              ctx,
+            ),
+          )
+          expect((result.metadata as { truncated?: boolean }).truncated).toBe(false)
+          expect(result.output).toContain("hello")
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
-  test("full output is saved to file when truncated", async () => {
-    await Instance.provide({
-      directory: projectRoot,
-      fn: async () => {
-        const bash = await initBash()
-        const lineCount = Truncate.MAX_LINES + 100
-        const result = await Effect.runPromise(
-          bash.execute(
-            {
-              command: fill("lines", lineCount),
-              description: "Generate lines for file check",
-            },
-            ctx,
-          ),
-        )
-        mustTruncate(result)
+  test(
+    "full output is saved to file when truncated",
+    async () => {
+      await Instance.provide({
+        directory: projectRoot,
+        fn: async () => {
+          const bash = await initBash()
+          const lineCount = Truncate.MAX_LINES + 100
+          const result = await Effect.runPromise(
+            bash.execute(
+              {
+                command: fill("lines", lineCount),
+                description: "Generate lines for file check",
+              },
+              ctx,
+            ),
+          )
+          mustTruncate(result)
 
-        const filepath = (result.metadata as { outputPath?: string }).outputPath
-        expect(filepath).toBeTruthy()
+          const filepath = (result.metadata as { outputPath?: string }).outputPath
+          expect(filepath).toBeTruthy()
 
-        const saved = await Filesystem.readText(filepath!)
-        const lines = saved.trim().split(/\r?\n/)
-        expect(lines.length).toBe(lineCount)
-        expect(lines[0]).toBe("1")
-        expect(lines[lineCount - 1]).toBe(String(lineCount))
-      },
-    })
-  }, SHELL_TEST_TIMEOUT)
+          const saved = await Filesystem.readText(filepath!)
+          const lines = saved.trim().split(/\r?\n/)
+          expect(lines.length).toBe(lineCount)
+          expect(lines[0]).toBe("1")
+          expect(lines[lineCount - 1]).toBe(String(lineCount))
+        },
+      })
+    },
+    SHELL_TEST_TIMEOUT,
+  )
 
   describe("tool.bash stripCommand", () => {
     test("strips >/dev/null redirects", () => {

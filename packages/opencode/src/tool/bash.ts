@@ -4,6 +4,7 @@ import { createWriteStream } from "node:fs"
 import * as Tool from "./tool"
 import path from "path"
 import DESCRIPTION from "./bash.txt"
+import POWERSHELL_DESCRIPTION from "./powershell.txt"
 import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "../project/instance"
 import { lazy } from "@/util/lazy"
@@ -28,9 +29,64 @@ import { Jobs } from "@/jobs"
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
 const CWD = new Set(["cd", "popd", "pushd", "push-location", "set-location"])
-const FILES = new Set([
-  ...CWD,
-  "cat", "chmod", "chown", "cp", "ln", "mkdir", "mv", "rm", "touch",
+const FILES = new Set([...CWD, "cat", "chmod", "chown", "cp", "ln", "mkdir", "mv", "rm", "touch"])
+
+// cmd.exe-specific SAFE and FILES sets used when shell is cmd.exe on Windows.
+const CMD_SAFE = new Set([
+  "cls",
+  "color",
+  "dir",
+  "echo",
+  "find",
+  "findstr",
+  "help",
+  "more",
+  "path",
+  "prompt",
+  "sort",
+  "title",
+  "tree",
+  "type",
+  "ver",
+  "vol",
+])
+
+const CMD_FILES = new Set([
+  "cd",
+  "pushd",
+  "popd",
+  "attrib",
+  "copy",
+  "del",
+  "erase",
+  "expand",
+  "icacls",
+  "mkdir",
+  "mklink",
+  "move",
+  "openfiles",
+  "rd",
+  "rename",
+  "ren",
+  "replace",
+  "rmdir",
+  "takeown",
+  "xcopy",
+  "robocopy",
+])
+const POWERSHELL_SAFE = new Set(["get-location", "write-host", "write-output"])
+const POWERSHELL_FILES = new Set([
+  "add-content",
+  "copy-item",
+  "get-content",
+  "move-item",
+  "new-item",
+  "pop-location",
+  "push-location",
+  "remove-item",
+  "rename-item",
+  "set-content",
+  "set-location",
 ])
 const FLAGS = new Set(["-destination", "-literalpath", "-path"])
 const SWITCHES = new Set(["-confirm", "-debug", "-force", "-nonewline", "-recurse", "-verbose", "-whatif"])
@@ -45,11 +101,29 @@ const UNSAFE_FD_FLAGS = new Set(["--exec", "-x", "--exec-batch", "-X"])
 // When combined with shell redirections (> |), the redirection check catches them.
 const SAFE = new Set([
   // bash/POSIX — info/utility only
-  "basename", "dirname", "echo", "env", "false", "grep", "head", "ls",
-  "printf", "pwd", "sort", "tail", "true", "uniq", "wc", "which", "whoami",
+  "basename",
+  "dirname",
+  "echo",
+  "env",
+  "false",
+  "grep",
+  "head",
+  "ls",
+  "printf",
+  "pwd",
+  "sort",
+  "tail",
+  "true",
+  "uniq",
+  "wc",
+  "which",
+  "whoami",
 ])
 
-function hasRedirection(node: Node): boolean {
+function hasRedirection(node: Node, isCmd?: boolean): boolean {
+  if (isCmd) {
+    return node.descendantsOfType("redirection").length > 0 || node.descendantsOfType("redirect_stmt").length > 0
+  }
   return node.descendantsOfType("redirection").length > 0
 }
 
@@ -76,7 +150,8 @@ export const Parameters = Schema.Struct({
       "Clear, concise description of what this command does in 5-10 words. Examples:\nInput: ls\nOutput: Lists files in current directory\n\nInput: git status\nOutput: Shows working tree status\n\nInput: npm install\nOutput: Installs package dependencies\n\nInput: mkdir foo\nOutput: Creates directory 'foo'",
   }),
   run_in_background: Schema.optional(Schema.Boolean).annotate({
-    description: "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output later.",
+    description:
+      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output later.",
   }),
 })
 
@@ -98,7 +173,31 @@ type Chunk = {
 
 export const log = Log.create({ service: "bash-tool" })
 
-function parts(node: Node) {
+function parts(node: Node, isCmd?: boolean): Part[] {
+  if (isCmd) {
+    const out: Part[] = []
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i)
+      if (!child) continue
+      if (child.type === "command_name") {
+        out.push({ type: child.type, text: child.text })
+        continue
+      }
+      if (child.type !== "argument_list") continue
+      for (let j = 0; j < child.childCount; j++) {
+        const item = child.child(j)
+        if (!item || item.type === "line_continuation") continue
+        if (item.type === "command_option" || item.type === "argument_value" || item.type === "string") {
+          out.push({ type: item.type, text: item.text })
+          continue
+        }
+        out.push({ type: item.type, text: item.text })
+      }
+    }
+    return out
+  }
+
+  // Bash / PowerShell grammar AST traversal
   const out: Part[] = []
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i)
@@ -128,12 +227,15 @@ function parts(node: Node) {
   return out
 }
 
-function source(node: Node) {
+function source(node: Node, isCmd?: boolean) {
+  if (isCmd) {
+    return (node.parent?.type === "redirect_stmt" ? node.parent.text : node.text).trim()
+  }
   return (node.parent?.type === "redirected_statement" ? node.parent.text : node.text).trim()
 }
 
-function commands(node: Node) {
-  return node.descendantsOfType("command").filter((child): child is Node => Boolean(child))
+function commands(node: Node, isCmd?: boolean) {
+  return node.descendantsOfType(isCmd ? "cmd" : "command").filter((child): child is Node => Boolean(child))
 }
 
 function unquote(text: string) {
@@ -198,15 +300,23 @@ function prefix(text: string) {
   return text.slice(0, match.index)
 }
 
-function pathArgs(list: Part[], ps: boolean, shell: string) {
+function pathArgs(list: Part[], ps: boolean, shell: string, isCmd?: boolean) {
+  if (isCmd) {
+    // Batch grammar: filter out flags starting with / or -, keep positional args
+    return list
+      .slice(1)
+      .filter((item) => !item.text.startsWith("-") && !item.text.startsWith("/"))
+      .map((item) => item.text)
+  }
+
   if (!ps) {
-    const isCmd = !Shell.posix(shell)
+    const isCmdLike = !Shell.posix(shell)
     return list
       .slice(1)
       .filter(
         (item) =>
           !item.text.startsWith("-") &&
-          !(isCmd && item.text.startsWith("/")) &&
+          !(isCmdLike && item.text.startsWith("/")) &&
           !(list[0]?.text === "chmod" && item.text.startsWith("+")),
       )
       .map((item) => item.text)
@@ -268,8 +378,8 @@ function tail(text: string, maxLines: number, maxBytes: number) {
   }
 }
 
-const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolean) {
-  const tree = yield* Effect.promise(() => parser().then((p) => (ps ? p.ps : p.bash).parse(command)))
+const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolean, isCmd: boolean) {
+  const tree = yield* Effect.promise(() => parser().then((p) => (isCmd ? p.cmd : ps ? p.ps : p.bash).parse(command)))
   if (!tree) throw new Error("Failed to parse command")
   return tree.rootNode
 })
@@ -304,8 +414,24 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
   const result = stripCommand(command, shell)
   const stripped = result.command
   const normalized = process.platform === "win32" && Shell.posix(shell) ? normalizeCommandPaths(stripped) : stripped
+
+  // PowerShell on Windows: pass command via -Command flag (no shell wrapping)
   if (process.platform === "win32" && Shell.ps(shell)) {
     return ChildProcess.make(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", normalized], {
+      cwd,
+      env,
+      stdin: "ignore",
+      detached: false,
+    })
+  }
+
+  // cmd.exe on Windows: pass via cmd /c (no shell mode) to avoid Node.js
+  // wrapping the command with /d /s /c "...", which escapes inner quotes as
+  // \" — cmd.exe does not understand \" escaping and splits paths with spaces
+  // (e.g., "C:\Program Files\..." becomes \ + "C:\Program + rest).
+  // The CrossSpawnSpawner auto-detects this and sets windowsVerbatimArguments.
+  if (process.platform === "win32" && !Shell.posix(shell) && !Shell.ps(shell)) {
+    return ChildProcess.make(shell, ["/c", normalized], {
       cwd,
       env,
       stdin: "ignore",
@@ -318,7 +444,7 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
     cwd,
     env,
     stdin: "ignore",
-    detached: process.platform !== "win32",
+    detached: false,
   })
 }
 const parser = lazy(async () => {
@@ -393,10 +519,7 @@ export const BashTool = Tool.define(
       return yield* resolvePath(next, cwd, shell)
     })
 
-    const validatePaths = Effect.fn("BashTool.validatePaths")(function* (
-      paths: string[],
-      worktree: string,
-    ) {
+    const validatePaths = Effect.fn("BashTool.validatePaths")(function* (paths: string[], worktree: string) {
       const issues: string[] = []
       for (const p of paths) {
         // Double drive letter: D:\D:\path
@@ -421,24 +544,35 @@ export const BashTool = Tool.define(
             if (!require("fs").existsSync(resolved)) {
               issues.push(`"${p}" — path does not exist`)
             }
-          } catch {}
+          } catch (error) {
+            log.debug("failed to validate command path", { path: p, error })
+          }
         }
       }
       if (issues.length === 0) return undefined
       return `⚠ Path issues detected:\n${issues.map((i, n) => `  ${n + 1}. ${i}`).join("\n")}`
     })
 
-    const collect = Effect.fn("BashTool.collect")(function* (root: Node, cwd: string, ps: boolean, shell: string) {
+    const collect = Effect.fn("BashTool.collect")(function* (
+      root: Node,
+      cwd: string,
+      ps: boolean,
+      shell: string,
+      isCmd: boolean,
+    ) {
       const scan: Scan = {
         dirs: new Set<string>(),
         patterns: new Set<string>(),
         always: new Set<string>(),
       }
 
-      for (const node of commands(root)) {
-        const command = parts(node)
+      const cmdSafe = isCmd ? CMD_SAFE : ps ? POWERSHELL_SAFE : SAFE
+      const cmdFiles = isCmd ? CMD_FILES : ps ? POWERSHELL_FILES : FILES
+
+      for (const node of commands(root, isCmd)) {
+        const command = parts(node, isCmd)
         const tokens = command.map((item) => item.text)
-        const cmd = ps ? tokens[0]?.toLowerCase() : tokens[0]
+        const cmd = ps || isCmd ? tokens[0]?.toLowerCase() : tokens[0]
 
         // Auto-approve known-safe search tools (rg, fd) when not using dangerous flags
         if (cmd && isKnownSafeCommand(command)) {
@@ -447,12 +581,12 @@ export const BashTool = Tool.define(
 
         // Skip known-safe read-only commands entirely (no path scanning, no pattern scanning).
         // But if the command has shell redirections (> |), it can write files — don't skip it.
-        if (cmd && SAFE.has(cmd) && !hasRedirection(node)) {
+        if (cmd && cmdSafe.has(cmd) && !hasRedirection(node, isCmd)) {
           continue
         }
 
-        if (cmd && FILES.has(cmd)) {
-          for (const arg of pathArgs(command, ps, shell)) {
+        if (cmd && cmdFiles.has(cmd)) {
+          for (const arg of pathArgs(command, ps, shell, isCmd)) {
             const resolved = yield* argPath(arg, cwd, ps, shell)
             log.info("resolved path", { arg, resolved })
             if (!resolved || Instance.containsPath(resolved)) continue
@@ -468,7 +602,7 @@ export const BashTool = Tool.define(
         }
 
         if (tokens.length && (!cmd || !CWD.has(cmd))) {
-          scan.patterns.add(source(node))
+          scan.patterns.add(source(node, isCmd))
           scan.always.add(BashArity.prefix(tokens).join(" ") + " *")
         }
       }
@@ -669,7 +803,8 @@ export const BashTool = Tool.define(
         const instance = yield* InstanceState.context
 
         return {
-          description: DESCRIPTION.replaceAll("${directory}", instance.directory)
+          description: (Shell.ps(shell) ? POWERSHELL_DESCRIPTION : DESCRIPTION)
+            .replaceAll("${directory}", instance.directory)
             .replaceAll("${os}", process.platform)
             .replaceAll("${shell}", name)
             .replaceAll("${chaining}", chain)
@@ -688,10 +823,14 @@ export const BashTool = Tool.define(
               const ADM_TIMEOUT = 3 * 60 * 1000 // 3 min — adm --query needs model cold-load (~20-30s)
               const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
               const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
-              const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
+              const timeout =
+                params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
               const ps = Shell.ps(shell)
-              const root = yield* parse(params.command, ps)
-              const scan = yield* collect(root, cwd, ps, shell)
+              // On Windows: detect cmd.exe shell to select batch grammar + cmd SAFE/FILES.
+              // Shell.posix(shell) is false for cmd.exe; Shell.ps(shell) is false for cmd.exe.
+              const isCmd = process.platform === "win32" && !Shell.posix(shell) && !Shell.ps(shell)
+              const root = yield* parse(params.command, ps, isCmd)
+              const scan = yield* collect(root, cwd, ps, shell, isCmd)
               if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
 
               // Validate paths before execution — inform agent of issues
@@ -706,7 +845,14 @@ export const BashTool = Tool.define(
                 if (jobSvc._tag === "None") {
                   // Fallback to normal execution if Jobs not available
                   return yield* run(
-                    { shell, command: params.command, cwd, env: yield* shellEnv(ctx, cwd), timeout, description: params.description },
+                    {
+                      shell,
+                      command: params.command,
+                      cwd,
+                      env: yield* shellEnv(ctx, cwd),
+                      timeout,
+                      description: params.description,
+                    },
                     ctx,
                   )
                 }
@@ -716,7 +862,14 @@ export const BashTool = Tool.define(
                   label: params.description || params.command.slice(0, 80),
                   run: Effect.gen(function* () {
                     const result = yield* run(
-                      { shell, command: params.command, cwd, env: yield* shellEnv(ctx, cwd), timeout, description: params.description },
+                      {
+                        shell,
+                        command: params.command,
+                        cwd,
+                        env: yield* shellEnv(ctx, cwd),
+                        timeout,
+                        description: params.description,
+                      },
                       ctx,
                     )
                     return result.output
@@ -725,7 +878,13 @@ export const BashTool = Tool.define(
                 return {
                   title: `Background bash ${jobID}`,
                   output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use job_output to read its output, or job_wait to wait for completion.`,
-                  metadata: { jobID, output: "", exit: null as number | null, description: params.description || params.command.slice(0, 80), truncated: false },
+                  metadata: {
+                    jobID,
+                    output: "",
+                    exit: null as number | null,
+                    description: params.description || params.command.slice(0, 80),
+                    truncated: false,
+                  },
                 } as any
               }
 

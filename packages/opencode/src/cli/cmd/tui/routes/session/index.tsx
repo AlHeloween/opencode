@@ -5,6 +5,7 @@ import {
   createMemo,
   createSignal,
   For,
+  Index,
   Match,
   on,
   onCleanup,
@@ -25,7 +26,7 @@ import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import { renderMermaidToPngDataUrl } from "@/util/mermaid"
-  import { indexedMermaidSegments, splitTextSegments } from "./text-segments"
+  import { indexedMermaidSegments, splitTextSegments, type TextSegment } from "./text-segments"
 import type {
   AssistantMessage,
   Part,
@@ -1728,6 +1729,9 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
 
   const segments = createMemo(() => splitTextSegments(props.part.text))
 
+  const markdownSegmentText = (segment: TextSegment) => (segment.type === "markdown" ? segment.text : "")
+  const mermaidSegmentRaw = (segment: TextSegment) => (segment.type === "mermaid" ? segment.raw : "")
+
   // Progressive mermaid rendering — render each completed mermaid block as soon
   // as its fence closes, instead of waiting for the entire text part to finalize.
   // This means the diagram appears mid-stream when the LLM finishes the ```mermaid
@@ -1768,74 +1772,77 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   return (
     <Show when={segments().length > 0}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <For each={segments()}>
-          {(segment, index) =>
-            segment.type === "markdown" ? (
-              <Switch>
-                <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
-                  <markdown
-                    syntaxStyle={syntax()}
-                    streaming={streaming()}
-                    content={segment.text}
-                    conceal={ctx.conceal()}
-                    fg={theme.markdownText}
-                    bg={theme.background}
-                  />
-                </Match>
-                <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
-                  <code
-                    filetype="markdown"
-                    drawUnstyledText={false}
-                    streaming={streaming()}
-                    syntaxStyle={syntax()}
-                    content={healMarkdown(segment.text)}
-                    conceal={ctx.conceal()}
-                    fg={theme.text}
-  onHighlight={(() => {
-                      // Persist last successful highlights across async highlight calls.
-                      // Tree-sitter frequently returns zero highlights for incomplete
-                      // markdown mid-stream (e.g. unclosed **bold, unclosed code fences).
-                      // When that happens, @opentui/core's CodeRenderable overwrites the
-                      // styled text buffer with plain text — and sets _highlightsDirty=false,
-                      // so no re-highlight is ever attempted for that content.
-                      // By returning the last known good highlights, we keep the styled
-                      // path active and prevent the plain-text overwrite.
-                      // NOTE: The fallback is active even after streaming ends — tree-sitter
-                      // can return zero highlights for the final content push too, and
-                      // without the fallback the styled buffer is permanently lost.
-                      let lastHighlights: any[] = []
-                      return (highlights: any, context: any) => {
-                        if (highlights && highlights.length > 0) {
-                          lastHighlights = highlights
+        <Index each={segments()}>
+          {(segment, index) => (
+            <Switch>
+              <Match when={segment().type === "markdown"}>
+                <Switch>
+                  <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+                    <markdown
+                      syntaxStyle={syntax()}
+                      streaming={streaming()}
+                      content={markdownSegmentText(segment())}
+                      conceal={ctx.conceal()}
+                      fg={theme.markdownText}
+                      bg={theme.background}
+                    />
+                  </Match>
+                  <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+                    <code
+                      filetype="markdown"
+                      drawUnstyledText={false}
+                      streaming={streaming()}
+                      syntaxStyle={syntax()}
+                      content={healMarkdown(markdownSegmentText(segment()))}
+                      conceal={ctx.conceal()}
+                      fg={theme.text}
+                      onHighlight={(() => {
+                        // Persist last successful highlights across async highlight calls.
+                        // Tree-sitter frequently returns zero highlights for incomplete
+                        // markdown mid-stream (e.g. unclosed **bold, unclosed code fences).
+                        // When that happens, @opentui/core's CodeRenderable overwrites the
+                        // styled text buffer with plain text — and sets _highlightsDirty=false,
+                        // so no re-highlight is ever attempted for that content.
+                        // By returning the last known good highlights, we keep the styled
+                        // path active and prevent the plain-text overwrite.
+                        // NOTE: The fallback is active even after streaming ends — tree-sitter
+                        // can return zero highlights for the final content push too, and
+                        // without the fallback the styled buffer is permanently lost.
+                        let lastHighlights: any[] = []
+                        return (highlights: any, context: any) => {
+                          if (highlights && highlights.length > 0) {
+                            lastHighlights = highlights
+                            return highlights
+                          }
+                          if (lastHighlights.length > 0) {
+                            Log.Default.debug(
+                              "bug: tree-sitter returned ZERO highlights, falling back to last known",
+                              {
+                                partId: props.part.id,
+                                content: String(context?.content).slice(0, 200),
+                                lastCount: lastHighlights.length,
+                              },
+                            )
+                            return lastHighlights
+                          }
                           return highlights
                         }
-                        if (lastHighlights.length > 0) {
-                          Log.Default.debug(
-                            "bug: tree-sitter returned ZERO highlights, falling back to last known",
-                            {
-                              partId: props.part.id,
-                              content: String(context?.content).slice(0, 200),
-                              lastCount: lastHighlights.length,
-                            },
-                          )
-                          return lastHighlights
-                        }
-                        return highlights
-                      }
-                    })()}
-                  />
-                </Match>
-              </Switch>
-            ) : (
-              <Show
-                when={mermaidDataUrls()[index()]}
-                fallback={<text fg={theme.text}>{segment.raw}</text>}
-              >
-                <image-plane url={mermaidDataUrls()[index()]!} mime="image/png" width={70} />
-              </Show>
-            )
-          }
-        </For>
+                      })()}
+                    />
+                  </Match>
+                </Switch>
+              </Match>
+              <Match when={segment().type === "mermaid"}>
+                <Show
+                  when={mermaidDataUrls()[index]}
+                  fallback={<text fg={theme.text}>{mermaidSegmentRaw(segment())}</text>}
+                >
+                  <image-plane url={mermaidDataUrls()[index]!} mime="image/png" width={70} />
+                </Show>
+              </Match>
+            </Switch>
+          )}
+        </Index>
       </box>
     </Show>
   )

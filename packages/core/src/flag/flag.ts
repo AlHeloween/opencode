@@ -5,11 +5,6 @@ function truthy(key: string) {
   return value === "true" || value === "1"
 }
 
-function falsy(key: string) {
-  const value = process.env[key]?.toLowerCase()
-  return value === "false" || value === "0"
-}
-
 function number(key: string) {
   const value = process.env[key]
   if (!value) return undefined
@@ -87,7 +82,12 @@ export const Flag = {  get OPENCODE_AUTO_SHARE() { return (_configValues["OPENCO
   get OPENCODE_EXPERIMENTAL_LSP_TY() { return (_configValues["OPENCODE_EXPERIMENTAL_LSP_TY"] as boolean) ?? truthy("OPENCODE_EXPERIMENTAL_LSP_TY") },
   OPENCODE_EXPERIMENTAL_LSP_TOOL: OPENCODE_EXPERIMENTAL || truthy("OPENCODE_EXPERIMENTAL_LSP_TOOL"),
   OPENCODE_EXPERIMENTAL_PLAN_MODE: OPENCODE_EXPERIMENTAL || truthy("OPENCODE_EXPERIMENTAL_PLAN_MODE"),
-  OPENCODE_EXPERIMENTAL_MARKDOWN: !falsy("OPENCODE_EXPERIMENTAL_MARKDOWN"),
+  // The OpenTUI Markdown renderer owns nested CodeRenderables and currently
+  // forces them into streaming mode. Keep the controllable code renderer as
+  // the default until that dependency propagates the outer streaming state.
+  get OPENCODE_EXPERIMENTAL_MARKDOWN() {
+    return (_configValues["OPENCODE_EXPERIMENTAL_MARKDOWN"] as boolean) ?? truthy("OPENCODE_EXPERIMENTAL_MARKDOWN")
+  },
   OPENCODE_MODELS_URL: process.env["OPENCODE_MODELS_URL"],
   OPENCODE_MODELS_PATH: process.env["OPENCODE_MODELS_PATH"],
   get OPENCODE_DISABLE_EMBEDDED_WEB_UI() { return (_configValues["OPENCODE_DISABLE_EMBEDDED_WEB_UI"] as boolean) ?? truthy("OPENCODE_DISABLE_EMBEDDED_WEB_UI") },

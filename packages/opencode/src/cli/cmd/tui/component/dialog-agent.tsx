@@ -116,6 +116,29 @@ export function DialogAgent() {
       items.push(buildOption(agent, "Subagents"))
     }
 
+    // ── Recently used models (quick-assign to current agent) ──
+    const cur = local.agent.current()
+    const recents = local.model.recent()
+    for (const item of recents) {
+      const provider = sync.data.provider.find((x) => x.id === item.providerID)
+      if (!provider) continue
+      const modelInfo = provider.models[item.modelID]
+      if (!modelInfo) continue
+      const isCurrent = cur && cur.model?.providerID === item.providerID && cur.model?.modelID === item.modelID
+      items.push({
+        value: `__recent__${item.providerID}/${item.modelID}`,
+        title: modelInfo.name ?? item.modelID,
+        description: provider.name,
+        category: "Recently Used Models",
+        footer: isCurrent ? "✓ current" : cur ? `→ ${cur.name}` : undefined,
+        onSelect: () => {
+          if (!cur) return
+          local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true, agent: cur.name })
+          dialog.clear()
+        },
+      })
+    }
+
     // Status footer
     const status = statusLine()
     if (status) {

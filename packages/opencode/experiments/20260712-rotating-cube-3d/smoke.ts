@@ -5,6 +5,10 @@
  * internally — handles init(), frame callback registration, and buffer
  * management automatically.
  *
+ * CRITICAL: Do NOT call renderer.setFrameCallback() after creating a
+ * ThreeRenderable — it replaces the internal callback that drives rendering.
+ * Animation must happen via setInterval or similar non-competing mechanism.
+ *
  * Run: bun run experiments/20260712-rotating-cube-3d/smoke.ts
  * (from packages/opencode/)
  *
@@ -26,65 +30,65 @@ import {
   PointLight,
 } from "three"
 import { join } from "path"
+import { appendFileSync } from "fs"
 
 // ── Logger ──────────────────────────────────────────────────────────────────
-// Bun provides import.meta.dir as the file's directory path directly.
+// Use sync file I/O to guarantee the log is flushed on every write.
 
 const LOG_FILE = join(import.meta.dir, "smoke.log")
 
-async function writeLog(entry: string): Promise<void> {
-  const line = `[${new Date().toISOString()}] ${entry}\n`
+const LOG_BUF: string[] = []
+let LOG_FLUSHED = false
+
+function log(msg: string): void {
+  const line = `[${new Date().toISOString()}] ${msg}\n`
   process.stderr.write(line)
+  LOG_BUF.push(line)
+}
+
+function logError(err: unknown): void {
+  if (err instanceof Error) {
+    log(`  name: ${err.name}`)
+    log(`  message: ${err.message}`)
+    log(`  stack: ${(err.stack ?? "(no stack)").split("\n").slice(0, 6).join("\n    ")}`)
+    if (err.message?.includes("bun-webgpu") || err.message?.includes("WebGPU")) {
+      log("  => bun-webgpu or WebGPU unavailable")
+    }
+  } else {
+    log(`  raw: ${String(err)}`)
+  }
+}
+
+function flushLog(): void {
+  if (LOG_FLUSHED) return
+  LOG_FLUSHED = true
   try {
-    await Bun.write(Bun.file(LOG_FILE), line, { createPath: true })
+    appendFileSync(LOG_FILE, LOG_BUF.join(""), "utf-8")
   } catch (e) {
     process.stderr.write(`[LOGFAIL] ${e}\n`)
   }
 }
 
-async function logError(err: unknown): Promise<void> {
-  if (err instanceof Error) {
-    await writeLog(`  name: ${err.name}`)
-    await writeLog(`  message: ${err.message}`)
-    await writeLog(`  stack: ${(err.stack ?? "(no stack)").split("\n").slice(0, 8).join("\n    ")}`)
-    if (err.message?.includes("bun-webgpu") || err.message?.includes("WebGPU")) {
-      await writeLog("  => bun-webgpu or WebGPU unavailable. Need: Vulkan/DX12/Metal drivers + bun-webgpu@0.1.7")
-    }
-  } else {
-    await writeLog(`  raw: ${String(err)}`)
-  }
-}
-
-async function writeSection(title: string): Promise<void> {
-  await writeLog(`\n${"=".repeat(60)}`)
-  await writeLog(`  ${title}`)
-  await writeLog(`=${"=".repeat(59)}`)
-}
-
 // ── Configuration ──────────────────────────────────────────────────────────
 
 const TIMEOUT_MS = 30_000
-const TARGET_FPS = 30
 const CUBE_COLOR = 0x3b82f6
 
 // ── State ───────────────────────────────────────────────────────────────────
 
-let rotationY = 0
-let rotationX = 0
 let speedX = 0.01
 let speedY = 0.02
-let applyScanlineFx = false
+let scanlinesOn = false
 
 // ── Init ────────────────────────────────────────────────────────────────────
 
-await writeSection("START")
-await writeLog(`Log: ${LOG_FILE}`)
-await writeLog(`Bun: ${Bun.version} rev ${Bun.revision}`)
-await writeLog(`Platform: ${process.platform} arch: ${process.arch}`)
-await writeLog(`CWD: ${process.cwd()}`)
+log(`Log: ${LOG_FILE}`)
+log(`Bun: ${Bun.version} rev ${Bun.revision}`)
+log(`Platform: ${process.platform} arch: ${process.arch}`)
+log(`CWD: ${process.cwd()}`)
 
 const renderer = await Core.createCliRenderer({
-  targetFps: TARGET_FPS,
+  targetFps: 30,
   exitOnCtrlC: true,
 })
 renderer.setBackgroundColor("#0a0a1a")
@@ -92,7 +96,7 @@ renderer.start()
 
 const tw = renderer.terminalWidth
 const th = renderer.terminalHeight
-await writeLog(`Terminal: ${tw}×${th}`)
+log(`Terminal: ${tw}×${th}`)
 
 // ── Scene ───────────────────────────────────────────────────────────────────
 
@@ -100,15 +104,13 @@ const scene = new Scene()
 const camera = new PerspectiveCamera(45, tw / th, 0.1, 100)
 camera.position.z = 3.5
 
-const cube = new Mesh(new BoxGeometry(1.2, 1.2, 1.2), new MeshPhongMaterial({
-  color: CUBE_COLOR,
-  specular: 0x222222,
-  shininess: 40,
-}))
+const cube = new Mesh(
+  new BoxGeometry(1.2, 1.2, 1.2),
+  new MeshPhongMaterial({ color: CUBE_COLOR, specular: 0x222222, shininess: 40 }),
+)
 scene.add(cube)
 
-const ambient = new AmbientLight(0xffffff, 0.25)
-scene.add(ambient)
+scene.add(new AmbientLight(0xffffff, 0.25))
 
 const dirLight = new DirectionalLight(0xffffff, 0.9)
 dirLight.position.set(5, 5, 5)
@@ -118,15 +120,11 @@ const pointLight = new PointLight(0xff6b6b, 0.4, 100)
 pointLight.position.set(-3, 0, 3)
 scene.add(pointLight)
 
-await writeLog("Scene: cube + 3 lights")
+log("Scene: cube + 3 lights")
 
-// ── ThreeRenderable (higher-level API) ──────────────────────────────────────
-// ThreeRenderable wraps ThreeCliRenderer internally:
-//   - Creates its own frameBuffer
-//   - Calls engine.init() lazily on first render
-//   - Registers its own frame callback for continuous rendering
-//   - Renders scene + camera to its buffer on each frame
-//   - Displays the buffer via renderSelf()
+// ── ThreeRenderable ─────────────────────────────────────────────────────────
+// Registers its OWN frame callback via registerFrameCallback().
+// Do NOT call renderer.setFrameCallback() afterwards — it would replace it.
 
 let threeRenderable: ThreeRenderable | null = null
 
@@ -142,48 +140,13 @@ try {
     left: 0,
     top: 0,
   })
-  await writeLog("ThreeRenderable: constructor OK")
-  await writeLog("  init is lazy — engine.init() called on first render frame")
+  log("ThreeRenderable: OK (init lazy, frame callback registered)")
 } catch (err) {
-  await writeLog("ThreeRenderable: constructor FAILED")
-  await logError(err)
+  log("ThreeRenderable: constructor FAILED")
+  logError(err)
 }
 
-// ── Status text ─────────────────────────────────────────────────────────────
-
-const statusOk = threeRenderable !== null
-const statusText = new Core.TextRenderable(renderer, {
-  id: "cube-status",
-  content: statusOk
-    ? " ↑↓←→ speed | Space: FX | Q: exit "
-    : " ThreeRenderable failed — see smoke.log | Q: exit ",
-  position: "absolute",
-  left: Math.max(2, Math.floor(tw / 2) - 25),
-  top: th - 2,
-  fg: "#888899",
-  zIndex: 20,
-})
-renderer.root.add(statusText)
-
-// ── Keyboard ────────────────────────────────────────────────────────────────
-
-renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {
-  writeLog(`Key: name="${key.name}" ctrl=${key.ctrl}`)
-  switch (key.name) {
-    case "up":    speedX = Math.min(speedX + 0.01, 0.5); break
-    case "down":  speedX = Math.max(speedX - 0.01, -0.5); break
-    case "left":  speedY = Math.max(speedY - 0.01, -0.5); break
-    case "right": speedY = Math.min(speedY + 0.01, 0.5); break
-    case "space": applyScanlineFx = !applyScanlineFx; break
-    case "q":
-    case "escape":
-      writeLog("Quit — calling renderer.stop()")
-      try { renderer.stop() } catch {}
-      process.exit(0)
-  }
-})
-
-// ── Background box ──────────────────────────────────────────────────────────
+// ── Background (behind the 3D view) ─────────────────────────────────────────
 
 const bg = new Core.BoxRenderable(renderer, {
   id: "cube-bg",
@@ -196,35 +159,49 @@ const bg = new Core.BoxRenderable(renderer, {
 })
 renderer.root.add(bg)
 
-// Add ThreeRenderable on top of background
+// ThreeRenderable on top
 if (threeRenderable) renderer.root.add(threeRenderable)
 
-// ── Animation loop ──────────────────────────────────────────────────────────
-// ThreeRenderable has its own frame callback for rendering. We use a separate
-// timer to update the animation state (rotation, light position).
+// ── Status text (on top of everything) ──────────────────────────────────────
 
-let frameCount = 0
-renderer.setFrameCallback(async (deltaMs: number) => {
-  frameCount++
-  const dt = deltaMs / 16  // normalize to ~60fps frame units
+const statusText = new Core.TextRenderable(renderer, {
+  id: "cube-status",
+  content: threeRenderable
+    ? " ↑↓←→ speed | Space: FX | Q: exit "
+    : " ThreeRenderable failed — see smoke.log | Q: exit ",
+  position: "absolute",
+  left: Math.max(2, Math.floor(tw / 2) - 25),
+  top: th - 2,
+  fg: "#888899",
+  zIndex: 20,
+})
+renderer.root.add(statusText)
 
-  // Update animation state
-  rotationX += speedX * dt
-  rotationY += speedY * dt
-  cube.rotation.x = rotationX
-  cube.rotation.y = rotationY
+// ── Animation via setInterval ───────────────────────────────────────────────
+// IMPORTANT: Do NOT use renderer.setFrameCallback() here — ThreeRenderable
+// already registered its own. Animation state is updated independently and
+// picked up by ThreeRenderable's render callback on each frame.
 
+let animFrame = 0
+const animTimer = setInterval(() => {
+  animFrame++
+
+  // Rotate
+  cube.rotation.x += speedX
+  cube.rotation.y += speedY
+
+  // Orbit light
   const t = performance.now() * 0.001
   pointLight.position.x = Math.sin(t * 0.8) * 3
   pointLight.position.z = Math.cos(t * 0.8) * 3
 
-  // Log first 3 frames
-  if (frameCount <= 3 || frameCount % 300 === 0) {
-    await writeLog(`Frame #${frameCount}: rot=(${rotationX.toFixed(2)},${rotationY.toFixed(2)}) dt=${deltaMs.toFixed(1)}`)
+  // Log first 5 animation ticks
+  if (animFrame <= 5 || animFrame % 600 === 0) {
+    log(`Anim #${animFrame}: rot=(${cube.rotation.x.toFixed(2)},${cube.rotation.y.toFixed(2)})`)
   }
 
-  // Apply scanlines via post-fx (re-exported from @opentui/core index)
-  if (applyScanlineFx && threeRenderable) {
+  // Scanlines via ThreeRenderable's internal frameBuffer
+  if (scanlinesOn && threeRenderable) {
     try {
       const fb = (threeRenderable as any).frameBuffer
       if (fb) {
@@ -233,15 +210,37 @@ renderer.setFrameCallback(async (deltaMs: number) => {
       }
     } catch { /* best-effort */ }
   }
+}, 33) // ~30fps
+
+// ── Keyboard ────────────────────────────────────────────────────────────────
+
+renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {
+  log(`Key: "${key.name}"`)
+  switch (key.name) {
+    case "up":    speedX = Math.min(speedX + 0.01, 0.5); break
+    case "down":  speedX = Math.max(speedX - 0.01, -0.5); break
+    case "left":  speedY = Math.max(speedY - 0.01, -0.5); break
+    case "right": speedY = Math.min(speedY + 0.01, 0.5); break
+    case "space": scanlinesOn = !scanlinesOn; break
+    case "q":
+    case "escape":
+      log("Quit")
+      clearInterval(animTimer)
+      flushLog()
+      try { renderer.stop() } catch {}
+      process.exit(0)
+  }
 })
 
 // ── Timeout ─────────────────────────────────────────────────────────────────
 
-setTimeout(async () => {
-  await writeLog(`Timeout — ${frameCount} frames rendered`)
+setTimeout(() => {
+  log(`Timeout — ${animFrame} frames`)
+  clearInterval(animTimer)
+  flushLog()
   try { renderer.stop() } catch {}
-  await writeSection("END")
   process.exit(0)
 }, TIMEOUT_MS)
 
-await writeLog("Live. Auto-exit in 30s.")
+flushLog()
+log("Live. Auto-exit in 30s.")

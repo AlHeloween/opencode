@@ -25,15 +25,12 @@ import {
   AmbientLight,
   PointLight,
 } from "three"
-import { join, dirname } from "path"
-import { fileURLToPath } from "url"
+import { join } from "path"
 
 // ── Logger ──────────────────────────────────────────────────────────────────
+// Bun provides import.meta.dir as the file's directory path directly.
 
-const LOG_FILE = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "smoke.log",
-)
+const LOG_FILE = join(import.meta.dir, "smoke.log")
 
 async function writeLog(entry: string): Promise<void> {
   const line = `[${new Date().toISOString()}] ${entry}\n`

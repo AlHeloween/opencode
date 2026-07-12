@@ -416,6 +416,16 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 - **Desktop TypeScript version** (`packages/desktop/`, `packages/desktop-electron/`): Both pin `typescript@~5.6.2` while the rest of the monorepo uses `5.8.2` (via root catalog). This is intentional — Tauri Specta bindings and Electron tooling have known compatibility constraints with TS 5.8. Do not upgrade these packages without verifying Tauri/Electron builds.
 - **@opentui vs @opencode-ai/ui**: `@opentui/core` and `@opentui/solid` (catalog: `0.1.105`) are **external** dependencies installed in `node_modules/@opentui/`. The monorepo's own UI library is `@opencode-ai/ui` in `packages/ui/`. To search `@opentui` source, use `glob("**/opentui/**", { noIgnore: true })`.
 
+## Markdown Rendering Flag — DO NOT TOUCH
+
+**`OPENCODE_EXPERIMENTAL_MARKDOWN` must always default to `true`.** In upstream (anomalyco/opencode) this is not experimental — it is the standard markdown rendering path. The OpenTUI `<markdown>` renderable is the correct renderer for tables, folding, headings, and all GFM features. Flipping it to `false` silently breaks tables, collapsible sections, and other native markdown formatting.
+
+- Defined in `packages/core/src/flag/flag.ts` — uses `!falsy(...)` semantics (on-by-default)
+- The config-override `_setTest("OPENCODE_EXPERIMENTAL_MARKDOWN", false)` exists for testing only
+- The `<code filetype="markdown" onHighlight={...}>` fallback path with tree-sitter highlight preservation exists as a safety net for anyone who explicitly opts out — **never make it the default**
+
+If the OpenTUI `<markdown>` renderable has a bug (e.g., nested CodeRenderable streaming state), fix it in the renderable — do not work around it by flipping this flag.
+
 ## Completed Research
 
 Research analyses were removed. All findings were triaged and resolved — see `plans_completed/` for linked implementation plans.

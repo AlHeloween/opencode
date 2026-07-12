@@ -4,6 +4,7 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 
 const runtimeDataIgnore = ".opencode/data"
 const tempIgnore = ".temp"
+const codeGraphDir = ".codegraph"
 const acceptedRuntimeDataIgnores = new Set([
   runtimeDataIgnore,
   `${runtimeDataIgnore}/`,
@@ -13,6 +14,10 @@ const acceptedRuntimeDataIgnores = new Set([
   `${tempIgnore}/`,
   `/${tempIgnore}`,
   `/${tempIgnore}/`,
+  codeGraphDir,
+  `${codeGraphDir}/`,
+  `/${codeGraphDir}`,
+  `/${codeGraphDir}/`,
 ])
 
 function hasRuntimeDataIgnore(text: string) {
@@ -28,7 +33,9 @@ export function isRuntimeDataPath(file: string) {
     normalized === runtimeDataIgnore ||
     normalized.startsWith(`${runtimeDataIgnore}/`) ||
     normalized === tempIgnore ||
-    normalized.startsWith(`${tempIgnore}/`)
+    normalized.startsWith(`${tempIgnore}/`) ||
+    normalized === codeGraphDir ||
+    normalized.startsWith(`${codeGraphDir}/`)
   )
 }
 
@@ -40,10 +47,11 @@ export const ensureRuntimeDataIgnored = Effect.fn("ProjectGitignore.ensureRuntim
   const text = yield* fs.readFileString(file).pipe(Effect.catch(() => Effect.succeed("")))
   if (hasRuntimeDataIgnore(text)) return
 
-  // Add both .opencode/data and .temp if missing
+  // Add .opencode/data, .temp, and .codegraph if missing
   const linesToAdd = []
   if (!text.includes(".opencode/data")) linesToAdd.push(".opencode/data")
   if (!text.includes(".temp")) linesToAdd.push(".temp")
+  if (!text.includes(codeGraphDir)) linesToAdd.push(codeGraphDir)
   if (linesToAdd.length === 0) return
 
   yield* fs

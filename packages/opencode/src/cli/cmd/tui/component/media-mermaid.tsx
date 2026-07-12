@@ -13,19 +13,21 @@ export function MediaMermaid(props: { source: string }) {
   const [error, setError] = createSignal<string | null>(null)
 
   onMount(() => {
-    try {
-      const pngDataUrl = renderMermaidToPngDataUrl(props.source, {
-        theme: mode() === "dark" ? "dark" : "default",
-      })
-      if (!pngDataUrl) {
-        setError("Could not render diagram")
+    ;(async () => {
+      try {
+        const pngDataUrl = await renderMermaidToPngDataUrl(props.source, {
+          theme: mode() === "dark" ? "dark" : "default",
+        })
+        if (!pngDataUrl) {
+          setError("Could not render diagram")
+        }
+        setDataUrl(pngDataUrl)
+      } catch (err) {
+        log.warn("bug: mermaid render failed in MediaMermaid", { error: String(err) })
+        setError("Diagram render error")
       }
-      setDataUrl(pngDataUrl)
-    } catch (err) {
-      log.debug("failed to render mermaid diagram", { error: String(err) })
-      setError("Diagram render error")
-    }
-    setLoaded(true)
+      setLoaded(true)
+    })()
   })
 
   return (

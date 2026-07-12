@@ -1,5 +1,10 @@
-import { describe, expect, test } from "bun:test"
-import { renderMermaidToSvg, renderMermaidToPngDataUrl, renderSvgToPngDataUrl } from "../../src/util/mermaid"
+import { describe, expect, test, beforeEach } from "bun:test"
+import {
+  renderMermaidToSvg,
+  renderMermaidToPngDataUrl,
+  renderSvgToPngDataUrl,
+  resetRendererCache,
+} from "../../src/util/mermaid"
 
 describe("mermaid rendering", () => {
   const flowchart = `graph TD
@@ -19,33 +24,36 @@ describe("mermaid rendering", () => {
         +makeSound()
     }`
 
-  test("renderMermaidToSvg produces valid SVG", () => {
-    const svg = renderMermaidToSvg(flowchart)
+  // Reset lazy loader between tests so failures don't poison the cache
+  beforeEach(() => resetRendererCache())
+
+  test("renderMermaidToSvg produces valid SVG", async () => {
+    const svg = await renderMermaidToSvg(flowchart)
     expect(svg).not.toBeNull()
     expect(svg!).toContain("<svg")
     expect(svg!).toContain("</svg>")
   })
 
-  test("renderMermaidToSvg with dark theme", () => {
-    const svg = renderMermaidToSvg(flowchart, { theme: "dark" })
+  test("renderMermaidToSvg with dark theme", async () => {
+    const svg = await renderMermaidToSvg(flowchart, { theme: "dark" })
     expect(svg).not.toBeNull()
     expect(svg!).toContain("<svg")
   })
 
-  test("renderMermaidToSvg handles sequence diagram", () => {
-    const svg = renderMermaidToSvg(sequence)
+  test("renderMermaidToSvg handles sequence diagram", async () => {
+    const svg = await renderMermaidToSvg(sequence)
     expect(svg).not.toBeNull()
     expect(svg!).toContain("<svg")
   })
 
-  test("renderMermaidToSvg handles class diagram", () => {
-    const svg = renderMermaidToSvg(classDiagram)
+  test("renderMermaidToSvg handles class diagram", async () => {
+    const svg = await renderMermaidToSvg(classDiagram)
     expect(svg).not.toBeNull()
     expect(svg!).toContain("<svg")
   })
 
-  test("renderSvgToPngDataUrl produces valid data URL", () => {
-    const svg = renderMermaidToSvg(flowchart)
+  test("renderSvgToPngDataUrl produces valid data URL", async () => {
+    const svg = await renderMermaidToSvg(flowchart)
     expect(svg).not.toBeNull()
     const dataUrl = renderSvgToPngDataUrl(svg!)
     expect(dataUrl).not.toBeNull()
@@ -54,27 +62,27 @@ describe("mermaid rendering", () => {
     expect(dataUrl!.length).toBeGreaterThan(100)
   })
 
-  test("renderMermaidToPngDataUrl full pipeline", () => {
-    const dataUrl = renderMermaidToPngDataUrl(flowchart)
+  test("renderMermaidToPngDataUrl full pipeline", async () => {
+    const dataUrl = await renderMermaidToPngDataUrl(flowchart)
     expect(dataUrl).not.toBeNull()
     expect(dataUrl!).toMatch(/^data:image\/png;base64,/)
   })
 
-  test("renderMermaidToPngDataUrl with dark theme", () => {
-    const dataUrl = renderMermaidToPngDataUrl(flowchart, { theme: "dark" })
+  test("renderMermaidToPngDataUrl with dark theme", async () => {
+    const dataUrl = await renderMermaidToPngDataUrl(flowchart, { theme: "dark" })
     expect(dataUrl).not.toBeNull()
     expect(dataUrl!).toMatch(/^data:image\/png;base64,/)
   })
 
-  test("invalid mermaid returns null", () => {
-    const svg = renderMermaidToSvg("not valid mermaid ???")
+  test("invalid mermaid returns null", async () => {
+    const svg = await renderMermaidToSvg("not valid mermaid ???")
     // mermaid-wasm-renderer may return null or throw
     // The function should not throw — it catches errors
     expect(svg === null || typeof svg === "string").toBe(true)
   })
 
-  test("empty input returns null", () => {
-    const svg = renderMermaidToSvg("")
+  test("empty input returns null", async () => {
+    const svg = await renderMermaidToSvg("")
     expect(svg).toBeNull()
   })
 })

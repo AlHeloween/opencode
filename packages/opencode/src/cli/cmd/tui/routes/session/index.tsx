@@ -1742,31 +1742,31 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   createEffect(() => {
     // Watch segments() reactively — re-runs when streaming adds content
     const currentSegments = segments()
-    let changed = false
-    const rendered: Record<number, string> = { ...mermaidDataUrls() }
+    const pending: Promise<void>[] = []
     for (const { index, segment } of indexedMermaidSegments(currentSegments)) {
       // Skip if this block's source hasn't changed since last render
       if (renderedSources.get(index) === segment.source) {
-        if (rendered[index]) continue
+        if (mermaidDataUrls()[index]) continue
       }
-      changed = true
       renderedSources.set(index, segment.source)
-      try {
-        const pngDataUrl = renderMermaidToPngDataUrl(segment.source, {
-          theme: mode() === "dark" ? "dark" : "default",
+      // Render async — WASM is lazy-loaded, may be first load
+      renderMermaidToPngDataUrl(segment.source, {
+        theme: mode() === "dark" ? "dark" : "default",
+      })
+        .then((pngDataUrl) => {
+          if (pngDataUrl) {
+            setMermaidDataUrls((prev) => ({ ...prev, [index]: pngDataUrl }))
+          }
         })
-        if (pngDataUrl) rendered[index] = pngDataUrl
-      } catch (error) {
-        Log.Default.debug("mermaid render failed in TextPart", {
-          partId: props.part.id,
-          segment: index,
-          error: String(error),
+        .catch((error) => {
+          Log.Default.warn("bug: mermaid render failed in TextPart", {
+            partId: props.part.id,
+            segment: index,
+            error: String(error),
+          })
         })
-      }
     }
-    // Only update signal if something changed — prevents unnecessary re-renders
-    // on every streaming tick when mermaid blocks are unchanged
-    if (changed) setMermaidDataUrls(rendered)
+    // No synchronous changed-check needed — signal updates happen in .then()
   })
 
   return (

@@ -422,18 +422,73 @@ The `trailingUnstable` parameter:
 
 ```
 Mermaid source
+  → splitTextSegments() (text-segments.ts:9 regex)
   → renderMermaidToPngDataUrl (mermaid.ts:47)
-    → renderMermaidToSvg (mermaid.ts:20) — mermaid-wasm-renderer WASM
-    → renderSvgToPngDataUrl (mermaid.ts:31) — resvg-js rasterization
+    → getRenderer() lazy loader — first call dynamically imports WASM
+    → withTimeout() — 10s timeout guard
+    → renderMermaidToSvg (mermaid.ts) — mermaid-wasm-renderer v0.3.1 (Rust → WASM)
+    → renderSvgToPngDataUrl (mermaid.ts) — @resvg/resvg-js v2.6.2 (SVG → PNG)
   → PNG data URL → <image-plane> → TexturePlaneRenderable
-    → Three.js → WebGPU → block-char rendering → terminal
+    → @opentui/three (Three.js → WebGPU → block-char rendering) → terminal
 ```
 
 **Files:**
-- `packages/opencode/src/util/mermaid.ts` (68 lines) — WASM SVG → PNG pipeline
+- `packages/opencode/src/util/mermaid.ts` (85 lines) — WASM SVG → PNG pipeline, lazy loader, timeout
 - `packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts` (27 lines) — Text splitter for ` ```mermaid ` fences
 - `packages/opencode/src/cli/cmd/tui/component/texture-plane-renderable.ts` (90 lines) — Three.js 3D image renderable
 - `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` — text-part render integration (lines 1706-1728)
+
+### 6a. Lazy WASM Loader
+
+The `mermaid-wasm-renderer` package (`"type": "commonjs"`) reads a 2.8MB `.wasm` file synchronously at module load via `require('fs').readFileSync(__dirname + '/...bg.wasm')`. To avoid blocking startup:
+
+1. **Top-level import replaced with lazy `import()`** — triggered on first `renderMermaidToSvg()` call, not at module load
+2. **Concurrent call deduplication** — parallel first calls share one `Promise`
+3. **Cache reset** — `resetRendererCache()` clears the cached module for testing/recovery
+4. **Error isolation** — WASM load failures log `warn("bug:...")` and return `null`, don't crash the caller
+
+### 6b. Timeout Guard
+
+A 10-second timeout wraps every WASM render call via `Promise.race`:
+
+```
+Promise.race([
+    mod.renderSvg(source),     // Rust WASM render
+    timeout(10_000),           // Abort after 10s
+])
+```
+
+On timeout: logs `warn("bug: Mermaid render timed out after 10000ms")`, returns `null`.
+This prevents pathological diagrams (Rust recursion, infinite loop) from hanging the TUI.
+
+### 6c. Error Logging
+
+| Location | Before | After | Rationale |
+|----------|--------|-------|-----------|
+| `mermaid.ts:25` — WASM failure | `log.debug(...)` | `log.warn("bug: ...")` | Rendering failure is a real problem, not ignorable |
+| `mermaid.ts:41` — resvg failure | `log.debug(...)` | `log.warn("bug: ...")` | PNG conversion failure should be observable |
+| `index.tsx:1760` — TextPart failure | `Log.Default.debug(...)` | `Log.Default.warn("bug: ...")` | Silent blank image is a user-visible bug |
+| `media-mermaid.tsx:25` | `log.debug(...)` | `log.warn("bug: ...")` | Same — visible failure |
+
+### 6d. TexturePlaneRenderable Improvements
+
+| Improvement | Detail |
+|-------------|--------|
+| **Responsive width** | Defaults to 70% of terminal columns (capped at 80) instead of hardcoded 70 |
+| **Aspect-ratio height** | Height derived from actual image aspect ratio, not a fixed 0.5 fallback |
+| **Cleanup hardening** | Temp file deletion is always `try/catch` in `finally` |
+| **Error visibility** | Failures log `warn("bug: ...")` instead of silent failures |
+
+### 6e. Identified Limitations
+
+| Issue | Impact | Status |
+|-------|--------|--------|
+| No progressive preview during streaming | Users see raw source code until closing ``` fence | Unresolved — needs mermaid partial-render support in WASM |
+| `__dirname` in bundled binary | `bun build --compile` fails if `__dirname` is undefined at runtime | Mitigated by lazy `import()` — at least error is caught gracefully |
+| MediaMermaid component (`media-mermaid.tsx`) dead code | Never imported — all mermaid goes through TextPart | Unresolved — needs import integration or removal |
+| No font registered with WASM renderer | Text metrics are approximate, non-Latin text may misalign | Unresolved — needs `registerFont(fontBytes)` call from host |
+| Strict regex for fence detection (case-sensitive, 3 backticks) | Non-standard mermaid blocks don't match | Low priority — all LLM outputs use standard fencing |
+| Streaming gap — incomplete blocks show as raw code | Visual source-code flash on every mermaid block | Low priority — needs partial SVG rendering during stream |
 
 ### Progressive Rendering (2026-07-12 improvement)
 

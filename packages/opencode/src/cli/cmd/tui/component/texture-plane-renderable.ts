@@ -5,6 +5,10 @@
  * Three.js is a static import — required for standalone binary bundling.
  *
  * Registered as <image-plane> via extend() in app.tsx.
+ *
+ * Width defaults to 70% of terminal columns (capped at 80) for responsive sizing.
+ * Temp files are used for Three.js texture loading (loadTextureFromFile requires
+ * a file path) but are cleaned up immediately after loading completes.
  */
 import { Renderable, type RenderContext, type RenderableOptions } from "@opentui/core"
 import * as THREE from "three"
@@ -17,6 +21,12 @@ export interface TexturePlaneOptions extends RenderableOptions<TexturePlaneRende
   mime?: string
 }
 
+/** Default display width in character cells — 70% of terminal columns, capped at 80 */
+function defaultDisplayWidth(): number {
+  const cols = process.stdout.columns ?? 80
+  return Math.max(20, Math.min(80, Math.round(cols * 0.7)))
+}
+
 export class TexturePlaneRenderable extends Renderable {
   private url: string
   private mime: string
@@ -26,7 +36,9 @@ export class TexturePlaneRenderable extends Renderable {
     super(ctx, options)
     this.url = options.url
     this.mime = options.mime ?? "image/png"
-    // Default height for portrait images (492×960 → ~0.5 aspect)
+    // Responsive default width
+    if (!options.width) this.width = defaultDisplayWidth()
+    // Default height is aspect-ratio based (portrait 0.5 fallback)
     if (!options.height) this.height = Math.round((this.width || 70) / 0.5)
     this.setup(ctx)
   }
@@ -44,7 +56,10 @@ export class TexturePlaneRenderable extends Renderable {
       if (!base64 || base64.length === 0) return
 
       const ext = this.mime === "image/jpeg" ? ".jpg" : ".png"
-      const tmpFile = join(tmpdir(), `opencode_plane_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${ext}`)
+      const tmpFile = join(
+        tmpdir(),
+        `opencode_plane_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${ext}`,
+      )
       writeFileSync(tmpFile, Buffer.from(base64, "base64"))
 
       try {
@@ -81,7 +96,9 @@ export class TexturePlaneRenderable extends Renderable {
         this.requestRender()
         log.debug("TexturePlaneRenderable: child ready", { pw, ph })
       } finally {
-        try { if (existsSync(tmpFile)) unlinkSync(tmpFile) } catch { /* cleanup */ }
+        try {
+          if (existsSync(tmpFile)) unlinkSync(tmpFile)
+        } catch { /* cleanup — temp file deletion is best-effort */ }
       }
     } catch (err) {
       log.warn("bug: TexturePlaneRenderable setup failed", { error: String(err) })

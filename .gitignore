@@ -69,8 +69,12 @@ external/
 .git/
 **/.git/
 
-# Fossil
+# Fossil SCM — checkout markers, repositories, lock/temp files
 *.fsl
 .fossil-settings/
-_FOSSIL_  
+_FOSSIL_
+_fossil
+.fslckout
+FSL_*.db
+FSL_*.db-journal
 experiments/20260707-RenderingTest/  

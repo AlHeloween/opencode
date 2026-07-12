@@ -1681,14 +1681,13 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         customBorderChars={SplitBorder.customBorderChars}
         borderColor={theme.backgroundElement}
       >
-        <code
-          filetype="markdown"
-          drawUnstyledText={false}
-          streaming={!props.part.time?.end}
+        <markdown
           syntaxStyle={subtleSyntax()}
-          content={"_Thinking:_ " + content()}
+          streaming={!props.part.time?.end}
+          content={"*Thinking:* " + content()}
           conceal={ctx.conceal()}
           fg={theme.textMuted}
+          bg={theme.background}
         />
       </box>
     </Show>

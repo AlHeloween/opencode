@@ -430,10 +430,9 @@ export function Session() {
   }
 
   function toBottom() {
-    setTimeout(() => {
-      if (!scroll || scroll.isDestroyed) return
-      scroll.scrollTo(scroll.scrollHeight)
-    }, 50)
+    if (!scroll || scroll.isDestroyed) return
+    scroll.scrollTo(scroll.scrollHeight)
+    scroll.requestRender()
   }
 
   function moveFirstChild() {
@@ -1239,6 +1238,7 @@ export function Session() {
               stickyStart="bottom"
               flexGrow={1}
               scrollAcceleration={scrollAcceleration()}
+              viewportCulling={true}
             >
               <box height={1} />
               <For each={messagesList()}>

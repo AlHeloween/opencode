@@ -25,6 +25,7 @@ export const TuiOptions = z.object({
     .optional()
     .describe("Control diff rendering style: 'auto' adapts to terminal width, 'stacked' always shows single column"),
   mouse: z.boolean().optional().describe("Enable or disable mouse capture (default: true)"),
+  gather_stats: z.boolean().optional().describe("Enable renderer performance stats collection (default: false)"),
   image_protocol: z
     .enum([...GRAPHICS_PROTOCOLS, "auto"] as [string, ...string[]])
     .optional()

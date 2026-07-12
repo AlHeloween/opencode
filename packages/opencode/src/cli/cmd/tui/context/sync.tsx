@@ -114,6 +114,11 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     // Buffer deltas that arrive before the part is in the store.
     // Keyed by messageID → partID → accumulated delta text.
     const deltaBuffer = new Map<string, Map<string, string>>()
+    const deltaBufferTimestamps = new Map<string, number>()
+
+    // Hard caps on delta buffer to prevent memory creep from orphaned entries.
+    const MAX_DELTA_BUFFER_SIZE = 500
+    const DELTA_BUFFER_TTL_MS = 30_000
 
     // Debounce recovery sync calls per session to prevent cascading thrash.
     const recoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -121,10 +126,23 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     // Fields that may receive incremental text deltas (safe for string concatenation).
     const DELTA_SAFE_FIELDS = new Set(["text", "output"])
 
+    function pruneDeltaBuffer() {
+      // Remove entries exceeding TTL
+      const cutoff = Date.now() - DELTA_BUFFER_TTL_MS
+      for (const [messageID, ts] of deltaBufferTimestamps) {
+        if (ts < cutoff) {
+          deltaBuffer.delete(messageID)
+          deltaBufferTimestamps.delete(messageID)
+        }
+      }
+    }
+
     function flushDeltaBuffer(messageID: string) {
+      pruneDeltaBuffer()
       const buffer = deltaBuffer.get(messageID)
       if (!buffer) return
       deltaBuffer.delete(messageID)
+      deltaBufferTimestamps.delete(messageID)
 
       const parts = store.part[messageID]
       if (!parts) return
@@ -340,6 +358,11 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             setStore("part", produce((draft) => {
               for (const mid of messageIDs) delete draft[mid]
             }))
+            // Also wipe delta buffer entries for evicted messages
+            for (const mid of messageIDs) {
+              deltaBuffer.delete(mid)
+              deltaBufferTimestamps.delete(mid)
+            }
           })
           break
         }
@@ -401,6 +424,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
                     delete draft[oldest.id]
                   }),
                 )
+                // Cleanup delta buffer for evicted message
+                deltaBuffer.delete(oldest.id)
+                deltaBufferTimestamps.delete(oldest.id)
               })
             }
           }
@@ -457,9 +483,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           // Buffer delta — the part may arrive shortly in part.updated
           let buffer = deltaBuffer.get(messageID)
           if (!buffer) {
+            // Evict oldest entry if buffer is full
+            if (deltaBuffer.size >= MAX_DELTA_BUFFER_SIZE) {
+              const first = deltaBuffer.keys().next().value
+              if (first !== undefined) {
+                deltaBuffer.delete(first)
+                deltaBufferTimestamps.delete(first)
+              }
+            }
             buffer = new Map()
             deltaBuffer.set(messageID, buffer)
           }
+          deltaBufferTimestamps.set(messageID, Date.now())
           const existing = buffer.get(partID) ?? ""
           buffer.set(partID, existing + delta)
           break
@@ -469,9 +504,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           // Buffer delta — part may arrive shortly
           let buffer = deltaBuffer.get(messageID)
           if (!buffer) {
+            // Evict oldest entry if buffer is full
+            if (deltaBuffer.size >= MAX_DELTA_BUFFER_SIZE) {
+              const first = deltaBuffer.keys().next().value
+              if (first !== undefined) {
+                deltaBuffer.delete(first)
+                deltaBufferTimestamps.delete(first)
+              }
+            }
             buffer = new Map()
             deltaBuffer.set(messageID, buffer)
           }
+          deltaBufferTimestamps.set(messageID, Date.now())
           const existing = buffer.get(partID) ?? ""
           buffer.set(partID, existing + delta)
           break

@@ -2069,57 +2069,95 @@ No preamble, postamble, or code explanation unless asked.""",
 # ======================================================================
 
 GROUNDING_RULES = _spec(
-    intent="""Evidence-gathering hierarchy and platform-specific executable search.
+    intent="""Complete grounding hierarchy and search tool priority chain.
+Every search must follow the ordered priority chain — do not skip levels.
 Internal knowledge is the weakest evidence. When internal grounding is insufficient
-(InfoMarkLevel below Inferred), the agent MUST search externally (web search, docs,
-code search via universalsearch/webfetch) before claiming absence or uncertainty.
-Executable discovery must use the platform-native resolver — where.exe on Windows,
-which on Linux/macOS — never assume PATH resolution or hardcoded paths.""",
+(InfoMarkLevel below Inferred), escalate through the chain before claiming absence.
+
+Grounding priority chain (fastest/exact first, broadest/recursive last):
+  1. where.exe / which      — OS PATH lookup for executables (instant, exact)
+  2. codegraph              — pre-indexed code graph for structural code questions
+  3. messagesearch          — conversation/session history search
+  4. universalsearch        — web search, code search (Sourcegraph), agent research
+  5. glob                   — file pattern matching (bounded by .gitignore)
+  6. grep                   — content search (bounded by .gitignore)
+  Fallback: rg, fd          — unbounded recursive search (bypass .gitignore)
+  Hardware: nvidia-smi etc. — local hardware diagnostics (GPU, memory, etc.)""",
 
     state={
-        "evidence_hierarchy": [
-            "1. Direct observation (oracle output, test results, measurements)",
-            "2. Verified external source (web search, documentation, code search)",
-            "3. Inferred from grounded evidence (high-confidence reasoning)",
-            "4. Hypothetical (requires external validation before acting)",
-            "5. Guessing (never act on guesses — always escalate to search first)",
+        "search_priority_chain": [
+            "1. where.exe / which     — OS PATH, executable lookup",
+            "2. codegraph             — code structure, symbols, call graph",
+            "3. messagesearch         — prior conversation context",
+            "4. universalsearch       — web, global code (Sourcegraph), agent research",
+            "5. glob                  — file pattern match (default: .gitignore-bounded; noIgnore=true bypasses)",
+            "6. grep                  — content search (default: .gitignore-bounded; noIgnore=true bypasses)",
+            "7. rg / fd               — shell-based, always unbounded (bypass .gitignore)",
+            "8. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
+        ],
+        "search_priority_chain": [
+            "1. where.exe / which     — OS PATH, executable lookup",
+            "2. codegraph             — code structure, symbols, call graph",
+            "3. messagesearch         — prior conversation context",
+            "4. universalsearch       — web, global code (Sourcegraph), agent research",
+            "5. glob                  — .gitignore-bounded file pattern match",
+            "6. grep                  — .gitignore-bounded content search",
+            "7. rg / fd               — unbounded recursive search (bypass .gitignore)",
+            "8. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
         ],
         "platform_executable_search": {
-            "win32": "where.exe <name>  — Windows native, checks PATH + current dir",
-            "linux": "which <name>      — POSIX standard, checks PATH",
-            "darwin": "which <name>     — POSIX standard, checks PATH",
+            "win32": "where.exe <name>  — Windows native, checks PATH + current dir. Priority #1 before any file search.",
+            "linux": "which <name>      — POSIX standard, checks PATH. Priority #1 before any file search.",
+            "darwin": "which <name>     — POSIX standard, checks PATH. Priority #1 before any file search.",
         },
     },
 
-    scope="all agent operations, evidence gathering, executable discovery before file operations",
+    scope="all agent operations, evidence gathering, tool selection priority, search ordering",
 
     constraints={
         "grounding_hierarchy_enforced": True,
         "search_before_uncertainty": True,
-        "platform_executable_search": True,
+        "follow_priority_chain": "Do NOT skip levels. Always try #1 before #2, #2 before #3, etc. Escalate only when current level returns empty or insufficient.",
+        "where_before_rg": "where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6/#7 when #1 returns empty.",
+        "codegraph_before_grep": "codegraph tool is #2 for code structure — before glob (#5), grep (#6), or rg (#7). AST-parsed results from one call replace multi-file grep + Read loops.",
+        "messagesearch_before_universalsearch": "messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context.",
         "no_path_hardcoding": True,
         "web_search_for_grounding": True,
     },
 
     invariants=[
-        "Before claiming 'not found' or 'I don't know', agent must have searched externally",
+        "Before claiming 'not found' or 'I don't know', agent must escalate through the priority chain",
         "Internal knowledge alone is never sufficient for answers below Inferred confidence",
-        "Executable location must use where.exe (Windows) or which (Linux/macOS) — never assume",
-        "Universal search (universalsearch/webfetch) must precede hypothetical claims",
+        "Tool selection MUST follow priority chain order — do NOT skip to grep when codegraph answers in one call",
+        "where.exe/which (priority #1) before any file search for executable location",
+        "codegraph (priority #2) before glob/grep/Read for any code structure question",
+        "messagesearch (priority #3) before universalsearch for conversation context",
+        "Universal search (priority #4) must precede hypothetical claims",
+        "glob/grep default to .gitignore-bounded but can bypass with noIgnore=true. rg/fd (priority #7) are always unbounded — use default glob/grep first.",
+        "Hardware diagnostics (nvidia-smi etc.) are Exact evidence for local hardware state",
         "Platform detection via os.name / sys.platform determines which search tool to use",
     ],
 
     acceptance_tests=[
-        "Agent searches externally before claiming uncertainty",
-        "Executable paths resolved via where.exe/which, not hardcoded",
-        "Evidence hierarchy respected: Exact > Verified External > Inferred > Hypothetical > Guess",
+        "Agent follows priority chain — does not skip levels",
+        "Agent uses where.exe/which (priority #1) before any file search for executables",
+        "Agent uses codegraph (priority #2) before grep/glob/Read for code structure",
+        "Agent uses messagesearch (priority #3) before universalsearch for conversation",
+        "Agent uses universalsearch (priority #4) before hypothetical claims",
+        "Agent uses glob/grep (priority #5/#6) before unbounded rg/fd (priority #7)",
+        "Hardware queries use native tools (nvidia-smi, etc.) — Exact evidence",
+        "Evidence hierarchy respected: Observation > CodeGraph > Ext Source > Inferred > Hypothetical > Guess",
     ],
 
     forbidden_actions=[
-        "Claiming 'I don't know' or 'not found' without external search",
+        "Skipping priority chain levels without justification",
+        "Claiming 'I don't know' or 'not found' without escalating through the chain",
         "Hardcoding executable paths (e.g., C:\\Program Files\\...)",
+        "Using grep/glob/Read when codegraph tool can answer in one call",
+        "Using rg/fd (always unbounded) when default glob/grep (.gitignore-bounded) suffices — use noIgnore=true on glob/grep first if you need to bypass .gitignore",
+        "Using rg/fd/glob/grep to find an executable that where.exe/which resolves instantly",
         "Assuming PATH contains an executable without verifying via where.exe/which",
-        "Using internal guesswork when web search is available and needed",
+        "Using internal guesswork when universalsearch is available and needed",
         "Bypassing the evidence hierarchy for convenience",
     ],
 )

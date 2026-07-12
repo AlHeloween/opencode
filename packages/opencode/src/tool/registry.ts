@@ -17,6 +17,7 @@ import { SkillTool } from "./skill"
 import { ListTool } from "./ls"
 import { MultiEditTool } from "./multiedit"
 import { UniversalSearchTool } from "./universalsearch"
+import { CodeGraphTool } from "./codegraph"
 import { MessageSearchTool } from "./messagesearch"
 import { CapabilityTool } from "./capability"
 import { PipelineTool } from "./pipeline"
@@ -132,6 +133,7 @@ export const layer: Layer.Layer<
     const listtool = yield* ListTool
     const multiedit = yield* MultiEditTool
     const universalsearch = yield* UniversalSearchTool
+    const codegraph = yield* CodeGraphTool
     const messagesearch = yield* MessageSearchTool
     const sessionread = yield* SessionReadTool
     const joboutput = yield* JobOutputTool
@@ -231,6 +233,7 @@ export const layer: Layer.Layer<
           list: Tool.init(listtool),
           multiedit: Tool.init(multiedit),
           universalsearch: Tool.init(universalsearch),
+          codegraph: Tool.init(codegraph),
           messagesearch: Tool.init(messagesearch),
           sessionread: Tool.init(sessionread),
           joboutput: Tool.init(joboutput),
@@ -260,6 +263,7 @@ export const layer: Layer.Layer<
             tool.list,
             tool.multiedit,
             tool.universalsearch,
+            tool.codegraph,
             tool.messagesearch,
             tool.sessionread,
             tool.joboutput,

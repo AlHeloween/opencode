@@ -1,19 +1,20 @@
 /**
  * Rotating Cube — OpenTUI Three.js WebGPU Smoke Test
  *
- * Verifies end-to-end: CliRenderer → FrameBufferRenderable → ThreeCliRenderer
- * → Three.js Scene → WebGPU → terminal display.
+ * Uses ThreeRenderable (higher-level API) which wraps ThreeCliRenderer
+ * internally — handles init(), frame callback registration, and buffer
+ * management automatically.
  *
  * Run: bun run experiments/20260712-rotating-cube-3d/smoke.ts
  * (from packages/opencode/)
  *
- * Logs are written to smoke.log in the same directory for post-mortem analysis.
+ * Logs to smoke.log in the same directory.
  *
  * Inspired by https://anomalyco-opentui.mintlify.app/guides/3d-rendering
  */
 
 import * as Core from "@opentui/core"
-import { ThreeCliRenderer } from "@opentui/three"
+import { ThreeRenderable } from "@opentui/three"
 import {
   Scene,
   PerspectiveCamera,
@@ -28,7 +29,6 @@ import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 
 // ── Logger ──────────────────────────────────────────────────────────────────
-// Logs to both stderr (live) and smoke.log (persistent, in the same folder).
 
 const LOG_FILE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -62,196 +62,104 @@ async function writeSection(title: string): Promise<void> {
   await writeLog(`\n${"=".repeat(60)}`)
   await writeLog(`  ${title}`)
   await writeLog(`=${"=".repeat(59)}`)
-  const line = `[${new Date().toISOString()}] ${"=".repeat(60)}\n`
-  try {
-    await Bun.write(Bun.file(LOG_FILE), line, { createPath: true })
-  } catch {}
 }
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
-const TERMINAL_TIMEOUT_MS = 30_000
+const TIMEOUT_MS = 30_000
 const TARGET_FPS = 30
 const CUBE_COLOR = 0x3b82f6
 
 // ── State ───────────────────────────────────────────────────────────────────
 
-let rotationSpeed = { x: 0.01, y: 0.02 }
+let rotationY = 0
+let rotationX = 0
+let speedX = 0.01
+let speedY = 0.02
 let applyScanlineFx = false
 
-// ── Initialization ──────────────────────────────────────────────────────────
+// ── Init ────────────────────────────────────────────────────────────────────
 
-await writeSection("START smoke test")
-await writeLog(`Log file: ${LOG_FILE}`)
-await writeLog(`Target FPS: ${TARGET_FPS}, timeout: ${TERMINAL_TIMEOUT_MS}ms`)
-
-// Log environment — useful for WebGPU diagnostics
+await writeSection("START")
+await writeLog(`Log: ${LOG_FILE}`)
 await writeLog(`Bun: ${Bun.version} rev ${Bun.revision}`)
 await writeLog(`Platform: ${process.platform} arch: ${process.arch}`)
-await writeLog(`Node: ${process.version}`)
 await writeLog(`CWD: ${process.cwd()}`)
 
-// ── CliRenderer ─────────────────────────────────────────────────────────────
-
-await writeLog("Calling createCliRenderer...")
-let renderer: Core.CliRenderer
-try {
-  renderer = await Core.createCliRenderer({
-    targetFps: TARGET_FPS,
-    exitOnCtrlC: true,
-  })
-  await writeLog("createCliRenderer: OK")
-} catch (err) {
-  await writeLog(`createCliRenderer: FAILED — ${err}`)
-  await writeLog("Aborting — cannot proceed without a renderer.")
-  process.exit(1)
-}
-
+const renderer = await Core.createCliRenderer({
+  targetFps: TARGET_FPS,
+  exitOnCtrlC: true,
+})
 renderer.setBackgroundColor("#0a0a1a")
 renderer.start()
-await writeLog("renderer.start(): OK")
 
 const tw = renderer.terminalWidth
 const th = renderer.terminalHeight
 await writeLog(`Terminal: ${tw}×${th}`)
 
-// ── Background Frame ────────────────────────────────────────────────────────
-
-const background = new Core.BoxRenderable(renderer, {
-  id: "cube-bg",
-  width: tw,
-  height: th,
-  position: "absolute",
-  left: 0,
-  top: 0,
-  backgroundColor: "#0a0a1a",
-  borderStyle: "single",
-  title: " 3D Rotating Cube ",
-  titleAlignment: "center",
-})
-renderer.root.add(background)
-await writeLog("BoxRenderable (background): OK")
-
-// ── 3D Framebuffer ──────────────────────────────────────────────────────────
-
-const framebuffer = new Core.FrameBufferRenderable(renderer, {
-  id: "cube-fb",
-  width: tw,
-  height: th,
-  zIndex: 10,
-  respectAlpha: true,
-})
-renderer.root.add(framebuffer)
-await writeLog("FrameBufferRenderable: OK")
-
-// ── Three.js Scene ──────────────────────────────────────────────────────────
+// ── Scene ───────────────────────────────────────────────────────────────────
 
 const scene = new Scene()
 const camera = new PerspectiveCamera(45, tw / th, 0.1, 100)
 camera.position.z = 3.5
 
-const geometry = new BoxGeometry(1.2, 1.2, 1.2)
-const material = new MeshPhongMaterial({
+const cube = new Mesh(new BoxGeometry(1.2, 1.2, 1.2), new MeshPhongMaterial({
   color: CUBE_COLOR,
   specular: 0x222222,
   shininess: 40,
-})
-const cube = new Mesh(geometry, material)
+}))
 scene.add(cube)
 
 const ambient = new AmbientLight(0xffffff, 0.25)
 scene.add(ambient)
 
-const directional = new DirectionalLight(0xffffff, 0.9)
-directional.position.set(5, 5, 5)
-scene.add(directional)
+const dirLight = new DirectionalLight(0xffffff, 0.9)
+dirLight.position.set(5, 5, 5)
+scene.add(dirLight)
 
-const point = new PointLight(0xff6b6b, 0.4, 100)
-point.position.set(-3, 0, 3)
-scene.add(point)
+const pointLight = new PointLight(0xff6b6b, 0.4, 100)
+pointLight.position.set(-3, 0, 3)
+scene.add(pointLight)
 
-await writeLog("Three.js scene: OK (cube + 3 lights)")
+await writeLog("Scene: cube + 3 lights")
 
-// ── ThreeCliRenderer ───────────────────────────────────────────────────────
+// ── ThreeRenderable (higher-level API) ──────────────────────────────────────
+// ThreeRenderable wraps ThreeCliRenderer internally:
+//   - Creates its own frameBuffer
+//   - Calls engine.init() lazily on first render
+//   - Registers its own frame callback for continuous rendering
+//   - Renders scene + camera to its buffer on each frame
+//   - Displays the buffer via renderSelf()
 
-await writeSection("ThreeCliRenderer initialization")
-
-let engine: ThreeCliRenderer | null = null
-let webgpuAvailable = true
-
-await writeLog("Checking @opentui/three exports...")
-try {
-  const threeMod = await import("@opentui/three")
-  const exportNames = Object.keys(threeMod).sort().join(", ")
-  await writeLog(`@opentui/three exports: ${exportNames}`)
-} catch (err) {
-  await writeLog(`@opentui/three import failed: ${err}`)
-}
-
-await writeLog("Constructing ThreeCliRenderer...")
-await writeLog(`  width=${tw}, height=${th}, autoResize=false`)
-
-let engineInitError: string | null = null
+let threeRenderable: ThreeRenderable | null = null
 
 try {
-  engine = new ThreeCliRenderer(renderer, {
+  threeRenderable = new ThreeRenderable(renderer, {
+    id: "cube-view",
+    scene,
+    camera,
     width: tw,
     height: th,
-    autoResize: false,
+    zIndex: 10,
+    position: "absolute",
+    left: 0,
+    top: 0,
   })
-  await writeLog("ThreeCliRenderer: constructor OK")
+  await writeLog("ThreeRenderable: constructor OK")
+  await writeLog("  init is lazy — engine.init() called on first render frame")
 } catch (err) {
-  await writeLog(`ThreeCliRenderer: constructor FAILED`)
+  await writeLog("ThreeRenderable: constructor FAILED")
   await logError(err)
-  webgpuAvailable = false
 }
 
-// ── Init (async WebGPU setup) ──────────────────────────────────────────────
+// ── Status text ─────────────────────────────────────────────────────────────
 
-if (webgpuAvailable && engine) {
-  await writeLog("Calling engine.init()...")
-  try {
-    await engine.init()
-    await writeLog("engine.init(): OK — WebGPU device + renderer ready")
-    // Set our custom camera
-    engine.setActiveCamera(camera)
-    await writeLog("engine.setActiveCamera(camera): OK")
-  } catch (err) {
-    await writeLog("engine.init(): FAILED")
-    await logError(err)
-    engineInitError = err instanceof Error ? err.message : String(err)
-    webgpuAvailable = false
-  }
-}
-
-// ── FrameBuffer sanity check ────────────────────────────────────────────────
-
-if (webgpuAvailable && engine) {
-  await writeLog("Checking framebuffer.frameBuffer...")
-  const fb = (framebuffer as any).frameBuffer
-  if (fb) {
-    await writeLog(`  frameBuffer: ${typeof fb} — OK`)
-  } else {
-    await writeLog(`  frameBuffer: undefined or null — drawScene() will likely fail`)
-  }
-}
-
-// Check that drawScene exists
-if (webgpuAvailable && engine) {
-  await writeLog(`engine.drawScene: ${typeof (engine as any).drawScene}`)
-  await writeLog(`engine.init available: ${typeof (engine as any).init}`)
-  await writeLog(`engine.doDrawScene: ${typeof (engine as any).doDrawScene}`)
-}
-
-// ── Status Text ─────────────────────────────────────────────────────────────
-
-const statusMsg = webgpuAvailable
-  ? " ↑↓←→ speed | Space: FX | Q: exit "
-  : " WebGPU unavailable — see smoke.log | Q: exit "
-
+const statusOk = threeRenderable !== null
 const statusText = new Core.TextRenderable(renderer, {
   id: "cube-status",
-  content: statusMsg,
+  content: statusOk
+    ? " ↑↓←→ speed | Space: FX | Q: exit "
+    : " ThreeRenderable failed — see smoke.log | Q: exit ",
   position: "absolute",
   left: Math.max(2, Math.floor(tw / 2) - 25),
   top: th - 2,
@@ -259,112 +167,84 @@ const statusText = new Core.TextRenderable(renderer, {
   zIndex: 20,
 })
 renderer.root.add(statusText)
-await writeLog("Status text rendered")
 
-// ── Keyboard Controls ───────────────────────────────────────────────────────
+// ── Keyboard ────────────────────────────────────────────────────────────────
 
 renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {
-  writeLog(`Key pressed: name="${key.name}" ctrl=${key.ctrl} shift=${key.shift}`)
+  writeLog(`Key: name="${key.name}" ctrl=${key.ctrl}`)
   switch (key.name) {
-    case "up":
-      rotationSpeed.x = Math.min(rotationSpeed.x + 0.01, 0.5)
-      writeLog(`rotationSpeed.x -> ${rotationSpeed.x.toFixed(3)}`)
-      break
-    case "down":
-      rotationSpeed.x = Math.max(rotationSpeed.x - 0.01, -0.5)
-      writeLog(`rotationSpeed.x -> ${rotationSpeed.x.toFixed(3)}`)
-      break
-    case "left":
-      rotationSpeed.y = Math.max(rotationSpeed.y - 0.01, -0.5)
-      writeLog(`rotationSpeed.y -> ${rotationSpeed.y.toFixed(3)}`)
-      break
-    case "right":
-      rotationSpeed.y = Math.min(rotationSpeed.y + 0.01, 0.5)
-      writeLog(`rotationSpeed.y -> ${rotationSpeed.y.toFixed(3)}`)
-      break
-    case "space":
-      applyScanlineFx = !applyScanlineFx
-      writeLog(`applyScanlineFx -> ${applyScanlineFx}`)
-      break
+    case "up":    speedX = Math.min(speedX + 0.01, 0.5); break
+    case "down":  speedX = Math.max(speedX - 0.01, -0.5); break
+    case "left":  speedY = Math.max(speedY - 0.01, -0.5); break
+    case "right": speedY = Math.min(speedY + 0.01, 0.5); break
+    case "space": applyScanlineFx = !applyScanlineFx; break
     case "q":
     case "escape":
-      writeLog("QUIT requested via keyboard — calling renderer.stop()")
-      try {
-        renderer.stop()
-        writeLog("renderer.stop(): returned OK")
-      } catch (err) {
-        writeLog(`renderer.stop(): THREW — ${err}`)
-      }
-      writeLog("Calling process.exit(0)")
+      writeLog("Quit — calling renderer.stop()")
+      try { renderer.stop() } catch {}
       process.exit(0)
-      break
   }
 })
 
-// ── Render Loop ─────────────────────────────────────────────────────────────
+// ── Background box ──────────────────────────────────────────────────────────
+
+const bg = new Core.BoxRenderable(renderer, {
+  id: "cube-bg",
+  width: tw, height: th,
+  position: "absolute", left: 0, top: 0,
+  backgroundColor: "#0a0a1a",
+  borderStyle: "single",
+  title: " 3D Rotating Cube ",
+  titleAlignment: "center",
+})
+renderer.root.add(bg)
+
+// Add ThreeRenderable on top of background
+if (threeRenderable) renderer.root.add(threeRenderable)
+
+// ── Animation loop ──────────────────────────────────────────────────────────
+// ThreeRenderable has its own frame callback for rendering. We use a separate
+// timer to update the animation state (rotation, light position).
 
 let frameCount = 0
-
-renderer.setFrameCallback(async (deltaTime: number) => {
+renderer.setFrameCallback(async (deltaMs: number) => {
   frameCount++
+  const dt = deltaMs / 16  // normalize to ~60fps frame units
 
-  if (!engine || !webgpuAvailable) {
-    if (frameCount === 1 || frameCount % 300 === 0) {
-      writeLog(`Frame #${frameCount}: early return (no WebGPU), delta=${deltaTime.toFixed(2)}`)
-    }
-    return
-  }
+  // Update animation state
+  rotationX += speedX * dt
+  rotationY += speedY * dt
+  cube.rotation.x = rotationX
+  cube.rotation.y = rotationY
 
-  // Log first frame and every 300th frame
-  if (frameCount <= 3 || frameCount % 300 === 0) {
-    writeLog(`Frame #${frameCount}: rendering, delta=${deltaTime.toFixed(2)}`)
-  }
-
-  // Rotate cube
-  cube.rotation.x += rotationSpeed.x * (deltaTime / 16)
-  cube.rotation.y += rotationSpeed.y * (deltaTime / 16)
-
-  // Animate point light orbit
   const t = performance.now() * 0.001
-  point.position.x = Math.sin(t * 0.8) * 3
-  point.position.z = Math.cos(t * 0.8) * 3
+  pointLight.position.x = Math.sin(t * 0.8) * 3
+  pointLight.position.z = Math.cos(t * 0.8) * 3
 
-  // Render 3D scene to framebuffer
-  try {
-    await engine.drawScene(scene, framebuffer.frameBuffer, deltaTime)
-    if (frameCount === 1) {
-      writeLog("engine.drawScene(): first call OK")
-    }
-  } catch (err) {
-    writeLog(`Frame #${frameCount}: drawScene() FAILED`)
-    await logError(err)
+  // Log first 3 frames
+  if (frameCount <= 3 || frameCount % 300 === 0) {
+    await writeLog(`Frame #${frameCount}: rot=(${rotationX.toFixed(2)},${rotationY.toFixed(2)}) dt=${deltaMs.toFixed(1)}`)
   }
 
-  // Apply post-processing
-  if (applyScanlineFx) {
+  // Apply scanlines via post-fx (re-exported from @opentui/core index)
+  if (applyScanlineFx && threeRenderable) {
     try {
-      const fx = (Core as any).applyScanlines
-      if (typeof fx === "function") {
-        fx(framebuffer.frameBuffer, 0.8)
+      const fb = (threeRenderable as any).frameBuffer
+      if (fb) {
+        const fx = (Core as any).applyScanlines
+        if (typeof fx === "function") fx(fb, 0.8)
       }
     } catch { /* best-effort */ }
   }
 })
 
-// ── Auto-exit timer ─────────────────────────────────────────────────────────
+// ── Timeout ─────────────────────────────────────────────────────────────────
 
 setTimeout(async () => {
-  await writeLog(`TIMEOUT after ${TERMINAL_TIMEOUT_MS}ms — force-exiting`)
-  await writeLog(`Total frames rendered: ${frameCount}`)
-  try {
-    renderer.stop()
-    await writeLog("renderer.stop(): called OK on timeout")
-  } catch (err) {
-    await writeLog(`renderer.stop(): threw on timeout — ${err}`)
-  }
-  await writeSection("END smoke test (timeout)")
+  await writeLog(`Timeout — ${frameCount} frames rendered`)
+  try { renderer.stop() } catch {}
+  await writeSection("END")
   process.exit(0)
-}, TERMINAL_TIMEOUT_MS)
+}, TIMEOUT_MS)
 
-await writeLog("Render loop registered. Test is live.")
-await writeLog(`Auto-exit in ${TERMINAL_TIMEOUT_MS / 1000}s.`)
+await writeLog("Live. Auto-exit in 30s.")

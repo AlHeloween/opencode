@@ -10,6 +10,7 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import * as Truncate from "./truncate"
 import { Jobs } from "@/jobs"
 import { which } from "@/util/which"
+import * as Log from "@opencode-ai/core/util/log"
 
 const DEFAULT_TIMEOUT = 60_000
 
@@ -63,9 +64,63 @@ export const RunTool = Tool.define(
     const trunc = yield* Truncate.Service
 
     const resolvePath = Effect.fn("RunTool.resolvePath")(function* (text: string, root: string) {
-      if (process.platform === "win32")
-        return AppFileSystem.normalizePath(path.resolve(root, AppFileSystem.windowsPath(text)))
-      return path.resolve(root, text)
+      const platform = process.platform
+
+      // Normalize a candidate path for comparison: project-relative → absolute + symlink-resolved
+      const normalize = (t: string) => {
+        if (platform === "win32")
+          return AppFileSystem.normalizePath(path.resolve(root, AppFileSystem.windowsPath(t)))
+        return path.resolve(root, t)
+      }
+
+      const pathExists = (p: string) =>
+        Effect.service(AppFileSystem.Service).pipe(
+          Effect.flatMap((fs) => fs.existsSafe(p)),
+          Effect.orElseSucceed(() => false),
+        )
+
+      // --- Stage 1: Direct resolution (current behavior) ---
+      const resolved = normalize(text)
+      if (yield* pathExists(resolved)) return resolved
+
+      // --- Stage 2: Windows drive-letter shorthand ---
+      // "D" when root is D:\... should resolve to root itself, not root\D
+      if (platform === "win32" && /^[A-Za-z]$/.test(text)) {
+        const driveRoot = path.resolve(text + ":\\")
+        if (driveRoot.slice(0, 2).toLowerCase() === root.slice(0, 2).toLowerCase()) {
+          Log.Default.debug("resolvePath: drive-letter shorthand matched", { text, root })
+          return root
+        }
+      }
+
+      // --- Stage 3: Basename / substring match against root ---
+      // "opencode" or "zPython" → D:\zPython\opencode
+      const rootLower = root.toLowerCase()
+      const textLower = text.toLowerCase()
+      const rootBasename = path.basename(root)
+      if (
+        rootBasename.toLowerCase() === textLower ||
+        rootLower.endsWith(textLower) ||
+        textLower.endsWith(rootLower)
+      ) {
+        Log.Default.debug("resolvePath: basename/substring match", { text, root })
+        return root
+      }
+
+      // --- Stage 4: Try as an absolute path ---
+      // User may have passed a partial absolute path (e.g. "D:\zPy")
+      if (platform === "win32") {
+        const winNormalized = AppFileSystem.normalizePath(AppFileSystem.windowsPath(text))
+        if (winNormalized !== resolved && (yield* pathExists(winNormalized))) {
+          Log.Default.debug("resolvePath: Windows absolute match", { text, winNormalized })
+          return winNormalized
+        }
+      }
+
+      // --- Stage 5: Fallback ---
+      // Use resolved path even if it doesn't exist — caller may be creating a new directory
+      Log.Default.debug("resolvePath: fallback — path does not exist", { text, resolved })
+      return resolved
     })
 
     const run = Effect.fn("RunTool.run")(function* (

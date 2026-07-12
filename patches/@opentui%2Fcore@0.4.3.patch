@@ -1,0 +1,23 @@
+diff --git a/index.js b/index.js
+index c7badbef2f345f9d228d40c64a69d6570512fd8d..5ada0ea608d657ad8059539e751a148dbb0e6dec 100644
+--- a/index.js
++++ b/index.js
+@@ -8111,8 +8111,7 @@ class MarkdownRenderable extends Renderable {
+     return this.createChunk(text, "default");
+   }
+   createInitialStyledText(token) {
+-    if (!this._streaming)
+-      return;
++    // streaming guard removed so static content also gets inline formatting from marked's tokenizer, not just tree-sitter
+     const chunks = [];
+     if ("tokens" in token && Array.isArray(token.tokens)) {
+       this.renderInlineContent(token.tokens, chunks);
+@@ -8549,7 +8548,7 @@ class MarkdownRenderable extends Renderable {
+     renderable.marginBottom = marginBottom;
+   }
+   shouldRenderSeparately(token) {
+-    return token.type === "code" || token.type === "table" || token.type === "blockquote" || token.type === "hr";
++    return token.type === "code" || token.type === "table" || token.type === "blockquote" || token.type === "hr" || token.type === "heading" || token.type === "list";
+   }
+   getInterBlockMargin(token, nextToken) {
+     if (!nextToken)

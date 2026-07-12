@@ -42,6 +42,20 @@ async function getRenderer(): Promise<typeof import("mermaid-wasm-renderer")> {
   return _rendererLoading
 }
 
+/** Register a system font for better text metrics in rendered diagrams. */
+export async function registerMermaidFont(fontPath: string): Promise<boolean> {
+  try {
+    const mod = await getRenderer()
+    const buf = await Bun.file(fontPath).arrayBuffer()
+    mod.registerFont(new Uint8Array(buf))
+    log.debug(`mermaid font registered: ${fontPath}`)
+    return true
+  } catch (error) {
+    log.debug("mermaid font registration failed", { fontPath, error: String(error) })
+    return false
+  }
+}
+
 /** Reset the lazy loader state — for testing or recovery after failure. */
 export function resetRendererCache(): void {
   _renderer = null

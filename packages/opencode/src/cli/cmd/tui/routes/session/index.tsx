@@ -1730,15 +1730,21 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   const segments = createMemo(() => splitTextSegments(props.part.text))
 
   const markdownSegmentText = (segment: TextSegment) => (segment.type === "markdown" ? segment.text : "")
-  const mermaidSegmentRaw = (segment: TextSegment) => (segment.type === "mermaid" ? segment.raw : "")
-
   // Progressive mermaid rendering — render each completed mermaid block as soon
   // as its fence closes, instead of waiting for the entire text part to finalize.
   // This means the diagram appears mid-stream when the LLM finishes the ```mermaid
   // block but continues writing after it.
-  // Track previously rendered sources to skip re-rendering unchanged blocks.
+  // Track rendering state per mermaid block
   const [mermaidDataUrls, setMermaidDataUrls] = createSignal<Record<number, string>>({})
+  const [mermaidFailed, setMermaidFailed] = createSignal<Record<number, boolean>>({})
   const renderedSources = new Map<number, string>()
+
+  // Show concise status instead of raw ```mermaid code during loading
+  const mermaidFallback = (segment: TextSegment, idx: number) => {
+    if (segment.type !== "mermaid") return ""
+    if (mermaidFailed()[idx]) return " Diagram unavailable "
+    return " Rendering diagram... "
+  }
   createEffect(() => {
     // Watch segments() reactively — re-runs when streaming adds content
     const currentSegments = segments()
@@ -1835,7 +1841,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
               <Match when={segment().type === "mermaid"}>
                 <Show
                   when={mermaidDataUrls()[index]}
-                  fallback={<text fg={theme.text}>{mermaidSegmentRaw(segment())}</text>}
+                  fallback={<text fg={theme.textMuted}>{mermaidFallback(segment(), index)}</text>}
                 >
                   <image-plane url={mermaidDataUrls()[index]!} mime="image/png" width={70} />
                 </Show>

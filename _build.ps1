@@ -59,6 +59,20 @@ function Invoke-Check {
 
     $allPassed = $true
 
+    # Check 0: Clean up .temp/test/ directory (grows significantly from test runs)
+    $tempTestDir = Join-Path $Root ".temp\test"
+    if (Test-Path $tempTestDir) {
+        Write-Host "  Cleaning .temp/test/..." -ForegroundColor Yellow
+        Remove-Item $tempTestDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Success ".temp/test/ cleaned"
+    }
+
+    # Check 0b: Sync kernel prompt first so tests verify the latest content
+    $kernelSynced = Sync-KernelPrompt
+    if (-not $kernelSynced) {
+        $allPassed = $false
+    }
+
     # Check 1: Typecheck
     if (-not $SkipTypecheck) {
         $allPassed = $allPassed -and (Test-Command "Typecheck" {
@@ -108,10 +122,39 @@ function Invoke-Check {
 # ═══════════════════════════════════════════════════════════
 # BUILD TASK
 # ═══════════════════════════════════════════════════════════
+
+function Sync-KernelPrompt {
+    $kernelSrc = Join-Path $Root "opencode_prompts_kernel.py"
+    $kernelDst = Join-Path (Join-Path (Join-Path $Root "packages") "opencode") "src\session\prompt\opencode_prompts_kernel.txt"
+
+    if (-not (Test-Path $kernelSrc)) {
+        Write-Error- "Kernel source not found: $kernelSrc"
+        return $false
+    }
+
+    Copy-Item $kernelSrc $kernelDst -Force
+    Write-Success "Kernel prompt synced ($(Get-Item $kernelDst).Length bytes)"
+    return $true
+}
+
 function Invoke-Build {
     Write-Step "Building"
 
-    # Build Rust WASM modules first
+    # Step -1: Clean up .temp/test/ (grows significantly from test/build runs)
+    $tempTestDirBuild = Join-Path $Root ".temp\test"
+    if (Test-Path $tempTestDirBuild) {
+        Write-Host "  Cleaning .temp/test/..." -ForegroundColor Yellow
+        Remove-Item $tempTestDirBuild -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Success ".temp/test/ cleaned"
+    }
+
+    # Step 0: Sync opencode_prompts_kernel.py → .txt (canonical prompt source)
+    $kernelSynced = Sync-KernelPrompt
+    if (-not $kernelSynced) {
+        throw "Kernel prompt sync failed"
+    }
+
+    # Build Rust WASM modules next
     Write-Host "  Building Rust WASM modules..." -ForegroundColor Yellow
     & "$PSScriptRoot\_build_rust.ps1"
 

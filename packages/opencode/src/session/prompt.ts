@@ -1371,6 +1371,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
 
               let result: "compact" | "stop" | "continue" | undefined
+              // Accumulated text from previous chunks — fed as context to the next
+              // chunk so the model builds on prior work instead of producing N
+              // independent summaries.
+              let previousChunkOutput: string | undefined
               if (needsChunking && chunks.length > 1) {
                 for (let ci = 0; ci < chunks.length; ci++) {
                   yield* bus.publish(SessionCompaction.Event.CompactionChunkProgress, {
@@ -1381,16 +1385,31 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
                   const chunkMsgs = yield* MessageV2.toModelMessagesEffect(chunks[ci], model)
                   const anchors = SessionCompaction.extractAnchors(chunks[ci])
+
+                  // For chunks after the first, provide previous chunk output as context
+                  // so the model can extend rather than start from scratch.
+                  const continuationMsg = previousChunkOutput
+                    ? { role: "user" as const, content: `Continue the structured summary. Previous portion covered:\n${previousChunkOutput}\n\nAdd details from the next portion without repeating already-covered information.` }
+                    : undefined
                   const anchorMsg = anchors.length > 0
                     ? { role: "user" as const, content: `Include these key terms in your summary: ${anchors.join(", ")}` }
                     : undefined
 
-                  const messages = anchorMsg
-                    ? [anchorMsg, ...chunkMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])]
-                    : [...chunkMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])]
+                  const messages = [
+                    ...(continuationMsg ? [continuationMsg] : []),
+                    ...(anchorMsg ? [anchorMsg] : []),
+                    ...chunkMsgs,
+                    ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : []),
+                  ]
 
                   result = yield* handle.process({ ...baseProcessArgs, messages })
                   if (result === "stop") break
+
+                  // Read accumulated text from all chunks processed so far for next chunk's context
+                  const currentParts = MessageV2.parts(handle.message.id)
+                  previousChunkOutput = currentParts
+                    .filter((p): p is MessageV2.TextPart => p.type === "text")
+                    .map((p) => p.text).join("\n\n")
                 }
               } else {
                 result = yield* handle.process({
@@ -1524,14 +1543,22 @@ You should build your plan incrementally by writing to or editing this file. NOT
             lastFinished.summary !== true &&
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            const tokens = lastFinished.tokens
-            const tier = compactionTier({ cfg: yield* config.get(), tokens, model })
+            // Use content-based token estimate for tier calculation —
+            // provider-reported tokens include 3-5x JSON serialization
+            // overhead that would always show "force" tier.
+            const contentTokens = estimateContentTokens(msgs, model)
+            const cfg_overflow = yield* config.get()
+            const tier = compactionTier({
+              cfg: cfg_overflow,
+              tokens: { total: contentTokens, input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              model,
+            })
 
             if (tier === "soft") {
               // Emit notice that context is growing, but preserve cache-first prefix
               yield* bus.publish(SessionCompaction.Event.CompactionNotice, {
                 sessionID,
-                ratio: (tokens.total || tokens.input + tokens.output + tokens.cache.read + tokens.cache.write) / model.limit.context,
+                ratio: contentTokens / model.limit.context,
                 tier: "soft",
               })
               continue

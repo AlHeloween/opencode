@@ -672,7 +672,7 @@ describe("session.compaction.create", () => {
         expect(msgs[0].parts).toHaveLength(2)
         expect(msgs[0].parts[0]).toMatchObject({
           type: "text",
-          text: "Please create a structured summary of the conversation history. Keep the most recent turn verbatim. Do not use any tools — just produce the summary.",
+          text: "Please create a structured summary of the conversation history. Do not use any tools — just produce the summary.",
           synthetic: true,
         })
         expect(msgs[0].parts[1]).toMatchObject({

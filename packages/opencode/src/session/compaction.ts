@@ -63,8 +63,8 @@ const CHUNK_THRESHOLD_RATIO = 0.7
 const CHUNK_TARGET_RATIO = 0.5
 /** Minimum characters a summary must contain to pass the quality guard. */
 const MIN_SUMMARY_LENGTH = 200
-/** Section headers the summarizer should produce — used for quality validation. */
-const SECTION_HEADERS = ["## Goal", "## Constraints & Preferences", "## Progress", "## Commands & Outcomes", "## Errors & Fixes", "## Key Decisions", "## Next Steps", "## Critical Context", "## Relevant Files"]
+/** Minimum `##` section headers required in a summary. */
+const MIN_SECTIONS = 2
 
 export const PRUNE_MINIMUM = 20_000
 export const PRUNE_PROTECT = 40_000
@@ -261,6 +261,13 @@ export function extractAnchors(messages: MessageV2.WithParts[]): string[] {
   return [...anchors].sort().slice(0, 30)
 }
 
+/** Count `##` section headers in a summary.
+  * Matches any level-2 markdown header to avoid fragility from
+  * exact string matching (whitespace differences, sub-header-only sections). */
+function countSections(summary: string): number {
+  return (summary.match(/^##\s+/gm) ?? []).length
+}
+
 /** Validate that a compaction summary is substantive enough.
   * Returns { valid: true } or { valid: false, reason } for the quality guard. */
 export function validateSummary(summary: string): { valid: true } | { valid: false; reason: string } {
@@ -268,10 +275,10 @@ export function validateSummary(summary: string): { valid: true } | { valid: fal
     return { valid: false, reason: `too_short: ${summary.trim().length} chars < ${MIN_SUMMARY_LENGTH} required` }
   }
 
-  // Check for section headers from the SUMMARY_TEMPLATE
-  const matchedHeaders = SECTION_HEADERS.filter((h) => summary.includes(h))
-  if (matchedHeaders.length < 2) {
-    return { valid: false, reason: `missing_sections: found ${matchedHeaders.length} section headers, need at least 2` }
+  // Check for at least MIN_SECTIONS level-2 markdown headers
+  const sections = countSections(summary)
+  if (sections < MIN_SECTIONS) {
+    return { valid: false, reason: `missing_sections: found ${sections} sections, need at least ${MIN_SECTIONS}` }
   }
 
   return { valid: true }
@@ -339,6 +346,9 @@ export const layer: Layer.Layer<
 
     // Per-session counter for consecutive compaction detection
     const compactionCounts = new Map<SessionID, number>()
+    // Sessions where compaction hit the stuck threshold — auto-compaction
+    // is suspended until a manual or forced compaction resets the state.
+    const stuckSessions = new Set<SessionID>()
 
     const isOverflow = Effect.fn("SessionCompaction.isOverflow")(function* (input: {
       tokens: MessageV2.Assistant["tokens"]
@@ -443,11 +453,24 @@ export const layer: Layer.Layer<
     }) {
       // Stuck detection: track consecutive compactions per session.
       // If we compact on 3+ consecutive turns and context is still above
-      // the full threshold, emit a stuck event, then RESET the counter and
-      // fall through to create the task — returning early would create an
-      // infinite loop in prompt.ts (overflow check → create() → return →
-      // overflow check → ...) that permanently freezes the session.
+      // the full threshold, emit a stuck event and ADD the session to the
+      // stuck set — auto-compaction is suspended until manual/forced reset.
+      // Returning early would create an infinite loop in prompt.ts
+      // (overflow check → create() → return → overflow check → ...),
+      // so instead we skip creation but DO NOT suppress prompt.ts's
+      // overflow check — it will loop back, see no compaction task, and
+      // continue normally (the overflow check fires every turn, which is
+      // fine since it just checks and continues without emitting events).
       if (input.auto && !input.forced) {
+        if (stuckSessions.has(input.sessionID)) {
+          log.warn("compaction stuck — auto-compaction suspended for session", {
+            sessionID: input.sessionID,
+          })
+          // Stuck sessions suppress auto-compaction until manual reset.
+          // The overflow check fires every turn harmlessly.
+          compactionCounts.delete(input.sessionID)
+          return
+        }
         const prev = compactionCounts.get(input.sessionID) ?? 0
         compactionCounts.set(input.sessionID, prev + 1)
         if (prev + 1 >= MAX_CONSECUTIVE_COMPACTS) {
@@ -459,11 +482,14 @@ export const layer: Layer.Layer<
             sessionID: input.sessionID,
             consecutiveCompacts: prev + 1,
           })
-          // Reset so the next compaction attempt creates a task instead of looping infinitely
+          // Mark session as stuck — prevents further auto-compaction
+          stuckSessions.add(input.sessionID)
           compactionCounts.delete(input.sessionID)
+          return
         }
       } else if (!input.auto) {
-        // Manual or forced compaction resets the counter
+        // Manual or forced compaction resets the counter AND un-sticks
+        stuckSessions.delete(input.sessionID)
         compactionCounts.delete(input.sessionID)
       }
 
@@ -480,7 +506,7 @@ export const layer: Layer.Layer<
         messageID: msg.id,
         sessionID: msg.sessionID,
         type: "text",
-        text: "Please create a structured summary of the conversation history. Keep the most recent turn verbatim. Do not use any tools — just produce the summary.",
+        text: "Please create a structured summary of the conversation history. Do not use any tools — just produce the summary.",
         synthetic: true,
       })
       yield* session.updatePart({

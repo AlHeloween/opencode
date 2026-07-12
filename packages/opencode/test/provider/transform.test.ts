@@ -121,12 +121,24 @@ describe("ProviderTransform.systemPromptPrefix", () => {
     release_date: "2026-01-01",
   })
 
-  test("returns PROMPT_REASONING for all models", () => {
-    expect(ProviderTransform.systemPromptPrefix(createModel("deepseek/deepseek-v4-pro"))).toBeString()
-    expect(ProviderTransform.systemPromptPrefix(createModel("anthropic/claude-sonnet-4"))).toBeString()
-    expect(ProviderTransform.systemPromptPrefix(createModel("openai/gpt-4"))).toBeString()
-    expect(ProviderTransform.systemPromptPrefix(createModel("google/gemini-2.0-flash"))).toBeString()
-    expect(ProviderTransform.systemPromptPrefix(createModel("nvidia/llama-3.3"))).toBeString()
+  test("includes PROMPT_REASONING and opencode_prompts_kernel for all models", () => {
+    for (const modelId of [
+      "deepseek/deepseek-v4-pro",
+      "anthropic/claude-sonnet-4",
+      "openai/gpt-4",
+      "google/gemini-2.0-flash",
+      "nvidia/llama-3.3",
+    ]) {
+      const prefix = ProviderTransform.systemPromptPrefix(createModel(modelId))
+      expect(prefix).toBeString()
+      // Reasoning protocol is always present
+      expect(prefix).toContain("Communication Protocol")
+      expect(prefix).toContain("Information Mark System")
+      // The opencode prompts kernel is always embedded after reasoning.txt
+      expect(prefix).toContain("CODER")
+      expect(prefix).toContain("EXPLORER")
+      expect(prefix).toContain("ORCHESTRATOR")
+    }
   })
 })
 

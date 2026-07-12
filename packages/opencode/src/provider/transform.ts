@@ -8,6 +8,7 @@ import type * as ModelsDev from "./models"
 import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import PROMPT_REASONING from "@/session/prompt/reasoning.txt"
+import PROMPT_KERNEL from "@/session/prompt/opencode_prompts_kernel.txt"
 
 const tlog = Log.create({ service: "provider.transform" })
 
@@ -446,7 +447,7 @@ export function topK(model: Provider.Model) {
 }
 
 export function systemPromptPrefix(_model: Provider.Model) {
-  return PROMPT_REASONING
+  return [PROMPT_REASONING, PROMPT_KERNEL].filter((x) => x).join("\n\n")
 }
 
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]

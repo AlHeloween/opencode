@@ -11,6 +11,7 @@ import PROMPT_ANTHROPIC from "../../src/session/prompt/anthropic.txt"
 import PROMPT_DEFAULT from "../../src/session/prompt/default.txt"
 import PROMPT_GPT from "../../src/session/prompt/gpt.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
+import PROMPT_KERNEL from "../../src/session/prompt/opencode_prompts_kernel.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
 import TASK_DESCRIPTION from "../../src/tool/task.txt"
 
@@ -44,6 +45,58 @@ describe("session.system", () => {
       expect(prompt).toContain("cmd_runner session control/inspection")
       expect(prompt).toContain("without launching")
     }
+  })
+
+  test("prompts kernel contains all agent specs", () => {
+    // opencode_prompts_kernel.txt is a copy of the canonical opencode_prompts_kernel.py.
+    // This test verifies the .txt copy is in sync by checking every spec name is present.
+    const kernel = PROMPT_KERNEL
+
+    // All agent prompt specs
+    expect(kernel).toContain("CODER")
+    expect(kernel).toContain("EXPLORER")
+    expect(kernel).toContain("ORCHESTRATOR")
+    expect(kernel).toContain("GENERAL")
+    expect(kernel).toContain("RESEARCHER")
+    expect(kernel).toContain("MEDIA")
+    expect(kernel).toContain("COMPACTION")
+    expect(kernel).toContain("TITLE")
+    expect(kernel).toContain("SUMMARY")
+
+    // All skill specs
+    expect(kernel).toContain("ADM_EXE")
+    expect(kernel).toContain("CMD_RUNNER")
+    expect(kernel).toContain("RAG")
+    expect(kernel).toContain("PATCH_TOOL")
+    expect(kernel).toContain("AGENT_ASSETS")
+    expect(kernel).toContain("ADM_MCP")
+    expect(kernel).toContain("APPLY_PATCH_EDITS")
+    expect(kernel).toContain("DELPHI_BUILDER")
+    expect(kernel).toContain("DUNIT")
+
+    // All command specs
+    expect(kernel).toContain("COMMIT")
+    expect(kernel).toContain("LEARN")
+    expect(kernel).toContain("CHANGELOG")
+    expect(kernel).toContain("ISSUES")
+    expect(kernel).toContain("TRANSLATE")
+    expect(kernel).toContain("RMSLOP")
+    expect(kernel).toContain("AI_DEPS")
+    expect(kernel).toContain("SPELLCHECK")
+
+    // Agent definitions
+    expect(kernel).toContain("DUPLICATE_PR")
+    expect(kernel).toContain("TRIAGE")
+
+    // Rules and governance
+    expect(kernel).toContain("ADID_FRAMEWORK_RULES")
+    expect(kernel).toContain("CODING_AGENT_DIRECTIVES")
+    expect(kernel).toContain("GOVERNANCE")
+    expect(kernel).toContain("DEFAULT_PROMPT")
+
+    // Self-test harness
+    expect(kernel).toContain("_ALL_SPECS")
+    expect(kernel).toContain("Self-test passed")
   })
 
   test("plan reminders use general as planning subagent, not plan", async () => {

@@ -104,7 +104,7 @@ log("FrameBufferRenderable created")
 // ThreeCliRenderer — renders Three.js scene into the framebuffer
 try {
   const mod = await import("@opentui/three")
-  engine = new mod.ThreeCliRenderer(renderer, { width: tw, height: th, autoResize: false })
+  engine = new mod.ThreeCliRenderer(renderer, { width: tw, height: th, autoResize: false, superSample: mod.SuperSampleType.GPU })
   log("ThreeCliRenderer constructor OK")
   await engine.init()
   engine.setActiveCamera(camera)

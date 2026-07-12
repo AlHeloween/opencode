@@ -49,15 +49,15 @@ const fbR = new Core.FrameBufferRenderable(renderer, {
   zIndex: 10, respectAlpha: true,
 })
 
-// ThreeCliRenderer with NO supersampling for simplicity
+// Try CPU supersampling — native drawSuperSampleBuffer bypasses the JS pixel loop
 const engine = new opentui3d.ThreeCliRenderer(renderer, {
   width: tw, height: th,
-  superSample: "none", // ← direct pixel mapping, no WGSL shader
+  superSample: "cpu",
   autoResize: false,
 })
 await engine.init()
 engine.setActiveCamera(camera)
-log("ThreeCliRenderer ready (no supersampling)")
+log("ThreeCliRenderer ready (cpu supersampling)")
 
 // Layout
 const bg = new Core.BoxRenderable(renderer, {
@@ -88,11 +88,9 @@ for (let y = 5; y < 10; y++) {
 }
 log("Direct buffer write: OK (green bar)")
 
-// Skip WebGPU render for now — just testing the buffer display path.
-// Uncomment below to test WebGPU:
-// await engine.drawScene(scene, buf, 0.016)
-// log("drawScene: OK (no supersampling)")
-log("Skipping WebGPU render — showing direct buffer write only")
+// Render WebGPU scene (now with D3D12 backend since DXC is available)
+await engine.drawScene(scene, buf, 0.016)
+log("drawScene: OK")
 
 // Idle
 renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {

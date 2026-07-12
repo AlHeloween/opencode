@@ -1,0 +1,8 @@
+[2026-07-12T12:59:19.681Z] Frame #300: rot=(12.81,25.63) dt=65.9
+[2026-07-12T13:01:15.556Z] Log: D:\zPython\opencode\packages\opencode\experiments\20260712-rotating-cube-3d\smoke.log
+[2026-07-12T13:01:15.556Z] Bun: 1.4.0 rev 7a5293cef99b1c19c1de921da3c112eadaf148b1
+[2026-07-12T13:01:15.557Z] Platform: win32 arch: x64
+[2026-07-12T13:01:15.557Z] CWD: d:\zPython\opencode\packages\opencode
+[2026-07-12T13:01:15.602Z] Terminal: 150×40
+[2026-07-12T13:01:15.606Z] Scene: cube + 3 lights
+[2026-07-12T13:01:15.717Z] ThreeRenderable: OK (init lazy, frame callback registered)

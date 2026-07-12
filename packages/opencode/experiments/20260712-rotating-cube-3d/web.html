@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rotating Cube — Three.js WebGL</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #888899;
+    font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+    overflow: hidden;
+    height: 100vh;
+  }
+  #info {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.7;
+    z-index: 10;
+    pointer-events: none;
+  }
+  #info kbd {
+    display: inline-block;
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 3px;
+    padding: 0 6px;
+    color: #aaa;
+    font-size: 11px;
+  }
+  #stats {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    font-size: 11px;
+    opacity: 0.5;
+    z-index: 10;
+    text-align: right;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <kbd>↑</kbd> <kbd>↓</kbd> speed X &nbsp;·&nbsp;
+  <kbd>←</kbd> <kbd>→</kbd> speed Y &nbsp;·&nbsp;
+  <kbd>Space</kbd> scanlines &nbsp;·&nbsp;
+  <kbd>Q</kbd> exit
+</div>
+
+<div id="stats"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three'
+
+// ── Configuration ──────────────────────────────────────────────────────────
+
+const CUBE_COLOR = 0x3b82f6
+let speedX = 0.01
+let speedY = 0.02
+let scanlinesOn = false
+
+// ── Renderer ───────────────────────────────────────────────────────────────
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: false,
+})
+renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setClearColor(0x0a0a1a)
+renderer.toneMapping = THREE.NoToneMapping
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace
+document.body.prepend(renderer.domElement)
+
+const camera = new THREE.PerspectiveCamera(
+  45,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100,
+)
+camera.position.z = 3.5
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+
+const scene = new THREE.Scene()
+
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(1.2, 1.2, 1.2),
+  new THREE.MeshPhongMaterial({
+    color: CUBE_COLOR,
+    specular: 0x222222,
+    shininess: 40,
+  }),
+)
+scene.add(cube)
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.25))
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.9)
+dirLight.position.set(5, 5, 5)
+scene.add(dirLight)
+
+const pointLight = new THREE.PointLight(0xff6b6b, 0.4, 100)
+pointLight.position.set(-3, 0, 3)
+scene.add(pointLight)
+
+// ── Post-processing: CRT scanlines overlay ─────────────────────────────────
+
+const scanCanvas = document.createElement('canvas')
+scanCanvas.width = 1
+scanCanvas.height = 2
+const sctx = scanCanvas.getContext('2d')
+sctx.fillStyle = '#000'
+sctx.fillRect(0, 0, 1, 1)
+sctx.fillStyle = 'rgba(0,0,0,0.4)'
+sctx.fillRect(0, 1, 1, 1)
+
+const scanTexture = new THREE.CanvasTexture(scanCanvas)
+scanTexture.wrapS = THREE.RepeatWrapping
+scanTexture.wrapT = THREE.RepeatWrapping
+scanTexture.repeat.set(window.innerWidth, window.innerHeight)
+scanTexture.minFilter = THREE.NearestFilter
+scanTexture.magFilter = THREE.NearestFilter
+
+const scanMat = new THREE.SpriteMaterial({
+  map: scanTexture,
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+  depthTest: false,
+  blending: THREE.MultiplyBlending,
+})
+const scanSprite = new THREE.Sprite(scanMat)
+scanSprite.scale.set(
+  (window.innerWidth / window.innerHeight) * camera.aspect * 5,
+  5,
+  1,
+)
+scanSprite.position.set(0, 0, 0.5)
+camera.add(scanSprite)
+scene.add(camera)
+
+// ── Resize ─────────────────────────────────────────────────────────────────
+
+window.addEventListener('resize', () => {
+  const w = window.innerWidth
+  const h = window.innerHeight
+  camera.aspect = w / h
+  camera.updateProjectionMatrix()
+  renderer.setSize(w, h)
+  if (scanlinesOn) {
+    scanTexture.repeat.set(w, h)
+  }
+})
+
+// ── Keyboard ───────────────────────────────────────────────────────────────
+
+window.addEventListener('keydown', (e) => {
+  switch (e.key) {
+    case 'ArrowUp':    speedX = Math.min(speedX + 0.01, 0.5); e.preventDefault(); break
+    case 'ArrowDown':  speedX = Math.max(speedX - 0.01, -0.5); e.preventDefault(); break
+    case 'ArrowLeft':  speedY = Math.max(speedY - 0.01, -0.5); e.preventDefault(); break
+    case 'ArrowRight': speedY = Math.min(speedY + 0.01, 0.5); e.preventDefault(); break
+    case ' ':
+      scanlinesOn = !scanlinesOn
+      scanMat.opacity = scanlinesOn ? 1 : 0
+      if (scanlinesOn) scanTexture.repeat.set(window.innerWidth, window.innerHeight)
+      e.preventDefault()
+      break
+    case 'q':
+    case 'Q':
+    case 'Escape':
+      document.body.innerHTML = '<div style="padding:40px;color:#888;font-family:monospace;">Exited.</div>'
+      renderer.dispose()
+      break
+  }
+})
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+
+const statsEl = document.getElementById('stats')
+let frameCount = 0
+let lastFpsTime = performance.now()
+
+// ── Render loop ─────────────────────────────────────────────────────────────
+
+function animate() {
+  requestAnimationFrame(animate)
+
+  // Rotate
+  cube.rotation.x += speedX
+  cube.rotation.y += speedY
+
+  // Orbit light
+  const t = performance.now() * 0.001
+  pointLight.position.x = Math.sin(t * 0.8) * 3
+  pointLight.position.z = Math.cos(t * 0.8) * 3
+
+  renderer.render(scene, camera)
+
+  // Stats
+  frameCount++
+  const now = performance.now()
+  if (now - lastFpsTime >= 1000) {
+    statsEl.textContent = `${frameCount} fps\n${cube.rotation.x.toFixed(2)}, ${cube.rotation.y.toFixed(2)}`
+    frameCount = 0
+    lastFpsTime = now
+  }
+}
+
+animate()
+
+// ── Info ───────────────────────────────────────────────────────────────────
+
+console.log('Rotating cube — Three.js WebGL')
+console.log('Controls: Arrow keys = speed, Space = scanlines, Q = exit')
+</script>
+</body>
+</html>

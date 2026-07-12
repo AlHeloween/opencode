@@ -1,0 +1,161 @@
+import { Global } from "@opencode-ai/core/global"
+import path from "path"
+import { Filesystem } from "@/util/filesystem"
+import * as Log from "@opencode-ai/core/util/log"
+
+/**
+ * Session-specific settings — per-session overrides for agent models,
+ * recently used models, favorites, and variants.
+ *
+ * File location: {worktree}/.opencode/data/sessions/{sessionID}.jsonc
+ *
+ * Loading priority:
+ *   1. Session file (if present) → overrides global
+ *   2. Global config (opencode.jsonc) / state (model.json)
+ */
+
+// ── Types ──
+
+export interface SessionAgentOverride {
+  /** "providerID/modelID" */
+  model?: string
+  /** Variant name (e.g. "high", "fast", "reasoning") */
+  variant?: string
+}
+
+export interface SessionSettings {
+  /** Per-agent model/variant overrides for this session */
+  agent?: Record<string, SessionAgentOverride>
+  /** Session-scoped recently used models list */
+  recent?: Array<{ providerID: string; modelID: string }>
+  /** Session-scoped favorite models list */
+  favorite?: Array<{ providerID: string; modelID: string }>
+  /** Session-scoped global variant overrides (key: "providerID/modelID") */
+  variant?: Record<string, string>
+  /** Session-scoped per-agent variant overrides (key: "agentName/providerID/modelID") */
+  agentVariant?: Record<string, string>
+}
+
+// ── File path ──
+
+const SESSIONS_DIR = path.join(Global.Path.data, "sessions")
+
+/** Get the session settings file path for a given session ID. */
+export function getSessionSettingsPath(sessionID: string): string {
+  return path.join(SESSIONS_DIR, `${sessionID}.jsonc`)
+}
+
+// ── Load ──
+
+/**
+ * Load session settings for a given session ID.
+ * Returns null if no settings file exists.
+ */
+export async function loadSessionSettings(sessionID: string): Promise<SessionSettings | null> {
+  const filePath = getSessionSettingsPath(sessionID)
+  try {
+    const exists = await Filesystem.exists(filePath)
+    if (!exists) return null
+
+    const raw = await Filesystem.readText(filePath)
+    // Parse as JSON (jsonc-parser not needed — we store clean JSON)
+    const data = JSON.parse(raw) as Record<string, unknown>
+    return normalizeSessionSettings(data)
+  } catch (e) {
+    Log.Default.warn("bug: failed to load session settings", {
+      sessionID,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return null
+  }
+}
+
+function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings {
+  const settings: SessionSettings = {}
+
+  if (typeof raw.agent === "object" && raw.agent !== null && !Array.isArray(raw.agent)) {
+    const agent: Record<string, SessionAgentOverride> = {}
+    for (const [name, value] of Object.entries(raw.agent as Record<string, unknown>)) {
+      if (typeof value === "object" && value !== null) {
+        const override: SessionAgentOverride = {}
+        const v = value as Record<string, unknown>
+        if (typeof v.model === "string") override.model = v.model
+        if (typeof v.variant === "string") override.variant = v.variant
+        if (override.model || override.variant) agent[name] = override
+      }
+    }
+    if (Object.keys(agent).length > 0) settings.agent = agent
+  }
+
+  if (Array.isArray(raw.recent)) {
+    const items = raw.recent.filter(
+      (x: unknown): x is { providerID: string; modelID: string } =>
+        typeof x === "object" && x !== null &&
+        typeof (x as Record<string, unknown>).providerID === "string" &&
+        typeof (x as Record<string, unknown>).modelID === "string",
+    )
+    if (items.length > 0) settings.recent = items
+  }
+
+  if (Array.isArray(raw.favorite)) {
+    const items = raw.favorite.filter(
+      (x: unknown): x is { providerID: string; modelID: string } =>
+        typeof x === "object" && x !== null &&
+        typeof (x as Record<string, unknown>).providerID === "string" &&
+        typeof (x as Record<string, unknown>).modelID === "string",
+    )
+    if (items.length > 0) settings.favorite = items
+  }
+
+  if (typeof raw.variant === "object" && raw.variant !== null && !Array.isArray(raw.variant)) {
+    settings.variant = raw.variant as Record<string, string>
+  }
+
+  if (typeof raw.agentVariant === "object" && raw.agentVariant !== null && !Array.isArray(raw.agentVariant)) {
+    settings.agentVariant = raw.agentVariant as Record<string, string>
+  }
+
+  return settings
+}
+
+// ── Save ──
+
+/**
+ * Save session settings for a given session ID.
+ * Creates the file atomically (write to temp then rename).
+ */
+export async function saveSessionSettings(
+  sessionID: string,
+  settings: SessionSettings,
+): Promise<void> {
+  const filePath = getSessionSettingsPath(sessionID)
+  try {
+    await Filesystem.writeJson(filePath, settings)
+  } catch (e) {
+    Log.Default.warn("bug: failed to save session settings", {
+      sessionID,
+      error: e instanceof Error ? e.message : String(e),
+    })
+  }
+}
+
+// ── Remove ──
+
+/** Delete session settings file for a given session ID. */
+export async function removeSessionSettings(sessionID: string): Promise<void> {
+  const filePath = getSessionSettingsPath(sessionID)
+  try {
+    const exists = await Filesystem.exists(filePath)
+    if (exists) {
+      const { unlink } = await import("fs/promises")
+      await unlink(filePath)
+    }
+  } catch (e) {
+    Log.Default.warn("bug: failed to remove session settings", {
+      sessionID,
+      error: e instanceof Error ? e.message : String(e),
+    })
+  }
+}
+
+export * as SessionSettings from "./session-settings"

@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
-import { batch, createMemo } from "solid-js"
+import { batch, createEffect, createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { useTheme } from "@tui/context/theme"
 import { uniqueBy } from "remeda"
@@ -13,6 +13,7 @@ import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
 import { Filesystem } from "@/util/filesystem"
+import { loadSessionSettings, saveSessionSettings, type SessionSettings } from "@/session/session-settings"
 
 export function parseModel(model: string) {
   const [providerID, ...rest] = model.split("/")
@@ -149,6 +150,70 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         pending: false,
       }
 
+      // ── Session-specific settings ──
+      const [sessionSettings, setSessionSettings] = createSignal<SessionSettings | null>(null)
+      let lastSettingsSessionID: string | undefined
+
+      /** Get the most recent session ID for session-scoped settings. */
+      function getActiveSessionID(): string | undefined {
+        const sessions = sync.data.session
+        if (!sessions?.length) return undefined
+        return sessions[sessions.length - 1]?.id
+      }
+
+      /** Load session settings from disk and merge into the store. */
+      async function refreshSessionSettings() {
+        const sid = getActiveSessionID()
+        if (!sid) return
+        lastSettingsSessionID = sid
+        const settings = await loadSessionSettings(sid)
+        if (!settings) {
+          setSessionSettings(null)
+          return
+        }
+        setSessionSettings(settings)
+        // Merge into model store for reactive reads
+        batch(() => {
+          if (settings.recent && settings.recent.length > 0) {
+            setModelStore("recent", settings.recent)
+          }
+          if (settings.favorite && settings.favorite.length > 0) {
+            setModelStore("favorite", settings.favorite)
+          }
+          if (settings.variant) {
+            setModelStore("variant", { ...modelStore.variant, ...settings.variant })
+          }
+          if (settings.agentVariant) {
+            setModelStore("agentVariant", { ...modelStore.agentVariant, ...settings.agentVariant })
+          }
+        })
+      }
+
+      /** Save settings to both global model.json and session-specific file. */
+      function saveAll() {
+        save()
+        // Also persist to session settings if a session is active
+        const sid = getActiveSessionID()
+        if (!sid) return
+        // Build variant maps without undefined values
+        const variant: Record<string, string> = {}
+        for (const [k, v] of Object.entries(modelStore.variant)) {
+          if (v !== undefined) variant[k] = v
+        }
+        const agentVariant: Record<string, string> = {}
+        for (const [k, v] of Object.entries(modelStore.agentVariant)) {
+          if (v !== undefined) agentVariant[k] = v
+        }
+        const ss = sessionSettings()
+        void saveSessionSettings(sid, {
+          agent: ss?.agent,
+          recent: modelStore.recent,
+          favorite: modelStore.favorite,
+          variant,
+          agentVariant,
+        })
+      }
+
       function save() {
         if (!modelStore.ready) {
           state.pending = true
@@ -182,7 +247,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()
+          // Load session settings once model.json is ready
+          refreshSessionSettings()
         })
+
+      // Watch for session changes and reload session settings
+      createEffect(() => {
+        const sessions = sync.data.session
+        if (!sessions?.length) return
+        const sid = sessions[sessions.length - 1]?.id
+        if (!sid || sid === lastSettingsSessionID) return
+        refreshSessionSettings()
+      })
 
       const args = useArgs()
       const fallbackModel = createMemo(() => {
@@ -235,6 +311,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       })
 
       function forAgent(name: string) {
+        // 1. Check session-specific agent model override
+        const ss = sessionSettings()
+        const agentOverride = ss?.agent?.[name]
+        if (agentOverride?.model) {
+          const parsed = parseModel(agentOverride.model)
+          if (isModelValid(parsed)) return parsed
+        }
+        // 2. Fall back to global agent config
         const a = sync.data.agent.find((x) => x.name === name)
         return a?.model ?? undefined
       }
@@ -262,7 +346,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           "recent",
           uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
         )
-        save()
+        saveAll()
       }
 
       return {
@@ -351,7 +435,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
-            // Persist agent model to opencode.jsonc (single source of truth)
+            // Persist agent model to opencode.jsonc (global single source of truth)
             if (options?.agent) {
               void sdk.client.global.config
                 .update({
@@ -366,6 +450,19 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                     error: e instanceof Error ? e.message : String(e),
                   }),
                 )
+              // Also capture in session-specific agent overrides
+              const ss = sessionSettings()
+              const currentAgent = ss?.agent ?? {}
+              setSessionSettings({
+                ...ss,
+                agent: {
+                  ...currentAgent,
+                  [agentName]: {
+                    ...currentAgent[agentName],
+                    model: `${model.providerID}/${model.modelID}`,
+                  },
+                },
+              } as SessionSettings)
             }
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
@@ -375,7 +472,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
               )
             }
-            save()
+            saveAll()
           })
         },
         toggleFavorite(model: { providerID: string; modelID: string }) {
@@ -398,7 +495,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               "favorite",
               next.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
             )
-            save()
+            saveAll()
           })
         },
         variant: {
@@ -438,7 +535,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const key = `${m.providerID}/${m.modelID}`
             setModelStore("variant", key, value ?? "default")
-            save()
+            saveAll()
           },
           cycle(agentName?: string) {
             const variants = this.list(agentName)

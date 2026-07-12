@@ -418,10 +418,10 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 
 ## Markdown Rendering Flag — DO NOT TOUCH
 
-**`OPENCODE_EXPERIMENTAL_MARKDOWN` must always default to `true`.** In upstream (anomalyco/opencode) this is not experimental — it is the standard markdown rendering path. The OpenTUI `<markdown>` renderable is the correct renderer for tables, folding, headings, and all GFM features. Flipping it to `false` silently breaks tables, collapsible sections, and other native markdown formatting.
+**`OPENCODE_MARKDOWN` must always default to `true`.** This is the standard markdown rendering path — not experimental. The OpenTUI `<markdown>` renderable is the correct renderer for tables, folding, headings, and all GFM features. Flipping it to `false` silently breaks tables, collapsible sections, and other native markdown formatting.
 
 - Defined in `packages/core/src/flag/flag.ts` — uses `!falsy(...)` semantics (on-by-default)
-- The config-override `_setTest("OPENCODE_EXPERIMENTAL_MARKDOWN", false)` exists for testing only
+- The config-override `_setTest("OPENCODE_MARKDOWN", false)` exists for testing only
 - The `<code filetype="markdown" onHighlight={...}>` fallback path with tree-sitter highlight preservation exists as a safety net for anyone who explicitly opts out — **never make it the default**
 
 If the OpenTUI `<markdown>` renderable has a bug (e.g., nested CodeRenderable streaming state), fix it in the renderable — do not work around it by flipping this flag.

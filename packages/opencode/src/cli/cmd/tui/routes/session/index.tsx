@@ -1777,7 +1777,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
             <Switch>
               <Match when={segment().type === "markdown"}>
                 <Switch>
-                  <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+                  <Match when={Flag.OPENCODE_MARKDOWN}>
                     <markdown
                       syntaxStyle={syntax()}
                       streaming={streaming()}
@@ -1787,7 +1787,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                       bg={theme.background}
                     />
                   </Match>
-                  <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
+                  <Match when={!Flag.OPENCODE_MARKDOWN}>
                     <code
                       filetype="markdown"
                       drawUnstyledText={false}

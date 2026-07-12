@@ -87,14 +87,14 @@ export const Flag = {  get OPENCODE_AUTO_SHARE() { return (_configValues["OPENCO
   get OPENCODE_EXPERIMENTAL_LSP_TY() { return (_configValues["OPENCODE_EXPERIMENTAL_LSP_TY"] as boolean) ?? truthy("OPENCODE_EXPERIMENTAL_LSP_TY") },
   OPENCODE_EXPERIMENTAL_LSP_TOOL: OPENCODE_EXPERIMENTAL || truthy("OPENCODE_EXPERIMENTAL_LSP_TOOL"),
   OPENCODE_EXPERIMENTAL_PLAN_MODE: OPENCODE_EXPERIMENTAL || truthy("OPENCODE_EXPERIMENTAL_PLAN_MODE"),
-  // OPENCODE_EXPERIMENTAL_MARKDOWN must always default to true.
-  // In upstream (anomalyco/opencode) this is not experimental — it is the
-  // standard markdown rendering path. The OpenTUI <markdown> renderable is
-  // the correct renderer for tables, folding, headings, and all GFM features.
-  // Do NOT flip this default to false — that would silently break tables,
+  // OPENCODE_MARKDOWN must always default to true.
+  // This is the standard markdown rendering path — not experimental.
+  // The OpenTUI <markdown> renderable is the correct renderer for tables,
+  // folding, headings, and all GFM features.
+  // Do NOT flip this to false — that would silently break tables,
   // collapsible sections, and other native markdown formatting.
-  get OPENCODE_EXPERIMENTAL_MARKDOWN() {
-    return (_configValues["OPENCODE_EXPERIMENTAL_MARKDOWN"] as boolean) ?? !falsy("OPENCODE_EXPERIMENTAL_MARKDOWN")
+  get OPENCODE_MARKDOWN() {
+    return (_configValues["OPENCODE_MARKDOWN"] as boolean) ?? !falsy("OPENCODE_MARKDOWN")
   },
   OPENCODE_MODELS_URL: process.env["OPENCODE_MODELS_URL"],
   OPENCODE_MODELS_PATH: process.env["OPENCODE_MODELS_PATH"],

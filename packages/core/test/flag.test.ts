@@ -5,10 +5,10 @@ describe("feature flags", () => {
   afterEach(() => resetConfig())
 
   test("experimental Markdown follows config overrides", () => {
-    Flag._setTest("OPENCODE_EXPERIMENTAL_MARKDOWN", true)
-    expect(Flag.OPENCODE_EXPERIMENTAL_MARKDOWN).toBe(true)
+    Flag._setTest("OPENCODE_MARKDOWN", true)
+    expect(Flag.OPENCODE_MARKDOWN).toBe(true)
 
-    Flag._setTest("OPENCODE_EXPERIMENTAL_MARKDOWN", false)
-    expect(Flag.OPENCODE_EXPERIMENTAL_MARKDOWN).toBe(false)
+    Flag._setTest("OPENCODE_MARKDOWN", false)
+    expect(Flag.OPENCODE_MARKDOWN).toBe(false)
   })
 })

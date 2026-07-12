@@ -35,26 +35,16 @@ export const CodeGraphTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          yield* ctx.ask({
-            permission: "codegraph",
-            patterns: [params.query], always: ["*"],
-            metadata: { query: params.query, mode: params.mode, depth: params.depth, path: params.path },
-          })
+          yield* ctx.ask({ permission: "codegraph", patterns: [params.query], always: ["*"], metadata: { query: params.query, mode: params.mode, depth: params.depth, path: params.path } })
           const ins = yield* InstanceState.context
-          const projectRoot = params.path
-            ? (path.isAbsolute(params.path) ? params.path : path.resolve(ins.directory, params.path))
-            : ins.worktree
+          const projectRoot = params.path ? (path.isAbsolute(params.path) ? params.path : path.resolve(ins.directory, params.path)) : ins.worktree
           yield* assertExternalDirectoryEffect(ctx, projectRoot, { kind: "directory" })
           const mode = params.mode ?? "explore"
           const depth = params.depth ?? 2
           const cgBin = getBin()
-          if (!cgBin) {
-            return { title: "CodeGraph not available", metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: false }, output: "CodeGraph CLI not found. Install: npm i -g @colbymchenry/codegraph" }
-          }
+          if (!cgBin) return { title: "CodeGraph not available", metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: false }, output: "CodeGraph CLI not found. Install: npm i -g @colbymchenry/codegraph" }
           const status = spawnSync(cgBin, ["status", "--json"], { cwd: projectRoot, encoding: "utf-8", timeout: 10000 })
-          if (status.status !== 0) {
-            return { title: "CodeGraph not initialized", metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: true }, output: `CodeGraph not initialized in "${projectRoot}". Run: codegraph init` }
-          }
+          if (status.status !== 0) return { title: "CodeGraph not initialized", metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: true }, output: `CodeGraph not initialized in "${projectRoot}". Run: codegraph init` }
           const args = buildArgs(mode, params.query, depth)
           const r = spawnSync(cgBin, args, { cwd: projectRoot, encoding: "utf-8", maxBuffer: 10 * 1024 * 1024, timeout: 30000 })
           return { title: `CodeGraph: ${params.query.slice(0, 60)}`, metadata: { resultCount: 1, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: true }, output: r.status === 0 ? (r.stdout ?? "") : (r.stderr ?? "failed") }

@@ -1,8 +1,8 @@
 export type TextSegment = { type: "markdown"; text: string } | { type: "mermaid"; raw: string; source: string }
 
 export function splitTextSegments(text: string): TextSegment[] {
-  const input = text.trim()
-  if (!input) return []
+  if (!text.trim()) return []
+  const input = text
 
   const segments: TextSegment[] = []
   const mermaidRegex =

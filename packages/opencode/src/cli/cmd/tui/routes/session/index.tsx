@@ -1754,7 +1754,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                     content={segment.text}
                     conceal={ctx.conceal()}
                     fg={theme.text}
-                    onHighlight={(() => {
+  onHighlight={(() => {
                       // Persist last successful highlights across async highlight calls.
                       // Tree-sitter frequently returns zero highlights for incomplete
                       // markdown mid-stream (e.g. unclosed **bold, unclosed code fences).
@@ -1763,24 +1763,24 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                       // so no re-highlight is ever attempted for that content.
                       // By returning the last known good highlights, we keep the styled
                       // path active and prevent the plain-text overwrite.
+                      // NOTE: The fallback is active even after streaming ends — tree-sitter
+                      // can return zero highlights for the final content push too, and
+                      // without the fallback the styled buffer is permanently lost.
                       let lastHighlights: any[] = []
-                      const isStreaming = () => !props.part.time?.end
                       return (highlights: any, context: any) => {
                         if (highlights && highlights.length > 0) {
                           lastHighlights = highlights
                           return highlights
                         }
-                        if (isStreaming() && lastHighlights.length > 0) {
-                          if (!highlights || highlights.length === 0) {
-                            Log.Default.debug(
-                              "bug: tree-sitter returned ZERO highlights, falling back to last known",
-                              {
-                                partId: props.part.id,
-                                content: String(context?.content).slice(0, 200),
-                                lastCount: lastHighlights.length,
-                              },
-                            )
-                          }
+                        if (lastHighlights.length > 0) {
+                          Log.Default.debug(
+                            "bug: tree-sitter returned ZERO highlights, falling back to last known",
+                            {
+                              partId: props.part.id,
+                              content: String(context?.content).slice(0, 200),
+                              lastCount: lastHighlights.length,
+                            },
+                          )
                           return lastHighlights
                         }
                         return highlights

@@ -4,7 +4,7 @@
  * Single path: <image-plane> → TexturePlaneRenderable → ThreeRenderable → WebGPU.
  * No chafa, no escape codes — OpenTUI's native 3D pipeline is the only renderer.
  */
-import { createSignal, createResource, Switch, Match } from "solid-js"
+import { createSignal, createEffect, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
 import * as Log from "@opencode-ai/core/util/log"
@@ -15,15 +15,12 @@ export function MediaImage(props: { url: string; mime: string }) {
   const { theme } = useTheme()
   const [ready, setReady] = createSignal(false)
 
-  createResource(
-    () => props.url,
-    (url: string) => {
-      if (url) {
-        log.debug("MediaImage: loading via WebGPU", { mime: props.mime })
-        setReady(true)
-      }
-    },
-  )
+  createEffect(() => {
+    if (props.url) {
+      log.debug("MediaImage: loading via WebGPU", { mime: props.mime })
+      setReady(true)
+    }
+  })
 
   return (
     <Switch>

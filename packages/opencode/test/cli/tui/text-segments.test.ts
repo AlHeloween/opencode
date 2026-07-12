@@ -26,7 +26,7 @@ describe("TUI text segments", () => {
     expect(segments[4]).toMatchObject({ type: "markdown", text: "\nAfter" })
   })
 
-  test("returns plain markdown unchanged", () => {
-    expect(splitTextSegments("  hello  ")).toEqual([{ type: "markdown", text: "hello" }])
+  test("preserves leading and trailing whitespace", () => {
+    expect(splitTextSegments("  hello  ")).toEqual([{ type: "markdown", text: "  hello  " }])
   })
 })

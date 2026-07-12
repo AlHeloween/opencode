@@ -4,8 +4,8 @@ import { InstanceState } from "@/effect/instance-state"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Tool from "./tool"
 import * as Log from "@opencode-ai/core/util/log"
-import { Global } from "@opencode-ai/core/global"
 import { spawnSync } from "child_process"
+import { which } from "@/util/which"
 
 import DESCRIPTION from "./codegraph.txt"
 
@@ -37,41 +37,20 @@ type Metadata = {
   hasCodegraph: boolean
 }
 
-// ——— Find the CodeGraph CLI binary ———
-
-function findCgBin(): string | null {
-  const isWin = process.platform === "win32"
-  const cgName = `codegraph${isWin ? ".exe" : ""}`
-
-  // 1. node_modules/.bin/ relative to executable (shipped with binary)
-  const execDir = path.dirname(process.execPath)
-  const candidates = [
-    path.join(execDir, "..", "node_modules", ".bin", cgName),
-    path.join(Global.Path.home, "node_modules", ".bin", cgName),
-    cgName,
-  ]
-  for (const c of candidates) {
-    try { if (require("fs").existsSync(c)) return c } catch { return c }
-  }
-  return null
-}
-
+// Resolve codegraph binary via which() — checks PATH and Global.Path.bin
 let cgBin: string | null | undefined = undefined
 
 function getCgBin(): string | null {
-  if (cgBin === undefined) cgBin = findCgBin()
+  if (cgBin !== undefined) return cgBin
+  cgBin = which("codegraph")
   return cgBin
 }
 
-function cgExec(args: string[], cwd: string, stdin?: string): { code: number; stdout: string; stderr: string } {
+function cgExec(args: string[], cwd: string): { code: number; stdout: string; stderr: string } {
   const bin = getCgBin()
   if (!bin) return { code: -1, stdout: "", stderr: "codegraph binary not found" }
-  const result = spawnSync(bin, args, { cwd, input: stdin, encoding: "utf-8", maxBuffer: 10 * 1024 * 1024, timeout: 30000 })
-  return {
-    code: result.status ?? -1,
-    stdout: result.stdout?.toString() ?? "",
-    stderr: result.stderr?.toString() ?? "",
-  }
+  const result = spawnSync(bin, args, { cwd, encoding: "utf-8", maxBuffer: 10 * 1024 * 1024, timeout: 30000 })
+  return { code: result.status ?? -1, stdout: result.stdout?.toString() ?? "", stderr: result.stderr?.toString() ?? "" }
 }
 
 export const CodeGraphTool = Tool.define(
@@ -89,12 +68,7 @@ export const CodeGraphTool = Tool.define(
             permission: "codegraph",
             patterns: [params.query],
             always: ["*"],
-            metadata: {
-              query: params.query,
-              mode: params.mode,
-              depth: params.depth,
-              path: params.path,
-            },
+            metadata: { query: params.query, mode: params.mode, depth: params.depth, path: params.path },
           })
 
           const ins = yield* InstanceState.context
@@ -112,12 +86,10 @@ export const CodeGraphTool = Tool.define(
               title: "CodeGraph not available",
               metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: false },
               output: [
-                "CodeGraph is not available.",
+                "CodeGraph CLI not found on PATH or in binary cache.",
                 "",
-                "The codegraph CLI binary was not found.",
-                "Install it with: bun add @colbymchenry/codegraph",
-                "",
-                "Then initialize the index: codegraph init",
+                "Install it: npm i -g @colbymchenry/codegraph",
+                "Or the bootstrap will auto-install it to the cache.",
               ].join("\n"),
             }
           }
@@ -130,14 +102,12 @@ export const CodeGraphTool = Tool.define(
               metadata: { resultCount: 0, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: true },
               output: [
                 `CodeGraph is installed but not initialized in "${projectRoot}".`,
-                "",
-                "Run: codegraph init",
-                "Or restart opencode to auto-initialize.",
+                "", "Run: codegraph init", "Or restart opencode to auto-initialize.",
               ].join("\n"),
             }
           }
 
-          // Build the query command based on mode
+          // Build CLI args by mode
           let result: ReturnType<typeof cgExec>
           switch (mode) {
             case "search":
@@ -156,16 +126,14 @@ export const CodeGraphTool = Tool.define(
                 : { code: 0, stdout: 'Path mode requires "from -> to" syntax.', stderr: "" }
               break
             }
-            default: // explore
+            default:
               result = cgExec(["explore", params.query], projectRoot)
           }
-
-          const output = result.code === 0 ? result.stdout : result.stderr || "CodeGraph query failed"
 
           return {
             title: `CodeGraph: ${params.query.slice(0, 60)}`,
             metadata: { resultCount: 1, mode, nodeCount: 0, edgeCount: 0, hasCodegraph: true },
-            output,
+            output: result.code === 0 ? result.stdout : result.stderr || "CodeGraph query failed",
           }
         }).pipe(Effect.orDie),
     }

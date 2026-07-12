@@ -16,6 +16,7 @@ import { Config } from "@/config/config"
 import path from "path"
 import { Global } from "@opencode-ai/core/global"
 import { spawn } from "child_process"
+import { which } from "@/util/which"
 
 export const InstanceBootstrap = Effect.gen(function* () {
   Log.Default.info("bootstrapping", { directory: Instance.directory })
@@ -57,20 +58,8 @@ function initCodeGraphBg(): void {
     if (require("fs").existsSync(dbPath)) return // already initialized
   } catch { /* ignore */ }
 
-  // Find codegraph binary
-  const isWin = process.platform === "win32"
-  const cgName = `codegraph${isWin ? ".exe" : ""}`
-  const execDir = path.dirname(process.execPath)
-  const candidates = [
-    path.join(execDir, "..", "node_modules", ".bin", cgName),
-    path.join(Global.Path.home, "node_modules", ".bin", cgName),
-    cgName,
-  ]
-
-  let cgBin = ""
-  for (const c of candidates) {
-    try { if (require("fs").existsSync(c)) { cgBin = c; break } } catch { cgBin = c; break }
-  }
+  // Find codegraph binary via which() — checks PATH + Global.Path.bin
+  const cgBin = which("codegraph")
   if (!cgBin) return
 
   const child = spawn(cgBin, ["init", "--no-daemon"], { cwd: dir, stdio: "ignore", timeout: 120000 })

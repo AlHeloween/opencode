@@ -1683,7 +1683,7 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         <code
           filetype="markdown"
           drawUnstyledText={false}
-          streaming={true}
+          streaming={!props.part.time?.end}
           syntaxStyle={subtleSyntax()}
           content={"_Thinking:_ " + content()}
           conceal={ctx.conceal()}
@@ -1724,6 +1724,7 @@ function healMarkdown(text: string): string {
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
   const ctx = use()
   const { theme, syntax, mode } = useTheme()
+  const streaming = createMemo(() => !props.part.time?.end)
 
   const segments = createMemo(() => splitTextSegments(props.part.text))
 
@@ -1774,7 +1775,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                 <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
                   <markdown
                     syntaxStyle={syntax()}
-                    streaming={true}
+                    streaming={streaming()}
                     content={segment.text}
                     conceal={ctx.conceal()}
                     fg={theme.markdownText}
@@ -1785,7 +1786,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                   <code
                     filetype="markdown"
                     drawUnstyledText={false}
-                    streaming={true}
+                    streaming={streaming()}
                     syntaxStyle={syntax()}
                     content={healMarkdown(segment.text)}
                     conceal={ctx.conceal()}

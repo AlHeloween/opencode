@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { reconcile } from "solid-js/store"
 
 /**
  * Tests for sync rendering logic: delta buffering, field type safety, cap eviction.
@@ -43,6 +44,45 @@ describe("Delta field type safety", () => {
 
   test("numeric field key is not safe", () => {
     expect(isFieldSafe(42)).toBe(false)
+  })
+})
+
+describe("Refresh part reconciliation", () => {
+  test("preserves message identity while applying refreshed metadata", () => {
+    const current = [{ id: "m1", role: "assistant", time: { completed: 1 } }]
+    const refreshed = [{ id: "m1", role: "assistant", time: { completed: 2 } }]
+
+    const result = reconcile(refreshed, { key: "id" })(current)
+
+    expect(result).toBe(current)
+    expect(result[0]).toBe(current[0])
+    expect(result[0]?.time.completed).toBe(2)
+  })
+
+  test("preserves part identity while applying refreshed text", () => {
+    const current = [{ id: "p1", type: "text", text: "streamed" }]
+    const refreshed = [{ id: "p1", type: "text", text: "persisted" }]
+
+    const result = reconcile(refreshed, { key: "id" })(current)
+
+    expect(result).toBe(current)
+    expect(result[0]).toBe(current[0])
+    expect(result[0]?.text).toBe("persisted")
+  })
+
+  test("adds newly persisted parts without replacing existing parts", () => {
+    const current = [{ id: "p1", type: "text", text: "first" }]
+    const refreshed = [
+      { id: "p1", type: "text", text: "first" },
+      { id: "p2", type: "text", text: "second" },
+    ]
+
+    const result = reconcile(refreshed, { key: "id" })(current)
+
+    expect(result).toBe(current)
+    expect(result).toHaveLength(2)
+    expect(result[0]).toBe(current[0])
+    expect(result[1]?.id).toBe("p2")
   })
 })
 

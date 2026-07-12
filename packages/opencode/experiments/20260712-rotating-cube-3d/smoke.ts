@@ -25,7 +25,7 @@ import {
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
-const TERMINAL_TIMEOUT_MS = 60_000 // Auto-exit after 60s
+const TERMINAL_TIMEOUT_MS = 30_000 // Auto-exit after 30s
 const TARGET_FPS = 30
 const CUBE_COLOR = 0x3b82f6 // Tailwind blue-500
 
@@ -33,12 +33,17 @@ const CUBE_COLOR = 0x3b82f6 // Tailwind blue-500
 
 let rotationSpeed = { x: 0.01, y: 0.02 }
 let applyScanlineFx = false
-let running = true
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function log(msg: string): void {
+  console.error(`[cube] ${msg}`)
+}
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
-console.error("Starting OpenTUI rotating cube smoke test...")
-console.error(`Target FPS: ${TARGET_FPS}, timeout: ${TERMINAL_TIMEOUT_MS}ms`)
+log("Starting OpenTUI rotating cube smoke test...")
+log(`Target FPS: ${TARGET_FPS}, timeout: ${TERMINAL_TIMEOUT_MS}ms`)
 
 const renderer = await Core.createCliRenderer({
   targetFps: TARGET_FPS,
@@ -50,6 +55,7 @@ renderer.start()
 
 const tw = renderer.terminalWidth
 const th = renderer.terminalHeight
+log(`Terminal: ${tw}×${th}`)
 
 // ── Background Frame ────────────────────────────────────────────────────────
 
@@ -107,20 +113,33 @@ scene.add(point)
 
 // ── ThreeCliRenderer ───────────────────────────────────────────────────────
 
-const engine = new ThreeCliRenderer(renderer, {
-  width: tw,
-  height: th,
-  scene,
-  camera,
-  autoResize: false,
-} as any)
+let engine: ThreeCliRenderer | null = null
+let webgpuAvailable = true
+
+try {
+  engine = new ThreeCliRenderer(renderer, {
+    width: tw,
+    height: th,
+    scene,
+    camera,
+    autoResize: false,
+  } as any)
+  log("ThreeCliRenderer initialized")
+} catch (err) {
+  log(`WebGPU not available: ${err}`)
+  log("Cube will not render — check WebGPU drivers + bun-webgpu@0.1.7")
+  webgpuAvailable = false
+}
 
 // ── Status Text ─────────────────────────────────────────────────────────────
 
+const statusMsg = webgpuAvailable
+  ? " ↑↓←→ speed | Space: FX | Q: exit "
+  : " WebGPU unavailable — see console | Q: exit "
+
 const statusText = new Core.TextRenderable(renderer, {
   id: "cube-status",
-  content:
-    " ↑↓ speed X | ← → speed Y | Space: FX | Q: exit ",
+  content: statusMsg,
   position: "absolute",
   left: Math.max(2, Math.floor(tw / 2) - 25),
   top: th - 2,
@@ -130,6 +149,8 @@ const statusText = new Core.TextRenderable(renderer, {
 renderer.root.add(statusText)
 
 // ── Keyboard Controls ───────────────────────────────────────────────────────
+// Note: DO NOT call renderer.stop() inside the frame callback — it deadlocks.
+// Instead, use the keyboard handler to stop directly.
 
 renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {
   switch (key.name) {
@@ -150,7 +171,8 @@ renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {
       break
     case "q":
     case "escape":
-      running = false
+      log("Quit requested")
+      renderer.stop()
       break
   }
 })
@@ -158,8 +180,8 @@ renderer.keyInput.on("keypress", (key: Core.KeyEvent) => {
 // ── Render Loop ─────────────────────────────────────────────────────────────
 
 renderer.setFrameCallback(async (deltaTime: number) => {
-  if (!running) {
-    renderer.stop()
+  if (!engine || !webgpuAvailable) {
+    // No WebGPU — still tick so the frame callback doesn't stall the renderer
     return
   }
 
@@ -173,26 +195,32 @@ renderer.setFrameCallback(async (deltaTime: number) => {
   point.position.z = Math.cos(t * 0.8) * 3
 
   // Render 3D scene to framebuffer
-  await (engine as any).render(framebuffer.frameBuffer, deltaTime)
+  try {
+    await (engine as any).render(framebuffer.frameBuffer, deltaTime)
+  } catch (err) {
+    log(`Render error: ${err}`)
+  }
 
   // Apply post-processing — applyScanlines is re-exported from @opentui/core
   if (applyScanlineFx) {
-    const fx = (Core as any).applyScanlines
-    if (typeof fx === "function") {
-      fx(framebuffer.frameBuffer, 0.8)
-    }
+    try {
+      const fx = (Core as any).applyScanlines
+      if (typeof fx === "function") {
+        fx(framebuffer.frameBuffer, 0.8)
+      }
+    } catch { /* scanlines are best-effort */ }
   }
 })
 
 // ── Auto-exit timer ─────────────────────────────────────────────────────────
+// Use process.exit as backup — renderer.stop() may hang if called after
+// certain error states.
 
 setTimeout(() => {
-  if (running) {
-    console.error("\nSmoke test timed out — exiting.")
-    running = false
-    renderer.stop()
-  }
+  log("Test timed out — force-exiting.")
+  try { renderer.stop() } catch { /* ignore */ }
+  process.exit(0)
 }, TERMINAL_TIMEOUT_MS)
 
-console.error("Rotating cube running. Controls: ↑↓←→ Space Q")
-console.error(`Auto-exit in ${TERMINAL_TIMEOUT_MS / 1000}s.`)
+log("Rotating cube running. Controls: ↑↓←→ Space Q")
+log(`Auto-exit in ${TERMINAL_TIMEOUT_MS / 1000}s.`)

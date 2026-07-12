@@ -45,6 +45,19 @@ async function writeLog(entry: string): Promise<void> {
   }
 }
 
+async function logError(err: unknown): Promise<void> {
+  if (err instanceof Error) {
+    await writeLog(`  name: ${err.name}`)
+    await writeLog(`  message: ${err.message}`)
+    await writeLog(`  stack: ${(err.stack ?? "(no stack)").split("\n").slice(0, 8).join("\n    ")}`)
+    if (err.message?.includes("bun-webgpu") || err.message?.includes("WebGPU")) {
+      await writeLog("  => bun-webgpu or WebGPU unavailable. Need: Vulkan/DX12/Metal drivers + bun-webgpu@0.1.7")
+    }
+  } else {
+    await writeLog(`  raw: ${String(err)}`)
+  }
+}
+
 async function writeSection(title: string): Promise<void> {
   await writeLog(`\n${"=".repeat(60)}`)
   await writeLog(`  ${title}`)
@@ -178,32 +191,37 @@ try {
 await writeLog("Constructing ThreeCliRenderer...")
 await writeLog(`  width=${tw}, height=${th}, autoResize=false`)
 
+let engineInitError: string | null = null
+
 try {
   engine = new ThreeCliRenderer(renderer, {
     width: tw,
     height: th,
-    scene,
-    camera,
     autoResize: false,
-  } as any)
+  })
   await writeLog("ThreeCliRenderer: constructor OK")
 } catch (err) {
   await writeLog(`ThreeCliRenderer: constructor FAILED`)
-  // Log full error details
-  if (err instanceof Error) {
-    await writeLog(`  name: ${err.name}`)
-    await writeLog(`  message: ${err.message}`)
-    await writeLog(`  stack: ${(err.stack ?? "(no stack)").split("\n").slice(0, 8).join("\n    ")}`)
-    // Check for bun-webgpu specifically
-    if (err.message?.includes("bun-webgpu") || err.message?.includes("WebGPU")) {
-      await writeLog("  => Looks like bun-webgpu is missing or WebGPU is unavailable.")
-      await writeLog("  => Check: bun install should install bun-webgpu@0.1.7 (optional dep)")
-      await writeLog("  => Check: system must have Vulkan/DX12/Metal GPU drivers")
-    }
-  } else {
-    await writeLog(`  raw: ${String(err)}`)
-  }
+  await logError(err)
   webgpuAvailable = false
+}
+
+// ── Init (async WebGPU setup) ──────────────────────────────────────────────
+
+if (webgpuAvailable && engine) {
+  await writeLog("Calling engine.init()...")
+  try {
+    await engine.init()
+    await writeLog("engine.init(): OK — WebGPU device + renderer ready")
+    // Set our custom camera
+    engine.setActiveCamera(camera)
+    await writeLog("engine.setActiveCamera(camera): OK")
+  } catch (err) {
+    await writeLog("engine.init(): FAILED")
+    await logError(err)
+    engineInitError = err instanceof Error ? err.message : String(err)
+    webgpuAvailable = false
+  }
 }
 
 // ── FrameBuffer sanity check ────────────────────────────────────────────────
@@ -214,8 +232,15 @@ if (webgpuAvailable && engine) {
   if (fb) {
     await writeLog(`  frameBuffer: ${typeof fb} — OK`)
   } else {
-    await writeLog(`  frameBuffer: undefined or null — engine.render() will likely fail`)
+    await writeLog(`  frameBuffer: undefined or null — drawScene() will likely fail`)
   }
+}
+
+// Check that drawScene exists
+if (webgpuAvailable && engine) {
+  await writeLog(`engine.drawScene: ${typeof (engine as any).drawScene}`)
+  await writeLog(`engine.init available: ${typeof (engine as any).init}`)
+  await writeLog(`engine.doDrawScene: ${typeof (engine as any).doDrawScene}`)
 }
 
 // ── Status Text ─────────────────────────────────────────────────────────────
@@ -306,19 +331,13 @@ renderer.setFrameCallback(async (deltaTime: number) => {
 
   // Render 3D scene to framebuffer
   try {
-    await (engine as any).render(framebuffer.frameBuffer, deltaTime)
+    await engine.drawScene(scene, framebuffer.frameBuffer, deltaTime)
     if (frameCount === 1) {
-      writeLog("engine.render(): first call OK")
+      writeLog("engine.drawScene(): first call OK")
     }
   } catch (err) {
-    writeLog(`Frame #${frameCount}: render() FAILED`)
-    if (err instanceof Error) {
-      writeLog(`  name: ${err.name}`)
-      writeLog(`  message: ${err.message}`)
-      if (err.stack) writeLog(`  stack: ${err.stack.split("\n").slice(0, 6).join("\n    ")}`)
-    } else {
-      writeLog(`  raw: ${String(err)}`)
-    }
+    writeLog(`Frame #${frameCount}: drawScene() FAILED`)
+    await logError(err)
   }
 
   // Apply post-processing

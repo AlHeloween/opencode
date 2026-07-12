@@ -222,7 +222,168 @@ Uses `PART_MAPPING` with tool-specific renderers:
 
 ---
 
-## 5. Mermaid Diagram Rendering
+## 5. MarkdownRenderable Internals (@opentui/core)
+
+**File:** `node_modules/@opentui/core/renderables/Markdown.d.ts` (types)  
+**Implementation:** Bundled in `@opentui/core/index.js` (~388 KB)  
+**Status:** patched via bun `patchedDependencies` — see `patches/@opentui%2Fcore@0.4.3.patch`
+
+The TUI has two rendering paths for markdown, controlled by `Flag.OPENCODE_MARKDOWN` (default `true`):
+
+| Path | Component | Tokenizer | Inline Formatting |
+|------|-----------|-----------|-------------------|
+| **New** (default) | `<markdown>` → `MarkdownRenderable` | `marked@17` (`gfm: true`) | `renderInlineContent()` on marked tokens |
+| **Legacy** | `<code filetype="markdown">` → `CodeRenderable` | tree-sitter markdown grammar | tree-sitter `highlights.scm` queries |
+
+### 5a. MarkdownRenderable Architecture
+
+```
+Assistant text content
+  │
+  ├── splitTextSegments(): mermaid fences only
+  │   └── non-mermaid → { type: "markdown", text }
+  │
+  └── MarkdownRenderable.renderSelf()
+        │
+        ├── parseMarkdownIncremental(newContent, prevState, trailingUnstable)
+        │     └── marked Lexer.lex(newContent, { gfm: true })
+        │           → MarkedToken[] (heading, list, paragraph, table, code, etc.)
+        │
+        └── internalBlockMode?
+              │
+              ├── "coalesced" (default) ───────────────────────────────────┐
+              │   └── buildRenderableTokens(tokens)                        │
+              │         │                                                  │
+              │         ├── shouldRenderSeparately(token)?                 │
+              │         │     ├── code / table / blockquote / hr           │
+              │         │     │   └── flush raw buffer → render separately │
+              │         │     ├── heading / list (PATCHED)                 │
+              │         │     │   └── flush raw buffer → render separately │
+              │         │     └── paragraph / space / others               │
+              │         │           └── accumulate into markdownRaw        │
+              │         │                                                  │
+              │         └── remaining raw → createMarkdownBlockToken()     │
+              │               → type:"paragraph", tokens:[] (FLAT)         │
+              │                                                  │
+              └── "top-level" ──────────────────────────────────┤
+                  └── buildTopLevelRenderBlocks(tokens)         │
+                        └── each block keeps its token identity │
+                                                                 │
+                    ┌────────────────────────────────────────────┘
+                    ▼
+          createDefaultRenderable(token, index, nextToken)
+                │
+                ├── code     → createCodeRenderable()
+                ├── blockquote → createBlockquoteRenderable()
+                ├── list     → createListRenderable()
+                │               └── per item → createListItemRenderable()
+                │                     └── per child → createListChildRenderable()
+                │                           → createMarkdownCodeRenderable(...)
+                ├── hr       → createHorizontalRuleRenderable()
+                ├── table    → createTableBlock() → TextTableRenderable
+                └── heading / paragraph → createMarkdownCodeRenderable(raw, ..., initialStyledText)
+                                              │
+                                              └── CodeRenderable
+                                                    │
+                                                    ├── streaming: true (hardcoded)
+                                                    ├── initialStyledText? ─┬─ styled → drawUnstyledText: true
+                                                    │                       └─ undefined → drawUnstyledText: false
+                                                    └── tree-sitter async highlight
+                                                          └── success → styled text via highlights
+                                                          └── failure → plain text fallback
+```
+
+### 5b. Token Dispatch Table
+
+`shouldRenderSeparately(token)` controls which block types get individual renderables vs being coalesced into raw text:
+
+| Token Type | `shouldRenderSeparately` | Render Path | Inline Tokens Preserved? |
+|------------|-------------------------|-------------|--------------------------|
+| `code`     | ✅ `true` | `CodeRenderable` (syntax-highlighted) | N/A (code block) |
+| `table`    | ✅ `true` | `TextTableRenderable` via `marked` token tree | ✅ Yes — `renderInlineContent` per cell |
+| `blockquote` | ✅ `true` | `BoxRenderable` with left border → `CodeRenderable` | ❌ No — uses token.raw → tree-sitter |
+| `hr`       | ✅ `true` | `BoxRenderable` with top border | N/A |
+| `heading`  | ✅ `true` (patched) | `createMarkdownCodeRenderable(raw, ..., initialStyledText)` | ✅ Yes — marked inline tokens → `createInitialStyledText` |
+| `list`     | ✅ `true` (patched) | `createListRenderable()` → per-item `createListChildRenderable()` | ✅ Yes — marked inline tokens in each paragraph/text child |
+| `paragraph` | ❌ `false` (coalesced) | Accumulated into flat raw → single `CodeRenderable` | ⚠️ Partial — via `x.lexInline()` fallback when streaming guard removed |
+
+### 5c. Coalescing Behavior and Impact
+
+In `buildRenderableTokens()` (default coalesced mode), non-separate tokens are concatenated into a single raw string via `markdownRaw += token.raw`. A synthetic `paragraph` token with `tokens: []` is created from the combined raw text. This:
+
+- **Destroys all inline token structure** — `strong`, `em`, `codespan`, `link` tokens are lost
+- **Lists lose their hierarchical structure** — markers, nesting, item boundaries are flattened
+- **Headings lose their depth and inline tokens** — the `###` prefix and inline bold/italic become raw text
+
+The coalesced raw string is passed to `createMarkdownCodeRenderable()` which creates a `CodeRenderable` with `filetype: "markdown"`. This CodeRenderable depends on **tree-sitter's markdown grammar** to recover the formatting from the raw text.
+
+### 5d. Streaming Guard (createInitialStyledText)
+
+`createInitialStyledText(token)` generates pre-computed styled text from marked's inline tokenizer:
+
+```javascript
+createInitialStyledText(token) {
+    // streaming guard removed (PATCHED) — now runs for all content
+    const chunks = [];
+    if ("tokens" in token && Array.isArray(token.tokens)) {
+        this.renderInlineContent(token.tokens, chunks);  // from marked tokens
+    }
+    if (chunks.length === 0 && "text" in token && typeof token.text === "string") {
+        this.renderInlineContent(x.lexInline(token.text), chunks);  // inline re-parse
+    }
+    return chunks.length > 0 ? new StyledText(chunks) : undefined;
+}
+```
+
+When `initialStyledText` is provided to `createMarkdownCodeRenderable()`:
+- `drawUnstyledText: true` — CodeRenderable immediately renders the pre-computed styled text
+- Content is **visible immediately** without waiting for async tree-sitter highlighting
+- Inline formatting (`**bold**`, `*italic*`, `` `code` ``) is rendered correctly
+
+When `initialStyledText` is `undefined`:
+- `drawUnstyledText: false` — CodeRenderable's `_shouldRenderTextBuffer` is set to `false`
+- Content is **invisible** until tree-sitter highlighting completes asynchronously
+- If tree-sitter highlighting fails, falls back to plain text
+
+**Pre-patch:** The streaming guard (`if (!this._streaming) return;`) prevented `initialStyledText` from being generated for static (non-streaming) content, leaving all non-separately-rendered blocks dependent on tree-sitter for inline formatting.
+
+### 5e. renderInlineContent — Inline Token Rendering
+
+Maps marked inline token types to OpenTUI styled text chunks:
+
+| Marked Inline Token | Styled Text Chunk(s) | Concealed? |
+|--------------------|---------------------|------------|
+| `text` | `default` chunk | — |
+| `strong` | `markup.strong` wrapper + child tokens | `**` markers concealed when `conceal: true` |
+| `em` | `markup.italic` wrapper + child tokens | `*` markers concealed |
+| `codespan` | `markup.raw` chunk | `` ` `` markers concealed |
+| `del` | `markup.strikethrough` wrapper | `~~` markers concealed |
+| `link` | `markup.link` + `markup.link.label` + `markup.link.url` | URL hidden when `conceal: true` |
+
+### 5f. Known Issues and Edge Cases
+
+| Issue | Context | Workaround |
+|-------|---------|------------|
+| Inline formatting in coalesced paragraphs | Coalesced `paragraph` tokens have `tokens: []`, so `renderInlineContent` falls through to `x.lexInline(raw)` | `x.lexInline` fully handles inline formatting from raw text |
+| Consecutive paragraphs without separation | Multiple paragraphs without intervening separate blocks accumulate into one raw block | Add an explicit flush on double-newline within `buildRenderableTokens` |
+| List item paragraph margin | List items use `marginTop: /\n[ \t]*\n$/.test(item.raw) ? 1 : 0` — double-newline inside item adds paragraph break | Controlled by marked's list item tokenization |
+| tree-sitter highlight failure | If markdown highlight query file is missing or parser fails to load | `ensureVisibleTextBeforeHighlight` sets `textBuffer.setText(content)` as plain text |
+| Zero-highlights during streaming | Incomplete markdown mid-stream produces zero tree-sitter highlights | `onHighlight` callback in `index.tsx` preserves last known good highlights |
+
+### 5g. Incremental Parsing for Streaming
+
+`parseMarkdownIncremental()` reuses previous parse state by matching `token.raw` at character offsets:
+
+1. Compares `newContent.startsWith(token.raw, offset)` for each previous token
+2. Reuses matching tokens up to `reuseCount`
+3. Subtracts `trailingUnstable` (default `2` when `streaming: true`) from reuseCount
+4. Re-parses only the remaining `newContent.slice(offset)` with `x.lex()`
+
+The `trailingUnstable` parameter:
+- `streaming: true` → `trailingUnstable = 2` — last 2 tokens always re-parsed
+- `streaming: false` → `trailingUnstable = 0` — all matching tokens are stable
+
+## 6. Mermaid Diagram Rendering
 
 ### Pipeline
 
@@ -249,9 +410,9 @@ Mermaid source
 
 ---
 
-## 6. Image & Media Rendering
+## 7. Image & Media Rendering
 
-### 6a. TexturePlaneRenderable — 3D Image Display
+### 7a. TexturePlaneRenderable — 3D Image Display
 
 **File:** `packages/opencode/src/cli/cmd/tui/component/texture-plane-renderable.ts`
 
@@ -261,7 +422,7 @@ Registered as `<image-plane>` via `extend()` in `app.tsx:78`.
 - Loads image as Three.js texture → PlaneGeometry → Mesh → PerspectiveCamera → ThreeRenderable
 - Temporary file in `os.tmpdir()`, cleaned up in `finally` block
 
-### 6b. Terminal Graphics Protocol Detection
+### 7b. Terminal Graphics Protocol Detection
 
 **File:** `packages/opencode/src/util/terminal-graphics.ts`
 
@@ -270,7 +431,7 @@ Registered as `<image-plane>` via `extend()` in `app.tsx:78`.
 - WezTerm: prefers Kitty, falls back through chain
 - VS Code terminal: always "symbols" fallback
 
-### 6c. Image Components
+### 7c. Image Components
 
 | File | Component | Rendering |
 |------|-----------|-----------|
@@ -279,7 +440,7 @@ Registered as `<image-plane>` via `extend()` in `app.tsx:78`.
 | `media-audio.tsx` | `<MediaAudio>` | Audio playback widget |
 | `media-mermaid.tsx` | `<MediaMermaid>` | Mermaid → SVG → PNG → `<image-plane>` |
 
-### 6d. ANSI / Kitty Renderers
+### 7d. ANSI / Kitty Renderers
 
 | File | Purpose | Key Details |
 |------|---------|-------------|
@@ -288,7 +449,7 @@ Registered as `<image-plane>` via `extend()` in `app.tsx:78`.
 
 ---
 
-## 7. Markdown Rendering (Web/Desktop)
+## 8. Markdown Rendering (Web/Desktop)
 
 **File:** `packages/ui/src/components/markdown.tsx`
 
@@ -313,7 +474,7 @@ Registered as `<image-plane>` via `extend()` in `app.tsx:78`.
 
 ---
 
-## 8. Syntax Highlighting (Tree-sitter)
+## 9. Syntax Highlighting (Tree-sitter)
 
 ### Configuration
 
@@ -331,7 +492,7 @@ Defines 28 language parsers (Python, Rust, Go, TypeScript, etc.) with WASM files
 
 ---
 
-## 9. Attachment Rendering
+## 10. Attachment Rendering
 
 **File:** `packages/opencode/src/attachment/registry.ts`
 
@@ -350,7 +511,7 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 
 ---
 
-## 10. TUI Configuration
+## 11. TUI Configuration
 
 **File:** `packages/opencode/src/cli/cmd/tui/config/tui-schema.ts`
 
@@ -363,7 +524,7 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 
 ---
 
-## 11. Test Infrastructure
+## 12. Test Infrastructure
 
 ### Test Fixtures
 
@@ -383,7 +544,7 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 
 ---
 
-## 12. Key File Index
+## 13. Key File Index
 
 | File | Lines | Purpose |
 |------|-------|---------|
@@ -411,3 +572,12 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 | `packages/opencode/src/cli/cmd/tui/config/tui-schema.ts` | 26-31 | TUI config schema |
 | `packages/opencode/test/cli/editor-context.test.ts` | 1-93 | ZED editor tests (moved from TUI dir) |
 | `packages/opencode/test/cli/tui/plugin-loader-entrypoint.test.ts` | 259-321 | Plugin entrypoint tests |
+| `node_modules/@opentui/core/renderables/Markdown.d.ts` | 1-255 | MarkdownRenderable type declarations |
+| `node_modules/@opentui/core/renderables/markdown-parser.d.ts` | 1-11 | `parseMarkdownIncremental()` types |
+| `node_modules/@opentui/core/index.js` | 8550-8555 | `shouldRenderSeparately()` dispatch |
+| `node_modules/@opentui/core/index.js` | 8113-8123 | `createInitialStyledText()` |
+| `node_modules/@opentui/core/index.js` | 8585-8625 | `buildRenderableTokens()` coalescing logic |
+| `node_modules/@opentui/core/index.js` | 8948-8973 | `createDefaultRenderable()` routing |
+| `node_modules/@opentui/core/index.js` | 8289-8300 | `createListRenderable()` list rendering |
+| `node_modules/@opentui/core/index-6xr3rbbe.js` | 3335-3358 | `ensureVisibleTextBeforeHighlight()` |
+| `patches/@opentui%2Fcore@0.4.3.patch` | 1-23 | Patch: markdown list/heading + streaming guard fix |

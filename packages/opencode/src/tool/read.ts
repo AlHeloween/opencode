@@ -19,6 +19,8 @@ const MAX_BYTES = 50 * 1024
 const MAX_BYTES_LABEL = `${MAX_BYTES / 1024} KB`
 const SAMPLE_BYTES = 4096
 const TEXT_DOCUMENT_EXTENSIONS = new Set(["atom", "csv", "htm", "html", "json", "md", "rss", "txt", "xml"])
+const HEX_DUMP_BYTES_PER_ROW = 16
+const HEX_DUMP_DEFAULT_BYTE_LIMIT = 512
 
 // `offset` and `limit` were originally `z.coerce.number()` — the runtime
 // coercion was useful when the tool was called from a shell but serves no
@@ -28,10 +30,13 @@ const TEXT_DOCUMENT_EXTENSIONS = new Set(["atom", "csv", "htm", "html", "json", 
 export const Parameters = Schema.Struct({
   filePath: Schema.String.annotate({ description: "The absolute path to the file or directory to read" }),
   offset: Schema.optional(Schema.Number).annotate({
-    description: "The line number to start reading from (1-indexed)",
+    description: "The line number (or byte offset in hex mode) to start reading from (1-indexed)",
   }),
   limit: Schema.optional(Schema.Number).annotate({
-    description: "The maximum number of lines to read (defaults to 2000)",
+    description: "The maximum number of lines (or bytes in hex mode) to read",
+  }),
+  hex: Schema.optional(Schema.Boolean).annotate({
+    description: "When true, read a binary file as a formatted hex dump with offset and ASCII tail",
   }),
 })
 
@@ -227,6 +232,41 @@ export const ReadTool = Tool.define(
       const sample = yield* readSample(filepath, Number(stat.size), SAMPLE_BYTES)
 
       const mime = sniffAttachmentMime(sample, AppFileSystem.mimeType(filepath))
+      if (params.hex) {
+        // Hex mode — reads ANY file as hex dump, regardless of type
+        const bytes = yield* fs.readFile(filepath)
+        const hexOffset = params.offset ?? 1
+        const hexLimit = params.limit ?? HEX_DUMP_DEFAULT_BYTE_LIMIT
+        const hexResult = formatHexDump(new Uint8Array(bytes), {
+          offset: hexOffset,
+          limit: hexLimit,
+          maxTotalBytes: MAX_BYTES,
+        })
+
+        let output = [`<path>${filepath}</path>`, `<type>hexdump</type>`, `<hexdump>`].join("\n")
+        output += "\n" + hexResult.lines.join("\n")
+
+        const byteEnd = hexResult.offsetStart + hexResult.bytesShown - 1
+        if (hexResult.truncated) {
+          output += `\n\n(Output capped at ${MAX_BYTES_LABEL}. Showing bytes ${hexResult.offsetStart}-${byteEnd} of ${bytes.length}. Use offset=${hexResult.offsetStart + hexResult.bytesShown} to continue.)`
+        } else if (hexResult.bytesShown < bytes.length) {
+          output += `\n\n(Showing bytes ${hexResult.offsetStart}-${byteEnd} of ${bytes.length}. Use offset=${hexResult.offsetStart + hexResult.bytesShown} to continue.)`
+        } else {
+          output += `\n\n(End of file - total ${bytes.length} bytes)`
+        }
+        output += "\n</hexdump>"
+
+        return {
+          title,
+          output,
+          metadata: {
+            preview: hexResult.lines.slice(0, 10).join("\n"),
+            truncated: hexResult.truncated,
+            loaded: loaded.map((item) => item.filepath),
+          },
+        }
+      }
+
       if (isImageAttachment(mime)) {
         const bytes = yield* fs.readFile(filepath)
         return {
@@ -248,9 +288,10 @@ export const ReadTool = Tool.define(
       }
 
       if (isBinaryFile(filepath, sample)) {
+        const bytes = yield* fs.readFile(filepath)
+
         const ext = path.extname(filepath).toLowerCase().slice(1)
         if (isSupportedDocumentFormat(ext) && !TEXT_DOCUMENT_EXTENSIONS.has(ext)) {
-          const bytes = yield* fs.readFile(filepath)
           const markdown = yield* Effect.promise(() =>
             convertDocument(new Uint8Array(bytes), path.basename(filepath)),
           )
@@ -365,4 +406,79 @@ async function lines(filepath: string, opts: { limit: number; offset: number }) 
   }
 
   return { raw, count, cut, more, offset: opts.offset }
+}
+
+// ------------------------------------------------------------------
+// Hex dump formatting
+// ------------------------------------------------------------------
+
+interface HexDumpResult {
+  lines: string[]
+  offsetStart: number
+  bytesShown: number
+  truncated: boolean
+}
+
+interface HexDumpOptions {
+  offset: number     // 1-indexed byte offset
+  limit: number      // max bytes to show
+  maxTotalBytes: number  // max total text output bytes before truncation
+}
+
+/**
+ * Format binary data as a classic hex dump table.
+ *
+ * Output per row (16 bytes):
+ *   <8-digit offset>  <8 hex bytes> <8 hex bytes>  |<ASCII tail>|
+ *
+ * Example:
+ *   00000000  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a 00 00 00  |Hello World!....|
+ *   00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ */
+function formatHexDump(data: Uint8Array, opts: HexDumpOptions): HexDumpResult {
+  const lines: string[] = []
+  const start = Math.max(0, opts.offset - 1)
+  const end = Math.min(data.length, start + opts.limit)
+  let textBytes = 0
+  let truncated = false
+  let rowCount = 0
+
+  for (let i = start; i < end && !truncated; i += HEX_DUMP_BYTES_PER_ROW) {
+    const rowEnd = Math.min(i + HEX_DUMP_BYTES_PER_ROW, end)
+    const rowHex: string[] = []
+    const rowAscii: string[] = []
+
+    for (let j = i; j < rowEnd; j++) {
+      const b = data[j]
+      rowHex.push(b.toString(16).padStart(2, "0"))
+      rowAscii.push(b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : ".")
+    }
+
+    // Build the hex columns: 8 bytes, space, 8 bytes
+    const leftHex = rowHex.slice(0, 8).join(" ")
+    const rightHex = rowHex.slice(8).join(" ")
+    const hexPart = rightHex.length > 0 ? `${leftHex}  ${rightHex}` : leftHex
+    // Pad to consistent width: 8*3 - 1 + 2 + 8*3 - 1 = 47 chars (left) + 2 (gap) + up to 23 (right)
+    const hexPadded = hexPart.padEnd(50)
+
+    const asciiPart = rowAscii.join("")
+    const line = `${i.toString(16).padStart(8, "0")}  ${hexPadded}  |${asciiPart}|`
+
+    const lineBytes = Buffer.byteLength(line, "utf-8") + (lines.length > 0 ? 1 : 0)
+    if (textBytes + lineBytes > opts.maxTotalBytes && rowCount > 0) {
+      truncated = true
+      break
+    }
+
+    lines.push(line)
+    textBytes += lineBytes
+    rowCount++
+  }
+
+  return {
+    lines,
+    offsetStart: start + 1,
+    bytesShown: Math.min(end - start, data.length - start),
+    truncated,
+  }
 }

@@ -23,6 +23,7 @@ export async function checkWasmModules(): Promise<void> {
     initDiffy().then((ok) => ({ name: "diffy", ok })),
     initTokenizer().then((ok) => ({ name: "tokenizer", ok })),
     initJsonRepair().then((ok) => ({ name: "json_repair", ok })),
+    checkAsset("markdownify", "markdownify/markdownify_wasm_bg.wasm"),
     checkAsset("rdiff", "rdiff/rdiff_bg.wasm"),
     checkAsset("tree_sitter_runtime", "tree-sitter.wasm"),
     ...embeddedTreeSitterGrammarAssetPaths.map((asset) =>

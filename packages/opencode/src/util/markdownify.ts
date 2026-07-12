@@ -3,8 +3,55 @@ import { Process } from "./process"
 import { Global } from "@opencode-ai/core/global"
 import { Filesystem } from "./filesystem"
 import * as Log from "@opencode-ai/core/util/log"
+import { readWasmAsset } from "./wasm-path"
 
 const MARKDOWNIFY_BIN = "opencode-markdownify"
+
+// ------------------------------------------------------------------
+// WASM module (preferred — in-process, fast, no process spawn)
+// ------------------------------------------------------------------
+
+let _wasmInit: Promise<boolean> | null = null
+let _wasmAvailable = false
+// wasm-bindgen functions — typed via the module's @ts-self-types
+let _wasmConvert: ((bytes: Uint8Array, filename: string) => string) | null = null
+let _wasmIsSupported: ((ext: string) => boolean) | null = null
+
+async function tryLoadWasm(): Promise<boolean> {
+  if (_wasmAvailable) return true
+  if (_wasmInit) return _wasmInit
+
+  _wasmInit = (async () => {
+    try {
+      const asset = await readWasmAsset("markdownify/markdownify_wasm_bg.wasm")
+      if (!asset.bytes) {
+        Log.Default.debug("markdownify: wasm asset not found, trying native binary")
+        return false
+      }
+
+      // Dynamic import of the wasm-bindgen JS glue
+      const mod: any = await import("../../../wasm/markdownify/pkg/markdownify_wasm.js")
+
+      // Initialize with pre-loaded bytes (avoids URL/fetch path)
+      await mod.default(new Uint8Array(asset.bytes))
+
+      _wasmConvert = mod.convert_to_markdown
+      _wasmIsSupported = mod.is_supported_extension
+      _wasmAvailable = true
+      Log.Default.debug("markdownify: wasm loaded from " + (asset.path ?? "embedded"))
+      return true
+    } catch (err) {
+      Log.Default.debug("markdownify: wasm load failed: " + (err instanceof Error ? err.message : String(err)))
+      return false
+    }
+  })()
+
+  return _wasmInit
+}
+
+// ------------------------------------------------------------------
+// Native binary fallback
+// ------------------------------------------------------------------
 
 let cachedBinPath: string | null = null
 
@@ -61,9 +108,7 @@ async function resolveBinPath(): Promise<string | null> {
   return null
 }
 
-export async function initMarkdownify() {}
-
-export async function convertDocument(bytes: Uint8Array, filename: string, opts?: { tail?: number }): Promise<string> {
+async function convertViaBinary(bytes: Uint8Array, filename: string, opts?: { tail?: number }): Promise<string> {
   const binPath = await resolveBinPath()
   if (!binPath) {
     const candidates = binCandidates(markdownifyName())
@@ -96,6 +141,55 @@ export async function convertDocument(bytes: Uint8Array, filename: string, opts?
   }
 
   return stdout
+}
+
+// ------------------------------------------------------------------
+// Public API
+// ------------------------------------------------------------------
+
+/**
+ * Initialize markdownify. Tries WASM first, native binary second.
+ * Safe to call multiple times.
+ */
+export async function initMarkdownify(): Promise<void> {
+  await tryLoadWasm()
+}
+
+/**
+ * Convert a document (binary bytes + filename) to markdown.
+ *
+ * Strategy:
+ *   WASM first (in-process, synchronous after init, no spawn overhead)
+ *   → native binary fallback (full-featured, handles 7z)
+ *
+ * `tail` is applied in JS for the WASM path; the native binary handles it
+ * via `--tail`.
+ */
+export async function convertDocument(bytes: Uint8Array, filename: string, opts?: { tail?: number }): Promise<string> {
+  const wasmOk = await tryLoadWasm()
+  if (wasmOk && _wasmConvert) {
+    try {
+      const markdown = _wasmConvert(bytes, filename)
+      if (opts?.tail !== undefined && opts.tail > 0) {
+        return tailLines(markdown, opts.tail)
+      }
+      return markdown
+    } catch (err) {
+      Log.Default.debug("markdownify: wasm convert failed, trying native binary", {
+        filename,
+        error: String(err),
+      })
+      // Fall through to native binary
+    }
+  }
+
+  return convertViaBinary(bytes, filename, opts)
+}
+
+function tailLines(text: string, n: number): string {
+  const lines = text.split(/\r?\n/)
+  if (lines.length <= n) return text
+  return lines.slice(lines.length - n).join("\n")
 }
 
 async function consumeStream(stream: NodeJS.ReadableStream): Promise<string> {

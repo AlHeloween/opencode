@@ -4,6 +4,7 @@ import tokenizerWasm from "../../../wasm/core/pkg/tokenizer.wasm" with { type: "
 import diffyWasm from "../../../wasm/core/pkg/diffy/diffy_wasm_bg.wasm" with { type: "file" }
 import jsonRepairWasm from "../../../wasm/core/pkg/json_repair/json_repair_bg.wasm" with { type: "file" }
 import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: "file" }
+import markdownifyWasm from "../../../wasm/markdownify/pkg/markdownify_wasm_bg.wasm" with { type: "file" }
 import treeSitterRuntimeWasm from "web-tree-sitter/tree-sitter.wasm" with { type: "file" }
 import treeSitterBashWasm from "../../../wasm/core/pkg/grammars/tree-sitter-bash.wasm" with { type: "file" }
 import treeSitterBatchWasm from "../../../wasm/core/pkg/grammars/tree-sitter-batch.wasm" with { type: "file" }
@@ -78,6 +79,7 @@ const embeddedWasmAssets = new Map([
   ["diffy/diffy_wasm_bg.wasm", diffyWasm as unknown as string],
   ["json_repair/json_repair_bg.wasm", jsonRepairWasm as unknown as string],
   ["rdiff/rdiff_bg.wasm", rdiffWasm as unknown as string],
+  ["markdownify/markdownify_wasm_bg.wasm", markdownifyWasm as unknown as string],
   ["tree-sitter.wasm", treeSitterRuntimeWasm],
   ...embeddedTreeSitterGrammarAssets,
 ])

@@ -1,13 +1,15 @@
-Read a file or directory from the local filesystem. Supports text files, images, binary documents, archives, and media files.
+Read a file or directory from the local filesystem. Supports text files, images, binary documents, archives, media files, and hex dumps.
 
 ## Document Conversion
 
 The tool automatically detects and converts binary document formats to markdown:
 - **PDF** (.pdf)
-- **Word documents** (.docx)
-- **Excel spreadsheets** (.xlsx, .ods, .csv)
-- **PowerPoint presentations** (.pptx, .odp)
-- **Plain text** (.txt, .md, .json, .xml, .html)
+- **Word/Excel/PowerPoint** (.docx, .xlsx, .xlsm, .xlsb, .pptx, .pptm)
+- **OpenDocument** (.ods, .odt, .odp)
+- **Web** (.html, .htm, .xml, .rss, .atom)
+- **JSON & text** (.json, .txt, .md, .csv)
+
+Conversion uses WASM (in-process, fast) with native binary fallback.
 
 ## Image & Media Files
 
@@ -15,9 +17,22 @@ The tool automatically detects and converts binary document formats to markdown:
 - **Audio/video files** — metadata (EXIF) is extracted and returned.
 - **Archive files** (.zip, .tar, .gz, .7z) — contents are listed and individual files can be read.
 
+## Hex Dump Mode
+
+When the `hex` parameter is `true`, the tool outputs a formatted hex dump regardless of file type:
+
+```
+00000000  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a 00 00 00  |Hello World!....|
+00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+```
+
+- Byte offset `offset` (1-indexed, default: 1)
+- Byte count `limit` (default: 512 bytes)
+- Same 50KB output cap as text mode, with pagination via `offset`
+
 ## Binary Safety
 
-Binary files (executables, compiled code, binary formats) are detected and refused with a clear error message. The detection is extension-based and safe.
+Binary files (executables, compiled code, binary formats) are detected and refused with a clear error message, unless `hex: true` is set. The detection is extension-based and safe.
 
 ## Reading Text Files
 
@@ -37,8 +52,9 @@ When `filePath` points to a directory, entries are listed one per line. Director
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `filePath` | string | — | Absolute path to file or directory |
-| `offset` | number | 1 | Line number to start reading from (1-indexed) |
-| `limit` | number | 2000 | Maximum lines to read |
+| `offset` | number | 1 | Line number (or byte offset in hex mode) to start reading from (1-indexed) |
+| `limit` | number | 2000 (text) / 512 (hex) | Maximum lines or bytes to read |
+| `hex` | boolean | false | When true, read any file as a formatted hex dump with offset and ASCII tail |
 
 ## Parallel Usage
 

@@ -1,0 +1,40 @@
+Search log files under .opencode/data/log/ using ripgrep for fast bug finding.
+
+Use this for quickly finding errors, warnings, and bug markers in runtime logs.
+
+## Filter Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `pattern` | string | — | Search pattern (regex or plain text) |
+| `level` | string (optional) | all | Log level filter: "ERROR", "WARN", "bug", "INFO" |
+| `since` | string (optional) | — | Time window. Examples: "5m", "1h", "30m", "today" |
+| `limit` | number | 20 | Maximum results to return (default: 20, max: 100) |
+| `context` | number | 2 | Lines of context before and after each match |
+
+## Level Behavior
+
+- `"bug"` — matches bug: prefix patterns (reported bugs on exit)
+- `"ERROR"` — matches ERROR level log entries
+- `"WARN"` — matches WARN level log entries (includes bug: entries)
+- `"INFO"` — matches INFO level log entries
+- Omit to search all levels.
+
+## Time Window Examples
+
+- `"5m"` — last 5 minutes
+- `"1h"` — last hour
+- `"30m"` — last 30 minutes
+- `"today"` — since midnight
+
+## When to Use
+
+- Find errors in TUI (red brackets, error toasts) — check logs first
+- Find bug: markers for bugs collected on exit
+- Trace through recent session activity
+- Debug tool execution failures
+- Investigate stream errors, permission denials, or cache issues
+
+## Output Format
+
+Returns file:line with matched lines and surrounding context. Results sorted by time (newest first).

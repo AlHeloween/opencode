@@ -1,0 +1,32 @@
+Query any SQLite database under the project's .opencode/data/ directory with read-only SQL.
+
+Use this for diagnostics, inspecting internal state, and debugging.
+
+## Restrictions
+
+- **READ ONLY**: Only SELECT queries are allowed. INSERT/UPDATE/DELETE/CREATE/DROP are rejected.
+- **Scoped**: Only databases under {worktree}/.opencode/data/ are accessible.
+- **Capped**: Maximum 100 rows returned, maximum 50KB output.
+- **Safe**: Runs in a read-only transaction. No mutations possible.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `database` | string | — | Database name (e.g. "opencode", "memory", "jobs") or path relative to .opencode/data/ |
+| `sql` | string | — | SELECT SQL query to execute |
+| `limit` | number | 100 | Maximum rows to return |
+
+## Examples
+
+- `{ "database": "opencode", "sql": "SELECT COUNT(*) FROM session" }`
+- `{ "database": "memory", "sql": "SELECT * FROM part_index ORDER BY time_created DESC LIMIT 5" }`
+- `{ "database": "memory", "sql": "SELECT last_rowid FROM index_watermark" }`
+- `{ "database": "opencode", "sql": "SELECT id, title, time_created FROM session ORDER BY time_created DESC LIMIT 10" }`
+
+## When to Use
+
+- Check memory.db sync status (watermark, indexed parts count)
+- Inspect database state during debugging
+- Verify tool execution results
+- Count sessions, messages, or parts

@@ -2,19 +2,20 @@ Search or browse conversation history across all sessions in the current project
 
 ## Modes
 
-- **Search mode** (with `query`): LIKE-text search over all message content. Results are ordered by epistemic-weighted semantic rank.
+- **Search mode** (with `query`): FTS5 full-text search over all message content. Results ordered by combined BM25 relevance and epistemic-weighted semantic rank.
 - **Browse mode** (no `query`): Returns all user messages chronologically per session, each preceded by its context (the preceding assistant message). No ranking.
 
 ## Search Engine
 
-- **LIKE** text search over all message content in the project's SQLite database (not file scanning).
-- **Epistemic-weighted semantic ranking**: Content labeled with evidence markers is boosted:
+- **FTS5 full-text search** with Porter stemming and unicode tokenizer over dedicated memory database.
+- **Hybrid ranking**: BM25 relevance score (0.7 weight) + epistemic-weighted semantic rank (0.3 weight):
   - `[Exact]` → 10x weight
   - `[Inferred]` → 7x weight
   - `[Hypothetical]` → 4x weight
   - `[Guess]` → 2x weight
   - `[Unknown]` → 1x weight
-- Results are ordered by semantic rank only.
+- Results are ordered by combined rank descending (relevance + confidence).
+- Search indexes a separate `memory.db` — main project database is unaffected.
 
 ## Output Format
 
@@ -33,7 +34,7 @@ Results are grouped by session. Each result includes:
 - Session ID
 - Message index (#N) and part type in brackets: `[text]`, `[tool]`, `[reasoning]`, etc.
 - Snippet with query term highlighting (`**term**`)
-- Rank score
+- Combined rank score with BM25 and epistemic sub-scores
 
 Output is capped at 50KB. Use `session-read` to get full context around found messages.
 

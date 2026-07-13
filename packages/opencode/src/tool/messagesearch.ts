@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
-import { Session } from "../session/session"
-import { Provider } from "@/provider/provider"
+import { Memory } from "@/memory/memory"
+import { getProjectDbPath } from "@/storage/db"
 import * as Tool from "./tool"
 
 import DESCRIPTION from "./messagesearch.txt"
@@ -20,9 +20,6 @@ export const Parameters = Schema.Struct({
 export const MessageSearchTool = Tool.define(
   "messagesearch",
   Effect.gen(function* () {
-    const pvdr = yield* Provider.Service
-    let contextMap: Map<string, number> | undefined
-
     return {
       description: DESCRIPTION,
       parameters: Parameters,
@@ -42,107 +39,142 @@ export const MessageSearchTool = Tool.define(
           })
 
           const ins = yield* InstanceState.context
-          const projectID = ins.project.id
           const worktree = ins.worktree
 
-          // Resolve model context limit for browse mode token-aware sizing
-          if (mode === "browse" && !contextMap) {
-            contextMap = new Map<string, number>()
-            for (const [providerID, provider] of Object.entries(yield* pvdr.list())) {
-              for (const [modelID, model] of Object.entries(provider.models)) {
-                contextMap.set(`${providerID}:${modelID}`, model.limit.context)
-              }
-            }
-          }
-          const modelContextLimit: number | undefined =
-            mode === "browse"
-              ? (() => {
-                  const lastUser = ctx.messages.findLast((msg) => msg.info.role === "user")
-                  if (!lastUser) return undefined
-                  const m = (lastUser.info as any).model
-                  if (!m?.providerID || !m?.modelID) return undefined
-                  return contextMap?.get(`${m.providerID}:${m.modelID}`)
-                })()
-              : undefined
+          // Sync memory.db from project DB before querying
+          const projectDbPath = getProjectDbPath(worktree)
+          yield* Effect.sync(() => Memory.sync(worktree, projectDbPath))
 
-          const results = yield* Effect.sync(() => {
-            const groups: Session.SearchSessionGroup[] = []
-            for (const group of Session.search({
-              projectID,
+          const limit = params.limit ?? 20
+
+          if (mode === "browse") {
+            return yield* Effect.gen(function* () {
+              const results = Memory.browse({ worktree })
+
+              if (results.length === 0) {
+                return {
+                  title: "Browse Sessions",
+                  metadata: { query: "(browse)", mode, results: 0 },
+                  output: "No results found",
+                }
+              }
+
+              // Group by session, pair user messages with preceding assistant context
+              let output = ""
+              let totalSize = 0
+              let currentSessionID = ""
+              let sessionHeader = ""
+
+              // Group results by session
+              const sessionGroups = new Map<string, Memory.MemorySearchResult[]>()
+              for (const r of results) {
+                const group = sessionGroups.get(r.sessionID) ?? []
+                group.push(r)
+                sessionGroups.set(r.sessionID, group)
+              }
+
+              for (const [sessionID, groupResults] of sessionGroups) {
+                if (totalSize >= MAX_OUTPUT) break
+                const header = `\n## Session: ${sessionID}\n`
+                output += header
+                totalSize += header.length
+
+                // Pair user messages with preceding assistant context
+                let lastAssistantText = ""
+                for (const result of groupResults) {
+                  if (totalSize >= MAX_OUTPUT) break
+                  if (result.role === "assistant") {
+                    lastAssistantText = result.text
+                  } else if (result.role === "user") {
+                    if (lastAssistantText) {
+                      const ctxEntry = [`### #${result.messageIndex - 1} [assistant]`, lastAssistantText, ""].join("\n")
+                      output += ctxEntry
+                      totalSize += ctxEntry.length
+                      lastAssistantText = ""
+                    }
+                    const userEntry = [
+                      `### #${result.messageIndex} [user]`,
+                      result.text ? `> ${result.text.slice(0, 400)}` : "",
+                      "",
+                    ].join("\n")
+                    if (userEntry.trim()) {
+                      output += userEntry
+                      totalSize += userEntry.length
+                    }
+                  }
+                }
+              }
+
+              return {
+                title: "Browse Sessions",
+                metadata: {
+                  query: "(browse)",
+                  mode,
+                  results: results.length,
+                },
+                output: output.slice(0, MAX_OUTPUT) || "No results found",
+              }
+            })
+          }
+
+          // Search mode: FTS5 + BM25 + epistemic hybrid
+          return yield* Effect.gen(function* () {
+            const searchResults = Memory.search({
               worktree,
-              query: params.query,
-              limit: params.limit,
-              modelContextLimit,
-            })) {
-              groups.push(group)
-            }
-            return groups
-          })
+              query: params.query!,
+              limit,
+            })
 
-          if (results.length === 0) {
-            return {
-              title: mode === "browse" ? "Browse Sessions" : `MessageSearch "${params.query}"`,
-              metadata: { query: params.query || "(browse)", mode, results: 0 },
-              output: "No results found",
-            }
-          }
-
-          let output = ""
-          let totalSize = 0
-
-          for (const group of results) {
-            if (totalSize >= MAX_OUTPUT) break
-            const sessionTitle = group.results[0]?.sessionID || group.sessionID
-
-            const header = `\n## Session: ${sessionTitle}\n`
-            output += header
-            totalSize += header.length
-
-            if (mode === "browse") {
-              // Browse mode: show user messages with preceding assistant context
-              for (const result of group.results) {
-                if (totalSize >= MAX_OUTPUT) break
-                if (result.contextText) {
-                  const ctxEntry = [`### #${result.contextIndex} [assistant]`, result.contextText, ""].join("\n")
-                  output += ctxEntry
-                  totalSize += ctxEntry.length
-                }
-                const userEntry = [
-                  `### #${result.messageIndex} [user]`,
-                  result.text ? `> ${result.text.slice(0, 400)}` : "",
-                  "",
-                ].join("\n")
-                if (userEntry.trim()) {
-                  output += userEntry
-                  totalSize += userEntry.length
-                }
+            if (searchResults.length === 0) {
+              return {
+                title: `MessageSearch "${params.query}"`,
+                metadata: { query: params.query, mode, results: 0 },
+                output: "No results found",
               }
-            } else {
-              // Search mode: existing behavior with rank
-              for (const result of group.results) {
+            }
+
+            // Group by session
+            const sessionGroups = new Map<string, Memory.MemorySearchResult[]>()
+            for (const r of searchResults) {
+              const group = sessionGroups.get(r.sessionID) ?? []
+              group.push(r)
+              sessionGroups.set(r.sessionID, group)
+            }
+
+            let output = ""
+            let totalSize = 0
+
+            for (const [sessionID, groupResults] of sessionGroups) {
+              if (totalSize >= MAX_OUTPUT) break
+              const header = `\n## Session: ${sessionID}\n`
+              output += header
+              totalSize += header.length
+
+              for (const result of groupResults) {
                 if (totalSize >= MAX_OUTPUT) break
 
+                const snippet = Memory.highlightSnippet(result.text, params.query!)
                 const entry = [
                   `### #${result.messageIndex} [${result.partType}] ${result.messageID}`,
-                  `Snippet: ${result.snippet}`,
-                  `Rank: ${result.rank}`,
+                  `Snippet: ${snippet}`,
+                  `Rank: ${result.rank} (BM25: ${result.bm25Score}, Epistemic: ${result.epistemicScore})`,
                   "",
                 ].join("\n")
                 output += entry
                 totalSize += entry.length
               }
             }
-          }
 
-          return {
-            title: mode === "browse" ? "Browse Sessions" : `MessageSearch "${params.query}"`,
-            metadata: {
-              query: params.query || "(browse)",
-              mode,
-              results: results.reduce((sum, g) => sum + g.results.length, 0),
-            },
-            output: output.slice(0, MAX_OUTPUT) || "No results found",
-          }
+            return {
+              title: `MessageSearch "${params.query}"`,
+              metadata: {
+                query: params.query,
+                mode,
+                results: searchResults.length,
+              },
+              output: output.slice(0, MAX_OUTPUT) || "No results found",
+            }
+          })
         }).pipe(Effect.orDie),
     }
   }),

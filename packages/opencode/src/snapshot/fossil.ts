@@ -133,21 +133,19 @@ export const layer = Layer.effect(
           yield* fs.writeFileString(ignorePath, content).pipe(Effect.orDie)
         })
 
-        // Self-healing bootstrap
+        // Self-healing bootstrap — if fossil open fails (corrupted DB), remove and reinit
         const ensureInit = Effect.fnUntraced(function* () {
           yield* ensureIgnoreGlob()
 
           if (yield* fs.exists(repoPath)) {
-            // Open repo if not already open (--keep preserves local files)
             const openResult = yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
               Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
             )
-            if (openResult.code !== 0) {
-              // Corrupted or out-of-sync database — reinit
-              log.warn("fossil open failed, reinitializing", { stderr: openResult.stderr })
-              yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
-              return yield* ensureInit()
-            }
+            if (openResult.code === 0) return
+
+            // Corrupted or out-of-sync database — remove, will reinit on next call
+            log.warn("fossil open failed, will reinit on next call", { stderr: openResult.stderr })
+            yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
             return
           }
 

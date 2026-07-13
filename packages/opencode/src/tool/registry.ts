@@ -19,6 +19,8 @@ import { MultiEditTool } from "./multiedit"
 import { UniversalSearchTool } from "./universalsearch"
 import { CodeGraphTool } from "./codegraph"
 import { MessageSearchTool } from "./messagesearch"
+import { DbReadTool } from "./dbread"
+import { LogSearchTool } from "./logsearch"
 import { CapabilityTool } from "./capability"
 import { PipelineTool } from "./pipeline"
 import { Capability } from "@/capability"
@@ -135,6 +137,8 @@ export const layer: Layer.Layer<
     const universalsearch = yield* UniversalSearchTool
     const codegraph = yield* CodeGraphTool
     const messagesearch = yield* MessageSearchTool
+    const dbread = yield* DbReadTool
+    const logsearch = yield* LogSearchTool
     const sessionread = yield* SessionReadTool
     const joboutput = yield* JobOutputTool
     const jobwait = yield* JobWaitTool
@@ -235,6 +239,8 @@ export const layer: Layer.Layer<
           universalsearch: Tool.init(universalsearch),
           codegraph: Tool.init(codegraph),
           messagesearch: Tool.init(messagesearch),
+          dbread: Tool.init(dbread),
+          logsearch: Tool.init(logsearch),
           sessionread: Tool.init(sessionread),
           joboutput: Tool.init(joboutput),
           jobwait: Tool.init(jobwait),
@@ -265,6 +271,8 @@ export const layer: Layer.Layer<
             tool.universalsearch,
             tool.codegraph,
             tool.messagesearch,
+            tool.dbread,
+            tool.logsearch,
             tool.sessionread,
             tool.joboutput,
             tool.jobwait,

@@ -7,12 +7,11 @@ import { Bus } from "@/bus"
 import { Auth } from "@/auth"
 import { Account } from "@/account/account"
 import { Config } from "@/config/config"
-import { Git } from "@/git"
+
 import { Ripgrep } from "@/file/ripgrep"
 import { File } from "@/file"
 import { FileWatcher } from "@/file/watcher"
 import { Storage } from "@/storage/storage"
-import { Snapshot } from "@/snapshot"
 import * as SnapshotFossil from "@/snapshot/fossil"
 import { Plugin } from "@/plugin"
 import { Provider } from "@/provider/provider"
@@ -43,18 +42,16 @@ import { Format } from "@/format"
 import { defaultLayer as GatewayLayer } from "@/provider/gateway/mod"
 import { Project } from "@/project/project"
 import { Vcs } from "@/project/vcs"
-import { Worktree } from "@/worktree"
 import { Pty } from "@/pty"
 import { Installation } from "@/installation"
 import { ShareNext } from "@/share/share-next"
 import { SessionShare } from "@/share/session"
-import { Npm } from "@opencode-ai/core/npm"
 import { memoMap } from "@opencode-ai/core/effect/memo-map"
 import { EventV2 } from "@opencode-ai/core/event"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Jobs } from "@/jobs"
-
+import { Npm } from "@opencode-ai/core/npm"
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
   AppFileSystem.defaultLayer,
@@ -62,7 +59,6 @@ export const AppLayer = Layer.mergeAll(
   Auth.defaultLayer,
   Account.defaultLayer,
   Config.defaultLayer,
-  Git.defaultLayer,
   Ripgrep.defaultLayer,
   File.defaultLayer,
   FileWatcher.defaultLayer,
@@ -97,7 +93,6 @@ export const AppLayer = Layer.mergeAll(
   GatewayLayer,
   Project.defaultLayer,
   Vcs.defaultLayer,
-  Worktree.defaultLayer,
   Pty.defaultLayer,
   Installation.defaultLayer,
   ShareNext.defaultLayer,

@@ -2,9 +2,7 @@ import { lazy } from "@/util/lazy"
 import type { ProjectID } from "@/project/schema"
 import type { WorkspaceAdaptor, WorkspaceAdaptorEntry } from "../types"
 
-const BUILTIN: Record<string, () => Promise<WorkspaceAdaptor>> = {
-  worktree: lazy(async () => (await import("./worktree")).WorktreeAdaptor),
-}
+const BUILTIN: Record<string, () => Promise<WorkspaceAdaptor>> = {}
 
 const state = new Map<ProjectID, Map<string, WorkspaceAdaptor>>()
 

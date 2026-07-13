@@ -2,14 +2,11 @@ import { Cause, Effect, Layer, Context, Schema } from "effect"
 // @ts-ignore
 import { createWrapper } from "@parcel/watcher/wrapper"
 import type ParcelWatcher from "@parcel/watcher"
-import { readdir } from "fs/promises"
 import path from "path"
-import z from "zod"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import { InstanceState } from "@/effect/instance-state"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import { Git } from "@/git"
 import { Instance } from "@/project/instance"
 import { lazy } from "@/util/lazy"
 import { Config } from "@/config/config"
@@ -69,7 +66,6 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const config = yield* Config.Service
-    const git = yield* Git.Service
 
     const state = yield* InstanceState.make(
       Effect.fn("FileWatcher.state")(
@@ -128,20 +124,6 @@ export const layer = Layer.effect(
               ...protecteds(Instance.directory),
             ])
           }
-
-          if (Instance.project.vcs === "git") {
-            const result = yield* git.run(["rev-parse", "--git-dir"], {
-              cwd: Instance.project.worktree,
-            })
-            const vcsDir =
-              result.exitCode === 0 ? path.resolve(Instance.project.worktree, result.text().trim()) : undefined
-            if (vcsDir && !cfgIgnores.includes(".git") && !cfgIgnores.includes(vcsDir)) {
-              const ignore = (yield* Effect.promise(() => readdir(vcsDir).catch(() => []))).filter(
-                (entry) => entry !== "HEAD",
-              )
-              yield* subscribe(vcsDir, ignore)
-            }
-          }
         },
         Effect.catchCause((cause) => {
           log.error("failed to init watcher service", { cause: Cause.pretty(cause) })
@@ -158,6 +140,6 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Config.defaultLayer), Layer.provide(Git.defaultLayer))
+export const defaultLayer = layer.pipe(Layer.provide(Config.defaultLayer))
 
 export * as FileWatcher from "./watcher"

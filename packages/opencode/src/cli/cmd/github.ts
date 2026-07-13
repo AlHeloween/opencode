@@ -30,8 +30,8 @@ import { Provider } from "@/provider/provider"
 import { Bus } from "../../bus"
 import { MessageV2 } from "../../session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
+import { execSync } from "child_process"
 import { AppRuntime } from "@/effect/app-runtime"
-import { Git } from "@/git"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Process } from "@/util/process"
 import { Effect } from "effect"
@@ -261,9 +261,7 @@ export const GithubInstallCommand = cmd({
             }
 
             // Get repo info
-            const info = await AppRuntime.runPromise(
-              Git.Service.use((git) => git.run(["remote", "get-url", "origin"], { cwd: Instance.worktree })),
-            ).then((x) => x.text().trim())
+            const info = execSync("git remote get-url origin", { cwd: Instance.worktree }).toString().trim()
             const parsed = parseGitHubRemote(info)
             if (!parsed) {
               prompts.log.error(`Could not find git repository. Please run this command from a git repository.`)
@@ -502,21 +500,22 @@ export const GithubRunCommand = cmd({
           : "issue"
         : undefined
       const gitText = async (args: string[]) => {
-        const result = await AppRuntime.runPromise(Git.Service.use((git) => git.run(args, { cwd: Instance.worktree })))
-        if (result.exitCode !== 0) {
-          throw new Process.RunFailedError(["git", ...args], result.exitCode, result.stdout, result.stderr)
-        }
-        return result.text().trim()
+        const cmd = `git ${args.map((a) => (a.includes(" ") ? `"${a}"` : a)).join(" ")}`
+        const result = execSync(cmd, { cwd: Instance.worktree })
+        return result.toString().trim()
       }
       const gitRun = async (args: string[]) => {
-        const result = await AppRuntime.runPromise(Git.Service.use((git) => git.run(args, { cwd: Instance.worktree })))
-        if (result.exitCode !== 0) {
-          throw new Process.RunFailedError(["git", ...args], result.exitCode, result.stdout, result.stderr)
-        }
-        return result
+        const cmd = `git ${args.map((a) => (a.includes(" ") ? `"${a}"` : a)).join(" ")}`
+        const stdout = execSync(cmd, { cwd: Instance.worktree })
+        return { exitCode: 0, text: () => stdout.toString(), stdout, stderr: Buffer.from("") }
       }
       const gitStatus = (args: string[]) =>
-        AppRuntime.runPromise(Git.Service.use((git) => git.run(args, { cwd: Instance.worktree })))
+        Promise.resolve({
+          exitCode: 0,
+          text: () => execSync(`git ${args.join(" ")}`, { cwd: Instance.worktree }).toString(),
+          stdout: Buffer.from(""),
+          stderr: Buffer.from(""),
+        })
       const commitChanges = async (summary: string, actor?: string) => {
         const args = ["commit", "-m", summary]
         if (actor) args.push("-m", `Co-authored-by: ${actor} <${actor}@users.noreply.github.com>`)

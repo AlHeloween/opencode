@@ -2,8 +2,9 @@ import { BusEvent } from "@/bus/bus-event"
 import { InstanceState } from "@/effect/instance-state"
 
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
-import { Git } from "@/git"
+import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Effect, Layer, Context, Schema, Scope } from "effect"
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import * as Stream from "effect/Stream"
 import { formatPatch, structuredPatch } from "diff"
 import fuzzysort from "fuzzysort"
@@ -333,13 +334,47 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/File") {}
 
+const gitCfg = [
+  "--no-optional-locks",
+  "-c",
+  "core.fsmonitor=false",
+  "-c",
+  "core.quotepath=false",
+] as const
+
+type Spawner = {
+  spawn: (...args: any[]) => any
+}
+
+const makeGitRun = (s: Spawner) => {
+  const fn = ((args: string[], ctxDir: string) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const proc = ChildProcess.make("git", [...gitCfg, ...args], {
+          cwd: ctxDir,
+          extendEnv: true,
+        })
+        const handle = yield* s.spawn(proc)
+        const text = yield* Stream.mkString(Stream.decodeText(handle.stdout))
+        return text.trim()
+      }),
+    ).pipe(Effect.catch(() => Effect.succeed("")))) as (args: string[], ctxDir: string) => Effect.Effect<string, never, never>
+  return fn
+}
+
+const makeGitShow = (s: Spawner) =>
+  (cwd: string, ref: string, file: string): Effect.Effect<string, never> =>
+    makeGitRun(s)(["show", `${ref}:${file}`], cwd)
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const appFs = yield* AppFileSystem.Service
     const rg = yield* Ripgrep.Service
-    const git = yield* Git.Service
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
     const scope = yield* Scope.Scope
+    const gitRun = makeGitRun(spawner)
+    const gitShow = makeGitShow(spawner)
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("File.state")(() =>
@@ -410,10 +445,6 @@ export const layer = Layer.effect(
       cachedScan = yield* Effect.cached(scan().pipe(Effect.catchCause(() => Effect.void)))
     })
 
-    const gitText = Effect.fnUntraced(function* (args: string[]) {
-      return (yield* git.run(args, { cwd: (yield* InstanceState.context).directory })).text()
-    })
-
     const init = Effect.fn("File.init")(function* () {
       yield* ensure().pipe(Effect.forkIn(scope))
     })
@@ -422,15 +453,7 @@ export const layer = Layer.effect(
       const ctx = yield* InstanceState.context
       if (ctx.project.vcs !== "git") return []
 
-      const diffOutput = yield* gitText([
-        "-c",
-        "core.fsmonitor=false",
-        "-c",
-        "core.quotepath=false",
-        "diff",
-        "--numstat",
-        "HEAD",
-      ])
+      const diffOutput = yield* gitRun(["diff", "--numstat", "HEAD"], ctx.directory)
 
       const changed: Info[] = []
 
@@ -446,15 +469,7 @@ export const layer = Layer.effect(
         }
       }
 
-      const untrackedOutput = yield* gitText([
-        "-c",
-        "core.fsmonitor=false",
-        "-c",
-        "core.quotepath=false",
-        "ls-files",
-        "--others",
-        "--exclude-standard",
-      ])
+      const untrackedOutput = yield* gitRun(["ls-files", "--others", "--exclude-standard"], ctx.directory)
 
       if (untrackedOutput.trim()) {
         for (const file of untrackedOutput.trim().split("\n")) {
@@ -471,16 +486,7 @@ export const layer = Layer.effect(
         }
       }
 
-      const deletedOutput = yield* gitText([
-        "-c",
-        "core.fsmonitor=false",
-        "-c",
-        "core.quotepath=false",
-        "diff",
-        "--name-only",
-        "--diff-filter=D",
-        "HEAD",
-      ])
+      const deletedOutput = yield* gitRun(["diff", "--name-only", "--diff-filter=D", "HEAD"], ctx.directory)
 
       if (deletedOutput.trim()) {
         for (const file of deletedOutput.trim().split("\n")) {
@@ -553,12 +559,12 @@ export const layer = Layer.effect(
       )
 
       if (ctx.project.vcs === "git") {
-        let diff = yield* gitText(["-c", "core.fsmonitor=false", "diff", "--", file])
+        let diff = yield* gitRun(["diff", "--", file], ctx.directory)
         if (!diff.trim()) {
-          diff = yield* gitText(["-c", "core.fsmonitor=false", "diff", "--staged", "--", file])
+          diff = yield* gitRun(["diff", "--staged", "--", file], ctx.directory)
         }
         if (diff.trim()) {
-          const original = yield* git.show(ctx.directory, "HEAD", file)
+          const original = yield* gitShow(ctx.directory, "HEAD", file)
           const patch = structuredPatch(file, file, original, content, "old", "new", {
             context: Infinity,
             ignoreWhitespace: true,
@@ -652,7 +658,7 @@ export const layer = Layer.effect(
 export const defaultLayer = layer.pipe(
   Layer.provide(Ripgrep.defaultLayer),
   Layer.provide(AppFileSystem.defaultLayer),
-  Layer.provide(Git.defaultLayer),
+  Layer.provide(CrossSpawnSpawner.defaultLayer),
 )
 
 export * as File from "."

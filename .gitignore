@@ -57,7 +57,10 @@ dist
 dist/
 docs/opencode.db.sql
 experiments/20260707-RenderingTest/  
-external/
+external/jj
+external/codegraph
+external/codegraph-rust
+external/fossil
 gateway.jsonc
 logs/
 node_modules

@@ -155,8 +155,13 @@ for (const item of targets) {
   await $`mkdir -p dist/${name}/bin`
 
   const localPath = path.resolve(dir, "node_modules/@opentui/core/parser.worker.js")
+  const localDistPath = path.resolve(dir, "node_modules/@opentui/core/dist/parser.worker.js")
   const rootPath = path.resolve(dir, "../../node_modules/@opentui/core/parser.worker.js")
-  const parserWorker = fs.realpathSync(fs.existsSync(localPath) ? localPath : rootPath)
+  const parserWorker = fs.realpathSync(
+    fs.existsSync(localDistPath) ? localDistPath :
+    fs.existsSync(localPath) ? localPath :
+    rootPath
+  )
   const workerPath = "./src/cli/cmd/tui/worker.ts"
 
   // Use platform-specific bunfs root path based on target OS

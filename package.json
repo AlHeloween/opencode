@@ -25,7 +25,8 @@
       "packages/console/*",
       "packages/sdk/js",
       "packages/slack",
-      "external/codegraph"
+      "external/codegraph",
+      "external/opentui/packages/core"
     ],
     "catalog": {
       "@effect/platform-node": "4.0.0-beta.57",
@@ -34,7 +35,7 @@
       "@types/cross-spawn": "6.0.6",
       "@octokit/rest": "22.0.0",
       "@hono/zod-validator": "0.4.2",
-      "@opentui/core": "0.4.2",
+      "@opentui/core": "0.4.3",
       "@opentui/keymap": "0.4.2",
       "@opentui/solid": "0.4.2",
       "@opentui/three": "0.4.2",
@@ -131,7 +132,7 @@
   "overrides": {
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "@opentui/core": "0.4.2",
+      "@opentui/core": "workspace:*",
     "@opentui/keymap": "0.4.2",
     "@opentui/solid": "0.4.2",
     "@opentui/three": "0.4.2"

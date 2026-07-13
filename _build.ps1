@@ -254,7 +254,7 @@ function Invoke-Build {
     # Step 0b: Reasoning framework self-test (290 pytest tests)
     $reasoningPassed = Test-ReasoningFramework
     if (-not $reasoningPassed) {
-        throw "Reasoning framework self-test failed — kernel integrity broken"
+        throw "Reasoning framework self-test failed - kernel integrity broken"
     }
 
     # Build Rust WASM modules next
@@ -323,7 +323,7 @@ function Invoke-Build {
         Write-Success "CodeGraph standalone binary copied"
     } elseif (Test-Path $CgBuiltFromDist) {
         # Fallback: copy the JS CLI and its node_modules dependencies
-        Write-Warning "Standalone codegraph.exe not built — copying JS CLI"
+        Write-Warning "Standalone codegraph.exe not built - copying JS CLI"
         Copy-Item $CgBuiltFromDist ([IO.Path]::Combine($DistDir, "bin", "codegraph.js"))
     }
 
@@ -337,32 +337,35 @@ function Invoke-Build {
         Copy-Item -Recurse -Force "$WasmPkgDir\diffy" $WasmDistDir
         Copy-Item -Recurse -Force "$WasmPkgDir\grammars" $WasmDistDir
         Copy-Item "$WasmPkgDir\tokenizer.wasm" $WasmDistDir
-$TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "tree-sitter.wasm" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } | Select-Object -First 1
-if ($TreeSitterRuntimeWasm) {
-    Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir "tree-sitter.wasm")
-}
-$PowerShellGrammarWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "tree-sitter-powershell.wasm" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($PowerShellGrammarWasm) {
-    Copy-Item $PowerShellGrammarWasm.FullName (Join-Path $WasmDistDir "grammars\tree-sitter-powershell.wasm")
-}
-$RequiredWasmAssets = @(
-    "tokenizer.wasm",
-"tree-sitter.wasm",
-"diffy\diffy_wasm_bg.wasm",
-    "json_repair\json_repair_bg.wasm",
-    "rdiff\rdiff_bg.wasm",
-    "grammars\tree-sitter-bash.wasm",
-    "grammars\tree-sitter-pascal.wasm",
-    "grammars\tree-sitter-powershell.wasm"
-)
-foreach ($asset in $RequiredWasmAssets) {
-    $assetPath = Join-Path $WasmDistDir $asset
-    if (-not (Test-Path $assetPath)) {
-        throw "Required WASM asset missing from dist: $asset"
-    }
-}
+        $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "tree-sitter.wasm" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } | Select-Object -First 1
+        if ($TreeSitterRuntimeWasm) {
+            Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir "tree-sitter.wasm")
+        }
 
-Write-Success "WASM modules copied to dist"
+        # Enumerate all WASM assets dynamically — every file in pkg/ and pkg/grammars/ is required.
+        $RequiredWasmAssets = @(
+            "tokenizer.wasm",
+            "tree-sitter.wasm",
+            "diffy\diffy_wasm_bg.wasm",
+            "json_repair\json_repair_bg.wasm",
+            "rdiff\rdiff_bg.wasm"
+        )
+        # Add all grammar WASMs: scan the source grammars dir and build expected paths
+        $GrammarDir = Join-Path $WasmPkgDir "grammars"
+        if (Test-Path $GrammarDir) {
+            $GrammarFiles = Get-ChildItem $GrammarDir -Filter "*.wasm"
+            foreach ($gf in $GrammarFiles) {
+                $RequiredWasmAssets += "grammars\$($gf.Name)"
+            }
+        }
+        # Verify every required asset exists in dist
+        foreach ($asset in $RequiredWasmAssets) {
+            $assetPath = Join-Path $WasmDistDir $asset
+            if (-not (Test-Path $assetPath)) {
+                throw "Required WASM asset missing from dist: $asset"
+            }
+        }
+        Write-Success "WASM modules copied to dist ($($RequiredWasmAssets.Count) assets)"
     }
 
     # SDK (from sdk/js package)

@@ -69,9 +69,9 @@ import { createTuiApi } from "@/cli/cmd/tui/plugin/api"
 import { TuiPluginRuntime } from "@/cli/cmd/tui/plugin/runtime"
 import type { RouteMap } from "@/cli/cmd/tui/plugin/api"
 import { FormatError, FormatUnknownError } from "@/cli/error"
-
 import type { EventSource } from "./context/sdk"
 import { DialogVariant } from "./component/dialog-variant"
+
 import { TexturePlaneRenderable } from "./component/texture-plane-renderable"
 
 // Register custom renderable for 3D image rendering

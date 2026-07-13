@@ -1,10 +1,14 @@
 import { cmd } from "../cmd"
 import { UI } from "@/cli/ui"
-import { tui } from "./app"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { TuiConfig } from "@/cli/cmd/tui/config/tui"
 import { errorMessage } from "@/util/error"
 import { validateSession } from "./validate-session"
+
+// Resolve DirectX Compiler DLLs before WebGPU/Three.js loads.
+// Must call BEFORE the dynamic import of the tui app module.
+import { resolveDxcDlls } from "@/util/resolve-dxc"
+resolveDxcDlls()
 
 export const AttachCommand = cmd({
   command: "attach <url>",
@@ -81,6 +85,7 @@ export const AttachCommand = cmd({
         return
       }
 
+      const { tui } = await import("./app")
       await tui({
         url: args.url,
         config,

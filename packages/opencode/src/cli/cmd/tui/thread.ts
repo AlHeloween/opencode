@@ -1,5 +1,4 @@
 import { cmd } from "@/cli/cmd/cmd"
-import { tui } from "./app"
 import { Rpc } from "@/util/rpc"
 import { type rpc } from "./worker"
 import path from "path"
@@ -15,6 +14,11 @@ import type { EventSource } from "./context/sdk"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { writeHeapSnapshot } from "v8"
 import { TuiConfig } from "./config/tui"
+
+// Resolve DirectX Compiler DLLs before WebGPU/Three.js loads.
+// Must call BEFORE the dynamic import of the tui app module.
+import { resolveDxcDlls } from "@/util/resolve-dxc"
+resolveDxcDlls()
 import {
   OPENCODE_PROCESS_ROLE,
   OPENCODE_RUN_ID,
@@ -224,6 +228,7 @@ export const TuiThreadCommand = cmd({
 
 
       try {
+        const { tui } = await import("./app")
         await tui({
           url: transport.url,
           async onSnapshot() {

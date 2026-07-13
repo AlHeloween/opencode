@@ -87,7 +87,7 @@ def find_all_prompt_files():
     for root, _dirs, files in os.walk(PROJECT_ROOT):
         if "AGENTS.md" in files:
             fp = os.path.join(root, "AGENTS.md")
-            if "node_modules" not in fp and ".opencode" not in fp:
+            if "node_modules" not in fp and ".opencode" not in fp and "external" not in fp:
                 found.append(("agents_md", fp))
 
     return found

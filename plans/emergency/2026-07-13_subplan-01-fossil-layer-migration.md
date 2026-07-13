@@ -30,10 +30,10 @@ Production consumers are wired to `SnapshotFossil.defaultLayer`, but the diagnos
 3. [x] Replace destructive failed-open recovery. A failed `fossil open` must not delete a repository while retaining incompatible checkout state; recovery must be explicit, atomic, and scoped to the affected checkout/repository pair.
 4. [x] Replace stale JJ-specific comments in `session/revert.ts` with Fossil snapshot/checkout terminology.
 5. [x] Replace comments in `project/vcs.ts` that refer to deleted `Git.Service`; retain direct Git process helpers because they serve agent-facing branch/diff behavior.
-6. [ ] Decide and document legacy naming for `op_id` / `opRestore`:
+6. [x] Decide and document legacy naming for `op_id` / `opRestore`:
    - retain as compatibility aliases if persisted records use it;
    - otherwise introduce a versioned data migration to Fossil-oriented names such as `snapshot_version` and `checkout`.
-7. [ ] Remove snapshot backup/baseline/ADID runtime files from source and test trees only after confirming they are not tracked canonical artifacts.
+7. [x] Remove snapshot backup/baseline/ADID runtime files from source and test trees only after confirming they are not tracked canonical artifacts.
 
 ## Acceptance Tests
 

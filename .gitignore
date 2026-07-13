@@ -68,8 +68,8 @@ external/opentui/.github/
 external/opentui/node_modules/
 packages/opentui/packages/core/src/zig/.zig-global/
 packages/opentui/packages/core/src/zig/zig-pkg/
-packages/opentui/.github/
-packages/opentui/node_modules/
+packages/opentui/packages/core-win32-x64/*.dll
+packages/opentui/packages/core-win32-x64/opentui.dll
 gateway.jsonc
 logs/
 node_modules

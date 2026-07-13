@@ -26,7 +26,8 @@
       "packages/sdk/js",
       "packages/slack",
       "external/codegraph",
-      "packages/opentui/packages/*"
+      "packages/opentui/packages/*",
+      "packages/opentui/packages/core-win32-x64"
     ],
     "catalog": {
       "@effect/platform-node": "4.0.0-beta.57",

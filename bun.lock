@@ -503,6 +503,10 @@
         "web-tree-sitter": "0.25.10",
       },
     },
+    "packages/opentui/packages/core-win32-x64": {
+      "name": "@opentui/core-win32-x64",
+      "version": "0.4.2",
+    },
     "packages/opentui/packages/examples": {
       "name": "@opentui/examples",
       "version": "0.4.2",
@@ -1783,7 +1787,7 @@
 
     "@opentui/core-win32-arm64": ["@opentui/core-win32-arm64@0.4.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-mfJZrJ0TNPFRZUzXNsxAPe1YdiWsy/vbTl93+yeXGHPI1B8Qnk9V5hpzSxxEyBGhlTHSfGNtgiO+VrrdRC3kZA=="],
 
-    "@opentui/core-win32-x64": ["@opentui/core-win32-x64@0.4.2", "", { "os": "win32", "cpu": "x64" }, "sha512-P2oguG3ng3OMjAdasFSA3GhHaQXtzDUsIRDGbzWFOimpZ/zMemidp+JQ0V8V6XwK6Utk5G0aQ03oBaRCoLyYDw=="],
+    "@opentui/core-win32-x64": ["@opentui/core-win32-x64@workspace:packages/opentui/packages/core-win32-x64"],
 
     "@opentui/examples": ["@opentui/examples@workspace:packages/opentui/packages/examples"],
 

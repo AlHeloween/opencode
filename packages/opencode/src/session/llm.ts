@@ -329,6 +329,22 @@ const live: Layer.Layer<
         mergeDeep(input.agent.options),
         mergeDeep(variant),
       )
+
+      // Compaction: strip all thinking/reasoning provider options — the model
+      // should produce a structured text summary, not engage in multi-step
+      // reasoning. DeepSeek V4 Flash gets thinking: { type: "enabled" } from
+      // ProviderTransform.options() which forces reasoning mode and causes the
+      // model to output thinking text instead of the structured summary.
+      if (input.agent.name === "compaction") {
+        delete options.thinking
+        delete options.reasoningEffort
+        delete options.reasoningSummary
+        delete options.forceReasoning
+        delete options.chat_template_kwargs
+        delete options.enable_thinking
+        delete options.thinkingConfig
+      }
+
       if (isOpenaiOauth) {
         options.instructions = system.join("\n")
       }
@@ -370,8 +386,20 @@ const live: Layer.Layer<
 
       // For reasoning models, max_tokens includes both reasoning and output tokens.
       // Reasoning can consume 50-80% of the budget, so we need to account for that.
+      // Compaction turns skip the reasoning multiplier so the entire output budget
+      // goes to visible summary text — ensuring >= 16K token structured summaries
+      // rather than 33-token outputs where 99.99% was consumed by thinking.
       const rawMaxOutput = ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens)
-      let maxOut: number | undefined = input.model.capabilities.reasoning ? Math.min(rawMaxOutput * 3, input.model.limit.output || rawMaxOutput * 3) : rawMaxOutput
+      let maxOut: number | undefined
+      if (input.agent.name === "compaction") {
+        // Compaction: no reasoning multiplier — all budget goes to summary text
+        // See experiments/20260713_compaction_smoke_test/ for validation
+        maxOut = rawMaxOutput
+      } else if (input.model.capabilities.reasoning) {
+        maxOut = Math.min(rawMaxOutput * 3, input.model.limit.output || rawMaxOutput * 3)
+      } else {
+        maxOut = rawMaxOutput
+      }
 
       // OpenAI Responses API reasoning models (gpt-5.x, o-series) reject
       // max_output_tokens with "Unsupported parameter: max_output_tokens".

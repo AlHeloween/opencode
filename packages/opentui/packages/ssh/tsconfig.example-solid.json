@@ -5,12 +5,12 @@
     "moduleResolution": "bundler",
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
-    "baseUrl": ".",
     "paths": {
-      "@opentui/core": ["../core/dist"],
-      "@opentui/core/*": ["../core/dist/*"],
-      "@opentui/solid": ["../solid/dist"],
-      "@opentui/solid/*": ["../solid/dist/*"]
+      "*": ["./*"],
+      "@opentui/core": ["../core/src"],
+      "@opentui/core/*": ["../core/src/*"],
+      "@opentui/solid": ["../solid/src"],
+      "@opentui/solid/*": ["../solid/src/*"]
     }
   },
   "include": ["examples/solid.tsx", "examples/solid-app.tsx", "src/**/*.ts"],

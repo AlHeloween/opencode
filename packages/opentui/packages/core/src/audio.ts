@@ -206,7 +206,7 @@ export class Audio extends EventEmitter<AudioEvents> {
   }
 
   async loadSoundFile(filePath: string): Promise<AudioSound | null> {
-    const bytes = await readFile(filePath).catch((err) => {
+    const bytes = await readFile(filePath).catch((err: any) => {
       this.emitError("loadSoundFile", undefined, `Failed to read file '${filePath}': ${err.message}`, err)
       return null
     })

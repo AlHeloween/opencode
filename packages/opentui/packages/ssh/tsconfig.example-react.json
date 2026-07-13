@@ -5,12 +5,12 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "jsxImportSource": "@opentui/react",
-    "baseUrl": ".",
     "paths": {
-      "@opentui/core": ["../core/dist"],
-      "@opentui/core/*": ["../core/dist/*"],
-      "@opentui/react": ["../react/dist"],
-      "@opentui/react/*": ["../react/dist/*"]
+      "*": ["./*"],
+      "@opentui/core": ["../core/src"],
+      "@opentui/core/*": ["../core/src/*"],
+      "@opentui/react": ["../react/src"],
+      "@opentui/react/*": ["../react/src/*"]
     }
   },
   "include": ["examples/react.tsx", "src/**/*.ts"],

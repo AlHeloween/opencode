@@ -29,7 +29,7 @@ const work = Effect.fnUntraced(function* (fs: AppFileSystem.Interface, cwd: stri
   return Buffer.from(buf).toString("utf8")
 })
 
-// Local types replacing Git.Service types
+// Local VCS types for git operations
 interface Item {
   code: string
   file: string
@@ -46,7 +46,7 @@ interface Base {
   ref: string
 }
 
-// Direct git spawn helpers — replaces Git.Service calls with inline ChildProcessSpawner
+// Direct git process spawn helpers for agent-facing branch/diff behavior
 const gitCfg = [
   "--no-optional-locks",
   "-c",

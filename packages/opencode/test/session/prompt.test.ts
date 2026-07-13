@@ -36,6 +36,7 @@ import { Skill } from "../../src/skill"
 import { SystemPrompt } from "../../src/session/system"
 import { Shell } from "../../src/shell/shell"
 import { Snapshot } from "../../src/snapshot"
+import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { Jobs } from "@/jobs"
@@ -157,7 +158,7 @@ const infra = Layer.mergeAll(NodeFileSystem.layer, CrossSpawnSpawner.defaultLaye
 function makeHttp() {
   const deps = Layer.mergeAll(
     Session.defaultLayer,
-    Snapshot.defaultLayer,
+    SnapshotFossil.defaultLayer,
     LLM.defaultLayer,
     Env.defaultLayer,
     AgentSvc.defaultLayer,

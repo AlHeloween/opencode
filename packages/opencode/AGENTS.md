@@ -228,20 +228,20 @@ When something breaks in the TUI (red brackets, error toasts, session restore fa
 
 ### Finding errors in logs
 
-Use ripgrep (`rg`) — it is fast and respects `.gitignore`:
+Use the Grep tool with `noIgnore: true` — it bypasses `.gitignore` and is fast:
 
-```bash
-# Find all errors, warnings, and bug entries across all log files
-rg -nu 'error|ERROR|bug:|WARN' .opencode/data/log
+```
+// Find all errors, warnings, and bug entries across all log files
+Grep: pattern="error|ERROR|bug:|WARN", path=".opencode/data/log", noIgnore: true
 
-# Find a specific error message
-rg -nu 'data.map' .opencode/data/log
+// Find a specific error message
+Grep: pattern="data\.map", path=".opencode/data/log", noIgnore: true
 
-# Show context around matches (3 lines before and after)
-rg -nu -C3 'error' .opencode/data/log
+// Show context around matches — use Read tool on matched files
+Grep: pattern="error", path=".opencode/data/log", noIgnore: true
 
-# Search only the latest log file for bugs (files sort chronologically by time_ms prefix)
-rg -nu 'bug:' .opencode/data/log/$(ls .opencode/data/log/*.jsonl | sort | tail -1)
+// Search only the latest log file for bugs
+Glob: pattern="*.jsonl", path=".opencode/data/log" (take the latest), then Grep: pattern="bug:"
 ```
 
 ### Viewing recent log output
@@ -250,8 +250,7 @@ rg -nu 'bug:' .opencode/data/log/$(ls .opencode/data/log/*.jsonl | sort | tail -
 # Last 50 lines of the most recent JSONL log file
 tail -50 "$(ls .opencode/data/log/*_log_*.jsonl | sort | tail -1)"
 
-# Tail all log files by last modified
-rg -nu '' .opencode/data/log | tail -50
+# Tail all log files by last modified — Grep with pattern "." and limit: 50
 
 # List files chronologically (time_ms prefix ensures sort order)
 ls .opencode/data/log/*.jsonl | sort
@@ -290,6 +289,6 @@ Report format: state the conflict, the two constraints in tension, and ask for r
 - Searching the codebase for error patterns, crash sites, or bug locations
 - Finding all call sites of a function or usage of a pattern
 - Investigating how a feature works across multiple files
-- Searching logs for errors (the explore agent can run `rg` and return results)
+- Searching logs for errors (the explore agent can use the Grep tool with `noIgnore: true` and return results)
 
 Do NOT manually grep/search/explore the codebase yourself — delegate it to the explore agent. This keeps context small and enforces thoroughness.

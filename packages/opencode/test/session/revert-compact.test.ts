@@ -7,6 +7,7 @@ import { ModelID, ProviderID } from "../../src/provider/schema"
 import { SessionRevert } from "../../src/session/revert"
 import { MessageV2 } from "../../src/session/message-v2"
 import { Snapshot } from "../../src/snapshot"
+import { SnapshotFossil } from "../../src/snapshot/fossil"
 import * as Log from "@opencode-ai/core/util/log"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
@@ -18,7 +19,7 @@ Log.init()
 const env = Layer.mergeAll(
   Session.defaultLayer,
   SessionRevert.defaultLayer,
-  Snapshot.defaultLayer,
+  SnapshotFossil.defaultLayer,
   CrossSpawnSpawner.defaultLayer,
 )
 

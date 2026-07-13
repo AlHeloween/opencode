@@ -50,6 +50,7 @@ import { SessionProcessor } from "../../src/session/processor"
 import { SessionRunState } from "../../src/session/run-state"
 import { SessionStatus } from "../../src/session/status"
 import { Snapshot } from "../../src/snapshot"
+import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { ToolRegistry } from "@/tool/registry"
 import { Jobs } from "@/jobs"
 import { Truncate } from "@/tool/truncate"
@@ -110,7 +111,7 @@ const infra = Layer.mergeAll(NodeFileSystem.layer, CrossSpawnSpawner.defaultLaye
 function makeHttp() {
   const deps = Layer.mergeAll(
     Session.defaultLayer,
-    Snapshot.defaultLayer,
+    SnapshotFossil.defaultLayer,
     LLM.defaultLayer,
     Env.defaultLayer,
     AgentSvc.defaultLayer,

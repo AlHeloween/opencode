@@ -1,4 +1,4 @@
-Search log files under .opencode/data/log/ using ripgrep for fast bug finding.
+Search log files under .opencode/data/log/ for fast bug finding.
 
 Use this for quickly finding errors, warnings, and bug markers in runtime logs.
 

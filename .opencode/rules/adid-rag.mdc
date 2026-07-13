@@ -1,5 +1,5 @@
 ---
-description: ADID RAG — local code search with dual-quaternion ranking, fd discovery, and MCP daemon
+description: ADID RAG — local code search with dual-quaternion ranking and MCP daemon
 alwaysApply: true
 ---
 intent:
@@ -9,7 +9,6 @@ Uses sentence_transformers + BAAI/bge-base-en-v1.5 for embeddings.
 state:
 embedder: BAAI/bge-base-en-v1.5
 tool: adm
-discovery: fd
 
 scope:
 - repository indexing

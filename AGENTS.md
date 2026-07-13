@@ -159,7 +159,7 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 # From opencode_prompts_kernel.py: CODING_AGENT_DIRECTIVES
 DISCOVERY_RULES = {
     "search_before_report": True,
-    "fd_over_glob": "fd searches ignored dirs; glob/list bounded by .gitignore",
+    "no_ignore_glob": "pass noIgnore: true to glob/grep for full unbounded search; default is .gitignore-bounded",
     "no_absence_guessing": "Search first, report after. Guessing absence is a bug.",
 }
 ```
@@ -356,7 +356,7 @@ Real-time working copy tracking with undo/redo and session-level rollback. See `
   glob("**/opentui/**", { noIgnore: true })
   ```
 - The `list` tool does not support `noIgnore` — use `glob` with `noIgnore: true` instead.
-- For logs specifically: `rg -nu 'error|ERROR|bug:' .opencode/data/log` via the Bash tool (on Unix) or `run` tool (`run({ binary: "rg", args: ["-nu", "pattern", "path"] })`) on any platform.
+- For logs specifically: use the Grep tool with `noIgnore: true` to search `.opencode/data/log` for patterns like `error|ERROR|bug:`.
 
 ## Type Checking
 

@@ -110,7 +110,7 @@ const CAPABILITIES_TEXT = [
   `- **Code search**: Use universalsearch with source: "code" for direct code search via Sourcegraph`,
   `- **Conversation search**: The messagesearch tool provides FTS5 full-text search with BM25 + epistemic hybrid ranking over a dedicated memory database`,
   `- **Database diagnostics**: The db-read tool lets you query any SQLite database under .opencode/data/ with read-only SELECT`,
-  `- **Log search**: The logsearch tool uses ripgrep for fast bug finding across .opencode/data/log/ files`,
+  `- **Log search**: The logsearch tool enables fast bug finding across .opencode/data/log/ files`,
   `- **Session reading**: The session-read tool reads full messages by index from any session, including summaries`,
   `- **Directory listing**: The list tool provides a tree-style directory listing with automatic ignore of common directories`,
   `- **Multi-edit**: The multiedit tool allows multiple sequential edits to a single file in one operation`,

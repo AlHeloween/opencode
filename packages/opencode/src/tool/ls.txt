@@ -18,7 +18,7 @@ src/
 The following are **hardcoded ignores** and do NOT need to be specified:
 `node_modules/`, `__pycache__/`, `.git/`, `dist/`, `build/`, `target/`, `vendor/`, `bin/`, `obj/`, `.idea/`, `.vscode/`, `.zig-cache/`, `zig-out`, `.coverage`, `coverage/`, `tmp/`, `temp/`, `.cache/`, `cache/`, `logs/`, `.venv/`, `venv/`, `env/`
 
-Use the `ignore` parameter to add additional glob patterns. The tool uses ripgrep (`fd`) for gitignore-aware file discovery.
+Use the `ignore` parameter to add additional glob patterns. The tool performs gitignore-aware file discovery.
 
 ## Limits
 

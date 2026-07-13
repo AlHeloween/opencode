@@ -70,25 +70,25 @@ describe("computePrefixShape", () => {
   ]
   const toolsReversed: ToolSchema[] = [tools[1]!, tools[0]!]
 
-  test("identical tools in different order → same toolsMd5", () => {
+  test("identical tools in different order → same toolsHash", () => {
     const a = computePrefixShape(["You are helpful"], tools)
     const b = computePrefixShape(["You are helpful"], toolsReversed)
-    expect(a.toolsMd5).toBe(b.toolsMd5)
+    expect(a.toolsHash).toBe(b.toolsHash)
     expect(a.toolsOrderHash).toBe(b.toolsOrderHash)
-    expect(a.prefixMd5).toBe(b.prefixMd5)
+    expect(a.prefixHash).toBe(b.prefixHash)
   })
 
-  test("different system prompt → different systemOnlyMd5", () => {
+  test("different system prompt → different systemOnlyHash", () => {
     const a = computePrefixShape(["System A"], tools)
     const b = computePrefixShape(["System B"], tools)
-    expect(a.systemOnlyMd5).not.toBe(b.systemOnlyMd5)
-    expect(a.prefixMd5).not.toBe(b.prefixMd5)
+    expect(a.systemOnlyHash).not.toBe(b.systemOnlyHash)
+    expect(a.prefixHash).not.toBe(b.prefixHash)
   })
 
-  test("different tools → different toolsMd5", () => {
+  test("different tools → different toolsHash", () => {
     const a = computePrefixShape(["Sys"], tools)
     const b = computePrefixShape(["Sys"], [tools[0]!])
-    expect(a.toolsMd5).not.toBe(b.toolsMd5)
+    expect(a.toolsHash).not.toBe(b.toolsHash)
   })
 
   test("includes toolsTokenEst", () => {
@@ -105,8 +105,8 @@ describe("requestFingerprint", () => {
   test("no toolSchemas → prefix is undefined (backward compat)", () => {
     const fp = requestFingerprint(["You are helpful"], [msg])
     expect(fp.prefix).toBeUndefined()
-    expect(fp.systemMd5.length).toBe(32)
-    expect(fp.fullMd5.length).toBe(32)
+    expect(fp.systemHash.length).toBe(16)
+    expect(fp.fullHash.length).toBe(16)
     expect(fp.messages.length).toBe(1)
   })
 
@@ -114,10 +114,10 @@ describe("requestFingerprint", () => {
     const tools: ToolSchema[] = [makeTool("read", "Read a file")]
     const fp = requestFingerprint(["You are helpful"], [msg], undefined, tools)
     expect(fp.prefix).toBeDefined()
-    expect(fp.prefix!.systemOnlyMd5.length).toBe(32)
-    expect(fp.prefix!.toolsMd5.length).toBe(32)
-    expect(fp.prefix!.toolsOrderHash.length).toBe(32)
-    expect(fp.prefix!.prefixMd5.length).toBe(32)
+    expect(fp.prefix!.systemOnlyHash.length).toBe(16)
+    expect(fp.prefix!.toolsHash.length).toBe(16)
+    expect(fp.prefix!.toolsOrderHash.length).toBe(16)
+    expect(fp.prefix!.prefixHash.length).toBe(16)
   })
 })
 
@@ -155,7 +155,7 @@ describe("auditCache — component blame", () => {
     const entry = auditCache(prev, next, "test")
     // Same content, different order → all MD5s match (except order hash check)
     // When only order differs but content is identical, normalizeToolSchemas
-    // produces the same sorted output → toolsMd5 stays same.
+    // produces the same sorted output → toolsHash stays same.
     // The toolsOrderHash is also the same because names are sorted.
     // So the cache is actually STABLE — tool order is normalized away.
     expect(entry.cacheStable).toBe(true)

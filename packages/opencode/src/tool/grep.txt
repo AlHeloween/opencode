@@ -1,6 +1,6 @@
 Fast content search tool that works with any codebase size. Searches file contents using regular expressions.
 
-This tool uses **ripgrep** with the **Rust regex engine**, which follows extended regex syntax (ERE). This avoids many common regex pitfalls — no backtracking surprises, no ReDoS vulnerabilities, and consistent behavior across platforms.
+This tool uses extended regex syntax (ERE) with a Rust regex engine. `|` is OR, `\|` is a literal pipe character. No backtracking surprises, no ReDoS vulnerabilities, consistent behavior across platforms.
 
 Use this tool when searching file contents for specific patterns. Use Glob when searching by filename.
 
@@ -27,6 +27,6 @@ Returns **file paths + line numbers + matched text content** sorted by modificat
 
 - Maximum **100 results** with partial notice when some paths are inaccessible.
 - Lines exceeding **2000 characters** are truncated with `...`.
-- This tool is limited to 100 results and 2000-char line truncation. For counting, aggregation, or full output, prefer `rg` via bash (auto-approved for all safe flags).
+- Maximum **100 results** per call. For more results, use the `offset` and `limit` parameters to paginate through matches. For counting, call Grep repeatedly with pagination rather than using shell commands.
 
 Call multiple grep searches in parallel when looking for independent patterns.

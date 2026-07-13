@@ -43,7 +43,7 @@ Usage notes:
   - The command argument is required.
   - You can specify an optional timeout in milliseconds.
   - It is very helpful if you write a clear, concise description of what this command does in 5-10 words.
-  - Avoid using this tool with `find`, `grep`, `cat`, `head`, `tail`, `sed`, or `awk` — use the dedicated tools instead.
+  - Avoid using this tool with `find`, `grep`, `rg`, `fd`, `cat`, `head`, `tail`, `sed`, or `awk` — use the dedicated tools instead.
   - Chain dependent commands with `&&`.
   - Use `workdir` parameter instead of `cd <directory> && <command>`.
   - DO NOT use newlines to separate commands (newlines are ok in quoted strings).

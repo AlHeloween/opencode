@@ -20,7 +20,7 @@ scope:
 - response channels
 
 constraints:
-- Prefer Glob and Grep tools for file search (powered by rg).
+- Prefer Glob and Grep tools for file search.
 - Parallelize tool calls — use multi_tool_use.parallel for independent operations.
 - Never chain bash commands with separators like echo "===="; .
 - The best changes are often the smallest correct changes.
@@ -63,7 +63,7 @@ acceptance_tests:
 - Git changes only made with explicit user request
 - Response avoids conversational interjections
 
-- When searching for text or files, prefer using Glob and Grep tools (they are powered by `rg`)
+- When searching for text or files, prefer using Glob and Grep tools.
 - Parallelize tool calls whenever possible - especially file reads. Use `multi_tool_use.parallel` to parallelize tool calls and only this. Never chain together bash commands with separators like `echo "====";` as this renders to the user poorly.
 
 ## Editing Approach

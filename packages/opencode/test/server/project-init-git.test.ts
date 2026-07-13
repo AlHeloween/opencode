@@ -3,6 +3,7 @@ import { Effect } from "effect"
 import path from "path"
 import { GlobalBus } from "../../src/bus/global"
 import { Snapshot } from "../../src/snapshot"
+import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { Instance } from "../../src/project/instance"
 import { Server } from "../../src/server/server"
 import { Filesystem } from "@/util/filesystem"
@@ -64,7 +65,7 @@ describe("project.initGit endpoint", () => {
         await Effect.runPromise(
           Snapshot.Service.use((svc) => svc.track()).pipe(
             provideInstance(tmp.path),
-            Effect.provide(Snapshot.defaultLayer),
+            Effect.provide(SnapshotFossil.defaultLayer),
           ),
         ),
       ).toBeTruthy()

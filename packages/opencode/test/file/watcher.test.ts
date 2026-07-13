@@ -7,7 +7,6 @@ import { tmpdir } from "../fixture/fixture"
 import { Bus } from "../../src/bus"
 import { Config } from "@/config/config"
 import { FileWatcher } from "../../src/file/watcher"
-import { Git } from "../../src/git"
 import { Instance } from "../../src/project/instance"
 
 // Native @parcel/watcher bindings aren't reliably available in CI (missing on Linux, flaky on Windows)
@@ -33,7 +32,6 @@ function withWatcher<E>(directory: string, body: Effect.Effect<void, E>) {
     fn: async () => {
       const layer: Layer.Layer<FileWatcher.Service, never, never> = FileWatcher.layer.pipe(
         Layer.provide(Config.defaultLayer),
-        Layer.provide(Git.defaultLayer),
         Layer.provide(watcherConfigLayer),
       )
       const rt = ManagedRuntime.make(layer)

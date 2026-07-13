@@ -4,6 +4,7 @@ import fs from "fs/promises"
 import path from "path"
 import { Effect } from "effect"
 import { Snapshot } from "../../src/snapshot"
+import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { Instance } from "../../src/project/instance"
 import { Filesystem } from "@/util/filesystem"
 import { provideInstance, tmpdir } from "../fixture/fixture"
@@ -42,7 +43,7 @@ function run<A>(dir: string, body: (snapshot: Snapshot.Interface) => Effect.Effe
     Effect.gen(function* () {
       const snapshot = yield* Snapshot.Service
       return yield* body(snapshot)
-    }).pipe(provideInstance(dir), Effect.provide(Snapshot.defaultLayer)),
+    }).pipe(provideInstance(dir), Effect.provide(SnapshotFossil.defaultLayer)),
   )
 }
 

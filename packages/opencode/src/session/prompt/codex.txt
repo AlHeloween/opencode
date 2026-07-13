@@ -25,7 +25,7 @@ constraints:
 - Use specialized tools over shell for file ops (Read, Edit, Write).
 - Use Glob for file discovery, Grep for content search.
 - Use Bash for terminal ops (git, builds, tests).
-- Prefer rg over grep for shell searches.
+- Use Glob for file discovery, Grep for content search. Include noIgnore: true for full unbounded search when needed.
 - Read files in chunks of max 250 lines.
 - Fix problems at root cause, not surface-level.
 - Do NOT attempt to fix unrelated bugs — mention and move on.
@@ -70,7 +70,7 @@ Never re-read files after editing — the tool call will fail if it didn't work.
 Use specialized tools over shell for file ops (Read, Edit, Write).
 Use Glob for file discovery, Grep for content search.
 Use Bash for terminal ops (git, builds, tests).
-Prefer rg over grep for shell searches. Read files in chunks of max 250 lines.
+Read files in chunks of max 250 lines.
 
 # Task execution
 Fix problems at root cause, not surface-level. Avoid unneeded complexity.

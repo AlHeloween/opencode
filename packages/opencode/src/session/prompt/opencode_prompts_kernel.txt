@@ -1415,7 +1415,7 @@ Distinguish evidence: [Exact] for verified facts, [Inferred] for conclusions, [U
 
     state={"agent_type": "subagent", "access_level": "read-only"},
 
-    scope="codebase search, web research, conversation search, read-only bash (rg/fd/ls/cat/head/tail)",
+    scope="codebase search, web research, conversation search, read-only bash (ls/cat/head/tail)",
 
     constraints={
         "verify_findings": True,
@@ -1636,7 +1636,7 @@ Uses sentence_transformers + BAAI/bge-base-en-v1.5 for embeddings.""",
 
     state={"tool": "adm", "embedder": "BAAI/bge-base-en-v1.5"},
 
-    scope="indexing, querying, MCP server, fd file discovery",
+    scope="indexing, querying, MCP server, file discovery",
 
     constraints={"adm_json_required": True, "index_incremental": True},
 
@@ -2089,8 +2089,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
   4. universalsearch        — web search, code search (Sourcegraph), agent research
   5. glob                   — file pattern matching (default: .gitignore-bounded; noIgnore=true bypasses)
   6. grep                   — content search (default: .gitignore-bounded; noIgnore=true bypasses)
-  7. rg / fd               — unbounded recursive search (bypass .gitignore)
-  8. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)""",
+   7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)""",
 
     state={
         "search_priority_chain": [
@@ -2100,8 +2099,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
             "4. universalsearch       — web, global code (Sourcegraph), agent research",
             "5. glob                  — file pattern match (default: .gitignore-bounded; noIgnore=true bypasses)",
             "6. grep                  — content search (default: .gitignore-bounded; noIgnore=true bypasses)",
-            "7. rg / fd               — shell-based, always unbounded (bypass .gitignore)",
-            "8. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
+            "7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
         ],
         "search_priority_chain": [
             "1. where.exe / which     — OS PATH, executable lookup",
@@ -2110,8 +2108,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
             "4. universalsearch       — web, global code (Sourcegraph), agent research",
             "5. glob                  — .gitignore-bounded file pattern match",
             "6. grep                  — .gitignore-bounded content search",
-            "7. rg / fd               — unbounded recursive search (bypass .gitignore)",
-            "8. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
+            "7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
         ],
         "platform_executable_search": {
             "win32": "where.exe <name>  — Windows native, checks PATH + current dir. Priority #1 before any file search.",
@@ -2128,8 +2125,8 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "follow_priority_chain": "Do NOT skip levels. Always try #1 before #2, #2 before #3, etc. Escalate only when current level returns empty or insufficient.",
         "fuzzy_then_targeted_then_internet": "Step 1: fuzzy queries (codegraph, messagesearch) for what we already know. Step 2: targeted searches (universalsearch, glob/grep) informed by step 1. Step 3: check if solution already exists before building from scratch.",
         "hardware_check_first": "Before any GPU/compute work, ALWAYS check local hardware (nvidia-smi, etc.). Hardware state drifts during compaction — never assume GPU availability from memory.",
-        "where_before_rg": "where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6/#7 when #1 returns empty.",
-        "codegraph_before_grep": "codegraph tool is #2 for code structure — before glob (#5), grep (#6), or rg (#7). AST-parsed results from one call replace multi-file grep + Read loops.",
+        "where_before_glob": "where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6 when #1 returns empty.",
+        "codegraph_before_grep": "codegraph tool is #2 for code structure — before glob (#5) or grep (#6). AST-parsed results from one call replace multi-file grep + Read loops.",
         "messagesearch_before_universalsearch": "messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context.",
         "no_path_hardcoding": True,
         "web_search_for_grounding": True,
@@ -2146,7 +2143,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "codegraph (priority #2) before glob/grep/Read for any code structure question",
         "messagesearch (priority #3) before universalsearch for conversation context",
         "Universal search (priority #4) must precede hypothetical claims",
-        "glob/grep default to .gitignore-bounded but can bypass with noIgnore=true. rg/fd (priority #7) are always unbounded — use default glob/grep first.",
+        "glob/grep default to .gitignore-bounded but can bypass with noIgnore=true for full unbounded search.",
         "Hardware diagnostics (nvidia-smi etc.) are Exact evidence for local hardware state",
         "Platform detection via os.name / sys.platform determines which search tool to use",
     ],
@@ -2157,7 +2154,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Agent uses codegraph (priority #2) before grep/glob/Read for code structure",
         "Agent uses messagesearch (priority #3) before universalsearch for conversation",
         "Agent uses universalsearch (priority #4) before hypothetical claims",
-        "Agent uses glob/grep (priority #5/#6) before unbounded rg/fd (priority #7)",
+        "Agent uses glob/grep (priority #5/#6) with noIgnore=true when unbounded search is needed",
         "Hardware queries use native tools (nvidia-smi, etc.) — Exact evidence",
         "Evidence hierarchy respected: Observation > CodeGraph > Ext Source > Inferred > Hypothetical > Guess",
     ],
@@ -2170,8 +2167,8 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Writing GPU code without first verifying actual hardware state via nvidia-smi",
         "Hardcoding executable paths (e.g., C:\\Program Files\\...)",
         "Using grep/glob/Read when codegraph tool can answer in one call",
-        "Using rg/fd (always unbounded) when default glob/grep (.gitignore-bounded) suffices — use noIgnore=true on glob/grep first if you need to bypass .gitignore",
-        "Using rg/fd/glob/grep to find an executable that where.exe/which resolves instantly",
+        "Using glob/grep with noIgnore: false when noIgnore: true is needed for full search",
+        "Using glob/grep to find an executable that where.exe/which resolves instantly",
         "Assuming PATH contains an executable without verifying via where.exe/which",
         "Using internal guesswork when universalsearch is available and needed",
         "Bypassing the evidence hierarchy for convenience",

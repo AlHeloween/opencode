@@ -25,6 +25,7 @@ import { ModelID, ProviderID } from "../../src/provider/schema"
 import { Provider } from "@/provider/provider"
 import * as SessionProcessorModule from "../../src/session/processor"
 import { Snapshot } from "../../src/snapshot"
+import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { ProviderTest } from "../fake/provider"
 import { testEffect } from "../lib/effect"
 import { TestLLMServer } from "../lib/llm-server"
@@ -306,7 +307,7 @@ const liveStatus = SessionStatus.layer.pipe(Layer.provideMerge(Bus.layer))
 const liveInfra = Layer.mergeAll(NodeFileSystem.layer, CrossSpawnSpawner.defaultLayer)
 const liveDeps = Layer.mergeAll(
   SessionNs.defaultLayer,
-  Snapshot.defaultLayer,
+  SnapshotFossil.defaultLayer,
   Agent.defaultLayer,
   Permission.defaultLayer,
   Plugin.defaultLayer,
@@ -353,7 +354,7 @@ function liveRuntime(layer: Layer.Layer<LLM.Service>, provider = ProviderTest.fa
     Layer.provide(summary),
     Layer.provide(status),
     Layer.provide(SessionNs.defaultLayer),
-    Layer.provide(Snapshot.defaultLayer),
+    Layer.provide(SnapshotFossil.defaultLayer),
     Layer.provide(layer),
     Layer.provide(Permission.defaultLayer),
     Layer.provide(Agent.defaultLayer),
@@ -365,7 +366,7 @@ function liveRuntime(layer: Layer.Layer<LLM.Service>, provider = ProviderTest.fa
     Layer.mergeAll(SessionCompaction.layer.pipe(Layer.provide(processor)), processor, bus, status).pipe(
       Layer.provide(provider.layer),
       Layer.provide(SessionNs.defaultLayer),
-      Layer.provide(Snapshot.defaultLayer),
+      Layer.provide(SnapshotFossil.defaultLayer),
       Layer.provide(layer),
       Layer.provide(Permission.defaultLayer),
       Layer.provide(Agent.defaultLayer),

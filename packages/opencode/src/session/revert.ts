@@ -125,7 +125,7 @@ export const layer = Layer.effect(
       }
 
       rev.snapshot = session.revert?.snapshot ?? (yield* snap.track())
-      rev.op_id = session.revert?.op_id ?? (yield* snap.opId())
+      rev.op_id = session.revert?.op_id ?? (yield* snap.checkpoint())
       if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
       yield* snap.revert(patches)
       if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot as string)
@@ -158,7 +158,7 @@ export const layer = Layer.effect(
       if (!session.revert) return session
       // Prefer snapshot checkout (full session rollback) when op_id is available
       if (session.revert.op_id) {
-        yield* snap.opRestore(session.revert.op_id)
+        yield* snap.checkout(session.revert.op_id)
       } else if (session.revert.snapshot) {
         yield* snap.restore(session.revert.snapshot)
       }

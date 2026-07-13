@@ -23,7 +23,13 @@ export interface Interface {
   readonly init: () => Effect.Effect<void>
   readonly cleanup: () => Effect.Effect<void>
   readonly track: (files?: string[]) => Effect.Effect<string | undefined>
+  /** Current snapshot hash for undo/rollback */
+  readonly checkpoint: () => Effect.Effect<string | undefined>
+  /** Restore working copy to a previous checkpoint */
+  readonly checkout: (checkpoint: string) => Effect.Effect<void>
+  /** @deprecated — use checkpoint() */
   readonly opId: () => Effect.Effect<string | undefined>
+  /** @deprecated — use checkout() */
   readonly opRestore: (opId: string) => Effect.Effect<void>
   readonly patch: (hash: string) => Effect.Effect<Patch>
   readonly restore: (snapshot: string) => Effect.Effect<void>

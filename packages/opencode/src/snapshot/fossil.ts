@@ -437,7 +437,7 @@ export const layer = Layer.effect(
           }),
         )
 
-        return { cleanup: () => Effect.void, track, opId, opRestore, patch, restore, revert, diff, diffFull }
+        return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull }
       }),
     )
 
@@ -451,9 +451,17 @@ export const layer = Layer.effect(
       track: Effect.fn("SnapshotFossil.track")(function* (files?: string[]) {
         return yield* InstanceState.useEffect(state, (s) => s.track(files))
       }),
+      checkpoint: Effect.fn("SnapshotFossil.checkpoint")(function* () {
+        return yield* InstanceState.useEffect(state, (s) => s.opId())
+      }),
+      checkout: Effect.fn("SnapshotFossil.checkout")(function* (version: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.opRestore(version))
+      }),
+      // @deprecated — use checkpoint()
       opId: Effect.fn("SnapshotFossil.opId")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.opId())
       }),
+      // @deprecated — use checkout()
       opRestore: Effect.fn("SnapshotFossil.opRestore")(function* (opId: string) {
         return yield* InstanceState.useEffect(state, (s) => s.opRestore(opId))
       }),

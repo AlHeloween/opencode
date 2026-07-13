@@ -2,15 +2,25 @@
 
 ## Objective
 
-Fix three interlocking bugs: (1) shell commands block without releasing until completion, (2) `run` tool output is invisible in TUI during execution, (3) multiple silent failure paths make errors unassessable by the user.
+Fix three interlocking bugs: (1) shell commands block without releasing until completion — including cmd_runner which spawns its own terminal and never exits, (2) `run` tool output is invisible in TUI during execution, (3) multiple silent failure paths make errors unassessable by the user.
 
 ## Root Cause Analysis
 
-### R1: `run.ts` has no timeout or abort
+### R1a: `run.ts` has no timeout or abort
 
 **File:** `packages/opencode/src/tool/run.ts:189, 239`
 
 `bash.ts` uses `Effect.raceAll([handle.exitCode, abort, timeout])` (line 720). `run.ts` only uses `yield* handle.exitCode` (line 189) — **blocks indefinitely**. The `timeout` parameter is computed at line 239 but never passed to execution. No abort signal handling. A hung binary hangs the entire turn forever.
+
+### R1b: `cmd_runner` spawns own terminal, never exits
+
+**File:** `packages/opencode/src/tool/bash.ts:859-888`, `packages/opencode/src/tool/cmd.ts:570-593`
+
+`cmd_runner.exe` spawns its **own terminal window** for interactive debug — that's its design purpose. The user's command runs in that window and completes, but the `cmd_runner` process itself stays alive as a persistent daemon (waiting for further `send` commands). opencode's tool execution waits for process exit — which never happens. The tool hangs forever while the actual work is already done.
+
+**Observed:** `adm --clean --all` launched via bash → cmd_runner spawned terminal → adm ran and completed in terminal → cmd_runner process still alive → opencode tool blocked indefinitely.
+
+**Fix:** Detect `cmd_runner` in the command string. When `run_in_background` is already set (which it is for cmd_runner invocations), don't wait for process exit — return immediately with the job ID. The existing background job mechanism already handles this: `job_output` reads incremental output, `drainCompletedNote` notifies on completion. The bug is that even with `run_in_background: true`, the code at `bash.ts:720` still does `Effect.raceAll` on `handle.exitCode`.
 
 ### R2: Tool output is completion-only; no streaming to TUI
 

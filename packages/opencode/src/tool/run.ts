@@ -12,6 +12,8 @@ import { Jobs } from "@/jobs"
 import { which } from "@/util/which"
 import * as Log from "@opencode-ai/core/util/log"
 
+const log = Log.create({ service: "run-tool" })
+
 const DEFAULT_TIMEOUT = 60_000
 
 const Parameters = Schema.Struct({
@@ -144,6 +146,8 @@ export const RunTool = Tool.define(
       let cut = false
       const chunks: string[] = []
       let fullBytes = 0
+      let aborted = false
+      let expired = false
 
       yield* ctx.metadata({ metadata: { output: "", description: input.description } })
 
@@ -186,7 +190,31 @@ export const RunTool = Tool.define(
               return Effect.void
             }),
           )
-          return (yield* handle.exitCode) as number | null
+          const abort = Effect.callback<void>((resume) => {
+            if (ctx.abort.aborted) return resume(Effect.void)
+            const handler = () => resume(Effect.void)
+            ctx.abort.addEventListener("abort", handler, { once: true })
+            return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
+          })
+
+          const timeout = Effect.sleep(`${input.timeout + 100} millis`)
+
+          const exit = yield* Effect.raceAll([
+            handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
+            abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
+            timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
+          ])
+
+          if (exit.kind === "abort") {
+            aborted = true
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+          }
+          if (exit.kind === "timeout") {
+            expired = true
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+          }
+
+          return exit.kind === "exit" ? exit.code : null
         }),
       )
       if (file)
@@ -201,7 +229,10 @@ export const RunTool = Tool.define(
                 }
               }
               sink?.end(() => done())
-              sink?.on("error", () => done())
+              sink?.on("error", (e) => {
+                log.debug("run output sink error", { error: String(e) })
+                done()
+              })
             }),
         )
 
@@ -211,6 +242,8 @@ export const RunTool = Tool.define(
       if (!file && end.cut) file = yield* trunc.write(raw)
 
       let output = end.text
+      if (expired) output = `run tool terminated command after exceeding timeout ${input.timeout} ms.\n` + output
+      if (aborted) output = `User aborted the command\n` + output
       if (!output) output = "(no output)"
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
       return {

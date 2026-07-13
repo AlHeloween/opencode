@@ -61,6 +61,11 @@ external/jj
 external/codegraph
 external/codegraph-rust
 external/fossil
+zig-global
+external/opentui/packages/core/src/zig/.zig-global/
+external/opentui/packages/core/src/zig/zig-pkg/
+external/opentui/.github/
+external/opentui/node_modules/
 gateway.jsonc
 logs/
 node_modules

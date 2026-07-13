@@ -20,12 +20,12 @@ Investigate and mitigate potential concurrent `WebAssembly.Memory` growth/load p
 
 ## Steps
 
-1. Audit every `WebAssembly.compile`, `WebAssembly.instantiate`, `WebAssembly.Memory`, and `memory.buffer` use.
-2. Define the mutex scope precisely: serialize only operations that instantiate, grow, or touch mutable WASM memory; do not serialize unrelated pure JS work.
-3. Extend `wasmGate` to cache fingerprint hashing, BPE tokenizer lifecycle/encode/decode, parser grammar instantiation, and other direct WASM allocation paths.
-4. Keep fresh typed-array views after memory growth; forbid retained views over growable WASM buffers.
-5. Add telemetry: gate tag, queue wait, runtime duration, peak queue depth, and memory allocation context to diagnostic logs.
-6. Ensure cancellation/error paths release the gate through `finally`; add deadlock and exception tests.
+1. [x] Audit every `WebAssembly.compile`, `WebAssembly.instantiate`, `WebAssembly.Memory`, and `memory.buffer` use.
+2. [x] Define the mutex scope precisely: serialize only operations that instantiate, grow, or touch mutable WASM memory; do not serialize unrelated pure JS work.
+3. [x] Extend `wasmGate` to cache fingerprint hashing, BPE tokenizer lifecycle/encode/decode, parser grammar instantiation, and other direct WASM allocation paths.
+4. Keep fresh typed-array views after memory growth; forbid retained views over growable WASM buffers. (DEFERRED — existing getMemory() pattern handles this)
+5. Add telemetry: gate tag, queue wait, runtime duration, peak queue depth, and memory allocation context to diagnostic logs. (DEFERRED — not blocking)
+6. [x] Ensure cancellation/error paths release the gate through `finally`; add deadlock and exception tests.
 
 ## Acceptance Tests
 

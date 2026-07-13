@@ -730,7 +730,7 @@
     "@npmcli/arborist": "9.4.0",
     "@octokit/rest": "22.0.0",
     "@openauthjs/openauth": "0.0.0-20250322224806",
-    "@opentui/core": "0.4.3",
+    "@opentui/core": "0.4.2",
     "@opentui/keymap": "0.4.2",
     "@opentui/solid": "0.4.2",
     "@opentui/three": "0.4.2",

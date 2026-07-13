@@ -735,11 +735,11 @@ export const BashTool = Tool.define(
 
           if (exit.kind === "abort") {
             aborted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAll((e) => Effect.sync(() => log.debug("bash abort kill failed", { error: String(e) }))))
           }
           if (exit.kind === "timeout") {
             expired = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAll((e) => Effect.sync(() => log.debug("bash timeout kill failed", { error: String(e) }))))
           }
 
           return exit.kind === "exit" ? exit.code : null

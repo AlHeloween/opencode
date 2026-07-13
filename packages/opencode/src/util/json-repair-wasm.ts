@@ -1,4 +1,5 @@
 import { readWasmAsset } from "./wasm-path"
+import { wasmGate } from "./wasm-mutex"
 import * as Log from "@opencode-ai/core/util/log"
 
 interface JsonRepairExports {
@@ -15,13 +16,18 @@ let _wasm: JsonRepairExports | null = null
 let _initPromise: Promise<JsonRepairExports | null> | null = null
 let _textDecoder: TextDecoder
 let _textEncoder: TextEncoder
-let _cachedMemory: Uint8Array | null = null
-
+/**
+ * Get a fresh Uint8Array view into WASM memory.
+ *
+ * DO NOT cache views — WebAssembly.Memory can grow (__wbindgen_realloc),
+ * which detaches the underlying ArrayBuffer. A cached Uint8Array pointing
+ * to a detached buffer has byteLength === 0 on the *next* check, but any
+ * in-flight operation holding the old view will access freed memory.
+ * Always create a fresh view to guarantee we're pointing at the current
+ * (non-detached) ArrayBuffer.
+ */
 function getMemory(m: WebAssembly.Memory): Uint8Array {
-  if (!_cachedMemory || _cachedMemory.byteLength === 0) {
-    _cachedMemory = new Uint8Array(m.buffer)
-  }
-  return _cachedMemory
+  return new Uint8Array(m.buffer)
 }
 
 function passString(wasm: JsonRepairExports, s: string): [number, number] {
@@ -66,7 +72,6 @@ if (!asset.bytes) {
       const mod = await WebAssembly.compile(asset.bytes)
       const instance = await WebAssembly.instantiate(mod, imports)
       _wasm = instance.exports as unknown as JsonRepairExports
-      _cachedMemory = null
       _wasm.__wbindgen_start()
       Log.Default.info("json-repair: WASM loaded from " + asset.path)
       return _wasm
@@ -159,46 +164,36 @@ function normalizeUnicode(input: string): string {
 export async function repairJsonWasm(input: string): Promise<string | null> {
   const wasm = await loadRepair()
   if (!wasm) return null
-  try {
-    // Step 1: repair ASCII single-quote delimiters BEFORE Unicode normalization.
-    // This must come first because normalizeUnicode converts Unicode smart
-    // single quotes TO ASCII ' which would confuse the char-by-char parser
-    // in repairSingleQuotes (it can't distinguish original ASCII delimiters
-    // from normalized ones without re-parsing Unicode).
-    // The WASM json-repair crate also handles ASCII single quotes, but doing
-    // it here as pure JS is faster and avoids WASM overhead for the common case.
-    const withDoubleQuotes = repairSingleQuotes(input)
-
-    // Step 2: normalize Unicode smart quotes, dashes, etc. to ASCII.
-    // The Rust json-repair crate handles ASCII single quotes but not
-    // Unicode smart/curly quotes (U+201C/U+201D/U+2018/U+2019) which
-    // LLMs commonly emit. JSON.parse also rejects them.
-    const normalized = normalizeUnicode(withDoubleQuotes)
-
-    const [ptr, len] = passString(wasm, normalized)
-    const ret = wasm.json_repair(ptr, len)
-    const result = readString(wasm, ret[0], ret[1])
-    wasm.__wbindgen_free(ret[0], ret[1], 1)
-    if (!result) { Log.Default.debug("json-repair: returned empty result"); return null }
-    JSON.parse(result)
-    return result
-  } catch (err) {
-    // Pure-JS fallback: try the single-quote fix as a last resort.
-    // This handles cases where WASM is loaded but the crate doesn't
-    // cover a particular quote pattern, or the input was already
-    // repaired by step 1 but something else went wrong in WASM.
+  return wasmGate("json-repair", async () => {
     try {
-      const asciiRepaired = repairSingleQuotes(input)
-      if (asciiRepaired !== input) {
-        JSON.parse(asciiRepaired)
-        Log.Default.debug("json-repair: pure-js fallback succeeded after WASM failed")
-        return asciiRepaired
-      }
-    } catch { /* fallback also failed, continue to return null */ }
+      // Step 1: repair ASCII single-quote delimiters BEFORE Unicode normalization.
+      const withDoubleQuotes = repairSingleQuotes(input)
 
-    Log.Default.debug("json-repair: repair failed: " + (err instanceof Error ? err.message : String(err)))
-    return null
-  }
+      // Step 2: normalize Unicode smart quotes, dashes, etc. to ASCII.
+      const normalized = normalizeUnicode(withDoubleQuotes)
+
+      const [ptr, len] = passString(wasm, normalized)
+      const ret = wasm.json_repair(ptr, len)
+      const result = readString(wasm, ret[0], ret[1])
+      wasm.__wbindgen_free(ret[0], ret[1], 1)
+      if (!result) { Log.Default.debug("json-repair: returned empty result"); return null }
+      JSON.parse(result)
+      return result
+    } catch (err) {
+      // Pure-JS fallback: try the single-quote fix as a last resort.
+      try {
+        const asciiRepaired = repairSingleQuotes(input)
+        if (asciiRepaired !== input) {
+          JSON.parse(asciiRepaired)
+          Log.Default.debug("json-repair: pure-js fallback succeeded after WASM failed")
+          return asciiRepaired
+        }
+      } catch { /* fallback also failed, continue to return null */ }
+
+      Log.Default.debug("json-repair: repair failed: " + (err instanceof Error ? err.message : String(err)))
+      return null
+    }
+  })
 }
 
 /** Eager health check — call at startup. Returns true if WASM loaded successfully. */

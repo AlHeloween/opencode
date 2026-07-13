@@ -238,11 +238,13 @@ export const layer: Layer.Layer<
 
       const data: DiscoveryResult = yield* Effect.gen(function* () {
         const local = importFromDisk(directory)
-        // Only trust a previously-imported project if it was discovered as git.
-        // Non-git projects (vcs: null/fakeVcs) may have been cached before a .git
-        // directory existed — re-check so sessions with the git root-commit
-        // project ID become visible in the session list.
-        if (local && local.vcs === "git") {
+        // Only trust a previously-imported project if it was discovered as git
+        // AND .git still exists within the launch directory boundary.
+        // Cached vcs: "git" can be stale if the project was moved or if a parent
+        // directory's .git was discovered during a prior run (fs.up now limits
+        // search to stop: directory, but cached records from earlier runs may
+        // reflect a wider search).
+        if (local && local.vcs === "git" && existsSync(pathSvc.join(directory, ".git"))) {
           return {
             id: local.id,
             worktree: pathSvc.normalize(directory),

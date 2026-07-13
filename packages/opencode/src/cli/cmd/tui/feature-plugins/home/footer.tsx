@@ -70,21 +70,24 @@ function SnapshotBackend() {
     if (existsSync(nodePath.join(worktree, ".jj"))) return "jj"
     // Fossil checkout markers: _FOSSIL_ (Windows) or _fossil (Unix)
     if (existsSync(nodePath.join(worktree, "_FOSSIL_")) || existsSync(nodePath.join(worktree, "_fossil"))) return "fossil"
-    return "git"
+    if (existsSync(nodePath.join(worktree, ".git"))) return "git"
+    return null
   })
   const color = createMemo(() => {
     switch (backend()) {
       case "jj": return "#88c0d0"
       case "fossil": return "#a3be8c"
-      default: return "#bf616a"
+      case "git": return "#bf616a"
+      default: return "#4c566a"
     }
   })
+  const vcs = createMemo(() => backend() ? backend()! : "no vcs")
 
   return (
     <box flexShrink={0} gap={1} flexDirection="row">
       <text>
         <span style={{ fg: color() }}>●</span>{" "}
-        <span style={{ fg: "#d8dee9" }}>{backend()}</span>
+        <span style={{ fg: backend() ? "#d8dee9" : "#4c566a" }}>{vcs()}</span>
       </text>
     </box>
   )

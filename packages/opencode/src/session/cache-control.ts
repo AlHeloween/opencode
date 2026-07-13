@@ -12,7 +12,7 @@
  * collision resistance for natural-language fingerprinting.
  */
 
-import xxhashWasm from "xxhash-wasm"
+import { createXXHash64 } from "hash-wasm"
 import type { MessageV2 } from "./message-v2"
 import { Database as BunDatabase } from "bun:sqlite"
 import path from "path"
@@ -22,16 +22,19 @@ import { Path as GlobalPath } from "@opencode-ai/core/global"
 // with the main drizzle DB and requires no migrations.
 const FINGERPRINT_DB_PATH = path.join(GlobalPath.state, "cache_fingerprints.db")
 
-// ── XXH3 Initialization ────────────────────────────────────────────────────
+// ── XXH64 Initialization ───────────────────────────────────────────────────
 
-let _h64: ((input: string) => string) | undefined
-const init = xxhashWasm().then(({ h64ToString }) => { _h64 = h64ToString })
+let _hasher: Awaited<ReturnType<typeof createXXHash64>> | undefined
+const init = createXXHash64().then((hasher) => { _hasher = hasher })
 
-/** XXH3-64 hash as hex string. Sync after WASM init (resolves during first
- *  microtask after module load — guaranteed before any request handler runs). */
+/** XXH64 hash as hex string (16 hex chars).  Uses hash-wasm (standard, mature)
+ *  with the same WebAssembly backend.  Sync after WASM init — resolves during
+ *  the first microtask after module load. */
 export function xxh3(content: string): string {
-  if (!_h64) throw new Error("XXH3 not initialized (module init race)")
-  return _h64(content)
+  if (!_hasher) throw new Error("XXH64 not initialized (module init race)")
+  _hasher.init()
+  _hasher.update(content)
+  return _hasher.digest("hex")
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────

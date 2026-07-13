@@ -9,6 +9,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "../project/instance"
 import { lazy } from "@/util/lazy"
 import { readWasmAsset } from "@/util/wasm-path"
+import { wasmGate } from "@/util/wasm-mutex"
 import { Language, type Node } from "web-tree-sitter"
 
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -454,9 +455,9 @@ const parser = lazy(async () => {
     throw new Error("tree-sitter runtime WASM unavailable; tried: " + JSON.stringify(treeWasm.tried))
   }
   // web-tree-sitter types require full EmscriptenModule, but runtime accepts wasmBinary.
-  await (Parser.init as any)({
+  await wasmGate("tree-sitter-init", () => (Parser.init as any)({
     wasmBinary: treeWasm.bytes,
-  })
+  }))
   const [bashWasm, cmdWasm, psWasm] = await Promise.all([
     readWasmAsset("grammars/tree-sitter-bash.wasm"),
     readWasmAsset("grammars/tree-sitter-batch.wasm"),
@@ -735,11 +736,11 @@ export const BashTool = Tool.define(
 
           if (exit.kind === "abort") {
             aborted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAll((e) => Effect.sync(() => log.debug("bash abort kill failed", { error: String(e) }))))
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAllCause(() => Effect.sync(() => log.debug("bash abort kill failed"))))
           }
           if (exit.kind === "timeout") {
             expired = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAll((e) => Effect.sync(() => log.debug("bash timeout kill failed", { error: String(e) }))))
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAllCause(() => Effect.sync(() => log.debug("bash timeout kill failed"))))
           }
 
           return exit.kind === "exit" ? exit.code : null

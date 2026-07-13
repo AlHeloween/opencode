@@ -85,8 +85,8 @@ Log.Default.info("diff-wasm: loaded WASM from " + asset.path)
 
       _textDecoder = new TextDecoder("utf-8", { ignoreBOM: true, fatal: true })
       _textEncoder = new TextEncoder()
-      const mod = await WebAssembly.compile(asset.bytes)
-      const instance = await WebAssembly.instantiate(mod, imports)
+      const mod = await wasmGate("diff-compile", () => WebAssembly.compile(asset.bytes!))
+      const instance = await wasmGate("diff-instantiate", () => WebAssembly.instantiate(mod, imports))
       _wasm = instance.exports as unknown as DiffyExports
       _wasm.__wbindgen_start()
       Log.Default.info("diff-wasm: WASM loaded successfully")

@@ -69,8 +69,8 @@ if (!asset.bytes) {
 
       _textDecoder = new TextDecoder("utf-8", { ignoreBOM: true, fatal: true })
       _textEncoder = new TextEncoder()
-      const mod = await WebAssembly.compile(asset.bytes)
-      const instance = await WebAssembly.instantiate(mod, imports)
+      const mod = await wasmGate("json-repair-compile", () => WebAssembly.compile(asset.bytes!))
+      const instance = await wasmGate("json-repair-instantiate", () => WebAssembly.instantiate(mod, imports))
       _wasm = instance.exports as unknown as JsonRepairExports
       _wasm.__wbindgen_start()
       Log.Default.info("json-repair: WASM loaded from " + asset.path)

@@ -578,7 +578,7 @@ export const layer: Layer.Layer<
                 // Pre-send prediction: cache is warm only if system prompt matches
                 // AND there were tokens in the previous request (provider cache exists).
                 // A system prompt change means the provider-side KV cache is invalidated.
-                const predictedWarm = ctx.currentSystemMd5 === prevFP.systemMd5 && prevFP.estimatedTokens > 0
+                const predictedWarm = ctx.currentSystemMd5 === prevFP.systemHash && prevFP.estimatedTokens > 0
                 if (predictedWarm !== cacheWarm) {
                   log.warn("bug: cache miscalculation", {
                     sessionID: ctx.sessionID,
@@ -588,7 +588,7 @@ export const layer: Layer.Layer<
                     actualCacheRead: usage.tokens.cache.read,
                     actualCacheWrite: usage.tokens.cache.write,
                     actualInputTokens: usage.tokens.input,
-                    fingerprint: prevFP.fullMd5,
+                    fingerprint: prevFP.fullHash,
                   })
                 }
               }
@@ -859,7 +859,7 @@ export const layer: Layer.Layer<
         slog.info("process")
         ctx.needsCompaction = false
         ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
-        ctx.currentSystemMd5 = CacheControl.md5(streamInput.system.join("\n"))
+        ctx.currentSystemMd5 = CacheControl.xxh3(streamInput.system.join("\n"))
 
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {

@@ -19,7 +19,7 @@ Replace the problematic `xxhash-wasm` integration with `hash-wasm` XXH64 while p
 ## Steps
 
 1. [x] Install and lock `hash-wasm@4` and wire `createXXHash64()` into cache control; runtime resolution remains an acceptance test.
-2. [ ] Remove direct `xxhash-wasm` dependency only after a repository-wide import and build-artifact audit confirms no remaining direct consumer.
+2. [x] Remove direct `xxhash-wasm` dependency only after a repository-wide import and build-artifact audit confirms no remaining direct consumer.
 3. Use a correctly typed resolved hasher instance (`Awaited<ReturnType<typeof createXXHash64>>` or exported equivalent).
 4. Ensure the hasher is initialized before any synchronous fingerprint request; replace module-init race failures with an explicit startup/readiness contract if needed.
 5. Keep fingerprint fields named `systemHash`, `fullHash`, `systemOnlyHash`, `toolsHash`, and `prefixHash`; migrate stale local names such as `currentSystemMd5`.

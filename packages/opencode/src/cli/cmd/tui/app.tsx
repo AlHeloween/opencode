@@ -72,10 +72,16 @@ import { FormatError, FormatUnknownError } from "@/cli/error"
 import type { EventSource } from "./context/sdk"
 import { DialogVariant } from "./component/dialog-variant"
 
-import { TexturePlaneRenderable } from "./component/texture-plane-renderable"
-
-// Register custom renderable for 3D image rendering
-extend({ "image-plane": TexturePlaneRenderable })
+// Lazy registration: <image-plane> loaded on first use (not at module load).
+// Three.js/WebGPU (from @opentui/three) is only loaded when a fallback image
+// actually needs to render — Sixel handles the common case.
+let _imagePlaneRegistered = false
+async function registerImagePlane(): Promise<void> {
+  if (_imagePlaneRegistered) return
+  _imagePlaneRegistered = true
+  const { TexturePlaneRenderable } = await import("./component/texture-plane-renderable")
+  extend({ "image-plane": TexturePlaneRenderable })
+}
 
 function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
   const mouseEnabled = !Flag.OPENCODE_DISABLE_MOUSE && (_config.mouse ?? true)
@@ -145,6 +151,9 @@ export function tui(input: {
 
     const renderer = await createCliRenderer(rendererConfig(input.config))
     const mode = (await renderer.waitForThemeMode(1000)) ?? "dark"
+
+    // Register <image-plane> lazily — Three.js/WebGPU only loads on demand
+    await registerImagePlane()
 
     await render(() => {
       return (

@@ -47,7 +47,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps: input.promptOps },
     agent: input.agent.name,
     messages: input.messages,
-    metadata: (val: { title?: string; metadata?: Record<string, unknown> }) =>
+    metadata: (val: { title?: string; metadata?: Record<string, unknown>; output?: string }) =>
       input.processor.updateToolCall(options.toolCallId, (match) => {
         if (!["running", "pending"].includes(match.state.status)) return match
         return {
@@ -55,6 +55,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           state: {
             title: val.title,
             metadata: val.metadata,
+            output: val.output ?? match.state.status === "running" ? (match.state as any).output : undefined,
             status: "running",
             input: args,
             time: { start: Date.now() },

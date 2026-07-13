@@ -698,6 +698,7 @@ export const BashTool = Tool.define(
                     ),
                     Effect.andThen(
                       ctx.metadata({
+                        output: last,
                         metadata: {
                           output: last,
                           description: input.description,

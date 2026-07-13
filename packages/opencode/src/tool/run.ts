@@ -149,7 +149,7 @@ export const RunTool = Tool.define(
       let aborted = false
       let expired = false
 
-      yield* ctx.metadata({ metadata: { output: "", description: input.description } })
+      yield* ctx.metadata({ output: "", metadata: { output: "", description: input.description } })
 
       const code: number | null = yield* Effect.scoped(
         Effect.gen(function* () {
@@ -184,7 +184,7 @@ export const RunTool = Tool.define(
                         fullBytes = 0
                       }),
                     ),
-                    Effect.andThen(ctx.metadata({ metadata: { output: last, description: input.description } })),
+                    Effect.andThen(ctx.metadata({ output: last, metadata: { output: last, description: input.description } })),
                   )
               }
               return Effect.void

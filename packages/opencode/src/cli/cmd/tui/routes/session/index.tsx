@@ -1891,7 +1891,11 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
       return props.part.state.input ?? {}
     },
     get output() {
-      return props.part.state.status === "completed" ? props.part.state.output : undefined
+      return props.part.state.status === "completed"
+        ? props.part.state.output
+        : props.part.state.status === "running"
+          ? (props.part.state as any).output
+          : undefined
     },
     get permission() {
       const permissions = sync.data.permission[props.message.sessionID] ?? []

@@ -316,6 +316,7 @@ export const ToolStateRunning = Schema.Struct({
   input: Schema.Record(Schema.String, Schema.Any),
   title: Schema.optional(Schema.String),
   metadata: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
+  output: Schema.optional(Schema.String),
   time: Schema.Struct({
     start: Schema.Number,
   }),

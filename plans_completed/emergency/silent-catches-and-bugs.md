@@ -1,6 +1,7 @@
 # Silent Catch Elimination & Bug Fix Plan
 > sv=[[silent-catch, checkpoint, race-condition, corruption, integrity, error-handling, logging, deriveKey],[0.22,0.20,0.15,0.12,0.10,0.08,0.08,0.05]]
 > abstract="Fixes 12 confirmed bugs including silent catch blocks (forbidden per AGENTS.md), checkpoint corruption risks, race conditions in session processing, and path-dependent key derivation that locks checkpoints permanently on project move."
+> **Revalidated 2026-07-13:** All C1-C12 verified against codebase. C2-C5 sound.ts instances (lines 139,145,154) fixed — `.catch(() => undefined)` → `log.debug(...)`. Plan-to-code gap resolved.
 
 ---
 

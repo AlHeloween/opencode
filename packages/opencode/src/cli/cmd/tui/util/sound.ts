@@ -136,13 +136,13 @@ export function stop(delay = 0) {
   const next = proc
   if (delay <= 0) {
     proc = undefined
-    void Process.stop(next).catch(() => undefined)
+    void Process.stop(next).catch((e) => log.debug("sound stop failed", { error: String(e) }))
     return
   }
   tail = setTimeout(() => {
     tail = undefined
     if (proc === next) proc = undefined
-    void Process.stop(next).catch(() => undefined)
+    void Process.stop(next).catch((e) => log.debug("sound delayed stop failed", { error: String(e) }))
   }, delay)
 }
 
@@ -151,7 +151,7 @@ export function pulse(scale = 1) {
   const index = shot++ % FILE.length
   void asset()
     .then(({ pulse }) => play(pulse[index], 0.26 + 0.14 * scale))
-    .catch(() => undefined)
+    .catch((e) => log.debug("sound pulse failed", { error: String(e) }))
 }
 
 export function dispose() {

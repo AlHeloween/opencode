@@ -1,4 +1,6 @@
 # Silent Catch Elimination & Bug Fix Plan
+
+> **Current audit (2026-07-14):** Existing completion markers are historical and have not been revalidated in this worktree. The prior zero-error typecheck claim is stale: `bun typecheck` currently reports 103 OpenTUI diagnostics. This plan remains a catch-handling subplan; the emergency master plan owns current typecheck acceptance.
 > sv=[[silent-catch, checkpoint, race-condition, corruption, integrity, error-handling, logging, deriveKey],[0.22,0.20,0.15,0.12,0.10,0.08,0.08,0.05]]
 > abstract="Fixes 12 confirmed bugs including silent catch blocks (forbidden per AGENTS.md), checkpoint corruption risks, race conditions in session processing, and path-dependent key derivation that locks checkpoints permanently on project move."
 

@@ -1,6 +1,7 @@
 # Memory Leak Fix Plan
 > sv=[[event-handler, map, interval, websocket, subscription, eviction, cleanup, onCleanup],[0.22,0.18,0.15,0.12,0.10,0.09,0.08,0.06]]
 > abstract="Fixes 9 memory leaks including missing event listener cleanup, unbounded Map growth, missing onCleanup handlers in SolidJS components, and orphaned subscription patterns."
+> **Current audit (2026-07-14):** Existing completion markers are historical and have not been revalidated in this worktree. The prior zero-error typecheck claim is stale: `bun typecheck` currently reports 103 OpenTUI diagnostics. This plan remains a leak-focused subplan; the emergency master plan owns current typecheck acceptance.
 
 ---
 

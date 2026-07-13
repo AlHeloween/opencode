@@ -6,6 +6,7 @@ import { tmpdir } from "os"
 import { join } from "path"
 import { which } from "@/util/which"
 import { Spinner } from "./spinner"
+import { MediaImage } from "./media-image"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tui.media.video" })
@@ -66,7 +67,7 @@ export function MediaVideo(props: { url: string; metadata?: VideoMetadata }) {
       </text>
       <Switch>
         <Match when={loaded() && thumbnail()}>
-          <image-plane url={thumbnail()!} mime="image/png" width={70} />
+          <MediaImage url={thumbnail()!} mime="image/png" />
         </Match>
         <Match when={loaded() && !thumbnail()}>
           <text fg={theme.textMuted}>No preview — ffmpeg not available</text>

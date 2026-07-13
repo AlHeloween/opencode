@@ -210,9 +210,17 @@ function countSections(summary: string): number {
   return (summary.match(/^##\s+/gm) ?? []).length
 }
 
+/** Strip any text before the first `## ` section header (thinking/reasoning preamble). */
+export function stripReasoningPrefix(text: string): string {
+  const sectionStart = text.indexOf("## ")
+  if (sectionStart <= 0) return text
+  return text.slice(sectionStart)
+}
+
 /** Validate that a compaction summary is substantive enough.
   * Returns { valid: true } or { valid: false, reason } for the quality guard. */
-export function validateSummary(summary: string): { valid: true } | { valid: false; reason: string } {
+export function validateSummary(raw: string): { valid: true } | { valid: false, reason: string } {
+  const summary = stripReasoningPrefix(raw)
   if (!summary || summary.trim().length < MIN_SUMMARY_LENGTH) {
     return { valid: false, reason: `too_short: ${summary.trim().length} chars < ${MIN_SUMMARY_LENGTH} required` }
   }
@@ -490,7 +498,9 @@ Rules:
 - Keep every section, even when empty.
 - Use terse bullets, not prose paragraphs.
 - Preserve exact file paths, commands, error strings, and identifiers when known.
-- Do not answer the conversation. Do not mention that you are summarizing, compacting, or merging context.`,
+- Do not answer the conversation. Do not mention that you are summarizing, compacting, or merging context.
+- Output ONLY the structured summary sections starting with ## Goal. No thinking, no analysis, no meta-commentary, no greeting, no sign-off.
+- Start directly with ## Goal. Never prefix anything before it.`,
         synthetic: true,
       })
       yield* session.updatePart({

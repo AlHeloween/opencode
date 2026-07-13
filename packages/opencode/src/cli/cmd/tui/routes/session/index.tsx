@@ -1855,7 +1855,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
                   when={mermaidDataUrls()[index]}
                   fallback={<text fg={theme.textMuted}>{mermaidFallback(segment(), index)}</text>}
                 >
-                  <image-plane url={mermaidDataUrls()[index]!} mime="image/png" width={70} />
+                  <MediaImage url={mermaidDataUrls()[index]!} mime="image/png" />
                 </Show>
               </Match>
             </Switch>

@@ -310,40 +310,20 @@ export function getPrevFingerprint(
       .get(sessionId, agentName ?? "", modelId) as { data: string } | undefined
     if (row) {
       const raw = JSON.parse(row.data) as any
-      // Migrate old field names (systemMd5 -> systemHash, etc.) so old
-      // DB entries from the MD5 era still produce valid comparisons.
-      // The hashes themselves are computed with the old algorithm (MD5),
-      // so they still won't match new XXH3 hashes — that's fine, it's a
-      // one-time performance cost. What matters is that field references
-      // don't throw undefined errors.
-      const fp: RequestFingerprint = {
-        systemHash: raw.systemHash ?? raw.systemMd5 ?? "",
-        fullHash: raw.fullHash ?? raw.fullMd5 ?? "",
-        messages: (raw.messages ?? []).map((m: any) => ({
-          messageId: m.messageId,
-          role: m.role,
-          hash: m.hash ?? m.md5 ?? "",
-          partCount: m.partCount,
-          parts: (m.parts ?? []).map((p: any) => ({
-            type: p.type,
-            hash: p.hash ?? p.md5 ?? "",
-          })),
-        })),
-        estimatedTokens: raw.estimatedTokens ?? 0,
-        prefix: raw.prefix ? {
-          systemOnlyHash: raw.prefix.systemOnlyHash ?? raw.prefix.systemOnlyMd5 ?? "",
-          toolsHash: raw.prefix.toolsHash ?? raw.prefix.toolsMd5 ?? "",
-          toolsOrderHash: raw.prefix.toolsOrderHash ?? "",
-          toolsTokenEst: raw.prefix.toolsTokenEst ?? 0,
-          prefixHash: raw.prefix.prefixHash ?? raw.prefix.prefixMd5 ?? "",
-        } : undefined,
+      // Detect old MD5-era fingerprints (field name systemMd5, hash 32 hex chars).
+      // MD5 and XXH3 produce different-length hashes (32 vs 16 hex chars), so
+      // comparison would always fail and report a false cache break.
+      // Instead, silently discard and let the next request create a fresh XXH3
+      // baseline. This causes zero invalidation — just a clean slate.
+      if (raw.systemMd5 && !raw.systemHash) {
+        return null
       }
-      prevRequestCache.set(key, fp)
+      prevRequestCache.set(key, raw as RequestFingerprint)
       if (prevRequestCache.size > MAX_FINGERPRINTS) {
         const first = prevRequestCache.keys().next().value
         if (first !== undefined) prevRequestCache.delete(first)
       }
-      return fp
+      return raw as RequestFingerprint
     }
   } catch {
     // DB miss or parse error — return null
@@ -371,12 +351,9 @@ export function auditCache(
     estimatedHitRatio: 0,
   }
 
-  // First request: no baseline
+  // First request: no baseline — no cache to invalidate
   if (!prev) {
-    entry.changeDescription = "first request - no cache baseline"
-      entry.estimatedHitRatio = 0
-      entry.cacheStable = false
-      return entry
+    return entry
   }
 
   // Component-level cache break diagnosis (when PrefixShape data is available).

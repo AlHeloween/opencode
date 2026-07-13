@@ -646,6 +646,8 @@ export const BashTool = Tool.define(
       let expired = false
       let aborted = false
 
+      const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(input.command)
+
       yield* ctx.metadata({
         metadata: {
           output: "",
@@ -656,6 +658,10 @@ export const BashTool = Tool.define(
       const code: number | null = yield* Effect.scoped(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
+
+          // cmd_runner spawns its own terminal window and stays alive as a daemon.
+          // Don't wait for exit — return immediately; user interacts via the terminal.
+          if (isCmdRunner) return null
 
           yield* Effect.forkScoped(
             Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {

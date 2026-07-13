@@ -66,6 +66,10 @@ external/opentui/packages/core/src/zig/.zig-global/
 external/opentui/packages/core/src/zig/zig-pkg/
 external/opentui/.github/
 external/opentui/node_modules/
+packages/opentui/packages/core/src/zig/.zig-global/
+packages/opentui/packages/core/src/zig/zig-pkg/
+packages/opentui/.github/
+packages/opentui/node_modules/
 gateway.jsonc
 logs/
 node_modules

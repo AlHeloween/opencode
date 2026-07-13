@@ -1,8 +1,19 @@
-# Tool Execution Output Invisibility & Silent Failures
+# Tool Execution Output Invisibility & Silent Failures ✅ COMPLETE
 
-## Objective
+## Resolution Summary
 
-Fix three interlocking bugs: (1) shell commands block without releasing until completion — including cmd_runner which spawns its own terminal and never exits, (2) `run` tool output is invisible in TUI during execution, (3) multiple silent failure paths make errors unassessable by the user.
+| Phase | Fix | Status |
+|-------|-----|--------|
+| R1a | `run.ts`: timeout race + abort handling | ✅ `4c248ee88` |
+| R1b | `bash.ts`: cmd_runner detected → return immediately | ✅ `f081809b8` |
+| R2 | Tool output streaming: schema, processor, bash.ts, run.ts, TUI | ✅ `0e920e236` |
+| R3a | `bash.ts`: cygpath failure logged | ✅ `4a33c5e68` |
+| R3b | `bash.ts`: orDie → logged catchAll on abort/timeout kill | ✅ `98383f82d` |
+| R3c | `run.ts`: sink error logged | ✅ `4c248ee88` |
+| R3d | `jobs/index.ts`: unknown job logged | ✅ `4a33c5e68` |
+| R3e | Rolling buffer data loss | DEFERRED — streaming output to TUI (R2) mitigates by showing real-time output |
+
+## Original Analysis (preserved)
 
 ## Root Cause Analysis
 

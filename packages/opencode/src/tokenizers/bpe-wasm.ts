@@ -1,5 +1,6 @@
 import { readWasmAsset } from "@/util/wasm-path"
 import * as Log from "@opencode-ai/core/util/log"
+import { wasmGate } from "@/util/wasm-mutex"
 import type { TokenizerInstance, TokenizerModel } from "./types"
 
 // The WASM module's global data (vocab, merges, cache) occupies addresses
@@ -52,7 +53,7 @@ async function loadWasm(): Promise<WebAssembly.Module | null> {
     }
 
     try {
-      _wasmModule = await WebAssembly.compile(asset.bytes)
+      _wasmModule = await wasmGate("bpe-compile", () => WebAssembly.compile(asset.bytes!))
       Log.Default.info("bpe-wasm: loaded WASM from " + asset.path)
       return _wasmModule
     } catch (err) {
@@ -109,10 +110,14 @@ private ioBase: number
         MODULE_MIN_PAGES,
         Math.ceil((MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET) / 65536),
       )
-      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
-      const instance = await WebAssembly.instantiate(mod, {
-        env: { memory },
+      const result = await wasmGate("bpe-instantiate", async () => {
+        const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
+        const instance = await WebAssembly.instantiate(mod, {
+          env: { memory },
+        })
+        return { memory, instance }
       })
+      const { memory, instance } = result
 
       const exports = instance.exports as {
   __stack_pointer: WebAssembly.Global

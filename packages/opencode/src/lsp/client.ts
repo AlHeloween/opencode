@@ -18,8 +18,45 @@ const DIAGNOSTICS_DEBOUNCE_MS = 150
 const DIAGNOSTICS_DOCUMENT_WAIT_TIMEOUT_MS = 5_000
 const DIAGNOSTICS_FULL_WAIT_TIMEOUT_MS = 10_000
 const DIAGNOSTICS_REQUEST_TIMEOUT_MS = 3_000
+const DIAGNOSTICS_MAX_CACHED_PATHS = 500 // cap per-map to prevent unbounded growth
 
 const INITIALIZE_TIMEOUT_MS = 45_000
+
+/** A Map that evicts the oldest entry when exceeding the maximum size.
+ *  Prevents unbounded memory growth from per-file diagnostic accumulation. */
+class BoundedMap<K, V> extends Map<K, V> {
+  readonly maxSize: number
+  private readonly accessOrder: K[] = []
+
+  constructor(maxSize: number) {
+    super()
+    this.maxSize = maxSize
+  }
+
+  override set(key: K, value: V): this {
+    if (this.size >= this.maxSize && !this.has(key)) {
+      const oldest = this.accessOrder.shift()
+      if (oldest !== undefined) this.delete(oldest)
+    }
+    if (this.has(key)) {
+      const idx = this.accessOrder.indexOf(key)
+      if (idx >= 0) this.accessOrder.splice(idx, 1)
+    }
+    this.accessOrder.push(key)
+    return super.set(key, value)
+  }
+
+  override delete(key: K): boolean {
+    const idx = this.accessOrder.indexOf(key)
+    if (idx >= 0) this.accessOrder.splice(idx, 1)
+    return super.delete(key)
+  }
+
+  override clear(): void {
+    this.accessOrder.length = 0
+    super.clear()
+  }
+}
 
 // LSP spec constants
 const FILE_CHANGE_CREATED = 1
@@ -150,16 +187,17 @@ export async function create(input: { serverID: string; server: LSPServer.Handle
   // which is normal stderr practice for some tools. Keep the raw stream at
   // debug so users can opt in with --print-logs --log-level DEBUG without
   // polluting normal logs.
-  input.server.process.stderr?.on("data", (data: Buffer) => {
+  const onStderr = (data: Buffer) => {
     const text = data.toString().trim()
     if (text) logger.debug("server stderr", { text: text.slice(0, 1000) })
-  })
+  }
+  input.server.process.stderr?.on("data", onStderr)
 
   // --- Connection state ---
 
-  const pushDiagnostics = new Map<string, Diagnostic[]>()
-  const pullDiagnostics = new Map<string, Diagnostic[]>()
-  const published = new Map<string, { at: number; version?: number }>()
+  const pushDiagnostics = new BoundedMap<string, Diagnostic[]>(DIAGNOSTICS_MAX_CACHED_PATHS)
+  const pullDiagnostics = new BoundedMap<string, Diagnostic[]>(DIAGNOSTICS_MAX_CACHED_PATHS)
+  const published = new BoundedMap<string, { at: number; version?: number }>(DIAGNOSTICS_MAX_CACHED_PATHS)
   const diagnosticRegistrations = new Map<string, CapabilityRegistration>()
   const registrationListeners = new Set<() => void>()
   const mergedDiagnostics = (filePath: string) =>
@@ -682,6 +720,10 @@ export async function create(input: { serverID: string; server: LSPServer.Handle
     },
     async shutdown() {
       logger.info("shutting down")
+      input.server.process.stderr?.removeListener("data", onStderr)
+      pushDiagnostics.clear()
+      pullDiagnostics.clear()
+      published.clear()
       connection.end()
       connection.dispose()
       await Process.stop(input.server.process)

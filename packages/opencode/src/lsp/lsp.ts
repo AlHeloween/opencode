@@ -125,10 +125,25 @@ const filterExperimentalServers = (servers: Record<string, LSPServer.Info>) => {
 
 type LocInput = { file: string; line: number; character: number }
 
+const LSP_BROKEN_RETRY_MS = 300_000 // 5 minutes — retry failed LSP servers after cooldown
+
+/** Check if a server is in the broken/cooldown state.
+ *  Returns true if the server was recently broken (within retry window),
+ *  false if the cooldown has expired (allowing retry). */
+function isServerBroken(broken: Map<string, number>, key: string): boolean {
+  const at = broken.get(key)
+  if (at === undefined) return false
+  if (Date.now() - at >= LSP_BROKEN_RETRY_MS) {
+    broken.delete(key) // Cooldown expired — allow retry
+    return false
+  }
+  return true
+}
+
 interface State {
   clients: LSPClient.Info[]
   servers: Record<string, LSPServer.Info>
-  broken: Set<string>
+  broken: Map<string, number>
   spawning: Map<string, Promise<LSPClient.Info | undefined>>
 }
 
@@ -207,7 +222,7 @@ export const layer = Layer.effect(
         const s: State = {
           clients: [],
           servers,
-          broken: new Set(),
+          broken: new Map(),
           spawning: new Map(),
         }
 
@@ -238,11 +253,11 @@ export const layer = Layer.effect(
           const handle = await server
             .spawn(root, ctx)
             .then((value) => {
-              if (!value) s.broken.add(key)
+              if (!value) s.broken.set(key, Date.now())
               return value
             })
             .catch((err) => {
-              s.broken.add(key)
+              s.broken.set(key, Date.now())
               log.error(`Failed to spawn LSP server ${server.id}`, { error: err })
               return undefined
             })
@@ -256,7 +271,7 @@ export const layer = Layer.effect(
             root,
             directory: ctx.directory,
           }).catch(async (err) => {
-            s.broken.add(key)
+            s.broken.set(key, Date.now())
             await Process.stop(handle.process)
             log.error(`Failed to initialize LSP client ${server.id}`, { error: err })
             return undefined
@@ -279,7 +294,10 @@ export const layer = Layer.effect(
 
           const root = await server.root(file, ctx)
           if (!root) continue
-          if (s.broken.has(root + server.id)) continue
+          if (isServerBroken(s.broken, root + server.id)) {
+            log.debug("skipping broken LSP server (cooldown)", { serverID: server.id, root })
+            continue
+          }
 
           const match = s.clients.find((x) => x.root === root && x.serverID === server.id)
           if (match) {
@@ -353,7 +371,10 @@ export const layer = Layer.effect(
           if (server.extensions.length && !server.extensions.includes(extension)) continue
           const root = await server.root(file, ctx)
           if (!root) continue
-          if (s.broken.has(root + server.id)) continue
+          if (isServerBroken(s.broken, root + server.id)) {
+            log.debug("skipping broken LSP server (cooldown)", { serverID: server.id, root })
+            continue
+          }
           return true
         }
         return false

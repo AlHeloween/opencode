@@ -15,7 +15,7 @@ import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
-import { Effect, Layer, Context, Schema } from "effect"
+import { Effect, Layer, Context, Schema, Stream } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { isOverflow as overflow, usable, estimateContentTokens } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
@@ -299,6 +299,19 @@ export const layer: Layer.Layer<
     // Sessions where compaction hit the stuck threshold — auto-compaction
     // is suspended until a manual or forced compaction resets the state.
     const stuckSessions = new Set<SessionID>()
+
+    // Clean up per-session metadata when a session is deleted.
+    // Prevents unbounded growth of compactionCounts and stuckSessions
+    // over the process lifetime.
+    yield* bus.subscribe(Session.Event.Deleted).pipe(
+      Stream.runForEach((evt) =>
+        Effect.sync(() => {
+          compactionCounts.delete(evt.properties.sessionID)
+          stuckSessions.delete(evt.properties.sessionID)
+        }),
+      ),
+      Effect.forkScoped,
+    )
 
     const isOverflow = Effect.fn("SessionCompaction.isOverflow")(function* (input: {
       tokens: MessageV2.Assistant["tokens"]

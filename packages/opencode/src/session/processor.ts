@@ -81,7 +81,7 @@ interface ProcessorContext extends Input {
   toolcalls: Record<string, ToolCall>
   shouldBreak: boolean
   snapshot: string | undefined
-  currentSystemMd5: string | undefined
+  currentSystemHash: string | undefined
   blocked: boolean
   toolCallEmitted: boolean
   needsCompaction: boolean
@@ -195,7 +195,7 @@ export const layer: Layer.Layer<
         reasoningMap: {},
         reasoningBuilders: {},
         recentToolCalls: [],
-        currentSystemMd5: undefined,
+        currentSystemHash: undefined,
         streamStartTime: undefined,
         firstTokenLogged: false,
         hasWriteToolCall: false,
@@ -578,7 +578,7 @@ export const layer: Layer.Layer<
                 // Pre-send prediction: cache is warm only if system prompt matches
                 // AND there were tokens in the previous request (provider cache exists).
                 // A system prompt change means the provider-side KV cache is invalidated.
-                const predictedWarm = ctx.currentSystemMd5 === prevFP.systemHash && prevFP.estimatedTokens > 0
+                const predictedWarm = ctx.currentSystemHash === prevFP.systemHash && prevFP.estimatedTokens > 0
                 if (predictedWarm !== cacheWarm) {
                   log.warn("bug: cache miscalculation", {
                     sessionID: ctx.sessionID,
@@ -859,7 +859,7 @@ export const layer: Layer.Layer<
         slog.info("process")
         ctx.needsCompaction = false
         ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
-        ctx.currentSystemMd5 = CacheControl.xxh3(streamInput.system.join("\n"))
+        ctx.currentSystemHash = CacheControl.xxh3(streamInput.system.join("\n"))
 
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {

@@ -37,6 +37,12 @@ export function xxh3(content: string): string {
   return _hasher.digest("hex")
 }
 
+/** Await-ready XXH64 — resolves once the WASM module has loaded.
+ *  Call once at startup before any fingerprint request. */
+export function xxh3Ready(): Promise<void> {
+  return init.then(() => undefined)
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface MessageFingerprint {

@@ -466,11 +466,11 @@ const parser = lazy(async () => {
   if (!bashWasm.bytes) throw new Error("bash grammar WASM unavailable; tried: " + JSON.stringify(bashWasm.tried))
   if (!cmdWasm.bytes) throw new Error("batch grammar WASM unavailable; tried: " + JSON.stringify(cmdWasm.tried))
   if (!psWasm.bytes) throw new Error("PowerShell grammar WASM unavailable; tried: " + JSON.stringify(psWasm.tried))
-  const [bashLanguage, cmdLanguage, psLanguage] = await Promise.all([
+  const [bashLanguage, cmdLanguage, psLanguage] = await wasmGate("tree-sitter-load-grammars", () => Promise.all([
     Language.load(new Uint8Array(bashWasm.bytes)),
     Language.load(new Uint8Array(cmdWasm.bytes)),
     Language.load(new Uint8Array(psWasm.bytes)),
-  ])
+  ]))
   const bash = new Parser()
   bash.setLanguage(bashLanguage)
   const cmd = new Parser()
@@ -736,11 +736,11 @@ export const BashTool = Tool.define(
 
           if (exit.kind === "abort") {
             aborted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAllCause(() => Effect.sync(() => log.debug("bash abort kill failed"))))
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash abort kill failed"))))
           }
           if (exit.kind === "timeout") {
             expired = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchAllCause(() => Effect.sync(() => log.debug("bash timeout kill failed"))))
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash timeout kill failed"))))
           }
 
           return exit.kind === "exit" ? exit.code : null

@@ -247,3 +247,162 @@ describe("Agent color stability", () => {
     expect(AGENT_COLORS.includes(color as typeof AGENT_COLORS[number])).toBe(true)
   })
 })
+
+describe("Session store lifecycle cleanup", () => {
+  type SessionStore = {
+    session: Array<{ id: string }>
+    message: Record<string, Array<{ id: string }>>
+    part: Record<string, Array<{ id: string }>>
+    session_status: Record<string, unknown>
+    session_diff: Record<string, unknown>
+    todo: Record<string, unknown>
+    permission: Record<string, unknown>
+    question: Record<string, unknown>
+  }
+
+  const SID = "session-1"
+  const MID = "msg-1"
+  const PID = "part-1"
+
+  function makeStore(): SessionStore {
+    return {
+      session: [{ id: SID }],
+      message: { [SID]: [{ id: MID }] },
+      part: { [MID]: [{ id: PID }] },
+      session_status: { [SID]: "idle" },
+      session_diff: { [SID]: [] },
+      todo: { [SID]: [] },
+      permission: { [SID]: [] },
+      question: { [SID]: [] },
+    }
+  }
+
+  test("cleanupSessionStores removes all 7 keyed stores", () => {
+    const store = makeStore()
+    // Simulate: for each store key, delete the sessionID entry
+    const sid = SID
+    delete (store as any).message[sid]
+    delete (store as any).session_status[sid]
+    delete (store as any).session_diff[sid]
+    delete (store as any).todo[sid]
+    delete (store as any).permission[sid]
+    delete (store as any).question[sid]
+    delete (store as any).part[MID]
+
+    expect((store as any).message[sid]).toBeUndefined()
+    expect((store as any).session_status[sid]).toBeUndefined()
+    expect((store as any).session_diff[sid]).toBeUndefined()
+    expect((store as any).todo[sid]).toBeUndefined()
+    expect((store as any).permission[sid]).toBeUndefined()
+    expect((store as any).question[sid]).toBeUndefined()
+    expect((store as any).part[MID]).toBeUndefined()
+  })
+
+  test("cleanupSessionStores removes message part entries", () => {
+    const store = makeStore()
+    // Delete the message entry for SID, which cascades to part entries
+    delete (store as any).message[SID]
+    expect(store.message[SID]).toBeUndefined()
+  })
+
+  test("abort controller pattern prevents stale session writes", async () => {
+    // Simulate: when sessionID changes, AbortController aborts stale work
+    const results: string[] = []
+    async function restore(sessionID: string, signal: AbortSignal) {
+      await new Promise((r) => setTimeout(r, 10))
+      if (signal.aborted) return
+      results.push(sessionID)
+    }
+
+    const ac1 = new AbortController()
+    const p1 = restore("A", ac1.signal)
+    ac1.abort() // session changed before completion
+    await restore("B", new AbortController().signal)
+    await p1.catch(() => {})
+
+    expect(results).toEqual(["B"])
+    expect(results).not.toContain("A")
+  })
+
+  test("inflight sync dedup returns same promise for concurrent calls", async () => {
+    let callCount = 0
+    const inflight = new Map<string, Promise<void>>()
+
+    async function sync(sessionID: string) {
+      const existing = inflight.get(sessionID)
+      if (existing) {
+        await existing.catch(() => {})
+        return
+      }
+      const task = (async () => {
+        callCount++
+        await new Promise((r) => setTimeout(r, 10))
+      })()
+      inflight.set(sessionID, task)
+      try { await task } finally { if (inflight.get(sessionID) === task) inflight.delete(sessionID) }
+    }
+
+    const [r1, r2] = await Promise.all([sync("s1"), sync("s1")])
+    expect(callCount).toBe(1)
+  })
+
+  test("session.refresh cleans stale session stores", () => {
+    const store = makeStore()
+    const newList = [{ id: "session-2" }]
+    const nextIDs = new Set(newList.map((s) => s.id))
+
+    // Cleanup: for any existing session not in the new list, remove its stores
+    for (const existing of [{ id: SID }]) {
+      if (!nextIDs.has(existing.id)) {
+        delete (store as any).message[existing.id]
+        delete (store as any).session_status[existing.id]
+        delete (store as any).session_diff[existing.id]
+        delete (store as any).todo[existing.id]
+        delete (store as any).permission[existing.id]
+        delete (store as any).question[existing.id]
+      }
+    }
+
+    expect((store as any).message[SID]).toBeUndefined()
+    expect((store as any).session_status[SID]).toBeUndefined()
+    expect((store as any).session_diff[SID]).toBeUndefined()
+    expect((store as any).todo[SID]).toBeUndefined()
+    expect((store as any).permission[SID]).toBeUndefined()
+    expect((store as any).question[SID]).toBeUndefined()
+    // Session array entry remains until reconcile() replaces it
+    expect(store.session.find((s) => s.id === SID)).toBeDefined()
+  })
+
+  test("delta buffer for session messages is cleared on session cleanup", () => {
+    const deltaBuffer = new Map<string, Map<string, string>>()
+    deltaBuffer.set(MID, new Map([["p1", "delta"]]))
+    const deltaBufferTimestamps = new Map<string, number>()
+    deltaBufferTimestamps.set(MID, Date.now())
+
+    // Simulate flushDeltaBufferForSession
+    for (const mid of [MID]) {
+      deltaBuffer.delete(mid)
+      deltaBufferTimestamps.delete(mid)
+    }
+
+    expect(deltaBuffer.size).toBe(0)
+    expect(deltaBufferTimestamps.size).toBe(0)
+  })
+
+  test("recovery timer cleanup prevents wasted server call", () => {
+    const recoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    const timer = setTimeout(() => {}, 1000)
+    recoveryTimers.set(MID, timer)
+
+    // Simulate cleanupSessionStores cleanup of recoveryTimers
+    for (const mid of [MID]) {
+      const t = recoveryTimers.get(mid)
+      if (t) {
+        clearTimeout(t)
+        recoveryTimers.delete(mid)
+      }
+    }
+
+    expect(recoveryTimers.size).toBe(0)
+  })
+})

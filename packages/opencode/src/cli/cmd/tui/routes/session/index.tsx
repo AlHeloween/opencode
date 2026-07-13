@@ -275,9 +275,11 @@ export function Session() {
 
   createEffect(() => {
     const sessionID = route.sessionID
+    const abort = new AbortController()
     void (async () => {
       const previousWorkspace = project.workspace.current()
       const result = await sdk.client.session.get({ sessionID }, { throwOnError: true })
+      if (abort.signal.aborted || route.sessionID !== sessionID) return
       if (!result.data) {
         toast.show({
           message: `Session not found: ${sessionID}`,
@@ -301,10 +303,11 @@ export function Session() {
           Log.Default.debug("bootstrap failed, workspace may not exist", { sessionID })
         }
       }
+      if (abort.signal.aborted || route.sessionID !== sessionID) return
       await sync.session.sync(sessionID, { force: true })
-      if (route.sessionID === sessionID && scroll) scroll.scrollBy(100_000)
+      if (!abort.signal.aborted && route.sessionID === sessionID && scroll) scroll.scrollBy(100_000)
     })().catch((error) => {
-      if (route.sessionID !== sessionID) return
+      if (abort.signal.aborted || route.sessionID !== sessionID) return
       Log.Default.error("session load failed", { sessionID, error: errorMessage(error) })
       toast.show({
         message: errorMessage(error),
@@ -313,6 +316,7 @@ export function Session() {
       })
       navigate({ type: "home" })
     })
+    onCleanup(() => abort.abort())
   })
 
   let lastSwitch: string | undefined = undefined
@@ -658,7 +662,7 @@ export function Session() {
           try {
             await sdk.client.session.delete({ sessionID: child.id })
             cleaned++
-          } catch (e) { console.debug("child session delete failed", e) }
+          } catch (e) { Log.Default.debug("child session delete failed", { error: String(e) }) }
         }
         toast.show({ variant: "success", message: `Cleaned up ${cleaned}/${childSessions.length} child sessions`, duration: 3000 })
         dialog.clear()

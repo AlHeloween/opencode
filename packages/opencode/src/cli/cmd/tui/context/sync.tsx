@@ -109,6 +109,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     const sdk = useSDK()
 
     const fullSyncedSessions = new Set<string>()
+    const inflightSyncs = new Map<string, Promise<void>>()
     let syncedWorkspace = project.workspace.current()
 
     // Buffer deltas that arrive before the part is in the store.
@@ -170,6 +171,38 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       }
     }
 
+    function flushDeltaBufferForSession(sessionID: string) {
+      const messages = store.message[sessionID]
+      if (!messages) return
+      for (const m of messages) {
+        if (deltaBuffer.has(m.id)) {
+          deltaBuffer.delete(m.id)
+          deltaBufferTimestamps.delete(m.id)
+        }
+      }
+    }
+
+    function cleanupSessionStores(sessionID: string) {
+      const messageIDs = store.message[sessionID]?.map((m) => m.id) ?? []
+      setStore("message", produce((draft) => { delete draft[sessionID] }))
+      setStore("session_status", produce((draft) => { delete draft[sessionID] }))
+      setStore("session_diff", produce((draft) => { delete draft[sessionID] }))
+      setStore("todo", produce((draft) => { delete draft[sessionID] }))
+      setStore("permission", produce((draft) => { delete draft[sessionID] }))
+      setStore("question", produce((draft) => { delete draft[sessionID] }))
+      setStore("part", produce((draft) => {
+        for (const mid of messageIDs) delete draft[mid]
+      }))
+      flushDeltaBufferForSession(sessionID)
+      for (const mid of messageIDs) {
+        const timer = recoveryTimers.get(mid)
+        if (timer) {
+          clearTimeout(timer)
+          recoveryTimers.delete(mid)
+        }
+      }
+    }
+
     function debouncedRecoverySync(input: { sessionID?: string; messageID: string; partID: string }) {
       // Use messageID as dedupe key so multiple deltas for the same
       // message only trigger one recovery.
@@ -216,31 +249,52 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
     async function syncSession(sessionID: string, input: { force?: boolean } = {}) {
         if (!input.force && fullSyncedSessions.has(sessionID)) return
-        const [session, messages, todo, diff] = await Promise.all([
-          sdk.client.session.get({ sessionID }, { throwOnError: true }),
-          sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),
-          sdk.client.session.todo({ sessionID }, { throwOnError: true }),
-          sdk.client.session.diff({ sessionID }, { throwOnError: true }),
-        ])
-        const messageList = messages.data ?? []
-        const messageInfos = messageList.map((x) => x.info)
-        batch(() => {
-          setStore(
-            produce((draft) => {
-              const match = Binary.search(draft.session, sessionID, (s) => s.id)
-              if (match.found) draft.session[match.index] = session.data!
-              if (!match.found) draft.session.splice(match.index, 0, session.data!)
-              draft.todo[sessionID] = todo.data ?? []
-              draft.session_diff[sessionID] = diff.data ?? []
-            }),
-          )
-          setStore("message", sessionID, reconcile(messageInfos, { key: "id" }))
-          for (const message of messageList) {
-            setStore("part", message.info.id, reconcile(message.parts, { key: "id" }))
+        const inflight = inflightSyncs.get(sessionID)
+        if (inflight) {
+          // Intentionally silent: the original caller already logged any error.
+          await inflight.catch(() => {})
+          if (!input.force && fullSyncedSessions.has(sessionID)) return
+        }
+        const task = (async () => {
+          const [session, messages, todo, diff] = await Promise.all([
+            sdk.client.session.get({ sessionID }, { throwOnError: true }),
+            sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),
+            sdk.client.session.todo({ sessionID }, { throwOnError: true }),
+            sdk.client.session.diff({ sessionID }, { throwOnError: true }),
+          ])
+          // Guard: skip write if the session was deleted while inflight was running.
+          // Without this, a completed inflight can re-add a session that the
+          // `session.deleted` event handler already removed from the store.
+          if (!fullSyncedSessions.has(sessionID) && Binary.search(store.session, sessionID, (s) => s.id).found === false) {
+            return
           }
-        })
-        fullSyncedSessions.add(sessionID)
+          const messageList = messages.data ?? []
+          const messageInfos = messageList.map((x) => x.info)
+          batch(() => {
+            setStore(
+              produce((draft) => {
+                const match = Binary.search(draft.session, sessionID, (s) => s.id)
+                if (match.found) draft.session[match.index] = session.data!
+                if (!match.found) draft.session.splice(match.index, 0, session.data!)
+                draft.todo[sessionID] = todo.data ?? []
+                draft.session_diff[sessionID] = diff.data ?? []
+              }),
+            )
+            setStore("message", sessionID, reconcile(messageInfos, { key: "id" }))
+            for (const message of messageList) {
+              setStore("part", message.info.id, reconcile(message.parts, { key: "id" }))
+            }
+          })
+          fullSyncedSessions.add(sessionID)
+        })()
+        inflightSyncs.set(sessionID, task)
+        try {
+          await task
+        } finally {
+          if (inflightSyncs.get(sessionID) === task) inflightSyncs.delete(sessionID)
+        }
       }
+
 
       // Legacy wrapper kept for backward compatibility.
       function recoverSessionSync(input: { sessionID: string; messageID: string; partID: string }) {
@@ -350,23 +404,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           // sessions accumulate message/part/status reactive proxies that
           // SolidJS tracks for the process lifetime — the primary contributor
           // to the 1.18 GB peak RSS Bun segfault on long-running Windows sessions.
-          const messageIDs = store.message[sid]?.map((m) => m.id) ?? []
-          batch(() => {
-            setStore("message", produce((draft) => { delete draft[sid] }))
-            setStore("session_status", produce((draft) => { delete draft[sid] }))
-            setStore("session_diff", produce((draft) => { delete draft[sid] }))
-            setStore("todo", produce((draft) => { delete draft[sid] }))
-            setStore("permission", produce((draft) => { delete draft[sid] }))
-            setStore("question", produce((draft) => { delete draft[sid] }))
-            setStore("part", produce((draft) => {
-              for (const mid of messageIDs) delete draft[mid]
-            }))
-            // Also wipe delta buffer entries for evicted messages
-            for (const mid of messageIDs) {
-              deltaBuffer.delete(mid)
-              deltaBufferTimestamps.delete(mid)
-            }
-          })
+          cleanupSessionStores(sid)
           break
         }
         case "session.updated": {
@@ -630,7 +668,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               setStore("console_state", reconcile(consoleState))
               setStore("agent", reconcile(agents))
               setStore("config", reconcile(config))
-              if (sessions !== undefined) setStore("session", reconcile(sessions))
+              if (sessions !== undefined) {
+                const nextIDs = new Set(sessions.map((s) => s.id))
+                for (const existing of store.session) {
+                  if (!nextIDs.has(existing.id)) cleanupSessionStores(existing.id)
+                }
+                setStore("session", reconcile(sessions))
+              }
             })
           })
         })
@@ -698,6 +742,10 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const list = await sdk.client.session
             .list({ start })
             .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id)))
+          const nextIDs = new Set(list.map((s) => s.id))
+          for (const existing of store.session) {
+            if (!nextIDs.has(existing.id)) cleanupSessionStores(existing.id)
+          }
           setStore("session", reconcile(list))
         },
         status(sessionID: string) {

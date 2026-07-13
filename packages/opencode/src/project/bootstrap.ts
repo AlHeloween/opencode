@@ -48,21 +48,67 @@ export const InstanceBootstrap = Effect.gen(function* () {
   )
 }).pipe(Effect.withSpan("InstanceBootstrap"))
 
-// ——— CodeGraph auto-init (simple spawn, no Effect services needed) ———
+// ——— CodeGraph auto-init (self-contained, no external CLI needed) ———
 
 function initCodeGraphBg(): void {
   const dir = Global.Path.worktree || Global.Path.home
-  const dbPath = path.join(dir, ".codegraph", "codegraph.db")
+  const cgDir = path.join(dir, ".codegraph")
+  const dbPath = path.join(cgDir, "codegraph.db")
 
   try {
     if (require("fs").existsSync(dbPath)) return // already initialized
   } catch { /* ignore */ }
 
-  // Find codegraph binary via which() — checks PATH + Global.Path.bin
-  const cgBin = which("codegraph")
-  if (!cgBin) return
+  // 1. Try the codegraph CLI alongside the running binary, then PATH
+  let cgBin = which("codegraph")
+  if (!cgBin) {
+    // Check alongside the opencode binary (same directory)
+    try {
+      const ext = process.platform === "win32" ? ".exe" : ""
+      const sibling = path.join(path.dirname(process.execPath), `codegraph${ext}`)
+      if (require("fs").existsSync(sibling)) cgBin = sibling
+    } catch { /* fall through */ }
+  }
+  if (cgBin) {
+    const child = spawn(cgBin, ["init"], { cwd: dir, stdio: "ignore", timeout: 120000 })
+    child.on("error", () => { Log.Default.warn("bug: codegraph init failed") })
+    child.unref()
+    return
+  }
 
-  const child = spawn(cgBin, ["init", "--no-daemon"], { cwd: dir, stdio: "ignore", timeout: 120000 })
-  child.on("error", () => { /* codegraph init failed silently — non-critical */ })
-  child.unref()
+  // 2. Self-contained init: create directory + empty schema via bun:sqlite
+  Log.Default.debug("codegraph CLI not found — creating empty index via bun:sqlite")
+  try {
+    require("fs").mkdirSync(cgDir, { recursive: true })
+    const { Database } = require("bun:sqlite") as typeof import("bun:sqlite")
+    const db = new Database(dbPath)
+    db.run("PRAGMA journal_mode=WAL")
+    db.run(`CREATE TABLE IF NOT EXISTS nodes (
+      id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL,
+      qualified_name TEXT NOT NULL, file_path TEXT NOT NULL, language TEXT NOT NULL,
+      start_line INTEGER NOT NULL, end_line INTEGER NOT NULL,
+      start_column INTEGER NOT NULL, end_column INTEGER NOT NULL,
+      docstring TEXT, signature TEXT, visibility TEXT,
+      is_exported INTEGER DEFAULT 0, is_async INTEGER DEFAULT 0,
+      is_static INTEGER DEFAULT 0, is_abstract INTEGER DEFAULT 0,
+      decorators TEXT, type_parameters TEXT, return_type TEXT, updated_at INTEGER NOT NULL
+    )`)
+    db.run(`CREATE TABLE IF NOT EXISTS edges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL,
+      target TEXT NOT NULL, kind TEXT NOT NULL, metadata TEXT,
+      line INTEGER, col INTEGER, provenance TEXT DEFAULT NULL
+    )`)
+    db.run("CREATE INDEX IF NOT EXISTS idx_edges_source_kind ON edges(source, kind)")
+    db.run("CREATE INDEX IF NOT EXISTS idx_edges_target_kind ON edges(target, kind)")
+    try { db.run(`CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+      id, name, qualified_name, docstring, signature, content='nodes', content_rowid='rowid'
+    )`) } catch { /* FTS5 not available — queries still work via LIKE */ }
+    db.run("CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, language TEXT NOT NULL, size INTEGER NOT NULL, modified_at INTEGER NOT NULL, indexed_at INTEGER NOT NULL, node_count INTEGER DEFAULT 0, errors TEXT)")
+    db.run("CREATE TABLE IF NOT EXISTS project_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)")
+    db.run("INSERT OR IGNORE INTO project_metadata (key, value, updated_at) VALUES ('index_state', 'empty', 1)")
+    db.close()
+    Log.Default.info("codegraph: empty index created — run 'codegraph init' with the CLI for full indexing")
+  } catch (e) {
+    Log.Default.warn("bug: codegraph self-init failed", { error: String(e) })
+  }
 }

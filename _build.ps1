@@ -315,6 +315,18 @@ function Invoke-Build {
         Write-Success "Markdownify binary copied"
     }
 
+    # Standalone CodeGraph binary (built with bun --compile from external/codegraph)
+    $CgBunEntry = [IO.Path]::Combine($Root, "external", "codegraph", "codegraph.exe")
+    $CgBuiltFromDist = [IO.Path]::Combine($OpencodePkg, "node_modules", "@colbymchenry", "codegraph", "dist", "bin", "codegraph.js")
+    if (Test-Path $CgBunEntry) {
+        Copy-Item $CgBunEntry ([IO.Path]::Combine($DistDir, "bin", "codegraph.exe"))
+        Write-Success "CodeGraph standalone binary copied"
+    } elseif (Test-Path $CgBuiltFromDist) {
+        # Fallback: copy the JS CLI and its node_modules dependencies
+        Write-Warning "Standalone codegraph.exe not built — copying JS CLI"
+        Copy-Item $CgBuiltFromDist ([IO.Path]::Combine($DistDir, "bin", "codegraph.js"))
+    }
+
     # Copy WASM modules to dist as fallback sidecars; runtime prefers embedded assets.
     $WasmPkgDir = Join-Path $Root "packages\wasm\core\pkg"
     $WasmDistDir = Join-Path $DistDir "wasm\core\pkg"

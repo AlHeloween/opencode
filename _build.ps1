@@ -315,6 +315,22 @@ function Invoke-Build {
         Write-Success "Markdownify binary copied"
     }
 
+    # Native opentui DLL — required by @opentui/core for rendering
+    $opentuiDllSrc = [IO.Path]::Combine($Root, "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")
+    if (Test-Path $opentuiDllSrc) {
+        # Copy to platform dist (where bun build places the exe)
+        $opentuiPlatformDestDir = [IO.Path]::Combine($OpencodePkg, "dist", "opencode-windows-x64", "bin")
+        if (-not (Test-Path $opentuiPlatformDestDir)) {
+            New-Item -ItemType Directory -Path $opentuiPlatformDestDir -Force | Out-Null
+        }
+        Copy-Item $opentuiDllSrc ([IO.Path]::Combine($opentuiPlatformDestDir, "opentui.dll"))
+        # Copy to final dist/bin (alongside opencode.exe)
+        Copy-Item $opentuiDllSrc ([IO.Path]::Combine($DistDir, "bin", "opentui.dll"))
+        Write-Success "opentui native DLL copied"
+    } else {
+        Write-Warning "opentui.dll not found at $opentuiDllSrc — UI rendering will not work"
+    }
+
     # Standalone CodeGraph binary (built with bun --compile from external/codegraph)
     $CgBunEntry = [IO.Path]::Combine($Root, "external", "codegraph", "codegraph.exe")
     $CgBuiltFromDist = [IO.Path]::Combine($OpencodePkg, "node_modules", "@colbymchenry", "codegraph", "dist", "bin", "codegraph.js")

@@ -294,7 +294,10 @@ export const layer = Layer.effect(
 
     const output = Effect.fn("Jobs.output")(function* (input: { sessionID: SessionID; jobID: JobID }) {
       const j = jobs.get(key(input.sessionID, input.jobID))
-      if (!j) return { text: "", status: "failed" as JobStatus }
+      if (!j) {
+        log.debug("job_output called for unknown job", { sessionID: input.sessionID, jobID: input.jobID })
+        return { text: "", status: "failed" as JobStatus }
+      }
       const offsetKey = key(input.sessionID, input.jobID) + ":offset"
       const offset = readOffsets.get(offsetKey) ?? 0
       const text = j.output.slice(offset)

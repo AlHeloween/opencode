@@ -492,7 +492,10 @@ export const BashTool = Tool.define(
     const cygpath = Effect.fn("BashTool.cygpath")(function* (shell: string, text: string) {
       const lines = yield* spawner
         .lines(ChildProcess.make(shell, ["-lc", 'cygpath -w -- "$1"', "_", text]))
-        .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+        .pipe(Effect.catch((e) => {
+          log.debug("cygpath failed, using original paths", { error: String(e) })
+          return Effect.succeed([] as string[])
+        }))
       const file = lines[0]?.trim()
       if (!file) return undefined
       return AppFileSystem.normalizePath(file)

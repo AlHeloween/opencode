@@ -20,17 +20,17 @@ The listed tests are currently modified or deleted in the working tree. Their re
 
 ## Steps
 
-1. [ ] Restore any accidental test deletions first; use the pre-change tree as the test-coverage baseline.
-2. [ ] For watcher tests, remove only the deleted `Git.Service` layer dependency. Keep Git fixture cases that verify `.git/HEAD` watcher events and keep non-Git-root cases.
-3. For `test/git/git.test.ts`, determine whether the old service API is an intentionally removed internal API:
+1. [x] Restore any accidental test deletions first; use the pre-change tree as the test-coverage baseline.
+2. [x] For watcher tests, remove only the deleted `Git.Service` layer dependency. Keep Git fixture cases that verify `.git/HEAD` watcher events and keep non-Git-root cases.
+3. [x] For `test/git/git.test.ts`, determine whether the old service API is an intentionally removed internal API:
    - if yes, replace unit tests with direct tests of retained `project/vcs.ts` behavior;
    - if no, reintroduce a minimal explicit agent-facing service contract backed by direct child-process spawning.
-4. For deleted Worktree tests, map each assertion to its current product equivalent:
+4. [x] For deleted Worktree tests, map each assertion to its current product equivalent:
    - snapshot lifecycle → Fossil track/checkout/revert tests;
    - HTTP routes → remove only after confirming no current route advertises the retired worktree feature.
 5. [x] Replace every `Snapshot.defaultLayer` test provider with `SnapshotFossil.defaultLayer`.
-6. [ ] Update Git/JJ wording to Fossil version terminology; `session/revert.ts` still contains a JJ-specific rollback comment.
-7. [ ] Update cache-control assertions to current hash field names and XXH64 output length; add fixed input/output hash vectors for regression safety.
+6. [x] Update Git/JJ wording to Fossil version terminology; `session/revert.ts` still contains a JJ-specific rollback comment.
+7. [x] Update cache-control assertions to current hash field names and XXH64 output length; add fixed input/output hash vectors for regression safety.
 
 ## Acceptance Tests
 

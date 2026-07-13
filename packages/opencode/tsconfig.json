@@ -11,7 +11,15 @@
     "paths": {
       "@/*": ["./src/*"],
       "@tui/*": ["./src/cli/cmd/tui/*"],
-      "@test/*": ["./test/*"]
+      "@test/*": ["./test/*"],
+      "@opentui/core": ["../../packages/opentui/packages/core/src"],
+      "@opentui/core/*": ["../../packages/opentui/packages/core/src/*"],
+      "@opentui/solid": ["../../packages/opentui/packages/solid/src"],
+      "@opentui/solid/*": ["../../packages/opentui/packages/solid/src/*"],
+      "@opentui/keymap": ["../../packages/opentui/packages/keymap/src"],
+      "@opentui/keymap/*": ["../../packages/opentui/packages/keymap/src/*"],
+      "@opentui/three": ["../../packages/opentui/packages/three/src"],
+      "@opentui/three/*": ["../../packages/opentui/packages/three/src/*"]
     },
     "plugins": [
       {

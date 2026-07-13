@@ -94,7 +94,7 @@ export class ThreeRenderable extends Renderable {
     }
   }
 
-  protected onResize(width: number, height: number): void {
+  protected override onResize(width: number, height: number): void {
     if (width > 0 && height > 0) {
       this.engine.setSize(width, height, true)
       this.updateCameraAspect(width, height)
@@ -102,14 +102,14 @@ export class ThreeRenderable extends Renderable {
     super.onResize(width, height)
   }
 
-  protected renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
+  protected override renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible || this.isDestroyed) return
     if (this.frameCallbackRegistered) return
     if (this.buffered && !this.frameBuffer) return
     void this.renderToBuffer(buffer, deltaTime / 1000)
   }
 
-  protected destroySelf(): void {
+  protected override destroySelf(): void {
     if (this.frameCallback && this.frameCallbackRegistered) {
       this.cliRenderer.removeFrameCallback(this.frameCallback)
       this.frameCallbackRegistered = false

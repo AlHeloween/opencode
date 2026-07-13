@@ -143,9 +143,19 @@ export const layer = Layer.effect(
             )
             if (openResult.code === 0) return
 
-            // Corrupted or out-of-sync database — remove, will reinit on next call
-            log.warn("fossil open failed, will reinit on next call", { stderr: openResult.stderr })
+            // Corrupted or out-of-sync database — atomic recovery scoped to this checkout/repo pair
+            log.warn("fossil open failed, performing atomic recovery", { stderr: openResult.stderr })
+
+            // Close stale checkout database (may point to a deleted or mismatched repo)
+            yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+
+            // Remove corrupted repo file
             yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
+
+            // Remove stale checkout DB and ignore-glob for clean reinit
+            yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
+            yield* fs.remove(path.join(worktree, ".fossil-settings", "ignore-glob")).pipe(Effect.catch(() => Effect.void))
+
             return
           }
 

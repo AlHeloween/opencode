@@ -26,9 +26,9 @@ Production consumers are wired to `SnapshotFossil.defaultLayer`, but the diagnos
 ## Steps
 
 1. [x] Build a call-site table for every `Snapshot.Service` method and verify its provider is `SnapshotFossil.defaultLayer`.
-2. [ ] Define and test the Fossil checkout invariant: each intended worktree has one matching local checkout database and repository; an isolated worktree must not resolve through an ancestor `_FOSSIL_` checkout.
-3. [ ] Replace destructive failed-open recovery. A failed `fossil open` must not delete a repository while retaining incompatible checkout state; recovery must be explicit, atomic, and scoped to the affected checkout/repository pair.
-4. [ ] Replace stale JJ-specific comments in `session/revert.ts` with Fossil snapshot/checkout terminology.
+2. [x] Define and test the Fossil checkout invariant: each intended worktree has one matching local checkout database and repository; an isolated worktree must not resolve through an ancestor `_FOSSIL_` checkout.
+3. [x] Replace destructive failed-open recovery. A failed `fossil open` must not delete a repository while retaining incompatible checkout state; recovery must be explicit, atomic, and scoped to the affected checkout/repository pair.
+4. [x] Replace stale JJ-specific comments in `session/revert.ts` with Fossil snapshot/checkout terminology.
 5. [ ] Replace comments in `project/vcs.ts` that refer to deleted `Git.Service`; retain direct Git process helpers because they serve agent-facing branch/diff behavior.
 6. [ ] Decide and document legacy naming for `op_id` / `opRestore`:
    - retain as compatibility aliases if persisted records use it;

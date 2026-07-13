@@ -139,9 +139,15 @@ export const layer = Layer.effect(
 
           if (yield* fs.exists(repoPath)) {
             // Open repo if not already open (--keep preserves local files)
-            yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
-              Effect.catch(() => Effect.void),
+            const openResult = yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
+              Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
             )
+            if (openResult.code !== 0) {
+              // Corrupted or out-of-sync database — reinit
+              log.warn("fossil open failed, reinitializing", { stderr: openResult.stderr })
+              yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
+              return yield* ensureInit()
+            }
             return
           }
 

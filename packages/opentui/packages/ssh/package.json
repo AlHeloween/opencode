@@ -23,7 +23,7 @@
     "publish": "bun scripts/publish.ts",
     "test": "bun test",
     "test:dist": "bun scripts/dist-test.ts",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.example-react.json && tsc -p tsconfig.example-solid.json"
+    "typecheck": "tsgo --noEmit && tsgo -p tsconfig.example-react.json --noEmit && tsgo -p tsconfig.example-solid.json --noEmit"
   },
   "dependencies": {
     "ssh2": "^1.16.0"

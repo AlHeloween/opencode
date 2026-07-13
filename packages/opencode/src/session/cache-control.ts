@@ -309,7 +309,35 @@ export function getPrevFingerprint(
       .query("SELECT data FROM fingerprints WHERE session_id = ? AND agent_name = ? AND model_id = ?")
       .get(sessionId, agentName ?? "", modelId) as { data: string } | undefined
     if (row) {
-      const fp = JSON.parse(row.data) as RequestFingerprint
+      const raw = JSON.parse(row.data) as any
+      // Migrate old field names (systemMd5 -> systemHash, etc.) so old
+      // DB entries from the MD5 era still produce valid comparisons.
+      // The hashes themselves are computed with the old algorithm (MD5),
+      // so they still won't match new XXH3 hashes — that's fine, it's a
+      // one-time performance cost. What matters is that field references
+      // don't throw undefined errors.
+      const fp: RequestFingerprint = {
+        systemHash: raw.systemHash ?? raw.systemMd5 ?? "",
+        fullHash: raw.fullHash ?? raw.fullMd5 ?? "",
+        messages: (raw.messages ?? []).map((m: any) => ({
+          messageId: m.messageId,
+          role: m.role,
+          hash: m.hash ?? m.md5 ?? "",
+          partCount: m.partCount,
+          parts: (m.parts ?? []).map((p: any) => ({
+            type: p.type,
+            hash: p.hash ?? p.md5 ?? "",
+          })),
+        })),
+        estimatedTokens: raw.estimatedTokens ?? 0,
+        prefix: raw.prefix ? {
+          systemOnlyHash: raw.prefix.systemOnlyHash ?? raw.prefix.systemOnlyMd5 ?? "",
+          toolsHash: raw.prefix.toolsHash ?? raw.prefix.toolsMd5 ?? "",
+          toolsOrderHash: raw.prefix.toolsOrderHash ?? "",
+          toolsTokenEst: raw.prefix.toolsTokenEst ?? 0,
+          prefixHash: raw.prefix.prefixHash ?? raw.prefix.prefixMd5 ?? "",
+        } : undefined,
+      }
       prevRequestCache.set(key, fp)
       if (prevRequestCache.size > MAX_FINGERPRINTS) {
         const first = prevRequestCache.keys().next().value

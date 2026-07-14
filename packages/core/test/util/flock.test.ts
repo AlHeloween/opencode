@@ -137,7 +137,7 @@ describe("util.flock", () => {
 
     const lines = (await fs.readFile(done, "utf8"))
       .split("\n")
-      .map((x) => x.trim())
+      .map((x: any) => x.trim())
       .filter(Boolean)
     expect(lines.length).toBe(n)
   }, 20_000)

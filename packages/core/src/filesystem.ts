@@ -62,7 +62,7 @@ export namespace AppFileSystem {
           try: async () => {
             const entries = await NFS.readdir(dirPath, { withFileTypes: true })
             return entries.map(
-              (e): DirEntry => ({
+              (e: any): DirEntry => ({
                 name: e.name,
                 type: e.isDirectory() ? "directory" : e.isSymbolicLink() ? "symlink" : e.isFile() ? "file" : "other",
               }),

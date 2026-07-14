@@ -231,8 +231,8 @@ async function cleanup(dir: string) {
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true })
     files = entries
-      .filter((e) => e.isFile() && pattern.test(e.name))
-      .map((e) => e.name)
+      .filter((e: any) => e.isFile() && pattern.test(e.name))
+      .map((e: any) => e.name)
       .sort()
   } catch {
     collectBug("log.ts:cleanup", "bug: failed to scan log files during cleanup [core/log]")

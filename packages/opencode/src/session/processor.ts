@@ -685,7 +685,6 @@ export const layer: Layer.Layer<
                 sessionID: ctx.sessionID,
                 messageID: ctx.assistantMessage.parentID,
               })
-              .pipe(Effect.ignore)
             if (
               !ctx.assistantMessage.summary &&
               isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model })

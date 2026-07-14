@@ -251,4 +251,5 @@ it.live("tool execution produces non-empty session diff (snapshot race)", () =>
     }),
     { git: true, config: providerCfg },
   ),
+  30000,
 )

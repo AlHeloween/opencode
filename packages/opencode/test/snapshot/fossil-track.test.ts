@@ -1,23 +1,25 @@
 /**
- * Fossil track/restore tests — via SnapshotFossil service.
+ * SnapshotFossil integration tests.
  *
- * The raw Fossil CLI tests were removed: they exercised execFileSync
- * directly against the fossil binary rather than the SnapshotFossil
- * production API, making them invalid coverage.
+ * REAL coverage lives in test/session/snapshot-tool-race.test.ts which
+ * exercises SnapshotFossil through the full production Effect layer stack
+ * (track, diffFull, checkout) with a controlled LLM conversation.
  *
- * Integration tests for SnapshotFossil.track / .checkout / .diffFull
- * require a full Effect layer stack (CrossSpawnSpawner, AppFileSystem,
- * Instance, Config). Those tests live in:
- *   test/session/snapshot-tool-race.test.ts   (Effect-based, full stack)
- *   test/session/prompt-effect.test.ts        (full stack)
+ * The raw Fossil CLI tests previously in this file were removed — they
+ * tested execFileSync against the fossil binary directly rather than
+ * through the SnapshotFossil production API, making them invalid coverage.
  */
 import { describe, test, expect } from "bun:test"
 
-describe("Fossil Track & Snapshot", () => {
-  test("SnapshotFossil integration coverage exists in session/ tests", () => {
-    // Raw fossil tests removed — snapshot-tool-race.test.ts and
-    // prompt-effect.test.ts exercise SnapshotFossil through the full
-    // production Effect layer stack.
+describe("SnapshotFossil", () => {
+  test.skip("integration coverage is in snapshot-tool-race.test.ts", () => {
+    // SnapshotFossil.track, .checkout, .diffFull are tested via the full
+    // Effect layer stack in test/session/snapshot-tool-race.test.ts.
+    //
+    // Simplified integration tests here would require the identical
+    // service stack (CrossSpawnSpawner, AppFileSystem, Config, Bus,
+    // Instance, NodeFileSystem) which is better tested through the
+    // snapshot-race reproducer that exercises the production path.
     expect(true).toBe(true)
   })
 })

@@ -12,9 +12,9 @@ Restore a clean, fully tested Fossil-based internal snapshot architecture; remov
 - `SnapshotFossil` provides production snapshot consumers, but diagnostics repeatedly record `fossil open failed`, automatic reinitialization, and failed tracking commits. Fossil reports an out-of-sync local checkout database against the root snapshot repository.
 - `bun typecheck` from `packages/opencode` currently fails with 103 diagnostics: 102 OpenTUI TS4114 errors and one TS2451 duplicate tree-sitter declaration.
 
-## Current Status — 2026-07-14 (RESOLVED)
+## Current Status — 2026-07-14
 
-All subplans complete. Only subplan-06 (build stress verification) remains.
+All subplans except subplan-06 (build stress verification) are complete.
 
 | Subplan | Status | Completed |
 |---------|--------|-----------|

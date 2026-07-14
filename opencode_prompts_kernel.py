@@ -25,8 +25,11 @@ Date: 2026-07-12
 # IMPORTS
 # ======================================================================
 
+import ast
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
+from pathlib import Path
+import sys
 from types import MappingProxyType
 from typing import Optional, Any, Callable
 from enum import Enum
@@ -2097,15 +2100,6 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
             "2. codegraph             — code structure, symbols, call graph",
             "3. messagesearch         — prior conversation context",
             "4. universalsearch       — web, global code (Sourcegraph), agent research",
-            "5. glob                  — file pattern match (default: .gitignore-bounded; noIgnore=true bypasses)",
-            "6. grep                  — content search (default: .gitignore-bounded; noIgnore=true bypasses)",
-            "7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
-        ],
-        "search_priority_chain": [
-            "1. where.exe / which     — OS PATH, executable lookup",
-            "2. codegraph             — code structure, symbols, call graph",
-            "3. messagesearch         — prior conversation context",
-            "4. universalsearch       — web, global code (Sourcegraph), agent research",
             "5. glob                  — .gitignore-bounded file pattern match",
             "6. grep                  — .gitignore-bounded content search",
             "7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
@@ -2174,6 +2168,112 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Bypassing the evidence hierarchy for convenience",
     ],
 )
+
+
+# =====================================================================
+# RUNTIME PROMPT COMPILATION — canonical keyword dictionary
+# =====================================================================
+#
+# The full module remains the development oracle. Only these immutable,
+# semantically named declarations are rendered into the model-facing kernel.
+# This keeps the Pythonic retrieval surface while excluding validators,
+# examples, and test machinery from the runtime prefix.
+# =====================================================================
+
+PROMPT_ABI = MappingProxyType({
+    "version": "4",
+    "precedence": ("safety", "governance", "task", "domain", "style"),
+    "line_endings": "LF",
+})
+
+RUNTIME_TERMS = MappingProxyType({
+    "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
+    "evidence": "Verified reference outranks inference; label uncertainty before claiming completion.",
+    "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
+    "plan": "State, evidence, plan, implementation, verification, and clean next state form the execution trace.",
+    "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
+    "verification": "An oracle decides correctness; do not claim fixed without direct evidence.",
+})
+
+RUNTIME_RULES = MappingProxyType({
+    "EVIDENCE.ORDER": "verified > cited > inferred > unknown",
+    "SEARCH.ORDER": "where/which > codegraph > messagesearch > universalsearch > glob > grep",
+    "WRITE.SCOPE": "modify only within user-authorized scope",
+    "VERIFY.OUTCOME": "report outcome, evidence, and remaining failure",
+    "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
+})
+
+RUNTIME_WORKFLOWS = MappingProxyType({
+    "diagnose": ("scope", "evidence", "SEARCH.ORDER", "verification"),
+    "modify": ("scope", "mutation", "WRITE.SCOPE", "verification", "VERIFY.OUTCOME"),
+    "observe": ("scope", "evidence", "SEARCH.ORDER"),
+    "research": ("evidence", "SEARCH.ORDER", "verification"),
+})
+
+RUNTIME_PACKS = MappingProxyType({
+    "agent.build": ("modify", "diagnose"),
+    "agent.general": ("observe", "research"),
+    "agent.researcher": ("research",),
+    "domain.natural_science": ("evidence", "verification"),
+    "domain.social_science": ("evidence", "verification"),
+    "lang.markdown": ("scope",),
+    "lang.python": ("scope", "verification"),
+    "lang.typescript": ("scope", "verification"),
+})
+
+
+def _render_runtime_mapping(name: str, values: MappingProxyType) -> list[str]:
+    lines = [f"{name} = MappingProxyType({{"]
+    for key in sorted(values):
+        lines.append(f"    {key!r}: {values[key]!r},")
+    lines.append("})")
+    return lines
+
+
+def render_runtime_kernel() -> str:
+    """Render the deterministic model-facing Pythonic keyword dictionary."""
+    lines = [
+        "# Generated from opencode_prompts_kernel.py; do not edit directly.",
+        "# Runtime prompt ABI: compact Pythonic declarations for model retrieval.",
+        "from types import MappingProxyType",
+        "",
+    ]
+    for name, values in (
+        ("PROMPT_ABI", PROMPT_ABI),
+        ("TERMS", RUNTIME_TERMS),
+        ("RULES", RUNTIME_RULES),
+        ("WORKFLOWS", RUNTIME_WORKFLOWS),
+        ("PACKS", RUNTIME_PACKS),
+    ):
+        lines.extend(_render_runtime_mapping(name, values))
+        lines.append("")
+    return "\n".join(lines)
+
+
+def runtime_kernel_digest() -> str:
+    """Return the stable SHA256 digest of the generated runtime kernel."""
+    return hashlib.sha256(render_runtime_kernel().encode("utf-8")).hexdigest()
+
+
+def find_duplicate_mapping_keys(source: str) -> list[tuple[int, str]]:
+    """Return literal duplicate string keys from Python dictionary expressions."""
+    duplicates: list[tuple[int, str]] = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Dict):
+            continue
+        seen: set[str] = set()
+        for key in node.keys:
+            if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                continue
+            if key.value in seen:
+                duplicates.append((key.lineno, key.value))
+            seen.add(key.value)
+    return duplicates
+
+
+def write_runtime_kernel(destination: str | Path) -> None:
+    """Write deterministic runtime output with LF endings."""
+    Path(destination).write_text(render_runtime_kernel(), encoding="utf-8", newline="\n")
 
 
 # ======================================================================
@@ -3510,4 +3610,7 @@ def run_conformance() -> None:
 
 
 if __name__ == "__main__":
-    run_conformance()
+    if len(sys.argv) == 3 and sys.argv[1] == "--render-runtime":
+        write_runtime_kernel(sys.argv[2])
+    else:
+        run_conformance()

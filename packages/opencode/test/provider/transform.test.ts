@@ -121,7 +121,7 @@ describe("ProviderTransform.systemPromptPrefix", () => {
     release_date: "2026-01-01",
   })
 
-  test("includes PROMPT_REASONING and opencode_prompts_kernel for all models", () => {
+  test("includes reasoning and the deterministic runtime dictionary for all models", () => {
     for (const modelId of [
       "deepseek/deepseek-v4-pro",
       "anthropic/claude-sonnet-4",
@@ -134,10 +134,12 @@ describe("ProviderTransform.systemPromptPrefix", () => {
       // Reasoning protocol is always present
       expect(prefix).toContain("Communication Protocol")
       expect(prefix).toContain("Information Mark System")
-      // The opencode prompts kernel is always embedded after reasoning.txt
-      expect(prefix).toContain("CODER")
-      expect(prefix).toContain("EXPLORER")
-      expect(prefix).toContain("ORCHESTRATOR")
+      // The generated keyword dictionary is always embedded after reasoning.txt.
+      expect(prefix).toContain("PROMPT_ABI")
+      expect(prefix).toContain("TERMS")
+      expect(prefix).toContain("WORKFLOWS")
+      expect(prefix.indexOf("Communication Protocol")).toBeLessThan(prefix.indexOf("PROMPT_ABI"))
+      expect(prefix).not.toContain("_ALL_SPECS")
     }
   })
 })

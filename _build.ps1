@@ -138,8 +138,12 @@ function Sync-KernelPrompt {
         return $false
     }
 
-    Copy-Item $kernelSrc $kernelDst -Force
-    Write-Success "Kernel prompt synced ($(Get-Item $kernelDst).Length bytes)"
+    & python $kernelSrc --render-runtime $kernelDst
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error- "Kernel runtime compilation failed"
+        return $false
+    }
+    Write-Success "Kernel prompt compiled ($(Get-Item $kernelDst).Length bytes)"
     return $true
 }
 

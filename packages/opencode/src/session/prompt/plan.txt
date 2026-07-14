@@ -81,7 +81,7 @@ Design the implementation yourself based on exploration results from Phase 1. If
 You can launch up to 1 agent(s) in parallel.
 
 **Guidelines:**
-- **Default**: Launch at least 1 Plan agent for most tasks - it helps validate your understanding and consider alternatives
+- **Default**: Launch at least 1 `general` subagent for most tasks - it helps validate your understanding and consider alternatives
 - **Skip agents**: Only for truly trivial tasks (typo fixes, single-line changes, simple renames)
 
 Examples of when to use multiple agents:

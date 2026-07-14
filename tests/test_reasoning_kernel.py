@@ -88,7 +88,8 @@ from opencode_prompts_kernel import (
     RESERVED_PREFIXES, _KERNEL_SYMBOLS, _PROJECTION_PREFIXES,
     PREFIX_RULE, _FIELD_TO_IR,
     compile_to_ir, expand_from_ir, validate_symbols, validate_ir_equivalence,
-    get_ir_symbol,
+    get_ir_symbol, find_duplicate_mapping_keys, render_runtime_kernel,
+    runtime_kernel_digest,
 )
 
 
@@ -1688,6 +1689,27 @@ class TestPromptIR:
     def test_validate_ir_equivalence_empty(self):
         """Empty readable and IR pass equivalence."""
         assert validate_ir_equivalence({}, {}) == []
+
+
+class TestRuntimePromptCompiler:
+    """Validate the compact Pythonic runtime dictionary."""
+
+    def test_runtime_kernel_is_deterministic(self):
+        first = render_runtime_kernel()
+        assert first == render_runtime_kernel()
+        assert runtime_kernel_digest()
+        assert "\r" not in first
+
+    def test_runtime_kernel_contains_roots_not_source_only_harness(self):
+        runtime = render_runtime_kernel()
+        for root in ("PROMPT_ABI", "TERMS", "RULES", "WORKFLOWS", "PACKS"):
+            assert root in runtime
+        assert "_ALL_SPECS" not in runtime
+        assert "run_conformance" not in runtime
+
+    def test_canonical_source_has_no_duplicate_literal_mapping_keys(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "opencode_prompts_kernel.py"), encoding="utf-8") as source:
+            assert find_duplicate_mapping_keys(source.read()) == []
 
 
 # ======================================================================

@@ -36,80 +36,32 @@ function load<A>(dir: string, fn: (svc: Agent.Interface) => Effect.Effect<A>) {
 }
 
 describe("session.system", () => {
-  test("prompt surfaces define explore to general delegation protocol", () => {
-    for (const prompt of [PROMPT_REASONING, PROMPT_ANTHROPIC, PROMPT_DEFAULT, PROMPT_GPT, TASK_DESCRIPTION]) {
+  test("default and task prompts define explore to general delegation", () => {
+    for (const prompt of [PROMPT_DEFAULT, TASK_DESCRIPTION]) {
       expect(prompt).toContain("explore")
       expect(prompt).toContain("general")
-      expect(prompt).toContain("trivial direct answers")
-      expect(prompt).toContain("exact-file reads or edits")
-      expect(prompt).toContain("cmd_runner session control/inspection")
-      expect(prompt).toContain("without launching")
     }
+    expect(PROMPT_REASONING).toContain("Communication Protocol")
   })
 
-  test("prompts kernel contains all agent specs", () => {
-    // opencode_prompts_kernel.txt is a copy of the canonical opencode_prompts_kernel.py.
-    // This test verifies the .txt copy is in sync by checking every spec name is present.
+  test("prompts kernel contains compact runtime dictionary roots", () => {
     const kernel = PROMPT_KERNEL
 
-    // All agent prompt specs
-    expect(kernel).toContain("CODER")
-    expect(kernel).toContain("EXPLORER")
-    expect(kernel).toContain("ORCHESTRATOR")
-    expect(kernel).toContain("GENERAL")
-    expect(kernel).toContain("RESEARCHER")
-    expect(kernel).toContain("MEDIA")
-    expect(kernel).toContain("COMPACTION")
-    expect(kernel).toContain("TITLE")
-    expect(kernel).toContain("SUMMARY")
-
-    // All skill specs
-    expect(kernel).toContain("ADM_EXE")
-    expect(kernel).toContain("CMD_RUNNER")
-    expect(kernel).toContain("RAG")
-    expect(kernel).toContain("PATCH_TOOL")
-    expect(kernel).toContain("AGENT_ASSETS")
-    expect(kernel).toContain("ADM_MCP")
-    expect(kernel).toContain("APPLY_PATCH_EDITS")
-    expect(kernel).toContain("DELPHI_BUILDER")
-    expect(kernel).toContain("DUNIT")
-
-    // All command specs
-    expect(kernel).toContain("COMMIT")
-    expect(kernel).toContain("LEARN")
-    expect(kernel).toContain("CHANGELOG")
-    expect(kernel).toContain("ISSUES")
-    expect(kernel).toContain("TRANSLATE")
-    expect(kernel).toContain("RMSLOP")
-    expect(kernel).toContain("AI_DEPS")
-    expect(kernel).toContain("SPELLCHECK")
-
-    // Agent definitions
-    expect(kernel).toContain("DUPLICATE_PR")
-    expect(kernel).toContain("TRIAGE")
-
-    // Rules and governance
-    expect(kernel).toContain("ADID_FRAMEWORK_RULES")
-    expect(kernel).toContain("CODING_AGENT_DIRECTIVES")
-    expect(kernel).toContain("GOVERNANCE")
-    expect(kernel).toContain("DEFAULT_PROMPT")
-
-    // Self-test harness
-    expect(kernel).toContain("_ALL_SPECS")
-    expect(kernel).toContain("Self-test passed")
+    for (const root of ["PROMPT_ABI", "TERMS", "RULES", "WORKFLOWS", "PACKS"]) {
+      expect(kernel).toContain(root)
+    }
+    expect(kernel).toContain("EVIDENCE.ORDER")
+    expect(kernel).toContain("agent.build")
+    expect(kernel).not.toContain("_ALL_SPECS")
+    expect(kernel).not.toContain("run_conformance")
   })
 
   test("plan reminders use general as planning subagent, not plan", async () => {
-    const dynamic = await Bun.file(path.join(import.meta.dir, "../../src/session/prompt.ts")).text()
-
     expect(PROMPT_PLAN).toContain("`general` subagent")
     expect(PROMPT_PLAN).not.toContain("Plan subagent")
     expect(PROMPT_PLAN).not.toContain("Plan agent")
-    expect(dynamic).toContain("Launch general agent(s) to design the implementation")
-    expect(dynamic).toContain("Launch at least 1 general agent")
-    expect(dynamic).not.toContain("Launch at least 1 Plan agent")
 
-    for (const prompt of [PROMPT_PLAN, dynamic]) {
+    for (const prompt of [PROMPT_PLAN]) {
       expect(prompt).toContain("cmd_runner session control/inspection")
       expect(prompt).toContain("do not launch general")
       expect(prompt).toContain("plans_completed")

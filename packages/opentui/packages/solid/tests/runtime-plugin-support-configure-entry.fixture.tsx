@@ -1,6 +1,6 @@
 import { registerDefaultKeys } from "@opentui/keymap/addons"
 import { commandBindings } from "@opentui/keymap/extras"
-import { useKeymapSelector } from "@opentui/keymap/solid"
+import { useKeymapSelector } from "@opentui/solid/keymap"
 import { stringifyKeyStroke } from "@opentui/keymap"
 import { ThreeRenderable } from "@opentui/three"
 import { createSignal } from "solid-js"

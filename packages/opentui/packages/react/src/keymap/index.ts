@@ -7,7 +7,7 @@ import {
   type ReactiveMatcher,
   type KeySequencePart,
   type TargetMode,
-} from "../index.js"
+} from "@opentui/keymap"
 import {
   createElement,
   createContext,

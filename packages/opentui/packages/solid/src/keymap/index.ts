@@ -1,5 +1,5 @@
 import type { KeyEvent, Renderable } from "@opentui/core"
-import { type Keymap, type Layer, type ReactiveMatcher, type TargetMode } from "../index.js"
+import { type Keymap, type Layer, type ReactiveMatcher, type TargetMode } from "@opentui/keymap"
 import {
   createComponent,
   createContext,

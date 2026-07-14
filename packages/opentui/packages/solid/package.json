@@ -39,6 +39,10 @@
       "types": "./scripts/runtime-plugin-support-configure.ts",
       "import": "./scripts/runtime-plugin-support-configure.ts"
     },
+    "./keymap": {
+      "types": "./src/keymap/index.ts",
+      "import": "./src/keymap/index.ts"
+    },
     "./components": {
       "types": "./components.ts",
       "import": "./components.ts"
@@ -70,6 +74,7 @@
     "s-js": "^0.4.9"
   },
   "peerDependencies": {
+    "@opentui/keymap": "workspace:*",
     "solid-js": "1.9.12"
   }
 }

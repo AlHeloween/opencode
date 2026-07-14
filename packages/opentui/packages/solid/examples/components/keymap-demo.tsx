@@ -13,7 +13,7 @@ import * as addons from "@opentui/keymap/addons/opentui"
 import type { ExCommandPayload } from "@opentui/keymap/addons/opentui"
 import { formatKeySequence } from "@opentui/keymap/extras"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
-import { KeymapProvider, useBindings, useKeymap, useKeymapSelector } from "@opentui/keymap/solid"
+import { KeymapProvider, useBindings, useKeymap, useKeymapSelector } from "@opentui/solid/keymap"
 import { render, useRenderer } from "@opentui/solid"
 import { createMemo, createSignal, For, onCleanup, onMount, Show, type Accessor, type JSX } from "solid-js"
 

@@ -13,7 +13,7 @@ import * as addons from "@opentui/keymap/addons/opentui"
 import type { ExCommandPayload } from "@opentui/keymap/addons/opentui"
 import { formatKeySequence } from "@opentui/keymap/extras"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
-import { KeymapProvider, useActiveKeys, useBindings, useKeymap, usePendingSequence } from "@opentui/keymap/react"
+import { KeymapProvider, useActiveKeys, useBindings, useKeymap, usePendingSequence } from "@opentui/react/keymap"
 import { createRoot, useRenderer } from "@opentui/react"
 import {
   useCallback,

@@ -162,6 +162,17 @@ export const POINTER_NEGATIVE = "Pointer must be non-negative"
 export const POINTER_OFFSET_NEGATIVE = "Pointer offset must be non-negative"
 export const POINTER_OFFSET_UNSAFE = "Pointer offset must be a safe integer"
 export const POINTER_UNSAFE = "Pointer exceeds safe integer range"
+const arrayBufferByteLength = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, "byteLength")?.get
+
+function isArrayBuffer(value: unknown): value is ArrayBuffer {
+  if (value === null || typeof value !== "object" || arrayBufferByteLength == null) return false
+  try {
+    arrayBufferByteLength.call(value)
+    return true
+  } catch {
+    return false
+  }
+}
 
 function unavailable(cause?: unknown): never {
   throw new Error(FFI_UNAVAILABLE, { cause })
@@ -380,7 +391,7 @@ export function createNodeBackend(nodeFfi: NodeFfiBackend): FfiBackend {
       let libraryClosed = false
 
       return {
-        symbols: wrapNodeSymbols(functions, symbols, nodeFfi),
+        symbols: wrapNodeSymbols(functions, symbols),
         createCallback(callback, definition) {
           if (closed) {
             throw new Error(LIBRARY_CLOSED)
@@ -446,18 +457,13 @@ function normalizeNodeDefinitions<Fns extends Record<string, FFIFunction>>(
 function wrapNodeSymbols<Fns extends Record<string, FFIFunction>>(
   functions: Record<string, (...args: any[]) => any>,
   definitions: Fns,
-  nodeFfi: NodeFfiBackend,
 ): { [K in keyof Fns]: (...args: any[]) => any } {
   return Object.fromEntries(
-    Object.entries(functions).map(([name, fn]) => [name, wrapNodeSymbol(fn, definitions[name], nodeFfi)]),
+    Object.entries(functions).map(([name, fn]) => [name, wrapNodeSymbol(fn, definitions[name])]),
   ) as { [K in keyof Fns]: (...args: any[]) => any }
 }
 
-function wrapNodeSymbol(
-  fn: (...args: any[]) => any,
-  definition: FFIFunction,
-  nodeFfi: NodeFfiBackend,
-): (...args: any[]) => any {
+function wrapNodeSymbol(fn: (...args: any[]) => any, definition: FFIFunction): (...args: any[]) => any {
   const pointerArgIndexes = (definition.args ?? []).flatMap((type, index) =>
     isNodePointerArgumentType(type) ? [index] : [],
   )
@@ -470,7 +476,7 @@ function wrapNodeSymbol(
     const normalizedArgs = args.slice()
 
     for (const index of pointerArgIndexes) {
-      normalizedArgs[index] = toNodePointerArgument(nodeFfi, normalizedArgs[index])
+      normalizedArgs[index] = toNodePointerArgument(normalizedArgs[index])
     }
 
     return fn(...normalizedArgs)
@@ -481,7 +487,7 @@ function isNodePointerArgumentType(type: FFITypeOrString): boolean {
   return type === FFIType.ptr || type === FFIType.pointer || type === FFIType.function || type === FFIType.callback
 }
 
-function toNodePointerArgument(nodeFfi: NodeFfiBackend, value: unknown): bigint {
+function toNodePointerArgument(value: unknown): bigint | ArrayBuffer | ArrayBufferView {
   if (value == null) {
     return 0n
   }
@@ -491,19 +497,23 @@ function toNodePointerArgument(nodeFfi: NodeFfiBackend, value: unknown): bigint 
   }
 
   if (ArrayBuffer.isView(value)) {
+    if (!isArrayBuffer(value.buffer)) {
+      throw new TypeError(NODE_PTR_VALUE)
+    }
+
     if (value.byteLength === 0) {
       return 0n
     }
 
-    return toNodeSourcePointer(nodeFfi, value)
+    return value
   }
 
-  if (value instanceof ArrayBuffer) {
+  if (isArrayBuffer(value)) {
     if (value.byteLength === 0) {
       return 0n
     }
 
-    return toNodeSourcePointer(nodeFfi, value)
+    return value
   }
 
   throw new TypeError(NODE_POINTER_ARGUMENT)
@@ -511,14 +521,14 @@ function toNodePointerArgument(nodeFfi: NodeFfiBackend, value: unknown): bigint 
 
 function toNodeSourcePointer(nodeFfi: NodeFfiBackend, value: PointerSource): bigint {
   if (ArrayBuffer.isView(value)) {
-    if (!(value.buffer instanceof ArrayBuffer)) {
+    if (!isArrayBuffer(value.buffer)) {
       throw new TypeError(NODE_PTR_VALUE)
     }
 
     return nodeFfi.getRawPointer(value.buffer) + BigInt(value.byteOffset)
   }
 
-  if (value instanceof ArrayBuffer) {
+  if (isArrayBuffer(value)) {
     return nodeFfi.getRawPointer(value)
   }
 

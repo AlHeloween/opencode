@@ -225,7 +225,7 @@ export class SliderRenderable extends Renderable {
     }
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     if (this.orientation === "horizontal") {
       this.renderHorizontal(buffer)
     } else {

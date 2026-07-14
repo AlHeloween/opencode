@@ -106,6 +106,8 @@ test("dist package self-imports resolve from dist when dist exists", () => {
     "@opentui/keymap/testing",
     "@opentui/keymap/html",
     "@opentui/keymap/opentui",
+    "@opentui/keymap/react",
+    "@opentui/keymap/solid",
     "@opentui/keymap/runtime-modules",
   ] as const
 

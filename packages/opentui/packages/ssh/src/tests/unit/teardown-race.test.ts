@@ -42,7 +42,7 @@ function fakeChannel(): EventEmitter & {
   ch.writes = []
   return Object.assign(ch, {
     write: (data: Buffer | string, callback?: () => void) => {
-      ch.writes.push(Buffer.from(data as any))
+      ch.writes.push(Buffer.from(data))
       callback?.()
       return true
     },
@@ -165,7 +165,7 @@ test("renderer shutdown output flushes before the SSH channel closes", async () 
   let stdout: NodeJS.WriteStream | undefined
   Object.assign(channel, {
     write(data: Buffer | string) {
-      channel.writes.push(Buffer.from(data as any))
+      channel.writes.push(Buffer.from(data))
       order.push(`write:${data.toString()}`)
       return false
     },
@@ -205,7 +205,7 @@ test("raw session writes drain before the SSH channel closes", async () => {
   let rawCallback: (() => void) | undefined
   Object.assign(channel, {
     write(data: Buffer | string, callback?: () => void) {
-      channel.writes.push(Buffer.from(data as any))
+      channel.writes.push(Buffer.from(data))
       rawCallback = callback
       return false
     },
@@ -227,7 +227,7 @@ test("session teardown force-closes a client that never drains", async () => {
   const channel = fakeChannel()
   Object.assign(channel, {
     write(data: Buffer | string) {
-      channel.writes.push(Buffer.from(data as any))
+      channel.writes.push(Buffer.from(data))
       return false
     },
   })
@@ -260,7 +260,7 @@ test("session teardown force-closes when a raw write callback never runs", async
   const channel = fakeChannel()
   Object.assign(channel, {
     write(data: Buffer | string) {
-      channel.writes.push(Buffer.from(data as any))
+      channel.writes.push(Buffer.from(data))
       return false
     },
   })

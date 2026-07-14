@@ -301,8 +301,6 @@ pub fn build(b: *std.Build) void {
     }
 
     // Test step (native only)
-    // addRunArtifact has a regression in Zig 0.15.2 on Windows with absolute paths.
-    // setCwd(b.path(".")) forces relative path evaluation to bypass the assertion.
     const test_step = b.step("test", "Run unit tests");
     const native_target = nativeExecutableTarget(b);
     const test_mod = b.createModule(.{
@@ -340,7 +338,6 @@ pub fn build(b: *std.Build) void {
         .root_module = bench_mod,
     });
     const run_bench = b.addRunArtifact(bench_exe);
-    run_bench.setCwd(b.path("."));
     if (b.args) |args| {
         run_bench.addArgs(args);
     }
@@ -382,7 +379,6 @@ pub fn build(b: *std.Build) void {
         .use_llvm = debug_use_llvm,
     });
     const run_debug = b.addRunArtifact(debug_exe);
-    run_debug.setCwd(b.path("."));
     debug_step.dependOn(&run_debug.step);
 }
 

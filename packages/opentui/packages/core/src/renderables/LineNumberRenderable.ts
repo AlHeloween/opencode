@@ -1,4 +1,4 @@
-import { Renderable, type RenderableOptions } from "../Renderable.js"
+import { Renderable, type BaseRenderable, type RenderableOptions } from "../Renderable.js"
 import { OptimizedBuffer } from "../buffer.js"
 import type { RenderContext, LineInfoProvider } from "../types.js"
 import { RGBA, parseColor } from "../lib/RGBA.js"
@@ -240,7 +240,7 @@ class GutterRenderable extends Renderable {
     return this._lineSigns
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     // For buffered rendering, only re-render when dirty OR when scroll position changed
     const currentScrollY = this.target.scrollY
     const scrollChanged = currentScrollY !== this._lastKnownScrollY
@@ -432,11 +432,11 @@ export class LineNumberRenderable extends Renderable {
     if (this.target) {
       // Remove event listener from old target
       this.target.off("line-info-change", this.handleLineInfoChange)
-      super.remove(this.target.id)
+      super.remove(this.target)
     }
 
     if (this.gutter) {
-      super.remove(this.gutter.id)
+      super.remove(this.gutter)
       this.gutter = null
     }
 
@@ -482,19 +482,19 @@ export class LineNumberRenderable extends Renderable {
   }
 
   // Override remove to prevent removing gutter/target directly
-  public override remove(id: string): void {
+  public override remove(child: BaseRenderable): void {
     if (this._isDestroying) {
-      super.remove(id)
+      super.remove(child)
       return
     }
 
-    if (this.gutter && id === this.gutter.id) {
+    if (this.gutter && child === this.gutter) {
       throw new Error("LineNumberRenderable: Cannot remove gutter directly.")
     }
-    if (this.target && id === this.target.id) {
+    if (this.target && child === this.target) {
       throw new Error("LineNumberRenderable: Cannot remove target directly. Use clearTarget() instead.")
     }
-    super.remove(id)
+    super.remove(child)
   }
 
   // Override destroyRecursively to properly clean up internal components
@@ -514,16 +514,16 @@ export class LineNumberRenderable extends Renderable {
   public clearTarget(): void {
     if (this.target) {
       this.target.off("line-info-change", this.handleLineInfoChange)
-      super.remove(this.target.id)
+      super.remove(this.target)
       this.target = null
     }
     if (this.gutter) {
-      super.remove(this.gutter.id)
+      super.remove(this.gutter)
       this.gutter = null
     }
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     // Draw full-width line backgrounds before children render
     if (!this.target || !this.gutter) return
 

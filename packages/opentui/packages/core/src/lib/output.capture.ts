@@ -46,7 +46,7 @@ export class CapturedWritableStream extends Writable {
     super()
   }
 
-  override _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
+  _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     const data = chunk.toString()
     this.capture.write(this.stream, data)
     callback()

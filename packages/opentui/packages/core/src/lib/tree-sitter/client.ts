@@ -32,6 +32,10 @@ registerEnvVar({
   default: "",
 })
 
+declare global {
+  const OTUI_TREE_SITTER_WORKER_PATH: string
+}
+
 interface EditQueueItem {
   edits: Edit[]
   newContent: string
@@ -202,9 +206,8 @@ export class TreeSitterClient extends EventEmitter<TreeSitterClientEvents> {
       return env.OTUI_TREE_SITTER_WORKER_PATH
     }
 
-    const globalPath = env.OTUI_TREE_SITTER_WORKER_PATH
-    if (globalPath) {
-      return globalPath
+    if (typeof OTUI_TREE_SITTER_WORKER_PATH !== "undefined") {
+      return OTUI_TREE_SITTER_WORKER_PATH
     }
 
     let workerPath = new URL("./parser.worker.js", import.meta.url).href

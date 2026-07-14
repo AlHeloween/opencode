@@ -96,15 +96,15 @@ export class TextRenderable extends TextBufferRenderable {
     }
   }
 
-  public override add(obj: TextNodeRenderable | StyledText | string, index?: number): number {
+  public add(obj: TextNodeRenderable | StyledText | string, index?: number): number {
     return this.rootTextNode.add(obj, index)
   }
 
-  public override remove(id: string): void {
-    this.rootTextNode.remove(id)
+  public remove(child: BaseRenderable): void {
+    this.rootTextNode.remove(child)
   }
 
-  public override insertBefore(obj: BaseRenderable | any, anchor?: TextNodeRenderable): number {
+  public insertBefore(obj: BaseRenderable | any, anchor?: TextNodeRenderable): number {
     this.rootTextNode.insertBefore(obj, anchor)
     return this.rootTextNode.children.indexOf(obj)
   }
@@ -124,23 +124,23 @@ export class TextRenderable extends TextBufferRenderable {
     this.requestRender()
   }
 
-  public override onLifecyclePass = () => {
+  public onLifecyclePass = () => {
     this.updateTextFromNodes()
   }
 
-  protected override onFgChanged(newColor: RGBA): void {
+  protected onFgChanged(newColor: RGBA): void {
     this.rootTextNode.fg = newColor
   }
 
-  protected override onBgChanged(newColor: RGBA): void {
+  protected onBgChanged(newColor: RGBA): void {
     this.rootTextNode.bg = newColor
   }
 
-  protected override onAttributesChanged(newAttributes: number): void {
+  protected onAttributesChanged(newAttributes: number): void {
     this.rootTextNode.attributes = newAttributes
   }
 
-  override destroy(): void {
+  destroy(): void {
     this.rootTextNode.children.length = 0
     super.destroy()
   }

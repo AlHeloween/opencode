@@ -81,11 +81,11 @@ function createSessionStreams(channel: ServerChannel, cols: number, rows: number
     write(chunk: Buffer | string, _enc, cb) {
       if (channelGone) return cb()
       // Copy renderer frame memory before acknowledging the write.
-      const bytes = Buffer.from(chunk as string)
+      const bytes = Buffer.from(chunk)
       if (bytes.byteLength === 0) return cb()
       // channel.write() returns false under backpressure; defer cb() to 'drain'
       // so flow control is applied back onto the feed instead of dropping frames.
-      const ok = channel.write(bytes as any)
+      const ok = channel.write(bytes)
       if (ok) return cb()
       pendingDrain = cb
       channel.once("drain", releasePending)

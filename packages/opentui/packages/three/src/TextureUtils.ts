@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises"
 import { Color, Texture, DataTexture, NearestFilter, ClampToEdgeWrapping, RGBAFormat, UnsignedByteType } from "three"
-// @ts-ignore jimp 1.6.1 type exports not resolved by tsgo with verbatimModuleSyntax
 import { Jimp } from "jimp"
 
 interface SimpleImageData {

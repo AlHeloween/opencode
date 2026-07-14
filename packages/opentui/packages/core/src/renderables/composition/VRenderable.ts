@@ -24,7 +24,7 @@ export class VRenderable extends Renderable {
     this.options = options
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
+  protected renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
     if (this.options.render) {
       this.options.render.call(this.options, buffer, deltaTime, this)
     }

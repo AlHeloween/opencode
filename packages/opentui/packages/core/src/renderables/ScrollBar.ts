@@ -23,7 +23,7 @@ export class ScrollBarRenderable extends Renderable {
   public readonly endArrow: ArrowRenderable
   public readonly orientation: "vertical" | "horizontal"
 
-  protected override _focusable: boolean = true
+  protected _focusable: boolean = true
 
   private _scrollSize = 0
   private _scrollPosition = 0
@@ -35,11 +35,11 @@ export class ScrollBarRenderable extends Renderable {
 
   scrollStep: number | undefined | null = null
 
-  override get visible(): boolean {
+  get visible(): boolean {
     return super.visible
   }
 
-  override set visible(value: boolean) {
+  set visible(value: boolean) {
     this._manualVisibility = true
     super.visible = value
   }
@@ -264,7 +264,7 @@ export class ScrollBarRenderable extends Renderable {
     }
   }
 
-  public override handleKeyPress(key: KeyEvent): boolean {
+  public handleKeyPress(key: KeyEvent): boolean {
     switch (key.name) {
       case "left":
       case "h":
@@ -401,7 +401,7 @@ export class ArrowRenderable extends Renderable {
     this.requestRender()
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     const char = this.getArrowChar()
     buffer.drawText(char, this.x, this.y, this._foregroundColor, this._backgroundColor, this._attributes)
   }

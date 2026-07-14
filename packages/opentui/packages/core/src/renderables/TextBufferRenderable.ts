@@ -5,8 +5,7 @@ import { TextBufferView } from "../text-buffer-view.js"
 import { RGBA, parseColor } from "../lib/RGBA.js"
 import { type RenderContext, type LineInfoProvider } from "../types.js"
 import type { OptimizedBuffer } from "../buffer.js"
-import { MeasureMode } from "../yoga.js"
-import type { LineInfo } from "../zig.js"
+import { NativeMeasureTargetKind, resolveRenderLib, type LineInfo, type NativeRenderableHandle } from "../zig.js"
 import { SyntaxStyle } from "../syntax-style.js"
 
 export interface TextBufferOptions extends RenderableOptions<TextBufferRenderable> {
@@ -23,7 +22,7 @@ export interface TextBufferOptions extends RenderableOptions<TextBufferRenderabl
 }
 
 export abstract class TextBufferRenderable extends Renderable implements LineInfoProvider {
-  public override selectable: boolean = true
+  public selectable: boolean = true
 
   protected _defaultFg: RGBA
   protected _defaultBg: RGBA
@@ -42,6 +41,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
   protected textBuffer: TextBuffer
   protected textBufferView: TextBufferView
   protected _textBufferSyntaxStyle: SyntaxStyle
+  private nativeRenderable: NativeRenderableHandle | null = null
 
   protected _defaultOptions = {
     fg: RGBA.fromValues(1, 1, 1, 1),
@@ -81,7 +81,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
 
     this.textBufferView.setWrapMode(this._wrapMode)
     this.textBufferView.setFirstLineOffset(this._firstLineOffset)
-    this.setupMeasureFunc()
+    this.setupNativeRenderable()
 
     this.textBuffer.setDefaultFg(this._defaultFg)
     this.textBuffer.setDefaultBg(this._defaultBg)
@@ -107,7 +107,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     this.updateTextInfo()
   }
 
-  protected override onMouseEvent(event: any): void {
+  protected onMouseEvent(event: any): void {
     if (event.type === "scroll") {
       this.handleScroll(event)
     }
@@ -333,7 +333,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  protected override onResize(width: number, height: number): void {
+  protected onResize(width: number, height: number): void {
     this.textBufferView.setViewport(this._scrollX, this._scrollY, width, height)
     this.yogaNode.markDirty()
     this.requestRender()
@@ -373,56 +373,31 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     this.emit("line-info-change")
   }
 
-  // Undefined = 0,
-  // Exactly = 1,
-  // AtMost = 2
-  private setupMeasureFunc(): void {
-    const measureFunc = (
-      width: number,
-      widthMode: MeasureMode,
-      height: number,
-      heightMode: MeasureMode,
-    ): { width: number; height: number } => {
-      // When widthMode is Undefined, Yoga is asking for the intrinsic/natural width
-      // Pass width=0 to measureForDimensions to signal we want max-content (no wrapping)
-      // The Zig code treats width=0 with wrap_mode != none as null wrap_width,
-      // which triggers no-wrap mode and returns iter_mod.getMaxLineWidth()
-      let effectiveWidth: number
-      if (widthMode === MeasureMode.Undefined || isNaN(width)) {
-        effectiveWidth = 0
-      } else {
-        effectiveWidth = width
-      }
-
-      const effectiveHeight = isNaN(height) ? 1 : height
-
-      const measureResult = this.textBufferView.measureForDimensions(
-        Math.floor(effectiveWidth),
-        Math.floor(effectiveHeight),
-      )
-
-      const measuredWidth = measureResult ? Math.max(1, measureResult.widthColsMax) : 1
-      const measuredHeight = measureResult ? Math.max(1, measureResult.lineCount) : 1
-
-      if (widthMode === MeasureMode.AtMost && this._positionType !== "absolute") {
-        return {
-          width: Math.min(effectiveWidth, measuredWidth),
-          height: Math.min(effectiveHeight, measuredHeight),
-        }
-      }
-
-      // NOTE: Yoga may use these measurements or not.
-      // If the yoga node settings and the parent allow this node to grow, it will.
-      return {
-        width: measuredWidth,
-        height: measuredHeight,
-      }
+  private setupNativeRenderable(): void {
+    const lib = resolveRenderLib()
+    // Transitional native backing: JS still owns the render tree and Yoga nodes,
+    // while native owns only hot measurement state. Attach the existing JS-created
+    // Yoga node for now. The intended direction is for every Renderable to become
+    // native-backed and for Yoga node ownership to move native-side with it.
+    const nativeRenderable = lib.createNativeRenderable()
+    if (!lib.nativeRenderableAttachYogaNode(nativeRenderable, this.yogaNode.ptr)) {
+      lib.destroyNativeRenderable(nativeRenderable)
+      throw new Error("Failed to attach native renderable Yoga node")
     }
-
-    this.yogaNode.setMeasureFunc(measureFunc)
+    if (
+      !lib.nativeRenderableSetMeasureTarget(
+        nativeRenderable,
+        NativeMeasureTargetKind.TextBufferView,
+        this.textBufferView.ptr,
+      )
+    ) {
+      lib.destroyNativeRenderable(nativeRenderable)
+      throw new Error("Failed to attach text buffer native measure target")
+    }
+    this.nativeRenderable = nativeRenderable
   }
 
-  override shouldStartSelection(x: number, y: number): boolean {
+  shouldStartSelection(x: number, y: number): boolean {
     if (!this.selectable) return false
 
     const localX = x - this.x
@@ -431,7 +406,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     return localX >= 0 && localX < this.width && localY >= 0 && localY < this.height
   }
 
-  override onSelectionChanged(selection: Selection | null): boolean {
+  onSelectionChanged(selection: Selection | null): boolean {
     const localSelection = convertGlobalToLocalSelection(selection, this.x, this.y)
     this.lastLocalSelection = localSelection
 
@@ -466,11 +441,11 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     return this.hasSelection()
   }
 
-  override getSelectedText(): string {
+  getSelectedText(): string {
     return this.textBufferView.getSelectedText()
   }
 
-  override hasSelection(): boolean {
+  hasSelection(): boolean {
     return this.textBufferView.hasSelection()
   }
 
@@ -478,7 +453,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     return this.textBufferView.getSelection()
   }
 
-  override render(buffer: OptimizedBuffer, deltaTime: number): void {
+  render(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible) return
     // Text views do enough per-frame work that avoiding recursive x/y lookups is
     // measurable; use the layout cache for hit-grid and draw entry points.
@@ -495,15 +470,19 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     if (this.textBuffer.ptr) {
       buffer.drawTextBuffer(this.textBufferView, this._screenX, this._screenY)
     }
   }
 
-  override destroy(): void {
+  destroy(): void {
     if (this.isDestroyed) return
 
+    if (this.nativeRenderable) {
+      resolveRenderLib().destroyNativeRenderable(this.nativeRenderable)
+      this.nativeRenderable = null
+    }
     this.textBuffer.setSyntaxStyle(null)
     this._textBufferSyntaxStyle.destroy()
     this.textBufferView.destroy()

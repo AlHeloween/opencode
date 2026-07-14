@@ -5,8 +5,8 @@ import { EditorView, type VisualCursor } from "../editor-view.js"
 import { RGBA, parseColor } from "../lib/RGBA.js"
 import type { RenderContext, Highlight, CursorStyleOptions, LineInfoProvider, LineInfo } from "../types.js"
 import type { OptimizedBuffer } from "../buffer.js"
-import { MeasureMode } from "../yoga.js"
 import type { SyntaxStyle } from "../syntax-style.js"
+import { NativeMeasureTargetKind, resolveRenderLib, type NativeRenderableHandle } from "../zig.js"
 
 const BrandedEditBufferRenderable: unique symbol = Symbol.for("@opentui/core/EditBufferRenderable")
 
@@ -68,8 +68,8 @@ export interface EditBufferOptions extends RenderableOptions<EditBufferRenderabl
 
 export abstract class EditBufferRenderable extends Renderable implements LineInfoProvider {
   [BrandedEditBufferRenderable] = true
-  protected override _focusable: boolean = true
-  public override selectable: boolean = true
+  protected _focusable: boolean = true
+  public selectable: boolean = true
   private _traits: EditorTraits = {}
 
   protected _textColor: RGBA
@@ -96,6 +96,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
 
   public readonly editBuffer: EditBuffer
   public readonly editorView: EditorView
+  private nativeRenderable: NativeRenderableHandle | null = null
 
   protected _defaultOptions = {
     textColor: RGBA.fromValues(1, 1, 1, 1),
@@ -158,7 +159,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
       this.editorView.setTabIndicatorColor(this._tabIndicatorColor)
     }
 
-    this.setupMeasureFunc()
+    this.setupNativeRenderable()
     this.setupEventListeners(options)
   }
 
@@ -445,7 +446,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  protected override onResize(width: number, height: number): void {
+  protected onResize(width: number, height: number): void {
     this.editorView.setViewportSize(width, height)
   }
 
@@ -472,7 +473,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     )
   }
 
-  override shouldStartSelection(x: number, y: number): boolean {
+  shouldStartSelection(x: number, y: number): boolean {
     if (!this.selectable) return false
 
     const localX = x - this.x
@@ -481,7 +482,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     return localX >= 0 && localX < this.width && localY >= 0 && localY < this.height
   }
 
-  override onSelectionChanged(selection: Selection | null): boolean {
+  onSelectionChanged(selection: Selection | null): boolean {
     const localSelection = convertGlobalToLocalSelection(selection, this.x, this.y)
     this.lastLocalSelection = localSelection
 
@@ -568,11 +569,11 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  override getSelectedText(): string {
+  getSelectedText(): string {
     return this.editorView.getSelectedText()
   }
 
-  override hasSelection(): boolean {
+  hasSelection(): boolean {
     return this.editorView.hasSelection()
   }
 
@@ -932,54 +933,27 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     return true
   }
 
-  // Undefined = 0,
-  // Exactly = 1,
-  // AtMost = 2
-  private setupMeasureFunc(): void {
-    const measureFunc = (
-      width: number,
-      widthMode: MeasureMode,
-      height: number,
-      heightMode: MeasureMode,
-    ): { width: number; height: number } => {
-      // When widthMode is Undefined, Yoga is asking for the intrinsic/natural width
-      // Pass width=0 to measureForDimensions to signal we want max-content (no wrapping)
-      // The Zig code treats width=0 with wrap_mode != none as null wrap_width,
-      // which triggers no-wrap mode and returns the text's intrinsic width
-      let effectiveWidth: number
-      if (widthMode === MeasureMode.Undefined || isNaN(width)) {
-        effectiveWidth = 0
-      } else {
-        effectiveWidth = width
-      }
-
-      const effectiveHeight = isNaN(height) ? 1 : height
-
-      const measureResult = this.editorView.measureForDimensions(
-        Math.floor(effectiveWidth),
-        Math.floor(effectiveHeight),
-      )
-
-      const measuredWidth = measureResult ? Math.max(1, measureResult.widthColsMax) : 1
-      const measuredHeight = measureResult ? Math.max(1, measureResult.lineCount) : 1
-
-      if (widthMode === MeasureMode.AtMost && this._positionType !== "absolute") {
-        return {
-          width: Math.min(effectiveWidth, measuredWidth),
-          height: Math.min(effectiveHeight, measuredHeight),
-        }
-      }
-
-      return {
-        width: measuredWidth,
-        height: measuredHeight,
-      }
+  private setupNativeRenderable(): void {
+    const lib = resolveRenderLib()
+    // Transitional native backing: JS still owns the render tree and Yoga nodes,
+    // while native owns only hot measurement state. Attach the existing JS-created
+    // Yoga node for now. The intended direction is for every Renderable to become
+    // native-backed and for Yoga node ownership to move native-side with it.
+    const nativeRenderable = lib.createNativeRenderable()
+    if (!lib.nativeRenderableAttachYogaNode(nativeRenderable, this.yogaNode.ptr)) {
+      lib.destroyNativeRenderable(nativeRenderable)
+      throw new Error("Failed to attach native renderable Yoga node")
     }
-
-    this.yogaNode.setMeasureFunc(measureFunc)
+    if (
+      !lib.nativeRenderableSetMeasureTarget(nativeRenderable, NativeMeasureTargetKind.EditorView, this.editorView.ptr)
+    ) {
+      lib.destroyNativeRenderable(nativeRenderable)
+      throw new Error("Failed to attach editor native measure target")
+    }
+    this.nativeRenderable = nativeRenderable
   }
 
-  override render(buffer: OptimizedBuffer, deltaTime: number): void {
+  render(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible) return
     if (this.isDestroyed) return
     // Editor rendering/cursor placement reads absolute coordinates multiple
@@ -994,7 +968,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     this.renderCursor(buffer)
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     buffer.drawEditorView(this.editorView, this._screenX, this._screenY)
   }
 
@@ -1012,19 +986,19 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     this._ctx.setCursorStyle({ ...this._cursorStyle, color: this._cursorColor })
   }
 
-  public override focus(): void {
+  public focus(): void {
     super.focus()
     this._ctx.setCursorStyle({ ...this._cursorStyle, color: this._cursorColor })
     this.requestRender()
   }
 
-  public override blur(): void {
+  public blur(): void {
     super.blur()
     this._ctx.setCursorPosition(0, 0, false)
     this.requestRender()
   }
 
-  protected override onRemove(): void {
+  protected onRemove(): void {
     if (this._focused) {
       this._ctx.setCursorPosition(0, 0, false)
     }
@@ -1044,6 +1018,10 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
 
     // Destroy dependent resources in correct order BEFORE calling super
     // EditorView depends on EditBuffer, so destroy it first
+    if (this.nativeRenderable) {
+      resolveRenderLib().destroyNativeRenderable(this.nativeRenderable)
+      this.nativeRenderable = null
+    }
     this.editorView.destroy()
     this.editBuffer.destroy()
 

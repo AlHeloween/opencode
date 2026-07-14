@@ -59,10 +59,7 @@ docs/opencode.db.sql
 experiments/20260707-RenderingTest/  
 experiments/crash-diagnostics/
 __pycache__/
-external/jj
-external/codegraph
-external/codegraph-rust
-external/fossil
+external/
 zig-global
 external/opentui/packages/core/src/zig/.zig-global/
 external/opentui/packages/core/src/zig/zig-pkg/

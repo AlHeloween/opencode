@@ -27,7 +27,7 @@ export interface ASCIIFontOptions extends Omit<RenderableOptions<ASCIIFontRender
 }
 
 export class ASCIIFontRenderable extends FrameBufferRenderable {
-  public override selectable: boolean = true
+  public selectable: boolean = true
 
   protected static readonly _defaultOptions = {
     text: "",
@@ -137,13 +137,13 @@ export class ASCIIFontRenderable extends FrameBufferRenderable {
     this.height = measurements.height
   }
 
-  override shouldStartSelection(x: number, y: number): boolean {
+  shouldStartSelection(x: number, y: number): boolean {
     const localX = x - this.x
     const localY = y - this.y
     return this.selectionHelper.shouldStartSelection(localX, localY, this.width, this.height)
   }
 
-  override onSelectionChanged(selection: Selection | null): boolean {
+  onSelectionChanged(selection: Selection | null): boolean {
     const localSelection = convertGlobalToLocalSelection(selection, this.x, this.y)
     this.lastLocalSelection = localSelection
     const changed = this.selectionHelper.onLocalSelectionChanged(localSelection, this.width, this.height)
@@ -154,17 +154,17 @@ export class ASCIIFontRenderable extends FrameBufferRenderable {
     return changed
   }
 
-  override getSelectedText(): string {
+  getSelectedText(): string {
     const selection = this.selectionHelper.getSelection()
     if (!selection) return ""
     return this._text.slice(selection.start, selection.end)
   }
 
-  override hasSelection(): boolean {
+  hasSelection(): boolean {
     return this.selectionHelper.hasSelection()
   }
 
-  protected override onResize(width: number, height: number): void {
+  protected onResize(width: number, height: number): void {
     super.onResize(width, height)
     this.renderFontToBuffer()
   }

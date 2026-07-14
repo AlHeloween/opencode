@@ -115,7 +115,7 @@ function measureSnapshotHeight(renderContext: ScrollbackRenderContext["renderCon
     return Math.max(1, Math.trunc(root.getLayoutNode().getComputedLayout().height))
   } finally {
     if (root.parent === measureRoot) {
-      measureRoot.remove(root.id)
+      measureRoot.remove(root)
     }
     measureRoot.destroyRecursively()
   }
@@ -190,7 +190,7 @@ export function createScrollbackWriter(
     try {
       dispose = renderInternal(
         () =>
-          createComponent(RendererContext.Provider as any, {
+          createComponent(RendererContext.Provider, {
             get value() {
               return snapshotRenderer.renderer
             },

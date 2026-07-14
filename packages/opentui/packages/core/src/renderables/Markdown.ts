@@ -466,6 +466,8 @@ export class MarkdownRenderable extends Renderable {
   }
 
   private createInitialStyledText(token: MarkedToken): StyledText | undefined {
+    if (!this._streaming) return undefined
+
     const chunks: TextChunk[] = []
     if ("tokens" in token && Array.isArray(token.tokens)) {
       this.renderInlineContent(token.tokens, chunks)
@@ -1027,7 +1029,7 @@ export class MarkdownRenderable extends Renderable {
   }
 
   private shouldRenderSeparately(token: MarkedToken): boolean {
-    return token.type === "code" || token.type === "table" || token.type === "blockquote" || token.type === "hr" || token.type === "heading" || token.type === "list"
+    return token.type === "code" || token.type === "table" || token.type === "blockquote" || token.type === "hr"
   }
 
   private getInterBlockMargin(token: MarkedToken, nextToken: MarkedToken | undefined): number {
@@ -2131,7 +2133,7 @@ export class MarkdownRenderable extends Renderable {
     this.requestRender()
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
+  protected renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
     // Check if style/conceal changed - re-render blocks before rendering
     if (this._styleDirty) {
       this._styleDirty = false

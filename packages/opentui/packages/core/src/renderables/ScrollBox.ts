@@ -1,7 +1,7 @@
 import { type KeyEvent } from "../lib/index.js"
 import { getObjectsInViewport } from "../lib/objects-in-viewport.js"
 import { LinearScrollAccel, MacOSScrollAccel, type ScrollAcceleration } from "../lib/scroll-acceleration.js"
-import type { Renderable, RenderableOptions } from "../Renderable.js"
+import type { BaseRenderable, Renderable, RenderableOptions } from "../Renderable.js"
 import type { MouseEvent } from "../renderer.js"
 import type { RenderContext } from "../types.js"
 import { BoxRenderable, type BoxOptions } from "./Box.js"
@@ -31,11 +31,11 @@ class ContentRenderable extends BoxRenderable {
     this._viewportCulling = value
   }
 
-  protected override _hasVisibleChildFilter(): boolean {
+  protected _hasVisibleChildFilter(): boolean {
     return this._viewportCulling
   }
 
-  protected override _getVisibleChildren(): number[] {
+  protected _getVisibleChildren(): number[] {
     if (this._viewportCulling) {
       // The viewport is in terminal coordinates, so culling has to compare it
       // against each child's absolute screen position rather than local x/y.
@@ -115,7 +115,7 @@ export class ScrollBoxRenderable extends BoxRenderable {
   public readonly horizontalScrollBar: ScrollBarRenderable
   public readonly verticalScrollBar: ScrollBarRenderable
 
-  protected override _focusable: boolean = true
+  protected _focusable: boolean = true
   private selectionListener?: () => void
 
   private autoScrollMouseX: number = 0
@@ -397,7 +397,7 @@ export class ScrollBoxRenderable extends BoxRenderable {
     this._ctx.on("selection", this.selectionListener)
   }
 
-  protected override onUpdate(deltaTime: number): void {
+  protected onUpdate(deltaTime: number): void {
     this.handleAutoScroll(deltaTime)
   }
 
@@ -511,23 +511,35 @@ export class ScrollBoxRenderable extends BoxRenderable {
     }
   }
 
-  public override add(obj: Renderable | VNode<any, any[]>, index?: number): number {
+  public add(obj: Renderable | VNode<any, any[]>, index?: number): number {
     return this.content.add(obj, index)
   }
 
-  public override insertBefore(obj: Renderable | VNode<any, any[]> | unknown, anchor?: Renderable | unknown): number {
+  public insertBefore(obj: Renderable | VNode<any, any[]> | unknown, anchor?: Renderable | unknown): number {
     return this.content.insertBefore(obj, anchor)
   }
 
-  public override remove(id: string): void {
-    this.content.remove(id)
+  public remove(child: BaseRenderable): void {
+    // Internal parts (wrapper, scrollbars) are direct children of the root,
+    // not of content. Route by actual parentage so destroy() and explicit
+    // removals of internals detach them instead of silently no-oping through
+    // the content delegation.
+    if (child.parent === this) {
+      super.remove(child)
+      return
+    }
+    this.content.remove(child)
   }
 
-  public override getChildren(): Renderable[] {
+  public getChildren(): Renderable[] {
     return this.content.getChildren()
   }
 
-  protected override onMouseEvent(event: MouseEvent): void {
+  public getRenderable(id: string): Renderable | undefined {
+    return this.content.getRenderable(id)
+  }
+
+  protected onMouseEvent(event: MouseEvent): void {
     if (event.type === "scroll") {
       let dir = event.scroll?.direction
       if (event.modifiers.shift)
@@ -578,7 +590,7 @@ export class ScrollBoxRenderable extends BoxRenderable {
     }
   }
 
-  public override handleKeyPress(key: KeyEvent): boolean {
+  public handleKeyPress(key: KeyEvent): boolean {
     // Let scrollbars handle their own acceleration
     if (this.verticalScrollBar.handleKeyPress(key)) {
       this.scrollAccel.reset()
@@ -793,37 +805,37 @@ export class ScrollBoxRenderable extends BoxRenderable {
   }
 
   // Setters for reactive properties
-  public override set padding(value: number | `${number}%` | null | undefined) {
+  public set padding(value: number | `${number}%` | null | undefined) {
     this.content.padding = value
     this.requestRender()
   }
 
-  public override set paddingX(value: number | `${number}%` | null | undefined) {
+  public set paddingX(value: number | `${number}%` | null | undefined) {
     this.content.paddingX = value
     this.requestRender()
   }
 
-  public override set paddingY(value: number | `${number}%` | null | undefined) {
+  public set paddingY(value: number | `${number}%` | null | undefined) {
     this.content.paddingY = value
     this.requestRender()
   }
 
-  public override set paddingTop(value: number | `${number}%` | null | undefined) {
+  public set paddingTop(value: number | `${number}%` | null | undefined) {
     this.content.paddingTop = value
     this.requestRender()
   }
 
-  public override set paddingRight(value: number | `${number}%` | null | undefined) {
+  public set paddingRight(value: number | `${number}%` | null | undefined) {
     this.content.paddingRight = value
     this.requestRender()
   }
 
-  public override set paddingBottom(value: number | `${number}%` | null | undefined) {
+  public set paddingBottom(value: number | `${number}%` | null | undefined) {
     this.content.paddingBottom = value
     this.requestRender()
   }
 
-  public override set paddingLeft(value: number | `${number}%` | null | undefined) {
+  public set paddingLeft(value: number | `${number}%` | null | undefined) {
     this.content.paddingLeft = value
     this.requestRender()
   }
@@ -881,7 +893,7 @@ export class ScrollBoxRenderable extends BoxRenderable {
     this.requestRender()
   }
 
-  protected override destroySelf(): void {
+  protected destroySelf(): void {
     if (this.selectionListener) {
       this._ctx.off("selection", this.selectionListener)
       this.selectionListener = undefined

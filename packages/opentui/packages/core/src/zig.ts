@@ -10,7 +10,6 @@ import {
 import { writeFile } from "./platform/runtime.js"
 import { existsSync, writeFileSync } from "fs"
 import { EventEmitter } from "events"
-import { dirname, join } from "path"
 import {
   type CursorStyle,
   type CursorStyleOptions,
@@ -22,7 +21,14 @@ import {
   type LineInfo,
   type MousePointerStyle,
 } from "./types.js"
-export type { LineInfo, AllocatorStats, BuildOptions, NativeRenderStats }
+export type {
+  LineInfo,
+  AllocatorStats,
+  AudioStreamCreateOptions,
+  BuildOptions,
+  NativeAudioStreamStats,
+  NativeRenderStats,
+}
 
 import { RGBA } from "./lib/RGBA.js"
 import { OptimizedBuffer } from "./buffer.js"
@@ -46,6 +52,11 @@ import {
   AudioCreateOptionsStruct,
   AudioStartOptionsStruct,
   AudioVoiceOptionsStruct,
+  AudioStreamCreateOptionsStruct,
+  AudioStreamStatsStruct,
+  NativeAudioStreamCloseReason as NativeAudioStreamCloseReasonValue,
+  NativeAudioStreamFormat as NativeAudioStreamFormatValue,
+  NativeAudioStreamState as NativeAudioStreamStateValue,
   AudioStatsStruct,
   BuildOptionsStruct,
   AllocatorStatsStruct,
@@ -58,12 +69,23 @@ import type {
   AudioCreateOptions,
   AudioStartOptions,
   AudioVoiceOptions,
+  AudioStreamCreateOptions,
+  NativeAudioStreamCloseReason as NativeAudioStreamCloseReasonType,
+  NativeAudioStreamFormat as NativeAudioStreamFormatType,
+  NativeAudioStreamState as NativeAudioStreamStateType,
+  NativeAudioStreamStats,
   AudioStats,
   BuildOptions,
   AllocatorStats,
   NativeRenderStats,
 } from "./zig-structs.js"
-import { isBunfsPath, normalizeBunfsPath } from "./lib/bunfs.js"
+export const NativeAudioStreamState = NativeAudioStreamStateValue
+export type NativeAudioStreamState = NativeAudioStreamStateType
+export const NativeAudioStreamCloseReason = NativeAudioStreamCloseReasonValue
+export type NativeAudioStreamCloseReason = NativeAudioStreamCloseReasonType
+export const NativeAudioStreamFormat = NativeAudioStreamFormatValue
+export type NativeAudioStreamFormat = NativeAudioStreamFormatType
+import { isBunfsPath } from "./lib/bunfs.js"
 
 registerEnvVar({
   name: "OPENTUI_LIBC",
@@ -131,11 +153,11 @@ export type EditorViewHandle = NativeHandle<"editor_view">
 export type SyntaxStyleHandle = NativeHandle<"syntax_style">
 export type EventSinkHandle = NativeHandle<"event_sink">
 export type AudioEngineHandle = NativeHandle<"audio_engine">
+export type NativeRenderableHandle = NativeHandle<"native_renderable">
 let targetLibPath = nativePackage.default
 
 if (isBunfsPath(targetLibPath)) {
-  targetLibPath = normalizeBunfsPath(targetLibPath)
-  if (!existsSync(targetLibPath)) targetLibPath = join(dirname(process.execPath), "opentui.dll")
+  targetLibPath = targetLibPath.replace("../", "")
 }
 
 if (!existsSync(targetLibPath)) {
@@ -216,6 +238,10 @@ function toSafeFFIU32Length(value: number, label: string): number {
   return value
 }
 
+function isFFIU32(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_FFI_U32
+}
+
 function ptrOrNull(value: ArrayBufferView): Pointer | null {
   return value.byteLength === 0 ? null : ptr(value)
 }
@@ -245,6 +271,22 @@ function getOpenTUILib(libPath?: string) {
     destroyEventSink: {
       args: ["u32"],
       returns: "void",
+    },
+    createNativeRenderable: {
+      args: [],
+      returns: "u32",
+    },
+    destroyNativeRenderable: {
+      args: ["u32"],
+      returns: "void",
+    },
+    nativeRenderableAttachYogaNode: {
+      args: ["u32", "ptr"],
+      returns: "bool",
+    },
+    nativeRenderableSetMeasureTarget: {
+      args: ["u32", "u32", "u32"],
+      returns: "bool",
     },
     // Renderer management
     createRenderer: {
@@ -1423,7 +1465,7 @@ function getOpenTUILib(libPath?: string) {
       returns: "u64",
     },
     yogaNodeSetMeasureFunc: {
-      args: ["ptr", "ptr"],
+      args: ["ptr", "bool"],
       returns: "void",
     },
     yogaNodeUnsetMeasureFunc: {
@@ -1435,7 +1477,7 @@ function getOpenTUILib(libPath?: string) {
       returns: "bool",
     },
     yogaNodeSetDirtiedFunc: {
-      args: ["ptr", "ptr"],
+      args: ["ptr", "bool"],
       returns: "void",
     },
     yogaNodeUnsetDirtiedFunc: {
@@ -1444,6 +1486,14 @@ function getOpenTUILib(libPath?: string) {
     },
     yogaStoreMeasureResult: {
       args: ["f32", "f32"],
+      returns: "void",
+    },
+    yogaSetMeasureCallback: {
+      args: ["ptr"],
+      returns: "void",
+    },
+    yogaSetDirtiedCallback: {
+      args: ["ptr"],
       returns: "void",
     },
 
@@ -1490,6 +1540,42 @@ function getOpenTUILib(libPath?: string) {
     },
     audioStop: {
       args: ["u32"],
+      returns: "i32",
+    },
+    audioCreateStream: {
+      args: ["u32", "ptr", "ptr"],
+      returns: "i32",
+    },
+    audioWriteStream: {
+      args: ["u32", "u32", "ptr", "u32"],
+      returns: "i32",
+    },
+    audioEndStream: {
+      args: ["u32", "u32"],
+      returns: "i32",
+    },
+    audioRestartStream: {
+      args: ["u32", "u32"],
+      returns: "i32",
+    },
+    audioSetStreamVolume: {
+      args: ["u32", "u32", "f32"],
+      returns: "i32",
+    },
+    audioSetStreamPan: {
+      args: ["u32", "u32", "f32"],
+      returns: "i32",
+    },
+    audioSetStreamGroup: {
+      args: ["u32", "u32", "u32"],
+      returns: "i32",
+    },
+    audioGetStreamStats: {
+      args: ["u32", "u32", "ptr"],
+      returns: "i32",
+    },
+    audioCloseStream: {
+      args: ["u32", "u32", "u32", "ptr"],
       returns: "i32",
     },
     audioLoad: {
@@ -1867,7 +1953,17 @@ export type NativeYogaMeasureCallback = (
   heightMode: number,
 ) => void
 
-export type NativeYogaDirtiedCallback = () => void
+export type NativeYogaDirtiedCallback = (node: Pointer | null) => void
+
+export const NativeMeasureTargetKind = {
+  None: 0,
+  TextBufferView: 1,
+  EditorView: 2,
+} as const
+
+export type NativeMeasureTargetKind = (typeof NativeMeasureTargetKind)[keyof typeof NativeMeasureTargetKind]
+
+export type NativeMeasureTargetHandle = TextBufferViewHandle | EditorViewHandle
 
 export interface AudioEngineLib {
   createAudioEngine: (options?: AudioCreateOptions | null) => AudioEngineHandle | null
@@ -1881,6 +1977,22 @@ export interface AudioEngineLib {
   audioStart: (engine: AudioEngineHandle, options?: AudioStartOptions | null) => number
   audioStartMixer: (engine: AudioEngineHandle) => number
   audioStop: (engine: AudioEngineHandle) => number
+  audioCreateStream: (
+    engine: AudioEngineHandle,
+    options: AudioStreamCreateOptions,
+  ) => { status: number; streamId: number | null }
+  audioWriteStream: (engine: AudioEngineHandle, streamId: number, data: Uint8Array) => number
+  audioEndStream: (engine: AudioEngineHandle, streamId: number) => number
+  audioRestartStream: (engine: AudioEngineHandle, streamId: number) => number
+  audioSetStreamVolume: (engine: AudioEngineHandle, streamId: number, volume: number) => number
+  audioSetStreamPan: (engine: AudioEngineHandle, streamId: number, pan: number) => number
+  audioSetStreamGroup: (engine: AudioEngineHandle, streamId: number, groupId: number) => number
+  audioGetStreamStats: (engine: AudioEngineHandle, streamId: number) => NativeAudioStreamStats | null
+  audioCloseStream: (
+    engine: AudioEngineHandle,
+    streamId: number,
+    reason: NativeAudioStreamCloseReason,
+  ) => { status: number; stats: NativeAudioStreamStats | null }
   audioLoad: (engine: AudioEngineHandle, data: Uint8Array) => { status: number; soundId: number | null }
   audioUnload: (engine: AudioEngineHandle, soundId: number) => number
   audioPlay: (
@@ -2185,12 +2297,14 @@ export interface RenderLib extends AudioEngineLib {
   yogaNodeStyleGetBorder: (node: Pointer, edge: number) => number
   yogaNodeStyleSetValue: (node: Pointer, kind: number, edgeOrGutter: number, unit: number, value: number) => void
   yogaNodeStyleGetValue: (node: Pointer, kind: number, edgeOrGutter: number) => number | bigint
-  yogaNodeSetMeasureFunc: (node: Pointer, callback: Pointer | null) => void
+  yogaNodeSetMeasureFunc: (node: Pointer, enabled: boolean) => void
   yogaNodeUnsetMeasureFunc: (node: Pointer) => void
   yogaNodeHasMeasureFunc: (node: Pointer) => boolean
-  yogaNodeSetDirtiedFunc: (node: Pointer, callback: Pointer | null) => void
+  yogaNodeSetDirtiedFunc: (node: Pointer, enabled: boolean) => void
   yogaNodeUnsetDirtiedFunc: (node: Pointer) => void
   yogaStoreMeasureResult: (width: number, height: number) => void
+  yogaSetMeasureCallback: (callback: Pointer | null) => void
+  yogaSetDirtiedCallback: (callback: Pointer | null) => void
   createYogaMeasureCallback: (callback: NativeYogaMeasureCallback) => FFICallbackInstance
   createYogaDirtiedCallback: (callback: NativeYogaDirtiedCallback) => FFICallbackInstance
 
@@ -2498,6 +2612,14 @@ export interface RenderLib extends AudioEngineLib {
   streamGetStats: (stream: Pointer) => NativeSpanFeedStats | null
   streamReserve: (stream: Pointer, minLen: number) => { status: number; info: ReserveInfo | null }
   streamCommitReserved: (stream: Pointer, length: number) => number
+  createNativeRenderable: () => NativeRenderableHandle
+  destroyNativeRenderable: (handle: NativeRenderableHandle) => void
+  nativeRenderableAttachYogaNode: (handle: NativeRenderableHandle, node: Pointer) => boolean
+  nativeRenderableSetMeasureTarget: (
+    handle: NativeRenderableHandle,
+    kind: NativeMeasureTargetKind,
+    target: NativeMeasureTargetHandle | 0,
+  ) => boolean
   onNativeEvent: (name: string, handler: (data: ArrayBuffer) => void) => void
   onceNativeEvent: (name: string, handler: (data: ArrayBuffer) => void) => void
   offNativeEvent: (name: string, handler: (data: ArrayBuffer) => void) => void
@@ -2515,6 +2637,29 @@ class FFIRenderLib implements RenderLib {
   private _anyEventHandlers: Array<(name: string, data: ArrayBuffer) => void> = []
   private nativeSpanFeedCallbackWrapper: FFICallbackInstance | null = null
   private nativeSpanFeedHandlers = new Map<Pointer, NativeSpanFeedEventHandler>()
+
+  public createNativeRenderable(): NativeRenderableHandle {
+    const handle = this.opentui.symbols.createNativeRenderable() as NativeRenderableHandle
+    if (!handle) throw new Error("Failed to create native renderable")
+    return handle
+  }
+
+  public destroyNativeRenderable(handle: NativeRenderableHandle): void {
+    this.opentui.symbols.destroyNativeRenderable(handle)
+  }
+
+  public nativeRenderableAttachYogaNode(handle: NativeRenderableHandle, node: Pointer): boolean {
+    // Node's FFI returns bools as 0/1 numbers; normalize so the interface stays truthful.
+    return Boolean(this.opentui.symbols.nativeRenderableAttachYogaNode(handle, node))
+  }
+
+  public nativeRenderableSetMeasureTarget(
+    handle: NativeRenderableHandle,
+    kind: NativeMeasureTargetKind,
+    target: NativeMeasureTargetHandle | 0,
+  ): boolean {
+    return Boolean(this.opentui.symbols.nativeRenderableSetMeasureTarget(handle, kind, target))
+  }
 
   constructor(libPath?: string) {
     this.opentui = getOpenTUILib(libPath)
@@ -2589,6 +2734,8 @@ class FFIRenderLib implements RenderLib {
         this.eventSinkPtr = null
       }
 
+      this.yogaSetMeasureCallback(null)
+      this.yogaSetDirtiedCallback(null)
       this.setLogCallback(null)
     } finally {
       try {
@@ -3191,7 +3338,7 @@ class FFIRenderLib implements RenderLib {
     const cursor = options.cursor != null ? MOUSE_STYLE_TO_ID[options.cursor] : 255
 
     const buffer = CursorStyleOptionsStruct.pack({ style, blinking, color: options.color, cursor })
-    this.opentui.symbols.setCursorStyleOptions(renderer, ptr(buffer))
+    this.opentui.symbols.setCursorStyleOptions(renderer, buffer)
   }
 
   public render(renderer: Pointer, force: boolean): number {
@@ -3627,8 +3774,8 @@ class FFIRenderLib implements RenderLib {
     return this.opentui.symbols.yogaNodeStyleGetValue(node, kind, edgeOrGutter)
   }
 
-  public yogaNodeSetMeasureFunc(node: Pointer, callback: Pointer | null): void {
-    this.opentui.symbols.yogaNodeSetMeasureFunc(node, callback)
+  public yogaNodeSetMeasureFunc(node: Pointer, enabled: boolean): void {
+    this.opentui.symbols.yogaNodeSetMeasureFunc(node, ffiBool(enabled))
   }
 
   public yogaNodeUnsetMeasureFunc(node: Pointer): void {
@@ -3636,11 +3783,12 @@ class FFIRenderLib implements RenderLib {
   }
 
   public yogaNodeHasMeasureFunc(node: Pointer): boolean {
-    return this.opentui.symbols.yogaNodeHasMeasureFunc(node)
+    // Node's FFI returns bools as 0/1 numbers; normalize so the interface stays truthful.
+    return Boolean(this.opentui.symbols.yogaNodeHasMeasureFunc(node))
   }
 
-  public yogaNodeSetDirtiedFunc(node: Pointer, callback: Pointer | null): void {
-    this.opentui.symbols.yogaNodeSetDirtiedFunc(node, callback)
+  public yogaNodeSetDirtiedFunc(node: Pointer, enabled: boolean): void {
+    this.opentui.symbols.yogaNodeSetDirtiedFunc(node, ffiBool(enabled))
   }
 
   public yogaNodeUnsetDirtiedFunc(node: Pointer): void {
@@ -3649,6 +3797,14 @@ class FFIRenderLib implements RenderLib {
 
   public yogaStoreMeasureResult(width: number, height: number): void {
     this.opentui.symbols.yogaStoreMeasureResult(width, height)
+  }
+
+  public yogaSetMeasureCallback(callback: Pointer | null): void {
+    this.opentui.symbols.yogaSetMeasureCallback(callback)
+  }
+
+  public yogaSetDirtiedCallback(callback: Pointer | null): void {
+    this.opentui.symbols.yogaSetDirtiedCallback(callback)
   }
 
   public createYogaMeasureCallback(callback: NativeYogaMeasureCallback): FFICallbackInstance {
@@ -3660,7 +3816,7 @@ class FFIRenderLib implements RenderLib {
 
   public createYogaDirtiedCallback(callback: NativeYogaDirtiedCallback): FFICallbackInstance {
     return this.opentui.createCallback(callback, {
-      args: [],
+      args: ["ptr"],
       returns: "void",
     })
   }
@@ -3782,7 +3938,7 @@ class FFIRenderLib implements RenderLib {
     }
 
     const chunksBuffer = StyledChunkStruct.packList(chunks)
-    this.opentui.symbols.textBufferSetStyledText(buffer, ptr(chunksBuffer), chunks.length)
+    this.opentui.symbols.textBufferSetStyledText(buffer, chunksBuffer, chunks.length)
   }
 
   public textBufferGetLineCount(buffer: Pointer): number {
@@ -4841,7 +4997,12 @@ class FFIRenderLib implements RenderLib {
   }
 
   public audioStart(engine: Pointer, options?: AudioStartOptions | null): number {
-    const optionsBuffer = options == null ? null : AudioStartOptionsStruct.pack(options)
+    let optionsBuffer: ArrayBuffer | null
+    try {
+      optionsBuffer = options == null ? null : AudioStartOptionsStruct.pack(options)
+    } catch {
+      return -1
+    }
     return this.opentui.symbols.audioStart(engine, optionsBuffer ? ptr(optionsBuffer) : null)
   }
 
@@ -4851,6 +5012,67 @@ class FFIRenderLib implements RenderLib {
 
   public audioStop(engine: Pointer): number {
     return this.opentui.symbols.audioStop(engine)
+  }
+
+  public audioCreateStream(
+    engine: AudioEngineHandle,
+    options: AudioStreamCreateOptions,
+  ): { status: number; streamId: number | null } {
+    if (
+      !isFFIU32(options.groupId) ||
+      (options.format !== NativeAudioStreamFormat.Mp3 && options.format !== NativeAudioStreamFormat.Flac)
+    ) {
+      return { status: -1, streamId: null }
+    }
+    const optionsBuffer = AudioStreamCreateOptionsStruct.pack(options)
+    const outBuffer = new ArrayBuffer(4)
+    const status = this.opentui.symbols.audioCreateStream(engine, optionsBuffer, outBuffer)
+    if (status !== 0) return { status, streamId: null }
+    return { status, streamId: new Uint32Array(outBuffer)[0] ?? null }
+  }
+
+  public audioWriteStream(engine: AudioEngineHandle, streamId: number, data: Uint8Array): number {
+    const dataLength = toSafeFFIU32Length(data.byteLength, "Audio stream data length")
+    return this.opentui.symbols.audioWriteStream(engine, streamId, dataLength === 0 ? null : data, dataLength)
+  }
+
+  public audioEndStream(engine: AudioEngineHandle, streamId: number): number {
+    return this.opentui.symbols.audioEndStream(engine, streamId)
+  }
+
+  public audioRestartStream(engine: AudioEngineHandle, streamId: number): number {
+    return this.opentui.symbols.audioRestartStream(engine, streamId)
+  }
+
+  public audioSetStreamVolume(engine: AudioEngineHandle, streamId: number, volume: number): number {
+    return this.opentui.symbols.audioSetStreamVolume(engine, streamId, volume)
+  }
+
+  public audioSetStreamPan(engine: AudioEngineHandle, streamId: number, pan: number): number {
+    return this.opentui.symbols.audioSetStreamPan(engine, streamId, pan)
+  }
+
+  public audioSetStreamGroup(engine: AudioEngineHandle, streamId: number, groupId: number): number {
+    if (!isFFIU32(groupId)) return -1
+    return this.opentui.symbols.audioSetStreamGroup(engine, streamId, groupId)
+  }
+
+  public audioGetStreamStats(engine: AudioEngineHandle, streamId: number): NativeAudioStreamStats | null {
+    const outBuffer = new ArrayBuffer(AudioStreamStatsStruct.size)
+    const status = this.opentui.symbols.audioGetStreamStats(engine, streamId, outBuffer)
+    if (status !== 0) return null
+    return AudioStreamStatsStruct.unpack(outBuffer) as NativeAudioStreamStats
+  }
+
+  public audioCloseStream(
+    engine: AudioEngineHandle,
+    streamId: number,
+    reason: NativeAudioStreamCloseReason,
+  ): { status: number; stats: NativeAudioStreamStats | null } {
+    const outBuffer = new ArrayBuffer(AudioStreamStatsStruct.size)
+    const status = this.opentui.symbols.audioCloseStream(engine, streamId, reason, outBuffer)
+    if (status !== 0) return { status, stats: null }
+    return { status, stats: AudioStreamStatsStruct.unpack(outBuffer) as NativeAudioStreamStats }
   }
 
   public audioLoad(engine: Pointer, data: Uint8Array): { status: number; soundId: number | null } {
@@ -4873,6 +5095,7 @@ class FFIRenderLib implements RenderLib {
     soundId: number,
     options?: AudioVoiceOptions,
   ): { status: number; voiceId: number | null } {
+    if (options?.groupId !== undefined && !isFFIU32(options.groupId)) return { status: -1, voiceId: null }
     const outBuffer = new ArrayBuffer(4)
     const optionsBuffer = options ? AudioVoiceOptionsStruct.pack(options) : null
     const status = this.opentui.symbols.audioPlay(
@@ -4893,6 +5116,7 @@ class FFIRenderLib implements RenderLib {
   }
 
   public audioSetVoiceGroup(engine: Pointer, voiceId: number, groupId: number): number {
+    if (!isFFIU32(groupId)) return -1
     return this.opentui.symbols.audioSetVoiceGroup(engine, voiceId, groupId)
   }
 
@@ -5095,7 +5319,7 @@ class FFIRenderLib implements RenderLib {
     }
 
     const chunksBuffer = StyledChunkStruct.packList(nonEmptyChunks)
-    this.opentui.symbols.editorViewSetPlaceholderStyledText(view, ptr(chunksBuffer), nonEmptyChunks.length)
+    this.opentui.symbols.editorViewSetPlaceholderStyledText(view, chunksBuffer, nonEmptyChunks.length)
   }
 
   public editorViewSetTabIndicator(view: EditorViewHandle, indicator: number): void {

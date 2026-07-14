@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { runInNewContext } from "node:vm"
 import {
   BUN_DLOPEN_NULL,
   FFIType,
@@ -386,26 +387,44 @@ describe("platform/ffi", () => {
     ])
   })
 
-  test("normalizes Node ptr-like arguments from pointers, views, and null", () => {
+  test("preserves Node borrowed pointer arguments and normalizes raw pointers and null", () => {
     const { backend, functionCalls } = createMockNodeBackend()
     const buffer = new ArrayBuffer(16)
     const view = new Uint8Array(buffer, 4, 8)
     const emptyView = new Uint8Array(buffer, 0, 0)
     const library = backend.dlopen("mock", {
       pointers: {
-        args: [FFIType.ptr, FFIType.pointer, FFIType.callback, FFIType.function],
+        args: [FFIType.ptr, FFIType.pointer, FFIType.callback, FFIType.function, FFIType.ptr],
         returns: FFIType.void,
       },
     })
 
-    library.symbols.pointers(view, null, 77 as Pointer, emptyView)
+    library.symbols.pointers(buffer, view, null, 77 as Pointer, emptyView)
 
-    expect(functionCalls).toEqual([
-      {
-        name: "pointers",
-        args: [1004n, 0n, 77n, 0n],
+    expect(functionCalls).toHaveLength(1)
+    expect(functionCalls[0]?.name).toBe("pointers")
+    expect(functionCalls[0]?.args[0]).toBe(buffer)
+    expect(functionCalls[0]?.args[1]).toBe(view)
+    expect(functionCalls[0]?.args[2]).toBe(0n)
+    expect(functionCalls[0]?.args[3]).toBe(77n)
+    expect(functionCalls[0]?.args[4]).toBe(0n)
+  })
+
+  test("accepts cross-realm ArrayBuffers and views at Node pointer boundaries", () => {
+    const { backend, functionCalls } = createMockNodeBackend()
+    const buffer = runInNewContext("new ArrayBuffer(16)") as ArrayBuffer
+    const view = runInNewContext("new Uint8Array(new ArrayBuffer(16), 4, 8)") as Uint8Array
+    const library = backend.dlopen("mock", {
+      pointers: {
+        args: [FFIType.ptr, FFIType.ptr],
+        returns: FFIType.void,
       },
-    ])
+    })
+
+    expect(backend.ptr(buffer)).toBe(1000n as Pointer)
+    expect(backend.ptr(view)).toBe(1104n as Pointer)
+    library.symbols.pointers(buffer, view)
+    expect(functionCalls[0]?.args).toEqual([buffer, view])
   })
 
   test("rejects invalid Node ptr-like arguments deterministically", () => {

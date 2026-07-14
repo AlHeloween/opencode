@@ -389,14 +389,8 @@ export class CodeRenderable extends TextBufferRenderable {
 
         if (this.isDestroyed) return
 
-        // Preserve initialStyledText for markdown — tree-sitter's
-        // markdown grammar doesn't capture strong/em/codespan inline
-        // formatting, so its output would overwrite rich styled text
-        // with structural-only highlights (black and white).
-        if (!(this._initialStyledText && this._filetype === "markdown")) {
-          const styledText = new StyledText(chunks)
-          this.textBuffer.setStyledText(styledText)
-        }
+        const styledText = new StyledText(chunks)
+        this.textBuffer.setStyledText(styledText)
         this.setRenderedLineSources(renderedLineSources)
       } else {
         this.textBuffer.setText(content)
@@ -538,7 +532,7 @@ export class CodeRenderable extends TextBufferRenderable {
     return this.textBuffer.getLineHighlights(lineIdx)
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     if (this._highlightsDirty) {
       if (this.isDestroyed) return
 

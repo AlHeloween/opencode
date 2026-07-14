@@ -57,6 +57,7 @@ dist
 dist/
 docs/opencode.db.sql
 experiments/20260707-RenderingTest/  
+experiments/crash-diagnostics/
 external/jj
 external/codegraph
 external/codegraph-rust

@@ -1,6 +1,6 @@
 import { readWasmAsset } from "@/util/wasm-path"
 import * as Log from "@opencode-ai/core/util/log"
-import { wasmGate } from "@/util/wasm-mutex"
+import { wasmGate, wasmGateSync } from "@/util/wasm-mutex"
 import type { TokenizerInstance, TokenizerModel } from "./types"
 
 // The WASM module's global data (vocab, merges, cache) occupies addresses
@@ -153,6 +153,7 @@ return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
 
   countTokens(text: string): number {
     if (!text) return 0
+    return wasmGateSync("bpe-count", () => {
     const textBytes = new TextEncoder().encode(text)
     const memView = new Uint8Array(this.memory.buffer)
 
@@ -166,16 +167,18 @@ return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
       bpe_count: (h: number, tp: number, tl: number) => number
     }
     return exports.bpe_count(this.handle, textPtr, textBytes.length)
+    })
   }
 
   encode(text: string): number[] {
     if (!text) return []
+    return wasmGateSync("bpe-encode", () => {
     const textBytes = new TextEncoder().encode(text)
     const memView = new Uint8Array(this.memory.buffer)
 
     const textPtr = this.ioBase
-const outIdsPtr = Math.ceil((this.ioBase + textBytes.length + 64) / 4) * 4
-const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
+    const outIdsPtr = Math.ceil((this.ioBase + textBytes.length + 64) / 4) * 4
+    const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
 
     if (outIdsPtr + textBytes.length >= this.memory.buffer.byteLength) {
       return []
@@ -203,10 +206,12 @@ const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
       result.push(idsView[outOffset + i])
     }
     return result
+    })
   }
 
   decode(ids: number[]): string {
     if (!ids.length) return ""
+    return wasmGateSync("bpe-decode", () => {
     const memView = new Uint8Array(this.memory.buffer)
     const outTextPtr = this.ioBase
     const maxOut = this.memory.buffer.byteLength - outTextPtr - 1
@@ -224,6 +229,7 @@ const maxIds = Math.floor((this.memory.buffer.byteLength - outIdsPtr - 4) / 4)
       }
     }
     return parts.join("")
+    })
   }
 }
 

@@ -1,5 +1,4 @@
 import { readWasmAsset } from "./wasm-path"
-import { wasmGate } from "./wasm-mutex"
 import * as Log from "@opencode-ai/core/util/log"
 
 export interface DiffLine {
@@ -85,8 +84,8 @@ Log.Default.info("diff-wasm: loaded WASM from " + asset.path)
 
       _textDecoder = new TextDecoder("utf-8", { ignoreBOM: true, fatal: true })
       _textEncoder = new TextEncoder()
-      const mod = await wasmGate("diff-compile", () => WebAssembly.compile(asset.bytes!))
-      const instance = await wasmGate("diff-instantiate", () => WebAssembly.instantiate(mod, imports))
+      const mod = await WebAssembly.compile(asset.bytes!)
+      const instance = await WebAssembly.instantiate(mod, imports)
       _wasm = instance.exports as unknown as DiffyExports
       _wasm.__wbindgen_start()
       Log.Default.info("diff-wasm: WASM loaded successfully")
@@ -108,21 +107,19 @@ export async function initDiffy(): Promise<boolean> {
 export async function createPatch(original: string, modified: string): Promise<string | null> {
   const wasm = await loadWasm()
   if (!wasm) return null
-  return wasmGate("diff-createPatch", async () => {
-    try {
-      const [origPtr, origLen] = passString(wasm, original)
-      const [modPtr, modLen] = passString(wasm, modified)
-      const ret = wasm.diff_create_patch(origPtr, origLen, modPtr, modLen)
-      const result = readString(wasm, ret[0], ret[1])
-      wasm.__wbindgen_free(ret[0], ret[1], 1)
-      const trimmed = result
-        .split("\n")
-        .filter((l) => !l.startsWith("\\ No newline"))
-        .join("\n")
-        .trimEnd() + "\n"
-      return recountHunks(trimmed)
-    } catch (err) { Log.Default.warn("diff-wasm: createPatch ERROR: " + String(err)); return null }
-  })
+  try {
+    const [origPtr, origLen] = passString(wasm, original)
+    const [modPtr, modLen] = passString(wasm, modified)
+    const ret = wasm.diff_create_patch(origPtr, origLen, modPtr, modLen)
+    const result = readString(wasm, ret[0], ret[1])
+    wasm.__wbindgen_free(ret[0], ret[1], 1)
+    const trimmed = result
+      .split("\n")
+      .filter((l) => !l.startsWith("\\ No newline"))
+      .join("\n")
+      .trimEnd() + "\n"
+    return recountHunks(trimmed)
+  } catch (err) { Log.Default.warn("diff-wasm: createPatch ERROR: " + String(err)); return null }
 }
 
 /** Recalculate hunk header line counts after post-processing may have
@@ -195,37 +192,33 @@ export async function parsePatch(patchText: string): Promise<string | null> {
 export async function diffStats(original: string, modified: string): Promise<{ additions: number; deletions: number } | null> {
   const wasm = await loadWasm()
   if (!wasm) return null
-  return wasmGate("diff-stats", async () => {
-    try {
-      const [origPtr, origLen] = passString(wasm, original)
-      const [modPtr, modLen] = passString(wasm, modified)
-      const ret = wasm.diff_stats(origPtr, origLen, modPtr, modLen)
-      const json = readString(wasm, ret[0], ret[1])
-      wasm.__wbindgen_free(ret[0], ret[1], 1)
-      const result = JSON.parse(json) as { additions: number; deletions: number }
-      return result
-    } catch (err) { Log.Default.warn("diff-wasm: diffStats ERROR: " + String(err)); return null }
-  })
+  try {
+    const [origPtr, origLen] = passString(wasm, original)
+    const [modPtr, modLen] = passString(wasm, modified)
+    const ret = wasm.diff_stats(origPtr, origLen, modPtr, modLen)
+    const json = readString(wasm, ret[0], ret[1])
+    wasm.__wbindgen_free(ret[0], ret[1], 1)
+    const result = JSON.parse(json) as { additions: number; deletions: number }
+    return result
+  } catch (err) { Log.Default.warn("diff-wasm: diffStats ERROR: " + String(err)); return null }
 }
 
 export async function computeDiffWasm(oldText: string, newText: string): Promise<DiffHunk[] | null> {
   const wasm = await loadWasm()
   if (!wasm) return null
-  return wasmGate("diff-computeDiff", async () => {
-    try {
-      const [origPtr, origLen] = passString(wasm, oldText)
-      const [modPtr, modLen] = passString(wasm, newText)
-      const ret = wasm.diff_create_patch(origPtr, origLen, modPtr, modLen)
-      const patch = readString(wasm, ret[0], ret[1])
-      wasm.__wbindgen_free(ret[0], ret[1], 1)
-      const [parsePtr, parseLen] = passString(wasm, patch)
-      const parseRet = wasm.diff_parse(parsePtr, parseLen)
-      const json = readString(wasm, parseRet[0], parseRet[1])
-      wasm.__wbindgen_free(parseRet[0], parseRet[1], 1)
-      if (!json || json === "[]") return []
-      return JSON.parse(json) as DiffHunk[]
-    } catch { return null }
-  })
+  try {
+    const [origPtr, origLen] = passString(wasm, oldText)
+    const [modPtr, modLen] = passString(wasm, newText)
+    const ret = wasm.diff_create_patch(origPtr, origLen, modPtr, modLen)
+    const patch = readString(wasm, ret[0], ret[1])
+    wasm.__wbindgen_free(ret[0], ret[1], 1)
+    const [parsePtr, parseLen] = passString(wasm, patch)
+    const parseRet = wasm.diff_parse(parsePtr, parseLen)
+    const json = readString(wasm, parseRet[0], parseRet[1])
+    wasm.__wbindgen_free(parseRet[0], parseRet[1], 1)
+    if (!json || json === "[]") return []
+    return JSON.parse(json) as DiffHunk[]
+  } catch { return null }
 }
 
 export * as DiffWasmMod from "./diff-wasm"

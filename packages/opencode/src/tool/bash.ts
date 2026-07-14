@@ -9,7 +9,6 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "../project/instance"
 import { lazy } from "@/util/lazy"
 import { readWasmAsset } from "@/util/wasm-path"
-import { wasmGate } from "@/util/wasm-mutex"
 import { Language, type Node } from "web-tree-sitter"
 
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -455,9 +454,9 @@ const parser = lazy(async () => {
     throw new Error("tree-sitter runtime WASM unavailable; tried: " + JSON.stringify(treeWasm.tried))
   }
   // web-tree-sitter types require full EmscriptenModule, but runtime accepts wasmBinary.
-  await wasmGate("tree-sitter-init", () => (Parser.init as any)({
+  await (Parser.init as any)({
     wasmBinary: treeWasm.bytes,
-  }))
+  })
   const [bashWasm, cmdWasm, psWasm] = await Promise.all([
     readWasmAsset("grammars/tree-sitter-bash.wasm"),
     readWasmAsset("grammars/tree-sitter-batch.wasm"),
@@ -469,11 +468,11 @@ const parser = lazy(async () => {
   const bashBytes: ArrayBuffer = bashWasm.bytes
   const cmdBytes: ArrayBuffer = cmdWasm.bytes
   const psBytes: ArrayBuffer = psWasm.bytes
-  const [bashLanguage, cmdLanguage, psLanguage] = await wasmGate("tree-sitter-load-grammars", () => Promise.all([
+  const [bashLanguage, cmdLanguage, psLanguage] = await Promise.all([
     Language.load(new Uint8Array(bashBytes)),
     Language.load(new Uint8Array(cmdBytes)),
     Language.load(new Uint8Array(psBytes)),
-  ]))
+  ])
   const bash = new Parser()
   bash.setLanguage(bashLanguage)
   const cmd = new Parser()

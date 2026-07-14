@@ -1,6 +1,5 @@
 import { readWasmAsset } from "@/util/wasm-path"
 import * as Log from "@opencode-ai/core/util/log"
-import { wasmGate, wasmGateSync } from "@/util/wasm-mutex"
 import type { TokenizerInstance, TokenizerModel } from "./types"
 
 // The WASM module's global data (vocab, merges, cache) occupies addresses
@@ -53,7 +52,7 @@ async function loadWasm(): Promise<WebAssembly.Module | null> {
     }
 
     try {
-      _wasmModule = await wasmGate("bpe-compile", () => WebAssembly.compile(asset.bytes!))
+      _wasmModule = await WebAssembly.compile(asset.bytes!)
       Log.Default.info("bpe-wasm: loaded WASM from " + asset.path)
       return _wasmModule
     } catch (err) {
@@ -110,14 +109,10 @@ private ioBase: number
         MODULE_MIN_PAGES,
         Math.ceil((MODEL_SCRATCH_OFFSET + modelSize + IO_PAGE_OFFSET) / 65536),
       )
-      const result = await wasmGate("bpe-instantiate", async () => {
-        const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
-        const instance = await WebAssembly.instantiate(mod, {
-          env: { memory },
-        })
-        return { memory, instance }
+      const memory = new WebAssembly.Memory({ initial: initialPages, maximum: Math.max(MODULE_MAX_PAGES, initialPages) })
+      const instance = await WebAssembly.instantiate(mod, {
+        env: { memory },
       })
-      const { memory, instance } = result
 
       const exports = instance.exports as {
   __stack_pointer: WebAssembly.Global
@@ -153,7 +148,6 @@ return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
 
   countTokens(text: string): number {
     if (!text) return 0
-    return wasmGateSync("bpe-count", () => {
     const textBytes = new TextEncoder().encode(text)
     const memView = new Uint8Array(this.memory.buffer)
 
@@ -167,12 +161,10 @@ return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
       bpe_count: (h: number, tp: number, tl: number) => number
     }
     return exports.bpe_count(this.handle, textPtr, textBytes.length)
-    })
   }
 
   encode(text: string): number[] {
     if (!text) return []
-    return wasmGateSync("bpe-encode", () => {
     const textBytes = new TextEncoder().encode(text)
     const memView = new Uint8Array(this.memory.buffer)
 
@@ -206,12 +198,10 @@ return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
       result.push(idsView[outOffset + i])
     }
     return result
-    })
   }
 
   decode(ids: number[]): string {
     if (!ids.length) return ""
-    return wasmGateSync("bpe-decode", () => {
     const memView = new Uint8Array(this.memory.buffer)
     const outTextPtr = this.ioBase
     const maxOut = this.memory.buffer.byteLength - outTextPtr - 1
@@ -229,7 +219,6 @@ return new BpeWasmTokenizer(model, handle, instance, memory, ioBase)
       }
     }
     return parts.join("")
-    })
   }
 }
 

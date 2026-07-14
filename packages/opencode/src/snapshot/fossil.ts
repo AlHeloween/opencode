@@ -22,7 +22,12 @@ function findFossil(): string {
   const worktreeTools = path.join(Global.Path.home, "tools", "fossil.exe")
   if (require("fs").existsSync(worktreeTools)) return worktreeTools
 
-  // 3. Fallback: hope it's on PATH
+  // 3. external/fossil/ relative to repo root (src/snapshot/fossil.ts → 4 levels up)
+  const repoRoot = path.resolve(import.meta.dirname!, "..", "..", "..", "..")
+  const repoFossil = path.join(repoRoot, "external", "fossil", "fossil.exe")
+  if (require("fs").existsSync(repoFossil)) return repoFossil
+
+  // 4. Fallback: hope it's on PATH
   return "fossil"
 }
 

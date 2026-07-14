@@ -596,7 +596,7 @@ export const layer: Layer.Layer<
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: ctx.hasWriteToolCall ? yield* snapshot.track([...ctx.changedFiles]) : ctx.snapshot,
+              snapshot: yield* snapshot.track([...ctx.changedFiles]),
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",

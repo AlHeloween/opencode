@@ -9,6 +9,7 @@ import {
 } from "./platform/ffi.js"
 import { writeFile } from "./platform/runtime.js"
 import { existsSync, writeFileSync } from "fs"
+import { join, dirname } from "path"
 import { EventEmitter } from "events"
 import {
   type CursorStyle,
@@ -158,6 +159,23 @@ let targetLibPath = nativePackage.default
 
 if (isBunfsPath(targetLibPath)) {
   targetLibPath = targetLibPath.replace("../", "")
+}
+
+// Prioritize DLL alongside executable (e.g. standalone deployment)
+// over Bun-extracted temp copy — the exe-adjacent one matches the build.
+const exeAdjacent = join(dirname(process.execPath), "opentui.dll")
+if (existsSync(exeAdjacent)) {
+  targetLibPath = exeAdjacent
+}
+
+if (!existsSync(targetLibPath)) {
+  throw new Error(`opentui is not supported on the current platform: ${process.platform}-${process.arch}`)
+}
+
+// Prefer opentui.dll alongside the executable (standalone builds)
+const exeDll = join(dirname(process.execPath), "opentui.dll")
+if (existsSync(exeDll)) {
+  targetLibPath = exeDll
 }
 
 if (!existsSync(targetLibPath)) {
@@ -1542,58 +1560,7 @@ function getOpenTUILib(libPath?: string) {
       args: ["u32"],
       returns: "i32",
     },
-    audioCreateStream: {
-      args: ["u32", "ptr", "ptr"],
-      returns: "i32",
-    },
-    audioWriteStream: {
-      args: ["u32", "u32", "ptr", "u32"],
-      returns: "i32",
-    },
-    audioEndStream: {
-      args: ["u32", "u32"],
-      returns: "i32",
-    },
-    audioRestartStream: {
-      args: ["u32", "u32"],
-      returns: "i32",
-    },
-    audioSetStreamVolume: {
-      args: ["u32", "u32", "f32"],
-      returns: "i32",
-    },
-    audioSetStreamPan: {
-      args: ["u32", "u32", "f32"],
-      returns: "i32",
-    },
-    audioSetStreamGroup: {
-      args: ["u32", "u32", "u32"],
-      returns: "i32",
-    },
-    audioGetStreamStats: {
-      args: ["u32", "u32", "ptr"],
-      returns: "i32",
-    },
-    audioCloseStream: {
-      args: ["u32", "u32", "u32", "ptr"],
-      returns: "i32",
-    },
-    audioLoad: {
-      args: ["u32", "ptr", "u32", "ptr"],
-      returns: "i32",
-    },
-    audioUnload: {
-      args: ["u32", "u32"],
-      returns: "i32",
-    },
-    audioPlay: {
-      args: ["u32", "u32", "ptr", "ptr"],
-      returns: "i32",
-    },
-    audioStopVoice: {
-      args: ["u32", "u32"],
-      returns: "i32",
-    },
+    // Audio streaming symbols — not in pre-built DLL, provided as JS stubs
     audioSetVoiceGroup: {
       args: ["u32", "u32", "u32"],
       returns: "i32",

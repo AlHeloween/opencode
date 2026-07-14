@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises"
 import { Color, Texture, DataTexture, NearestFilter, ClampToEdgeWrapping, RGBAFormat, UnsignedByteType } from "three"
+// @ts-ignore Jimp v1.6.1 type defs have default export but ESM uses named
 import { Jimp } from "jimp"
 
 interface SimpleImageData {

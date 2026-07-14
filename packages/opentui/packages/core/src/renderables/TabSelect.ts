@@ -72,7 +72,7 @@ function calculateDynamicHeight(showUnderline: boolean, showDescription: boolean
 }
 
 export class TabSelectRenderable extends Renderable {
-  protected _focusable: boolean = true
+  protected override _focusable: boolean = true
 
   private _options: TabSelectOption[] = []
   private selectedIndex: number = 0
@@ -127,7 +127,7 @@ export class TabSelectRenderable extends Renderable {
     return calculateDynamicHeight(this._showUnderline, this._showDescription)
   }
 
-  protected renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
+  protected override renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible || !this.frameBuffer) return
 
     if (this.isDirty) {
@@ -288,7 +288,7 @@ export class TabSelectRenderable extends Renderable {
     }
   }
 
-  protected onResize(width: number, height: number): void {
+  protected override onResize(width: number, height: number): void {
     this.maxVisibleTabs = Math.max(1, Math.floor(width / this._tabWidth))
     this.updateScrollOffset()
     this.requestRender()
@@ -308,7 +308,7 @@ export class TabSelectRenderable extends Renderable {
     return this._tabWidth
   }
 
-  public handleKeyPress(key: KeyEvent): boolean {
+  public override handleKeyPress(key: KeyEvent): boolean {
     const action = getKeyBindingAction(this._keyBindingsMap, key)
 
     if (action) {

@@ -240,7 +240,7 @@ class GutterRenderable extends Renderable {
     return this._lineSigns
   }
 
-  protected renderSelf(buffer: OptimizedBuffer): void {
+  protected override renderSelf(buffer: OptimizedBuffer): void {
     // For buffered rendering, only re-render when dirty OR when scroll position changed
     const currentScrollY = this.target.scrollY
     const scrollChanged = currentScrollY !== this._lastKnownScrollY
@@ -523,7 +523,7 @@ export class LineNumberRenderable extends Renderable {
     }
   }
 
-  protected renderSelf(buffer: OptimizedBuffer): void {
+  protected override renderSelf(buffer: OptimizedBuffer): void {
     // Draw full-width line backgrounds before children render
     if (!this.target || !this.gutter) return
 

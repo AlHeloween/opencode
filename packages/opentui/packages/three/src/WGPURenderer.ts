@@ -114,7 +114,11 @@ export class ThreeCliRenderer {
     this.cliRenderer.on(CliRenderEvents.DEBUG_OVERLAY_TOGGLE, this.debugToggleHandler)
     this.cliRenderer.on(CliRenderEvents.DESTROY, this.destroyHandler)
 
-    setupGlobals({ libPath: options.libPath })
+    // Suppress Dawn native addon stderr noise (DXC/Vulkan adapter errors)
+    const _origErr = process.stderr.write.bind(process.stderr)
+    process.stderr.write = () => true
+    try { setupGlobals({ libPath: options.libPath }) } catch (e) {}
+    process.stderr.write = _origErr
   }
 
   public toggleDebugStats(): void {
@@ -122,7 +126,15 @@ export class ThreeCliRenderer {
   }
 
   async init(): Promise<void> {
-    this.device = await createWebGPUDevice()
+    const _origErr2 = process.stderr.write.bind(process.stderr)
+    process.stderr.write = () => true
+    try {
+      this.device = await createWebGPUDevice()
+    } catch (e) {
+      process.stderr.write = _origErr2
+      throw e
+    }
+    process.stderr.write = _origErr2
     this.canvas = new CLICanvas(this.device, this.renderWidth, this.renderHeight, this.superSample)
 
     try {

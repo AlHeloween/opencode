@@ -258,11 +258,11 @@ export class TextareaRenderable extends EditBufferRenderable {
     ])
   }
 
-  public handlePaste(event: PasteEvent): void {
+  public override handlePaste(event: PasteEvent): void {
     this.insertText(stripAnsiSequences(decodePasteBytes(event.bytes)))
   }
 
-  public handleKeyPress(key: KeyEvent): boolean {
+  public override handleKeyPress(key: KeyEvent): boolean {
     if (this.traits.suspend !== true) {
       const action = getKeyBindingAction(this._keyBindingsMap, key)
 
@@ -307,12 +307,12 @@ export class TextareaRenderable extends EditBufferRenderable {
     super.textColor = effectiveFg
   }
 
-  public focus(): void {
+  public override focus(): void {
     super.focus()
     this.updateColors()
   }
 
-  public blur(): void {
+  public override blur(): void {
     super.blur()
     if (!this.isDestroyed) {
       this.updateColors()

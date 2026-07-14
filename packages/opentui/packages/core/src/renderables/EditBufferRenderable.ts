@@ -68,8 +68,8 @@ export interface EditBufferOptions extends RenderableOptions<EditBufferRenderabl
 
 export abstract class EditBufferRenderable extends Renderable implements LineInfoProvider {
   [BrandedEditBufferRenderable] = true
-  protected _focusable: boolean = true
-  public selectable: boolean = true
+  protected override _focusable: boolean = true
+  public override selectable: boolean = true
   private _traits: EditorTraits = {}
 
   protected _textColor: RGBA
@@ -446,7 +446,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  protected onResize(width: number, height: number): void {
+  protected override onResize(width: number, height: number): void {
     this.editorView.setViewportSize(width, height)
   }
 
@@ -473,7 +473,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     )
   }
 
-  shouldStartSelection(x: number, y: number): boolean {
+  override shouldStartSelection(x: number, y: number): boolean {
     if (!this.selectable) return false
 
     const localX = x - this.x
@@ -482,7 +482,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     return localX >= 0 && localX < this.width && localY >= 0 && localY < this.height
   }
 
-  onSelectionChanged(selection: Selection | null): boolean {
+  override onSelectionChanged(selection: Selection | null): boolean {
     const localSelection = convertGlobalToLocalSelection(selection, this.x, this.y)
     this.lastLocalSelection = localSelection
 
@@ -569,11 +569,11 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  getSelectedText(): string {
+  override getSelectedText(): string {
     return this.editorView.getSelectedText()
   }
 
-  hasSelection(): boolean {
+  override hasSelection(): boolean {
     return this.editorView.hasSelection()
   }
 
@@ -953,7 +953,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     this.nativeRenderable = nativeRenderable
   }
 
-  render(buffer: OptimizedBuffer, deltaTime: number): void {
+  override render(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible) return
     if (this.isDestroyed) return
     // Editor rendering/cursor placement reads absolute coordinates multiple
@@ -968,7 +968,7 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     this.renderCursor(buffer)
   }
 
-  protected renderSelf(buffer: OptimizedBuffer): void {
+  protected override renderSelf(buffer: OptimizedBuffer): void {
     buffer.drawEditorView(this.editorView, this._screenX, this._screenY)
   }
 
@@ -986,19 +986,19 @@ export abstract class EditBufferRenderable extends Renderable implements LineInf
     this._ctx.setCursorStyle({ ...this._cursorStyle, color: this._cursorColor })
   }
 
-  public focus(): void {
+  public override focus(): void {
     super.focus()
     this._ctx.setCursorStyle({ ...this._cursorStyle, color: this._cursorColor })
     this.requestRender()
   }
 
-  public blur(): void {
+  public override blur(): void {
     super.blur()
     this._ctx.setCursorPosition(0, 0, false)
     this.requestRender()
   }
 
-  protected onRemove(): void {
+  protected override onRemove(): void {
     if (this._focused) {
       this._ctx.setCursorPosition(0, 0, false)
     }

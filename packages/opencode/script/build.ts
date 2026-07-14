@@ -139,6 +139,23 @@ if (!skipInstall) {
   await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
   await $`bun install --os="*" --cpu="*" @parcel/watcher@${pkg.dependencies["@parcel/watcher"]}`
   await $`bun install --os="*" --cpu="*" @colbymchenry/codegraph@${pkg.dependencies["@colbymchenry/codegraph"]}`
+  // Force bun to pick up the local native DLL by copying it to the
+  // platform-native install dir that the bundler resolves at compile time.
+  const nativeDll = path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")
+  const nativePkgDir = path.join(dir, "node_modules", "@opentui", "core-win32-x64")
+  if (fs.existsSync(nativeDll)) {
+    fs.mkdirSync(nativePkgDir, { recursive: true })
+    fs.copyFileSync(nativeDll, path.join(nativePkgDir, "opentui.dll"))
+    // bun install only copies the DLL — we need the full package for resolution
+    fs.copyFileSync(
+      path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "index.js"),
+      path.join(nativePkgDir, "index.js"),
+    )
+    fs.copyFileSync(
+      path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "package.json"),
+      path.join(nativePkgDir, "package.json"),
+    )
+  }
 }
 for (const item of targets) {
   const name = [

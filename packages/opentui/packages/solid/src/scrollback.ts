@@ -190,7 +190,7 @@ export function createScrollbackWriter(
     try {
       dispose = renderInternal(
         () =>
-          createComponent(RendererContext.Provider, {
+          createComponent(RendererContext.Provider as any, {
             get value() {
               return snapshotRenderer.renderer
             },

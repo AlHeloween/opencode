@@ -9,7 +9,7 @@ export interface FrameBufferOptions extends RenderableOptions<FrameBufferRendera
 }
 
 export class FrameBufferRenderable extends Renderable {
-  public frameBuffer: OptimizedBuffer
+  public override frameBuffer: OptimizedBuffer
   protected respectAlpha: boolean
 
   constructor(ctx: RenderContext, options: FrameBufferOptions) {
@@ -21,7 +21,7 @@ export class FrameBufferRenderable extends Renderable {
     })
   }
 
-  protected onResize(width: number, height: number): void {
+  protected override onResize(width: number, height: number): void {
     if (width <= 0 || height <= 0) {
       throw new Error(`Invalid resize dimensions for FrameBufferRenderable ${this.id}: ${width}x${height}`)
     }
@@ -31,12 +31,12 @@ export class FrameBufferRenderable extends Renderable {
     this.requestRender()
   }
 
-  protected renderSelf(buffer: OptimizedBuffer): void {
+  protected override renderSelf(buffer: OptimizedBuffer): void {
     if (!this.visible || this.isDestroyed) return
     buffer.drawFrameBuffer(this.x, this.y, this.frameBuffer)
   }
 
-  protected destroySelf(): void {
+  protected override destroySelf(): void {
     // TODO: framebuffer collides with buffered Renderable, which holds a framebuffer
     // and destroys it if it exists already. Maybe instead of extending FrameBufferRenderable,
     // subclasses can use the buffered option on the base renderable instead,

@@ -269,7 +269,7 @@ export abstract class Renderable extends BaseRenderable {
   protected _childrenInLayoutOrder: Renderable[] = []
   protected _childrenInZIndexOrder: Renderable[] = []
   private needsZIndexSort: boolean = false
-  public parent: Renderable | null = null
+  public override parent: Renderable | null = null
 
   private childrenPrimarySortDirty: boolean = true
   private childrenSortedByPrimaryAxis: Renderable[] = []
@@ -334,7 +334,7 @@ export abstract class Renderable extends BaseRenderable {
     return this._ctx
   }
 
-  public get visible(): boolean {
+  public override get visible(): boolean {
     return this._visible
   }
 
@@ -343,7 +343,7 @@ export abstract class Renderable extends BaseRenderable {
     return dir === 2 || dir === 3 ? "row" : "column"
   }
 
-  public set visible(value: boolean) {
+  public override set visible(value: boolean) {
     if (this._visible === value) return
 
     const wasVisible = this._visible
@@ -1541,7 +1541,7 @@ export abstract class Renderable extends BaseRenderable {
     return this._isDestroyed
   }
 
-  public destroy(): void {
+  public override destroy(): void {
     if (this._isDestroyed) {
       return
     }
@@ -1579,7 +1579,7 @@ export abstract class Renderable extends BaseRenderable {
     }
   }
 
-  public destroyRecursively(): void {
+  public override destroyRecursively(): void {
     // Destroy children first to ensure removal as destroy clears child array
     // Make a copy of the children array to avoid iteration issues when children are destroyed
     const children = [...this._childrenInLayoutOrder]
@@ -1765,7 +1765,7 @@ export class RootRenderable extends Renderable {
     this.calculateLayout()
   }
 
-  public render(buffer: OptimizedBuffer, deltaTime: number): void {
+  public override render(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible) return
 
     // 0. Run lifecycle pass
@@ -1834,7 +1834,7 @@ export class RootRenderable extends Renderable {
     }
   }
 
-  protected propagateLiveCount(delta: number): void {
+  protected override propagateLiveCount(delta: number): void {
     const oldCount = this._liveCount
     this._liveCount += delta
 

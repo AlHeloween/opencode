@@ -23,7 +23,7 @@ export class MockTreeSitterClient extends TreeSitterClient {
     await super.destroy()
   }
 
-  async highlightOnce(
+  override async highlightOnce(
     content: string,
     filetype: string,
   ): Promise<{ highlights?: SimpleHighlight[]; warning?: string; error?: string }> {

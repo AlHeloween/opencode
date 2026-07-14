@@ -1,6 +1,7 @@
 import { GPUCanvasContextMock } from "bun-webgpu"
 import { RGBA, type OptimizedBuffer } from "@opentui/core"
 import { SuperSampleType } from "./WGPURenderer.js"
+// @ts-ignore Jimp v1.6.1 type defs have default export but ESM uses named
 import { Jimp } from "jimp"
 
 // @ts-ignore

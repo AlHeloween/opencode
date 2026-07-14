@@ -22,7 +22,7 @@ export interface TextBufferOptions extends RenderableOptions<TextBufferRenderabl
 }
 
 export abstract class TextBufferRenderable extends Renderable implements LineInfoProvider {
-  public selectable: boolean = true
+  public override selectable: boolean = true
 
   protected _defaultFg: RGBA
   protected _defaultBg: RGBA
@@ -107,7 +107,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     this.updateTextInfo()
   }
 
-  protected onMouseEvent(event: any): void {
+  protected override onMouseEvent(event: any): void {
     if (event.type === "scroll") {
       this.handleScroll(event)
     }
@@ -333,7 +333,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  protected onResize(width: number, height: number): void {
+  protected override onResize(width: number, height: number): void {
     this.textBufferView.setViewport(this._scrollX, this._scrollY, width, height)
     this.yogaNode.markDirty()
     this.requestRender()
@@ -397,7 +397,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     this.nativeRenderable = nativeRenderable
   }
 
-  shouldStartSelection(x: number, y: number): boolean {
+  override shouldStartSelection(x: number, y: number): boolean {
     if (!this.selectable) return false
 
     const localX = x - this.x
@@ -406,7 +406,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     return localX >= 0 && localX < this.width && localY >= 0 && localY < this.height
   }
 
-  onSelectionChanged(selection: Selection | null): boolean {
+  override onSelectionChanged(selection: Selection | null): boolean {
     const localSelection = convertGlobalToLocalSelection(selection, this.x, this.y)
     this.lastLocalSelection = localSelection
 
@@ -441,11 +441,11 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     return this.hasSelection()
   }
 
-  getSelectedText(): string {
+  override getSelectedText(): string {
     return this.textBufferView.getSelectedText()
   }
 
-  hasSelection(): boolean {
+  override hasSelection(): boolean {
     return this.textBufferView.hasSelection()
   }
 
@@ -453,7 +453,7 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     return this.textBufferView.getSelection()
   }
 
-  render(buffer: OptimizedBuffer, deltaTime: number): void {
+  override render(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible) return
     // Text views do enough per-frame work that avoiding recursive x/y lookups is
     // measurable; use the layout cache for hit-grid and draw entry points.
@@ -470,13 +470,13 @@ export abstract class TextBufferRenderable extends Renderable implements LineInf
     }
   }
 
-  protected renderSelf(buffer: OptimizedBuffer): void {
+  protected override renderSelf(buffer: OptimizedBuffer): void {
     if (this.textBuffer.ptr) {
       buffer.drawTextBuffer(this.textBufferView, this._screenX, this._screenY)
     }
   }
 
-  destroy(): void {
+  override destroy(): void {
     if (this.isDestroyed) return
 
     if (this.nativeRenderable) {

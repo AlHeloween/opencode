@@ -514,7 +514,6 @@
         "strip-ansi": "7.1.2",
       },
       "devDependencies": {
-        "@opentui/keymap": "workspace:*",
         "@types/bun": "latest",
         "@types/node": "^24.0.0",
         "commander": "^13.1.0",

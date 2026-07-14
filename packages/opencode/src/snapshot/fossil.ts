@@ -53,7 +53,7 @@ export const layer = Layer.effect(
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("SnapshotFossil.state")(function* (ctx) {
-        const fossilDir = path.join(Global.Path.data, "fossil", ctx.project.id)
+        const fossilDir = path.join(ctx.worktree, ".opencode", "data", "fossil", ctx.project.id)
         const repoPath = path.join(fossilDir, "snapshot.fsl")
         const worktree = ctx.worktree
         const locked = <A, E, R>(fx: Effect.Effect<A, E, R>) => lock(fossilDir).withPermits(1)(fx)
@@ -143,34 +143,32 @@ export const layer = Layer.effect(
           yield* ensureIgnoreGlob()
 
           if (yield* fs.exists(repoPath)) {
-            const openResult = yield* fossil(["open", repoPath, "--force", "--keep"], { cwd: worktree }).pipe(
+            const openResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
               Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
             )
             if (openResult.code === 0) {
-              // Close and reopen to recreate the checkout DB.
-              // A stale _FOSSIL_ from a previous instance causes
-              // "Unresolved RID values" on commit. close+open fixes it.
+              // A stale _FOSSIL_ can make `open --force` succeed while later
+              // commands fail with "Unresolved RID values". Do not recreate
+              // a healthy checkout: other services may be using it.
+              const currentResult = yield* fossil(["info", "current"], { cwd: worktree })
+              if (currentResult.code === 0) return
               yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
-              yield* fossil(["open", repoPath, "--force", "--keep"], { cwd: worktree }).pipe(
+              yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
+              const reopenResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
                 Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
               )
-              return
+              if (reopenResult.code === 0) return
+              log.warn("fossil reopen failed, performing atomic recovery", { stderr: reopenResult.stderr })
+            } else {
+              log.warn("fossil open failed, performing atomic recovery", { stderr: openResult.stderr })
             }
 
-            // Corrupted or out-of-sync database — atomic recovery scoped to this checkout/repo pair
-            log.warn("fossil open failed, performing atomic recovery", { stderr: openResult.stderr })
-
-            // Close stale checkout database (may point to a deleted or mismatched repo)
+            // Corrupted or out-of-sync repository — recovery is scoped to
+            // this checkout/repository pair and continues into reinit below.
             yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
-
-            // Remove corrupted repo file
             yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
-
-            // Remove stale checkout DB and ignore-glob for clean reinit
             yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
             yield* fs.remove(path.join(worktree, ".fossil-settings", "ignore-glob")).pipe(Effect.catch(() => Effect.void))
-
-            return
           }
 
           log.info("initializing fossil repo", { repoPath, worktree })
@@ -182,16 +180,22 @@ export const layer = Layer.effect(
             return
           }
 
-          const openResult = yield* fossil(["open", repoPath, "--force", "--keep"], { cwd: worktree })
+          const openResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree })
           if (openResult.code !== 0) {
             log.warn("fossil open failed", { stderr: openResult.stderr })
             return
           }
 
-          // Initial empty commit
-          yield* fossil(["commit", "-m", "opencode-init", "--no-warnings", "--allow-fork", "--hash"], { cwd: worktree }).pipe(
-            Effect.catch(() => Effect.void),
+          // Establish a checkpointable baseline even when the worktree has
+          // no files Fossil can add yet.
+          const baselineResult = yield* fossil(
+            ["commit", "-m", "opencode-init", "--no-warnings", "--allow-fork", "--allow-empty", "--hash"],
+            { cwd: worktree },
           )
+          if (baselineResult.code !== 0) {
+            log.warn("bug: fossil baseline commit failed", { stderr: baselineResult.stderr })
+            return
+          }
 
           log.info("fossil repo initialized", { repoPath })
         })
@@ -248,6 +252,7 @@ export const layer = Layer.effect(
               // Get current version before commit
               const before = yield* fossil(["info", "current"], { cwd: worktree })
               const beforeHash = before.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim() ?? ""
+              if (!beforeHash) log.warn("bug: fossil current hash unavailable", { stderr: before.stderr })
 
               // Use --allow-fork: when autosync is enabled (Fossil default),
               // commits that would create a fork are rejected unless --allow-fork
@@ -259,7 +264,7 @@ export const layer = Layer.effect(
 
               if (commitResult.code !== 0) {
                 log.info("tracking commit failed", { hash: beforeHash, stderr: commitResult.stderr })
-                return beforeHash
+                return beforeHash || undefined
               }
 
               // Parse new version from output
@@ -458,14 +463,6 @@ export const layer = Layer.effect(
             }).pipe(Effect.orDie),
           )
         })
-
-        // Eagerly init
-        yield* ensureInit().pipe(
-          Effect.catch((err) => {
-            log.warn("bug: fossil eager init failed", { error: String(err) })
-            return Effect.void
-          }),
-        )
 
         return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull }
       }),

@@ -18,8 +18,12 @@ const FOSSIL = path.resolve(import.meta.dirname!, "..", "..", "..", "..", "exter
 if (!existsSync(FOSSIL)) throw new Error("fossil not found: " + FOSSIL)
 
 function fossil(args: string[], cwd: string): string {
-  try { return execFileSync(FOSSIL, args, { cwd, encoding: "utf8", timeout: 5000 }) }
-  catch (e: any) { return "ERROR: " + ((e.stderr ?? e.message) + "") }
+  try {
+    return execFileSync(FOSSIL, args, { cwd, encoding: "utf8", timeout: 5000 })
+  } catch (err) {
+    const error = err as { stderr?: string; message?: string }
+    throw new Error(`fossil ${args.join(" ")} failed: ${error.stderr ?? error.message ?? "unknown error"}`)
+  }
 }
 
 describe("fossil smoke", () => {
@@ -29,7 +33,8 @@ describe("fossil smoke", () => {
     try {
       fossil(["init", "r.fsl"], tmp)
       fossil(["open", "r.fsl", "--force", "--keep"], tmp)
-      fossil(["commit", "-m", "init", "--no-warnings", "--allow-fork", "--allow-empty"], tmp)
+      expect(fossil(["commit", "-m", "init", "--no-warnings", "--allow-fork", "--allow-empty", "--hash"], tmp)).toContain("New_Version:")
+      expect(fossil(["info", "current"], tmp)).toMatch(/hash:\s+[a-f0-9]+/)
 
       // First file commit
       writeFileSync(path.join(tmp, "f.txt"), "v1")

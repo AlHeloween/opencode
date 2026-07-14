@@ -49,7 +49,6 @@ import { Instruction } from "../../src/session/instruction"
 import { SessionProcessor } from "../../src/session/processor"
 import { SessionRunState } from "../../src/session/run-state"
 import { SessionStatus } from "../../src/session/status"
-import { Snapshot } from "../../src/snapshot"
 import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { ToolRegistry } from "@/tool/registry"
 import { Jobs } from "@/jobs"
@@ -198,6 +197,9 @@ it.live("tool execution produces non-empty session diff (snapshot race)", () =>
       const prompt = yield* SessionPrompt.Service
       const sessions = yield* Session.Service
       const summary = yield* SessionSummary.Service
+      const config = yield* Config.Service
+
+      expect((yield* config.get()).snapshot).not.toBe(false)
 
       const session = yield* sessions.create({
         title: "snapshot race test",
@@ -240,6 +242,19 @@ it.live("tool execution produces non-empty session diff (snapshot race)", () =>
         .flatMap((m) => m.parts)
         .find((p): p is MessageV2.ToolPart => p.type === "tool" && p.tool === "bash")
       expect(tool?.state.status).toBe("completed")
+
+      const steps = allMsgs
+        .flatMap((m) => m.parts)
+        .filter((p): p is MessageV2.StepStartPart | MessageV2.StepFinishPart =>
+          p.type === "step-start" || p.type === "step-finish",
+        )
+      expect(steps.map((p) => p.type)).toContain("step-start")
+      expect(steps.map((p) => p.type)).toContain("step-finish")
+      const snapshots = steps
+        .filter((p) => Boolean(p.snapshot))
+        .map((p) => p.snapshot)
+      expect(snapshots.length).toBeGreaterThanOrEqual(2)
+      expect(snapshots.at(0)).not.toBe(snapshots.at(-1))
 
       // Poll for diff — summarize() is fire-and-forget
       let diff: Array<{ file: string }> = []

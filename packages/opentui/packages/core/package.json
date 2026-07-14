@@ -9,7 +9,7 @@
   "types": "dist/index.d.ts",
   "module": "dist/index.js",
   "main": "dist/index.js",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "type": "module",
   "scripts": {
     "build": "bun run build:native && bun run build:lib",

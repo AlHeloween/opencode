@@ -1,4 +1,5 @@
-import "@opentui/solid/runtime-plugin-support"
+import { ensureRuntimePluginSupport } from "@opentui/solid/runtime-plugin-support/configure"
+import * as SpinnerSolid from "opentui-spinner/solid"
 import {
   type TuiDispose,
   type TuiPlugin,
@@ -37,6 +38,12 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { INTERNAL_TUI_PLUGINS, type InternalTuiPlugin } from "./internal"
 import { setupSlots, Slot as View } from "./slots"
 import type { HostPluginApi, HostSlots } from "./slots"
+
+ensureRuntimePluginSupport({
+  additional: {
+    "opentui-spinner/solid": SpinnerSolid,
+  },
+})
 import { ConfigPlugin } from "@/config/plugin"
 
 type PluginLoad = {
@@ -450,6 +457,8 @@ async function activatePluginEntry(state: RuntimeState, plugin: PluginEntry, per
     })
 
   if (!ok) {
+    plugin.enabled = false
+    if (persist) writePluginEnabledState(state.api, plugin.id, false)
     await scope.dispose()
     return false
   }

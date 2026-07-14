@@ -12,6 +12,5 @@ Active plans. Completed plans move to `plans_completed/`.
 
 | Plan | Status |
 |------|--------|
-| `20260714_fix_snapshotfossil_config_isolation.md` | Pending — fix Config.Service isolation in snapshot-race test |
 | `2026-07-13_master-fossil-typecheck-jsc.md` | Active — Subplan 06 (build stress) remaining |
 | `2026-07-05_wasm-cli-sandbox.md` | Research — Phase 1 done, Phases 2-3 not started |

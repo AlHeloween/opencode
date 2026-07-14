@@ -1,7 +1,8 @@
 /** @jsxImportSource @opentui/solid */
-import { createSignal, onMount, Show } from "@opentui/solid"
+import { createSignal, onMount, Show } from "solid-js"
 import { useKeyboard, useTerminalDimensions, type JSX } from "@opentui/solid"
 import { RGBA, VignetteEffect } from "@opentui/core"
+import "opentui-spinner/solid"
 import type {
   TuiKeybindSet,
   TuiPlugin,

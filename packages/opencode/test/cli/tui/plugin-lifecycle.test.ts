@@ -108,6 +108,7 @@ test("rolls back failed plugin and continues loading next", async () => {
     await TuiPluginRuntime.init({ api: createTuiPluginApi(), config })
     // bad plugin's onDispose ran during rollback
     await expect(fs.readFile(tmp.extra.badMarker, "utf8")).resolves.toBe("cleaned")
+    expect(TuiPluginRuntime.list().find((plugin) => plugin.id === "demo.bad")?.enabled).toBe(false)
     // good plugin still loaded
     await expect(fs.readFile(tmp.extra.goodMarker, "utf8")).resolves.toBe("called")
   } finally {
@@ -175,6 +176,47 @@ export default {
   } finally {
     await TuiPluginRuntime.dispose()
     err.mockRestore()
+    restore()
+  }
+})
+
+test("loads a local plugin that imports the host spinner extension", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      const file = path.join(dir, "spinner-plugin.tsx")
+      const spec = pathToFileURL(file).href
+      const marker = path.join(dir, "spinner-loaded.txt")
+
+      await Bun.write(
+        file,
+        `/** @jsxImportSource @opentui/solid */
+import "opentui-spinner/solid"
+import { createSignal } from "solid-js"
+
+export default {
+  id: "demo.spinner",
+  tui: async (api, options) => {
+    const [visible] = createSignal(true)
+    api.slots.register({
+      slots: { home_logo() { return visible() ? <spinner name="dots" /> : null } },
+    })
+    await Bun.write(options.marker, "loaded")
+  },
+}
+`,
+      )
+
+      return { spec, marker }
+    },
+  })
+
+  const { config, restore } = mockTuiRuntime(tmp.path, [[tmp.extra.spec, { marker: tmp.extra.marker }]])
+
+  try {
+    await TuiPluginRuntime.init({ api: createTuiPluginApi(), config })
+    await expect(fs.readFile(tmp.extra.marker, "utf8")).resolves.toBe("loaded")
+  } finally {
+    await TuiPluginRuntime.dispose()
     restore()
   }
 })

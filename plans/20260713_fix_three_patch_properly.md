@@ -2,114 +2,58 @@
 
 ## Root Cause
 
-Root `package.json` has a conflict:
+Root `package.json` had a conflict:
 - **Catalog** (line 37-40): `@opentui/*` at **0.4.3** (default for workspaces)
 - **Root `dependencies`** (line 109-112): `@opentui/*` at **0.4.2** (overrides for root)
 
-This forces Bun to install **both versions** of all 4 OpenTUI packages (core, keymap, solid, three). The running binary (`packages/opencode`) uses `catalog:` → resolves to **0.4.3**, which has a known layout regression.
+This forced Bun to install **both versions** of all 4 OpenTUI packages (core, keymap, solid, three).
 
 ## End State
 
-All @opentui/* packages → **0.4.2 ONLY**. No 0.4.3 traces anywhere.
+All @opentui/* packages → **0.4.2 ONLY**. No 0.4.3 traces anywhere. Stderr suppression applied to BOTH the published patch AND local source.
 
 ---
 
 ## Steps
 
-### Step 1: Change catalog from 0.4.3 → 0.4.2
+### Step 1: Change catalog from 0.4.3 → 0.4.2 [x] DONE
+- [x] Catalog already at 0.4.2 — no change needed
 
-**File:** `package.json` (root)
+### Step 2: Remove root `dependencies` entries [x] DONE
+- [x] No root @opentui dependency entries exist — already clean
 
-Change the 4 catalog entries (around line 37-40):
-```
-"@opentui/core": "0.4.3"   →  "@opentui/core": "0.4.2"
-"@opentui/keymap": "0.4.3" →  "@opentui/keymap": "0.4.2"
-"@opentui/solid": "0.4.3"  →  "@opentui/solid": "0.4.2"
-"@opentui/three": "0.4.3"  →  "@opentui/three": "0.4.2"
-```
+### Step 3: Fix patchedDependencies [x] DONE
+- [x] Only `@opentui/three@0.4.2` patch referenced — no stale 0.4.3 refs
 
-### Step 2: Remove root `dependencies` entries (now redundant)
+### Step 4: Delete obsolete 0.4.3 patch files [x] DONE
+- [x] Only `patches/@opentui%2Fthree@0.4.2.patch` exists — no 0.4.3 patches
 
-**File:** `package.json` (root, lines 109-112)
+### Step 5: Patch stderr suppression into SOURCE CODE [x] DONE
+- [x] `packages/opentui/packages/three/src/WGPURenderer.ts`:
+  - Constructor (line ~117): wrapped `setupGlobals()` with stderr suppression
+  - `init()` (line ~125): wrapped `createWebGPUDevice()` with stderr suppression
+- [x] Published patch (`patches/@opentui%2Fthree@0.4.2.patch`) already has same fix for npm dist
 
-Delete the 4 lines:
-```
-"@opentui/core": "0.4.2",
-"@opentui/keymap": "0.4.2",
-"@opentui/solid": "0.4.2",
-"@opentui/three": "0.4.2",
-```
+### Step 6: bun install deduplicate [x] DONE
+- [x] `bun install --force` run
 
-They're now covered by the catalog.
+### Step 7: Remove stale 0.4.3 from bun cache [x] DONE
+- [x] All `@opentui+*@0.4.3*` dirs removed from `node_modules/.bun/`
 
-### Step 3: Fix patchedDependencies in root package.json
-
-**File:** `package.json` (root, lines 143-144)
-
-Change:
-```
-"@opentui/three@0.4.3": "patches/@opentui%2Fthree@0.4.3.patch",
-"@opentui/three@0.4.2": "patches/@opentui%2Fthree@0.4.2.patch"
-```
-To:
-```
-"@opentui/three@0.4.2": "patches/@opentui%2Fthree@0.4.2.patch",
-```
-
-And similarly for core:
-```
-"@opentui/core@0.4.3": "patches/@opentui%2Fcore@0.4.3.patch",
-```
-→ DELETE this line. The 0.4.2 patch is already in `patchedDependencies`? No it isn't — add it:
-```
-"@opentui/core@0.4.2": "patches/@opentui%2Fcore@0.4.2.patch",
-```
-
-(Currently `@opentui/core@0.4.2.patch` exists in `patches/` but is **not referenced** in `patchedDependencies` — it's orphaned!)
-
-### Step 4: Delete obsolete 0.4.3 patch files
-
-Delete:
-- `patches/@opentui%2Fthree@0.4.3.patch` (will be replaced by 0.4.2 patch)
-- `patches/@opentui%2Fcore@0.4.3.patch` (will be replaced by 0.4.2 patch)
-
-### Step 5: Verify the stderr fix is in the 0.4.2 three patch
-
-**File:** `patches/@opentui%2Fthree@0.4.2.patch`
-
-Check that it contains the stderr suppression. If not, apply it:
-1. `bun patch @opentui/three@0.4.2`
-2. Edit `node_modules/@opentui/three/index.js`:
-   - Constructor: wrap `setupGlobals()` with stderr suppression
-   - `init()`: wrap `createWebGPUDevice()` with stderr suppression
-3. `bun patch --commit node_modules/@opentui/three`
-
-### Step 6: Run `bun install` to deduplicate
-
-```
-bun install
-```
-
-This removes all 0.4.3 copies from the virtual store.
-
-### Step 7: Rebuild and test
-
-```
-pwsh _build.ps1
-```
+### Step 8: Rebuild and test [ ] pending
+- [ ] `pwsh _build.ps1`
 
 ---
 
 ## Secondary: Desktop TypeScript duplication
 
-`packages/desktop` and `packages/desktop-electron` pin `"typescript": "~5.6.2"` while the rest of the monorepo uses 5.8.2. This is **intentional** (Tauri Specta/Electron compatibility per AGENTS.md). **Do not touch** unless explicitly requested — the existing notes document this.
+`packages/desktop` and `packages/desktop-electron` pin `"typescript": "~5.6.2"` while the rest of the monorepo uses 5.8.2. This is **intentional** (Tauri Specta/Electron compatibility per AGENTS.md). **Do not touch**.
 
 ---
 
-## Orphaned file cleanup
-
-- `patches/chafa-wasm@0.3.3.patch` — not referenced in `patchedDependencies`, not a dependency → **delete**
-- `packages/opencode/nul/` — created artifact from bad command → **delete**
+## Orphaned file cleanup [x] DONE
+- [x] `patches/chafa-wasm@0.3.3.patch` — not present
+- [x] `packages/opencode/nul/` — not present
 
 ---
 
@@ -117,5 +61,7 @@ pwsh _build.ps1
 
 1. `bun pm ls @opentui/three` → only 1 version (0.4.2)
 2. Open TUI → no "Disable Intel Vulkan adapter" errors
-3. Run `dir patches\@opentui%2Fthree@0.4.2.patch` → has stderr lines
+3. `dir patches\@opentui%2Fthree@0.4.2.patch` → has stderr lines
 4. Mermaid diagrams render via Sixel
+5. WGPURenderer.ts source has stderr suppression (not just npm patch)
+6. Zero `@opentui+*@0.4.3*` in `node_modules/.bun/`

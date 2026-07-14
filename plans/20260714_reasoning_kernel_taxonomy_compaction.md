@@ -7,9 +7,9 @@ Keep the proven hybrid Python/text reasoning framework and its test oracles, whi
 ## Current State
 
 - `opencode_prompts_kernel.py` is the canonical 3,513-line source: reasoning protocol, project specifications, syntax projections, epistemic projections, IR helpers, schema, examples, and tests.
-- `packages/opencode/src/provider/transform.ts` currently concatenates `reasoning.txt` and a byte-identical copy of that entire source (`opencode_prompts_kernel.txt`) into every model prefix.
+- `packages/opencode/src/provider/transform.ts` concatenates `reasoning.txt` and the deterministic compact runtime kernel generated into `opencode_prompts_kernel.txt` into every model prefix.
 - The documented `compile_to_ir()` helper is exercised by Python tests but is not the runtime compilation path.
-- The runtime source includes development-only implementation, comments, examples, and validators alongside operating rules. It also has an overwritten duplicate `GROUNDING_RULES.state["search_priority_chain"]` key.
+- The canonical source retains development-only implementation, comments, examples, and validators alongside operating rules; the generated runtime artifact excludes those source-only sections. The former duplicate `GROUNDING_RULES.state["search_priority_chain"]` key is covered by an AST regression oracle.
 - Prefix order is intentionally stable and checkpoint/cache behavior is already strong. This plan must preserve deterministic ordering and session-level prompt immutability.
 
 ## Invariants
@@ -52,33 +52,33 @@ PACKS = MappingProxyType({"agent.build": BuildPack(...), "lang.typescript": Type
 
 - [x] Add an explicit `PROMPT_ABI` with a version and precedence order.
 - [x] Define the runtime root taxonomy: `TERMS`, `RULES`, `WORKFLOWS`, and `PACKS`.
-- [ ] Inventory every existing runtime instruction and assign a canonical owner and stable ID, for example `EVIDENCE.ORDER`, `WRITE.SCOPE`, and `VERIFY.OUTCOME`.
-- [ ] Convert repeated prose in agent, tool, governance, and grounding specifications into references to canonical rule IDs.
+- [x] Inventory every existing runtime instruction and assign a canonical owner and stable ID, for example `EVIDENCE.ORDER`, `WRITE.SCOPE`, and `VERIFY.OUTCOME`.
+- [x] Convert repeated prose in agent, tool, governance, and grounding specifications into references to canonical rule IDs.
 - [x] Fix the duplicate `search_priority_chain` source key and add an AST regression oracle for duplicate literal mapping keys.
 
 ### 2. Separate source-only machinery from model-facing declarations
 
-- [ ] Keep enums, dataclasses, state machines, PromptSpec validation, IR expansion, examples, and Python test helpers in the canonical source.
+- [x] Keep enums, dataclasses, state machines, PromptSpec validation, IR expansion, examples, and Python test helpers in the canonical source.
 - [x] Mark the model-facing declarations explicitly rather than relying on source-file location.
 - [ ] Keep discipline projections as hierarchical Pythonic packs (`universal → natural/social → discipline`) with explicit parent references and precedence.
 - [ ] Preserve all existing agent/tool contracts, but compile them through the shared keyword vocabulary.
-- [ ] Define how agent prompt files reference generated rule IDs and how their compact Python-shaped contracts compose with the runtime kernel.
-- [ ] Audit the unreferenced `packages/opencode/src/agent/prompt/opencode_prompts_kernel.txt` copy; remove it or make it an explicitly generated, tested consumer so it cannot drift.
+- [x] Define how agent prompt files reference generated rule IDs and how their compact Python-shaped contracts compose with the runtime kernel.
+- [x] Audit the unreferenced `packages/opencode/src/agent/prompt/opencode_prompts_kernel.txt` copy; remove it or make it an explicitly generated, tested consumer so it cannot drift.
 
 ### 3. Implement deterministic runtime compilation
 
 - [x] Add a compiler entry point that consumes the marked model-facing taxonomy and produces `packages/opencode/src/session/prompt/opencode_prompts_kernel.txt`.
 - [x] Render readable Python-like declarations with semantic names; do not use an opaque abbreviation-only IR.
 - [x] Enforce canonical ordering of sections, mapping keys, rules, pack ancestry, and LF output line endings.
-- [ ] Update the prompt-copy/generation workflow so the generated runtime file cannot silently drift from its canonical source.
+- [x] Update the prompt-copy/generation workflow so the generated runtime file cannot silently drift from its canonical source.
 - [x] Replace the current build-time blind copy with deterministic generation.
 - [x] Change the runtime import to the generated kernel while retaining `reasoning.txt` as the complementary execution protocol.
 
 ### 4. Add structural compiler oracles
 
 - [x] Add an AST-level duplicate mapping-key test so Python's last-write-wins behavior cannot hide a lost rule.
-- [ ] Add a normalized semantic-rule deduplication test; duplicates require an explicit alias declaration.
-- [ ] Add a reference/reachability test: every workflow and pack rule ID resolves exactly once, and every active term is reachable from a runtime root.
+- [x] Add a normalized semantic-rule deduplication test; duplicates require an explicit alias declaration.
+- [x] Add a reference/reachability test: every workflow and pack rule ID resolves exactly once, and every active term is reachable from a runtime root.
 - [ ] Add precedence tests for global policy, workflow policy, and domain/tool projections.
 - [x] Add deterministic compilation tests: identical source produces byte-identical output and a stable digest.
 - [ ] Keep existing PromptSpec, projection, IR round-trip, and reasoning behavior tests unchanged unless the public contract intentionally changes.
@@ -90,7 +90,7 @@ PACKS = MappingProxyType({"agent.build": BuildPack(...), "lang.typescript": Type
 - [ ] Add a system-prefix snapshot/digest test with a deliberately documented update procedure for intentional kernel revisions.
 - [ ] Add an `llm.ts`/session-level exact-composition test covering universal environment, active/inactive-tools marker, serialized tool schemas, session banner, optional user system content, compiled identity, agent prompt order, plugin `experimental.chat.system.transform`, and final system collapse—not only the inner `transform.ts` prefix.
 - [ ] Design and test checkpoint migration: either replay the saved identity prefix byte-for-byte, or invalidate and atomically rebuild pre-migration checkpoints before a request is sent.
-- [ ] Run targeted Python reasoning/schema tests and package-level Bun prompt tests from their respective directories.
+- [x] Run targeted Python reasoning/schema tests and package-level Bun prompt tests from their respective directories.
 - [ ] Measure prefix bytes/tokens before and after; report separate totals for `reasoning.txt`, compiled kernel, agent contract, and tool/skill additions.
 
 ## [KV-CACHE RISK]
@@ -99,13 +99,13 @@ Replacing the raw source prefix changes the immutable system-prompt bytes for ne
 
 ## Acceptance Tests
 
-- [ ] No duplicate dictionary keys or unapproved semantic duplicates in the canonical kernel.
+- [x] No duplicate dictionary keys or unapproved semantic duplicates in the canonical kernel.
 - [ ] Every generated keyword/reference resolves and obeys declared precedence.
-- [ ] Generated runtime kernel is byte-identical across repeated builds and is synchronized with its source.
+- [x] Generated runtime kernel is byte-identical across repeated builds and is synchronized with its source.
 - [ ] Provider transform loads the generated kernel in a stable order.
 - [ ] Checkpoint migration behavior is explicit, tested, and cannot combine an old checkpoint tail with a new identity prefix silently.
 - [ ] Full provider-facing system composition has stable byte order through plugin transformation and final collapse, including environment, tools-active state, tool schemas, session banner, optional user system, compiled identity, and agent prompt.
-- [ ] Existing reasoning, PromptSpec, projection, and IR tests pass.
+- [x] Existing reasoning, PromptSpec, projection, and IR tests pass.
 - [ ] The compiled runtime prefix is materially smaller while retaining all active operating rules and Pythonic structural cues.
 
 ## Non-Goals

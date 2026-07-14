@@ -26,6 +26,7 @@ Date: 2026-07-12
 # ======================================================================
 
 import ast
+from collections.abc import Mapping
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -2203,22 +2204,103 @@ RUNTIME_RULES = MappingProxyType({
     "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
 })
 
+# Source-only declarations for normalized duplicate detection. A rule may repeat
+# only when its identifier explicitly aliases the canonical rule identifier.
+RUNTIME_RULE_ALIASES = MappingProxyType({})
+
+# One semantic owner per rule keeps the runtime dictionary navigable without
+# duplicating policy prose across agents, skills, commands, or grounding specs.
+RUNTIME_RULE_OWNERS = MappingProxyType({
+    "CACHE.STABILITY": "cache",
+    "EVIDENCE.ORDER": "evidence",
+    "SEARCH.ORDER": "evidence",
+    "VERIFY.OUTCOME": "verification",
+    "WRITE.SCOPE": "mutation",
+})
+
 RUNTIME_WORKFLOWS = MappingProxyType({
-    "diagnose": ("scope", "evidence", "SEARCH.ORDER", "verification"),
-    "modify": ("scope", "mutation", "WRITE.SCOPE", "verification", "VERIFY.OUTCOME"),
-    "observe": ("scope", "evidence", "SEARCH.ORDER"),
-    "research": ("evidence", "SEARCH.ORDER", "verification"),
+    "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification"),
+    "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME"),
+    "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER"),
+    "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification"),
 })
 
 RUNTIME_PACKS = MappingProxyType({
-    "agent.build": ("modify", "diagnose"),
-    "agent.general": ("observe", "research"),
-    "agent.researcher": ("research",),
-    "domain.natural_science": ("evidence", "verification"),
-    "domain.social_science": ("evidence", "verification"),
-    "lang.markdown": ("scope",),
-    "lang.python": ("scope", "verification"),
-    "lang.typescript": ("scope", "verification"),
+    "agent.build": ("universal", "modify", "diagnose"),
+    "agent.coder": ("agent.build",),
+    "agent.compaction": ("universal", "plan", "cache", "verification"),
+    "agent.explore": ("universal", "observe"),
+    "agent.general": ("universal", "observe", "research"),
+    "agent.media": ("universal", "scope", "mutation", "verification"),
+    "agent.orchestrator": ("universal", "plan", "observe", "verification"),
+    "agent.researcher": ("agent.general",),
+    "agent.summary": ("universal", "plan", "evidence", "verification"),
+    "agent.title": ("universal", "scope"),
+    "domain.biology": ("domain.natural_science",),
+    "domain.chemistry": ("domain.natural_science",),
+    "domain.economics": ("domain.social_science",),
+    "domain.history": ("domain.social_science",),
+    "domain.natural_science": ("universal", "evidence", "verification"),
+    "domain.physics": ("domain.natural_science",),
+    "domain.psychology": ("domain.social_science",),
+    "domain.social_science": ("universal", "evidence", "verification"),
+    "domain.sociology": ("domain.social_science",),
+    "lang.markdown": ("universal", "scope"),
+    "lang.python": ("universal", "scope", "verification"),
+    "lang.typescript": ("universal", "scope", "verification"),
+    "universal": ("evidence", "scope", "verification"),
+})
+
+# Source spec names are stable development identifiers. Runtime contract IDs are
+# the compact model-facing vocabulary and deliberately carry no repeated prose.
+SPEC_CONTRACT_IDS = MappingProxyType({
+    "ADID_FRAMEWORK_RULES": "policy.adid", "ADM_EXE": "skill.adm_exe", "ADM_MCP": "skill.adm_mcp",
+    "AGENT_ASSETS": "skill.agent_assets", "AI_DEPS": "command.ai_deps", "APPLY_PATCH_EDITS": "skill.apply_patch",
+    "CHANGELOG": "command.changelog", "CMD_RUNNER": "skill.cmd_runner", "CODER": "agent.coder",
+    "CODING_AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit", "COMPACTION": "agent.compaction",
+    "DEFAULT_PROMPT": "policy.default", "DELPHI_BUILDER": "skill.delphi_builder", "DUNIT": "skill.dunit",
+    "DUPLICATE_PR": "command.duplicate_pr", "EXPLORER": "agent.explore", "GENERAL": "agent.general",
+    "GOVERNANCE": "policy.governance", "GROUNDING_RULES": "policy.grounding", "ISSUES": "command.issues",
+    "LEARN": "command.learn", "MEDIA": "agent.media", "ORCHESTRATOR": "agent.orchestrator",
+    "PATCH_TOOL": "skill.patch_tool", "RAG": "skill.rag", "RESEARCHER": "agent.researcher",
+    "RMSLOP": "command.rmslop", "SPELLCHECK": "command.spellcheck", "SUMMARY": "agent.summary",
+    "TITLE": "agent.title", "TRANSLATE": "command.translate", "TRIAGE": "command.triage",
+})
+
+RUNTIME_CONTRACTS = MappingProxyType({
+    "agent.coder": ("plan", "scope", "mutation", "verification", "WRITE.SCOPE", "VERIFY.OUTCOME"),
+    "agent.compaction": ("plan", "cache", "verification"),
+    "agent.explore": ("scope", "evidence", "SEARCH.ORDER"),
+    "agent.general": ("plan", "scope", "evidence", "verification"),
+    "agent.media": ("scope", "mutation", "verification"),
+    "agent.orchestrator": ("plan", "scope", "evidence", "verification"),
+    "agent.researcher": ("scope", "evidence", "SEARCH.ORDER", "verification"),
+    "agent.summary": ("plan", "evidence", "verification"),
+    "agent.title": ("scope",),
+    "command.ai_deps": ("scope", "evidence", "verification"),
+    "command.changelog": ("scope", "evidence", "verification"),
+    "command.commit": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "command.duplicate_pr": ("scope", "evidence", "verification"),
+    "command.issues": ("scope", "evidence", "SEARCH.ORDER"),
+    "command.learn": ("scope", "evidence", "verification"),
+    "command.rmslop": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "command.spellcheck": ("scope", "evidence", "verification"),
+    "command.translate": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "command.triage": ("scope", "evidence", "verification"),
+    "policy.adid": ("scope", "evidence", "verification", "SEARCH.ORDER"),
+    "policy.coding": ("plan", "evidence", "verification", "EVIDENCE.ORDER", "VERIFY.OUTCOME"),
+    "policy.default": ("scope",),
+    "policy.governance": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "policy.grounding": ("evidence", "verification", "EVIDENCE.ORDER", "SEARCH.ORDER"),
+    "skill.adm_exe": ("scope", "mutation", "verification"),
+    "skill.adm_mcp": ("scope", "mutation", "verification"),
+    "skill.agent_assets": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "skill.apply_patch": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "skill.cmd_runner": ("scope", "evidence", "verification"),
+    "skill.delphi_builder": ("scope", "verification"),
+    "skill.dunit": ("scope", "verification"),
+    "skill.patch_tool": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "skill.rag": ("scope", "evidence", "SEARCH.ORDER", "verification"),
 })
 
 
@@ -2244,6 +2326,7 @@ def render_runtime_kernel() -> str:
         ("RULES", RUNTIME_RULES),
         ("WORKFLOWS", RUNTIME_WORKFLOWS),
         ("PACKS", RUNTIME_PACKS),
+        ("CONTRACTS", RUNTIME_CONTRACTS),
     ):
         lines.extend(_render_runtime_mapping(name, values))
         lines.append("")
@@ -2253,6 +2336,143 @@ def render_runtime_kernel() -> str:
 def runtime_kernel_digest() -> str:
     """Return the stable SHA256 digest of the generated runtime kernel."""
     return hashlib.sha256(render_runtime_kernel().encode("utf-8")).hexdigest()
+
+
+def normalize_runtime_rule(value: str) -> str:
+    """Normalize rule text for deterministic duplicate detection."""
+    return " ".join("".join(char if char.isalnum() else " " for char in value.casefold()).split())
+
+
+def find_normalized_runtime_rule_duplicates(
+    rules: Mapping[str, str], aliases: Mapping[str, str],
+) -> list[tuple[str, tuple[str, ...]]]:
+    """Return duplicate rule groups that lack explicit aliases to one canonical ID."""
+    grouped: dict[str, list[str]] = {}
+    for rule_id, value in rules.items():
+        grouped.setdefault(normalize_runtime_rule(value), []).append(rule_id)
+
+    duplicates: list[tuple[str, tuple[str, ...]]] = []
+    for normalized, rule_ids in grouped.items():
+        if len(rule_ids) < 2:
+            continue
+        canonical_ids = [rule_id for rule_id in rule_ids if rule_id not in aliases]
+        if len(canonical_ids) != 1:
+            duplicates.append((normalized, tuple(sorted(rule_ids))))
+            continue
+        canonical = canonical_ids[0]
+        if all(rule_id == canonical or aliases.get(rule_id) == canonical for rule_id in rule_ids):
+            continue
+        duplicates.append((normalized, tuple(sorted(rule_ids))))
+    return sorted(duplicates)
+
+
+def validate_runtime_references(
+    terms: Mapping[str, str],
+    rules: Mapping[str, str],
+    workflows: Mapping[str, tuple[str, ...]],
+    packs: Mapping[str, tuple[str, ...]],
+) -> list[str]:
+    """Return deterministic errors for unresolved runtime declarations."""
+    errors: list[str] = []
+    declarations = set(terms) | set(rules)
+    if len(declarations) != len(terms) + len(rules):
+        errors.append("term and rule identifiers must be disjoint")
+
+    referenced_declarations: set[str] = set()
+    referenced_workflows: set[str] = set()
+    for workflow, references in workflows.items():
+        seen: set[str] = set()
+        for reference in references:
+            if reference in seen:
+                errors.append(f"workflow {workflow!r} references {reference!r} more than once")
+            seen.add(reference)
+            if reference not in declarations:
+                errors.append(f"workflow {workflow!r} references unknown declaration {reference!r}")
+                continue
+            referenced_declarations.add(reference)
+
+    for pack, references in packs.items():
+        seen: set[str] = set()
+        for reference in references:
+            if reference in seen:
+                errors.append(f"pack {pack!r} references {reference!r} more than once")
+            seen.add(reference)
+            if reference not in declarations and reference not in workflows and reference not in packs:
+                errors.append(f"pack {pack!r} references unknown declaration, workflow, or pack {reference!r}")
+                continue
+            if reference in declarations:
+                referenced_declarations.add(reference)
+            if reference in workflows:
+                referenced_workflows.add(reference)
+            if reference == pack:
+                errors.append(f"pack {pack!r} cannot reference itself")
+
+    for declaration in declarations:
+        if declaration not in referenced_declarations:
+            errors.append(f"declaration {declaration!r} is not reachable from a workflow or pack")
+    for workflow in workflows:
+        if workflow not in referenced_workflows:
+            errors.append(f"workflow {workflow!r} is not reachable from a pack")
+    return sorted(errors)
+
+
+def validate_runtime_contracts(
+    contracts: Mapping[str, tuple[str, ...]],
+    contract_ids: Mapping[str, str],
+    spec_names: set[str],
+    terms: Mapping[str, str],
+    rules: Mapping[str, str],
+) -> list[str]:
+    """Return deterministic errors for runtime contract ownership and references."""
+    errors: list[str] = []
+    declarations = set(terms) | set(rules)
+    if set(contract_ids) != spec_names:
+        errors.append("every canonical spec must have exactly one runtime contract ID")
+    if len(set(contract_ids.values())) != len(contract_ids):
+        errors.append("runtime contract IDs must be unique")
+    if set(contract_ids.values()) != set(contracts):
+        errors.append("runtime contracts must match canonical spec contract IDs")
+
+    for contract, references in contracts.items():
+        seen: set[str] = set()
+        for reference in references:
+            if reference in seen:
+                errors.append(f"contract {contract!r} references {reference!r} more than once")
+            seen.add(reference)
+            if reference not in declarations:
+                errors.append(f"contract {contract!r} references unknown declaration {reference!r}")
+    return sorted(errors)
+
+
+def validate_runtime_rule_owners(
+    rules: Mapping[str, str], owners: Mapping[str, str], terms: Mapping[str, str],
+) -> list[str]:
+    """Return deterministic errors when rule ownership is incomplete or invalid."""
+    errors: list[str] = []
+    if set(owners) != set(rules):
+        errors.append("every runtime rule must have exactly one owner")
+    for rule, owner in owners.items():
+        if owner not in terms:
+            errors.append(f"rule {rule!r} has unknown term owner {owner!r}")
+    return sorted(errors)
+
+
+def validate_runtime_pack_hierarchy(packs: Mapping[str, tuple[str, ...]]) -> list[str]:
+    """Return deterministic errors for cycles in parented runtime packs."""
+    errors: set[str] = set()
+
+    def visit(pack: str, path: tuple[str, ...]) -> None:
+        for reference in packs[pack]:
+            if reference not in packs:
+                continue
+            if reference in path:
+                errors.add(f"pack hierarchy cycle: {' -> '.join(path + (reference,))}")
+                continue
+            visit(reference, path + (reference,))
+
+    for pack in packs:
+        visit(pack, (pack,))
+    return sorted(errors)
 
 
 def find_duplicate_mapping_keys(source: str) -> list[tuple[int, str]]:

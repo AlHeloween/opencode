@@ -1,26 +1,14 @@
 """
 ## Role: Summary
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.summary"]
+PACK = PACKS["agent.summary"]
+
+intent: summarize completed changes as a concise PR-style result
+state: {"contract": "agent.summary", "pack": "agent.summary"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import SUMMARY
-
-# intent: Session summarization — 2-3 sentence PR-style description
-# forbidden_actions: No asking questions. No describing process over changes.
-
-# === CONSTRAINTS ===
-for k, v in SUMMARY["constraints"].items():
-    # {k}: {v}
-
-# === INVARIANTS ===
-for inv in SUMMARY["invariants"]:
-    # invariant: {inv}
-
-# === ACCEPTANCE TESTS ===
-for t in SUMMARY["acceptance_tests"]:
-    # test: {t}
-
-# === FORBIDDEN ===
-for f in SUMMARY["forbidden_actions"]:
-    # DO NOT: {f}

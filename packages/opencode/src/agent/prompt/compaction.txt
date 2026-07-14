@@ -1,26 +1,14 @@
 """
 ## Role: Compaction
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.compaction"]
+PACK = PACKS["agent.compaction"]
+
+intent: preserve the session execution trace without answering it
+state: {"contract": "agent.compaction", "pack": "agent.compaction"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import COMPACTION
-
-# intent: Conversation compaction — anchored summary template
-# forbidden_actions: No answering the conversation. No mentioning compaction.
-
-# === SCOPE ===
-for k, v in COMPACTION["scope"].items():
-    # {k}: {v}
-
-# === CONSTRAINTS ===
-for k, v in COMPACTION["constraints"].items():
-    # {k}: {v}
-
-# === INVARIANTS ===
-for inv in COMPACTION["invariants"]:
-    # invariant: {inv}
-
-# === FORBIDDEN ===
-for f in COMPACTION["forbidden_actions"]:
-    # DO NOT: {f}

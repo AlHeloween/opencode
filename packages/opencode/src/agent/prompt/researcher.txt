@@ -1,30 +1,14 @@
 """
 ## Role: Researcher
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.researcher"]
+PACK = PACKS["agent.researcher"]
+
+intent: gather evidence without mutation
+state: {"contract": "agent.researcher", "pack": "agent.researcher"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import RESEARCHER
-
-# intent: Read-only research agent — codebase + web + conversation history
-# forbidden_actions: All mutations prohibited. Read-only access only.
-
-# === SCOPE ===
-for k, v in RESEARCHER["scope"].items():
-    # {k}: {v}
-
-# === CONSTRAINTS ===
-for k, v in RESEARCHER["constraints"].items():
-    # {k}: {v}
-
-# === STEPS ===
-for s in RESEARCHER["steps"]:
-    # {s}
-
-# === INVARIANTS ===
-for inv in RESEARCHER["invariants"]:
-    # invariant: {inv}
-
-# === FORBIDDEN ===
-for f in RESEARCHER["forbidden_actions"]:
-    # DO NOT: {f}

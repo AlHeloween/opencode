@@ -1,26 +1,14 @@
 """
 ## Role: Title
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.title"]
+PACK = PACKS["agent.title"]
+
+intent: produce only a concise thread title
+state: {"contract": "agent.title", "pack": "agent.title"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import TITLE
-
-# intent: Title generation — single line, max 50 chars. No tools.
-# forbidden_actions: No tool usage. No response to question — generate title only.
-
-# === CONSTRAINTS ===
-for k, v in TITLE["constraints"].items():
-    # {k}: {v}
-
-# === INVARIANTS ===
-for inv in TITLE["invariants"]:
-    # invariant: {inv}
-
-# === ACCEPTANCE TESTS ===
-for t in TITLE["acceptance_tests"]:
-    # test: {t}
-
-# === FORBIDDEN ===
-for f in TITLE["forbidden_actions"]:
-    # DO NOT: {f}

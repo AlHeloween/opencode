@@ -1,33 +1,14 @@
 """
 ## Role: Orchestrator
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.orchestrator"]
+PACK = PACKS["agent.orchestrator"]
+
+intent: delegate, verify, and maintain plans without direct source edits
+state: {"contract": "agent.orchestrator", "pack": "agent.orchestrator"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import ORCHESTRATOR
-
-# intent: Autonomous orchestrator — Strategist2+Analyst2. Delegates, never edits.
-# forbidden_actions: No source code editing. No implementation. Plans only.
-
-# === OBJECTIVE ===
-# {ORCHESTRATOR["objective"]}
-
-# === SCOPE ===
-for k, v in ORCHESTRATOR["scope"].items():
-    # {k}: {v}
-
-# === CONSTRAINTS ===
-for k, v in ORCHESTRATOR["constraints"].items():
-    # {k}: {v}
-
-# === STEPS (THE LOOP) ===
-for s in ORCHESTRATOR["steps"]:
-    # {s}
-
-# === INVARIANTS ===
-for inv in ORCHESTRATOR["invariants"]:
-    # invariant: {inv}
-
-# === FORBIDDEN ===
-for f in ORCHESTRATOR["forbidden_actions"]:
-    # DO NOT: {f}

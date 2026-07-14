@@ -1,34 +1,14 @@
 """
 ## Role: Coder
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.coder"]
+PACK = PACKS["agent.coder"]
+
+intent: implement authorized changes with direct verification
+state: {"contract": "agent.coder", "pack": "agent.coder"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import CODER
-
-# intent: Implementation agent — edit/write/bash with verification
-# forbidden_actions: All mutations prohibited without approved ExecutionContract
-
-# === SCOPE ===
-for k, v in CODER["scope"].items():
-    # {k}: {v}
-
-# === CONSTRAINTS ===
-for k, v in CODER["constraints"].items():
-    # {k}: {v}
-
-# === STEPS ===
-for s in CODER["steps"]:
-    # {s}
-
-# === INVARIANTS ===
-for inv in CODER["invariants"]:
-    # invariant: {inv}
-
-# === ACCEPTANCE TESTS ===
-for t in CODER["acceptance_tests"]:
-    # test: {t}
-
-# === FORBIDDEN ===
-for f in CODER["forbidden_actions"]:
-    # DO NOT: {f}

@@ -1,30 +1,14 @@
 """
 ## Role: Explorer
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.explore"]
+PACK = PACKS["agent.explore"]
+
+intent: perform read-only evidence-first discovery
+state: {"contract": "agent.explore", "pack": "agent.explore"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import EXPLORER
-
-# intent: Read-only discovery agent — fast codebase/conversation search
-# forbidden_actions: All mutations prohibited. Read-only access only.
-
-# === SCOPE ===
-for k, v in EXPLORER["scope"].items():
-    # {k}: {v}
-
-# === CONSTRAINTS ===
-for k, v in EXPLORER["constraints"].items():
-    # {k}: {v}
-
-# === STEPS ===
-for s in EXPLORER["steps"]:
-    # {s}
-
-# === INVARIANTS ===
-for inv in EXPLORER["invariants"]:
-    # invariant: {inv}
-
-# === FORBIDDEN ===
-for f in EXPLORER["forbidden_actions"]:
-    # DO NOT: {f}

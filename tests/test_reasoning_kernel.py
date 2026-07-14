@@ -88,7 +88,11 @@ from opencode_prompts_kernel import (
     RESERVED_PREFIXES, _KERNEL_SYMBOLS, _PROJECTION_PREFIXES,
     PREFIX_RULE, _FIELD_TO_IR,
     compile_to_ir, expand_from_ir, validate_symbols, validate_ir_equivalence,
-    get_ir_symbol, find_duplicate_mapping_keys, render_runtime_kernel,
+    get_ir_symbol, find_duplicate_mapping_keys, find_normalized_runtime_rule_duplicates,
+    validate_runtime_contracts, validate_runtime_pack_hierarchy, validate_runtime_references,
+    validate_runtime_rule_owners, render_runtime_kernel,
+    RUNTIME_CONTRACTS, RUNTIME_PACKS, RUNTIME_RULE_ALIASES, RUNTIME_RULE_OWNERS,
+    RUNTIME_RULES, RUNTIME_TERMS, RUNTIME_WORKFLOWS, SPEC_CONTRACT_IDS, _ALL_SPECS,
     runtime_kernel_digest,
 )
 
@@ -1514,6 +1518,18 @@ class TestEpistemicProjection:
         result = resolve_precedence("unknown_type", "universal_rule", "local_rule")
         assert result == "local_rule"
 
+    @pytest.mark.parametrize(("rule_type", "expected"), [
+        ("safety", "universal_rule"),
+        ("ethics", "universal_rule"),
+        ("local_style", "local_rule"),
+        ("measurement_definition", "local_rule"),
+        ("factual_claim", "universal_rule | local_rule"),
+        ("method_validity", "local_rule"),
+    ])
+    def test_precedence_modes(self, rule_type, expected):
+        """Each declared precedence mode resolves deterministically."""
+        assert resolve_precedence(rule_type, "universal_rule", "local_rule") == expected
+
     def test_economics_native_vocabulary(self):
         """Economics has discipline-specific vocabulary."""
         eco = get_projection_by_name("economics")
@@ -1700,16 +1716,115 @@ class TestRuntimePromptCompiler:
         assert runtime_kernel_digest()
         assert "\r" not in first
 
+    def test_runtime_kernel_artifact_matches_generator(self):
+        artifact = os.path.join(
+            os.path.dirname(__file__), "..", "packages", "opencode", "src", "session", "prompt", "opencode_prompts_kernel.txt"
+        )
+        with open(artifact, encoding="utf-8", newline="") as generated:
+            assert generated.read() == render_runtime_kernel()
+
     def test_runtime_kernel_contains_roots_not_source_only_harness(self):
         runtime = render_runtime_kernel()
-        for root in ("PROMPT_ABI", "TERMS", "RULES", "WORKFLOWS", "PACKS"):
+        for root in ("PROMPT_ABI", "TERMS", "RULES", "WORKFLOWS", "PACKS", "CONTRACTS"):
             assert root in runtime
-        assert "_ALL_SPECS" not in runtime
-        assert "run_conformance" not in runtime
+        for source_only in ("_ALL_SPECS", "CODER", "DisciplineProjection", "run_conformance"):
+            assert source_only not in runtime
 
     def test_canonical_source_has_no_duplicate_literal_mapping_keys(self):
         with open(os.path.join(os.path.dirname(__file__), "..", "opencode_prompts_kernel.py"), encoding="utf-8") as source:
             assert find_duplicate_mapping_keys(source.read()) == []
+
+    def test_runtime_rules_have_no_unaliased_normalized_duplicates(self):
+        rules = {**RUNTIME_TERMS, **RUNTIME_RULES}
+        assert find_normalized_runtime_rule_duplicates(rules, RUNTIME_RULE_ALIASES) == []
+
+    def test_normalized_duplicate_requires_explicit_alias(self):
+        rules = {
+            "EVIDENCE.ORDER": "Verified reference outranks inference.",
+            "EVIDENCE.COPY": " verified-reference outranks inference ",
+        }
+        assert find_normalized_runtime_rule_duplicates(rules, {})
+        assert find_normalized_runtime_rule_duplicates(rules, {"EVIDENCE.COPY": "EVIDENCE.ORDER"}) == []
+
+    def test_normalized_duplicate_output_is_input_order_independent(self):
+        first = {
+            "B.CANONICAL": "Beta rule.",
+            "B.COPY": "beta-rule",
+            "A.CANONICAL": "Alpha rule.",
+            "A.COPY": "alpha-rule",
+        }
+        second = dict(reversed(list(first.items())))
+        assert find_normalized_runtime_rule_duplicates(first, {}) == find_normalized_runtime_rule_duplicates(second, {})
+
+    def test_runtime_references_resolve_and_reach_every_term(self):
+        assert validate_runtime_references(RUNTIME_TERMS, RUNTIME_RULES, RUNTIME_WORKFLOWS, RUNTIME_PACKS) == []
+
+    def test_runtime_rule_ownership_is_complete_and_resolves(self):
+        assert validate_runtime_rule_owners(RUNTIME_RULES, RUNTIME_RULE_OWNERS, RUNTIME_TERMS) == []
+
+    def test_runtime_contracts_inventory_every_canonical_spec(self):
+        assert validate_runtime_contracts(
+            RUNTIME_CONTRACTS, SPEC_CONTRACT_IDS, set(_ALL_SPECS), RUNTIME_TERMS, RUNTIME_RULES,
+        ) == []
+
+    def test_runtime_pack_hierarchy_is_acyclic(self):
+        assert validate_runtime_pack_hierarchy(RUNTIME_PACKS) == []
+
+    def test_runtime_science_packs_reference_their_explicit_parents(self):
+        assert RUNTIME_PACKS["domain.physics"] == ("domain.natural_science",)
+        assert RUNTIME_PACKS["domain.chemistry"] == ("domain.natural_science",)
+        assert RUNTIME_PACKS["domain.biology"] == ("domain.natural_science",)
+        for discipline in ("economics", "psychology", "sociology", "history"):
+            assert RUNTIME_PACKS[f"domain.{discipline}"] == ("domain.social_science",)
+
+    def test_agent_prompt_files_reference_generated_contract_ids(self):
+        prompts = {
+            "coder.txt": "agent.coder", "compaction.txt": "agent.compaction", "explore.txt": "agent.explore",
+            "general.txt": "agent.general", "media.txt": "agent.media", "orchestrator.txt": "agent.orchestrator",
+            "researcher.txt": "agent.researcher", "summary.txt": "agent.summary", "title.txt": "agent.title",
+        }
+        prompt_dir = os.path.join(os.path.dirname(__file__), "..", "packages", "opencode", "src", "agent", "prompt")
+        for filename, contract in prompts.items():
+            with open(os.path.join(prompt_dir, filename), encoding="utf-8") as prompt:
+                content = prompt.read()
+            assert f'CONTRACT = CONTRACTS["{contract}"]' in content
+            assert f'PACK = PACKS["{contract}"]' in content
+            assert "from opencode_prompts_kernel import" not in content
+
+    def test_runtime_reference_validator_reports_unknown_and_unreachable_entries(self):
+        errors = validate_runtime_references(
+            {"term": "defined", "orphan": "unreachable"},
+            {"RULE": "defined", "ORPHAN.RULE": "unreachable"},
+            {"workflow": ("term", "unknown"), "orphan_workflow": ("term",)},
+            {"pack": ("workflow", "RULE", "unknown-pack")},
+        )
+        assert errors == [
+            "declaration 'ORPHAN.RULE' is not reachable from a workflow or pack",
+            "declaration 'orphan' is not reachable from a workflow or pack",
+            "pack 'pack' references unknown declaration, workflow, or pack 'unknown-pack'",
+            "workflow 'orphan_workflow' is not reachable from a pack",
+            "workflow 'workflow' references unknown declaration 'unknown'",
+        ]
+
+    def test_runtime_reference_validator_rejects_duplicate_references(self):
+        errors = validate_runtime_references(
+            {"term": "defined"},
+            {"RULE": "defined"},
+            {"workflow": ("term", "term", "RULE", "RULE")},
+            {"pack": ("workflow", "workflow")},
+        )
+        assert errors == [
+            "pack 'pack' references 'workflow' more than once",
+            "workflow 'workflow' references 'RULE' more than once",
+            "workflow 'workflow' references 'term' more than once",
+        ]
+
+    def test_runtime_pack_hierarchy_rejects_cycles(self):
+        packs = {"first": ("second",), "second": ("first",)}
+        assert validate_runtime_pack_hierarchy(packs) == [
+            "pack hierarchy cycle: first -> second -> first",
+            "pack hierarchy cycle: second -> first -> second",
+        ]
 
 
 # ======================================================================

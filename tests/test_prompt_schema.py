@@ -54,6 +54,7 @@ EXCLUDED_FILES = {
 def find_all_prompt_files():
     """Yield all prompt/instruction files that should conform to PromptSpec."""
     found = []
+    excluded_dirs = {".git", ".opencode", "external", "node_modules"}
 
     # Session prompt files
     if os.path.isdir(SESSION_PROMPT_DIR):
@@ -70,7 +71,8 @@ def find_all_prompt_files():
     # Skill files (SKILL.md)
     for skill_dir in SKILL_DIRS:
         if os.path.isdir(skill_dir):
-            for root, _dirs, files in os.walk(skill_dir):
+            for root, dirs, files in os.walk(skill_dir):
+                dirs[:] = [directory for directory in dirs if directory not in excluded_dirs]
                 if "SKILL.md" in files:
                     fp = os.path.join(root, "SKILL.md")
                     if "node_modules" not in fp:
@@ -84,7 +86,8 @@ def find_all_prompt_files():
                     found.append(("rule", os.path.join(rule_dir, f)))
 
     # AGENTS.md files
-    for root, _dirs, files in os.walk(PROJECT_ROOT):
+    for root, dirs, files in os.walk(PROJECT_ROOT):
+        dirs[:] = [directory for directory in dirs if directory not in excluded_dirs]
         if "AGENTS.md" in files:
             fp = os.path.join(root, "AGENTS.md")
             if "node_modules" not in fp and ".opencode" not in fp and "external" not in fp:

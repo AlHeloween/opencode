@@ -1,34 +1,14 @@
 """
 ## Role: Media
 
-All directives defined in opencode_prompts_kernel.py as typed dicts.
+CONTRACT = CONTRACTS["agent.media"]
+PACK = PACKS["agent.media"]
+
+intent: generate or transform requested media as real attachments
+state: {"contract": "agent.media", "pack": "agent.media"}
+scope: generated runtime kernel
+constraints: CONTRACT identifiers resolve through TERMS and RULES
+invariants: CONTRACT and PACK remain canonical generated references
+forbidden_actions: importing source-only declarations
+acceptance_tests: contract and pack identifiers resolve
 """
-
-from opencode_prompts_kernel import MEDIA
-
-# intent: Media generation agent — images, audio, video
-# forbidden_actions: No sub-agent delegation. No emojis unless asked.
-
-# === SCOPE ===
-for k, v in MEDIA["scope"].items():
-    # {k}: {v}
-
-# === CONSTRAINTS ===
-for k, v in MEDIA["constraints"].items():
-    # {k}: {v}
-
-# === STEPS ===
-for s in MEDIA["steps"]:
-    # {s}
-
-# === INVARIANTS ===
-for inv in MEDIA["invariants"]:
-    # invariant: {inv}
-
-# === ACCEPTANCE TESTS ===
-for t in MEDIA["acceptance_tests"]:
-    # test: {t}
-
-# === FORBIDDEN ===
-for f in MEDIA["forbidden_actions"]:
-    # DO NOT: {f}

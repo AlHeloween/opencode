@@ -146,7 +146,22 @@ export const layer = Layer.effect(
             const openResult = yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
               Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
             )
-            if (openResult.code === 0) return
+            if (openResult.code === 0) {
+              // Check for "Unresolved RID" — stale checkout DB after repo replacement.
+              // fossil rebuild does NOT fix this; must close + reopen to recreate _FOSSIL_.
+              const infoResult = yield* fossil(["info"], { cwd: worktree }).pipe(
+                Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+              )
+              if (infoResult.stderr.includes("Unresolved RID")) {
+                log.warn("fossil checkout DB stale, recreating via close+open")
+                yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+                yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
+                yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
+                  Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+                )
+              }
+              return
+            }
 
             // Corrupted or out-of-sync database — atomic recovery scoped to this checkout/repo pair
             log.warn("fossil open failed, performing atomic recovery", { stderr: openResult.stderr })

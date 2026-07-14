@@ -143,23 +143,17 @@ export const layer = Layer.effect(
           yield* ensureIgnoreGlob()
 
           if (yield* fs.exists(repoPath)) {
-            const openResult = yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
+            const openResult = yield* fossil(["open", repoPath, "--force", "--keep"], { cwd: worktree }).pipe(
               Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
             )
             if (openResult.code === 0) {
-              // Check for "Unresolved RID" — stale checkout DB after repo replacement.
-              // fossil rebuild does NOT fix this; must close + reopen to recreate _FOSSIL_.
-              const infoResult = yield* fossil(["info"], { cwd: worktree }).pipe(
+              // Close and reopen to recreate the checkout DB.
+              // A stale _FOSSIL_ from a previous instance causes
+              // "Unresolved RID values" on commit. close+open fixes it.
+              yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+              yield* fossil(["open", repoPath, "--force", "--keep"], { cwd: worktree }).pipe(
                 Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
               )
-              if (infoResult.stderr.includes("Unresolved RID")) {
-                log.warn("fossil checkout DB stale, recreating via close+open")
-                yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
-                yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
-                yield* fossil(["open", repoPath, "--keep"], { cwd: worktree }).pipe(
-                  Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
-                )
-              }
               return
             }
 
@@ -188,14 +182,14 @@ export const layer = Layer.effect(
             return
           }
 
-          const openResult = yield* fossil(["open", repoPath, "--keep"], { cwd: worktree })
+          const openResult = yield* fossil(["open", repoPath, "--force", "--keep"], { cwd: worktree })
           if (openResult.code !== 0) {
             log.warn("fossil open failed", { stderr: openResult.stderr })
             return
           }
 
           // Initial empty commit
-          yield* fossil(["commit", "-m", "opencode-init", "--no-warnings", "--allow-fork"], { cwd: worktree }).pipe(
+          yield* fossil(["commit", "-m", "opencode-init", "--no-warnings", "--allow-fork", "--hash"], { cwd: worktree }).pipe(
             Effect.catch(() => Effect.void),
           )
 
@@ -208,13 +202,29 @@ export const layer = Layer.effect(
               if (!(yield* enabled())) return undefined
               yield* ensureInit()
 
-              // Ensure changed files are tracked before commit
+              // Ensure changed files are tracked before commit.
+              // First, add any explicitly reported files.
               if (files?.length) {
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
                   yield* fossil(["add", rel], { cwd: worktree }).pipe(
                     Effect.catch(() => Effect.void),
                   )
+                }
+              }
+              // Also auto-detect untracked files not reported by tools.
+              // fossil changes --extra lists files present on disk but not tracked.
+              const extraResult = yield* fossil(["changes", "--extra"], { cwd: worktree }).pipe(
+                Effect.catch(() => Effect.succeed({ code: 1, text: "", stderr: "" })),
+              )
+              if (extraResult.code === 0 && extraResult.text.trim()) {
+                for (const line of extraResult.text.trim().split("\n")) {
+                  const file = line.trim()
+                  if (file) {
+                    yield* fossil(["add", file], { cwd: worktree }).pipe(
+                      Effect.catch(() => Effect.void),
+                    )
+                  }
                 }
               }
 
@@ -243,7 +253,7 @@ export const layer = Layer.effect(
               // commits that would create a fork are rejected unless --allow-fork
               // is passed. Since this is a snapshot system where fork topology
               // doesn't matter, always allow forking.
-              const commitResult = yield* fossil(["commit", "-m", "auto-snapshot", "--no-warnings", "--allow-fork"], {
+              const commitResult = yield* fossil(["commit", "-m", "auto-snapshot", "--no-warnings", "--allow-fork", "--hash"], {
                 cwd: worktree,
               })
 

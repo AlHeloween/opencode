@@ -1,6 +1,7 @@
 import { GPUCanvasContextMock } from "bun-webgpu"
 import { RGBA, type OptimizedBuffer } from "@opentui/core"
 import { SuperSampleType } from "./WGPURenderer.js"
+// @ts-ignore jimp 1.6.1 type exports not resolved by tsgo with verbatimModuleSyntax
 import { Jimp } from "jimp"
 
 // @ts-ignore

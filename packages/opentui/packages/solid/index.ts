@@ -43,7 +43,7 @@ const mountSolidRoot = (renderer: CliRenderer, node: () => JSX.Element) => {
   try {
     dispose = renderInternal(
       () =>
-        createComponent(RendererContext.Provider, {
+        createComponent(RendererContext.Provider as any, {
           get value() {
             return renderer
           },
@@ -101,5 +101,6 @@ export * from "./src/elements/index.js"
 export * from "./src/scrollback.js"
 export * from "./src/time-to-first-draw.js"
 export * from "./src/plugins/slot.js"
+export type { SolidPlugin } from "./src/plugins/slot.js"
 export * from "./src/types/elements.js"
 export { type JSX }

@@ -466,10 +466,13 @@ const parser = lazy(async () => {
   if (!bashWasm.bytes) throw new Error("bash grammar WASM unavailable; tried: " + JSON.stringify(bashWasm.tried))
   if (!cmdWasm.bytes) throw new Error("batch grammar WASM unavailable; tried: " + JSON.stringify(cmdWasm.tried))
   if (!psWasm.bytes) throw new Error("PowerShell grammar WASM unavailable; tried: " + JSON.stringify(psWasm.tried))
+  const bashBytes: ArrayBuffer = bashWasm.bytes
+  const cmdBytes: ArrayBuffer = cmdWasm.bytes
+  const psBytes: ArrayBuffer = psWasm.bytes
   const [bashLanguage, cmdLanguage, psLanguage] = await wasmGate("tree-sitter-load-grammars", () => Promise.all([
-    Language.load(new Uint8Array(bashWasm.bytes)),
-    Language.load(new Uint8Array(cmdWasm.bytes)),
-    Language.load(new Uint8Array(psWasm.bytes)),
+    Language.load(new Uint8Array(bashBytes)),
+    Language.load(new Uint8Array(cmdBytes)),
+    Language.load(new Uint8Array(psBytes)),
   ]))
   const bash = new Parser()
   bash.setLanguage(bashLanguage)

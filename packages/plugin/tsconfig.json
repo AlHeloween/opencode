@@ -5,6 +5,8 @@
     "rootDir": "src",
     "outDir": "dist",
     "module": "nodenext",
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
     "declaration": true,
     "moduleResolution": "nodenext",
     "lib": ["es2024", "dom", "dom.iterable"],

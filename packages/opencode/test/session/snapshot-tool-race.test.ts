@@ -163,6 +163,7 @@ function makeHttp() {
 const it = testEffect(makeHttp())
 
 const providerCfg = (url: string) => ({
+  snapshot: true,
   provider: {
     test: {
       name: "Test",

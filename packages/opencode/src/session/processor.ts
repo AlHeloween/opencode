@@ -677,12 +677,15 @@ export const layer: Layer.Layer<
               }
               ctx.snapshot = undefined
             }
+            // Call sequentially (not forked) so the DB write from
+            // session.updatePart above is committed before summarize
+            // reads messages from the same DB connection.
             yield* summary
               .summarize({
                 sessionID: ctx.sessionID,
                 messageID: ctx.assistantMessage.parentID,
               })
-              .pipe(Effect.ignore, Effect.forkIn(scope))
+              .pipe(Effect.ignore)
             if (
               !ctx.assistantMessage.summary &&
               isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model })

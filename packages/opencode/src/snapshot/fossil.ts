@@ -146,18 +146,39 @@ export const layer = Layer.effect(
             const openResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
               Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
             )
-            if (openResult.code === 0) {
+            const alreadyOpen = /already an open tree/i.test(openResult.stderr)
+            if (openResult.code === 0 || alreadyOpen) {
+              // `fossil open --force` is required for a non-empty worktree,
+              // but it is not idempotent. Several snapshot consumers may
+              // share this checkout, so verify and reuse the existing one.
+              const currentResult = yield* fossil(["info"], { cwd: worktree })
+              const repository = currentResult.text.match(/^repository:\s+(.+)$/m)?.[1]?.trim()
+              const sameRepository =
+                repository &&
+                path.resolve(repository).replaceAll("\\", "/").toLowerCase() ===
+                  path.resolve(repoPath).replaceAll("\\", "/").toLowerCase()
+              if (currentResult.code === 0 && sameRepository) return true
+
+              // Never close or recover an existing checkout until its
+              // identity is known. It may belong to a parent worktree.
+              if (alreadyOpen) {
+                log.error("bug: fossil checkout conflicts with snapshot repository", {
+                  repoPath,
+                  repository,
+                  stderr: currentResult.stderr || openResult.stderr,
+                })
+                return false
+              }
+
               // A stale _FOSSIL_ can make `open --force` succeed while later
               // commands fail with "Unresolved RID values". Do not recreate
               // a healthy checkout: other services may be using it.
-              const currentResult = yield* fossil(["info", "current"], { cwd: worktree })
-              if (currentResult.code === 0) return
               yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
               yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
               const reopenResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
                 Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
               )
-              if (reopenResult.code === 0) return
+              if (reopenResult.code === 0) return true
               log.warn("fossil reopen failed, performing atomic recovery", { stderr: reopenResult.stderr })
             } else {
               log.warn("fossil open failed, performing atomic recovery", { stderr: openResult.stderr })
@@ -177,13 +198,13 @@ export const layer = Layer.effect(
           const initResult = yield* fossil(["init", repoPath], { cwd: worktree })
           if (initResult.code !== 0) {
             log.warn("fossil init failed", { stderr: initResult.stderr })
-            return
+            return false
           }
 
           const openResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree })
           if (openResult.code !== 0) {
             log.warn("fossil open failed", { stderr: openResult.stderr })
-            return
+            return false
           }
 
           // Establish a checkpointable baseline even when the worktree has
@@ -194,17 +215,18 @@ export const layer = Layer.effect(
           )
           if (baselineResult.code !== 0) {
             log.warn("bug: fossil baseline commit failed", { stderr: baselineResult.stderr })
-            return
+            return false
           }
 
           log.info("fossil repo initialized", { repoPath })
+          return true
         })
 
         const track = Effect.fnUntraced(function* (files?: string[]) {
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* enabled())) return undefined
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return undefined
 
               // Ensure changed files are tracked before commit.
               // First, add any explicitly reported files.
@@ -281,7 +303,7 @@ export const layer = Layer.effect(
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* enabled())) return undefined
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return undefined
               // Fossil doesn't have a separate op log — use version hash as op ID
               const result = yield* fossil(["info", "current"], { cwd: worktree })
               const hash = result.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim()
@@ -294,7 +316,7 @@ export const layer = Layer.effect(
           return yield* locked(
             Effect.gen(function* () {
               log.info("fossil checkout (opRestore)", { version: targetVersion })
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return
               const result = yield* fossil(["checkout", targetVersion], { cwd: worktree })
               if (result.code === 0) return
               log.error("fossil checkout failed", { version: targetVersion, stderr: result.stderr })
@@ -305,7 +327,7 @@ export const layer = Layer.effect(
         const patch = Effect.fnUntraced(function* (hash: string) {
           return yield* locked(
             Effect.gen(function* () {
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return { hash, files: [] }
               const result = yield* fossil(["diff", "--from", hash, "--brief"], {
                 cwd: worktree,
               })
@@ -330,7 +352,7 @@ export const layer = Layer.effect(
           return yield* locked(
             Effect.gen(function* () {
               log.info("restore (checkout)", { version: snapshot })
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return
               const result = yield* fossil(["checkout", snapshot], { cwd: worktree })
               if (result.code === 0) return
               log.error("fossil checkout failed", { snapshot, stderr: result.stderr })
@@ -341,7 +363,7 @@ export const layer = Layer.effect(
         const revert = Effect.fnUntraced(function* (patches: Patch[]) {
           return yield* locked(
             Effect.gen(function* () {
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return
 
               const seen = new Set<string>()
               for (const item of patches) {
@@ -370,7 +392,7 @@ export const layer = Layer.effect(
         const diff = Effect.fnUntraced(function* (hash: string) {
           return yield* locked(
             Effect.gen(function* () {
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return ""
               const resolved = yield* resolveHash(hash)
               const result = yield* fossil(["diff", "--from", resolved], { cwd: worktree })
               return result.code === 0 ? result.text.trim() : ""
@@ -403,7 +425,7 @@ export const layer = Layer.effect(
         const diffFull = Effect.fnUntraced(function* (from: string, to: string) {
           return yield* locked(
             Effect.gen(function* () {
-              yield* ensureInit()
+              if (!(yield* ensureInit())) return []
 
               // Resolve hashes — fallback for old git hashes
               const resolvedFrom = yield* resolveHash(from)

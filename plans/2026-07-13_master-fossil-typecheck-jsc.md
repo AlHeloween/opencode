@@ -14,7 +14,7 @@ Restore a clean, fully tested Fossil-based internal snapshot architecture; remov
 
 ## Current Status — 2026-07-14
 
-All subplans complete except 06 (build stress) and 08 (snapshot-race). Testing convention: TS source with debug output first, build only after all TS tests pass (see `plans/README.md`).
+All subplans complete except 06 (build stress). Testing convention: TS source with debug output first, build only after all TS tests pass (see `plans/README.md`).
 
 | Subplan | Status | Completed |
 |---------|--------|-----------|
@@ -25,7 +25,7 @@ All subplans complete except 06 (build stress) and 08 (snapshot-race). Testing c
 | 05 WASM gate | ✅ Complete | 4/6 steps (telemetry deferred) |
 | 06 Build stress | ⏳ Remaining | Launch TUI via `cmd_runner` + `bun run --conditions=browser packages/opencode/src/index.ts` + `--log-level DEBUG --print-logs`. Send prompts: 2+2, delegate explore agent, edit undo/redo, tool calls. Verify all function. Binary build only after all TS tests pass. |
 | 07 rg/fd removal | ✅ Complete | 14 files, 4 phases |
-| 08 Snapshot race | ⏳ Active | Config.Service isolation fix — `plans/20260714_fix_snapshotfossil_config_isolation.md`. **Dependency**: snapshot = undo/redo foundation. If undo/redo broken, snapshot is the root cause. If snapshot test (race) fails, undo/redo will fail. Fix order: 08 → 06 (TUI undo/redo verify). |
+| 08 Snapshot race | ✅ Complete | `plans_completed/20260714_fix_snapshotfossil_config_isolation.md`. Matching Fossil checkouts are reused instead of destructively reinitialized; the focused race test passes. |
 
 ## Original Status (preserved for history)
 

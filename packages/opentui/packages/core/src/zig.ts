@@ -10,6 +10,7 @@ import {
 import { writeFile } from "./platform/runtime.js"
 import { existsSync, writeFileSync } from "fs"
 import { EventEmitter } from "events"
+import { dirname, join } from "path"
 import {
   type CursorStyle,
   type CursorStyleOptions,
@@ -62,7 +63,7 @@ import type {
   AllocatorStats,
   NativeRenderStats,
 } from "./zig-structs.js"
-import { isBunfsPath } from "./lib/bunfs.js"
+import { isBunfsPath, normalizeBunfsPath } from "./lib/bunfs.js"
 
 registerEnvVar({
   name: "OPENTUI_LIBC",
@@ -133,7 +134,8 @@ export type AudioEngineHandle = NativeHandle<"audio_engine">
 let targetLibPath = nativePackage.default
 
 if (isBunfsPath(targetLibPath)) {
-  targetLibPath = targetLibPath.replace("../", "")
+  targetLibPath = normalizeBunfsPath(targetLibPath)
+  if (!existsSync(targetLibPath)) targetLibPath = join(dirname(process.execPath), "opentui.dll")
 }
 
 if (!existsSync(targetLibPath)) {

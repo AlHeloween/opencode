@@ -1,15 +1,14 @@
 /**
  * Reproducer for snapshot race condition with instant tool execution.
  *
- * When the mock LLM returns a tool call response instantly, the AI SDK
- * processes the tool call and executes the tool (e.g. apply_patch) before
- * the processor's start-step handler can capture a pre-tool snapshot.
- * Both the "before" and "after" snapshots end up with the same git tree
- * hash, so computeDiff returns empty and the session summary shows 0 files.
+ * The instant tool-call scenario makes several snapshot consumers reuse one
+ * Fossil checkout. `fossil open --force` is required for this non-empty
+ * worktree, but reports "already an open tree" for subsequent consumers.
+ * The checkout must be reused rather than reinitialized, otherwise the
+ * captured snapshot hashes disappear and computeDiff returns an empty diff.
  *
- * This is a real bug: the snapshot system assumes it can capture state
- * before tools run by hooking into start-step, but the AI SDK executes
- * tools internally during multi-step processing before emitting events.
+ * This remains a real regression test for the pre-tool snapshot path: the
+ * processor captures the first snapshot before the LLM stream begins.
  */
 import { expect } from "bun:test"
 import { Effect, Layer } from "effect"

@@ -34,7 +34,7 @@ describe("fossil smoke", () => {
       fossil(["init", "r.fsl"], tmp)
       fossil(["open", "r.fsl", "--force", "--keep"], tmp)
       expect(fossil(["commit", "-m", "init", "--no-warnings", "--allow-fork", "--allow-empty", "--hash"], tmp)).toContain("New_Version:")
-      expect(fossil(["info", "current"], tmp)).toMatch(/hash:\s+[a-f0-9]+/)
+      expect(fossil(["info"], tmp)).toMatch(/checkout:\s+[a-f0-9]+/)
 
       // First file commit
       writeFileSync(path.join(tmp, "f.txt"), "v1")

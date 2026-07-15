@@ -976,6 +976,27 @@ test("track with no changes returns same hash", async () => {
   })
 })
 
+test("explicit tracking does not reconcile unrelated files", async () => {
+  await using tmp = await bootstrap()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const before = await run(tmp.path, (snapshot) => snapshot.track())
+      expect(before).toBeTruthy()
+
+      await Filesystem.write(`${tmp.path}/a.txt`, "tracked update")
+      await Filesystem.write(`${tmp.path}/unreported.txt`, "must not be added by the fast path")
+
+      const after = await run(tmp.path, (snapshot) => snapshot.track([`${tmp.path}/a.txt`]))
+      expect(after).toBeTruthy()
+
+      const files = await run(tmp.path, (snapshot) => snapshot.diffFull(before!, after!))
+      expect(files.map((file) => file.file)).toContain(fwd(tmp.path, "a.txt"))
+      expect(files.map((file) => file.file)).not.toContain(fwd(tmp.path, "unreported.txt"))
+    },
+  })
+})
+
 test("diff function with various changes", async () => {
   await using tmp = await bootstrap()
   await Instance.provide({

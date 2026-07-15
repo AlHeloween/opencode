@@ -96,27 +96,27 @@ describe("Fossil Command Validation", () => {
     expect(result.code).not.toBe(0)
   })
 
-  test("fossil info current returns hash", () => {
+  test("fossil info returns the checkout hash", () => {
     const repoPath = path.join(TMP, "test.fsl")
     fossil(["init", repoPath])
     fossil(["open", repoPath, "--keep"])
     writeFileSync(path.join(TMP, "a.txt"), "a")
     fossil(["add", "a.txt"])
     fossil(["commit", "-m", "snap", "--no-warnings"])
-    const result = fossil(["info", "current"])
+    const result = fossil(["info"])
     expect(result.code).toBe(0)
-    expect(result.stdout).toMatch(/hash:\s+[a-f0-9]{40}/)
+    expect(result.stdout).toMatch(/checkout:\s+[a-f0-9]{40}/)
   })
 
-  test("fossil info current hash is parseable", () => {
+  test("fossil info checkout hash is parseable", () => {
     const repoPath = path.join(TMP, "test.fsl")
     fossil(["init", repoPath])
     fossil(["open", repoPath, "--keep"])
     writeFileSync(path.join(TMP, "b.txt"), "b")
     fossil(["add", "b.txt"])
     fossil(["commit", "-m", "snap", "--no-warnings"])
-    const result = fossil(["info", "current"])
-    const match = result.stdout.match(/hash:\s+([a-f0-9]+)/)
+    const result = fossil(["info"])
+    const match = result.stdout.match(/^checkout:\s+([a-f0-9]+)/m)
     expect(match).not.toBeNull()
     expect(match![1].length).toBeGreaterThanOrEqual(40)
   })
@@ -162,8 +162,8 @@ describe("Fossil Command Validation", () => {
     fossil(["add", "e.txt"])
     fossil(["commit", "-m", "v1", "--no-warnings"])
     // Get v1 hash
-    const info1 = fossil(["info", "current"])
-    const hash1 = info1.stdout.match(/hash:\s+([a-f0-9]+)/)![1]
+    const info1 = fossil(["info"])
+    const hash1 = info1.stdout.match(/^checkout:\s+([a-f0-9]+)/m)![1]
     // Make v2
     writeFileSync(path.join(TMP, "f.txt"), "f")
     fossil(["add", "f.txt"])
@@ -181,8 +181,8 @@ describe("Fossil Command Validation", () => {
     writeFileSync(path.join(TMP, "g.txt"), "original")
     fossil(["add", "g.txt"])
     fossil(["commit", "-m", "v1", "--no-warnings"])
-    const info1 = fossil(["info", "current"])
-    const hash1 = info1.stdout.match(/hash:\s+([a-f0-9]+)/)![1]
+    const info1 = fossil(["info"])
+    const hash1 = info1.stdout.match(/^checkout:\s+([a-f0-9]+)/m)![1]
     // Modify and commit
     writeFileSync(path.join(TMP, "g.txt"), "modified")
     fossil(["commit", "-m", "v2", "--no-warnings"])
@@ -200,15 +200,15 @@ describe("Fossil Command Validation", () => {
     writeFileSync(path.join(TMP, "h.txt"), "v1")
     fossil(["add", "h.txt"])
     fossil(["commit", "-m", "v1", "--no-warnings"])
-    const info1 = fossil(["info", "current"])
-    const hash1 = info1.stdout.match(/hash:\s+([a-f0-9]+)/)![1]
+    const info1 = fossil(["info"])
+    const hash1 = info1.stdout.match(/^checkout:\s+([a-f0-9]+)/m)![1]
     // v2
     writeFileSync(path.join(TMP, "h.txt"), "v2")
     writeFileSync(path.join(TMP, "i.txt"), "new file")
     fossil(["add", "i.txt"])
     fossil(["commit", "-m", "v2", "--no-warnings"])
     // Rollback to v1 — checkout forces file restoration
-    const result = fossil(["checkout", hash1])
+    const result = fossil(["checkout", "--force", hash1])
     expect(result.code).toBe(0)
     expect(readFileSync(path.join(TMP, "h.txt"), "utf-8")).toBe("v1")
   })

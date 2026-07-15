@@ -37,8 +37,8 @@ function initRepo() {
 }
 
 function getCurrentHash(): string {
-  const r = fossil(["info", "current"])
-  return r.stdout.match(/hash:\s+([a-f0-9]+)/)?.[1] ?? ""
+  const r = fossil(["info"])
+  return r.stdout.match(/^checkout:\s+([a-f0-9]+)/m)?.[1] ?? ""
 }
 
 function track(files?: string[]): string {

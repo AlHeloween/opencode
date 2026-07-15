@@ -595,6 +595,104 @@ describe("tool.edit", () => {
         },
       })
     })
+
+    test("BlockAnchorReplacer rejects oversized single candidate (anchor-span guard)", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      // A 3-line search pattern whose anchors coincidentally match 15+ lines apart
+      await fs.writeFile(
+        filepath,
+        [
+          "section-a:",
+          "  - item 1",
+          "  - item 2",
+          "  - item 3",
+          "  - item 4",
+          "  - item 5",
+          "  - item 6",
+          "  - item 7",
+          "  - item 8",
+          "  - item 9",
+          "  - item 10",
+          "",
+          "section-b:",
+          "  - other",
+          "",
+          "section-a:",
+          "  - different",
+        ].join("\n"),
+        "utf-8",
+      )
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          // Attempt to match: "section-a:" as anchor1, "section-b:" as anchor2
+          // The anchors appear 12+ lines apart, but the search is only 3 lines.
+          // BlockAnchorReplacer should reject this and fall through.
+          // A later replacer should handle it or the edit should fail cleanly.
+          const result = await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "section-a:\n  - item 1\nsection-b:",
+                newString: "section-a:\n  - replaced\nsection-b:",
+              },
+              ctx,
+            ),
+          )
+          // Should NOT have matched the widely-spaced anchors.
+          // If BlockAnchor misbehaves, it would replace far more than intended.
+          const content = await fs.readFile(filepath, "utf-8")
+          // The content should still have all the items — BlockAnchor should not
+          // have swallowed them with a bad anchor-span match.
+          expect(content).toContain("- item 2")
+          expect(content).toContain("- item 10")
+          expect(content).toContain("- replaced")
+        },
+      })
+    })
+
+    test("BlockAnchorReplacer accepts proportional single candidate", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      // A realistic 3-line block where anchors are close together (within 3x)
+      await fs.writeFile(
+        filepath,
+        [
+          "function foo() {",
+          "  return true",
+          "}",
+          "",
+          "function bar() {",
+          "  return false",
+          "}",
+        ].join("\n"),
+        "utf-8",
+      )
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: "function foo() {\n  return true\n}",
+                newString: "function foo() {\n  return 42\n}",
+              },
+              ctx,
+            ),
+          )
+
+          const content = await fs.readFile(filepath, "utf-8")
+          expect(content).toContain("function foo() {\n  return 42\n}")
+          expect(content).toContain("function bar()")
+        },
+      })
+    })
   })
 
   describe("backups", () => {

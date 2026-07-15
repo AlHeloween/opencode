@@ -11,6 +11,10 @@ import { Service as SnapshotService, type Interface, type Patch, type FileDiff }
 
 const log = Log.create({ service: "snapshot-fossil" })
 
+function currentHash(text: string): string | undefined {
+  return text.match(/^checkout:\s+([a-f0-9]+)/m)?.[1] ?? text.match(/^hash:\s+([a-f0-9]+)/m)?.[1]
+}
+
 // Find fossil binary: tools/ relative to executable, then PATH
 function findFossil(): string {
   // 1. tools/ relative to executable (e.g. opencode.exe/tools/fossil.exe)
@@ -228,52 +232,34 @@ export const layer = Layer.effect(
               if (!(yield* enabled())) return undefined
               if (!(yield* ensureInit())) return undefined
 
-              // Ensure changed files are tracked before commit.
-              // First, add any explicitly reported files.
-              if (files?.length) {
+              // Tool-driven snapshots provide the exact changed paths. Keep
+              // that path bounded: a global Fossil scan here can traverse the
+              // entire worktree while the model loop is waiting to continue.
+              if (files !== undefined) {
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
-                  yield* fossil(["add", rel], { cwd: worktree }).pipe(
+                  if (yield* fs.exists(file)) {
+                    yield* fossil(["add", "--force", rel], { cwd: worktree }).pipe(
+                      Effect.catch(() => Effect.void),
+                    )
+                    continue
+                  }
+                  yield* fossil(["rm", rel], { cwd: worktree }).pipe(
                     Effect.catch(() => Effect.void),
                   )
                 }
-              }
-              // Also auto-detect untracked files not reported by tools.
-              // fossil changes --extra lists files present on disk but not tracked.
-              const extraResult = yield* fossil(["changes", "--extra"], { cwd: worktree }).pipe(
-                Effect.catch(() => Effect.succeed({ code: 1, text: "", stderr: "" })),
-              )
-              if (extraResult.code === 0 && extraResult.text.trim()) {
-                for (const line of extraResult.text.trim().split("\n")) {
-                  const file = line.trim()
-                  if (file) {
-                    yield* fossil(["add", file], { cwd: worktree }).pipe(
-                      Effect.catch(() => Effect.void),
-                    )
-                  }
-                }
-              }
-
-              // Handle missing tracked files — remove them from tracking so
-              // they don't block the commit (fossil requires all tracked files
-              // to exist on disk before committing).
-              const missingResult = yield* fossil(["changes", "--missing"], { cwd: worktree }).pipe(
-                Effect.catch(() => Effect.succeed({ code: 1, text: "", stderr: "" })),
-              )
-              if (missingResult.code === 0 && missingResult.text.trim()) {
-                for (const line of missingResult.text.trim().split("\n")) {
-                  const file = line.replace(/^MISSING\s+/, "").trim()
-                  if (file) {
-                    yield* fossil(["rm", file], { cwd: worktree }).pipe(
-                      Effect.catch(() => Effect.void),
-                    )
-                  }
-                }
+              } else {
+                // Manual or bootstrap tracking may intentionally reconcile the
+                // whole worktree. Fossil performs that in one process rather
+                // than spawning a process for every discovered file.
+                yield* fossil(["addremove"], { cwd: worktree }).pipe(
+                  Effect.catch(() => Effect.void),
+                )
               }
 
               // Get current version before commit
-              const before = yield* fossil(["info", "current"], { cwd: worktree })
-              const beforeHash = before.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim() ?? ""
+              const before = yield* fossil(["info"], { cwd: worktree })
+              const beforeHash = currentHash(before.text) ?? ""
               if (!beforeHash) log.warn("bug: fossil current hash unavailable", { stderr: before.stderr })
 
               // Use --allow-fork: when autosync is enabled (Fossil default),
@@ -290,8 +276,10 @@ export const layer = Layer.effect(
               }
 
               // Parse new version from output
-              const afterHash = commitResult.text.match(/New_Version:\s+([a-f0-9]+)/)?.[1]?.trim()
+              const afterHash = (
+                commitResult.text.match(/New_Version:\s+([a-f0-9]+)/)?.[1]?.trim()
                 ?? commitResult.text.trim()
+              ).slice(0, 40)
 
               log.info("tracking", { hash: afterHash, before: beforeHash })
               return afterHash
@@ -305,8 +293,8 @@ export const layer = Layer.effect(
               if (!(yield* enabled())) return undefined
               if (!(yield* ensureInit())) return undefined
               // Fossil doesn't have a separate op log — use version hash as op ID
-              const result = yield* fossil(["info", "current"], { cwd: worktree })
-              const hash = result.text.match(/hash:\s+([a-f0-9]+)/)?.[1]?.trim()
+              const result = yield* fossil(["info"], { cwd: worktree })
+              const hash = currentHash(result.text)
               return result.code === 0 ? hash : undefined
             }).pipe(Effect.orDie),
           )
@@ -317,7 +305,7 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               log.info("fossil checkout (opRestore)", { version: targetVersion })
               if (!(yield* ensureInit())) return
-              const result = yield* fossil(["checkout", targetVersion], { cwd: worktree })
+              const result = yield* fossil(["checkout", "--force", targetVersion], { cwd: worktree })
               if (result.code === 0) return
               log.error("fossil checkout failed", { version: targetVersion, stderr: result.stderr })
             }).pipe(Effect.orDie),
@@ -353,7 +341,7 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               log.info("restore (checkout)", { version: snapshot })
               if (!(yield* ensureInit())) return
-              const result = yield* fossil(["checkout", snapshot], { cwd: worktree })
+              const result = yield* fossil(["checkout", "--force", snapshot], { cwd: worktree })
               if (result.code === 0) return
               log.error("fossil checkout failed", { snapshot, stderr: result.stderr })
             }).pipe(Effect.orDie),

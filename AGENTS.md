@@ -39,15 +39,9 @@ constraints:
 - Tests cannot run from repo root — run from package dirs
 - Avoid mocks in tests — test actual implementation
 
-invariants:
-- Default branch is dev — never assume main exists
-- Every catch block must log (debug for expected, warn("bug:...") for unexpected)
-- Silent catch {} is always a bug
-- Plan documents must match actual code state
-- .opencode/plans/ is prohibited for plan storage
-
 forbidden_actions:
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
+- Using git push --no-verify (or any --no-verify variant with git push)
 - Using silent catch {} blocks
 - Labeling errors as "pre-existing" — every error is a deliverable
 - Planning from .opencode/plans/ directory
@@ -55,11 +49,20 @@ forbidden_actions:
 - Running tests from repo root
 - Changing Global.Path.home from worktree to os.homedir()
 
+invariants:
+- Default branch is dev — never assume main exists
+- Every catch block must log (debug for expected, warn("bug:...") for unexpected)
+- Silent catch {} is always a bug
+- Plan documents must match actual code state
+- .opencode/plans/ is prohibited for plan storage
+- git push --no-verify is never permitted for developer pushes
+
 acceptance_tests:
 - git status confirms dev branch
 - No catch {} blocks without log statements
 - Plan files in plans/ match actual code state
 - KV cache fingerprint stable across consecutive turns
+- No git push --no-verify in development workflow
 
 """
 Agent governance — defined in opencode_prompts_kernel.py.
@@ -94,6 +97,7 @@ Follow these external style guides for TypeScript code:
 
 - This is a development tool. There is no such thing as an "unimportant" or "low severity" bug. Every bug is a problem that degrades the tool for its users — fix it, don't triage it away.
 - **There are NO pre-existing errors.** Every TypeScript error, every typecheck failure, every test failure is a real bug that must be investigated and fixed. Do not label errors as "pre-existing" and skip them — that creates an ever-growing pile of broken code that nobody owns. Each error in `tsgo --noEmit` output is a deliverable.
+- **Bugs block push.** All bugs — regardless of who introduced them — must be fixed before `git push`. Pre-push hook failures (lint, typecheck, test) are bugs that must be resolved, not bypassed with `--no-verify`. There is no such thing as "someone else's bug" that can be skipped.
 - Silent `catch {}` blocks are bugs. If an error can occur, it must be logged. If it's truly expected and ignorable, log at debug level.
 - Plan-to-code gaps (a plan claiming something is done when it is not) are bugs and must be corrected in the plan document.
 - **Known type workarounds** (documented, not bugs):

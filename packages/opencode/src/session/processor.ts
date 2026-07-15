@@ -175,10 +175,10 @@ export const layer: Layer.Layer<
     const status = yield* SessionStatus.Service
 
     const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
-      // Pre-capture snapshot before the LLM stream starts. The AI SDK
-      // may execute tools internally before emitting start-step events,
-      // so capturing inside the event handler can be too late.
-      const initialSnapshot = yield* snapshot.track()
+      // Reuse the current Fossil checkpoint before streaming. Reconciling the
+      // full working tree here blocks every tool-loop iteration, including
+      // read-only turns that have no filesystem state to capture.
+      const initialSnapshot = yield* snapshot.checkpoint()
       const ctx: ProcessorContext = {
         assistantMessage: input.assistantMessage,
         sessionID: input.sessionID,
@@ -596,7 +596,9 @@ export const layer: Layer.Layer<
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: yield* snapshot.track([...ctx.changedFiles]),
+              snapshot: ctx.hasWriteToolCall
+                ? yield* snapshot.track([...ctx.changedFiles])
+                : ctx.snapshot,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",

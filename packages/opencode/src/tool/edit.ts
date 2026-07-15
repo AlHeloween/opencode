@@ -451,6 +451,14 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
     const { startLine, endLine } = candidates[0]
     const actualBlockSize = endLine - startLine + 1
 
+    // Guard: reject candidate if actual block is wildly larger than search block.
+    // Prevents anchor-span bug where small search patterns accidentally match
+    // across much larger blocks via coincidental first/last-line anchor hits.
+    const BLOCK_SIZE_RATIO_MAX = 3
+    if (actualBlockSize > searchBlockSize * BLOCK_SIZE_RATIO_MAX) {
+      return
+    }
+
     let similarity = 0
     let linesToCheck = Math.min(searchBlockSize - 2, actualBlockSize - 2) // Middle lines only
 
@@ -460,6 +468,7 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
         const searchLine = searchLines[j].trim()
         const maxLen = Math.max(originalLine.length, searchLine.length)
         if (maxLen === 0) {
+          similarity += 1.0 / linesToCheck  // both empty = perfect position match
           continue
         }
         const distance = levenshtein(originalLine, searchLine)
@@ -496,9 +505,17 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
   let bestMatch: { startLine: number; endLine: number } | null = null
   let maxSimilarity = -1
 
+  // Guard: discard any candidate whose block is wildly larger than the search block.
+  // Same anchor-span prevention as the single-candidate path above.
+  const BLOCK_SIZE_RATIO_MAX = 3
+
   for (const candidate of candidates) {
     const { startLine, endLine } = candidate
     const actualBlockSize = endLine - startLine + 1
+
+    if (actualBlockSize > searchBlockSize * BLOCK_SIZE_RATIO_MAX) {
+      continue
+    }
 
     let similarity = 0
     let linesToCheck = Math.min(searchBlockSize - 2, actualBlockSize - 2) // Middle lines only
@@ -509,6 +526,7 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
         const searchLine = searchLines[j].trim()
         const maxLen = Math.max(originalLine.length, searchLine.length)
         if (maxLen === 0) {
+          similarity += 1  // both empty = perfect position match
           continue
         }
         const distance = levenshtein(originalLine, searchLine)

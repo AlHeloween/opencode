@@ -99,12 +99,13 @@ export function detectGraphicsProtocol(override?: string): GraphicsProtocol {
     return "sixel"
   }
 
-  // ── Symbols fallback — always works, always logged ──────────────────
-  log.debug("no graphics protocol detected — falling back to Unicode symbols", {
+  // ── Default: try Sixel (most modern terminals support it) ──────────
+  // Symbols fallback is always available via MediaImage's explicit fallback chain.
+  log.debug("no graphics protocol detected — defaulting to Sixel (most modern terms support it)", {
     TERM: term || "<unset>",
     TERM_PROGRAM: termProgram || "<unset>",
   })
-  return "symbols"
+  return "sixel"
 }
 
 // ---------------------------------------------------------------------------

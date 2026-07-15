@@ -1,4 +1,5 @@
-import { chmod, mkdir, readFile, stat as statFile, writeFile } from "fs/promises"
+import { chmod, mkdir, readFile, rename, stat as statFile, writeFile } from "fs/promises"
+import { randomUUID } from "crypto"
 import { createWriteStream, existsSync, statSync } from "fs"
 import { realpathSync } from "fs"
 import { dirname, isAbsolute, join, relative, resolve as pathResolve, win32 } from "path"
@@ -89,7 +90,9 @@ export async function write(p: string, content: string | Buffer | Uint8Array, mo
 }
 
 export async function writeJson(p: string, data: unknown, mode?: number): Promise<void> {
-  return write(p, JSON.stringify(data, null, 2), mode)
+  const tmp = `${p}.${process.pid}.${randomUUID()}.tmp`
+  await write(tmp, JSON.stringify(data, null, 2), mode)
+  await rename(tmp, p)
 }
 
 export async function writeStream(

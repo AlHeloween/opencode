@@ -791,57 +791,58 @@ export function Prompt(props: PromptProps) {
         command: inputText,
       })
       setStore("mode", "normal")
-    } else if (
-      inputText.startsWith("/") &&
-      iife(() => {
-        const firstLine = inputText.split("\n")[0]
-        const command = firstLine.split(" ")[0].slice(1)
-        return sync.data.command.some((x) => x.name === command)
-      })
-    ) {
-      // Parse command from first line, preserve multi-line content in arguments
+    } else if (inputText.startsWith("/")) {
       const firstLineEnd = inputText.indexOf("\n")
       const firstLine = firstLineEnd === -1 ? inputText : inputText.slice(0, firstLineEnd)
-      const [command, ...firstLineArgs] = firstLine.split(" ")
+      const [cmdWithSlash, ...firstLineArgs] = firstLine.split(" ")
+      const cmdName = cmdWithSlash.slice(1)
       const restOfInput = firstLineEnd === -1 ? "" : inputText.slice(firstLineEnd + 1)
       const args = firstLineArgs.join(" ") + (restOfInput ? "\n" + restOfInput : "")
 
-      void sdk.client.session.command({
-        sessionID,
-        command: command.slice(1),
-        arguments: args,
-        agent: agent.name,
-        model: `${selectedModel.providerID}/${selectedModel.modelID}`,
-        messageID,
-        variant,
-        parts: nonTextParts
-          .filter((x) => x.type === "file")
-          .map((x) => ({
-            id: PartID.ascending(),
-            ...x,
-          })),
-      })
-    } else {
-      sdk.client.session
-        .prompt({
+      // Check TUI slash commands first (undo, redo, etc. — registered via useCommandDialog)
+      const tuiSlash = command.slashes().find(
+        (s) => s.display === "/" + cmdName || s.aliases?.includes("/" + cmdName),
+      )
+      if (tuiSlash) {
+        tuiSlash.onSelect()
+      } else if (sync.data.command.some((x) => x.name === cmdName)) {
+        void sdk.client.session.command({
           sessionID,
-          ...selectedModel,
-          messageID,
+          command: cmdName,
+          arguments: args,
           agent: agent.name,
-          model: selectedModel,
+          model: `${selectedModel.providerID}/${selectedModel.modelID}`,
+          messageID,
           variant,
-          parts: [
-            ...editorParts,
-            {
+          parts: nonTextParts
+            .filter((x) => x.type === "file")
+            .map((x) => ({
               id: PartID.ascending(),
-              type: "text",
-              text: inputText,
-            },
-            ...nonTextParts.map(assign),
-          ],
+              ...x,
+            })),
         })
-        .catch((e) => Log.Default.error("prompt submit failed", { error: e instanceof Error ? e.message : String(e) }))
-      editor.clearSelection()
+      } else {
+        sdk.client.session
+          .prompt({
+            sessionID,
+            ...selectedModel,
+            messageID,
+            agent: agent.name,
+            model: selectedModel,
+            variant,
+            parts: [
+              ...editorParts,
+              {
+                id: PartID.ascending(),
+                type: "text",
+                text: inputText,
+              },
+              ...nonTextParts.map(assign),
+            ],
+          })
+          .catch((e) => Log.Default.error("prompt submit failed", { error: e instanceof Error ? e.message : String(e) }))
+        editor.clearSelection()
+      }
     }
     history.append({
       ...store.prompt,

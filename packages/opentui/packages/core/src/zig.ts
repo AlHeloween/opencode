@@ -1573,6 +1573,59 @@ function getOpenTUILib(libPath?: string) {
       args: ["u32", "u32", "f32"],
       returns: "i32",
     },
+    // Per-stream audio symbols — call sites at AudioEngineLib impl ~L4984-5083
+    audioCreateStream: {
+      args: ["u32", "ptr", "ptr"],
+      returns: "i32",
+    },
+    audioWriteStream: {
+      args: ["u32", "u32", "ptr", "u32"],
+      returns: "i32",
+    },
+    audioEndStream: {
+      args: ["u32", "u32"],
+      returns: "i32",
+    },
+    audioRestartStream: {
+      args: ["u32", "u32"],
+      returns: "i32",
+    },
+    audioSetStreamVolume: {
+      args: ["u32", "u32", "f32"],
+      returns: "i32",
+    },
+    audioSetStreamPan: {
+      args: ["u32", "u32", "f32"],
+      returns: "i32",
+    },
+    audioSetStreamGroup: {
+      args: ["u32", "u32", "u32"],
+      returns: "i32",
+    },
+    audioGetStreamStats: {
+      args: ["u32", "u32", "ptr"],
+      returns: "i32",
+    },
+    audioCloseStream: {
+      args: ["u32", "u32", "u32", "ptr"],
+      returns: "i32",
+    },
+    audioLoad: {
+      args: ["u32", "ptr", "u32", "ptr"],
+      returns: "i32",
+    },
+    audioUnload: {
+      args: ["u32", "u32"],
+      returns: "i32",
+    },
+    audioPlay: {
+      args: ["u32", "u32", "ptr", "ptr"],
+      returns: "i32",
+    },
+    audioStopVoice: {
+      args: ["u32", "u32"],
+      returns: "i32",
+    },
     audioSetMasterVolume: {
       args: ["u32", "f32"],
       returns: "i32",

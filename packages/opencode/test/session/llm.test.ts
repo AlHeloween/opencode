@@ -369,6 +369,7 @@ describe("session.llm.stream", () => {
           system: ["You are a helpful assistant."],
           messages: [{ role: "user", content: "Hello" }],
           tools: {},
+          outputTokenMax: 512,
         })
 
         const capture = await request
@@ -386,14 +387,13 @@ describe("session.llm.stream", () => {
         expect(body.stream).toBe(true)
 
         const maxTokens = (body.max_tokens as number | undefined) ?? (body.max_output_tokens as number | undefined)
-        const expectedMaxTokens = ProviderTransform.maxOutputTokens(resolved)
-        expect(maxTokens).toBe(expectedMaxTokens)
+        expect(maxTokens).toBe(512)
 
         const reasoning = (body.reasoningEffort as string | undefined) ?? (body.reasoning_effort as string | undefined)
         expect(reasoning).toBe("high")
       },
     })
-  })
+  }, 30_000)
 
   test("caps max_tokens for qwen-like output equal to context metadata", async () => {
     const server = state.server

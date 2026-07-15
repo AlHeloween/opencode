@@ -332,6 +332,17 @@ describe("filesystem", () => {
       expect(content).toContain("  ")
     })
 
+    test("atomically replaces an existing JSON file", async () => {
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "data.json")
+
+      await Filesystem.writeJson(filepath, { version: 1 })
+      await Filesystem.writeJson(filepath, { version: 2 })
+
+      expect(JSON.parse(await fs.readFile(filepath, "utf-8"))).toEqual({ version: 2 })
+      expect((await fs.readdir(tmp.path)).filter((entry) => entry.endsWith(".tmp"))).toEqual([])
+    })
+
     test("writes with permissions", async () => {
       await using tmp = await tmpdir()
       const filepath = path.join(tmp.path, "config.json")

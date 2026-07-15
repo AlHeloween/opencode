@@ -148,6 +148,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       const filePath = path.join(Global.Path.state, "model.json")
       const state = {
         pending: false,
+        write: Promise.resolve(),
       }
 
       // ── Session-specific settings ──
@@ -220,13 +221,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return
         }
         state.pending = false
-        void Filesystem.writeJson(filePath, {
+        const snapshot = {
           recent: modelStore.recent,
           favorite: modelStore.favorite,
           variant: modelStore.variant,
           agentVariant: modelStore.agentVariant,
           taskModel: modelStore.taskModel,
-        })
+        }
+        state.write = state.write
+          .then(() => Filesystem.writeJson(filePath, snapshot))
+          .catch((error) =>
+            Log.Default.warn("bug: model config save failed", {
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          )
       }
 
       Filesystem.readJson(filePath)

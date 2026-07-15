@@ -39,6 +39,7 @@ export interface SessionSettings {
 // ── File path ──
 
 const SESSIONS_DIR = path.join(Global.Path.data, "sessions")
+const pendingWrites = new Map<string, Promise<void>>()
 
 /** Get the session settings file path for a given session ID. */
 export function getSessionSettingsPath(sessionID: string): string {
@@ -129,13 +130,25 @@ export async function saveSessionSettings(
   settings: SessionSettings,
 ): Promise<void> {
   const filePath = getSessionSettingsPath(sessionID)
+  const previous = pendingWrites.get(filePath) ?? Promise.resolve()
+  const write = previous
+    .catch((error) =>
+      Log.Default.warn("bug: previous session settings save failed", {
+        sessionID,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    )
+    .then(() => Filesystem.writeJson(filePath, settings))
+  pendingWrites.set(filePath, write)
   try {
-    await Filesystem.writeJson(filePath, settings)
+    await write
   } catch (e) {
     Log.Default.warn("bug: failed to save session settings", {
       sessionID,
       error: e instanceof Error ? e.message : String(e),
     })
+  } finally {
+    if (pendingWrites.get(filePath) === write) pendingWrites.delete(filePath)
   }
 }
 

@@ -1573,43 +1573,10 @@ function getOpenTUILib(libPath?: string) {
       args: ["u32", "u32", "f32"],
       returns: "i32",
     },
-    // Per-stream audio symbols — call sites at AudioEngineLib impl ~L4984-5083
-    audioCreateStream: {
-      args: ["u32", "ptr", "ptr"],
-      returns: "i32",
-    },
-    audioWriteStream: {
-      args: ["u32", "u32", "ptr", "u32"],
-      returns: "i32",
-    },
-    audioEndStream: {
-      args: ["u32", "u32"],
-      returns: "i32",
-    },
-    audioRestartStream: {
-      args: ["u32", "u32"],
-      returns: "i32",
-    },
-    audioSetStreamVolume: {
-      args: ["u32", "u32", "f32"],
-      returns: "i32",
-    },
-    audioSetStreamPan: {
-      args: ["u32", "u32", "f32"],
-      returns: "i32",
-    },
-    audioSetStreamGroup: {
-      args: ["u32", "u32", "u32"],
-      returns: "i32",
-    },
-    audioGetStreamStats: {
-      args: ["u32", "u32", "ptr"],
-      returns: "i32",
-    },
-    audioCloseStream: {
-      args: ["u32", "u32", "u32", "ptr"],
-      returns: "i32",
-    },
+    // Per-stream audio symbols — not in pre-built DLL, provided as JS stubs
+    // audioCreateStream, audioWriteStream, audioEndStream, audioRestartStream,
+    // audioSetStreamVolume, audioSetStreamPan, audioSetStreamGroup,
+    // audioGetStreamStats, audioCloseStream
     audioLoad: {
       args: ["u32", "ptr", "u32", "ptr"],
       returns: "i32",
@@ -1997,22 +1964,16 @@ export interface AudioEngineLib {
   audioStart: (engine: AudioEngineHandle, options?: AudioStartOptions | null) => number
   audioStartMixer: (engine: AudioEngineHandle) => number
   audioStop: (engine: AudioEngineHandle) => number
-  audioCreateStream: (
-    engine: AudioEngineHandle,
-    options: AudioStreamCreateOptions,
-  ) => { status: number; streamId: number | null }
-  audioWriteStream: (engine: AudioEngineHandle, streamId: number, data: Uint8Array) => number
-  audioEndStream: (engine: AudioEngineHandle, streamId: number) => number
-  audioRestartStream: (engine: AudioEngineHandle, streamId: number) => number
-  audioSetStreamVolume: (engine: AudioEngineHandle, streamId: number, volume: number) => number
-  audioSetStreamPan: (engine: AudioEngineHandle, streamId: number, pan: number) => number
-  audioSetStreamGroup: (engine: AudioEngineHandle, streamId: number, groupId: number) => number
-  audioGetStreamStats: (engine: AudioEngineHandle, streamId: number) => NativeAudioStreamStats | null
-  audioCloseStream: (
-    engine: AudioEngineHandle,
-    streamId: number,
-    reason: NativeAudioStreamCloseReason,
-  ) => { status: number; stats: NativeAudioStreamStats | null }
+  // Per-stream symbols — not in pre-built DLL
+  audioCreateStream: (_engine: AudioEngineHandle, _options: AudioStreamCreateOptions) => { status: number; streamId: number | null }
+  audioWriteStream: (_engine: AudioEngineHandle, _streamId: number, _data: Uint8Array) => number
+  audioEndStream: (_engine: AudioEngineHandle, _streamId: number) => number
+  audioRestartStream: (_engine: AudioEngineHandle, _streamId: number) => number
+  audioSetStreamVolume: (_engine: AudioEngineHandle, _streamId: number, _volume: number) => number
+  audioSetStreamPan: (_engine: AudioEngineHandle, _streamId: number, _pan: number) => number
+  audioSetStreamGroup: (_engine: AudioEngineHandle, _streamId: number, _groupId: number) => number
+  audioGetStreamStats: (_engine: AudioEngineHandle, _streamId: number) => NativeAudioStreamStats | null
+  audioCloseStream: (_engine: AudioEngineHandle, _streamId: number, _reason: NativeAudioStreamCloseReason) => { status: number; stats: NativeAudioStreamStats | null }
   audioLoad: (engine: AudioEngineHandle, data: Uint8Array) => { status: number; soundId: number | null }
   audioUnload: (engine: AudioEngineHandle, soundId: number) => number
   audioPlay: (
@@ -5034,66 +4995,20 @@ class FFIRenderLib implements RenderLib {
     return this.opentui.symbols.audioStop(engine)
   }
 
-  public audioCreateStream(
-    engine: AudioEngineHandle,
-    options: AudioStreamCreateOptions,
-  ): { status: number; streamId: number | null } {
-    if (
-      !isFFIU32(options.groupId) ||
-      (options.format !== NativeAudioStreamFormat.Mp3 && options.format !== NativeAudioStreamFormat.Flac)
-    ) {
-      return { status: -1, streamId: null }
-    }
-    const optionsBuffer = AudioStreamCreateOptionsStruct.pack(options)
-    const outBuffer = new ArrayBuffer(4)
-    const status = this.opentui.symbols.audioCreateStream(engine, optionsBuffer, outBuffer)
-    if (status !== 0) return { status, streamId: null }
-    return { status, streamId: new Uint32Array(outBuffer)[0] ?? null }
+  // Per-stream audio symbols not in pre-built DLL — stubs
+  public audioCreateStream(_engine: AudioEngineHandle, _options: AudioStreamCreateOptions): { status: number; streamId: number | null } {
+    return { status: -1, streamId: null }
   }
-
-  public audioWriteStream(engine: AudioEngineHandle, streamId: number, data: Uint8Array): number {
-    const dataLength = toSafeFFIU32Length(data.byteLength, "Audio stream data length")
-    return this.opentui.symbols.audioWriteStream(engine, streamId, dataLength === 0 ? null : data, dataLength)
-  }
-
-  public audioEndStream(engine: AudioEngineHandle, streamId: number): number {
-    return this.opentui.symbols.audioEndStream(engine, streamId)
-  }
-
-  public audioRestartStream(engine: AudioEngineHandle, streamId: number): number {
-    return this.opentui.symbols.audioRestartStream(engine, streamId)
-  }
-
-  public audioSetStreamVolume(engine: AudioEngineHandle, streamId: number, volume: number): number {
-    return this.opentui.symbols.audioSetStreamVolume(engine, streamId, volume)
-  }
-
-  public audioSetStreamPan(engine: AudioEngineHandle, streamId: number, pan: number): number {
-    return this.opentui.symbols.audioSetStreamPan(engine, streamId, pan)
-  }
-
-  public audioSetStreamGroup(engine: AudioEngineHandle, streamId: number, groupId: number): number {
-    if (!isFFIU32(groupId)) return -1
-    return this.opentui.symbols.audioSetStreamGroup(engine, streamId, groupId)
-  }
-
-  public audioGetStreamStats(engine: AudioEngineHandle, streamId: number): NativeAudioStreamStats | null {
-    const outBuffer = new ArrayBuffer(AudioStreamStatsStruct.size)
-    const status = this.opentui.symbols.audioGetStreamStats(engine, streamId, outBuffer)
-    if (status !== 0) return null
-    return AudioStreamStatsStruct.unpack(outBuffer) as NativeAudioStreamStats
-  }
-
+  public audioWriteStream(_engine: AudioEngineHandle, _streamId: number, _data: Uint8Array): number { return -1 }
+  public audioEndStream(_engine: AudioEngineHandle, _streamId: number): number { return -1 }
+  public audioRestartStream(_engine: AudioEngineHandle, _streamId: number): number { return -1 }
+  public audioSetStreamVolume(_engine: AudioEngineHandle, _streamId: number, _volume: number): number { return -1 }
+  public audioSetStreamPan(_engine: AudioEngineHandle, _streamId: number, _pan: number): number { return -1 }
+  public audioSetStreamGroup(_engine: AudioEngineHandle, _streamId: number, _groupId: number): number { return -1 }
+  public audioGetStreamStats(_engine: AudioEngineHandle, _streamId: number): NativeAudioStreamStats | null { return null }
   public audioCloseStream(
-    engine: AudioEngineHandle,
-    streamId: number,
-    reason: NativeAudioStreamCloseReason,
-  ): { status: number; stats: NativeAudioStreamStats | null } {
-    const outBuffer = new ArrayBuffer(AudioStreamStatsStruct.size)
-    const status = this.opentui.symbols.audioCloseStream(engine, streamId, reason, outBuffer)
-    if (status !== 0) return { status, stats: null }
-    return { status, stats: AudioStreamStatsStruct.unpack(outBuffer) as NativeAudioStreamStats }
-  }
+    _engine: AudioEngineHandle, _streamId: number, _reason: NativeAudioStreamCloseReason,
+  ): { status: number; stats: NativeAudioStreamStats | null } { return { status: -1, stats: null } }
 
   public audioLoad(engine: Pointer, data: Uint8Array): { status: number; soundId: number | null } {
     const outBuffer = new ArrayBuffer(4)

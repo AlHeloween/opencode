@@ -30,8 +30,10 @@ export function MediaMermaid(props: { source: string }) {
     ;(async () => {
       try {
         // Step 1: Render mermaid to PNG data URL (WASM → SVG → PNG)
+        const bg = mode() === "dark" ? "#1a1b26" : "#ffffff"
         const pngDataUrl = await renderMermaidToPngDataUrl(props.source, {
           theme: mode() === "dark" ? "dark" : "default",
+          background: bg,
         })
 
         if (!pngDataUrl) {

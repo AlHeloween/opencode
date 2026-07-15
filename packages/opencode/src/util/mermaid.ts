@@ -102,11 +102,13 @@ export async function renderMermaidToSvg(
 }
 
 /** Render SVG to PNG data URL — ready for <image-plane> */
-export function renderSvgToPngDataUrl(svg: string): string | null {
+export function renderSvgToPngDataUrl(svg: string, background?: string): string | null {
   try {
     const terminalWidth = process.stdout.columns ?? 80
+    const bg = background ?? "#ffffff"
     const resvg = new Resvg(svg, {
       fitTo: { mode: "width", value: terminalWidth * 8 },
+      background: bg,
     })
     const pngData = resvg.render()
     const pngBuffer = pngData.asPng()
@@ -125,10 +127,12 @@ export function renderSvgToPngDataUrl(svg: string): string | null {
  * Bypasses PNG entirely: SVG → resvg (RGBA pixels) → 5-6-5 quantize → Sixel.
  * Same quality as the Python cube demo — zero PNG artifacts.
  */
-export function renderSvgToSixel(svg: string, maxCols: number = 60): string | null {
+export function renderSvgToSixel(svg: string, maxCols: number = 60, background?: string): string | null {
   try {
+    const bg = background ?? "#ffffff"
     const resvg = new Resvg(svg, {
       fitTo: { mode: "width", value: maxCols * 12 },
+      background: bg,
     })
     const rendered = resvg.render()
     const pixels: Uint8Array = rendered.pixels
@@ -255,11 +259,11 @@ export async function renderMermaidToQuadChunks(
 /** Render Mermaid source to PNG data URL (lazy WASM, timed, with fallback) */
 export async function renderMermaidToPngDataUrl(
   source: string,
-  options?: MermaidRenderOptions,
+  options?: MermaidRenderOptions & { background?: string },
 ): Promise<string | null> {
   const svg = await renderMermaidToSvg(source, options)
   if (!svg) return null
-  return renderSvgToPngDataUrl(svg)
+  return renderSvgToPngDataUrl(svg, options?.background)
 }
 
 /**

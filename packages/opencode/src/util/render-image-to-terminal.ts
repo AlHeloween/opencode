@@ -118,10 +118,9 @@ export async function renderDataUrlToTerminal(
     const protocol = options?.protocol ?? "auto"
     const write = options?.writeToTerminal ?? true
     const result = await renderImageToTerminal({ imagePath: tmpFile, maxCols: cols, protocol })
-    // Only write to terminal for protocols that use escape sequences (sixel, kitty).
-    // Symbols protocol returns chunks for inline TUI rendering — no terminal write.
-    // When writeToTerminal is false, caller handles positioning + write.
-    if (result.escapeSequence && write) {
+    // Write Sixel/Kitty escape sequences to stdout so they land on the TUI's alternate screen.
+    // When writeToTerminal is false, skip the write — caller handles positioning/delayed write.
+    if (result.escapeSequence && options?.writeToTerminal !== false) {
       process.stdout.write(result.escapeSequence)
     }
     return result

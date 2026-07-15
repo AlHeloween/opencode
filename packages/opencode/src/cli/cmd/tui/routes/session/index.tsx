@@ -27,6 +27,7 @@ import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@o
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import { renderMermaidToPngDataUrl } from "@/util/mermaid"
   import { indexedMermaidSegments, splitTextSegments, type TextSegment } from "./text-segments"
+
 import type {
   AssistantMessage,
   Part,
@@ -1771,7 +1772,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
         if (mermaidDataUrls()[index]) continue
       }
       renderedSources.set(index, segment.source)
-      // Render async — WASM is lazy-loaded, may be first load
+      // PNG data URL → used by Sixel / symbols rendering
       renderMermaidToPngDataUrl(segment.source, {
         theme: mode() === "dark" ? "dark" : "default",
       })

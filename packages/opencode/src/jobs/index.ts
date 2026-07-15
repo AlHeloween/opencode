@@ -1,5 +1,6 @@
-import { Effect, Context, Layer, Schema } from "effect"
+import { Effect, Context, Fiber, Layer, Schema } from "effect"
 import { SessionID } from "../session/schema"
+import { EffectBridge } from "@/effect/bridge"
 import * as Log from "@opencode-ai/core/util/log"
 import { Database } from "bun:sqlite"
 import path from "path"
@@ -362,12 +363,17 @@ export const layer = Layer.effect(
     }) {
       const id = nextID(input.sessionID, input.kind)
       const controller = new AbortController()
+      const bridge = yield* EffectBridge.make()
+      let fiber: Fiber.Fiber<unknown, unknown> | undefined
 
       const job: Job = {
         id, kind: input.kind, label: input.label, sessionID: input.sessionID,
         status: "running", output: `[started] ${input.label}`, result: "", resultSurfaced: false,
         startedAt: Date.now(), finishedAt: 0,
-        cancel: () => controller.abort(),
+        cancel: () => {
+          controller.abort()
+          if (fiber) bridge.fork(Fiber.interrupt(fiber))
+        },
       }
 
       const jobKey = key(input.sessionID, id)
@@ -377,44 +383,48 @@ export const layer = Layer.effect(
 
       yield* Effect.promise(() => acquire())
 
-      input.run.pipe(
-        Effect.tap((text) => Effect.sync(() => {
-          const j = jobs.get(jobKey)
-          if (j) {
-            j.output = j.output.replace(/^\[started\].*\n?/, "") + text + "\n"
-            persistUpdate(j)
-          }
-        })),
-        Effect.matchEffect({
-          onSuccess: (result) => Effect.sync(() => {
+      // Run through EffectBridge so Instance/workspace ALS context is restored.
+      // Bare Effect.runFork loses project context and can leave sub-agent sessions
+      // stuck after creating an assistant message with no stream events.
+      fiber = bridge.fork(
+        input.run.pipe(
+          Effect.tap((text) => Effect.sync(() => {
             const j = jobs.get(jobKey)
-            if (!j) return
-            if (controller.signal.aborted) { j.status = "killed" }
-            else { j.status = "done"; j.result = result }
-            if (!j.output.includes("[started]")) j.output = result
-            j.finishedAt = Date.now()
-            persistUpdate(j)
-            completed.push({
-              sessionID: input.sessionID,
-              text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
-            })
-            if (completed.length > 500) completed.shift()
-            log.info("job completed (effect)", { id, status: j.status })
+            if (j) {
+              j.output = j.output.replace(/^\[started\].*\n?/, "") + text + "\n"
+              persistUpdate(j)
+            }
+          })),
+          Effect.matchEffect({
+            onSuccess: (result) => Effect.sync(() => {
+              const j = jobs.get(jobKey)
+              if (!j) return
+              if (controller.signal.aborted) { j.status = "killed" }
+              else { j.status = "done"; j.result = result }
+              if (!j.output.includes("[started]")) j.output = result
+              j.finishedAt = Date.now()
+              persistUpdate(j)
+              completed.push({
+                sessionID: input.sessionID,
+                text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
+              })
+              if (completed.length > 500) completed.shift()
+              log.info("job completed (effect)", { id, status: j.status })
+            }),
+            onFailure: (err) => Effect.sync(() => {
+              const j = jobs.get(jobKey)
+              if (!j) return
+              if (controller.signal.aborted) { j.status = "killed" }
+              else { j.status = "failed"; j.output += `\nError: ${err instanceof Error ? err.message : String(err)}` }
+              j.finishedAt = Date.now()
+              persistUpdate(j)
+              completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed` })
+              if (completed.length > 500) completed.shift()
+              log.warn("job failed (effect)", { id, error: err instanceof Error ? err.message : String(err) })
+            }),
           }),
-          onFailure: (err) => Effect.sync(() => {
-            const j = jobs.get(jobKey)
-            if (!j) return
-            if (controller.signal.aborted) { j.status = "killed" }
-            else { j.status = "failed"; j.output += `\nError: ${err.message}` }
-            j.finishedAt = Date.now()
-            persistUpdate(j)
-            completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed` })
-            if (completed.length > 500) completed.shift()
-            log.warn("job failed (effect)", { id, error: err.message })
-          }),
-        }),
-        Effect.ensuring(Effect.sync(() => release())),
-        Effect.runFork,
+          Effect.ensuring(Effect.sync(() => release())),
+        ),
       )
 
       return id

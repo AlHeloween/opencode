@@ -204,6 +204,7 @@ export const layer = Layer.effect(
               user,
               Permission.fromConfig({
                 "*": "deny",
+                codegraph: "allow",
                 grep: "allow",
                 glob: "allow",
                 list: "allow",

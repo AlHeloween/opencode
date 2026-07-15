@@ -389,18 +389,26 @@ export class CodeRenderable extends TextBufferRenderable {
 
         if (this.isDestroyed) return
 
-        // Preserve initialStyledText for markdown — tree-sitter's
+        // Preserve initialStyledText for markdown and ansi — tree-sitter's
         // markdown grammar doesn't capture strong/em/codespan inline
         // formatting, so its output would overwrite rich styled text
         // with structural-only highlights (black and white).
-        if (!(this._initialStyledText && filetype === "markdown")) {
+        // "ansi" filetype uses pre-rendered styled chunks (image-to-ansi).
+        if (!(this._initialStyledText && (filetype === "markdown" || filetype === "ansi"))) {
           const styledText = new StyledText(chunks)
           this.textBuffer.setStyledText(styledText)
         }
         this.setRenderedLineSources(renderedLineSources)
       } else {
-        this.textBuffer.setText(content)
-        this.setRenderedLineSources(undefined)
+        // Preserve initialStyledText when tree-sitter returns zero highlights.
+        // "ansi" and "markdown" with initialStyledText use pre-rendered chunks
+        // (image-to-ansi, quadrant rendering, rich inline formatting).
+        if (this._initialStyledText && (filetype === "markdown" || filetype === "ansi")) {
+          // Keep existing styled text — don't overwrite with plain text
+        } else {
+          this.textBuffer.setText(content)
+          this.setRenderedLineSources(undefined)
+        }
       }
 
       this._shouldRenderTextBuffer = true

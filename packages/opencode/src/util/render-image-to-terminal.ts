@@ -12,7 +12,7 @@
  */
 import { sixelImage } from "./sixel-render"
 import { kittyImage } from "./kitty-render"
-import { imageToAnsi } from "./image-to-ansi"
+import { imageToAnsi, imageToChunks, type AnsiChunk } from "./image-to-ansi"
 import { detectBestProtocol, type GraphicsProtocol } from "./terminal-graphics"
 import { writeToTerminal, sixelHeightInRows } from "./terminal-write"
 import { writeFileSync, unlinkSync, existsSync } from "fs"
@@ -29,9 +29,10 @@ export interface RenderOptions {
 }
 
 export type RenderResult = {
-  escapeSequence: string     // The raw escape sequence to write
+  escapeSequence: string     // The raw escape sequence to write (empty for symbols)
   protocol: GraphicsProtocol // Which protocol was used
   dimensions: { cols: number; rows: number; terminalRows: number }  // terminalRows = rows in terminal cells
+  chunks?: AnsiChunk[][]     // Inline chunks for symbols protocol (no terminal write needed)
 }
 
 /**
@@ -97,7 +98,7 @@ export async function renderImageToTerminal(
  */
 export async function renderDataUrlToTerminal(
   dataUrl: string,
-  maxCols?: number,
+  options?: { maxCols?: number; protocol?: GraphicsProtocol | "auto" },
 ): Promise<RenderResult | null> {
   const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!match) return null
@@ -111,9 +112,14 @@ export async function renderDataUrlToTerminal(
 
   try {
     writeFileSync(tmpFile, Buffer.from(base64!, "base64"))
-    const result = await renderImageToTerminal({ imagePath: tmpFile, maxCols })
-    // Write the escape sequence directly to the terminal
-    writeToTerminal(result.escapeSequence)
+    const cols = options?.maxCols ?? 60
+    const protocol = options?.protocol ?? "auto"
+    const result = await renderImageToTerminal({ imagePath: tmpFile, maxCols: cols, protocol })
+    // Only write to terminal for protocols that use escape sequences (sixel, kitty).
+    // Symbols protocol returns chunks for inline TUI rendering — no terminal write.
+    if (result.escapeSequence) {
+      writeToTerminal(result.escapeSequence)
+    }
     return result
   } catch (err) {
     log.warn("bug: renderDataUrlToTerminal failed", { error: String(err) })
@@ -127,12 +133,12 @@ async function renderAsAnsi(
   imagePath: string,
   maxCols: number,
 ): Promise<RenderResult> {
-  const escapeSequence = await imageToAnsi(imagePath, { width: maxCols })
-  const rows = escapeSequence.split("\n").length
+  const chunks = await imageToChunks(imagePath, { width: maxCols })
   return {
-    escapeSequence,
+    escapeSequence: "",
     protocol: "symbols",
-    dimensions: { cols: maxCols, rows, terminalRows: rows },
+    dimensions: { cols: maxCols, rows: chunks.length, terminalRows: chunks.length },
+    chunks,
   }
 }
 

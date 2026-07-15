@@ -1,21 +1,68 @@
 import * as Tool from "./tool"
 import DESCRIPTION from "./task.txt"
 import { Session } from "@/session/session"
-import { SessionID, MessageID } from "../session/schema"
+import { SessionID, MessageID, PartID } from "../session/schema"
 import { MessageV2 } from "../session/message-v2"
 import { Agent } from "../agent/agent"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
 import { InstanceState } from "@/effect/instance-state"
 import { Checkpoint } from "../session/checkpoint"
-import { Effect, Exit, Schema } from "effect"
+import { Effect, Exit, Option, Schema } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Provider } from "@/provider/provider"
+import { ProviderID } from "@/provider/schema"
 import { Jobs } from "../jobs"
+
+const log = Log.create({ service: "task" })
+
+/** Finalize an unfinished assistant message left behind by a failed/hung sub-agent. */
+function finalizeOrphanAssistant(
+  sessions: Session.Interface,
+  sessionID: SessionID,
+  providerID: string,
+  error: unknown,
+) {
+  return Effect.gen(function* () {
+    const match = yield* sessions.findMessage(
+      sessionID,
+      (m) => m.info.role === "assistant" && !m.info.finish,
+    )
+    if (Option.isNone(match)) return
+    const msg = match.value
+    if (msg.info.role !== "assistant") return
+    const assistant = msg.info
+    assistant.error = MessageV2.fromError(error, {
+      providerID: ProviderID.make(providerID),
+      aborted: error instanceof DOMException && error.name === "AbortError",
+    })
+    assistant.finish = "error"
+    assistant.time.completed = Date.now()
+    yield* sessions.updateMessage(assistant)
+
+    // Ensure there is at least one text part so the TUI shows the failure.
+    const hasText = msg.parts.some((p) => p.type === "text")
+    if (!hasText) {
+      yield* sessions.updatePart({
+        id: PartID.ascending(),
+        messageID: assistant.id,
+        sessionID,
+        type: "text",
+        text: `Sub-agent failed: ${error instanceof Error ? error.message : String(error)}`,
+        time: { start: Date.now(), end: Date.now() },
+      } satisfies MessageV2.TextPart)
+    }
+    log.warn("finalized orphan assistant", {
+      sessionID,
+      messageID: assistant.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }).pipe(Effect.catch((e) => Effect.sync(() => log.warn("bug: finalize orphan assistant failed", { error: String(e) }))))
+}
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -26,6 +73,11 @@ export interface TaskPromptOps {
 const id = "task"
 let taskCacheLeaseID = 0
 const taskCacheLeases = new Map<string, number>()
+
+type Metadata = {
+  sessionId: SessionID
+  model: { providerID: string; modelID: string }
+}
 
 function acquireTaskCacheLease(input: {
   parentSessionID: SessionID
@@ -249,23 +301,41 @@ export const TaskTool = Tool.define(
             run: Effect.gen(function* () {
               const messageID = MessageID.ascending()
               const parts = yield* ops.resolvePromptParts(params.prompt)
-              const result = yield* ops.prompt({
-                messageID,
-                sessionID: nextSession.id,
-                providerCacheKey: cacheLease?.cacheKey,
-                model: {
-                  modelID: model.modelID,
-                  providerID: model.providerID,
-                },
-                agent: next.name,
-                variant: taskVariant,
-                tools: {
-                  ...(canTodo ? {} : { todowrite: false }),
-                  ...(canTask ? {} : { task: false }),
-                  ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
-                },
-                parts,
-              })
+              const result = yield* ops
+                .prompt({
+                  messageID,
+                  sessionID: nextSession.id,
+                  providerCacheKey: cacheLease?.cacheKey,
+                  model: {
+                    modelID: model.modelID,
+                    providerID: model.providerID,
+                  },
+                  agent: next.name,
+                  variant: taskVariant,
+                  tools: {
+                    ...(canTodo ? {} : { todowrite: false }),
+                    ...(canTask ? {} : { task: false }),
+                    ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
+                  },
+                  parts,
+                })
+                .pipe(
+                  Effect.timeout(300_000),
+                  Effect.catch((error) =>
+                    Effect.gen(function* () {
+                      yield* ops.cancel(nextSession.id)
+                      yield* finalizeOrphanAssistant(sessions, nextSession.id, model.providerID, error)
+                      return {
+                        parts: [
+                          {
+                            type: "text" as const,
+                            text: `Sub-agent '${next.name}' failed: ${error instanceof Error ? error.message : String(error)}`,
+                          },
+                        ],
+                      } satisfies { parts: { type: "text"; text: string }[] }
+                    }),
+                  ),
+                )
               return result.parts.findLast((item) => item.type === "text")?.text ?? ""
             }).pipe(Effect.ensuring(cacheLease?.release ?? Effect.void)),
           }).pipe(Effect.tapError(() => cacheLease?.release ?? Effect.void))
@@ -297,22 +367,40 @@ export const TaskTool = Tool.define(
         () =>
           Effect.gen(function* () {
             const parts = yield* ops.resolvePromptParts(params.prompt)
-            const result = yield* ops.prompt({
-              messageID,
-              sessionID: nextSession.id,
-              providerCacheKey: cacheLease?.cacheKey,
-              model: {
-                modelID: model.modelID,
-                providerID: model.providerID,
-              },
-              agent: next.name,
-              tools: {
-                ...(canTodo ? {} : { todowrite: false }),
-                ...(canTask ? {} : { task: false }),
-                ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
-              },
-              parts,
-            })
+            const result = yield* ops
+              .prompt({
+                messageID,
+                sessionID: nextSession.id,
+                providerCacheKey: cacheLease?.cacheKey,
+                model: {
+                  modelID: model.modelID,
+                  providerID: model.providerID,
+                },
+                agent: next.name,
+                tools: {
+                  ...(canTodo ? {} : { todowrite: false }),
+                  ...(canTask ? {} : { task: false }),
+                  ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
+                },
+                parts,
+              })
+              .pipe(
+                Effect.timeout(300_000),
+                Effect.catch((error) =>
+                  Effect.gen(function* () {
+                    yield* cancel
+                    yield* finalizeOrphanAssistant(sessions, nextSession.id, model.providerID, error)
+                    return {
+                      parts: [
+                        {
+                          type: "text" as const,
+                          text: `Sub-agent '${next.name}' failed: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                      ],
+                    } satisfies { parts: { type: "text"; text: string }[] }
+                  }),
+                ),
+              )
 
             return {
               title: params.description,
@@ -331,7 +419,15 @@ export const TaskTool = Tool.define(
           }),
         (_, exit) =>
           Effect.gen(function* () {
-            if (Exit.hasInterrupts(exit)) yield* cancel
+            if (Exit.hasInterrupts(exit)) {
+              yield* cancel
+              yield* finalizeOrphanAssistant(
+                sessions,
+                nextSession.id,
+                model.providerID,
+                new DOMException("Aborted", "AbortError"),
+              )
+            }
             if (cacheLease) yield* cacheLease.release
           }).pipe(
             Effect.ensuring(
@@ -346,8 +442,25 @@ export const TaskTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
-        run(params, ctx).pipe(Effect.orDie),
+      execute: (
+        params: Schema.Schema.Type<typeof Parameters>,
+        ctx: Tool.Context,
+      ): Effect.Effect<Tool.ExecuteResult<Metadata>> =>
+        run(params, ctx).pipe(
+          Effect.catch((error) =>
+            Effect.succeed({
+              title: params.description,
+              metadata: { sessionId: SessionID.make("(failed)"), model: { providerID: "", modelID: "" } },
+              output: [
+                `task_id: (failed)`,
+                ``,
+                `<task_result>`,
+                `Sub-agent '${params.subagent_type}' failed: ${error instanceof Error ? error.message : String(error)}`,
+                `</task_result>`,
+              ].join("\n"),
+            }),
+          ),
+        ),
     }
   }),
 )

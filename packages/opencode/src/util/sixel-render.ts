@@ -3,7 +3,8 @@
  * Emits real pixel images (not block chars) in terminals that support Sixel.
  * Windows Terminal (2024+), foot, Konsole, xterm with Sixel patch all support this.
  *
- * Pipeline: PNG file → Jimp decode → color quantization → Sixel escape sequence
+ * Pipeline (file):  PNG file → Jimp decode → color quantization → Sixel escape sequence
+ * Pipeline (pixels): RGBA pixels → color quantization → Sixel escape sequence
  * 
  * Sixel format:
  *   \x1bPq            — DCS (Device Control String) start
@@ -178,5 +179,93 @@ export async function sixelImage(
   // ST (String Terminator)
   parts.push("\x1b\\")
 
+  return parts.join("")
+}
+
+/**
+ * Generate Sixel escape sequence directly from raw RGBA pixel data.
+ * Uses the same 5-6-5 quantization and band encoding as sixelImage(),
+ * but takes pre-decoded pixels instead of reading a file.
+ *
+ * @param pixels  Flat array of pixels in RGBA order: [R,G,B,A, R,G,B,A, ...]
+ * @param width   Image width in pixels
+ * @param height  Image height in pixels (rounded up to multiple of 6 internally)
+ */
+export function pixelsToSixel(
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+): string {
+  // Round height up to nearest multiple of 6
+  const sixelRows = Math.ceil(height / 6) * 6
+  const cols = width
+
+  // Extract RGB from RGBA pixels into flat array
+  const rgbPixels: Rgb[] = []
+  for (let y = 0; y < sixelRows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (y < height) {
+        const idx = (y * cols + x) * 4
+        rgbPixels.push([pixels[idx]!, pixels[idx + 1]!, pixels[idx + 2]!])
+      } else {
+        // Pad rows: black (won't use these since they're past original height)
+        rgbPixels.push([0, 0, 0])
+      }
+    }
+  }
+
+  // Quantize and encode
+  const { palette, indices } = quantize565(rgbPixels)
+  const parts: string[] = []
+
+  parts.push("\x1bPq")
+
+  // Define palette
+  const maxPalette = Math.min(palette.length, 65536)
+  for (let i = 0; i < maxPalette; i++) {
+    const [r, g, b] = palette[i]!
+    parts.push(`#${i};2;${Math.round(r / 2.55)};${Math.round(g / 2.55)};${Math.round(b / 2.55)}`)
+  }
+
+  // Encode bands
+  const bands = sixelRows / 6
+  for (let band = 0; band < bands; band++) {
+    const baseY = band * 6
+    const colorBands = new Map<number, Uint8Array>()
+
+    for (let x = 0; x < cols; x++) {
+      for (let bit = 0; bit < 6; bit++) {
+        const y = baseY + bit
+        if (y >= height) continue  // skip padded rows
+        const pixelIdx = y * cols + x
+        const colorIdx = indices[pixelIdx]!
+        if (colorIdx >= maxPalette) continue
+
+        let bitmask = colorBands.get(colorIdx)
+        if (!bitmask) {
+          bitmask = new Uint8Array(cols)
+          colorBands.set(colorIdx, bitmask)
+        }
+        bitmask[x] = (bitmask[x] ?? 0) | (1 << bit)
+      }
+    }
+
+    const sortedColors = [...colorBands.entries()].sort((a, b) => {
+      const countA = a[1].reduce((s, v) => s + (v ? 1 : 0), 0)
+      const countB = b[1].reduce((s, v) => s + (v ? 1 : 0), 0)
+      return countB - countA
+    })
+
+    for (const [colorIdx, bitmask] of sortedColors) {
+      parts.push(`#${colorIdx}`)
+      for (let x = 0; x < cols; x++) {
+        parts.push(String.fromCharCode(0x3f + (bitmask[x] ?? 0)))
+      }
+      parts.push("$")
+    }
+    parts.push("-")
+  }
+
+  parts.push("\x1b\\")
   return parts.join("")
 }

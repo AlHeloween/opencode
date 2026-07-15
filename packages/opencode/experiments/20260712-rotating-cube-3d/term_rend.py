@@ -5,106 +5,201 @@ import math
 try:
     import msvcrt  # Windows keyboard input
 except ImportError:
-    pass
+    msvcrt = None
 
-class SixelCubeEngine:
-    def __init__(self):
-        # 1. Real Hardware Pixel Canvas Dimensions
-        self.width = 300
-        self.height = 300
-        
-        # 3D Math configurations
+
+class Cube:
+    """A single 3D wireframe cube with its own rotation state, color, and label."""
+    def __init__(self, offset_x, offset_y, scale, label, rotation_speed):
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+        self.scale = scale
+        self.label = label
+        self.rot_speed = rotation_speed
+        self.angle_x = 0.0
+        self.angle_y = 0.0
+
         self.vertices = [
             [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
             [-1, -1,  1], [1, -1,  1], [1, 1,  1], [-1, 1,  1]
         ]
         self.edges = [
-            (0,1), (1,2), (2,3), (3,0), (4,5), (5,6), 
+            (0,1), (1,2), (2,3), (3,0), (4,5), (5,6),
             (6,7), (7,4), (0,4), (1,5), (2,6), (3,7)
         ]
-        self.angle_x = 0.0
-        self.angle_y = 0.0
 
-    def rotate_and_project(self, x, y, z):
-        # Rotate X & Y
+    def rotate_and_project(self, x, y, z, canvas_w, canvas_h):
         rad_x, rad_y = math.radians(self.angle_x), math.radians(self.angle_y)
         y, z = y * math.cos(rad_x) - z * math.sin(rad_x), y * math.sin(rad_x) + z * math.cos(rad_x)
         x, z = x * math.cos(rad_y) + z * math.sin(rad_y), -x * math.sin(rad_y) + z * math.cos(rad_y)
-        
-        # Perspective Projection
-        factor = 120 / (z + 4.0)
-        return int(self.width / 2 + x * factor), int(self.height / 2 + y * factor)
 
-    def draw_line(self, x0, y0, x1, y1, pixel_matrix):
-        # Bresenham's algorithm to plot true pixels into our array matrix
-        dx, dy = abs(x1 - x0), abs(y1 - y0)
-        sx = 1 if x0 < x1 else -1
-        sy = 1 if y0 < y1 else -1
-        err = dx - dy
-        while True:
-            if 0 <= x0 < self.width and 0 <= y0 < self.height:
-                pixel_matrix[y0][x0] = 1 # Mark pixel as active
-            if x0 == x1 and y0 == y1: break
-            e2 = 2 * err
-            if e2 > -dy: err -= dy; x0 += sx
-            if e2 < dx: err += dx; y0 += sy
+        factor = self.scale / (z + 4.0)
+        px = self.offset_x + int(x * factor)
+        py = self.offset_y + int(y * factor)
+        return px, py
 
-    def generate_sixel_stream(self, pixel_matrix):
-        """
-        Converts our 2D pixel array into raw standard SIXEL bytes.
-        Sixel groups 6 vertical pixels into a single character column block.
-        """
-        # Sixel Protocol Headers: \033Pq (Start) -> #0;2;0;100;0 (Define Color 0 as Cyan)
-        out = ["\033Pq#0;2;0;100;0#0"]
-        
-        # Process rows in bands of 6 vertical pixels
-        for y_band in range(0, self.height, 6):
-            for x in range(self.width):
-                sixel_char_code = 0
-                for bit in range(6):
-                    y = y_band + bit
-                    if y < self.height and pixel_matrix[y][x]:
-                        sixel_char_code |= (1 << bit)
-                # Sixel characters are offset by ASCII 63 (?)
-                out.append(chr(0x3f + sixel_char_code))
-            out.append("-") # Sixel newline command
-            
-        out.append("\033\\") # Sixel End Escape Sequence
-        return "".join(out)
+    def tick(self):
+        self.angle_x += self.rot_speed[0]
+        self.angle_y += self.rot_speed[1]
+
+
+def draw_line(x0, y0, x1, y1, pixel_matrix, w, h):
+    dx, dy = abs(x1 - x0), abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+    while True:
+        if 0 <= x0 < w and 0 <= y0 < h:
+            pixel_matrix[y0][x0] = 1
+        if x0 == x1 and y0 == y1:
+            break
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x0 += sx
+        if e2 < dx:
+            err += dx
+            y0 += sy
+
+
+def generate_sixel(pixel_matrix, w, h, edge_rgb, fill_rgb=None):
+    """
+    Convert 2D pixel array to Sixel bytes.
+    edge_rgb  = (r%, g%, b%) for value 1 (wireframe edges)
+    fill_rgb  = (r%, g%, b%) for value 2 (filled areas), optional
+    """
+    r1, g1, b1 = edge_rgb
+    parts = ["\033Pq", f"#1;2;{r1};{g1};{b1}"]
+    if fill_rgb:
+        r2, g2, b2 = fill_rgb
+        parts.append(f"#2;2;{r2};{g2};{b2}")
+
+    for y_band in range(0, h, 6):
+        parts.append("#1")
+        current_color = 1
+        for x in range(w):
+            sixel_code = 0
+            for bit in range(6):
+                yy = y_band + bit
+                if yy < h and pixel_matrix[yy][x]:
+                    val = pixel_matrix[yy][x]
+                    if val != current_color:
+                        parts.append(f"#{val}")
+                        current_color = val
+                    sixel_code |= (1 << bit)
+            parts.append(chr(0x3F + sixel_code))
+        parts.append("-")
+
+    parts.append("\033\\")
+    return "".join(parts)
+
+
+class SixelDualCubeEngine:
+    def __init__(self):
+        # Each cube gets its own 300x300 pixel canvas
+        self.cube_w = 300
+        self.cube_h = 300
+        self.cube_center = (self.cube_w // 2, self.cube_h // 2)
+
+        self.cubes = [
+            Cube(
+                offset_x=self.cube_center[0], offset_y=self.cube_center[1],
+                scale=80, label="OPENCODE", rotation_speed=(2.0, 3.0),
+            ),
+            Cube(
+                offset_x=self.cube_center[0], offset_y=self.cube_center[1],
+                scale=80, label="SIXEL 3D", rotation_speed=(-2.5, 3.5),
+            ),
+        ]
+
+        self.frame = 0
+        # Cached Sixel output dimensions (in terminal rows) for cursor repositioning
+        self.sixel_rows = 0
+
+    def clear_terminal(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
 
     def run(self):
-        # Clear terminal screen completely
-        os.system('cls' if os.name == 'nt' else 'clear')
-        sys.stdout.write("\033[?25l") # Hide text cursor
-        
-        print("Rendering native hardware pixels via Sixel... Press 'Q' to exit.")
-        time.sleep(1)
+        self.clear_terminal()
+        sys.stdout.write("\033[?25l")  # hide cursor
+
+        # ── Header: real terminal text, always crisp ──
+        print("\033[38;2;0;255;255m  ╔══════════════════════════════════════════╗")
+        print("  ║   \033[1mOPENCODE\033[0m\033[38;2;0;255;255m  +  \033[38;2;255;128;255m\033[1mSIXEL\033[0m\033[38;2;0;255;255m  —  Dual Rotating Cubes      ║")
+        print("  ╚══════════════════════════════════════════╝\033[0m")
+        print()
+        print("  Press \033[1mQ\033[0m to exit  |  FPS: computing...")
+        print()
+
+        # Capture initial cursor row for Sixel output positioning
+        self.sixel_rows = 0  # will be measured from first Sixel render
+        time.sleep(0.5)
+
+        last_time = time.time()
+        frame_times = []
 
         try:
             while True:
-                if msvcrt.kbhit() and msvcrt.getch().decode('utf-8', errors='ignore').lower() == 'q':
-                    break
+                if msvcrt and msvcrt.kbhit():
+                    key = msvcrt.getch().decode('utf-8', errors='ignore').lower()
+                    if key == 'q':
+                        break
 
-                # Initialize an empty pixel canvas layout array
-                pixel_matrix = [[0] * self.width for _ in range(self.height)]
-                
-                # Project 3D points
-                projected = [self.rotate_and_project(*v) for v in self.vertices]
-                
-                # Rasterize edges into pixel data bits
-                for edge in self.edges:
-                    p1, p2 = projected[edge[0]], projected[edge[1]]
-                    self.draw_line(p1[0], p1[1], p2[0], p2[1], pixel_matrix)
+                now = time.time()
 
-                # Return cursor to top-left and blast the native Sixel pixel data stream
-                sys.stdout.write("\033[H" + self.generate_sixel_stream(pixel_matrix))
+                # Render both cubes onto their own canvases
+                sixel_outputs = []
+                for i, cube in enumerate(self.cubes):
+                    pixel_matrix = [[0] * self.cube_w for _ in range(self.cube_h)]
+                    cube.tick()
+                    projected = [
+                        cube.rotate_and_project(*v, self.cube_w, self.cube_h)
+                        for v in cube.vertices
+                    ]
+                    for edge in cube.edges:
+                        p1, p2 = projected[edge[0]], projected[edge[1]]
+                        draw_line(p1[0], p1[1], p2[0], p2[1],
+                                  pixel_matrix, self.cube_w, self.cube_h)
+
+                    color = (0, 100, 0) if i == 0 else (100, 0, 100)  # cyan / magenta
+                    sixel_outputs.append(generate_sixel(pixel_matrix, self.cube_w, self.cube_h, color))
+
+                # ── Cursor to Sixel row, draw both cubes side by side ──
+                # No \033[0J — just overwrite previous frame (avoids blink)
+                # Row 5 = below header, col 1
+                sys.stdout.write("\033[5;1H")
+
+                # Cube labels in real terminal text
+                sys.stdout.write("\033[38;2;0;255;255m  \033[1mOPENCODE\033[0m"
+                                 "                                          "
+                                 "\033[38;2;255;128;255m\033[1mSIXEL 3D\033[0m\n")
+
+                # Save cursor, render cube 1
+                sys.stdout.write("\033[s")       # save position
+                sys.stdout.write(sixel_outputs[0])
+                # Restore cursor, move right past cube 1 (~38 cols for 300px sixel)
+                sys.stdout.write("\033[u\033[42C")
+                sys.stdout.write(sixel_outputs[1])
+                sys.stdout.write("\n")
+
+                # FPS counter in real terminal text
+                frame_times.append(now - last_time)
+                if len(frame_times) > 30:
+                    frame_times.pop(0)
+                avg_ms = (sum(frame_times) / len(frame_times)) * 1000
+                fps = len(frame_times) / (sum(frame_times) or 0.001)
+                sys.stdout.write(f"\n  FPS: {fps:5.1f}  |  frame: {self.frame:5d}  |  "
+                                 f"avg {avg_ms:5.1f} ms  ")
                 sys.stdout.flush()
 
-                self.angle_x += 3.0
-                self.angle_y += 4.0
-                time.sleep(0.02)
+                last_time = now
+                self.frame += 1
+                time.sleep(0.015)
+
         finally:
-            sys.stdout.write("\033[?25h\n") # Restore text cursor
+            sys.stdout.write("\033[?25h\n")  # restore cursor
+            print(f"\nRendered {self.frame} frames. Goodbye!")
+
 
 if __name__ == "__main__":
-    SixelCubeEngine().run()
+    SixelDualCubeEngine().run()

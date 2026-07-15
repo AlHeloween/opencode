@@ -862,7 +862,14 @@ export const layer: Layer.Layer<
       const process = Effect.fn("SessionProcessor.process")(function* (streamInput: LLM.StreamInput) {
         slog.info("process")
         ctx.needsCompaction = false
-        ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
+        // Sub-agents: don't stop on a single denied tool — let the LLM retry with
+        // a different tool. Primary agents respect continue_loop_on_deny config.
+        const parentSession = yield* session.get(ctx.sessionID).pipe(
+          Effect.map((s) => s.parentID ? true : false),
+          Effect.catch(() => Effect.succeed(false)),
+        )
+        const configBreak = (yield* config.get()).experimental?.continue_loop_on_deny === true
+        ctx.shouldBreak = parentSession ? false : !configBreak
         ctx.currentSystemHash = CacheControl.xxh3(streamInput.system.join("\n"))
 
         return yield* Effect.gen(function* () {

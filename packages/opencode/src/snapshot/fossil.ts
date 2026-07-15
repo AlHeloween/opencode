@@ -147,6 +147,23 @@ export const layer = Layer.effect(
           yield* ensureIgnoreGlob()
 
           if (yield* fs.exists(repoPath)) {
+            // Fast path: if the checkout is already open and pointing to the
+            // correct repository, skip `fossil open --force`. Calling open on
+            // an already-open checkout in Fossil v2.28+ can trigger internal
+            // branch operations that fail/hang.
+            const probe = yield* fossil(["info"], { cwd: worktree }).pipe(
+              Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+            )
+            const probeRepo = probe.text.match(/^repository:\s+(.+)$/m)?.[1]?.trim()
+            if (
+              probe.code === 0 &&
+              probeRepo &&
+              path.resolve(probeRepo).replaceAll("\\", "/").toLowerCase() ===
+                path.resolve(repoPath).replaceAll("\\", "/").toLowerCase()
+            ) {
+              return true
+            }
+
             const openResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
               Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
             )

@@ -593,6 +593,11 @@ export const layer: Layer.Layer<
                 }
               }
             }
+            // Save the pre-track snapshot for patch diffing.
+            // ctx.snapshot holds the hash BEFORE this tool step ran.
+            // track() commits the changes and returns the NEW hash, but
+            // patch() needs the BEFORE hash to diff against HEAD.
+            const snapshotBeforeTrack = ctx.snapshot
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
@@ -665,8 +670,11 @@ export const layer: Layer.Layer<
                   : {}),
               })
             }).pipe(Effect.ignore, Effect.forkIn(scope))
-            if (ctx.snapshot) {
-              const patch = yield* snapshot.patch(ctx.snapshot)
+            // Use the pre-track snapshot for patch — it represents the hash
+            // BEFORE this tool's changes, so diffing from it to HEAD shows
+            // exactly what files were modified.
+            if (snapshotBeforeTrack) {
+              const patch = yield* snapshot.patch(snapshotBeforeTrack)
               if (patch.files.length) {
                 yield* session.updatePart({
                   id: PartID.ascending(),
@@ -677,8 +685,8 @@ export const layer: Layer.Layer<
                   files: patch.files,
                 })
               }
-              ctx.snapshot = undefined
             }
+            ctx.snapshot = undefined
             // Call sequentially (not forked) so the DB write from
             // session.updatePart above is committed before summarize
             // reads messages from the same DB connection.

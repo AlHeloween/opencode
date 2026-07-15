@@ -124,8 +124,12 @@ export const layer = Layer.effect(
         }
       }
 
-      rev.snapshot = session.revert?.snapshot ?? (yield* snap.track())
-      rev.op_id = session.revert?.op_id ?? (yield* snap.checkpoint())
+      // capture current state as the revert snapshot anchor.
+      // use checkpoint() (fast) instead of track() — track() with no
+      // files triggers fossil addremove on the entire worktree and can
+      // hang on large repos. we only need the current hash, not a commit.
+      rev.snapshot = session.revert?.snapshot ?? (yield* snap.checkpoint())
+      rev.op_id = session.revert?.op_id ?? rev.snapshot
       if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
       yield* snap.revert(patches)
       if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot as string)

@@ -5,7 +5,7 @@
  *   1. Sixel (explicit) → direct terminal write, bypasses protocol detection
  *   2. Symbols (auto-detect) → half-block ▀ fallback
  */
-import { createSignal, Switch, Match, onMount } from "solid-js"
+import { createSignal, Switch, Match, onMount, createEffect } from "solid-js"
 import { StyledText, SyntaxStyle } from "@opentui/core"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
@@ -18,6 +18,7 @@ export function MediaImage(props: { url: string; mime: string }) {
   const { theme } = useTheme()
   const [state, setState] = createSignal<"loading" | "sixel" | "symbols" | "error">("loading")
   const [terminalRows, setTerminalRows] = createSignal(0)
+  const [sixelSequence, setSixelSequence] = createSignal("")
   const [styledText, setStyledText] = createSignal<StyledText | null>(null)
   const [contentText, setContentText] = createSignal("")
   const dummySyntax = SyntaxStyle.create()
@@ -26,9 +27,10 @@ export function MediaImage(props: { url: string; mime: string }) {
     // Try Sixel first — many terminals support it but don't advertise via env vars.
     if (props.url) {
       try {
-        const result = await renderDataUrlToTerminal(props.url, { protocol: "sixel", maxCols: 80 })
+        const result = await renderDataUrlToTerminal(props.url, { protocol: "sixel", maxCols: 80, writeToTerminal: false })
         if (result && (result.protocol === "sixel" || result.protocol === "kitty")) {
           setTerminalRows(result.dimensions.terminalRows)
+          setSixelSequence(result.escapeSequence)
           setState("sixel")
           return
         }
@@ -39,7 +41,7 @@ export function MediaImage(props: { url: string; mime: string }) {
 
     // Fallback: auto-detect (Sixel/Kitty/Symbols)
     try {
-      const result = await renderDataUrlToTerminal(props.url)
+      const result = await renderDataUrlToTerminal(props.url, { writeToTerminal: false })
       if (result?.chunks) {
         setTerminalRows(result.chunks.length)
         const all: Array<{ __isChunk: true; text: string; fg: any; bg: any }> = []
@@ -59,11 +61,38 @@ export function MediaImage(props: { url: string; mime: string }) {
         setState("symbols")
         return
       }
+      // For kitty protocol, it auto-writes but we already set writeToTerminal: false above.
+      // Kitty protocol result would have an escape sequence but no chunks.
+      if (result?.escapeSequence && result.protocol === "kitty") {
+        setTerminalRows(result.dimensions.terminalRows)
+        setSixelSequence(result.escapeSequence)
+        setState("sixel")
+        return
+      }
     } catch (e) {
       log.debug("MediaImage: symbols render failed", { error: String(e) })
     }
 
     setState("error")
+  })
+
+  // Write Sixel escape sequence at the box position after render.
+  // The TUI renders the <box> placeholder FIRST, positioning the cursor
+  // below the box. We then move the cursor back up to the box start,
+  // write the Sixel sequence (which fills the exact rows), and restore.
+  createEffect(() => {
+    const seq = sixelSequence()
+    if (!seq || state() !== "sixel") return
+    const rows = terminalRows()
+    if (rows <= 0) return
+    // Defer to next microtask so the TUI has finished writing the box.
+    queueMicrotask(() => {
+      // \x1b[s = save cursor (currently below the box)
+      // \x1b[{rows}A = move up to start of box
+      // <sixel> = write image (fills rows, cursor ends back below)
+      // \x1b[u = restore cursor position
+      process.stdout.write(`\x1b[s\x1b[${rows}A${seq}\x1b[u`)
+    })
   })
 
   return (

@@ -8,7 +8,7 @@
  * The Sixel path bypasses WebGPU/Vulkan entirely. Used when the terminal
  * supports it (Windows Terminal 2024+, foot, Konsole, xterm-sixel).
  */
-import { createSignal, onMount, Switch, Match } from "solid-js"
+import { createSignal, onMount, createEffect, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { renderMermaidToPngDataUrl } from "@/util/mermaid"
 import { renderDataUrlToTerminal } from "@/util/render-image-to-terminal"
@@ -24,6 +24,7 @@ export function MediaMermaid(props: { source: string }) {
   const [state, setState] = createSignal<"loading" | "sixel" | "webgpu" | "error">("loading")
   const [dataUrl, setDataUrl] = createSignal<string | null>(null)
   const [terminalRows, setTerminalRows] = createSignal(0)
+  const [sixelSequence, setSixelSequence] = createSignal("")
 
   onMount(() => {
     ;(async () => {
@@ -39,11 +40,13 @@ export function MediaMermaid(props: { source: string }) {
           return
         }
 
-        // Step 2: Try Sixel terminal rendering first
-        const result = await renderDataUrlToTerminal(pngDataUrl)
+        // Step 2: Try Sixel terminal rendering — don't write yet,
+        // defer to createEffect below so it lands at the box position.
+        const result = await renderDataUrlToTerminal(pngDataUrl, { writeToTerminal: false })
         if (result && result.protocol === "sixel") {
           log.debug("MediaMermaid: rendered via Sixel", { terminalRows: result.dimensions.terminalRows })
           setTerminalRows(result.dimensions.terminalRows)
+          setSixelSequence(result.escapeSequence)
           setState("sixel")
           return
         }
@@ -56,6 +59,19 @@ export function MediaMermaid(props: { source: string }) {
         setState("error")
       }
     })()
+  })
+
+  // Write Sixel escape sequence at the box position after render.
+  // Same pattern as MediaImage: save cursor, back up to box start,
+  // write Sixel (fills rows), restore cursor.
+  createEffect(() => {
+    const seq = sixelSequence()
+    if (!seq || state() !== "sixel") return
+    const rows = terminalRows()
+    if (rows <= 0) return
+    queueMicrotask(() => {
+      process.stdout.write(`\x1b[s\x1b[${rows}A${seq}\x1b[u`)
+    })
   })
 
   return (

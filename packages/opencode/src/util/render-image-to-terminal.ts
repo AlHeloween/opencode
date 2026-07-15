@@ -26,6 +26,8 @@ export interface RenderOptions {
   imagePath: string
   maxCols?: number
   protocol?: GraphicsProtocol | "auto"
+  /** When false, don't write to stdout — caller handles positioning. Default: true. */
+  writeToTerminal?: boolean
 }
 
 export type RenderResult = {
@@ -98,7 +100,7 @@ export async function renderImageToTerminal(
  */
 export async function renderDataUrlToTerminal(
   dataUrl: string,
-  options?: { maxCols?: number; protocol?: GraphicsProtocol | "auto" },
+  options?: { maxCols?: number; protocol?: GraphicsProtocol | "auto"; writeToTerminal?: boolean },
 ): Promise<RenderResult | null> {
   const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!match) return null
@@ -114,11 +116,12 @@ export async function renderDataUrlToTerminal(
     writeFileSync(tmpFile, Buffer.from(base64!, "base64"))
     const cols = options?.maxCols ?? 60
     const protocol = options?.protocol ?? "auto"
+    const write = options?.writeToTerminal ?? true
     const result = await renderImageToTerminal({ imagePath: tmpFile, maxCols: cols, protocol })
     // Only write to terminal for protocols that use escape sequences (sixel, kitty).
     // Symbols protocol returns chunks for inline TUI rendering — no terminal write.
-    // Write to stdout (not CON device) so Sixel lands on the TUI's alternate screen.
-    if (result.escapeSequence) {
+    // When writeToTerminal is false, caller handles positioning + write.
+    if (result.escapeSequence && write) {
       process.stdout.write(result.escapeSequence)
     }
     return result

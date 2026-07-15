@@ -14,7 +14,7 @@ import { sixelImage } from "./sixel-render"
 import { kittyImage } from "./kitty-render"
 import { imageToAnsi, imageToChunks, type AnsiChunk } from "./image-to-ansi"
 import { detectBestProtocol, type GraphicsProtocol } from "./terminal-graphics"
-import { writeToTerminal, sixelHeightInRows } from "./terminal-write"
+import { sixelHeightInRows } from "./terminal-write"
 import { writeFileSync, unlinkSync, existsSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
@@ -117,8 +117,9 @@ export async function renderDataUrlToTerminal(
     const result = await renderImageToTerminal({ imagePath: tmpFile, maxCols: cols, protocol })
     // Only write to terminal for protocols that use escape sequences (sixel, kitty).
     // Symbols protocol returns chunks for inline TUI rendering — no terminal write.
+    // Write to stdout (not CON device) so Sixel lands on the TUI's alternate screen.
     if (result.escapeSequence) {
-      writeToTerminal(result.escapeSequence)
+      process.stdout.write(result.escapeSequence)
     }
     return result
   } catch (err) {

@@ -7,7 +7,7 @@
  * WASM is loaded lazily on first render — no synchronous 2.8MB read at import time.
  * Timeout guards against pathological diagrams that hang the Rust engine.
  *
- * No chafa — OpenTUI's WebGPU pipeline handles the rendering.
+ * Image rendering handled by render-image-to-terminal (kitty/sixel/symbols).
  */
 import { Resvg } from "@resvg/resvg-js"
 import * as Log from "@opencode-ai/core/util/log"

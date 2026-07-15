@@ -85,20 +85,20 @@ export async function renderImageToTerminal(
 }
 
 /** 
- * Render a base64 data URL to terminal using the best available protocol.
- * Saves to temp file, renders, cleans up.
+ *  Render a base64 data URL to terminal using the best available protocol.
+ *  Saves to temp file, renders, cleans up.
  * 
- * Returns the render result with terminal row count for TUI placeholder sizing,
- * and the escape sequence that should be written to the terminal.
+ *  Uses the full renderImageToTerminal protocol chain:
+ *    kitty → sixel → symbols (Jimp half-block, pure CPU).
+ *  No WebGPU / Three.js dependency — works on every TrueColor terminal.
+ *
+ *  Returns the render result with terminal row count for TUI placeholder sizing,
+ *  and the escape sequence that should be written to the terminal.
  */
 export async function renderDataUrlToTerminal(
   dataUrl: string,
   maxCols?: number,
 ): Promise<RenderResult | null> {
-  const protocol = detectBestProtocol()
-  // Only try direct terminal rendering for sixel (kitty could be added later)
-  if (protocol !== "sixel") return null
-
   const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!match) return null
 
@@ -106,7 +106,7 @@ export async function renderDataUrlToTerminal(
   const extName = ext === "jpeg" ? ".jpg" : ".png"
   const tmpFile = join(
     tmpdir(),
-    `opencode_sixel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${extName}`,
+    `opencode_gfx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${extName}`,
   )
 
   try {
@@ -115,6 +115,9 @@ export async function renderDataUrlToTerminal(
     // Write the escape sequence directly to the terminal
     writeToTerminal(result.escapeSequence)
     return result
+  } catch (err) {
+    log.warn("bug: renderDataUrlToTerminal failed", { error: String(err) })
+    return null
   } finally {
     try { if (existsSync(tmpFile)) unlinkSync(tmpFile) } catch {}
   }

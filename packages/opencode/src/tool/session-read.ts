@@ -6,6 +6,13 @@ import * as Tool from "./tool"
 import DESCRIPTION from "./session-read.txt"
 
 const MAX_OUTPUT = 100 * 1024
+const TOOL_OUTPUT_LIMIT = 500
+const REASONING_OUTPUT_LIMIT = 500
+
+function truncate(text: string, limit: number): string {
+  if (text.length <= limit) return text
+  return text.slice(0, limit) + `\n... (truncated ${text.length - limit} more chars)`
+}
 
 export const Parameters = Schema.Struct({
   sessionId: Schema.String.annotate({ description: "The session ID to read messages from" }),
@@ -89,9 +96,10 @@ export const SessionReadTool = Tool.define(
                   text = part.text as string
                 } else if (part.type === "tool" && "state" in part) {
                   const state = part.state as any
-                  text = state.output || state.error || `[${part.type} tool call]`
+                  const raw = state.output || state.error || ""
+                  text = raw ? `[${part.type}] ${truncate(raw, TOOL_OUTPUT_LIMIT)}` : `[${part.type} tool call]`
                 } else if (part.type === "reasoning" && "text" in part) {
-                  text = `[reasoning] ${(part as any).text}`
+                  text = `[reasoning] ${truncate((part as any).text, REASONING_OUTPUT_LIMIT)}`
                 } else if (part.type === "compaction" && "text" in part) {
                   text = `[summary] ${(part as any).text}`
                 } else {

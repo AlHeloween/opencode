@@ -936,13 +936,16 @@ export function* listGlobal(input?: {
     projectMap.set(proj.id, { id: proj.id as ProjectID, name: proj.name ?? undefined, worktree: proj.worktree })
   }
 
-  // Scan per-project DBs
+  // Scan per-project DBs — push LIMIT into DB query to avoid
+  // pulling all rows into memory then sorting. For N projects,
+  // we fetch at most N*limit rows (vs all_sessions rows before).
   for (const proj of allProjects) {
     try {
       const projectDB = Database.getProjectDb(proj.id, proj.worktree) as any
       const base = projectDB.select().from(SessionTable)
       const rows = (conditions.length > 0 ? base.where(and(...conditions)) : base)
         .orderBy(desc(SessionTable.time_updated), desc(SessionTable.id))
+        .limit(limit)
         .all() as SessionRow[]
       for (const row of rows) {
         if (!seen.has(row.id)) {
@@ -955,7 +958,7 @@ export function* listGlobal(input?: {
     }
   }
 
-  // Sort and limit
+  // Sort merged results and cap at requested limit
   allRows.sort((a, b) => b.time_updated - a.time_updated || b.id.localeCompare(a.id))
   const rows = allRows.slice(0, limit)
 

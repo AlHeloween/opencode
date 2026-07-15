@@ -607,8 +607,12 @@ export function writeDiff(diffContent: string, meta: DiffMeta): string {
     }
   }
 
+  // Defer write to avoid blocking the event loop — diff files are
+  // diagnostic, not critical-path; a failed write is silently ignored.
   const filepath = logPath("diff", meta.modelID, meta.sessionID, "diff")
-  fs.writeFileSync(filepath, diffContent + EOL)
+  setImmediate(() => {
+    try { fs.writeFileSync(filepath, diffContent + EOL) } catch { /* diagnostic file, ignore */ }
+  })
   return filepath
 }
 

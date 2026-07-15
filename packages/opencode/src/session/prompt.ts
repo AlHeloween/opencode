@@ -83,6 +83,9 @@ const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested struc
 const log = Log.create({ service: "session.prompt" })
 const elog = EffectLogger.create({ service: "session.prompt" })
 
+/** Reusable: filter thenmap visible agent names from a list. */
+const visibleNames = (agents: Agent.Info[]) => agents.filter((a) => !a.hidden).map((a) => a.name)
+
 export interface Interface {
   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
   readonly prompt: (input: PromptInput) => Effect.Effect<MessageV2.WithParts>
@@ -213,6 +216,7 @@ export const layer = Layer.effect(
           model: mdl,
           sessionID: input.session.id,
           retries: 2,
+          outputTokenMax: 512,
           messages: [{ role: "user", content: "Generate a title for this conversation:\n" }, ...msgs],
         })
         .pipe(
@@ -423,7 +427,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
       const taskAgent = yield* agents.get(task.agent)
       if (!taskAgent) {
-        const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+        const available = visibleNames(yield* agents.list())
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Agent not found: "${task.agent}".${hint}` })
         yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
@@ -568,7 +572,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }
             const agent = yield* agents.get(input.agent)
             if (!agent) {
-              const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+              const available = visibleNames(yield* agents.list())
               const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
               const error = new NamedError.Unknown({ message: `Agent not found: "${input.agent}".${hint}` })
               yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
@@ -727,7 +731,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
       const agentName = input.agent || (yield* agents.defaultAgent())
       const ag = yield* agents.get(agentName)
       if (!ag) {
-        const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+        const available = visibleNames(yield* agents.list())
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
         yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
@@ -1158,6 +1162,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
             cachedMsgs = msgs
             lastKnownId = msgs[msgs.length - 1]?.info.id
           }
+          yield* slog.debug("prepare", { step, stage: "messages-ready", messageCount: msgs.length })
 
           // Filter out orphaned interrupted tool parts — they were never completed
           // and their partial output should not appear in the model context.
@@ -1219,18 +1224,13 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
           step++
           if (step === 1) {
-            yield* title({
-              session,
-              modelID: lastUser.model.modelID,
-              providerID: lastUser.model.providerID,
-              history: msgs,
-            }).pipe(Effect.ignore, Effect.forkIn(scope))
             // Fire on step 1 for ALL paths (compaction/subtask/normal)
             // so file diffs accumulate regardless of which handler runs.
             yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
           }
 
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
+          yield* slog.debug("prepare", { step, stage: "model-ready", providerID: model.providerID, modelID: model.id })
           const task = tasks.pop()
 
           if (task?.type === "subtask") {
@@ -1584,7 +1584,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
           const agent = yield* agents.get(lastUser.agent)
           if (!agent) {
-            const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+            const available = visibleNames(yield* agents.list())
             const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
             const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
             yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
@@ -1629,6 +1629,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               agentName: agent.name,
             })
             .pipe(Effect.onInterrupt(() => finalizeInterruptedAssistant))
+          yield* slog.debug("prepare", { step, stage: "assistant-ready", agent: agent.name })
 
           const outcome: "break" | "continue" = yield* Effect.gen(function* () {
             const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
@@ -1657,6 +1658,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
               cachedTools = tools
             }
+            yield* slog.debug("prepare", { step, stage: "tools-ready", toolCount: Object.keys(tools).length })
 
             // summarize() moved to common step-1 block before task dispatch
 
@@ -1773,6 +1775,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               checkpointHasStructuredPrompt === (format.type === "json_schema")
                 ? checkpoint
                 : undefined
+            yield* slog.debug("prepare", { step, stage: "checkpoint-ready", reused: !!checkpointUsable })
 
             const [skills, env, instructions, rules] = checkpointUsable
               ? [undefined, [] as string[], [] as string[], [] as string[]] as const
@@ -1831,6 +1834,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               modelMsgsCache = modelMsgs
             }
 
+            yield* slog.debug("prepare", { step, stage: "dispatch" })
             const result = yield* handle.process({
               user: lastUser,
               agent,
@@ -1911,7 +1915,20 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
             }
 
-            if (result === "stop") return "break" as const
+            if (result === "stop") {
+              if (step === 1) {
+                yield* title({
+                  session,
+                  modelID: lastUser.model.modelID,
+                  providerID: lastUser.model.providerID,
+                  history: msgs,
+                }).pipe(
+                  Effect.catchCause((cause) => slog.error("title generation failed", { error: Cause.squash(cause) })),
+                  Effect.forkIn(scope),
+                )
+              }
+              return "break" as const
+            }
             if (result === "compact") {
               yield* compaction.create({
                 sessionID,
@@ -2056,7 +2073,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
       const agent = yield* agents.get(agentName)
       if (!agent) {
-        const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+        const available = visibleNames(yield* agents.list())
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
         yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })

@@ -1719,10 +1719,9 @@ export function highlightSnippet(text: string, query: string, maxLen = 200): str
   if (start > 0) snippet = "..." + snippet
   if (end < text.length) snippet = snippet + "..."
 
-  words.forEach((word) => {
-    const re = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi")
-    snippet = snippet.replace(re, "**$1**")
-  })
+  // Single combined regex — one compilation instead of N per row
+  const escaped = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  snippet = snippet.replace(new RegExp(`(${escaped.join("|")})`, "gi"), "**$1**")
 
   return snippet
 }

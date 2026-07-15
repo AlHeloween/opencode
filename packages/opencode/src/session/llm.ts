@@ -126,6 +126,12 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
       newLen: input.content.length,
     })
   }
+  // Proper LRU: delete-then-set moves the key to the end of insertion order
+  // so that FIFO-ordered keys().next() evicts the least-recently-used entry.
+  if (systemContentHashes.has(key)) {
+    systemContentHashes.delete(key)
+    systemContentPrev.delete(key)
+  }
   systemContentHashes.set(key, hash)
   systemContentPrev.set(key, input.content)
   if (systemContentHashes.size > MAX_HASHES) {
@@ -153,6 +159,7 @@ export type StreamInput = {
   small?: boolean
   tools: Record<string, Tool>
   retries?: number
+  outputTokenMax?: number
   toolChoice?: "auto" | "required" | "none"
   checkpoint?: boolean
 }
@@ -379,7 +386,7 @@ const live: Layer.Layer<
             : undefined,
           topP: input.agent.topP ?? ProviderTransform.topP(input.model),
           topK: ProviderTransform.topK(input.model),
-          maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens),
+          maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens),
           options,
         },
       )
@@ -389,9 +396,11 @@ const live: Layer.Layer<
       // Compaction turns skip the reasoning multiplier so the entire output budget
       // goes to visible summary text — ensuring >= 16K token structured summaries
       // rather than 33-token outputs where 99.99% was consumed by thinking.
-      const rawMaxOutput = ProviderTransform.maxOutputTokens(input.model, undefined, contentTokens)
+      const rawMaxOutput = ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens)
       let maxOut: number | undefined
-      if (input.agent.name === "compaction") {
+      if (input.outputTokenMax !== undefined) {
+        maxOut = input.outputTokenMax
+      } else if (input.agent.name === "compaction") {
         // Compaction: no reasoning multiplier — all budget goes to summary text
         // See experiments/20260713_compaction_smoke_test/ for validation
         maxOut = rawMaxOutput

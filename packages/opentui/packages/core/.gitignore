@@ -4,4 +4,3 @@
 zig-out
 src/zig/lib
 src/zig/zig-pkg
-"dist/"  

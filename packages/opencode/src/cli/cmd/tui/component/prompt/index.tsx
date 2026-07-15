@@ -777,8 +777,28 @@ export function Prompt(props: PromptProps) {
               selection: editorSelection.selection,
             },
           },
-        ]
+      ]
       : []
+    const sendPrompt = () =>
+      sdk.client.session
+        .prompt({
+          sessionID,
+          ...selectedModel,
+          messageID,
+          agent: agent.name,
+          model: selectedModel,
+          variant,
+          parts: [
+            ...editorParts,
+            {
+              id: PartID.ascending(),
+              type: "text",
+              text: inputText,
+            },
+            ...nonTextParts.map(assign),
+          ],
+        })
+        .catch((error) => Log.Default.error("prompt submit failed", { error: error instanceof Error ? error.message : String(error) }))
 
     if (store.mode === "shell") {
       void sdk.client.session.shell({
@@ -822,27 +842,12 @@ export function Prompt(props: PromptProps) {
             })),
         })
       } else {
-        sdk.client.session
-          .prompt({
-            sessionID,
-            ...selectedModel,
-            messageID,
-            agent: agent.name,
-            model: selectedModel,
-            variant,
-            parts: [
-              ...editorParts,
-              {
-                id: PartID.ascending(),
-                type: "text",
-                text: inputText,
-              },
-              ...nonTextParts.map(assign),
-            ],
-          })
-          .catch((e) => Log.Default.error("prompt submit failed", { error: e instanceof Error ? e.message : String(e) }))
+        sendPrompt()
         editor.clearSelection()
       }
+    } else {
+      sendPrompt()
+      editor.clearSelection()
     }
     history.append({
       ...store.prompt,

@@ -15,6 +15,10 @@ export const Parameters = Schema.Struct({
   limit: Schema.optional(Schema.Number).annotate({
     description: "Number of messages to read (default: 10)",
   }),
+  raw: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "When true, skip compaction summary messages and show only original conversation. Default: false.",
+  }),
 })
 
 export const SessionReadTool = Tool.define(
@@ -23,7 +27,7 @@ export const SessionReadTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { sessionId: string; offset?: number; limit?: number }, ctx: Tool.Context) =>
+      execute: (params: { sessionId: string; offset?: number; limit?: number; raw?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* ctx.ask({
             permission: "session-read",
@@ -40,6 +44,10 @@ export const SessionReadTool = Tool.define(
             const sid = params.sessionId as SessionID
             const messages: MessageV2.WithParts[] = []
             for (const msg of MessageV2.stream(sid)) {
+              if (params.raw) {
+                if (msg.info.role === "user" && msg.parts.some((p) => p.type === "compaction")) continue
+                if (msg.info.role === "assistant" && (msg.info as any).summary) continue
+              }
               messages.push(msg)
             }
 

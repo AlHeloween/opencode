@@ -24,6 +24,7 @@ Each message includes:
 | `sessionId` | string | — | The session ID to read from (from messagesearch results) |
 | `offset` | number | last 10 | Start reading from this message index (1-based) |
 | `limit` | number | 10 | Maximum messages to read |
+| `raw` | boolean | false | When true, skip compaction summary messages and show only original conversation |
 
 ## When to Use
 

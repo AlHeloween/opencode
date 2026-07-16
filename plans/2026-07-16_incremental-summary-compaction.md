@@ -2,7 +2,14 @@
 
 **Date:** 2026-07-16
 **Status:** ✅ Implemented
-**Scope:** `packages/opencode/src/session/compaction.ts`, `overflow.ts`, `prompt.ts`, `processor.ts`, `agent.ts`, `llm.ts`
+
+## It's Not an AI Problem — It's an Information Theory Problem
+
+Neither humans nor LLMs can losslessly compress 500K tokens of nuanced context into a single summary. Any single-pass compaction that asks the model to "summarize everything" is doomed — the compression ratio exceeds what information theory allows while preserving actionable detail.
+
+**The old design asked for the impossible on every cycle**: spawn a compaction agent, feed it 300K+ tokens, expect a structured summary. The model sometimes produced reasoning, sometimes emitted tool calls, sometimes hallucinated — all because it was asked to do something fundamentally lossy with no guardrails.
+
+**The new design never asks that question.** Each summary covers a digestible ~30K-token segment — small enough to be reliable. The algorithm handles chunking, anchoring, DB pruning, and precise record injection. The model sees a chain of bite-sized summaries + exact DB positions for `session-read`.
 
 ## Architecture
 

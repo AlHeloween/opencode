@@ -1,3 +1,48 @@
+/**
+ * Algorithmic Compaction
+ * =====================
+ *
+ * It's NOT an AI problem — it's an information theory problem.
+ *
+ * Shannon's rate-distortion theory (1948) proves there is a fundamental
+ * mathematical bound: you cannot compress information below the source
+ * entropy without guaranteed distortion.  For conversation summarization:
+ *
+ *   R(D) → H(source) as D → 0
+ *
+ * Meaning: to preserve ALL actionable detail (D ≈ 0), you need as many
+ * bits as the original.  A 500K-token conversation cannot be losslessly
+ * compressed into a 2K-token summary — not by an LLM, not by a human.
+ * The information simply isn't there.
+ *
+ * The old design asked for the impossible on every cycle: spawn a
+ * compaction agent, feed it 300K+ tokens, expect a faithful summary.
+ * The results were unreliable by physical necessity, not by model
+ * weakness.
+ *
+ * This module replaces that dead end with an algorithmic approach:
+ *
+ *   1. Incremental summaries — every ~32K output tokens the model
+ *      summarizes a focused, digestible segment.  Each summary is
+ *      small enough to be reliable (operating well within the
+ *      rate-distortion bound for its input size).
+ *
+ *   2. Algorithmic compaction — on overflow, prune from the latest
+ *      summary boundary, inject a compacted-context message with
+ *      precise DB record positions.  No LLM involved — deterministic.
+ *
+ *   3. Continuous memory — the model uses `session-read` with exact
+ *      message IDs to pull precise details from any point in history.
+ *      Like a database index: don't compress, just point.
+ *
+ * Edge case (old projects without summaries): trim to ~30K tokens
+ * and produce a summary.  This happens at most once per session
+ * lifetime — new sessions always have the summary chain.
+ *
+ * The invariant: compact is always a no-op or a precise DB prune.
+ * Never "please summarize everything."
+ */
+
 import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
 import * as Session from "./session"

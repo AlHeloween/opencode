@@ -111,3 +111,32 @@ if (Test-Path $JsonRepairDir) {
     Copy-Item -Recurse -Force "$JsonRepairDir\pkg\*" $JsonRepairOut
     Write-Host "json-repair WASM staged to $JsonRepairOut"
 }
+
+# Build path_validator WASM (C → wasm32) for bash path feedback
+$PathValidatorSrc = Join-Path $RepoRoot "packages\wasm\core\src\path_validator.c"
+$PathValidatorOut = Join-Path $WasmCorePkg "path_validator.wasm"
+$LlvmClang = "C:\Program Files\LLVM\bin\clang.exe"
+$Clang = if (Test-Path $LlvmClang) { $LlvmClang } else { "clang" }
+if (Test-Path $PathValidatorSrc) {
+    $needs = $true
+    if (Test-Path $PathValidatorOut) {
+        $srcTime = (Get-Item $PathValidatorSrc).LastWriteTime
+        $outTime = (Get-Item $PathValidatorOut).LastWriteTime
+        if ($srcTime -le $outTime) { $needs = $false }
+    }
+    if ($needs) {
+        Write-Host "Building path_validator.wasm..."
+        if (-not (Test-Path $WasmCorePkg)) { New-Item -ItemType Directory -Path $WasmCorePkg -Force | Out-Null }
+        & $Clang --target=wasm32 -Oz -Wall -Wextra -nostdlib `
+            "-Wl,--no-entry" "-Wl,--export=pv_validate" "-Wl,--export=pv_version" `
+            "-Wl,--import-memory" "-Wl,--allow-undefined" `
+            -o $PathValidatorOut $PathValidatorSrc
+        if ($LASTEXITCODE -ne 0) { throw "path_validator.wasm compile failed" }
+        if (Get-Command wasm-opt -ErrorAction SilentlyContinue) {
+            & wasm-opt -Oz -o $PathValidatorOut $PathValidatorOut
+        }
+        Write-Host "path_validator.wasm staged to $PathValidatorOut"
+    } else {
+        Write-Host "path_validator.wasm up to date, skipping rebuild."
+    }
+}

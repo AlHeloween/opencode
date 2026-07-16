@@ -25,6 +25,7 @@ import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
+import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
@@ -526,37 +527,15 @@ export const BashTool = Tool.define(
     })
 
     const validatePaths = Effect.fn("BashTool.validatePaths")(function* (paths: string[], worktree: string) {
-      const issues: string[] = []
-      for (const p of paths) {
-        // Double drive letter: D:\D:\path
-        if (/^[A-Za-z]:[\\\/][A-Za-z]:/.test(p)) {
-          issues.push(`"${p}" — invalid: double drive letter`)
-          continue
-        }
-        // System directories
-        if (/^(C:\\Windows|\/etc|\/usr|\/bin|\/sbin|\/var|\/root)(\\|\/|$)/i.test(p)) {
-          issues.push(`"${p}" — blocked: system directory`)
-          continue
-        }
-        // .git directory mutations
-        if (/[\\/]\.git([\\/]|$)/.test(p)) {
-          issues.push(`"${p}" — blocked: .git directory`)
-          continue
-        }
-        // Path doesn't exist (for non-glob paths)
-        if (!p.includes("*") && !p.includes("?")) {
-          try {
-            const resolved = path.isAbsolute(p) ? p : path.resolve(worktree, p)
-            if (!require("fs").existsSync(resolved)) {
-              issues.push(`"${p}" — path does not exist`)
-            }
-          } catch (error) {
-            log.debug("failed to validate command path", { path: p, error })
-          }
-        }
-      }
-      if (issues.length === 0) return undefined
-      return `⚠ Path issues detected:\n${issues.map((i, n) => `  ${n + 1}. ${i}`).join("\n")}`
+      // Config.Service is already in scope for this tool layer.
+      const sandbox = ((yield* config.get()).sandbox ?? undefined) as SandboxRules | undefined
+      const issues = yield* Effect.promise(() =>
+        validatePathsShared(paths, {
+          worktree,
+          rules: sandbox,
+        }),
+      )
+      return formatPathIssues(issues)
     })
 
     const collect = Effect.fn("BashTool.collect")(function* (

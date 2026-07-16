@@ -13,4 +13,5 @@ Active plans. Completed plans move to `plans_completed/`.
 | Plan | Status |
 |------|--------|
 | `20260714_reasoning_kernel_taxonomy_compaction.md` | Active — taxonomy, compiler oracles, and KV-cache integration remain |
-| `2026-07-05_wasm-cli-sandbox.md` | Research — Phase 1 done, Phases 2-3 not started |
+
+Completed recently: `plans_completed/2026-07-05_wasm-cli-sandbox.md` (WASM CLI path validation + dist embed).

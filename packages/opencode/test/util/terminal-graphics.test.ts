@@ -170,7 +170,8 @@ describe("util.terminal-graphics", () => {
     )
   })
 
-  test("falls back to symbols on unknown terminal", () => {
+  test("defaults to sixel on unknown terminal", () => {
+    // Policy: try Sixel on unrecognized TERM; MediaImage still falls back to symbols on render failure.
     withEnv(
       {
         KITTY_WINDOW_ID: undefined,
@@ -179,12 +180,12 @@ describe("util.terminal-graphics", () => {
         WT_SESSION: undefined,
       },
       () => {
-        expect(detectGraphicsProtocol()).toBe("symbols")
+        expect(detectGraphicsProtocol()).toBe("sixel")
       },
     )
   })
 
-  test("falls back to symbols with minimal env", () => {
+  test("defaults to sixel with minimal env", () => {
     withEnv(
       {
         KITTY_WINDOW_ID: undefined,
@@ -193,7 +194,7 @@ describe("util.terminal-graphics", () => {
         WT_SESSION: undefined,
       },
       () => {
-        expect(detectGraphicsProtocol()).toBe("symbols")
+        expect(detectGraphicsProtocol()).toBe("sixel")
       },
     )
   })

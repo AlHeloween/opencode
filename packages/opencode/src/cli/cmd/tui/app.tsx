@@ -2,6 +2,7 @@ import { render, TimeToFirstDraw, useKeyboard, useRenderer, useTerminalDimension
 import * as Clipboard from "@tui/util/clipboard"
 import * as Selection from "@tui/util/selection"
 import { createCliRenderer, MouseButton, type CliRendererConfig } from "@opentui/core"
+import { FrameSyncWriter } from "@/util/frame-writer"
 import { RouteProvider, useRoute } from "@tui/context/route"
 import {
   Switch,
@@ -141,6 +142,7 @@ export function tui(input: {
     win32DisableProcessedInput()
 
     const onExit = async () => {
+      FrameSyncWriter.destroy()
       unguard?.()
       resolve()
     }
@@ -150,6 +152,7 @@ export function tui(input: {
     }
 
     const renderer = await createCliRenderer(rendererConfig(input.config))
+    FrameSyncWriter.init(renderer)
     const mode = (await renderer.waitForThemeMode(1000)) ?? "dark"
 
     // Register <image-plane> lazily — Three.js/WebGPU only loads on demand

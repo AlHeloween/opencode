@@ -59,11 +59,13 @@ describe("MediaImage fallback chain", () => {
     })
   })
 
-  test("unknown terminal → use3D=false (symbols fallback)", () => {
+  test("unknown terminal → default Sixel (use3D=true)", () => {
+    // detectGraphicsProtocol defaults unknown TERM (including "dumb") to Sixel;
+    // MediaImage still has an explicit symbols fallback if the render fails.
     withEnv({ KITTY_WINDOW_ID: undefined, TERM: "dumb", TERM_PROGRAM: undefined, WT_SESSION: undefined }, () => {
       const { use3D, protocol } = chooseRenderer()
-      expect(protocol).toBe("symbols")
-      expect(use3D).toBe(false)
+      expect(protocol).toBe("sixel")
+      expect(use3D).toBe(true)
     })
   })
 

@@ -226,6 +226,31 @@ export const Info = Schema.Struct({
       }),
     }),
   ).annotate({ description: "Directory navigation permissions for external tool access" }),
+  sandbox: Schema.optional(
+    Schema.Struct({
+      enabled: Schema.optional(Schema.Boolean).annotate({
+        description: "Enable pre-execution path validation feedback for bash (default: true)",
+      }),
+      system: Schema.optional(Schema.Boolean).annotate({
+        description: "Warn on system directory paths (C:\\Windows, /etc, …). Default true.",
+      }),
+      git: Schema.optional(Schema.Boolean).annotate({
+        description: "Warn on .git path mutations. Default true.",
+      }),
+      outside: Schema.optional(Schema.Boolean).annotate({
+        description: "Warn when absolute paths fall outside the worktree. Default true.",
+      }),
+      missing: Schema.optional(Schema.Boolean).annotate({
+        description: "Warn when non-glob paths do not exist. Default true.",
+      }),
+      blocked: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
+        description: "Additional blocked path prefixes (case-insensitive)",
+      }),
+    }),
+  ).annotate({
+    description:
+      "CLI path sandbox rules. Produces agent-facing warnings before bash runs; does not hard-block commands.",
+  }),
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
   enterprise: Schema.optional(
     Schema.Struct({
@@ -681,6 +706,13 @@ export const layer = Layer.effect(
           const projectFiles = yield* ConfigPaths.files("opencode", ctx.directory, ctx.worktree).pipe(Effect.orDie)
           for (const file of projectFiles) {
             yield* merge(file, yield* loadFile(file), "local")
+          }
+          // Config.update() writes `{directory}/config.json` as a mutable local
+          // overlay. Project discovery only walks for opencode.json{,c}, so load
+          // that overlay explicitly after project files (last wins for merges).
+          const localOverlay = path.join(ctx.directory, "config.json")
+          if (!projectFiles.includes(localOverlay)) {
+            yield* merge(localOverlay, yield* loadFile(localOverlay), "local")
           }
         }
 

@@ -1015,6 +1015,70 @@ test("updates config and writes to file", async () => {
   })
 })
 
+test("Config.update overlay is reloaded (navigation + external_directory_mode)", async () => {
+  // Permission setter / dirs CLI write via Config.update → `{directory}/config.json`.
+  // Project discovery only walks opencode.json{,c}; the overlay must still apply on get().
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await writeConfig(dir, {
+        $schema: "https://opencode.ai/config.json",
+        model: "base/model",
+      })
+    },
+  })
+  const shared = path.join(tmp.path, "shared")
+  const secrets = path.join(tmp.path, "secrets")
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      await Effect.runPromise(
+        Config.Service.use((svc) =>
+          svc.update(
+            {
+              external_directory_mode: "allow",
+              navigation: {
+                allow: [shared],
+                deny: [secrets],
+              },
+            } as any,
+            { dispose: false },
+          ),
+        ).pipe(Effect.scoped, Effect.provide(layer)),
+      )
+      const written = await Filesystem.readJson<{
+        external_directory_mode?: string
+        navigation?: { allow?: string[]; deny?: string[] }
+      }>(path.join(tmp.path, "config.json"))
+      expect(written.external_directory_mode).toBe("allow")
+      expect(written.navigation?.allow).toEqual([shared])
+      expect(written.navigation?.deny).toEqual([secrets])
+    },
+  })
+
+  await clear(true)
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await load()
+      expect(config.external_directory_mode).toBe("allow")
+      expect(config.navigation?.allow).toEqual([shared])
+      expect(config.navigation?.deny).toEqual([secrets])
+
+      // navigation lists are also translated into external_directory permission rules
+      const ext = config.permission?.external_directory
+      expect(typeof ext).toBe("object")
+      if (ext && typeof ext === "object") {
+        const allowKey = path.join(path.resolve(shared), "*")
+        const denyKey = path.join(path.resolve(secrets), "*")
+        expect((ext as Record<string, string>)[allowKey]).toBe("allow")
+        expect((ext as Record<string, string>)[denyKey]).toBe("deny")
+      }
+    },
+  })
+})
+
 test("gets config directories", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({

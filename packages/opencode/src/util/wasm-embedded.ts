@@ -1,6 +1,7 @@
 import * as Log from "@opencode-ai/core/util/log"
 
 import tokenizerWasm from "../../../wasm/core/pkg/tokenizer.wasm" with { type: "file" }
+import pathValidatorWasm from "../../../wasm/core/pkg/path_validator.wasm" with { type: "file" }
 import diffyWasm from "../../../wasm/core/pkg/diffy/diffy_wasm_bg.wasm" with { type: "file" }
 import jsonRepairWasm from "../../../wasm/core/pkg/json_repair/json_repair_bg.wasm" with { type: "file" }
 import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: "file" }
@@ -129,6 +130,7 @@ export const embeddedTreeSitterGrammarAssetPaths = embeddedTreeSitterGrammarAsse
 
 const embeddedWasmAssets = new Map([
   ["tokenizer.wasm", tokenizerWasm],
+  ["path_validator.wasm", pathValidatorWasm as unknown as string],
   ["diffy/diffy_wasm_bg.wasm", diffyWasm as unknown as string],
   ["json_repair/json_repair_bg.wasm", jsonRepairWasm as unknown as string],
   ["rdiff/rdiff_bg.wasm", rdiffWasm as unknown as string],

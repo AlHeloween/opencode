@@ -357,6 +357,9 @@ function Invoke-Build {
         Copy-Item -Recurse -Force "$WasmPkgDir\diffy" $WasmDistDir
         Copy-Item -Recurse -Force "$WasmPkgDir\grammars" $WasmDistDir
         Copy-Item "$WasmPkgDir\tokenizer.wasm" $WasmDistDir
+        if (Test-Path "$WasmPkgDir\path_validator.wasm") {
+            Copy-Item "$WasmPkgDir\path_validator.wasm" $WasmDistDir
+        }
         $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "tree-sitter.wasm" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } | Select-Object -First 1
         if ($TreeSitterRuntimeWasm) {
             Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir "tree-sitter.wasm")
@@ -365,6 +368,7 @@ function Invoke-Build {
         # Enumerate all WASM assets dynamically — every file in pkg/ and pkg/grammars/ is required.
         $RequiredWasmAssets = @(
             "tokenizer.wasm",
+            "path_validator.wasm",
             "tree-sitter.wasm",
             "diffy\diffy_wasm_bg.wasm",
             "json_repair\json_repair_bg.wasm",

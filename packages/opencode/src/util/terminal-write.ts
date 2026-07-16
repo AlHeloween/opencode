@@ -65,7 +65,12 @@ export function sixelHeightInRows(pixelHeight: number): number {
  */
 export function closeTerminal(): void {
   if (terminalFd !== null) {
-    try { closeSync(terminalFd) } catch {}
+    try {
+      closeSync(terminalFd)
+    } catch (err) {
+      // Expected if the device was already closed by the OS / process teardown.
+      log.debug("closeTerminal: closeSync failed", { error: String(err) })
+    }
     terminalFd = null
   }
 }

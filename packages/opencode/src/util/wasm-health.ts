@@ -5,6 +5,7 @@
 import { initDiffy } from "./diff-wasm"
 import { initTokenizer } from "@/tokenizers/bpe-wasm"
 import { initJsonRepair } from "./json-repair-wasm"
+import { initPathValidator } from "./path-validator"
 import * as Log from "@opencode-ai/core/util/log"
 import { embeddedTreeSitterGrammarAssetPaths } from "./wasm-embedded"
 import { readWasmAsset } from "./wasm-path"
@@ -23,6 +24,7 @@ export async function checkWasmModules(): Promise<void> {
     initDiffy().then((ok) => ({ name: "diffy", ok })),
     initTokenizer().then((ok) => ({ name: "tokenizer", ok })),
     initJsonRepair().then((ok) => ({ name: "json_repair", ok })),
+    initPathValidator().then((ok) => ({ name: "path_validator", ok })),
     checkAsset("markdownify", "markdownify/markdownify_wasm_bg.wasm"),
     checkAsset("rdiff", "rdiff/rdiff_bg.wasm"),
     checkAsset("tree_sitter_runtime", "tree-sitter.wasm"),

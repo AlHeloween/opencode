@@ -152,6 +152,16 @@ const transpileEntryPoint = (entryPoint: string, outputPath: string): void => {
 if (buildNative) {
   console.log(`Building native ${isDev ? "dev" : "prod"} binaries${buildAll ? " for all platforms" : ""}...`)
 
+  // Zig 0.15.x on Windows: uucode's setCwd + Run.artifact path panics in convertPathArg.
+  // Patch the cached package before building (no-op if already patched / non-Windows).
+  if (process.platform === "win32") {
+    const patcher = join(rootDir, "src", "zig", "tools", "patch-uucode-windows.mjs")
+    if (existsSync(patcher)) {
+      console.log("Applying Windows uucode Zig 0.15 setCwd workaround...")
+      runCommand("bun", [patcher], join(rootDir, "src", "zig"), "Error: uucode Windows patch failed")
+    }
+  }
+
   const zigArgs = ["build", `-Doptimize=${isDev ? "Debug" : "ReleaseFast"}`]
   if (buildAll) {
     zigArgs.push("-Dall")
@@ -272,7 +282,7 @@ if (buildLib) {
     process.exit(1)
   }
 
-  const portableEntryPoints: string[] = [packageJson.module, "src/testing.ts", "src/yoga.ts"]
+  const portableEntryPoints: string[] = ["src/index.ts", "src/testing.ts", "src/yoga.ts"]
 
   const bunOnlyEntryPoints = [
     {

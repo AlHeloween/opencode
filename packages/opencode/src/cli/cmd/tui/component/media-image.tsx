@@ -11,7 +11,7 @@ import type { BoxRenderable } from "@opentui/core"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
 import { renderDataUrlToTerminal } from "@/util/render-image-to-terminal"
-import { writeToTerminal } from "@/util/terminal-write"
+import { FrameSyncWriter } from "@/util/frame-writer"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tui.media.image" })
@@ -85,10 +85,10 @@ export function MediaImage(props: { url: string; mime: string }) {
     if (!seq || state() !== "sixel" || !boxRef) return
     const rows = terminalRows()
     if (rows <= 0) return
-    queueMicrotask(() => {
+    FrameSyncWriter.schedule(() => {
       const y = boxRef.screenY + 1 // screenY is 0-based, terminal is 1-based; +1 for paddingTop
       const x = boxRef.screenX + 2 // screenX is 0-based; +2 for paddingLeft
-      writeToTerminal(`\x1b[${y};${x}H${seq}`)
+      FrameSyncWriter.writeNow(`\x1b[${y};${x}H${seq}`)
     })
   })
 

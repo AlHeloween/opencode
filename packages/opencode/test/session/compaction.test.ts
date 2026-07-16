@@ -1492,3 +1492,78 @@ describe("session.compaction.regression", () => {
     ),
   )
 })
+
+// ============================================================================
+// edge case coverage
+// ============================================================================
+
+describe("session.compaction.edge-cases", () => {
+  it.live("does nothing on empty session", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        expect(msgs).toHaveLength(0)
+      }),
+    ),
+  )
+
+  it.live("compact with summary but no tail messages", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn", time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        expect(msgs).toHaveLength(3)
+        expect(msgs.some((m: any) => m.info.summary)).toBe(true)
+      }),
+    ),
+  )
+
+  it.live("already-compacted guard clears after new user message", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn", time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const c1 = (yield* ssn.messages({ sessionID: info.id })).length
+
+        const normal = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: normal.id, sessionID: info.id, type: "text", text: "normal" })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const c2 = (yield* ssn.messages({ sessionID: info.id })).length
+        expect(c2).toBeGreaterThan(c1)
+      }),
+    ),
+  )
+})

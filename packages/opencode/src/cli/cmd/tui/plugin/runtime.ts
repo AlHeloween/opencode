@@ -434,7 +434,7 @@ async function deactivatePluginEntry(state: RuntimeState, plugin: PluginEntry, p
   return true
 }
 
-async function activatePluginEntry(state: RuntimeState, plugin: PluginEntry, persist: boolean) {
+async function activatePluginEntry(state: RuntimeState, plugin: PluginEntry, persist: boolean, skipThemeSync = false) {
   plugin.enabled = true
   if (persist) writePluginEnabledState(state.api, plugin.id, true)
   if (plugin.scope) return true
@@ -443,7 +443,7 @@ async function activatePluginEntry(state: RuntimeState, plugin: PluginEntry, per
   const api = pluginApi(state, plugin, scope, plugin.id)
   const ok = await Promise.resolve()
     .then(async () => {
-      await syncPluginThemes(plugin)
+      if (!skipThemeSync) await syncPluginThemes(plugin)
       await plugin.plugin(api, plugin.load.options, plugin.meta)
       return true
     })
@@ -1018,13 +1018,22 @@ async function load(input: { api: Api; config: TuiConfig.Info }) {
         await addExternalPluginEntries(next, ready)
 
         applyInitialPluginEnabledState(next, config)
+        // Phase 1: sync plugin themes in parallel (file I/O — no ordering dependency)
+        await Promise.allSettled(
+          next.plugins
+            .filter((p) => p.enabled)
+            .map((plugin) =>
+              syncPluginThemes(plugin).catch((error) => {
+                log.warn("bug: failed to sync plugin themes", { id: plugin.id, error })
+              }),
+            ),
+        )
+        // Phase 2: activate plugins sequentially (command/route/hook registration
+        // order affects keybind precedence, route collision resolution, and hook
+        // chain stability — must stay deterministic)
         for (const plugin of next.plugins) {
           if (!plugin.enabled) continue
-          // Keep plugin execution sequential for deterministic side effects:
-          // command registration order affects keybind/command precedence,
-          // route registration is last-wins when ids collide,
-          // and hook chains rely on stable plugin ordering.
-          await activatePluginEntry(next, plugin, false)
+          await activatePluginEntry(next, plugin, false, true)
         }
       },
     })

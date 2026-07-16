@@ -189,7 +189,13 @@ export const TuiThreadCommand = cmd({
       }
 
       const prompt = await input(args.prompt)
-      const config = await TuiConfig.get()
+
+      // Start config load and app module preload in background — neither
+      // depends on worker setup, transport resolution, or session validation.
+      const configPromise = TuiConfig.get()
+      const appModulePromise = import("./app")
+
+      const config = await configPromise
 
       const network = resolveNetworkOptionsNoConfig(args)
       const external =
@@ -228,7 +234,7 @@ export const TuiThreadCommand = cmd({
 
 
       try {
-        const { tui } = await import("./app")
+        const { tui } = await appModulePromise
         await tui({
           url: transport.url,
           async onSnapshot() {

@@ -30,7 +30,9 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
   let box: BoxRenderable | undefined
   let prevGrid: RGBA[][] | undefined
 
-  const timer = setInterval(() => setNow(performance.now()), 100)
+  const timer = setInterval(() => {
+    if (focused()) setNow(performance.now())
+  }, 100)
   onCleanup(() => clearInterval(timer))
 
   const sync = () => {

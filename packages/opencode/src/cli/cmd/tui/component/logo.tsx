@@ -594,7 +594,10 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
     }
     if (!live) setRelease(undefined)
     if (live || hold() || release() || glow()) return
-    if (props.idle) return
+    if (props.idle) {
+      stop()
+      return
+    }
     stop()
   }
 

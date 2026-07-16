@@ -66,6 +66,9 @@ export class CodeRenderable extends TextBufferRenderable {
   // Temporary rendered-line -> source-line map for concealment; native extmarks should replace this.
   private _renderedLineSources?: number[]
   private _mappedLineInfo?: LineInfo
+  // Debounce highlighting during streaming to avoid tree-sitter re-parse on every token.
+  private _lastContentChangeAt: number = 0
+  private static readonly HIGHLIGHT_DEBOUNCE_MS = 150
 
   protected _contentDefaultOptions = {
     content: "",
@@ -111,6 +114,7 @@ export class CodeRenderable extends TextBufferRenderable {
       this._content = value
       this._highlightsDirty = true
       this._highlightSnapshotId++
+      this._lastContentChangeAt = performance.now()
 
       if (this._streaming && this._filetype && !this._drawUnstyledText) {
         this.requestRender()
@@ -557,6 +561,13 @@ export class CodeRenderable extends TextBufferRenderable {
         this._shouldRenderTextBuffer = true
         this._highlightsDirty = false
       } else {
+        // During streaming, debounce highlighting to avoid tree-sitter re-parse
+        // on every token delta. Wait until content has been stable for at least
+        // HIGHLIGHT_DEBOUNCE_MS before starting a new highlight pass.
+        if (this._streaming && performance.now() - this._lastContentChangeAt < CodeRenderable.HIGHLIGHT_DEBOUNCE_MS) {
+          this._highlightsDirty = true
+          return
+        }
         this.ensureVisibleTextBeforeHighlight()
         this._highlightsDirty = false
         this._highlightingPromise = this.startHighlight()

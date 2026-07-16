@@ -24,7 +24,7 @@ export function make(input: {
   keepBytes?: number
 }): AsyncLogger {
   const maxBuffer = input.maxBuffer ?? 1000
-  const intervalMs = input.intervalMs ?? 100
+  const intervalMs = input.intervalMs ?? 500
   const maxBytes = input.maxBytes
   const keepBytes = input.keepBytes
   const queue: string[] = []

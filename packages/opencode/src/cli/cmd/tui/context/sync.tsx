@@ -127,6 +127,40 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     // Fields that may receive incremental text deltas (safe for string concatenation).
     const DELTA_SAFE_FIELDS = new Set(["text", "output"])
 
+    // Running delta accumulator for parts already in store (debounced to avoid
+    // per-token Solid store churn during streaming at 25–50 deltas/sec).
+    const runningDelta = new Map<string, Map<string, string>>()
+    const deltaFlushTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    const DELTA_DEBOUNCE_MS = 25
+
+    function scheduleDeltaFlush(messageID: string) {
+      if (deltaFlushTimers.has(messageID)) return
+      deltaFlushTimers.set(messageID, setTimeout(() => {
+        deltaFlushTimers.delete(messageID)
+        const deltaBatch = runningDelta.get(messageID)
+        if (!deltaBatch || deltaBatch.size === 0) return
+        runningDelta.delete(messageID)
+
+        const parts = store.part[messageID]
+        if (!parts) return
+
+        batch(() => {
+          for (const [key, deltaText] of deltaBatch) {
+            const colonIdx = key.lastIndexOf(":")
+            const partID = key.slice(0, colonIdx)
+            const field = key.slice(colonIdx + 1)
+            const r = Binary.search(parts, partID, (p) => p.id)
+            if (!r.found) continue
+            setStore("part", messageID, produce((draft) => {
+              const part = draft[r.index]
+              const existing = (part as any)[field] ?? ""
+              ;(part as any)[field] = existing + deltaText
+            }))
+          }
+        })
+      }, DELTA_DEBOUNCE_MS))
+    }
+
     function pruneDeltaBuffer() {
       // Remove entries exceeding TTL
       const cutoff = Date.now() - DELTA_BUFFER_TTL_MS
@@ -200,6 +234,12 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           clearTimeout(timer)
           recoveryTimers.delete(mid)
         }
+        const flushTimer = deltaFlushTimers.get(mid)
+        if (flushTimer) {
+          clearTimeout(flushTimer)
+          deltaFlushTimers.delete(mid)
+        }
+        runningDelta.delete(mid)
       }
     }
 
@@ -561,15 +601,39 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           buffer.set(partID, existing + delta)
           break
         }
-        setStore(
-          "part",
-          messageID,
-          produce((draft) => {
-            const part = draft[result.index]
-            const existing = (part as any)[field] ?? ""
-            ;(part as any)[field] = existing + delta
-          }),
-        )
+        // Part found — buffer delta and debounce store update to avoid
+        // per-token Solid reconciliation during high-frequency streaming.
+        // First delta for this field applies immediately (no blank-delay
+        // artifact); subsequent deltas within DELTA_DEBOUNCE_MS are batched.
+        const fieldKey = partID + ":" + field
+        const hasExisting = runningDelta.has(messageID) && runningDelta.get(messageID)!.has(fieldKey)
+        if (!hasExisting) {
+          // First delta — apply directly to show text immediately
+          const r = Binary.search(parts, partID, (p) => p.id)
+          if (r.found) {
+            setStore("part", messageID, produce((draft) => {
+              const part = draft[r.index]
+              const existing = (part as any)[field] ?? ""
+              ;(part as any)[field] = existing + delta
+            }))
+          }
+          // Seed the buffer so subsequent deltas know this is not the first.
+          let acc = runningDelta.get(messageID)
+          if (!acc) {
+            if (runningDelta.size >= MAX_DELTA_BUFFER_SIZE) {
+              const first = runningDelta.keys().next().value
+              if (first !== undefined) runningDelta.delete(first)
+            }
+            acc = new Map()
+            runningDelta.set(messageID, acc)
+          }
+          acc.set(fieldKey, "")
+        } else {
+          // Subsequent delta — buffer for debounced batch flush
+          const acc = runningDelta.get(messageID)!
+          acc.set(fieldKey, (acc.get(fieldKey) ?? "") + delta)
+          scheduleDeltaFlush(messageID)
+        }
         break
       }
 

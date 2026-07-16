@@ -12,6 +12,7 @@ import { createSignal, onMount, createEffect, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { renderMermaidToPngDataUrl } from "@/util/mermaid"
 import { renderDataUrlToTerminal } from "@/util/render-image-to-terminal"
+import { writeToTerminal } from "@/util/terminal-write"
 import { Spinner } from "./spinner"
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -72,7 +73,7 @@ export function MediaMermaid(props: { source: string }) {
     const rows = terminalRows()
     if (rows <= 0) return
     queueMicrotask(() => {
-      process.stdout.write(`\x1b[s\x1b[${rows}A${seq}\x1b[u`)
+      writeToTerminal(`\x1b[s\x1b[${rows}A${seq}\x1b[u`)
     })
   })
 

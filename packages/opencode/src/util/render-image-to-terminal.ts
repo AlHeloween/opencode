@@ -14,7 +14,7 @@ import { sixelImage } from "./sixel-render"
 import { kittyImage } from "./kitty-render"
 import { imageToAnsi, imageToChunks, type AnsiChunk } from "./image-to-ansi"
 import { detectBestProtocol, type GraphicsProtocol } from "./terminal-graphics"
-import { sixelHeightInRows } from "./terminal-write"
+import { sixelHeightInRows, writeToTerminal } from "./terminal-write"
 import { writeFileSync, unlinkSync, existsSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
@@ -121,7 +121,7 @@ export async function renderDataUrlToTerminal(
     // Write Sixel/Kitty escape sequences to stdout so they land on the TUI's alternate screen.
     // When writeToTerminal is false, skip the write — caller handles positioning/delayed write.
     if (result.escapeSequence && options?.writeToTerminal !== false) {
-      process.stdout.write(result.escapeSequence)
+      writeToTerminal(result.escapeSequence)
     }
     return result
   } catch (err) {

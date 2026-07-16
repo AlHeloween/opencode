@@ -11,6 +11,7 @@ import type { BoxRenderable } from "@opentui/core"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
 import { renderDataUrlToTerminal } from "@/util/render-image-to-terminal"
+import { writeToTerminal } from "@/util/terminal-write"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tui.media.image" })
@@ -87,7 +88,7 @@ export function MediaImage(props: { url: string; mime: string }) {
     queueMicrotask(() => {
       const y = boxRef.screenY + 1 // screenY is 0-based, terminal is 1-based; +1 for paddingTop
       const x = boxRef.screenX + 2 // screenX is 0-based; +2 for paddingLeft
-      process.stdout.write(`\x1b[${y};${x}H${seq}`)
+      writeToTerminal(`\x1b[${y};${x}H${seq}`)
     })
   })
 

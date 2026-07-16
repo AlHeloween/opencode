@@ -183,16 +183,46 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         }
 
         // With summaries: keep from the latest summary onward.
-        // Each segment between summaries is naturally < 30K tokens,
-        // so no additional trimming is needed.
+        // But if the tail (post-summary content) exceeds ~30K tokens,
+        // walk forward and trim from the front of the tail — the summary
+        // still anchors, but old tail messages are pruned.
         // Without summaries (old projects): trim to ~30K tokens.
+        const TARGET_TOKENS = 30_000
+        const CHARS_PER_TOKEN = 4
         const hasSummary = lastSummaryIndex >= 0
         let keepFrom: number
+
         if (hasSummary) {
           keepFrom = lastSummaryIndex
+          // Count tail chars from summary to end
+          let tailChars = 0
+          for (let i = keepFrom; i < msgs.length; i++) {
+            for (const part of msgs[i].parts) {
+              if (part.type === "text" && !(part as any).ignored) {
+                tailChars += (part as any).text?.length ?? 0
+              }
+            }
+          }
+          // If tail exceeds 30K tokens, walk forward trimming from the front.
+          // Never trim past the summary pair — the anchor must be preserved.
+          if (tailChars > TARGET_TOKENS * CHARS_PER_TOKEN) {
+            let trimmed = 0
+            const targetTail = TARGET_TOKENS * CHARS_PER_TOKEN
+            for (let i = keepFrom; i < msgs.length; i++) {
+              if (trimmed >= tailChars - targetTail) {
+                keepFrom = Math.max(keepFrom, i)
+                break
+              }
+              for (const part of msgs[i].parts) {
+                if (part.type === "text" && !(part as any).ignored) {
+                  trimmed += (part as any).text?.length ?? 0
+                }
+              }
+            }
+            // Clamp: never trim past the summary pair
+            keepFrom = Math.min(keepFrom, lastSummaryIndex)
+          }
         } else {
-          const TARGET_TOKENS = 30_000
-          const CHARS_PER_TOKEN = 4
           let accumulatedChars = 0
           keepFrom = 0
           for (let i = msgs.length - 1; i >= 0; i--) {

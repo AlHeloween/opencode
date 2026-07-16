@@ -10,6 +10,7 @@
  */
 import { createSignal, onMount, createEffect, Switch, Match } from "solid-js"
 import { useTheme } from "@tui/context/theme"
+import type { BoxRenderable } from "@opentui/core"
 import { renderMermaidToPngDataUrl } from "@/util/mermaid"
 import { renderDataUrlToTerminal } from "@/util/render-image-to-terminal"
 import { writeToTerminal } from "@/util/terminal-write"
@@ -26,6 +27,7 @@ export function MediaMermaid(props: { source: string }) {
   const [dataUrl, setDataUrl] = createSignal<string | null>(null)
   const [terminalRows, setTerminalRows] = createSignal(0)
   const [sixelSequence, setSixelSequence] = createSignal("")
+  let boxRef: BoxRenderable | undefined
 
   onMount(() => {
     ;(async () => {
@@ -64,16 +66,18 @@ export function MediaMermaid(props: { source: string }) {
     })()
   })
 
-  // Write Sixel escape sequence at the box position after render.
-  // Same pattern as MediaImage: save cursor, back up to box start,
-  // write Sixel (fills rows), restore cursor.
+  // Write Sixel at the box's absolute screen position after render.
+  // Uses ref to read screenY/screenX from the placeholder BoxRenderable
+  // and positions Sixel via \x1b[{y};{x}H (absolute cursor positioning, 1-based).
   createEffect(() => {
     const seq = sixelSequence()
-    if (!seq || state() !== "sixel") return
+    if (!seq || state() !== "sixel" || !boxRef) return
     const rows = terminalRows()
     if (rows <= 0) return
     queueMicrotask(() => {
-      writeToTerminal(`\x1b[s\x1b[${rows}A${seq}\x1b[u`)
+      const y = boxRef.screenY + 1 // screenY is 0-based, terminal is 1-based; +1 for paddingTop
+      const x = boxRef.screenX + 2 // screenX is 0-based; +2 for paddingLeft
+      writeToTerminal(`\x1b[${y};${x}H${seq}`)
     })
   })
 
@@ -81,7 +85,7 @@ export function MediaMermaid(props: { source: string }) {
     <Switch>
       <Match when={state() === "sixel"}>
         {/* Sixel image already written to terminal — reserve blank rows */}
-        <box paddingTop={1} paddingLeft={2} height={terminalRows()}>
+        <box ref={boxRef} paddingTop={1} paddingLeft={2} height={terminalRows()}>
           <text></text>
         </box>
       </Match>

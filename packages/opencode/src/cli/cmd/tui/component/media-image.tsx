@@ -2,11 +2,12 @@
  * MediaImage — renders images inline within the TUI chat layout.
  *
  * Pipeline:
- *   1. Sixel (explicit) → direct terminal write, bypasses protocol detection
+ *   1. Sixel (explicit) → direct terminal write at box position
  *   2. Symbols (auto-detect) → half-block ▀ fallback
  */
 import { createSignal, Switch, Match, onMount, createEffect } from "solid-js"
 import { StyledText, SyntaxStyle } from "@opentui/core"
+import type { BoxRenderable } from "@opentui/core"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
 import { renderDataUrlToTerminal } from "@/util/render-image-to-terminal"
@@ -22,6 +23,7 @@ export function MediaImage(props: { url: string; mime: string }) {
   const [styledText, setStyledText] = createSignal<StyledText | null>(null)
   const [contentText, setContentText] = createSignal("")
   const dummySyntax = SyntaxStyle.create()
+  let boxRef: BoxRenderable | undefined
 
   onMount(async () => {
     // Try Sixel first — many terminals support it but don't advertise via env vars.
@@ -61,8 +63,6 @@ export function MediaImage(props: { url: string; mime: string }) {
         setState("symbols")
         return
       }
-      // For kitty protocol, it auto-writes but we already set writeToTerminal: false above.
-      // Kitty protocol result would have an escape sequence but no chunks.
       if (result?.escapeSequence && result.protocol === "kitty") {
         setTerminalRows(result.dimensions.terminalRows)
         setSixelSequence(result.escapeSequence)
@@ -76,29 +76,25 @@ export function MediaImage(props: { url: string; mime: string }) {
     setState("error")
   })
 
-  // Write Sixel escape sequence at the box position after render.
-  // The TUI renders the <box> placeholder FIRST, positioning the cursor
-  // below the box. We then move the cursor back up to the box start,
-  // write the Sixel sequence (which fills the exact rows), and restore.
+  // Write Sixel at the box's absolute screen position after render.
+  // Uses ref to read screenY/screenX from the placeholder BoxRenderable
+  // and positions Sixel via \x1b[{y};{x}H (absolute cursor positioning, 1-based).
   createEffect(() => {
     const seq = sixelSequence()
-    if (!seq || state() !== "sixel") return
+    if (!seq || state() !== "sixel" || !boxRef) return
     const rows = terminalRows()
     if (rows <= 0) return
-    // Defer to next microtask so the TUI has finished writing the box.
     queueMicrotask(() => {
-      // \x1b[s = save cursor (currently below the box)
-      // \x1b[{rows}A = move up to start of box
-      // <sixel> = write image (fills rows, cursor ends back below)
-      // \x1b[u = restore cursor position
-      process.stdout.write(`\x1b[s\x1b[${rows}A${seq}\x1b[u`)
+      const y = boxRef.screenY + 1 // screenY is 0-based, terminal is 1-based; +1 for paddingTop
+      const x = boxRef.screenX + 2 // screenX is 0-based; +2 for paddingLeft
+      process.stdout.write(`\x1b[${y};${x}H${seq}`)
     })
   })
 
   return (
     <Switch>
       <Match when={state() === "sixel"}>
-        <box paddingTop={1} paddingLeft={2} height={terminalRows()}>
+        <box ref={boxRef} paddingTop={1} paddingLeft={2} height={terminalRows()}>
           <text></text>
         </box>
       </Match>

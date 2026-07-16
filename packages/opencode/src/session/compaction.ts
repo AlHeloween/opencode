@@ -183,59 +183,43 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         }
 
         // With summaries: keep from the latest summary onward.
-        // But if the tail (post-summary content) exceeds ~30K tokens,
-        // walk forward and trim from the front of the tail — the summary
-        // still anchors, but old tail messages are pruned.
+        // If the tail exceeds ~30K tokens, walk forward and trim older
+        // tail messages. Counts ALL content: text + reasoning + tool outputs.
         // Without summaries (old projects): trim to ~30K tokens.
-        const TARGET_TOKENS = 30_000
         const CHARS_PER_TOKEN = 4
         const hasSummary = lastSummaryIndex >= 0
         let keepFrom: number
 
+        const contentChars = (msgs: MessageV2.WithParts[]) => {
+          let chars = 0
+          for (const m of msgs) {
+            for (const p of m.parts) {
+              if (p.type === "text" && !(p as any).ignored) chars += (p as any).text?.length ?? 0
+              else if (p.type === "reasoning") chars += (p as any).text?.length ?? 0
+              else if (p.type === "tool" && p.state?.status === "completed") chars += (p.state as any).output?.length ?? 0
+            }
+          }
+          return chars
+        }
+
         if (hasSummary) {
           keepFrom = lastSummaryIndex
-          // Count tail chars from summary to end
-          let tailChars = 0
-          for (let i = keepFrom; i < msgs.length; i++) {
-            for (const part of msgs[i].parts) {
-              if (part.type === "text" && !(part as any).ignored) {
-                tailChars += (part as any).text?.length ?? 0
-              }
-            }
-          }
-          // If tail exceeds 30K tokens, walk forward trimming from the front.
-          // Never trim past the summary pair — the anchor must be preserved.
-          if (tailChars > TARGET_TOKENS * CHARS_PER_TOKEN) {
-            let trimmed = 0
-            const targetTail = TARGET_TOKENS * CHARS_PER_TOKEN
+          const tailTokens = contentChars(msgs.slice(keepFrom)) / CHARS_PER_TOKEN
+          if (tailTokens > SUMMARY_INTERVAL_TOKENS) {
             for (let i = keepFrom; i < msgs.length; i++) {
-              if (trimmed >= tailChars - targetTail) {
-                keepFrom = Math.max(keepFrom, i)
-                break
-              }
-              for (const part of msgs[i].parts) {
-                if (part.type === "text" && !(part as any).ignored) {
-                  trimmed += (part as any).text?.length ?? 0
-                }
-              }
-            }
-            // Clamp: never trim past the summary pair
-            keepFrom = Math.min(keepFrom, lastSummaryIndex)
-          }
-        } else {
-          let accumulatedChars = 0
-          keepFrom = 0
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            for (const part of msgs[i].parts) {
-              if (part.type === "text" && !(part as any).ignored) {
-                accumulatedChars += (part as any).text?.length ?? 0
-              }
-            }
-            if (msgs[i].info.role === "user") {
-              if (accumulatedChars >= TARGET_TOKENS * CHARS_PER_TOKEN) {
+              if (contentChars(msgs.slice(i)) / CHARS_PER_TOKEN <= SUMMARY_INTERVAL_TOKENS) {
                 keepFrom = i
                 break
               }
+            }
+            keepFrom = Math.min(keepFrom, lastSummaryIndex)
+          }
+        } else {
+          keepFrom = 0
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (contentChars(msgs.slice(i)) / CHARS_PER_TOKEN >= SUMMARY_INTERVAL_TOKENS) {
+              keepFrom = i
+              break
             }
           }
         }

@@ -177,12 +177,12 @@ describe("session.compaction.sequential-compact", () => {
 
         // First compact
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const after1 = yield* ssn.messages({ sessionID: info.id })
+        const after1 = yield* MessageV2.filterCompactedEffect(info.id)
         const count1 = after1.length
 
         // Second compact — no new summary produced yet, already compacted
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const after2 = yield* ssn.messages({ sessionID: info.id })
+        const after2 = yield* MessageV2.filterCompactedEffect(info.id)
 
         // Message count should be identical — second compact is a no-op
         expect(after2.length).toBe(count1)
@@ -1127,10 +1127,10 @@ describe("session.compaction.compact", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
 
-        // Old messages should be removed
+        // Old messages should NOT be visible to the model
         expect(texts).not.toContain("old-1")
         expect(texts).not.toContain("old-2")
         // Summary assistant should be kept
@@ -1165,7 +1165,7 @@ describe("session.compaction.compact", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
 
         // All messages should be kept — no summary means no pruning
@@ -1199,7 +1199,7 @@ describe("session.compaction.compact", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         expect(msgs.length).toBeLessThan(30)
         const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
         expect(texts.some((t: string) => t.includes("msg-28") || t.includes("msg-29"))).toBe(true)
@@ -1224,7 +1224,7 @@ describe("session.compaction.injectSummaryRequest", () => {
 
         yield* compact.injectSummaryRequest({ sessionID: info.id, model: ref, agent: "build" })
 
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         expect(msgs).toHaveLength(1)
         expect(msgs[0].info.role).toBe("user")
         const texts = msgs[0].parts.filter((p: any) => p.type === "text").map((p: any) => p.text)
@@ -1284,7 +1284,7 @@ describe("session.compaction.multiple-summaries", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
         const summaryMsgs = msgs.filter((m) => m.info.summary)
 
@@ -1439,7 +1439,7 @@ describe("session.compaction.regression", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         // No message should have a compaction-type part
         for (const msg of msgs) {
           const compactionParts = msg.parts.filter((p: any) => p.type === "compaction")
@@ -1506,7 +1506,7 @@ describe("session.compaction.edge-cases", () => {
         const info = yield* ssn.create({})
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         expect(msgs).toHaveLength(0)
       }),
     ),
@@ -1530,7 +1530,7 @@ describe("session.compaction.edge-cases", () => {
           summary: true, finish: "end_turn", time: { created: Date.now() },
         } as MessageV2.Assistant)
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         expect(msgs).toHaveLength(3)
         expect(msgs.some((m: any) => m.info.summary)).toBe(true)
       }),
@@ -1555,13 +1555,13 @@ describe("session.compaction.edge-cases", () => {
           summary: true, finish: "end_turn", time: { created: Date.now() },
         } as MessageV2.Assistant)
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const c1 = (yield* ssn.messages({ sessionID: info.id })).length
+        const c1 = (yield* MessageV2.filterCompactedEffect(info.id)).length
 
         const normal = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: normal.id, sessionID: info.id, type: "text", text: "normal" })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const c2 = (yield* ssn.messages({ sessionID: info.id })).length
+        const c2 = (yield* MessageV2.filterCompactedEffect(info.id)).length
         expect(c2).toBeGreaterThan(c1)
       }),
     ),

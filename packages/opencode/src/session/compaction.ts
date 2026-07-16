@@ -229,11 +229,10 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
 
         if (toRemove.length > 0) {
           for (const msg of toRemove) {
-            yield* session.removeMessage({ sessionID: input.sessionID, messageID: msg.info.id }).pipe(
-              Effect.catchIf(NotFoundError.isInstance, () => Effect.void),
-            )
+            msg.info.compacted = true
+            yield* session.updateMessage(msg.info)
           }
-          log.info("compacted", { removed: toRemove.length, kept: msgs.length - toRemove.length })
+          log.info("compacted", { compacted: toRemove.length, kept: msgs.length - toRemove.length })
         }
 
         // Collect tail message IDs (kept messages after the boundary)

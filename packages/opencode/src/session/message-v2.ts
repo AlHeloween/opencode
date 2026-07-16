@@ -393,6 +393,7 @@ export type ToolPart = Omit<Types.DeepMutable<Schema.Schema.Type<typeof ToolPart
 const messageBase = {
   id: MessageID,
   sessionID: SessionID,
+  compacted: Schema.optional(Schema.Boolean),
 }
 
 export const User = Schema.Struct({
@@ -1203,118 +1204,33 @@ export function get(input: { sessionID: SessionID; messageID: MessageID }): With
   }
 }
 
+/** Return messages visible to the model, skipping compacted ones.
+  * compacted messages are soft-deleted — preserved in DB, hidden from LLM. */
 export function filterCompacted(msgs: Iterable<WithParts>) {
   const result = [] as WithParts[]
-  const completed = new Set<string>()
-  let tailRemaining = 0
-  let foundFirst = false
   for (const msg of msgs) {
+    if (msg.info.compacted) continue
     result.push(msg)
-    // Accept completed or errored compaction summaries as valid boundaries.
-    if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish)
-      completed.add(msg.info.parentID)
-    if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction")) {
-      if (!foundFirst) {
-        const compactionPart = msg.parts.find((part) => part.type === "compaction")
-        tailRemaining = (compactionPart as { tail_count?: number })?.tail_count ?? 0
-        foundFirst = true
-        if (tailRemaining <= 0) break
-      }
-      continue // boundary message itself is not a tail message
-    }
-    if (tailRemaining > 0) {
-      // Only decrement for real content messages, not compaction infrastructure
-      if (
-        !(msg.info.role === "user" && msg.parts.some((p) => p.type === "compaction")) &&
-        !(msg.info.role === "assistant" && msg.info.summary)
-      ) {
-        tailRemaining--
-      }
-      if (tailRemaining === 0) break
-    }
   }
-  result.reverse()
   return result
 }
 
 export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: SessionID) {
   const t0 = typeof performance !== "undefined" ? performance.now() : 0
-  // Fast path: if no compaction boundary exists, load all messages in one query.
-  // Avoids the per-page pagination loop which costs ceil(N/500) DB round-trips.
-  const hasCompactionPart = Database.use((db) =>
+  const allRows = Database.use((db) =>
     db
-      .select({ one: sql`1` })
-      .from(PartTable)
-      .where(and(eq(PartTable.session_id, sessionID), sql`json_extract(${PartTable.data}, '$.type') = 'compaction'`))
-      .limit(1)
+      .select()
+      .from(MessageTable)
+      .where(eq(MessageTable.session_id, sessionID))
+      .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
       .all(),
-  ).length > 0
-
-  if (!hasCompactionPart) {
-    const allRows = Database.use((db) =>
-      db
-        .select()
-        .from(MessageTable)
-        .where(eq(MessageTable.session_id, sessionID))
-        .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
-        .all(),
-    )
-    const result = hydrate(allRows)
-    Log.Default.debug("filterCompactedEffect fast path (no compaction boundary)", {
-      sessionID, msgCount: result.length,
-      ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
-    })
-    return result
-  }
-
-  const size = 500
-  let before: string | undefined
-  const result: WithParts[] = []
-  const completed = new Set<string>()
-  let tailRemaining = 0
-  let foundFirst = false
-
-  outer: while (true) {
-    const next = page({ sessionID, limit: size, before })
-    if (next.items.length === 0) break
-
-    // next.items is chronological (oldest first after hydrate().reverse()).
-    // Iterate newest-first so the compaction boundary (summary assistant followed
-    // by its parent compaction user) is detected and we stop loading older pages.
-    for (let i = next.items.length - 1; i >= 0; i--) {
-      const msg = next.items[i]!
-      result.push(msg)
-      // Accept completed or errored compaction summaries as valid boundaries.
-      // An errored summary still marks the compaction point — the underlying
-      // compaction user message with the compaction part type is the real boundary.
-      if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish)
-        completed.add(msg.info.parentID)
-      if (msg.info.role === "user" && completed.has(msg.info.id) && msg.parts.some((part) => part.type === "compaction")) {
-        if (!foundFirst) {
-          const compactionPart = msg.parts.find((part) => part.type === "compaction")
-          tailRemaining = (compactionPart as { tail_count?: number })?.tail_count ?? 0
-          foundFirst = true
-          if (tailRemaining <= 0) break outer
-        }
-        continue // boundary message itself is not a tail message
-      }
-      if (tailRemaining > 0) {
-        // Only decrement for real content messages, not compaction infrastructure
-        if (
-          !(msg.info.role === "user" && msg.parts.some((p) => p.type === "compaction")) &&
-          !(msg.info.role === "assistant" && msg.info.summary)
-        ) {
-          tailRemaining--
-        }
-        if (tailRemaining === 0) break outer
-      }
-    }
-
-    if (!next.more || !next.cursor) break
-    before = next.cursor
-  }
-
-  result.reverse()
+  )
+  const hydrated = hydrate(allRows)
+  const result = filterCompacted(hydrated)
+  Log.Default.debug("filterCompactedEffect", {
+    sessionID, total: hydrated.length, visible: result.length,
+    ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+  })
   return result
 })
 

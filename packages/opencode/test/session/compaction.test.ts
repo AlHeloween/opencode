@@ -1172,9 +1172,39 @@ describe("session.compaction.compact", () => {
         expect(texts).toContain("msg-1")
         expect(texts).toContain("msg-2")
         expect(texts).toContain("msg-3")
-        // Compacted message present with "no summary" notice
-        expect(texts.some((t: string) => t.includes("No summary exists"))).toBe(true)
+        // Compacted message present with "No summary" notice
+        expect(texts.some((t: string) => t.includes("No summary existed"))).toBe(true)
         expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "trims to ~30K tokens when no summary and context is large",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // 30 messages × 5K chars = 150K chars ≈ 37.5K tokens — exceeds 30K threshold
+        for (const text of Array.from({ length: 30 }, (_, i) => `msg-${i}-` + "x".repeat(5000))) {
+          const u = yield* ssn.updateMessage({
+            id: MessageID.ascending(), role: "user", sessionID: info.id,
+            agent: "build", model: ref, time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
+        }
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        expect(msgs.length).toBeLessThan(30)
+        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+        expect(texts.some((t: string) => t.includes("msg-28") || t.includes("msg-29"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("msg-0-"))).toBe(false)
+        expect(texts.some((t: string) => t.includes("No summary existed"))).toBe(true)
       }),
     ),
   )

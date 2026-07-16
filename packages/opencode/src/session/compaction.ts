@@ -30,7 +30,7 @@ export const SUMMARY_INTERVAL_TOKENS = 32_768
 function compactedMessage(summaryId: string | null, tailIds: string[], sessionId: string) {
   const summaryLine = summaryId
     ? `Summary: assistant \`${summaryId}\` covers the conversation up to that point.`
-    : "No summary exists yet — recent messages were kept."
+    : `No summary existed — kept ~30K tokens of recent context aligned to turn boundaries.`
   const tailLine = tailIds.length > 0
     ? `Active context: messages \`${tailIds[0]}\` through \`${tailIds[tailIds.length - 1]}\`.`
     : ""
@@ -130,12 +130,35 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           }
         }
 
-        // When no summary exists: don't prune — there's no anchor.
-        // Keep all messages, just inject the compacted signal so the model
-        // knows to use session-read. After 32K output tokens a summary will
-        // be produced, and the next compact will prune properly.
+        // When no summary exists: keep ~30K tokens of recent context
+        // aligned to user-message boundaries. Enough for the model to
+        // function and produce a summary, without the deadlock of keeping
+        // everything when context is critically overflowing.
         const hasSummary = lastSummaryIndex >= 0
-        const keepFrom = hasSummary ? lastSummaryIndex : 0
+        let keepFrom: number
+        if (hasSummary) {
+          keepFrom = lastSummaryIndex
+        } else {
+          const TARGET_TOKENS = 30_000
+          const CHARS_PER_TOKEN = 4
+          let accumulatedChars = 0
+          keepFrom = 0
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            // Count text chars in this message
+            for (const part of msgs[i].parts) {
+              if (part.type === "text" && !(part as any).ignored) {
+                accumulatedChars += (part as any).text?.length ?? 0
+              }
+            }
+            // Align to user-message boundaries (include the user msg + everything after)
+            if (msgs[i].info.role === "user") {
+              if (accumulatedChars >= TARGET_TOKENS * CHARS_PER_TOKEN) {
+                keepFrom = i
+                break
+              }
+            }
+          }
+        }
         const toRemove = msgs.slice(0, keepFrom)
 
         if (toRemove.length > 0) {

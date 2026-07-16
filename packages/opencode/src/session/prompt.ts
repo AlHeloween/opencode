@@ -1472,7 +1472,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 ])
             const system = checkpointUsable
               ? [...checkpointUsable.systemPrompt]
-              : [...rules, ...env, ...(skills ? [skills] : []), ...instructions]
+              : [...(skills ? [skills] : []), ...env, ...rules, ...instructions]
             if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
             // Snapshot system before handle.process() may mutate it via plugin hook.

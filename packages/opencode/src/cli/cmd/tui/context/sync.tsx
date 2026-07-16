@@ -529,9 +529,17 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         }
         case "message.part.updated": {
           const parts = store.part[event.properties.part.messageID]
+          // Discard any pending debounced deltas — the reconcile below carries the
+          // server's full accumulated text which already includes those deltas.
+          const flushTimer = deltaFlushTimers.get(event.properties.part.messageID)
+          if (flushTimer) {
+            clearTimeout(flushTimer)
+            deltaFlushTimers.delete(event.properties.part.messageID)
+          }
+          runningDelta.delete(event.properties.part.messageID)
           if (!parts) {
             setStore("part", event.properties.part.messageID, [event.properties.part])
-            // Flush any deltas that arrived before this part
+            // Flush any orphan deltas that arrived before this part
             flushDeltaBuffer(event.properties.part.messageID)
             break
           }
@@ -547,7 +555,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               draft.splice(result.index, 0, event.properties.part)
             }),
           )
-          // Flush any deltas that arrived before this part
+          // Flush any orphan deltas that arrived before this part
           flushDeltaBuffer(event.properties.part.messageID)
           break
         }

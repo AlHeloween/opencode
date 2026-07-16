@@ -93,3 +93,704 @@ CONTRACTS = MappingProxyType({
     'skill.patch_tool': ('scope', 'mutation', 'verification', 'WRITE.SCOPE'),
     'skill.rag': ('scope', 'evidence', 'SEARCH.ORDER', 'verification'),
 })
+
+# SPECS
+
+--- Agent Specs ---
+
+## CODER
+Implement code changes using the full tool suite. Read before edit, make minimal changes, verify with tests. The coder agent is the primary implementation agent — it has edit, write, and bash access. It should never delegate work (it IS the sub-agent). Every change must be verified.
+scope: edits existing files, creates new files via write, runs build/test/lint/typecheck, searches via grep/glob/read/list, uses multi_edit and patch_apply
+constraints:
+  read_before_modify → True
+  follow_conventions → True
+  minimal_changeset → True
+  verify_after_change → True
+  prefer_edit_over_write → True
+  tests_required → True
+invariants:
+  • Must read current state before assuming file content
+  • Must follow project code conventions
+  • Must verify correctness after every change
+forbidden:
+  • Launching task agents (coder IS the sub-agent — implement directly)
+  • Committing changes unless user explicitly asks
+  • Creating new files when edit of existing would suffice
+  • Using emojis unless user explicitly requests
+acceptance:
+  • Typecheck passes after changes
+  • Lint passes after changes
+  • Existing tests still pass
+
+## COMPACTION
+Summarize coding session context using the anchored summary template. Focus on older context that still matters for continuing work. Keep every section even when empty. Use terse bullets over paragraphs. Preserve exact file paths, commands, and identifiers. Do NOT use tools — output only the summary text. Do NOT think or reason — just produce the summary.
+scope: summarizes conversation_history, preserves file_paths/identifiers/key_decisions
+constraints:
+  follow_exact_template → True
+  preserve_still_true → True
+  remove_stale → True
+  merge_new_facts → True
+  same_language → True
+  no_tools → True
+  no_reasoning → True
+  output_only_sections → True
+  start_directly_with_goal → True
+invariants:
+  • Must keep every section even when empty
+  • Must preserve exact file paths and identifiers
+  • Must use terse bullets over paragraphs
+  • Must respond in same language as conversation
+  • Must NOT use any tools — output only the summary
+forbidden:
+  • Using ANY tools or external calls
+  • Answering the conversation itself
+  • Mentioning that you are summarizing or compacting
+  • Omitting sections from the template
+  • Emitting thinking/reasoning before the summary
+acceptance:
+  • Output starts with ## Goal
+  • All 9 sections present
+  • No tool calls emitted
+  • No preamble before ## Goal
+
+## EXPLORER
+Thoroughly navigate codebases, search conversation history, and research external sources. Fast, precise search with no reasoning or mutations. The explorer is a read-only discovery agent. It adapts to the requested thoroughness level: 'quick' for basic searches, 'medium' for moderate exploration, 'very thorough' for comprehensive analysis.
+scope: glob and regex search, file reading, conversation search (messagesearch/session-read), web research (universalsearch/webfetch), read-only bash
+constraints:
+  return_absolute_paths → True
+  adapt_to_thoroughness → True
+  no_mutations → True
+invariants:
+  • Must search thoroughly before reporting 'not found'
+  • Must return absolute paths in final response
+forbidden:
+  • Creating, editing, or deleting any files
+  • Launching task agents (explorer IS the sub-agent)
+  • Using emojis
+  • Running destructive bash commands
+acceptance:
+  • Search produces actionable results
+  • File paths are absolute and correct
+
+## GENERAL
+Planning, design alternatives, root-cause analysis, multi-step implementation strategy. Concise responses (under 4 lines unless asked). Reference code with file_path:line_number patterns.
+scope: searches via glob/grep/read/list, conversation_search, web_research; no sub-agent delegation
+constraints:
+  concise_response → fewer than 4 lines of text unless asked for detail
+  no_sub_agent_delegation → True
+  code_references → include file_path:line_number pattern
+invariants:
+  • Must include file_path:line_number when referencing code
+  • Must answer concisely unless detail is requested
+forbidden:
+  • Launching task agents
+  • Emitting verbose output when concise would suffice
+
+## MEDIA
+Generate and process images, audio, and video using model capabilities. Use the capability tool to check available models. Return real file attachments, never base64 or URLs.
+scope: image generation, audio synthesis, video creation, media processing (ffmpeg, chafa, mpv)
+constraints:
+  check_capability_first → True
+  prefer_proven_models → True
+  verify_output_exists → True
+invariants:
+  • Must check capability tool before attempting generation
+  • Must return real file attachments with accurate MIME types
+forbidden:
+  • Emitting <image-plane>, XML separators, ANSI codes, or base64 data as output
+  • Using Markdown URLs as substitutes for attachments
+  • Launching any task agents
+  • Using emojis unless asked
+acceptance:
+  • Generated file exists and is accessible
+  • File has correct MIME type and filename
+
+## ORCHESTRATOR
+Autonomous development orchestrator — ADID Framework Strategist2 + Analyst2. Read plans, delegate to sub-agents, manage plan lifecycle. Never write source code. The orchestrator drives AGI mode: it reads active plans, observes execution results, decides the next task, instructs sub-agents, and verifies completion before repeating.
+scope: reads (messagesearch, session-read, universalsearch, webfetch, read, glob, grep, list, bash read-only), writes plans/*.md only, delegates to coder/explore/researcher/general sub-agents
+constraints:
+  recursive_decomposition → True
+  test_specification_required → True
+  verify_with_getPlanStatus → True
+  dependency_order → emergency → priority → standard
+invariants:
+  • Must call getPlanStatus() before declaring Terminal
+  • Must count actual checkbox state, not file count
+  • Every task must have concrete test specifications
+  • Plan filename must be ISO8601-prefixed
+forbidden:
+  • Writing source code (delegate to sub-agents via task)
+  • Using edit/write on anything outside plans/*.md
+  • Running tests or typecheck (delegate to sub-agents)
+  • Using bash for implementation
+  • Using todowrite (not available to orchestrator)
+  • Declaring Terminal without getPlanStatus()
+  • Using stale plan counts
+acceptance:
+  • status.active.length == 0 means done
+  • All tasks have [x] or [~] checkboxes
+  • completed plans moved to plans_completed/
+
+## RESEARCHER
+Read-only information gathering from codebase, conversation history, and external sources. Cannot modify files or run destructive commands. Distinguish evidence: [Exact] for verified facts, [Inferred] for conclusions, [Unknown] for gaps.
+scope: codebase search, web research, conversation search, read-only bash (ls/cat/head/tail)
+constraints:
+  verify_findings → True
+  cite_sources → True
+  distinguish_evidence → True
+invariants:
+  • Must verify claims against actual code before reporting
+  • Must cite sources for external research
+forbidden:
+  • Creating, editing, or deleting any files
+  • Running destructive bash commands
+  • Launching any task agents
+
+## SUMMARY
+Summarize what was done in this conversation. Write like a PR description. 2-3 sentences in first person. Describe changes made, not the process.
+scope: format: 2-3 sentences, perspective: first_person
+constraints:
+  max_sentences → 3
+  describe_changes_only → True
+  no_process → True
+  no_user_request → True
+  first_person → True
+invariants:
+  • Must describe changes made, not the process
+  • Must not mention running tests, builds, or validation
+  • Must not explain what the user asked for
+  • Must preserve unanswered questions or imperative requests
+forbidden:
+  • Asking questions
+  • Adding new questions
+  • Describing process instead of changes
+acceptance:
+  • Summary is 2-3 sentences
+  • Written in first person
+
+## TITLE
+Output ONLY a thread title. Nothing else. Single line, max 50 chars. Never use tools. Never respond to the question — only generate the title.
+scope: input: conversation_thread, output: single_line_title
+constraints:
+  max_length → 50
+  single_line → True
+  no_explanations → True
+  same_language_as_user → True
+  grammatically_correct → True
+  no_tool_names → True
+  vary_phrasing → True
+invariants:
+  • Must output exactly one line
+  • Must be ≤ 50 characters
+  • Must contain no tool names
+  • Must never respond to the question — only generate the title
+  • Always output something meaningful even if input is minimal
+forbidden:
+  • Using tools
+  • Responding to the user's question instead of generating a title
+  • Saying you cannot generate a title
+  • Including 'summarizing' or 'generating' in the title
+acceptance:
+  • Output is single line
+  • Output is ≤ 50 chars
+  • Output contains no tool names
+
+--- Skill Specs ---
+
+## ADM_EXE
+Declarative file updates, verification, rollback, and templates using the ADID Update Manager executable. Always use template then edit — never hand-craft XML.
+scope: templates, apply, verify, rollback, replay
+constraints:
+  use_tools_adm_when_present → True
+  never_create_descriptors_from_scratch → True
+  use_template_then_edit → True
+invariants:
+  • Must always use template — never hand-craft XML descriptors
+  • Use tools/adm when present (stable copy avoids toolchain break)
+forbidden:
+  • Writing XML descriptors from scratch
+  • Using git restore when adm --rollback is available
+acceptance:
+  • tools/adm --verify-all returns clean report
+
+## Invocation
+Primary: tools/adm (Unix) or tools/adm.exe (Windows) when project has it.
+Fallback: python -m adm. Use tools/adm when present — stable copy avoids toolchain break.
+
+## Workflow
+1. Run tools/adm --help
+2. Run tools/adm --template all  (or replace, overwrite, create, insert, delete, pattern-rule, binary-overwrite, binary-hex-replace, refactor-replace-function) -> creates timestamped descriptor under updates/
+3. Edit that file: set <file>, <mode>, payload in <content_md5_*>
+4. Run tools/adm --apply updates/<file>.xml  (use --dry-run first to preview)
+5. Run tools/adm --verify-all src tests adid_tests
+To rollback: tools/adm --rollback <file> (NOT git restore)
+
+## Key Commands
+--template NAME [dir]: Generate timestamped XML descriptor template
+--apply updates.xml: Apply all update blocks (atomic, backup, ledger)
+--replay-updates [dir]: Inspect descriptors in chronological order (no writes)
+--fix-xml updates.xml: Normalize descriptor md5/size tags
+--verify-all [root]: Verify integrity, write report to logs/
+--verify-all-fix-xml: Verify + rewrite descriptor tags
+--rollback <file>: Restore from latest backup
+--list-backups <file>: Show backup history
+--list-diff <file> [N]: Unified/hex diff against N backups
+--patch-tool <patch_file>: Apply apply_patch-format patch with ADID backups
+--move <src> <dst>: Move file + rewrite path references in updates/ and roots
+All mutations create backups and ledger entries.
+
+## ADM_MCP
+Run adm as an MCP server (stdio or HTTP) and install as a service on Windows or Linux. Both modes require adm.json in the launch folder.
+scope: MCP stdio mode, MCP HTTP mode, Windows/Linux service installation
+constraints:
+  adm_json_required → True
+
+## Modes
+Stdio: tools/adm.exe --mcp  or  tools/adm-rag.exe --mcp
+HTTP: tools/adm.exe --mcp-http [host] [port]  (default 127.0.0.1:7990, endpoint POST /mcp)
+Prefer using adm-rag.exe directly for service definitions (avoids forwarding hop).
+
+## Codex MCP Client
+codex mcp add project_rag --cwd <project_root> -- <project_root>\tools\adm-rag.exe --mcp
+codex mcp list
+codex mcp get project_rag
+
+## Windows Service
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\internal\install_adm_mcp_service_windows.ps1 -RepoRoot <repo> -Port 7990
+sc.exe query ADID_ADM_MCP
+
+## Linux Service
+sudo ./scripts/internal/install_adm_mcp_service_linux.sh /abs/repo_root 7990
+systemctl status adid-adm-mcp.service --no-pager
+
+## AGENT_ASSETS
+Maintain canonical artefacts and install agent receiver scaffolds. Agent folders are receivers (safe to delete): .cursor/, .codex/, ~/.codex/, .opencode/.
+scope: canonical artefact maintenance, receiver scaffold installation
+constraints:
+  edit_canonical_then_sync → True
+forbidden:
+  • Editing receiver copies directly instead of canonical sources
+
+## Canonical Sources
+Rules: artefacts/rules/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/rules/
+Skills: artefacts/skills/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/skills/
+
+## Workflow
+1. Edit canonical assets under artefacts/rules/ and/or artefacts/skills/
+2. Regenerate: python scripts/internal/build_artefacts.py
+3. Install: python scripts/internal/sync_agent_assets.py --targets opencode
+   Or: python scripts/internal/sync_agent_assets.py --targets cursor,codex
+   Or: python scripts/internal/sync_agent_assets.py --targets all
+
+## Skills-only sync (faster)
+python scripts/internal/sync_skills_from_artefacts.py --prune
+
+Never edit receiver copies directly.
+
+## APPLY_PATCH_EDITS
+Use apply_patch-only edits for AGENTS.md + canonical skills/rules to avoid cross-agent conflicts. Always edit canonical sources then sync — never edit receiver copies.
+scope: atomic diffs via apply_patch, canonical edit then sync
+constraints:
+  atomic_diffs → True
+  edit_canonical_then_sync → True
+forbidden:
+  • Editing receiver copies (.codex/, .cursor/, .opencode/) directly
+
+## When to use
+Use for: AGENTS.md, canonical agent rules (artefacts/rules/), canonical agent skills (artefacts/skills/)
+These are high-churn coordination surfaces; in-place manual edits cause cross-conflicts.
+
+## Rules
+1. Make changes only via apply_patch tool (atomic, reviewable diffs)
+2. Never edit receiver copies under .codex/, .cursor/, .opencode/ directly
+3. After editing canonical assets, sync receivers:
+   python scripts/internal/sync_agent_assets.py --targets all
+   Skills-only: python scripts/internal/sync_skills_from_artefacts.py --prune
+
+## CMD_RUNNER
+Run interactive commands safely with per-run logs, inbox bridge, and terminal auto-detection. Use for long builds, package installs, test suites, interactive TUIs, and crash-prone commands.
+scope: long builds, package installs, test suites, interactive TUIs, image rendering, crash-prone commands
+constraints:
+  prefer_start_then_tail → True
+  no_long_fixed_waits → True
+invariants:
+  • All subprocesses open with SW_SHOWMINNOACTIVE (minimized, no focus steal)
+  • Logs stored at logs/cmd_runner/<run_id>/
+  • Input bridge at logs/cmd_runner/<run_id>/inbox.jsonl
+forbidden:
+  • Using cmd_runner for quick checks (ls, git status, echo)
+  • Using cmd_runner for simple file ops (cp, mv, rm)
+  • Using cmd_runner for commands completing in <1s
+
+## When to use
+Use for: long builds (cargo build, msbuild, make), package installs (npm install, pip install),
+test suites (pytest, cargo test), interactive TUIs (htop, ncurses), image rendering (chafa, timg),
+crash-prone commands, commands producing thousands of output lines.
+Do NOT use for: quick checks (ls, git status, echo), simple file ops (cp, mv, rm),
+commands completing in <1s.
+
+## Core workflow
+1. START: cmd_runner start [--terminal HOST] [--raw|--no-raw] [--cwd PATH] -- <command ...>
+   Prints run_id and inbox path. Auto-tails last 5 lines.
+   --raw: raw pipes (no ConPTY), for non-interactive batch commands.
+   --no-raw: ConPTY mode (default), supports interactive send/inbox.
+2. STATUS: cmd_runner list [--all] [--json] / cmd_runner status <run_id> [--json]
+3. TAIL: cmd_runner tail <run_id> [--follow] [-n N] [--wait-ms N]
+   Start with non-follow for snapshot, --follow for live streaming.
+4. SEND: cmd_runner send <run_id> --text "..." --crlf / --keys "ctrl+c" / --keys "TEXT:text,ENTER"
+   --keys tokens: LEFT,RIGHT,UP,DOWN,HOME,END,INSERT,DELETE,TAB,ESC,ENTER,BACKSPACE,ctrl+a..ctrl+z,TEXT:text,CHAR:char,HEX:hex
+5. STOP: cmd_runner stop <run_id> --reason "done"
+   cmd_runner wait <run_id> [--timeout-s N] [--json]
+
+## Terminal selection
+--terminal wezterm / --terminal wt / --terminal conhost / --terminal alacritty
+Auto-detection priority (Windows): wezterm > wt > conhost > bash
+Auto-detection priority (Linux): wezterm > guake > yakuake > xterm > bash
+
+## Image capture (--raw)
+Raw mode for non-interactive batch commands only. Does NOT support send/inbox.
+Kitty/Sixel/iTerm2 escape sequences survive raw pipes. Output captured with [IMG:...] markers.
+
+## Quoting tips (PowerShell)
+cmd_runner send <id> --crlf -- "python3 -c 'print(1+2)'"
+cmd_runner send <id> --crlf -- 'echo ~~~hello~~~'   (use ~ instead of ")
+
+## Log layout
+logs/cmd_runner/<run_id>/: meta.json, state.json, stdout.log, stdout_text.log, stderr.log, inbox.jsonl
+
+## DELPHI_BUILDER
+Build Delphi (VCL/FMX) projects from the command line with MSBuild. Includes environment initialization (MSVC + rsvars).
+scope: Delphi project build with MSBuild
+
+## Environment Init
+adm --init-msvc [out.cmd]: Generates tools/init_msvc.cmd (calls VS VsDevCmd.bat)
+adm --init-delphi [out.cmd]: Generates tools/init_delphi.cmd (resolves Delphi from adm.json delphi.bds or PATH)
+
+## Build Flow (cmd.exe)
+call tools\init_msvc.cmd
+call tools\init_delphi.cmd Win64
+tools\build_delphi_msbuild.cmd <project>.dpr Win64 Release
+
+## Build Flow (PowerShell)
+. .\tools\init_msvc.ps1
+. .\tools\init_delphi.ps1 -Platform Win64
+.\tools\build_delphi_msbuild.ps1 -Dpr <project>.dpr -Platform Win64 -Config Release
+
+## Scripts
+init_msvc.*: Detects existing MSVC env or calls VsDevCmd.bat for native x64 toolchain
+init_delphi.*: Resolves Delphi root (adm.json delphi.bds > where dcc64 > common paths), calls rsvars
+build_delphi_msbuild.*: Auto-generates .dproj from .dpr if missing, invokes msbuild /t:Build
+Output: <project_dir>/bin/<Platform>/<Config>/<project>.exe
+
+## Cross-platform
+FMX targets: Android, iOSDevice64, iOSSimulator, OSX64, Linux64 (VCL cannot target Linux)
+Linux64: Requires Delphi Remote Profile + imported SDK
+
+## DUNIT
+Run and maintain Delphi DUnit tests for Delphi projects. Build and run DUnit console runner tests.
+scope: DUnit test running and maintenance
+
+## Prerequisites
+Delphi toolchain on PATH (dcc32 minimum).
+Initialize: call tools\init_msvc.cmd && call tools\init_delphi.cmd Win32
+
+## Commands
+Build + run all DUnit tests: tests\run_tests.cmd
+Build tests only: tests\build_tests.cmd
+
+## Adding Tests
+1. Add new unit: tests\TestSomething.pas
+2. Register in DUnit project file (tests\ProjectTests.dpr)
+3. Re-run tests\run_tests.cmd
+
+## Notes
+DUnit assertions: CheckEquals, CheckTrue, CheckNotNull (from TestFramework).
+Prefer testing pure units (no VCL) for headless deterministic runs.
+Win64 builds commonly use MSBuild; inspect local test script for platform/config.
+
+## PATCH_TOOL
+Apply apply_patch-format patches via adm with ADID backups and per-file ledgers. Use when you need apply_patch with ADID rotated backups and JSONL ledgers.
+scope: apply_patch patches with ADID backups
+constraints:
+  patch_format_required → True
+
+## Command
+Apply patch: tools/adm.exe --patch-tool <patch_file>
+Dry-run: tools/adm.exe --dry-run --patch-tool <patch_file>
+
+## Patch Format
+Files must start with *** Begin Patch and end with *** End Patch.
+Operations: *** Update File: ..., *** Add File: ..., *** Delete File: ..., *** Move to: <new_path>
+
+## Notes
+Pre-creates rotated backups for any existing target files.
+Emits per-file entries to <file>.adid.log.jsonl with "command": "--patch-tool".
+Fallback: python -m adm --patch-tool <patch_file> when tools/adm not present.
+
+## RAG
+Index and query local code repositories using ADID RAG with dual-quaternion ranking. Uses sentence_transformers + BAAI/bge-base-en-v1.5 for embeddings.
+scope: indexing, querying, MCP server, file discovery
+constraints:
+  adm_json_required → True
+  index_incremental → True
+invariants:
+  • adm.json must exist in launch folder
+
+## Quick Start
+pip install torch sentence-transformers
+adm-rag --init
+adm --rag index my_project .
+adm-rag --mcp-http 127.0.0.1 7990 &
+adm --query my_project "how does X work?"
+
+## Commands
+adm-rag --init: Check environment, advise on missing deps
+adm-rag --rag-status: Show full environment status
+adm --rag index <name> [roots]: Create/update index (fd + SHA-256 incremental)
+adm --rag status <name>: Show index docs/chunks count
+adm --rag docs <name> [limit]: List recently indexed documents
+adm --rag delete <name>: Remove index
+adm --rag list: List all indexes
+adm --rag settings: Show effective RAG config from adm.json
+adm --query <name> "text": Semantic search (auto-forwarded to MCP)
+adm --mcp-http [host] [port]: Start model daemon (one per machine)
+
+## MCP HTTP Daemon
+One MCP server serves all projects. Start once:
+adm-rag --mcp-http 127.0.0.1 7990  (loads BGE model, stays in memory)
+Then instant queries: adm --query projA "search..."
+Each call carries config_path for correct adm.json per project.
+
+## File Discovery
+fd (bundled in tools/) walks file tree respecting .gitignore.
+include_globs passed to fd --extension for efficient filtering.
+exclude_globs/exclude_patterns for additional exclusion.
+Incremental: SHA-256 content hash per file, unchanged files skipped.
+
+## Embedding
+BAAI/bge-base-en-v1.5 (768D), batch size 32, normalize on.
+Hybrid RRF: full-vector cosine + dual-quaternion structural signature + SQLite FTS5.
+Index DB: .adid_rag/data/<name>.sqlite3
+
+## Forwarding
+adm --rag index . -> tools/adm-rag.exe (frozen) or internal (pip mode)
+adm-rag.exe without torch -> delegates to system adm via ADID_RAG_DELEGATE
+
+--- Command Specs ---
+
+## AI_DEPS
+Audit AI SDK dependencies for minor/patch upgrade availability. Report only — do not actually upgrade. Include changelog links.
+scope: dependency audit, minor/patch only
+constraints:
+  no_major_upgrades → True
+  report_only_no_upgrade → True
+  include_changelog_links → True
+forbidden:
+  • Actually upgrading dependencies
+
+## CHANGELOG
+Create UPCOMING_CHANGELOG.md from structured changelog input. Inspect real diff with git show --stat. Filter to user-facing changes only. One bullet per commit, capitalized, no prefixes or PR numbers.
+scope: changelog generation
+constraints:
+  inspect_real_diff → True
+  user_facing_only → True
+  one_bullet_per_commit → True
+  capitalize_bullets → True
+  no_prefixes_or_pr_numbers → True
+invariants:
+  • Must ignore existing UPCOMING_CHANGELOG.md contents entirely
+  • Must use git show, not git log or author metadata for attribution
+forbidden:
+  • Keeping internal/CI/test/refactor commits
+  • Adding attribution from git metadata
+  • Writing 'No notable changes.' if there IS a contributor block
+
+## COMMIT
+Create conventional git commits with descriptive messages explaining WHY from the end-user perspective. Use appropriate prefix for the package (docs:, tui:, core:, ci:, ignore:, wip:).
+scope: conventional git commits
+constraints:
+  explain_why_not_what → True
+  user_facing_changes → True
+  no_generic_messages → True
+  do_not_fix_conflicts → True
+forbidden:
+  • Fixing merge conflicts automatically
+  • Using generic messages like 'improved agent experience'
+
+## DUPLICATE_PR
+Detect and handle duplicate pull requests.
+
+## ISSUES
+Search GitHub issues matching a query in the anomalyco/opencode repository.
+scope: GitHub issue search
+constraints:
+  search_aspects → ['Similar titles or descriptions', 'Same error messages or symptoms', 'Related functionality or components', 'Similar feature requests']
+
+## LEARN
+Extract non-obvious learnings from session to AGENTS.md files. Only capture discoveries, errors, and unexpected connections — not obvious facts. One to three lines per insight. Place at appropriate scope level.
+scope: session review and knowledge capture
+constraints:
+  non_obvious_only → True
+  one_to_three_lines_per_insight → True
+forbidden:
+  • Including obvious facts from documentation
+  • Including standard language/framework behavior
+  • Including things already in an AGENTS.md
+  • Writing verbose explanations or session-specific details
+
+## RMSLOP
+Remove AI-generated code slop from the diff. Review diff against dev branch. Remove extra comments, defensive checks, casts to any, inconsistent style, and unnecessary emoji.
+scope: code cleanup
+
+## SPELLCHECK
+Spellcheck all unstaged markdown file changes.
+scope: spell and grammar checking
+
+## TRANSLATE
+Translate English docs and UI copy to other international languages. Preserve Markdown/MDX, technical terms, code blocks, and URLs. Apply locale-specific glossary.
+scope: internationalization translation
+constraints:
+  parallel_translation → True
+  preserve_meaning → True
+  preserve_formatting → True
+  apply_glossary → True
+invariants:
+  • Must preserve all technical terms: product names, API names, identifiers, code, URLs
+  • Must preserve Do-Not-Translate glossary terms
+  • Must apply locale-specific glossary guidance
+forbidden:
+  • Modifying fenced code blocks
+
+## TRIAGE
+Triage GitHub issues by applying labels and assigning owners. Teams: desktop, zen, tui, core, docs, windows. Pick the most fitting labels and one owner.
+scope: GitHub issue triage
+
+--- Policy Specs ---
+
+## ADID_FRAMEWORK_RULES
+ADID framework and adm executable rules for all development. Ground work in real governing surfaces, use cmd_runner for risky commands, maintain documentation reproducibility.
+scope: ADID framework adherence, adm tool usage, docs maintenance
+constraints:
+  no_legacy_compat → True
+  grounding_required → True
+  greenfield_requires_plan → True
+  port_means_replicate → True
+  control_stubs_for_verification → True
+invariants:
+  • Must ground all work in real governing surfaces, not inference
+  • Must use cmd_runner for non-trivial / crash-prone commands
+  • Must treat updates/ history as the durable record
+  • Must keep index.md up to date
+forbidden:
+  • Adding backward-compat parsing or fallback paths
+  • Letting inference outrank grounded evidence
+  • Restoring from git when adm --rollback is available
+
+## CODING_AGENT_DIRECTIVES
+Compact semantic-art operating prompt for coding agents. Publish State before reasoning. Publish a Plan before writing code. Tag claims with evidence labels. Reference outranks inference.
+scope: coding agent behavior
+constraints:
+  state_before_reasoning → True
+  decompose_before_expanding → True
+  verify_before_reducing → True
+  use_k_medoids → True
+  reference_outranks_inference → True
+  preserve_semantic_traceability → True
+  oracle_decides_correctness → True
+invariants:
+  • Must output: State -> sv -> Decomposition -> Evidence map -> Plan -> Implementation -> Verification -> Clean next state
+  • Must tag claims with evidence labels: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]
+  • Must reference outranks inference
+forbidden:
+  • Blending incompatible normative regimes
+  • Making code edits before plan approval
+  • Claiming fixed without oracle evidence
+
+## DEFAULT_PROMPT
+Base operating prompt for General family models. Be concise, direct. Do what's asked. Follow conventions. No preamble, postamble, or code explanation unless asked.
+scope: default model behavior
+constraints:
+  minimize_tokens → True
+  no_preamble_postamble → True
+  no_code_explanation_unless_asked → True
+  one_to_three_sentences_if_possible → True
+  no_emojis_unless_asked → True
+  no_url_guessing → True
+invariants:
+  • Must check library usage in codebase before importing
+  • Must look at surrounding imports before making changes
+  • Never commit unless user explicitly asks
+forbidden:
+  • Committing without user request
+  • Generating or guessing URLs
+  • Adding preamble, postamble, or code explanation unless asked
+
+## GOVERNANCE
+Agent governance — no unapproved mutations, no implicit repair, provenance mandatory. Every MODIFY requires an approved ExecutionContract. Inspection does not authorize repair. All Budget fields are concrete integers — no 'reasonable' or 'as needed'.
+scope: all agent operations, approval via ExecutionContract with valid binding
+constraints:
+  no_unapproved_mutations → True
+  no_implicit_repair → True
+  hard_budgets → True
+  provenance_mandatory → True
+invariants:
+  • Every MODIFY operation requires an approved ExecutionContract
+  • Inspection does not authorize repair. Testing does not authorize correction
+  • All Budget fields are concrete integers — no 'reasonable' or 'as needed'
+  • Every stateful response carries md5_msg_tag and md5_sv_tag
+  • Claims tagged: Exact > Inferred > Hypothetical > Guess > Unknown
+  • All operations repeatable from contract + state record alone
+forbidden:
+  • Acting on out-of-scope findings discovered during inspection
+  • Using string budget values instead of concrete integers
+
+## GROUNDING_RULES
+Complete grounding hierarchy and search tool priority chain. Every search must follow the ordered priority chain — do not skip levels. Internal knowledge is the weakest evidence. When internal grounding is insufficient (InfoMarkLevel below Inferred), escalate through the chain before claiming absence.  Workflow principle: fuzzy first, then targeted, then internet, then build.   1. Fuzzy queries first — codegraph (code), messagesearch (past conversations) — check what we already know   2. Targeted search — universalsearch for internet, glob/grep for filesystem — now with evidence from step 1   3. Internet check — before building something, verify it doesn't already exist. Don't reinvent the wheel.   4. Hardware check FIRST — before any GPU/compute work, always check local hardware (nvidia-smi, etc.).      Hardware state is easy to forget during compaction — the agent may think it has a GPU when it doesn't,      or think it doesn't have one when it does. Always verify with nvidia-smi before writing GPU code.  Grounding priority chain (fastest/exact first, broadest/recursive last):   1. where.exe / which      — OS PATH lookup for executables (instant, exact)   2. codegraph              — pre-indexed code graph for structural code questions   3. messagesearch          — conversation/session history search   4. universalsearch        — web search, code search (Sourcegraph), agent research   5. glob                   — file pattern matching (default: .gitignore-bounded; noIgnore=true bypasses)   6. grep                   — content search (default: .gitignore-bounded; noIgnore=true bypasses)    7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)
+scope: all agent operations, evidence gathering, tool selection priority, search ordering
+constraints:
+  grounding_hierarchy_enforced → True
+  search_before_uncertainty → True
+  follow_priority_chain → Do NOT skip levels. Always try #1 before #2, #2 before #3, etc. Escalate only when current level returns empty or insufficient.
+  fuzzy_then_targeted_then_internet → Step 1: fuzzy queries (codegraph, messagesearch) for what we already know. Step 2: targeted searches (universalsearch, glob/grep) informed by step 1. Step 3: check if solution already exists before building from scratch.
+  hardware_check_first → Before any GPU/compute work, ALWAYS check local hardware (nvidia-smi, etc.). Hardware state drifts during compaction — never assume GPU availability from memory.
+  where_before_glob → where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6 when #1 returns empty.
+  codegraph_before_grep → codegraph tool is #2 for code structure — before glob (#5) or grep (#6). AST-parsed results from one call replace multi-file grep + Read loops.
+  messagesearch_before_universalsearch → messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context.
+  no_path_hardcoding → True
+  web_search_for_grounding → True
+invariants:
+  • Before claiming 'not found' or 'I don't know', agent must escalate through the priority chain
+  • Internal knowledge alone is never sufficient for answers below Inferred confidence
+  • Tool selection MUST follow priority chain order — do NOT skip to grep when codegraph answers in one call
+  • Fuzzy queries first (#2 codegraph, #3 messagesearch) before random internet search (#4 universalsearch)
+  • Check if solution already exists before building from scratch — don't reinvent the wheel
+  • Hardware check BEFORE any GPU/compute work — nvidia-smi (#8) is Exact evidence. Never assume GPU from memory or conversation context.
+  • where.exe/which (priority #1) before any file search for executable location
+  • codegraph (priority #2) before glob/grep/Read for any code structure question
+  • messagesearch (priority #3) before universalsearch for conversation context
+  • Universal search (priority #4) must precede hypothetical claims
+  • glob/grep default to .gitignore-bounded but can bypass with noIgnore=true for full unbounded search.
+  • Hardware diagnostics (nvidia-smi etc.) are Exact evidence for local hardware state
+  • Platform detection via os.name / sys.platform determines which search tool to use
+forbidden:
+  • Skipping priority chain levels without justification
+  • Claiming 'I don't know' or 'not found' without escalating through the chain
+  • Going straight to internet search without first checking local indexes (codegraph, messagesearch)
+  • Building from scratch without checking if existing solution exists — don't reinvent the wheel
+  • Writing GPU code without first verifying actual hardware state via nvidia-smi
+  • Hardcoding executable paths (e.g., C:\Program Files\...)
+  • Using grep/glob/Read when codegraph tool can answer in one call
+  • Using glob/grep with noIgnore: false when noIgnore: true is needed for full search
+  • Using glob/grep to find an executable that where.exe/which resolves instantly
+  • Assuming PATH contains an executable without verifying via where.exe/which
+  • Using internal guesswork when universalsearch is available and needed
+  • Bypassing the evidence hierarchy for convenience
+acceptance:
+  • Agent follows priority chain — does not skip levels
+  • Agent uses where.exe/which (priority #1) before any file search for executables
+  • Agent uses codegraph (priority #2) before grep/glob/Read for code structure
+  • Agent uses messagesearch (priority #3) before universalsearch for conversation
+  • Agent uses universalsearch (priority #4) before hypothetical claims
+  • Agent uses glob/grep (priority #5/#6) with noIgnore=true when unbounded search is needed
+  • Hardware queries use native tools (nvidia-smi, etc.) — Exact evidence
+  • Evidence hierarchy respected: Observation > CodeGraph > Ext Source > Inferred > Hypothetical > Guess

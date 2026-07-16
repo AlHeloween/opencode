@@ -1727,8 +1727,12 @@ class TestRuntimePromptCompiler:
         runtime = render_runtime_kernel()
         for root in ("PROMPT_ABI", "TERMS", "RULES", "WORKFLOWS", "PACKS", "CONTRACTS"):
             assert root in runtime
-        for source_only in ("_ALL_SPECS", "CODER", "DisciplineProjection", "run_conformance"):
-            assert source_only not in runtime
+        # Source-only symbols must not appear in the Python dictionary section
+        # (before the # SPECS marker), but spec names intentionally appear in
+        # the rendered SPECS section as ## headers.
+        dict_section = runtime.split("# SPECS")[0] if "# SPECS" in runtime else runtime
+        for source_only in ("_ALL_SPECS", "DisciplineProjection", "run_conformance"):
+            assert source_only not in dict_section
 
     def test_canonical_source_has_no_duplicate_literal_mapping_keys(self):
         with open(os.path.join(os.path.dirname(__file__), "..", "opencode_prompts_kernel.py"), encoding="utf-8") as source:

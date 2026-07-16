@@ -2,71 +2,40 @@
 name: dunit
 description: Run and maintain Delphi DUnit tests for Delphi projects.
 ---
+
 intent:
-Skill definition — see opencode_prompts_kernel.py for canonical typed dict.
-This file is a reference copy; all authoritative definitions live in the kernel.
+Run and maintain Delphi DUnit tests for Delphi projects.
+Build and run DUnit console runner tests.
 
 state:
-source: opencode_prompts_kernel.py (canonical typed dict)
+  tool: dcc32 + DUnit
 
 scope:
-- skill-specific operations
-- tool usage within skill domain
-- All behavior defined in opencode_prompts_kernel.py as typed Python dict
+  - DUnit test running and maintenance
 
 constraints:
-- Follow kernel specification for all operations
-- All behavior defined in opencode_prompts_kernel.py
+  (none)
 
 invariants:
-- Canonical definition lives in opencode_prompts_kernel.py
-- This file is a reference copy
+  (none)
 
 forbidden_actions:
-- Deviating from kernel specification
-- Using undefined or implicit behavior
-
-acceptance_tests:
-- Behavior matches kernel spec
-- All operations repeatable from kernel definition
-
-# dunit
-
-## Purpose
-
-Provide a reliable workflow for building and running Delphi DUnit tests (console runner) and interpreting failures.
+  (none)
 
 ## Prerequisites
-
-- Delphi toolchain on PATH (at minimum `dcc32`).
-- Initialize the environment via `rsvars.bat` for your Delphi version, or use the repo helpers:
-  - `call tools\init_msvc.cmd` (optional)
-  - `call tools\init_delphi.cmd Win32`
+Delphi toolchain on PATH (dcc32 minimum).
+Initialize: call tools\init_msvc.cmd && call tools\init_delphi.cmd Win32
 
 ## Commands
+Build + run all DUnit tests: tests\run_tests.cmd
+Build tests only: tests\build_tests.cmd
 
-- Build + run all DUnit tests:
-  - `tests\run_tests.cmd`
-
-- Build tests only:
-  - `tests\build_tests.cmd`
-
-## Notes (Win64)
-
-- Project test scripts commonly build the test runner via MSBuild for `Win64`; inspect the local test script before assuming platform/configuration.
-
-## Typical project layout
-
-- Test project: `<assets_dir>\docs\examples\project-agnostic\tests\ProjectTests.dpr`
-- Test units: `<assets_dir>\docs\examples\project-agnostic\tests\TestCore.pas`, `<assets_dir>\docs\examples\project-agnostic\tests\TestServices.pas`
-
-## How to add a new test
-
-1. Add a new unit such as `tests\TestSomething.pas`.
-2. Register it in the local DUnit project file. See `<assets_dir>\docs\examples\project-agnostic\tests\ProjectTests.dpr` for the documentation fixture.
-3. Re-run the local DUnit test command.
+## Adding Tests
+1. Add new unit: tests\TestSomething.pas
+2. Register in DUnit project file (tests\ProjectTests.dpr)
+3. Re-run tests\run_tests.cmd
 
 ## Notes
-
-- DUnit assertions typically come from `TestFramework` (e.g. `CheckEquals`, `CheckTrue`, `CheckNotNull`).
-- Prefer testing pure units (no VCL dependencies) so tests run headless and deterministic.
+DUnit assertions: CheckEquals, CheckTrue, CheckNotNull (from TestFramework).
+Prefer testing pure units (no VCL) for headless deterministic runs.
+Win64 builds commonly use MSBuild; inspect local test script for platform/config.

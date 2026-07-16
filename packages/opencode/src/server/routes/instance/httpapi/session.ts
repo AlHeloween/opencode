@@ -734,6 +734,7 @@ export const sessionHandlers = Layer.unwrap(
                   modelID: ctx.payload.modelID,
                 },
                 agent: currentAgent,
+                force: true, // User explicitly requested compaction — bypass alreadyCompacted guard
               })
               yield* prompt.loop({ sessionID: ctx.params.sessionID })
             }).pipe(

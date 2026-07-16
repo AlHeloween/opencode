@@ -9,10 +9,11 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
-import { Effect, Layer, Context, Schema } from "effect"
+import { Effect, Layer, Context, Schema, Option } from "effect"
 import { isOverflow as overflow } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
+import { SessionStatus } from "./status"
 
 const log = Log.create({ service: "session.compaction" })
 
@@ -44,6 +45,7 @@ export interface Interface {
     sessionID: SessionID
     model: { providerID: ProviderID; modelID: ModelID }
     agent: string
+    force?: boolean
   }) => Effect.Effect<void>
   readonly injectSummaryRequest: (input: {
     sessionID: SessionID
@@ -59,6 +61,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
   Effect.gen(function* () {
     const bus = yield* Bus.Service
     const session = yield* Session.Service
+    // SessionStatus is optional — when not provided, lock check is skipped
+    const statusOpt = yield* Effect.serviceOption(SessionStatus.Service)
 
     const CHARS_PER_TOKEN = 4
 
@@ -88,24 +92,37 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
       sessionID: SessionID
       model: { providerID: ProviderID; modelID: ModelID }
       agent: string
+      force?: boolean
     }) =>
       Effect.gen(function* () {
+        // Lock: guard against concurrent compaction calls via status state.
+        // When SessionStatus is not available (e.g. in tests), skip the lock.
+        if (Option.isSome(statusOpt)) {
+          const currentStatus = yield* statusOpt.value.get(input.sessionID)
+          if (currentStatus.type === "compacting") {
+            log.debug("compaction skipped: already in progress", { sessionID: input.sessionID })
+            return
+          }
+          yield* statusOpt.value.set(input.sessionID, { type: "compacting" })
+        }
+
         const msgs = (yield* session.messages({ sessionID: input.sessionID }).pipe(
           Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
         )) as MessageV2.WithParts[] | undefined
-        if (!msgs?.length) return
-
-        // Already compacted?
-        let alreadyCompacted = false
-        for (let i = msgs.length - 1; i >= 0; i--) {
-          if (msgs[i].info.role === "user") {
-            alreadyCompacted = msgs[i].parts.some(
-              (p: any) => p.type === "text" && p.text?.includes("=== COMPACTED ==="),
-            )
-            break
-          }
+        if (!msgs?.length) {
+          if (Option.isSome(statusOpt)) yield* statusOpt.value.set(input.sessionID, { type: "idle" })
+          return
         }
-        if (alreadyCompacted) return
+
+        // DB-grounded check: any message already marked compacted?
+        // This is more reliable than scanning text for "=== COMPACTED ==="
+        // because it catches partial compactions and doesn't depend on text content.
+        const anyCompacted = msgs.some((m) => m.info.compacted === true)
+        if (anyCompacted && !input.force) {
+          log.debug("compaction skipped: already compacted", { sessionID: input.sessionID })
+          if (Option.isSome(statusOpt)) yield* statusOpt.value.set(input.sessionID, { type: "idle" })
+          return
+        }
 
         // Collect all summaries
         const summaries: string[] = []
@@ -175,7 +192,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           synthetic: true,
         })
 
-        log.info("compacted", { compacted, kept: msgs.length - compacted, summaries: summaries.length })
+        log.info("compacted", { compacted, kept: msgs.length - compacted, summaries: summaries.length, forced: input.force ?? false })
         yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })
       })
 
@@ -244,6 +261,7 @@ export const compact = fn(
     sessionID: SessionID.zod,
     model: z.object({ providerID: ProviderID.zod, modelID: ModelID.zod }),
     agent: z.string(),
+    force: z.boolean().optional(),
   }),
   (input) => runPromise((svc) => svc.compact(input)),
 )

@@ -10,7 +10,7 @@ import * as SnapshotFossil from "@/snapshot/fossil"
 import * as Session from "./session"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
-import { isOverflow } from "./overflow"
+import { isOverflow, usable } from "./overflow"
 import { TokenCalibration } from "./token-calibration"
 import { ProviderError } from "@/provider/error"
 import { PartID } from "./schema"
@@ -64,6 +64,10 @@ type Input = {
   sessionID: SessionID
   model: Provider.Model
   agentName?: string
+  /** Estimated cumulative content tokens across all non-compacted messages.
+    * Passed from prompt loop to enable mid-turn overflow detection
+    * that accounts for full session context, not just per-turn tokens. */
+  contentTokenEstimate?: number
 }
 
 export interface Interface {
@@ -94,6 +98,8 @@ interface ProcessorContext extends Input {
   firstTokenLogged: boolean
   hasWriteToolCall: boolean
   changedFiles: Set<string>
+  /** Cumulative context token estimate from prompt loop. */
+  contentTokenEstimate?: number
 }
 
 type StreamEvent = Event
@@ -697,7 +703,9 @@ export const layer: Layer.Layer<
               })
             if (
               !ctx.assistantMessage.summary &&
-              isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model })
+              (isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model }) ||
+                (ctx.contentTokenEstimate !== undefined &&
+                  ctx.contentTokenEstimate >= usable({ cfg: yield* config.get(), model: ctx.model })))
             ) {
               ctx.needsCompaction = true
             }

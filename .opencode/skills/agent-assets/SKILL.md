@@ -3,24 +3,38 @@ name: agent-assets
 description: Maintain canonical artefacts and install agent receiver scaffolds (.cursor/.codex/~/.codex/.opencode).
 ---
 
-"""
-Agent assets skill — defined in opencode_prompts_kernel.py as typed dict.
-"""
+intent:
+Maintain canonical artefacts and install agent receiver scaffolds.
+Agent folders are receivers (safe to delete): .cursor/, .codex/, ~/.codex/, .opencode/.
 
-from opencode_prompts_kernel import AGENT_ASSETS
+state:
+  canonical_source: artefacts/rules/ and artefacts/skills/
 
-# === SCOPE ===
-for k, v in AGENT_ASSETS["scope"].items():
-    # {k}: {v}
+scope:
+  - canonical artefact maintenance
+  - receiver scaffold installation
 
-# === CONSTRAINTS ===
-for k, v in AGENT_ASSETS["constraints"].items():
-    # {k}: {v}
+constraints:
+  - edit_canonical_then_sync: True
 
-# === STEPS ===
-for s in AGENT_ASSETS["steps"]:
-    # {s}
+invariants:
+  (none)
 
-# === FORBIDDEN ===
-for f in AGENT_ASSETS["forbidden_actions"]:
-    # DO NOT: {f}
+forbidden_actions:
+  - Editing receiver copies directly instead of canonical sources
+
+## Canonical Sources
+Rules: artefacts/rules/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/rules/
+Skills: artefacts/skills/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/skills/
+
+## Workflow
+1. Edit canonical assets under artefacts/rules/ and/or artefacts/skills/
+2. Regenerate: python scripts/internal/build_artefacts.py
+3. Install: python scripts/internal/sync_agent_assets.py --targets opencode
+   Or: python scripts/internal/sync_agent_assets.py --targets cursor,codex
+   Or: python scripts/internal/sync_agent_assets.py --targets all
+
+## Skills-only sync (faster)
+python scripts/internal/sync_skills_from_artefacts.py --prune
+
+Never edit receiver copies directly.

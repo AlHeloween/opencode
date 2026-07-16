@@ -77,7 +77,11 @@ interface Params {
 
 const stripEmptySlots = (params: Params) => {
   for (const [slot, value] of Object.entries(params)) {
-    if (value && typeof value === "object" && !Object.keys(value).length) {
+    if (value && typeof value === "object" && !Object.keys(value).length && slot !== "body") {
+      // Never strip the body slot — POST/PUT/PATCH requests always need
+      // a JSON body, even if empty. Stripping it causes JSON parse errors
+      // on the server (e.g. POST /session/:id/fork without messageID).
+      if (slot === "body") continue
       delete params[slot as Slot]
     }
   }

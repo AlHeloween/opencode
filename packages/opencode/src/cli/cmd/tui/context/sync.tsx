@@ -497,7 +497,24 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           }
           const result = Binary.search(parts, event.properties.part.id, (p) => p.id)
           if (result.found) {
-            setStore("part", event.properties.part.messageID, result.index, reconcile(event.properties.part))
+            // Use produce instead of reconcile to prevent server snapshots from
+            // truncating delta-accumulated text. During streaming, the server
+            // may send part.updated with a text snapshot computed before the
+            // latest deltas were processed server-side. Reconcile would blindly
+            // overwrite the longer store text with the shorter server version.
+            //
+            // Strategy: merge all non-text fields from the incoming part,
+            // but keep whichever text is longer (deltas extend it).
+            setStore("part", event.properties.part.messageID, result.index, produce((draft) => {
+              const prev = parts[result.index]
+              const prevText = (prev as any)?.text ?? ""
+              const incoming = event.properties.part
+              const incomingText = (incoming as any)?.text ?? ""
+              Object.assign(draft, incoming)
+              if (prevText.length > incomingText.length) {
+                ;(draft as any).text = prevText
+              }
+            }))
             break
           }
           setStore(

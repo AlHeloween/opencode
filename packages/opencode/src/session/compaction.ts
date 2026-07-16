@@ -206,13 +206,15 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           keepFrom = lastSummaryIndex
           const tailTokens = contentChars(msgs.slice(keepFrom)) / CHARS_PER_TOKEN
           if (tailTokens > SUMMARY_INTERVAL_TOKENS) {
-            for (let i = keepFrom; i < msgs.length; i++) {
+            // Walk forward trimming from AFTER the summary pair.
+            // The summary user+assistant are always preserved.
+            const summaryEnd = lastSummaryIndex + 2 // skip summary user + assistant
+            for (let i = summaryEnd; i < msgs.length; i++) {
               if (contentChars(msgs.slice(i)) / CHARS_PER_TOKEN <= SUMMARY_INTERVAL_TOKENS) {
                 keepFrom = i
                 break
               }
             }
-            keepFrom = Math.min(keepFrom, lastSummaryIndex)
           }
         } else {
           keepFrom = 0

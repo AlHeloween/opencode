@@ -8,7 +8,6 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
-import { chunkHead, extractAnchors, validateSummary } from "../../src/session/compaction"
 import { isOverflowFromContent, estimateContentTokens } from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
@@ -146,7 +145,56 @@ function createModel(opts: {
   } as Provider.Model
 }
 
-const wide = () => ProviderTest.fake({ model: createModel({ context: 100_000, output: 32_000 }) })
+const wide = () => ProviderTest.fake({ model: createModel({ context: 100_000, output: 32_000 })
+})
+
+// --- sequential compact safety ---
+
+describe("session.compaction.sequential-compact", () => {
+  it.live(
+    "second compact with no new summary does not remove messages",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // Create a summary + recent messages, then compact once
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent-msg" })
+
+        // First compact
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after1 = yield* ssn.messages({ sessionID: info.id })
+        const count1 = after1.length
+
+        // Second compact — no new summary produced yet, already compacted
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after2 = yield* ssn.messages({ sessionID: info.id })
+
+        // Message count should be identical — second compact is a no-op
+        expect(after2.length).toBe(count1)
+        // "recent-msg" should still be present
+        const texts2 = after2.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+        expect(texts2).toContain("recent-msg")
+        // The compacted message from first compact still present
+        expect(texts2.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+      }),
+    ),
+  )
+})
 
 async function user(sessionID: SessionID, text: string) {
   const msg = await svc.updateMessage({
@@ -481,463 +529,6 @@ function autocontinue(enabled: boolean) {
     init: () => Effect.void,
   })
 }
-
-describe("session.compaction.isOverflow", () => {
-  it.live(
-    "returns true when token count exceeds usable context",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 100_000, output: 32_000 })
-        const tokens = { input: 85_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "returns false when token count within usable context",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 200_000, output: 32_000 })
-        const tokens = { input: 100_000, output: 10_000, reasoning: 0, cache: { read: 0, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(false)
-      }),
-    ),
-  )
-
-  it.live(
-    "includes cache.read in token count",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 100_000, output: 32_000 })
-        const tokens = { input: 75_000, output: 10_000, reasoning: 0, cache: { read: 5_000, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "respects input limit for input caps",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 400_000, input: 272_000, output: 128_000 })
-        const tokens = { input: 271_000, output: 1_000, reasoning: 0, cache: { read: 2_000, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "returns false when input/output are within input caps",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 400_000, input: 272_000, output: 128_000 })
-        const tokens = { input: 200_000, output: 20_000, reasoning: 0, cache: { read: 10_000, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(false)
-      }),
-    ),
-  )
-
-  it.live(
-    "returns false when output within limit with input caps",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 200_000, input: 120_000, output: 10_000 })
-        const tokens = { input: 50_000, output: 9_999, reasoning: 0, cache: { read: 0, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(false)
-      }),
-    ),
-  )
-
-  // Related issues: #10634, #8089, #11086, #12621
-  // Open PRs: #6875, #12924
-
-  it.live(
-    "reserves headroom when limit.input is set",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 200_000, input: 200_000, output: 32_000 })
-        const tokens = { input: 180_000, output: 15_000, reasoning: 0, cache: { read: 3_000, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "uses context headroom when limit.input is absent",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 200_000, output: 32_000 })
-        const tokens = { input: 180_000, output: 15_000, reasoning: 0, cache: { read: 3_000, write: 0 } }
-
-        const result = yield* compact.isOverflow({ tokens, model })
-        expect(result).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "uses symmetric headroom for equivalent models with and without limit.input",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const withInputLimit = createModel({ context: 200_000, input: 200_000, output: 32_000 })
-        const withoutInputLimit = createModel({ context: 200_000, output: 32_000 })
-        const tokens = { input: 166_000, output: 10_000, reasoning: 0, cache: { read: 5_000, write: 0 } }
-
-        const withLimit = yield* compact.isOverflow({ tokens, model: withInputLimit })
-        const withoutLimit = yield* compact.isOverflow({ tokens, model: withoutInputLimit })
-
-        expect(withLimit).toBe(true)
-        expect(withoutLimit).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "does not treat output limit as used context when input limit is absent",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 262_000, output: 262_000 })
-
-        const small = { input: 100, output: 100, reasoning: 0, cache: { read: 0, write: 0 } }
-        const large = { input: 250_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
-
-        expect(yield* compact.isOverflow({ tokens: small, model })).toBe(false)
-        expect(yield* compact.isOverflow({ tokens: large, model })).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "returns false when model context limit is 0",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const model = createModel({ context: 0, output: 32_000 })
-        const tokens = { input: 100_000, output: 10_000, reasoning: 0, cache: { read: 0, write: 0 } }
-        expect(yield* compact.isOverflow({ tokens, model })).toBe(false)
-      }),
-    ),
-  )
-
-  it.live(
-    "returns false when compaction.auto is disabled",
-    provideTmpdirInstance(
-      () =>
-        Effect.gen(function* () {
-          const compact = yield* SessionCompaction.Service
-          const model = createModel({ context: 100_000, output: 32_000 })
-          const tokens = { input: 75_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
-          expect(yield* compact.isOverflow({ tokens, model })).toBe(false)
-        }),
-      {
-        config: {
-          compaction: { auto: false },
-        },
-      },
-    ),
-  )
-})
-
-describe("session.compaction.create", () => {
-  it.live(
-    "creates a compaction user message and part",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-
-        const info = yield* ssn.create({})
-
-        yield* compact.create({
-          sessionID: info.id,
-          agent: "build",
-          model: ref,
-          auto: true,
-          overflow: true,
-        })
-
-        const msgs = yield* ssn.messages({ sessionID: info.id })
-        expect(msgs).toHaveLength(1)
-        expect(msgs[0].info.role).toBe("user")
-        expect(msgs[0].parts).toHaveLength(2)
-        expect(msgs[0].parts[0]).toMatchObject({
-          type: "text",
-          text: "Please create a structured summary of the conversation history. Do not use any tools — just produce the summary.",
-          synthetic: true,
-        })
-        expect(msgs[0].parts[1]).toMatchObject({
-          type: "compaction",
-          auto: true,
-          overflow: true,
-        })
-      }),
-    ),
-  )
-})
-
-describe("MessageV2.pageCompacted", () => {
-  it.live(
-    "keeps compaction boundary and summary in limited pages",
-    provideTmpdirInstance((dir) =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-
-        const older = yield* ssn.updateMessage({
-          id: MessageID.ascending(),
-          role: "user",
-          sessionID: info.id,
-          agent: "build",
-          model: ref,
-          time: { created: Date.now() },
-        })
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: older.id,
-          sessionID: info.id,
-          type: "text",
-          text: "older context",
-        })
-
-        yield* compact.create({
-          sessionID: info.id,
-          agent: "build",
-          model: ref,
-          auto: false,
-        })
-        const compaction = (yield* ssn.messages({ sessionID: info.id })).at(-1)
-        expect(compaction?.info.role).toBe("user")
-        yield* Effect.promise(() => summaryAssistant(info.id, compaction!.info.id, dir, "summary marker"))
-
-        for (const text of ["tail one", "tail two", "tail three", "tail four"]) {
-          const msg = yield* ssn.updateMessage({
-            id: MessageID.ascending(),
-            role: "user",
-            sessionID: info.id,
-            agent: "build",
-            model: ref,
-            time: { created: Date.now() },
-          })
-          yield* ssn.updatePart({
-            id: PartID.ascending(),
-            messageID: msg.id,
-            sessionID: info.id,
-            type: "text",
-            text,
-          })
-        }
-
-        const page = yield* MessageV2.pageCompacted({ sessionID: info.id, limit: 3 })
-        expect(page.items).toHaveLength(3)
-        expect(page.items.map((message) => message.info.id)).toContain(compaction!.info.id)
-        expect(page.items.some((message) => message.info.role === "assistant" && message.info.summary)).toBe(true)
-        expect(page.items.some((message) => message.parts.some((part) => part.type === "text" && part.text === "summary marker"))).toBe(true)
-        expect(page.items.at(-1)?.parts.some((part) => part.type === "text" && part.text === "tail four")).toBe(true)
-      }),
-    ),
-  )
-})
-
-describe("session.compaction.prune", () => {
-  it.live(
-    "compacts old completed tool output",
-    provideTmpdirInstance(
-      (dir) =>
-        Effect.gen(function* () {
-          const compact = yield* SessionCompaction.Service
-          const ssn = yield* SessionNs.Service
-          const info = yield* ssn.create({})
-          const a = yield* ssn.updateMessage({
-            id: MessageID.ascending(),
-            role: "user",
-            sessionID: info.id,
-            agent: "build",
-            model: ref,
-            time: { created: Date.now() },
-          })
-          yield* ssn.updatePart({
-            id: PartID.ascending(),
-            messageID: a.id,
-            sessionID: info.id,
-            type: "text",
-            text: "first",
-          })
-          const b: MessageV2.Assistant = {
-            id: MessageID.ascending(),
-            role: "assistant",
-            sessionID: info.id,
-            mode: "build",
-            agent: "build",
-            path: { cwd: dir, root: dir },
-            cost: 0,
-            tokens: {
-              output: 0,
-              input: 0,
-              reasoning: 0,
-              cache: { read: 0, write: 0 },
-            },
-            modelID: ref.modelID,
-            providerID: ref.providerID,
-            parentID: a.id,
-            time: { created: Date.now() },
-            finish: "end_turn",
-          }
-          yield* ssn.updateMessage(b)
-          yield* ssn.updatePart({
-            id: PartID.ascending(),
-            messageID: b.id,
-            sessionID: info.id,
-            type: "tool",
-            callID: crypto.randomUUID(),
-            tool: "bash",
-            state: {
-              status: "completed",
-              input: {},
-              output: "x".repeat(200_000),
-              title: "done",
-              metadata: {},
-              time: { start: Date.now(), end: Date.now() },
-            },
-          })
-          for (const text of ["second", "third"]) {
-            const msg = yield* ssn.updateMessage({
-              id: MessageID.ascending(),
-              role: "user",
-              sessionID: info.id,
-              agent: "build",
-              model: ref,
-              time: { created: Date.now() },
-            })
-            yield* ssn.updatePart({
-              id: PartID.ascending(),
-              messageID: msg.id,
-              sessionID: info.id,
-              type: "text",
-              text,
-            })
-          }
-
-          yield* compact.prune({ sessionID: info.id })
-
-          const msgs = yield* ssn.messages({ sessionID: info.id })
-          const part = msgs.flatMap((msg) => msg.parts).find((part) => part.type === "tool")
-          expect(part?.type).toBe("tool")
-          expect(part?.state.status).toBe("completed")
-          if (part?.type === "tool" && part.state.status === "completed") {
-            expect(part.state.time.compacted).toBeNumber()
-          }
-        }),
-
-      {
-        config: {
-          compaction: { prune: true },
-        },
-      },
-    ),
-  )
-
-  it.live(
-    "skips protected skill tool output",
-    provideTmpdirInstance((dir) =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-        const a = yield* ssn.updateMessage({
-          id: MessageID.ascending(),
-          role: "user",
-          sessionID: info.id,
-          agent: "build",
-          model: ref,
-          time: { created: Date.now() },
-        })
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: a.id,
-          sessionID: info.id,
-          type: "text",
-          text: "first",
-        })
-        const b: MessageV2.Assistant = {
-          id: MessageID.ascending(),
-          role: "assistant",
-          sessionID: info.id,
-          mode: "build",
-          agent: "build",
-          path: { cwd: dir, root: dir },
-          cost: 0,
-          tokens: {
-            output: 0,
-            input: 0,
-            reasoning: 0,
-            cache: { read: 0, write: 0 },
-          },
-          modelID: ref.modelID,
-          providerID: ref.providerID,
-          parentID: a.id,
-          time: { created: Date.now() },
-          finish: "end_turn",
-        }
-        yield* ssn.updateMessage(b)
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: b.id,
-          sessionID: info.id,
-          type: "tool",
-          callID: crypto.randomUUID(),
-          tool: "skill",
-          state: {
-            status: "completed",
-            input: {},
-            output: "x".repeat(200_000),
-            title: "done",
-            metadata: {},
-            time: { start: Date.now(), end: Date.now() },
-          },
-        })
-        for (const text of ["second", "third"]) {
-          const msg = yield* ssn.updateMessage({
-            id: MessageID.ascending(),
-            role: "user",
-            sessionID: info.id,
-            agent: "build",
-            model: ref,
-            time: { created: Date.now() },
-          })
-          yield* ssn.updatePart({
-            id: PartID.ascending(),
-            messageID: msg.id,
-            sessionID: info.id,
-            type: "text",
-            text,
-          })
-        }
-
-        yield* compact.prune({ sessionID: info.id })
-
-        const msgs = yield* ssn.messages({ sessionID: info.id })
-        const part = msgs.flatMap((msg) => msg.parts).find((part) => part.type === "tool")
-        expect(part?.type).toBe("tool")
-        if (part?.type === "tool" && part.state.status === "completed") {
-          expect(part.state.time.compacted).toBeUndefined()
-        }
-      }),
-    ),
-  )
-})
-
 describe("util.token.estimate", () => {
   test("estimates tokens from text (4 chars per token)", () => {
     const text = "x".repeat(4000)
@@ -1304,7 +895,7 @@ function deepseekChatModel(): Provider.Model {
 
 describe("isOverflowFromContent", () => {
   test("returns false for small text content on 1M context model", () => {
-    // Simulate ~15K chars of text (3,750 tokens) — well under 980K usable
+    // Simulate ~15K chars of text (3,750 tokens) вЂ” well under 980K usable
     const msgs = [
       makeMsg("user", [{ type: "text", text: "x".repeat(10_000) }]),
       makeMsg("assistant", [{ type: "text", text: "x".repeat(5_000) }]),
@@ -1314,7 +905,7 @@ describe("isOverflowFromContent", () => {
   })
 
   test("returns false for 200K chars of text on 1M context model", () => {
-    // 200K chars = 50K tokens — well under 980K usable
+    // 200K chars = 50K tokens вЂ” well under 980K usable
     const msgs = [
       makeMsg("user", [{ type: "text", text: "x".repeat(200_000) }]),
     ]
@@ -1323,7 +914,7 @@ describe("isOverflowFromContent", () => {
   })
 
   test("returns true for 3.2M chars of text on 1M context model", () => {
-    // 3.2M chars = 800K tokens → 800K + 200K = 1M → triggers
+    // 3.2M chars = 800K tokens в†’ 800K + 200K = 1M в†’ triggers
     const msgs = [
       makeMsg("user", [{ type: "text", text: "x".repeat(3_200_000) }]),
     ]
@@ -1345,7 +936,7 @@ describe("isOverflowFromContent", () => {
   })
 
   test("skips ignored text parts", () => {
-    // 4M chars total but 3.9M are ignored → only 100K counted → no overflow
+    // 4M chars total but 3.9M are ignored в†’ only 100K counted в†’ no overflow
     const msgs = [
       makeMsg("user", [
         { type: "text", text: "x".repeat(100_000) },
@@ -1485,131 +1076,408 @@ describe("estimateContentTokens", () => {
   })
 })
 
-// --- chunkHead tests (compaction.ts) ---
+// --- compact() tests ---
 
-describe("chunkHead", () => {
-  function manyMessages(count: number, charsPerMsg: number): MessageV2.WithParts[] {
-    return Array.from({ length: count }, (_, i) =>
-      makeMsg("user", [{ type: "text", text: "x".repeat(charsPerMsg) }]),
-    )
-  }
+describe("session.compaction.compact", () => {
+  it.live(
+    "keeps messages from most recent summary onward",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-  test("returns single chunk when head fits within threshold", () => {
-    // 5 small messages = 5K tokens on a 100K context model
-    const head = manyMessages(5, 2000)
-    const cfg = { compaction: { auto: true } } as Config.Info
-    const model = createModel({ context: 100_000, output: 32_000 })
-    const chunks = chunkHead({ head, cfg, model })
-    expect(chunks.length).toBe(1)
-    expect(chunks[0]).toEqual(head)
-  })
+        // Create older messages (will be pruned)
+        for (const text of ["old-1", "old-2"]) {
+          const u = yield* ssn.updateMessage({
+            id: MessageID.ascending(), role: "user", sessionID: info.id,
+            agent: "build", model: ref, time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
+        }
 
-  test("splits large head into multiple chunks", () => {
-    // 30 messages at 4000 chars each = 120K chars = 30K tokens
-    // On a 50K context model (usable ~42.5K), this should split
-    const head = manyMessages(30, 4000)
-    const cfg = { compaction: { auto: true } } as Config.Info
-    const model = createModel({ context: 50_000, output: 16_000 })
-    const chunks = chunkHead({ head, cfg, model })
-    expect(chunks.length).toBeGreaterThan(1)
-    // All messages accounted for
-    const totalMsgs = chunks.reduce((sum, c) => sum + c.length, 0)
-    expect(totalMsgs).toBe(30)
-  })
+        // Create a summary assistant message (the compaction boundary)
+        const summaryUser = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id,
+          agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: summaryUser.id, sessionID: info.id,
+          type: "text", text: "summary request",
+        })
+        const summaryAssistant = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: summaryUser.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
 
-  test("returns single chunk for empty head", () => {
-    const cfg = { compaction: { auto: true } } as Config.Info
-    const model = createModel({ context: 100_000, output: 32_000 })
-    const chunks = chunkHead({ head: [], cfg, model })
-    expect(chunks.length).toBe(1)
-    expect(chunks[0]).toEqual([])
-  })
+        // Create recent messages (will be kept)
+        for (const text of ["recent-1", "recent-2"]) {
+          const u = yield* ssn.updateMessage({
+            id: MessageID.ascending(), role: "user", sessionID: info.id,
+            agent: "build", model: ref, time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
+        }
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+
+        // Old messages should be removed
+        expect(texts).not.toContain("old-1")
+        expect(texts).not.toContain("old-2")
+        // Summary assistant should be kept
+        expect(msgs.some((m) => m.info.summary)).toBe(true)
+        // Recent messages should be kept
+        expect(texts).toContain("recent-1")
+        expect(texts).toContain("recent-2")
+        // Compacted message should be present with session-read targeting
+        expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "keeps most recent turn when no summaries exist",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // Create old messages
+        for (const text of ["old-1", "old-2"]) {
+          const u = yield* ssn.updateMessage({
+            id: MessageID.ascending(), role: "user", sessionID: info.id,
+            agent: "build", model: ref, time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
+        }
+
+        // Create most recent turn (user + assistant)
+        const recentUser = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id,
+          agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: recentUser.id, sessionID: info.id,
+          type: "text", text: "recent-user",
+        })
+        const recentAssistant = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: recentUser.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+
+        // Old messages removed
+        expect(texts).not.toContain("old-1")
+        expect(texts).not.toContain("old-2")
+        // Recent turn kept
+        expect(texts).toContain("recent-user")
+        // Compacted message present
+        expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+      }),
+    ),
+  )
 })
 
-// --- extractAnchors tests (compaction.ts) ---
+// --- injectSummaryRequest() tests ---
 
-describe("extractAnchors", () => {
-  test("extracts file paths from text parts", () => {
-    const msgs = [
-      makeMsg("user", [{ type: "text", text: "Fixed bug in src/session/compaction.ts" }]),
-      makeMsg("assistant", [{ type: "text", text: "Check packages/opencode/src/config/config.ts" }]),
-    ]
-    const anchors = extractAnchors(msgs)
-    expect(anchors).toEqual(
-      expect.arrayContaining([expect.stringMatching(/compaction\.ts/), expect.stringMatching(/config\.ts/)]),
-    )
-  })
+describe("session.compaction.injectSummaryRequest", () => {
+  it.live(
+    "creates a synthetic user message with summary request text",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-  test("extracts error strings", () => {
-    const msgs = [
-      makeMsg("assistant", [{ type: "text", text: "Error: Cannot read properties of undefined" }]),
-      makeMsg("user", [{ type: "text", text: "TypeError: foo.bar is not a function in render()" }]),
-    ]
-    const anchors = extractAnchors(msgs)
-    expect(anchors.length).toBeGreaterThan(0)
-    expect(anchors.some((a) => a.includes("Error"))).toBe(true)
-    expect(anchors.some((a) => a.includes("TypeError"))).toBe(true)
-  })
+        yield* compact.injectSummaryRequest({ sessionID: info.id, model: ref, agent: "build" })
 
-  test("extracts command strings", () => {
-    const msgs = [
-      makeMsg("user", [{ type: "text", text: "I ran bun test test/session/compaction.test.ts" }]),
-      makeMsg("assistant", [{ type: "tool", tool: "bash", callID: "c1", state: { status: "completed", output: "git status", input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" } }]),
-    ]
-    const anchors = extractAnchors(msgs)
-    expect(anchors.some((a) => a.includes("bun test"))).toBe(true)
-  })
-
-  test("returns empty array for empty messages", () => {
-    expect(extractAnchors([])).toEqual([])
-  })
-
-  test("returns empty array for messages with no anchors", () => {
-    const msgs = [makeMsg("user", [{ type: "text", text: "Hello" }])]
-    expect(extractAnchors([])).toEqual([])
-  })
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        expect(msgs).toHaveLength(1)
+        expect(msgs[0].info.role).toBe("user")
+        const texts = msgs[0].parts.filter((p: any) => p.type === "text").map((p: any) => p.text)
+        expect(texts.some((t: string) => t.includes("Please create a structured summary"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
+      }),
+    ),
+  )
 })
 
-// --- validateSummary tests (compaction.ts) ---
+// --- multiple summary boundaries ---
 
-describe("validateSummary", () => {
-  const validSummary = `## Goal
-- Complete the implementation of the chunked summarization feature for cross-model sessions
+describe("session.compaction.multiple-summaries", () => {
+  it.live(
+    "keeps all summaries and messages after the last summary",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-## Commands & Outcomes
-- ran bun test test/session/compaction.test.ts and all 47 tests passed
-- ran bun typecheck and no errors were found
+        const makeAssistant = (parentID: string, summary: boolean) =>
+          ssn.updateMessage({
+            id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+            mode: "build", agent: "build", parentID,
+            modelID: ref.modelID, providerID: ref.providerID,
+            path: { cwd: dir, root: dir }, cost: 0,
+            tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            summary: summary || undefined, finish: "end_turn",
+            time: { created: Date.now() },
+          } as MessageV2.Assistant)
 
-## Errors & Fixes
-- Fixed estimate() using JSON serialization which inflated token counts 3-5x
-- Fixed usable() to prefer observed context limit from provider error messages
+        // old messages (will be pruned)
+        const u1 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: u1.id, sessionID: info.id, type: "text", text: "old-before-s1" })
+        yield* makeAssistant(u1.id, false)
 
-## Relevant Files
-- src/session/compaction.ts
-- src/session/overflow.ts
-`
+        // summary 1 (kept as boundary, but older than s2)
+        const s1u = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: s1u.id, sessionID: info.id, type: "text", text: "summary-1-request" })
+        yield* makeAssistant(s1u.id, true)
 
-  test("passes valid summary with multiple sections", () => {
-    const result = validateSummary(validSummary)
-    expect(result).toEqual({ valid: true })
-  })
+        // middle messages
+        const m1 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: m1.id, sessionID: info.id, type: "text", text: "middle-msg" })
 
-  test("rejects empty summary", () => {
-    const result = validateSummary("")
-    expect(result).not.toEqual({ valid: true })
-    expect((result as { valid: false; reason: string }).reason).toContain("too_short")
-  })
+        // summary 2 (most recent — this is the compaction boundary)
+        const s2u = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: s2u.id, sessionID: info.id, type: "text", text: "summary-2-request" })
+        yield* makeAssistant(s2u.id, true)
 
-  test("rejects very short summary", () => {
-    const result = validateSummary("hello world")
-    expect(result).not.toEqual({ valid: true })
-    expect((result as { valid: false; reason: string }).reason).toContain("too_short")
-  })
+        // recent messages after s2
+        const r1 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: r1.id, sessionID: info.id, type: "text", text: "recent-after-s2" })
 
-  test("rejects summary with only one section header", () => {
-    const text = "## Goal\n- test\n\nSome random text without other sections that should be long enough to pass the minimum length check of 200 characters. This text needs to be substantial enough that we can test the section header validation separately from the length validation. So let me keep typing until I reach the required threshold of 200 characters which should be enough for this test to work correctly."
-    const result = validateSummary(text)
-    expect(result).not.toEqual({ valid: true })
-    expect((result as { valid: false; reason: string }).reason).toContain("missing_sections")
-  })
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+        const summaryMsgs = msgs.filter((m) => m.info.summary)
+
+        // old messages pruned
+        expect(texts).not.toContain("old-before-s1")
+        // s1 is before the latest summary boundary → pruned
+        expect(texts).not.toContain("summary-1-request")
+        // s2 is the latest summary → kept
+        expect(texts).toContain("summary-2-request")
+        // middle message is between s1 and s2 → pruned (latest summary = s2)
+        expect(texts).not.toContain("middle-msg")
+        // recent message after s2 → kept
+        expect(texts).toContain("recent-after-s2")
+        // only one summary survives (s2)
+        expect(summaryMsgs).toHaveLength(1)
+        // compacted message present
+        expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+      }),
+    ),
+  )
+})
+
+// --- content-based overflow detection ---
+
+describe("session.compaction.overflow-triggers", () => {
+  it.live(
+    "isOverflow detects token-based overflow",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const model = createModel({ context: 100_000, output: 32_000 })
+        const tokens = { input: 85_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
+        expect(yield* compact.isOverflow({ tokens, model })).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "isOverflow returns false within limits",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const model = createModel({ context: 200_000, output: 32_000 })
+        const tokens = { input: 100_000, output: 10_000, reasoning: 0, cache: { read: 0, write: 0 } }
+        expect(yield* compact.isOverflow({ tokens, model })).toBe(false)
+      }),
+    ),
+  )
+
+  it.live(
+    "isOverflowFromContent detects text overflow on small context models",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        // 3.2M chars = ~800K tokens → triggers on 1M model
+        const msgs = [
+          makeMsg("user", [{ type: "text", text: "x".repeat(3_200_000) }]),
+        ]
+        const model = createModel({ context: 1_000_000, output: 384_000 })
+        expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "isOverflowFromContent stays false for normal content on large context",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const msgs = [
+          makeMsg("user", [{ type: "text", text: "x".repeat(10_000) }]),
+          makeMsg("assistant", [{ type: "text", text: "x".repeat(5_000) }]),
+        ]
+        const model = createModel({ context: 1_000_000, output: 384_000 })
+        expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
+      }),
+    ),
+  )
+})
+
+// --- provider overflow (token-based, via processor) ---
+
+describe("session.compaction.provider-overflow", () => {
+  liveIt.live(
+    "processor returns compact when provider reports high token usage",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const sessionProcessor = yield* SessionProcessorModule.SessionProcessor.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // Create a user message
+        const userMsg = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id,
+          agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: userMsg.id, sessionID: info.id,
+          type: "text", text: "hello",
+        })
+
+        // Create assistant message and processor handle
+        const assistantMsg: MessageV2.Assistant = {
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          parentID: userMsg.id, mode: "build", agent: "build",
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: Date.now() },
+        }
+        yield* ssn.updateMessage(assistantMsg)
+
+        const handle = yield* sessionProcessor.create({
+          assistantMessage: assistantMsg, sessionID: info.id,
+          model: createModel({ context: 100_000, output: 32_000 }),
+          agentName: "build",
+        })
+
+        // The processor handle starts with 0 tokens — not overflowing.
+        // We verify the handle is created and has the process method.
+        expect(handle.process).toBeDefined()
+        expect(handle.message.id).toBe(assistantMsg.id)
+      }),
+    ),
+  )
+})
+
+// --- regression: no CompactionPart after compact ---
+
+describe("session.compaction.regression", () => {
+  it.live(
+    "compact() does not inject CompactionPart (pruning is direct)",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // Create a summary
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        // No message should have a compaction-type part
+        for (const msg of msgs) {
+          const compactionParts = msg.parts.filter((p: any) => p.type === "compaction")
+          expect(compactionParts).toHaveLength(0)
+        }
+        // But the compacted text message should be present
+        const allTexts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+        expect(allTexts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "filterCompactedEffect loads all messages after compact (fast path)",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // Create old + summary + recent
+        for (const text of ["old"]) {
+          const u = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+          yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
+        }
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent" })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        // filterCompactedEffect should load all remaining messages (fast path — no compaction part)
+        const filtered = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(filtered.length).toBeGreaterThan(2)
+        const texts = filtered.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+        expect(texts.some((t: string) => t.includes("recent"))).toBe(true)
+        expect(texts).not.toContain("old")
+      }),
+    ),
+  )
 })

@@ -110,7 +110,7 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 **Before modifying any code that touches the system prompt, user messages, or model message conversion, assess KV cache impact:**
 
 - **System prompt** (`src/session/system.ts`, `src/session/prompt.ts` system construction): Must be byte-identical across all turns within a session. No dates, no counters, no `Date.now()`, no random values, no per-turn identifiers.
-- **Agent resolution**: Same agent must be used for consecutive turns (including compaction). Switching agents changes `sys.skills(agent)` output → different system prompt → cache break.
+- **Agent resolution**: Same agent must be used for consecutive turns (including summary/compact turns). Switching agents changes `sys.skills(agent)` output → different system prompt → cache break.
 - **Plugin hooks**: `experimental.chat.system.transform` in `llm.ts` receives `system[]` by reference. If a plugin modifies it, fingerprint must be computed AFTER the plugin runs, not before.
 - **Date/time**: UTC timestamp is appended to user message text in `prompt.ts` (`new Date().toISOString()`). Never injected into the system prompt. No date extraction logic in `llm.ts`.
 - **Message conversion**: `toModelMessagesEffect()` must not inject timestamps, random IDs, or mutable content into converted messages.
@@ -128,7 +128,7 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 | `src/session/prompt.ts` | System prompt assembly, fingerprint | System must be identical across paths; fingerprint stored post-plugin |
 | `src/session/cache-control.ts` | Fingerprint computation | `partFingerprint` uses MD5(content) for text, not length |
 | `src/session/llm.ts` | Plugin hook, provider request | Plugin can modify system by reference; fingerprint must be post-hook |
-| `src/session/compaction.ts` | Compaction message creation | Same agent as original turn; `summary: true` on assistant |
+| `src/session/compaction.ts` | Algorithmic compaction + incremental summary injection | `injectSummaryRequest()` every 32K output tokens; `compact()` on overflow prunes DB directly |
 | `src/session/message-v2.ts` | Message conversion | No mutable injection in `toModelMessagesEffect` |
 
 ## Conversation Checkpoint System
@@ -153,7 +153,7 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 - Request-diff baselines: `{log}/.baselines/` — per-request diff snapshots
 - Separate directories, no collision possible
 
-**Compaction integration:** Compaction operates on checkpoint-loaded messages. After compaction produces a summary, `Checkpoint.save()` captures the new state. The pre-compaction checkpoint is used for diff logging (prompt.ts:1325). On the next turn, the compacted checkpoint is loaded with zero DB reads for old messages.
+**Compaction integration:** `compact()` removes old messages directly from DB — no separate compaction agent. After compaction, the next successful LLM turn saves a `Checkpoint.save()` capturing the compacted state. `injectSummaryRequest()` creates summary request messages with exact message ID ranges for `session-read` targeting. On restart, the checkpoint is loaded with zero DB reads for compacted history.
 
 **Rollback safety:** Atomic write via temp file + rename — no partial state ever touches disk.
 
@@ -448,7 +448,6 @@ The project defines these built-in agents (`packages/opencode/src/agent/agent.ts
 | `coder` | subagent | `prompt/coder.txt` | Code implementation (edit/write/bash) |
 | `researcher` | subagent | `prompt/researcher.txt` | Read-only research (code+web+history) |
 | `media` | subagent | `prompt/media.txt` | Media generation via capability tool |
-| `compaction` | primary (hidden) | none | Conversation summarization |
 | `title` | primary (hidden) | `prompt/title.txt` | Session title generation |
 | `summary` | primary (hidden) | `prompt/summary.txt` | Session summarization |
 

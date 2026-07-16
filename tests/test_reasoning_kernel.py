@@ -1173,7 +1173,7 @@ class TestProjectSpecs:
             _validate_spec(name, spec)
 
     def test_all_specs_loaded(self):
-        assert len(_ALL_SPECS) == 33
+        assert len(_ALL_SPECS) == 32
         assert "CODER" in _ALL_SPECS
         assert "EXPLORER" in _ALL_SPECS
         assert "ORCHESTRATOR" in _ALL_SPECS

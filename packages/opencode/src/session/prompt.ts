@@ -13,7 +13,7 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
-import { isOverflowFromContent, compactionTier, estimateContentTokens, usable } from "./overflow"
+import { isOverflowFromContent, estimateContentTokens, usable } from "./overflow"
 import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
@@ -275,6 +275,7 @@ Your conversation history was compacted to stay within context limits.
 A structured summary of previous work is in the assistant message above.
 Use \`messagesearch\` without a query to browse recent messages, or
 with a query to search for specific topics.
+Use \`session-read\` with specific message IDs from the summary for exact retrieval.
 </system-reminder>`
         if (!hasSynthetic(COMPACTION_REMINDER, "prefix")) {
           const part = yield* sessions.updatePart({
@@ -1143,6 +1144,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
         /** Cached tool resolution — tool set is stable across loop iterations
           * within a single turn (same agent, model, session, provider). */
         let cachedTools: Record<string, AITool> | undefined
+        let outputTokensSinceLastSummary = 0
+        let pendingSummaryResponse = false
         const session = yield* sessions.get(sessionID)
 
         while (true) {
@@ -1189,14 +1192,14 @@ You should build your plan incrementally by writing to or editing this file. NOT
           let lastUser: MessageV2.User | undefined
           let lastAssistant: MessageV2.Assistant | undefined
           let lastFinished: MessageV2.Assistant | undefined
-          let tasks: (MessageV2.CompactionPart | MessageV2.SubtaskPart)[] = []
+          let tasks: MessageV2.SubtaskPart[] = []
           for (let i = msgs.length - 1; i >= 0; i--) {
             const msg = msgs[i]
             if (!lastUser && msg.info.role === "user") lastUser = msg.info
             if (!lastAssistant && msg.info.role === "assistant") lastAssistant = msg.info
             if (!lastFinished && msg.info.role === "assistant" && msg.info.finish) lastFinished = msg.info
             if (lastUser && lastFinished) break
-            const task = msg.parts.filter((part) => part.type === "compaction" || part.type === "subtask")
+            const task = msg.parts.filter((part) => part.type === "subtask")
             if (task && !lastFinished) tasks.push(...task)
           }
 
@@ -1238,347 +1241,23 @@ You should build your plan incrementally by writing to or editing this file. NOT
             continue
           }
 
-          if (task?.type === "compaction") {
-            yield* status.set(sessionID, { type: "compacting" })
-            // Use the compaction agent for compaction turns — it has the structured
-            // spec prompt (compaction.txt) and denies all tools.
-            const agent = yield* agents.get("compaction")
-            if (!agent) {
-              const error = new NamedError.Unknown({ message: 'Compaction agent not found. Ensure "compaction" is defined in agent registry.' })
-              yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
-              throw error
-            }
-
-            // Split messages into head (for summarization) and tail (preserved verbatim).
-            // If previousCheckpointIDs is available, use checkpoint as the boundary
-            // (everything in the checkpoint = head, everything after = tail/delta).
-            // Otherwise fall back to selectMessages() heuristics.
-            const cpIDs = (task as { previousCheckpointIDs?: string[] }).previousCheckpointIDs
-            let selected: { head: MessageV2.WithParts[]; tail: MessageV2.WithParts[] }
-            if (cpIDs?.length) {
-              const idSet = new Set(cpIDs)
-              const head: MessageV2.WithParts[] = []
-              const tail: MessageV2.WithParts[] = []
-              let inTail = false
-              for (const m of msgs) {
-                if (!inTail && !idSet.has(m.info.id)) inTail = true
-                if (inTail) tail.push(m)
-                else head.push(m)
-              }
-              selected = { head, tail }
-              log.info("compaction using checkpoint boundary", { headLen: head.length, tailLen: tail.length })
-            } else {
-              selected = yield* compaction.selectMessages({ messages: msgs, model })
-            }
-            if (selected.tail.length > 0) {
-              task.tail_count = selected.tail.length
-              yield* sessions.updatePart(task)
-            }
-
-            // Determine if the head needs chunking (exceeds usable window)
-            const headTokens = estimateContentTokens(selected.head, model)
-            const usableWindow = usable({ cfg: yield* config.get(), model })
-            const needsChunking = selected.head.length > 0 && headTokens > usableWindow * 0.7
-            const chunks = needsChunking
-              ? SessionCompaction.chunkHead({ head: selected.head, cfg: yield* config.get(), model })
-              : []
-            if (needsChunking && chunks.length > 1) {
-              log.info("compaction head exceeds usable window, chunking", {
-                headTokens,
-                usableWindow,
-                chunks: chunks.length,
-              })
-            }
-
-            const maxSteps = agent.steps ?? Infinity
-            const isLastStep = step >= maxSteps
-            msgs = yield* insertReminders({ messages: msgs, agent, session })
-
-            const msg: MessageV2.Assistant = {
-              id: MessageID.ascending(),
-              parentID: lastUser.id,
-              role: "assistant",
-              mode: agent.name,
-              agent: agent.name,
-              summary: true,
-              variant: lastUser.model.variant,
-              path: { cwd: ctx.directory, root: ctx.worktree },
-              cost: 0,
-              tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-              modelID: model.id,
-              providerID: model.providerID,
-              time: { created: Date.now() },
-              sessionID,
-            }
-            yield* sessions.updateMessage(msg)
-
-            const handle = yield* processor
-              .create({
-                assistantMessage: msg,
-                sessionID,
-                model,
-                agentName: agent.name,
-              })
-
-            const outcome: "break" | "continue" = yield* Effect.gen(function* () {
-              const tools = yield* SessionTools.resolve({
-                agent,
-                session,
-                model,
-                processor: handle,
-                bypassAgentCheck: false,
-                messages: msgs,
-                promptOps: yield* ops(),
-              })
-
-              yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
-
-              const [skills, env, instructions, rules] = yield* Effect.all([
-                sys.skills(agent),
-                Effect.sync(() => sys.environment(model)),
-                instruction.system().pipe(Effect.orDie),
-                instruction.rules().pipe(Effect.orDie),
-              ])
-              const system = [...rules, ...env, ...(skills ? [skills] : []), ...instructions]
-              const format = lastUser.format ?? { type: "text" as const }
-              if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
-
-              // Snapshot system before handle.process() may mutate it via plugin hook.
-              // llm.ts:176-186 passes system by reference to experimental.chat.system.transform
-              // and collapses it in-place. Use the snapshot for diff logging so the formatted
-              // output matches what was actually sent to the provider.
-              const systemForDiff = [...system]
-
-              // Compute modelMsgs from head for diff logging (same regardless of chunking)
-              const modelMsgs = yield* MessageV2.toModelMessagesEffect(
-                selected.head.length > 0 ? selected.head : msgs,
-                model,
-              )
-
-              // Chunked summarization: split head into chunks that fit model context
-              // and process each chunk sequentially through the LLM.
-              const baseProcessArgs = {
-                user: lastUser,
-                agent,
-                permission: session.permission,
-                sessionID,
-                parentSessionID: session.parentID,
-                providerCacheKey: lastUser.providerCacheKey,
-                system,
-                tools,
-                model,
-                checkpoint: false,
-              }
-
-              let result: "compact" | "stop" | "continue" | undefined
-              // Accumulated text from previous chunks — fed as context to the next
-              // chunk so the model builds on prior work instead of producing N
-              // independent summaries.
-              let previousChunkOutput: string | undefined
-              if (needsChunking && chunks.length > 1) {
-                for (let ci = 0; ci < chunks.length; ci++) {
-                  yield* bus.publish(SessionCompaction.Event.CompactionChunkProgress, {
-                    sessionID,
-                    chunk: ci + 1,
-                    total: chunks.length,
-                  })
-
-                  const chunkMsgs = yield* MessageV2.toModelMessagesEffect(chunks[ci], model)
-                  const anchors = SessionCompaction.extractAnchors(chunks[ci])
-
-                  // For chunks after the first, provide previous chunk output as context
-                  // so the model can extend rather than start from scratch.
-                  const continuationMsg = previousChunkOutput
-                    ? { role: "user" as const, content: `Continue the structured summary. Previous portion covered:\n${previousChunkOutput}\n\nAdd details from the next portion without repeating already-covered information.` }
-                    : undefined
-                  const anchorMsg = anchors.length > 0
-                    ? { role: "user" as const, content: `Include these key terms in your summary: ${anchors.join(", ")}` }
-                    : undefined
-
-                  const messages = [
-                    ...(continuationMsg ? [continuationMsg] : []),
-                    ...(anchorMsg ? [anchorMsg] : []),
-                    ...chunkMsgs,
-                    ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : []),
-                  ]
-
-                  result = yield* handle.process({ ...baseProcessArgs, messages })
-                  if (result === "stop") break
-
-                  // Read accumulated text from all chunks processed so far for next chunk's context
-                  const currentParts = MessageV2.parts(handle.message.id)
-                  previousChunkOutput = currentParts
-                    .filter((p): p is MessageV2.TextPart => p.type === "text")
-                    .map((p) => p.text).join("\n\n")
-                }
-              } else {
-                result = yield* handle.process({
-                  ...baseProcessArgs,
-                  messages: [...modelMsgs, ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS }] : [])],
-                })
-              }
-
-              // Compute and store compaction turn fingerprint so the next
-              // normal turn has a valid cache baseline.
-              const currentFP = CacheControl.requestFingerprint(system, msgs, {
-                sessionId: sessionID,
-                modelId: model.id,
-                providerId: model.providerID,
-              })
-              CacheControl.storePrevFingerprint(sessionID, model.id, currentFP, agent.name)
-
-              // Quality guard: validate the summary is substantive enough.
-              // If too short or missing structure, warn so it doesn't silently destroy memory.
-              const summaryParts = MessageV2.parts(handle.message.id)
-              const summaryText = summaryParts
-                .filter((p): p is MessageV2.TextPart => p.type === "text")
-                .map((p) => p.text).join("\n\n")
-              const quality = SessionCompaction.validateSummary(summaryText)
-              if (!quality.valid) {
-                log.warn("bug: compaction summary below quality threshold", { reason: quality.reason })
-              }
-
-              // Diff logging for compaction turns — derives "previous" from the
-              // pre-compaction checkpoint instead of a separate .baselines store.
-              const cfg2 = yield* config.get()
-              if (cfg2.diff_requests !== false) {
-                const diffMeta: RequestDiff.DiffMeta = {
-                  sessionID,
-                  modelID: model.id,
-                  providerID: model.providerID,
-                  turn: msgs.filter((m) => m.info.role === "user").length,
-                  agent: agent.name,
-                  timestamp: Date.now(),
-                }
-                const compactionCheckpoint = yield* Checkpoint.load({
-                  sessionID,
-                  providerID: model.providerID,
-                  modelID: model.id,
-                  projectID: ctx.project.id,
-                }).pipe(Effect.catch(() => Effect.succeed(null)))
-                const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
-                if (compactionCheckpoint) {
-                  const prevMeta: RequestDiff.DiffMeta = {
-                    sessionID,
-                    modelID: compactionCheckpoint.model.modelID,
-                    providerID: compactionCheckpoint.model.providerID,
-                    turn: compactionCheckpoint.turn,
-                    agent: compactionCheckpoint.agent,
-                    timestamp: compactionCheckpoint.timestamp,
-                  }
-                  const prevFormatted = RequestDiff.formatRequest(
-                    compactionCheckpoint.systemPrompt,
-                    compactionCheckpoint.messages,
-                    prevMeta,
-                  )
-                  const diff = RequestDiff.diffRequest(prevFormatted, formatted, prevMeta, diffMeta)
-                  if (diff) RequestDiff.writeDiff(diff, diffMeta)
-                }
-              }
-
-              if (result === "stop") return "break" as const
-              if (result === "compact") {
-                // Try to load previous checkpoint for checkpoint-based compaction.
-                // The previous checkpoint has fewer messages — guaranteed to fit the summarizer.
-                const prevCheckpoint = yield* Checkpoint.loadPrevious({
-                  sessionID,
-                  providerID: model.providerID,
-                  modelID: model.id,
-                  projectID: ctx.project.id,
-                  agentName: agent.name,
-                }).pipe(Effect.catch(() => Effect.succeed(null)))
-
-                yield* compaction.create({
-                  sessionID,
-                  agent: lastUser.agent,
-                  model: lastUser.model,
-                  auto: true,
-                  overflow: !handle.message.finish,
-                  previousCheckpointIDs: prevCheckpoint?.messageIDs,
-                })
-                return "continue" as const
-              }
-              const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
-              const agentPrompt = agent.prompt ?? ""
-              const identityPrefix = [reasoningPrefix, agentPrompt].filter((x) => x).join("\n")
-              const systemForCheckpoint = identityPrefix ? [identityPrefix, ...system] : [...system]
-              yield* Effect.forkIn(scope)(
-                Effect.gen(function* () {
-                  const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
-                  const checkpointModelMsgs = yield* MessageV2.toModelMessagesEffect(checkpointMsgs, model)
-                  yield* Checkpoint.save({
-                    sessionID,
-                    projectID: ctx.project.id,
-                    data: {
-                      kind: Checkpoint.CHECKPOINT_KIND,
-                      version: Checkpoint.CHECKPOINT_VERSION,
-                      systemPrompt: systemForCheckpoint,
-                      messages: checkpointModelMsgs,
-                      messageIDs: checkpointMsgs.map((m) => m.info.id),
-                      model: { providerID: model.providerID, modelID: model.id },
-                      agent: agent.name,
-                      turn: step + 1,
-                      timestamp: Date.now(),
-                    },
-                  })
-                }),
-              )
-              return "continue" as const
-            }).pipe(
-              Effect.ensuring(instruction.clear(handle.message.id)),
-            )
-
-            // Invalidate caches after compaction so the next iteration
-            // reloads messages and reconverts them from the new boundary.
-            modelMsgsCache = undefined
-            cachedMsgs = undefined
-            lastKnownId = undefined
-
-            if (outcome === "break") break
-            continue
-          }
-
           if (
             lastFinished &&
             lastFinished.summary !== true &&
+            !pendingSummaryResponse &&
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            // Use content-based token estimate for tier calculation —
-            // provider-reported tokens include 3-5x JSON serialization
-            // overhead that would always show "force" tier.
-            const contentTokens = estimateContentTokens(msgs, model)
-            const cfg_overflow = yield* config.get()
-            const tier = compactionTier({
-              cfg: cfg_overflow,
-              tokens: { total: contentTokens, input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-              model,
-            })
-
-            if (tier === "soft") {
-              // Emit notice that context is growing, but preserve cache-first prefix
-              yield* bus.publish(SessionCompaction.Event.CompactionNotice, {
-                sessionID,
-                ratio: contentTokens / model.limit.context,
-                tier: "soft",
-              })
-              continue
-            }
-
-            const forced = tier === "force"
-            const prevCP = yield* Checkpoint.loadPrevious({
+            yield* status.set(sessionID, { type: "compacting" })
+            outputTokensSinceLastSummary = 0
+            pendingSummaryResponse = false
+            yield* compaction.compact({
               sessionID,
-              providerID: model.providerID,
-              modelID: model.id,
-              projectID: ctx.project.id,
-              agentName: lastUser.agent,
-            }).pipe(Effect.catch(() => Effect.succeed(null)))
-            yield* compaction.create({
-              sessionID, agent: lastUser.agent, model: lastUser.model,
-              auto: true, overflow: true, forced,
-              previousCheckpointIDs: prevCP?.messageIDs,
+              model: lastUser.model,
+              agent: lastUser.agent,
             })
             cachedMsgs = undefined
             lastKnownId = undefined
+            modelMsgsCache = undefined
             continue
           }
 
@@ -1600,6 +1279,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
             role: "assistant",
             mode: agent.name,
             agent: agent.name,
+            summary: pendingSummaryResponse || undefined,
             variant: lastUser.model.variant,
             path: { cwd: ctx.directory, root: ctx.worktree },
             cost: 0,
@@ -1930,17 +1610,33 @@ You should build your plan incrementally by writing to or editing this file. NOT
               return "break" as const
             }
             if (result === "compact") {
-              yield* compaction.create({
+              outputTokensSinceLastSummary = 0
+              pendingSummaryResponse = false
+              yield* compaction.compact({
                 sessionID,
-                agent: lastUser.agent,
                 model: lastUser.model,
-                auto: true,
-                overflow: !handle.message.finish,
+                agent: lastUser.agent,
               })
               cachedMsgs = undefined
               lastKnownId = undefined
               modelMsgsCache = undefined
-              return "continue" as const
+            // Accumulate output tokens for incremental summary injection
+            if (!msg.summary) {
+              outputTokensSinceLastSummary += handle.message.tokens.output + handle.message.tokens.reasoning
+            } else {
+              pendingSummaryResponse = false
+              outputTokensSinceLastSummary = 0
+            }
+            if (outputTokensSinceLastSummary >= SessionCompaction.SUMMARY_INTERVAL_TOKENS) {
+              yield* compaction.injectSummaryRequest({
+                sessionID,
+                model: lastUser.model,
+                agent: lastUser.agent,
+              })
+              pendingSummaryResponse = true
+              outputTokensSinceLastSummary = 0
+            }
+            return "continue" as const
             }
             // Save encrypted checkpoint after successful turn.
             // Fire-and-forget — don't block the loop on I/O.
@@ -1984,7 +1680,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
           continue
         }
 
-        yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
+        // pruning handled by compaction.compact() — no separate prune step
         return yield* lastAssistant(sessionID)
       },
     )

@@ -35,7 +35,6 @@ WORKFLOWS = MappingProxyType({
 PACKS = MappingProxyType({
     'agent.build': ('universal', 'modify', 'diagnose'),
     'agent.coder': ('agent.build',),
-    'agent.compaction': ('universal', 'plan', 'cache', 'verification'),
     'agent.explore': ('universal', 'observe'),
     'agent.general': ('universal', 'observe', 'research'),
     'agent.media': ('universal', 'scope', 'mutation', 'verification'),
@@ -60,7 +59,6 @@ PACKS = MappingProxyType({
 
 CONTRACTS = MappingProxyType({
     'agent.coder': ('plan', 'scope', 'mutation', 'verification', 'WRITE.SCOPE', 'VERIFY.OUTCOME'),
-    'agent.compaction': ('plan', 'cache', 'verification'),
     'agent.explore': ('scope', 'evidence', 'SEARCH.ORDER'),
     'agent.general': ('plan', 'scope', 'evidence', 'verification'),
     'agent.media': ('scope', 'mutation', 'verification'),
@@ -121,37 +119,6 @@ acceptance:
   • Typecheck passes after changes
   • Lint passes after changes
   • Existing tests still pass
-
-## COMPACTION
-Summarize coding session context using the anchored summary template. Focus on older context that still matters for continuing work. Keep every section even when empty. Use terse bullets over paragraphs. Preserve exact file paths, commands, and identifiers. Do NOT use tools — output only the summary text. Do NOT think or reason — just produce the summary.
-scope: summarizes conversation_history, preserves file_paths/identifiers/key_decisions
-constraints:
-  follow_exact_template → True
-  preserve_still_true → True
-  remove_stale → True
-  merge_new_facts → True
-  same_language → True
-  no_tools → True
-  no_reasoning → True
-  output_only_sections → True
-  start_directly_with_goal → True
-invariants:
-  • Must keep every section even when empty
-  • Must preserve exact file paths and identifiers
-  • Must use terse bullets over paragraphs
-  • Must respond in same language as conversation
-  • Must NOT use any tools — output only the summary
-forbidden:
-  • Using ANY tools or external calls
-  • Answering the conversation itself
-  • Mentioning that you are summarizing or compacting
-  • Omitting sections from the template
-  • Emitting thinking/reasoning before the summary
-acceptance:
-  • Output starts with ## Goal
-  • All 9 sections present
-  • No tool calls emitted
-  • No preamble before ## Goal
 
 ## EXPLORER
 Thoroughly navigate codebases, search conversation history, and research external sources. Fast, precise search with no reasoning or mutations. The explorer is a read-only discovery agent. It adapts to the requested thoroughness level: 'quick' for basic searches, 'medium' for moderate exploration, 'very thorough' for comprehensive analysis.

@@ -727,14 +727,13 @@ export const sessionHandlers = Layer.unwrap(
               const currentAgent =
                 messages.findLast((message) => message.info.role === "user")?.info.agent ?? defaultAgent
 
-              yield* compact.create({
+              yield* compact.compact({
                 sessionID: ctx.params.sessionID,
-                agent: currentAgent,
                 model: {
                   providerID: ctx.payload.providerID,
                   modelID: ctx.payload.modelID,
                 },
-                auto: ctx.payload.auto ?? false,
+                agent: currentAgent,
               })
               yield* prompt.loop({ sessionID: ctx.params.sessionID })
             }).pipe(

@@ -1473,52 +1473,6 @@ Use the capability tool to check available models. Return real file attachments,
     ],
 )
 
-COMPACTION = _spec(
-    intent="""Summarize coding session context using the anchored summary template.
-Focus on older context that still matters for continuing work. Keep every section even when empty.
-Use terse bullets over paragraphs. Preserve exact file paths, commands, and identifiers.
-Do NOT use tools — output only the summary text. Do NOT think or reason — just produce the summary.""",
-
-    state={"agent_type": "primary", "mode": "hidden", "purpose": "conversation_summarization"},
-
-    scope="summarizes conversation_history, preserves file_paths/identifiers/key_decisions",
-
-    constraints={
-        "follow_exact_template": True,
-        "preserve_still_true": True,
-        "remove_stale": True,
-        "merge_new_facts": True,
-        "same_language": True,
-        "no_tools": True,
-        "no_reasoning": True,
-        "output_only_sections": True,
-        "start_directly_with_goal": True,
-    },
-
-    invariants=[
-        "Must keep every section even when empty",
-        "Must preserve exact file paths and identifiers",
-        "Must use terse bullets over paragraphs",
-        "Must respond in same language as conversation",
-        "Must NOT use any tools — output only the summary",
-    ],
-
-    acceptance_tests=[
-        "Output starts with ## Goal",
-        "All 9 sections present",
-        "No tool calls emitted",
-        "No preamble before ## Goal",
-    ],
-
-    forbidden_actions=[
-        "Using ANY tools or external calls",
-        "Answering the conversation itself",
-        "Mentioning that you are summarizing or compacting",
-        "Omitting sections from the template",
-        "Emitting thinking/reasoning before the summary",
-    ],
-)
-
 TITLE = _spec(
     intent="""Output ONLY a thread title. Nothing else. Single line, max 50 chars.
 Never use tools. Never respond to the question — only generate the title.""",
@@ -2472,7 +2426,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
 RUNTIME_PACKS = MappingProxyType({
     "agent.build": ("universal", "modify", "diagnose"),
     "agent.coder": ("agent.build",),
-    "agent.compaction": ("universal", "plan", "cache", "verification"),
+
     "agent.explore": ("universal", "observe"),
     "agent.general": ("universal", "observe", "research"),
     "agent.media": ("universal", "scope", "mutation", "verification"),
@@ -2501,7 +2455,7 @@ SPEC_CONTRACT_IDS = MappingProxyType({
     "ADID_FRAMEWORK_RULES": "policy.adid", "ADM_EXE": "skill.adm_exe", "ADM_MCP": "skill.adm_mcp",
     "AGENT_ASSETS": "skill.agent_assets", "AI_DEPS": "command.ai_deps", "APPLY_PATCH_EDITS": "skill.apply_patch",
     "CHANGELOG": "command.changelog", "CMD_RUNNER": "skill.cmd_runner", "CODER": "agent.coder",
-    "CODING_AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit", "COMPACTION": "agent.compaction",
+    "CODING_AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit",
     "DEFAULT_PROMPT": "policy.default", "DELPHI_BUILDER": "skill.delphi_builder", "DUNIT": "skill.dunit",
     "DUPLICATE_PR": "command.duplicate_pr", "EXPLORER": "agent.explore", "GENERAL": "agent.general",
     "GOVERNANCE": "policy.governance", "GROUNDING_RULES": "policy.grounding", "ISSUES": "command.issues",
@@ -2513,7 +2467,7 @@ SPEC_CONTRACT_IDS = MappingProxyType({
 
 RUNTIME_CONTRACTS = MappingProxyType({
     "agent.coder": ("plan", "scope", "mutation", "verification", "WRITE.SCOPE", "VERIFY.OUTCOME"),
-    "agent.compaction": ("plan", "cache", "verification"),
+
     "agent.explore": ("scope", "evidence", "SEARCH.ORDER"),
     "agent.general": ("plan", "scope", "evidence", "verification"),
     "agent.media": ("scope", "mutation", "verification"),
@@ -2794,7 +2748,7 @@ def write_runtime_kernel(destination: str | Path) -> None:
 _ALL_SPECS = {
     "CODER": CODER, "EXPLORER": EXPLORER, "ORCHESTRATOR": ORCHESTRATOR,
     "GENERAL": GENERAL, "RESEARCHER": RESEARCHER, "MEDIA": MEDIA,
-    "COMPACTION": COMPACTION, "TITLE": TITLE, "SUMMARY": SUMMARY,
+    "TITLE": TITLE, "SUMMARY": SUMMARY,
     "ADM_EXE": ADM_EXE, "CMD_RUNNER": CMD_RUNNER, "RAG": RAG,
     "PATCH_TOOL": PATCH_TOOL, "AGENT_ASSETS": AGENT_ASSETS, "ADM_MCP": ADM_MCP,
     "APPLY_PATCH_EDITS": APPLY_PATCH_EDITS, "DELPHI_BUILDER": DELPHI_BUILDER,
@@ -2816,7 +2770,7 @@ def render_all_specs() -> str:
 
     _AGENTS = {
         "CODER", "EXPLORER", "ORCHESTRATOR", "GENERAL", "RESEARCHER",
-        "MEDIA", "COMPACTION", "TITLE", "SUMMARY",
+        "MEDIA", "TITLE", "SUMMARY",
     }
     _SKILLS = {
         "ADM_EXE", "CMD_RUNNER", "RAG", "PATCH_TOOL", "AGENT_ASSETS",
@@ -3058,7 +3012,7 @@ TREESITTER_GRAMMARS: dict[str, str] = {
     "AGENTS.md": "markdown",          # GitHub-flavored markdown
     "kernel": "python",               # Python source
     "agent.ts": "typescript",         # TypeScript agent definitions
-    "compaction.ts": "typescript",    # TypeScript compaction logic
+
 }
 
 

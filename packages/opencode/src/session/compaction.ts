@@ -130,22 +130,12 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           }
         }
 
-        // When no summary exists: keep the most recent full turn.
-        if (lastSummaryIndex < 0) {
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            if (
-              msgs[i].info.role === "user" &&
-              !msgs[i].parts.some((p: any) => p.type === "compaction")
-            ) {
-              lastSummaryIndex = i
-              break
-            }
-          }
-        }
-
-        // Absolute fallback: keep last 2 messages if nothing found.
-        // This should rarely trigger — only on fresh sessions with no turns.
-        const keepFrom = lastSummaryIndex >= 0 ? lastSummaryIndex : Math.max(0, msgs.length - 2)
+        // When no summary exists: don't prune — there's no anchor.
+        // Keep all messages, just inject the compacted signal so the model
+        // knows to use session-read. After 32K output tokens a summary will
+        // be produced, and the next compact will prune properly.
+        const hasSummary = lastSummaryIndex >= 0
+        const keepFrom = hasSummary ? lastSummaryIndex : 0
         const toRemove = msgs.slice(0, keepFrom)
 
         if (toRemove.length > 0) {

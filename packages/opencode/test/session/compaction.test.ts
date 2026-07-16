@@ -1146,7 +1146,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "keeps most recent turn when no summaries exist",
+    "keeps all messages when no summaries exist (nothing to anchor on)",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1154,8 +1154,8 @@ describe("session.compaction.compact", () => {
         const info = yield* ssn.create({})
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-        // Create old messages
-        for (const text of ["old-1", "old-2"]) {
+        // Create messages without any summary
+        for (const text of ["msg-1", "msg-2", "msg-3"]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
             agent: "build", model: ref, time: { created: Date.now() },
@@ -1163,36 +1163,17 @@ describe("session.compaction.compact", () => {
           yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
         }
 
-        // Create most recent turn (user + assistant)
-        const recentUser = yield* ssn.updateMessage({
-          id: MessageID.ascending(), role: "user", sessionID: info.id,
-          agent: "build", model: ref, time: { created: Date.now() },
-        })
-        yield* ssn.updatePart({
-          id: PartID.ascending(), messageID: recentUser.id, sessionID: info.id,
-          type: "text", text: "recent-user",
-        })
-        const recentAssistant = yield* ssn.updateMessage({
-          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
-          mode: "build", agent: "build", parentID: recentUser.id,
-          modelID: ref.modelID, providerID: ref.providerID,
-          path: { cwd: dir, root: dir }, cost: 0,
-          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          finish: "end_turn",
-          time: { created: Date.now() },
-        } as MessageV2.Assistant)
-
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
         const msgs = yield* ssn.messages({ sessionID: info.id })
         const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
 
-        // Old messages removed
-        expect(texts).not.toContain("old-1")
-        expect(texts).not.toContain("old-2")
-        // Recent turn kept
-        expect(texts).toContain("recent-user")
-        // Compacted message present
+        // All messages should be kept — no summary means no pruning
+        expect(texts).toContain("msg-1")
+        expect(texts).toContain("msg-2")
+        expect(texts).toContain("msg-3")
+        // Compacted message present with "no summary" notice
+        expect(texts.some((t: string) => t.includes("No summary exists"))).toBe(true)
         expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
       }),
     ),

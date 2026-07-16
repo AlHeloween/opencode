@@ -601,14 +601,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           buffer.set(partID, existing + delta)
           break
         }
-        // Part found — buffer delta and debounce store update to avoid
-        // per-token Solid reconciliation during high-frequency streaming.
-        // First delta for this field applies immediately (no blank-delay
-        // artifact); subsequent deltas within DELTA_DEBOUNCE_MS are batched.
-        const fieldKey = partID + ":" + field
-        const hasExisting = runningDelta.has(messageID) && runningDelta.get(messageID)!.has(fieldKey)
-        if (!hasExisting) {
-          // First delta — apply directly to show text immediately
+        // Part found — debounce store updates to avoid per-token Solid
+        // reconciliation during high-frequency streaming (25–50 deltas/sec).
+        // First delta of a burst applies immediately; subsequent deltas
+        // arriving while a flush timer is pending are batched.
+        const hasTimer = deltaFlushTimers.has(messageID)
+        if (!hasTimer) {
+          // First delta in burst — apply directly to show text immediately
           const r = Binary.search(parts, partID, (p) => p.id)
           if (r.found) {
             setStore("part", messageID, produce((draft) => {
@@ -617,7 +616,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               ;(part as any)[field] = existing + delta
             }))
           }
-          // Seed the buffer so subsequent deltas know this is not the first.
+        } else {
+          // Subsequent delta — buffer for batched flush
           let acc = runningDelta.get(messageID)
           if (!acc) {
             if (runningDelta.size >= MAX_DELTA_BUFFER_SIZE) {
@@ -627,13 +627,10 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             acc = new Map()
             runningDelta.set(messageID, acc)
           }
-          acc.set(fieldKey, "")
-        } else {
-          // Subsequent delta — buffer for debounced batch flush
-          const acc = runningDelta.get(messageID)!
+          const fieldKey = partID + ":" + field
           acc.set(fieldKey, (acc.get(fieldKey) ?? "") + delta)
-          scheduleDeltaFlush(messageID)
         }
+        scheduleDeltaFlush(messageID)
         break
       }
 

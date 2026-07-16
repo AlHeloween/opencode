@@ -561,14 +561,16 @@ export class CodeRenderable extends TextBufferRenderable {
         this._shouldRenderTextBuffer = true
         this._highlightsDirty = false
       } else {
-        // During streaming, debounce highlighting to avoid tree-sitter re-parse
-        // on every token delta. Wait until content has been stable for at least
-        // HIGHLIGHT_DEBOUNCE_MS before starting a new highlight pass.
+        // Always populate the text buffer with unstyled content so the
+        // renderer has something visible even while we debounce highlighting.
+        this.ensureVisibleTextBeforeHighlight()
+        // During streaming, debounce the tree-sitter re-parse to avoid
+        // re-highlighting on every token delta. Text is already visible
+        // (unstyled) from ensureVisibleTextBeforeHighlight above.
         if (this._streaming && performance.now() - this._lastContentChangeAt < CodeRenderable.HIGHLIGHT_DEBOUNCE_MS) {
           this._highlightsDirty = true
           return
         }
-        this.ensureVisibleTextBeforeHighlight()
         this._highlightsDirty = false
         this._highlightingPromise = this.startHighlight()
       }

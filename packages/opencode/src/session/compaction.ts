@@ -27,6 +27,13 @@
  *      small enough to be reliable (operating well within the
  *      rate-distortion bound for its input size).
  *
+ *      30K output tokens ≈ 60-120K tokens of raw conversation
+ *      context (user messages, assistant responses, tool calls).
+ *      Research shows 800-2K tokens optimal for pure-text
+ *      summarization chunks; conversation needs more room for
+ *      turn structure, tool outputs, and reasoning traces.  30K
+ *      output is empirically reliable across model families.
+ *
  *   2. Algorithmic compaction — on overflow, prune from the latest
  *      summary boundary, inject a compacted-context message with
  *      precise DB record positions.  No LLM involved — deterministic.

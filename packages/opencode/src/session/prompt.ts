@@ -1146,6 +1146,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
         let cachedTools: Record<string, AITool> | undefined
         let outputTokensSinceLastSummary = 0
         let pendingSummaryResponse = false
+        let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
         while (true) {
@@ -1242,12 +1243,11 @@ You should build your plan incrementally by writing to or editing this file. NOT
           }
 
           if (
-            lastFinished &&
-            lastFinished.summary !== true &&
+            (lastFinished || lastAssistant) &&
+            lastFinished?.summary !== true &&
             !pendingSummaryResponse &&
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            yield* status.set(sessionID, { type: "compacting" })
             outputTokensSinceLastSummary = 0
             pendingSummaryResponse = false
             yield* compaction.compact({
@@ -1255,6 +1255,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
               model: lastUser.model,
               agent: lastUser.agent,
             })
+            // Invalidate checkpoint — the old checkpoint contains pre-compaction
+            // message IDs that won't match the new compacted state. Loading it
+            // on the next turn would cause a full rebuild, defeating the purpose.
+            yield* Checkpoint.remove(sessionID)
             cachedMsgs = undefined
             lastKnownId = undefined
             modelMsgsCache = undefined
@@ -1307,6 +1311,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               sessionID,
               model,
               agentName: agent.name,
+              contentTokenEstimate: estimateContentTokens(msgs, model),
             })
             .pipe(Effect.onInterrupt(() => finalizeInterruptedAssistant))
           yield* slog.debug("prepare", { step, stage: "assistant-ready", agent: agent.name })
@@ -1596,7 +1601,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }
 
             if (result === "stop") {
-              if (step === 1) {
+              if (!titleRequested) {
+                titleRequested = true
                 yield* title({
                   session,
                   modelID: lastUser.model.modelID,
@@ -1617,6 +1623,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 model: lastUser.model,
                 agent: lastUser.agent,
               })
+              // Invalidate checkpoint — the old checkpoint contains pre-compaction
+              // message IDs that won't match the new compacted state.
+              yield* Checkpoint.remove(sessionID)
               cachedMsgs = undefined
               lastKnownId = undefined
               modelMsgsCache = undefined

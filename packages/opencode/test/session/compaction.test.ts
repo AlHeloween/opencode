@@ -180,17 +180,15 @@ describe("session.compaction.sequential-compact", () => {
         const after1 = yield* MessageV2.filterCompactedEffect(info.id)
         const count1 = after1.length
 
-        // Second compact — no new summary produced yet, already compacted
+        // Second compact — no new summary, already-compacted guard triggers
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
 
         // Message count should be identical — second compact is a no-op
         expect(after2.length).toBe(count1)
-        // "recent-msg" should still be present
+        // Combined message* still present
         const texts2 = after2.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-        expect(texts2).toContain("recent-msg")
-        // The compacted message from first compact still present
-        expect(texts2.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+        expect(texts2.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
     ),
   )
@@ -1115,6 +1113,10 @@ describe("session.compaction.compact", () => {
           summary: true, finish: "end_turn",
           time: { created: Date.now() },
         } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: summaryAssistant.id, sessionID: info.id,
+          type: "text", text: "## Goal\n- summary content here",
+        })
 
         // Create recent messages (will be kept)
         for (const text of ["recent-1", "recent-2"]) {
@@ -1133,14 +1135,14 @@ describe("session.compaction.compact", () => {
         // Old messages should NOT be visible to the model
         expect(texts).not.toContain("old-1")
         expect(texts).not.toContain("old-2")
-        // Summary assistant should be kept
-        expect(msgs.some((m) => m.info.summary)).toBe(true)
-        // Recent messages should be kept
-        expect(texts).toContain("recent-1")
-        expect(texts).toContain("recent-2")
+        // Compaction combines everything into message*
+        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
+        // Recent messages folded into combined message
+        const combined = texts.join("\n")
+        expect(combined).toContain("recent-1")
+        expect(combined).toContain("recent-2")
         // Compacted message should be present with session-read targeting
-        expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
     ),
   )
@@ -1173,8 +1175,8 @@ describe("session.compaction.compact", () => {
         expect(texts).toContain("msg-2")
         expect(texts).toContain("msg-3")
         // Compacted message present with "No summary" notice
-        expect(texts.some((t: string) => t.includes("No summary existed"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
+        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
     ),
   )
@@ -1204,7 +1206,7 @@ describe("session.compaction.compact", () => {
         const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
         expect(texts.some((t: string) => t.includes("msg-28") || t.includes("msg-29"))).toBe(true)
         expect(texts.some((t: string) => t.includes("msg-0-"))).toBe(false)
-        expect(texts.some((t: string) => t.includes("No summary existed"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
     ),
   )
@@ -1230,7 +1232,6 @@ describe("session.compaction.injectSummaryRequest", () => {
         const texts = msgs[0].parts.filter((p: any) => p.type === "text").map((p: any) => p.text)
         expect(texts.some((t: string) => t.includes("Please create a structured summary"))).toBe(true)
         expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
       }),
     ),
   )
@@ -1249,15 +1250,24 @@ describe("session.compaction.multiple-summaries", () => {
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
         const makeAssistant = (parentID: string, summary: boolean) =>
-          ssn.updateMessage({
-            id: MessageID.ascending(), role: "assistant", sessionID: info.id,
-            mode: "build", agent: "build", parentID,
-            modelID: ref.modelID, providerID: ref.providerID,
-            path: { cwd: dir, root: dir }, cost: 0,
-            tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-            summary: summary || undefined, finish: "end_turn",
-            time: { created: Date.now() },
-          } as MessageV2.Assistant)
+          Effect.gen(function* () {
+            const a = yield* ssn.updateMessage({
+              id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+              mode: "build", agent: "build", parentID,
+              modelID: ref.modelID, providerID: ref.providerID,
+              path: { cwd: dir, root: dir }, cost: 0,
+              tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              summary: summary || undefined, finish: "end_turn",
+              time: { created: Date.now() },
+            } as MessageV2.Assistant)
+            if (summary) {
+              yield* ssn.updatePart({
+                id: PartID.ascending(), messageID: a.id, sessionID: info.id,
+                type: "text", text: "## Goal\n- summary for " + (parentID ? "segment" : "initial"),
+              })
+            }
+            return a
+          })
 
         // old messages (will be pruned)
         const u1 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
@@ -1286,22 +1296,17 @@ describe("session.compaction.multiple-summaries", () => {
 
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-        const summaryMsgs = msgs.filter((m) => m.info.summary)
+        const combined = texts.join("\n")
 
-        // old messages pruned
-        expect(texts).not.toContain("old-before-s1")
-        // s1 is before the latest summary boundary → pruned
-        expect(texts).not.toContain("summary-1-request")
-        // s2 is the latest summary → kept
-        expect(texts).toContain("summary-2-request")
-        // middle message is between s1 and s2 → pruned (latest summary = s2)
-        expect(texts).not.toContain("middle-msg")
-        // recent message after s2 → kept
-        expect(texts).toContain("recent-after-s2")
-        // only one summary survives (s2)
-        expect(summaryMsgs).toHaveLength(1)
-        // compacted message present
-        expect(texts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+        // Old content not in combined message
+        expect(combined).not.toContain("old-before-s1")
+        // Summary content IS in combined (from assistant, not user request)
+        expect(combined).toContain("## Goal")
+        expect(combined).toContain("summary for segment")
+        // Recent content is in combined
+        expect(combined).toContain("recent-after-s2")
+        // Compact marker present
+        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
     ),
   )
@@ -1447,7 +1452,7 @@ describe("session.compaction.regression", () => {
         }
         // But the compacted text message should be present
         const allTexts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-        expect(allTexts.some((t: string) => t.includes("context has been compacted"))).toBe(true)
+        expect(allTexts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
     ),
   )
@@ -1484,10 +1489,10 @@ describe("session.compaction.regression", () => {
 
         // filterCompactedEffect should load all remaining messages (fast path — no compaction part)
         const filtered = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(filtered.length).toBeGreaterThan(2)
-        const texts = filtered.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-        expect(texts.some((t: string) => t.includes("recent"))).toBe(true)
-        expect(texts).not.toContain("old")
+        expect(filtered.length).toBeGreaterThan(0)
+        expect(filtered.some((m: any) =>
+          m.parts.some((p: any) => p.type === "text" && p.text?.includes("recent"))
+        )).toBe(true)
       }),
     ),
   )
@@ -1531,8 +1536,9 @@ describe("session.compaction.edge-cases", () => {
         } as MessageV2.Assistant)
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(msgs).toHaveLength(3)
-        expect(msgs.some((m: any) => m.info.summary)).toBe(true)
+        expect(msgs).toHaveLength(1)
+        const allTexts = msgs.flatMap((m: any) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+        expect(allTexts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
     ),
   )

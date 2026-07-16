@@ -1,55 +1,3 @@
-/**
- * Algorithmic Compaction
- * =====================
- *
- * It's NOT an AI problem — it's an information theory problem.
- *
- * Shannon's rate-distortion theory (1948) proves there is a fundamental
- * mathematical bound: you cannot compress information below the source
- * entropy without guaranteed distortion.  For conversation summarization:
- *
- *   R(D) → H(source) as D → 0
- *
- * Meaning: to preserve ALL actionable detail (D ≈ 0), you need as many
- * bits as the original.  A 500K-token conversation cannot be losslessly
- * compressed into a 2K-token summary — not by an LLM, not by a human.
- * The information simply isn't there.
- *
- * The old design asked for the impossible on every cycle: spawn a
- * compaction agent, feed it 300K+ tokens, expect a faithful summary.
- * The results were unreliable by physical necessity, not by model
- * weakness.
- *
- * This module replaces that dead end with an algorithmic approach:
- *
- *   1. Incremental summaries — every ~32K output tokens the model
- *      summarizes a focused, digestible segment.  Each summary is
- *      small enough to be reliable (operating well within the
- *      rate-distortion bound for its input size).
- *
- *      30K output tokens ≈ 60-120K tokens of raw conversation
- *      context (user messages, assistant responses, tool calls).
- *      Research shows 800-2K tokens optimal for pure-text
- *      summarization chunks; conversation needs more room for
- *      turn structure, tool outputs, and reasoning traces.  30K
- *      output is empirically reliable across model families.
- *
- *   2. Algorithmic compaction — on overflow, prune from the latest
- *      summary boundary, inject a compacted-context message with
- *      precise DB record positions.  No LLM involved — deterministic.
- *
- *   3. Continuous memory — the model uses `session-read` with exact
- *      message IDs to pull precise details from any point in history.
- *      Like a database index: don't compress, just point.
- *
- * Edge case (old projects without summaries): trim to ~30K tokens
- * and produce a summary.  This happens at most once per session
- * lifetime — new sessions always have the summary chain.
- *
- * The invariant: compact is always a no-op or a precise DB prune.
- * Never "please summarize everything."
- */
-
 import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
 import * as Session from "./session"
@@ -71,28 +19,11 @@ const log = Log.create({ service: "session.compaction" })
 export const Event = {
   Compacted: BusEvent.define(
     "session.compacted",
-    Schema.Struct({
-      sessionID: SessionID,
-    }),
+    Schema.Struct({ sessionID: SessionID }),
   ),
 }
 
 export const SUMMARY_INTERVAL_TOKENS = 32_768
-
-function compactedMessage(summaryId: string | null, tailIds: string[], sessionId: string) {
-  const summaryLine = summaryId
-    ? `Summary: assistant \`${summaryId}\` covers the conversation up to that point.`
-    : `No summary existed — kept ~30K tokens of recent context aligned to turn boundaries.`
-  const tailLine = tailIds.length > 0
-    ? `Active context: messages \`${tailIds[0]}\` through \`${tailIds[tailIds.length - 1]}\`.`
-    : ""
-  return `Your context has been compacted. Use \`session-read\` for precise history recall.
-
-${summaryLine}
-${tailLine}
-Use \`messagesearch\` with query keywords to find pruned content by topic.
-Use \`session-read\` with sessionId: "${sessionId}" and specific message IDs for exact retrieval.`
-}
 
 function summaryRequestMessage(fromId: string, toId: string) {
   return `Please create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.
@@ -101,7 +32,6 @@ Include these message IDs in your summary:
 - \`from_id\`: \`${fromId}\`
 - \`to_id\`: \`${toId}\`
 
-This lets \`session-read\` target the exact range you summarized.
 Output ONLY the structured summary sections starting with ## Goal.`
 }
 
@@ -128,119 +58,106 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
   Service,
   Effect.gen(function* () {
     const bus = yield* Bus.Service
-    const cfg = yield* Config.Service
     const session = yield* Session.Service
 
-    const isOverflow = (input: {
-      tokens: MessageV2.Assistant["tokens"]
-      model: Provider.Model
-    }) =>
+    const CHARS_PER_TOKEN = 4
+
+    /** Count chars from all content-bearing parts (text + reasoning + tool outputs). */
+    const contentChars = (msgs: MessageV2.WithParts[]) => {
+      let chars = 0
+      for (const m of msgs) {
+        for (const p of m.parts) {
+          if (p.type === "text" && !(p as any).ignored) chars += (p as any).text?.length ?? 0
+          else if (p.type === "reasoning") chars += (p as any).text?.length ?? 0
+          else if (p.type === "tool" && p.state?.status === "completed") chars += (p.state as any).output?.length ?? 0
+        }
+      }
+      return chars
+    }
+
+    const isOverflow = (input: { tokens: MessageV2.Assistant["tokens"]; model: Provider.Model }) =>
       Effect.gen(function* () {
-        const config = yield* Config.Service
-        return overflow({ cfg: yield* config.get(), tokens: input.tokens, model: input.model })
+        const c = yield* Config.Service
+        return overflow({ cfg: yield* c.get(), tokens: input.tokens, model: input.model })
       })
 
+    /** Compact: collect summaries + recent messages into one message.
+      * Mark old messages as compacted (soft-delete). The resulting message*
+      * flows naturally — 30K summarizer fires on it if needed. */
     const compact = (input: {
       sessionID: SessionID
       model: { providerID: ProviderID; modelID: ModelID }
       agent: string
     }) =>
       Effect.gen(function* () {
-        const msgs: MessageV2.WithParts[] | undefined = yield* session
-          .messages({ sessionID: input.sessionID })
-          .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)))
+        const msgs = (yield* session.messages({ sessionID: input.sessionID }).pipe(
+          Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
+        )) as MessageV2.WithParts[] | undefined
         if (!msgs?.length) return
 
-        // Safety: if the most recent user message is already a compacted
-        // notification (sequential compact calls before a new summary),
-        // skip — nothing to prune, model hasn't had a chance to respond.
+        // Already compacted?
         let alreadyCompacted = false
         for (let i = msgs.length - 1; i >= 0; i--) {
           if (msgs[i].info.role === "user") {
             alreadyCompacted = msgs[i].parts.some(
-              (p: any) => p.type === "text" && p.text?.includes("context has been compacted"),
+              (p: any) => p.type === "text" && p.text?.includes("=== COMPACTED ==="),
             )
             break
           }
         }
-        if (alreadyCompacted) {
-          log.info("compact skipped — already compacted, awaiting new summary", {
-            sessionID: input.sessionID,
-          })
-          return
-        }
+        if (alreadyCompacted) return
 
-        let lastSummaryIndex = -1
-        let summaryAssistantId: string | null = null
-        for (let i = msgs.length - 1; i >= 0; i--) {
-          if (msgs[i].info.role === "assistant" && msgs[i].info.summary) {
-            summaryAssistantId = msgs[i].info.id
-            // Keep from the user message that requested this summary,
-            // so the summary request+response pair is preserved together.
-            lastSummaryIndex = i > 0 && msgs[i - 1].info.role === "user" ? i - 1 : i
-            break
+        // Collect all summaries
+        const summaries: string[] = []
+        let latestSummaryIdx = -1
+        for (let i = 0; i < msgs.length; i++) {
+          const m = msgs[i]
+          if (m.info.role === "assistant" && (m.info as any).summary) {
+            const text = m.parts
+              .filter((p: any) => p.type === "text")
+              .map((p: any) => p.text)
+              .join("\n")
+            if (text) summaries.push(text)
+            latestSummaryIdx = i
           }
         }
 
-        // With summaries: keep from the latest summary onward.
-        // If the tail exceeds ~30K tokens, walk forward and trim older
-        // tail messages. Counts ALL content: text + reasoning + tool outputs.
-        // Without summaries (old projects): trim to ~30K tokens.
-        const CHARS_PER_TOKEN = 4
-        const hasSummary = lastSummaryIndex >= 0
-        let keepFrom: number
-
-        const contentChars = (msgs: MessageV2.WithParts[]) => {
-          let chars = 0
-          for (const m of msgs) {
-            for (const p of m.parts) {
-              if (p.type === "text" && !(p as any).ignored) chars += (p as any).text?.length ?? 0
-              else if (p.type === "reasoning") chars += (p as any).text?.length ?? 0
-              else if (p.type === "tool" && p.state?.status === "completed") chars += (p.state as any).output?.length ?? 0
-            }
-          }
-          return chars
-        }
-
-        if (hasSummary) {
-          keepFrom = lastSummaryIndex
-          const tailTokens = contentChars(msgs.slice(keepFrom)) / CHARS_PER_TOKEN
-          if (tailTokens > SUMMARY_INTERVAL_TOKENS) {
-            // Walk forward trimming from AFTER the summary pair.
-            // The summary user+assistant are always preserved.
-            const summaryEnd = lastSummaryIndex + 2 // skip summary user + assistant
-            for (let i = summaryEnd; i < msgs.length; i++) {
-              if (contentChars(msgs.slice(i)) / CHARS_PER_TOKEN <= SUMMARY_INTERVAL_TOKENS) {
-                keepFrom = i
-                break
+        // Take the tail after the latest summary (or last ~30K if no summary)
+        const tailStart = latestSummaryIdx >= 0
+          ? latestSummaryIdx + 1 // skip summary assistant, keep everything after
+          : (() => {
+              // Walk back to find ~30K token boundary
+              let chars = 0
+              for (let i = msgs.length - 1; i >= 0; i--) {
+                chars += contentChars([msgs[i]])
+                if (chars >= SUMMARY_INTERVAL_TOKENS * CHARS_PER_TOKEN) return i
               }
-            }
-          }
-        } else {
-          keepFrom = 0
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            if (contentChars(msgs.slice(i)) / CHARS_PER_TOKEN >= SUMMARY_INTERVAL_TOKENS) {
-              keepFrom = i
-              break
-            }
-          }
+              return 0
+            })()
+
+        const tail = msgs.slice(tailStart)
+        const tailText = tail
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+
+        // Build the compacted message*: summaries + tail content
+        const combined = [
+          "=== COMPACTED ===",
+          ...summaries.map((s, i) => `--- Summary ${i + 1} ---\n${s}`),
+          `--- Recent ---\n${tailText}`,
+        ].join("\n\n")
+
+        // Mark all messages before tailStart as compacted
+        let compacted = 0
+        const end = Math.min(tailStart, msgs.length)
+        for (let i = 0; i < end; i++) {
+          if (!msgs[i]) continue
+          msgs[i].info.compacted = true
+          yield* session.updateMessage(msgs[i].info)
+          compacted++
         }
-        const toRemove = msgs.slice(0, keepFrom)
 
-        if (toRemove.length > 0) {
-          for (const msg of toRemove) {
-            msg.info.compacted = true
-            yield* session.updateMessage(msg.info)
-          }
-          log.info("compacted", { compacted: toRemove.length, kept: msgs.length - toRemove.length })
-        }
-
-        // Collect tail message IDs (kept messages after the boundary)
-        const kept = msgs.slice(keepFrom)
-        const tailIds = kept
-          .filter((m) => !m.info.summary) // exclude summary assistants from tail listing
-          .map((m) => m.info.id)
-
+        // Inject message* as a new user message
         const msg = yield* session.updateMessage({
           id: MessageID.ascending(),
           role: "user",
@@ -254,38 +171,32 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           messageID: msg.id,
           sessionID: msg.sessionID,
           type: "text",
-          text: compactedMessage(summaryAssistantId, tailIds, input.sessionID),
+          text: combined,
           synthetic: true,
         })
 
+        log.info("compacted", { compacted, kept: msgs.length - compacted, summaries: summaries.length })
         yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })
       })
 
+    /** Inject a summary request for the current message range. */
     const injectSummaryRequest = (input: {
       sessionID: SessionID
       model: { providerID: ProviderID; modelID: ModelID }
       agent: string
     }) =>
       Effect.gen(function* () {
-        // Find the message range being summarized:
-        // from = first message after last summary (or first message overall)
-        // to = last message before this summary request
-        const msgs: MessageV2.WithParts[] | undefined = yield* session
-          .messages({ sessionID: input.sessionID })
-          .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)))
+        const msgs = (yield* session.messages({ sessionID: input.sessionID }).pipe(
+          Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
+        )) as MessageV2.WithParts[] | undefined
 
         let fromId = "start"
         let toId = "end"
         if (msgs?.length) {
-          // Find last summary boundary
           let lastSummaryIdx = -1
           for (let i = msgs.length - 1; i >= 0; i--) {
-            if (msgs[i].info.role === "assistant" && msgs[i].info.summary) {
-              lastSummaryIdx = i
-              break
-            }
+            if (msgs[i].info.role === "assistant" && msgs[i].info.summary) { lastSummaryIdx = i; break }
           }
-          // from = first message after last summary (or first message)
           const fromIdx = lastSummaryIdx >= 0 ? lastSummaryIdx + 1 : 0
           fromId = msgs[fromIdx]?.info.id ?? "start"
           toId = msgs[msgs.length - 1]?.info.id ?? "end"

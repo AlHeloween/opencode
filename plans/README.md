@@ -1,6 +1,7 @@
 # Plans
 
 Active plans. Completed plans move to `plans_completed/`.
+Superseded / deferred designs live in `abstract_futures/` (do not implement from there).
 
 ## Testing Convention
 
@@ -12,12 +13,13 @@ Active plans. Completed plans move to `plans_completed/`.
 
 | Plan | Status |
 |------|--------|
-| `20260714_reasoning_kernel_taxonomy_compaction.md` | Active — taxonomy, compiler oracles, and KV-cache integration remain |
+| `20260714_reasoning_kernel_taxonomy_compaction.md` | Active — remaining oracles, discipline packs, checkpoint migration |
 | `2026-07-16-tui-startup-parallelization.md` | Active — validated, ready for implementation |
-| `zig-0.16-migration.md` | Active — still on Zig 0.15.2 / uucode pre-v0.2 |
-| `zig-0.16-source-fixes.md` | Active — blocked on Zig 0.16 build migration |
 | `emergency/2026-07-16-tui-cpu-performance-audit.md` | Active audit — delta debounce landed; idle CPU drivers remain |
-| `abstract_futures/` | Superseded ideas only — do not implement from here |
+
+## Abstract futures (not active)
+
+See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes.
 
 ## Recently completed → `plans_completed/`
 

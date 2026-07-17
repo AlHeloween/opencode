@@ -92,8 +92,10 @@ export const layer = Layer.effect(
         const defaults = Permission.fromConfig({
           "*": "allow",
           doom_loop: "ask",
-          // Constitution DESTRUCTIVE shell — must stay "ask" after "*" so wildcard allow cannot skip it
-          destructive: "ask",
+          // Constitution DESTRUCTIVE shell (rm -rf, force-push, reset --hard, …).
+          // Must be deny (not allow) after "*" so bash:* / wildcard cannot skip it.
+          // Normal bash/cmd/PowerShell commands stay allowed via "*".
+          destructive: "deny",
           external_directory: {
             "*": "ask",
             ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
@@ -169,7 +171,7 @@ export const layer = Layer.effect(
                   [path.join("plans", "*")]: "allow",
                 },
                 bash: "allow",
-                destructive: "ask",
+                // inherits defaults.destructive = deny (constitution)
                 task: "allow",
                 todowrite: "deny",
                 read: "allow",

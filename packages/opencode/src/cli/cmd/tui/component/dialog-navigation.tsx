@@ -21,6 +21,20 @@ type PolicyAction = "ask" | "allow" | "deny"
 const POLICY_ACTIONS: PolicyAction[] = ["ask", "allow", "deny"]
 const EXT_MODES: ExternalDirMode[] = ["ask", "allow", "deny"]
 
+/**
+ * Runtime defaults when config.permission omits a key (see agent.ts defaults).
+ * "*" allows tools; only constitution DESTRUCTIVE is denied by default.
+ */
+const TOOL_DEFAULTS: Record<string, PolicyAction> = {
+  destructive: "deny",
+  bash: "allow",
+  edit: "allow",
+  doom_loop: "ask",
+  webfetch: "allow",
+  messagesearch: "allow",
+  "session-read": "allow",
+}
+
 /** Tool policies shown in /permissions — persisted via config.permission. */
 const TOOL_POLICIES: {
   key: string
@@ -31,10 +45,14 @@ const TOOL_POLICIES: {
   {
     key: "destructive",
     label: "Destructive shell",
-    hint: "rm -rf, git push --force, reset --hard (constitution)",
+    hint: "rm -rf, force-push, reset --hard — denied by default (not covered by bash:*)",
     danger: true,
   },
-  { key: "bash", label: "Bash / shell", hint: "Normal shell commands" },
+  {
+    key: "bash",
+    label: "Shell",
+    hint: "bash tool (auto: bash / PowerShell / cmd) + Windows cmd tool (same permission)",
+  },
   { key: "edit", label: "Edit / write", hint: "File mutations (edit, write, patch)" },
   { key: "doom_loop", label: "Doom loop", hint: "Continue after repeated tool failures" },
   { key: "webfetch", label: "Web fetch", hint: "Outbound HTTP" },
@@ -116,17 +134,21 @@ export function DialogPermissions() {
 
   const allRows = createMemo(() => [...POLICY_ROWS, ...FOOTER_ROWS])
 
-  /** Resolve config.permission[key] to ask|allow|deny (object rules → first * or ask). */
+  /**
+   * Resolve config.permission[key] to ask|allow|deny.
+   * When the key is omitted, show the runtime default (agent.ts), not "ask".
+   */
   const toolPolicyFromConfig = (key: string): PolicyAction => {
+    const fallback = TOOL_DEFAULTS[key] ?? "allow"
     const perm = (sync.data.config as any)?.permission
-    if (!perm || typeof perm !== "object") return "ask"
+    if (!perm || typeof perm !== "object") return fallback
     const rule = perm[key]
     if (rule === "allow" || rule === "deny" || rule === "ask") return rule
     if (rule && typeof rule === "object" && typeof rule["*"] === "string") {
       const a = rule["*"]
       if (a === "allow" || a === "deny" || a === "ask") return a
     }
-    return "ask"
+    return fallback
   }
 
   const extModeFromConfig = (): ExternalDirMode => {

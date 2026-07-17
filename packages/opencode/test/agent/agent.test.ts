@@ -443,6 +443,20 @@ test("default permission includes doom_loop and external_directory as ask", asyn
   })
 })
 
+test("destructive is denied by default; normal tools allowed", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const build = await load(tmp.path, (svc) => svc.get("build"))
+      expect(evalPerm(build, "destructive")).toBe("deny")
+      expect(evalPerm(build, "bash")).toBe("allow")
+      expect(evalPerm(build, "edit")).toBe("allow")
+      expect(evalPerm(build, "webfetch")).toBe("allow")
+    },
+  })
+})
+
 test("webfetch is allowed by default", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({

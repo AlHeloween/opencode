@@ -19,24 +19,25 @@ import { gte } from "drizzle-orm"
 import { isNull } from "drizzle-orm"
 import { isNotNull } from "drizzle-orm"
 import { desc } from "drizzle-orm"
+import { asc } from "drizzle-orm"
 import { like } from "drizzle-orm"
 import { inArray } from "drizzle-orm"
 import { lt } from "drizzle-orm"
 import { SyncEvent } from "../sync"
 import type { SQL } from "drizzle-orm"
-import { PartTable, SessionTable } from "./session.sql"
+import { MessageTable, PartTable, SessionTable } from "./session.sql"
 import { ProjectTable } from "../project/project.sql"
 import { Storage } from "@/storage/storage"
 import * as Log from "@opencode-ai/core/util/log"
 import { MessageV2 } from "./message-v2"
 import { Instance } from "../project/instance"
+import { getProjectWorktrees, normalizeWorktreePath } from "../project/project"
 import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
 import { ProjectID } from "../project/schema"
 import { WorkspaceID } from "../control-plane/schema"
 import { SessionID, MessageID, PartID } from "./schema"
 import { ModelID } from "../provider/schema"
-import { getProjectWorktrees } from "../project/project"
 
 import type { Provider } from "@/provider/provider"
 import { Permission } from "@/permission"
@@ -54,10 +55,107 @@ function createDefaultTitle(isChild = false) {
   return (isChild ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString()
 }
 
+/** True for auto-generated placeholder titles (including forked placeholders). */
 export function isDefaultTitle(title: string) {
   return new RegExp(
-    `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$`,
+    `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z( \\(fork #\\d+\\))?$`,
   ).test(title)
+}
+
+/**
+ * Build a human session title from the first user prompt text.
+ * Strips the UTC trailer appended for KV-cache dating and collapses whitespace.
+ */
+export function titleFromUserText(text: string): string | undefined {
+  const cleaned = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\n\nUTC:\s*\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*$/m, "")
+    .replace(/\s*UTC:\s*\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*/g, " ")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  if (!cleaned) return
+  return cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+}
+
+/** Path spellings that should match a session.directory after moves / OS differences. */
+export function directoryMatchVariants(directory: string): string[] {
+  const n = normalizeWorktreePath(directory)
+  const set = new Set<string>([directory, n, path.normalize(directory)])
+  if (process.platform === "win32") {
+    set.add(n.replace(/\\/g, "/"))
+    set.add(n.replace(/\//g, "\\"))
+    // Drive letter case
+    if (/^[a-zA-Z]:/.test(n)) {
+      set.add(n[0].toLowerCase() + n.slice(1))
+      set.add(n[0].toUpperCase() + n.slice(1))
+    }
+  }
+  return [...set].filter(Boolean)
+}
+
+/** First non-synthetic user text (or subtask prompts) as a display title. */
+export function titleFromUserParts(
+  parts: ReadonlyArray<{ type: string; text?: string; prompt?: string; synthetic?: boolean; ignored?: boolean }>,
+): string | undefined {
+  const texts: string[] = []
+  const subtasks: string[] = []
+  for (const part of parts) {
+    if (part.type === "text" && part.text && !part.synthetic && !part.ignored) texts.push(part.text)
+    if (part.type === "subtask" && part.prompt) subtasks.push(part.prompt)
+  }
+  if (texts.length > 0) return titleFromUserText(texts.join(" "))
+  if (subtasks.length > 0) return titleFromUserText(subtasks.join(" "))
+  return
+}
+
+/**
+ * Look up the first real user prompt for a session and derive a title.
+ * Used to recover list labels when auto-title never ran or failed.
+ */
+export function firstUserTitle(sessionID: SessionID): string | undefined {
+  return projectDb((db) => {
+    const rows = db
+      .select()
+      .from(MessageTable)
+      .where(eq(MessageTable.session_id, sessionID))
+      .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
+      .limit(40)
+      .all()
+    for (const row of rows) {
+      const role = (row.data as { role?: string }).role
+      if (role !== "user") continue
+      const parts = db
+        .select()
+        .from(PartTable)
+        .where(eq(PartTable.message_id, row.id))
+        .orderBy(asc(PartTable.time_created), asc(PartTable.id))
+        .all()
+      const shaped = parts.map((p) => {
+        const d = p.data as {
+          type: string
+          text?: string
+          prompt?: string
+          synthetic?: boolean
+          ignored?: boolean
+        }
+        return {
+          type: d.type,
+          text: d.text,
+          prompt: d.prompt,
+          synthetic: d.synthetic,
+          ignored: d.ignored,
+        }
+      })
+      // Skip fully synthetic user rows (system-injected).
+      if (shaped.length > 0 && shaped.every((p) => p.synthetic || p.type !== "text")) {
+        if (!shaped.some((p) => p.type === "subtask" && p.prompt)) continue
+      }
+      const title = titleFromUserParts(shaped)
+      if (title) return title
+    }
+    return
+  })
 }
 
 type SessionRow = typeof SessionTable.$inferSelect
@@ -522,7 +620,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
         slug: Slug.create(),
         version: InstallationVersion,
         projectID: ctx.project.id,
-        directory: input.directory,
+        directory: normalizeWorktreePath(input.directory),
         workspaceID: input.workspaceID,
         parentID: input.parentID,
         title: input.title ?? createDefaultTitle(!!input.parentID),
@@ -869,7 +967,10 @@ export function* list(input?: {
   }
   if (!Flag.OPENCODE_EXPERIMENTAL_WORKSPACES) {
     if (input?.directory) {
-      conditions.push(eq(SessionTable.directory, input.directory))
+      // SDK always injects the launch directory. Match path variants so a move
+      // (or slash/case differences) does not hide sessions before remap lands.
+      const variants = directoryMatchVariants(input.directory)
+      conditions.push(variants.length === 1 ? eq(SessionTable.directory, variants[0]) : inArray(SessionTable.directory, variants))
     }
   }
   if (input?.roots) {
@@ -893,7 +994,25 @@ export function* list(input?: {
       .limit(limit)
       .all(),
   )
-  for (const row of rows) { yield fromRow(row) }
+  for (const row of rows) {
+    const info = fromRow(row)
+    // Recover list labels for sessions stuck on "New session - <iso>" so restore/switch
+    // shows the same kind of first-prompt identity the fork timeline already shows.
+    if (isDefaultTitle(info.title)) {
+      const recovered = firstUserTitle(info.id)
+      if (recovered) {
+        try {
+          SyncEvent.run(Event.Updated, { sessionID: info.id, info: { title: recovered } })
+          info.title = recovered
+        } catch (err) {
+          // List must still return; SyncEvent may be unavailable outside a project context.
+          log.warn("session list title recover failed", { sessionID: info.id, error: err })
+          info.title = recovered
+        }
+      }
+    }
+    yield info
+  }
 }
 
 export function* listGlobal(input?: {
@@ -908,7 +1027,10 @@ export function* listGlobal(input?: {
   const limit = input?.limit ?? 100
 
   const conditions: SQL[] = []
-  if (input?.directory) { conditions.push(eq(SessionTable.directory, input.directory)) }
+  if (input?.directory) {
+    const variants = directoryMatchVariants(input.directory)
+    conditions.push(variants.length === 1 ? eq(SessionTable.directory, variants[0]) : inArray(SessionTable.directory, variants))
+  }
   if (input?.roots) { conditions.push(isNull(SessionTable.parent_id)) }
   if (input?.start) { conditions.push(gte(SessionTable.time_updated, input.start)) }
   if (input?.cursor) { conditions.push(lt(SessionTable.time_updated, input.cursor)) }

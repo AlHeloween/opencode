@@ -181,60 +181,89 @@ export const layer = Layer.effect(
       modelID: ModelID
     }) {
       if (input.session.parentID) return
-      if (!Session.isDefaultTitle(input.session.title)) return
 
       const real = (m: MessageV2.WithParts) =>
         m.info.role === "user" && !m.parts.every((p) => "synthetic" in p && p.synthetic)
       const idx = input.history.findIndex(real)
       if (idx === -1) return
-      if (input.history.filter(real).length !== 1) return
 
       const context = input.history.slice(0, idx + 1)
       const firstUser = context[idx]
       if (!firstUser || firstUser.info.role !== "user") return
       const firstInfo = firstUser.info
 
+      // Always recoverable from the first real user prompt (fork timeline already shows this).
+      const provisional = Session.titleFromUserParts(firstUser.parts)
+      const stillDefault = Session.isDefaultTitle(input.session.title)
+      const stillProvisional = !!provisional && input.session.title === provisional
+      // Only (re)title while still placeholder or the early provisional we set ourselves.
+      if (!stillDefault && !stillProvisional) return
+      if (!provisional && stillDefault) return
+
       const subtasks = firstUser.parts.filter((p): p is MessageV2.SubtaskPart => p.type === "subtask")
       const onlySubtasks = subtasks.length > 0 && firstUser.parts.every((p) => p.type === "subtask")
 
+      // Prefer a short LLM title; fall back to the first user prompt so the session list
+      // never stays stuck on "New session - <iso>" (restore/switch was unusable vs fork).
+      let next = provisional
       const ag = yield* agents.get("title")
-      if (!ag) return
-      const mdl = ag.model
-        ? yield* provider.getModel(ag.model.providerID, ag.model.modelID)
-        : ((yield* provider.getSmallModel(input.providerID)) ??
-          (yield* provider.getModel(input.providerID, input.modelID)))
-      const msgs = onlySubtasks
-        ? [{ role: "user" as const, content: subtasks.map((p) => p.prompt).join("\n") }]
-        : yield* MessageV2.toModelMessagesEffect(context, mdl)
-      const text = yield* llm
-        .stream({
-          agent: ag,
-          user: firstInfo,
-          system: [],
-          small: true,
-          tools: {},
-          model: mdl,
-          sessionID: input.session.id,
-          retries: 2,
-          outputTokenMax: 512,
-          messages: [{ role: "user", content: "Generate a title for this conversation:\n" }, ...msgs],
-        })
-        .pipe(
-          Stream.filter((e): e is Extract<LLM.Event, { type: "text-delta" }> => e.type === "text-delta"),
-          Stream.map((e) => e.text),
-          Stream.mkString,
-          Effect.orDie,
-        )
-      const cleaned = text
-        .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
-        .split("\n")
-        .map((line) => line.trim())
-        .find((line) => line.length > 0)
-      if (!cleaned) return
-      const t = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+      if (ag) {
+        const mdl = yield* Effect.gen(function* () {
+          if (ag.model) return yield* provider.getModel(ag.model.providerID, ag.model.modelID)
+          const small = yield* provider.getSmallModel(input.providerID)
+          if (small) return small
+          return yield* provider.getModel(input.providerID, input.modelID)
+        }).pipe(Effect.catchCause(() => Effect.succeed(undefined as Provider.Model | undefined)))
+        if (mdl) {
+          const msgs = onlySubtasks
+            ? [{ role: "user" as const, content: subtasks.map((p) => p.prompt).join("\n") }]
+            : yield* MessageV2.toModelMessagesEffect(context, mdl).pipe(
+                Effect.catchCause((cause) => {
+                  elog.error("title model messages failed", { error: Cause.squash(cause) })
+                  return Effect.succeed([] as ModelMessage[])
+                }),
+              )
+          if (msgs.length > 0 || onlySubtasks) {
+            const text = yield* llm
+              .stream({
+                agent: ag,
+                user: firstInfo,
+                system: [],
+                small: true,
+                tools: {},
+                model: mdl,
+                sessionID: input.session.id,
+                retries: 2,
+                outputTokenMax: 512,
+                messages: [{ role: "user", content: "Generate a title for this conversation:\n" }, ...msgs],
+              })
+              .pipe(
+                Stream.filter((e): e is Extract<LLM.Event, { type: "text-delta" }> => e.type === "text-delta"),
+                Stream.map((e) => e.text),
+                Stream.mkString,
+                Effect.catchCause((cause) => {
+                  elog.error("title generation failed", { error: Cause.squash(cause) })
+                  return Effect.succeed("")
+                }),
+              )
+            const cleaned = text
+              .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+              .split("\n")
+              .map((line) => line.trim())
+              .find((line) => line.length > 0)
+            if (cleaned) {
+              next = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+            }
+          }
+        }
+      } else if (stillDefault && provisional) {
+        elog.debug("title agent missing; using first user prompt as title")
+      }
+
+      if (!next || next === input.session.title) return
       yield* sessions
-        .setTitle({ sessionID: input.session.id, title: t })
-        .pipe(Effect.catchCause((cause) => elog.error("failed to generate title", { error: Cause.squash(cause) })))
+        .setTitle({ sessionID: input.session.id, title: next })
+        .pipe(Effect.catchCause((cause) => elog.error("failed to set title", { error: Cause.squash(cause) })))
     })
 
     const insertReminders = Effect.fn("SessionPrompt.insertReminders")(function* (input: {
@@ -1109,6 +1138,21 @@ You should build your plan incrementally by writing to or editing this file. NOT
         yield* revert.cleanup(session)
         const message = yield* createUserMessage(input)
         yield* sessions.touch(input.sessionID)
+
+        // Immediate list label from first user prompt (before assistant finishes / LLM title).
+        // LLM polish still runs via ensureTitle on first stop while title is provisional.
+        if (!session.parentID && Session.isDefaultTitle(session.title)) {
+          const provisional = Session.titleFromUserParts(message.parts)
+          if (provisional) {
+            yield* sessions
+              .setTitle({ sessionID: session.id, title: provisional })
+              .pipe(
+                Effect.catchCause((cause) =>
+                  elog.error("failed to set provisional title", { error: Cause.squash(cause) }),
+                ),
+              )
+          }
+        }
 
         const permissions: Permission.Ruleset = []
         for (const [t, enabled] of Object.entries(input.tools ?? {})) {

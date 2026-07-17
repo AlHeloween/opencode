@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test"
-import { Project, importFromDisk, list as listProjects, Info } from "@/project/project"
+import {
+  Project,
+  importFromDisk,
+  list as listProjects,
+  Info,
+  remapWorktreePath,
+  normalizeWorktreePath,
+  persistDiscovery,
+} from "@/project/project"
 import * as Log from "@opencode-ai/core/util/log"
 import { $ } from "bun"
 import * as fs from "fs/promises"
@@ -7,6 +15,7 @@ import path from "path"
 import { tmpdir } from "../fixture/fixture"
 import { GlobalBus } from "../../src/bus/global"
 import { ProjectID } from "../../src/project/schema"
+import { SessionID } from "../../src/session/schema"
 import { Effect, Layer, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { NodePath } from "@effect/platform-node"
@@ -14,6 +23,9 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Database } from "@/storage/db"
 import { ProjectTable } from "@/project/project.sql"
+import { SessionTable } from "@/session/session.sql"
+import { directoryMatchVariants } from "@/session/session"
+import { eq } from "drizzle-orm"
 
 Log.init()
 
@@ -108,7 +120,7 @@ describe("Project.fromDirectory", () => {
     expect(project.worktree).toBe(tmp.path)
   })
 
-  test("keeps git root for subdirectory without local opencode boundary", async () => {
+  test("uses launch directory when subdirectory has no local git or opencode boundary", async () => {
     await using tmp = await tmpdir({ git: true })
     const child = path.join(tmp.path, "child")
     await fs.mkdir(child)
@@ -116,8 +128,9 @@ describe("Project.fromDirectory", () => {
     const { project, sandbox } = await run((svc) => svc.fromDirectory(child))
 
     expect(project.id).not.toBe(ProjectID.global)
-    expect(project.worktree).toBe(tmp.path)
-    expect(sandbox).toBe(tmp.path)
+    // Launch directory is the sandbox boundary — discovery must not walk up to parent .git
+    expect(project.worktree).toBe(child)
+    expect(sandbox).toBe(child)
   })
 
   test("uses local opencode boundary inside parent git repo", async () => {
@@ -695,5 +708,112 @@ describe("importFromDisk", () => {
     // No .opencode/data directory at all
     const result = importFromDisk(tmp.path)
     expect(result).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Worktree relocate (project folder moved)
+// ---------------------------------------------------------------------------
+
+describe("worktree relocate", () => {
+  test("remapWorktreePath rewrites root and nested paths", () => {
+    const from = path.join("D:", "old", "proj")
+    const to = path.join("E:", "new", "proj")
+    expect(remapWorktreePath(from, from, to)).toBe(normalizeWorktreePath(to))
+    expect(remapWorktreePath(path.join(from, "src", "a.ts"), from, to)).toBe(
+      normalizeWorktreePath(path.join(to, "src", "a.ts")),
+    )
+    expect(remapWorktreePath(path.join("C:", "other"), from, to)).toBe(path.join("C:", "other"))
+  })
+
+  test("directoryMatchVariants includes normalized forms", () => {
+    const dir = path.join("D:", "zPython", "opencode")
+    const variants = directoryMatchVariants(dir)
+    expect(variants).toContain(normalizeWorktreePath(dir))
+    expect(variants.length).toBeGreaterThan(0)
+  })
+
+  test("persistDiscovery rewrites session.directory when worktree moves", async () => {
+    await using tmp = await tmpdir()
+    const oldPath = path.join(tmp.path, "old-location")
+    const newPath = path.join(tmp.path, "new-location")
+    await fs.mkdir(oldPath, { recursive: true })
+    await fs.mkdir(newPath, { recursive: true })
+
+    const projectID = ProjectID.make("test-relocate-project-id")
+    // Open DB under new path (portable: user moved the whole folder including .opencode)
+    const db = Database.getProjectDb(projectID, newPath)
+    db.insert(ProjectTable)
+      .values({
+        id: projectID,
+        worktree: oldPath,
+        vcs: null,
+        time_created: Date.now(),
+        time_updated: Date.now(),
+        sandboxes: [path.join(oldPath, "sandbox-a")],
+      })
+      .run()
+
+    const sessionID = SessionID.descending()
+    db.insert(SessionTable)
+      .values({
+        id: sessionID,
+        project_id: projectID,
+        directory: oldPath,
+        title: "Moved project chat",
+        version: "test",
+        slug: "moved",
+        time_created: Date.now(),
+        time_updated: Date.now(),
+      })
+      .run()
+
+    await Database.withProject(projectID, newPath, async () => {
+      persistDiscovery(
+        {
+          id: projectID,
+          worktree: newPath,
+          sandboxes: [],
+          time: { created: Date.now(), updated: Date.now() },
+        },
+        newPath,
+      )
+    })
+
+    const project = db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get()
+    expect(project?.worktree).toBe(normalizeWorktreePath(newPath))
+
+    const session = db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get()
+    expect(session?.directory).toBe(normalizeWorktreePath(newPath))
+    expect(session?.project_id).toBe(projectID)
+
+    // Sandbox path remapped under new root
+    const sandboxes = project?.sandboxes ?? []
+    expect(sandboxes.some((s) => s.includes("sandbox-a") && s.startsWith(normalizeWorktreePath(newPath)))).toBe(true)
+
+    Database.closeProjectDb(projectID)
+  })
+
+  test("importFromDisk keeps stable id after folder rename (path-hash projects)", async () => {
+    await using tmp = await tmpdir()
+    const stableID = ProjectID.make("stable-path-hash-id-xyz")
+    const db = Database.getProjectDb(stableID, tmp.path)
+    db.insert(ProjectTable)
+      .values({
+        id: stableID,
+        worktree: path.join("Z:", "previous", "place"),
+        vcs: null,
+        time_created: Date.now(),
+        time_updated: Date.now(),
+        sandboxes: [],
+      })
+      .run()
+    Database.closeProjectDb(stableID)
+
+    const imported = importFromDisk(tmp.path)
+    expect(imported).toBeDefined()
+    expect(imported!.id).toBe(stableID)
+    // importFromDisk returns stored worktree; discovery rewrites launch path separately
+    expect(imported!.worktree).toBe(path.join("Z:", "previous", "place"))
   })
 })

@@ -34,6 +34,40 @@ export function clearProjectWorktrees(): void {
   projectWorktrees.clear()
 }
 
+/** Normalize a worktree/session directory for stable compare and storage. */
+export function normalizeWorktreePath(p: string): string {
+  const n = path.normalize(p)
+  // Strip trailing separators except root (C:\ or /)
+  if (n.length > 1 && (n.endsWith(path.sep) || n.endsWith("/") || n.endsWith("\\"))) {
+    return n.replace(/[/\\]+$/, "")
+  }
+  return n
+}
+
+/**
+ * Rewrite an absolute path that lived under `from` so it lives under `to`.
+ * Used when the whole project tree is relocated (portable data under worktree).
+ */
+export function remapWorktreePath(value: string, from: string, to: string): string {
+  const v = normalizeWorktreePath(value)
+  const f = normalizeWorktreePath(from)
+  const t = normalizeWorktreePath(to)
+  if (v === f) return t
+  const sep = path.sep
+  if (v.startsWith(f + sep) || v.startsWith(f + "/") || v.startsWith(f + "\\")) {
+    return normalizeWorktreePath(t + v.slice(f.length))
+  }
+  if (process.platform === "win32") {
+    const vl = v.toLowerCase()
+    const fl = f.toLowerCase()
+    if (vl === fl) return t
+    if (vl.startsWith(fl + "\\") || vl.startsWith(fl + "/")) {
+      return normalizeWorktreePath(t + v.slice(f.length))
+    }
+  }
+  return value
+}
+
 const ProjectVcs = Schema.Literal("git")
 
 const ProjectIcon = Schema.Struct({
@@ -238,19 +272,31 @@ export const layer: Layer.Layer<
 
       const data: DiscoveryResult = yield* Effect.gen(function* () {
         const local = importFromDisk(directory)
-        // Only trust a previously-imported project if it was discovered as git
-        // AND .git still exists within the launch directory boundary.
-        // Cached vcs: "git" can be stale if the project was moved or if a parent
-        // directory's .git was discovered during a prior run (fs.up now limits
-        // search to stop: directory, but cached records from earlier runs may
-        // reflect a wider search).
-        if (local && local.vcs === "git" && existsSync(pathSvc.join(directory, ".git"))) {
-          return {
-            id: local.id,
-            worktree: pathSvc.normalize(directory),
-            sandbox: pathSvc.normalize(directory),
-            vcs: local.vcs,
+        const launch = pathSvc.normalize(directory)
+        // Portable project DB lives under the worktree. When the folder is
+        // relocated, trust the on-disk project id so sessions stay visible —
+        // never re-hash the new absolute path into a different project id.
+        // Re-check .git only to refresh vcs; stale "git" without .git becomes non-git.
+        if (local) {
+          const hasGit = existsSync(pathSvc.join(directory, ".git"))
+          if (local.vcs === "git" && hasGit) {
+            return {
+              id: local.id,
+              worktree: launch,
+              sandbox: launch,
+              vcs: local.vcs,
+            }
           }
+          if (!hasGit) {
+            return {
+              id: local.id,
+              worktree: launch,
+              sandbox: launch,
+              vcs: fakeVcs,
+            }
+          }
+          // .git present but local wasn't marked git — fall through for full discovery,
+          // still prefer local.id below when root-commit discovery fails.
         }
 
         // Search for .git within the launch directory only — never walk up
@@ -260,18 +306,12 @@ export const layer: Layer.Layer<
         const dotgit = dotgitMatches[0]
 
         if (!dotgit) {
-          if (hasLocalProjectBoundary(directory)) {
-            return {
-              id: pathProjectID(directory),
-              worktree: pathSvc.normalize(directory),
-              sandbox: pathSvc.normalize(directory),
-              vcs: fakeVcs,
-            }
-          }
+          // Prefer stable id from portable DB when present (move-safe).
+          const id = local?.id ?? pathProjectID(directory)
           return {
-            id: pathProjectID(directory),
-            worktree: pathSvc.normalize(directory),
-            sandbox: pathSvc.normalize(directory),
+            id,
+            worktree: launch,
+            sandbox: launch,
             vcs: fakeVcs,
           }
         }
@@ -629,19 +669,39 @@ export function setInitialized(id: ProjectID) {
  * Reads the existing project row (if any) to preserve name/icon/timestamps,
  * merges with new discovery data, upserts, and migrates orphan sessions.
  * Must be called within a project context (Database.withProject).
+ *
+ * On worktree relocate (project folder moved): rewrites session.directory and
+ * sandbox paths from the old absolute root to the new one so session.list
+ * (which filters by directory from x-opencode-directory) still finds them.
  */
 export function persistDiscovery(result: Info, worktree: string) {
   Database.use((db) => {
-    // Read existing project row to preserve name/icon/timestamps
-    const row = db.select().from(ProjectTable).where(eq(ProjectTable.id, result.id)).get()
+    // Prefer the row that matches discovery id; fall back to any single project row
+    // (portable DB is one project — may still hold a pre-move path-hash id row).
+    const row =
+      db.select().from(ProjectTable).where(eq(ProjectTable.id, result.id)).get() ??
+      db.select().from(ProjectTable).get()
     const existing = row ? fromRow(row) : result
+
+    const oldWorktree = normalizeWorktreePath(existing.worktree)
+    const newWorktree = normalizeWorktreePath(result.worktree || worktree)
+    const relocated = oldWorktree !== newWorktree
+
+    const remappedSandboxes = [
+      ...new Set(
+        [...existing.sandboxes, ...result.sandboxes].map((s) =>
+          relocated ? remapWorktreePath(s, oldWorktree, newWorktree) : s,
+        ),
+      ),
+    ].filter((s) => s !== newWorktree)
 
     // Merge: preserve existing name/icon/timestamps, update worktree/vcs/sandboxes
     const merged: Info = {
       ...existing,
-      worktree: result.worktree,
+      id: result.id,
+      worktree: newWorktree,
       vcs: result.vcs,
-      sandboxes: [...new Set([...existing.sandboxes, ...result.sandboxes])],
+      sandboxes: remappedSandboxes,
       time: { ...existing.time, updated: Date.now() },
     }
 
@@ -665,17 +725,36 @@ export function persistDiscovery(result: Info, worktree: string) {
       })
       .run()
 
-    // Migrate orphan sessions to the discovered project ID.
-    // Covers: (a) sessions with global project ID (pre-discovery),
-    //         (b) sessions with a stale project ID from a prior discovery
-    //             that produced a different ID (e.g. path-hash vs git root-commit).
+    // Portable DB is single-project: drop any other identity rows (e.g. path-hash
+    // id written before move-safe discovery).
+    db.delete(ProjectTable).where(ne(ProjectTable.id, merged.id)).run()
+
+    if (relocated) {
+      // Rewrite session.directory so SDK directory filter matches the new location.
+      const sessions = db.select({ id: SessionTable.id, directory: SessionTable.directory }).from(SessionTable).all()
+      let rewritten = 0
+      for (const session of sessions) {
+        const next = remapWorktreePath(session.directory, oldWorktree, newWorktree)
+        if (next === session.directory) continue
+        db.update(SessionTable).set({ directory: next }).where(eq(SessionTable.id, session.id)).run()
+        rewritten++
+      }
+      if (rewritten > 0) {
+        log.info("rewrote session directories after worktree relocate", {
+          from: oldWorktree,
+          to: newWorktree,
+          count: rewritten,
+        })
+      }
+    }
+
+    // Migrate all sessions in this portable project DB to the discovered project ID.
+    // Do not require directory == new worktree — that failed after moves (old paths).
+    // Covers: (a) global project ID, (b) path-hash vs git root-commit, (c) relocate.
     if (merged.id !== ProjectID.global) {
       db.update(SessionTable)
         .set({ project_id: merged.id })
-        .where(and(
-          eq(SessionTable.directory, worktree),
-          ne(SessionTable.project_id, merged.id),
-        ))
+        .where(ne(SessionTable.project_id, merged.id))
         .run()
     }
   })

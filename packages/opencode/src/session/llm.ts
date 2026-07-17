@@ -256,10 +256,11 @@ const live: Layer.Layer<
           .join("\n"),
       )
 
-      // 3. Per-path env info + rules + skills + instructions — from prompt.ts.
+      // 3. Per-path skills + env + rules + instructions — from prompt.ts
+      //    (stable-first: most mutable AGENTS.md instructions last).
       //    On checkpoint: skip the stored identity prefix (systemPrompt[0])
       //    to avoid duplicating what was pushed above. The remaining entries
-      //    (env + rules + skills + instructions) slot after identity.
+      //    (skills + env + rules + instructions) slot after identity.
       const systemInput = isCheckpoint && input.system.length > 0
         ? input.system.slice(1)
         : input.system

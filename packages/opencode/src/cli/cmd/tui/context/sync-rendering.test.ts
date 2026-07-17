@@ -140,6 +140,203 @@ describe("Delta buffer accumulation", () => {
   })
 })
 
+describe("Part snapshot merge (anti-truncation)", () => {
+  // Mirrors mergePartSnapshot() in sync.tsx — keep longer delta-safe fields.
+  const DELTA_SAFE_FIELDS = new Set(["text", "output"])
+
+  function mergePartSnapshot(prev: Record<string, unknown>, incoming: Record<string, unknown>) {
+    const merged = { ...incoming }
+    for (const field of DELTA_SAFE_FIELDS) {
+      const prevVal = String((prev as any)?.[field] ?? "")
+      const incomingVal = String((incoming as any)?.[field] ?? "")
+      if (prevVal.length > incomingVal.length) {
+        ;(merged as any)[field] = prevVal
+      }
+    }
+    return merged
+  }
+
+  test("keeps longer client text when server snapshot lags", () => {
+    const prev = { id: "p1", type: "text", text: "Hello world" }
+    const incoming = { id: "p1", type: "text", text: "Hello", time: { start: 1 } }
+    const merged = mergePartSnapshot(prev, incoming)
+    expect(merged.text).toBe("Hello world")
+    expect(merged.time).toEqual({ start: 1 })
+  })
+
+  test("accepts longer server text", () => {
+    const prev = { id: "p1", type: "text", text: "Hello" }
+    const incoming = { id: "p1", type: "text", text: "Hello world!" }
+    const merged = mergePartSnapshot(prev, incoming)
+    expect(merged.text).toBe("Hello world!")
+  })
+
+  test("keeps longer tool output when server lags", () => {
+    const prev = { id: "p1", type: "tool", output: "line1\nline2\nline3" }
+    const incoming = { id: "p1", type: "tool", output: "line1\nline2", status: "running" }
+    const merged = mergePartSnapshot(prev, incoming)
+    expect(merged.output).toBe("line1\nline2\nline3")
+    expect(merged.status).toBe("running")
+  })
+
+  test("equal-length prefers server (no thrash)", () => {
+    const prev = { id: "p1", type: "text", text: "same!" }
+    const incoming = { id: "p1", type: "text", text: "same?" }
+    const merged = mergePartSnapshot(prev, incoming)
+    expect(merged.text).toBe("same?")
+  })
+
+  test("flush-then-merge: pending debounced deltas survive part.updated", () => {
+    // Simulate: store has "Hello ", runningDelta has "world", server sends "Hello"
+    const storeText = "Hello "
+    const pending = "world"
+    const clientTotal = storeText + pending
+    const server = { id: "p1", type: "text", text: "Hello" }
+    const afterFlush = { id: "p1", type: "text", text: clientTotal }
+    const merged = mergePartSnapshot(afterFlush, server)
+    expect(merged.text).toBe("Hello world")
+  })
+})
+
+describe("Debounced running delta batching", () => {
+  // Mirrors leading-edge + 25ms batch behavior in sync.tsx
+  type RunningDelta = Map<string, Map<string, string>>
+
+  function fieldKey(partID: string, field: string) {
+    return partID + ":" + field
+  }
+
+  function applyDeltaBurst(
+    store: Record<string, string>,
+    running: RunningDelta,
+    timers: Set<string>,
+    messageID: string,
+    partID: string,
+    field: string,
+    delta: string,
+  ) {
+    const hasTimer = timers.has(messageID)
+    if (!hasTimer) {
+      store[fieldKey(partID, field)] = (store[fieldKey(partID, field)] ?? "") + delta
+      timers.add(messageID)
+    } else {
+      let acc = running.get(messageID)
+      if (!acc) {
+        acc = new Map()
+        running.set(messageID, acc)
+      }
+      const key = fieldKey(partID, field)
+      acc.set(key, (acc.get(key) ?? "") + delta)
+    }
+  }
+
+  function flushRunning(store: Record<string, string>, running: RunningDelta, timers: Set<string>, messageID: string) {
+    timers.delete(messageID)
+    const batch = running.get(messageID)
+    running.delete(messageID)
+    if (!batch) return
+    for (const [key, text] of batch) {
+      store[key] = (store[key] ?? "") + text
+    }
+  }
+
+  test("first delta applies immediately; subsequent batch until flush", () => {
+    const store: Record<string, string> = {}
+    const running: RunningDelta = new Map()
+    const timers = new Set<string>()
+
+    applyDeltaBurst(store, running, timers, "m1", "p1", "text", "A")
+    applyDeltaBurst(store, running, timers, "m1", "p1", "text", "B")
+    applyDeltaBurst(store, running, timers, "m1", "p1", "text", "C")
+
+    expect(store["p1:text"]).toBe("A")
+    expect(running.get("m1")?.get("p1:text")).toBe("BC")
+
+    flushRunning(store, running, timers, "m1")
+    expect(store["p1:text"]).toBe("ABC")
+    expect(running.size).toBe(0)
+    expect(timers.has("m1")).toBe(false)
+  })
+
+  test("after flush, next delta is leading-edge again", () => {
+    const store: Record<string, string> = {}
+    const running: RunningDelta = new Map()
+    const timers = new Set<string>()
+
+    applyDeltaBurst(store, running, timers, "m1", "p1", "text", "A")
+    applyDeltaBurst(store, running, timers, "m1", "p1", "text", "B")
+    flushRunning(store, running, timers, "m1")
+    applyDeltaBurst(store, running, timers, "m1", "p1", "text", "C")
+
+    expect(store["p1:text"]).toBe("ABC")
+    expect(running.size).toBe(0)
+  })
+
+  test("part.removed drops only that part's pending keys", () => {
+    const running: RunningDelta = new Map()
+    running.set("m1", new Map([
+      ["p1:text", "foo"],
+      ["p2:text", "bar"],
+    ]))
+    const acc = running.get("m1")!
+    for (const key of [...acc.keys()]) {
+      if (key.startsWith("p1:")) acc.delete(key)
+    }
+    expect(acc.get("p1:text")).toBeUndefined()
+    expect(acc.get("p2:text")).toBe("bar")
+  })
+})
+
+describe("System prompt stable-first assembly order", () => {
+  // Mirrors prompt.ts non-checkpoint assembly:
+  // skills → env → rules → instructions (most mutable last for KV cache).
+  function assembleSystem(input: {
+    skills?: string
+    env: string[]
+    rules: string[]
+    instructions: string[]
+  }) {
+    return [
+      ...(input.skills ? [input.skills] : []),
+      ...input.env,
+      ...input.rules,
+      ...input.instructions,
+    ]
+  }
+
+  test("places instructions after skills/env/rules", () => {
+    const system = assembleSystem({
+      skills: "SKILLS",
+      env: ["ENV"],
+      rules: ["RULES"],
+      instructions: ["AGENTS.md"],
+    })
+    expect(system).toEqual(["SKILLS", "ENV", "RULES", "AGENTS.md"])
+  })
+
+  test("omits skills slot when skills are absent", () => {
+    const system = assembleSystem({
+      env: ["ENV"],
+      rules: ["RULES"],
+      instructions: ["AGENTS.md"],
+    })
+    expect(system).toEqual(["ENV", "RULES", "AGENTS.md"])
+  })
+
+  test("does not use rules-first order (KV-cache regression)", () => {
+    const system = assembleSystem({
+      skills: "SKILLS",
+      env: ["ENV"],
+      rules: ["RULES"],
+      instructions: ["AGENTS.md"],
+    })
+    // Historical buggy order was rules, env, skills, instructions
+    expect(system[0]).not.toBe("RULES")
+    expect(system[0]).toBe("SKILLS")
+    expect(system.at(-1)).toBe("AGENTS.md")
+  })
+})
+
 describe("Message cap eviction guard", () => {
   // Simulate hasActiveParts logic
   interface Part {
@@ -404,5 +601,60 @@ describe("Session store lifecycle cleanup", () => {
     }
 
     expect(recoveryTimers.size).toBe(0)
+  })
+
+  test("message.removed clears runningDelta, flush timers, and orphan buffers", () => {
+    const deltaBuffer = new Map<string, Map<string, string>>()
+    const runningDelta = new Map<string, Map<string, string>>()
+    const deltaFlushTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    const recoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    const parts: Record<string, unknown[]> = { [MID]: [{ id: PID }] }
+
+    deltaBuffer.set(MID, new Map([[PID, "x"]]))
+    runningDelta.set(MID, new Map([[`${PID}:text`, "y"]]))
+    const flushTimer = setTimeout(() => {}, 1000)
+    const recoveryTimer = setTimeout(() => {}, 1000)
+    deltaFlushTimers.set(MID, flushTimer)
+    recoveryTimers.set(MID, recoveryTimer)
+
+    // Simulate message.removed cleanup
+    delete parts[MID]
+    deltaBuffer.delete(MID)
+    const ft = deltaFlushTimers.get(MID)
+    if (ft) {
+      clearTimeout(ft)
+      deltaFlushTimers.delete(MID)
+    }
+    runningDelta.delete(MID)
+    const rt = recoveryTimers.get(MID)
+    if (rt) {
+      clearTimeout(rt)
+      recoveryTimers.delete(MID)
+    }
+
+    expect(parts[MID]).toBeUndefined()
+    expect(deltaBuffer.size).toBe(0)
+    expect(runningDelta.size).toBe(0)
+    expect(deltaFlushTimers.size).toBe(0)
+    expect(recoveryTimers.size).toBe(0)
+  })
+
+  test("message eviction clears runningDelta state", () => {
+    const runningDelta = new Map<string, Map<string, string>>()
+    const deltaFlushTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    runningDelta.set(MID, new Map([[`${PID}:text`, "pending"]]))
+    const t = setTimeout(() => {}, 1000)
+    deltaFlushTimers.set(MID, t)
+
+    // Simulate eviction cleanup
+    const ft = deltaFlushTimers.get(MID)
+    if (ft) {
+      clearTimeout(ft)
+      deltaFlushTimers.delete(MID)
+    }
+    runningDelta.delete(MID)
+
+    expect(runningDelta.size).toBe(0)
+    expect(deltaFlushTimers.size).toBe(0)
   })
 })

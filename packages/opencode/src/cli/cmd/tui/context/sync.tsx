@@ -127,6 +127,78 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     // Fields that may receive incremental text deltas (safe for string concatenation).
     const DELTA_SAFE_FIELDS = new Set(["text", "output"])
 
+    // Running delta accumulator for parts already in store (debounced to avoid
+    // per-token Solid store churn during streaming at 25–50 deltas/sec).
+    const runningDelta = new Map<string, Map<string, string>>()
+    const deltaFlushTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    const DELTA_DEBOUNCE_MS = 25
+
+    function clearDeltaFlushTimer(messageID: string) {
+      const flushTimer = deltaFlushTimers.get(messageID)
+      if (!flushTimer) return
+      clearTimeout(flushTimer)
+      deltaFlushTimers.delete(messageID)
+    }
+
+    function clearRunningDeltaState(messageID: string) {
+      clearDeltaFlushTimer(messageID)
+      runningDelta.delete(messageID)
+    }
+
+    /** Apply any debounced (not-yet-written) deltas into the Solid store immediately. */
+    function flushRunningDeltaNow(messageID: string) {
+      clearDeltaFlushTimer(messageID)
+      const deltaBatch = runningDelta.get(messageID)
+      if (!deltaBatch || deltaBatch.size === 0) {
+        runningDelta.delete(messageID)
+        return
+      }
+      runningDelta.delete(messageID)
+
+      const parts = store.part[messageID]
+      if (!parts) return
+
+      batch(() => {
+        for (const [key, deltaText] of deltaBatch) {
+          const colonIdx = key.lastIndexOf(":")
+          const partID = key.slice(0, colonIdx)
+          const field = key.slice(colonIdx + 1)
+          if (!DELTA_SAFE_FIELDS.has(field)) continue
+          const r = Binary.search(parts, partID, (p) => p.id)
+          if (!r.found) continue
+          setStore("part", messageID, produce((draft) => {
+            const part = draft[r.index]
+            const existing = (part as any)[field] ?? ""
+            ;(part as any)[field] = existing + deltaText
+          }))
+        }
+      })
+    }
+
+    /**
+     * Merge a server part.updated snapshot without truncating client-side
+     * delta-accumulated string fields. Server snapshots can lag behind
+     * message.part.delta events already applied (or about to be applied) locally.
+     */
+    function mergePartSnapshot(prev: Record<string, unknown>, incoming: Record<string, unknown>) {
+      const merged = { ...incoming }
+      for (const field of DELTA_SAFE_FIELDS) {
+        const prevVal = String((prev as any)?.[field] ?? "")
+        const incomingVal = String((incoming as any)?.[field] ?? "")
+        if (prevVal.length > incomingVal.length) {
+          ;(merged as any)[field] = prevVal
+        }
+      }
+      return merged
+    }
+
+    function scheduleDeltaFlush(messageID: string) {
+      if (deltaFlushTimers.has(messageID)) return
+      deltaFlushTimers.set(messageID, setTimeout(() => {
+        flushRunningDeltaNow(messageID)
+      }, DELTA_DEBOUNCE_MS))
+    }
+
     function pruneDeltaBuffer() {
       // Remove entries exceeding TTL
       const cutoff = Date.now() - DELTA_BUFFER_TTL_MS
@@ -200,6 +272,12 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           clearTimeout(timer)
           recoveryTimers.delete(mid)
         }
+        const flushTimer = deltaFlushTimers.get(mid)
+        if (flushTimer) {
+          clearTimeout(flushTimer)
+          deltaFlushTimers.delete(mid)
+        }
+        runningDelta.delete(mid)
       }
     }
 
@@ -465,9 +543,10 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
                     delete draft[oldest.id]
                   }),
                 )
-                // Cleanup delta buffer for evicted message
+                // Cleanup delta buffers for evicted message
                 deltaBuffer.delete(oldest.id)
                 deltaBufferTimestamps.delete(oldest.id)
+                clearRunningDeltaState(oldest.id)
               })
             }
           }
@@ -475,7 +554,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         }
         case "message.removed": {
           const messages = store.message[event.properties.sessionID]
-          const result = Binary.search(messages, event.properties.messageID, (m) => m.id)
+          const mid = event.properties.messageID
+          const result = Binary.search(messages, mid, (m) => m.id)
           if (result.found) {
             setStore(
               "message",
@@ -485,47 +565,48 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               }),
             )
           }
+          setStore("part", produce((draft) => { delete draft[mid] }))
+          deltaBuffer.delete(mid)
+          deltaBufferTimestamps.delete(mid)
+          clearRunningDeltaState(mid)
+          const recovery = recoveryTimers.get(mid)
+          if (recovery) {
+            clearTimeout(recovery)
+            recoveryTimers.delete(mid)
+          }
           break
         }
         case "message.part.updated": {
-          const parts = store.part[event.properties.part.messageID]
+          const messageID = event.properties.part.messageID
+          // Apply any debounced client deltas first so the store is at least
+          // as complete as the client has seen, then merge the server snapshot
+          // without truncating longer delta-accumulated string fields.
+          flushRunningDeltaNow(messageID)
+          const parts = store.part[messageID]
           if (!parts) {
-            setStore("part", event.properties.part.messageID, [event.properties.part])
-            // Flush any deltas that arrived before this part
-            flushDeltaBuffer(event.properties.part.messageID)
+            setStore("part", messageID, [event.properties.part])
+            // Flush any orphan deltas that arrived before this part
+            flushDeltaBuffer(messageID)
             break
           }
           const result = Binary.search(parts, event.properties.part.id, (p) => p.id)
           if (result.found) {
-            // Use produce instead of reconcile to prevent server snapshots from
-            // truncating delta-accumulated text. During streaming, the server
-            // may send part.updated with a text snapshot computed before the
-            // latest deltas were processed server-side. Reconcile would blindly
-            // overwrite the longer store text with the shorter server version.
-            //
-            // Strategy: merge all non-text fields from the incoming part,
-            // but keep whichever text is longer (deltas extend it).
-            setStore("part", event.properties.part.messageID, result.index, produce((draft) => {
-              const prev = parts[result.index]
-              const prevText = (prev as any)?.text ?? ""
-              const incoming = event.properties.part
-              const incomingText = (incoming as any)?.text ?? ""
-              Object.assign(draft, incoming)
-              if (prevText.length > incomingText.length) {
-                ;(draft as any).text = prevText
-              }
+            setStore("part", messageID, result.index, produce((draft) => {
+              const prev = parts[result.index] as Record<string, unknown>
+              const incoming = event.properties.part as Record<string, unknown>
+              Object.assign(draft, mergePartSnapshot(prev, incoming))
             }))
             break
           }
           setStore(
             "part",
-            event.properties.part.messageID,
+            messageID,
             produce((draft) => {
               draft.splice(result.index, 0, event.properties.part)
             }),
           )
-          // Flush any deltas that arrived before this part
-          flushDeltaBuffer(event.properties.part.messageID)
+          // Flush any orphan deltas that arrived before this part
+          flushDeltaBuffer(messageID)
           break
         }
 
@@ -578,29 +659,60 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           buffer.set(partID, existing + delta)
           break
         }
-        setStore(
-          "part",
-          messageID,
-          produce((draft) => {
-            const part = draft[result.index]
-            const existing = (part as any)[field] ?? ""
-            ;(part as any)[field] = existing + delta
-          }),
-        )
+        // Part found — debounce store updates to avoid per-token Solid
+        // reconciliation during high-frequency streaming (25–50 deltas/sec).
+        // First delta of a burst applies immediately; subsequent deltas
+        // arriving while a flush timer is pending are batched.
+        const hasTimer = deltaFlushTimers.has(messageID)
+        if (!hasTimer) {
+          // First delta in burst — apply directly to show text immediately
+          const r = Binary.search(parts, partID, (p) => p.id)
+          if (r.found) {
+            setStore("part", messageID, produce((draft) => {
+              const part = draft[r.index]
+              const existing = (part as any)[field] ?? ""
+              ;(part as any)[field] = existing + delta
+            }))
+          }
+        } else {
+          // Subsequent delta — buffer for batched flush
+          let acc = runningDelta.get(messageID)
+          if (!acc) {
+            if (runningDelta.size >= MAX_DELTA_BUFFER_SIZE) {
+              const first = runningDelta.keys().next().value
+              if (first !== undefined) runningDelta.delete(first)
+            }
+            acc = new Map()
+            runningDelta.set(messageID, acc)
+          }
+          const fieldKey = partID + ":" + field
+          acc.set(fieldKey, (acc.get(fieldKey) ?? "") + delta)
+        }
+        scheduleDeltaFlush(messageID)
         break
       }
 
         case "message.part.removed": {
-          const parts = store.part[event.properties.messageID]
-          const result = Binary.search(parts, event.properties.partID, (p) => p.id)
+          const messageID = event.properties.messageID
+          const partID = event.properties.partID
+          const parts = store.part[messageID]
+          const result = Binary.search(parts, partID, (p) => p.id)
           if (result.found)
             setStore(
               "part",
-              event.properties.messageID,
+              messageID,
               produce((draft) => {
                 draft.splice(result.index, 1)
               }),
             )
+          // Drop pending debounced fields for this part only
+          const acc = runningDelta.get(messageID)
+          if (acc) {
+            for (const key of [...acc.keys()]) {
+              if (key.startsWith(partID + ":")) acc.delete(key)
+            }
+            if (acc.size === 0) clearRunningDeltaState(messageID)
+          }
           break
         }
 

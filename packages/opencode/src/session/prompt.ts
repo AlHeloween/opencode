@@ -1470,6 +1470,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   instruction.system().pipe(Effect.orDie),
                   instruction.rules().pipe(Effect.orDie),
                 ])
+            // Stable-first order: skills/env/rules before mutable AGENTS.md instructions
+            // so partial KV-cache hits survive when only project instructions change.
             const system = checkpointUsable
               ? [...checkpointUsable.systemPrompt]
               : [...(skills ? [skills] : []), ...env, ...rules, ...instructions]

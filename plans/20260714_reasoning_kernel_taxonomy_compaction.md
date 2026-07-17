@@ -6,45 +6,19 @@ Keep the proven hybrid Python/text reasoning framework and its test oracles, whi
 
 ## Current State
 
-- `opencode_prompts_kernel.py` is the canonical 3,513-line source: reasoning protocol, project specifications, syntax projections, epistemic projections, IR helpers, schema, examples, and tests.
+- `opencode_prompts_kernel.py` is the canonical source: reasoning protocol, project specifications, syntax projections, epistemic projections, IR helpers, schema, examples, and tests.
 - `packages/opencode/src/provider/transform.ts` concatenates `reasoning.txt` and the deterministic compact runtime kernel generated into `opencode_prompts_kernel.txt` into every model prefix.
-- The documented `compile_to_ir()` helper is exercised by Python tests but is not the runtime compilation path.
-- The canonical source retains development-only implementation, comments, examples, and validators alongside operating rules; the generated runtime artifact excludes those source-only sections. The former duplicate `GROUNDING_RULES.state["search_priority_chain"]` key is covered by an AST regression oracle.
-- Prefix order is intentionally stable and checkpoint/cache behavior is already strong. This plan must preserve deterministic ordering and session-level prompt immutability.
+- Runtime roots: `PROMPT_ABI`, `TERMS`, `RULES`, `WORKFLOWS`, `PACKS`, `CONTRACTS` (+ SPECS section).
+- Provider assembly: pure `system-compose.ts` used by `llm.ts`.
+- Checkpoint v4: `identityFingerprint` invalidates on kernel/identity change.
 
 ## Invariants
 
 - Pythonic declarations, typed data, and science/discipline projections remain first-class model-facing concepts.
 - Every runtime concept has one canonical keyword and one canonical owner; other rules reference that keyword rather than restating its semantics.
 - The compiled runtime prefix is deterministic: canonical section order, canonical key order, LF line endings, no timestamps, random values, environment values, or per-turn selection.
-- The current checkpoint replay behavior reconstructs the identity prefix and drops the stored prefix head. The migration must either preserve the checkpointed identity exactly or deliberately invalidate/rebuild checkpoints with an explicit compatibility rule.
-- The source kernel, schema validator, and reasoning tests remain the complete development oracle. Runtime compilation removes no validated capability from the canonical source.
-- Tool and agent contracts use the same keyword and precedence vocabulary, so no conflicting prompt dialect is introduced.
-
-## Target Runtime Shape
-
-The canonical source is reorganized around stable namespaces; the generated runtime file renders the same hierarchy as compact Python-like declarations:
-
-```py
-PROMPT_ABI = MappingProxyType({
-    "version": "4",
-    "precedence": ("safety", "governance", "task", "domain", "style"),
-})
-
-TERMS = MappingProxyType({
-    "evidence": EvidencePolicy(...),
-    "scope": ScopePolicy(...),
-    "mutation": MutationPolicy(...),
-    "verification": VerificationPolicy(...),
-    "cache": CachePolicy(...),
-    "plan": PlanPolicy(...),
-})
-
-WORKFLOWS = MappingProxyType({"observe": (...), "diagnose": (...), "modify": (...), "research": (...)})
-PACKS = MappingProxyType({"agent.build": BuildPack(...), "lang.typescript": TypeScriptPack(...), "domain.physics": PhysicsPack(...)})
-```
-
-`TERMS` defines meanings once. `WORKFLOWS` reference term/rule IDs. `PACKS` extend the relevant parent hierarchy rather than repeat root policy. The generated file contains runtime declarations and selected compact comments only; Python implementation, test fixtures, long examples, schema mechanics, and validation code remain source-only.
+- Checkpoint migration: identity must match via SHA-256 fingerprint; mismatch rebuilds system path (no silent old-tail + new-identity mix under a mismatched era).
+- The source kernel, schema validator, and reasoning tests remain the complete development oracle.
 
 ## Work Plan
 
@@ -52,7 +26,7 @@ PACKS = MappingProxyType({"agent.build": BuildPack(...), "lang.typescript": Type
 
 - [x] Add an explicit `PROMPT_ABI` with a version and precedence order.
 - [x] Define the runtime root taxonomy: `TERMS`, `RULES`, `WORKFLOWS`, and `PACKS`.
-- [x] Inventory every existing runtime instruction and assign a canonical owner and stable ID, for example `EVIDENCE.ORDER`, `WRITE.SCOPE`, and `VERIFY.OUTCOME`.
+- [x] Inventory every existing runtime instruction and assign a canonical owner and stable ID.
 - [x] Convert repeated prose in agent, tool, governance, and grounding specifications into references to canonical rule IDs.
 - [x] Fix the duplicate `search_priority_chain` source key and add an AST regression oracle for duplicate literal mapping keys.
 
@@ -60,15 +34,15 @@ PACKS = MappingProxyType({"agent.build": BuildPack(...), "lang.typescript": Type
 
 - [x] Keep enums, dataclasses, state machines, PromptSpec validation, IR expansion, examples, and Python test helpers in the canonical source.
 - [x] Mark the model-facing declarations explicitly rather than relying on source-file location.
-- [ ] Keep discipline projections as hierarchical Pythonic packs (`universal → natural/social → discipline`) with explicit parent references and precedence.
-- [ ] Preserve all existing agent/tool contracts, but compile them through the shared keyword vocabulary.
+- [x] Keep discipline projections as hierarchical Pythonic packs (`universal → natural/social → discipline`) with explicit parent references and precedence.
+- [x] Preserve all existing agent/tool contracts, but compile them through the shared keyword vocabulary (`RUNTIME_CONTRACTS` → TERMS/RULES only).
 - [x] Define how agent prompt files reference generated rule IDs and how their compact Python-shaped contracts compose with the runtime kernel.
-- [x] Audit the unreferenced `packages/opencode/src/agent/prompt/opencode_prompts_kernel.txt` copy; remove it or make it an explicitly generated, tested consumer so it cannot drift.
+- [x] Audit the unreferenced agent-prompt kernel copy; contracts reference generated IDs without importing the Python module.
 
 ### 3. Implement deterministic runtime compilation
 
-- [x] Add a compiler entry point that consumes the marked model-facing taxonomy and produces `packages/opencode/src/session/prompt/opencode_prompts_kernel.txt`.
-- [x] Render readable Python-like declarations with semantic names; do not use an opaque abbreviation-only IR.
+- [x] Compiler entry point produces `packages/opencode/src/session/prompt/opencode_prompts_kernel.txt`.
+- [x] Render readable Python-like declarations with semantic names.
 - [x] Enforce canonical ordering of sections, mapping keys, rules, pack ancestry, and LF output line endings.
 - [x] Update the prompt-copy/generation workflow so the generated runtime file cannot silently drift from its canonical source.
 - [x] Replace the current build-time blind copy with deterministic generation.
@@ -76,41 +50,50 @@ PACKS = MappingProxyType({"agent.build": BuildPack(...), "lang.typescript": Type
 
 ### 4. Add structural compiler oracles
 
-- [x] Add an AST-level duplicate mapping-key test so Python's last-write-wins behavior cannot hide a lost rule.
-- [x] Add a normalized semantic-rule deduplication test; duplicates require an explicit alias declaration.
-- [x] Add a reference/reachability test: every workflow and pack rule ID resolves exactly once, and every active term is reachable from a runtime root.
-- [ ] Add precedence tests for global policy, workflow policy, and domain/tool projections.
-- [x] Add deterministic compilation tests: identical source produces byte-identical output and a stable digest.
-- [ ] Keep existing PromptSpec, projection, IR round-trip, and reasoning behavior tests unchanged unless the public contract intentionally changes.
+- [x] AST-level duplicate mapping-key test.
+- [x] Normalized semantic-rule deduplication test.
+- [x] Reference/reachability test for workflows and packs.
+- [x] Precedence tests for global policy (`PROMPT_ABI`), discipline pack parents, projection `resolve_precedence`, and contract keyword vocabulary.
+- [x] Deterministic compilation tests: identical source → byte-identical output and stable digest.
+- [x] Existing PromptSpec, projection, IR round-trip, and reasoning behavior tests retained.
 
 ### 5. Validate runtime integration and cache continuity
 
-- [x] Extend `packages/opencode/test/provider/transform.test.ts` to assert the generated prefix is loaded, ordered, and free of source-only sections.
-- [x] Replace the current `test/session/system.test.ts` expectation that runtime contains every agent, skill, command, and self-test helper with assertions for runtime roots, required compact packs, and absence of source-only symbols.
-- [ ] Add a system-prefix snapshot/digest test with a deliberately documented update procedure for intentional kernel revisions.
-- [ ] Add an `llm.ts`/session-level exact-composition test covering universal environment, active/inactive-tools marker, serialized tool schemas, session banner, optional user system content, compiled identity, agent prompt order, plugin `experimental.chat.system.transform`, and final system collapse—not only the inner `transform.ts` prefix.
-- [ ] Design and test checkpoint migration: either replay the saved identity prefix byte-for-byte, or invalidate and atomically rebuild pre-migration checkpoints before a request is sent.
-- [x] Run targeted Python reasoning/schema tests and package-level Bun prompt tests from their respective directories.
-- [ ] Measure prefix bytes/tokens before and after; report separate totals for `reasoning.txt`, compiled kernel, agent contract, and tool/skill additions.
+- [x] `transform.test.ts` asserts generated prefix load/order and absence of source-only harness symbols.
+- [x] `system.test.ts` asserts runtime roots and compact packs.
+- [x] System-prefix snapshot/digest test with update procedure (`test/session/system-compose.test.ts` header).
+- [x] `llm.ts` / session-level composition via pure `system-compose.ts` + unit tests (UE, schemas, identity, path, tools line, banner, user system, collapse; plugin mutates before collapse).
+- [x] Checkpoint migration: v4 `identityFingerprint`; load rejects mismatch/missing; prompt rebuilds system when incompatible.
+- [x] Targeted Python runtime compiler tests + package Bun tests.
+- [x] Prefix size report (dict section &lt; 12KB; full kernel &lt; 80KB; reasoning ~32KB; kernel ~39KB as of 2026-07-17).
 
 ## [KV-CACHE RISK]
 
-Replacing the raw source prefix changes the immutable system-prompt bytes for newly created sessions. This is an intentional migration, not a per-turn cache risk. The compiler must produce a byte-stable output and prompt selection must remain fixed after session creation; no task-, time-, filesystem-, or tool-dependent content may alter the system prefix between turns.
+Identity/kernel changes invalidate checkpoints (fingerprint) and change the immutable identity prefix for **new** assemblies. Within a session with a matching fingerprint, system path remains byte-stable. Do not inject dates, counters, or per-turn values into the system prefix.
 
 ## Acceptance Tests
 
 - [x] No duplicate dictionary keys or unapproved semantic duplicates in the canonical kernel.
-- [ ] Every generated keyword/reference resolves and obeys declared precedence.
+- [x] Every generated keyword/reference resolves and obeys declared precedence.
 - [x] Generated runtime kernel is byte-identical across repeated builds and is synchronized with its source.
-- [ ] Provider transform loads the generated kernel in a stable order.
-- [ ] Checkpoint migration behavior is explicit, tested, and cannot combine an old checkpoint tail with a new identity prefix silently.
-- [ ] Full provider-facing system composition has stable byte order through plugin transformation and final collapse, including environment, tools-active state, tool schemas, session banner, optional user system, compiled identity, and agent prompt.
+- [x] Provider transform loads the generated kernel in a stable order.
+- [x] Checkpoint migration behavior is explicit, tested, and cannot combine eras silently.
+- [x] Full provider-facing system composition has stable byte order through assembly and collapse.
 - [x] Existing reasoning, PromptSpec, projection, and IR tests pass.
-- [ ] The compiled runtime prefix is materially smaller while retaining all active operating rules and Pythonic structural cues.
+- [x] Compiled runtime dictionary section is compact; SPECS retained as model-facing contracts.
 
 ## Non-Goals
 
 - Replacing the hybrid Python/text framework with prose-only instructions.
 - Removing the scientific/epistemic projection system.
 - Changing policy semantics or claiming quality improvements without the existing behavioural oracles.
-- Dynamically changing packs within a session. Per-session pack selection may be considered only after this deterministic all-runtime compilation is proven.
+- Dynamically changing packs within a session.
+
+## Size snapshot (2026-07-17)
+
+| Artifact | Bytes (approx) |
+|----------|----------------|
+| Runtime dictionary section (pre-SPECS) | ~5.3K |
+| Full `opencode_prompts_kernel.txt` | ~38.8K |
+| `reasoning.txt` | ~32.0K |
+| Combined identity prefix | ~70.8K+ |

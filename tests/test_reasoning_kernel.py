@@ -91,7 +91,7 @@ from opencode_prompts_kernel import (
     get_ir_symbol, find_duplicate_mapping_keys, find_normalized_runtime_rule_duplicates,
     validate_runtime_contracts, validate_runtime_pack_hierarchy, validate_runtime_references,
     validate_runtime_rule_owners, render_runtime_kernel,
-    RUNTIME_CONTRACTS, RUNTIME_PACKS, RUNTIME_RULE_ALIASES, RUNTIME_RULE_OWNERS,
+    PROMPT_ABI, RUNTIME_CONTRACTS, RUNTIME_PACKS, RUNTIME_RULE_ALIASES, RUNTIME_RULE_OWNERS,
     RUNTIME_RULES, RUNTIME_TERMS, RUNTIME_WORKFLOWS, SPEC_CONTRACT_IDS, _ALL_SPECS,
     runtime_kernel_digest,
 )
@@ -1829,6 +1829,42 @@ class TestRuntimePromptCompiler:
             "pack hierarchy cycle: first -> second -> first",
             "pack hierarchy cycle: second -> first -> second",
         ]
+
+    def test_prompt_abi_precedence_is_safety_first(self):
+        """Global policy order: safety > governance > task > domain > style."""
+        assert PROMPT_ABI["precedence"] == ("safety", "governance", "task", "domain", "style")
+        assert PROMPT_ABI["version"] == "4"
+        assert PROMPT_ABI["line_endings"] == "LF"
+
+    def test_discipline_packs_form_universal_to_domain_hierarchy(self):
+        """universal → natural/social science → discipline packs."""
+        assert RUNTIME_PACKS["domain.natural_science"][0] == "universal"
+        assert RUNTIME_PACKS["domain.social_science"][0] == "universal"
+        assert RUNTIME_PACKS["domain.physics"] == ("domain.natural_science",)
+        assert RUNTIME_PACKS["domain.economics"] == ("domain.social_science",)
+        # Parent chain reaches universal without cycles
+        assert validate_runtime_pack_hierarchy(RUNTIME_PACKS) == []
+
+    def test_contracts_only_reference_shared_keyword_vocabulary(self):
+        """Agent/tool contracts compile through TERMS/RULES IDs only."""
+        allowed = set(RUNTIME_TERMS) | set(RUNTIME_RULES)
+        for contract, refs in RUNTIME_CONTRACTS.items():
+            for ref in refs:
+                assert ref in allowed, f"{contract} references non-keyword {ref!r}"
+
+    def test_projection_precedence_safety_universal_wins(self):
+        from opencode_prompts_kernel import resolve_precedence
+        assert resolve_precedence("safety", "UNIVERSAL_SAFETY", "LOCAL_OVERRIDE") == "UNIVERSAL_SAFETY"
+        assert resolve_precedence("local_style", "UNIVERSAL_STYLE", "LOCAL_STYLE") == "LOCAL_STYLE"
+
+    def test_runtime_kernel_size_report(self):
+        """Dictionary section stays compact; full artifact includes SPECS."""
+        runtime = render_runtime_kernel()
+        dict_section = runtime.split("# SPECS")[0]
+        assert len(dict_section) < 12_000
+        assert len(runtime) < 80_000
+        assert "PROMPT_ABI" in dict_section
+        assert "CONTRACTS" in dict_section
 
 
 # ======================================================================

@@ -1441,12 +1441,18 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
             const format = lastUser.format ?? { type: "text" as const }
 
+            // Current identity must match the checkpoint's identityFingerprint.
+            // Kernel / agent-prompt migrations invalidate checkpoints so we never
+            // pair a new identity prefix with path system assembled under an old one.
+            const reasoningPrefixForIdentity = ProviderTransform.systemPromptPrefix(model)
+            const cleanIdentity = [reasoningPrefixForIdentity, agent.prompt ?? ""]
+              .filter((x) => x)
+              .join("\n")
+              .replace(/\n+$/, "")
+
             // Attempt to load encrypted checkpoint for this session+model.
-            // Checkpoints are invalidated only on compaction or new session.
-            // Normal turns reuse the checkpointed system prompt exactly.
-            // No banner check — AES-256-GCM authenticated encryption guarantees
-            // integrity. Banner comparisons caused false invalidations wasting
-            // 300K+ tokens on rebuild when session context shifted.
+            // Invalidated on compaction, new session, structured-output flip,
+            // or identity fingerprint mismatch (kernel/agent prompt change).
             const checkpoint = yield* Checkpoint.load({
               sessionID,
               providerID: model.providerID,
@@ -1455,8 +1461,20 @@ You should build your plan incrementally by writing to or editing this file. NOT
               agentName: agent.name,
             }).pipe(Effect.catch(() => Effect.succeed(null)))
             const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
+            const checkpointIdentityOk = checkpoint
+              ? Checkpoint.isIdentityCompatible(checkpoint, cleanIdentity)
+              : false
+            if (checkpoint && !checkpointIdentityOk) {
+              Log.Default.info("checkpoint identity mismatch — rebuilding system", {
+                sessionID,
+                agent: agent.name,
+                providerID: model.providerID,
+                modelID: model.id,
+              })
+            }
             const checkpointUsable =
               checkpoint &&
+              checkpointIdentityOk &&
               checkpointHasStructuredPrompt === (format.type === "json_schema")
                 ? checkpoint
                 : undefined
@@ -1651,16 +1669,11 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }
             // Save encrypted checkpoint after successful turn.
             // Fire-and-forget — don't block the loop on I/O.
-            const reasoningPrefix = ProviderTransform.systemPromptPrefix(model)
-            const agentPrompt = agent.prompt ?? ""
-            const identityPrefix = [reasoningPrefix, agentPrompt].filter((x) => x).join("\n")
-            // Strip trailing newlines from identityPrefix to prevent double-\n
-            // when checkpoint is replayed via input.system.join("\n") in llm.ts.
-            // The .txt prompt files end with \n, and join("\n") adds another.
-            const cleanIdentity = identityPrefix.replace(/\n+$/, "")
+            // cleanIdentity was computed before load (same bytes as identity slot).
             const systemForCheckpoint = checkpointUsable
               ? [...system] // checkpoint already contains identityPrefix
               : cleanIdentity ? [cleanIdentity, ...system] : [...system]
+            const identityFp = Checkpoint.identityFingerprint(cleanIdentity)
             yield* Effect.forkIn(scope)(
               Effect.gen(function* () {
                 const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
@@ -1672,6 +1685,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                     kind: Checkpoint.CHECKPOINT_KIND,
                     version: Checkpoint.CHECKPOINT_VERSION,
                     systemPrompt: systemForCheckpoint,
+                    identityFingerprint: identityFp,
                     messages: checkpointModelMsgs,
                     messageIDs: checkpointMsgs.map((m) => m.info.id),
                     model: { providerID: model.providerID, modelID: model.id },

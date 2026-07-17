@@ -13,7 +13,7 @@ Superseded / deferred designs live in `abstract_futures/` (do not implement from
 
 | Plan | Status |
 |------|--------|
-| `20260714_reasoning_kernel_taxonomy_compaction.md` | Active — remaining oracles, discipline packs, checkpoint migration |
+| `20260714_reasoning_kernel_taxonomy_compaction.md` | Done pending final explore — oracles, compose, checkpoint v4 identity fingerprint |
 | `2026-07-16-tui-startup-parallelization.md` | Active — Phase 1 done; Phase 2–3 optional |
 | `emergency/2026-07-16-tui-cpu-performance-audit.md` | Active — idle drivers + delta debounce done; highlight debounce open |
 

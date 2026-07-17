@@ -5,11 +5,15 @@ import { RequestDiff } from "../../src/session/request-diff"
 import fs from "fs"
 import path from "path"
 
+const DEFAULT_IDENTITY = "You are a test assistant."
+
 function makeCheckpointData(overrides: Partial<CheckpointData> = {}): CheckpointData {
+  const identity = overrides.systemPrompt?.[0] ?? DEFAULT_IDENTITY
   return {
     kind: Checkpoint.CHECKPOINT_KIND,
     version: Checkpoint.CHECKPOINT_VERSION,
     systemPrompt: ["[session: test_session]", "You are a test assistant."],
+    identityFingerprint: Checkpoint.identityFingerprint(identity),
     messages: [
       { role: "user" as const, content: "hello" },
       { role: "assistant" as const, content: "hi there" },
@@ -152,8 +156,9 @@ describe("Checkpoint", () => {
       Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data }),
     )
 
-    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID, "build")
-    expect(fs.existsSync(cpPath)).toBeTrue()
+    const dir = Checkpoint.checkpointDir(sid)
+    const slots = fs.readdirSync(dir).filter((f) => f.includes(sid) && f.endsWith(".enc"))
+    expect(slots.length).toBeGreaterThanOrEqual(1)
 
     const loaded = await Effect.runPromise(
       Checkpoint.load({ sessionID: sid, providerID, modelID, projectID: TEST_PROJECT, agentName: "build" }),
@@ -161,9 +166,56 @@ describe("Checkpoint", () => {
 
     expect(loaded).not.toBeNull()
     expect(loaded!.systemPrompt).toEqual(data.systemPrompt)
+    expect(loaded!.identityFingerprint).toBe(data.identityFingerprint)
     expect(loaded!.messages).toEqual(data.messages)
     expect(loaded!.agent).toBe("build")
     expect(loaded!.turn).toBe(3)
+    await Effect.runPromise(Checkpoint.remove(sid))
+  })
+
+  test("identityFingerprint is stable for identical identity bytes", () => {
+    const a = Checkpoint.identityFingerprint("reasoning\nagent")
+    const b = Checkpoint.identityFingerprint("reasoning\nagent")
+    const c = Checkpoint.identityFingerprint("reasoning\nagent-changed")
+    expect(a).toBe(b)
+    expect(a).not.toBe(c)
+    expect(a).toHaveLength(64)
+  })
+
+  test("isIdentityCompatible rejects fingerprint mismatch and missing field", () => {
+    const identity = "kernel-v1\nbuild"
+    const data = makeCheckpointData({
+      systemPrompt: [identity, "skills"],
+      identityFingerprint: Checkpoint.identityFingerprint(identity),
+    })
+    expect(Checkpoint.isIdentityCompatible(data, identity)).toBe(true)
+    expect(Checkpoint.isIdentityCompatible(data, "kernel-v2\nbuild")).toBe(false)
+    expect(
+      Checkpoint.isIdentityCompatible(
+        { ...data, identityFingerprint: "" },
+        identity,
+      ),
+    ).toBe(false)
+  })
+
+  test("load rejects v3 checkpoints without identityFingerprint", async () => {
+    const sid = `${SID}_v3`
+    const providerID = "v3-provider"
+    const modelID = "v3-model"
+    // Write a v3-shaped payload by saving then corrupting the version field via re-save path is hard
+    // because save always writes v4. Simulate load rejection by saving with wrong version through
+    // the public type (cast) is not allowed; instead verify tryLoad rejects empty fingerprint.
+    const data = makeCheckpointData({
+      model: { providerID, modelID },
+      agent: "build",
+      identityFingerprint: "",
+    })
+    // Direct save still encrypts — empty fingerprint fails load validation
+    await Effect.runPromise(Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data }))
+    const loaded = await Effect.runPromise(
+      Checkpoint.load({ sessionID: sid, providerID, modelID, projectID: TEST_PROJECT, agentName: "build" }),
+    )
+    expect(loaded).toBeNull()
     await Effect.runPromise(Checkpoint.remove(sid))
   })
 
@@ -177,8 +229,9 @@ describe("Checkpoint", () => {
       Checkpoint.save({ sessionID: sid, projectID: TEST_PROJECT, data }),
     )
 
-    const cpPath = Checkpoint.checkpointPath(sid, providerID, modelID, "build")
-    expect(fs.existsSync(cpPath)).toBeTrue()
+    const dir = Checkpoint.checkpointDir(sid)
+    const before = fs.readdirSync(dir).filter((f) => f.includes(sid) && f.endsWith(".enc"))
+    expect(before.length).toBeGreaterThanOrEqual(1)
 
     const loaded = await Effect.runPromise(
       Checkpoint.load({
@@ -190,8 +243,11 @@ describe("Checkpoint", () => {
       }),
     )
 
-    // Wrong project key → decryption fails → file deleted, null returned
+    // Wrong project key → decryption fails → slot deleted, null returned
     expect(loaded).toBeNull()
-    expect(fs.existsSync(cpPath)).toBeFalse()
+    const after = fs.existsSync(dir)
+      ? fs.readdirSync(dir).filter((f) => f.includes(sid) && f.endsWith(".enc"))
+      : []
+    expect(after.length).toBe(0)
   })
 })

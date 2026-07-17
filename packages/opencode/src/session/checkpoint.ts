@@ -11,6 +11,7 @@
  */
 import fs from "fs/promises"
 import path from "path"
+import { createHash } from "crypto"
 import { Effect } from "effect"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
@@ -24,7 +25,9 @@ import type { ModelMessage } from "ai"
 
 const log = Log.create({ service: "checkpoint" })
 
-export const CHECKPOINT_VERSION = 3
+/** v4: require identityFingerprint so kernel/identity migrations cannot silently
+ *  pair a new identity prefix with a checkpoint assembled under an old kernel. */
+export const CHECKPOINT_VERSION = 4
 export const CHECKPOINT_KIND = "checkpoint" as const
 const CHECKPOINT_DIR = ".checkpoints"
 const CHECKPOINT_SLOTS = 2
@@ -33,12 +36,33 @@ export interface CheckpointData {
   kind: typeof CHECKPOINT_KIND
   version: number
   systemPrompt: string[]
+  /**
+   * SHA-256 of the identity prefix (reasoning + agent prompt) that was active
+   * when this checkpoint was written. Load rejects mismatches so a kernel or
+   * agent-prompt change rebuilds system state instead of mixing eras.
+   */
+  identityFingerprint: string
   messages: ModelMessage[]
   messageIDs: string[]
   model: { providerID: string; modelID: string }
   agent: string
   turn: number
   timestamp: number
+}
+
+/** Byte-stable fingerprint of the session identity prefix. */
+export function identityFingerprint(identity: string): string {
+  return createHash("sha256").update(identity, "utf8").digest("hex")
+}
+
+/**
+ * True when the checkpoint was saved under the same identity bytes currently
+ * in force. Missing fingerprint or version is treated as incompatible.
+ */
+export function isIdentityCompatible(data: CheckpointData, currentIdentity: string): boolean {
+  if (data.version !== CHECKPOINT_VERSION) return false
+  if (!data.identityFingerprint) return false
+  return data.identityFingerprint === identityFingerprint(currentIdentity)
 }
 
 function sanitize(input: string): string {
@@ -88,7 +112,12 @@ async function tryLoadSlot(filePath: string, encKey: CryptoKey): Promise<Checkpo
     const encrypted = await fs.readFile(filePath)
     const plaintext = await decryptBaseline(encrypted, encKey)
     const data: CheckpointData = JSON.parse(plaintext)
-    if (data.kind !== CHECKPOINT_KIND || data.version !== CHECKPOINT_VERSION) {
+    if (
+      data.kind !== CHECKPOINT_KIND ||
+      data.version !== CHECKPOINT_VERSION ||
+      typeof data.identityFingerprint !== "string" ||
+      data.identityFingerprint.length === 0
+    ) {
       try { await fs.unlink(filePath) } catch (e) {
         log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e) })
       }

@@ -12,6 +12,7 @@ import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
 import { Plugin } from "@/plugin"
 import { SystemPrompt, UNIVERSAL_ENV } from "./system"
+import { assembleSystemMessages, collapseSystemMessages } from "./system-compose"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
@@ -226,49 +227,19 @@ const live: Layer.Layer<
         model: input.model.id,
       })
 
-      const system: string[] = []
-
-      // 0. Universal env — 100% immutable across sessions and projects.
-      //    Always first so every invocation shares a KV cache prefix.
-      system.push(UNIVERSAL_ENV)
-
-      // 1. Tool schemas — all tools from the registry, serialized as text.
-      //    Always the same per project, so always in the cached prefix.
-      //    The AI SDK's `tools` parameter is still passed separately for
-      //    tool calling — this text is just for the model's understanding.
+      // Tool schemas — sorted text block for the cached prefix (slot 1).
+      // The AI SDK `tools` parameter is still passed separately for tool calling.
       const toolSchemaText = serializeToolSchemas(input.tools)
-      if (toolSchemaText) system.push(toolSchemaText)
-
       const isCheckpoint = input.checkpoint === true
 
-      // 2. Identity — reasoning prefix + agent prompt.
-      //    Always pushed, even for checkpoints.
-      //    On checkpoint: the stored systemPrompt[0] is also the identity, but we
-      //    push it fresh here so it has the same content every turn.
-      //    The collapse merges identity into the tail (system[2]+) while preserving
-      //    system[0] (UE) + system[1] (tool schemas) as the cached prefix.
-      system.push(
-        [
-          ...(reasoningPrefix ? [reasoningPrefix] : []),
-          ...(input.agent.prompt ? [input.agent.prompt] : []),
-        ]
-          .filter((x) => x)
-          .join("\n"),
-      )
+      const identity = [
+        ...(reasoningPrefix ? [reasoningPrefix] : []),
+        ...(input.agent.prompt ? [input.agent.prompt] : []),
+      ]
+        .filter((x) => x)
+        .join("\n")
 
-      // 3. Per-path skills + env + rules + instructions — from prompt.ts
-      //    (stable-first: most mutable AGENTS.md instructions last).
-      //    On checkpoint: skip the stored identity prefix (systemPrompt[0])
-      //    to avoid duplicating what was pushed above. The remaining entries
-      //    (skills + env + rules + instructions) slot after identity.
-      const systemInput = isCheckpoint && input.system.length > 0
-        ? input.system.slice(1)
-        : input.system
-      if (systemInput.length > 0) system.push(systemInput.join("\n"))
-
-      // 4. Active/inactive tools line — short, changes per agent.
-      //    Placed BEFORE the session banner so the collapsed tail contains
-      //    all volatile content while the prefix (UE + schemas) stays cached.
+      // Active/inactive tools line — short, changes per agent; lands in collapsed tail.
       const activeToolSet = resolveTools(input)
       const activeNames = Object.keys(activeToolSet).sort()
       const allNames = Object.keys(input.tools).sort()
@@ -276,35 +247,35 @@ const live: Layer.Layer<
       const toolsLine = inactiveNames.length > 0
         ? `Active tools: ${activeNames.join(", ")}\nInactive: ${inactiveNames.join(", ")}`
         : `Active tools: ${activeNames.join(", ")}`
-      system.push(toolsLine)
 
-      // 5. Session banner — appended after all cacheable content so task-N
-      //    and session-ID changes land in the collapsed tail.
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
-      system.push(banner)
-      // 6. User system message (non-checkpoint only) — volatile, excluded from cache.
-      if (!isCheckpoint && input.user.system) system.push(input.user.system)
+
+      const system: string[] = assembleSystemMessages({
+        universalEnv: UNIVERSAL_ENV,
+        toolSchemas: toolSchemaText,
+        identity,
+        pathSystem: input.system,
+        activeToolsLine: toolsLine,
+        banner,
+        userSystem: input.user.system,
+        checkpoint: isCheckpoint,
+      })
 
       if (!loggedSystemPrompt) {
         loggedSystemPrompt = true
         l.info("system prompt dump (once)", { content: system.join("\n") })
       }
-      const header = system[0]
+      const header = system[0]!
       yield* plugin.trigger(
         "experimental.chat.system.transform",
         { sessionID: input.sessionID, model: input.model },
         { system },
       )
       // Collapse: preserve system[0] (UNIVERSAL_ENV) and system[1] (tool schemas)
-      // as the cached prefix. Everything from index 2+ (identity, env, rules,
-      // skills, instructions, active-tools line, banner, user system) merges
-      // into the collapsed tail.
-      if (system.length > 2 && system[0] === header) {
-        const second = system[1]
-        const tail = system.slice(2)
-        system.length = 0
-        system.push(header, second, tail.join("\n"))
-      }
+      // as the cached prefix. Everything from index 2+ merges into the tail.
+      const collapsed = collapseSystemMessages(system, header)
+      system.length = 0
+      system.push(...collapsed)
 
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.

@@ -115,7 +115,12 @@ async function writeFilePortable(
   const bytes =
     typeof data === "string" ? TEXT_ENCODER.encode(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
 
-  await writeFileNode(destinationPath, bytes, { mode: options?.mode })
+  // @types/node vs Bun disagree on writeFile overloads for Uint8Array + mode.
+  await (writeFileNode as (path: string, data: Uint8Array, opts?: { mode?: number }) => Promise<void>)(
+    destinationPath,
+    bytes,
+    options?.mode !== undefined ? { mode: options.mode } : undefined,
+  )
 
   return bytes.byteLength
 }

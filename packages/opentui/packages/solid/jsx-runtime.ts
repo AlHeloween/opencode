@@ -4,6 +4,7 @@ import type {
   BoxProps,
   CodeProps,
   ExtendedIntrinsicElements,
+  ImageProps,
   InputProps,
   LinkProps,
   MarkdownProps,
@@ -79,6 +80,7 @@ export namespace JSX {
     code: CodeProps
     textarea: TextareaProps
     markdown: MarkdownProps
+    image: ImageProps
 
     b: SpanProps
     strong: SpanProps

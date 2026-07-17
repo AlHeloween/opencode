@@ -572,7 +572,15 @@ export class PixelBuffer {
     this.pixelsPtr = ptr
   }
 
-  public drawImage(x: number, y: number, width: number, height: number, data: Uint8Array): void {
-    this.lib.pixelsDrawImage(this.pixelsPtr, x, y, width, height, data)
+  public drawImage(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    data: Uint8Array,
+    cellW: number = 0,
+    cellH: number = 0,
+  ): void {
+    this.lib.pixelsDrawImage(this.pixelsPtr, x, y, width, height, data, cellW, cellH)
   }
 }

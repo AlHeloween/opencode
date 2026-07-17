@@ -6,6 +6,8 @@ import type {
   BoxRenderable,
   CodeOptions,
   CodeRenderable,
+  ImageOptions,
+  ImageRenderable,
   InputRenderable,
   InputRenderableOptions,
   KeyEvent,
@@ -160,6 +162,8 @@ export type ScrollBoxProps = ComponentProps<ContainerProps<ScrollBoxOptions>, Sc
 export type CodeProps = ComponentProps<CodeOptions, CodeRenderable>
 
 export type MarkdownProps = ComponentProps<MarkdownOptions, MarkdownRenderable>
+
+export type ImageProps = ComponentProps<ImageOptions, ImageRenderable>
 
 // ============================================================================
 // Extended/Dynamic Component System

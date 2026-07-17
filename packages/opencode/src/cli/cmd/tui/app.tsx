@@ -74,8 +74,8 @@ import type { EventSource } from "./context/sdk"
 import { DialogVariant } from "./component/dialog-variant"
 
 // Lazy registration: <image-plane> loaded on first use (not at module load).
-// Three.js/WebGPU (from @opentui/three) is only loaded when a fallback image
-// actually needs to render — Sixel handles the common case.
+// Three.js/WebGPU (from @opentui/three) is only for the rare fallback path.
+// Primary images use OpenTUI <image> (PixelBuffer → Kitty/Sixel).
 let _imagePlaneRegistered = false
 async function registerImagePlane(): Promise<void> {
   if (_imagePlaneRegistered) return

@@ -36,11 +36,13 @@ const audio_tests = @import("tests/audio_test.zig");
 const handles_tests = @import("tests/handles_test.zig");
 const yoga_tests = @import("tests/yoga_test.zig");
 const ansi_tests = @import("tests/ansi_test.zig");
+const sixel_tests = @import("sixel.zig");
 // const example_tests = @import("example_test.zig");
 
 // Re-export test declarations from individual test files
 // This allows `zig test index.zig` to run all tests
 comptime {
+    _ = sixel_tests;
     _ = text_buffer_tests;
     _ = text_buffer_highlights_tests;
     _ = text_buffer_view_tests;

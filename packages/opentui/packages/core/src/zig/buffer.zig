@@ -2526,6 +2526,9 @@ pub const PixelPatch = struct {
     y: u32,
     width: u32,
     height: u32,
+    /// Layout size in terminal cells (0 = derive at encode time).
+    cell_w: u32 = 0,
+    cell_h: u32 = 0,
     /// Owned RGBA bytes (allocated by PixelBuffer); free with `freeData`.
     data: []u8,
     hash: u64,
@@ -2533,6 +2536,7 @@ pub const PixelPatch = struct {
     pub fn isEqual(self: *const PixelPatch, other: *const PixelPatch) bool {
         return self.x == other.x and self.y == other.y
            and self.width == other.width and self.height == other.height
+           and self.cell_w == other.cell_w and self.cell_h == other.cell_h
            and self.hash == other.hash;
     }
 };
@@ -2592,6 +2596,8 @@ pub const PixelBuffer = struct {
             .y = patch.y,
             .width = patch.width,
             .height = patch.height,
+            .cell_w = patch.cell_w,
+            .cell_h = patch.cell_h,
             .data = owned,
             .hash = patch.hash,
         });
@@ -2614,11 +2620,20 @@ pub const PixelBuffer = struct {
         self.patches.clearRetainingCapacity();
     }
 
-    pub fn drawImage(self: *PixelBuffer, x: u32, y: u32, width: u32, height: u32, data: []const u8) void {
+    pub fn drawImage(
+        self: *PixelBuffer,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        data: []const u8,
+        cell_w: u32,
+        cell_h: u32,
+    ) void {
         const hash = std.hash.Wyhash.hash(0, data);
         // Dedup without allocating when the same image is already queued.
         for (self.patches.items) |p| {
-            if (p.x == x and p.y == y and p.width == width and p.height == height and p.hash == hash) return;
+            if (p.x == x and p.y == y and p.width == width and p.height == height and p.cell_w == cell_w and p.cell_h == cell_h and p.hash == hash) return;
         }
         const owned = self.allocator.dupe(u8, data) catch return;
         const id = self.nextImageId;
@@ -2628,6 +2643,8 @@ pub const PixelBuffer = struct {
             .y = y,
             .width = width,
             .height = height,
+            .cell_w = cell_w,
+            .cell_h = cell_h,
             .data = owned,
             .hash = hash,
         });

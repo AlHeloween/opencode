@@ -864,9 +864,19 @@ export fn destroyOptimizedBuffer(buffer_handle: NativeHandle) void {
     handles.finishDestroy(token.handle);
 }
 
-export fn pixelsDrawImage(pixel_buffer_handle: NativeHandle, x: u32, y: u32, width: u32, height: u32, data_ptr: [*]const u8, data_len: usize) void {
+export fn pixelsDrawImage(
+    pixel_buffer_handle: NativeHandle,
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    data_ptr: [*]const u8,
+    data_len: usize,
+    cell_w: u32,
+    cell_h: u32,
+) void {
     const pixel_ptr = handles.acquire(pixel_buffer_handle, .pixel_buffer, buffer.PixelBuffer) orelse return;
-    pixel_ptr.drawImage(x, y, width, height, data_ptr[0..data_len]);
+    pixel_ptr.drawImage(x, y, width, height, data_ptr[0..data_len], cell_w, cell_h);
 }
 
 export fn destroyFrameBuffer(frame_buffer_handle: NativeHandle) void {

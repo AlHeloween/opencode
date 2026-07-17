@@ -422,7 +422,7 @@ function getOpenTUILib(libPath?: string) {
     },
 
     pixelsDrawImage: {
-      args: ["u32", "u32", "u32", "u32", "u32", "ptr", "usize"],
+      args: ["u32", "u32", "u32", "u32", "u32", "ptr", "usize", "u32", "u32"],
       returns: "void",
     },
 
@@ -2072,7 +2072,16 @@ export interface RenderLib extends AudioEngineLib {
     id?: string,
   ) => OptimizedBuffer
   destroyOptimizedBuffer: (bufferPtr: OptimizedBufferHandle) => void
-  pixelsDrawImage: (bufferPtr: Pointer, x: number, y: number, width: number, height: number, data: Uint8Array) => void
+  pixelsDrawImage: (
+    bufferPtr: Pointer,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    data: Uint8Array,
+    cellW?: number,
+    cellH?: number,
+  ) => void
   drawFrameBuffer: (
     targetBufferPtr: OptimizedBufferHandle,
     destX: number,
@@ -3435,8 +3444,17 @@ class FFIRenderLib implements RenderLib {
     this.opentui.symbols.destroyOptimizedBuffer(bufferPtr)
   }
 
-  public pixelsDrawImage(pixelBufferPtr: Pointer, x: number, y: number, width: number, height: number, data: Uint8Array) {
-    this.opentui.symbols.pixelsDrawImage(pixelBufferPtr, x, y, width, height, data, data.length)
+  public pixelsDrawImage(
+    pixelBufferPtr: Pointer,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    data: Uint8Array,
+    cellW: number = 0,
+    cellH: number = 0,
+  ) {
+    this.opentui.symbols.pixelsDrawImage(pixelBufferPtr, x, y, width, height, data, data.length, cellW, cellH)
   }
 
   public drawFrameBuffer(

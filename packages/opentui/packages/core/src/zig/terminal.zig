@@ -787,7 +787,34 @@ fn checkEnvironmentOverrides(self: *Terminal) void {
     if (env_map.get("WT_SESSION") != null) {
         self.caps.rgb = true;
         self.caps.ansi256 = true;
+        // Windows Terminal 2024+ supports Sixel; env is enough before DA1 arrives.
+        self.caps.sixel = true;
         self.setNotificationProtocol(.osc777, .heuristic);
+    }
+
+    // Common Sixel-capable terminals when DA1 has not answered yet.
+    if (!self.caps.sixel) {
+        if (env_map.get("TERM")) |term| {
+            if (std.mem.eql(u8, term, "foot") or
+                std.mem.startsWith(u8, term, "foot-") or
+                std.mem.indexOf(u8, term, "sixel") != null or
+                std.mem.startsWith(u8, term, "mlterm") or
+                std.mem.startsWith(u8, term, "yaft"))
+            {
+                self.caps.sixel = true;
+            }
+        }
+        if (!self.caps.sixel) {
+            if (env_map.get("TERM_PROGRAM")) |prog| {
+                if (std.ascii.eqlIgnoreCase(prog, "Konsole") or
+                    std.ascii.eqlIgnoreCase(prog, "iTerm.app") or
+                    std.ascii.eqlIgnoreCase(prog, "WezTerm"))
+                {
+                    // WezTerm prefers Kitty when enabled; Sixel remains a valid fallback.
+                    self.caps.sixel = true;
+                }
+            }
+        }
     }
 
     if (env_map.get("OPENTUI_NOTIFICATION_PROTOCOL")) |protocol| {

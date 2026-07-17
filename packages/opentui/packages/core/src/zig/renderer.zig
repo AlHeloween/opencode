@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const ansi = @import("ansi.zig");
 const buf = @import("buffer.zig");
 const kitty = @import("kitty.zig");
+const sixel = @import("sixel.zig");
 const gp = @import("grapheme.zig");
 const link = @import("link.zig");
 const split_scrollback = @import("split-scrollback.zig");
@@ -1338,6 +1339,13 @@ pub const CliRenderer = struct {
     }
 
     pub fn renderPixels(self: *CliRenderer, writer: anytype) void {
+        const use_kitty = self.terminal.caps.kitty_graphics;
+        const use_sixel = !use_kitty and self.terminal.caps.sixel;
+        if (!use_kitty and !use_sixel) {
+            // No graphics protocol — drop patches; TS may render symbols into the cell buffer.
+            return;
+        }
+
         // check for removed patches — iterate backwards to avoid skipping elements
         const currentPatches = self.currentPixelBuffer.patches.items;
         var i: usize = currentPatches.len;
@@ -1345,7 +1353,11 @@ pub const CliRenderer = struct {
             i -= 1;
             const patch = currentPatches[i];
             if (!self.nextPixelBuffer.hasPatch(patch)) {
-                kitty.IMAGE.delete(writer, patch.id);
+                if (use_kitty) {
+                    kitty.IMAGE.delete(writer, patch.id);
+                } else {
+                    sixel.IMAGE.delete(writer, patch.x, patch.y + self.renderOffset, patch.cell_w, patch.cell_h);
+                }
                 // removePatch frees owned RGBA
                 self.currentPixelBuffer.removePatch(patch);
             }
@@ -1354,7 +1366,33 @@ pub const CliRenderer = struct {
         // check for new patches in the next pixel buffer
         for (self.nextPixelBuffer.patches.items) |patch| {
             if (!self.currentPixelBuffer.hasPatch(patch)) {
-                kitty.IMAGE.create(writer, patch.id, patch.x, patch.y + self.renderOffset, patch.width, patch.height, patch.data, self.allocator);
+                if (use_kitty) {
+                    kitty.IMAGE.create(
+                        writer,
+                        patch.id,
+                        patch.x,
+                        patch.y + self.renderOffset,
+                        patch.width,
+                        patch.height,
+                        patch.data,
+                        patch.cell_w,
+                        patch.cell_h,
+                        self.allocator,
+                    );
+                } else {
+                    sixel.IMAGE.create(
+                        writer,
+                        patch.id,
+                        patch.x,
+                        patch.y + self.renderOffset,
+                        patch.width,
+                        patch.height,
+                        patch.data,
+                        patch.cell_w,
+                        patch.cell_h,
+                        self.allocator,
+                    );
+                }
                 // Copy into current so next.clear() can free its own buffers safely.
                 self.currentPixelBuffer.adoptCopy(patch);
             }

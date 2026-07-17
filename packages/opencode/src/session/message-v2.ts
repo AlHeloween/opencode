@@ -1065,6 +1065,26 @@ export function toModelMessages(
   return Effect.runPromise(toModelMessagesEffect(input, model, options).pipe(Effect.provide(EffectLogger.layer)))
 }
 
+/**
+ * Convert each DB message independently and record how many ModelMessages
+ * each produced. Used by checkpoint save so prefix reuse can slice past
+ * expanded tool-result messages (assistant tool-call → assistant + tool roles).
+ */
+export const toModelMessagesWithCountsEffect = Effect.fnUntraced(function* (
+  input: WithParts[],
+  model: Provider.Model,
+  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+) {
+  const messages: ModelMessage[] = []
+  const counts: number[] = []
+  for (const msg of input) {
+    const converted = yield* toModelMessagesEffect([msg], model, options)
+    counts.push(converted.length)
+    messages.push(...converted)
+  }
+  return { messages, counts }
+})
+
 export function page(input: { sessionID: SessionID; limit: number; before?: string }) {
   const before = input.before ? cursor.decode(input.before) : undefined
   const where = before

@@ -65,6 +65,16 @@ export interface CheckpointData {
    * model-ready bytes. Optional for older slots; next save fills them.
    */
   messageFingerprints?: string[]
+  /**
+   * Parallel to messageIDs: how many ModelMessage entries each DB message
+   * produced in `messages`. Required for correct prefix reuse because
+   * convertToModelMessages expands a single assistant tool-call message into
+   * role:"assistant" + one or more role:"tool" result messages (not 1:1).
+   * Slicing `messages` by messageIDs index drops tool results and triggers
+   * AI_MissingToolResultsError. Optional for legacy slots; load falls back to
+   * full reconversion when missing/misaligned.
+   */
+  modelMessageCounts?: number[]
   model: { providerID: string; modelID: string }
   agent: string
   turn: number
@@ -213,13 +223,18 @@ export function dropMemory(sessionID: string): void {
  * Longest reusable prefix: same message IDs in order, content fingerprints match.
  * Suffix must be re-converted (new messages or in-place edits from first dirty).
  * Legacy slots without messageFingerprints trust ID order only (next save fills fps).
+ *
+ * NOTE: The returned length indexes messageIDs / messageFingerprints / modelMessageCounts
+ * (DB messages), NOT data.messages. Use modelMessageEnd / takeModelPrefix to slice
+ * ModelMessage[] — tool results expand so messages.length can exceed messageIDs.length.
  */
 export function reusablePrefixLength(
   msgs: MessageV2.WithParts[],
   data: CheckpointData,
   fingerprint: (msg: MessageV2.WithParts) => string,
 ): number {
-  const n = Math.min(msgs.length, data.messageIDs.length, data.messages.length)
+  // Cap by messageIDs only — do not use data.messages.length (1:N tool expansion).
+  const n = Math.min(msgs.length, data.messageIDs.length)
   const fps = data.messageFingerprints
   const hasFp = Array.isArray(fps) && fps.length === data.messageIDs.length
   let prefix = 0
@@ -229,6 +244,34 @@ export function reusablePrefixLength(
     prefix++
   }
   return prefix
+}
+
+/**
+ * Exclusive end index in data.messages for the first `prefixLen` DB messages.
+ * Returns null when modelMessageCounts is missing or misaligned (legacy slots).
+ */
+export function modelMessageEnd(data: CheckpointData, prefixLen: number): number | null {
+  const counts = data.modelMessageCounts
+  if (!Array.isArray(counts) || counts.length !== data.messageIDs.length) return null
+  if (prefixLen < 0 || prefixLen > counts.length) return null
+  let end = 0
+  for (let i = 0; i < prefixLen; i++) {
+    const n = counts[i]
+    if (typeof n !== "number" || n < 0 || !Number.isFinite(n)) return null
+    end += n
+  }
+  if (end > data.messages.length) return null
+  return end
+}
+
+/**
+ * Model messages for the first `prefixLen` DB messages, or null when counts
+ * are unavailable (caller must reconvert from DB).
+ */
+export function takeModelPrefix(data: CheckpointData, prefixLen: number): ModelMessage[] | null {
+  const end = modelMessageEnd(data, prefixLen)
+  if (end === null) return null
+  return data.messages.slice(0, end)
 }
 
 /** Save checkpoint to encrypted file with 2-slot rotation + memory publish. */

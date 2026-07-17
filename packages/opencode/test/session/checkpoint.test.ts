@@ -306,4 +306,86 @@ describe("Checkpoint", () => {
     ] as any
     expect(Checkpoint.reusablePrefixLength(msgs, data, () => "ignored")).toBe(2)
   })
+
+  test("reusablePrefixLength is not capped by expanded model message count", () => {
+    // Assistant with tools → assistant + tool-result (3 model msgs, 2 DB ids).
+    // Old code used Math.min(..., data.messages.length) which was fine when
+    // messages.length >= ids; the real bug was slice(0, prefixLen) on messages.
+    const data = makeCheckpointData({
+      messageIDs: ["user1", "asst1"],
+      messages: [
+        { role: "user", content: "go" },
+        {
+          role: "assistant",
+          content: [{ type: "tool-call", toolCallId: "call_1", toolName: "bash", input: {} }],
+        },
+        {
+          role: "tool",
+          content: [{ type: "tool-result", toolCallId: "call_1", toolName: "bash", output: { type: "text", value: "ok" } }],
+        },
+      ] as any,
+      messageFingerprints: ["fp_u", "fp_a"],
+      modelMessageCounts: [1, 2],
+    })
+    const msgs = [
+      { info: { id: "user1" }, parts: [] },
+      { info: { id: "asst1" }, parts: [] },
+    ] as any
+    expect(Checkpoint.reusablePrefixLength(msgs, data, () => "fp_u")).toBe(1)
+    expect(
+      Checkpoint.reusablePrefixLength(msgs, data, (m) => (m.info.id === "user1" ? "fp_u" : "fp_a")),
+    ).toBe(2)
+  })
+
+  test("takeModelPrefix includes tool-result messages after assistant tool-call", () => {
+    const data = makeCheckpointData({
+      messageIDs: ["user1", "asst1"],
+      messages: [
+        { role: "user", content: "go" },
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "running" },
+            { type: "tool-call", toolCallId: "call_00_GQlJ", toolName: "bash", input: { command: "x" } },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_00_GQlJ",
+              toolName: "bash",
+              output: { type: "text", value: "done" },
+            },
+          ],
+        },
+      ] as any,
+      modelMessageCounts: [1, 2],
+    })
+
+    // BUG reproduction: slice(0, prefixLen=2) drops the tool result (index 2).
+    const wrong = data.messages.slice(0, 2)
+    expect(wrong.some((m) => m.role === "tool")).toBe(false)
+
+    const prefix = Checkpoint.takeModelPrefix(data, 2)
+    expect(prefix).not.toBeNull()
+    expect(prefix!.length).toBe(3)
+    expect(prefix!.some((m) => m.role === "tool")).toBe(true)
+    expect(Checkpoint.modelMessageEnd(data, 1)).toBe(1)
+    expect(Checkpoint.modelMessageEnd(data, 2)).toBe(3)
+    expect(Checkpoint.modelMessageEnd(data, 0)).toBe(0)
+  })
+
+  test("takeModelPrefix returns null without modelMessageCounts (legacy fallback)", () => {
+    const data = makeCheckpointData({
+      messageIDs: ["a", "b"],
+      messages: [
+        { role: "user", content: "1" },
+        { role: "assistant", content: "2" },
+      ],
+    })
+    expect(Checkpoint.takeModelPrefix(data, 2)).toBeNull()
+    expect(Checkpoint.modelMessageEnd(data, 2)).toBeNull()
+  })
 })

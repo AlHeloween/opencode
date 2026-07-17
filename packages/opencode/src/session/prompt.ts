@@ -1590,6 +1590,11 @@ You should build your plan incrementally by writing to or editing this file. NOT
             // Checkpoint message reuse: longest ordered prefix with matching IDs
             // and content fingerprints (detects in-place edits). Suffix re-converted.
             // Path system stays frozen until compact — only messages use delta logic.
+            //
+            // CRITICAL: ModelMessage[] is NOT 1:1 with messageIDs. An assistant
+            // message with tool calls expands to assistant + role:"tool" result
+            // message(s). Slicing messages by prefixLen (DB count) drops tool
+            // results → AI_MissingToolResultsError. Use modelMessageCounts.
             let modelMsgs: ModelMessage[]
             // Diff/checkpoint IDs are plain strings (CheckpointData.messageIDs); do not brand.
             let modelMessageIDs: string[] = msgs.map((m) => m.info.id)
@@ -1597,15 +1602,21 @@ You should build your plan incrementally by writing to or editing this file. NOT
               const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable, (m) =>
                 CacheControl.messageFingerprint(m).hash,
               )
-              const suffix = msgs.slice(prefixLen)
-              const suffixModel = suffix.length
-                ? yield* MessageV2.toModelMessagesEffect(suffix, model)
-                : []
-              modelMsgs = [...checkpointUsable.messages.slice(0, prefixLen), ...suffixModel]
-              modelMessageIDs = [
-                ...checkpointUsable.messageIDs.slice(0, prefixLen),
-                ...suffix.map((m) => m.info.id),
-              ]
+              const prefixModel = Checkpoint.takeModelPrefix(checkpointUsable, prefixLen)
+              if (prefixModel === null) {
+                // Legacy checkpoint without modelMessageCounts — full reconvert.
+                modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
+              } else {
+                const suffix = msgs.slice(prefixLen)
+                const suffixModel = suffix.length
+                  ? yield* MessageV2.toModelMessagesEffect(suffix, model)
+                  : []
+                modelMsgs = [...prefixModel, ...suffixModel]
+                modelMessageIDs = [
+                  ...checkpointUsable.messageIDs.slice(0, prefixLen),
+                  ...suffix.map((m) => m.info.id),
+                ]
+              }
             } else if (audit.cacheStable && modelMsgsCache) {
               modelMsgs = modelMsgsCache
             } else {
@@ -1771,14 +1782,33 @@ You should build your plan incrementally by writing to or editing this file. NOT
                       CacheControl.messageFingerprint(m).hash,
                     )
                   : 0
-                const suffix = checkpointMsgs.slice(prefixLen)
-                const suffixModel = suffix.length
-                  ? yield* MessageV2.toModelMessagesEffect(suffix, model)
-                  : []
-                const fullModel = [
-                  ...(checkpointUsable ? checkpointUsable.messages.slice(0, prefixLen) : []),
-                  ...suffixModel,
-                ]
+                // modelMessageCounts must stay parallel to messageIDs. Without
+                // counts (legacy slot), reconvert the full set so the new slot
+                // is accurate — never slice messages by DB prefix length.
+                let fullModel: ModelMessage[]
+                let modelMessageCounts: number[]
+                const prefixModel =
+                  checkpointUsable != null
+                    ? Checkpoint.takeModelPrefix(checkpointUsable, prefixLen)
+                    : null
+                if (prefixModel !== null && checkpointUsable) {
+                  const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
+                    checkpointMsgs.slice(prefixLen),
+                    model,
+                  )
+                  fullModel = [...prefixModel, ...converted.messages]
+                  modelMessageCounts = [
+                    ...checkpointUsable.modelMessageCounts!.slice(0, prefixLen),
+                    ...converted.counts,
+                  ]
+                } else {
+                  const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
+                    checkpointMsgs,
+                    model,
+                  )
+                  fullModel = converted.messages
+                  modelMessageCounts = converted.counts
+                }
                 yield* Checkpoint.save({
                   sessionID,
                   projectID: ctx.project.id,
@@ -1790,6 +1820,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                     messages: fullModel,
                     messageIDs: checkpointMsgs.map((m) => m.info.id),
                     messageFingerprints: checkpointMsgs.map((m) => CacheControl.messageFingerprint(m).hash),
+                    modelMessageCounts,
                     model: { providerID: model.providerID, modelID: model.id },
                     agent: agent.name,
                     turn: step + 1,

@@ -289,7 +289,10 @@ export function DialogPermissions() {
     if (busy()) return false
     setBusy(true)
     try {
-      await sdk.client.config.update(patch as any)
+      // SDK maps body from the `config` field only (sdk.gen.ts buildClientParams).
+      // Top-level update(patch) sends an empty body — toast can succeed while
+      // nothing is written, then values snap back after reload.
+      await sdk.client.config.update({ config: patch as any })
       await sync.bootstrap({ fatal: false }).catch((err) => {
         log.debug("bootstrap after permission update failed", { error: String(err) })
       })
@@ -318,7 +321,8 @@ export function DialogPermissions() {
     }
     const prev = { ...((sync.data.config as any)?.permission ?? {}) }
     for (const p of TOOL_POLICIES) {
-      prev[p.key] = draftTools[p.key] ?? "ask"
+      const fallback = TOOL_DEFAULTS[p.key] ?? "allow"
+      prev[p.key] = draftTools[p.key] ?? fallback
     }
     const ok = await applyConfigPatch(
       {

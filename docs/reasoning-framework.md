@@ -167,7 +167,7 @@ TS mirror (risk + InfoMark helpers): `packages/opencode/src/session/constitution
 
 - **DESTRUCTIVE shell** (`rm -rf`, `git push --force`, `reset --hard`, …) requires permission **`destructive`** (not `bash:*`, so auto-allow bash cannot skip it), or `OPENCODE_ALLOW_DESTRUCTIVE=1`
 - Defaults: `destructive: ask` after `*: allow`. Plan: deny. Explore: `*: deny`.
-- TUI: **`/permissions`** tool policies (ask/allow/deny, saved to config). Prompt UI labels Destructive separately; “Always this cmd” is session-only.
+- TUI: **`/permissions`** tool policies (ask/allow/deny, saved to config). Shell & exec keys: **destructive** (default deny), **bash**, **powershell**, **cmd**, **run**. “Always this cmd” is session-only. See `docs/startup-bootstrap.md`.
 - **ELEVATED** shell / edit / write / multiedit / apply_patch: logged (permissions still apply)
 - **session-read** output: `info_mark: Exact`
 - **messagesearch** output: `info_mark: Inferred` (use session-read for Exact)

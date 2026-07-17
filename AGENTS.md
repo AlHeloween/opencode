@@ -287,16 +287,21 @@ const table = sqliteTable("session", {
 
 ## Fossil Snapshot System
 
-Real-time working copy tracking with undo/redo and session-level rollback. See `plans/fossil-snapshot-system.md` for full documentation.
+Real-time working copy tracking with undo/redo and session-level rollback. See `plans/fossil-snapshot-system.md` for full documentation. Startup/bootstrap context: `docs/startup-bootstrap.md`.
 
 **Key points:**
-- **Backend**: Fossil SCM (single `.fsl` file, 20+ years stable, portable)
-- **Repo location**: `{data}/fossil/{projectID}/snapshot.fsl`
-- **Binary**: `external/fossil/fossil.exe` (v2.28)
-- **No colocated mode** — Fossil must NOT share `.git` with the project
+- **Backend**: Fossil SCM **only** (single `.fsl` file). There is no git/jj snapshot backend in this fork.
+- **Repo location**: `{data}/fossil/{projectID}/snapshot.fsl` (sidecar under `.opencode/data`, not a colocated project checkout)
+- **Binary**: `external/fossil/fossil.exe` (v2.28) or `tools/fossil.exe` next to the executable
+- **No colocated mode** — snapshot Fossil must NOT share `.git` with the project
 - **Self-healing initialization** — if `.fsl` or data deleted, auto-recreate
-- **`.gitignore` respected** — translated to Fossil `ignore-glob` patterns
+- **`.gitignore` respected** — translated to Fossil `ignore-glob` patterns (also ignores `.git` / `.jj`)
 - **Performance safe** — no scanning 5000+ files per operation
+
+**Not the same as project VCS or TUI indicator:**
+- **Git** (`project/vcs.ts`) — real project source control (branch, agent-facing git status) when the worktree is a git repo
+- **jj** — TUI footer detection only (`.jj`); no snapshot service
+- **TUI indicator** — fossil (green) / jj (blue) / git (red) from checkout markers; a git monorepo still uses Fossil for agent undo
 
 **Key functions:**
 - `track(files?)` — Creates snapshot of current working copy
@@ -306,7 +311,6 @@ Real-time working copy tracking with undo/redo and session-level rollback. See `
 **Integration:**
 - Session processor tracks changed files from tool results
 - Summary system computes diffs for "Modified Files" display
-- TUI indicator shows fossil (green `●`) / jj (blue) / git (red)
 
 **Troubleshooting:**
 - If "Modified Files" shows 0 diffs, check logs for `resolveHash` fallback warnings

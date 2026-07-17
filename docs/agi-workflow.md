@@ -121,15 +121,15 @@ Tests: `packages/opencode/test/util/plan-status.test.ts`.
 
 ## Permissions & constitution (AGI)
 
-Workers run **build** (default `*` allow + `destructive: ask`). Orchestrator has `destructive: ask` and limited edit paths.
+Workers run **build** (default `*` allow + **`destructive: deny`**). Shell exec is split: `bash` / `powershell` / `cmd` / `run` (all allow by default). Orchestrator inherits destructive deny and has limited edit paths. See `docs/startup-bootstrap.md` (permissions section).
 
 | Risk | Behavior under AGI |
 |------|---------------------|
-| DESTRUCTIVE shell | TUI permission prompt **destructive** (not bash:*). Loop stays WORKERS_BUSY until user allows/rejects. |
-| Permanent policy | `/permissions` → Destructive shell → Ask / Allow / Deny (config) |
+| DESTRUCTIVE shell | TUI permission **destructive** (not bash/cmd/ps/run wildcards). Default **deny**; if set to ask, loop stays WORKERS_BUSY until user allows/rejects. |
+| Permanent policy | `/permissions` → Shell & exec (Destructive, Bash, PowerShell, Cmd, Run) |
 | Session "Always this cmd" | Until process restart only |
 
-**Recommendation for unattended AGI:** set Destructive = **Deny** in `/permissions` so force-push/rm -rf never auto-run; keep normal bash/edit as needed.
+**Recommendation for unattended AGI:** keep Destructive = **Deny** so force-push/rm -rf never auto-run; keep normal bash/cmd/run as needed.
 
 ---
 
@@ -157,7 +157,7 @@ Workers run **build** (default `*` allow + `destructive: ask`). Orchestrator has
 ## Operator checklist
 
 1. Open project worktree; ensure `plans/` has a master plan if you want progress tracking.  
-2. `/permissions` — set **Destructive shell** to Ask (default) or Deny for safer autonomy.  
+2. `/permissions` — confirm **Destructive** is Deny (default); adjust Bash/PowerShell/Cmd/Run as needed.  
 3. Toggle AGI (`<leader>o` / `/agi` / command palette). Timeline remains `<leader>g`.  
 4. Approve constitution **destructive** prompts when workers need them.  
 5. Re-toggle AGI after restart — orch/main sessions resume from `agi-state.json`.  

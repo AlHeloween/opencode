@@ -1175,18 +1175,19 @@ class TestConformanceSuite:
 # ======================================================================
 
 class TestProjectSpecs:
-    """§P1-P6 All 32 project specifications validate correctly."""
+    """§P1-P6 All project specifications validate correctly."""
 
     def test_all_specs_have_required_fields(self):
         for name, spec in _ALL_SPECS.items():
             _validate_spec(name, spec)
 
     def test_all_specs_loaded(self):
-        assert len(_ALL_SPECS) == 32
+        assert len(_ALL_SPECS) == 33
         assert "CODER" in _ALL_SPECS
         assert "EXPLORER" in _ALL_SPECS
         assert "ORCHESTRATOR" in _ALL_SPECS
         assert "ADM_EXE" in _ALL_SPECS
+        assert "ADID_OPS" in _ALL_SPECS
         assert "GOVERNANCE" in _ALL_SPECS
         assert "DEFAULT_PROMPT" in _ALL_SPECS
         assert "GROUNDING_RULES" in _ALL_SPECS
@@ -1194,9 +1195,9 @@ class TestProjectSpecs:
     def test_spec_field_counts(self):
         """Verify known field counts to catch regression."""
         counts = {
-            "CODER": {"constraints": 6, "invariants": 3, "acceptance_tests": 3, "forbidden_actions": 4},
+            "CODER": {"constraints": 6, "invariants": 3, "acceptance_tests": 3, "forbidden_actions": 5},
             "ORCHESTRATOR": {"constraints": 4, "invariants": 4, "acceptance_tests": 3, "forbidden_actions": 7},
-            "GOVERNANCE": {"constraints": 4, "invariants": 6, "forbidden_actions": 2},
+            "GOVERNANCE": {"constraints": 4, "invariants": 6, "forbidden_actions": 3},
         }
         for name, expected in counts.items():
             spec = _ALL_SPECS[name]

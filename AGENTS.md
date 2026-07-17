@@ -48,6 +48,7 @@ forbidden_actions:
 - Breaking KV cache continuity (system prompt must be byte-stable)
 - Running tests from repo root
 - Changing Global.Path.home from worktree to os.homedir()
+- Hand-editing ADID framework receivers under `.cursor/` or `.opencode/` (rules `adid-*`, `semantic-coding-agent-drop-in.mdc`; skills `adm-*`, `rag`, `patch-tool`, `agent-assets`, `apply-patch-edits`) — framework-owned; change only via `opencode_prompts_kernel.py` SPECS or official ADM pipelines
 
 invariants:
 - Default branch is dev — never assume main exists

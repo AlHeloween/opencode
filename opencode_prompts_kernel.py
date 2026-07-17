@@ -1322,6 +1322,7 @@ It should never delegate work (it IS the sub-agent). Every change must be verifi
         "Committing changes unless user explicitly asks",
         "Creating new files when edit of existing would suffice",
         "Using emojis unless user explicitly requests",
+        "Editing ADID framework surfaces: .cursor/rules/adid-*.mdc, .opencode/rules/adid-*.mdc, semantic-coding-agent-drop-in.mdc, ADID skills under .cursor/skills or .opencode/skills (adm-*, rag, patch-tool, agent-assets, apply-patch-edits)",
     ],
 )
 
@@ -1776,27 +1777,45 @@ Fallback: python -m adm --patch-tool <patch_file> when tools/adm not present."""
 
 AGENT_ASSETS = _spec(
     intent="""Maintain canonical artefacts and install agent receiver scaffolds.
-Agent folders are receivers (safe to delete): .cursor/, .codex/, ~/.codex/, .opencode/.""",
+Agent folders are receivers (safe to delete): .cursor/, .codex/, ~/.codex/, .opencode/.
+
+ADID exception: ADID framework rules/skills are NOT free-form project assets.
+Do not hand-edit ADID receivers even with apply_patch. Kernel policy lives in
+opencode_prompts_kernel.py; ADM owns updates/history. Sync scripts must not
+overwrite ADID PromptSpec receivers with free-form ADID_Framework prose.""",
 
     state={"canonical_source": "artefacts/rules/ and artefacts/skills/"},
 
     scope="canonical artefact maintenance, receiver scaffold installation",
 
-    constraints={"edit_canonical_then_sync": True},
+    constraints={
+        "edit_canonical_then_sync": True,
+        "adid_receivers_frozen": True,
+    },
 
-    invariants=[],
+    invariants=[
+        "ADID rule/skill receivers must keep PromptSpec structure or official ADM content — never free-form rewrite",
+    ],
 
     acceptance_tests=[],
 
     forbidden_actions=[
         "Editing receiver copies directly instead of canonical sources",
+        "Hand-editing ADID framework receivers under .cursor/ or .opencode/ (rules adid-*, semantic-coding-agent-drop-in; skills adm-*, rag, patch-tool, agent-assets, apply-patch-edits)",
+        "Syncing free-form ADID_Framework markdown over kernel PromptSpec rule receivers",
     ],
 
     usage="""## Canonical Sources
 Rules: artefacts/rules/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/rules/
 Skills: artefacts/skills/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/skills/
 
-## Workflow
+## ADID framework (do not touch as project files)
+- Source of policy SPECS: opencode_prompts_kernel.py (ADID_FRAMEWORK_RULES, ADM_*, RAG, …)
+- On-disk: .cursor/rules/adid-*.mdc, .opencode/rules/adid-*.mdc, semantic-coding-agent-drop-in.mdc
+- On-disk skills: adm-exe, adm-mcp-service, rag, patch-tool, agent-assets, apply-patch-edits
+- Coding agents: never edit/write these paths. Diff noise here fails tests/test_prompt_schema.py.
+
+## Workflow (non-ADID project assets only)
 1. Edit canonical assets under artefacts/rules/ and/or artefacts/skills/
 2. Regenerate: python scripts/internal/build_artefacts.py
 3. Install: python scripts/internal/sync_agent_assets.py --targets opencode
@@ -1806,7 +1825,7 @@ Skills: artefacts/skills/ -> installed to artefacts/scaffolds/{cursor,codex,open
 ## Skills-only sync (faster)
 python scripts/internal/sync_skills_from_artefacts.py --prune
 
-Never edit receiver copies directly.""",
+Never edit receiver copies directly. Never treat ADID receivers as editable project docs.""",
 )
 
 ADM_MCP = _spec(
@@ -1846,13 +1865,20 @@ systemctl status adid-adm-mcp.service --no-pager""",
 
 APPLY_PATCH_EDITS = _spec(
     intent="""Use apply_patch-only edits for AGENTS.md + canonical skills/rules to avoid cross-agent conflicts.
-Always edit canonical sources then sync — never edit receiver copies.""",
+Always edit canonical sources then sync — never edit receiver copies.
+
+Does NOT authorize editing ADID framework receivers. ADID rules/skills under
+.cursor/ and .opencode/ are frozen; change policy via kernel or ADM only.""",
 
     state={"tool": "apply_patch"},
 
-    scope="atomic diffs via apply_patch, canonical edit then sync",
+    scope="atomic diffs via apply_patch, canonical edit then sync (non-ADID surfaces)",
 
-    constraints={"atomic_diffs": True, "edit_canonical_then_sync": True},
+    constraints={
+        "atomic_diffs": True,
+        "edit_canonical_then_sync": True,
+        "adid_receivers_frozen": True,
+    },
 
     invariants=[],
 
@@ -1860,11 +1886,15 @@ Always edit canonical sources then sync — never edit receiver copies.""",
 
     forbidden_actions=[
         "Editing receiver copies (.codex/, .cursor/, .opencode/) directly",
+        "apply_patch on ADID framework rules/skills under .cursor/ or .opencode/",
     ],
 
     usage="""## When to use
 Use for: AGENTS.md, canonical agent rules (artefacts/rules/), canonical agent skills (artefacts/skills/)
 These are high-churn coordination surfaces; in-place manual edits cause cross-conflicts.
+
+## Never use for
+ADID framework receivers (adid-*.mdc, semantic-coding-agent-drop-in.mdc, adm-* / rag / patch-tool skills).
 
 ## Rules
 1. Make changes only via apply_patch tool (atomic, reviewable diffs)
@@ -2145,10 +2175,37 @@ Teams: desktop, zen, tui, core, docs, windows. Pick the most fitting labels and 
 ADID_FRAMEWORK_RULES = _spec(
     intent="""ADID framework and adm executable rules for all development.
 Ground work in real governing surfaces, use cmd_runner for risky commands,
-maintain documentation reproducibility.""",
+maintain documentation reproducibility.
 
-    state={"protocol": "docs/ADID_Framework_15_4.md", "adm_tool": "tools/adm.exe or python -m adm"},
-    scope="ADID framework adherence, adm tool usage, docs maintenance",
+ADID framework on-disk surfaces are FROZEN for coding agents: do not hand-edit
+rule/skill receivers under .cursor/ or .opencode/ that belong to ADID.
+Those files are framework-owned (PromptSpec receivers and/or ADM installs).
+Rewriting them to free-form prose breaks pytest PromptSpec and ADID integrity.
+Change ADID policy only in opencode_prompts_kernel.py (e.g. ADID_FRAMEWORK_RULES)
+or via official ADM/artefact pipelines — never by drive-by edit of receivers.""",
+
+    state={
+        "protocol": "docs/ADID_Framework_15_4.md",
+        "adm_tool": "tools/adm.exe or python -m adm",
+        "frozen_receivers": [
+            ".cursor/rules/adid-*.mdc",
+            ".cursor/rules/semantic-coding-agent-drop-in.mdc",
+            ".opencode/rules/adid-*.mdc",
+            ".opencode/rules/semantic-coding-agent-drop-in.mdc",
+            ".cursor/skills/adm-*/",
+            ".cursor/skills/rag/",
+            ".cursor/skills/patch-tool/",
+            ".cursor/skills/agent-assets/",
+            ".cursor/skills/apply-patch-edits/",
+            ".opencode/skills/adm-*/",
+            ".opencode/skills/rag/",
+            ".opencode/skills/patch-tool/",
+            ".opencode/skills/agent-assets/",
+            ".opencode/skills/apply-patch-edits/",
+        ],
+        "kernel_source": "opencode_prompts_kernel.py::ADID_FRAMEWORK_RULES and skill SPECS",
+    },
+    scope="ADID framework adherence, adm tool usage, docs maintenance, frozen ADID receivers",
 
     constraints={
         "no_legacy_compat": True,
@@ -2156,6 +2213,8 @@ maintain documentation reproducibility.""",
         "greenfield_requires_plan": True,
         "port_means_replicate": True,
         "control_stubs_for_verification": True,
+        "adid_receivers_frozen": True,
+        "no_hand_edit_adid_rules_skills": True,
     },
 
     invariants=[
@@ -2163,15 +2222,100 @@ maintain documentation reproducibility.""",
         "Must use cmd_runner for non-trivial / crash-prone commands",
         "Must treat updates/ history as the durable record",
         "Must keep index.md up to date",
+        "ADID rule/skill receivers under .cursor/ and .opencode/ must not be rewritten by coding agents",
+        "PromptSpec structure on ADID rules (intent/state/scope/constraints/invariants/forbidden_actions) must be preserved",
     ],
 
-    acceptance_tests=[],
+    acceptance_tests=[
+        "pytest tests/test_prompt_schema.py passes (ADID rules keep PromptSpec sections)",
+        "No unsolicited diffs under .cursor/rules/adid-* or .opencode/rules/adid-*",
+    ],
 
     forbidden_actions=[
         "Adding backward-compat parsing or fallback paths",
         "Letting inference outrank grounded evidence",
         "Restoring from git when adm --rollback is available",
+        "Hand-editing ADID framework rule files (.cursor/rules/adid-*.mdc, .opencode/rules/adid-*.mdc, semantic-coding-agent-drop-in.mdc)",
+        "Hand-editing ADID skill receivers (adm-exe, adm-mcp-service, rag, patch-tool, agent-assets, apply-patch-edits under .cursor/ or .opencode/)",
+        "Rewriting ADID PromptSpec receivers into free-form markdown that drops intent/constraints/invariants/forbidden_actions",
+        "Using edit/write/apply_patch on ADID receivers to 'fix style' or align with non-ADID docs",
     ],
+)
+
+# Compact always-on how-to for ADID tools (Tier A). Full prose stays in skill SPECS /
+# SKILL.md (Tier B). Without this block, identity only says "use cmd_runner/adm"
+# and agents forget practical Delphi/RAG/adm after session updates.
+ADID_OPS = _spec(
+    intent="""Always-on ADID operations cheat-sheet: cmd_runner, adm, RAG, Delphi build, DUnit.
+Use these commands without loading a skill. SKILL.md remains the deep reference.""",
+
+    state={
+        "tools": "tools/adm.exe, tools/adm-rag.exe, tools/cmd_runner.exe (or PATH)",
+        "detail": "skill SPECS ADM_EXE/CMD_RUNNER/RAG/DELPHI_BUILDER/DUNIT or SKILL.md",
+    },
+
+    scope="practical ADID tool invocation every session",
+
+    constraints={
+        "prefer_tools_binaries": True,
+        "long_or_interactive_via_cmd_runner": True,
+        "adm_template_then_edit": True,
+    },
+
+    invariants=[
+        "Risky/long/interactive runs go through cmd_runner, not bare bash/cmd for multi-minute work",
+        "ADM mutations use --template then edit then --apply; never invent XML from scratch",
+    ],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[
+        "Hand-crafting ADM XML descriptors without --template",
+        "Using git restore when adm --rollback applies",
+        "Using cmd_runner for sub-second trivial commands",
+    ],
+
+    usage="""## cmd_runner (interactive / long / crash-prone)
+start:  tools/cmd_runner.exe start [--cwd PATH] [--terminal wezterm|wt|conhost] -- <cmd...>
+        (prints run_id; logs under logs/cmd_runner/<run_id>/)
+tail:   tools/cmd_runner.exe tail <run_id> [--follow] [-n N]
+send:   tools/cmd_runner.exe send <run_id> --text "..." --crlf
+        tools/cmd_runner.exe send <run_id> --keys "ctrl+c" | "TEXT:foo,ENTER"
+stop:   tools/cmd_runner.exe stop <run_id> --reason done
+list:   tools/cmd_runner.exe list | status <run_id>
+NOT for: ls/git status/echo/simple cp-mv-rm. YES for: builds, installs, pytest suites, TUI, Delphi.
+
+## adm (declarative updates)
+bin: tools/adm.exe (prefer) | python -m adm
+1) tools/adm.exe --template all   # or replace|overwrite|create|insert|delete|...
+2) edit updates/<timestamp>_*.xml  # set file/mode/payload
+3) tools/adm.exe --dry-run --apply updates/<file>.xml
+4) tools/adm.exe --apply updates/<file>.xml
+5) tools/adm.exe --verify-all [roots]
+rollback: tools/adm.exe --rollback <file>   # not git restore
+patch:    tools/adm.exe --patch-tool <patch>
+env:      tools/adm.exe --init-msvc | --init-delphi
+
+## RAG (semantic code index)
+need: adm.json in launch folder; pip install torch sentence-transformers (once)
+init:   tools/adm-rag.exe --init
+index:  tools/adm.exe --rag index <name> [roots]
+query:  tools/adm.exe --query <name> "question"
+status: tools/adm.exe --rag status <name> | --rag list
+daemon: tools/adm-rag.exe --mcp-http 127.0.0.1 7990   # one machine-wide BGE process
+db:     .adid_rag/data/<name>.sqlite3
+
+## Delphi build (Windows)
+1) tools/adm.exe --init-msvc && tools/adm.exe --init-delphi
+2) call tools\\init_msvc.cmd && call tools\\init_delphi.cmd Win64
+3) tools\\build_delphi_msbuild.cmd <project>.dpr Win64 Release
+   (or long: cmd_runner start -- tools\\build_delphi_msbuild.cmd ...)
+out: <project_dir>/bin/<Platform>/<Config>/<project>.exe
+PS:  .\\tools\\init_msvc.ps1; .\\tools\\init_delphi.ps1 -Platform Win64; .\\tools\\build_delphi_msbuild.ps1 -Dpr X.dpr -Platform Win64 -Config Release
+
+## DUnit
+call tools\\init_msvc.cmd && call tools\\init_delphi.cmd Win32
+tests\\run_tests.cmd | tests\\build_tests.cmd""",
 )
 
 CODING_AGENT_DIRECTIVES = _spec(
@@ -2204,6 +2348,7 @@ Tag claims with evidence labels. Reference outranks inference.""",
         "Blending incompatible normative regimes",
         "Making code edits before plan approval",
         "Claiming fixed without oracle evidence",
+        "Editing ADID framework rule/skill receivers under .cursor/ or .opencode/ (framework-owned)",
     ],
 )
 
@@ -2237,6 +2382,7 @@ All Budget fields are concrete integers — no 'reasonable' or 'as needed'.""",
     forbidden_actions=[
         "Acting on out-of-scope findings discovered during inspection",
         "Using string budget values instead of concrete integers",
+        "Mutating ADID framework receivers (.cursor|/.opencode rules/skills for adm/adid/rag) without ADM or kernel pipeline",
     ],
 )
 
@@ -2408,6 +2554,7 @@ PROMPT_ABI = MappingProxyType({
 })
 
 RUNTIME_TERMS = MappingProxyType({
+    "adid": "ADID framework tools: adm, cmd_runner, RAG, Delphi helpers; receivers frozen; ops in policy.adid_ops.",
     "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
     "evidence": "Verified reference outranks inference; label uncertainty before claiming completion.",
     "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.",
@@ -2426,6 +2573,8 @@ RUNTIME_RULES = MappingProxyType({
     "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
     "MEMORY.RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
     "MEMORY.LINKS": "every summary and message* must carry message IDs for session-read recovery",
+    "ADID.FREEZE": "never hand-edit ADID framework rule/skill receivers under .cursor/ or .opencode/; kernel SPECS + ADM only",
+    "ADID.OPS": "always-on how-to: cmd_runner start/tail/send; adm template→apply→verify; rag index/query; Delphi init+msbuild (see policy.adid_ops)",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -2442,9 +2591,12 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "WRITE.SCOPE": "mutation",
     "MEMORY.RANK": "infomark",
     "MEMORY.LINKS": "memory",
+    "ADID.FREEZE": "adid",
+    "ADID.OPS": "adid",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
+    "adid": ("adid", "ADID.FREEZE", "ADID.OPS", "scope", "mutation", "verification"),
     "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification", "infomark", "MEMORY.RANK"),
     "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME"),
     "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "infomark", "MEMORY.RANK"),
@@ -2452,7 +2604,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
 })
 
 RUNTIME_PACKS = MappingProxyType({
-    "agent.build": ("universal", "modify", "diagnose"),
+    "agent.build": ("universal", "modify", "diagnose", "adid"),
     "agent.coder": ("agent.build",),
 
     "agent.explore": ("universal", "observe"),
@@ -2480,7 +2632,8 @@ RUNTIME_PACKS = MappingProxyType({
 # Source spec names are stable development identifiers. Runtime contract IDs are
 # the compact model-facing vocabulary and deliberately carry no repeated prose.
 SPEC_CONTRACT_IDS = MappingProxyType({
-    "ADID_FRAMEWORK_RULES": "policy.adid", "ADM_EXE": "skill.adm_exe", "ADM_MCP": "skill.adm_mcp",
+    "ADID_FRAMEWORK_RULES": "policy.adid", "ADID_OPS": "policy.adid_ops",
+    "ADM_EXE": "skill.adm_exe", "ADM_MCP": "skill.adm_mcp",
     "AGENT_ASSETS": "skill.agent_assets", "AI_DEPS": "command.ai_deps", "APPLY_PATCH_EDITS": "skill.apply_patch",
     "CHANGELOG": "command.changelog", "CMD_RUNNER": "skill.cmd_runner", "CODER": "agent.coder",
     "CODING_AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit",
@@ -2514,6 +2667,7 @@ RUNTIME_CONTRACTS = MappingProxyType({
     "command.translate": ("scope", "mutation", "verification", "WRITE.SCOPE"),
     "command.triage": ("scope", "evidence", "verification"),
     "policy.adid": ("scope", "evidence", "verification", "SEARCH.ORDER"),
+    "policy.adid_ops": ("scope", "mutation", "verification", "WRITE.SCOPE"),
     "policy.coding": ("plan", "evidence", "verification", "EVIDENCE.ORDER", "VERIFY.OUTCOME"),
     "policy.default": ("scope",),
     "policy.governance": ("scope", "mutation", "verification", "WRITE.SCOPE"),
@@ -2591,7 +2745,7 @@ _TIER_A_AGENTS = frozenset({
     "MEDIA", "TITLE", "SUMMARY",
 })
 _TIER_A_POLICIES = frozenset({
-    "ADID_FRAMEWORK_RULES", "CODING_AGENT_DIRECTIVES", "GOVERNANCE",
+    "ADID_FRAMEWORK_RULES", "ADID_OPS", "CODING_AGENT_DIRECTIVES", "GOVERNANCE",
     "DEFAULT_PROMPT", "GROUNDING_RULES",
 })
 _TIER_B_SKILLS = frozenset({
@@ -2819,6 +2973,7 @@ _ALL_SPECS = {
     "AI_DEPS": AI_DEPS, "SPELLCHECK": SPELLCHECK,
     "DUPLICATE_PR": DUPLICATE_PR, "TRIAGE": TRIAGE,
     "ADID_FRAMEWORK_RULES": ADID_FRAMEWORK_RULES,
+    "ADID_OPS": ADID_OPS,
     "CODING_AGENT_DIRECTIVES": CODING_AGENT_DIRECTIVES,
     "GOVERNANCE": GOVERNANCE,
     "DEFAULT_PROMPT": DEFAULT_PROMPT,

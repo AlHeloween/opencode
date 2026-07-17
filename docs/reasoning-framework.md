@@ -1,7 +1,7 @@
 # Reasoning Framework Architecture
 
 **Status:** production  
-**Last Updated:** 2026-07-12  
+**Last Updated:** 2026-07-17  
 **Canonical Source:** `opencode_prompts_kernel.py`
 
 ---
@@ -150,6 +150,20 @@ as compilable, testable, immutable code. Each layer adds a concern:
 ```
 
 ---
+
+## Runtime identity tiers
+
+| Tier | Contents | Where |
+|------|----------|--------|
+| **A (identity)** | `PROMPT_ABI`, TERMS/RULES/WORKFLOWS/PACKS/CONTRACTS + **agent + policy** SPECS | `opencode_prompts_kernel.txt` — system identity prefix |
+| **B (surfaces)** | Skill + command SPECS | `SKILL.md` / command templates — loaded when used |
+| **C (offline)** | Full SPECS via `render_runtime_kernel(tier="full")` | Docs / debug only |
+
+Budget: `PROMPT_ABI["identity_max_bytes"]` (48 000). CI fails if Tier A exceeds it.
+
+Memory ranks (InfoMark) live in TERMS/RULES (`infomark`, `MEMORY.RANK`, `MEMORY.LINKS`) and on compaction surfaces — see `docs/compaction.md`.
+
+TS mirror (risk + InfoMark helpers): `packages/opencode/src/session/constitution.ts` (bash preflight logging).
 
 ## Key Design Decisions
 

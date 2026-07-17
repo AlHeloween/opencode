@@ -276,9 +276,11 @@ export const layer = Layer.effect(
 Your conversation history was compacted to stay within context limits.
 Active memory is the compacted message (=== COMPACTED ===) and/or summary assistants.
 Older messages are soft-hidden in the DB — not deleted.
+Epistemic ranks (InfoMark): summaries = Inferred; session-read(message id) = Exact; unaided recall = Guess.
+Never treat summary text as Exact ground truth without session-read.
 Use \`messagesearch\` without a query to browse recent messages, or
 with a query to search for specific topics.
-Use \`session-read\` with message IDs from summaries / Recent sections for exact retrieval.
+Use \`session-read\` with message IDs from summaries / Recent sections for Exact retrieval.
 </system-reminder>`
         if (!hasSynthetic(COMPACTION_REMINDER, "prefix")) {
           const part = yield* sessions.updatePart({

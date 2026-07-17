@@ -1833,8 +1833,10 @@ class TestRuntimePromptCompiler:
     def test_prompt_abi_precedence_is_safety_first(self):
         """Global policy order: safety > governance > task > domain > style."""
         assert PROMPT_ABI["precedence"] == ("safety", "governance", "task", "domain", "style")
-        assert PROMPT_ABI["version"] == "4"
+        assert PROMPT_ABI["version"] == "5"
         assert PROMPT_ABI["line_endings"] == "LF"
+        assert PROMPT_ABI["identity_tier"] == "A"
+        assert PROMPT_ABI["identity_max_bytes"] == 48_000
 
     def test_discipline_packs_form_universal_to_domain_hierarchy(self):
         """universal → natural/social science → discipline packs."""
@@ -1858,13 +1860,21 @@ class TestRuntimePromptCompiler:
         assert resolve_precedence("local_style", "UNIVERSAL_STYLE", "LOCAL_STYLE") == "LOCAL_STYLE"
 
     def test_runtime_kernel_size_report(self):
-        """Dictionary section stays compact; full artifact includes SPECS."""
-        runtime = render_runtime_kernel()
+        """Tier A identity stays within budget; dict section stays compact."""
+        runtime = render_runtime_kernel(tier="A")
         dict_section = runtime.split("# SPECS")[0]
         assert len(dict_section) < 12_000
-        assert len(runtime) < 80_000
+        assert len(runtime.encode("utf-8")) <= PROMPT_ABI["identity_max_bytes"]
         assert "PROMPT_ABI" in dict_section
         assert "CONTRACTS" in dict_section
+        assert "MEMORY.RANK" in runtime
+        assert "infomark" in runtime
+        # Tier A excludes skill/command SPECS bodies (Tier B surfaces)
+        assert "--- Skill Specs" not in runtime
+        assert "--- Command Specs" not in runtime
+        # Full tier still available offline
+        full = render_runtime_kernel(tier="full")
+        assert "--- Skill Specs" in full
 
 
 # ======================================================================

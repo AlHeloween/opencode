@@ -69,10 +69,13 @@ function trimToLastInterval(msgs: MessageV2.WithParts[]): number {
 function summaryRequestMessage(fromId: string, toId: string, sessionID: string) {
   return `Please create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.
 
+Epistemic rank of this summary: **Inferred** (not Exact). Exact detail requires session-read with message IDs.
+
 Include these message IDs in your summary (required for later recovery via session-read):
 - \`from_id\`: \`${fromId}\`
 - \`to_id\`: \`${toId}\`
 - \`session_id\`: \`${sessionID}\`
+- \`info_mark\`: \`Inferred\`
 
 Also list any important intermediate message IDs you reference.
 
@@ -87,6 +90,7 @@ function buildMessageStar(input: {
 }): string {
   const summaryBlocks = input.summaries.map((s, i) => {
     const links = [
+      `- info_mark: \`Inferred\``,
       `- summary_message_id: \`${s.id}\``,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
       s.toId ? `- to_id: \`${s.toId}\`` : undefined,
@@ -100,21 +104,23 @@ function buildMessageStar(input: {
   const recentIds = input.recent.map((m) => m.info.id)
   const recentBlocks = input.recent.map((m) => {
     const body = messageText(m)
-    return body ? `[${m.info.role} \`${m.info.id}\`]\n${body}` : `[${m.info.role} \`${m.info.id}\`]`
+    return body ? `[${m.info.role} \`${m.info.id}\` info_mark=Mixed]\n${body}` : `[${m.info.role} \`${m.info.id}\` info_mark=Mixed]`
   })
 
   const recentHeader =
     recentIds.length > 0
       ? `--- Recent (${recentIds.length} messages: \`${recentIds[0]}\` .. \`${recentIds[recentIds.length - 1]}\`) ---\n` +
         `session_id: \`${input.sessionID}\`\n` +
-        `Use session-read with these IDs for full detail. Use messagesearch for topics.\n\n` +
+        `info_mark: Mixed — treat as working context; use session-read for Exact.\n` +
+        `Use session-read with these IDs for Exact detail. Use messagesearch for topics.\n\n` +
         recentBlocks.join("\n\n")
-      : `--- Recent ---\n(none — all history is covered by summaries above)\nsession_id: \`${input.sessionID}\``
+      : `--- Recent ---\n(none — all history is covered by summaries above)\nsession_id: \`${input.sessionID}\`\ninfo_mark: Inferred`
 
   return [
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain in the DB (not deleted).",
-    "Recover detail with session-read (message IDs below) or messagesearch (keywords).",
+    "Epistemic ranks: summaries = Inferred; session-read(id) = Exact; unaided recall = Guess.",
+    "Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).",
     "",
     ...summaryBlocks,
     recentHeader,

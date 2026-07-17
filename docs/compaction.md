@@ -72,6 +72,19 @@ Checkpoints: after compact, checkpoint is **removed**; next successful turn save
 | Message reuse via ID order + content fingerprints | In-place edits re-convert; pure appends stay cheap |
 | Request-diff remembers last formatted request | First turn after compact still produces a useful `.diff` |
 
+### Epistemic ranks (InfoMark)
+
+Aligned with the reasoning kernel (`infomark`, `MEMORY.RANK`, `MEMORY.LINKS`):
+
+| Surface | Rank | Meaning |
+|---------|------|---------|
+| `session-read` with message ID | **Exact** | Ground-truth archive |
+| Summary assistants / summary sections in `message*` | **Inferred** | Lossy but linked |
+| Recent fold in `message*` | **Mixed / Inferred** | Working context; re-read for Exact |
+| Unaided model recall | **Guess** | Not trusted for completion claims |
+
+Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/commands are Tier B surfaces (`SKILL.md`), not permanent identity weight.
+
 ---
 
 ## What is never done

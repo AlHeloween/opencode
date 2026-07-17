@@ -1147,6 +1147,8 @@ describe("session.compaction.compact", () => {
         // session-read links present
         expect(combined).toContain("summary_message_id")
         expect(combined).toContain("session_id")
+        expect(combined).toContain("info_mark: `Inferred`")
+        expect(combined).toContain("session-read(id) = Exact")
       }),
     ),
   )
@@ -1240,6 +1242,7 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id"))).toBe(true)
         expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
         expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("Inferred") && t.includes("info_mark"))).toBe(true)
       }),
     ),
   )

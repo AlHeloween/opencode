@@ -1,16 +1,21 @@
 # Generated from opencode_prompts_kernel.py; do not edit directly.
 # Runtime prompt ABI: compact Pythonic declarations for model retrieval.
+# identity_tier=A  (A=agents+policies; full=+skills+commands)
 from types import MappingProxyType
 
 PROMPT_ABI = MappingProxyType({
+    'identity_max_bytes': 48000,
+    'identity_tier': 'A',
     'line_endings': 'LF',
     'precedence': ('safety', 'governance', 'task', 'domain', 'style'),
-    'version': '4',
+    'version': '5',
 })
 
 TERMS = MappingProxyType({
     'cache': 'System content is immutable within a session; compute fingerprints after plugin transforms.',
     'evidence': 'Verified reference outranks inference; label uncertainty before claiming completion.',
+    'infomark': 'Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.',
+    'memory': 'Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.',
     'mutation': 'Modify only within authorized scope; preserve unrelated work and report remaining failure.',
     'plan': 'State, evidence, plan, implementation, verification, and clean next state form the execution trace.',
     'scope': 'Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.',
@@ -20,16 +25,18 @@ TERMS = MappingProxyType({
 RULES = MappingProxyType({
     'CACHE.STABILITY': 'keep the system prefix byte-stable for the session',
     'EVIDENCE.ORDER': 'verified > cited > inferred > unknown',
+    'MEMORY.LINKS': 'every summary and message* must carry message IDs for session-read recovery',
+    'MEMORY.RANK': 'session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact',
     'SEARCH.ORDER': 'where/which > codegraph > messagesearch > universalsearch > glob > grep',
     'VERIFY.OUTCOME': 'report outcome, evidence, and remaining failure',
     'WRITE.SCOPE': 'modify only within user-authorized scope',
 })
 
 WORKFLOWS = MappingProxyType({
-    'diagnose': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'verification'),
+    'diagnose': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'verification', 'infomark', 'MEMORY.RANK'),
     'modify': ('plan', 'scope', 'cache', 'mutation', 'WRITE.SCOPE', 'CACHE.STABILITY', 'verification', 'VERIFY.OUTCOME'),
-    'observe': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER'),
-    'research': ('evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'verification'),
+    'observe': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'infomark', 'MEMORY.RANK'),
+    'research': ('evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'verification', 'infomark', 'MEMORY.RANK', 'MEMORY.LINKS'),
 })
 
 PACKS = MappingProxyType({
@@ -40,7 +47,7 @@ PACKS = MappingProxyType({
     'agent.media': ('universal', 'scope', 'mutation', 'verification'),
     'agent.orchestrator': ('universal', 'plan', 'observe', 'verification'),
     'agent.researcher': ('agent.general',),
-    'agent.summary': ('universal', 'plan', 'evidence', 'verification'),
+    'agent.summary': ('universal', 'plan', 'evidence', 'verification', 'memory', 'infomark'),
     'agent.title': ('universal', 'scope'),
     'domain.biology': ('domain.natural_science',),
     'domain.chemistry': ('domain.natural_science',),
@@ -54,7 +61,7 @@ PACKS = MappingProxyType({
     'lang.markdown': ('universal', 'scope'),
     'lang.python': ('universal', 'scope', 'verification'),
     'lang.typescript': ('universal', 'scope', 'verification'),
-    'universal': ('evidence', 'scope', 'verification'),
+    'universal': ('evidence', 'scope', 'verification', 'infomark', 'memory', 'MEMORY.RANK', 'MEMORY.LINKS'),
 })
 
 CONTRACTS = MappingProxyType({
@@ -64,7 +71,7 @@ CONTRACTS = MappingProxyType({
     'agent.media': ('scope', 'mutation', 'verification'),
     'agent.orchestrator': ('plan', 'scope', 'evidence', 'verification'),
     'agent.researcher': ('scope', 'evidence', 'SEARCH.ORDER', 'verification'),
-    'agent.summary': ('plan', 'evidence', 'verification'),
+    'agent.summary': ('plan', 'evidence', 'verification', 'infomark', 'memory', 'MEMORY.RANK', 'MEMORY.LINKS'),
     'agent.title': ('scope',),
     'command.ai_deps': ('scope', 'evidence', 'verification'),
     'command.changelog': ('scope', 'evidence', 'verification'),
@@ -93,6 +100,9 @@ CONTRACTS = MappingProxyType({
 })
 
 # SPECS
+# tier=A
+
+# Tier B (skills/commands) live on SKILL.md / command surfaces — not identity.
 
 --- Agent Specs ---
 
@@ -261,376 +271,6 @@ acceptance:
   • Output is single line
   • Output is ≤ 50 chars
   • Output contains no tool names
-
---- Skill Specs ---
-
-## ADM_EXE
-Declarative file updates, verification, rollback, and templates using the ADID Update Manager executable. Always use template then edit — never hand-craft XML.
-scope: templates, apply, verify, rollback, replay
-constraints:
-  use_tools_adm_when_present → True
-  never_create_descriptors_from_scratch → True
-  use_template_then_edit → True
-invariants:
-  • Must always use template — never hand-craft XML descriptors
-  • Use tools/adm when present (stable copy avoids toolchain break)
-forbidden:
-  • Writing XML descriptors from scratch
-  • Using git restore when adm --rollback is available
-acceptance:
-  • tools/adm --verify-all returns clean report
-
-## Invocation
-Primary: tools/adm (Unix) or tools/adm.exe (Windows) when project has it.
-Fallback: python -m adm. Use tools/adm when present — stable copy avoids toolchain break.
-
-## Workflow
-1. Run tools/adm --help
-2. Run tools/adm --template all  (or replace, overwrite, create, insert, delete, pattern-rule, binary-overwrite, binary-hex-replace, refactor-replace-function) -> creates timestamped descriptor under updates/
-3. Edit that file: set <file>, <mode>, payload in <content_md5_*>
-4. Run tools/adm --apply updates/<file>.xml  (use --dry-run first to preview)
-5. Run tools/adm --verify-all src tests adid_tests
-To rollback: tools/adm --rollback <file> (NOT git restore)
-
-## Key Commands
---template NAME [dir]: Generate timestamped XML descriptor template
---apply updates.xml: Apply all update blocks (atomic, backup, ledger)
---replay-updates [dir]: Inspect descriptors in chronological order (no writes)
---fix-xml updates.xml: Normalize descriptor md5/size tags
---verify-all [root]: Verify integrity, write report to logs/
---verify-all-fix-xml: Verify + rewrite descriptor tags
---rollback <file>: Restore from latest backup
---list-backups <file>: Show backup history
---list-diff <file> [N]: Unified/hex diff against N backups
---patch-tool <patch_file>: Apply apply_patch-format patch with ADID backups
---move <src> <dst>: Move file + rewrite path references in updates/ and roots
-All mutations create backups and ledger entries.
-
-## ADM_MCP
-Run adm as an MCP server (stdio or HTTP) and install as a service on Windows or Linux. Both modes require adm.json in the launch folder.
-scope: MCP stdio mode, MCP HTTP mode, Windows/Linux service installation
-constraints:
-  adm_json_required → True
-
-## Modes
-Stdio: tools/adm.exe --mcp  or  tools/adm-rag.exe --mcp
-HTTP: tools/adm.exe --mcp-http [host] [port]  (default 127.0.0.1:7990, endpoint POST /mcp)
-Prefer using adm-rag.exe directly for service definitions (avoids forwarding hop).
-
-## Codex MCP Client
-codex mcp add project_rag --cwd <project_root> -- <project_root>\tools\adm-rag.exe --mcp
-codex mcp list
-codex mcp get project_rag
-
-## Windows Service
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\internal\install_adm_mcp_service_windows.ps1 -RepoRoot <repo> -Port 7990
-sc.exe query ADID_ADM_MCP
-
-## Linux Service
-sudo ./scripts/internal/install_adm_mcp_service_linux.sh /abs/repo_root 7990
-systemctl status adid-adm-mcp.service --no-pager
-
-## AGENT_ASSETS
-Maintain canonical artefacts and install agent receiver scaffolds. Agent folders are receivers (safe to delete): .cursor/, .codex/, ~/.codex/, .opencode/.
-scope: canonical artefact maintenance, receiver scaffold installation
-constraints:
-  edit_canonical_then_sync → True
-forbidden:
-  • Editing receiver copies directly instead of canonical sources
-
-## Canonical Sources
-Rules: artefacts/rules/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/rules/
-Skills: artefacts/skills/ -> installed to artefacts/scaffolds/{cursor,codex,opencode}/skills/
-
-## Workflow
-1. Edit canonical assets under artefacts/rules/ and/or artefacts/skills/
-2. Regenerate: python scripts/internal/build_artefacts.py
-3. Install: python scripts/internal/sync_agent_assets.py --targets opencode
-   Or: python scripts/internal/sync_agent_assets.py --targets cursor,codex
-   Or: python scripts/internal/sync_agent_assets.py --targets all
-
-## Skills-only sync (faster)
-python scripts/internal/sync_skills_from_artefacts.py --prune
-
-Never edit receiver copies directly.
-
-## APPLY_PATCH_EDITS
-Use apply_patch-only edits for AGENTS.md + canonical skills/rules to avoid cross-agent conflicts. Always edit canonical sources then sync — never edit receiver copies.
-scope: atomic diffs via apply_patch, canonical edit then sync
-constraints:
-  atomic_diffs → True
-  edit_canonical_then_sync → True
-forbidden:
-  • Editing receiver copies (.codex/, .cursor/, .opencode/) directly
-
-## When to use
-Use for: AGENTS.md, canonical agent rules (artefacts/rules/), canonical agent skills (artefacts/skills/)
-These are high-churn coordination surfaces; in-place manual edits cause cross-conflicts.
-
-## Rules
-1. Make changes only via apply_patch tool (atomic, reviewable diffs)
-2. Never edit receiver copies under .codex/, .cursor/, .opencode/ directly
-3. After editing canonical assets, sync receivers:
-   python scripts/internal/sync_agent_assets.py --targets all
-   Skills-only: python scripts/internal/sync_skills_from_artefacts.py --prune
-
-## CMD_RUNNER
-Run interactive commands safely with per-run logs, inbox bridge, and terminal auto-detection. Use for long builds, package installs, test suites, interactive TUIs, and crash-prone commands.
-scope: long builds, package installs, test suites, interactive TUIs, image rendering, crash-prone commands
-constraints:
-  prefer_start_then_tail → True
-  no_long_fixed_waits → True
-invariants:
-  • All subprocesses open with SW_SHOWMINNOACTIVE (minimized, no focus steal)
-  • Logs stored at logs/cmd_runner/<run_id>/
-  • Input bridge at logs/cmd_runner/<run_id>/inbox.jsonl
-forbidden:
-  • Using cmd_runner for quick checks (ls, git status, echo)
-  • Using cmd_runner for simple file ops (cp, mv, rm)
-  • Using cmd_runner for commands completing in <1s
-
-## When to use
-Use for: long builds (cargo build, msbuild, make), package installs (npm install, pip install),
-test suites (pytest, cargo test), interactive TUIs (htop, ncurses), image rendering (chafa, timg),
-crash-prone commands, commands producing thousands of output lines.
-Do NOT use for: quick checks (ls, git status, echo), simple file ops (cp, mv, rm),
-commands completing in <1s.
-
-## Core workflow
-1. START: cmd_runner start [--terminal HOST] [--raw|--no-raw] [--cwd PATH] -- <command ...>
-   Prints run_id and inbox path. Auto-tails last 5 lines.
-   --raw: raw pipes (no ConPTY), for non-interactive batch commands.
-   --no-raw: ConPTY mode (default), supports interactive send/inbox.
-2. STATUS: cmd_runner list [--all] [--json] / cmd_runner status <run_id> [--json]
-3. TAIL: cmd_runner tail <run_id> [--follow] [-n N] [--wait-ms N]
-   Start with non-follow for snapshot, --follow for live streaming.
-4. SEND: cmd_runner send <run_id> --text "..." --crlf / --keys "ctrl+c" / --keys "TEXT:text,ENTER"
-   --keys tokens: LEFT,RIGHT,UP,DOWN,HOME,END,INSERT,DELETE,TAB,ESC,ENTER,BACKSPACE,ctrl+a..ctrl+z,TEXT:text,CHAR:char,HEX:hex
-5. STOP: cmd_runner stop <run_id> --reason "done"
-   cmd_runner wait <run_id> [--timeout-s N] [--json]
-
-## Terminal selection
---terminal wezterm / --terminal wt / --terminal conhost / --terminal alacritty
-Auto-detection priority (Windows): wezterm > wt > conhost > bash
-Auto-detection priority (Linux): wezterm > guake > yakuake > xterm > bash
-
-## Image capture (--raw)
-Raw mode for non-interactive batch commands only. Does NOT support send/inbox.
-Kitty/Sixel/iTerm2 escape sequences survive raw pipes. Output captured with [IMG:...] markers.
-
-## Quoting tips (PowerShell)
-cmd_runner send <id> --crlf -- "python3 -c 'print(1+2)'"
-cmd_runner send <id> --crlf -- 'echo ~~~hello~~~'   (use ~ instead of ")
-
-## Log layout
-logs/cmd_runner/<run_id>/: meta.json, state.json, stdout.log, stdout_text.log, stderr.log, inbox.jsonl
-
-## DELPHI_BUILDER
-Build Delphi (VCL/FMX) projects from the command line with MSBuild. Includes environment initialization (MSVC + rsvars).
-scope: Delphi project build with MSBuild
-
-## Environment Init
-adm --init-msvc [out.cmd]: Generates tools/init_msvc.cmd (calls VS VsDevCmd.bat)
-adm --init-delphi [out.cmd]: Generates tools/init_delphi.cmd (resolves Delphi from adm.json delphi.bds or PATH)
-
-## Build Flow (cmd.exe)
-call tools\init_msvc.cmd
-call tools\init_delphi.cmd Win64
-tools\build_delphi_msbuild.cmd <project>.dpr Win64 Release
-
-## Build Flow (PowerShell)
-. .\tools\init_msvc.ps1
-. .\tools\init_delphi.ps1 -Platform Win64
-.\tools\build_delphi_msbuild.ps1 -Dpr <project>.dpr -Platform Win64 -Config Release
-
-## Scripts
-init_msvc.*: Detects existing MSVC env or calls VsDevCmd.bat for native x64 toolchain
-init_delphi.*: Resolves Delphi root (adm.json delphi.bds > where dcc64 > common paths), calls rsvars
-build_delphi_msbuild.*: Auto-generates .dproj from .dpr if missing, invokes msbuild /t:Build
-Output: <project_dir>/bin/<Platform>/<Config>/<project>.exe
-
-## Cross-platform
-FMX targets: Android, iOSDevice64, iOSSimulator, OSX64, Linux64 (VCL cannot target Linux)
-Linux64: Requires Delphi Remote Profile + imported SDK
-
-## DUNIT
-Run and maintain Delphi DUnit tests for Delphi projects. Build and run DUnit console runner tests.
-scope: DUnit test running and maintenance
-
-## Prerequisites
-Delphi toolchain on PATH (dcc32 minimum).
-Initialize: call tools\init_msvc.cmd && call tools\init_delphi.cmd Win32
-
-## Commands
-Build + run all DUnit tests: tests\run_tests.cmd
-Build tests only: tests\build_tests.cmd
-
-## Adding Tests
-1. Add new unit: tests\TestSomething.pas
-2. Register in DUnit project file (tests\ProjectTests.dpr)
-3. Re-run tests\run_tests.cmd
-
-## Notes
-DUnit assertions: CheckEquals, CheckTrue, CheckNotNull (from TestFramework).
-Prefer testing pure units (no VCL) for headless deterministic runs.
-Win64 builds commonly use MSBuild; inspect local test script for platform/config.
-
-## PATCH_TOOL
-Apply apply_patch-format patches via adm with ADID backups and per-file ledgers. Use when you need apply_patch with ADID rotated backups and JSONL ledgers.
-scope: apply_patch patches with ADID backups
-constraints:
-  patch_format_required → True
-
-## Command
-Apply patch: tools/adm.exe --patch-tool <patch_file>
-Dry-run: tools/adm.exe --dry-run --patch-tool <patch_file>
-
-## Patch Format
-Files must start with *** Begin Patch and end with *** End Patch.
-Operations: *** Update File: ..., *** Add File: ..., *** Delete File: ..., *** Move to: <new_path>
-
-## Notes
-Pre-creates rotated backups for any existing target files.
-Emits per-file entries to <file>.adid.log.jsonl with "command": "--patch-tool".
-Fallback: python -m adm --patch-tool <patch_file> when tools/adm not present.
-
-## RAG
-Index and query local code repositories using ADID RAG with dual-quaternion ranking. Uses sentence_transformers + BAAI/bge-base-en-v1.5 for embeddings.
-scope: indexing, querying, MCP server, file discovery
-constraints:
-  adm_json_required → True
-  index_incremental → True
-invariants:
-  • adm.json must exist in launch folder
-
-## Quick Start
-pip install torch sentence-transformers
-adm-rag --init
-adm --rag index my_project .
-adm-rag --mcp-http 127.0.0.1 7990 &
-adm --query my_project "how does X work?"
-
-## Commands
-adm-rag --init: Check environment, advise on missing deps
-adm-rag --rag-status: Show full environment status
-adm --rag index <name> [roots]: Create/update index (fd + SHA-256 incremental)
-adm --rag status <name>: Show index docs/chunks count
-adm --rag docs <name> [limit]: List recently indexed documents
-adm --rag delete <name>: Remove index
-adm --rag list: List all indexes
-adm --rag settings: Show effective RAG config from adm.json
-adm --query <name> "text": Semantic search (auto-forwarded to MCP)
-adm --mcp-http [host] [port]: Start model daemon (one per machine)
-
-## MCP HTTP Daemon
-One MCP server serves all projects. Start once:
-adm-rag --mcp-http 127.0.0.1 7990  (loads BGE model, stays in memory)
-Then instant queries: adm --query projA "search..."
-Each call carries config_path for correct adm.json per project.
-
-## File Discovery
-fd (bundled in tools/) walks file tree respecting .gitignore.
-include_globs passed to fd --extension for efficient filtering.
-exclude_globs/exclude_patterns for additional exclusion.
-Incremental: SHA-256 content hash per file, unchanged files skipped.
-
-## Embedding
-BAAI/bge-base-en-v1.5 (768D), batch size 32, normalize on.
-Hybrid RRF: full-vector cosine + dual-quaternion structural signature + SQLite FTS5.
-Index DB: .adid_rag/data/<name>.sqlite3
-
-## Forwarding
-adm --rag index . -> tools/adm-rag.exe (frozen) or internal (pip mode)
-adm-rag.exe without torch -> delegates to system adm via ADID_RAG_DELEGATE
-
---- Command Specs ---
-
-## AI_DEPS
-Audit AI SDK dependencies for minor/patch upgrade availability. Report only — do not actually upgrade. Include changelog links.
-scope: dependency audit, minor/patch only
-constraints:
-  no_major_upgrades → True
-  report_only_no_upgrade → True
-  include_changelog_links → True
-forbidden:
-  • Actually upgrading dependencies
-
-## CHANGELOG
-Create UPCOMING_CHANGELOG.md from structured changelog input. Inspect real diff with git show --stat. Filter to user-facing changes only. One bullet per commit, capitalized, no prefixes or PR numbers.
-scope: changelog generation
-constraints:
-  inspect_real_diff → True
-  user_facing_only → True
-  one_bullet_per_commit → True
-  capitalize_bullets → True
-  no_prefixes_or_pr_numbers → True
-invariants:
-  • Must ignore existing UPCOMING_CHANGELOG.md contents entirely
-  • Must use git show, not git log or author metadata for attribution
-forbidden:
-  • Keeping internal/CI/test/refactor commits
-  • Adding attribution from git metadata
-  • Writing 'No notable changes.' if there IS a contributor block
-
-## COMMIT
-Create conventional git commits with descriptive messages explaining WHY from the end-user perspective. Use appropriate prefix for the package (docs:, tui:, core:, ci:, ignore:, wip:).
-scope: conventional git commits
-constraints:
-  explain_why_not_what → True
-  user_facing_changes → True
-  no_generic_messages → True
-  do_not_fix_conflicts → True
-forbidden:
-  • Fixing merge conflicts automatically
-  • Using generic messages like 'improved agent experience'
-
-## DUPLICATE_PR
-Detect and handle duplicate pull requests.
-
-## ISSUES
-Search GitHub issues matching a query in the anomalyco/opencode repository.
-scope: GitHub issue search
-constraints:
-  search_aspects → ['Similar titles or descriptions', 'Same error messages or symptoms', 'Related functionality or components', 'Similar feature requests']
-
-## LEARN
-Extract non-obvious learnings from session to AGENTS.md files. Only capture discoveries, errors, and unexpected connections — not obvious facts. One to three lines per insight. Place at appropriate scope level.
-scope: session review and knowledge capture
-constraints:
-  non_obvious_only → True
-  one_to_three_lines_per_insight → True
-forbidden:
-  • Including obvious facts from documentation
-  • Including standard language/framework behavior
-  • Including things already in an AGENTS.md
-  • Writing verbose explanations or session-specific details
-
-## RMSLOP
-Remove AI-generated code slop from the diff. Review diff against dev branch. Remove extra comments, defensive checks, casts to any, inconsistent style, and unnecessary emoji.
-scope: code cleanup
-
-## SPELLCHECK
-Spellcheck all unstaged markdown file changes.
-scope: spell and grammar checking
-
-## TRANSLATE
-Translate English docs and UI copy to other international languages. Preserve Markdown/MDX, technical terms, code blocks, and URLs. Apply locale-specific glossary.
-scope: internationalization translation
-constraints:
-  parallel_translation → True
-  preserve_meaning → True
-  preserve_formatting → True
-  apply_glossary → True
-invariants:
-  • Must preserve all technical terms: product names, API names, identifiers, code, URLs
-  • Must preserve Do-Not-Translate glossary terms
-  • Must apply locale-specific glossary guidance
-forbidden:
-  • Modifying fenced code blocks
-
-## TRIAGE
-Triage GitHub issues by applying labels and assigning owners. Teams: desktop, zen, tui, core, docs, windows. Pick the most fitting labels and one owner.
-scope: GitHub issue triage
 
 --- Policy Specs ---
 

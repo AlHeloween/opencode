@@ -26,6 +26,7 @@ import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner
 import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
+import { Constitution } from "@/session/constitution"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
@@ -805,6 +806,12 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
+              // Constitution preflight: rank risk (Python kernel Risk mirror). Does not
+              // replace permissions — logs elevated/destructive for audit + future hard gates.
+              Constitution.noteCommandRisk(params.command, {
+                sessionID: ctx.sessionID,
+                agent: ctx.extra?.agent as string | undefined,
+              })
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)
                 : Instance.directory

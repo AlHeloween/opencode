@@ -2380,14 +2380,20 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
 # =====================================================================
 
 PROMPT_ABI = MappingProxyType({
-    "version": "4",
+    "version": "5",
     "precedence": ("safety", "governance", "task", "domain", "style"),
     "line_endings": "LF",
+    # Tier A identity prefix: dictionary + agent/policy SPECS only (skills/commands are Tier B surfaces).
+    "identity_tier": "A",
+    # Soft budget for model-facing identity (bytes). CI fails if exceeded.
+    "identity_max_bytes": 48_000,
 })
 
 RUNTIME_TERMS = MappingProxyType({
     "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
     "evidence": "Verified reference outranks inference; label uncertainty before claiming completion.",
+    "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.",
+    "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.",
     "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
     "plan": "State, evidence, plan, implementation, verification, and clean next state form the execution trace.",
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
@@ -2400,6 +2406,8 @@ RUNTIME_RULES = MappingProxyType({
     "WRITE.SCOPE": "modify only within user-authorized scope",
     "VERIFY.OUTCOME": "report outcome, evidence, and remaining failure",
     "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
+    "MEMORY.RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
+    "MEMORY.LINKS": "every summary and message* must carry message IDs for session-read recovery",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -2414,13 +2422,15 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "SEARCH.ORDER": "evidence",
     "VERIFY.OUTCOME": "verification",
     "WRITE.SCOPE": "mutation",
+    "MEMORY.RANK": "infomark",
+    "MEMORY.LINKS": "memory",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
-    "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification"),
+    "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification", "infomark", "MEMORY.RANK"),
     "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME"),
-    "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER"),
-    "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification"),
+    "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "infomark", "MEMORY.RANK"),
+    "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
 })
 
 RUNTIME_PACKS = MappingProxyType({
@@ -2432,7 +2442,7 @@ RUNTIME_PACKS = MappingProxyType({
     "agent.media": ("universal", "scope", "mutation", "verification"),
     "agent.orchestrator": ("universal", "plan", "observe", "verification"),
     "agent.researcher": ("agent.general",),
-    "agent.summary": ("universal", "plan", "evidence", "verification"),
+    "agent.summary": ("universal", "plan", "evidence", "verification", "memory", "infomark"),
     "agent.title": ("universal", "scope"),
     "domain.biology": ("domain.natural_science",),
     "domain.chemistry": ("domain.natural_science",),
@@ -2446,7 +2456,7 @@ RUNTIME_PACKS = MappingProxyType({
     "lang.markdown": ("universal", "scope"),
     "lang.python": ("universal", "scope", "verification"),
     "lang.typescript": ("universal", "scope", "verification"),
-    "universal": ("evidence", "scope", "verification"),
+    "universal": ("evidence", "scope", "verification", "infomark", "memory", "MEMORY.RANK", "MEMORY.LINKS"),
 })
 
 # Source spec names are stable development identifiers. Runtime contract IDs are
@@ -2473,7 +2483,7 @@ RUNTIME_CONTRACTS = MappingProxyType({
     "agent.media": ("scope", "mutation", "verification"),
     "agent.orchestrator": ("plan", "scope", "evidence", "verification"),
     "agent.researcher": ("scope", "evidence", "SEARCH.ORDER", "verification"),
-    "agent.summary": ("plan", "evidence", "verification"),
+    "agent.summary": ("plan", "evidence", "verification", "infomark", "memory", "MEMORY.RANK", "MEMORY.LINKS"),
     "agent.title": ("scope",),
     "command.ai_deps": ("scope", "evidence", "verification"),
     "command.changelog": ("scope", "evidence", "verification"),
@@ -2556,11 +2566,37 @@ def _render_runtime_mapping(name: str, values: MappingProxyType) -> list[str]:
     return lines
 
 
-def render_runtime_kernel() -> str:
-    """Render the deterministic model-facing Pythonic keyword dictionary."""
+# SPECS sections in the identity prefix (Tier A). Skills/commands are Tier B
+# (SKILL.md / command surfaces) — not permanent identity weight.
+_TIER_A_AGENTS = frozenset({
+    "CODER", "EXPLORER", "ORCHESTRATOR", "GENERAL", "RESEARCHER",
+    "MEDIA", "TITLE", "SUMMARY",
+})
+_TIER_A_POLICIES = frozenset({
+    "ADID_FRAMEWORK_RULES", "CODING_AGENT_DIRECTIVES", "GOVERNANCE",
+    "DEFAULT_PROMPT", "GROUNDING_RULES",
+})
+_TIER_B_SKILLS = frozenset({
+    "ADM_EXE", "CMD_RUNNER", "RAG", "PATCH_TOOL", "AGENT_ASSETS",
+    "ADM_MCP", "APPLY_PATCH_EDITS", "DELPHI_BUILDER", "DUNIT",
+})
+_TIER_B_COMMANDS = frozenset({
+    "COMMIT", "LEARN", "CHANGELOG", "ISSUES", "TRANSLATE", "RMSLOP",
+    "AI_DEPS", "SPELLCHECK", "DUPLICATE_PR", "TRIAGE",
+})
+
+
+def render_runtime_kernel(tier: str = "A") -> str:
+    """Render the deterministic model-facing Pythonic keyword dictionary.
+
+    tier:
+      A — identity prefix (dictionary + agent/policy SPECS). Default for runtime.
+      full — include skill/command SPECS too (debug / offline docs only).
+    """
     lines = [
         "# Generated from opencode_prompts_kernel.py; do not edit directly.",
         "# Runtime prompt ABI: compact Pythonic declarations for model retrieval.",
+        f"# identity_tier={tier}  (A=agents+policies; full=+skills+commands)",
         "from types import MappingProxyType",
         "",
     ]
@@ -2574,13 +2610,20 @@ def render_runtime_kernel() -> str:
     ):
         lines.extend(_render_runtime_mapping(name, values))
         lines.append("")
-    lines.append(render_all_specs())
-    return "\n".join(lines)
+    lines.append(render_all_specs(tier=tier))
+    text = "\n".join(lines)
+    max_bytes = int(PROMPT_ABI.get("identity_max_bytes", 48_000))
+    if tier == "A" and len(text.encode("utf-8")) > max_bytes:
+        raise ValueError(
+            f"Tier A identity kernel is {len(text.encode('utf-8'))} bytes "
+            f"(budget {max_bytes}). Slim SPECS or dictionary before shipping.",
+        )
+    return text
 
 
-def runtime_kernel_digest() -> str:
+def runtime_kernel_digest(tier: str = "A") -> str:
     """Return the stable SHA256 digest of the generated runtime kernel."""
-    return hashlib.sha256(render_runtime_kernel().encode("utf-8")).hexdigest()
+    return hashlib.sha256(render_runtime_kernel(tier=tier).encode("utf-8")).hexdigest()
 
 
 def normalize_runtime_rule(value: str) -> str:
@@ -2736,9 +2779,9 @@ def find_duplicate_mapping_keys(source: str) -> list[tuple[int, str]]:
     return duplicates
 
 
-def write_runtime_kernel(destination: str | Path) -> None:
-    """Write deterministic runtime output with LF endings."""
-    Path(destination).write_text(render_runtime_kernel(), encoding="utf-8", newline="\n")
+def write_runtime_kernel(destination: str | Path, tier: str = "A") -> None:
+    """Write deterministic runtime identity output with LF endings (default Tier A)."""
+    Path(destination).write_text(render_runtime_kernel(tier=tier), encoding="utf-8", newline="\n")
 
 
 # ======================================================================
@@ -2764,34 +2807,38 @@ _ALL_SPECS = {
     "GROUNDING_RULES": GROUNDING_RULES,
 }
 
-def render_all_specs() -> str:
-    """Render all _spec() blocks as compact human-readable text, grouped by category."""
-    lines: list[str] = ["# SPECS", ""]
+def render_all_specs(tier: str = "A") -> str:
+    """Render _spec() blocks as compact text.
 
-    _AGENTS = {
-        "CODER", "EXPLORER", "ORCHESTRATOR", "GENERAL", "RESEARCHER",
-        "MEDIA", "TITLE", "SUMMARY",
-    }
-    _SKILLS = {
-        "ADM_EXE", "CMD_RUNNER", "RAG", "PATCH_TOOL", "AGENT_ASSETS",
-        "ADM_MCP", "APPLY_PATCH_EDITS", "DELPHI_BUILDER", "DUNIT",
-    }
-    _COMMANDS = {
-        "COMMIT", "LEARN", "CHANGELOG", "ISSUES", "TRANSLATE", "RMSLOP",
-        "AI_DEPS", "SPELLCHECK", "DUPLICATE_PR", "TRIAGE",
-    }
+    Tier A (identity): agents + policies only.
+    Tier full: also skills + commands (available as SKILL.md / commands; not default identity).
+    """
+    lines: list[str] = ["# SPECS", f"# tier={tier}", ""]
 
-    agents = {k: v for k, v in _ALL_SPECS.items() if k in _AGENTS}
-    skills = {k: v for k, v in _ALL_SPECS.items() if k in _SKILLS}
-    commands = {k: v for k, v in _ALL_SPECS.items() if k in _COMMANDS}
-    policies = {k: v for k, v in _ALL_SPECS.items() if k not in _AGENTS | _SKILLS | _COMMANDS}
+    agents = {k: v for k, v in _ALL_SPECS.items() if k in _TIER_A_AGENTS}
+    skills = {k: v for k, v in _ALL_SPECS.items() if k in _TIER_B_SKILLS}
+    commands = {k: v for k, v in _ALL_SPECS.items() if k in _TIER_B_COMMANDS}
+    policies = {k: v for k, v in _ALL_SPECS.items() if k in _TIER_A_POLICIES}
+    # Any leftover specs still render under policies in full tier
+    known = _TIER_A_AGENTS | _TIER_B_SKILLS | _TIER_B_COMMANDS | _TIER_A_POLICIES
+    extras = {k: v for k, v in _ALL_SPECS.items() if k not in known}
+    if extras:
+        policies = {**policies, **extras}
 
-    for section, group in [
+    sections: list[tuple[str, dict]] = [
         ("Agent Specs", agents),
-        ("Skill Specs", skills),
-        ("Command Specs", commands),
         ("Policy Specs", policies),
-    ]:
+    ]
+    if tier == "full":
+        sections.extend([
+            ("Skill Specs (Tier B)", skills),
+            ("Command Specs (Tier B)", commands),
+        ])
+    else:
+        lines.append("# Tier B (skills/commands) live on SKILL.md / command surfaces — not identity.")
+        lines.append("")
+
+    for section, group in sections:
         if not group:
             continue
         lines.append(f"--- {section} ---")

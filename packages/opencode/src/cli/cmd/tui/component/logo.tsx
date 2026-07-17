@@ -563,12 +563,18 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
   const [now, setNow] = createSignal(0)
   let box: BoxRenderable | undefined
   let timer: ReturnType<typeof setInterval> | undefined
+  let timerMs = 0
   let hum = false
+
+  /** Idle shimmer (~10fps). Interactive mouse effects use a faster cadence. */
+  const IDLE_TICK_MS = 100
+  const INTERACTIVE_TICK_MS = 33
 
   const stop = () => {
     if (!timer) return
     clearInterval(timer)
     timer = undefined
+    timerMs = 0
   }
 
   const tick = () => {
@@ -593,17 +599,28 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
       setGlow(undefined)
     }
     if (!live) setRelease(undefined)
-    if (live || hold() || release() || glow()) return
+    const busy = live || !!hold() || !!release() || !!glow()
+    // Idle shimmer is continuous (~10fps). Interactive bursts use 30fps then
+    // fall back to the idle cadence so we do not keep a hot interval forever.
     if (props.idle) {
-      stop()
+      if (!busy && timerMs !== IDLE_TICK_MS) {
+        stop()
+        start(IDLE_TICK_MS)
+      }
       return
     }
+    if (busy) return
     stop()
   }
 
-  const start = () => {
-    if (timer) return
-    timer = setInterval(tick, 33)
+  const start = (ms = INTERACTIVE_TICK_MS) => {
+    if (timer) {
+      if (timerMs === ms) return
+      // Upgrade cadence for interactive work while idle shimmer was running
+      stop()
+    }
+    timerMs = ms
+    timer = setInterval(tick, ms)
   }
 
   onCleanup(() => {
@@ -615,7 +632,7 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
   onMount(() => {
     if (!props.idle) return
     setNow(performance.now())
-    start()
+    start(IDLE_TICK_MS)
   })
 
   const hit = (x: number, y: number) => {
@@ -630,7 +647,7 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
     if (!last) setRelease(undefined)
     setHold({ x, y, at: t, glyph: select(x, y, ctx) })
     hum = false
-    start()
+    start(INTERACTIVE_TICK_MS)
   }
 
   const burst = (x: number, y: number) => {
@@ -657,7 +674,7 @@ export function Logo(props: { shape?: LogoShape; ink?: RGBA; idle?: boolean } = 
       },
     ])
     setNow(t)
-    start()
+    start(INTERACTIVE_TICK_MS)
     Sound.pulse(lerp(0.8, 1, level))
   }
 

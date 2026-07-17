@@ -1,7 +1,27 @@
 # TUI Startup Parallelization Plan — 2026-07-16
 
-**Status:** Validated — ready for implementation
+**Status:** Phase 1 largely implemented; Phase 2–3 optional
 **Goal:** Reduce TUI cold-start time by parallelizing blocking boot-path operations.
+
+### Landed
+
+| Step | Status |
+|------|--------|
+| 1.1 Plugin theme sync parallel (`Promise.allSettled`) + sequential activate | Done |
+| 1.3 Config load overlapped with worker / transport | Done — starts immediately after `chdir` |
+| 1.4 `import("./app")` preload early | Done |
+| 1.2 Session list parallel with project.sync | **Blocked** — `session.list` needs `project.sync()` worktrees; kept chained |
+| 2.3 Theme mode wait 1000→400ms | Done |
+
+### Still open
+
+| Step | Notes |
+|------|--------|
+| 2.1 Plugin pre-flight cache | Optional |
+| 2.2 Config file cache | Optional |
+| 2.4 Lazy non-critical providers | Optional |
+| 3.1 Critical vs deferred bootstrap | Partial already (`status: partial` then deferred LSP/MCP) |
+| 3.2 Stream sessions as they arrive | Optional |
 
 ---
 

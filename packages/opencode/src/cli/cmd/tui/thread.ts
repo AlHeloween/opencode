@@ -145,6 +145,11 @@ export const TuiThreadCommand = cmd({
         [OPENCODE_RUN_ID]: ensureRunID(),
       })
 
+      // Start config + app module load immediately after chdir — overlap with
+      // worker spawn, RPC setup, prompt resolution, and session validation.
+      const configPromise = TuiConfig.get()
+      const appModulePromise = import("./app")
+
       const worker = new Worker(file, {
         env,
       })
@@ -189,11 +194,6 @@ export const TuiThreadCommand = cmd({
       }
 
       const prompt = await input(args.prompt)
-
-      // Start config load and app module preload in background — neither
-      // depends on worker setup, transport resolution, or session validation.
-      const configPromise = TuiConfig.get()
-      const appModulePromise = import("./app")
 
       const config = await configPromise
 

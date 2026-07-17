@@ -56,6 +56,13 @@ export function win32FlushInputBuffer() {
 let unhook: (() => void) | undefined
 
 /**
+ * Backstop poll interval for console mode re-application by native/external code.
+ * Primary enforcement is event-driven via setRawMode hook + setImmediate double-check.
+ * Keep this slow: each tick may call GetConsoleMode / SetConsoleMode.
+ */
+export const WIN32_CONSOLE_MODE_POLL_MS = 1000
+
+/**
  * Keep ENABLE_PROCESSED_INPUT disabled.
  *
  * On Windows, Ctrl+C becomes a CTRL_C_EVENT (instead of stdin input) when
@@ -109,7 +116,7 @@ export function win32InstallCtrlCGuard() {
   // Ensure it's cleared immediately too (covers any earlier mode changes).
   later()
 
-  const interval = setInterval(enforce, 200)
+  const interval = setInterval(enforce, WIN32_CONSOLE_MODE_POLL_MS)
   interval.unref()
 
   let done = false

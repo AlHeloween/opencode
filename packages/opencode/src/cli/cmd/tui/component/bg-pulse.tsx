@@ -22,6 +22,9 @@ export type BgPulseMask = {
   strength?: number
 }
 
+/** Animation tick while focused (~10fps). Interval is fully stopped when unfocused. */
+export const BG_PULSE_TICK_MS = 100
+
 export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgPulseMask[] }) {
   const { theme } = useTheme()
   const [now, setNow] = createSignal(performance.now())
@@ -29,28 +32,47 @@ export function BgPulse(props: { centerX?: number; centerY?: number; masks?: BgP
   const [focused, setFocused] = createSignal(true)
   let box: BoxRenderable | undefined
   let prevGrid: RGBA[][] | undefined
+  let timer: ReturnType<typeof setInterval> | undefined
 
-  const timer = setInterval(() => {
-    if (focused()) setNow(performance.now())
-  }, 100)
-  onCleanup(() => clearInterval(timer))
+  const stopTimer = () => {
+    if (!timer) return
+    clearInterval(timer)
+    timer = undefined
+  }
+
+  const startTimer = () => {
+    if (timer) return
+    timer = setInterval(() => setNow(performance.now()), BG_PULSE_TICK_MS)
+  }
 
   const sync = () => {
     if (!box) return
     setSize({ width: box.width, height: box.height })
   }
 
+  const onFocus = () => {
+    setFocused(true)
+    startTimer()
+  }
+
+  const onBlur = () => {
+    setFocused(false)
+    stopTimer()
+  }
+
   onMount(() => {
     sync()
     box?.on("resize", sync)
-    box?.on("focus", () => setFocused(true))
-    box?.on("blur", () => setFocused(false))
+    box?.on("focus", onFocus)
+    box?.on("blur", onBlur)
+    startTimer()
   })
 
   onCleanup(() => {
+    stopTimer()
     box?.off("resize", sync)
-    box?.off("focus", () => setFocused(true))
-    box?.off("blur", () => setFocused(false))
+    box?.off("focus", onFocus)
+    box?.off("blur", onBlur)
   })
 
   // Ring states depend on time — lightweight O(RINGS) computation per tick

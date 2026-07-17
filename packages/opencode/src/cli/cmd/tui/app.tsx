@@ -153,7 +153,9 @@ export function tui(input: {
 
     const renderer = await createCliRenderer(rendererConfig(input.config))
     FrameSyncWriter.init(renderer)
-    const mode = (await renderer.waitForThemeMode(1000)) ?? "dark"
+    // Most terminals answer OSC theme queries in <200ms; 400ms is enough headroom
+    // without adding a full second of cold-start latency on fast hosts.
+    const mode = (await renderer.waitForThemeMode(400)) ?? "dark"
 
     // Register <image-plane> lazily — Three.js/WebGPU only loads on demand
     await registerImagePlane()

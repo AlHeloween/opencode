@@ -11,17 +11,17 @@ Superseded / deferred designs live in `abstract_futures/` (do not implement from
 
 ## Active Plans
 
-| Plan | Status |
-|------|--------|
-| `2026-07-16-tui-startup-parallelization.md` | Phase 1 + 3.1 done; Phase 2 caches optional |
-| `emergency/2026-07-16-tui-cpu-performance-audit.md` | Core items done; optional profiling follow-ups |
+_None._ Core TUI perf, startup parallelization, and reasoning-kernel work are complete.
+Optional leftovers (plugin/config caches, session streaming API, deeper memo rewrites) were parked: they risk quality for little measured benefit.
 
 ## Abstract futures (not active)
 
-See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes.
+See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and superseded HTTP API v2 design.
 
 ## Recently completed → `plans_completed/`
 
+- `2026-07-16-tui-startup-parallelization.md`
+- `emergency/2026-07-16-tui-cpu-performance-audit.md`
 - `20260714_reasoning_kernel_taxonomy_compaction.md`
 - `2026-07-15_block-anchor-replacer-fix.md`
 - `2026-07-15_git-push-no-verify-prohibition.md`

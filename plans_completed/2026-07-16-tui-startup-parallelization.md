@@ -1,6 +1,6 @@
 # TUI Startup Parallelization Plan — 2026-07-16
 
-**Status:** Phase 1 + critical-path Phase 3.1 done; remaining items optional
+**Status:** Completed — core work shipped; optional follow-ups deliberately not pursued
 **Goal:** Reduce TUI cold-start time by parallelizing blocking boot-path operations.
 
 ### Landed
@@ -14,14 +14,16 @@
 | 2.3 Theme mode wait 1000→400ms | Done |
 | 3.1 Critical vs deferred bootstrap | Done — `partial` after providers/agents/config/project; sessions apply next; LSP/MCP deferred to `complete` |
 
-### Still open (optional)
+### Not pursuing (low benefit / quality risk)
 
-| Step | Notes |
-|------|--------|
-| 2.1 Plugin pre-flight cache | Optional |
-| 2.2 Config file cache | Optional |
-| 2.4 Lazy non-critical providers | Low value — frecency/history already async onMount |
-| 3.2 Stream sessions as they arrive | API is bulk list; progressive insert not available without protocol change |
+| Step | Why parked |
+|------|------------|
+| 2.1 Plugin pre-flight cache | Stale-cache risk; only helps external-plugin heavy setups |
+| 2.2 Config file cache | ~50–200ms; mtime false negatives on some FS |
+| 2.4 Lazy non-critical providers | Complexity ≫ gain; providers already async onMount |
+| 3.2 Stream sessions as they arrive | Needs API change; incomplete-list UX risk |
+
+Reopen only with a measured cold-start bottleneck.
 
 ---
 

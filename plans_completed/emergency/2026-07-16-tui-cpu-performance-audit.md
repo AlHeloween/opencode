@@ -1,6 +1,6 @@
 # TUI CPU Performance Audit — 2026-07-16
 
-**Status:** Core idle + streaming items done
+**Status:** Completed — core idle + streaming items done; optional follow-ups deliberately not pursued
 **Scope:** `packages/opencode/src/cli/cmd/tui/` + `packages/opentui/packages/core/src/`
 
 ---
@@ -19,7 +19,9 @@ Tests: `idle-cpu.test.ts`, `sync-rendering.test.ts`, `Code.test.ts` (streaming d
 
 ---
 
-## Optional follow-ups
+## Not pursuing (low benefit / quality risk)
 
-1. Session-view memo blast radius if profiling still shows hot paths.
-2. Native/Zig animation drivers for decorative effects.
+1. **Session-view memo blast radius** — easy to regress streaming correctness; only if profiling still shows Solid as top after current fixes.
+2. **Native/Zig decorative animation** — idle JS drivers already gated; large native surface for little UX gain.
+
+Reopen only with measured CPU evidence.

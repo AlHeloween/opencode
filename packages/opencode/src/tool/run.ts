@@ -1,4 +1,5 @@
-import { Deferred, Effect, Schema, Stream } from "effect"
+import { Effect, Schema } from "effect"
+import { forkDrainStdoutStderr } from "./shell-output"
 import { createWriteStream } from "node:fs"
 import path from "path"
 import * as Tool from "./tool"
@@ -157,50 +158,48 @@ export const RunTool = Tool.define(
           const handle = yield* spawner.spawn(
             ChildProcess.make(resolved, input.args, { cwd: input.cwd, env: input.env, stdin: "ignore" }),
           )
-          // Await drain after exit — same race as bash/cmd (forked stream vs exitCode).
-          const drained = yield* Deferred.make<void>()
-          yield* Effect.forkScoped(
-            Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {
-              const size = Buffer.byteLength(chunk, "utf-8")
-              list.push({ text: chunk, size })
-              used += size
-              while (used > keep && list.length > 1) {
-                const item = list.shift()
-                if (!item) break
-                used -= item.size
-                cut = true
-              }
-              last = preview(last + chunk)
-              if (file) {
-                sink?.write(chunk)
-              } else {
-                chunks.push(chunk)
-                fullBytes += Buffer.byteLength(chunk, "utf-8")
-                if (fullBytes > limits.maxBytes)
-                  return trunc.write(chunks.join("")).pipe(
-                    Effect.andThen((next) =>
-                      Effect.sync(() => {
-                        file = next
-                        cut = true
-                        sink = createWriteStream(next, { flags: "a" })
-                        chunks.length = 0
-                        fullBytes = 0
-                      }),
-                    ),
-                    Effect.andThen(
-                      ctx.metadata({
-                        output: last,
-                        metadata: { output: last, description: input.description },
-                      }),
-                    ),
-                  )
-              }
-              // Stream live output to TUI (same as bash/cmd) — do not drop chunks.
+          const onChunk = (chunk: string) => {
+            const size = Buffer.byteLength(chunk, "utf-8")
+            list.push({ text: chunk, size })
+            used += size
+            while (used > keep && list.length > 1) {
+              const item = list.shift()
+              if (!item) break
+              used -= item.size
+              cut = true
+            }
+            last = preview(last + chunk)
+            if (file) {
+              sink?.write(chunk)
               return ctx.metadata({
                 metadata: { output: last, description: input.description },
               })
-            }).pipe(Effect.ensuring(Deferred.succeed(drained, undefined).pipe(Effect.asVoid))),
-          )
+            }
+            chunks.push(chunk)
+            fullBytes += Buffer.byteLength(chunk, "utf-8")
+            if (fullBytes > limits.maxBytes)
+              return trunc.write(chunks.join("")).pipe(
+                Effect.andThen((next) =>
+                  Effect.sync(() => {
+                    file = next
+                    cut = true
+                    sink = createWriteStream(next, { flags: "a" })
+                    chunks.length = 0
+                    fullBytes = 0
+                  }),
+                ),
+                Effect.andThen(
+                  ctx.metadata({
+                    output: last,
+                    metadata: { output: last, description: input.description },
+                  }),
+                ),
+              )
+            return ctx.metadata({
+              metadata: { output: last, description: input.description },
+            })
+          }
+          const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
           const abort = Effect.callback<void>((resume) => {
             if (ctx.abort.aborted) return resume(Effect.void)
             const handler = () => resume(Effect.void)
@@ -225,7 +224,7 @@ export const RunTool = Tool.define(
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
 
-          yield* Deferred.await(drained)
+          yield* awaitDrain
           return exit.kind === "exit" ? exit.code : null
         }),
       )

@@ -17,7 +17,9 @@ Commands are parsed with tree-sitter (bash grammar) to detect filesystem-affecti
 
 ## Output Handling
 
-If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output will be written to a file. You can use Read with offset/limit to read specific sections or Grep to search the full content. Do NOT use `head`, `tail`, or other truncation commands to limit output; the full output will already be captured to a file for more precise searching.
+Stdout and stderr are both captured into the tool result. If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output will be written to a file. You can use Read with offset/limit to read specific sections or Grep to search the full content. Do NOT use `head`, `tail`, or other truncation commands to limit output; the full output will already be captured to a file for more precise searching.
+
+**TypeScript / compilers:** prefer `2>&1` so diagnostics are on the same stream as stdout when piping or when a later step parses the text (missing merge can leave errors only on stderr and crash parsers that only consume stdout). Never strip intentional `2>&1`.
 
 ## Timeout
 

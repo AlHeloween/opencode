@@ -17,7 +17,14 @@ Commands are parsed with a batch grammar to detect filesystem-affecting operatio
 
 ## Output Handling
 
+Stdout and stderr are both captured into the tool result (do not assume stderr is dropped).
 If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output written to a file.
+
+**TypeScript / compilers (`tsc`, `bun`, `node` tools):** diagnostics often go to **stderr**. Always use `2>&1` when:
+- piping into another program that only reads stdin/stdout, or
+- a follow-on step parses the command text as TS/JSON and will crash if errors stay only on an unmerged stream.
+
+Example: `bun run script/build.ts 2>&1` — never strip `2>&1`.
 
 ## Timeout
 
@@ -27,8 +34,8 @@ Before executing:
 
 1. Always quote file paths with spaces in double quotes.
 2. Use Windows syntax: `dir`, `type`, `copy`, `move`, `del`, `mkdir`, `takeown`.
-3. Chain with `&&`. Pipe with `|`. Redirect with `>` and `2>&1`.
-4. Use `nul` for null device.
+3. Chain with `&&`. Pipe with `|`. Redirect with `>` and **`2>&1`** (required for TS/compiler error capture into pipes).
+4. Use `nul` for null device. Do **not** remove intentional `2>&1` merge redirects.
 5. DO NOT use `grep`, `rg`, `head`, `tail`, `sed`, `awk` — use dedicated tools.
 6. For interactive/long-running commands, use `cmd_runner` skill.
 

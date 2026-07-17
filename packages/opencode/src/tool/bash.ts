@@ -20,7 +20,8 @@ import { stripCommand } from "./strip-win"
 import { BashArity } from "@/permission/arity"
 import * as Truncate from "./truncate"
 import { Plugin } from "@/plugin"
-import { Deferred, Effect, Stream } from "effect"
+import { Effect } from "effect"
+import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { InstanceState } from "@/effect/instance-state"
@@ -651,61 +652,63 @@ export const BashTool = Tool.define(
           // Don't wait for exit — return immediately; user interacts via the terminal.
           if (isCmdRunner) return null
 
-          // Fork stream drain but await it after exit/kill — otherwise fast processes
-          // race exitCode vs forked consumer and agent tools report "(no output)"
-          // while user !shell (sequential read) still works. See cmd.ts.
-          const drained = yield* Deferred.make<void>()
-          yield* Effect.forkScoped(
-            Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {
-              const size = Buffer.byteLength(chunk, "utf-8")
-              list.push({ text: chunk, size })
-              used += size
-              while (used > keep && list.length > 1) {
-                const item = list.shift()
-                if (!item) break
-                used -= item.size
-                cut = true
-              }
+          // Separate stdout + stderr drains (tsc/bun/TS diagnostics → stderr).
+          // Await both after exit. Prefer agent `2>&1` when piping into parsers.
+          const onChunk = (chunk: string) => {
+            const size = Buffer.byteLength(chunk, "utf-8")
+            list.push({ text: chunk, size })
+            used += size
+            while (used > keep && list.length > 1) {
+              const item = list.shift()
+              if (!item) break
+              used -= item.size
+              cut = true
+            }
 
-              last = preview(last + chunk)
+            last = preview(last + chunk)
 
-              if (file) {
-                sink?.write(chunk)
-              } else {
-                chunks.push(chunk)
-                fullBytes += Buffer.byteLength(chunk, "utf-8")
-                if (fullBytes > limits.maxBytes) {
-                  return trunc.write(chunks.join("")).pipe(
-                    Effect.andThen((next) =>
-                      Effect.sync(() => {
-                        file = next
-                        cut = true
-                        sink = createWriteStream(next, { flags: "a" })
-                        chunks.length = 0
-                        fullBytes = 0
-                      }),
-                    ),
-                    Effect.andThen(
-                      ctx.metadata({
-                        output: last,
-                        metadata: {
-                          output: last,
-                          description: input.description,
-                        },
-                      }),
-                    ),
-                  )
-                }
-              }
-
+            if (file) {
+              sink?.write(chunk)
               return ctx.metadata({
                 metadata: {
                   output: last,
                   description: input.description,
                 },
               })
-            }).pipe(Effect.ensuring(Deferred.succeed(drained, undefined).pipe(Effect.asVoid))),
-          )
+            }
+            chunks.push(chunk)
+            fullBytes += Buffer.byteLength(chunk, "utf-8")
+            if (fullBytes > limits.maxBytes) {
+              return trunc.write(chunks.join("")).pipe(
+                Effect.andThen((next) =>
+                  Effect.sync(() => {
+                    file = next
+                    cut = true
+                    sink = createWriteStream(next, { flags: "a" })
+                    chunks.length = 0
+                    fullBytes = 0
+                  }),
+                ),
+                Effect.andThen(
+                  ctx.metadata({
+                    output: last,
+                    metadata: {
+                      output: last,
+                      description: input.description,
+                    },
+                  }),
+                ),
+              )
+            }
+
+            return ctx.metadata({
+              metadata: {
+                output: last,
+                description: input.description,
+              },
+            })
+          }
+          const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
           const abort = Effect.callback<void>((resume) => {
             if (ctx.abort.aborted) return resume(Effect.void)
@@ -731,7 +734,7 @@ export const BashTool = Tool.define(
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash timeout kill failed"))))
           }
 
-          yield* Deferred.await(drained)
+          yield* awaitDrain
           return exit.kind === "exit" ? exit.code : null
         }),
       ).pipe(Effect.orDie)

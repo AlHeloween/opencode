@@ -49,6 +49,11 @@ test("strips Out-Null pipe", () => {
 test("preserves 2>&1 redirect", () => {
   expect(stripCommand("echo hello 2>&1", "powershell").command).toBe("echo hello 2>&1")
   expect(stripCommand("dir >nul 2>&1", "powershell").command).toBe("dir 2>&1")
+  // TS / bun / tsc — merge must never be eaten
+  expect(stripCommand("bun run build.ts 2>&1", "cmd").command).toBe("bun run build.ts 2>&1")
+  expect(stripCommand("tsc -b 2>&1", "cmd").command).toBe("tsc -b 2>&1")
+  expect(stripCommand("node script.js 1>&2", "cmd").command).toBe("node script.js 1>&2")
+  expect(stripCommand("tsc 2>&1 | more", "cmd").command).toBe("tsc 2>&1 | more")
 })
 
 test("preserves file redirects", () => {

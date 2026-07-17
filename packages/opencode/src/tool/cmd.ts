@@ -16,7 +16,8 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 
 import * as Truncate from "./truncate"
 import { Plugin } from "@/plugin"
-import { Deferred, Effect, Stream } from "effect"
+import { Effect } from "effect"
+import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
@@ -420,46 +421,43 @@ export const CmdTool = Tool.define(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
 
-          // Drain stdout+stderr on a fiber, but ALWAYS await completion before leaving
-          // the scope. Racing exitCode alone used to return while the pipe still held
-          // data → agent tools reported "(no output)" for fast cmds like `where … 2>&1`,
-          // while user !shell (sequential Stream.runForEach then exitCode) worked fine.
-          const drained = yield* Deferred.make<void>()
-          yield* Effect.forkScoped(
-            Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {
-              const size = Buffer.byteLength(chunk, "utf-8")
-              list.push({ text: chunk, size })
-              used += size
-              while (used > keep && list.length > 1) {
-                const item = list.shift()
-                if (!item) break
-                used -= item.size
-                cut = true
-              }
-              last = preview(last + chunk)
-              if (file) {
-                sink?.write(chunk)
-              } else {
-                chunks.push(chunk)
-                fullBytes += Buffer.byteLength(chunk, "utf-8")
-                if (fullBytes > limits.maxBytes) {
-                  return trunc.write(chunks.join("")).pipe(
-                    Effect.andThen((next) =>
-                      Effect.sync(() => {
-                        file = next
-                        cut = true
-                        sink = createWriteStream(next, { flags: "a" })
-                        chunks.length = 0
-                        fullBytes = 0
-                      }),
-                    ),
-                    Effect.andThen(ctx.metadata({ metadata: { output: last, description: input.description } })),
-                  )
-                }
-              }
+          // Drain stdout and stderr on separate fibers (TS/compilers write to stderr).
+          // Always await both before leaving scope — see shell-output.ts.
+          // Agents should still use `2>&1` when piping into parsers that only read stdin/stdout.
+          const onChunk = (chunk: string) => {
+            const size = Buffer.byteLength(chunk, "utf-8")
+            list.push({ text: chunk, size })
+            used += size
+            while (used > keep && list.length > 1) {
+              const item = list.shift()
+              if (!item) break
+              used -= item.size
+              cut = true
+            }
+            last = preview(last + chunk)
+            if (file) {
+              sink?.write(chunk)
               return ctx.metadata({ metadata: { output: last, description: input.description } })
-            }).pipe(Effect.ensuring(Deferred.succeed(drained, undefined).pipe(Effect.asVoid))),
-          )
+            }
+            chunks.push(chunk)
+            fullBytes += Buffer.byteLength(chunk, "utf-8")
+            if (fullBytes > limits.maxBytes) {
+              return trunc.write(chunks.join("")).pipe(
+                Effect.andThen((next) =>
+                  Effect.sync(() => {
+                    file = next
+                    cut = true
+                    sink = createWriteStream(next, { flags: "a" })
+                    chunks.length = 0
+                    fullBytes = 0
+                  }),
+                ),
+                Effect.andThen(ctx.metadata({ metadata: { output: last, description: input.description } })),
+              )
+            }
+            return ctx.metadata({ metadata: { output: last, description: input.description } })
+          }
+          const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
           const abort = Effect.callback<void>((resume) => {
             if (ctx.abort.aborted) return resume(Effect.void)
@@ -484,8 +482,7 @@ export const CmdTool = Tool.define(
             expired = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
-          // Process may exit before the stream consumer finishes reading pipe buffers.
-          yield* Deferred.await(drained)
+          yield* awaitDrain
           return exit.kind === "exit" ? exit.code : null
         }),
       ).pipe(Effect.orDie)

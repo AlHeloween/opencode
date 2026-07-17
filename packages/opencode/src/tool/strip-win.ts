@@ -1,15 +1,18 @@
+// Null-device sinks only. NEVER match merge redirects `2>&1` / `1>&2` —
+// TypeScript/compilers rely on those so diagnostics stay in the captured stream
+// (and in agent pipes). Patterns must require a null device after `>`, not `&`.
 const NUL_REDIRECTS = [
-  /2\s*>\s*nul/gi,
-  /1\s*>\s*nul/gi,
-  /\s*>\s*nul/gi,
-  /2\s*>\s*\$null/gi,
-  /1\s*>\s*\$null/gi,
-  /\s*>\s*\$null/gi,
-  /2\s*>\s*\/dev\/null/g,
-  /1\s*>\s*\/dev\/null/g,
-  /\s*>\s*\/dev\/null/g,
-  /\|\s*Out-Null/gi,
-  /\s+Out-Null/gi,
+  /2\s*>\s*nul\b/gi,
+  /1\s*>\s*nul\b/gi,
+  /(?<!&)\s*>\s*nul\b/gi,
+  /2\s*>\s*\$null\b/gi,
+  /1\s*>\s*\$null\b/gi,
+  /(?<!&)\s*>\s*\$null\b/gi,
+  /2\s*>\s*\/dev\/null\b/g,
+  /1\s*>\s*\/dev\/null\b/g,
+  /(?<!&)\s*>\s*\/dev\/null\b/g,
+  /\|\s*Out-Null\b/gi,
+  /\s+Out-Null\b/gi,
 ]
 
 // Detect SSH/cmd_runner commands — /dev/null is valid on remote Linux
@@ -49,6 +52,12 @@ export function stripCommand(command: string, shell: string): StripResult {
   }
 
   result = result.replace(/  +/g, " ").trim()
+
+  // Hard guarantee: merge redirects must survive (TS diagnostics, tsc, bun, etc.)
+  // If a future pattern ever ate them, restore from the original command.
+  if (/\d>&\d/.test(command) && !/\d>&\d/.test(result)) {
+    return { command, converted: false, message: "merge redirects preserved (2>&1 / 1>&2)" }
+  }
 
   return { command: result, converted, message }
 }

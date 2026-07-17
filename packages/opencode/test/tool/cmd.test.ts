@@ -90,6 +90,24 @@ describe("tool.cmd", () => {
     })
   }, 60_000)
 
+  // TS/compilers write diagnostics to stderr; tool must capture without 2>&1 too.
+  test("stderr-only diagnostics captured without 2>&1", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const tool = await initCmd()
+        const cmd =
+          process.platform === "win32"
+            ? "echo TS_DIAG_ON_STDERR 1>&2"
+            : "echo TS_DIAG_ON_STDERR 1>&2"
+        const result = await Effect.runPromise(
+          tool.execute({ command: cmd, description: "stderr only", timeout: 10000 }, ctx as any),
+        )
+        expect(result.output).toContain("TS_DIAG_ON_STDERR")
+      },
+    })
+  }, 15_000)
+
   test("fails on missing command", async () => {
     await Instance.provide({
       directory: projectRoot,

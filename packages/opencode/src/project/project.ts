@@ -201,8 +201,15 @@ export const layer: Layer.Layer<
 
     const git = Effect.fnUntraced(
       function* (args: string[], opts?: { cwd?: string }) {
+        // --no-optional-locks: never create .git/index.lock for read discovery.
+        // Stale locks from other processes must not couple project discovery to
+        // snapshot/fossil (unrelated systems).
         const handle = yield* spawner.spawn(
-          ChildProcess.make("git", args, { cwd: opts?.cwd, extendEnv: true, stdin: "ignore" }),
+          ChildProcess.make("git", ["--no-optional-locks", ...args], {
+            cwd: opts?.cwd,
+            extendEnv: true,
+            stdin: "ignore",
+          }),
         )
         const [text, stderr] = yield* Effect.all(
           [Stream.mkString(Stream.decodeText(handle.stdout)), Stream.mkString(Stream.decodeText(handle.stderr))],

@@ -15,27 +15,34 @@ function currentHash(text: string): string | undefined {
   return text.match(/^checkout:\s+([a-f0-9]+)/m)?.[1] ?? text.match(/^hash:\s+([a-f0-9]+)/m)?.[1]
 }
 
-// Find fossil binary: tools/ relative to executable, then PATH
+// Find fossil binary: tools/ relative to executable, then PATH.
+// Probe both `fossil` and `fossil.exe` so Windows tools/ and Linux PATH/symlinks work.
 function findFossil(): string {
-  // 1. tools/ relative to executable (e.g. opencode.exe/tools/fossil.exe)
-  const execDir = path.dirname(process.execPath)
-  const toolsPath = path.join(execDir, "tools", "fossil.exe")
-  if (require("fs").existsSync(toolsPath)) return toolsPath
-
-  // 2. tools/ relative to worktree
-  const worktreeTools = path.join(Global.Path.home, "tools", "fossil.exe")
-  if (require("fs").existsSync(worktreeTools)) return worktreeTools
-
-  // 3. external/fossil/ relative to repo root (src/snapshot/fossil.ts → 4 levels up)
-  const repoRoot = path.resolve(import.meta.dirname!, "..", "..", "..", "..")
-  const repoFossil = path.join(repoRoot, "external", "fossil", "fossil.exe")
-  if (require("fs").existsSync(repoFossil)) return repoFossil
-
-  // 4. Fallback: hope it's on PATH
+  const fs = require("fs") as typeof import("fs")
+  const names = process.platform === "win32" ? ["fossil.exe", "fossil"] : ["fossil", "fossil.exe"]
+  const dirs = [
+    path.join(path.dirname(process.execPath), "tools"),
+    path.join(Global.Path.home, "tools"),
+    path.join(path.resolve(import.meta.dirname!, "..", "..", "..", ".."), "external", "fossil"),
+  ]
+  for (const dir of dirs) {
+    for (const name of names) {
+      const candidate = path.join(dir, name)
+      if (fs.existsSync(candidate)) return candidate
+    }
+  }
   return "fossil"
 }
 
 const FOSSIL_BIN = findFossil()
+
+/** Clear open-tree markers (Windows `_FOSSIL_`, Unix `_fossil`). Independent of git. */
+function clearCheckoutMarkers(fs: AppFileSystem.Interface, worktree: string) {
+  return Effect.gen(function* () {
+    yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
+    yield* fs.remove(path.join(worktree, "_fossil")).pipe(Effect.catch(() => Effect.void))
+  })
+}
 
 type State = Omit<Interface, "init">
 
@@ -191,11 +198,11 @@ export const layer = Layer.effect(
                 return false
               }
 
-              // A stale _FOSSIL_ can make `open --force` succeed while later
+              // A stale checkout marker can make `open --force` succeed while later
               // commands fail with "Unresolved RID values". Do not recreate
               // a healthy checkout: other services may be using it.
               yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
-              yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
+              yield* clearCheckoutMarkers(fs, worktree)
               const reopenResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
                 Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
               )
@@ -207,9 +214,10 @@ export const layer = Layer.effect(
 
             // Corrupted or out-of-sync repository — recovery is scoped to
             // this checkout/repository pair and continues into reinit below.
+            // Never touches project .git (including index.lock).
             yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
             yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
-            yield* fs.remove(path.join(worktree, "_FOSSIL_")).pipe(Effect.catch(() => Effect.void))
+            yield* clearCheckoutMarkers(fs, worktree)
             yield* fs.remove(path.join(worktree, ".fossil-settings", "ignore-glob")).pipe(Effect.catch(() => Effect.void))
           }
 
@@ -491,12 +499,33 @@ export const layer = Layer.effect(
           )
         })
 
+        // Eager open at instance boot — independent of project git and of the
+        // first track(). Lazy-only open meant:
+        // - TUI showed red "git" until an agent edit (exclusive marker logic)
+        // - any git stall (e.g. stuck .git/index.lock blocking paths that never
+        //   reached track) looked like "fossil never initialized"
+        // Snapshot Fossil must not wait on git health.
+        if (yield* enabled()) {
+          const ok = yield* locked(ensureInit()).pipe(
+            Effect.catch((err) => {
+              log.warn("bug: fossil ensureInit at bootstrap failed", {
+                error: err instanceof Error ? err.message : String(err),
+                repoPath,
+              })
+              return Effect.succeed(false)
+            }),
+          )
+          if (ok) log.info("fossil snapshot ready", { repoPath })
+          else log.warn("fossil snapshot not ready after bootstrap ensureInit", { repoPath })
+        }
+
         return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull }
       }),
     )
 
     return SnapshotService.of({
       init: Effect.fn("SnapshotFossil.init")(function* () {
+        // Materializes SnapshotFossil.state (includes eager ensureInit above).
         yield* InstanceState.get(state)
       }),
       cleanup: Effect.fn("SnapshotFossil.cleanup")(function* () {

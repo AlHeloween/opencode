@@ -129,7 +129,9 @@ cd external/fossil/fossil-src-2.28
 
 **If missing:** snapshot service cannot open/init `.opencode/data/fossil/{projectID}/snapshot.fsl`; agent undo / Modified Files degrade. Logs: service `snapshot-fossil`.
 
-**Not Fossil:** project git (`project/vcs.ts`) and TUI footer markers (`.git` / `.jj` / `_FOSSIL_`) are separate systems. See [startup-bootstrap.md](startup-bootstrap.md).
+**Not Fossil:** project git (`project/vcs.ts`) and TUI footer markers are separate systems. See [startup-bootstrap.md](startup-bootstrap.md).
+
+**Decoupling from git:** A stuck `.git/index.lock` must not prevent Fossil snapshot open. Snapshot `ensureInit` runs at bootstrap (not only on first `track`). The TUI footer detects fossil via open markers **or** `{worktree}/.opencode/data/fossil/*/snapshot.fsl` (`packages/opencode/src/cli/cmd/tui/util/vcs-indicator.ts`) and prefers fossil over git when the sidecar exists.
 
 ---
 

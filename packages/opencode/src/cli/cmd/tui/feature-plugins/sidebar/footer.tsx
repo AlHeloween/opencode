@@ -4,6 +4,7 @@ import { Global } from "@opencode-ai/core/global"
 import { formatProjectDirectory } from "../../util/directory-display"
 import { existsSync } from "fs"
 import * as nodePath from "path"
+import { detectIndicatorBackend, indicatorColor } from "../../util/vcs-indicator"
 
 const id = "internal:sidebar-footer"
 
@@ -81,13 +82,11 @@ function View(props: { api: TuiPluginApi }) {
       <text fg={theme().textMuted}>
         {(() => {
           const worktree = Global.Path.worktree || Global.Path.home
-          const isJj = existsSync(nodePath.join(worktree, ".jj"))
-          const isFossil = existsSync(nodePath.join(worktree, "_FOSSIL_")) || existsSync(nodePath.join(worktree, "_fossil"))
-          const isGit = existsSync(nodePath.join(worktree, ".git"))
+          // Fossil snapshot (agent undo) is independent of project git / index.lock.
+          const backend = detectIndicatorBackend(worktree)
           const isCodegraph = existsSync(nodePath.join(worktree, ".codegraph", "codegraph.db"))
-          const backend = isJj ? "jj" : isFossil ? "fossil" : isGit ? "git" : null
           if (!backend && !isCodegraph) return null
-          const color = isJj ? "#88c0d0" : isFossil ? "#a3be8c" : "#bf616a"
+          const color = indicatorColor(backend)
           return (
             <span>
               {backend ? <><span style={{ fg: color }}>●</span> {backend}</> : null}

@@ -147,11 +147,18 @@ Three different systems — easy to confuse:
 |--------|---------|------|
 | **Snapshot (agent undo / “Modified Files”)** | **Fossil only** (`snapshot/fossil.ts`) | Sidecar repo `{data}/fossil/{projectID}/snapshot.fsl`; track/diff/restore. Honors `.gitignore` via Fossil ignore-glob. Binary resolution: [tools-and-sidecars.md](tools-and-sidecars.md) §4.1. |
 | **Project VCS** (`project/vcs.ts`) | **Git** (when `project.vcs === "git"`) | Branch name, agent git-facing diffs — **source control**, not undo DB. |
-| **TUI footer indicator** | Detects `.jj` / `_FOSSIL_` / `.git` | Display only (jj blue, fossil green, git red). No jj snapshot backend. |
+| **TUI footer indicator** | `vcs-indicator.ts`: `.jj` → fossil sidecar/`_FOSSIL_`/`_fossil` → `.git` | Display only (jj blue, fossil green, git red). Fossil wins when the **sidecar** exists even without an open marker — a git monorepo still shows green fossil for agent undo. |
 
 There is **no** git/jj snapshot layer in this fork. `Snapshot.Service` dies unless `SnapshotFossil.defaultLayer` is provided.
 
 Fossil snapshot deliberately ignores packing `.git`, `.jj`, and Fossil checkout markers into the sidecar.
+
+### Git vs Fossil must stay decoupled
+
+- **`.git/index.lock`** is a git-only concern. It must not block Fossil open/init.
+- Snapshot `ensureInit()` runs **eagerly** when `SnapshotFossil` state is first built (instance bootstrap), not only on the first `track()` after an agent edit.
+- Project discovery git calls use `--no-optional-locks` so read paths do not create `index.lock`.
+- Footer detection uses the sidecar file (and open markers), not git health.
 
 ---
 

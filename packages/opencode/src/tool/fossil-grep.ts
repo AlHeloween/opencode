@@ -6,16 +6,22 @@ import { Global } from "@opencode-ai/core/global"
 import DESCRIPTION from "./fossil-grep.txt"
 
 function findFossil(): string {
-  const execDir = path.dirname(process.execPath)
-  const candidates = [
-    path.join(execDir, "tools", "fossil.exe"),
-    path.join(Global.Path.home, "tools", "fossil.exe"),
-    path.join(Global.Path.home, "external", "fossil", "fossil.exe"),
+  const fs = require("fs") as typeof import("fs")
+  const names = process.platform === "win32" ? ["fossil.exe", "fossil"] : ["fossil", "fossil.exe"]
+  const dirs = [
+    path.join(path.dirname(process.execPath), "tools"),
+    path.join(Global.Path.home, "tools"),
+    path.join(Global.Path.home, "external", "fossil"),
   ]
-  for (const c of candidates) {
-    try {
-      if (require("fs").existsSync(c)) return c
-    } catch {}
+  for (const dir of dirs) {
+    for (const name of names) {
+      const c = path.join(dir, name)
+      try {
+        if (fs.existsSync(c)) return c
+      } catch {
+        /* continue */
+      }
+    }
   }
   return "fossil"
 }

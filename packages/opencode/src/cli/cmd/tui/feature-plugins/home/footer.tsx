@@ -2,8 +2,7 @@ import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plug
 import { createMemo, createResource, Match, Show, Switch } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
 import { formatProjectDirectory } from "../../util/directory-display"
-import { existsSync } from "fs"
-import * as nodePath from "path"
+import { detectIndicatorBackend, indicatorColor } from "../../util/vcs-indicator"
 
 const id = "internal:home-footer"
 
@@ -65,23 +64,11 @@ function Version(props: { api: TuiPluginApi }) {
 }
 
 function SnapshotBackend() {
-  const backend = createMemo(() => {
-    const worktree = Global.Path.worktree || Global.Path.home
-    if (existsSync(nodePath.join(worktree, ".jj"))) return "jj"
-    // Fossil checkout markers: _FOSSIL_ (Windows) or _fossil (Unix)
-    if (existsSync(nodePath.join(worktree, "_FOSSIL_")) || existsSync(nodePath.join(worktree, "_fossil"))) return "fossil"
-    if (existsSync(nodePath.join(worktree, ".git"))) return "git"
-    return null
-  })
-  const color = createMemo(() => {
-    switch (backend()) {
-      case "jj": return "#88c0d0"
-      case "fossil": return "#a3be8c"
-      case "git": return "#bf616a"
-      default: return "#4c566a"
-    }
-  })
-  const vcs = createMemo(() => backend() ? backend()! : "no vcs")
+  // Snapshot Fossil vs project git are independent — see vcs-indicator.ts.
+  // Prefer fossil when sidecar exists even if .git is present (or index.lock stuck).
+  const backend = createMemo(() => detectIndicatorBackend(Global.Path.worktree || Global.Path.home))
+  const color = createMemo(() => indicatorColor(backend()))
+  const vcs = createMemo(() => (backend() ? backend()! : "no vcs"))
 
   return (
     <box flexShrink={0} gap={1} flexDirection="row">

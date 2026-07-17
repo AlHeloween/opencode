@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ansi = @import("ansi.zig");
 const buf = @import("buffer.zig");
+const kitty = @import("kitty.zig");
 const gp = @import("grapheme.zig");
 const link = @import("link.zig");
 const split_scrollback = @import("split-scrollback.zig");
@@ -12,6 +13,7 @@ const output = @import("renderer-output.zig");
 
 pub const RGBA = ansi.RGBA;
 pub const OptimizedBuffer = buf.OptimizedBuffer;
+pub const PixelBuffer = buf.PixelBuffer;
 pub const TextAttributes = ansi.TextAttributes;
 pub const CursorStyle = Terminal.CursorStyle;
 pub const OutputBackend = output.OutputBackend;
@@ -114,6 +116,8 @@ pub const CliRenderer = struct {
     height: u32,
     currentRenderBuffer: *OptimizedBuffer,
     nextRenderBuffer: *OptimizedBuffer,
+    currentPixelBuffer: *PixelBuffer,
+    nextPixelBuffer: *PixelBuffer,
     pool: *gp.GraphemePool,
     backgroundColor: RGBA,
     renderOffset: u32,
@@ -249,6 +253,11 @@ pub const CliRenderer = struct {
         const nextBuffer = try OptimizedBuffer.init(allocator, width, height, .{ .pool = pool, .width_method = .unicode, .id = "next buffer" });
         errdefer nextBuffer.deinit();
 
+        const currentPixelBuffer = try PixelBuffer.init(allocator);
+        errdefer currentPixelBuffer.deinit();
+        const nextPixelBuffer = try PixelBuffer.init(allocator);
+        errdefer nextPixelBuffer.deinit();
+
         // stat sample arrays
         var lastFrameTime: std.ArrayListUnmanaged(f64) = .{};
         errdefer lastFrameTime.deinit(allocator);
@@ -296,6 +305,8 @@ pub const CliRenderer = struct {
             .height = height,
             .currentRenderBuffer = currentBuffer,
             .nextRenderBuffer = nextBuffer,
+            .currentPixelBuffer = currentPixelBuffer,
+            .nextPixelBuffer = nextPixelBuffer,
             .pool = pool,
             .backgroundColor = ansi.rgbColor(0, 0, 0, 0),
             .renderOffset = 0,
@@ -364,6 +375,9 @@ pub const CliRenderer = struct {
 
         self.currentRenderBuffer.deinit();
         self.nextRenderBuffer.deinit();
+
+        self.currentPixelBuffer.deinit();
+        self.nextPixelBuffer.deinit();
 
         // Free stat sample arrays
         self.statSamples.lastFrameTime.deinit(self.allocator);
@@ -770,6 +784,7 @@ pub const CliRenderer = struct {
                 b.beginFrame();
                 var w = b.writer();
                 self.prepareRenderFrameWithWriter(&w, force, false);
+                self.renderPixels(&w);
                 write_status = b.endFrame();
             },
         }
@@ -1314,6 +1329,38 @@ pub const CliRenderer = struct {
         return self.currentRenderBuffer;
     }
 
+    pub fn getNextPixelBuffer(self: *CliRenderer) *PixelBuffer {
+        return self.nextPixelBuffer;
+    }
+
+    pub fn getCurrentPixelBuffer(self: *CliRenderer) *PixelBuffer {
+        return self.currentPixelBuffer;
+    }
+
+    pub fn renderPixels(self: *CliRenderer, writer: anytype) void {
+        // check for removed patches — iterate backwards to avoid skipping elements
+        const currentPatches = self.currentPixelBuffer.patches.items;
+        var i: usize = currentPatches.len;
+        while (i > 0) {
+            i -= 1;
+            const patch = currentPatches[i];
+            if (!self.nextPixelBuffer.hasPatch(patch)) {
+                kitty.IMAGE.delete(writer, patch.id);
+                // removePatch frees owned RGBA
+                self.currentPixelBuffer.removePatch(patch);
+            }
+        }
+
+        // check for new patches in the next pixel buffer
+        for (self.nextPixelBuffer.patches.items) |patch| {
+            if (!self.currentPixelBuffer.hasPatch(patch)) {
+                kitty.IMAGE.create(writer, patch.id, patch.x, patch.y + self.renderOffset, patch.width, patch.height, patch.data, self.allocator);
+                // Copy into current so next.clear() can free its own buffers safely.
+                self.currentPixelBuffer.adoptCopy(patch);
+            }
+        }
+    }
+
     /// Generic over the writer type so each backend can provide its own writer
     /// (buffered frame append or feed streaming) without dispatch in the render path.
     /// `sync_started` is true only when the caller already opened the
@@ -1583,6 +1630,8 @@ pub const CliRenderer = struct {
         self.force_full_repaint = false;
 
         self.nextRenderBuffer.clear(self.backgroundColor, null);
+
+        self.nextPixelBuffer.clear();
 
         // Compare hit grids before swap to detect changes. This allows TypeScript to
         // know if hover state needs rechecking without manually tracking dirty state.

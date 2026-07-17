@@ -32,7 +32,7 @@ export type {
 }
 
 import { RGBA } from "./lib/RGBA.js"
-import { OptimizedBuffer } from "./buffer.js"
+import { OptimizedBuffer, PixelBuffer } from "./buffer.js"
 import { TextBuffer } from "./text-buffer.js"
 import { env, registerEnvVar } from "./lib/env.js"
 import {
@@ -390,6 +390,14 @@ function getOpenTUILib(libPath?: string) {
       args: ["u32"],
       returns: "u32",
     },
+    getNextPixelBuffer: {
+      args: ["u32"],
+      returns: "u32",
+    },
+    getCurrentPixelBuffer: {
+      args: ["u32"],
+      returns: "u32",
+    },
     rendererSetPaletteState: {
       args: ["u32", "ptr", "u32", "ptr", "ptr", "u32"],
       returns: "void",
@@ -410,6 +418,11 @@ function getOpenTUILib(libPath?: string) {
     },
     destroyOptimizedBuffer: {
       args: ["u32"],
+      returns: "void",
+    },
+
+    pixelsDrawImage: {
+      args: ["u32", "u32", "u32", "u32", "u32", "ptr", "usize"],
       returns: "void",
     },
 
@@ -2042,6 +2055,8 @@ export interface RenderLib extends AudioEngineLib {
   ) => NativeRenderOperationResult
   getNextBuffer: (renderer: RendererHandle) => OptimizedBuffer
   getCurrentBuffer: (renderer: RendererHandle) => OptimizedBuffer
+  getNextPixelBuffer: (renderer: RendererHandle) => PixelBuffer
+  getCurrentPixelBuffer: (renderer: RendererHandle) => PixelBuffer
   rendererSetPaletteState: (
     renderer: RendererHandle,
     palette: readonly RGBA[],
@@ -2057,6 +2072,7 @@ export interface RenderLib extends AudioEngineLib {
     id?: string,
   ) => OptimizedBuffer
   destroyOptimizedBuffer: (bufferPtr: OptimizedBufferHandle) => void
+  pixelsDrawImage: (bufferPtr: Pointer, x: number, y: number, width: number, height: number, data: Uint8Array) => void
   drawFrameBuffer: (
     targetBufferPtr: OptimizedBufferHandle,
     destX: number,
@@ -2936,6 +2952,22 @@ class FFIRenderLib implements RenderLib {
     return new OptimizedBuffer(this, bufferPtr, width, height, { id: "current buffer", widthMethod: "unicode" })
   }
 
+  public getNextPixelBuffer(renderer: Pointer): PixelBuffer {
+    const bufferPtr = this.opentui.symbols.getNextPixelBuffer(renderer)
+    if (!bufferPtr) {
+      throw new Error("Failed to get next pixel buffer")
+    }
+    return new PixelBuffer(this, bufferPtr)
+  }
+
+  public getCurrentPixelBuffer(renderer: Pointer): PixelBuffer {
+    const bufferPtr = this.opentui.symbols.getCurrentPixelBuffer(renderer)
+    if (!bufferPtr) {
+      throw new Error("Failed to get current pixel buffer")
+    }
+    return new PixelBuffer(this, bufferPtr)
+  }
+
   public rendererSetPaletteState(
     renderer: Pointer,
     palette: readonly RGBA[],
@@ -3401,6 +3433,10 @@ class FFIRenderLib implements RenderLib {
 
   public destroyOptimizedBuffer(bufferPtr: Pointer) {
     this.opentui.symbols.destroyOptimizedBuffer(bufferPtr)
+  }
+
+  public pixelsDrawImage(pixelBufferPtr: Pointer, x: number, y: number, width: number, height: number, data: Uint8Array) {
+    this.opentui.symbols.pixelsDrawImage(pixelBufferPtr, x, y, width, height, data, data.length)
   }
 
   public drawFrameBuffer(

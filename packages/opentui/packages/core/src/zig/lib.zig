@@ -735,6 +735,16 @@ export fn getCurrentBuffer(renderer_handle: NativeHandle) NativeHandle {
     return handles.getOrInsertBorrowed(.optimized_buffer, erasePtr(object_ptr.getCurrentBuffer()), renderer_handle) catch INVALID_HANDLE;
 }
 
+export fn getNextPixelBuffer(renderer_handle: NativeHandle) NativeHandle {
+    const object_ptr = acquireRenderer(renderer_handle) orelse return INVALID_HANDLE;
+    return handles.getOrInsertBorrowed(.pixel_buffer, erasePtr(object_ptr.getNextPixelBuffer()), renderer_handle) catch INVALID_HANDLE;
+}
+
+export fn getCurrentPixelBuffer(renderer_handle: NativeHandle) NativeHandle {
+    const object_ptr = acquireRenderer(renderer_handle) orelse return INVALID_HANDLE;
+    return handles.getOrInsertBorrowed(.pixel_buffer, erasePtr(object_ptr.getCurrentPixelBuffer()), renderer_handle) catch INVALID_HANDLE;
+}
+
 export fn setHyperlinksCapability(renderer_handle: NativeHandle, enabled: bool) void {
     const object_ptr = acquireRenderer(renderer_handle) orelse return;
     object_ptr.terminal.caps.hyperlinks = enabled;
@@ -852,6 +862,11 @@ export fn destroyOptimizedBuffer(buffer_handle: NativeHandle) void {
     const token = handles.beginDestroy(buffer_handle, .optimized_buffer, buffer.OptimizedBuffer) orelse return;
     token.ptr.deinit();
     handles.finishDestroy(token.handle);
+}
+
+export fn pixelsDrawImage(pixel_buffer_handle: NativeHandle, x: u32, y: u32, width: u32, height: u32, data_ptr: [*]const u8, data_len: usize) void {
+    const pixel_ptr = handles.acquire(pixel_buffer_handle, .pixel_buffer, buffer.PixelBuffer) orelse return;
+    pixel_ptr.drawImage(x, y, width, height, data_ptr[0..data_len]);
 }
 
 export fn destroyFrameBuffer(frame_buffer_handle: NativeHandle) void {

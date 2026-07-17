@@ -15,7 +15,7 @@ import {
 } from "./types.js"
 import { RGBA, parseColor, type ColorInput } from "./lib/RGBA.js"
 import { sleep } from "./platform/runtime.js"
-import { OptimizedBuffer } from "./buffer.js"
+import { OptimizedBuffer, PixelBuffer } from "./buffer.js"
 import {
   resolveRenderLib,
   type NativeBufferedOutput,
@@ -732,6 +732,8 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   private _streamLeaseAcquired: boolean = false
   public nextRenderBuffer: OptimizedBuffer
   public currentRenderBuffer: OptimizedBuffer
+  public nextPixelBuffer: PixelBuffer
+  public currentPixelBuffer: PixelBuffer
   private _isRunning: boolean = false
   private _targetFps: number = 30
   private _maxFps: number = 60
@@ -1148,6 +1150,8 @@ export class CliRenderer extends EventEmitter implements RenderContext {
     this.autoFocus = config.autoFocus ?? true
     this.nextRenderBuffer = this.lib.getNextBuffer(this.rendererPtr)
     this.currentRenderBuffer = this.lib.getCurrentBuffer(this.rendererPtr)
+    this.nextPixelBuffer = this.lib.getNextPixelBuffer(this.rendererPtr)
+    this.currentPixelBuffer = this.lib.getCurrentPixelBuffer(this.rendererPtr)
     this.postProcessFns = config.postProcessFns || []
     this.prependedInputHandlers = config.prependInputHandlers || []
 
@@ -2989,6 +2993,8 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
     this.nextRenderBuffer = this.lib.getNextBuffer(this.rendererPtr)
     this.currentRenderBuffer = this.lib.getCurrentBuffer(this.rendererPtr)
+    this.nextPixelBuffer = this.lib.getNextPixelBuffer(this.rendererPtr)
+    this.currentPixelBuffer = this.lib.getCurrentPixelBuffer(this.rendererPtr)
 
     this._console.resize(this.width, this.height)
     this.root.resize(this.width, this.height)
@@ -3782,6 +3788,8 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
     this.nextRenderBuffer = this.lib.getNextBuffer(this.rendererPtr)
     this.currentRenderBuffer = this.lib.getCurrentBuffer(this.rendererPtr)
+    this.nextPixelBuffer = this.lib.getNextPixelBuffer(this.rendererPtr)
+    this.currentPixelBuffer = this.lib.getCurrentPixelBuffer(this.rendererPtr)
     this._console.resize(this.width, this.height)
     this.root.resize(this.width, this.height)
     this.emit(CliRenderEvents.RESIZE, this.width, this.height)
@@ -4414,6 +4422,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       this.renderStats.frameCallbackTime = end - start
 
       this.root.render(this.nextRenderBuffer, deltaTime)
+      this.root.renderPixels(this.nextPixelBuffer)
 
       for (const postProcessFn of this.postProcessFns) {
         postProcessFn(this.nextRenderBuffer, deltaTime)

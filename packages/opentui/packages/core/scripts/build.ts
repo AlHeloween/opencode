@@ -182,6 +182,9 @@ if (buildNative) {
     rmSync(nativeDir, { recursive: true, force: true })
     mkdirSync(nativeDir, { recursive: true })
 
+    // nativeName is like "@opentui/core-win32-x64" → sibling packages/core-win32-x64
+    const siblingNativeDir = join(rootDir, "..", nativeName.split("/").pop()!)
+
     let copiedFiles = 0
     let libraryFileName: string | null = null
     for (const name of ["libopentui", "opentui"]) {
@@ -190,6 +193,10 @@ if (buildNative) {
         if (existsSync(src)) {
           const fileName = `${name}${ext}`
           copyFileSync(src, join(nativeDir, fileName))
+          // Keep workspace package binary in sync so @opentui/core-win32-x64 loads pixel FFI.
+          if (existsSync(siblingNativeDir)) {
+            copyFileSync(src, join(siblingNativeDir, fileName))
+          }
           copiedFiles++
           if (!libraryFileName) {
             libraryFileName = fileName

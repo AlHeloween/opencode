@@ -2513,3 +2513,124 @@ fn renderQuadrantBlock(pixels: [4]RGBA) QuadrantResult {
         };
     }
 }
+
+// hashed pixel buffer for rendering
+
+pub const PixelError = error{
+    OutOfMemory,
+};
+
+pub const PixelPatch = struct {
+    id: u32,
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    /// Owned RGBA bytes (allocated by PixelBuffer); free with `freeData`.
+    data: []u8,
+    hash: u64,
+
+    pub fn isEqual(self: *const PixelPatch, other: *const PixelPatch) bool {
+        return self.x == other.x and self.y == other.y
+           and self.width == other.width and self.height == other.height
+           and self.hash == other.hash;
+    }
+};
+
+pub const PixelBuffer = struct {
+    nextImageId: u32,
+    patches: std.ArrayList(PixelPatch),
+    allocator: Allocator,
+
+    pub fn init(allocator: Allocator) PixelError!*PixelBuffer {
+        const self = allocator.create(PixelBuffer) catch return PixelError.OutOfMemory;
+        errdefer allocator.destroy(self);
+
+        self.* = .{
+            .nextImageId = 1,
+            .patches = .{},
+            .allocator = allocator,
+        };
+
+        return self;
+    }
+
+    fn freeData(self: *PixelBuffer, data: []u8) void {
+        if (data.len > 0) self.allocator.free(data);
+    }
+
+    pub fn deinit(self: *PixelBuffer) void {
+        for (self.patches.items) |p| {
+            self.freeData(p.data);
+        }
+        self.patches.deinit(self.allocator);
+        self.allocator.destroy(self);
+    }
+
+    pub fn hasPatch(self: *PixelBuffer, patch: PixelPatch) bool {
+        for (self.patches.items) |p| {
+            if (p.isEqual(&patch)) return true;
+        }
+        return false;
+    }
+
+    pub fn addPatch(self: *PixelBuffer, patch: PixelPatch) void {
+        self.patches.append(self.allocator, patch) catch {
+            // Failed to store — free owned bytes so callers can transfer safely.
+            self.freeData(patch.data);
+            return;
+        };
+    }
+
+    /// Take ownership of an existing patch (e.g. move from next → current buffer).
+    /// Duplicates RGBA so the source buffer can clear() without UAF.
+    pub fn adoptCopy(self: *PixelBuffer, patch: PixelPatch) void {
+        const owned = self.allocator.dupe(u8, patch.data) catch return;
+        self.addPatch(.{
+            .id = patch.id,
+            .x = patch.x,
+            .y = patch.y,
+            .width = patch.width,
+            .height = patch.height,
+            .data = owned,
+            .hash = patch.hash,
+        });
+    }
+
+    pub fn removePatch(self: *PixelBuffer, patch: PixelPatch) void {
+        for (self.patches.items, 0..) |p, i| {
+            if (p.isEqual(&patch)) {
+                const removed = self.patches.orderedRemove(i);
+                self.freeData(removed.data);
+                return;
+            }
+        }
+    }
+
+    pub fn clear(self: *PixelBuffer) void {
+        for (self.patches.items) |p| {
+            self.freeData(p.data);
+        }
+        self.patches.clearRetainingCapacity();
+    }
+
+    pub fn drawImage(self: *PixelBuffer, x: u32, y: u32, width: u32, height: u32, data: []const u8) void {
+        const hash = std.hash.Wyhash.hash(0, data);
+        // Dedup without allocating when the same image is already queued.
+        for (self.patches.items) |p| {
+            if (p.x == x and p.y == y and p.width == width and p.height == height and p.hash == hash) return;
+        }
+        const owned = self.allocator.dupe(u8, data) catch return;
+        const id = self.nextImageId;
+        self.addPatch(.{
+            .id = id,
+            .x = x,
+            .y = y,
+            .width = width,
+            .height = height,
+            .data = owned,
+            .hash = hash,
+        });
+        self.nextImageId = (id % std.math.maxInt(u32)) + 1;
+    }
+};

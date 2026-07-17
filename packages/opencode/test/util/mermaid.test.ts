@@ -62,6 +62,33 @@ describe("mermaid rendering", () => {
     expect(dataUrl!.length).toBeGreaterThan(100)
   })
 
+  test("renderSvgToPngDataUrl upscales small mermaid for sharp terminal pixels", async () => {
+    const { Resvg } = await import("@resvg/resvg-js")
+    const svg = await renderMermaidToSvg(flowchart)
+    expect(svg).not.toBeNull()
+    const natural = new Resvg(svg!, { background: "#fff" })
+    const dataUrl = renderSvgToPngDataUrl(svg!, "#ffffff", {
+      maxWidth: 2000,
+      maxHeight: 2000,
+    })
+    expect(dataUrl).not.toBeNull()
+    const b64 = dataUrl!.split(",")[1]!
+    const j = (await import("jimp")) as any
+    const img = await j.Jimp.read(Buffer.from(b64, "base64"))
+    // Vector upscale (≥2× when budget allows) — not a forced 600/640 stamp.
+    expect(img.width).toBeGreaterThanOrEqual(natural.width * 2 - 1)
+    expect(img.width).not.toBe(600)
+    expect(img.width).not.toBe(640)
+    // Aspect preserved
+    expect(img.width / img.height).toBeCloseTo(natural.width / natural.height, 1)
+  })
+
+  test("renderSvgToPngDataUrl contain-fits tall SVG into height budget", () => {
+    const tall = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="10000"><rect width="100" height="10000" fill="#333"/></svg>`
+    const dataUrl = renderSvgToPngDataUrl(tall, "#ffffff", { maxWidth: 1440, maxHeight: 800 })
+    expect(dataUrl).not.toBeNull()
+  })
+
   test("renderMermaidToPngDataUrl full pipeline", async () => {
     const dataUrl = await renderMermaidToPngDataUrl(flowchart)
     expect(dataUrl).not.toBeNull()

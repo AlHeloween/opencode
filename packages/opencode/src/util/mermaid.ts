@@ -12,12 +12,89 @@
 import { Resvg } from "@resvg/resvg-js"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
+import { fitContainSize, parseSvgNaturalSize } from "./fit-image"
 import { pixelsToSixel } from "./sixel-render"
 import type { AnsiChunk } from "./image-to-ansi"
 
 const log = Log.create({ service: "mermaid.renderer" })
 
 const MERMAID_RENDER_TIMEOUT = 10_000 // 10s max per diagram
+/**
+ * Cell pixel budget for high-quality terminal display.
+ * Match OpenTUI Image defaults (~18×35) so SVG is rasterized at screen density,
+ * not a ~12×20 low-res stamp that looks like a pixelated screenshot.
+ */
+const FALLBACK_CELL_W = 18
+const FALLBACK_CELL_H = 35
+/** Cap mermaid height so a 100×10000 graph does not explode the chat. */
+const DEFAULT_MAX_ROWS = 40
+/**
+ * Minimum scale-up for small mermaid SVGs (vector → PNG). Natural mermaid sizes
+ * are often ~300px; without upscale, sixel/kitty maps few pixels per cell →
+ * chunky aliased text ("Start" as pixel blocks).
+ */
+const MIN_VECTOR_UPSCALE = 2
+
+export type SvgFitBudget = {
+  maxWidth?: number
+  maxHeight?: number
+}
+
+/** Terminal pixel budget for fitting mermaid's natural SVG size. */
+export function mermaidPixelBudget(opts?: SvgFitBudget): { maxWidth: number; maxHeight: number } {
+  const cols = process.stdout.columns ?? 80
+  const rows = process.stdout.rows ?? 40
+  return {
+    maxWidth: opts?.maxWidth ?? Math.max(64, cols * FALLBACK_CELL_W),
+    maxHeight: opts?.maxHeight ?? Math.max(64, Math.min(DEFAULT_MAX_ROWS, Math.max(8, rows - 6)) * FALLBACK_CELL_H),
+  }
+}
+
+/**
+ * Build resvg options from mermaid's natural SVG size.
+ * Vector sources may upscale into the terminal box (crisp text); only shrink
+ * when the diagram exceeds the budget (contain-fit). Never force a fixed width.
+ */
+export function resvgOptionsForSvg(
+  svg: string,
+  background: string,
+  budget?: SvgFitBudget,
+): { background: string; fitTo?: { mode: "zoom"; value: number } } {
+  const box = mermaidPixelBudget(budget)
+  // Prefer Resvg's parse of the SVG tree; fall back to attribute/viewBox parse.
+  let srcW = 0
+  let srcH = 0
+  try {
+    const probe = new Resvg(svg, { background })
+    srcW = probe.width
+    srcH = probe.height
+  } catch {
+    const parsed = parseSvgNaturalSize(svg)
+    if (parsed) {
+      srcW = parsed.width
+      srcH = parsed.height
+    }
+  }
+  if (srcW <= 0 || srcH <= 0) {
+    // Unparseable SVG — render as-is (resvg may still succeed).
+    return { background }
+  }
+  // Contain into terminal box; allow upscale so small mermaid SVGs stay sharp.
+  let { scale } = fitContainSize({
+    srcWidth: srcW,
+    srcHeight: srcH,
+    maxWidth: box.maxWidth,
+    maxHeight: box.maxHeight,
+    allowUpscale: true,
+  })
+  // Prefer at least 2× when budget allows (natural ~300px is too soft for sixel).
+  if (scale < MIN_VECTOR_UPSCALE) {
+    const room = Math.min(box.maxWidth / srcW, box.maxHeight / srcH)
+    scale = Math.min(MIN_VECTOR_UPSCALE, room)
+  }
+  if (Math.abs(scale - 1) < 0.001) return { background }
+  return { background, fitTo: { mode: "zoom", value: scale } }
+}
 
 export interface MermaidRenderOptions {
   theme?: "default" | "dark" | "forest" | "neutral" | "modern"
@@ -102,17 +179,21 @@ export async function renderMermaidToSvg(
 }
 
 /** Render SVG to PNG data URL — ready for <image-plane> */
-export function renderSvgToPngDataUrl(svg: string, background?: string): string | null {
+export function renderSvgToPngDataUrl(
+  svg: string,
+  background?: string,
+  budget?: SvgFitBudget,
+): string | null {
   try {
-    const terminalWidth = process.stdout.columns ?? 80
     const bg = background ?? "#ffffff"
-    const resvg = new Resvg(svg, {
-      fitTo: { mode: "width", value: terminalWidth * 8 },
-      background: bg,
-    })
+    const resvg = new Resvg(svg, resvgOptionsForSvg(svg, bg, budget))
     const pngData = resvg.render()
     const pngBuffer = pngData.asPng()
     const base64 = Buffer.from(pngBuffer).toString("base64")
+    log.debug("mermaid PNG sized from natural SVG", {
+      outW: pngData.width,
+      outH: pngData.height,
+    })
     return `data:image/png;base64,${base64}`
   } catch (error) {
     log.warn("bug: mermaid PNG render failed", {
@@ -130,10 +211,12 @@ export function renderSvgToPngDataUrl(svg: string, background?: string): string 
 export function renderSvgToSixel(svg: string, maxCols: number = 60, background?: string): string | null {
   try {
     const bg = background ?? "#ffffff"
-    const resvg = new Resvg(svg, {
-      fitTo: { mode: "width", value: maxCols * 12 },
-      background: bg,
-    })
+    const resvg = new Resvg(
+      svg,
+      resvgOptionsForSvg(svg, bg, {
+        maxWidth: maxCols * FALLBACK_CELL_W,
+      }),
+    )
     const rendered = resvg.render()
     const pixels: Uint8Array = rendered.pixels
     const width = rendered.width
@@ -166,11 +249,14 @@ const QUAD_CHARS: Record<number, string> = {
  */
 export function renderSvgToQuadChunks(svg: string, maxCols: number = 60): AnsiChunk[][] | null {
   try {
-    const pixelWidth = maxCols * 4
-    const resvg = new Resvg(svg, {
-      fitTo: { mode: "width", value: pixelWidth },
-      background: "#fafafc",  // white — mermaid renders dark content on this
-    })
+    // Quad is 4px/cell (2×2); budget in source pixels then render with contain-fit.
+    const resvg = new Resvg(
+      svg,
+      resvgOptionsForSvg(svg, "#fafafc", {
+        maxWidth: maxCols * 4,
+        maxHeight: DEFAULT_MAX_ROWS * 8,
+      }),
+    )
     const rendered = resvg.render()
     const pixels: Uint8Array = rendered.pixels
     const pw = rendered.width

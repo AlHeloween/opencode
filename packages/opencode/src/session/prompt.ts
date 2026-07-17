@@ -1477,14 +1477,31 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 return ""
               }
             })
+            // [KV-CACHE] Never mutate existing user text parts in place.
+            // In-place prepends change part fingerprints mid-session → full prefix
+            // invalidation from that message forward (hit_ratio collapses).
+            // Inject as a separate synthetic part instead (idempotent by content prefix).
             if (jobsNote) {
-              const freshUserMsg = msgs.findLast((m) => m.info.role === "user")!
-              const userText = freshUserMsg.parts.find(
-                (p): p is MessageV2.TextPart => p.type === "text" && !p.ignored,
-              )
-              // Idempotency guard: prevent re-prepend across loop iterations.
-              if (userText && !userText.text.startsWith("<background-jobs>")) {
-                userText.text = "<background-jobs>\n" + jobsNote + "\n</background-jobs>\n\n" + userText.text
+              const freshUserMsg = msgs.findLast((m) => m.info.role === "user")
+              if (freshUserMsg) {
+                const alreadyNoted = freshUserMsg.parts.some(
+                  (p) =>
+                    p.type === "text" &&
+                    (p as MessageV2.TextPart).synthetic === true &&
+                    p.text.startsWith("<background-jobs>"),
+                )
+                if (!alreadyNoted) {
+                  const notePart = yield* sessions.updatePart({
+                    id: PartID.ascending(),
+                    messageID: freshUserMsg.info.id,
+                    sessionID: freshUserMsg.info.sessionID,
+                    type: "text" as const,
+                    text: `<background-jobs>\n${jobsNote}\n</background-jobs>`,
+                    synthetic: true,
+                  })
+                  // Append — do not unshift over the user's original part 0.
+                  freshUserMsg.parts.push(notePart)
+                }
               }
             }
 

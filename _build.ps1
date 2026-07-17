@@ -6,13 +6,21 @@ param(
 
     [switch] $SkipTests = $false,
 
-    [switch] $SkipTypecheck = $false
+    [switch] $SkipTypecheck = $false,
+
+    # Skip OpenTUI Zig+TS rebuild (faster when only opencode TS changed and DLL is already current)
+    [switch] $SkipOpenTui = $false,
+
+    # Rebuild full OpenTUI monorepo (core, qrcode, three, solid, react, keymap, ssh)
+    # Default builds only packages opencode needs: core (native+lib), solid, three.
+    [switch] $OpenTuiFull = $false
 )
 
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $DistDir = Join-Path $Root "dist"
 $OpencodePkg = Join-Path (Join-Path $Root "packages") "opencode"
+$OpenTuiRoot = Join-Path (Join-Path $Root "packages") "opentui"
 
 function Write-Step {
     param([string] $Message)
@@ -49,6 +57,91 @@ function Test-Command {
 function Get-Version {
     $pkgJson = Get-Content (Join-Path $OpencodePkg "package.json") -Raw | ConvertFrom-Json
     return $pkgJson.version
+}
+
+# ───────────────────────────────────────────────────────────
+# OpenTUI rebuild (Zig native + TypeScript lib)
+#
+# packages/opentui/scripts/ is monorepo tooling (link/publish/clean).
+# Real compile is packages/opentui/packages/*/scripts/build.ts:
+#   core:  build:native (Zig → opentui.dll) + build:lib (TS → dist/)
+#   solid / three: bun scripts/build.ts
+#
+# _build.ps1 previously only *copied* a prebuilt DLL — that left sixel/Image
+# TS+Zig fixes out of dist. Always rebuild OpenTUI before opencode compile.
+# ───────────────────────────────────────────────────────────
+function Invoke-OpenTuiBuild {
+    param(
+        [switch] $Full = $false
+    )
+
+    if (-not (Test-Path $OpenTuiRoot)) {
+        throw "OpenTUI root not found: $OpenTuiRoot"
+    }
+
+    if ($Full) {
+        Write-Host "  Building OpenTUI (full monorepo: core+zig+lib, solid, three, …)..." -ForegroundColor Yellow
+        Push-Location $OpenTuiRoot
+        try {
+            bun run build
+            if ($LASTEXITCODE -ne 0) {
+                throw "OpenTUI monorepo build failed (exit $LASTEXITCODE)"
+            }
+        } finally {
+            Pop-Location
+        }
+        Write-Success "OpenTUI full monorepo build complete"
+        return
+    }
+
+    # Packages required by packages/opencode (workspace:*):
+    #   @opentui/core, @opentui/solid, @opentui/three
+    $coreDir = Join-Path $OpenTuiRoot "packages\core"
+    $solidDir = Join-Path $OpenTuiRoot "packages\solid"
+    $threeDir = Join-Path $OpenTuiRoot "packages\three"
+
+    Write-Host "  Building OpenTUI core (Zig native + TypeScript lib)..." -ForegroundColor Yellow
+    Push-Location $coreDir
+    try {
+        # build = build:native && build:lib  (packages/core/package.json)
+        bun run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "OpenTUI core build failed (exit $LASTEXITCODE) — zig and/or TS lib"
+        }
+    } finally {
+        Pop-Location
+    }
+    Write-Success "OpenTUI core rebuilt (opentui.dll + dist/)"
+
+    Write-Host "  Building OpenTUI solid..." -ForegroundColor Yellow
+    Push-Location $solidDir
+    try {
+        bun run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "OpenTUI solid build failed (exit $LASTEXITCODE)"
+        }
+    } finally {
+        Pop-Location
+    }
+    Write-Success "OpenTUI solid rebuilt"
+
+    Write-Host "  Building OpenTUI three..." -ForegroundColor Yellow
+    Push-Location $threeDir
+    try {
+        bun run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "OpenTUI three build failed (exit $LASTEXITCODE)"
+        }
+    } finally {
+        Pop-Location
+    }
+    Write-Success "OpenTUI three rebuilt"
+
+    $dll = Join-Path $OpenTuiRoot "packages\core-win32-x64\opentui.dll"
+    if (-not (Test-Path $dll)) {
+        throw "opentui.dll missing after core build: $dll"
+    }
+    Write-Success "OpenTUI native DLL present ($dll)"
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -265,6 +358,13 @@ function Invoke-Build {
     Write-Host "  Building Rust WASM modules..." -ForegroundColor Yellow
     & "$PSScriptRoot\_build_rust.ps1"
 
+    # OpenTUI: Zig + TS lib *before* opencode compile (so dist ships current sixel/Image)
+    if ($SkipOpenTui) {
+        Write-Host "  Skipping OpenTUI rebuild (-SkipOpenTui) — using existing DLL/dist" -ForegroundColor Yellow
+    } else {
+        Invoke-OpenTuiBuild -Full:$OpenTuiFull
+    }
+
     # Clean dist directory
     if (Test-Path $DistDir) {
         Remove-Item $DistDir -Recurse -Force
@@ -272,10 +372,14 @@ function Invoke-Build {
     New-Item -ItemType Directory -Path $DistDir | Out-Null
 
     # Build opencode package (single-platform for faster builds)
+    # script/build.ts copies core-win32-x64/opentui.dll into node_modules for bun --compile
     Write-Host "  Building packages..." -ForegroundColor Yellow
     Push-Location $OpencodePkg
     try {
         bun run script/build.ts --single
+        if ($LASTEXITCODE -ne 0) {
+            throw "opencode script/build.ts failed (exit $LASTEXITCODE)"
+        }
     } finally {
         Pop-Location
     }
@@ -319,7 +423,7 @@ function Invoke-Build {
         Write-Success "Markdownify binary copied"
     }
 
-    # Native opentui DLL — required by @opentui/core for rendering
+    # Native opentui DLL — required by @opentui/core for rendering (built above unless -SkipOpenTui)
     $opentuiDllSrc = [IO.Path]::Combine($Root, "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")
     if (Test-Path $opentuiDllSrc) {
         # Copy to platform dist (where bun build places the exe)
@@ -327,12 +431,15 @@ function Invoke-Build {
         if (-not (Test-Path $opentuiPlatformDestDir)) {
             New-Item -ItemType Directory -Path $opentuiPlatformDestDir -Force | Out-Null
         }
-        Copy-Item $opentuiDllSrc ([IO.Path]::Combine($opentuiPlatformDestDir, "opentui.dll"))
+        Copy-Item $opentuiDllSrc ([IO.Path]::Combine($opentuiPlatformDestDir, "opentui.dll")) -Force
         # Copy to final dist/bin (alongside opencode.exe)
-        Copy-Item $opentuiDllSrc ([IO.Path]::Combine($DistDir, "bin", "opentui.dll"))
-        Write-Success "opentui native DLL copied"
+        if (-not (Test-Path (Join-Path $DistDir "bin"))) {
+            New-Item -ItemType Directory -Path (Join-Path $DistDir "bin") -Force | Out-Null
+        }
+        Copy-Item $opentuiDllSrc ([IO.Path]::Combine($DistDir, "bin", "opentui.dll")) -Force
+        Write-Success "opentui native DLL copied (from rebuilt core-win32-x64)"
     } else {
-        Write-Warning "opentui.dll not found at $opentuiDllSrc — UI rendering will not work"
+        throw "opentui.dll not found at $opentuiDllSrc — run without -SkipOpenTui or build packages/opentui/packages/core first"
     }
 
     # Standalone CodeGraph binary (built with bun --compile from external/codegraph)
@@ -505,17 +612,25 @@ switch ($Task) {
         Invoke-Release -ReleaseVersion $Version
     }
     default {
-        Write-Host "Usage: .\_build.ps1 [-Task check|build|release] [-Version <version>] [-SkipTests] [-SkipTypecheck]"
+        Write-Host "Usage: .\_build.ps1 [-Task check|build|release] [-Version <version>] [-SkipTests] [-SkipTypecheck] [-SkipOpenTui] [-OpenTuiFull]"
         Write-Host ""
         Write-Host "Tasks:" -ForegroundColor Yellow
         Write-Host "  check   - Run typecheck, tests, and prettier"
-        Write-Host "  build   - Build all packages and collect artifacts to dist/"
+        Write-Host "  build   - Rebuild OpenTUI (Zig+TS) then opencode; collect artifacts to dist/"
         Write-Host "  release - Run checks, build, and create release manifest"
         Write-Host ""
         Write-Host "Options:" -ForegroundColor Yellow
         Write-Host "  -Version <version>  Override version for release (default: from package.json)"
         Write-Host "  -SkipTests          Skip test execution"
         Write-Host "  -SkipTypecheck      Skip typecheck"
+        Write-Host "  -SkipOpenTui        Skip OpenTUI Zig+TS rebuild (use existing opentui.dll/dist)"
+        Write-Host "  -OpenTuiFull        Full OpenTUI monorepo build (default: core+solid+three only)"
+        Write-Host ""
+        Write-Host "OpenTUI build chain:" -ForegroundColor Yellow
+        Write-Host "  packages/opentui/packages/core  → bun run build  (build:native + build:lib)"
+        Write-Host "  packages/opentui/packages/solid → bun run build"
+        Write-Host "  packages/opentui/packages/three → bun run build"
+        Write-Host "  then packages/opencode script/build.ts --single (copies DLL into compile)"
         exit 1
     }
 }

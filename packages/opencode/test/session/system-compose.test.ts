@@ -61,7 +61,7 @@ describe("system-compose path assembly", () => {
 })
 
 describe("system-compose provider assembly", () => {
-  test("orders universal env, tool schemas, identity, path, tools line, banner", () => {
+  test("orders stable prefix then mutable session tail", () => {
     const parts = assembleSystemMessages({
       universalEnv: "UE",
       toolSchemas: "TOOLS",
@@ -75,11 +75,8 @@ describe("system-compose provider assembly", () => {
     expect(parts).toEqual([
       "UE",
       "TOOLS",
-      "IDENTITY",
-      "SKILLS\nENV\nRULES\nINSTRUCTIONS",
-      "Active tools: a",
-      "[session: ses_1]",
-      "USER",
+      "IDENTITY\nSKILLS\nENV\nRULES\nINSTRUCTIONS",
+      "Active tools: a\n[session: ses_1]\nUSER",
     ])
   })
 
@@ -93,13 +90,12 @@ describe("system-compose provider assembly", () => {
       banner: "[session: ses_1]",
       checkpoint: true,
     })
-    expect(parts[2]).toBe("FRESH_IDENTITY")
-    expect(parts[3]).toBe("SKILLS\nENV")
+    expect(parts[2]).toBe("FRESH_IDENTITY\nSKILLS\nENV")
     expect(parts.join("\n")).not.toContain("OLD_IDENTITY")
     expect(parts.some((p) => p === "USER")).toBe(false)
   })
 
-  test("collapse keeps UE + schemas and joins the mutable tail", () => {
+  test("collapse keeps stable body separate from session/mutable tail", () => {
     const raw = assembleSystemMessages({
       universalEnv: "UE",
       toolSchemas: "TOOLS",
@@ -110,11 +106,45 @@ describe("system-compose provider assembly", () => {
       checkpoint: false,
     })
     const collapsed = collapseSystemMessages(raw, "UE")
+    // Critical: session banner must NOT be joined into IDENTITY/PATH — that
+    // forced a full path/skills recompute on every new session.
     expect(collapsed).toEqual([
       "UE",
       "TOOLS",
-      "IDENTITY\nPATH\nActive tools: a\n[session: ses_1]",
+      "IDENTITY\nPATH",
+      "Active tools: a\n[session: ses_1]",
     ])
+    expect(collapsed[2]).not.toContain("[session:")
+    expect(collapsed[3]).toContain("[session: ses_1]")
+  })
+
+  test("two sessions share identical stable prefix bytes", () => {
+    const base = {
+      universalEnv: "UE",
+      toolSchemas: "TOOLS",
+      identity: "IDENTITY",
+      pathSystem: ["SKILLS", "ENV", "RULES"],
+      activeToolsLine: "Active tools: a,b",
+      checkpoint: false as const,
+    }
+    const a = collapseSystemMessages(
+      assembleSystemMessages({ ...base, banner: "[session: ses_AAA]" }),
+      "UE",
+    )
+    const b = collapseSystemMessages(
+      assembleSystemMessages({ ...base, banner: "[session: ses_BBB]" }),
+      "UE",
+    )
+    // Prefix slots 0..2 must be byte-identical across sessions
+    expect(a[0]).toBe(b[0])
+    expect(a[1]).toBe(b[1])
+    expect(a[2]).toBe(b[2])
+    expect(a[2]).toContain("SKILLS")
+    expect(a[2]).not.toContain("ses_")
+    // Only the mutable tail differs
+    expect(a[3]).not.toBe(b[3])
+    expect(a[3]).toContain("ses_AAA")
+    expect(b[3]).toContain("ses_BBB")
   })
 
   test("collapse is a no-op when header was mutated by a plugin", () => {
@@ -126,9 +156,6 @@ describe("system-compose provider assembly", () => {
 describe("system prefix digest (kernel + reasoning)", () => {
   test("kernel artifact has stable documented digest", () => {
     const digest = createHash("sha256").update(PROMPT_KERNEL, "utf8").digest("hex")
-    // Self-updating baseline: first run pins EXPECTED via import of current file.
-    // When the kernel intentionally changes, regenerate .txt then refresh
-    // EXPECTED_KERNEL_DIGEST in this file (see header comment).
     expect(digest).toBe(EXPECTED_KERNEL_DIGEST)
     expect(PROMPT_KERNEL).toContain("PROMPT_ABI")
     expect(PROMPT_KERNEL).toContain("CONTRACTS")
@@ -152,8 +179,6 @@ describe("system prefix digest (kernel + reasoning)", () => {
       ProviderTransform.systemPromptPrefix(mockModel("openai/gpt-4")),
       "utf8",
     )
-    // Guardrails: kernel should stay compact relative to historical full-source dumps
-    // (dict+contracts+specs ~30–50KB; full module is 100KB+).
     expect(kernelBytes).toBeGreaterThan(5_000)
     expect(kernelBytes).toBeLessThan(80_000)
     expect(reasoningBytes).toBeGreaterThan(5_000)

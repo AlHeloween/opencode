@@ -379,7 +379,9 @@ When testing opencode TUI interactions (session delete, rename, dialogs, keybind
 
 ### Workflow
 
-1. **Build** the binary: `pwsh _build.ps1`
+1. **Build** the binary: `pwsh _build.ps1`  
+   - Rebuilds OpenTUI first (`packages/opentui/packages/core` Zig+TS lib, then solid/three), then opencode → `dist/`.  
+   - `-SkipOpenTui` skips OpenTUI when only opencode TS changed; `-OpenTuiFull` builds the full OpenTUI monorepo.
 2. **Start** opencode from the build output directory (avoids reusing repo-level sessions):
    ```
    cmd_runner start --cwd dist/bin -- opencode.exe

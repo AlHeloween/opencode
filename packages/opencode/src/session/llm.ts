@@ -271,8 +271,9 @@ const live: Layer.Layer<
         { sessionID: input.sessionID, model: input.model },
         { system },
       )
-      // Collapse: preserve system[0] (UNIVERSAL_ENV) and system[1] (tool schemas)
-      // as the cached prefix. Everything from index 2+ merges into the tail.
+      // Collapse: keep stable prefix (UE, tools, identity+path) separate from
+      // the mutable session/tools tail. Do NOT join session banner into path —
+      // that forced full path/skills recompute on every new session (~20–40k miss).
       const collapsed = collapseSystemMessages(system, header)
       system.length = 0
       system.push(...collapsed)

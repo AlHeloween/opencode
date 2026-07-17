@@ -4,31 +4,43 @@
  * Primary path: decode → RGBA → OpenTUI <image> (PixelBuffer → Kitty or Sixel).
  * Fallback: half-block symbols when the terminal has no graphics protocol.
  *
- * Pixel sizing must match OpenTUI ImageRenderable layout math:
- *   layout cells = ceil(imagePx / cellPx)
+ * Sizing: read the image's natural width/height, then contain-fit into the
+ * terminal box (maxCols × maxRows in cell pixels). Never force a fixed width.
  *
- * Both Kitty and modern Sixel (Windows Terminal, etc.) map image pixels to
- * *screen* pixels. Bitmaps must be sized as `maxCols * cellWidth` — not
- * ~80px “one pixel per cell”. The old 80×N sixel model rendered as a tiny
- * stamp (looked like “one pixel = one symbol”).
+ * When `interactive` is true (mermaid diagrams):
+ *   - Keep a high-res source buffer
+ *   - Fixed display viewport
+ *   - Mouse wheel = zoom, drag = pan, middle-click = reset
  */
-import { createSignal, Switch, Match, onMount, createEffect, onCleanup } from "solid-js"
-import { StyledText, SyntaxStyle, type ImageRenderable } from "@opentui/core"
+import { createSignal, Switch, Match, onMount, createEffect, onCleanup, Show } from "solid-js"
+import { StyledText, SyntaxStyle, type ImageRenderable, type MouseEvent } from "@opentui/core"
 import { useRenderer } from "@opentui/solid"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
 import { imageToChunks } from "@/util/image-to-ansi"
+import { fitContainSize } from "@/util/fit-image"
+import {
+  type ViewportState,
+  clampZoom,
+  sampleViewport,
+  zoomByWheel,
+  panByCells,
+} from "@/util/image-viewport"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tui.media.image" })
 
 const MAX_COLS = 80
+/** Cap image height in cells so tall diagrams don't dominate the session. */
+const MAX_ROWS = 40
 /** Match OpenTUI Image.ts defaults when terminal pixel resolution is unknown. */
 const DEFAULT_CELL_WIDTH = 18
 const DEFAULT_CELL_HEIGHT = 35
 /** Capability detection can arrive after first paint — wait before locking path. */
 const CAPS_WAIT_MS = 1000
 const CAPS_POLL_MS = 50
+/** Cap source decode for interactive zoom (memory). */
+const INTERACTIVE_SRC_MAX = 2048
 
 export type GraphicsLayoutMode = "kitty" | "sixel" | "none"
 
@@ -69,24 +81,28 @@ export function cellPixelSize(renderer: CapsRenderer): { cellWidth: number; cell
 /**
  * Target RGBA size for native graphics protocols.
  * Pure helper — unit-tested; keeps MediaImage and OpenTUI Image layout aligned.
- *
- * Kitty and Sixel both use screen-pixel bitmaps sized to fill `maxCols` cells.
- * Sixel height is rounded up to a multiple of 6 (encoder band size only).
  */
 export function nativeImagePixelSize(input: {
   srcWidth: number
   srcHeight: number
   maxCols: number
+  maxRows?: number
   mode: GraphicsLayoutMode
   cellWidth: number
   cellHeight: number
 }): { width: number; height: number } {
-  const aspect = input.srcWidth / Math.max(1, input.srcHeight)
   const maxCols = Math.max(1, input.maxCols)
+  const maxRows = Math.max(1, input.maxRows ?? MAX_ROWS)
   const cellW = Math.max(1, input.cellWidth)
-  // Fill maxCols cells at real cell pixel width (not 1px/cell).
-  const width = Math.round(maxCols * cellW)
-  let height = Math.max(1, Math.round(width / aspect))
+  const cellH = Math.max(1, input.cellHeight)
+  const fitted = fitContainSize({
+    srcWidth: input.srcWidth,
+    srcHeight: input.srcHeight,
+    maxWidth: maxCols * cellW,
+    maxHeight: maxRows * cellH,
+    allowUpscale: false,
+  })
+  let { width, height } = fitted
   if (input.mode === "sixel") {
     height = Math.ceil(height / 6) * 6
   }
@@ -102,32 +118,9 @@ async function waitForCapabilities(renderer: CapsRenderer, timeoutMs: number): P
   }
 }
 
-async function decodeDataUrlToRgba(
-  dataUrl: string,
-  maxCols: number,
-  mode: GraphicsLayoutMode,
-  cellWidth: number,
-  cellHeight: number,
-): Promise<RgbaFrame | null> {
-  const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
-  if (!match) return null
-
-  const [, , base64] = match
-  const bytes = Buffer.from(base64!, "base64")
-  const j = (await import("jimp")) as any
-  const img = await j.Jimp.read(bytes)
-
-  const { width: cols, height: rows } = nativeImagePixelSize({
-    srcWidth: img.width,
-    srcHeight: img.height,
-    maxCols,
-    mode,
-    cellWidth,
-    cellHeight,
-  })
-
-  img.resize({ w: cols, h: rows })
-
+function copyBitmap(img: { width: number; height: number; bitmap: { data: Uint8Array | Buffer } }): RgbaFrame {
+  const cols = img.width
+  const rows = img.height
   const data = new Uint8Array(cols * rows * 4)
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
@@ -138,20 +131,110 @@ async function decodeDataUrlToRgba(
       data[i + 3] = img.bitmap.data[i + 3] ?? 255
     }
   }
-
   return { data, width: cols, height: rows }
 }
 
-export function MediaImage(props: { url: string; mime: string }) {
+async function decodeDataUrlToRgba(
+  dataUrl: string,
+  maxCols: number,
+  maxRows: number,
+  mode: GraphicsLayoutMode,
+  cellWidth: number,
+  cellHeight: number,
+  opts?: { keepSourceMax?: number },
+): Promise<{ display: RgbaFrame; source: RgbaFrame } | null> {
+  const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
+  if (!match) return null
+
+  const [, , base64] = match
+  const bytes = Buffer.from(base64!, "base64")
+  const j = (await import("jimp")) as any
+  const img = await j.Jimp.read(bytes)
+
+  // Optional: cap huge sources for interactive zoom memory
+  const keepMax = opts?.keepSourceMax
+  if (keepMax && (img.width > keepMax || img.height > keepMax)) {
+    const scale = keepMax / Math.max(img.width, img.height)
+    img.resize({
+      w: Math.max(1, Math.round(img.width * scale)),
+      h: Math.max(1, Math.round(img.height * scale)),
+    })
+  }
+
+  const source = copyBitmap(img)
+
+  const displaySize = nativeImagePixelSize({
+    srcWidth: source.width,
+    srcHeight: source.height,
+    maxCols,
+    maxRows,
+    mode,
+    cellWidth,
+    cellHeight,
+  })
+
+  if (displaySize.width === source.width && displaySize.height === source.height) {
+    return { display: source, source }
+  }
+
+  img.resize({ w: displaySize.width, h: displaySize.height })
+  const display = copyBitmap(img)
+  return { display, source }
+}
+
+export function MediaImage(props: {
+  url: string
+  mime: string
+  /** Enable mouse-wheel zoom and drag-to-pan (mermaid diagrams). */
+  interactive?: boolean
+}) {
   const { theme } = useTheme()
   const renderer = useRenderer()
   const [state, setState] = createSignal<"loading" | "native" | "symbols" | "error">("loading")
   const [frame, setFrame] = createSignal<RgbaFrame | null>(null)
   const [styledText, setStyledText] = createSignal<StyledText | null>(null)
   const [contentText, setContentText] = createSignal("")
+  const [viewport, setViewport] = createSignal<ViewportState>({ zoom: 1, panX: 0, panY: 0 })
+  const [hint, setHint] = createSignal("")
   const dummySyntax = SyntaxStyle.create()
   let imageRef: ImageRenderable | undefined
   let cancelled = false
+  /** Full-res source for interactive zoom (native path only). */
+  let sourceFrame: RgbaFrame | null = null
+  /** Original fit-quality frame (no nearest-neighbor viewport resample). */
+  let fitFrame: RgbaFrame | null = null
+  let displaySize: { width: number; height: number } | null = null
+  let mode: GraphicsLayoutMode = "none"
+  let lastDragX = 0
+  let lastDragY = 0
+  let dragging = false
+
+  const pushFrame = (next: RgbaFrame) => {
+    setFrame(next)
+    if (imageRef) imageRef.setImage(next.data, next.width, next.height)
+  }
+
+  const rebuildView = (vp: ViewportState) => {
+    if (!sourceFrame || !displaySize) return
+    const z = clampZoom(vp.zoom)
+    // At fit zoom with no pan, restore the original high-quality decode — never
+    // nearest-neighbor resample (that is what made mermaid look like a blurry PNG stamp).
+    if (z <= 1.001 && Math.abs(vp.panX) < 0.5 && Math.abs(vp.panY) < 0.5 && fitFrame) {
+      pushFrame(fitFrame)
+      setHint("wheel zoom · drag pan · middle-click reset")
+      return
+    }
+    const data = sampleViewport(
+      sourceFrame.data,
+      sourceFrame.width,
+      sourceFrame.height,
+      displaySize.width,
+      displaySize.height,
+      vp,
+    )
+    pushFrame({ data, width: displaySize.width, height: displaySize.height })
+    setHint(`zoom ${z.toFixed(1)}× · drag pan · middle-click reset`)
+  }
 
   onMount(async () => {
     if (!props.url) {
@@ -159,27 +242,46 @@ export function MediaImage(props: { url: string; mime: string }) {
       return
     }
 
-    // Capability probe often finishes after first mount; wait briefly so mermaid
-    // does not permanently lock into half-block symbols on a graphics terminal.
     await waitForCapabilities(renderer as CapsRenderer, CAPS_WAIT_MS)
     if (cancelled) return
 
-    const mode = graphicsLayoutMode(renderer as CapsRenderer)
+    mode = graphicsLayoutMode(renderer as CapsRenderer)
     const cells = cellPixelSize(renderer as CapsRenderer)
 
     if (mode === "kitty" || mode === "sixel") {
       try {
-        const rgba = await decodeDataUrlToRgba(props.url, MAX_COLS, mode, cells.cellWidth, cells.cellHeight)
+        const termRows = (renderer as CapsRenderer).height
+        const maxRows = Math.max(8, Math.min(MAX_ROWS, termRows ? Math.max(8, termRows - 6) : MAX_ROWS))
+        const maxCols = Math.min(MAX_COLS, (renderer as CapsRenderer).width ?? MAX_COLS)
+        const decoded = await decodeDataUrlToRgba(
+          props.url,
+          maxCols,
+          maxRows,
+          mode,
+          cells.cellWidth,
+          cells.cellHeight,
+          props.interactive ? { keepSourceMax: INTERACTIVE_SRC_MAX } : undefined,
+        )
         if (cancelled) return
-        if (rgba) {
+        if (decoded) {
+          sourceFrame = decoded.source
+          fitFrame = decoded.display
+          displaySize = { width: decoded.display.width, height: decoded.display.height }
+          // Always show the decoded frame at zoom=1 — never nearest-neighbor
+          // resample through sampleViewport (that turns sharp SVG→PNG into a
+          // blurry pixelated stamp). Resample only after user zooms/pans.
+          setFrame(decoded.display)
+          if (props.interactive) {
+            setHint("wheel zoom · drag pan · middle-click reset")
+          }
           log.debug("MediaImage: native path", {
             mode,
-            width: rgba.width,
-            height: rgba.height,
-            cellWidth: cells.cellWidth,
-            cellHeight: cells.cellHeight,
+            interactive: Boolean(props.interactive),
+            displayW: displaySize.width,
+            displayH: displaySize.height,
+            sourceW: sourceFrame.width,
+            sourceH: sourceFrame.height,
           })
-          setFrame(rgba)
           setState("native")
           return
         }
@@ -214,13 +316,100 @@ export function MediaImage(props: { url: string; mime: string }) {
   onCleanup(() => {
     cancelled = true
     imageRef = undefined
+    sourceFrame = null
+    fitFrame = null
+    displaySize = null
   })
+
+  const handleMouse = (event: MouseEvent) => {
+    if (!props.interactive || !sourceFrame || !displaySize || state() !== "native") return
+
+    if (event.type === "scroll" && event.scroll) {
+      const next = zoomByWheel(
+        sourceFrame.width,
+        sourceFrame.height,
+        displaySize.width,
+        displaySize.height,
+        viewport(),
+        event.scroll.direction,
+      )
+      setViewport(next)
+      rebuildView(next)
+      event.stopPropagation()
+      event.preventDefault()
+      return
+    }
+
+    // Middle-click resets zoom/pan
+    if (event.type === "down" && event.button === 1) {
+      const reset = { zoom: 1, panX: 0, panY: 0 }
+      setViewport(reset)
+      rebuildView(reset)
+      event.stopPropagation()
+      event.preventDefault()
+      return
+    }
+
+    if (event.type === "down" && event.button === 0) {
+      dragging = true
+      lastDragX = event.x
+      lastDragY = event.y
+      event.stopPropagation()
+      event.preventDefault()
+      return
+    }
+
+    if (event.type === "drag" && dragging) {
+      const dx = event.x - lastDragX
+      const dy = event.y - lastDragY
+      lastDragX = event.x
+      lastDragY = event.y
+      if (dx === 0 && dy === 0) return
+
+      // Layout size in cells from ImageRenderable / pixel layout
+      const cells = cellPixelSize(renderer as CapsRenderer)
+      const layoutCols = Math.max(1, Math.ceil(displaySize.width / cells.cellWidth))
+      const layoutRows = Math.max(1, Math.ceil(displaySize.height / cells.cellHeight))
+      const next = panByCells(
+        sourceFrame.width,
+        sourceFrame.height,
+        displaySize.width,
+        displaySize.height,
+        viewport(),
+        dx,
+        dy,
+        layoutCols,
+        layoutRows,
+      )
+      setViewport(next)
+      rebuildView(next)
+      event.stopPropagation()
+      event.preventDefault()
+      return
+    }
+
+    if (event.type === "drag-end" || event.type === "up") {
+      if (dragging) {
+        dragging = false
+        event.stopPropagation()
+      }
+    }
+  }
 
   return (
     <Switch>
       <Match when={state() === "native" && frame()}>
         {(f) => (
-          <box paddingTop={1} paddingLeft={2}>
+          <box
+            paddingTop={1}
+            paddingLeft={2}
+            flexDirection="column"
+            onMouseScroll={props.interactive ? handleMouse : undefined}
+            onMouseDown={props.interactive ? handleMouse : undefined}
+            onMouseDrag={props.interactive ? handleMouse : undefined}
+            onMouseDragEnd={props.interactive ? handleMouse : undefined}
+            onMouseUp={props.interactive ? handleMouse : undefined}
+          >
             <image
               ref={(r: ImageRenderable) => {
                 imageRef = r
@@ -229,6 +418,9 @@ export function MediaImage(props: { url: string; mime: string }) {
               imageWidth={f().width}
               imageHeight={f().height}
             />
+            <Show when={props.interactive && hint()}>
+              <text fg={theme.textMuted}>{hint()}</text>
+            </Show>
           </box>
         )}
       </Match>

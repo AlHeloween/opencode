@@ -195,7 +195,11 @@ export function partFingerprint(part: MessageV2.Part): string {
 // ── Message Fingerprint ────────────────────────────────────────────────────
 
 export function messageFingerprint(msg: MessageV2.WithParts): MessageFingerprint {
-  const parts = msg.parts.map((p) => ({
+  // Fingerprint only LLM-visible parts (skip ignored). Matches toModelMessagesEffect
+  // which omits ignored text — otherwise marking a part ignored mid-session
+  // reports "part 0 modified" and kills KV continuity from that message forward.
+  const visible = msg.parts.filter((p) => !(p.type === "text" && (p as { ignored?: boolean }).ignored))
+  const parts = visible.map((p) => ({
     type: p.type,
     hash: xxh3(partFingerprint(p)),
   }))

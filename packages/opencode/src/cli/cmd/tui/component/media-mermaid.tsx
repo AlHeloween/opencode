@@ -48,7 +48,7 @@ export function MediaMermaid(props: { source: string }) {
   return (
     <Switch>
       <Match when={state() === "image" && dataUrl()}>
-        {(url) => <MediaImage url={url()!} mime="image/png" />}
+        {(url) => <MediaImage url={url()!} mime="image/png" interactive />}
       </Match>
       <Match when={state() === "webgpu" && dataUrl()}>
         <image-plane url={dataUrl()!} mime="image/png" width={70} />

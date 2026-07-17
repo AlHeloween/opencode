@@ -2,15 +2,23 @@
  * Pure provider-facing system message assembly.
  *
  * Order is cache-sensitive — see AGENTS.md KV Cache Continuity.
- * Collapse keeps system[0] (UNIVERSAL_ENV) and system[1] (tool schemas)
- * as the stable prefix; everything from index 2+ becomes the mutable tail.
+ *
+ * Layout (stable prefix first, mutable last):
+ *   [0] UNIVERSAL_ENV          — immutable forever
+ *   [1] tool schemas           — stable per app version
+ *   [2] identity + path system — stable per agent + project (skills/env/rules/AGENTS)
+ *   [3] mutable tail           — active tools line, session banner, user system
+ *
+ * NEVER put session IDs, timestamps, or per-turn tool-active lines inside
+ * segments [0–2]. Collapse used to join identity+path+banner into one string,
+ * so a new session invalidated the entire path/skills block (~20–40k tokens).
  */
 
 export type SystemComposeInput = {
   universalEnv: string
   /** Empty string skips the tool-schemas slot. */
   toolSchemas: string
-  /** Reasoning prefix + agent prompt (identity). Always re-derived each turn. */
+  /** Reasoning prefix + agent prompt (identity). Stable for agent+model family. */
   identity: string
   /**
    * Path-level system entries from prompt.ts.
@@ -19,48 +27,73 @@ export type SystemComposeInput = {
    * and replaced by the fresh `identity` argument.
    */
   pathSystem: string[]
+  /** Per-turn / per-agent tool availability — mutable, always last. */
   activeToolsLine: string
+  /** Session id / provider cache key — mutable, always last. */
   banner: string
   userSystem?: string
   checkpoint: boolean
 }
 
 /**
- * Assemble pre-plugin system messages in stable order.
+ * Assemble pre-plugin system messages in stable-first order.
  * Does not run plugin transforms — callers apply those by reference after.
  */
 export function assembleSystemMessages(input: SystemComposeInput): string[] {
   const system: string[] = [input.universalEnv]
   if (input.toolSchemas) system.push(input.toolSchemas)
 
-  system.push(input.identity)
+  // Stable body: identity + project path system (no session vars).
+  const path =
+    input.checkpoint && input.pathSystem.length > 0
+      ? input.pathSystem.slice(1) // drop stored identity; use fresh `identity`
+      : input.pathSystem
+  const stableBody = [input.identity, ...(path.length > 0 ? [path.join("\n")] : [])]
+    .filter((s) => s.length > 0)
+    .join("\n")
+  if (stableBody) system.push(stableBody)
 
-  // Checkpoint path: stored systemPrompt[0] is the prior identity; drop it so
-  // the freshly computed identity is the only identity prefix.
-  const path = input.checkpoint && input.pathSystem.length > 0
-    ? input.pathSystem.slice(1)
-    : input.pathSystem
-  if (path.length > 0) system.push(path.join("\n"))
+  // Mutable tail — session banner, active tools, user system. Always last so
+  // prefix KV hits survive across sessions on the same project/agent.
+  const mutable: string[] = []
+  if (input.activeToolsLine) mutable.push(input.activeToolsLine)
+  if (input.banner) mutable.push(input.banner)
+  if (!input.checkpoint && input.userSystem) mutable.push(input.userSystem)
+  if (mutable.length > 0) system.push(mutable.join("\n"))
 
-  system.push(input.activeToolsLine)
-  system.push(input.banner)
-  if (!input.checkpoint && input.userSystem) system.push(input.userSystem)
   return system
 }
 
 /**
- * Collapse to [UNIVERSAL_ENV, toolSchemas|identity..., tail] form used for
- * provider cache: keep first two slots when present, join the rest.
+ * Collapse for provider cache:
+ *   [UNIVERSAL_ENV, toolSchemas, stableBody, mutableTail]
  *
- * When tool schemas are empty, identity is system[1] and becomes part of the
- * "second" cacheable slot only if we still have 3+ parts — same algorithm as
- * historical llm.ts: preserve [0] and [1], join [2+].
+ * When there are only 3 parts already (UE, tools, rest), leave as-is only if
+ * `rest` is purely mutable — prefer 4-part layout from assembleSystemMessages.
+ * Does NOT merge the last (mutable) segment into the stable body.
  */
 export function collapseSystemMessages(system: string[], header: string): string[] {
   if (system.length <= 2 || system[0] !== header) return system
+
+  // assembleSystemMessages produces 3–4 slots:
+  //   [UE, tools?, stableBody, mutable?]
+  // Keep them separate. Only join accidental middle fragments if a plugin
+  // inserted extras between tools and the final mutable segment.
+  if (system.length === 3) {
+    // [UE, tools|stable, mutable] or [UE, tools, stable+mutable mixed]
+    return system
+  }
+  if (system.length === 4) {
+    // [UE, tools, stable, mutable] — ideal
+    return system
+  }
+
+  // Plugin added parts: [UE, tools, ...middle, lastMutable]
   const second = system[1]!
-  const tail = system.slice(2)
-  return [header, second, tail.join("\n")]
+  const last = system[system.length - 1]!
+  const middle = system.slice(2, -1)
+  if (middle.length === 0) return [header, second, last]
+  return [header, second, middle.join("\n"), last]
 }
 
 /** Stable-first path assembly used by prompt.ts (non-checkpoint). */

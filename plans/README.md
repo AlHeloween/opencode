@@ -13,5 +13,15 @@ Active plans. Completed plans move to `plans_completed/`.
 | Plan | Status |
 |------|--------|
 | `20260714_reasoning_kernel_taxonomy_compaction.md` | Active — taxonomy, compiler oracles, and KV-cache integration remain |
+| `2026-07-16-tui-startup-parallelization.md` | Active — validated, ready for implementation |
+| `zig-0.16-migration.md` | Active — still on Zig 0.15.2 / uucode pre-v0.2 |
+| `zig-0.16-source-fixes.md` | Active — blocked on Zig 0.16 build migration |
+| `emergency/2026-07-16-tui-cpu-performance-audit.md` | Active audit — delta debounce landed; idle CPU drivers remain |
+| `abstract_futures/` | Superseded ideas only — do not implement from here |
 
-Completed recently: `plans_completed/2026-07-05_wasm-cli-sandbox.md` (WASM CLI path validation + dist embed).
+## Recently completed → `plans_completed/`
+
+- `2026-07-15_block-anchor-replacer-fix.md`
+- `2026-07-15_git-push-no-verify-prohibition.md`
+- `2026-07-16_incremental-summary-compaction.md`
+- `2026-07-05_wasm-cli-sandbox.md`

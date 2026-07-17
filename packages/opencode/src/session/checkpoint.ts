@@ -6,8 +6,20 @@
  * switch, the checkpoint is loaded — eliminating per-turn prompt assembly
  * and reducing DB reads to delta messages only.
  *
+ * Design (KV-cache continuous memory):
+ * - Path system (skills/env/rules/AGENTS.md) is FROZEN until compaction or
+ *   identity mismatch. Mid-session project file edits do not rebuild system —
+ *   projects "go as they go" with a stable provider cache prefix.
+ * - One checkpoint per provider+model+agent+session. Model switch does not
+ *   lose the other model's slot; each model keeps its own continuous era.
+ * - Compaction removes slots so message* / soft-hide state cannot mix with
+ *   a pre-compact message-ID set.
+ *
  * Reuses AES-256-GCM encryption from request-diff.ts.
  * Atomic write via temp file + rename — no partial state touches disk.
+ *
+ * Runtime: publish() updates an in-memory map synchronously so the next loop
+ * step never races a forked disk write. Disk remains durability.
  */
 import fs from "fs/promises"
 import path from "path"
@@ -22,6 +34,7 @@ import {
   decryptBaseline,
 } from "./request-diff"
 import type { ModelMessage } from "ai"
+import type { MessageV2 } from "./message-v2"
 
 const log = Log.create({ service: "checkpoint" })
 
@@ -40,14 +53,34 @@ export interface CheckpointData {
    * SHA-256 of the identity prefix (reasoning + agent prompt) that was active
    * when this checkpoint was written. Load rejects mismatches so a kernel or
    * agent-prompt change rebuilds system state instead of mixing eras.
+   * Path system is NOT in this fingerprint — it freezes until compact.
    */
   identityFingerprint: string
   messages: ModelMessage[]
   messageIDs: string[]
+  /**
+   * Parallel to messageIDs: CacheControl.messageFingerprint(msg).hash at save.
+   * Used to detect in-place content changes (background-jobs, tool parts, etc.)
+   * so load re-converts from the first dirty message instead of reusing stale
+   * model-ready bytes. Optional for older slots; next save fills them.
+   */
+  messageFingerprints?: string[]
   model: { providerID: string; modelID: string }
   agent: string
   turn: number
   timestamp: number
+}
+
+/** In-memory publish layer: key → latest CheckpointData for this process. */
+const memory = new Map<string, CheckpointData>()
+
+function memoryKey(
+  sessionID: string,
+  providerID: string,
+  modelID: string,
+  agentName?: string,
+): string {
+  return `${sessionID}\0${providerID}\0${modelID}\0${agentName ?? ""}`
 }
 
 /** Byte-stable fingerprint of the session identity prefix. */
@@ -58,6 +91,7 @@ export function identityFingerprint(identity: string): string {
 /**
  * True when the checkpoint was saved under the same identity bytes currently
  * in force. Missing fingerprint or version is treated as incompatible.
+ * Does NOT include path system (AGENTS.md etc.) — by design for KV stability.
  */
 export function isIdentityCompatible(data: CheckpointData, currentIdentity: string): boolean {
   if (data.version !== CHECKPOINT_VERSION) return false
@@ -106,18 +140,22 @@ async function olderSlot(slots: string[]): Promise<string> {
   return stats.reduce((oldest, curr) => (curr.mtime <= oldest.mtime ? curr : oldest), stats[0]).path
 }
 
+function isStructurallyValid(data: CheckpointData): boolean {
+  return (
+    data.kind === CHECKPOINT_KIND &&
+    data.version === CHECKPOINT_VERSION &&
+    typeof data.identityFingerprint === "string" &&
+    data.identityFingerprint.length > 0
+  )
+}
+
 /** Try to decrypt and parse a checkpoint file. Returns null on failure. */
 async function tryLoadSlot(filePath: string, encKey: CryptoKey): Promise<CheckpointData | null> {
   try {
     const encrypted = await fs.readFile(filePath)
     const plaintext = await decryptBaseline(encrypted, encKey)
     const data: CheckpointData = JSON.parse(plaintext)
-    if (
-      data.kind !== CHECKPOINT_KIND ||
-      data.version !== CHECKPOINT_VERSION ||
-      typeof data.identityFingerprint !== "string" ||
-      data.identityFingerprint.length === 0
-    ) {
+    if (!isStructurallyValid(data)) {
       try { await fs.unlink(filePath) } catch (e) {
         log.debug("checkpoint corrupt file unlink failed", { filePath, error: errorMessage(e) })
       }
@@ -141,13 +179,67 @@ async function writeAtomic(filePath: string, data: Buffer): Promise<void> {
   await fs.rename(tmpPath, filePath)
 }
 
-/** Save checkpoint to encrypted file with 2-slot rotation.
- *  Writes to the slot with the OLDER mtime, preserving the newer slot as backup. */
+/**
+ * Synchronously publish checkpoint for the next loop step (no disk race).
+ * Call before forked save() so mid-turn tool steps see the latest messages.
+ */
+export function publish(input: {
+  sessionID: string
+  data: CheckpointData
+}): void {
+  const key = memoryKey(
+    input.sessionID,
+    input.data.model.providerID,
+    input.data.model.modelID,
+    input.data.agent,
+  )
+  memory.set(key, input.data)
+}
+
+/** Drop in-memory entries for a session (all models/agents). */
+function clearMemorySession(sessionID: string): void {
+  const prefix = `${sessionID}\0`
+  for (const key of memory.keys()) {
+    if (key.startsWith(prefix)) memory.delete(key)
+  }
+}
+
+/** Evict process memory without touching disk (tests / rare force-reload). */
+export function dropMemory(sessionID: string): void {
+  clearMemorySession(sessionID)
+}
+
+/**
+ * Longest reusable prefix: same message IDs in order, content fingerprints match.
+ * Suffix must be re-converted (new messages or in-place edits from first dirty).
+ * Legacy slots without messageFingerprints trust ID order only (next save fills fps).
+ */
+export function reusablePrefixLength(
+  msgs: MessageV2.WithParts[],
+  data: CheckpointData,
+  fingerprint: (msg: MessageV2.WithParts) => string,
+): number {
+  const n = Math.min(msgs.length, data.messageIDs.length, data.messages.length)
+  const fps = data.messageFingerprints
+  const hasFp = Array.isArray(fps) && fps.length === data.messageIDs.length
+  let prefix = 0
+  for (let i = 0; i < n; i++) {
+    if (msgs[i].info.id !== data.messageIDs[i]) break
+    if (hasFp && fps![i] !== fingerprint(msgs[i])) break
+    prefix++
+  }
+  return prefix
+}
+
+/** Save checkpoint to encrypted file with 2-slot rotation + memory publish. */
 export function save(input: {
   sessionID: string
   projectID: string
   data: CheckpointData
 }): Effect.Effect<void> {
+  // Publish first so the next loop step never waits on disk.
+  publish({ sessionID: input.sessionID, data: input.data })
+
   return Effect.tryPromise({
     try: async () => {
       const slots = checkpointSlotPaths(
@@ -173,7 +265,7 @@ export function save(input: {
   })))
 }
 
-/** Load checkpoint from rotating slots. Tries newest slot first (by mtime). */
+/** Load checkpoint: memory first, then newest disk slot. */
 export function load(input: {
   sessionID: string
   providerID: string
@@ -182,6 +274,13 @@ export function load(input: {
   agentName?: string
 }): Effect.Effect<CheckpointData | null> {
   return Effect.promise(async () => {
+    const key = memoryKey(input.sessionID, input.providerID, input.modelID, input.agentName)
+    const mem = memory.get(key)
+    if (mem) {
+      if (isStructurallyValid(mem)) return mem
+      memory.delete(key)
+    }
+
     const slots = checkpointSlotPaths(input.sessionID, input.providerID, input.modelID, input.agentName)
     const results = await Promise.all(
       slots.map(async (p) => {
@@ -201,7 +300,10 @@ export function load(input: {
     const encKey = await deriveKey(input.projectID, input.sessionID)
     for (const { path: filePath } of existing) {
       const data = await tryLoadSlot(filePath, encKey)
-      if (data) return data
+      if (data) {
+        memory.set(key, data)
+        return data
+      }
     }
 
     log.warn("bug: all checkpoint slots corrupt", { sessionID: input.sessionID })
@@ -209,8 +311,7 @@ export function load(input: {
   })
 }
 
-/** Load the OLDER checkpoint slot (for compaction fallback).
- *  Returns the checkpoint with the older mtime — guaranteed to have fewer messages. */
+/** Load the OLDER checkpoint slot (diagnostic / optional fallback). */
 export function loadPrevious(input: {
   sessionID: string
   providerID: string
@@ -231,7 +332,7 @@ export function loadPrevious(input: {
       }),
     )
     const existing = results.filter((r): r is { path: string; mtime: number } => r !== null)
-      .sort((a, b) => a.mtime - b.mtime)  // ASCENDING — oldest first
+      .sort((a, b) => a.mtime - b.mtime)
 
     if (existing.length === 0) return null
 
@@ -245,16 +346,16 @@ export function loadPrevious(input: {
   })
 }
 
-/** Remove all checkpoint files for a session (both slot and legacy formats). */
+/** Remove all checkpoint files + memory for a session. */
 export function remove(sessionID: string): Effect.Effect<void> {
   return Effect.promise(async () => {
+    clearMemorySession(sessionID)
     const dir = checkpointDir(sessionID)
     try { await fs.access(dir) } catch { return }
 
     const safeSid = sanitize(sessionID)
     const entries = await fs.readdir(dir)
     for (const file of entries) {
-      // Match both legacy (_sid.enc) and slot format (_sid_S0.enc, _sid_S1.enc)
       if (file.includes(`_${safeSid}_S`) || file.endsWith(`_${safeSid}.enc`)) {
         try { await fs.unlink(path.join(dir, file)) } catch (e) {
           log.debug("checkpoint remove failed", { sessionID, file, error: errorMessage(e) })
@@ -284,7 +385,6 @@ export function findLatest(input: {
     const entries = await fs.readdir(dir)
     for (const file of entries) {
       if (!file.startsWith(prefix) || !file.endsWith(".enc")) continue
-      // Strip optional _S{N} slot suffix from session ID
       const raw = file.slice(prefix.length, -".enc".length)
       const sid = raw.replace(/_S\d+$/, "")
       if (exclude && sid === exclude) continue
@@ -297,9 +397,7 @@ export function findLatest(input: {
   })
 }
 
-/** Clone checkpoint from a previous session to a new session.
- *  Strips session-specific state (messages, turns) — keeps only system
- *  prompt for KV cache continuity across same-agent+model invocations. */
+/** Clone checkpoint system-only for subagent KV warm-start. */
 export function clone(input: {
   sourceSessionID: string
   destSessionID: string
@@ -321,7 +419,14 @@ export function clone(input: {
       return save({
         sessionID: input.destSessionID,
         projectID: input.projectID,
-        data: { ...data, messages: [], messageIDs: [], turn: 0, timestamp: Date.now() },
+        data: {
+          ...data,
+          messages: [],
+          messageIDs: [],
+          messageFingerprints: [],
+          turn: 0,
+          timestamp: Date.now(),
+        },
       })
     },
   ).pipe(

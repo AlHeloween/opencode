@@ -62,6 +62,16 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 Checkpoints: after compact, checkpoint is **removed**; next successful turn saves a fresh checkpoint of the compacted visible set.
 
+### Checkpoint policy (pairs with this loop)
+
+| Rule | Why |
+|------|-----|
+| Path system frozen until compact | Provider KV cache continuous; multi-project AGENTS.md/skills changes wait for a clean era boundary |
+| `identityFingerprint` only kernel + agent prompt | Identity migrations rebuild without waiting for compact |
+| One slot set per provider+model+agent+session | Model switch keeps each model's continuous memory; nothing lost |
+| Message reuse via ID order + content fingerprints | In-place edits re-convert; pure appends stay cheap |
+| Request-diff remembers last formatted request | First turn after compact still produces a useful `.diff` |
+
 ---
 
 ## What is never done

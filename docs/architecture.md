@@ -47,37 +47,30 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                   CHECKPOINT SYSTEM                          │
 │                                                              │
-│  Storage: .opencode/data/log/.baselines/                     │
-│           {provider}_{model}_{sessionID}.enc                  │
+│  Storage: {data}/log/.checkpoints/                           │
+│    {provider}_{model}_{agent}_{sessionID}_S{0|1}.enc         │
+│  Memory: process map published on save (no disk race)        │
 │                                                              │
 │  Encryption: AES-256-GCM                                     │
-│  Key: SHA-256(projectID:worktree:sessionID:salt)             │
-│  Atomic: write to .tmp → fs.renameSync → .enc                │
+│  Key: SHA-256(projectID:sessionID:salt)                      │
+│  Atomic: write .tmp → rename → .enc (2-slot rotate)          │
 │                                                              │
-│  CheckpointData {                                            │
-│    kind: "checkpoint"     ← distinguishes from diff baseline │
-│    version: 1                                                │
-│    systemPrompt: string[]  ← assembled system array          │
-│    messages: ModelMessage[] ← AI SDK format, ready to send   │
-│    messageIDs: string[]    ← DB message IDs included        │
-│    model: { providerID, modelID }                            │
-│    turn: number                                              │
+│  CheckpointData v4 {                                         │
+│    systemPrompt[]          path system (frozen until compact)│
+│    identityFingerprint     kernel+agent prompt only          │
+│    messages[] + messageIDs[] + messageFingerprints[]         │
+│    model, agent, turn, timestamp                             │
 │  }                                                           │
 │                                                              │
-│  Per turn:                                                   │
-│    Load .enc → reuse systemPrompt → convert only new deltas  │
-│    Send → success → save new .enc (atomic overwrite)         │
-│    Send → failure → .enc untouched (automatic rollback)      │
+│  Policy (KV continuous, multi-project stable):               │
+│    • Path system (AGENTS.md/skills/rules) frozen mid-era     │
+│    • Refresh only on compact OR identity fingerprint break   │
+│    • Per model (+ agent) slots — switch models, nothing lost │
+│    • Message reuse: ordered prefix + content fingerprints    │
+│      (in-place edits re-convert from first dirty message)    │
 │                                                              │
-│  Guarantees:                                                 │
-│    • System prompt frozen between compactions                │
-│    • 100% provider-side KV cache hit rate                    │
-│    • AGENTS.md changes deferred to compaction boundary       │
-│    • No partial state ever touches disk                      │
-│                                                              │
-│  Performance:                                                │
-│    10x (short) → 100x+ (long sessions) faster per-turn       │
-│    assembly vs full rebuild from source files + DB           │
+│  Diffs: request-diff remembers last formatted request so     │
+│  post-compact turns still produce a diagnostic .diff         │
 └─────────────────────────────────────────────────────────────┘
 ```
 

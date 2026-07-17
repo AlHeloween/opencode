@@ -32,14 +32,9 @@ const SID = `ses_ckpt_${Date.now().toString(36)}`
 
 // Clean up after all tests
 afterAll(async () => {
-  await Effect.runPromise(Checkpoint.remove(SID))
-  await Effect.runPromise(Checkpoint.remove(`${SID}_b`))
-  await Effect.runPromise(Checkpoint.remove(`${SID}_c`))
-  await Effect.runPromise(Checkpoint.remove(`${SID}_d`))
-  await Effect.runPromise(Checkpoint.remove(`${SID}_e`))
-  await Effect.runPromise(Checkpoint.remove(`${SID}_f`))
-  await Effect.runPromise(Checkpoint.remove(`${SID}_g`))
-  await Effect.runPromise(Checkpoint.remove(`${SID}_h`))
+  for (const s of [SID, `${SID}_b`, `${SID}_c`, `${SID}_d`, `${SID}_e`, `${SID}_f`, `${SID}_g`, `${SID}_h`, `${SID}_mem`, `${SID}_v3`]) {
+    await Effect.runPromise(Checkpoint.remove(s))
+  }
   RequestDiff.deleteBaselines(`${SID}_g`)
   RequestDiff.deleteBaselines(`${SID}_h`)
 })
@@ -134,6 +129,7 @@ describe("Checkpoint", () => {
     const files = fs.readdirSync(Checkpoint.checkpointDir(sid)).filter((f) => f.includes(sid))
     const corruptPath = path.join(Checkpoint.checkpointDir(sid), files[0])
     fs.writeFileSync(corruptPath, Buffer.from("not-valid-encrypted-data"))
+    Checkpoint.dropMemory(sid)
 
     const loaded = await Effect.runPromise(
       Checkpoint.load({ sessionID: sid, providerID: "cr", modelID: "cr-model", projectID: TEST_PROJECT, agentName: "test-agent" }),
@@ -233,6 +229,8 @@ describe("Checkpoint", () => {
     const before = fs.readdirSync(dir).filter((f) => f.includes(sid) && f.endsWith(".enc"))
     expect(before.length).toBeGreaterThanOrEqual(1)
 
+    Checkpoint.dropMemory(sid)
+
     const loaded = await Effect.runPromise(
       Checkpoint.load({
         sessionID: sid,
@@ -243,11 +241,69 @@ describe("Checkpoint", () => {
       }),
     )
 
-    // Wrong project key → decryption fails → slot deleted, null returned
     expect(loaded).toBeNull()
     const after = fs.existsSync(dir)
       ? fs.readdirSync(dir).filter((f) => f.includes(sid) && f.endsWith(".enc"))
       : []
     expect(after.length).toBe(0)
+  })
+
+  test("publish makes load return data before disk settle", async () => {
+    const sid = `${SID}_mem`
+    const data = makeCheckpointData({
+      model: { providerID: "mem", modelID: "mem-model" },
+      agent: "build",
+      turn: 9,
+    })
+    Checkpoint.publish({ sessionID: sid, data })
+    const loaded = await Effect.runPromise(
+      Checkpoint.load({
+        sessionID: sid,
+        providerID: "mem",
+        modelID: "mem-model",
+        projectID: TEST_PROJECT,
+        agentName: "build",
+      }),
+    )
+    expect(loaded).not.toBeNull()
+    expect(loaded!.turn).toBe(9)
+    await Effect.runPromise(Checkpoint.remove(sid))
+  })
+
+  test("reusablePrefixLength stops at content fingerprint change", () => {
+    const data = makeCheckpointData({
+      messageIDs: ["a", "b", "c"],
+      messages: [
+        { role: "user", content: "1" },
+        { role: "assistant", content: "2" },
+        { role: "user", content: "3" },
+      ],
+      messageFingerprints: ["fp1", "fp2", "fp3"],
+    })
+    const msgs = [
+      { info: { id: "a" }, parts: [] },
+      { info: { id: "b" }, parts: [] },
+      { info: { id: "c" }, parts: [] },
+    ] as any
+    const fp = (m: any) => (m.info.id === "b" ? "DIRTY" : `fp${m.info.id === "a" ? "1" : m.info.id === "b" ? "2" : "3"}`)
+    // a matches fp1, b mismatches → prefix 1
+    expect(Checkpoint.reusablePrefixLength(msgs, data, (m) => (m.info.id === "a" ? "fp1" : "x"))).toBe(1)
+    expect(Checkpoint.reusablePrefixLength(msgs, data, (m) => data.messageFingerprints![msgs.indexOf(m)])).toBe(3)
+  })
+
+  test("reusablePrefixLength without fingerprints trusts ID order", () => {
+    const data = makeCheckpointData({
+      messageIDs: ["a", "b"],
+      messages: [
+        { role: "user", content: "1" },
+        { role: "assistant", content: "2" },
+      ],
+    })
+    delete (data as any).messageFingerprints
+    const msgs = [
+      { info: { id: "a" }, parts: [] },
+      { info: { id: "b" }, parts: [] },
+    ] as any
+    expect(Checkpoint.reusablePrefixLength(msgs, data, () => "ignored")).toBe(2)
   })
 })

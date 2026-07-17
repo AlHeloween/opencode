@@ -136,10 +136,11 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn prompt assembly and reduce DB reads to delta messages only.
 
 **How it works:**
-- After every successful provider response, the full model-ready state (system prompt + AI SDK messages) is encrypted (AES-256-GCM) and written to `{log}/.checkpoints/{provider}_{model}_{sid}.enc`
-- On startup or model switch, the checkpoint is loaded — system prompt + messages are ready without DB query or prompt assembly
-- Only messages NOT in the checkpoint (deltas) are loaded from DB and converted
-- On failure, the checkpoint is untouched — automatic rollback to previous known-good state
+- After every successful provider response, model-ready state is published in-memory (sync) and encrypted to `{log}/.checkpoints/{provider}_{model}_{agent}_{sid}_S{0|1}.enc` (2-slot rotate)
+- **Path system frozen until compact** — AGENTS.md/skills/rules edits mid-session do not rebuild the system prefix (KV cache continuous; multi-project work stays stable). Refresh at compaction or `identityFingerprint` mismatch (kernel/agent prompt only).
+- **Per model (+ agent)** — switching models does not discard the other model's slot; each keeps its continuous era.
+- **Message deltas** — longest ordered prefix with matching IDs + content fingerprints is reused; suffix (new or in-place-edited messages) is re-converted.
+- On failure, disk slots are not overwritten mid-write (atomic rename); memory holds the last good publish.
 
 **Files:**
 | File | Role |
@@ -150,8 +151,7 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 **Namespaces:**
 - Checkpoints: `{log}/.checkpoints/` — per-model conversation state
-- Request-diff baselines: `{log}/.baselines/` — per-request diff snapshots
-- Separate directories, no collision possible
+- Request diffs: `{log}/…_diff_…` diagnostic files; previous request kept in-process (not a separate baseline store)
 
 **Compaction integration (mechanistic continuous memory):** See `docs/compaction.md`.
 

@@ -1524,20 +1524,29 @@ You should build your plan incrementally by writing to or editing this file. NOT
               })
             }
 
-            // Reuse cached model messages when fingerprint is stable.
-            // Invalidation: cleared when the loop exits (break) so the next
-            // turn starts with a fresh conversion. Also cleared on cache break.
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            const checkpointIDs = checkpointUsable ? new Set(checkpointUsable.messageIDs) : undefined
-            const checkpointDeltaMsgs = checkpointIDs ? msgs.filter((m) => !checkpointIDs.has(m.info.id)) : undefined
-            const modelMsgs = checkpointUsable
-              ? [
-                  ...checkpointUsable.messages,
-                  ...(yield* MessageV2.toModelMessagesEffect(checkpointDeltaMsgs ?? [], model)),
-                ]
-              : audit.cacheStable && modelMsgsCache
-                ? (modelMsgsCache as ReturnType<typeof MessageV2.toModelMessagesEffect> extends Effect.Effect<infer A, any, any> ? A : never)
-                : yield* MessageV2.toModelMessagesEffect(msgs, model)
+            // Checkpoint message reuse: longest ordered prefix with matching IDs
+            // and content fingerprints (detects in-place edits). Suffix re-converted.
+            // Path system stays frozen until compact — only messages use delta logic.
+            let modelMsgs
+            let modelMessageIDs = msgs.map((m) => m.info.id)
+            if (checkpointUsable) {
+              const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable, (m) =>
+                CacheControl.messageFingerprint(m).hash,
+              )
+              const suffix = msgs.slice(prefixLen)
+              const suffixModel = suffix.length
+                ? yield* MessageV2.toModelMessagesEffect(suffix, model)
+                : []
+              modelMsgs = [...checkpointUsable.messages.slice(0, prefixLen), ...suffixModel]
+              modelMessageIDs = [
+                ...checkpointUsable.messageIDs.slice(0, prefixLen),
+                ...suffix.map((m) => m.info.id),
+              ]
+            } else if (audit.cacheStable && modelMsgsCache) {
+              modelMsgs = modelMsgsCache
+            } else {
+              modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
+            }
             if (!checkpointUsable && (audit.cacheStable || !modelMsgsCache)) {
               modelMsgsCache = modelMsgs
             }
@@ -1571,9 +1580,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
               : currentFP
             CacheControl.storePrevFingerprint(sessionID, model.id, finalFP, agent.name)
 
-            // Diff logging — derives "previous" request from the loaded checkpoint
-            // instead of a separate .baselines store.  The checkpoint already holds
-            // the full conversation state (systemPrompt + messages) from the prior turn.
+            // Diff logging — previous formatted request from memory (survives
+            // compact) or from checkpoint. Always remember current for next turn.
             const cfg = yield* config.get()
             if (cfg.diff_requests !== false) {
               const diffMeta: RequestDiff.DiffMeta = {
@@ -1584,9 +1592,17 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 agent: agent.name,
                 timestamp: Date.now(),
               }
-              const formatted = RequestDiff.formatRequest(systemForDiff, modelMsgs, diffMeta)
-              if (checkpointUsable) {
-                const prevMeta: RequestDiff.DiffMeta = {
+              const formatted = RequestDiff.formatRequest(
+                systemForDiff,
+                modelMsgs,
+                diffMeta,
+                modelMessageIDs,
+              )
+              const remembered = RequestDiff.getPreviousFormatted(diffMeta)
+              let prevText = remembered?.text
+              let prevMeta = remembered?.meta
+              if (!prevText && checkpointUsable) {
+                prevMeta = {
                   sessionID,
                   modelID: checkpointUsable.model.modelID,
                   providerID: checkpointUsable.model.providerID,
@@ -1594,14 +1610,18 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   agent: checkpointUsable.agent,
                   timestamp: checkpointUsable.timestamp,
                 }
-                const prevFormatted = RequestDiff.formatRequest(
+                prevText = RequestDiff.formatRequest(
                   checkpointUsable.systemPrompt,
                   checkpointUsable.messages,
                   prevMeta,
+                  checkpointUsable.messageIDs,
                 )
-                const diff = RequestDiff.diffRequest(prevFormatted, formatted, prevMeta, diffMeta)
+              }
+              if (prevText && prevMeta) {
+                const diff = RequestDiff.diffRequest(prevText, formatted, prevMeta, diffMeta)
                 if (diff) RequestDiff.writeDiff(diff, diffMeta)
               }
+              RequestDiff.rememberFormatted(formatted, diffMeta)
             }
 
             if (structured !== undefined) {
@@ -1672,16 +1692,29 @@ You should build your plan incrementally by writing to or editing this file. NOT
               outputTokensSinceLastSummary = 0
             }
             // Save encrypted checkpoint after successful turn.
-            // Fire-and-forget — don't block the loop on I/O.
-            // cleanIdentity was computed before load (same bytes as identity slot).
+            // publish() is sync inside save(); disk write is fire-and-forget.
+            // Path system frozen when reusing checkpoint (KV continuity until compact).
+            // Messages: reuse checkpoint prefix + convert only new/dirty suffix.
             const systemForCheckpoint = checkpointUsable
-              ? [...system] // checkpoint already contains identityPrefix
+              ? [...system]
               : cleanIdentity ? [cleanIdentity, ...system] : [...system]
             const identityFp = Checkpoint.identityFingerprint(cleanIdentity)
             yield* Effect.forkIn(scope)(
               Effect.gen(function* () {
                 const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
-                const checkpointModelMsgs = yield* MessageV2.toModelMessagesEffect(checkpointMsgs, model)
+                const prefixLen = checkpointUsable
+                  ? Checkpoint.reusablePrefixLength(checkpointMsgs, checkpointUsable, (m) =>
+                      CacheControl.messageFingerprint(m).hash,
+                    )
+                  : 0
+                const suffix = checkpointMsgs.slice(prefixLen)
+                const suffixModel = suffix.length
+                  ? yield* MessageV2.toModelMessagesEffect(suffix, model)
+                  : []
+                const fullModel = [
+                  ...(checkpointUsable ? checkpointUsable.messages.slice(0, prefixLen) : []),
+                  ...suffixModel,
+                ]
                 yield* Checkpoint.save({
                   sessionID,
                   projectID: ctx.project.id,
@@ -1690,8 +1723,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                     version: Checkpoint.CHECKPOINT_VERSION,
                     systemPrompt: systemForCheckpoint,
                     identityFingerprint: identityFp,
-                    messages: checkpointModelMsgs,
+                    messages: fullModel,
                     messageIDs: checkpointMsgs.map((m) => m.info.id),
+                    messageFingerprints: checkpointMsgs.map((m) => CacheControl.messageFingerprint(m).hash),
                     model: { providerID: model.providerID, modelID: model.id },
                     agent: agent.name,
                     turn: step + 1,

@@ -257,6 +257,35 @@ describe("diffRequest", () => {
 
     expect(diff).toContain("no changes")
   })
+
+  test("message id keys detect in-place content change", () => {
+    const prevMeta = baseMeta({ turn: 1 })
+    const currMeta = baseMeta({ turn: 2 })
+    const msgs = [{ role: "user" as const, content: "hello" }]
+    const prev = RequestDiff.formatRequest(makeSystem(), msgs, prevMeta, ["msg_1"])
+    const curr = RequestDiff.formatRequest(
+      makeSystem(),
+      [{ role: "user", content: "hello mutated" }],
+      currMeta,
+      ["msg_1"],
+    )
+    const diff = RequestDiff.diffRequest(prev, curr, prevMeta, currMeta)
+    expect(diff).toContain("changed")
+    expect(diff).toContain("id=msg_1")
+  })
+
+  test("rememberFormatted seeds next-turn diff without checkpoint", () => {
+    const prevMeta = baseMeta({ turn: 1, sessionID: "ses_remember" })
+    const currMeta = baseMeta({ turn: 2, sessionID: "ses_remember" })
+    const prev = RequestDiff.formatRequest(makeSystem(), [{ role: "user", content: "a" }], prevMeta)
+    RequestDiff.rememberFormatted(prev, prevMeta)
+    const remembered = RequestDiff.getPreviousFormatted(currMeta)
+    expect(remembered?.text).toBe(prev)
+    const curr = RequestDiff.formatRequest(makeSystem(), [{ role: "user", content: "b" }], currMeta)
+    const diff = RequestDiff.diffRequest(remembered!.text, curr, remembered!.meta, currMeta)
+    expect(diff).toContain("@@ MESSAGES @@")
+    RequestDiff.clearPreviousFormatted("ses_remember")
+  })
 })
 
 describe("writeDiff", () => {

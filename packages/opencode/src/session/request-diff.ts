@@ -3,15 +3,17 @@
  *
  * Formats LLM requests (system + model messages) as diffable text,
  * computes structural diffs between consecutive turns, and writes .diff
- * files to the flat `.opencode/data/log/` directory using the unified
- * naming convention: `{time_ms}_diff_{model}_{sessionID}.diff`.
+ * files under `{data}/log/` via logPath("diff", model, sessionID, "diff").
+ *
+ * Previous request text is kept in-process (and may be seeded from a
+ * checkpoint) so diffs still appear after compact/rebuild when disk
+ * checkpoint was removed.
  *
  * Diff strategy (section-aware like difftastic):
  *   META    → key-by-key comparison, show only changed fields
  *   SYSTEM  → line-level diff with 3-line context windows, collapses
  *             unchanged regions to a count line
- *   MESSAGES → message-by-message comparison via content hash;
- *             shows added/removed/changed messages with headers
+ *   MESSAGES → prefer message id= keys; fall back to content hash
  *
  * [KV-CACHE SAFE] — pure read-side logging, zero impact on provider request bytes.
  */
@@ -22,9 +24,12 @@ import { createHash } from "node:crypto"
 import type { ModelMessage } from "ai"
 import { Global } from "@opencode-ai/core/global"
 import { logPath } from "@opencode-ai/core/util/log"
+import * as Log from "@opencode-ai/core/util/log"
+import { errorMessage } from "@/util/error"
+
+const log = Log.create({ service: "request-diff" })
 
 const MAX_DIFFS_PER_SESSION = 200
-const BASELINE_VERSION = 1
 const KEY_DERIVATION_SALT = ":opencode-diff-baseline-v1"
 const MAX_FORMATTED_REQUEST_CHARS = 256 * 1024
 const MAX_FORMATTED_SYSTEM_CHARS = 64 * 1024
@@ -43,14 +48,43 @@ export interface DiffMeta {
 /** Per-session diff counter for FIFO rotation of .diff files. */
 const countMap = new Map<string, number>()
 
+/** Last formatted request per session+model+agent (for post-compact diffs). */
+const previousFormatted = new Map<string, { text: string; meta: DiffMeta }>()
+
+function prevKey(meta: Pick<DiffMeta, "sessionID" | "providerID" | "modelID" | "agent">): string {
+  return `${meta.sessionID}\0${meta.providerID}\0${meta.modelID}\0${meta.agent}`
+}
+
+/** Remember formatted request for the next turn's diff (in-process only). */
+export function rememberFormatted(text: string, meta: DiffMeta): void {
+  previousFormatted.set(prevKey(meta), { text, meta })
+}
+
+/** Load previous formatted request if any (does not clear). */
+export function getPreviousFormatted(
+  meta: Pick<DiffMeta, "sessionID" | "providerID" | "modelID" | "agent">,
+): { text: string; meta: DiffMeta } | undefined {
+  return previousFormatted.get(prevKey(meta))
+}
+
+/** Drop remembered formatted requests for a session (optional; compact keeps them for one transition). */
+export function clearPreviousFormatted(sessionID: string): void {
+  const prefix = `${sessionID}\0`
+  for (const key of previousFormatted.keys()) {
+    if (key.startsWith(prefix)) previousFormatted.delete(key)
+  }
+}
+
 /**
  * Format the LLM request (system prompt + model messages) as
  * a deterministic, human-readable text blob for diffing.
+ * Optional messageIDs (parallel to modelMsgs) enable id-stable MESSAGES diffs.
  */
 export function formatRequest(
   system: string[],
   modelMsgs: ModelMessage[],
   meta: DiffMeta,
+  messageIDs?: string[],
 ): string {
   const lines: string[] = []
   let chars = 0
@@ -90,15 +124,16 @@ export function formatRequest(
   pushLine("")
   pushLine("=== MESSAGES ===")
   for (let i = 0; i < modelMsgs.length; i++) {
-    if (!pushLine(formatModelMessage(modelMsgs[i], i))) break
+    if (!pushLine(formatModelMessage(modelMsgs[i], i, messageIDs?.[i]))) break
   }
 
   return lines.join("\n")
 }
 
 /** Format a single ModelMessage for display. */
-function formatModelMessage(msg: ModelMessage, index: number): string {
-  return `[${msg.role}] #${index + 1}\n${truncateText(
+function formatModelMessage(msg: ModelMessage, index: number, messageID?: string): string {
+  const idPart = messageID ? ` id=${messageID}` : ""
+  return `[${msg.role}] #${index + 1}${idPart}\n${truncateText(
     formatMessageContent(msg),
     MAX_FORMATTED_MESSAGE_CHARS,
     "message",
@@ -137,12 +172,12 @@ export async function decryptBaseline(encrypted: Buffer, key: CryptoKey): Promis
 }
 
 /**
- * Clean up diff counter for a deleted session.
- * No more .baselines/ disk cleanup — diffs now derive "previous"
- * from checkpoints instead of a separate baseline store.
+ * Clean up in-memory diff state for a deleted session
+ * (FIFO counter + remembered previous formatted request).
  */
 export function deleteBaselines(sessionID: string): void {
   countMap.delete(sessionID)
+  clearPreviousFormatted(sessionID)
 }
 
 /** Sanitize a string for use in filenames. */
@@ -483,67 +518,66 @@ function alignLines(prev: string[], curr: string[]): EditOp[] {
   return ops
 }
 
-/** Diff messages by content hash — show added, removed, and changed messages. */
+/** Diff messages by id= when present, else content hash. */
 function diffMessages(prev: string[], curr: string[]): string[] {
   const out: string[] = []
   out.push("@@ MESSAGES @@")
 
-  // Group messages: each message starts with [role] #N
   const prevMsgs = splitMessages(prev)
   const currMsgs = splitMessages(curr)
 
-  // Hash each message for comparison
-  const prevHashes = prevMsgs.map((m) => hashString(m.join("\n")))
-  const currHashes = currMsgs.map((m) => hashString(m.join("\n")))
+  const prevKeys = prevMsgs.map((m) => messageKey(m))
+  const currKeys = currMsgs.map((m) => messageKey(m))
+  const prevByKey = new Map(prevKeys.map((k, i) => [k, i]))
+  const currByKey = new Map(currKeys.map((k, i) => [k, i]))
 
-  let added = 0
-  let removed = 0
-
-  // Simple diff: walk both arrays, identify additions/removals
-  const pi = new Set(prevHashes)
-  const ci = new Set(currHashes)
-
-  // Check for purely added messages (in curr but not prev)
-  const addedMsgs: number[] = []
-  for (let i = 0; i < currMsgs.length; i++) {
-    if (!pi.has(currHashes[i])) {
-      addedMsgs.push(i)
-      added++
-    }
-  }
-
-  // Check for purely removed messages (in prev but not curr)
   const removedMsgs: number[] = []
+  const addedMsgs: number[] = []
+  const changedMsgs: { prev: number; curr: number }[] = []
+
   for (let i = 0; i < prevMsgs.length; i++) {
-    if (!ci.has(prevHashes[i])) {
+    const j = currByKey.get(prevKeys[i])
+    if (j === undefined) {
       removedMsgs.push(i)
-      removed++
+      continue
+    }
+    if (hashString(prevMsgs[i].join("\n")) !== hashString(currMsgs[j].join("\n"))) {
+      changedMsgs.push({ prev: i, curr: j })
+    }
+  }
+  for (let i = 0; i < currMsgs.length; i++) {
+    if (!prevByKey.has(currKeys[i])) addedMsgs.push(i)
+  }
+
+  if (addedMsgs.length === 0 && removedMsgs.length === 0 && changedMsgs.length === 0) return []
+
+  out.push(
+    `${addedMsgs.length} added, ${removedMsgs.length} removed, ${changedMsgs.length} changed`,
+  )
+
+  const pushSnippet = (prefix: string, lines: string[]) => {
+    out.push(`${prefix} ${lines[0]}`)
+    for (let l = 1; l < Math.min(lines.length, 3); l++) {
+      out.push(`${prefix}   ${lines[l]}`)
     }
   }
 
-  if (added === 0 && removed === 0) return []
-
-  out.push(`${added} added, ${removed} removed`)
-
-  for (const idx of removedMsgs) {
-    const header = prevMsgs[idx][0] // [role] #N
-    out.push(`- ${header}`)
-    // Show first 2 lines of content
-    for (let l = 1; l < Math.min(prevMsgs[idx].length, 3); l++) {
-      out.push(`-   ${prevMsgs[idx][l]}`)
-    }
-  }
-
-  for (const idx of addedMsgs) {
-    const header = currMsgs[idx][0] // [role] #N
-    out.push(`+ ${header}`)
-    // Show first 2 lines of content
-    for (let l = 1; l < Math.min(currMsgs[idx].length, 3); l++) {
-      out.push(`+   ${currMsgs[idx][l]}`)
-    }
+  for (const idx of removedMsgs) pushSnippet("-", prevMsgs[idx])
+  for (const idx of addedMsgs) pushSnippet("+", currMsgs[idx])
+  for (const { prev: pi, curr: ci } of changedMsgs) {
+    pushSnippet("-", prevMsgs[pi])
+    pushSnippet("+", currMsgs[ci])
   }
 
   return out
+}
+
+/** Stable key: prefer id= from header, else content hash. */
+function messageKey(lines: string[]): string {
+  const header = lines[0] ?? ""
+  const idMatch = header.match(/\bid=([^\s]+)/)
+  if (idMatch) return `id:${idMatch[1]}`
+  return `h:${hashString(lines.join("\n"))}`
 }
 
 /** Split message lines into per-message groups based on `[role] #N` headers. */
@@ -552,7 +586,7 @@ function splitMessages(lines: string[]): string[][] {
   let current: string[] = []
 
   for (const line of lines) {
-    if (/^\[(user|assistant|tool|system)\]\s+#\d+$/.test(line)) {
+    if (/^\[(user|assistant|tool|system)\]\s+#\d+/.test(line)) {
       if (current.length > 0) groups.push(current)
       current = [line]
     } else {
@@ -574,24 +608,11 @@ function hashString(s: string): number {
 }
 
 /**
- * Write a diff to the diffs/ folder.
- *
- * File naming: `{ISO8601-ms}_{provider}_{model}.diff`
- *
- * FIFO rotation: removes oldest diff when session exceeds MAX_DIFFS_PER_SESSION.
- *
- * Returns the absolute file path.
- */
-/**
- * Write a diff to the flat log/ directory.
- *
- * Layout: `{data}/log/{time_ms}_diff_{model}_{sessionID}.diff`
- *
- * Encrypted baselines live in `log/.baselines/`.
- * FIFO rotation per session: removes oldest diff when exceeding MAX_DIFFS_PER_SESSION.
+ * Write a diff under `{data}/log/` via logPath("diff", …).
+ * FIFO rotation per session when exceeding MAX_DIFFS_PER_SESSION.
+ * Returns the absolute file path (write is deferred).
  */
 export function writeDiff(diffContent: string, meta: DiffMeta): string {
-  // FIFO rotation: track count per session
   const count = (countMap.get(meta.sessionID) ?? 0) + 1
   countMap.set(meta.sessionID, count)
 
@@ -599,19 +620,25 @@ export function writeDiff(diffContent: string, meta: DiffMeta): string {
     const logDir = Global.Path.log
     const pattern = /^\d{13}_diff_.+\.diff$/
     const safeSid = sanitize(meta.sessionID)
-    const files = fs.readdirSync(logDir)
-      .filter((f) => pattern.test(f) && f.includes(`_${safeSid}.diff`))
-      .sort()
-    if (files.length > 0) {
-      fs.unlinkSync(path.join(logDir, files[0]))
+    try {
+      const files = fs.readdirSync(logDir)
+        .filter((f) => pattern.test(f) && f.includes(`_${safeSid}.diff`))
+        .sort()
+      if (files.length > 0) {
+        fs.unlinkSync(path.join(logDir, files[0]))
+      }
+    } catch (e) {
+      log.debug("diff FIFO rotation failed", { sessionID: meta.sessionID, error: errorMessage(e) })
     }
   }
 
-  // Defer write to avoid blocking the event loop — diff files are
-  // diagnostic, not critical-path; a failed write is silently ignored.
   const filepath = logPath("diff", meta.modelID, meta.sessionID, "diff")
   setImmediate(() => {
-    try { fs.writeFileSync(filepath, diffContent + EOL) } catch { /* diagnostic file, ignore */ }
+    try {
+      fs.writeFileSync(filepath, diffContent + EOL)
+    } catch (e) {
+      log.debug("diff write failed", { filepath, error: errorMessage(e) })
+    }
   })
   return filepath
 }

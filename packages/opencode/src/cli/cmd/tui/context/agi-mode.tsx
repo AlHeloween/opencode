@@ -24,7 +24,15 @@ import { useSDK } from "./sdk"
 import { useEvent } from "./event"
 import { useToast } from "../ui/toast"
 import { Global } from "@opencode-ai/core/global"
-import { getPlanStatus, formatProgressBar, type PlanStatus } from "@/util/plan-status"
+import {
+  getPlanStatus,
+  formatProgressBar,
+  reconcilePlans,
+  isPlanHygieneClean,
+  planHygieneWorkerFooter,
+  formatPlanHygiene,
+  type PlanStatus,
+} from "@/util/plan-status"
 import { MessageID } from "@/session/schema"
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "fs"
 import path from "path"
@@ -253,6 +261,29 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     setPlanData(getPlanStatus(worktree))
   }
 
+  /** Mechanical plan reconcile (move finished → plans_completed, reopen incomplete). */
+  function runPlanHygiene() {
+    const worktree = Global.Path.worktree || Global.Path.home
+    const result = reconcilePlans(worktree)
+    setPlanData(result.status)
+    if (result.movedToCompleted.length > 0) {
+      toast.show({
+        message: `AGI: moved ${result.movedToCompleted.length} plan(s) → plans_completed/`,
+        variant: "info",
+      })
+    }
+    if (result.reopenedToActive.length > 0) {
+      toast.show({
+        message: `AGI: reopened ${result.reopenedToActive.length} incomplete plan(s) → plans/`,
+        variant: "warning",
+      })
+    }
+    if (result.errors.length > 0) {
+      console.debug("AGI: plan hygiene errors", result.errors)
+    }
+    return result
+  }
+
   const progressBar = createMemo(() => formatProgressBar(planData()))
 
   /** Whether the orchestrator session is busy (runLoop active).
@@ -412,16 +443,17 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         if (!lastCompleted || lastCompleted.id === lastDispatchedOrchMsgID) break
         lastDispatchedOrchMsgID = lastCompleted.id
 
-        // Orchestrator has new completed output → parse directives
+        // Orchestrator has new completed output → hygiene then parse directives
         {
-          refreshPlanStatus()
+          // Mechanical PLAN_HYGIENE before any terminal decision
+          const hygiene = runPlanHygiene()
+          const status = hygiene.status
 
-          // Check if all plans are done
-          if (planData().active.length === 0) {
+          // True complete: no open [ ] and no misplaced files
+          if (isPlanHygieneClean(status)) {
             const worktree = Global.Path.worktree || Global.Path.home
 
             if (evolvingMode()) {
-              // Evolving mode: create improvement branch, instruct orchestrator
               const cycleNum = cycleCount() + 1
               setCycleCount(cycleNum)
               persistAgiSnapshot({ cycleCount: cycleNum })
@@ -433,21 +465,20 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               const oid = orchSessionID()
               if (oid) {
                 sendToOrchestrator([
-                  "All active plans are complete.",
+                  "All plans are standardized (no active [ ], no misplaced files).",
                   `EVOLVING MODE: Cycle ${cycleNum} — Enter evolving mode now.`,
                   "Analyze the codebase across Stability, Performance, Observability, Testing, and UX.",
                   "Propose 2-4 concrete improvement tasks per category.",
                   "Each task must include exact file paths, expected outcome, and verification criteria.",
+                  "Write new plans under plans/ with [ ] checkboxes for each task.",
                   "",
                   "IMPORTANT: After you propose tasks, WAIT for user acceptance/rejection.",
                   "Do NOT auto-execute — let the user decide which categories to pursue.",
                 ].join("\n")).catch((e) => console.debug("evolving mode prompt failed", e))
                 setPhase("ORCH_BUSY")
               }
-            }
-            // No evolving mode — deactivate
-            else {
-              toast.show({ message: "AGI: all plans complete", variant: "success" })
+            } else {
+              toast.show({ message: "AGI: all plans complete and standardized", variant: "success" })
               deactivate()
             }
             return
@@ -458,36 +489,59 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           if (!oid) return
           const orchOutput = lastAssistantText(oid)
 
-          // Detect terminal messages — orch declares session complete
+          // Detect terminal messages — only honor if hygiene is clean
           if (/\b(session complete|terminating|deactivate agi)\b/i.test(orchOutput)) {
-            toast.show({ message: "AGI: orchestrator declared session complete — deactivating", variant: "success" })
-            deactivate()
-            return
+            if (isPlanHygieneClean(status)) {
+              toast.show({ message: "AGI: orchestrator declared session complete — deactivating", variant: "success" })
+              deactivate()
+              return
+            }
+            console.debug("AGI: orch said complete but hygiene debt remains", {
+              active: status.active.length,
+              misplaced: status.misplaced.length,
+            })
           }
 
           const directives = parseOrchestratorDirectives(orchOutput)
 
+          // If hygiene debt remains and orch did not address it, inject a hygiene directive
+          if (status.misplaced.length > 0 || hygiene.reopenedToActive.length > 0) {
+            const hygieneMsg = [
+              "PLAN HYGIENE DEBT (priority over new features):",
+              formatPlanHygiene(status, hygiene),
+              "",
+              "1. For incomplete plans reopened into plans/: finish remaining [ ] items or mark correctly.",
+              "2. Mark [x] only when code confirms; do not invent completion.",
+              "3. After all [ ] gone, ensure file is under plans_completed/ (runtime may auto-move).",
+              "4. Update master plan cross-references.",
+              planHygieneWorkerFooter(),
+            ].join("\n")
+
+            const hasHygieneFocus = /plan hygiene|plans_completed|misplaced/i.test(orchOutput)
+            if (!hasHygieneFocus) {
+              directives.length = 0
+              directives.push({
+                workerId: mainSessionID()!,
+                message: hygieneMsg,
+              })
+            }
+          }
+
           if (directives.length === 0) {
-            // No XML directives — fallback: use entire orch output as instruction for main worker.
-            // The orchestrator may produce valid instructions in its agent's markdown format
-            // instead of XML. Wrap the output as a worker directive directly.
             if (orchOutput.trim()) {
-              // Skip self-closing worker tags — orch has no directive
               if (/^<worker\d+_[^>]+\/>\s*$/.test(orchOutput.trim())) {
                 console.debug("AGI: self-closing worker tag, treating as empty")
               } else {
                 console.debug("AGI: no XML directives found, using entire orch output as fallback")
                 directives.push({
                   workerId: mainSessionID()!,
-                  message: orchOutput.trim(),
+                  message: orchOutput.trim() + planHygieneWorkerFooter(),
                 })
               }
             } else {
-              // Empty output — send continuation prompt
               console.debug("AGI: empty orch output, sending continuation")
               sendToOrchestrator([
-                `Plan progress: ${progressBar()}.`,
-                `Active plans: ${planData().active.join(", ") || "none"}.`,
+                formatPlanHygiene(status, hygiene),
                 "",
                 "CRITICAL: Your previous response was empty. You MUST produce output.",
                 "IGNORE your agent's Instruction Format section entirely.",
@@ -498,6 +552,16 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               ].join("\n")).catch((e) => console.debug("continuation prompt failed", e))
               setPhase("ORCH_BUSY")
               return
+            }
+          }
+
+          // Always append plan hygiene footer to worker directives
+          for (let i = 0; i < directives.length; i++) {
+            if (!directives[i].message.includes("PLAN HYGIENE")) {
+              directives[i] = {
+                ...directives[i],
+                message: directives[i].message + planHygieneWorkerFooter(),
+              }
             }
           }
 
@@ -558,8 +622,8 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         }
         break
 
-      case "WORKERS_COLLECT":
-        // Collect output from all workers, send to orchestrator
+      case "WORKERS_COLLECT": {
+        // Collect output from all workers, reconcile plans, send to orchestrator
         const workerData = activeWorkers
           .map((wid) => {
             const output = collectWorkerMessages(wid, dispatchTime[wid] ?? 0)
@@ -568,11 +632,17 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           .filter(Boolean)
           .join("\n\n")
 
+        const hygiene = runPlanHygiene()
+
         const context = [
-          `Turn ${turnCount()} complete. Plan progress: ${progressBar()}.`,
+          `Turn ${turnCount()} complete.`,
+          formatPlanHygiene(hygiene.status, hygiene),
           workerData ? `Worker results:\n${workerData}` : "",
           "",
-          "Analyze the results. What was accomplished? What's the next task?",
+          "Analyze the results. What was accomplished?",
+          isPlanHygieneClean(hygiene.status)
+            ? "Plan hygiene is clean. What's the next feature task?"
+            : "Plan hygiene debt remains — next directive MUST fix plans/plans_completed before new features.",
           "=== FORMAT OVERRIDE (autonomous mode) ===",
           "Wrap your ENTIRE response in worker XML tags on their own lines:",
           `<worker1_${mainSessionID()}>`,
@@ -590,8 +660,13 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         dispatchTime = {}
         activeWorkers = []
         setPhase("ORCH_BUSY")
-        console.debug("AGI: WORKERS_COLLECT → ORCH_BUSY")
+        console.debug("AGI: WORKERS_COLLECT → ORCH_BUSY", {
+          clean: isPlanHygieneClean(hygiene.status),
+          moved: hygiene.movedToCompleted.length,
+          reopened: hygiene.reopenedToActive.length,
+        })
         break
+      }
     }
   })
 

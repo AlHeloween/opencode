@@ -69,6 +69,22 @@ Workers run **build** (default `*` allow + `destructive: ask`). Orchestrator has
 - Evolving mode + improvement branches  
 - Orchestrator memory file under `.opencode/data/memory/`
 
+## Plan hygiene (mechanical)
+
+After each worker turn and before terminal decisions, AGI runs `reconcilePlans(worktree)`:
+
+| Condition | Action |
+|-----------|--------|
+| `plans/*` with no `[ ]` | Move → `plans_completed/` |
+| `plans_completed/*` with open `[ ]` | Move → `plans/` (reopen) |
+| `active.length === 0` **and** `misplaced.length === 0` | True complete (or evolving) |
+| Misplaced / reopened remain | Inject PLAN HYGIENE DEBT directive (priority over features) |
+
+Worker directives always append `planHygieneWorkerFooter()`.  
+Progress bar shows `misplaced:N` when non-zero.
+
+**Do not** treat `active.length === 0` alone as success — fully-checked files still in `plans/` are debt.
+
 ## Gaps / risks (review findings)
 
 | Issue | Severity | Mitigation / next step |
@@ -79,6 +95,7 @@ Workers run **build** (default `*` allow + `destructive: ask`). Orchestrator has
 | Cost estimate is rough GPT-4 rates | Low | Cosmetic only |
 | Multi-worker IDs beyond main | Low | Parser supports multiple; UI mainly uses main worker |
 | Compaction mid-AGI | Handled | session_status compacting treated as busy |
+| Master plan cross-ref text after move | Low | Still model-driven; reconcile only moves files |
 
 ---
 

@@ -33,17 +33,20 @@ function getImageSize(
   cellHeight: number | null,
   mode: "kitty" | "sixel" | "none",
 ): { width: number; height: number } {
-  // Sixel maps ~1 pixel column → 1 cell and 6 pixel rows → 1 cell.
-  // When callers pass terminal-column-sized bitmaps, this matches the encoder.
-  if (mode === "sixel") {
-    return {
-      width: Math.max(1, imageWidth),
-      height: Math.max(1, Math.ceil(imageHeight / 6)),
-    }
-  }
-
-  const width = Math.ceil(imageWidth / (cellWidth ?? DEFAULT_CELL_WIDTH))
-  const height = Math.ceil(imageHeight / (cellHeight ?? DEFAULT_CELL_HEIGHT))
+  // Kitty and modern Sixel (Windows Terminal, xterm, WezTerm) map image
+  // pixels to screen pixels; layout cells = ceil(px / cellPx).
+  //
+  // The old Sixel model (1 sixel column = 1 cell, 6 rows = 1 cell) made
+  // 80×N bitmaps look like a few-cell "stamp" on those terminals — each
+  // source pixel effectively became one glyph-sized blob.
+  //
+  // Classic 1:1 is only kept as a last resort when mode is sixel AND we
+  // have no cell metrics at all (defaults still prefer screen-pixel layout).
+  void mode
+  const cw = cellWidth ?? DEFAULT_CELL_WIDTH
+  const ch = cellHeight ?? DEFAULT_CELL_HEIGHT
+  const width = Math.ceil(imageWidth / Math.max(1, cw))
+  const height = Math.ceil(imageHeight / Math.max(1, ch))
   return { width: Math.max(1, width), height: Math.max(1, height) }
 }
 

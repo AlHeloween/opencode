@@ -3,6 +3,14 @@
  *
  * Primary path: decode → RGBA → OpenTUI <image> (PixelBuffer → Kitty or Sixel).
  * Fallback: half-block symbols when the terminal has no graphics protocol.
+ *
+ * Pixel sizing must match OpenTUI ImageRenderable layout math:
+ *   layout cells = ceil(imagePx / cellPx)
+ *
+ * Both Kitty and modern Sixel (Windows Terminal, etc.) map image pixels to
+ * *screen* pixels. Bitmaps must be sized as `maxCols * cellWidth` — not
+ * ~80px “one pixel per cell”. The old 80×N sixel model rendered as a tiny
+ * stamp (looked like “one pixel = one symbol”).
  */
 import { createSignal, Switch, Match, onMount, createEffect, onCleanup } from "solid-js"
 import { StyledText, SyntaxStyle, type ImageRenderable } from "@opentui/core"
@@ -15,6 +23,14 @@ import * as Log from "@opencode-ai/core/util/log"
 const log = Log.create({ service: "tui.media.image" })
 
 const MAX_COLS = 80
+/** Match OpenTUI Image.ts defaults when terminal pixel resolution is unknown. */
+const DEFAULT_CELL_WIDTH = 18
+const DEFAULT_CELL_HEIGHT = 35
+/** Capability detection can arrive after first paint — wait before locking path. */
+const CAPS_WAIT_MS = 1000
+const CAPS_POLL_MS = 50
+
+export type GraphicsLayoutMode = "kitty" | "sixel" | "none"
 
 type RgbaFrame = {
   data: Uint8Array
@@ -22,12 +38,77 @@ type RgbaFrame = {
   height: number
 }
 
-function hasNativeGraphics(renderer: { capabilities: { kitty_graphics?: boolean; sixel?: boolean } | null }): boolean {
-  const caps = renderer.capabilities
-  return Boolean(caps?.kitty_graphics || caps?.sixel)
+type CapsRenderer = {
+  capabilities: { kitty_graphics?: boolean; sixel?: boolean } | null
+  resolution?: { width: number; height: number } | null
+  width?: number
+  height?: number
 }
 
-async function decodeDataUrlToRgba(dataUrl: string, maxCols: number): Promise<RgbaFrame | null> {
+export function graphicsLayoutMode(renderer: CapsRenderer): GraphicsLayoutMode {
+  const caps = renderer.capabilities
+  if (!caps) return "none"
+  if (caps.kitty_graphics) return "kitty"
+  if (caps.sixel) return "sixel"
+  return "none"
+}
+
+export function cellPixelSize(renderer: CapsRenderer): { cellWidth: number; cellHeight: number } {
+  const res = renderer.resolution
+  const cols = renderer.width
+  const rows = renderer.height
+  if (res && res.width > 0 && res.height > 0 && cols && cols > 0 && rows && rows > 0) {
+    return {
+      cellWidth: res.width / cols,
+      cellHeight: res.height / rows,
+    }
+  }
+  return { cellWidth: DEFAULT_CELL_WIDTH, cellHeight: DEFAULT_CELL_HEIGHT }
+}
+
+/**
+ * Target RGBA size for native graphics protocols.
+ * Pure helper — unit-tested; keeps MediaImage and OpenTUI Image layout aligned.
+ *
+ * Kitty and Sixel both use screen-pixel bitmaps sized to fill `maxCols` cells.
+ * Sixel height is rounded up to a multiple of 6 (encoder band size only).
+ */
+export function nativeImagePixelSize(input: {
+  srcWidth: number
+  srcHeight: number
+  maxCols: number
+  mode: GraphicsLayoutMode
+  cellWidth: number
+  cellHeight: number
+}): { width: number; height: number } {
+  const aspect = input.srcWidth / Math.max(1, input.srcHeight)
+  const maxCols = Math.max(1, input.maxCols)
+  const cellW = Math.max(1, input.cellWidth)
+  // Fill maxCols cells at real cell pixel width (not 1px/cell).
+  const width = Math.round(maxCols * cellW)
+  let height = Math.max(1, Math.round(width / aspect))
+  if (input.mode === "sixel") {
+    height = Math.ceil(height / 6) * 6
+  }
+  return { width, height }
+}
+
+async function waitForCapabilities(renderer: CapsRenderer, timeoutMs: number): Promise<void> {
+  if (renderer.capabilities) return
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (renderer.capabilities) return
+    await new Promise((r) => setTimeout(r, CAPS_POLL_MS))
+  }
+}
+
+async function decodeDataUrlToRgba(
+  dataUrl: string,
+  maxCols: number,
+  mode: GraphicsLayoutMode,
+  cellWidth: number,
+  cellHeight: number,
+): Promise<RgbaFrame | null> {
   const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!match) return null
 
@@ -36,18 +117,21 @@ async function decodeDataUrlToRgba(dataUrl: string, maxCols: number): Promise<Rg
   const j = (await import("jimp")) as any
   const img = await j.Jimp.read(bytes)
 
-  const aspect = img.width / Math.max(1, img.height)
-  const cols = Math.min(img.width, maxCols)
-  const rows = Math.max(1, Math.round(cols / aspect))
-  // Round height up to a sixel band so Sixel layout (ceil(h/6)) is stable.
-  const sixelRows = Math.ceil(rows / 6) * 6
-  img.resize({ w: cols, h: sixelRows })
+  const { width: cols, height: rows } = nativeImagePixelSize({
+    srcWidth: img.width,
+    srcHeight: img.height,
+    maxCols,
+    mode,
+    cellWidth,
+    cellHeight,
+  })
 
-  const data = new Uint8Array(cols * sixelRows * 4)
-  for (let y = 0; y < sixelRows; y++) {
+  img.resize({ w: cols, h: rows })
+
+  const data = new Uint8Array(cols * rows * 4)
+  for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const i = (y * cols + x) * 4
-      // Jimp bitmap is RGBA
       data[i] = img.bitmap.data[i]!
       data[i + 1] = img.bitmap.data[i + 1]!
       data[i + 2] = img.bitmap.data[i + 2]!
@@ -55,7 +139,7 @@ async function decodeDataUrlToRgba(dataUrl: string, maxCols: number): Promise<Rg
     }
   }
 
-  return { data, width: cols, height: sixelRows }
+  return { data, width: cols, height: rows }
 }
 
 export function MediaImage(props: { url: string; mime: string }) {
@@ -67,6 +151,7 @@ export function MediaImage(props: { url: string; mime: string }) {
   const [contentText, setContentText] = createSignal("")
   const dummySyntax = SyntaxStyle.create()
   let imageRef: ImageRenderable | undefined
+  let cancelled = false
 
   onMount(async () => {
     if (!props.url) {
@@ -74,11 +159,26 @@ export function MediaImage(props: { url: string; mime: string }) {
       return
     }
 
-    // Prefer OpenTUI PixelBuffer path when the terminal advertised Kitty or Sixel.
-    if (hasNativeGraphics(renderer)) {
+    // Capability probe often finishes after first mount; wait briefly so mermaid
+    // does not permanently lock into half-block symbols on a graphics terminal.
+    await waitForCapabilities(renderer as CapsRenderer, CAPS_WAIT_MS)
+    if (cancelled) return
+
+    const mode = graphicsLayoutMode(renderer as CapsRenderer)
+    const cells = cellPixelSize(renderer as CapsRenderer)
+
+    if (mode === "kitty" || mode === "sixel") {
       try {
-        const rgba = await decodeDataUrlToRgba(props.url, MAX_COLS)
+        const rgba = await decodeDataUrlToRgba(props.url, MAX_COLS, mode, cells.cellWidth, cells.cellHeight)
+        if (cancelled) return
         if (rgba) {
+          log.debug("MediaImage: native path", {
+            mode,
+            width: rgba.width,
+            height: rgba.height,
+            cellWidth: cells.cellWidth,
+            cellHeight: cells.cellHeight,
+          })
           setFrame(rgba)
           setState("native")
           return
@@ -90,7 +190,9 @@ export function MediaImage(props: { url: string; mime: string }) {
 
     try {
       const tmp = await decodeAndSymbols(props.url)
+      if (cancelled) return
       if (tmp) {
+        log.debug("MediaImage: symbols path", { mode })
         setStyledText(tmp.styled)
         setContentText(tmp.content)
         setState("symbols")
@@ -100,7 +202,7 @@ export function MediaImage(props: { url: string; mime: string }) {
       log.debug("MediaImage: symbols render failed", { error: String(e) })
     }
 
-    setState("error")
+    if (!cancelled) setState("error")
   })
 
   createEffect(() => {
@@ -110,6 +212,7 @@ export function MediaImage(props: { url: string; mime: string }) {
   })
 
   onCleanup(() => {
+    cancelled = true
     imageRef = undefined
   })
 

@@ -9,8 +9,11 @@ const MAX_PALETTE: usize = 256;
 
 pub const IMAGE = struct {
     /// Encode raw RGBA (`width * height * 4`) to sixel and write at cursor (x,y).
-    /// When `cell_w`/`cell_h` > 0, scales so one sixel column ≈ one cell and
-    /// sixel height ≈ `cell_h` terminal rows (6 pixels per row).
+    ///
+    /// `cell_w`/`cell_h` reserve layout space for delete/clear only — they must
+    /// NOT crush the bitmap to 1 sixel-column-per-cell. Modern terminals
+    /// (Windows Terminal, xterm) map 1 sixel pixel ≈ 1 screen pixel; callers
+    /// size RGBA to `cols * cellPxW` so the image fills the reserved cells.
     pub fn create(
         writer: anytype,
         id: u32,
@@ -24,15 +27,16 @@ pub const IMAGE = struct {
         allocator: Allocator,
     ) void {
         _ = id;
+        _ = cell_w;
+        _ = cell_h;
         if (width == 0 or height == 0) return;
         const expected = @as(usize, width) * @as(usize, height) * 4;
         if (data.len < expected) return;
 
-        const target_w: u32 = if (cell_w > 0) cell_w else width;
-        const target_h: u32 = if (cell_h > 0)
-            @max(6, cell_h * 6)
-        else
-            @max(6, ((height + 5) / 6) * 6);
+        // Encode at source resolution (pad height to a sixel band). Do not
+        // downscale to cell_w × cell_h*6 — that produced stamp-sized images.
+        const target_w = width;
+        const target_h: u32 = @max(6, ((height + 5) / 6) * 6);
 
         const scaled = scaleRgba(data, width, height, target_w, target_h, allocator) catch return;
         defer allocator.free(scaled);

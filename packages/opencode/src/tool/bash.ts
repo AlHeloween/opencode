@@ -20,7 +20,7 @@ import { stripCommand } from "./strip-win"
 import { BashArity } from "@/permission/arity"
 import * as Truncate from "./truncate"
 import { Plugin } from "@/plugin"
-import { Effect, Stream } from "effect"
+import { Deferred, Effect, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { InstanceState } from "@/effect/instance-state"
@@ -651,6 +651,10 @@ export const BashTool = Tool.define(
           // Don't wait for exit — return immediately; user interacts via the terminal.
           if (isCmdRunner) return null
 
+          // Fork stream drain but await it after exit/kill — otherwise fast processes
+          // race exitCode vs forked consumer and agent tools report "(no output)"
+          // while user !shell (sequential read) still works. See cmd.ts.
+          const drained = yield* Deferred.make<void>()
           yield* Effect.forkScoped(
             Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {
               const size = Buffer.byteLength(chunk, "utf-8")
@@ -700,7 +704,7 @@ export const BashTool = Tool.define(
                   description: input.description,
                 },
               })
-            }),
+            }).pipe(Effect.ensuring(Deferred.succeed(drained, undefined).pipe(Effect.asVoid))),
           )
 
           const abort = Effect.callback<void>((resume) => {
@@ -727,6 +731,7 @@ export const BashTool = Tool.define(
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash timeout kill failed"))))
           }
 
+          yield* Deferred.await(drained)
           return exit.kind === "exit" ? exit.code : null
         }),
       ).pipe(Effect.orDie)

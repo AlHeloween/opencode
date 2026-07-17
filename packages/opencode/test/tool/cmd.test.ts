@@ -68,6 +68,28 @@ describe("tool.cmd", () => {
     })
   })
 
+  // Regression: forked stream drain raced process exitCode → empty output for
+  // fast commands (agent cmd tool), while sequential !shell path still worked.
+  test("fast command with 2>&1 captures stdout (no empty race)", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const tool = await initCmd()
+        // where is very fast; 2>&1 is what agents often emit
+        const cmd =
+          process.platform === "win32" ? "where cmd 2>&1" : "command -v sh 2>&1 || which sh 2>&1"
+        // Run several times — the race was intermittent
+        for (let i = 0; i < 8; i++) {
+          const result = await Effect.runPromise(
+            tool.execute({ command: cmd, description: "where with redirect", timeout: 10000 }, ctx as any),
+          )
+          expect(result.output).not.toBe("(no output)")
+          expect(result.output.trim().length).toBeGreaterThan(0)
+        }
+      },
+    })
+  }, 60_000)
+
   test("fails on missing command", async () => {
     await Instance.provide({
       directory: projectRoot,

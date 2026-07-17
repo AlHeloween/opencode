@@ -1,4 +1,4 @@
-import { Effect, Schema, Stream } from "effect"
+import { Deferred, Effect, Schema, Stream } from "effect"
 import { createWriteStream } from "node:fs"
 import path from "path"
 import * as Tool from "./tool"
@@ -157,6 +157,8 @@ export const RunTool = Tool.define(
           const handle = yield* spawner.spawn(
             ChildProcess.make(resolved, input.args, { cwd: input.cwd, env: input.env, stdin: "ignore" }),
           )
+          // Await drain after exit — same race as bash/cmd (forked stream vs exitCode).
+          const drained = yield* Deferred.make<void>()
           yield* Effect.forkScoped(
             Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {
               const size = Buffer.byteLength(chunk, "utf-8")
@@ -197,7 +199,7 @@ export const RunTool = Tool.define(
               return ctx.metadata({
                 metadata: { output: last, description: input.description },
               })
-            }),
+            }).pipe(Effect.ensuring(Deferred.succeed(drained, undefined).pipe(Effect.asVoid))),
           )
           const abort = Effect.callback<void>((resume) => {
             if (ctx.abort.aborted) return resume(Effect.void)
@@ -223,6 +225,7 @@ export const RunTool = Tool.define(
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
 
+          yield* Deferred.await(drained)
           return exit.kind === "exit" ? exit.code : null
         }),
       )

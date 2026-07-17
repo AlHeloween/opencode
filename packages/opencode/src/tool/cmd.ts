@@ -16,7 +16,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 
 import * as Truncate from "./truncate"
 import { Plugin } from "@/plugin"
-import { Effect, Stream } from "effect"
+import { Deferred, Effect, Stream } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
@@ -420,6 +420,11 @@ export const CmdTool = Tool.define(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
 
+          // Drain stdout+stderr on a fiber, but ALWAYS await completion before leaving
+          // the scope. Racing exitCode alone used to return while the pipe still held
+          // data → agent tools reported "(no output)" for fast cmds like `where … 2>&1`,
+          // while user !shell (sequential Stream.runForEach then exitCode) worked fine.
+          const drained = yield* Deferred.make<void>()
           yield* Effect.forkScoped(
             Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {
               const size = Buffer.byteLength(chunk, "utf-8")
@@ -453,7 +458,7 @@ export const CmdTool = Tool.define(
                 }
               }
               return ctx.metadata({ metadata: { output: last, description: input.description } })
-            }),
+            }).pipe(Effect.ensuring(Deferred.succeed(drained, undefined).pipe(Effect.asVoid))),
           )
 
           const abort = Effect.callback<void>((resume) => {
@@ -479,6 +484,8 @@ export const CmdTool = Tool.define(
             expired = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
+          // Process may exit before the stream consumer finishes reading pipe buffers.
+          yield* Deferred.await(drained)
           return exit.kind === "exit" ? exit.code : null
         }),
       ).pipe(Effect.orDie)

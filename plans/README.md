@@ -13,7 +13,6 @@ Superseded / deferred designs live in `abstract_futures/` (do not implement from
 
 | Plan | Status |
 |------|--------|
-| `20260714_reasoning_kernel_taxonomy_compaction.md` | Done pending final explore — oracles, compose, checkpoint v4 identity fingerprint |
 | `2026-07-16-tui-startup-parallelization.md` | Active — Phase 1 done; Phase 2–3 optional |
 | `emergency/2026-07-16-tui-cpu-performance-audit.md` | Active — idle drivers + delta debounce done; highlight debounce open |
 
@@ -23,6 +22,7 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes.
 
 ## Recently completed → `plans_completed/`
 
+- `20260714_reasoning_kernel_taxonomy_compaction.md`
 - `2026-07-15_block-anchor-replacer-fix.md`
 - `2026-07-15_git-push-no-verify-prohibition.md`
 - `2026-07-16_incremental-summary-compaction.md`

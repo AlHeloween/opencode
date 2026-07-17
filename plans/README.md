@@ -13,8 +13,8 @@ Superseded / deferred designs live in `abstract_futures/` (do not implement from
 
 | Plan | Status |
 |------|--------|
-| `2026-07-16-tui-startup-parallelization.md` | Active — Phase 1 done; Phase 2–3 optional |
-| `emergency/2026-07-16-tui-cpu-performance-audit.md` | Active — idle drivers + delta debounce done; highlight debounce open |
+| `2026-07-16-tui-startup-parallelization.md` | Phase 1 + 3.1 done; Phase 2 caches optional |
+| `emergency/2026-07-16-tui-cpu-performance-audit.md` | Core items done; optional profiling follow-ups |
 
 ## Abstract futures (not active)
 

@@ -67,8 +67,12 @@ export class CodeRenderable extends TextBufferRenderable {
   private _renderedLineSources?: number[]
   private _mappedLineInfo?: LineInfo
   // Debounce highlighting during streaming to avoid tree-sitter re-parse on every token.
+  // Trailing timer ensures a final highlight runs after content settles (and when
+  // streaming ends) — a bare "return while dirty" left text unstyled forever.
   private _lastContentChangeAt: number = 0
-  private static readonly HIGHLIGHT_DEBOUNCE_MS = 150
+  private _highlightDebounceTimer: ReturnType<typeof setTimeout> | undefined
+  /** Public for tests. Quiet period before a streaming re-highlight. */
+  static readonly HIGHLIGHT_DEBOUNCE_MS = 150
 
   protected _contentDefaultOptions = {
     content: "",
@@ -228,7 +232,32 @@ export class CodeRenderable extends TextBufferRenderable {
       this._hadInitialContent = false
       this._lastHighlights = []
       this._highlightsDirty = true
+      // Streaming finished: cancel quiet-period wait and highlight immediately
+      // on the next render (content is stable; further tokens will not arrive).
+      if (!value) this.clearHighlightDebounce()
     }
+  }
+
+  private clearHighlightDebounce() {
+    if (this._highlightDebounceTimer === undefined) return
+    clearTimeout(this._highlightDebounceTimer)
+    this._highlightDebounceTimer = undefined
+  }
+
+  /** After quiet period, force a render so dirty highlights flush. */
+  private scheduleHighlightDebounce() {
+    this.clearHighlightDebounce()
+    this._highlightDebounceTimer = setTimeout(() => {
+      this._highlightDebounceTimer = undefined
+      if (this.isDestroyed) return
+      this._highlightsDirty = true
+      this.requestRender()
+    }, CodeRenderable.HIGHLIGHT_DEBOUNCE_MS)
+  }
+
+  override destroy(): void {
+    this.clearHighlightDebounce()
+    super.destroy()
   }
 
   get treeSitterClient(): TreeSitterClient {
@@ -564,13 +593,17 @@ export class CodeRenderable extends TextBufferRenderable {
         // Always populate the text buffer with unstyled content so the
         // renderer has something visible even while we debounce highlighting.
         this.ensureVisibleTextBeforeHighlight()
-        // During streaming, debounce the tree-sitter re-parse to avoid
-        // re-highlighting on every token delta. Text is already visible
-        // (unstyled) from ensureVisibleTextBeforeHighlight above.
-        if (this._streaming && performance.now() - this._lastContentChangeAt < CodeRenderable.HIGHLIGHT_DEBOUNCE_MS) {
+        // During streaming, debounce tree-sitter re-parse. Schedule a trailing
+        // flush so we still highlight after tokens stop (and when streaming ends).
+        if (
+          this._streaming &&
+          performance.now() - this._lastContentChangeAt < CodeRenderable.HIGHLIGHT_DEBOUNCE_MS
+        ) {
           this._highlightsDirty = true
+          this.scheduleHighlightDebounce()
           return
         }
+        this.clearHighlightDebounce()
         this._highlightsDirty = false
         this._highlightingPromise = this.startHighlight()
       }

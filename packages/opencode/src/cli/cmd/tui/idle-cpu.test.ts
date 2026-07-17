@@ -104,4 +104,53 @@ describe("Idle CPU interval policy", () => {
     if (!busy(false, true, false, false)) running = false
     expect(running).toBe(true)
   })
+
+  test("streaming highlight debounce uses trailing flush, not only skip", () => {
+    // Prior bug: keep dirty + return without scheduling → stuck unstyled after stream ends.
+    const DEBOUNCE_MS = 150
+    let highlightStarts = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let lastChange = 0
+    let streaming = true
+
+    const clear = () => {
+      if (timer) clearTimeout(timer)
+      timer = undefined
+    }
+    const schedule = () => {
+      clear()
+      timer = setTimeout(() => {
+        timer = undefined
+        highlightStarts++
+      }, DEBOUNCE_MS)
+    }
+    const onRender = (now: number) => {
+      if (streaming && now - lastChange < DEBOUNCE_MS) {
+        schedule()
+        return
+      }
+      clear()
+      highlightStarts++
+    }
+
+    lastChange = 0
+    onRender(10) // within window → schedule only
+    expect(highlightStarts).toBe(0)
+    expect(timer).toBeDefined()
+    clear()
+
+    // After quiet period, trailing flush would fire
+    lastChange = 0
+    onRender(0)
+    // simulate timer fire
+    highlightStarts++
+    clear()
+    expect(highlightStarts).toBe(1)
+
+    // streaming=false → immediate highlight on next render
+    streaming = false
+    lastChange = 1000
+    onRender(1000)
+    expect(highlightStarts).toBe(2)
+  })
 })

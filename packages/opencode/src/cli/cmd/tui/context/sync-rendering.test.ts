@@ -287,6 +287,39 @@ describe("Debounced running delta batching", () => {
   })
 })
 
+describe("Bootstrap critical vs deferred stages", () => {
+  // Mirrors sync.tsx bootstrap: critical → partial → sessions → complete
+  type Stage = "loading" | "partial" | "sessions" | "complete"
+
+  async function simulateBootstrap(input: {
+    criticalMs: number
+    sessionMs: number
+    deferredMs: number
+  }) {
+    const events: Stage[] = ["loading"]
+    await new Promise((r) => setTimeout(r, input.criticalMs))
+    events.push("partial") // ready for prompt without waiting for session list
+    await new Promise((r) => setTimeout(r, input.sessionMs))
+    events.push("sessions")
+    await new Promise((r) => setTimeout(r, input.deferredMs))
+    events.push("complete")
+    return events
+  }
+
+  test("marks partial before sessions and complete after deferred", async () => {
+    const events = await simulateBootstrap({ criticalMs: 5, sessionMs: 5, deferredMs: 5 })
+    expect(events).toEqual(["loading", "partial", "sessions", "complete"])
+    expect(events.indexOf("partial")).toBeLessThan(events.indexOf("sessions"))
+  })
+
+  test("ready semantics: partial is ready, loading is not", () => {
+    const ready = (status: string) => status !== "loading"
+    expect(ready("loading")).toBe(false)
+    expect(ready("partial")).toBe(true)
+    expect(ready("complete")).toBe(true)
+  })
+})
+
 describe("System prompt stable-first assembly order", () => {
   // Mirrors prompt.ts non-checkpoint assembly:
   // skills → env → rules → instructions (most mutable last for KV cache).

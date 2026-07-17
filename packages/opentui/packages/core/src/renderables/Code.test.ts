@@ -2386,3 +2386,68 @@ test("CodeRenderable - streaming with drawUnstyledText=false falls back to unsty
 
   expect(codeRenderable.plainText).toBe("const updated = 'world';")
 })
+
+test("CodeRenderable - streaming debounce suppresses mid-burst highlight then flushes", async () => {
+  const syntaxStyle = SyntaxStyle.fromStyles({
+    default: { fg: RGBA.fromValues(1, 1, 1, 1) },
+    keyword: { fg: RGBA.fromValues(0, 0, 1, 1) },
+  })
+
+  let highlightCount = 0
+  const mockClient = new MockTreeSitterClient()
+  const originalHighlightOnce = mockClient.highlightOnce.bind(mockClient)
+  mockClient.highlightOnce = async (content: string, filetype: string) => {
+    highlightCount++
+    return originalHighlightOnce(content, filetype)
+  }
+  mockClient.setMockResult({
+    highlights: [[0, 3, "keyword"]] as SimpleHighlight[],
+  })
+
+  const codeRenderable = new CodeRenderable(currentRenderer, {
+    id: "test-code-stream-debounce",
+    content: "con",
+    filetype: "javascript",
+    syntaxStyle,
+    treeSitterClient: mockClient,
+    streaming: true,
+    drawUnstyledText: true,
+    conceal: false,
+  })
+
+  currentRenderer.root.add(codeRenderable)
+  await renderOnce()
+  mockClient.resolveAllHighlightOnce()
+  await waitForHighlight(codeRenderable)
+  const afterInitial = highlightCount
+
+  // Rapid token-like updates within the debounce window
+  codeRenderable.content = "cons"
+  await renderOnce()
+  codeRenderable.content = "const"
+  await renderOnce()
+  codeRenderable.content = "const x"
+  await renderOnce()
+
+  // Mid-burst: trailing timer not fired yet — should not have started extra highlights
+  // beyond at most one that raced after initial (keep loose bound)
+  expect(highlightCount).toBeLessThanOrEqual(afterInitial + 1)
+
+  // Quiet period — trailing flush schedules requestRender → highlight
+  await new Promise((r) => setTimeout(r, CodeRenderable.HIGHLIGHT_DEBOUNCE_MS + 30))
+  await renderOnce()
+  mockClient.resolveAllHighlightOnce()
+  await waitForHighlight(codeRenderable)
+
+  expect(highlightCount).toBeGreaterThan(afterInitial)
+  expect(codeRenderable.content).toBe("const x")
+
+  // Ending stream forces immediate path on next dirty render
+  const beforeEnd = highlightCount
+  codeRenderable.content = "const x = 1"
+  codeRenderable.streaming = false
+  await renderOnce()
+  mockClient.resolveAllHighlightOnce()
+  await waitForHighlight(codeRenderable)
+  expect(highlightCount).toBeGreaterThan(beforeEnd)
+})

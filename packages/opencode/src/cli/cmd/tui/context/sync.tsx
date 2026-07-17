@@ -742,13 +742,14 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       const projectPromise = project.sync()
       // session.list depends on project.sync() populating projectWorktrees.
       // If called in parallel, listGlobal() sees empty worktrees → zero sessions.
+      // Start it as soon as project resolves, but do not block first paint on it.
       const sessionListPromise = projectPromise.then(() =>
         sdk.client.session
           .list({})
           .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id))),
       )
 
-      // blocking - include session.list when continuing a session
+      // Critical for interactive UI (model picker, agents, config, project path)
       const providersPromise = sdk.client.config.providers({ workspace }, { throwOnError: true })
       const providerListPromise = sdk.client.provider.list({ workspace }, { throwOnError: true })
       const consoleStatePromise = sdk.client.experimental.console
@@ -757,59 +758,45 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         .catch(() => emptyConsoleState)
       const agentsPromise = sdk.client.app.agents({ workspace }, { throwOnError: true })
       const configPromise = sdk.client.config.get({ workspace }, { throwOnError: true })
-      const blockingRequests: Promise<unknown>[] = [
+
+      await Promise.all([
         providersPromise,
         providerListPromise,
         agentsPromise,
         configPromise,
         projectPromise,
-        sessionListPromise,
-      ]
-
-      await Promise.all(blockingRequests)
+      ])
         .then(async () => {
-          const providersResponse = providersPromise.then((x) => x.data!)
-          const providerListResponse = providerListPromise.then((x) => x.data!)
-          const consoleStateResponse = consoleStatePromise
-          const agentsResponse = agentsPromise.then((x) => x.data ?? [])
-          const configResponse = configPromise.then((x) => x.data!)
-          const sessionListResponse = sessionListPromise
+          const [providers, providerList, agents, config] = await Promise.all([
+            providersPromise.then((x) => x.data!),
+            providerListPromise.then((x) => x.data!),
+            agentsPromise.then((x) => x.data ?? []),
+            configPromise.then((x) => x.data!),
+          ])
 
-          return Promise.all([
-            providersResponse,
-            providerListResponse,
-            consoleStateResponse,
-            agentsResponse,
-            configResponse,
-            sessionListResponse,
-          ]).then((responses) => {
-            const providers = responses[0]
-            const providerList = responses[1]
-            const consoleState = responses[2]
-            const agents = responses[3]
-            const config = responses[4]
-            const sessions = responses[5]
-
-            batch(() => {
-              setStore("provider", reconcile(providers.providers))
-              setStore("provider_default", reconcile(providers.default))
-              setStore("provider_next", reconcile(providerList))
-              setStore("console_state", reconcile(consoleState))
-              setStore("agent", reconcile(agents))
-              setStore("config", reconcile(config))
-              if (sessions !== undefined) {
-                const nextIDs = new Set(sessions.map((s) => s.id))
-                for (const existing of store.session) {
-                  if (!nextIDs.has(existing.id)) cleanupSessionStores(existing.id)
-                }
-                setStore("session", reconcile(sessions))
-              }
-            })
+          batch(() => {
+            setStore("provider", reconcile(providers.providers))
+            setStore("provider_default", reconcile(providers.default))
+            setStore("provider_next", reconcile(providerList))
+            setStore("agent", reconcile(agents))
+            setStore("config", reconcile(config))
+          })
+          // UI can accept prompts while session list / panels still load
+          if (store.status !== "complete") setStore("status", "partial")
+        })
+        .then(async () => {
+          // Apply sessions when ready (already in flight after project.sync)
+          const sessions = await sessionListPromise
+          batch(() => {
+            const nextIDs = new Set(sessions.map((s) => s.id))
+            for (const existing of store.session) {
+              if (!nextIDs.has(existing.id)) cleanupSessionStores(existing.id)
+            }
+            setStore("session", reconcile(sessions))
           })
         })
         .then(() => {
-          if (store.status !== "complete") setStore("status", "partial")
-          // non-blocking
+          // non-blocking secondary panels
           void Promise.all([
             consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
             sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),

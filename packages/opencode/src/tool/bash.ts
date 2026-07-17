@@ -806,12 +806,15 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
-              // Constitution preflight: rank risk (Python kernel Risk mirror). Does not
-              // replace permissions — logs elevated/destructive for audit + future hard gates.
-              Constitution.noteCommandRisk(params.command, {
+              // Constitution preflight (kernel Risk mirror): block DESTRUCTIVE unless
+              // OPENCODE_ALLOW_DESTRUCTIVE=1. Permissions still apply for everything else.
+              const guard = Constitution.guardCommand(params.command, {
                 sessionID: ctx.sessionID,
                 agent: ctx.extra?.agent as string | undefined,
               })
+              if (guard.blocked) {
+                throw new Error(guard.message ?? "constitution: command blocked")
+              }
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)
                 : Instance.directory

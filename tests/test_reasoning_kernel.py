@@ -1138,6 +1138,15 @@ class TestCommunicationDirectives:
 class TestConformanceSuite:
     """§XVII All 20 conformance tests pass."""
 
+    def test_external_oracle_ids_are_honest_subset(self):
+        from opencode_prompts_kernel import EXTERNAL_ORACLE_TEST_IDS, kernel_closed_test_ids
+        suite_ids = {t.name for t in build_conformance_suite()}
+        assert EXTERNAL_ORACLE_TEST_IDS <= suite_ids
+        closed = kernel_closed_test_ids()
+        assert closed.isdisjoint(EXTERNAL_ORACLE_TEST_IDS)
+        assert closed | EXTERNAL_ORACLE_TEST_IDS == suite_ids
+        assert len(closed) >= 10
+
     def test_build_conformance_suite(self):
         suite = build_conformance_suite()
         assert len(suite) == 20

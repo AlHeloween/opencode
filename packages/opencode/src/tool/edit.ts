@@ -20,6 +20,7 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Global } from "@opencode-ai/core/global"
 import * as Bom from "@/util/bom"
 import { execFile } from "child_process"
+import { Constitution } from "@/session/constitution"
 
 const MAX_BACKUPS_PER_SESSION = 50
 
@@ -138,6 +139,7 @@ export const EditTool = Tool.define(
           const filePath = path.isAbsolute(params.filePath)
             ? params.filePath
             : path.join(Instance.directory, params.filePath)
+          Constitution.noteMutationRisk({ tool: "edit", path: filePath, sessionID: ctx.sessionID })
           yield* assertExternalDirectoryEffect(ctx, filePath)
 
           let diff = ""

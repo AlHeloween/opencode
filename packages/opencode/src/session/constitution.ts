@@ -49,6 +49,8 @@ const DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\bmkfs\b/i,
   /\bdd\s+if=/i,
   />\s*\/dev\/sd/i,
+  /\bRemove-Item\b[^\n]*-Recurse[^\n]*-Force/i,
+  /\bRemove-Item\b[^\n]*-Force[^\n]*-Recurse/i,
 ]
 
 const ELEVATED_PATTERNS: RegExp[] = [
@@ -64,9 +66,16 @@ const ELEVATED_PATTERNS: RegExp[] = [
   /\brmdir\b/i,
 ]
 
+/** Opt-out: OPENCODE_ALLOW_DESTRUCTIVE=1|true|yes permits DESTRUCTIVE shell. */
+export function allowDestructiveCommands(): boolean {
+  const v = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+  if (!v) return false
+  return v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes"
+}
+
 /**
- * Classify a shell command's risk for logging / future hard gates.
- * Does not replace permission system — constitution layer on top.
+ * Classify a shell command's risk for logging / hard gates.
+ * Does not replace the permission system — constitution layer on top.
  */
 export function classifyCommandRisk(command: string): Risk {
   const text = command.trim()
@@ -76,17 +85,74 @@ export function classifyCommandRisk(command: string): Risk {
   return "LOW"
 }
 
-/** Log constitution risk; returns risk for callers that want soft policy. */
-export function noteCommandRisk(command: string, meta?: { sessionID?: string; agent?: string }): Risk {
+export type CommandGuardResult = {
+  risk: Risk
+  /** When true, tool must not execute. */
+  blocked: boolean
+  message?: string
+}
+
+/**
+ * Constitution preflight for shell. DESTRUCTIVE is blocked unless
+ * OPENCODE_ALLOW_DESTRUCTIVE is set. ELEVATED is logged only.
+ */
+export function guardCommand(
+  command: string,
+  meta?: { sessionID?: string; agent?: string },
+): CommandGuardResult {
   const risk = classifyCommandRisk(command)
-  if (risk === "LOW") return risk
+  if (risk === "LOW") return { risk, blocked: false }
+
   log.warn("constitution.command_risk", {
     risk,
     command: command.slice(0, 200),
     sessionID: meta?.sessionID,
     agent: meta?.agent,
+    allowDestructive: allowDestructiveCommands(),
+  })
+
+  if (risk === "DESTRUCTIVE" && !allowDestructiveCommands()) {
+    const message =
+      "constitution: DESTRUCTIVE command blocked (Risk=DESTRUCTIVE). " +
+      "Reversibility is low (rm -rf, git push --force, reset --hard, …). " +
+      "Run manually if intentional, or set OPENCODE_ALLOW_DESTRUCTIVE=1 to override."
+    log.warn("constitution.command_blocked", {
+      command: command.slice(0, 200),
+      sessionID: meta?.sessionID,
+    })
+    return { risk, blocked: true, message }
+  }
+  return { risk, blocked: false }
+}
+
+/** @deprecated prefer guardCommand — kept for call sites that only need the rank. */
+export function noteCommandRisk(command: string, meta?: { sessionID?: string; agent?: string }): Risk {
+  return guardCommand(command, meta).risk
+}
+
+/** File mutation is always at least ELEVATED (persistent write). */
+export function noteMutationRisk(input: {
+  tool: "edit" | "write" | "multiedit" | "apply_patch"
+  path: string
+  sessionID?: string
+}): Risk {
+  const risk: Risk = "ELEVATED"
+  log.debug("constitution.mutation_risk", {
+    risk,
+    tool: input.tool,
+    path: input.path.slice(0, 240),
+    sessionID: input.sessionID,
   })
   return risk
+}
+
+/** Banner for Exact archive retrieval (session-read). */
+export function sessionReadExactBanner(sessionID: string): string {
+  return (
+    `## Session: ${sessionID}\n` +
+    `info_mark: Exact — ground-truth archive (not a summary).\n` +
+    `Prefer these IDs over Inferred compaction text when resolving conflicts.\n`
+  )
 }
 
 /** True if left is at least as certain as right (Exact beats Guess). */

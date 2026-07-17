@@ -18,6 +18,35 @@ describe("session.constitution", () => {
     expect(Constitution.classifyCommandRisk("git status")).toBe("LOW")
   })
 
+  test("guardCommand blocks DESTRUCTIVE by default", () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      const g = Constitution.guardCommand("rm -rf /tmp/x")
+      expect(g.blocked).toBe(true)
+      expect(g.risk).toBe("DESTRUCTIVE")
+      expect(g.message).toContain("DESTRUCTIVE")
+      expect(Constitution.guardCommand("ls").blocked).toBe(false)
+      expect(Constitution.guardCommand("git push origin main").blocked).toBe(false)
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
+
+  test("guardCommand allows DESTRUCTIVE when OPENCODE_ALLOW_DESTRUCTIVE=1", () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = "1"
+    try {
+      const g = Constitution.guardCommand("git push --force origin main")
+      expect(g.blocked).toBe(false)
+      expect(g.risk).toBe("DESTRUCTIVE")
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
+
   test("infoMarkAtLeast ranks Exact over Guess", () => {
     expect(Constitution.infoMarkAtLeast("Exact", "Inferred")).toBe(true)
     expect(Constitution.infoMarkAtLeast("Guess", "Exact")).toBe(false)
@@ -28,5 +57,11 @@ describe("session.constitution", () => {
     expect(Constitution.MEMORY_INFO_MARK.sessionRead).toBe("Exact")
     expect(Constitution.MEMORY_INFO_MARK.summary).toBe("Inferred")
     expect(Constitution.MEMORY_INFO_MARK.unaided).toBe("Guess")
+  })
+
+  test("sessionReadExactBanner marks Exact", () => {
+    const b = Constitution.sessionReadExactBanner("ses_1")
+    expect(b).toContain("info_mark: Exact")
+    expect(b).toContain("ses_1")
   })
 })

@@ -1,5 +1,7 @@
 Reads messages from a conversation session by index position. Use this to get full context around messages found by messagesearch.
 
+**Epistemic rank:** output is **Exact** (ground-truth archive). Prefer these IDs over Inferred compaction/summary text when resolving conflicts.
+
 ## Output Format
 
 Each message includes:

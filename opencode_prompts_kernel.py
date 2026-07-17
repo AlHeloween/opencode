@@ -1164,11 +1164,13 @@ def build_conformance_suite() -> list[ConformanceTest]:
         r = Resource(id="wc", wildcard_policy="reject", expanded_matches=["a.txt"])
         return r.wildcard_policy == "reject"
 
+    # EXTERNAL_ORACLE: closed only when sandbox/runtime hooks are attached.
+    # Listed in EXTERNAL_ORACLE_TEST_IDS so claims of "kernel closed" stay honest.
     def _test_undeclared_write() -> bool:
-        return True  # sandbox is external; assume hook exists
+        return True  # EXTERNAL_ORACLE: process sandbox write audit
 
     def _test_process_termination() -> bool:
-        return True  # external runtime feature
+        return True  # EXTERNAL_ORACLE: OS process control
 
     def _test_audit_effects() -> bool:
         b = Budget(maximum_bytes_written=4096)
@@ -1180,7 +1182,7 @@ def build_conformance_suite() -> list[ConformanceTest]:
         return ae.maximum_objects > b.maximum_modified
 
     def _test_atomic_partial_failure() -> bool:
-        return True  # state machine transitions tested separately
+        return True  # EXTERNAL_ORACLE: multi-resource transaction runner
 
     def _test_rollback_concurrency() -> bool:
         try:
@@ -1190,7 +1192,7 @@ def build_conformance_suite() -> list[ConformanceTest]:
             return True
 
     def _test_exact_byte_restoration() -> bool:
-        return True  # external backup feature
+        return True  # EXTERNAL_ORACLE: backup/restore storage
 
     def _test_missing_artifact_blocks() -> bool:
         try:
@@ -1218,7 +1220,7 @@ def build_conformance_suite() -> list[ConformanceTest]:
         return r.data_egress_policy == "none"
 
     def _test_reverse_order_rollback() -> bool:
-        return True  # multi-resource rollback is operational
+        return True  # EXTERNAL_ORACLE: multi-resource rollback runner
 
     return [
         ConformanceTest("digest_determinism", "compute_contract_digest() is deterministic", _test_digest_determinism),
@@ -1242,6 +1244,22 @@ def build_conformance_suite() -> list[ConformanceTest]:
         ConformanceTest("sensitive_data_egress_blocked", "Sensitive-data egress blocked", _test_sensitive_data_egress),
         ConformanceTest("reverse_order_rollback", "Reverse-order multi-resource rollback", _test_reverse_order_rollback),
     ]
+
+
+# Conformance tests that pass only as stubs until external runtime hooks exist.
+# Kernel "closed" claims must subtract this set — honesty of the constitution.
+EXTERNAL_ORACLE_TEST_IDS: frozenset[str] = frozenset({
+    "undeclared_write_rejected",
+    "process_termination",
+    "atomic_partial_failure",
+    "exact_byte_restoration",
+    "reverse_order_rollback",
+})
+
+
+def kernel_closed_test_ids() -> frozenset[str]:
+    """IDs of conformance tests that are fully falsifiable inside the kernel."""
+    return frozenset(t.name for t in build_conformance_suite()) - EXTERNAL_ORACLE_TEST_IDS
 
 
 # ======================================================================

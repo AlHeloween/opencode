@@ -163,7 +163,13 @@ Budget: `PROMPT_ABI["identity_max_bytes"]` (48 000). CI fails if Tier A exceed
 
 Memory ranks (InfoMark) live in TERMS/RULES (`infomark`, `MEMORY.RANK`, `MEMORY.LINKS`) and on compaction surfaces — see `docs/compaction.md`.
 
-TS mirror (risk + InfoMark helpers): `packages/opencode/src/session/constitution.ts` (bash preflight logging).
+TS mirror (risk + InfoMark helpers): `packages/opencode/src/session/constitution.ts`
+
+- **DESTRUCTIVE shell** (`rm -rf`, `git push --force`, `reset --hard`, …) is **blocked** unless `OPENCODE_ALLOW_DESTRUCTIVE=1`
+- **ELEVATED** shell / edit / write: logged (permissions still apply)
+- **session-read** output banner: `info_mark: Exact`
+
+Kernel honesty: `EXTERNAL_ORACLE_TEST_IDS` lists conformance stubs that need OS/sandbox hooks; `kernel_closed_test_ids()` is the falsifiable subset.
 
 ## Key Design Decisions
 

@@ -14,6 +14,7 @@ import { Instance } from "../project/instance"
 import { trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Bom from "@/util/bom"
+import { Constitution } from "@/session/constitution"
 
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
 
@@ -40,6 +41,7 @@ export const WriteTool = Tool.define(
           const filepath = path.isAbsolute(params.filePath)
             ? params.filePath
             : path.join(Instance.directory, params.filePath)
+          Constitution.noteMutationRisk({ tool: "write", path: filepath, sessionID: ctx.sessionID })
           yield* assertExternalDirectoryEffect(ctx, filepath)
 
           const exists = yield* fs.existsSafe(filepath)

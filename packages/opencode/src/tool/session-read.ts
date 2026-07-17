@@ -4,6 +4,7 @@ import { SessionID } from "../session/schema"
 import * as Tool from "./tool"
 
 import DESCRIPTION from "./session-read.txt"
+import { Constitution } from "@/session/constitution"
 
 const MAX_OUTPUT = 100 * 1024
 const TOOL_OUTPUT_LIMIT = 500
@@ -77,7 +78,7 @@ export const SessionReadTool = Tool.define(
               slice = messages.slice(-limit)
             }
 
-            let output = `## Session: ${params.sessionId}\n`
+            let output = Constitution.sessionReadExactBanner(params.sessionId)
             let totalSize = output.length
 
             for (let i = 0; i < slice.length; i++) {

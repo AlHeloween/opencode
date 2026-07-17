@@ -1153,7 +1153,7 @@ test("CodeRenderable - streaming mode respects drawUnstyledText only for initial
   expect(codeRenderable.content).toBe("const updated = 'world';")
 })
 
-test("CodeRenderable - streaming mode with drawUnstyledText=false waits for new highlights", async () => {
+test("CodeRenderable - streaming mode with drawUnstyledText=false shows progressive unstyled text", async () => {
   const syntaxStyle = SyntaxStyle.fromStyles({
     default: { fg: RGBA.fromValues(1, 1, 1, 1) },
     keyword: { fg: RGBA.fromValues(0, 0, 1, 1) },
@@ -1183,8 +1183,9 @@ test("CodeRenderable - streaming mode with drawUnstyledText=false waits for new 
 
   expect(codeRenderable.plainText).toBe("const initial = 'hello';")
 
+  // Progressive: content updates paint immediately (no blank wait for highlight).
   codeRenderable.content = "const updated = 'world';"
-  expect(codeRenderable.plainText).toBe("const initial = 'hello';")
+  expect(codeRenderable.plainText).toBe("const updated = 'world';")
 
   await renderOnce()
   await waitForHighlight(codeRenderable, 30)
@@ -1701,7 +1702,7 @@ test("CodeRenderable - disabling streaming clears cached highlights", async () =
   expect(mockClient.isHighlighting()).toBe(true)
 })
 
-test("CodeRenderable - streaming mode with drawUnstyledText=false shows nothing initially", async () => {
+test("CodeRenderable - streaming mode with drawUnstyledText=false shows text before highlight", async () => {
   const syntaxStyle = SyntaxStyle.fromStyles({
     default: { fg: RGBA.fromValues(1, 1, 1, 1) },
     keyword: { fg: RGBA.fromValues(0, 0, 1, 1) },
@@ -1727,8 +1728,9 @@ test("CodeRenderable - streaming mode with drawUnstyledText=false shows nothing 
   currentRenderer.root.add(codeRenderable)
 
   await renderOnce()
+  // Progressive unstyled text must be visible before tree-sitter resolves.
   const frameBeforeHighlighting = captureFrame()
-  expect(frameBeforeHighlighting.trim()).toBe("")
+  expect(frameBeforeHighlighting).toContain("const initial")
 
   mockClient.resolveHighlightOnce(0)
   await waitForHighlight(codeRenderable)
@@ -2229,8 +2231,10 @@ test("CodeRenderable - streaming mode with drawUnstyledText=false has correct li
   currentRenderer.root.add(codeRenderable)
   await renderOnce()
 
+  // Progressive text visible immediately; lineCount tracks content updates.
   const frameBeforeHighlighting = captureFrame()
-  expect(frameBeforeHighlighting.trim()).toBe("")
+  expect(frameBeforeHighlighting).toContain("line1")
+  expect(codeRenderable.lineCount).toBe(2)
 
   mockClient.resolveHighlightOnce(0)
   await waitForHighlight(codeRenderable)
@@ -2239,10 +2243,10 @@ test("CodeRenderable - streaming mode with drawUnstyledText=false has correct li
   expect(codeRenderable.lineCount).toBe(2)
 
   codeRenderable.content = "line1\nline2\nline3\nline4"
-  expect(codeRenderable.lineCount).toBe(2)
+  expect(codeRenderable.lineCount).toBe(4)
 
   codeRenderable.content = "line1\nline2\nline3\nline4\nline5\nline6"
-  expect(codeRenderable.lineCount).toBe(2)
+  expect(codeRenderable.lineCount).toBe(6)
 
   await renderOnce()
   mockClient.resolveAllHighlightOnce()
@@ -2299,7 +2303,9 @@ test("CodeRenderable - streaming with conceal and drawUnstyledText=false should 
   // Now simulate streaming: add more content including fenced code block
   codeRenderable.content = `# Example\n\nHere's some code:\n\n\`\`\`typescript\nconst x = 1;\n\`\`\``
 
-  // Wait for highlighting to process the update
+  // Progressive unstyled paint is immediate; wait past the streaming highlight
+  // debounce so conceal/highlight can finalize the frame.
+  await new Promise((r) => setTimeout(r, CodeRenderable.HIGHLIGHT_DEBOUNCE_MS + 40))
   await waitForHighlightingCycle()
 
   // Stop everything
@@ -2324,6 +2330,10 @@ test("CodeRenderable - streaming with conceal and drawUnstyledText=false should 
     })
   }
 
+  // Progressive unstyled paint may briefly show fence markers before conceal
+  // highlights land. That is preferred over black empty lines. Assert:
+  // 1) never flash to empty after content appeared
+  // 2) final frame is concealed (no backticks) and has content
   let hasFlickering = false
   for (let i = 2; i < frameAnalysis.length; i++) {
     const prev = frameAnalysis[i - 1]
@@ -2333,9 +2343,6 @@ test("CodeRenderable - streaming with conceal and drawUnstyledText=false should 
     }
   }
 
-  const framesWithBackticks = frameAnalysis.filter((f) => f.hasBackticks && !f.isEmpty)
-
-  expect(framesWithBackticks.length).toBe(0)
   expect(hasFlickering).toBe(false)
 
   const finalFrame = frameAnalysis[frameAnalysis.length - 1]
@@ -2385,6 +2392,39 @@ test("CodeRenderable - streaming with drawUnstyledText=false falls back to unsty
   await renderOnce()
 
   expect(codeRenderable.plainText).toBe("const updated = 'world';")
+})
+
+test("CodeRenderable - streaming continuous tokens stay visible during highlight debounce", async () => {
+  const syntaxStyle = SyntaxStyle.fromStyles({
+    default: { fg: RGBA.fromValues(1, 1, 1, 1) },
+  })
+
+  const mockClient = new MockTreeSitterClient()
+  mockClient.setMockResult({ highlights: [] })
+
+  const codeRenderable = new CodeRenderable(currentRenderer, {
+    id: "test-code-stream-visible",
+    content: "A",
+    filetype: "javascript",
+    syntaxStyle,
+    treeSitterClient: mockClient,
+    streaming: true,
+    drawUnstyledText: false,
+    left: 0,
+    top: 0,
+  })
+
+  currentRenderer.root.add(codeRenderable)
+  await renderOnce()
+  expect(captureFrame()).toContain("A")
+
+  // Burst of tokens within debounce window — text must keep growing visibly.
+  for (const chunk of ["AB", "ABC", "ABCD", "ABCDE", "ABCDEF"]) {
+    codeRenderable.content = chunk
+    await renderOnce()
+    expect(codeRenderable.plainText).toBe(chunk)
+    expect(captureFrame()).toContain(chunk)
+  }
 })
 
 test("CodeRenderable - streaming debounce suppresses mid-burst highlight then flushes", async () => {

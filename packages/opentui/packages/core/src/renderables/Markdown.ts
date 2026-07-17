@@ -641,8 +641,10 @@ export class MarkdownRenderable extends Renderable {
       fg: this._fg,
       bg: this._bg,
       conceal: this._conceal,
-      drawUnstyledText: initialStyledText !== undefined,
-      streaming: true,
+      // Stream: always allow progressive paint (plain or initialStyled).
+      // Static: prefer initialStyled when present so inline markup shows before tree-sitter.
+      drawUnstyledText: this._streaming || initialStyledText !== undefined,
+      streaming: this._streaming,
       initialStyledText,
       baseHighlight,
       onChunks,
@@ -958,7 +960,9 @@ export class MarkdownRenderable extends Renderable {
       fg: this._fg,
       bg: this._bg,
       conceal: this._concealCode,
-      drawUnstyledText: !this._streaming,
+      // Progressive unstyled code while streaming; still true when complete so
+      // empty highlight results never blank the block.
+      drawUnstyledText: true,
       streaming: this._streaming,
       treeSitterClient: this._treeSitterClient,
       width: "100%",
@@ -979,8 +983,8 @@ export class MarkdownRenderable extends Renderable {
     renderable.fg = this._fg
     renderable.bg = this._bg
     renderable.conceal = this._conceal
-    renderable.drawUnstyledText = initialStyledText !== undefined
-    renderable.streaming = true
+    renderable.drawUnstyledText = this._streaming || initialStyledText !== undefined
+    renderable.streaming = this._streaming
     renderable.baseHighlight = baseHighlight
     renderable.content = content
     renderable.marginBottom = marginBottom
@@ -1020,7 +1024,7 @@ export class MarkdownRenderable extends Renderable {
     renderable.fg = this._fg
     renderable.bg = this._bg
     renderable.conceal = this._concealCode
-    renderable.drawUnstyledText = !this._streaming
+    renderable.drawUnstyledText = true
     renderable.streaming = this._streaming
     renderable.content = token.text
     renderable.marginBottom = marginBottom

@@ -290,12 +290,12 @@ Assistant text content
                                               │
                                               └── CodeRenderable
                                                     │
-                                                    ├── streaming: true (hardcoded)
-                                                    ├── initialStyledText? ─┬─ styled → drawUnstyledText: true
-                                                    │                       └─ undefined → drawUnstyledText: false
-                                                    └── tree-sitter async highlight
-                                                          └── success → styled text via highlights
-                                                          └── failure → plain text fallback
+                                                    ├── streaming: mirrors Markdown.streaming
+                                                    ├── drawUnstyledText: true while streaming (progressive paint)
+                                                    ├── initialStyledText? → rich first paint when available
+                                                    └── tree-sitter async highlight (debounced 150ms)
+                                                          └── paints unstyled immediately; styles catch up
+                                                          └── failure → plain text stays visible
 ```
 
 ### 5b. Token Dispatch Table
@@ -407,6 +407,7 @@ Maps marked inline token types to OpenTUI styled text chunks:
 | List item paragraph margin | List items use `marginTop: /\n[ \t]*\n$/.test(item.raw) ? 1 : 0` — double-newline inside item adds paragraph break | Controlled by marked's list item tokenization |
 | tree-sitter highlight failure | If markdown highlight query file is missing or parser fails to load | `ensureVisibleTextBeforeHighlight` sets `textBuffer.setText(content)` as plain text |
 | Zero-highlights during streaming | Incomplete markdown mid-stream produces zero tree-sitter highlights | `onHighlight` callback in `index.tsx` preserves last known good highlights |
+| Black empty lines during stream | `CodeRenderable.renderSelf` returned early during highlight debounce **without painting**; content setter also skipped buffer sync when `drawUnstyledText=false` | Fixed: always sync buffer + paint unstyled progressive text; only defer tree-sitter; Markdown children use `streaming: this._streaming` |
 
 ### 5g. Incremental Parsing for Streaming
 

@@ -120,11 +120,15 @@ export class CodeRenderable extends TextBufferRenderable {
       this._highlightSnapshotId++
       this._lastContentChangeAt = performance.now()
 
-      if (this._streaming && this._filetype && !this._drawUnstyledText) {
-        this.requestRender()
-        return
-      }
-
+      // Always keep the text buffer in sync with content.
+      //
+      // Prior behavior skipped the buffer update when streaming +
+      // drawUnstyledText=false, waiting for tree-sitter before paint. Combined
+      // with HIGHLIGHT_DEBOUNCE_MS, continuous token streams never went quiet
+      // long enough to highlight — the UI reserved height (lineCount from an
+      // empty/stale paint path) and showed black empty lines until the answer
+      // finished. Progressive unstyled text is correct; styling still follows
+      // on the debounced trailing highlight.
       if (this._initialStyledText && this._drawUnstyledText) {
         this.textBuffer.setStyledText(this._initialStyledText)
       } else {
@@ -132,6 +136,10 @@ export class CodeRenderable extends TextBufferRenderable {
       }
       this.setRenderedLineSources(undefined)
       this.updateTextInfo()
+      if (this._streaming || this._drawUnstyledText || !this._filetype) {
+        this._shouldRenderTextBuffer = true
+      }
+      this.requestRender()
     }
   }
 
@@ -329,12 +337,21 @@ export class CodeRenderable extends TextBufferRenderable {
       return
     }
 
-    const isInitialContent = this._streaming && !this._hadInitialContent
-    const shouldDrawUnstyledNow = this._streaming ? isInitialContent && this._drawUnstyledText : this._drawUnstyledText
-
-    if (this._streaming && !isInitialContent) {
+    // Streaming: always paint progressive text while tree-sitter is debounced
+    // or in-flight. Non-streaming + drawUnstyledText=false can still wait for
+    // the first highlight (static blocks that prefer no unstyled flash).
+    if (this._streaming) {
+      if (this._initialStyledText && this._drawUnstyledText) {
+        this.textBuffer.setStyledText(this._initialStyledText)
+      } else if (this.textBuffer.getPlainText() !== content) {
+        this.textBuffer.setText(content)
+        this.setRenderedLineSources(undefined)
+      }
       this._shouldRenderTextBuffer = true
-    } else if (shouldDrawUnstyledNow) {
+      return
+    }
+
+    if (this._drawUnstyledText) {
       if (this._initialStyledText) {
         this.textBuffer.setStyledText(this._initialStyledText)
       } else {
@@ -342,9 +359,10 @@ export class CodeRenderable extends TextBufferRenderable {
       }
       this.setRenderedLineSources(undefined)
       this._shouldRenderTextBuffer = true
-    } else {
-      this._shouldRenderTextBuffer = false
+      return
     }
+
+    this._shouldRenderTextBuffer = false
   }
 
   private async startHighlight(): Promise<void> {
@@ -595,17 +613,22 @@ export class CodeRenderable extends TextBufferRenderable {
         this.ensureVisibleTextBeforeHighlight()
         // During streaming, debounce tree-sitter re-parse. Schedule a trailing
         // flush so we still highlight after tokens stop (and when streaming ends).
+        //
+        // IMPORTANT: do NOT return early here. Returning skipped super.renderSelf
+        // and left reserved height with black empty cells until the quiet period
+        // (or stream end) finally started a highlight. Paint unstyled buffer now;
+        // only the tree-sitter work is deferred.
         if (
           this._streaming &&
           performance.now() - this._lastContentChangeAt < CodeRenderable.HIGHLIGHT_DEBOUNCE_MS
         ) {
           this._highlightsDirty = true
           this.scheduleHighlightDebounce()
-          return
+        } else {
+          this.clearHighlightDebounce()
+          this._highlightsDirty = false
+          this._highlightingPromise = this.startHighlight()
         }
-        this.clearHighlightDebounce()
-        this._highlightsDirty = false
-        this._highlightingPromise = this.startHighlight()
       }
     }
 

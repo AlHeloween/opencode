@@ -806,14 +806,23 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
-              // Constitution preflight (kernel Risk mirror): block DESTRUCTIVE unless
-              // OPENCODE_ALLOW_DESTRUCTIVE=1. Permissions still apply for everything else.
+              // Constitution preflight (kernel Risk mirror): DESTRUCTIVE needs a dedicated
+              // "destructive" permission (not bash:*) unless OPENCODE_ALLOW_DESTRUCTIVE=1.
               const guard = Constitution.guardCommand(params.command, {
                 sessionID: ctx.sessionID,
                 agent: ctx.extra?.agent as string | undefined,
               })
-              if (guard.blocked) {
-                throw new Error(guard.message ?? "constitution: command blocked")
+              if (guard.needsDestructivePermission) {
+                yield* ctx.ask({
+                  permission: "destructive",
+                  patterns: [params.command.slice(0, 160)],
+                  always: [],
+                  metadata: {
+                    risk: "DESTRUCTIVE",
+                    constitution: true,
+                    message: guard.message,
+                  },
+                })
               }
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)

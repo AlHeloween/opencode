@@ -38,6 +38,8 @@ Results are grouped by session. Each result includes:
 
 Output is capped at 50KB. Use `session-read` to get full context around found messages.
 
+**Epistemic ranks:** messagesearch hits are **Inferred** (index snippets). Use `session-read` for **Exact** ground truth around those IDs.
+
 ## Parameters
 
 | Parameter | Type | Default | Description |

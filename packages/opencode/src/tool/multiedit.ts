@@ -4,6 +4,8 @@ import { EditTool } from "./edit"
 import { InstanceState } from "@/effect/instance-state"
 import DESCRIPTION from "./multiedit.txt"
 import * as Tool from "./tool"
+import { Constitution } from "@/session/constitution"
+import { Instance } from "../project/instance"
 
 const Edit = Schema.Struct({
   oldString: Schema.String.annotate({ description: "The text to replace" }),
@@ -31,6 +33,14 @@ export const MultiEditTool = Tool.define(
       execute: (params: { filePath: string; edits: { oldString: string; newString: string; replaceAll?: boolean }[] }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
+          const filePath = path.isAbsolute(params.filePath)
+            ? params.filePath
+            : path.join(Instance.directory, params.filePath)
+          Constitution.noteMutationRisk({
+            tool: "multiedit",
+            path: filePath,
+            sessionID: ctx.sessionID,
+          })
           const results = []
 
           for (const edit of params.edits) {

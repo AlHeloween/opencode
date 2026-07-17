@@ -14,6 +14,7 @@ import DESCRIPTION from "./apply_patch.txt"
 import { File } from "../file"
 import { Format } from "../format"
 import * as Bom from "@/util/bom"
+import { Constitution } from "@/session/constitution"
 
 export const Parameters = Schema.Struct({
   patchText: Schema.String.annotate({ description: "The full patch text that describes all changes to be made" }),
@@ -69,6 +70,11 @@ export const ApplyPatchTool = Tool.define(
 
       for (const hunk of hunks) {
         const filePath = path.resolve(Instance.directory, hunk.path)
+        Constitution.noteMutationRisk({
+          tool: "apply_patch",
+          path: filePath,
+          sessionID: ctx.sessionID,
+        })
         yield* assertExternalDirectoryEffect(ctx, filePath)
 
         switch (hunk.type) {

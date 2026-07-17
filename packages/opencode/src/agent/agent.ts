@@ -136,6 +136,7 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 plan_exit: "allow",
+                destructive: "deny",
                 edit: {
                   "*": "deny",
                   [path.join("plans", "*.md")]: "allow",
@@ -166,6 +167,7 @@ export const layer = Layer.effect(
                   [path.join("plans", "*")]: "allow",
                 },
                 bash: "allow",
+                destructive: "ask",
                 task: "allow",
                 todowrite: "deny",
                 read: "allow",

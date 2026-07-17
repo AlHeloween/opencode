@@ -18,28 +18,28 @@ describe("session.constitution", () => {
     expect(Constitution.classifyCommandRisk("git status")).toBe("LOW")
   })
 
-  test("guardCommand blocks DESTRUCTIVE by default", () => {
+  test("guardCommand requires destructive permission by default", () => {
     const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
     delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
     try {
       const g = Constitution.guardCommand("rm -rf /tmp/x")
-      expect(g.blocked).toBe(true)
+      expect(g.needsDestructivePermission).toBe(true)
       expect(g.risk).toBe("DESTRUCTIVE")
       expect(g.message).toContain("DESTRUCTIVE")
-      expect(Constitution.guardCommand("ls").blocked).toBe(false)
-      expect(Constitution.guardCommand("git push origin main").blocked).toBe(false)
+      expect(Constitution.guardCommand("ls").needsDestructivePermission).toBe(false)
+      expect(Constitution.guardCommand("git push origin main").needsDestructivePermission).toBe(false)
     } finally {
       if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
       else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
     }
   })
 
-  test("guardCommand allows DESTRUCTIVE when OPENCODE_ALLOW_DESTRUCTIVE=1", () => {
+  test("guardCommand skips permission when OPENCODE_ALLOW_DESTRUCTIVE=1", () => {
     const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
     process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = "1"
     try {
       const g = Constitution.guardCommand("git push --force origin main")
-      expect(g.blocked).toBe(false)
+      expect(g.needsDestructivePermission).toBe(false)
       expect(g.risk).toBe("DESTRUCTIVE")
     } finally {
       if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]

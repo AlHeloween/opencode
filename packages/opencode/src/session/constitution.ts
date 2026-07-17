@@ -87,21 +87,29 @@ export function classifyCommandRisk(command: string): Risk {
 
 export type CommandGuardResult = {
   risk: Risk
-  /** When true, tool must not execute. */
+  /**
+   * When true, caller must obtain user approval via permission
+   * `destructive` (not `bash`, so bash:* allow rules cannot auto-pass).
+   */
+  needsDestructivePermission: boolean
+  /** Hard block without permission UI (legacy message only). */
   blocked: boolean
   message?: string
 }
 
 /**
- * Constitution preflight for shell. DESTRUCTIVE is blocked unless
- * OPENCODE_ALLOW_DESTRUCTIVE is set. ELEVATED is logged only.
+ * Constitution preflight for shell.
+ * - DESTRUCTIVE: needs permission "destructive" unless OPENCODE_ALLOW_DESTRUCTIVE
+ * - ELEVATED: log only
  */
 export function guardCommand(
   command: string,
   meta?: { sessionID?: string; agent?: string },
 ): CommandGuardResult {
   const risk = classifyCommandRisk(command)
-  if (risk === "LOW") return { risk, blocked: false }
+  if (risk === "LOW") {
+    return { risk, needsDestructivePermission: false, blocked: false }
+  }
 
   log.warn("constitution.command_risk", {
     risk,
@@ -112,20 +120,20 @@ export function guardCommand(
   })
 
   if (risk === "DESTRUCTIVE" && !allowDestructiveCommands()) {
-    const message =
-      "constitution: DESTRUCTIVE command blocked (Risk=DESTRUCTIVE). " +
-      "Reversibility is low (rm -rf, git push --force, reset --hard, …). " +
-      "Run manually if intentional, or set OPENCODE_ALLOW_DESTRUCTIVE=1 to override."
-    log.warn("constitution.command_blocked", {
-      command: command.slice(0, 200),
-      sessionID: meta?.sessionID,
-    })
-    return { risk, blocked: true, message }
+    return {
+      risk,
+      needsDestructivePermission: true,
+      blocked: false,
+      message:
+        "constitution: DESTRUCTIVE command requires explicit approval " +
+        "(rm -rf, git push --force, reset --hard, …). " +
+        "Or set OPENCODE_ALLOW_DESTRUCTIVE=1.",
+    }
   }
-  return { risk, blocked: false }
+  return { risk, needsDestructivePermission: false, blocked: false }
 }
 
-/** @deprecated prefer guardCommand — kept for call sites that only need the rank. */
+/** @deprecated prefer guardCommand */
 export function noteCommandRisk(command: string, meta?: { sessionID?: string; agent?: string }): Risk {
   return guardCommand(command, meta).risk
 }

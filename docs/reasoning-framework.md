@@ -165,9 +165,11 @@ Memory ranks (InfoMark) live in TERMS/RULES (`infomark`, `MEMORY.RANK`, `MEMORY.
 
 TS mirror (risk + InfoMark helpers): `packages/opencode/src/session/constitution.ts`
 
-- **DESTRUCTIVE shell** (`rm -rf`, `git push --force`, `reset --hard`, …) is **blocked** unless `OPENCODE_ALLOW_DESTRUCTIVE=1`
-- **ELEVATED** shell / edit / write: logged (permissions still apply)
-- **session-read** output banner: `info_mark: Exact`
+- **DESTRUCTIVE shell** (`rm -rf`, `git push --force`, `reset --hard`, …) requires permission **`destructive`** (not `bash:*`, so auto-allow bash cannot skip it), or `OPENCODE_ALLOW_DESTRUCTIVE=1`
+- Plan agent: `destructive: deny`. Explore: covered by `*: deny`.
+- **ELEVATED** shell / edit / write / multiedit / apply_patch: logged (permissions still apply)
+- **session-read** output: `info_mark: Exact`
+- **messagesearch** output: `info_mark: Inferred` (use session-read for Exact)
 
 Kernel honesty: `EXTERNAL_ORACLE_TEST_IDS` lists conformance stubs that need OS/sandbox hooks; `kernel_closed_test_ids()` is the falsifiable subset.
 

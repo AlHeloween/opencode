@@ -29,6 +29,8 @@ const InputObject = Schema.StructWithRest(
     grep: Schema.optional(Rule),
     list: Schema.optional(Rule),
     bash: Schema.optional(Rule),
+    /** Constitution DESTRUCTIVE shell (rm -rf, force-push, …) — not covered by bash:*. */
+    destructive: Schema.optional(Rule),
     task: Schema.optional(Rule),
     external_directory: Schema.optional(Rule),
     todowrite: Schema.optional(Action),

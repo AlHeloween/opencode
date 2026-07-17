@@ -35,6 +35,9 @@ import { errorMessage } from "@/util/error"
 interface AgiState {
   orchSessionID?: string
   mainSessionID?: string
+  evolvingMode?: boolean
+  cycleCount?: number
+  turnCount?: number
 }
 
 function loadAgiState(): AgiState {
@@ -49,9 +52,13 @@ function loadAgiState(): AgiState {
 
 function saveAgiState(state: AgiState) {
   try {
-    const file = path.join(Global.Path.state, "agi-state.json")
-    writeFileSync(file, JSON.stringify(state))
-  } catch (e) { console.debug("agi state save failed", e) }
+    const dir = Global.Path.state
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+    const file = path.join(dir, "agi-state.json")
+    writeFileSync(file, JSON.stringify(state, null, 2))
+  } catch (e) {
+    console.debug("agi state save failed", e)
+  }
 }
 
 /**
@@ -175,6 +182,21 @@ const [totalCost, setTotalCost] = createSignal(0)
 const persistedAgiState = loadAgiState()
 const [mainSessionID, setMainSessionID] = createSignal<string | undefined>(persistedAgiState.mainSessionID)
 const [orchSessionID, setOrchSessionID] = createSignal<string | undefined>(persistedAgiState.orchSessionID)
+// Restore evolving / counters after process restart (sessions already restored above)
+if (persistedAgiState.evolvingMode) setEvolvingMode(true)
+if (typeof persistedAgiState.cycleCount === "number") setCycleCount(persistedAgiState.cycleCount)
+if (typeof persistedAgiState.turnCount === "number") setTurnCount(persistedAgiState.turnCount)
+
+function persistAgiSnapshot(partial: Partial<AgiState> = {}) {
+  saveAgiState({
+    orchSessionID: orchSessionID(),
+    mainSessionID: mainSessionID(),
+    evolvingMode: evolvingMode(),
+    cycleCount: cycleCount(),
+    turnCount: turnCount(),
+    ...partial,
+  })
+}
 
 /** Shared state machine — all useAgiMode() instances share these variables
  *  so only the first to react to each transition dispatches work.
@@ -212,13 +234,13 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
   /** Set main session ID and persist. */
   function persistMainSessionID(id: string | undefined) {
     setMainSessionID(id)
-    saveAgiState({ orchSessionID: orchSessionID(), mainSessionID: id })
+    persistAgiSnapshot({ mainSessionID: id })
   }
 
   /** Set orchestrator session ID and persist. */
   function persistOrchSessionID(id: string | undefined) {
     setOrchSessionID(id)
-    saveAgiState({ orchSessionID: id, mainSessionID: mainSessionID() })
+    persistAgiSnapshot({ orchSessionID: id })
   }
 
   /** Validate that a session ID still exists in sync data. */
@@ -402,6 +424,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
               // Evolving mode: create improvement branch, instruct orchestrator
               const cycleNum = cycleCount() + 1
               setCycleCount(cycleNum)
+              persistAgiSnapshot({ cycleCount: cycleNum })
               const branch = createImprovementBranch(worktree, cycleNum)
               if (branch) {
                 toast.show({ message: `AGI: created improvement branch ${branch}`, variant: "info" })
@@ -499,6 +522,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           }
 
           setTurnCount(t)
+          persistAgiSnapshot({ turnCount: t })
 
           // Dispatch directives to workers
           activeWorkers = directives.map((d) => d.workerId)
@@ -599,8 +623,9 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     }
 
     refreshPlanStatus()
-    // Reset turn count on each activation
+    // Reset turn count on each activation (cycle/evolving restored from disk if any)
     setTurnCount(0)
+    persistAgiSnapshot({ turnCount: 0 })
     activationStartedAt = Date.now()
     // Show enabled badge immediately — before any async work.
     setAgiMode(true)
@@ -779,6 +804,12 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     ].join(" | ")
   }
 
+  function setEvolvingModePersisted(on: boolean | ((prev: boolean) => boolean)) {
+    const next = typeof on === "function" ? on(evolvingMode()) : on
+    setEvolvingMode(next)
+    persistAgiSnapshot({ evolvingMode: next })
+  }
+
   return {
     agiMode,
     toggleAgiMode,
@@ -791,7 +822,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
     refreshPlanStatus,
     deactivate,
     evolvingMode,
-    setEvolvingMode,
+    setEvolvingMode: setEvolvingModePersisted,
     cycleCount,
     totalCost,
     estimateCost,

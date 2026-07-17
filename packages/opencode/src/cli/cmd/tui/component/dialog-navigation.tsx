@@ -14,6 +14,28 @@ import * as Log from "@opencode-ai/core/util/log"
 const log = Log.create({ service: "tui.dialog-permissions" })
 
 type ExternalDirMode = "deny" | "ask" | "allow"
+type PolicyAction = "ask" | "allow" | "deny"
+
+/** Tool policies shown in /permissions — persisted via config.permission. */
+const TOOL_POLICIES: {
+  key: string
+  label: string
+  hint: string
+  danger?: boolean
+}[] = [
+  {
+    key: "destructive",
+    label: "Destructive shell",
+    hint: "rm -rf, git push --force, reset --hard (constitution)",
+    danger: true,
+  },
+  { key: "bash", label: "Bash / shell", hint: "Normal shell commands" },
+  { key: "edit", label: "Edit / write", hint: "File mutations (edit, write, patch)" },
+  { key: "doom_loop", label: "Doom loop", hint: "Continue after repeated tool failures" },
+  { key: "webfetch", label: "Web fetch", hint: "Outbound HTTP" },
+  { key: "messagesearch", label: "Message search", hint: "Inferred history search" },
+  { key: "session-read", label: "Session read", hint: "Exact archive by message ID" },
+]
 
 function sourceLabel(source: string) {
   switch (source) {
@@ -76,7 +98,18 @@ export function DialogPermissions() {
     return mode === "deny" || mode === "allow" || mode === "ask" ? mode : "ask"
   })
 
-  const modeLabel = (m: ExternalDirMode) => {
+  const modeLabel = (m: PolicyAction) => {
+    switch (m) {
+      case "deny":
+        return "Deny"
+      case "ask":
+        return "Ask"
+      case "allow":
+        return "Allow"
+    }
+  }
+
+  const extModeLabel = (m: ExternalDirMode) => {
     switch (m) {
       case "deny":
         return "Deny All"
@@ -87,7 +120,7 @@ export function DialogPermissions() {
     }
   }
 
-  const modeColor = (m: ExternalDirMode) => {
+  const modeColor = (m: PolicyAction | ExternalDirMode) => {
     switch (m) {
       case "deny":
         return theme.error
@@ -96,6 +129,30 @@ export function DialogPermissions() {
       case "allow":
         return theme.success
     }
+  }
+
+  /** Resolve config.permission[key] to ask|allow|deny (object rules → first * or ask). */
+  const toolPolicy = (key: string): PolicyAction => {
+    const perm = (sync.data.config as any)?.permission
+    if (!perm || typeof perm !== "object") return "ask"
+    const rule = perm[key]
+    if (rule === "allow" || rule === "deny" || rule === "ask") return rule
+    if (rule && typeof rule === "object" && typeof rule["*"] === "string") {
+      const a = rule["*"]
+      if (a === "allow" || a === "deny" || a === "ask") return a
+    }
+    return "ask"
+  }
+
+  const cycleToolPolicy = (key: string) => {
+    const modes: PolicyAction[] = ["ask", "allow", "deny"]
+    const next = modes[(modes.indexOf(toolPolicy(key)) + 1) % modes.length]
+    const prev = { ...((sync.data.config as any)?.permission ?? {}) }
+    prev[key] = next
+    void applyConfigPatch(
+      { permission: prev },
+      `${key}: ${next} (saved to config)`,
+    )
   }
 
   async function applyConfigPatch(patch: Record<string, unknown>, success?: string) {
@@ -129,7 +186,7 @@ export function DialogPermissions() {
     const next = modes[(modes.indexOf(extMode()) + 1) % modes.length]
     void applyConfigPatch(
       { external_directory_mode: next },
-      `External directory access: ${modeLabel(next)}`,
+      `External directory access: ${extModeLabel(next)}`,
     )
   }
 
@@ -176,7 +233,7 @@ export function DialogPermissions() {
   }
 
   onMount(() => {
-    dialog.setSize("medium")
+    dialog.setSize("large")
     setTimeout(() => {
       if (!pathInput || pathInput.isDestroyed) return
       pathInput.focus()
@@ -194,6 +251,38 @@ export function DialogPermissions() {
         </text>
       </box>
 
+      <text fg={theme.textMuted}>
+        Saved to project/user config. Session "Always this cmd" lasts until restart only.
+      </text>
+
+      {/* Tool policies (includes constitution destructive) */}
+      <box gap={0}>
+        <text fg={theme.text} attributes={TextAttributes.BOLD}>
+          Tool policies
+        </text>
+        <For each={TOOL_POLICIES}>
+          {(p) => {
+            const action = () => toolPolicy(p.key)
+            return (
+              <box flexDirection="row" gap={1} alignItems="center">
+                <text
+                  fg={busy() ? theme.textMuted : modeColor(action())}
+                  attributes={TextAttributes.BOLD}
+                  onMouseUp={() => {
+                    if (!busy()) cycleToolPolicy(p.key)
+                  }}
+                >
+                  [{modeLabel(action())}]
+                </text>
+                <text fg={p.danger ? theme.error : theme.text}>{p.label}</text>
+                <text fg={theme.textMuted}>{p.hint}</text>
+              </box>
+            )
+          }}
+        </For>
+        <text fg={theme.textMuted}>{busy() ? "saving..." : "click [mode] to cycle ask → allow → deny"}</text>
+      </box>
+
       {/* External Directory Mode */}
       <box gap={0}>
         <text fg={theme.textMuted}>External Directory Access</text>
@@ -205,7 +294,7 @@ export function DialogPermissions() {
               if (!busy()) cycleMode()
             }}
           >
-            [{modeLabel(extMode())}]
+            [{extModeLabel(extMode())}]
           </text>
           <text fg={theme.textMuted}>{busy() ? "saving..." : "click to cycle"}</text>
         </box>

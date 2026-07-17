@@ -813,14 +813,18 @@ export const BashTool = Tool.define(
                 agent: ctx.extra?.agent as string | undefined,
               })
               if (guard.needsDestructivePermission) {
+                const pattern = params.command.slice(0, 160)
                 yield* ctx.ask({
                   permission: "destructive",
-                  patterns: [params.command.slice(0, 160)],
-                  always: [],
+                  patterns: [pattern],
+                  // Session-scoped "always allow" for this exact command shape
+                  always: [pattern],
                   metadata: {
                     risk: "DESTRUCTIVE",
                     constitution: true,
                     message: guard.message,
+                    command: params.command.slice(0, 400),
+                    description: params.description,
                   },
                 })
               }

@@ -92,6 +92,8 @@ export const layer = Layer.effect(
         const defaults = Permission.fromConfig({
           "*": "allow",
           doom_loop: "ask",
+          // Constitution DESTRUCTIVE shell — must stay "ask" after "*" so wildcard allow cannot skip it
+          destructive: "ask",
           external_directory: {
             "*": "ask",
             ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),

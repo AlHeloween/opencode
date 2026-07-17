@@ -158,9 +158,28 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
     <Switch>
       <Match when={store.stage === "always"}>
         <Prompt
-          title="Always allow"
+          title={props.request.permission === "destructive" ? "Always allow this command" : "Always allow"}
           body={
             <Switch>
+              <Match when={props.request.permission === "destructive"}>
+                <box paddingLeft={1} gap={1}>
+                  <text fg={theme.error}>Session only — not written to config.</text>
+                  <text fg={theme.textMuted}>
+                    Exact command will be allowed until OpenCode restarts. Permanent policy: /permissions → Destructive
+                    shell.
+                  </text>
+                  <box>
+                    <For each={props.request.always.length ? props.request.always : props.request.patterns}>
+                      {(pattern) => (
+                        <text fg={theme.text}>
+                          {"$ "}
+                          {pattern}
+                        </text>
+                      )}
+                    </For>
+                  </box>
+                </box>
+              </Match>
               <Match when={props.request.always.length === 1 && props.request.always[0] === "*"}>
                 <TextBody title={"This will allow " + props.request.permission + " until OpenCode is restarted."} />
               </Match>
@@ -183,6 +202,7 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
           }
           options={{ confirm: "Confirm", cancel: "Cancel" }}
           escapeKey="cancel"
+          borderColor={props.request.permission === "destructive" ? "error" : undefined}
           onSelect={(option) => {
             setStore("stage", "permission")
             if (option === "cancel") return
@@ -304,6 +324,41 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
               }
             }
 
+            if (permission === "destructive") {
+              const meta = props.request.metadata ?? {}
+              const command =
+                typeof meta.command === "string"
+                  ? meta.command
+                  : typeof data.command === "string"
+                    ? data.command
+                    : (props.request.patterns?.[0] ?? "")
+              const desc =
+                typeof meta.description === "string"
+                  ? meta.description
+                  : typeof data.description === "string"
+                    ? data.description
+                    : "Destructive shell command"
+              const constitutionMsg = typeof meta.message === "string" ? meta.message : undefined
+              return {
+                icon: "⚠",
+                title: `Destructive: ${desc}`,
+                body: (
+                  <box paddingLeft={1} gap={1}>
+                    <text fg={theme.error}>Risk=DESTRUCTIVE (constitution) — not covered by bash:allow</text>
+                    <Show when={constitutionMsg}>
+                      <text fg={theme.textMuted}>{constitutionMsg}</text>
+                    </Show>
+                    <Show when={command}>
+                      <text fg={theme.text}>{"$ " + command}</text>
+                    </Show>
+                    <text fg={theme.textMuted}>
+                      Allow once · Always this command (session) · Reject. Permanent defaults: /permissions
+                    </text>
+                  </box>
+                ),
+              }
+            }
+
             if (permission === "task") {
               const type = typeof data.subagent_type === "string" ? data.subagent_type : "Unknown"
               const desc = typeof data.description === "string" ? data.description : ""
@@ -405,11 +460,12 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
 
           const current = info()
 
+          const isDestructive = props.request.permission === "destructive"
           const header = () => (
             <box flexDirection="column" gap={0}>
               <box flexDirection="row" gap={1} flexShrink={0}>
-                <text fg={theme.warning}>{"△"}</text>
-                <text fg={theme.text}>Permission required</text>
+                <text fg={isDestructive ? theme.error : theme.warning}>{"△"}</text>
+                <text fg={theme.text}>{isDestructive ? "Destructive action" : "Permission required"}</text>
               </box>
               <box flexDirection="row" gap={1} paddingLeft={2} flexShrink={0}>
                 <text fg={theme.textMuted} flexShrink={0}>
@@ -422,12 +478,17 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
 
           const body = (
             <Prompt
-              title="Permission required"
+              title={isDestructive ? "Destructive action" : "Permission required"}
               header={header()}
               body={current.body}
-              options={{ once: "Allow once", always: "Allow always", reject: "Reject" }}
+              options={
+                isDestructive
+                  ? { once: "Allow once", always: "Always this cmd", reject: "Reject" }
+                  : { once: "Allow once", always: "Allow always", reject: "Reject" }
+              }
               escapeKey="reject"
               fullscreen
+              borderColor={isDestructive ? "error" : undefined}
               onSelect={(option) => {
                 if (option === "always") {
                   setStore("stage", "always")
@@ -543,6 +604,8 @@ function Prompt<const T extends Record<string, string>>(props: {
   options: T
   escapeKey?: keyof T
   fullscreen?: boolean
+  /** Optional border color key: "error" uses theme.error, default warning */
+  borderColor?: "error" | "warning"
   onSelect: (option: keyof T) => void
 }) {
   const { theme } = useTheme()
@@ -598,7 +661,7 @@ function Prompt<const T extends Record<string, string>>(props: {
     <box
       backgroundColor={theme.backgroundPanel}
       border={["left"]}
-      borderColor={theme.warning}
+      borderColor={props.borderColor === "error" ? theme.error : theme.warning}
       customBorderChars={SplitBorder.customBorderChars}
       {...(store.expanded
         ? { top: dimensions().height * -1 + 1, bottom: 1, left: 2, right: 2, position: "absolute" }

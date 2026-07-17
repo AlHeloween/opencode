@@ -43,7 +43,6 @@ import { Locale } from "@/util/locale"
 import type { Tool } from "@/tool/tool"
 import type { ReadTool } from "@/tool/read"
 import type { WriteTool } from "@/tool/write"
-import { BashTool } from "@/tool/bash"
 import type { GlobTool } from "@/tool/glob"
 import { TodoWriteTool } from "@/tool/todo"
 import type { GrepTool } from "@/tool/grep"
@@ -2017,7 +2016,13 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
     <Show when={!shouldHide()}>
       <Switch>
         <Match when={props.part.tool === "bash"}>
-          <Bash {...toolprops} />
+          <ShellTool kind="bash" {...toolprops} />
+        </Match>
+        <Match when={props.part.tool === "cmd"}>
+          <ShellTool kind="cmd" {...toolprops} />
+        </Match>
+        <Match when={props.part.tool === "run"}>
+          <ShellTool kind="run" {...toolprops} />
         </Match>
         <Match when={props.part.tool === "glob"}>
           <Glob {...toolprops} />
@@ -2278,11 +2283,24 @@ function BlockTool(props: {
   )
 }
 
-function Bash(props: ToolProps<typeof BashTool>) {
+/** Shared renderer for bash / cmd / run — always show streaming output (not generic-tool toggle). */
+function ShellTool(props: ToolProps<any> & { kind: "bash" | "cmd" | "run" }) {
   const { theme } = useTheme()
   const sync = useSync()
+  const input = () => props.input as Record<string, any>
+  const meta = () => props.metadata as Record<string, any>
   const isRunning = createMemo(() => props.part.state.status === "running")
-  const output = createMemo(() => stripAnsi(props.metadata.output?.trim() ?? ""))
+  // Prefer live metadata.output (streaming); fall back to completed state.output.
+  const output = createMemo(() => {
+    const m = meta().output
+    const full = typeof props.output === "string" ? props.output : undefined
+    const stream = typeof m === "string" ? m : undefined
+    const raw = stream !== undefined ? stream : (full ?? "")
+    // On complete, full output may be longer than the streaming preview in metadata.
+    const text =
+      full !== undefined && full.length > raw.length && !isRunning() ? full : raw
+    return stripAnsi(text.trim())
+  })
   const [expanded, setExpanded] = createSignal(false)
   const lines = createMemo(() => output().split("\n"))
   const overflow = createMemo(() => lines().length > 10)
@@ -2292,7 +2310,7 @@ function Bash(props: ToolProps<typeof BashTool>) {
   })
 
   const workdirDisplay = createMemo(() => {
-    const workdir = props.input.workdir
+    const workdir = input().workdir as string | undefined
     if (!workdir || workdir === ".") return undefined
 
     const base = sync.path.directory
@@ -2308,17 +2326,38 @@ function Bash(props: ToolProps<typeof BashTool>) {
     return match ? absolute.replace(home, "~") : absolute
   })
 
+  const commandLine = createMemo(() => {
+    if (props.kind === "run") {
+      const bin = String(input().binary ?? "")
+      const args = Array.isArray(input().args) ? input().args.map(String).join(" ") : ""
+      return [bin, args].filter(Boolean).join(" ")
+    }
+    return String(input().command ?? "")
+  })
+
+  const promptChar = () => (props.kind === "run" ? ">" : "$")
+
   const title = createMemo(() => {
-    const desc = props.input.description ?? "Shell"
+    const fallback =
+      props.kind === "run" ? "Run" : props.kind === "cmd" ? "Cmd" : "Shell"
+    const desc = String(input().description ?? fallback)
     const wd = workdirDisplay()
     if (!wd) return `# ${desc}`
     if (desc.includes(wd)) return `# ${desc}`
     return `# ${desc} in ${wd}`
   })
 
+  const hasBody = createMemo(
+    () =>
+      meta().output !== undefined ||
+      props.output !== undefined ||
+      props.part.state.status === "completed" ||
+      props.part.state.status === "error",
+  )
+
   return (
     <Switch>
-      <Match when={props.metadata.output !== undefined}>
+      <Match when={hasBody()}>
         <BlockTool
           title={title()}
           part={props.part}
@@ -2326,7 +2365,11 @@ function Bash(props: ToolProps<typeof BashTool>) {
           onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
         >
           <box gap={1}>
-            <text fg={theme.text}>$ {props.input.command}</text>
+            <Show when={commandLine()}>
+              <text fg={theme.text}>
+                {promptChar()} {commandLine()}
+              </text>
+            </Show>
             <Show when={output()}>
               <text fg={theme.text}>{limited()}</text>
             </Show>
@@ -2337,8 +2380,13 @@ function Bash(props: ToolProps<typeof BashTool>) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="$" pending="Writing command..." complete={props.input.command} part={props.part}>
-          {props.input.command}
+        <InlineTool
+          icon={promptChar()}
+          pending={props.kind === "run" ? "Preparing run..." : "Writing command..."}
+          complete={commandLine() || true}
+          part={props.part}
+        >
+          {commandLine()}
         </InlineTool>
       </Match>
     </Switch>

@@ -169,8 +169,9 @@ export const RunTool = Tool.define(
                 cut = true
               }
               last = preview(last + chunk)
-              if (file) sink?.write(chunk)
-              else {
+              if (file) {
+                sink?.write(chunk)
+              } else {
                 chunks.push(chunk)
                 fullBytes += Buffer.byteLength(chunk, "utf-8")
                 if (fullBytes > limits.maxBytes)
@@ -184,10 +185,18 @@ export const RunTool = Tool.define(
                         fullBytes = 0
                       }),
                     ),
-                    Effect.andThen(ctx.metadata({ output: last, metadata: { output: last, description: input.description } })),
+                    Effect.andThen(
+                      ctx.metadata({
+                        output: last,
+                        metadata: { output: last, description: input.description },
+                      }),
+                    ),
                   )
               }
-              return Effect.void
+              // Stream live output to TUI (same as bash/cmd) — do not drop chunks.
+              return ctx.metadata({
+                metadata: { output: last, description: input.description },
+              })
             }),
           )
           const abort = Effect.callback<void>((resume) => {

@@ -97,6 +97,11 @@ import { formatTranscript } from "../../util/transcript"
 import { UI } from "@/cli/ui.ts"
 import { useTuiConfig } from "../../context/tui-config"
 import { getScrollAcceleration } from "../../util/scroll"
+import {
+  computeScrollPosition,
+  formatScrollChip,
+  type ScrollPositionInfo,
+} from "../../util/scroll-position"
 import { TuiPluginRuntime } from "@/cli/cmd/tui/plugin/runtime"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { SessionRetry } from "@/session/retry"
@@ -275,6 +280,13 @@ export function Session() {
   const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
   const toast = useToast()
   const sdk = useSDK()
+  const [scrollPos, setScrollPos] = createSignal<ScrollPositionInfo>({
+    atLive: true,
+    percent: 100,
+    rowsAbove: 0,
+    rowsBelow: 0,
+    maxScroll: 0,
+  })
 
   createEffect(() => {
     const sessionID = route.sessionID
@@ -440,20 +452,47 @@ export function Session() {
     const targetID = findNextVisibleMessage(direction)
 
     if (!targetID) {
-      scroll.scrollBy(direction === "next" ? scroll.height : -scroll.height)
+      afterScroll(() => scroll.scrollBy(direction === "next" ? scroll.height : -scroll.height))
       dialog.clear()
       return
     }
 
     const child = scroll.getChildren().find((c) => c.id === targetID)
-    if (child) scroll.scrollBy(child.y - scroll.y - 1)
+    if (child) afterScroll(() => scroll.scrollBy(child.y - scroll.y - 1))
     dialog.clear()
+  }
+
+  function refreshScrollPos() {
+    if (!scroll || scroll.isDestroyed) return
+    const next = computeScrollPosition({
+      scrollTop: scroll.scrollTop,
+      scrollHeight: scroll.scrollHeight,
+      viewportHeight: scroll.height,
+    })
+    setScrollPos((prev) => {
+      if (
+        prev.atLive === next.atLive &&
+        prev.percent === next.percent &&
+        prev.rowsAbove === next.rowsAbove &&
+        prev.rowsBelow === next.rowsBelow &&
+        prev.maxScroll === next.maxScroll
+      ) {
+        return prev
+      }
+      return next
+    })
   }
 
   function toBottom() {
     if (!scroll || scroll.isDestroyed) return
     scroll.scrollTo(scroll.scrollHeight)
     scroll.requestRender()
+    refreshScrollPos()
+  }
+
+  function afterScroll(fn: () => void) {
+    fn()
+    refreshScrollPos()
   }
 
   function moveFirstChild() {
@@ -571,7 +610,7 @@ export function Session() {
               const child = scroll.getChildren().find((child) => {
                 return child.id === messageID
               })
-              if (child) scroll.scrollBy(child.y - scroll.y - 1)
+              if (child) afterScroll(() => scroll.scrollBy(child.y - scroll.y - 1))
             }}
             sessionID={route.sessionID}
             setPrompt={(promptInfo) => prompt?.set(promptInfo)}
@@ -595,7 +634,7 @@ export function Session() {
               const child = scroll.getChildren().find((child) => {
                 return child.id === messageID
               })
-              if (child) scroll.scrollBy(child.y - scroll.y - 1)
+              if (child) afterScroll(() => scroll.scrollBy(child.y - scroll.y - 1))
             }}
             sessionID={route.sessionID}
           />
@@ -874,7 +913,7 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollBy(-scroll.height / 2)
+        afterScroll(() => scroll.scrollBy(-scroll.height / 2))
         dialog.clear()
       },
     },
@@ -885,7 +924,7 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollBy(scroll.height / 2)
+        afterScroll(() => scroll.scrollBy(scroll.height / 2))
         dialog.clear()
       },
     },
@@ -896,7 +935,7 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollBy(-1)
+        afterScroll(() => scroll.scrollBy(-1))
         dialog.clear()
       },
     },
@@ -907,7 +946,7 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollBy(1)
+        afterScroll(() => scroll.scrollBy(1))
         dialog.clear()
       },
     },
@@ -918,7 +957,7 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollBy(-scroll.height / 4)
+        afterScroll(() => scroll.scrollBy(-scroll.height / 4))
         dialog.clear()
       },
     },
@@ -929,7 +968,7 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollBy(scroll.height / 4)
+        afterScroll(() => scroll.scrollBy(scroll.height / 4))
         dialog.clear()
       },
     },
@@ -940,7 +979,7 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollTo(0)
+        afterScroll(() => scroll.scrollTo(0))
         dialog.clear()
       },
     },
@@ -951,7 +990,16 @@ export function Session() {
       category: "Session",
       hidden: true,
       onSelect: (dialog) => {
-        scroll.scrollTo(scroll.scrollHeight)
+        afterScroll(() => scroll.scrollTo(scroll.scrollHeight))
+        dialog.clear()
+      },
+    },
+    {
+      title: "Jump to live",
+      value: "session.jump.live",
+      category: "Session",
+      onSelect: (dialog) => {
+        toBottom()
         dialog.clear()
       },
     },
@@ -981,7 +1029,7 @@ export function Session() {
             const child = scroll.getChildren().find((child) => {
               return child.id === message.id
             })
-            if (child) scroll.scrollBy(child.y - scroll.y - 1)
+            if (child) afterScroll(() => scroll.scrollBy(child.y - scroll.y - 1))
             break
           }
         }
@@ -1233,6 +1281,16 @@ export function Session() {
     scroll.verticalScrollBar.visible = false
   })
 
+  // Poll scroll metrics so mouse-wheel / drag stay in sync with the live chip.
+  // Commands call refreshScrollPos immediately; this covers external scroll sources.
+  createEffect(() => {
+    messagesList()
+    const id = setInterval(refreshScrollPos, 250)
+    // First sample after layout settles.
+    queueMicrotask(refreshScrollPos)
+    onCleanup(() => clearInterval(id))
+  })
+
   return (
     <context.Provider
       value={{
@@ -1391,6 +1449,28 @@ export function Session() {
                 )}
               </For>
             </scrollbox>
+            <Show when={!scrollPos().atLive}>
+              <box
+                flexShrink={0}
+                flexDirection="row"
+                justifyContent="center"
+                paddingTop={0}
+                paddingBottom={0}
+              >
+                <box
+                  onMouseUp={() => toBottom()}
+                  paddingLeft={1}
+                  paddingRight={1}
+                  backgroundColor={theme.backgroundElement}
+                  border={["left", "right"]}
+                  borderColor={theme.primary}
+                  customBorderChars={SplitBorder.customBorderChars}
+                >
+                  <text fg={theme.primary}>{formatScrollChip(scrollPos())}</text>
+                  <text fg={theme.textMuted}> · click / End</text>
+                </box>
+              </box>
+            </Show>
             <box flexShrink={0}>
               <Show when={permissions().length > 0}>
                 <PermissionPrompt request={permissions()[0]} />

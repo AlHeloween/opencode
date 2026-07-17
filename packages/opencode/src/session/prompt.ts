@@ -10,7 +10,7 @@ import * as Session from "./session"
 import { Agent } from "../agent/agent"
 import { Provider } from "@/provider/provider"
 import { ModelID, ProviderID } from "../provider/schema"
-import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
+import { type Tool as AITool, type ModelMessage, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { isOverflowFromContent, estimateContentTokens, usable } from "./overflow"
@@ -1140,7 +1140,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
         let step = 0
         /** Cached model-ready messages from previous loop iteration.
           * Reused when the MD5 fingerprint is stable (DeepSeek KV cache hit). */
-        let modelMsgsCache: unknown = undefined
+        let modelMsgsCache: ModelMessage[] | undefined = undefined
         /** Cached filterCompactedEffect result — messages are immutable within a
           * runLoop except for new tool results appended at the end. Reusing this
           * avoids re-paginating the entire history on every tool-using loop step. */
@@ -1529,8 +1529,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
             // Checkpoint message reuse: longest ordered prefix with matching IDs
             // and content fingerprints (detects in-place edits). Suffix re-converted.
             // Path system stays frozen until compact — only messages use delta logic.
-            let modelMsgs
-            let modelMessageIDs = msgs.map((m) => m.info.id)
+            let modelMsgs: ModelMessage[]
+            // Diff/checkpoint IDs are plain strings (CheckpointData.messageIDs); do not brand.
+            let modelMessageIDs: string[] = msgs.map((m) => m.info.id)
             if (checkpointUsable) {
               const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable, (m) =>
                 CacheControl.messageFingerprint(m).hash,

@@ -20,7 +20,7 @@ const KeybindsSchema = Schema.Struct({
   editor_open: keybind("<leader>e", "Open external editor"),
   theme_list: keybind("<leader>t", "List available themes"),
   sidebar_toggle: keybind("<leader>b", "Toggle sidebar"),
-  scrollbar_toggle: keybind("none", "Toggle session scrollbar"),
+  scrollbar_toggle: keybind("<leader>v", "Toggle session scrollbar"),
   username_toggle: keybind("none", "Toggle username visibility"),
   status_view: keybind("<leader>s", "View status"),
   session_export: keybind("<leader>x", "Export session to editor"),
@@ -64,7 +64,8 @@ const KeybindsSchema = Schema.Struct({
   agent_list: keybind("<leader>a", "List agents"),
   agent_cycle: keybind("tab", "Next agent"),
   agent_cycle_reverse: keybind("shift+tab", "Previous agent"),
-  agi_toggle: keybind("<leader>g", "Toggle AGI mode — autonomous development orchestration"),
+  // Was <leader>g — collided with session_timeline; o = orchestrator / AGI.
+  agi_toggle: keybind("<leader>o", "Toggle AGI mode — autonomous development orchestration"),
   variant_cycle: keybind("ctrl+t", "Cycle model variants"),
   variant_list: keybind("none", "List model variants"),
   input_clear: keybind("ctrl+c", "Clear input field"),

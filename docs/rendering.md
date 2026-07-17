@@ -169,7 +169,7 @@ ErrorBoundary → Args → Exit → KV → Toast → Route → TuiConfig
 |------|-----------|------|
 | 104 | `addDefaultParsers(parsers.parsers)` | Registers 28 tree-sitter parsers for syntax highlighting |
 | 1222-1419 | `<box>` layout | Root flex container: messages + sidebar |
-| 1225-1252 | `<scrollbox>` | Scrollable message container, `stickyScroll="bottom"` |
+| 1225-1252 | `<scrollbox>` | Scrollable message container, `stickyScroll="bottom"`, vertical scrollbar on by default (`session_chat_scrollbar`) |
 | 1244 | `<For each={messagesList()}>` | Iterates over messages |
 | 1317 | `<UserMessage>` | Renders user messages with file badges, compaction markers |
 | 1343 | `<AssistantMessage>` | Renders assistant messages with parts loop |

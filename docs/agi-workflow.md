@@ -158,7 +158,7 @@ Workers run **build** (default `*` allow + `destructive: ask`). Orchestrator has
 
 1. Open project worktree; ensure `plans/` has a master plan if you want progress tracking.  
 2. `/permissions` — set **Destructive shell** to Ask (default) or Deny for safer autonomy.  
-3. Toggle AGI (`<leader>g` / command palette).  
+3. Toggle AGI (`<leader>o` / `/agi` / command palette). Timeline remains `<leader>g`.  
 4. Approve constitution **destructive** prompts when workers need them.  
 5. Re-toggle AGI after restart — orch/main sessions resume from `agi-state.json`.  
 6. Prefer checkbox discipline: only `[x]` when code confirms; let reconcile move finished files.

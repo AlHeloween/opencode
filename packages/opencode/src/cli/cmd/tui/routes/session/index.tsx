@@ -254,7 +254,9 @@ export function Session() {
   const [timestamps, setTimestamps] = kv.signal<"hide" | "show">("timestamps", "hide")
   const [showDetails, setShowDetails] = kv.signal("tool_details_visibility", true)
   const [showAssistantMetadata, _setShowAssistantMetadata] = kv.signal("assistant_metadata_visibility", true)
-  const [showScrollbar, setShowScrollbar] = kv.signal("scrollbar_visible", false)
+  // Default on so long chats are browsable without hunting for a toggle.
+  // New KV key so earlier default-false writes do not keep the bar hidden.
+  const [showScrollbar, setShowScrollbar] = kv.signal("session_chat_scrollbar", true)
   const [diffWrapMode] = kv.signal<"word" | "none">("diff_wrap_mode", "word")
   const [_animationsEnabled, _setAnimationsEnabled] = kv.signal("animations_enabled", true)
   const [showGenericToolOutput, setShowGenericToolOutput] = kv.signal("generic_tool_output_visibility", false)
@@ -847,7 +849,7 @@ export function Session() {
       },
     },
     {
-      title: "Toggle session scrollbar",
+      title: showScrollbar() ? "Hide session scrollbar" : "Show session scrollbar",
       value: "session.toggle.scrollbar",
       keybind: "scrollbar_toggle",
       category: "Session",
@@ -892,7 +894,7 @@ export function Session() {
       value: "session.line.up",
       keybind: "messages_line_up",
       category: "Session",
-      disabled: true,
+      hidden: true,
       onSelect: (dialog) => {
         scroll.scrollBy(-1)
         dialog.clear()
@@ -903,7 +905,7 @@ export function Session() {
       value: "session.line.down",
       keybind: "messages_line_down",
       category: "Session",
-      disabled: true,
+      hidden: true,
       onSelect: (dialog) => {
         scroll.scrollBy(1)
         dialog.clear()
@@ -1219,6 +1221,18 @@ export function Session() {
   // snap to bottom when session changes
   createEffect(on(() => route.sessionID, toBottom))
 
+  // Prefer auto-hide when content fits; only force-off when the user hides the bar.
+  // Setting visible=true permanently would disable overflow-based auto visibility.
+  createEffect(() => {
+    const on = showScrollbar()
+    if (!scroll || scroll.isDestroyed) return
+    if (on) {
+      scroll.verticalScrollBar.resetVisibilityControl()
+      return
+    }
+    scroll.verticalScrollBar.visible = false
+  })
+
   return (
     <context.Provider
       value={{
@@ -1241,17 +1255,25 @@ export function Session() {
         <box flexGrow={1} paddingBottom={1} paddingLeft={2} paddingRight={2} gap={1}>
           <Show when={session()}>
             <scrollbox
-              ref={(r) => (scroll = r)}
+              ref={(r) => {
+                scroll = r
+                // Apply preference immediately on mount (effect may run before ref).
+                if (showScrollbar()) r.verticalScrollBar.resetVisibilityControl()
+                else r.verticalScrollBar.visible = false
+              }}
               viewportOptions={{
                 paddingRight: showScrollbar() ? 1 : 0,
               }}
               verticalScrollbarOptions={{
                 paddingLeft: 1,
-                visible: showScrollbar(),
                 trackOptions: {
                   backgroundColor: theme.backgroundElement,
-                  foregroundColor: theme.border,
+                  // Match sidebar contrast so the thumb is easy to grab/read.
+                  foregroundColor: theme.borderActive,
                 },
+              }}
+              horizontalScrollbarOptions={{
+                visible: false,
               }}
               stickyScroll={true}
               stickyStart="bottom"

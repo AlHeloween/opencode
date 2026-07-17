@@ -1,3 +1,46 @@
+intent:
+OpenTUI agent guide — terminal UI package conventions (TypeScript, Zig, Bun/Node).
+Engineering seams, tooling, verification, portable FFI.
+
+state:
+package: packages/opentui
+runtimes: Bun and Node (shared modules must support both)
+formatter: oxfmt (semi: false, printWidth: 120)
+
+scope:
+- OpenTUI core, solid, react, and related packages under packages/opentui
+- TypeScript/Zig ownership and lifecycle
+- Bun/Node tooling and verification
+- Portable FFI signatures and buffer lifetime
+
+constraints:
+- Reuse existing seams; do not duplicate policy, ownership, or state across TypeScript, Zig, and framework layers
+- For bug fixes, first add a focused regression test of observable behavior or invariants
+- Make native ownership explicit; clean up handles, callbacks, buffers, and listeners on every exit path
+- Do not interchange byte lengths, code points, graphemes, and terminal display-cell widths
+- Use Bun for dependency management and development commands
+- Shared runtime code must preserve supported Bun and Node paths; no Bun-only APIs in shared modules
+- Portable FFI must stay within node:ffi/bun:ffi intersection (explicit widths, not usize/napi_*)
+
+invariants:
+- oxfmt is the formatting source of truth
+- Native cleanup on every exit path
+- Node version checks use scripts/node26.mjs where enforced
+- Transient ArrayBuffer values pass directly to sync pointer params; ptr(view) only for retained addresses
+
+forbidden_actions:
+- Introducing Bun-only APIs into shared modules
+- Pre-resolving transient buffers with ptr() for sync pointer parameters
+- new JSCallback(...) outside the loaded library/platform facade
+- Assuming portable string returns from FFI
+- Interchanging grapheme/code-point/byte/display-cell metrics
+
+acceptance_tests:
+- Relevant package test/typecheck/build scripts pass
+- Native changes: bun run test:native from packages/core when applicable
+- Root bun run fmt:check and bun run lint when relevant for final static checks
+
+
 # OpenTUI Agent Guide
 
 ## Engineering

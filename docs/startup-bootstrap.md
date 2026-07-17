@@ -207,7 +207,7 @@ That path must **invalidate per-directory InstanceState** (Config, Agent, Plugin
 
 Full `Instance.dispose()` still runs when `dispose` is not `false` (heavier; tears down the instance context).
 
-**SDK body shape:** `sdk.client.config.update({ config: patch })` — the generated client maps only the `config` key to the PATCH body. Passing the patch as top-level args (`update(patch)`) sends an empty body; the UI can still toast success while values snap back after reload.
+**TUI `/permissions` write path (simple):** the dialog writes `{directory}/config.json` with `Bun.write` (merge patch into existing file). It then updates the in-memory sync store and calls `instance.dispose` + bootstrap so the server reloads that file. No SDK `config.update` body mapping for this dialog.
 
 ---
 

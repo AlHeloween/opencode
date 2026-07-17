@@ -12,6 +12,7 @@ import path from "path"
 import { useSDK } from "@tui/context/sdk"
 import { useToast } from "@tui/ui/toast"
 import * as Log from "@opencode-ai/core/util/log"
+import { useProject } from "@tui/context/project"
 
 const log = Log.create({ service: "tui.dialog-permissions" })
 
@@ -143,10 +144,50 @@ function cycleIn<T>(list: readonly T[], current: T, dir: 1 | -1): T {
   return list[(base + dir + list.length * 10) % list.length]!
 }
 
+/** Worktree overlay path: `{directory}/config.json` (same file Config.update uses). */
+function configOverlayPath(directory: string) {
+  return path.join(directory, "config.json")
+}
+
+/** Read JSON object from disk; missing/invalid → {}. */
+async function readJsonFile(file: string): Promise<Record<string, unknown>> {
+  try {
+    if (!existsSync(file)) return {}
+    const text = await Bun.file(file).text()
+    const parsed = JSON.parse(text)
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+/** Deep-merge plain objects (patch wins). Arrays replaced. */
+function mergePlain(base: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue
+    const prev = out[key]
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      prev &&
+      typeof prev === "object" &&
+      !Array.isArray(prev)
+    ) {
+      out[key] = mergePlain(prev as Record<string, unknown>, value as Record<string, unknown>)
+    } else {
+      out[key] = value
+    }
+  }
+  return out
+}
+
 export function DialogPermissions() {
   const { theme } = useTheme()
   const dialog = useDialog()
   const sync = useSync()
+  const project = useProject()
   const sdk = useSDK()
   const toast = useToast()
   const selectedFg = selectedForeground(theme)
@@ -285,26 +326,49 @@ export function DialogPermissions() {
     setDraftExternal(cycleIn(EXT_MODES, draftExternal(), dir))
   }
 
+  /**
+   * Write patch straight to `{directory}/config.json`. No SDK body mapping.
+   * Then poke the server to drop caches and refresh the in-memory store from disk.
+   */
   async function applyConfigPatch(patch: Record<string, unknown>, success?: string) {
     if (busy()) return false
     setBusy(true)
     try {
-      // SDK maps body from the `config` field only (sdk.gen.ts buildClientParams).
-      // Top-level update(patch) sends an empty body — toast can succeed while
-      // nothing is written, then values snap back after reload.
-      await sdk.client.config.update({ config: patch as any })
-      await sync.bootstrap({ fatal: false }).catch((err) => {
-        log.debug("bootstrap after permission update failed", { error: String(err) })
+      const directory = project.instance.directory() || sync.path.directory || sdk.directory
+      if (!directory) throw new Error("No project directory — cannot write config.json")
+
+      const file = configOverlayPath(directory)
+      const existing = await readJsonFile(file)
+      const next = mergePlain(existing, {
+        $schema: (existing.$schema as string) || "https://opencode.ai/config.json",
+        ...patch,
       })
+      await Bun.write(file, JSON.stringify(next, null, 2))
+
+      // Local UI immediately reflects disk (don't wait for server round-trip).
+      sync.set("config", {
+        ...(sync.data.config as object),
+        ...patch,
+        permission: (next.permission as object) ?? (sync.data.config as any)?.permission,
+      } as any)
+
+      // Server: drop instance caches so next tool call / get() reloads the file.
+      await sdk.client.instance.dispose().catch((err: unknown) => {
+        log.debug("instance dispose after config write failed", { error: String(err) })
+      })
+      await sync.bootstrap({ fatal: false }).catch((err) => {
+        log.debug("bootstrap after config write failed", { error: String(err) })
+      })
+
       if (success) {
-        toast.show({ title: "Permissions", message: success, variant: "success" })
+        toast.show({ title: "Permissions", message: `${success}\n${file}`, variant: "success" })
       }
       return true
     } catch (err) {
-      log.warn("bug: permission config update failed", { error: String(err), patch })
+      log.warn("bug: permission config write failed", { error: String(err), patch })
       toast.show({
         title: "Permissions",
-        message: `Failed to update: ${String(err)}`,
+        message: `Failed to write config.json: ${String(err)}`,
         variant: "error",
       })
       return false
@@ -319,17 +383,17 @@ export function DialogPermissions() {
       toast.show({ title: "Permissions", message: "No changes to save", variant: "warning" })
       return
     }
-    const prev = { ...((sync.data.config as any)?.permission ?? {}) }
+    const permission: Record<string, PolicyAction> = {}
     for (const p of TOOL_POLICIES) {
       const fallback = TOOL_DEFAULTS[p.key] ?? "allow"
-      prev[p.key] = draftTools[p.key] ?? fallback
+      permission[p.key] = draftTools[p.key] ?? fallback
     }
     const ok = await applyConfigPatch(
       {
-        permission: prev,
+        permission,
         external_directory_mode: draftExternal(),
       },
-      "Permissions saved to config",
+      "Wrote settings",
     )
     if (ok) loadDraftFromConfig()
   }

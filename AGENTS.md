@@ -183,6 +183,7 @@ DISCOVERY_RULES = {
 - **Use `messagesearch` to verify task completion.** Before implementing any task, search conversation history for prior work on the same item. Re-doing completed work is a bug. If the task was already done, update the plan — never re-implement.
 - **Cross-reference grounding.** When reading a plan that references subordinate plan files at specific paths, verify against both `plans/` AND `plans_completed/` before reporting the subordinate's status. A reference found in `plans_completed/` means the master plan is stale — update it, don't propagate the error.
 - **Master plan synchronization.** After moving a plan to `plans_completed/`, scan all active plans in `plans/` for references to it. Update any tracking/master plan that lists the completed item — mark it `[x]` Done or move it to a "completed" section. A master plan with stale task status is a plan-to-code gap.
+- **Mechanical hygiene (AGI / tooling):** `packages/opencode/src/util/plan-status.ts` — `reconcilePlans(worktree)` moves fully-checked files `plans/` → `plans_completed/` and reopens incomplete files from `plans_completed/` → `plans/`. True “all done” is `active === 0` **and** `misplaced === 0` (`isPlanHygieneClean`). AGI mode runs this automatically; see `docs/agi-workflow.md`. Checkbox content and master-plan prose remain agent duties; directory location is standardized by runtime.
 
 ## Style Guide
 
@@ -340,7 +341,7 @@ Real-time working copy tracking with undo/redo and session-level rollback. See `
 ## Plans convention
 
 - Active plans live in `plans/` at the repo root.
-- Completed plans move to `plans_completed/` at the repo root.
+- Completed plans move to `plans_completed/` at the repo root (AGI also auto-moves via `reconcilePlans` when no `[ ]` remain).
 - `.opencode/plans/` is strictly prohibited. Do not create, edit, read as authoritative, migrate from, or preserve plan state there.
 - After creating a plan document, run the explore task agent to validate it against the codebase.
 - Correct the plan based on explore feedback before implementing.

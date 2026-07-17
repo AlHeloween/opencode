@@ -233,11 +233,17 @@ Full write-up: **`docs/compaction.md`**.
                └───────────┘
 ```
 
-## 8. Key Files
+## 8. AGI plan hygiene
+
+See **`docs/agi-workflow.md`**. Runtime `util/plan-status.ts` standardizes `plans/` vs `plans_completed/` by checkbox presence; AGI only terminates when hygiene is clean.
+
+## 9. Key Files
 
 | File | Purpose | Lines |
 |------|---------|-------|
 | `session/prompt.ts` | Main prompt loop, checkpoint, Layer-1 summary tokens | — |
+| `util/plan-status.ts` | Plan progress + reconcilePlans hygiene | — |
+| `cli/cmd/tui/context/agi-mode.tsx` | AGI loop, plan hygiene integration | — |
 | `session/llm.ts` | LLM orchestration, system reorder, plugin hook | ~600 |
 | `session/system.ts` | Environment, capabilities, provider prompts | 168 |
 | `session/instruction.ts` | AGENTS.md/rules loading, caching | 270 |

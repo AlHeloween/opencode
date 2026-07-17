@@ -211,6 +211,25 @@ Full `Instance.dispose()` still runs when `dispose` is not `false` (heavier; tea
 
 ---
 
+## Incremental build (`build.py`)
+
+Content-addressed **xxhash128** fingerprints decide which stages to run:
+
+```text
+python build.py              # incremental
+python build.py --status     # plan only
+python build.py --full       # force all steps
+python build.py --skip-reasoning
+python build.py --only opencode
+```
+
+Steps: `kernel` → `reasoning` → `rust` → `opentui` → `opencode` → `stage`.  
+Cache: `.build-cache/manifest.json` (gitignored).  
+On incremental failure: message to retry with `--full`.  
+Still uses existing `_build_rust.ps1`, OpenTUI `bun run build`, and `script/build.ts --single` under the hood.
+
+---
+
 ## Operator checklist (slow startup)
 
 1. Expect multi-second cost from a **large single binary** alone.  

@@ -87,3 +87,7 @@ test_deep/
 tmp
 ts-dist
 tsconfig.tsbuildinfo
+
+# Incremental build fingerprints (build.py)
+.build-cache/
+

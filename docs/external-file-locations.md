@@ -74,3 +74,7 @@ PATHS = ExternalPaths()
 # Data root: {PATHS.data_root}, Config root: {PATHS.config_root}
 # {len(PATHS.data_paths)} data paths, {len(PATHS.exe_paths)} exe paths, \
 # {len(PATHS.project_paths)} project paths, {len(PATHS.env_vars)} env vars
+
+# Sidecar binaries under {exeDir}/tools/ and resolution order:
+# see docs/tools-and-sidecars.md
+# Linux deploy of this fork: docs/linux-deploy.md

@@ -41,6 +41,8 @@ class DocIndex:
         DocRecord("tests/test_reasoning_kernel.py", "opencode team", "165 pytest tests covering all kernel algorithms, contract validation, classification, state machine, integration"),
         DocRecord("docs/architecture.md", "OpenCode team", "System architecture: prompt, checkpoint, agents, media, cache/diff"),
         DocRecord("docs/external-file-locations.md", "OpenCode team", "File paths opencode reads/writes outside worktree"),
+        DocRecord("docs/linux-deploy.md", "Local_Development", "Linux build + portable deploy for this fork (not upstream install.sh)"),
+        DocRecord("docs/tools-and-sidecars.md", "Local_Development", "Sidecar tools inventory, resolution paths, Windows/Linux packaging"),
     ])
     
     specs: list[DocRecord] = field(default_factory=lambda: [

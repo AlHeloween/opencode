@@ -145,7 +145,7 @@ Three different systems — easy to confuse:
 
 | System | Backend | Role |
 |--------|---------|------|
-| **Snapshot (agent undo / “Modified Files”)** | **Fossil only** (`snapshot/fossil.ts`) | Sidecar repo `{data}/fossil/{projectID}/snapshot.fsl`; track/diff/restore. Honors `.gitignore` via Fossil ignore-glob. |
+| **Snapshot (agent undo / “Modified Files”)** | **Fossil only** (`snapshot/fossil.ts`) | Sidecar repo `{data}/fossil/{projectID}/snapshot.fsl`; track/diff/restore. Honors `.gitignore` via Fossil ignore-glob. Binary resolution: [tools-and-sidecars.md](tools-and-sidecars.md) §4.1. |
 | **Project VCS** (`project/vcs.ts`) | **Git** (when `project.vcs === "git"`) | Branch name, agent git-facing diffs — **source control**, not undo DB. |
 | **TUI footer indicator** | Detects `.jj` / `_FOSSIL_` / `.git` | Display only (jj blue, fossil green, git red). No jj snapshot backend. |
 

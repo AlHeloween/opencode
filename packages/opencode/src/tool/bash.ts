@@ -386,7 +386,7 @@ const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolea
   return tree.rootNode
 })
 
-const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan) {
+const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, shell: string) {
   if (scan.dirs.size > 0) {
     const globs = Array.from(scan.dirs).map((dir) => path.join(dir, "*"))
     yield* ctx.ask({
@@ -398,11 +398,13 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan) 
   }
 
   if (scan.patterns.size === 0) return
+  // bash | powershell | cmd — separate keys so /permissions can gate each shell.
+  const permission = Shell.permissionKey(shell)
   yield* ctx.ask({
-    permission: "bash",
+    permission,
     patterns: Array.from(scan.patterns),
     always: Array.from(scan.always),
-    metadata: {},
+    metadata: { shell: Shell.name(shell), permission },
   })
 })
 
@@ -852,7 +854,7 @@ export const BashTool = Tool.define(
               const allPaths = Array.from(scan.dirs)
               const pathWarnings = yield* validatePaths(allPaths, Instance.worktree)
 
-              yield* ask(ctx, scan)
+              yield* ask(ctx, scan, shell)
 
               // Background mode: fork into JobManager, return immediately
               if (params.run_in_background) {

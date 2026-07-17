@@ -451,6 +451,9 @@ test("destructive is denied by default; normal tools allowed", async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
       expect(evalPerm(build, "destructive")).toBe("deny")
       expect(evalPerm(build, "bash")).toBe("allow")
+      expect(evalPerm(build, "cmd")).toBe("allow")
+      expect(evalPerm(build, "powershell")).toBe("allow")
+      expect(evalPerm(build, "run")).toBe("allow")
       expect(evalPerm(build, "edit")).toBe("allow")
       expect(evalPerm(build, "webfetch")).toBe("allow")
     },

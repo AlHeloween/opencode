@@ -156,6 +156,19 @@ export function ps(file: string) {
   return meta(file)?.ps === true
 }
 
+/**
+ * Permission key for shell tool invocations.
+ * Separates bash (posix), PowerShell, and cmd so config can allow/deny each independently.
+ */
+export function permissionKey(file: string): "bash" | "powershell" | "cmd" {
+  if (ps(file)) return "powershell"
+  const n = name(file)
+  if (n === "cmd" || n === "command") return "cmd"
+  // Windows non-posix, non-ps shells (e.g. COMSPEC) treat as cmd
+  if (process.platform === "win32" && !posix(file)) return "cmd"
+  return "bash"
+}
+
 function info(file: string): Item {
   const item = full(file)
   const n = name(item)

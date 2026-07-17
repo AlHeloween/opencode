@@ -28,10 +28,18 @@ const InputObject = Schema.StructWithRest(
     glob: Schema.optional(Rule),
     grep: Schema.optional(Rule),
     list: Schema.optional(Rule),
+    /** POSIX shells via the bash tool (bash/zsh/sh). */
     bash: Schema.optional(Rule),
+    /** Windows cmd.exe — cmd tool and bash tool when COMSPEC/cmd is the shell. */
+    cmd: Schema.optional(Rule),
+    /** PowerShell / pwsh — bash tool when PowerShell is the active shell. */
+    powershell: Schema.optional(Rule),
+    /** Binary exec via the run tool (not a shell). */
+    run: Schema.optional(Rule),
     /**
-     * Constitution DESTRUCTIVE shell (rm -rf, force-push, …) — not covered by bash:*.
-     * Default is deny; normal shell commands use permission "bash" (allow by default).
+     * Constitution DESTRUCTIVE shell (rm -rf, force-push, …).
+     * Not covered by bash/cmd/powershell/run wildcards. Default is deny;
+     * normal shell/run commands use their own keys (allow by default).
      */
     destructive: Schema.optional(Rule),
     task: Schema.optional(Rule),

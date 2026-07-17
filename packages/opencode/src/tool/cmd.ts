@@ -369,11 +369,12 @@ export const CmdTool = Tool.define(
         yield* ctx.ask({ permission: "external_directory", patterns: globs, always: globs, metadata: {} })
       }
       if (scan.patterns.size === 0) return
+      // Dedicated "cmd" permission (not bash) so shell policies can be separated.
       yield* ctx.ask({
-        permission: "bash" as any,
+        permission: "cmd",
         patterns: Array.from(scan.patterns),
         always: Array.from(scan.always),
-        metadata: {},
+        metadata: { shell: "cmd", permission: "cmd" },
       })
     })
 

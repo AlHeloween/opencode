@@ -28,6 +28,9 @@ const EXT_MODES: ExternalDirMode[] = ["ask", "allow", "deny"]
 const TOOL_DEFAULTS: Record<string, PolicyAction> = {
   destructive: "deny",
   bash: "allow",
+  cmd: "allow",
+  powershell: "allow",
+  run: "allow",
   edit: "allow",
   doom_loop: "ask",
   webfetch: "allow",
@@ -41,28 +44,49 @@ const TOOL_POLICIES: {
   label: string
   hint: string
   danger?: boolean
+  section?: string
 }[] = [
   {
     key: "destructive",
-    label: "Destructive shell",
-    hint: "rm -rf, force-push, reset --hard — denied by default (not covered by bash:*)",
+    label: "Destructive",
+    hint: "rm -rf, force-push, reset --hard — denied by default (not bash/cmd/ps/run *)",
     danger: true,
+    section: "Shell & exec",
   },
   {
     key: "bash",
-    label: "Shell",
-    hint: "bash tool (auto: bash / PowerShell / cmd) + Windows cmd tool (same permission)",
+    label: "Bash",
+    hint: "bash tool with POSIX shell (bash/zsh/sh)",
+    section: "Shell & exec",
   },
-  { key: "edit", label: "Edit / write", hint: "File mutations (edit, write, patch)" },
-  { key: "doom_loop", label: "Doom loop", hint: "Continue after repeated tool failures" },
-  { key: "webfetch", label: "Web fetch", hint: "Outbound HTTP" },
-  { key: "messagesearch", label: "Message search", hint: "Inferred history search" },
-  { key: "session-read", label: "Session read", hint: "Exact archive by message ID" },
+  {
+    key: "powershell",
+    label: "PowerShell",
+    hint: "bash tool when shell is pwsh/powershell",
+    section: "Shell & exec",
+  },
+  {
+    key: "cmd",
+    label: "Cmd",
+    hint: "Windows cmd tool + bash tool when shell is cmd.exe",
+    section: "Shell & exec",
+  },
+  {
+    key: "run",
+    label: "Run",
+    hint: "run tool — direct binary/exec (not a shell)",
+    section: "Shell & exec",
+  },
+  { key: "edit", label: "Edit / write", hint: "File mutations (edit, write, patch)", section: "Tools" },
+  { key: "doom_loop", label: "Doom loop", hint: "Continue after repeated tool failures", section: "Tools" },
+  { key: "webfetch", label: "Web fetch", hint: "Outbound HTTP", section: "Tools" },
+  { key: "messagesearch", label: "Message search", hint: "Inferred history search", section: "Tools" },
+  { key: "session-read", label: "Session read", hint: "Exact archive by message ID", section: "Tools" },
 ]
 
 type NavRow =
-  | { kind: "tool"; key: string; label: string; hint: string; danger?: boolean }
-  | { kind: "external"; label: string; hint: string }
+  | { kind: "tool"; key: string; label: string; hint: string; danger?: boolean; section?: string }
+  | { kind: "external"; label: string; hint: string; section?: string }
   | { kind: "action"; id: "save" | "reload" | "close"; label: string }
 
 const POLICY_ROWS: NavRow[] = [
@@ -73,12 +97,14 @@ const POLICY_ROWS: NavRow[] = [
       label: p.label,
       hint: p.hint,
       danger: p.danger,
+      section: p.section,
     }),
   ),
   {
     kind: "external",
     label: "External directory",
     hint: "Access outside project worktree",
+    section: "Tools",
   },
 ]
 
@@ -454,56 +480,70 @@ export function DialogPermissions() {
 
       {/* Tool + external policies (keyboard-navigable draft) */}
       <box gap={0}>
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Tool policies
-        </text>
         <For each={POLICY_ROWS}>
           {(row, i) => {
             const idx = () => i()
             const selected = () => isSelected(idx())
+            const prevSection = () => {
+              const prev = POLICY_ROWS[idx() - 1]
+              if (!prev || prev.kind === "action") return undefined
+              return prev.section
+            }
+            const section = () => (row.kind === "action" ? undefined : row.section)
+            const showSection = () => {
+              const s = section()
+              return s && s !== prevSection()
+            }
             return (
-              <box
-                flexDirection="row"
-                gap={1}
-                alignItems="center"
-                backgroundColor={selected() ? theme.primary : undefined}
-                onMouseUp={() => {
-                  setPathFocused(false)
-                  pathInput?.blur?.()
-                  setCursor(idx())
-                }}
-                onMouseDown={() => {
-                  setPathFocused(false)
-                  setCursor(idx())
-                }}
-              >
-                <text
-                  fg={busy() ? theme.textMuted : selected() ? selectedFg : draftColor(row)}
-                  attributes={TextAttributes.BOLD}
-                  onMouseUp={(e) => {
-                    e.stopPropagation()
+              <box gap={0}>
+                <Show when={showSection()}>
+                  <text fg={theme.text} attributes={TextAttributes.BOLD}>
+                    {section()}
+                  </text>
+                </Show>
+                <box
+                  flexDirection="row"
+                  gap={1}
+                  alignItems="center"
+                  backgroundColor={selected() ? theme.primary : undefined}
+                  onMouseUp={() => {
+                    setPathFocused(false)
+                    pathInput?.blur?.()
+                    setCursor(idx())
+                  }}
+                  onMouseDown={() => {
                     setPathFocused(false)
                     setCursor(idx())
-                    // Single click on value: change draft only (do not save)
-                    cycleDraft(1, idx())
                   }}
                 >
-                  [{draftValue(row)}]
-                </text>
-                <text
-                  fg={
-                    selected()
-                      ? selectedFg
-                      : row.kind === "tool" && row.danger
-                        ? theme.error
-                        : theme.text
-                  }
-                >
-                  {row.label}
-                </text>
-                <text fg={selected() ? selectedFg : theme.textMuted}>
-                  {row.kind === "action" ? "" : row.hint}
-                </text>
+                  <text
+                    fg={busy() ? theme.textMuted : selected() ? selectedFg : draftColor(row)}
+                    attributes={TextAttributes.BOLD}
+                    onMouseUp={(e) => {
+                      e.stopPropagation()
+                      setPathFocused(false)
+                      setCursor(idx())
+                      // Single click on value: change draft only (do not save)
+                      cycleDraft(1, idx())
+                    }}
+                  >
+                    [{draftValue(row)}]
+                  </text>
+                  <text
+                    fg={
+                      selected()
+                        ? selectedFg
+                        : row.kind === "tool" && row.danger
+                          ? theme.error
+                          : theme.text
+                    }
+                  >
+                    {row.label}
+                  </text>
+                  <text fg={selected() ? selectedFg : theme.textMuted}>
+                    {row.kind === "action" ? "" : row.hint}
+                  </text>
+                </box>
               </box>
             )
           }}

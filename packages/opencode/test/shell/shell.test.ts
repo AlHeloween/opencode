@@ -96,4 +96,12 @@ describe("shell", () => {
       })
     })
   }
+
+  test("permissionKey separates bash, powershell, and cmd", () => {
+    expect(Shell.permissionKey("/bin/bash")).toBe("bash")
+    expect(Shell.permissionKey("/bin/zsh")).toBe("bash")
+    expect(Shell.permissionKey("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")).toBe("powershell")
+    expect(Shell.permissionKey("C:/Program Files/PowerShell/7/pwsh.exe")).toBe("powershell")
+    expect(Shell.permissionKey("C:/Windows/System32/cmd.exe")).toBe("cmd")
+  })
 })

@@ -253,7 +253,9 @@ describe("tool.bash permissions", () => {
                 capture(requests),
               ),
             )
-            const bashReq = requests.find((r) => r.permission === "bash")
+            const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
             expect(bashReq).toBeDefined()
             expect(bashReq!.patterns).toContain("Write-Host foo")
             expect(bashReq!.patterns).toContain("Write-Host bar")
@@ -351,7 +353,9 @@ describe("tool.bash permissions", () => {
                 ),
               )
               const extDirReq = requests.find((r) => r.permission === "external_directory")
-              const bashReq = requests.find((r) => r.permission === "bash")
+              const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
               expect(extDirReq).toBeDefined()
               expect(extDirReq!.patterns).toContain(glob(path.join(outerTmp.path, "*")))
               expect(bashReq).toBeDefined()
@@ -416,7 +420,9 @@ describe("tool.bash permissions", () => {
                 ),
               )
               const extDirReq = requests.find((r) => r.permission === "external_directory")
-              const bashReq = requests.find((r) => r.permission === "bash")
+              const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
               expect(extDirReq).toBeDefined()
               expect(extDirReq!.patterns).toContain(glob(path.join(process.env.WINDIR!, "*")))
               expect(bashReq).toBeDefined()
@@ -701,7 +707,9 @@ describe("tool.bash permissions", () => {
                 ),
               )
               const extDirReq = requests.find((r) => r.permission === "external_directory")
-              const bashReq = requests.find((r) => r.permission === "bash")
+              const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
               expect(extDirReq).toBeDefined()
               expect(extDirReq!.patterns).toContain(
                 Filesystem.normalizePathPattern(path.join(process.env.WINDIR!, "*")),
@@ -731,7 +739,9 @@ describe("tool.bash permissions", () => {
                   capture(requests),
                 ),
               )
-              const bashReq = requests.find((r) => r.permission === "bash")
+              const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
               expect(bashReq).toBeDefined()
               expect(bashReq!.patterns).not.toContain("a * 3")
               expect(bashReq!.always).not.toContain("a *")
@@ -997,7 +1007,9 @@ describe("tool.bash permissions", () => {
             capture(requests),
           ),
         )
-        const bashReq = requests.find((r) => r.permission === "bash")
+        const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
         expect(bashReq).toBeUndefined()
       },
     })
@@ -1019,7 +1031,9 @@ describe("tool.bash permissions", () => {
             ),
           ),
         ).rejects.toThrow(err.message)
-        const bashReq = requests.find((r) => r.permission === "bash")
+        const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
         expect(bashReq).toBeDefined()
         expect(bashReq!.patterns).toContain("echo test > output.txt")
       },
@@ -1034,7 +1048,9 @@ describe("tool.bash permissions", () => {
         const bash = await initBash()
         const requests: Array<Omit<Permission.Request, "id" | "sessionID" | "tool">> = []
         await Effect.runPromise(bash.execute({ command: "ls -la", description: "List" }, capture(requests)))
-        const bashReq = requests.find((r) => r.permission === "bash")
+        const bashReq = requests.find(
+              (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
+            )
         expect(bashReq).toBeDefined()
         expect(bashReq!.always[0]).toBe("ls *")
       },

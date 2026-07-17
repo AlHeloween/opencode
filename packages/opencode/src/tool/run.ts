@@ -270,6 +270,30 @@ export const RunTool = Tool.define(
           const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
           if (params.timeout !== undefined && params.timeout < 0) throw new Error(`Invalid timeout: ${params.timeout}`)
           const timeout = params.timeout ?? DEFAULT_TIMEOUT
+
+          // Permission: dedicated "run" key (binary exec, not a shell).
+          if (!Instance.containsPath(cwd)) {
+            const globs = [path.join(cwd, "*")]
+            yield* ctx.ask({
+              permission: "external_directory",
+              patterns: globs,
+              always: globs,
+              metadata: {},
+            })
+          }
+          const binary = params.binary
+          const pattern = [binary, ...params.args].join(" ").slice(0, 200)
+          yield* ctx.ask({
+            permission: "run",
+            patterns: [pattern, binary, `${binary} *`],
+            always: [binary, `${binary} *`],
+            metadata: {
+              binary,
+              args: params.args.slice(0, 20),
+              description: params.description,
+            },
+          })
+
           if (params.run_in_background) {
             const jobs = yield* Effect.serviceOption(Jobs.Service)
             if (jobs._tag === "Some") {

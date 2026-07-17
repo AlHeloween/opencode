@@ -168,7 +168,7 @@ describe("tool.cmd permissions", () => {
           } as any),
         )
         expect(prompts.length).toBeGreaterThan(0)
-        expect(prompts.some((p) => p.permission === "bash")).toBe(true)
+        expect(prompts.some((p) => p.permission === "cmd")).toBe(true)
       },
     })
   })
@@ -212,7 +212,7 @@ describe("tool.cmd permissions", () => {
               } as any),
             ),
           ).rejects.toThrow(stop.message)
-          expect(prompts).toContainEqual(expect.objectContaining({ permission: "bash" }))
+          expect(prompts).toContainEqual(expect.objectContaining({ permission: "cmd" }))
         }
       },
     })

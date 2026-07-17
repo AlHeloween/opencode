@@ -263,19 +263,22 @@ export const layer = Layer.effect(
               : normalizeNL(p.text).startsWith(normalizeNL(text))),
         )
 
-      // Compaction reminder: if the most recent assistant message is a compaction
-      // summary, inject a system-reminder telling the model it can use
-      // messagesearch to browse previous context.
-      const hasCompactionSummary = input.messages.some(
-        (msg) => msg.info.role === "assistant" && (msg.info as { summary?: unknown }).summary === true,
-      )
-      if (hasCompactionSummary && input.agent.name !== "plan") {
+      // Compaction reminder: after message* or a live summary assistant, tell the
+      // model it can recover soft-hidden history via session-read / messagesearch.
+      const hasCompactionMemory = input.messages.some((msg) => {
+        if (msg.info.role === "assistant" && (msg.info as { summary?: unknown }).summary === true) return true
+        return msg.parts.some(
+          (p) => p.type === "text" && typeof (p as { text?: string }).text === "string" && (p as { text: string }).text.includes("=== COMPACTED ==="),
+        )
+      })
+      if (hasCompactionMemory && input.agent.name !== "plan") {
         const COMPACTION_REMINDER = `<system-reminder>
 Your conversation history was compacted to stay within context limits.
-A structured summary of previous work is in the assistant message above.
+Active memory is the compacted message (=== COMPACTED ===) and/or summary assistants.
+Older messages are soft-hidden in the DB — not deleted.
 Use \`messagesearch\` without a query to browse recent messages, or
 with a query to search for specific topics.
-Use \`session-read\` with specific message IDs from the summary for exact retrieval.
+Use \`session-read\` with message IDs from summaries / Recent sections for exact retrieval.
 </system-reminder>`
         if (!hasSynthetic(COMPACTION_REMINDER, "prefix")) {
           const part = yield* sessions.updatePart({
@@ -1649,7 +1652,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
               cachedMsgs = undefined
               lastKnownId = undefined
               modelMsgsCache = undefined
-            // Accumulate output tokens for incremental summary injection
+              return "continue" as const
+            }
+            // Layer 1: accumulate output tokens; every ~30K inject a summary request.
+            // (Must run on normal continues — not nested under the compact branch.)
             if (!msg.summary) {
               outputTokensSinceLastSummary += handle.message.tokens.output + handle.message.tokens.reasoning
             } else {
@@ -1664,8 +1670,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
               })
               pendingSummaryResponse = true
               outputTokensSinceLastSummary = 0
-            }
-            return "continue" as const
             }
             // Save encrypted checkpoint after successful turn.
             // Fire-and-forget — don't block the loop on I/O.

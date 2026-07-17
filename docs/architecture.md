@@ -1,8 +1,10 @@
 # OpenCode Architecture & System Design (2026-06-24)
 
 **Status:** production
-**Last Updated:** 2026-07-12
-**See also:** `docs/reasoning-framework.md` — PromptSpec schema, syntax/disciplinary projections, IR compilation
+**Last Updated:** 2026-07-17
+**See also:**
+- `docs/reasoning-framework.md` — PromptSpec schema, syntax/disciplinary projections, IR compilation
+- `docs/compaction.md` — mechanistic compaction (stable continuous memory)
 
 ---
 
@@ -95,10 +97,11 @@
 │  │ planning │ file search  │ implement  │ gather info   │   │
 │  │ strategy │ code grep    │ edit/write │ read-only     │   │
 │  ├──────────┼──────────────┼────────────┼───────────────┤   │
-│  │ media    │ compaction   │ title      │ summary       │   │
-│  │ generate │ summarize    │ name       │ describe      │   │
-│  │ images   │ conversation │ sessions   │ sessions      │   │
+│  │ media    │ title        │ summary    │               │   │
+│  │ generate │ name         │ describe   │               │   │
+│  │ images   │ sessions     │ sessions   │               │   │
 │  └──────────┴──────────────┴────────────┴───────────────┘   │
+│  (No separate compaction agent — see § Mechanistic Compaction)│
 │                                                              │
 │  Pipeline tool: chains subagents sequentially                │
 │    researcher → coder: gather evidence → implement           │
@@ -148,7 +151,40 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 5. KV Cache & Diff Architecture
+## 5. Mechanistic Compaction (Stable Continuous Memory)
+
+Full write-up: **`docs/compaction.md`**.
+
+**Problem:** One-shot “summarize 500k tokens” produces unreliable memory soup; the agent drifts.
+
+**Solution:** Bounded ~30k summaries with hard message-ID links + soft-hide compact into `message*`. Archive stays in DB for `session-read` / `messagesearch`.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              MECHANISTIC COMPACTION LOOP                     │
+│                                                              │
+│  Layer 1 — every ~32K output tokens:                         │
+│    injectSummaryRequest(from_id, to_id, session_id)          │
+│    → model writes s (assistant.summary=true) with links      │
+│    → if open range > ~30K content, trim to last interval     │
+│                                                              │
+│  Layer 2 — on overflow:                                      │
+│    (m,m,s,m,m,s,m,m) → message* = (s,s, recent m…)           │
+│    soft-hide all visible (info.compacted); never delete      │
+│    prior message* not re-nested; summaries re-collected      │
+│                                                              │
+│  Loop:  (m*, s, m, m, …) → compact again → message**         │
+│  Idempotent when only a lone message* is visible             │
+│                                                              │
+│  Memory model:                                               │
+│    active  = message* + recent s/m                           │
+│    archive = full SQLite history (session-read / search)     │
+│                                                              │
+│  Checkpoint: remove on compact; save after next success      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 6. KV Cache & Diff Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -176,7 +212,7 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 6. Complete Data Flow
+## 7. Complete Data Flow
 
 ```
 ┌──────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────┐
@@ -204,19 +240,20 @@
                └───────────┘
 ```
 
-## 7. Key Files
+## 8. Key Files
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `session/prompt.ts` | Main prompt loop, checkpoint integration, compaction | 2028 |
+| `session/prompt.ts` | Main prompt loop, checkpoint, Layer-1 summary tokens | — |
 | `session/llm.ts` | LLM orchestration, system reorder, plugin hook | ~600 |
 | `session/system.ts` | Environment, capabilities, provider prompts | 168 |
 | `session/instruction.ts` | AGENTS.md/rules loading, caching | 270 |
-| `session/checkpoint.ts` | Per-model encrypted checkpoint save/load | 121 |
-| `session/cache-control.ts` | MD5 fingerprint, cache audit | 601 |
-| `session/request-diff.ts` | Encrypted baseline, diff engine | 726 |
-| `session/compaction.ts` | Message summarization, token budgeting | 380 |
-| `session/message-v2.ts` | Message schema, conversion, filtering | 1550 |
+| `session/checkpoint.ts` | Per-model encrypted checkpoint save/load | — |
+| `session/cache-control.ts` | MD5 fingerprint, cache audit | — |
+| `session/request-diff.ts` | Encrypted baseline, diff engine | — |
+| `session/compaction.ts` | Mechanistic compact + injectSummaryRequest | — |
+| `session/overflow.ts` | Content/token overflow detection | — |
+| `session/message-v2.ts` | Schema, conversion, `filterCompacted*` | — |
 | `agent/agent.ts` | 10 built-in agent definitions | 395 |
 | `tool/pipeline.ts` | Pipeline tool (agent chaining) | 191 |
 | `tool/capability.ts` | Model capability lookup tool | 101 |

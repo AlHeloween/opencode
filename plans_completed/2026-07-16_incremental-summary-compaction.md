@@ -1,118 +1,99 @@
-# Plan: Incremental Summary + Algorithmic Compaction
+# Plan: Incremental Summary + Mechanistic Compaction
 
-**Date:** 2026-07-16
+**Date:** 2026-07-16  
+**Updated:** 2026-07-17  
 **Status:** ✅ Implemented
 
-## It's Not an AI Problem — It's an Information Theory Problem
+**Canonical docs:** `docs/compaction.md`, `docs/architecture.md` § Mechanistic Compaction, `AGENTS.md` (checkpoint/compaction)
 
-Neither humans nor LLMs can losslessly compress 500K tokens of nuanced context into a single summary. Any single-pass compaction that asks the model to "summarize everything" is doomed — the compression ratio exceeds what information theory allows while preserving actionable detail.
+---
 
-**The old design asked for the impossible on every cycle**: spawn a compaction agent, feed it 300K+ tokens, expect a structured summary. The model sometimes produced reasoning, sometimes emitted tool calls, sometimes hallucinated — all because it was asked to do something fundamentally lossy with no guardrails.
+## Why (information theory, not “better prompting”)
 
-**The new design never asks that question.** Each summary covers a digestible ~30K-token segment — small enough to be reliable. The algorithm handles chunking, anchoring, DB pruning, and precise record injection. The model sees a chain of bite-sized summaries + exact DB positions for `session-read`.
+Neither humans nor LLMs can losslessly compress 500K tokens of nuanced context into a single summary. A one-shot “summarize everything” produces **memory soup** — vague or wrong text that then becomes the only memory. The agent **loses track**.
 
-## Architecture
-
-### Problem
-
-Old approach: collect gigantic content, trigger a separate "compaction agent" call, model produces a monolithic summary. This was:
-- Wasteful: full kernel prefix loaded for a simple summary task
-- Unreliable: model ignored `no_tools`/`no_reasoning` constraints and emitted tool calls
-- Cache-breaking: separate agent = separate KV cache
-
-### Solution
-
-Algorithmic compaction with three layers:
+**Mechanistic design:** summarize small ~30K segments; every summary carries **hard links** for `session-read`. Soft-hide into `message*`; **never delete**. Even imperfect summary text remains a **handle** to recover ground truth. Memory is **stable and continuous**.
 
 ```
-messages → {m,m,m,m,m,m,s,m,m,m,m,s,m,m,m,m} → compact → {s,s,m,m,m,m} → checkpoint
-                ↑              ↑
-           32K tokens     another 32K
-        injectSummaryRequest()
-        model produces summary (s)
-        assistant.summary = true
+active working set  = message* + recent s/m
+addressable archive = full DB (soft-hidden from context, tools can read)
 ```
 
-#### Layer 1: Incremental Summaries (every 32K output tokens)
+---
 
-`prompt.ts` `runLoop` tracks `outputTokensSinceLastSummary`. After each successful LLM turn, tokens accumulate. At 32K threshold:
-- `compaction.injectSummaryRequest()` creates a user message with exact message ID range: "Summarize from `msg_X` to `msg_Y`"
-- Model responds normally (no separate agent)
-- Assistant message marked `summary: true`
-- Counter resets to 0
+## Architecture (implemented)
 
-#### Layer 2: Algorithmic Compaction (on overflow)
+```
+every ~30k output → injectSummaryRequest → model writes s (with links)
 
-When `isOverflowFromContent()` or `isOverflow()` detects overflow:
-- `compaction.compact()` finds the most recent `summary: true` boundary
-- Removes all messages older than the boundary from DB (`session.removeMessage`)
-- Injects a compacted-context user message with precise DB targeting:
-  - Summary assistant ID
-  - Active context message IDs (tail)
-  - Session ID for `session-read`
-- No separate compaction agent — just message injection and DB pruning
-- `filterCompactedEffect` takes fast path (no `CompactionPart` → load all)
+(m,m,m,s,m,m,s,m,m,m)
+        ↓ compact()
+message* = (s,s, recent m…)     ← only visible memory
+        ↓ growth
+(m*, s, m, m, s, m, m)
+        ↓ compact again
+message** = (s…, recent m…)
+```
 
-#### Layer 3: Continuous Memory via DB Record Positions
+### Layer 1: Incremental summaries (~32K output tokens)
 
-Every message carries exact DB record positions:
-- **Summary request:** `from_id` and `to_id` for the range being summarized
-- **Summary response:** model includes message IDs in the summary text
-- **Compact message:** summary ID, tail message IDs, session ID
+`prompt.ts` `runLoop` tracks `outputTokensSinceLastSummary` on **normal continues** (not nested under the compact branch). At threshold:
 
-The agent uses `session-read` with these IDs for exact retrieval — never guesses.
+- `injectSummaryRequest()` — synthetic user message with `from_id` / `to_id` / `session_id`
+- Open range larger than ~30K content → trim `from_id` to last interval
+- Model responds normally; `assistant.summary = true`; tools blocked except `skill`
 
-### Removed
+### Layer 2: Algorithmic compact (overflow)
+
+- Collect **all** `summary: true` assistants from full DB (including soft-hidden)
+- Soft-hide every **visible** message (`info.compacted = true`) — **no `removeMessage`**
+- Inject one user `message*` (`=== COMPACTED ===`) = summaries (with IDs) + recent after last summary
+- Prior `message*` bodies are skipped when rebuilding (no nested dump)
+- Idempotent if only a lone `message*` remains
+- Multi-round: growth after `message*` allows compact again (no permanent `anyCompacted` skip)
+
+### Layer 3: Continuous memory
+
+- Summary request + summary text + `message*` all embed message IDs / `session_id`
+- Agent uses `session-read` and `messagesearch` to regain detail on the fly
+
+### Checkpoint
+
+- `Checkpoint.remove` on compact; next successful turn saves compacted visible state
+
+---
+
+## Removed (historical)
 
 | Component | Reason |
 |-----------|--------|
-| Compaction agent (`agent.ts`) | No separate agent needed |
-| `compactionTier()` (soft/full/force ratios) | No tier system |
-| `select()` / `selectMessages()` | No head/tail splitting |
-| `chunkHead()` | No chunking |
-| `prune()` (tool output compaction) | No tool output pruning |
-| `validateSummary()` | No validation needed |
-| Stuck detection | No stuck state |
-| `CompactionPart` injection | Pruning is direct via `removeMessage()` |
-| Compaction checks in `llm.ts` | No special agent mode |
+| Compaction agent | No separate agent; summaries run in main agent |
+| Hard `removeMessage` prune | Soft-hide only; archive must survive |
+| Permanent “already compacted” global skip | Broke multi-round loop |
+| Soft/full/force tier system | Replaced by overflow + interval |
+| `CompactionPart` injection | Soft-hide + `message*` only |
 
-### Files Changed
+---
 
-| File | Change |
-|------|--------|
-| `agent.ts` | Removed compaction agent definition |
-| `llm.ts` | Removed `agent.name === "compaction"` checks |
-| `overflow.ts` | Removed `compactionTier()` |
-| `compaction.ts` | Rewrote: `compact()`, `injectSummaryRequest()`, `isOverflow()`. Removed `select()`, `prune()`, `chunkHead()`, `extractAnchors()`, `validateSummary()` |
-| `prompt.ts` | Replaced compaction agent path with overflow→compact(). Added token tracking + summary injection. Updated system-reminder. |
-| `session.ts` (httpapi) | `create()` → `compact()` |
-| `compaction.test.ts` | 42 tests: 11 new, deleted dead test groups |
-| `opencode_prompts_kernel.py` | Removed COMPACTION spec, CONTRACTS, PACKS |
-| `opencode_prompts_kernel.txt` | Regenerated without COMPACTION |
-| `test_reasoning_kernel.py` | Updated spec count 33→32 |
+## Files
 
-### Message Templates
+| File | Role |
+|------|------|
+| `session/compaction.ts` | `compact`, `injectSummaryRequest`, `isOverflow` |
+| `session/prompt.ts` | Token accumulate, overflow→compact, reminder |
+| `session/overflow.ts` | Overflow detection |
+| `session/message-v2.ts` | `filterCompacted*` |
+| `session/processor.ts` | Provider overflow → `"compact"`; summary tool gate |
+| `test/session/compaction.test.ts` | Loop coverage |
+| `docs/compaction.md` | Canonical design doc |
 
-**Summary request** (`injectSummaryRequest`):
-```
-Please create a structured summary of the conversation from `msg_X` to `msg_Y`.
-Include these message IDs: from_id: `msg_X`, to_id: `msg_Y`.
-Output ONLY the structured summary sections starting with ## Goal.
-```
+---
 
-**Compact message** (`compact`):
-```
-Your context has been compacted. Use session-read for precise history recall.
-Summary: assistant `msg_S` covers the conversation up to that point.
-Active context: messages `msg_T1` through `msg_TN`.
-Use messagesearch with query keywords to find pruned content.
-Use session-read with sessionId: "ses_xxx" for exact retrieval.
-```
+## Acceptance
 
-**System-reminder** (`insertReminders`):
-```
-Your conversation history was compacted to stay within context limits.
-A structured summary of previous work is in the assistant message above.
-Use messagesearch without a query to browse recent messages.
-Use session-read with specific message IDs from the summary for exact retrieval.
-```
+- [x] Layer 1 runs on normal continues
+- [x] `message*` is sole visible set after compact; messages not deleted
+- [x] Re-compact after `(m*, m)` growth
+- [x] Summary / `message*` carry session-read links
+- [x] Docs: `docs/compaction.md`, architecture, AGENTS.md
+- [x] `bun test test/session/compaction.test.ts` passes

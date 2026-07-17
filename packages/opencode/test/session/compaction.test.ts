@@ -175,18 +175,18 @@ describe("session.compaction.sequential-compact", () => {
         const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent-msg" })
 
-        // First compact
+        // First compact → single message*
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after1 = yield* MessageV2.filterCompactedEffect(info.id)
-        const count1 = after1.length
+        expect(after1).toHaveLength(1)
+        const id1 = after1[0].info.id
 
-        // Second compact — no new summary, already-compacted guard triggers
+        // Second compact — only message* visible → idempotent no-op
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
 
-        // Message count should be identical — second compact is a no-op
-        expect(after2.length).toBe(count1)
-        // Combined message* still present
+        expect(after2).toHaveLength(1)
+        expect(after2[0].info.id).toBe(id1)
         const texts2 = after2.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
         expect(texts2.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
       }),
@@ -1129,34 +1129,37 @@ describe("session.compaction.compact", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
+        // Model sees only message* — originals soft-hidden, not deleted
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+        expect(msgs).toHaveLength(1)
+        const combined = msgs
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
 
-        // Old messages should NOT be visible to the model
-        expect(texts).not.toContain("old-1")
-        expect(texts).not.toContain("old-2")
-        // Compaction combines everything into message*
-        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
-        // Recent messages folded into combined message
-        const combined = texts.join("\n")
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).toContain("## Goal")
+        expect(combined).toContain("summary content here")
         expect(combined).toContain("recent-1")
         expect(combined).toContain("recent-2")
-        // Compacted message should be present with session-read targeting
-        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
+        // Old raw messages not in message* body (they predate the summary)
+        expect(combined).not.toContain("old-1")
+        expect(combined).not.toContain("old-2")
+        // session-read links present
+        expect(combined).toContain("summary_message_id")
+        expect(combined).toContain("session_id")
       }),
     ),
   )
 
   it.live(
-    "keeps all messages when no summaries exist (nothing to anchor on)",
-    provideTmpdirInstance((dir) =>
+    "folds all visible messages into message* when no summaries exist",
+    provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
         const ssn = yield* SessionNs.Service
         const info = yield* ssn.create({})
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-        // Create messages without any summary
         for (const text of ["msg-1", "msg-2", "msg-3"]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
@@ -1168,22 +1171,23 @@ describe("session.compaction.compact", () => {
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-
-        // All messages should be kept — no summary means no pruning
-        expect(texts).toContain("msg-1")
-        expect(texts).toContain("msg-2")
-        expect(texts).toContain("msg-3")
-        // Compacted message present with "No summary" notice
-        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
-        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
+        // Only message* is visible; content preserved inside it
+        expect(msgs).toHaveLength(1)
+        const combined = msgs
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).toContain("msg-1")
+        expect(combined).toContain("msg-2")
+        expect(combined).toContain("msg-3")
+        expect(combined).toContain("session_id")
       }),
     ),
   )
 
   it.live(
     "trims to ~30K tokens when no summary and context is large",
-    provideTmpdirInstance((dir) =>
+    provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
         const ssn = yield* SessionNs.Service
@@ -1202,11 +1206,13 @@ describe("session.compaction.compact", () => {
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(msgs.length).toBeLessThan(30)
-        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-        expect(texts.some((t: string) => t.includes("msg-28") || t.includes("msg-29"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("msg-0-"))).toBe(false)
-        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
+        expect(msgs).toHaveLength(1)
+        const combined = msgs
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined.includes("msg-28") || combined.includes("msg-29")).toBe(true)
+        expect(combined).not.toContain("msg-0-")
       }),
     ),
   )
@@ -1232,6 +1238,8 @@ describe("session.compaction.injectSummaryRequest", () => {
         const texts = msgs[0].parts.filter((p: any) => p.type === "text").map((p: any) => p.text)
         expect(texts.some((t: string) => t.includes("Please create a structured summary"))).toBe(true)
         expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
+        expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
       }),
     ),
   )
@@ -1295,18 +1303,24 @@ describe("session.compaction.multiple-summaries", () => {
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        const texts = msgs.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-        const combined = texts.join("\n")
+        expect(msgs).toHaveLength(1)
+        const combined = msgs
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
 
-        // Old content not in combined message
+        // Old content not in message* (pre-summary)
         expect(combined).not.toContain("old-before-s1")
-        // Summary content IS in combined (from assistant, not user request)
+        // All summaries folded into message*
         expect(combined).toContain("## Goal")
         expect(combined).toContain("summary for segment")
-        // Recent content is in combined
+        expect(combined).toContain("Summary 1")
+        expect(combined).toContain("Summary 2")
+        // Recent after last summary
         expect(combined).toContain("recent-after-s2")
-        // Compact marker present
-        expect(texts.some((t: string) => t.includes("=== COMPACTED ==="))).toBe(true)
+        // Middle between s1 and s2 is covered by s2, not raw-dumped
+        expect(combined).not.toContain("middle-msg")
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).toContain("summary_message_id")
       }),
     ),
   )
@@ -1487,9 +1501,9 @@ describe("session.compaction.regression", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
-        // filterCompactedEffect should load all remaining messages (fast path — no compaction part)
+        // Only message* visible; recent content lives inside it
         const filtered = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(filtered.length).toBeGreaterThan(0)
+        expect(filtered).toHaveLength(1)
         expect(filtered.some((m: any) =>
           m.parts.some((p: any) => p.type === "text" && p.text?.includes("recent"))
         )).toBe(true)
@@ -1543,7 +1557,7 @@ describe("session.compaction.edge-cases", () => {
     ),
   )
 
-  it.live("already-compacted guard clears after new user message", () =>
+  it.live("re-compacts after growth: (m*, m) → new message*", () =>
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1552,7 +1566,7 @@ describe("session.compaction.edge-cases", () => {
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
         const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
-        yield* ssn.updateMessage({
+        const sa = yield* ssn.updateMessage({
           id: MessageID.ascending(), role: "assistant", sessionID: info.id,
           mode: "build", agent: "build", parentID: su.id,
           modelID: ref.modelID, providerID: ref.providerID,
@@ -1560,15 +1574,30 @@ describe("session.compaction.edge-cases", () => {
           tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
           summary: true, finish: "end_turn", time: { created: Date.now() },
         } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: sa.id, sessionID: info.id,
+          type: "text", text: "## Goal\n- first cycle summary\nfrom_id: `a`\nto_id: `b`",
+        })
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const c1 = (yield* MessageV2.filterCompactedEffect(info.id)).length
+        const after1 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after1).toHaveLength(1)
+        const star1 = after1[0].info.id
 
+        // Growth after message* — loop continues
         const normal = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
-        yield* ssn.updatePart({ id: PartID.ascending(), messageID: normal.id, sessionID: info.id, type: "text", text: "normal" })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: normal.id, sessionID: info.id, type: "text", text: "post-star-work" })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const c2 = (yield* MessageV2.filterCompactedEffect(info.id)).length
-        expect(c2).toBeGreaterThan(c1)
+        const after2 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after2).toHaveLength(1)
+        expect(after2[0].info.id).not.toBe(star1)
+        const combined = after2
+          .flatMap((m: any) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).toContain("first cycle summary")
+        expect(combined).toContain("post-star-work")
+        expect(combined).toContain("summary_message_id")
       }),
     ),
   )

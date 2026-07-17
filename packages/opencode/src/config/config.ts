@@ -122,7 +122,7 @@ export const Info = Schema.Struct({
   }),
   external_directory_mode: Schema.optional(Schema.Literals(["deny", "ask", "allow"])).annotate({
     description:
-      "How to handle external directory access: 'deny' always blocks, 'ask' prompts user (default), 'allow' always permits.",
+      "Default for paths outside the worktree: 'deny' blocks unless listed in navigation.allow, 'ask' prompts (default), 'allow' permits unless listed in navigation.deny. Specific navigation.allow/deny and permission.external_directory path rules always override this default.",
   }),
   diff_requests: Schema.optional(Schema.Boolean).annotate({
     description:
@@ -875,6 +875,15 @@ export const layer = Layer.effect(
 
         if (result.autoshare === true && !result.share) {
           result.share = "auto"
+        }
+
+        // external_directory_mode → permission.external_directory["*"] default.
+        // Applied before navigation path rules so allow/deny lists win.
+        if (result.external_directory_mode) {
+          result.permission = mergeDeep(
+            { external_directory: { "*": result.external_directory_mode } },
+            result.permission ?? {},
+          )
         }
 
         // Convert navigation.allow/deny directories into external_directory permission rules.

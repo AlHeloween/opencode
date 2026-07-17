@@ -1,12 +1,17 @@
-import { describe, expect, test } from "bun:test"
+import { beforeAll, describe, expect, test } from "bun:test"
 import {
   normalizeToolSchemas,
   computePrefixShape,
   requestFingerprint,
   auditCache,
   toolSchemasFromRecord,
+  xxh3Ready,
   type ToolSchema,
 } from "../../src/session/cache-control"
+
+beforeAll(async () => {
+  await xxh3Ready()
+})
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -125,26 +130,29 @@ describe("requestFingerprint", () => {
 
 describe("auditCache — component blame", () => {
   const msg = makeMsg("m1", "user", [makeTextPart("p1", "Hello")])
+  const msg2 = makeMsg("m2", "assistant", [makeTextPart("p2", "Hi")])
   const tools: ToolSchema[] = [makeTool("read", "Read a file")]
   const toolsAlt: ToolSchema[] = [makeTool("write", "Write a file", { path: "string" })]
 
-  test("system changed, tools same → 'system prompt changed (non-tool)'", () => {
+  test("system changed, tools same → broken", () => {
     const prev = requestFingerprint(["System A"], [msg], undefined, tools)
     const next = requestFingerprint(["System B"], [msg], undefined, tools)
     const entry = auditCache(prev, next, "test")
+    expect(entry.kind).toBe("broken")
     expect(entry.changeDescription).toContain("system prompt changed (non-tool)")
     expect(entry.cacheStable).toBe(false)
   })
 
-  test("tool content changed → 'tool schemas changed'", () => {
+  test("tool content changed → broken", () => {
     const prev = requestFingerprint(["Sys"], [msg], undefined, tools)
     const next = requestFingerprint(["Sys"], [msg], undefined, toolsAlt)
     const entry = auditCache(prev, next, "test")
+    expect(entry.kind).toBe("broken")
     expect(entry.changeDescription).toContain("tool schemas changed")
     expect(entry.cacheStable).toBe(false)
   })
 
-  test("tool order changed only → 'tool order changed only'", () => {
+  test("tool order changed only → stable (order normalized away)", () => {
     const toolsOrdered: ToolSchema[] = [
       makeTool("a", "first"),
       makeTool("b", "second"),
@@ -153,28 +161,56 @@ describe("auditCache — component blame", () => {
     const prev = requestFingerprint(["Sys"], [msg], undefined, toolsOrdered)
     const next = requestFingerprint(["Sys"], [msg], undefined, toolsReversed)
     const entry = auditCache(prev, next, "test")
-    // Same content, different order → all MD5s match (except order hash check)
-    // When only order differs but content is identical, normalizeToolSchemas
-    // produces the same sorted output → toolsHash stays same.
-    // The toolsOrderHash is also the same because names are sorted.
-    // So the cache is actually STABLE — tool order is normalized away.
+    // Same content, different order → normalizeToolSchemas makes hashes match.
+    expect(entry.kind).toBe("stable")
     expect(entry.cacheStable).toBe(true)
     expect(entry.changeDescription).toBe("none")
   })
 
-  test("falls through to message scan when no prefix", () => {
+  test("identical messages → stable", () => {
     const prev = requestFingerprint(["Sys"], [msg])
     const next = requestFingerprint(["Sys"], [msg])
     const entry = auditCache(prev, next, "test")
+    expect(entry.kind).toBe("stable")
     expect(entry.changeDescription).toBe("none")
     expect(entry.cacheStable).toBe(true)
   })
 
-  test("first request → no baseline message", () => {
+  test("first request → baseline (not broken)", () => {
     const fp = requestFingerprint(["Sys"], [msg])
     const entry = auditCache(null, fp, "test")
+    expect(entry.kind).toBe("baseline")
     expect(entry.changeDescription).toContain("first request")
+    expect(entry.cacheStable).toBe(true)
+  })
+
+  test("message appended → extend (prefix still stable)", () => {
+    const prev = requestFingerprint(["Sys"], [msg], undefined, tools)
+    const next = requestFingerprint(["Sys"], [msg, msg2], undefined, tools)
+    const entry = auditCache(prev, next, "test")
+    expect(entry.kind).toBe("extend")
+    expect(entry.cacheStable).toBe(true)
+    expect(entry.changeDescription).toContain("new message appended")
+    expect(entry.estimatedHitRatio).toBeGreaterThan(0)
+  })
+
+  test("mid-history message edit → broken", () => {
+    const prev = requestFingerprint(["Sys"], [msg, msg2], undefined, tools)
+    const edited = makeMsg("m1", "user", [makeTextPart("p1", "Hello edited")])
+    const next = requestFingerprint(["Sys"], [edited, msg2], undefined, tools)
+    const entry = auditCache(prev, next, "test")
+    expect(entry.kind).toBe("broken")
     expect(entry.cacheStable).toBe(false)
+    expect(entry.changeDescription).toMatch(/modified|content changed/)
+  })
+
+  test("message removed → broken", () => {
+    const prev = requestFingerprint(["Sys"], [msg, msg2], undefined, tools)
+    const next = requestFingerprint(["Sys"], [msg], undefined, tools)
+    const entry = auditCache(prev, next, "test")
+    expect(entry.kind).toBe("broken")
+    expect(entry.cacheStable).toBe(false)
+    expect(entry.changeDescription).toContain("message removed")
   })
 })
 

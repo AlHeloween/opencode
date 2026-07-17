@@ -35,6 +35,11 @@ export function displayFromGlob(pattern: string): string {
  * Collect all effective external_directory rules from config and auto-whitelisted
  * sources. Rules are returned in evaluation order (first = lowest priority, last wins).
  * The caller can deduplicate by pattern to get the winning rule for each directory.
+ *
+ * Order matters for the TUI: navigation.allow/deny are listed *after* raw
+ * permission.external_directory so they keep source "config-allow"/"config-deny"
+ * after dedup (config load also injects navigation into permission.external_directory,
+ * which would otherwise hide the remove controls).
  */
 export function collectNavigationRules(
   config: Config.Info,
@@ -42,21 +47,7 @@ export function collectNavigationRules(
 ): EffectiveRule[] {
   const rules: EffectiveRule[] = []
 
-  // 1. navigation.deny — explicit user-configured denies
-  for (const dir of config.navigation?.deny ?? []) {
-    const resolved = path.resolve(expandPath(dir))
-    const pattern = path.join(resolved, "*")
-    rules.push({ pattern, displayPath: resolved + "/", action: "deny", source: "config-deny" })
-  }
-
-  // 2. navigation.allow — explicit user-configured allows
-  for (const dir of config.navigation?.allow ?? []) {
-    const resolved = path.resolve(expandPath(dir))
-    const pattern = path.join(resolved, "*")
-    rules.push({ pattern, displayPath: resolved + "/", action: "allow", source: "config-allow" })
-  }
-
-  // 3. Raw permission.external_directory rules
+  // 1. Raw permission.external_directory rules (lowest display priority)
   const extDir = config.permission?.external_directory
   if (extDir && typeof extDir !== "string") {
     for (const [rawPattern, action] of Object.entries(extDir)) {
@@ -69,6 +60,20 @@ export function collectNavigationRules(
         })
       }
     }
+  }
+
+  // 2. navigation.deny — explicit user-configured denies
+  for (const dir of config.navigation?.deny ?? []) {
+    const resolved = path.resolve(expandPath(dir))
+    const pattern = path.join(resolved, "*")
+    rules.push({ pattern, displayPath: resolved + "/", action: "deny", source: "config-deny" })
+  }
+
+  // 3. navigation.allow — explicit user-configured allows
+  for (const dir of config.navigation?.allow ?? []) {
+    const resolved = path.resolve(expandPath(dir))
+    const pattern = path.join(resolved, "*")
+    rules.push({ pattern, displayPath: resolved + "/", action: "allow", source: "config-allow" })
   }
 
   // 4. Auto-whitelisted directories (truncation, skills, etc.)

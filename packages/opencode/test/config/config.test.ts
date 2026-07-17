@@ -1081,6 +1081,52 @@ test("Config.update overlay is reloaded (navigation + external_directory_mode)",
         const denyKey = path.join(path.resolve(secrets), "*")
         expect((ext as Record<string, string>)[allowKey]).toBe("allow")
         expect((ext as Record<string, string>)[denyKey]).toBe("deny")
+        // external_directory_mode becomes the "*" default
+        expect((ext as Record<string, string>)["*"]).toBe("allow")
+      }
+    },
+  })
+})
+
+test("external_directory_mode deny still keeps navigation.allow path rules", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await writeConfig(dir, {
+        $schema: "https://opencode.ai/config.json",
+      })
+    },
+  })
+  const shared = path.join(tmp.path, "shared")
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      await Effect.runPromise(
+        Config.Service.use((svc) =>
+          svc.update(
+            {
+              external_directory_mode: "deny",
+              navigation: { allow: [shared] },
+            } as any,
+            { dispose: false },
+          ),
+        ).pipe(Effect.scoped, Effect.provide(layer)),
+      )
+    },
+  })
+
+  await clear(true)
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await load()
+      expect(config.external_directory_mode).toBe("deny")
+      const ext = config.permission?.external_directory
+      expect(typeof ext).toBe("object")
+      if (ext && typeof ext === "object") {
+        expect((ext as Record<string, string>)["*"]).toBe("deny")
+        expect((ext as Record<string, string>)[path.join(path.resolve(shared), "*")]).toBe("allow")
       }
     },
   })

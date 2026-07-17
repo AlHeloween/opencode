@@ -104,7 +104,7 @@ const POLICY_ROWS: NavRow[] = [
   {
     kind: "external",
     label: "External directory",
-    hint: "Access outside project worktree",
+    hint: "Default outside worktree — navigation.allow still works when Deny",
     section: "Tools",
   },
 ]
@@ -161,11 +161,14 @@ async function readJsonFile(file: string): Promise<Record<string, unknown>> {
   }
 }
 
-/** Deep-merge plain objects (patch wins). Arrays replaced. */
+/** Deep-merge plain objects (patch wins). Arrays replaced. `undefined` deletes the key. */
 function mergePlain(base: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...base }
   for (const [key, value] of Object.entries(patch)) {
-    if (value === undefined) continue
+    if (value === undefined) {
+      delete out[key]
+      continue
+    }
     const prev = out[key]
     if (
       value &&
@@ -181,6 +184,14 @@ function mergePlain(base: Record<string, unknown>, patch: Record<string, unknown
     }
   }
   return out
+}
+
+/** Build a clean navigation object (omit empty lists). */
+function navigationObject(allow: string[], deny: string[]): Record<string, string[]> | undefined {
+  const nav: Record<string, string[]> = {}
+  if (allow.length > 0) nav.allow = allow
+  if (deny.length > 0) nav.deny = deny
+  return Object.keys(nav).length > 0 ? nav : undefined
 }
 
 export function DialogPermissions() {
@@ -283,11 +294,11 @@ export function DialogPermissions() {
   const extModeLabel = (m: ExternalDirMode) => {
     switch (m) {
       case "deny":
-        return "Deny All"
+        return "Deny"
       case "ask":
         return "Ask"
       case "allow":
-        return "Allow All"
+        return "Allow"
     }
   }
 
@@ -329,6 +340,9 @@ export function DialogPermissions() {
   /**
    * Write patch straight to `{directory}/config.json`. No SDK body mapping.
    * Then poke the server to drop caches and refresh the in-memory store from disk.
+   *
+   * `navigation` is always replaced wholesale (not deep-merged) so removing the last
+   * allowed dir actually clears the key on disk.
    */
   async function applyConfigPatch(patch: Record<string, unknown>, success?: string) {
     if (busy()) return false
@@ -339,16 +353,31 @@ export function DialogPermissions() {
 
       const file = configOverlayPath(directory)
       const existing = await readJsonFile(file)
+      const { navigation: navPatch, ...rest } = patch
       const next = mergePlain(existing, {
         $schema: (existing.$schema as string) || "https://opencode.ai/config.json",
-        ...patch,
+        ...rest,
       })
+      if ("navigation" in patch) {
+        if (navPatch === undefined || navPatch === null) {
+          delete next.navigation
+        } else {
+          next.navigation = navPatch
+        }
+      }
+      // Drop empty nested navigation if present
+      const nav = next.navigation as { allow?: string[]; deny?: string[] } | undefined
+      if (nav && !(nav.allow?.length) && !(nav.deny?.length)) {
+        delete next.navigation
+      }
       await Bun.write(file, JSON.stringify(next, null, 2))
 
       // Local UI immediately reflects disk (don't wait for server round-trip).
+      const liveNav = next.navigation as { allow?: string[]; deny?: string[] } | undefined
       sync.set("config", {
         ...(sync.data.config as object),
-        ...patch,
+        ...rest,
+        navigation: liveNav,
         permission: (next.permission as object) ?? (sync.data.config as any)?.permission,
       } as any)
 
@@ -441,21 +470,15 @@ export function DialogPermissions() {
     }
     const resolved = path.resolve(EffectiveNavigation.expandPath(raw))
     const action = addMode()
-    const nav = { ...((sync.data.config as any).navigation ?? {}) }
-    let allow = normalizeNavList(nav.allow)
-    let deny = normalizeNavList(nav.deny)
-
-    allow = allow.filter((d) => !samePath(d, resolved))
-    deny = deny.filter((d) => !samePath(d, resolved))
+    const prev = (sync.data.config as any).navigation ?? {}
+    let allow = normalizeNavList(prev.allow).filter((d) => !samePath(d, resolved))
+    let deny = normalizeNavList(prev.deny).filter((d) => !samePath(d, resolved))
 
     if (action === "allow") allow.push(raw)
     else deny.push(raw)
 
-    nav.allow = allow.length > 0 ? allow : undefined
-    nav.deny = deny.length > 0 ? deny : undefined
-
     const ok = await applyConfigPatch(
-      { navigation: nav },
+      { navigation: navigationObject(allow, deny) },
       `${action === "allow" ? "Allowed" : "Denied"}: ${resolved}`,
     )
     if (ok) {
@@ -464,13 +487,19 @@ export function DialogPermissions() {
     }
   }
 
-  const removeDirectory = async (displayPath: string, action: string) => {
+  const removeDirectory = async (displayPath: string, action: "allow" | "deny") => {
     const resolved = path.resolve(EffectiveNavigation.expandPath(displayPath.replace(/[\\/]+$/, "")))
-    const nav = { ...((sync.data.config as any).navigation ?? {}) }
-    const list = normalizeNavList(nav[action])
-    const next = list.filter((d: string) => !samePath(d, resolved))
-    nav[action] = next.length > 0 ? next : undefined
-    await applyConfigPatch({ navigation: nav }, `Removed ${action}: ${resolved}`)
+    const prev = (sync.data.config as any).navigation ?? {}
+    let allow = normalizeNavList(prev.allow)
+    let deny = normalizeNavList(prev.deny)
+    if (action === "allow") allow = allow.filter((d) => !samePath(d, resolved))
+    else deny = deny.filter((d) => !samePath(d, resolved))
+    // Also drop if the path only appeared via converted permission.external_directory
+    // (source config-permission) — ensure navigation no longer lists it.
+    await applyConfigPatch(
+      { navigation: navigationObject(allow, deny) },
+      `Removed ${action}: ${resolved}`,
+    )
   }
 
   useKeyboard((evt) => {

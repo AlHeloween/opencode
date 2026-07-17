@@ -1,12 +1,18 @@
 /**
  * XXH3-based Cache Chain Control
  *
- * Computes content-stable fingerprints for messages and requests.
- * Before sending to DeepSeek, compares prev vs next XXH3 to detect
- * cache-breaking changes BEFORE they happen.
+ * Fingerprints system/tools/messages so we can diagnose prefix KV risk
+ * before a request is sent. Semantics:
  *
- * Principle: if the fingerprint changed, DeepSeek's KV cache will miss.
- * Log every break with caller, position, and what changed.
+ * - **broken**: system or tool schemas changed, or a prior message was
+ *   edited/removed mid-history → provider prefix cache is invalid.
+ * - **extend**: system+tools unchanged and history is a pure append →
+ *   prefix cache should still hit; only the suffix is new.
+ * - **stable**: identical request fingerprint to the previous turn.
+ * - **baseline**: first request for this session/agent/model (no prev).
+ *
+ * `cacheStable` is true for baseline | stable | extend (prefix intact).
+ * Only `broken` is a real prefix invalidation.
  *
  * XXH3 is used instead of MD5 for ~5x faster hashing with equivalent
  * collision resistance for natural-language fingerprinting.
@@ -89,6 +95,9 @@ export interface RequestFingerprint {
   prefix?: PrefixShape
 }
 
+/** Outcome of comparing consecutive request fingerprints. */
+export type CacheAuditKind = "baseline" | "stable" | "extend" | "broken"
+
 export interface CacheAuditEntry {
   timestamp: number
   /** What triggered the request (agent name, "compaction", "chat") */
@@ -97,17 +106,23 @@ export interface CacheAuditEntry {
   prevHash: string
   /** Current request fullHash */
   nextHash: string
-  /** Did the cache chain survive? */
+  /**
+   * Prefix intact for provider KV reuse: true for baseline | stable | extend.
+   * False only when system/tools change or mid-history message content mutates.
+   * (Not "full request identical" — that is kind === "stable".)
+   */
   cacheStable: boolean
-  /** If broken: index of first diverging message */
+  /** Class of change — see CacheAuditKind. */
+  kind: CacheAuditKind
+  /** If broken/extend: index of first diverging message (-1 for system/tools) */
   divergenceIndex: number
-  /** If broken: what was in the previous message at the divergence point */
+  /** Snapshot of previous side at the divergence point */
   prevAtDivergence: string
-  /** If broken: what is in the current message at the divergence point */
+  /** Snapshot of current side at the divergence point */
   nextAtDivergence: string
-  /** If broken: human-readable description of the change */
+  /** Human-readable description of the change */
   changeDescription: string
-  /** Estimated cache hit ratio if sent */
+  /** Estimated prefix hit ratio (shared message count / total) */
   estimatedHitRatio: number
 }
 
@@ -346,6 +361,41 @@ export function getPrevFingerprint(
 
 // ── Cache Audit ────────────────────────────────────────────────────────────
 
+function hitRatio(prev: RequestFingerprint, next: RequestFingerprint): number {
+  const total = Math.max(prev.messages.length, next.messages.length)
+  if (total === 0) return 1
+  let common = 0
+  for (let i = 0; i < Math.min(prev.messages.length, next.messages.length); i++) {
+    if (prev.messages[i]!.hash === next.messages[i]!.hash) common++
+  }
+  return common / total
+}
+
+function markBroken(
+  entry: CacheAuditEntry,
+  opts: {
+    divergenceIndex: number
+    prevAtDivergence: string
+    nextAtDivergence: string
+    changeDescription: string
+  },
+): CacheAuditEntry {
+  entry.kind = "broken"
+  entry.cacheStable = false
+  entry.divergenceIndex = opts.divergenceIndex
+  entry.prevAtDivergence = opts.prevAtDivergence
+  entry.nextAtDivergence = opts.nextAtDivergence
+  entry.changeDescription = opts.changeDescription
+  entry.estimatedHitRatio = 0
+  return entry
+}
+
+/**
+ * Compare consecutive fingerprints.
+ *
+ * Prefix-stable (system + tools + ordered message prefix) ⇒ cacheStable true.
+ * Full-request identity is kind "stable"; pure history growth is "extend".
+ */
 export function auditCache(
   prev: RequestFingerprint | null,
   next: RequestFingerprint,
@@ -356,104 +406,101 @@ export function auditCache(
     caller,
     prevHash: prev?.fullHash ?? "",
     nextHash: next.fullHash,
-    cacheStable: prev ? prev.fullHash === next.fullHash : false,
+    cacheStable: true,
+    kind: "baseline",
     divergenceIndex: -1,
     prevAtDivergence: "",
     nextAtDivergence: "",
-    changeDescription: "none",
+    changeDescription: "first request",
     estimatedHitRatio: 0,
   }
 
-  // First request: no baseline — no cache to invalidate
+  // First request: establish baseline — nothing to break yet.
   if (!prev) {
     return entry
   }
 
-  // Component-level cache break diagnosis (when PrefixShape data is available).
-  // Reports which component changed: system, tools-content, or tools-order.
-  // Falls through to message-level scan when prefix data is unavailable
-  // or when all prefix components are stable.
+  // Prefix breaks first. fullHash does not include tool schemas, so tools-only
+  // changes must be caught here before the identity short-circuit.
   if (prev.prefix && next.prefix) {
     if (prev.prefix.systemOnlyHash !== next.prefix.systemOnlyHash) {
-      entry.divergenceIndex = -1
-      entry.prevAtDivergence = prev.prefix.systemOnlyHash.slice(0, 8)
-      entry.nextAtDivergence = next.prefix.systemOnlyHash.slice(0, 8)
-      entry.changeDescription = `system prompt changed (non-tool): ${prev.prefix.systemOnlyHash.slice(0, 8)} → ${next.prefix.systemOnlyHash.slice(0, 8)}`
-      entry.cacheStable = false
-      entry.estimatedHitRatio = 0
-      return entry
+      return markBroken(entry, {
+        divergenceIndex: -1,
+        prevAtDivergence: prev.prefix.systemOnlyHash.slice(0, 8),
+        nextAtDivergence: next.prefix.systemOnlyHash.slice(0, 8),
+        changeDescription: `system prompt changed (non-tool): ${prev.prefix.systemOnlyHash.slice(0, 8)} → ${next.prefix.systemOnlyHash.slice(0, 8)}`,
+      })
     }
     if (prev.prefix.toolsHash !== next.prefix.toolsHash) {
-      entry.divergenceIndex = -1
-      entry.prevAtDivergence = prev.prefix.toolsHash.slice(0, 8)
-      entry.nextAtDivergence = next.prefix.toolsHash.slice(0, 8)
-      if (prev.prefix.toolsOrderHash === next.prefix.toolsOrderHash) {
-        entry.changeDescription = "tool schemas changed (content or count)"
-      } else {
-        entry.changeDescription = "tool schemas changed (order + possibly content)"
-      }
-      entry.estimatedHitRatio = 0
-      entry.cacheStable = false
-      return entry
+      const orderSame = prev.prefix.toolsOrderHash === next.prefix.toolsOrderHash
+      return markBroken(entry, {
+        divergenceIndex: -1,
+        prevAtDivergence: prev.prefix.toolsHash.slice(0, 8),
+        nextAtDivergence: next.prefix.toolsHash.slice(0, 8),
+        changeDescription: orderSame
+          ? "tool schemas changed (content or count)"
+          : "tool schemas changed (order + possibly content)",
+      })
     }
     if (prev.prefix.toolsOrderHash !== next.prefix.toolsOrderHash) {
-      entry.divergenceIndex = -1
-      entry.prevAtDivergence = prev.prefix.toolsOrderHash.slice(0, 8)
-      entry.nextAtDivergence = next.prefix.toolsOrderHash.slice(0, 8)
-      entry.changeDescription = "tool order changed only (content identical)"
-      entry.cacheStable = false
-      entry.estimatedHitRatio = 0
-      return entry
+      return markBroken(entry, {
+        divergenceIndex: -1,
+        prevAtDivergence: prev.prefix.toolsOrderHash.slice(0, 8),
+        nextAtDivergence: next.prefix.toolsOrderHash.slice(0, 8),
+        changeDescription: "tool order changed only (content identical)",
+      })
     }
-    // Prefix components are stable — fall through to message-level scan
+  } else if (prev.systemHash !== next.systemHash) {
+    // No prefix shape — fall back to full system hash.
+    return markBroken(entry, {
+      divergenceIndex: -1,
+      prevAtDivergence: prev.systemHash.slice(0, 8),
+      nextAtDivergence: next.systemHash.slice(0, 8),
+      changeDescription: `system prompt changed (hash: ${prev.systemHash.slice(0, 8)} → ${next.systemHash.slice(0, 8)})`,
+    })
   }
 
-  // System prompt changed?
-  if (prev.systemHash !== next.systemHash) {
-    entry.divergenceIndex = -1 // system level
-    entry.prevAtDivergence = prev.systemHash
-    entry.nextAtDivergence = next.systemHash
-    entry.changeDescription = `system prompt changed (hash: ${prev.systemHash.slice(0, 8)} → ${next.systemHash.slice(0, 8)})`
-    entry.estimatedHitRatio = 0 // System change = full cache invalidation
+  // Prefix intact and full request identical → exact stable.
+  if (prev.fullHash === next.fullHash) {
+    entry.kind = "stable"
+    entry.cacheStable = true
+    entry.changeDescription = "none"
+    entry.estimatedHitRatio = 1
     return entry
   }
 
-  // Message-by-message comparison
+  // Message-by-message: pure append → extend (prefix OK); mid-history edit → broken.
   const maxLen = Math.max(prev.messages.length, next.messages.length)
-  let commonTokens = 0
+  let pureExtend = false
   let divergenceFound = false
 
   for (let i = 0; i < maxLen; i++) {
     const prevMsg = prev.messages[i]
     const nextMsg = next.messages[i]
 
-    // Previous exhausted, next has more → new messages appended
     if (!prevMsg && nextMsg) {
       entry.divergenceIndex = i
       entry.prevAtDivergence = "(end of previous request)"
       entry.nextAtDivergence = `new ${nextMsg.role} message: ${nextMsg.messageId}`
       entry.changeDescription = `new message appended at position ${i} (${nextMsg.role})`
+      pureExtend = true
       break
     }
 
-    // Next exhausted, previous had more → messages removed
     if (prevMsg && !nextMsg) {
-      entry.divergenceIndex = i
-      entry.prevAtDivergence = `${prevMsg.role} message: ${prevMsg.messageId}`
-      entry.nextAtDivergence = "(message removed)"
-      entry.changeDescription = `message removed at position ${i}`
-      break
+      return markBroken(entry, {
+        divergenceIndex: i,
+        prevAtDivergence: `${prevMsg.role} message: ${prevMsg.messageId}`,
+        nextAtDivergence: "(message removed)",
+        changeDescription: `message removed at position ${i}`,
+      })
     }
 
     if (!prevMsg || !nextMsg) continue
 
-    // Message identical
-    if (prevMsg.hash === nextMsg.hash) {
-      commonTokens += prevMsg.partCount * 50 // rough token estimate per part
-      continue
-    }
+    if (prevMsg.hash === nextMsg.hash) continue
 
-    // Message diverged: find which part changed
+    // In-place change mid-history — prefix from this message is invalid.
     for (let j = 0; j < Math.max(prevMsg.parts.length, nextMsg.parts.length); j++) {
       const prevPart = prevMsg.parts[j]
       const nextPart = nextMsg.parts[j]
@@ -476,42 +523,58 @@ export function auditCache(
     }
 
     if (divergenceFound) {
-      entry.divergenceIndex = i
-      entry.prevAtDivergence = `${prevMsg.role}:${prevMsg.messageId.slice(0, 12)} hash=${prevMsg.hash.slice(0, 8)}`
-      entry.nextAtDivergence = `${nextMsg.role}:${nextMsg.messageId.slice(0, 12)} hash=${nextMsg.hash.slice(0, 8)}`
-      break
+      return markBroken(entry, {
+        divergenceIndex: i,
+        prevAtDivergence: `${prevMsg.role}:${prevMsg.messageId.slice(0, 12)} hash=${prevMsg.hash.slice(0, 8)}`,
+        nextAtDivergence: `${nextMsg.role}:${nextMsg.messageId.slice(0, 12)} hash=${nextMsg.hash.slice(0, 8)}`,
+        changeDescription: entry.changeDescription,
+      })
     }
   }
 
-  // Estimate hit ratio: fraction of messages that are identical
-  const totalMsgs = Math.max(prev.messages.length, next.messages.length)
-  const commonMsgs = (() => {
-    let count = 0
-    for (let i = 0; i < Math.min(prev.messages.length, next.messages.length); i++) {
-      if (prev.messages[i].hash === next.messages[i].hash) count++
-    }
-    return count
-  })()
-  entry.estimatedHitRatio = totalMsgs > 0 ? commonMsgs / totalMsgs : 0
+  entry.estimatedHitRatio = hitRatio(prev, next)
 
+  if (pureExtend) {
+    entry.kind = "extend"
+    entry.cacheStable = true
+    return entry
+  }
+
+  // fullHash differed but every compared message matched (e.g. meta-only).
+  entry.kind = "stable"
+  entry.cacheStable = true
+  entry.changeDescription = "none"
   return entry
 }
 
 // ── Formatting (for logs) ──────────────────────────────────────────────────
 
 export function formatAuditEntry(entry: CacheAuditEntry): string {
-  if (entry.cacheStable) {
-    return `[cache:stable] caller=${entry.caller} hash=${entry.nextHash.slice(0, 12)} tokens=${entry.estimatedHitRatio > 0 ? (entry.estimatedHitRatio * 100).toFixed(0) + "%" : "N/A"}`
+  const ratio = `${(entry.estimatedHitRatio * 100).toFixed(0)}%`
+  switch (entry.kind) {
+    case "baseline":
+      return `[cache:baseline] caller=${entry.caller} hash=${entry.nextHash.slice(0, 12)}`
+    case "stable":
+      return `[cache:stable] caller=${entry.caller} hash=${entry.nextHash.slice(0, 12)} hit_ratio=${ratio}`
+    case "extend":
+      return [
+        `[cache:extend]`,
+        `caller=${entry.caller}`,
+        `divergence@${entry.divergenceIndex}`,
+        `cause=${entry.changeDescription}`,
+        `hit_ratio=${ratio}`,
+      ].join(" ")
+    case "broken":
+      return [
+        `[cache:broken]`,
+        `caller=${entry.caller}`,
+        `divergence@${entry.divergenceIndex}`,
+        `prev=${entry.prevAtDivergence}`,
+        `next=${entry.nextAtDivergence}`,
+        `cause=${entry.changeDescription}`,
+        `hit_ratio=${ratio}`,
+      ].join(" ")
   }
-  return [
-    `[cache:broken]`,
-    `caller=${entry.caller}`,
-    `divergence@${entry.divergenceIndex}`,
-    `prev=${entry.prevAtDivergence}`,
-    `next=${entry.nextAtDivergence}`,
-    `cause=${entry.changeDescription}`,
-    `hit_ratio=${(entry.estimatedHitRatio * 100).toFixed(0)}%`,
-  ].join(" ")
 }
 
 // ── Self-test ──────────────────────────────────────────────────────────────
@@ -564,11 +627,11 @@ if (import.meta.main) {
   console.log(`  stable: ${audit2.cacheStable} (expected: false)`)
   console.log(`  cause: ${audit2.changeDescription}`)
 
-  // Test 5: Cache audit — message added
-  console.log("\n── Test 5: Cache audit (message added) ──")
+  // Test 5: Cache audit — message appended (prefix still valid)
+  console.log("\n── Test 5: Cache audit (message appended) ──")
   const req4 = requestFingerprint(["You are helpful"], [msg1, msg2, msg3, msg1])
   const audit3 = auditCache(req1, req4, "test")
-  console.log(`  stable: ${audit3.cacheStable} (expected: false)`)
+  console.log(`  kind: ${audit3.kind} stable: ${audit3.cacheStable} (expected: extend/true)`)
   console.log(`  cause: ${audit3.changeDescription}`)
 }
 

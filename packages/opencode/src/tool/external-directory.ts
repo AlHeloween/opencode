@@ -5,7 +5,6 @@ import { InstanceState } from "@/effect/instance-state"
 import type * as Tool from "./tool"
 import { Instance } from "../project/instance"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
-import { Config } from "@/config/config"
 
 type Kind = "file" | "directory"
 
@@ -28,16 +27,10 @@ export const assertExternalDirectoryEffect = Effect.fn("Tool.assertExternalDirec
   const full = AppFileSystem.resolve(target)
   if (Instance.containsPath(full, ins)) return
 
-  // Check config mode: "deny" | "ask" | "allow"
-  const cfg = yield* Effect.serviceOption(Config.Service)
-  const mode: ExternalDirMode = cfg._tag === "Some"
-    ? ((yield* cfg.value.get()).external_directory_mode as ExternalDirMode) ?? "ask"
-    : "ask"
-
-  if (mode === "allow") return
-  if (mode === "deny") throw new Error(`External directory access denied: ${full}`)
-
-  // mode === "ask" — prompt user
+  // Always evaluate via the permission engine so navigation.allow / navigation.deny
+  // and permission.external_directory path rules work for every mode.
+  // external_directory_mode is applied as the "*" default during config load
+  // (deny blocks unless listed in navigation.allow; allow permits unless denied).
   const kind = options?.kind ?? "file"
   const dir = kind === "directory" ? full : path.dirname(full)
   const glob = path.join(dir, "*")

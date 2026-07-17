@@ -22,7 +22,6 @@ import { SessionRetry } from "./retry"
 const SUMMARY_SAFE_TOOLS = new Set(["skill"])
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
-import { CacheControl } from "./cache-control"
 import type { Provider } from "@/provider/provider"
 import { Question } from "@/question"
 import { errorMessage } from "@/util/error"
@@ -85,7 +84,6 @@ interface ProcessorContext extends Input {
   toolcalls: Record<string, ToolCall>
   shouldBreak: boolean
   snapshot: string | undefined
-  currentSystemHash: string | undefined
   blocked: boolean
   toolCallEmitted: boolean
   needsCompaction: boolean
@@ -201,7 +199,6 @@ export const layer: Layer.Layer<
         reasoningMap: {},
         reasoningBuilders: {},
         recentToolCalls: [],
-        currentSystemHash: undefined,
         streamStartTime: undefined,
         firstTokenLogged: false,
         hasWriteToolCall: false,
@@ -576,28 +573,6 @@ export const layer: Layer.Layer<
                 cacheWriteTokens: usage.tokens.cache.write,
                 totalDurationMs: ctx.streamStartTime ? Date.now() - ctx.streamStartTime : undefined,
               })
-
-              // Post-send cache audit: compare actual DeepSeek cache behavior
-              // against our pre-send MD5 prediction. Log mismatches as miscalculations.
-              const prevFP = CacheControl.getPrevFingerprint(ctx.sessionID, ctx.model.id, ctx.agentName)
-              if (prevFP) {
-                // Pre-send prediction: cache is warm only if system prompt matches
-                // AND there were tokens in the previous request (provider cache exists).
-                // A system prompt change means the provider-side KV cache is invalidated.
-                const predictedWarm = ctx.currentSystemHash === prevFP.systemHash && prevFP.estimatedTokens > 0
-                if (predictedWarm !== cacheWarm) {
-                  log.warn("bug: cache miscalculation", {
-                    sessionID: ctx.sessionID,
-                    modelID: ctx.model.id,
-                    predicted: predictedWarm ? "warm" : "cold",
-                    actual: cacheWarm ? "warm" : "cold",
-                    actualCacheRead: usage.tokens.cache.read,
-                    actualCacheWrite: usage.tokens.cache.write,
-                    actualInputTokens: usage.tokens.input,
-                    fingerprint: prevFP.fullHash,
-                  })
-                }
-              }
             }
             // Save the pre-track snapshot for patch diffing.
             // ctx.snapshot holds the hash BEFORE this tool step ran.
@@ -886,7 +861,6 @@ export const layer: Layer.Layer<
         )
         const configBreak = (yield* config.get()).experimental?.continue_loop_on_deny === true
         ctx.shouldBreak = parentSession ? false : !configBreak
-        ctx.currentSystemHash = CacheControl.xxh3(streamInput.system.join("\n"))
 
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {

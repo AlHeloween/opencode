@@ -104,6 +104,25 @@ describe("EffectiveNavigation.deduplicateRules", () => {
     expect(deduped[0].source).toBe("config-deny")
   })
 
+  test("navigation.allow wins over converted permission.external_directory for display", () => {
+    // Config load injects navigation.allow into permission.external_directory; collect must
+    // still surface source config-allow so the TUI can show the remove control.
+    const shared = path.resolve("/tmp/shared")
+    const config = makeConfig({
+      navigation: { allow: [shared] },
+      permission: {
+        external_directory: {
+          [path.join(shared, "*")]: "allow",
+        },
+      },
+    } as any)
+    const rules = EffectiveNavigation.collectNavigationRules(config, [])
+    const deduped = EffectiveNavigation.deduplicateRules(rules)
+    const hit = deduped.find((r) => r.pattern === path.join(shared, "*"))
+    expect(hit?.source).toBe("config-allow")
+    expect(hit?.action).toBe("allow")
+  })
+
   test("sorts by display path", () => {
     const rules: EffectiveNavigation.EffectiveRule[] = [
       { pattern: "/c/*", displayPath: "/c/", action: "allow", source: "config-allow" },

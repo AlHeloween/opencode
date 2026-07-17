@@ -1182,9 +1182,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
         const slog = elog.with({ sessionID })
         let structured: unknown | undefined
         let step = 0
-        /** Cached model-ready messages from previous loop iteration.
-          * Reused when the MD5 fingerprint is stable (DeepSeek KV cache hit). */
-        let modelMsgsCache: ModelMessage[] | undefined = undefined
         /** Cached filterCompactedEffect result — messages are immutable within a
           * runLoop except for new tool results appended at the end. Reusing this
           * avoids re-paginating the entire history on every tool-using loop step. */
@@ -1310,7 +1307,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
             yield* Checkpoint.remove(sessionID)
             cachedMsgs = undefined
             lastKnownId = undefined
-            modelMsgsCache = undefined
             continue
           }
 
@@ -1577,13 +1573,18 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }, CacheControl.toolSchemasFromRecord(tools))
             const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, agent.name)
             const audit = CacheControl.auditCache(prevFP, currentFP, agent.name)
-            if (!audit.cacheStable) {
+            // Only real prefix invalidation is a bug. Appends are normal (cache:extend).
+            if (audit.kind === "broken") {
               Log.Default.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`, {
                 bannerLen: system[0]?.length ?? 0,
                 rulesCount: rules.length,
                 instructionsCount: instructions.length,
                 skillsLen: skills?.length ?? 0,
                 systemTotalLen: system.join("\n").length,
+              })
+            } else if (audit.kind === "extend") {
+              Log.Default.debug(CacheControl.formatAuditEntry(audit), {
+                hit_ratio: audit.estimatedHitRatio,
               })
             }
 
@@ -1617,13 +1618,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   ...suffix.map((m) => m.info.id),
                 ]
               }
-            } else if (audit.cacheStable && modelMsgsCache) {
-              modelMsgs = modelMsgsCache
             } else {
               modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
-            }
-            if (!checkpointUsable && (audit.cacheStable || !modelMsgsCache)) {
-              modelMsgsCache = modelMsgs
             }
 
             yield* slog.debug("prepare", { step, stage: "dispatch" })
@@ -1746,7 +1742,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
               yield* Checkpoint.remove(sessionID)
               cachedMsgs = undefined
               lastKnownId = undefined
-              modelMsgsCache = undefined
               return "continue" as const
             }
             // Layer 1: accumulate output tokens; every ~30K inject a summary request.

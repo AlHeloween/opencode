@@ -648,9 +648,12 @@ export const BashTool = Tool.define(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
 
-          // cmd_runner spawns its own terminal window and stays alive as a daemon.
-          // Don't wait for exit — return immediately; user interacts via the terminal.
-          if (isCmdRunner) return null
+          // NOTE: Do NOT early-return for cmd_runner. Effect.scoped release kills any
+          // still-running child (Windows taskkill tree) — that aborted `cmd_runner start`
+          // before it printed run_id / launched the session, yielding "(no output)" and
+          // no execution. Wait for exit + drain like any other command. Prefer
+          // `cmd_runner start --wait-ms N --auto-tail …` so start exits after bootstrap
+          // while the session keeps running in its own window.
 
           // Separate stdout + stderr drains (tsc/bun/TS diagnostics → stderr).
           // Await both after exit. Prefer agent `2>&1` when piping into parsers.

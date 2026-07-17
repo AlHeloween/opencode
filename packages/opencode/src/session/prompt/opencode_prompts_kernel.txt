@@ -326,14 +326,15 @@ forbidden:
   • Using cmd_runner for sub-second trivial commands
 
 ## cmd_runner (interactive / long / crash-prone)
-start:  tools/cmd_runner.exe start [--cwd PATH] [--terminal wezterm|wt|conhost] -- <cmd...>
+start:  tools/cmd_runner.exe start [--cwd PATH] [--terminal wezterm|wt|conhost] [--auto-tail N] [--wait-ms MS] -- <cmd...>
+        Prefer --wait-ms 4000 --auto-tail 5 so start prints run_id/inbox then exits (session keeps running).
         (prints run_id; logs under logs/cmd_runner/<run_id>/)
 tail:   tools/cmd_runner.exe tail <run_id> [--follow] [-n N]
 send:   tools/cmd_runner.exe send <run_id> --text "..." --crlf
         tools/cmd_runner.exe send <run_id> --keys "ctrl+c" | "TEXT:foo,ENTER"
 stop:   tools/cmd_runner.exe stop <run_id> --reason done
 list:   tools/cmd_runner.exe list | status <run_id>
-NOT for: ls/git status/echo/simple cp-mv-rm. YES for: builds, installs, pytest suites, TUI, Delphi.
+NOT for: ls/git status/echo/simple cp-mv-rm. YES for: builds, installs, pytest suites, TUI, Delphi, ssh sessions.
 
 ## adm (declarative updates)
 bin: tools/adm.exe (prefer) | python -m adm

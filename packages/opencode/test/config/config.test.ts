@@ -1053,6 +1053,13 @@ test("Config.update overlay is reloaded (navigation + external_directory_mode)",
       expect(written.external_directory_mode).toBe("allow")
       expect(written.navigation?.allow).toEqual([shared])
       expect(written.navigation?.deny).toEqual([secrets])
+
+      // Same instance must see the overlay after dispose:false (permissions dialog path).
+      const live = await load()
+      expect(live.external_directory_mode).toBe("allow")
+      expect(live.navigation?.allow).toEqual([shared])
+      expect(live.navigation?.deny).toEqual([secrets])
+      expect(live.permission?.bash).toBeUndefined()
     },
   })
 
@@ -1075,6 +1082,42 @@ test("Config.update overlay is reloaded (navigation + external_directory_mode)",
         expect((ext as Record<string, string>)[allowKey]).toBe("allow")
         expect((ext as Record<string, string>)[denyKey]).toBe("deny")
       }
+    },
+  })
+})
+
+test("Config.update permission overlay is visible to get() without dispose", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await writeConfig(dir, {
+        $schema: "https://opencode.ai/config.json",
+      })
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const before = await load()
+      expect(before.permission?.destructive).toBeUndefined()
+
+      await Effect.runPromise(
+        Config.Service.use((svc) =>
+          svc.update(
+            {
+              permission: {
+                destructive: "ask",
+                bash: "deny",
+              },
+            } as any,
+            { dispose: false },
+          ),
+        ).pipe(Effect.scoped, Effect.provide(layer)),
+      )
+
+      const after = await load()
+      expect(after.permission?.destructive).toBe("ask")
+      expect(after.permission?.bash).toBe("deny")
     },
   })
 })

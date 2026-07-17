@@ -200,7 +200,8 @@ export function DialogPermissions() {
 
   const dirty = createMemo(() => {
     for (const p of TOOL_POLICIES) {
-      if ((draftTools[p.key] ?? "ask") !== toolPolicyFromConfig(p.key)) return true
+      const fallback = TOOL_DEFAULTS[p.key] ?? "allow"
+      if ((draftTools[p.key] ?? fallback) !== toolPolicyFromConfig(p.key)) return true
     }
     if (draftExternal() !== extModeFromConfig()) return true
     return false

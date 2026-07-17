@@ -12,6 +12,7 @@ import { Auth } from "../auth"
 import { Env } from "../env"
 import { applyEdits, modify } from "jsonc-parser"
 import { Instance, type InstanceContext } from "../project/instance"
+import { disposeInstance } from "@/effect/instance-registry"
 import { InstallationLocal, InstallationVersion } from "@opencode-ai/core/installation/version"
 import { existsSync } from "fs"
 import { GlobalBus } from "@/bus/global"
@@ -1010,7 +1011,15 @@ export const layer = Layer.effect(
       yield* fs
         .writeFileString(file, JSON.stringify(mergeDeep(writable(existing), writable(config)), null, 2))
         .pipe(Effect.orDie)
-      if (options?.dispose !== false) yield* Effect.promise(() => Instance.dispose())
+      // Always drop per-directory InstanceState caches after writing the overlay.
+      // Without this, Config.get() / Agent state keep pre-update values and the
+      // TUI /permissions dialog appears to "revert" after Save (dispose: false path).
+      if (options?.dispose !== false) {
+        yield* Effect.promise(() => Instance.dispose())
+      } else {
+        // Keep Instance context alive but force Config/Agent/Plugin/… rebuild on next use.
+        yield* Effect.promise(() => disposeInstance(dir))
+      }
     })
 
     const invalidate = Effect.fn("Config.invalidate")(function* (wait?: boolean) {

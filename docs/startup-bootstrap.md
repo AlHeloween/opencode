@@ -199,6 +199,16 @@ TUI: `bash` / `cmd` / `run` share a **ShellTool** renderer (streaming `metadata.
 
 ---
 
+## Config overlay and `/permissions` save
+
+TUI and `opencode dirs` write a **worktree overlay** at `{directory}/config.json` via `Config.update(..., { dispose: false })`.
+
+That path must **invalidate per-directory InstanceState** (Config, Agent, Plugin, …) after writing so the next `Config.get()` rebuilds from disk. If only the file is written and the cache is kept, the permissions dialog reloads stale values and settings appear to “revert.”
+
+Full `Instance.dispose()` still runs when `dispose` is not `false` (heavier; tears down the instance context).
+
+---
+
 ## Operator checklist (slow startup)
 
 1. Expect multi-second cost from a **large single binary** alone.  

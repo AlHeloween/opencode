@@ -1,0 +1,24 @@
+[dependencies.workspacer-3p]
+path = "../workspacer-3p"
+version = "0.5.1"
+
+[package]
+categories = [
+    "development-tools",
+    "concurrency",
+    "algorithms",
+    "config",
+    "rust-patterns",
+]
+description = "A Rust crate for testing, simulating, and automating upgrade processes in Rust workspace environments."
+edition = "2024"
+keywords = [
+    "rust",
+    "workspace",
+    "upgrade",
+    "testing",
+    "automation",
+]
+name = "workspacer-upgrade-test"
+version = "0.1.2"
+license = "MIT"

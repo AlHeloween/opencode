@@ -1,0 +1,5 @@
+error: Missing required `#[batch_workspace]` field.
+  --> tests/trybuild/fail_missing_batch_workspace.rs:10:8
+   |
+10 | struct MissingWorkspace {
+   |        ^^^^^^^^^^^^^^^^

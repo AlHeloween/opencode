@@ -1,0 +1,61 @@
+[dependencies.workspacer-3p]
+path = "../workspacer-3p"
+version = "0.5.1"
+
+[dependencies.workspacer-crate]
+path = "../workspacer-crate"
+version = "0.5.1"
+
+[dependencies.workspacer-crate-interface]
+path = "../workspacer-crate-interface"
+version = "0.1.1"
+
+[dependencies.workspacer-errors]
+path = "../workspacer-errors"
+version = "0.1.1"
+
+[dependencies.workspacer-toml-interface]
+path = "../workspacer-toml-interface"
+version = "0.1.2"
+
+[dependencies.workspacer-workspace]
+path = "../workspacer-workspace"
+version = "0.1.1"
+
+[dependencies.workspacer-workspace-interface]
+path = "../workspacer-workspace-interface"
+version = "0.1.2"
+
+[dev-dependencies.workspacer-crate-mock]
+path = "../workspacer-crate-mock"
+version = "0.1.1"
+
+[dev-dependencies.workspacer-mock]
+path = "../workspacer-mock"
+version = "0.5.1"
+
+[dev-dependencies.workspacer-toml-mock]
+path = "../workspacer-toml-mock"
+version = "0.1.1"
+
+[dev-dependencies.workspacer-workspace-mock]
+path = "../workspacer-workspace-mock"
+version = "0.1.1"
+
+[package]
+categories = [
+    "development-tools",
+    "parser-implementations",
+    "algorithms",
+]
+description = "A Rust crate to manage and increment semantic versions within a workspace with support for async version bumping and recursive downstream updates."
+edition = "2024"
+keywords = [
+    "versioning",
+    "semver",
+    "workspace",
+    "async",
+]
+name = "workspacer-bump"
+version = "0.1.2"
+license = "MIT"

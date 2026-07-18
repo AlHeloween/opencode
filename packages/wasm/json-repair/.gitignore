@@ -1,0 +1,8 @@
+**/.DS_Store/**
+**/target
+**/vendor
+**/Cargo.lock
+**/.DS_Store
+**/missing-types.txt
+**/rust-workspace-typemap.json
+**/tmp*

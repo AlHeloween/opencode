@@ -1,0 +1,24 @@
+[package]
+name = "rdiff"
+version = "0.1.0"
+authors = ["Justin Barclay <justincbarclay@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "rdiff"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = []
+cli = ["clap"]
+
+[dependencies]
+clap = { version = "2.32.0", optional = true }
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

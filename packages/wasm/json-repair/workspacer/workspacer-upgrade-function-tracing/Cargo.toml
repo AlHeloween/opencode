@@ -1,0 +1,21 @@
+[dependencies.workspacer-3p]
+path = "../workspacer-3p"
+version = "0.5.1"
+
+[package]
+categories = [
+    "development-tools",
+    "visualization",
+]
+description = "Enhances workspace function tracing by capturing execution insights for performance and reliability improvements."
+edition = "2024"
+keywords = [
+    "rust",
+    "tracing",
+    "performance",
+    "workspace",
+    "analytics",
+]
+name = "workspacer-upgrade-function-tracing"
+version = "0.1.2"
+license = "MIT"

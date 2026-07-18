@@ -1,0 +1,58 @@
+[dependencies.async-openai]
+workspace = true
+
+[dependencies.error-tree]
+workspace = true
+
+[dependencies.export-magic]
+workspace = true
+
+[dependencies.getset]
+workspace = true
+
+[dependencies.language-model-type]
+path = "../language-model-type"
+version = "0.1.1"
+
+[dependencies.pretty_assertions]
+workspace = true
+
+[dependencies.serde]
+workspace = true
+
+[dependencies.serde_json]
+workspace = true
+
+[dependencies.tokio]
+workspace = true
+
+[dependencies.traced-test]
+workspace = true
+
+[dependencies.tracing]
+workspace = true
+
+[dependencies.tracing-setup]
+workspace = true
+
+[dependencies.tracing-subscriber]
+workspace = true
+
+[package]
+authors = ["klebs tpk3.mx@gmail.com"]
+categories = [
+    "template-engine",
+    "text-processing",
+    "parsing",
+]
+description = "contains the LanguageModelBatchAPIRequest struct which helps create language model batch requests."
+edition = "2021"
+keywords = [
+    "shorthand",
+    "ai",
+    "llm",
+]
+license = "MIT"
+name = "batch-mode-batch-scribe"
+repository = "https://github.com/klebs6/klebs-general"
+version = "0.1.5"

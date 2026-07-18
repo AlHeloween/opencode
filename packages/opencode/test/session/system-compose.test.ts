@@ -4,6 +4,7 @@ import {
   assemblePathSystem,
   assembleSystemMessages,
   collapseSystemMessages,
+  validateSystemOrder,
 } from "../../src/session/system-compose"
 import PROMPT_KERNEL from "../../src/session/prompt/opencode_prompts_kernel.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
@@ -48,7 +49,7 @@ function mockModel(id: string): Provider.Model {
 }
 
 describe("system-compose path assembly", () => {
-  test("stable-first: skills → env → rules → instructions", () => {
+  test("stable-first: rules → skills → env → instructions", () => {
     expect(
       assemblePathSystem({
         skills: "SKILLS",
@@ -56,7 +57,7 @@ describe("system-compose path assembly", () => {
         rules: ["RULES"],
         instructions: ["AGENTS.md"],
       }),
-    ).toEqual(["SKILLS", "ENV", "RULES", "AGENTS.md"])
+    ).toEqual(["RULES", "SKILLS", "ENV", "AGENTS.md"])
   })
 })
 
@@ -65,17 +66,20 @@ describe("system-compose provider assembly", () => {
     const parts = assembleSystemMessages({
       universalEnv: "UE",
       toolSchemas: "TOOLS",
-      identity: "IDENTITY",
-      pathSystem: ["SKILLS", "ENV", "RULES", "INSTRUCTIONS"],
+      reasoningPrefix: "REASONING",
+      kernel: "KERNEL",
+      agentPrompt: "AGENT_PROMPT",
+      pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
       activeToolsLine: "Active tools: a",
       banner: "[session: ses_1]",
       userSystem: "USER",
       checkpoint: false,
     })
+    // Order: reasoning → kernel → rules → skills → env → agentPrompt → instructions
     expect(parts).toEqual([
       "UE",
       "TOOLS",
-      "IDENTITY\nSKILLS\nENV\nRULES\nINSTRUCTIONS",
+      "REASONING\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
       "Active tools: a\n[session: ses_1]\nUSER",
     ])
   })
@@ -84,13 +88,16 @@ describe("system-compose provider assembly", () => {
     const parts = assembleSystemMessages({
       universalEnv: "UE",
       toolSchemas: "TOOLS",
-      identity: "FRESH_IDENTITY",
-      pathSystem: ["OLD_IDENTITY", "SKILLS", "ENV"],
+      reasoningPrefix: "REASONING",
+      kernel: "KERNEL",
+      agentPrompt: "AGENT_PROMPT",
+      pathSystem: ["OLD_IDENTITY", "RULES", "SKILLS", "ENV"],
       activeToolsLine: "Active tools: a",
       banner: "[session: ses_1]",
       checkpoint: true,
     })
-    expect(parts[2]).toBe("FRESH_IDENTITY\nSKILLS\nENV")
+    // After stripping OLD_IDENTITY: reasoning → kernel → rules → skills → agentPrompt → env
+    expect(parts[2]).toBe("REASONING\nKERNEL\nRULES\nSKILLS\nAGENT_PROMPT\nENV")
     expect(parts.join("\n")).not.toContain("OLD_IDENTITY")
     expect(parts.some((p) => p === "USER")).toBe(false)
   })
@@ -99,19 +106,21 @@ describe("system-compose provider assembly", () => {
     const raw = assembleSystemMessages({
       universalEnv: "UE",
       toolSchemas: "TOOLS",
-      identity: "IDENTITY",
-      pathSystem: ["PATH"],
+      reasoningPrefix: "REASONING",
+      kernel: "KERNEL",
+      agentPrompt: "AGENT_PROMPT",
+      pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
       activeToolsLine: "Active tools: a",
       banner: "[session: ses_1]",
       checkpoint: false,
     })
     const collapsed = collapseSystemMessages(raw, "UE")
-    // Critical: session banner must NOT be joined into IDENTITY/PATH — that
+    // Critical: session banner must NOT be joined into identity/path — that
     // forced a full path/skills recompute on every new session.
     expect(collapsed).toEqual([
       "UE",
       "TOOLS",
-      "IDENTITY\nPATH",
+      "REASONING\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
       "Active tools: a\n[session: ses_1]",
     ])
     expect(collapsed[2]).not.toContain("[session:")
@@ -122,8 +131,10 @@ describe("system-compose provider assembly", () => {
     const base = {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
-      identity: "IDENTITY",
-      pathSystem: ["SKILLS", "ENV", "RULES"],
+      reasoningPrefix: "REASONING",
+      kernel: "KERNEL",
+      agentPrompt: "AGENT_PROMPT",
+      pathSystem: ["RULES", "SKILLS", "ENV"],
       activeToolsLine: "Active tools: a,b",
       checkpoint: false as const,
     }
@@ -183,5 +194,26 @@ describe("system prefix digest (kernel + reasoning)", () => {
     expect(kernelBytes).toBeLessThan(80_000)
     expect(reasoningBytes).toBeGreaterThan(5_000)
     expect(combined).toBeGreaterThanOrEqual(reasoningBytes + kernelBytes)
+  })
+})
+
+describe("validateSystemOrder", () => {
+  test("returns true for correctly ordered system", () => {
+    const system = assembleSystemMessages({
+      universalEnv: "UE",
+      toolSchemas: "TOOLS",
+      reasoningPrefix: PROMPT_REASONING,
+      kernel: PROMPT_KERNEL,
+      agentPrompt: "AGENT",
+      pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
+      activeToolsLine: "Active tools: a",
+      banner: "[session: ses_1]",
+      checkpoint: false,
+    })
+    expect(validateSystemOrder(system)).toBe(true)
+  })
+
+  test("returns true for short system (no validation needed)", () => {
+    expect(validateSystemOrder(["UE", "TOOLS"])).toBe(true)
   })
 })

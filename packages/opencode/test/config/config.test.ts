@@ -2338,6 +2338,20 @@ describe("deduplicatePluginOrigins", () => {
     expect(result).toEqual(["file:///project/.opencode/plugin/demo.ts"])
   })
 
+  test("deduplicates path plugins case-insensitively on Windows", () => {
+    // Simulates Windows drive letter case differences (d: vs D:)
+    const plugins = [
+      "file:///d:/project/.opencode/plugins/tui-smoke.tsx",
+      "file:///D:/project/.opencode/plugins/tui-smoke.tsx",
+    ]
+
+    const result = dedupe(plugins)
+
+    // Should keep only one (the later one due to toReversed processing)
+    expect(result.length).toBe(1)
+    expect(result[0]).toBe("file:///D:/project/.opencode/plugins/tui-smoke.tsx")
+  })
+
   test("preserves order of remaining plugins", () => {
     const plugins = ["a-plugin@1.0.0", "b-plugin@1.0.0", "c-plugin@1.0.0"]
 

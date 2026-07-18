@@ -1,0 +1,26 @@
+[dependencies.export-magic]
+workspace = true
+
+[dependencies.tokio]
+workspace = true
+
+[package]
+authors = ["klebs tpk3.mx@gmail.com"]
+categories = [
+    "command-line-utilities",
+    "concurrency",
+    "asynchronous",
+    "development-tools",
+]
+description = "A rust crate providing an asynchronous command runner using tokio, supporting cross-platform execution."
+edition = "2024"
+keywords = [
+    "async",
+    "command-runner",
+    "tokio",
+    "rust",
+]
+license = "MIT OR Apache-2.0"
+name = "lightweight-command-runner"
+repository = "https://github.com/klebs6/klebs-general"
+version = "0.1.2"

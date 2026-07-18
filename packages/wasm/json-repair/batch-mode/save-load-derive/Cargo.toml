@@ -1,0 +1,80 @@
+[dependencies.async-trait]
+workspace = true
+
+[dependencies.derive_builder]
+workspace = true
+
+[dependencies.getset]
+workspace = true
+
+[dependencies.pretty_assertions]
+workspace = true
+
+[dependencies.proc-macro2]
+workspace = true
+
+[dependencies.quote]
+workspace = true
+
+[dependencies.serde]
+workspace = true
+
+[dependencies.serde_derive]
+workspace = true
+
+[dependencies.serde_json]
+workspace = true
+
+[dependencies.syn]
+workspace = true
+
+[dependencies.tempfile]
+workspace = true
+
+[dependencies.traced-test]
+workspace = true
+
+[dependencies.tracing]
+workspace = true
+
+[dependencies.tracing-setup]
+workspace = true
+
+[dependencies.tracing-subscriber]
+workspace = true
+
+[dev-dependencies.save-load-traits]
+path = "../save-load-traits"
+version = "0.2.1"
+
+[dev-dependencies.tokio]
+workspace = true
+
+[dev-dependencies.trybuild]
+workspace = true
+
+[lib]
+proc-macro = true
+
+[package]
+authors = ["klebs tpk3.mx@gmail.com"]
+categories = [
+    "asynchronous",
+    "parsing",
+    "development-tools",
+    "filesystem",
+]
+description = "`save-load-derive` is a procedural macro crate enabling automatic derivation of asynchronous file save and load functionalities for structs, leveraging `serde` serialization and `tokio` for async operations."
+edition = "2024"
+keywords = [
+    "procedural-macros",
+    "serde",
+    "tokio",
+    "serialization",
+    "async",
+]
+license = "MIT"
+name = "save-load-derive"
+readme = "README.md"
+repository = "https://github.com/klebs6/klebs-general"
+version = "0.1.1"

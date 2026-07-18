@@ -1,0 +1,5 @@
+error: Missing required `#[batch_client]` field.
+  --> tests/trybuild/fail_missing_batch_client.rs:14:8
+   |
+14 | struct MissingClient {
+   |        ^^^^^^^^^^^^^

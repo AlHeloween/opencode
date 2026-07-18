@@ -1,0 +1,134 @@
+[build-dependencies.scan-crate-for-typedefs]
+workspace = true
+
+[dependencies.Inflector]
+workspace = true
+
+[dependencies.ai-descriptor]
+workspace = true
+
+[dependencies.async-openai]
+workspace = true
+
+[dependencies.async-trait]
+workspace = true
+
+[dependencies.bytes]
+workspace = true
+
+[dependencies.crossbeam]
+workspace = true
+
+[dependencies.delegate]
+workspace = true
+
+[dependencies.derive_builder]
+workspace = true
+
+[dependencies.disable_macro]
+workspace = true
+
+[dependencies.error-tree]
+workspace = true
+
+[dependencies.export-magic]
+workspace = true
+
+[dependencies.float-ord]
+workspace = true
+
+[dependencies.futures]
+workspace = true
+
+[dependencies.getset]
+workspace = true
+
+[dependencies.indoc]
+workspace = true
+
+[dependencies.json-repair]
+workspace = true
+
+[dependencies.json5]
+workspace = true
+
+[dependencies.lazy_static]
+workspace = true
+
+[dependencies.named-item]
+workspace = true
+
+[dependencies.named-item-derive]
+workspace = true
+
+[dependencies.num-traits]
+workspace = true
+
+[dependencies.once_cell]
+workspace = true
+
+[dependencies.pbx]
+workspace = true
+
+[dependencies.pretty_assertions]
+workspace = true
+
+[dependencies.rand]
+workspace = true
+
+[dependencies.rand-construct]
+workspace = true
+
+[dependencies.regex]
+workspace = true
+
+[dependencies.serde]
+workspace = true
+
+[dependencies.serde_json]
+workspace = true
+
+[dependencies.strsim]
+workspace = true
+
+[dependencies.structopt]
+workspace = true
+
+[dependencies.structured-language-form]
+workspace = true
+
+[dependencies.strum]
+workspace = true
+
+[dependencies.strum_macros]
+workspace = true
+
+[dependencies.tempfile]
+workspace = true
+
+[dependencies.tokio]
+workspace = true
+
+[dependencies.traced-test]
+workspace = true
+
+[dependencies.tracing]
+workspace = true
+
+[dependencies.tracing-setup]
+workspace = true
+
+[dependencies.tracing-subscriber]
+workspace = true
+
+[dependencies.uuid]
+workspace = true
+
+[package]
+authors = ["klebs tpk3.mx@gmail.com"]
+description = "This crate contains the third party (3p) interface for the `batch-mode` crate ecosystem"
+edition = "2024"
+license = "MIT"
+name = "batch-mode-3p"
+repository = "https://github.com/klebs6/klebs-general"
+version = "0.2.1"

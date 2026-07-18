@@ -76,7 +76,14 @@ export function deduplicatePluginOrigins(plugins: Origin[]): Origin[] {
 
   for (const plugin of plugins.toReversed()) {
     const spec = pluginSpecifier(plugin.spec)
-    const name = spec.startsWith("file://") ? spec : parsePluginSpecifier(spec).pkg
+    let name: string
+    if (spec.startsWith("file://")) {
+      // Normalize file URLs to lowercase for case-insensitive comparison on Windows
+      // This ensures file:///d:/path and file:///D:/path are treated as the same plugin
+      name = spec.toLowerCase()
+    } else {
+      name = parsePluginSpecifier(spec).pkg
+    }
     if (seen.has(name)) continue
     seen.add(name)
     list.push(plugin)

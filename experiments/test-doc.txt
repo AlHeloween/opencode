@@ -1,4 +1,0 @@
-This is a test document created in the experiments folder.
-Line 2: The quick brown fox jumps over the lazy dog. (edited)
-Line 3: 1234567890
-Line 4: Hello, World!

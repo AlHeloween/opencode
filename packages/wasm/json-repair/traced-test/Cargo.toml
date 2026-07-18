@@ -1,0 +1,32 @@
+[package]
+edition = "2021"
+name = "traced-test"
+version = "1.0.4"
+description = "this crate lets us use #[traced_test] to automatically configure sane default tracing for a rust test"
+license = "MIT"
+authors = [ "klebs tpk3.mx@gmail.com" ]
+categories = ["development-tools"]
+keywords = ["macros", "testing"]
+repository = "https://github.com/klebs6/klebs-general"
+
+[dependencies]
+getset             = "0.1.5"
+syn                = { version = "2.0.52", features      = ["full"] }
+quote              = "1.0"
+error-tree         = "0.6.0"
+colored            = "2.1.0"
+named-item         = "0.6.0"
+proc-macro2        = "1.0"
+export-magic       = "0.3.6"
+tracing            = "0.1.41"
+tracing-subscriber = { version = "0.3", default-features = false, features      = ["fmt", "std", "env-filter"] }
+maplit             = "1.0.2"
+tracing-setup      = { version = "1.0.4", path           = "../tracing-setup" }
+
+[lib]
+proc-macro         = true
+
+[dev-dependencies]
+tokio         = { version = "1", features = ["macros", "rt-multi-thread","time"] }
+disable_macro = "0.3.6"
+trybuild      = "1.0"

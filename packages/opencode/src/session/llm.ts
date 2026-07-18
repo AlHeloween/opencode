@@ -217,11 +217,16 @@ const live: Layer.Layer<
       // TODO: move this to a proper hook
       const isOpenaiOauth = item.id === "openai" && info?.type === "oauth"
 
-      const reasoningPrefix = ProviderTransform.systemPromptPrefix(input.model)
+      const systemPromptPrefix = ProviderTransform.systemPromptPrefix(input.model)
+      // Split combined reasoning+kernel into separate components for KV cache ordering.
+      // systemPromptPrefix returns "reasoning.txt\n\nopencode_prompts_kernel.txt"
+      const [reasoningPrefix, ...kernelParts] = systemPromptPrefix.split("\n\n")
+      const kernel = kernelParts.join("\n\n")
       const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : "reasoning-only"
 
       l.info("system prompt", {
         reasoning: !!reasoningPrefix,
+        kernel: !!kernel,
         prompt: promptFile,
         agent: input.agent.name,
         model: input.model.id,
@@ -231,13 +236,6 @@ const live: Layer.Layer<
       // The AI SDK `tools` parameter is still passed separately for tool calling.
       const toolSchemaText = serializeToolSchemas(input.tools)
       const isCheckpoint = input.checkpoint === true
-
-      const identity = [
-        ...(reasoningPrefix ? [reasoningPrefix] : []),
-        ...(input.agent.prompt ? [input.agent.prompt] : []),
-      ]
-        .filter((x) => x)
-        .join("\n")
 
       // Active/inactive tools line — short, changes per agent; lands in collapsed tail.
       const activeToolSet = resolveTools(input)
@@ -253,7 +251,9 @@ const live: Layer.Layer<
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
         toolSchemas: toolSchemaText,
-        identity,
+        reasoningPrefix,
+        kernel,
+        agentPrompt: input.agent.prompt ?? "",
         pathSystem: input.system,
         activeToolsLine: toolsLine,
         banner,

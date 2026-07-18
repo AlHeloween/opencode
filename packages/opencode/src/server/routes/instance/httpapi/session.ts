@@ -518,21 +518,20 @@ export const sessionHandlers = Layer.unwrap(
           catch: () => new HttpApiError.BadRequest({}),
         })
       }
-      if (ctx.query.limit === undefined || ctx.query.limit === 0) {
-        yield* session.get(ctx.params.sessionID)
-        return yield* session.messages({ sessionID: ctx.params.sessionID })
-      }
+      // Always enforce a reasonable limit to prevent unbounded message loading
+      const limit = ctx.query.limit && ctx.query.limit > 0 ? ctx.query.limit : 500
+      yield* session.get(ctx.params.sessionID)
 
       const page = yield* MessageV2.pageCompacted({
         sessionID: ctx.params.sessionID,
-        limit: ctx.query.limit,
-        before: ctx.query.before,
+        limit,
+        before: ctx.query.before as string | undefined,
       })
       if (!page.cursor) return page.items
 
       const request = yield* HttpServerRequest.HttpServerRequest
       const url = new URL(request.url, "http://localhost")
-      url.searchParams.set("limit", ctx.query.limit.toString())
+      url.searchParams.set("limit", limit.toString())
       url.searchParams.set("before", page.cursor)
       return HttpServerResponse.jsonUnsafe(page.items, {
         headers: {

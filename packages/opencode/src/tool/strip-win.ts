@@ -32,6 +32,15 @@ export function stripCommand(command: string, shell: string): StripResult {
   let message: string | undefined
   const ssh = isRemoteCommand(command)
 
+  // Detect cmd_runner send commands — everything after '--' is remote payload
+  // and must NOT be processed (it's arbitrary code for the remote machine).
+  const cmdRunnerMatch = result.match(/^(cmd_runner\s+send\s+.*?--\s*)(.*)/s)
+  const cmdRunnerPrefix = cmdRunnerMatch ? cmdRunnerMatch[1] : ""
+  const cmdRunnerPayload = cmdRunnerMatch ? cmdRunnerMatch[2] : ""
+  if (cmdRunnerMatch) {
+    result = cmdRunnerPrefix // Process only the prefix part
+  }
+
   // On Windows, convert Linux redirects to Windows equivalents
   // BUT: if command is SSH to remote Linux, /dev/null is valid there
   if (process.platform === "win32" && !ssh) {
@@ -42,16 +51,35 @@ export function stripCommand(command: string, shell: string): StripResult {
       converted = true
       message = "Note: /dev/null converted to nul (Windows). For remote Linux via SSH, use /dev/null directly."
     }
+
+    // On Windows, convert POSIX 'mv' command to 'move' for cmd.exe compatibility.
+    // This handles cases where the command was written for bash but runs under cmd.exe.
+    // Pattern: 'mv ' at start of string or after ';' or '&&' or '||' or newline.
+    result = result.replace(/(^|;|&&|\|\||\n)\s*mv\s+/g, "$1 move ")
+    if (result !== command && !converted) {
+      converted = true
+      message = "Note: 'mv' converted to 'move' (Windows cmd.exe)."
+    }
   }
 
-  // Strip null redirects — but preserve /dev/null in SSH commands
+  // Strip null redirects — but preserve /dev/null in SSH and Python commands
+  // Python on Windows understands /dev/null (via WSL compatibility layer),
+  // so don't strip it when Python is involved.
+  const hasPython = /\bpython[23]?\b/i.test(command)
   for (const pattern of NUL_REDIRECTS) {
     // Skip /dev/null patterns for SSH commands (valid on remote Linux)
     if (ssh && pattern.source.includes("dev")) continue
+    // Skip /dev/null patterns for Python commands (Python on Windows handles /dev/null)
+    if (hasPython && pattern.source.includes("/dev/null")) continue
     result = result.replace(pattern, "")
   }
 
   result = result.replace(/  +/g, " ").trim()
+
+  // Reattach cmd_runner payload (unprocessed)
+  if (cmdRunnerMatch) {
+    result = result + cmdRunnerPayload
+  }
 
   // Hard guarantee: merge redirects must survive (TS diagnostics, tsc, bun, etc.)
   // If a future pattern ever ate them, restore from the original command.

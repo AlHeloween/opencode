@@ -1,0 +1,20 @@
+[dependencies]
+async-trait.workspace       = true
+named-item.workspace        = true
+named-item-derive.workspace = true
+paste.workspace             = true
+unsafe-erased.workspace     = true
+
+[dependencies.hydro2-3p]
+path    = "../hydro2-3p"
+version = "0.1.0"
+
+[package]
+edition    = "2024"
+name       = "hydro2-operator"
+version    = "0.1.0"
+authors    = ["klebs tpk3.mx@gmail.com"]
+repository = "https://github.com/klebs6/klebs-general"
+readme     = "README.md"
+description = "Core interfaces, traits, and error handling for creating and running Hydro2 operators, including multi-port type conversion utilities."
+license-file = "OGPv1"

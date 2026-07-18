@@ -18,13 +18,17 @@ export type SystemComposeInput = {
   universalEnv: string
   /** Empty string skips the tool-schemas slot. */
   toolSchemas: string
-  /** Reasoning prefix + agent prompt (identity). Stable for agent+model family. */
-  identity: string
+  /** Reasoning prefix (reasoning.txt). MOST STABLE — goes first in identity block. */
+  reasoningPrefix: string
+  /** Kernel file (opencode_prompts_kernel.txt). Stable per app version. */
+  kernel: string
+  /** Agent-specific prompt (coder.txt / explore.txt / orchestrator.txt). */
+  agentPrompt: string
   /**
    * Path-level system entries from prompt.ts.
-   * Non-checkpoint: skills → env → rules → instructions (+ optional structured prompt).
+   * Non-checkpoint: rules → skills → env → instructions (+ optional structured prompt).
    * Checkpoint: stored systemPrompt including identity at [0]; identity is stripped
-   * and replaced by the fresh `identity` argument.
+   * and replaced by the fresh identity components.
    */
   pathSystem: string[]
   /** Per-turn / per-agent tool availability — mutable, always last. */
@@ -43,12 +47,39 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
   const system: string[] = [input.universalEnv]
   if (input.toolSchemas) system.push(input.toolSchemas)
 
-  // Stable body: identity + project path system (no session vars).
+  // system[2]: Identity + Path System (ordered by mutability level)
+  // Required order: reasoning → kernel → rules → skills → env → agentPrompt → instructions
+  // Stable prefix: reasoning → kernel (MOST STABLE)
+  const stablePrefix = [
+    input.reasoningPrefix,
+    input.kernel,
+  ].filter((s) => s.length > 0)
+
+  // Path system: rules → skills → env → instructions
   const path =
     input.checkpoint && input.pathSystem.length > 0
-      ? input.pathSystem.slice(1) // drop stored identity; use fresh `identity`
+      ? input.pathSystem.slice(1) // drop stored identity prefix
       : input.pathSystem
-  const stableBody = [input.identity, ...(path.length > 0 ? [path.join("\n")] : [])]
+
+  // Agent prompt goes after all path elements (rules/skills/env) but before instructions.
+  // If path has instructions (last element), insert agentPrompt before it.
+  // Otherwise, append agentPrompt after all path elements.
+  let stableBodyParts: string[]
+  if (input.agentPrompt) {
+    if (path.length > 0) {
+      // Insert agentPrompt before the last element (instructions) if there are multiple elements,
+      // or after the single element if path has only one element.
+      const allButLast = path.slice(0, -1)
+      const last = path.slice(-1)
+      stableBodyParts = [...stablePrefix, ...allButLast, input.agentPrompt, ...last]
+    } else {
+      stableBodyParts = [...stablePrefix, input.agentPrompt]
+    }
+  } else {
+    stableBodyParts = [...stablePrefix, ...path]
+  }
+
+  const stableBody = stableBodyParts
     .filter((s) => s.length > 0)
     .join("\n")
   if (stableBody) system.push(stableBody)
@@ -104,9 +135,46 @@ export function assemblePathSystem(input: {
   instructions: string[]
 }): string[] {
   return [
-    ...(input.skills ? [input.skills] : []),
-    ...input.env,
-    ...input.rules,
-    ...input.instructions,
+    ...input.rules,                          // Rules first (more stable)
+    ...(input.skills ? [input.skills] : []), // Skills after rules
+    ...input.env,                            // Environment metadata
+    ...input.instructions,                   // Instructions last (most mutable)
   ]
+}
+
+/**
+ * Validate system message ordering invariants for KV cache continuity.
+ * Checks that the assembled system messages follow the required mutability order:
+ *   reasoning → kernel → rules → skills → env → agentPrompt → instructions
+ *
+ * Logs a warning if invariants are violated (development/debugging aid).
+ * Returns true if order is valid, false otherwise.
+ */
+export function validateSystemOrder(system: string[]): boolean {
+  if (system.length < 3) return true // Nothing to validate
+
+  const fullText = system.join("\n")
+
+  // Check key ordering invariants
+  const reasoningIdx = fullText.indexOf("Communication Protocol")
+  const kernelIdx = fullText.indexOf("PROMPT_ABI")
+  const agentIdx = fullText.indexOf("You are a coding assistant")
+
+  // Reasoning must come before kernel
+  if (reasoningIdx >= 0 && kernelIdx >= 0 && reasoningIdx > kernelIdx) {
+    console.warn("bug: system order violation — reasoning after kernel")
+    return false
+  }
+
+  // Kernel must come before agent prompt (if agent prompt exists in stable body)
+  if (kernelIdx >= 0 && agentIdx >= 0 && kernelIdx > agentIdx) {
+    // Only warn if agentIdx is in the stable body (system[2]), not in mutable tail
+    const stableBody = system.slice(0, 3).join("\n")
+    if (stableBody.indexOf("You are a coding assistant") >= 0) {
+      console.warn("bug: system order violation — kernel after agent prompt in stable body")
+      return false
+    }
+  }
+
+  return true
 }

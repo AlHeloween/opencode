@@ -1,0 +1,52 @@
+[dependencies]
+async-trait.workspace        = true
+derive_builder.workspace     = true
+disable_macro.workspace      = true
+erased.workspace             = true
+error-tree.workspace         = true
+export-magic.workspace       = true
+getset.workspace             = true
+proc-macro2.workspace        = true
+quote.workspace              = true
+syn.workspace                = true
+unsafe-erased.workspace      = true
+traced-test.workspace        = true
+tracing.workspace            = true
+tracing-setup.workspace      = true
+tracing-subscriber.workspace = true
+
+[dependencies.hydro2-3p]
+path = "../hydro2-3p"
+version = "0.1.0"
+
+[dev-dependencies]
+async-trait.workspace       = true
+named-item.workspace        = true
+named-item-derive.workspace = true
+trybuild.workspace          = true
+tokio.workspace             = true
+
+[dev-dependencies.hydro2-basic-operators]
+path = "../hydro2-basic-operators"
+version = "0.1.0"
+
+[dev-dependencies.hydro2-operator]
+path = "../hydro2-operator"
+version = "0.1.0"
+
+[dev-dependencies.hydro2-operator-derive]
+path = "../hydro2-operator-derive"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[package]
+edition     = "2024"
+name        = "hydro2-network-wire-derive"
+version     = "0.1.0"
+description = "A procedural macro providing #[derive(NetworkWire)] for bridging Hydro2 operator wires and enumerating operator IO variants. It automatically handles generics, type parameters, and attribute parsing to unify wire and operator definitions."
+authors     = ["klebs tpk3.mx@gmail.com"]
+repository  = "https://github.com/klebs6/klebs-general"
+readme      = "README.md"
+license-file = "OGPv1"

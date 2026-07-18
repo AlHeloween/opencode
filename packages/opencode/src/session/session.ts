@@ -868,10 +868,19 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
     })
 
     const messages = Effect.fn("Session.messages")(function* (input: { sessionID: SessionID; limit?: number }) {
-      if (input.limit) {
-        return MessageV2.page({ sessionID: input.sessionID, limit: input.limit }).items
+      // Always enforce a limit to prevent unbounded loading that can crash the TUI
+      const limit = input.limit ?? 500
+      const result = MessageV2.page({ sessionID: input.sessionID, limit })
+      // Log when a session has more messages than the limit (truncated response)
+      if (result.more && limit < 500) {
+        log.warn("bug: session has more messages than limit, response truncated", {
+          sessionID: input.sessionID,
+          limit,
+          returned: result.items.length,
+          hasMore: result.more,
+        })
       }
-      return Array.from(MessageV2.stream(input.sessionID)).reverse()
+      return result.items
     })
 
     const removeMessage = Effect.fn("Session.removeMessage")(function* (input: {

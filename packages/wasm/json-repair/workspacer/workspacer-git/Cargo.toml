@@ -1,0 +1,37 @@
+[dependencies.workspacer-3p]
+path = "../workspacer-3p"
+version = "0.5.1"
+
+[dependencies.workspacer-crate]
+path = "../workspacer-crate"
+version = "0.5.1"
+
+[dependencies.workspacer-crate-interface]
+path = "../workspacer-crate-interface"
+version = "0.1.1"
+
+[dependencies.workspacer-errors]
+path = "../workspacer-errors"
+version = "0.1.1"
+
+[dependencies.workspacer-workspace]
+path = "../workspacer-workspace"
+version = "0.1.1"
+
+[package]
+categories = [
+    "concurrency",
+    "development-tools",
+]
+description = "Ensures that Git workspaces are clean, suitable for async Rust applications. Implements checks for uncommitted changes, relies on 'git status --porcelain' for validation."
+edition = "2024"
+keywords = [
+    "git",
+    "workspace",
+    "async",
+    "clean",
+    "version-control",
+]
+name = "workspacer-git"
+version = "0.1.1"
+license = "MIT"

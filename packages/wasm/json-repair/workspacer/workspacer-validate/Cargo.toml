@@ -1,0 +1,20 @@
+[dependencies.workspacer-3p]
+path = "../workspacer-3p"
+version = "0.5.1"
+
+[package]
+categories = [
+    "data-structures",
+    "development-tools",
+    "parsing",
+]
+description = "A high-performance Rust crate for validating structured data within workspaces, emphasizing schema enforcement and error diagnostics."
+edition = "2024"
+keywords = [
+    "validation",
+    "schema",
+    "workspace",
+]
+name = "workspacer-validate"
+version = "0.1.1"
+license = "MIT"

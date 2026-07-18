@@ -334,36 +334,42 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           if (!input.force && fullSyncedSessions.has(sessionID)) return
         }
         const task = (async () => {
-          const [session, messages, todo, diff] = await Promise.all([
-            sdk.client.session.get({ sessionID }, { throwOnError: true }),
-            sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),
-            sdk.client.session.todo({ sessionID }, { throwOnError: true }),
-            sdk.client.session.diff({ sessionID }, { throwOnError: true }),
-          ])
-          // Guard: skip write if the session was deleted while inflight was running.
-          // Without this, a completed inflight can re-add a session that the
-          // `session.deleted` event handler already removed from the store.
-          if (!fullSyncedSessions.has(sessionID) && Binary.search(store.session, sessionID, (s) => s.id).found === false) {
-            return
-          }
-          const messageList = messages.data ?? []
-          const messageInfos = messageList.map((x) => x.info)
-          batch(() => {
-            setStore(
-              produce((draft) => {
-                const match = Binary.search(draft.session, sessionID, (s) => s.id)
-                if (match.found) draft.session[match.index] = session.data!
-                if (!match.found) draft.session.splice(match.index, 0, session.data!)
-                draft.todo[sessionID] = todo.data ?? []
-                draft.session_diff[sessionID] = diff.data ?? []
-              }),
-            )
-            setStore("message", sessionID, reconcile(messageInfos, { key: "id" }))
-            for (const message of messageList) {
-              setStore("part", message.info.id, reconcile(message.parts, { key: "id" }))
+          try {
+            const [session, messages, todo, diff] = await Promise.all([
+              sdk.client.session.get({ sessionID }, { throwOnError: true }),
+              sdk.client.session.messages({ sessionID, limit: 100 }, { throwOnError: true }),
+              sdk.client.session.todo({ sessionID }, { throwOnError: true }),
+              sdk.client.session.diff({ sessionID }, { throwOnError: true }),
+            ])
+            // Safety cap: even if server returns more, we only process up to 100 messages
+            const messageList = (messages.data ?? []).slice(0, 100)
+            // Guard: skip write if the session was deleted while inflight was running.
+            // Without this, a completed inflight can re-add a session that the
+            // `session.deleted` event handler already removed from the store.
+            if (!fullSyncedSessions.has(sessionID) && Binary.search(store.session, sessionID, (s) => s.id).found === false) {
+              return
             }
-          })
-          fullSyncedSessions.add(sessionID)
+            const messageInfos = messageList.map((x) => x.info)
+            batch(() => {
+              setStore(
+                produce((draft) => {
+                  const match = Binary.search(draft.session, sessionID, (s) => s.id)
+                  if (match.found) draft.session[match.index] = session.data!
+                  if (!match.found) draft.session.splice(match.index, 0, session.data!)
+                  draft.todo[sessionID] = todo.data ?? []
+                  draft.session_diff[sessionID] = diff.data ?? []
+                }),
+              )
+              setStore("message", sessionID, reconcile(messageInfos, { key: "id" }))
+              for (const message of messageList) {
+                setStore("part", message.info.id, reconcile(message.parts, { key: "id" }))
+              }
+            })
+            fullSyncedSessions.add(sessionID)
+          } catch (error) {
+            // Log error but don't crash the TUI - allow partial session loading
+            console.error(`[sync] Failed to sync session ${sessionID}:`, error)
+          }
         })()
         inflightSyncs.set(sessionID, task)
         try {

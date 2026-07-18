@@ -1,93 +1,99 @@
+# ── IDE / Editor ──
+.idea
+.vscode
+.DS_Store
+Session.vim
+*~
 
-"dxcompiler.dll"  
-"dxil.dll"  
-# Fossil SCM — checkout markers, repositories, lock/temp files
-# Local dev files
-# Lockfile is tracked (bun.lock text format)
-# VCS isolation — prevent cross-tracking between git and jj
+# ── VCS Isolation ──
 **/.git/
+.git/
 **/.jj
 **/.jj/
-**/.serena
-**/src.bak
-*.adid.log.jsonl
-*.backup_*
-*.baseline
-*.bun-build
-*.fsl
-*~
-.DS_Store
-.adid_rag/
-.codex
-.direnv/
-.env
-.fossil-settings/
-.fslckout
-.git/
-.idea
-.jj
-.jj/
-.opencode
-.opencode/data
-.opencode/project.db
-.reasonix
-.scripts
-.serena/
-.sst
-.temp/
-.tst/
-.turbo
-.vscode
-.worktrees
-/opencode.json
-/result
-FSL_*.db
-FSL_*.db-journal
-Session.vim
-UPCOMING_CHANGELOG.md
+
+# ── Fossil SCM ──
 _FOSSIL_
 _fossil
-a.out
-artefacts/
-artifacts/
+.fslckout
+*.fsl
+FSL_*.db
+FSL_*.db-journal
+.fossil-settings/
+
+# ── Environment & Config ──
+.env
+.direnv/
+/opencode.json
+opencode.jsonc
+gateway.jsonc
 auth.json
+
+# ── Dependencies ──
+node_modules
+
+# ── Build Outputs ──
+dist/
+target
+ts-dist
+tsconfig.tsbuildinfo
+*.bun-build
+__pycache__/
+.build-cache/
+.turbo
+
+# ── Binaries & Artefacts ──
+artefacts/
 bin/
 bin_tst/
-dist
-dist/
-docs/opencode.db.sql
-experiments/20260707-RenderingTest/  
-experiments/crash-diagnostics/
-__pycache__/
-external/
+opencode-dev
+opencode.exe
+dxcompiler.dll
+dxil.dll
+
+# ── Logs & Temp ──
+logs/
+tmp
+.temp/
+.tst/
+.sst
+
+# ── Experiments & Playground ──
+experiments/
+playground
+test_deep/
+refs
+
+# ── Backups & Restore ──
+*.backup_*
+*.baseline
+*.adid.log.jsonl
+src.bak/
+**/src.bak
+
+# ── Project Tooling ──
+.opencode
+.codex
+.reasonix
+.serena/
+**/.serena
+.scripts
+.adid_rag/
+.worktrees
+
+# ── Zig ──
 zig-global
-external/opentui/packages/core/src/zig/.zig-global/
-external/opentui/packages/core/src/zig/zig-pkg/
-external/opentui/.github/
-external/opentui/node_modules/
 packages/opentui/packages/core/src/zig/.zig-global/
 packages/opentui/packages/core/src/zig/zig-pkg/
 packages/opentui/packages/core-win32-x64/*.dll
 packages/opentui/packages/core-win32-x64/opentui.dll
-gateway.jsonc
-logs/
-node_modules
-opencode-dev
-opencode.exe
-opencode.jsonc
+
+# ── Packages ──
+external/
+packages/wasm/stringzilla/
 packages/enterprise/.opencode/
 packages/opencode/.opencode/data/opencode.db
-packages/wasm/external/
-packages/wasm/stringzilla/
-playground
-refs
-src.bak/
-target
-test_deep/
-tmp
-ts-dist
-tsconfig.tsbuildinfo
 
-# Incremental build fingerprints (build.py)
-.build-cache/
-
+# ── Docs & Misc ──
+docs/opencode.db.sql
+UPCOMING_CHANGELOG.md
+/result

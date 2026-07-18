@@ -1,0 +1,76 @@
+[package]
+name = "world-region-db"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "world-city-and-street-db-builder"
+path = "src/main.rs"
+
+[dependencies]
+abbreviation-trait     = "0.3.0"
+async-trait            = "0.1.86"
+disable_macro          = "0.3.6"
+byteorder              = "1.5.0"
+strum                  = "0.24"
+bytes                  = "1.10.0"
+country                = "0.5.0"
+derive_builder         = "0.20.2"
+error-tree             = "0.6.0"
+export-magic           = "0.3.6"
+file-downloader        = "0.2.0"
+osmpbf-file-downloader-derive = "0.2.0"
+file-downloader-derive = "0.2.0"
+futures-util           = "0.3"
+getset                 = "0.1.4"
+libc                   = "0.2.169"
+md5                    = "0.7.0"
+once_cell              = "1.20.3"
+os_pipe                = "1.2.1"
+osmpbf                 = "0.3.4"
+postal-code            = "0.2.0"
+reqwest                = { version = "0.11", features = ["blocking", "json", "stream"] }
+rocksdb                = "0.20"
+serde                  = { version = "1", features    = ["derive"] }
+serde_cbor             = {version = "0.11", features = ["unsealed_read_write"] }
+serial_test            = "3.2.0"
+structopt              = "0.3"
+tempfile               = "3"
+tokio                  = { version = "1", features    = ["full"] }
+traced-test            = "1.0.2"
+tracing                = "0.1.41"
+tracing-setup          = "1.0.2"
+tracing-subscriber     = "0.3"
+usa                    = "0.8.0"
+europe                 = "0.7.0"
+world-region           = { version = "0.6.0", path = "../world-region" }
+prost                  = "0.11"
+fuzzy-matcher          = "0.3.7"
+rustyline              = "15.0.0"
+
+[dev-dependencies]
+osm-pbf = "0.3.3"
+
+[build-dependencies]
+prost-build = "0.11.9"
+
+[dependencies.protobuf]
+version = "3.1"
+
+[build-dependencies.protobuf-codegen]
+version = "3.1"
+
+[[test]]
+name = "manual_harness"
+path = "tests/manual_harness.rs"
+harness = false
+
+[[test]]
+name = "stdout_backup_harness"
+path = "tests/stdout_backup_harness.rs"
+harness = false
+
+[[test]]
+name = "db_decoder"
+path = "tests/db_decoder_harness.rs"
+harness = false

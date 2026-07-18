@@ -1,0 +1,44 @@
+[[bin]]
+name = "workspacer-cratesio-mock"
+path = "src/bin/main.rs"
+
+[dependencies.derive_builder]
+workspace = true
+
+[dependencies.getset]
+workspace = true
+
+[dependencies.rocket]
+workspace = true
+
+[dependencies.serde]
+workspace = true
+
+[dependencies.serde_derive]
+workspace = true
+
+[dependencies.serde_json]
+workspace = true
+
+[dependencies.workspacer-3p]
+path = "../workspacer-3p"
+version = "0.5.1"
+
+[package]
+categories = [
+    "development-tools",
+    "database",
+    "network-programming",
+    "simulation",
+]
+description = "A mock in-memory interface for simulating crate publishing on crates.io, primarily aimed for testing environments."
+edition = "2024"
+keywords = [
+    "mock",
+    "testing",
+    "publishing",
+    "simulation",
+]
+name = "workspacer-cratesio-mock"
+version = "0.1.2"
+license = "MIT"

@@ -1141,7 +1141,9 @@ function compactedPageCursor(message: WithParts | undefined) {
 }
 
 function isCompactionBoundary(message: WithParts | undefined) {
-  return message?.info.role === "user" && message.parts.some((part) => part.type === "compaction")
+  return message?.info.role === "user" && message.parts.some(
+    (part) => part.type === "text" && typeof (part as any).text === "string" && (part as any).text.includes("=== COMPACTED ==="),
+  )
 }
 
 export const pageCompacted = Effect.fnUntraced(function* (input: {

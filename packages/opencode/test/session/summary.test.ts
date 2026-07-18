@@ -24,10 +24,9 @@ function fileDiff(file: string, additions: number, deletions: number): MessageV2
       output: "",
       time: { start: 0, end: 1 },
       input: {},
-      metadata: {},
+      metadata: { filediff: { file, patch: "", additions, deletions } },
       title: "",
     },
-    metadata: { filediff: { file, patch: "", additions, deletions } },
     sessionID: sid,
     messageID: mid,
   }

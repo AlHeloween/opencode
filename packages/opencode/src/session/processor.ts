@@ -17,9 +17,6 @@ import { PartID } from "./schema"
 import type { SessionID } from "./schema"
 import { SessionRetry } from "./retry"
 
-/** Tools that are safe to call during summary/compaction.
- *  Read-only tools needed by agents during context reduction. */
-const SUMMARY_SAFE_TOOLS = new Set(["skill"])
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
 import type { Provider } from "@/provider/provider"
@@ -310,40 +307,6 @@ export const layer: Layer.Layer<
       const ensureToolCall = Effect.fn("SessionProcessor.ensureToolCall")(function* (value: {
         id: string; toolName: string; providerExecuted?: boolean
       }) {
-        if (ctx.assistantMessage.summary && !SUMMARY_SAFE_TOOLS.has(value.toolName)) {
-          log.debug("compaction tool call rejected", { tool: value.toolName })
-          const part = yield* session.updatePart({
-            id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
-            messageID: ctx.assistantMessage.id,
-            sessionID: ctx.assistantMessage.sessionID,
-            type: "tool",
-            tool: value.toolName,
-            callID: value.id,
-            state: { status: "pending", input: {}, raw: "" },
-          } satisfies MessageV2.ToolPart)
-          ctx.toolcalls[value.id] = {
-            done: yield* Deferred.make<void>(),
-            partID: part.id,
-            messageID: part.messageID,
-            sessionID: part.sessionID,
-          }
-          // Use "completed" with rejection metadata instead of "error" —
-          // compaction tool rejection is expected behavior, not an error.
-          // This allows the prompt loop to exit normally after summarization.
-          yield* session.updatePart({
-            ...part,
-            state: {
-              status: "completed",
-              input: {},
-              output: "Tool calls are not available during summarization",
-              title: value.toolName,
-              metadata: { compactionRejected: true },
-              time: { start: Date.now(), end: Date.now() },
-            },
-          } satisfies MessageV2.ToolPart)
-          yield* settleToolCall(value.id)
-          return
-        }
         const part = yield* session.updatePart({
           id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
           messageID: ctx.assistantMessage.id,
@@ -454,11 +417,6 @@ export const layer: Layer.Layer<
           case "tool-call": {
             ctx.toolCallEmitted = true
             if (WRITE_TOOLS.has(value.toolName)) ctx.hasWriteToolCall = true
-            if (ctx.assistantMessage.summary && !SUMMARY_SAFE_TOOLS.has(value.toolName)) {
-              log.debug("compaction tool call rejected", { tool: value.toolName })
-              yield* failToolCall(value.toolCallId, "Tool calls are not available during summarization")
-              return
-            }
             yield* updateToolCall(value.toolCallId, (match) => ({
               ...match,
               tool: value.toolName,

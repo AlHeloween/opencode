@@ -36,11 +36,23 @@ function isMessageStar(msg: MessageV2.WithParts): boolean {
   )
 }
 
+/** Extract content from all content-bearing parts (text + reasoning + tool outputs).
+  * Must stay consistent with {@link contentChars} so the model sees everything
+  * that was counted toward the ~30K interval threshold. */
 function messageText(msg: MessageV2.WithParts): string {
-  return msg.parts
-    .filter((p: any) => p.type === "text" && !(p as any).ignored)
-    .map((p: any) => p.text ?? "")
-    .join("\n")
+  const parts: string[] = []
+  for (const p of msg.parts) {
+    if (p.type === "text" && !(p as any).ignored) {
+      parts.push((p as any).text ?? "")
+    } else if (p.type === "reasoning") {
+      parts.push(`[reasoning]\n${(p as any).text ?? ""}`)
+    } else if (p.type === "tool" && (p as any).state?.status === "completed") {
+      const label = `[tool:${(p as any).tool}]`
+      const output = (p as any).state?.output ?? ""
+      parts.push(`${label}\n${output}`)
+    }
+  }
+  return parts.join("\n")
 }
 
 /** Count chars from content-bearing parts (text + reasoning + tool outputs). */
@@ -79,8 +91,7 @@ Include these message IDs in your summary (required for later recovery via sessi
 
 Also list any important intermediate message IDs you reference.
 
-Output ONLY the structured summary sections starting with ## Goal.
-Do not call tools except skill.`
+Output ONLY the structured summary sections starting with ## Goal.`
 }
 
 function buildMessageStar(input: {

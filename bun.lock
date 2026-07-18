@@ -9,21 +9,23 @@
         "@opencode-ai/script": "workspace:*",
         "@opencode-ai/sdk": "workspace:*",
         "react": "19.2.7",
-        "typescript": "catalog:",
       },
       "devDependencies": {
         "@tsconfig/bun": "catalog:",
-        "@types/bun": "1.3.12",
+        "@tsconfig/node22": "catalog:",
+        "@types/bun": "catalog:",
         "@types/mime-types": "3.0.1",
-        "@types/node": "22.13.9",
+        "@types/node": "catalog:",
         "@types/three": "0.177.0",
         "@typescript/native-preview": "catalog:",
+        "@typescript/native-preview-win32-x64": "7.0.0-dev.20260707.2",
         "husky": "9.1.7",
         "jimp": "1.6.1",
         "oxlint": "1.60.0",
         "oxlint-tsgolint": "0.21.0",
         "prettier": "3.6.2",
         "turbo": "2.10.4",
+        "typescript": "catalog:",
       },
     },
     "external/codegraph": {
@@ -494,7 +496,7 @@
         "@opentui/core": "workspace:*",
         "@opentui/react": "workspace:*",
         "@opentui/solid": "workspace:*",
-        "@types/bun": "latest",
+        "@types/bun": "catalog:",
         "@types/react": "^19.2.0",
         "react": "^19.2.0",
         "solid-js": "1.9.12",
@@ -525,10 +527,10 @@
         "strip-ansi": "7.1.2",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "@types/node": "^24.0.0",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "commander": "^13.1.0",
-        "typescript": "^5",
+        "typescript": "catalog:",
         "web-tree-sitter": "0.25.10",
       },
       "optionalDependencies": {
@@ -565,10 +567,10 @@
         "web-tree-sitter": "0.25.10",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "@types/node": "^24.0.0",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "@types/three": "0.177.0",
-        "typescript": "^5",
+        "typescript": "catalog:",
       },
     },
     "packages/opentui/packages/keymap": {
@@ -578,9 +580,9 @@
         "@opentui/core": "workspace:*",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "@types/node": "^24.0.0",
-        "typescript": "^5",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
+        "typescript": "catalog:",
       },
     },
     "packages/opentui/packages/qrcode": {
@@ -592,9 +594,9 @@
       "devDependencies": {
         "@opentui/react": "workspace:*",
         "@opentui/solid": "workspace:*",
-        "@types/bun": "latest",
-        "@types/node": "^24.0.0",
-        "typescript": "^5",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
+        "typescript": "catalog:",
       },
       "peerDependencies": {
         "@opentui/react": "workspace:*",
@@ -614,14 +616,14 @@
       },
       "devDependencies": {
         "@opentui/keymap": "workspace:*",
-        "@types/bun": "latest",
-        "@types/node": "^24.0.0",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "@types/react": "^19.2.0",
         "@types/react-reconciler": "^0.33.0",
         "@types/ws": "^8.18.1",
         "react": ">=19.2.0",
         "react-devtools-core": "^7.0.1",
-        "typescript": "^5",
+        "typescript": "catalog:",
         "ws": "^8.18.0",
       },
       "peerDependencies": {
@@ -650,10 +652,10 @@
       "devDependencies": {
         "@opentui/keymap": "workspace:*",
         "@types/babel__core": "7.20.5",
-        "@types/bun": "latest",
-        "@types/node": "^24.0.0",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "solid-js": "1.9.12",
-        "typescript": "^5",
+        "typescript": "catalog:",
       },
       "peerDependencies": {
         "@opentui/keymap": "workspace:*",
@@ -670,13 +672,13 @@
         "@opentui/core": "workspace:*",
         "@opentui/react": "workspace:*",
         "@opentui/solid": "workspace:*",
-        "@types/bun": "^1.3.14",
-        "@types/node": "^24.0.0",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "@types/react": "^19.2.0",
         "@types/ssh2": "^1.15.0",
         "react": "19.2.3",
         "solid-js": "1.9.12",
-        "typescript": "^5",
+        "typescript": "catalog:",
       },
       "peerDependencies": {
         "@opentui/core": "workspace:*",
@@ -691,11 +693,11 @@
         "three": "0.177.0",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "@types/node": "^24.0.0",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "@types/three": "0.177.0",
         "commander": "^13.1.0",
-        "typescript": "^5",
+        "typescript": "catalog:",
       },
       "optionalDependencies": {
         "@dimforge/rapier2d-simd-compat": "^0.17.3",
@@ -713,8 +715,8 @@
         "astro": "^6.4.6",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "typescript": "^5",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
       },
     },
     "packages/plugin": {
@@ -2805,7 +2807,7 @@
 
     "@typescript/native-preview-win32-arm64": ["@typescript/native-preview-win32-arm64@7.0.0-dev.20251207.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-KxY1i+HxeSFfzZ+HVsKwMGBM79laTRZv1ibFqHu22CEsfSPDt4yiV1QFis8Nw7OBXswNqJG/UGqY47VP8FeTvw=="],
 
-    "@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20251207.1", "", { "os": "win32", "cpu": "x64" }, "sha512-5l51HlXjX7lXwo65DEl1IaCFLjmkMtL6K3NrSEamPNeNTtTQwZRa3pQ9V65dCglnnCQ0M3+VF1RqzC7FU0iDKg=="],
+    "@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20260707.2", "", { "os": "win32", "cpu": "x64" }, "sha512-DL4u27stv0fo71sVhOzHSwE+YMZsbBijVI+kg5dLDLilSH79WFTJ8RSQ46vJrCMt+Gjlv/JOZP1PuLJDfioYeQ=="],
 
     "@typescript/vfs": ["@typescript/vfs@1.6.4", "", { "dependencies": { "debug": "^4.4.3" }, "peerDependencies": { "typescript": "*" } }, "sha512-PJFXFS4ZJKiJ9Qiuix6Dz/OwEIqHD7Dme1UwZhTK11vR+5dqW2ACbdndWQexBzCx+CPuMe5WBYQWCsFyGlQLlQ=="],
 
@@ -6074,6 +6076,8 @@
     "@types/serve-static/@types/send": ["@types/send@0.17.6", "", { "dependencies": { "@types/mime": "^1", "@types/node": "*" } }, "sha512-Uqt8rPBE8SY0RK8JB1EzVOIZ32uqy8HwdxCnoCOsYrvnswqmFZ/k+9Ikidlk/ImhsdvBsloHbAlewb2IEBV/Og=="],
 
     "@types/three/@webgpu/types": ["@webgpu/types@0.1.71", "", {}, "sha512-mMy8/ODcKhab808co15eW+yN+HgXoQxRQHTiBV9Mrvl1r0ufnid7YOcI+gi4eUWSWl9ezD6TW2KXccrL8HCh2A=="],
+
+    "@typescript/native-preview/@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20251207.1", "", { "os": "win32", "cpu": "x64" }, "sha512-5l51HlXjX7lXwo65DEl1IaCFLjmkMtL6K3NrSEamPNeNTtTQwZRa3pQ9V65dCglnnCQ0M3+VF1RqzC7FU0iDKg=="],
 
     "@vercel/nft/estree-walker": ["estree-walker@2.0.2", "", {}, "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w=="],
 

@@ -60,7 +60,6 @@
     "@tanstack/solid-query": "5.91.4",
     "@thisbeyond/solid-dnd": "0.7.5",
     "diff": "catalog:",
-    "effect": "catalog:",
     "fuzzysort": "catalog:",
     "ghostty-web": "github:anomalyco/ghostty-web#20bd3613f59dfc0f088a9aec498db2fa1a08b768",
     "luxon": "catalog:",
@@ -68,10 +67,8 @@
     "marked-shiki": "catalog:",
     "remeda": "catalog:",
     "shiki": "catalog:",
-    "solid-js": "catalog:",
     "solid-list": "catalog:",
     "tailwindcss": "catalog:",
-    "virtua": "catalog:",
-    "zod": "catalog:"
+    "virtua": "catalog:"
   }
 }

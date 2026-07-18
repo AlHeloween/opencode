@@ -29,15 +29,13 @@
     "@effect/platform-node": "catalog:",
     "@npmcli/arborist": "9.4.0",
     "@npmcli/config": "10.8.1",
-    "effect": "catalog:",
     "cross-spawn": "catalog:",
     "glob": "13.0.5",
     "mime-types": "3.0.2",
     "minimatch": "10.2.5",
     "npm-package-arg": "13.0.2",
     "semver": "^7.6.3",
-    "xdg-basedir": "5.1.0",
-    "zod": "catalog:"
+    "xdg-basedir": "5.1.0"
   },
   "overrides": {
     "drizzle-orm": "catalog:"

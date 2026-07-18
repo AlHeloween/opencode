@@ -105,7 +105,10 @@
     "@opencode-ai/plugin": "workspace:*",
     "@opencode-ai/script": "workspace:*",
     "@opencode-ai/sdk": "workspace:*",
-    "react": "19.2.7"
+    "effect": "catalog:",
+    "react": "19.2.7",
+    "solid-js": "catalog:",
+    "zod": "catalog:"
   },
   "repository": {
     "type": "git",

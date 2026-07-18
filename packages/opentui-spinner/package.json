@@ -69,7 +69,7 @@
     "@opentui/core": "workspace:*",
     "@opentui/react": "workspace:*",
     "@opentui/solid": "workspace:*",
-    "@types/bun": "latest",
+    "@types/bun": "catalog:",
     "@types/react": "^19.2.0",
     "react": "^19.2.0",
     "solid-js": "1.9.12",

@@ -51,14 +51,14 @@
   },
   "devDependencies": {
     "@opentui/keymap": "workspace:*",
-    "@types/bun": "latest",
-    "@types/node": "^24.0.0",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "@types/react": "^19.2.0",
     "@types/react-reconciler": "^0.33.0",
     "@types/ws": "^8.18.1",
     "react": ">=19.2.0",
     "react-devtools-core": "^7.0.1",
-    "typescript": "^5",
+    "typescript": "catalog:",
     "ws": "^8.18.0"
   },
   "peerDependencies": {

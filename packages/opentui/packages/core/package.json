@@ -31,10 +31,10 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/node": "^24.0.0",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "commander": "^13.1.0",
-    "typescript": "^5",
+    "typescript": "catalog:",
     "web-tree-sitter": "0.25.10"
   },
   "dependencies": {

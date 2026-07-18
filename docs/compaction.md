@@ -56,7 +56,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | ~32 768 output tokens since last summary | `injectSummaryRequest()` — synthetic user message with ID range. If the open range exceeds ~30k content, **trim to the last ~30k**. Model answers normally; tools blocked except `skill`. |
+| **1. Incremental summary** | ~32 768 output tokens since last summary | `injectSummaryRequest()` — synthetic user message with ID range. If the open range exceeds ~30k content, **trim to the last ~30k**. Model answers normally; all tools available, no restrictions. |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | Collect all `summary: true` assistants from DB (including soft-hidden). Soft-hide every **visible** message. Inject one user `message*` = summaries + recent after last summary. Prior `message*` bodies are not re-nested. |
 | **3. Continuous memory** | Agent needs detail | `session-read` with message IDs from summaries / Recent sections; `messagesearch` by topic. |
 
@@ -123,7 +123,7 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 | `session/prompt.ts` | Token counter on normal continues; overflow → compact; checkpoint invalidate; system-reminder |
 | `session/overflow.ts` | Content- and token-based overflow detection |
 | `session/message-v2.ts` | `filterCompacted*`, message schema (`compacted`, `summary`) |
-| `session/processor.ts` | Mid-turn overflow → `"compact"`; summary tool restriction |
+| `session/processor.ts` | Mid-turn overflow → `"compact"` |
 | `test/session/compaction.test.ts` | Unit coverage for the loop |
 
 ---

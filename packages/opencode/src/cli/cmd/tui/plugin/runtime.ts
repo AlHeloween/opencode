@@ -574,9 +574,11 @@ function pluginApi(runtime: RuntimeState, plugin: PluginEntry, scope: PluginScop
 
 function addPluginEntry(state: RuntimeState, plugin: PluginEntry) {
   if (state.plugins_by_id.has(plugin.id)) {
-    fail("duplicate tui plugin id", {
+    const existing = state.plugins_by_id.get(plugin.id)
+    log.warn("skipping duplicate tui plugin id", {
       id: plugin.id,
-      path: plugin.load.spec,
+      new_path: plugin.load.spec,
+      existing_path: existing?.load.spec,
     })
     return false
   }

@@ -73,7 +73,7 @@ if (Test-WasmNeedsRebuild) {
 }
 
 # Build diffy-wasm module (unified diff: create + apply + parse)
-$DiffyWasmDir = Join-Path $RepoRoot "packages\wasm\external\diffy-wasm"
+$DiffyWasmDir = Join-Path $RepoRoot "packages\wasm\diffy-wasm"
 $DiffyWasmOut = Join-Path $WasmCorePkg "diffy"
 if (Test-Path $DiffyWasmDir) {
     Write-Host "Building diffy-wasm module..."
@@ -86,7 +86,7 @@ if (Test-Path $DiffyWasmDir) {
 }
 
 # Build rdiff (diff) WASM module (superseded by diffy, kept for compatibility)
-$RdiffDir = Join-Path $RepoRoot "packages\wasm\external\justinbarclay-diff"
+$RdiffDir = Join-Path $RepoRoot "packages\wasm\rdiff"
 $RdiffPkg = Join-Path $RdiffDir "pkg"
 $RdiffOut = Join-Path $WasmCorePkg "rdiff"
 if (Test-Path $RdiffDir) {
@@ -100,7 +100,7 @@ if (Test-Path $RdiffDir) {
 }
 
 # Build json-repair WASM module (requires nightly)
-$JsonRepairDir = Join-Path $RepoRoot "packages\wasm\external\json-repair\json-repair"
+$JsonRepairDir = Join-Path $RepoRoot "packages\wasm\json-repair\json-repair"
 $JsonRepairOut = Join-Path $WasmCorePkg "json_repair"
 if (Test-Path $JsonRepairDir) {
     Write-Host "Building json-repair WASM module (nightly)..."

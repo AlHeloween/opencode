@@ -365,6 +365,22 @@ function Invoke-Build {
         Invoke-OpenTuiBuild -Full:$OpenTuiFull
     }
 
+    # opentui-spinner: build before opencode (required by opencode imports)
+    $SpinnerDir = Join-Path $Root "packages\opentui-spinner"
+    if (-not ($SkipOpenTui)) {
+        Write-Host "  Building opentui-spinner..." -ForegroundColor Yellow
+        Push-Location $SpinnerDir
+        try {
+            bun run build
+            if ($LASTEXITCODE -ne 0) {
+                throw "opentui-spinner build failed (exit $LASTEXITCODE)"
+            }
+        } finally {
+            Pop-Location
+        }
+        Write-Success "opentui-spinner built"
+    }
+
     # Clean dist directory
     if (Test-Path $DistDir) {
         Remove-Item $DistDir -Recurse -Force

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "destructive": "deny",
+    "bash": "allow",
+    "powershell": "allow",
+    "cmd": "allow",
+    "run": "allow",
+    "edit": "allow",
+    "doom_loop": "allow",
+    "webfetch": "allow",
+    "messagesearch": "allow",
+    "session-read": "allow"
+  },
+  "external_directory_mode": "allow"
+}

@@ -7,7 +7,7 @@ import jsonRepairWasm from "../../../wasm/core/pkg/json_repair/json_repair_bg.wa
 import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: "file" }
 import markdownifyWasm from "../../../wasm/markdownify/pkg/markdownify_wasm_bg.wasm" with { type: "file" }
 import chafaWasm from "../../../wasm/core/pkg/chafa.wasm" with { type: "file" }
-import treeSitterRuntimeWasm from "web-tree-sitter/tree-sitter.wasm" with { type: "file" }
+import treeSitterRuntimeWasm from "web-tree-sitter/web-tree-sitter.wasm" with { type: "file" }
 
 // Tree-sitter grammar WASMs — all bundled from packages/wasm/core/pkg/grammars/
 import treeSitterArktsWasm from "../../../wasm/core/pkg/grammars/tree-sitter-arkts.wasm" with { type: "file" }
@@ -136,7 +136,7 @@ const embeddedWasmAssets = new Map([
   ["rdiff/rdiff_bg.wasm", rdiffWasm as unknown as string],
   ["markdownify/markdownify_wasm_bg.wasm", markdownifyWasm as unknown as string],
   ["chafa.wasm", chafaWasm as unknown as string],
-  ["tree-sitter.wasm", treeSitterRuntimeWasm],
+  ["web-tree-sitter.wasm", treeSitterRuntimeWasm],
   ...embeddedTreeSitterGrammarAssets,
 ])
 

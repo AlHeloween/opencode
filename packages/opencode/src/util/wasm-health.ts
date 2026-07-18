@@ -27,7 +27,7 @@ export async function checkWasmModules(): Promise<void> {
     initPathValidator().then((ok) => ({ name: "path_validator", ok })),
     checkAsset("markdownify", "markdownify/markdownify_wasm_bg.wasm"),
     checkAsset("rdiff", "rdiff/rdiff_bg.wasm"),
-    checkAsset("tree_sitter_runtime", "tree-sitter.wasm"),
+    checkAsset("tree_sitter_runtime", "web-tree-sitter.wasm"),
     ...embeddedTreeSitterGrammarAssetPaths.map((asset) =>
       checkAsset(asset.replace("grammars/tree-sitter-", "tree_sitter_").replace(".wasm", ""), asset),
     ),

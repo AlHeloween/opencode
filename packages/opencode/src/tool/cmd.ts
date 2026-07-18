@@ -251,7 +251,7 @@ function powerShellScript(command: string) {
 
 const parser = lazy(async () => {
   const { Parser } = await import("web-tree-sitter")
-  const treeWasm = await readWasmAsset("tree-sitter.wasm")
+  const treeWasm = await readWasmAsset("web-tree-sitter.wasm")
   if (!treeWasm.bytes) {
     throw new Error("tree-sitter runtime WASM unavailable; tried: " + JSON.stringify(treeWasm.tried))
   }

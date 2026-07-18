@@ -140,6 +140,7 @@
     "gray-matter": "4.0.3",
     "h5wasm": "0.10.2",
     "hash-wasm": "4",
+    "opentui-spinner": "0.0.7",
     "yaml": "2.9.0",
     "yargs": "18.0.0"
   },

@@ -10,7 +10,7 @@
  *
  * `2>&1` must never be stripped by strip-win (merge redirects are intentional).
  */
-import { Deferred, Effect, Stream } from "effect"
+import { Deferred, Effect, Scope, Stream } from "effect"
 
 export type ChunkHandler = (chunk: string) => Effect.Effect<unknown>
 
@@ -23,7 +23,7 @@ type ByteStream = Stream.Stream<Uint8Array, unknown>
 export const forkDrainStdoutStderr = (
   handle: { readonly stdout: ByteStream; readonly stderr: ByteStream },
   onChunk: ChunkHandler,
-): Effect.Effect<Effect.Effect<void>, never, never> =>
+): Effect.Effect<Effect.Effect<void, never, never>, never, Scope.Scope> =>
   Effect.gen(function* () {
     const outDone = yield* Deferred.make<void>()
     const errDone = yield* Deferred.make<void>()

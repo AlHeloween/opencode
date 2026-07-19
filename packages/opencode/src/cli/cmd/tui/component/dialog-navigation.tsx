@@ -501,12 +501,25 @@ export function DialogPermissions() {
     let deny = normalizeNavList(prev.deny)
     if (action === "allow") allow = allow.filter((d) => !samePath(d, resolved))
     else deny = deny.filter((d) => !samePath(d, resolved))
-    // Also drop if the path only appeared via converted permission.external_directory
-    // (source config-permission) — ensure navigation no longer lists it.
-    await applyConfigPatch(
-      { navigation: navigationObject(allow, deny) },
-      `Removed ${action}: ${resolved}`,
-    )
+
+    // Also remove from permission.external_directory if present (config-permission source)
+    const prevPerm = (sync.data.config as any)?.permission as Record<string, unknown> | undefined
+    const extDir = prevPerm?.external_directory as Record<string, string> | undefined
+    const patchExt: Record<string, undefined> = {}
+    if (extDir && typeof extDir === "object") {
+      for (const [pattern, ruleAction] of Object.entries(extDir)) {
+        const patternDir = path.resolve(EffectiveNavigation.expandPath(pattern.replace(/[\\/]+$/, "").replace(/[\\/]\*$/, "")))
+        if (patternDir === resolved || `${patternDir}\\*` === pattern || `${patternDir}/*` === pattern) {
+          patchExt[pattern] = undefined // remove key via mergePlain
+        }
+      }
+    }
+
+    const patch: Record<string, unknown> = { navigation: navigationObject(allow, deny) }
+    if (Object.keys(patchExt).length > 0) {
+      patch.permission = { external_directory: patchExt }
+    }
+    await applyConfigPatch(patch, `Removed ${action}: ${resolved}`)
   }
 
   useKeyboard((evt) => {
@@ -691,6 +704,7 @@ export function DialogPermissions() {
                 pathInput = r
               }}
               onSubmit={() => {
+                setPathFocused(false)
                 void addDirectory()
               }}
             />
@@ -716,7 +730,7 @@ export function DialogPermissions() {
                 {rule.exists ? "✓" : "✗"} {rule.displayPath}
               </text>
               <text fg={theme.textMuted}>({sourceLabel(rule.source)})</text>
-              {rule.source === "config-allow" && (
+              {(rule.source === "config-allow" || rule.source === "config-permission") && (
                 <text
                   fg={theme.error}
                   onMouseUp={() => {
@@ -741,7 +755,7 @@ export function DialogPermissions() {
                 ✕ {rule.displayPath}
               </text>
               <text fg={theme.textMuted}>({sourceLabel(rule.source)})</text>
-              {rule.source === "config-deny" && (
+              {(rule.source === "config-deny" || rule.source === "config-permission") && (
                 <text
                   fg={theme.success}
                   onMouseUp={() => {

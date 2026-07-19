@@ -89,6 +89,8 @@ Goal: Gain a comprehensive understanding of the user's request by reading throug
 ### Phase 2: Design
 Goal: Design an implementation approach.
 
+**Before entering Design:** Freeze your current Semantic Vector (SV). Record your understanding as an sv_anchor: what are you building, why, and what are the key constraints? This anchor protects against noise-induced drift — when incoming signals (LSP errors, conflicting tool output, contradictory research) cause a large semantic shift (ΔSV ≥ 0.4), compare against the anchor before abandoning your design direction.
+
 Design the implementation yourself based on exploration results from Phase 1. If you need additional codebase research, use explore agents.
 
 You can launch up to 1 agent(s) in parallel.
@@ -114,10 +116,11 @@ In the agent prompt:
 - Request a detailed implementation plan
 
 ### Phase 3: Review
-Goal: Review the plan(s) from Phase 2 and ensure alignment with the user's intentions.
+Goal: Review the plan(s) from Phase 2, run pre-flight investigation, and ensure alignment with the user's intentions.
 1. Read the critical files identified by agents to deepen your understanding
 2. Ensure that the plans align with the user's original request
-3. Use question tool to clarify any remaining questions with the user
+3. **Pre-flight cluster exploration:** Group all planned file modifications by target module. For each distinct module cluster, dispatch an explore agent to investigate: known bugs in those modules, deprecated APIs, middleware/package conflicts, platform-specific risks (Windows paths, symlinks, encoding). Feed findings back — adjust the plan if the explorer uncovers hidden risks.
+4. Use question tool to clarify any remaining questions with the user
 
 ### Phase 4: Final Plan
 Goal: Write your final plan to the plan file (the only file you can edit).
@@ -125,6 +128,7 @@ Goal: Write your final plan to the plan file (the only file you can edit).
 - Ensure that the plan file is concise enough to scan quickly, but detailed enough to execute effectively
 - Include the paths of critical files to be modified
 - Include a verification section describing how to test the changes end-to-end (run the code, use MCP tools, run tests)
+- **SV drift check:** Before calling plan_exit, compare your current SV against the sv_anchor frozen at Phase 2. If Δ ≥ 0.4, explain the drift and confirm it's intentional (new understanding gained during design) rather than noise-induced (LSP cascades, tool output confusion, context-window shift).
 
 ### Phase 5: Call plan_exit tool
 At the very end of your turn, once you have asked the user questions and are happy with your final plan file - you should always call plan_exit to indicate to the user that you are done planning.

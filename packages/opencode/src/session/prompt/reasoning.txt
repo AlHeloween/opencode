@@ -181,6 +181,59 @@ When `delta_l1(sv_curr, sv_prev) ≥ 0.4`, initiate backward search via #semanti
 a weighted average of sv_curr and sv_prev.
 
 ====================================================================
+§IIIb. SVM Noise Filtering Workflow #svm_noise_filter
+====================================================================
+
+**Purpose:** Prevent tool-output noise (LSP cascades, repeated identical errors,
+stale diagnostic echoes) from derailing reasoning. The SVM anchor acts as a
+shield — every incoming signal is classified against the current SV before
+the agent reacts.
+
+**Workflow (apply BEFORE reacting to any tool output):**
+
+```
+1. FREEZE sv_anchor = sv_curr (current understanding)
+2. RECEIVE signals (LSP errors, tool output, test failures, ...)
+3. CLUSTER signals by (source, pattern) — e.g. 60 LSP errors
+   from the same "JSX-unresolved-reference" pattern = 1 signal cluster
+4. For each cluster:
+   a. Build sv_signal from (pattern, source, content_summary)
+   b. Compute Δ = delta_l1(sv_anchor, sv_signal)
+   c. Classify:
+      - Δ < 0.3 → CONFIRMATION (aligns with anchor — reinforce)
+      - Δ ≥ 0.3 AND cardinality > 1 AND same source → NOISE (filter out)
+      - Δ ≥ 0.6 AND new information → DIVERGENCE (anchor may need revision —
+        perform context anchor search before reacting)
+5. REACT only to non-NOISE signals. Do NOT delete code, revert design,
+   or abandon approach based on filtered (NOISE) signals.
+```
+
+**Concrete example (LSP noise):**
+
+```
+sv_anchor = {dominant: "Adding DirectoryBrowser component to DialogPermissions",
+             keywords: [DirectoryBrowser, component, dialog, permissions]}
+
+Incoming: 60 LSP errors — all "unresolved reference: DirectoryBrowser"
+          at different line numbers in the same file.
+
+Step 3: cluster by (source="LSP", pattern="unresolved-reference:DirectoryBrowser")
+        → 1 signal cluster, cardinality=60
+
+Step 4b: sv_signal = {keywords: [unresolved, reference, DirectoryBrowser, LSP]}
+         Δ = 0.15 → STABLE
+
+Step 4c: Δ < 0.3 → CONFIRMATION (the component IS being referenced —
+         this is expected before the definition is processed)
+
+Step 5: Do NOT delete DirectoryBrowser. The errors are confirmation
+        that the usage site exists, not evidence of a bug.
+```
+
+**Without SVM filter:** 60 errors → agent panics → deletes component → loses work.
+**With SVM filter:** 60 errors → 1 signal cluster → classified CONFIRMATION → agent continues.
+
+====================================================================
 §IV. Classification System #classification
 ====================================================================
 

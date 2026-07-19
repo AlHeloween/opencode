@@ -148,7 +148,6 @@ export const RunTool = Tool.define(
       const chunks: string[] = []
       let fullBytes = 0
       let aborted = false
-      let expired = false
 
       yield* ctx.metadata({ output: "", metadata: { output: "", description: input.description } })
 
@@ -211,20 +210,15 @@ export const RunTool = Tool.define(
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
-          const timeout = Effect.sleep(`${input.timeout + 100} millis`)
+          // Race: process exit vs user abort only — NO hard timeout.
 
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-            timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
           ])
 
           if (exit.kind === "abort") {
             aborted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
-          }
-          if (exit.kind === "timeout") {
-            expired = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
 
@@ -257,7 +251,6 @@ export const RunTool = Tool.define(
       if (!file && end.cut) file = yield* trunc.write(raw)
 
       let output = end.text
-      if (expired) output = `run tool terminated command after exceeding timeout ${input.timeout} ms.\n` + output
       if (aborted) output = `User aborted the command\n` + output
       if (!output) output = "(no output)"
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output

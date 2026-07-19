@@ -398,6 +398,11 @@ export const make = Effect.gen(function* () {
               shell: command.options.shell,
               windowsHide: process.platform === "win32",
               windowsVerbatimArguments: useVerbatim || undefined,
+              // BELOW_NORMAL_PRIORITY_CLASS (0x00004000 = 16384).
+              // All child processes run at below-normal priority so they
+              // don't starve the TUI / system of CPU time during heavy
+              // builds (cargo, npm install, etc.).
+              ...(process.platform === "win32" ? { windowsPriority: 16384 } : {}),
             }),
             Effect.fnUntraced(function* ([proc, signal]) {
               const done = yield* Deferred.isDone(signal)

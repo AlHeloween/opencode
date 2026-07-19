@@ -416,7 +416,6 @@ export const CmdTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
-      let expired = false
       let aborted = false
 
       yield* ctx.metadata({ metadata: { output: "", description: input.description } })
@@ -474,29 +473,17 @@ export const CmdTool = Tool.define(
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
-          const timeout = Effect.sleep(`${input.timeout + 100} millis`)
-
+          // Race: process exit vs user abort only — NO hard timeout.
+          // Long builds must not be killed by a fixed deadline. The agent
+          // sees stall detection hints and decides whether to job_kill.
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-            timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
           ])
 
-          // Kill the process tree on abort/timeout BEFORE draining pipes.
-          // Killing first stops the process from writing, which causes the OS
-          // to close the pipe handles → drain completes quickly. On normal exit
-          // the pipes are already closed, so drain is instant.
-          //
-          // The drain timeout (shell-output.ts, 10s per pipe) protects against
-          // the Windows edge case where taskkill /T /F closes OS handles before
-          // Node.js streams emit 'end' — if the pipes don't close within 10s,
-          // the drain times out and we move on instead of hanging forever.
+          // Kill the process tree on abort BEFORE draining pipes.
           if (exit.kind === "abort") {
             aborted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
-          }
-          if (exit.kind === "timeout") {
-            expired = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
           yield* awaitDrain
@@ -516,10 +503,6 @@ export const CmdTool = Tool.define(
       )
 
       const meta: string[] = []
-      if (expired)
-        meta.push(
-          `cmd tool terminated command after exceeding timeout ${input.timeout} ms. If this command is waiting for interactive keyboard input, run it through cmd_runner instead.`,
-        )
       if (aborted) meta.push("User aborted the command")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)

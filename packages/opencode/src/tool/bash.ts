@@ -30,7 +30,7 @@ import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRul
 import { Constitution } from "@/session/constitution"
 
 const MAX_METADATA_LENGTH = 30_000
-const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
+const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 min safety net — agent controls kill via job_kill
 const CWD = new Set(["cd", "popd", "pushd", "push-location", "set-location"])
 const FILES = new Set([...CWD, "cat", "chmod", "chown", "cp", "ln", "mkdir", "mv", "rm", "touch"])
 
@@ -635,7 +635,6 @@ export const BashTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
-      let expired = false
       let aborted = false
 
       const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(input.command)
@@ -727,15 +726,18 @@ export const BashTool = Tool.define(
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
-          const timeout = Effect.sleep(`${input.timeout + 100} millis`)
-
+          // Race: process exit vs user abort only — NO hard timeout.
+          // Long builds (cargo, npm install, etc.) must not be killed
+          // by a fixed deadline. The agent sees stall detection hints
+          // (15s no output → job_output.status = "stalled") and decides
+          // whether to job_kill. The outer Effect.timeoutOrElse below
+          // provides a safety net against truly hung processes.
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-            timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
           ])
 
-          // Kill the process tree on abort/timeout BEFORE draining pipes.
+          // Kill the process tree on abort BEFORE draining pipes.
           // Killing first stops the process from writing, which causes the OS
           // to close the pipe handles → drain completes quickly. On normal exit
           // the pipes are already closed, so drain is instant.
@@ -748,20 +750,15 @@ export const BashTool = Tool.define(
             aborted = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash abort kill failed"))))
           }
-          if (exit.kind === "timeout") {
-            expired = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash timeout kill failed"))))
-          }
 
           yield* awaitDrain
           return exit.kind === "exit" ? exit.code : null
         }),
       ).pipe(
         // Safety net: if the inner Effect.scoped hangs despite all our
-        // timeouts (exitCode, abort, awaitDrain), this outer timeout ensures
-        // the tool call eventually resolves. 5s grace over the command timeout.
-        // Uses timeoutOrElse (not timeout+orDie) so the tool returns a result
-        // (null exit code) instead of crashing with a TimeoutError defect.
+        // safeguards (exitCode, abort, awaitDrain), this outer timeout ensures
+        // the tool call eventually resolves. 30 min default — the agent should
+        // use job_kill for stalled commands, not rely on this timeout.
         Effect.timeoutOrElse({
           duration: `${input.timeout + 5000} millis`,
           orElse: () => Effect.succeed(null),
@@ -770,11 +767,6 @@ export const BashTool = Tool.define(
       )
 
       const meta: string[] = []
-      if (expired) {
-        meta.push(
-          `bash tool terminated command after exceeding timeout ${input.timeout} ms. If this command is waiting for interactive keyboard input, run it through cmd_runner instead. If it is a long-running non-interactive command, retry with a larger timeout value in milliseconds.`,
-        )
-      }
       if (aborted) meta.push("User aborted the command")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)

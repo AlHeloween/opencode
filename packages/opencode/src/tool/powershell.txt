@@ -1,8 +1,12 @@
-Executes a PowerShell command with optional timeout.
+Executes a PowerShell command as a **non-blocking background job** by default. Use `job_output` to read output, `job_wait` to wait for completion, or `job_kill` to stop the job. For quick synchronous commands, set `run_in_background: false`.
 
 Be aware: OS: ${os}, Shell: powershell
 
 All commands run in the current working directory by default. Use the `workdir` parameter to run in a different directory.
+
+## Background Jobs
+
+Commands run as background jobs (job ID like `bash-1`). Use `job_output`, `job_wait`, `job_kill` to manage. Stalled jobs (no output for 15s) are NOT auto-killed — call `job_kill` to stop them. Set `run_in_background: false` for quick sync commands.
 
 ## Permission Scanning
 
@@ -14,7 +18,7 @@ If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncat
 
 ## Timeout
 
-The default timeout is 60000ms (1 minute).
+The default timeout is 60000ms (1 minute). On timeout, the job is tree-killed; output before termination is preserved.
 
 Before executing:
 

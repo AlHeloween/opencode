@@ -22,7 +22,7 @@ Default timeout is 60000ms (1 minute). Use `timeout` for long-running commands. 
 
 ## Background Mode
 
-Set `run_in_background: true` to run as a tracked background job. Use `job_output` to read results, `job_wait` to wait for completion.
+Runs as a **background job by default** (returns job ID immediately). Use `job_output` to read incremental output, `job_wait` to wait for completion, or `job_kill` to stop a stuck job. Set `run_in_background: false` for quick synchronous execution.
 
 ## Examples
 

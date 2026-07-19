@@ -281,6 +281,7 @@ export type TuiState = {
     status: (sessionID: string) => SessionStatus | undefined
     permission: (sessionID: string) => ReadonlyArray<PermissionRequest>
     question: (sessionID: string) => ReadonlyArray<QuestionRequest>
+    jobs: (sessionID: string) => ReadonlyArray<TuiJobItem>
   }
   part: (messageID: string) => ReadonlyArray<Part>
   lsp: () => ReadonlyArray<TuiSidebarLspItem>
@@ -320,6 +321,15 @@ export type TuiSidebarFileItem = {
   deletions: number
 }
 
+export type TuiJobItem = {
+  readonly id: string
+  readonly kind: string
+  readonly label: string
+  readonly status: string
+  readonly startedAt: number
+  readonly output: string
+}
+
 export type TuiHostSlotMap = {
   app: {}
   home_logo: {}
@@ -339,6 +349,10 @@ export type TuiHostSlotMap = {
   }
   session_prompt_right: {
     session_id: string
+  }
+  session_jobs: {
+    session_id: string
+    visible?: boolean
   }
   home_bottom: {}
   home_footer: {}

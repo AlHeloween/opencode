@@ -40,8 +40,22 @@ export const forkDrainStdoutStderr = (
     yield* consume(handle.stdout, outDone)
     yield* consume(handle.stderr, errDone)
 
+    // Timeout on each pipe drain: on Windows, taskkill /T /F can close OS pipe
+    // handles before Node.js streams emit 'end', causing indefinite hang.
+    // 10s per pipe is generous — real output drains in milliseconds.
+    // timeoutOrElse keeps the never error type (timeout → void, same as success).
     return Effect.gen(function* () {
-      yield* Deferred.await(outDone)
-      yield* Deferred.await(errDone)
+      yield* Deferred.await(outDone).pipe(
+        Effect.timeoutOrElse({
+          duration: "10 seconds",
+          orElse: () => Effect.void,
+        }),
+      )
+      yield* Deferred.await(errDone).pipe(
+        Effect.timeoutOrElse({
+          duration: "10 seconds",
+          orElse: () => Effect.void,
+        }),
+      )
     })
   })

@@ -207,8 +207,12 @@ export const Parameters = Schema.Struct({
   description: Schema.String.annotate({
     description: "Clear, concise description of what this command does in 5-10 words.",
   }),
-  run_in_background: Schema.optional(Schema.Boolean).annotate({
-    description: "Run the command in the background as a tracked job.",
+  run_in_background: Schema.Boolean.pipe(
+    Schema.optional,
+    Schema.withDecodingDefault(Effect.succeed(true)),
+  ).annotate({
+    description:
+      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or job_kill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
   }),
 })
 
@@ -474,6 +478,15 @@ export const CmdTool = Tool.define(
             timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
           ])
 
+          // Kill the process tree on abort/timeout BEFORE draining pipes.
+          // Killing first stops the process from writing, which causes the OS
+          // to close the pipe handles → drain completes quickly. On normal exit
+          // the pipes are already closed, so drain is instant.
+          //
+          // The drain timeout (shell-output.ts, 10s per pipe) protects against
+          // the Windows edge case where taskkill /T /F closes OS handles before
+          // Node.js streams emit 'end' — if the pipes don't close within 10s,
+          // the drain times out and we move on instead of hanging forever.
           if (exit.kind === "abort") {
             aborted = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
@@ -485,7 +498,18 @@ export const CmdTool = Tool.define(
           yield* awaitDrain
           return exit.kind === "exit" ? exit.code : null
         }),
-      ).pipe(Effect.orDie)
+      ).pipe(
+        // Safety net: if the inner Effect.scoped hangs despite all our
+        // timeouts (exitCode, abort, awaitDrain), this outer timeout ensures
+        // the tool call eventually resolves. 5s grace over the command timeout.
+        // Uses timeoutOrElse (not timeout+orDie) so the tool returns a result
+        // (null exit code) instead of crashing with a TimeoutError defect.
+        Effect.timeoutOrElse({
+          duration: `${input.timeout + 5000} millis`,
+          orElse: () => Effect.succeed(null),
+        }),
+        Effect.orDie,
+      )
 
       const meta: string[] = []
       if (expired)
@@ -564,7 +588,11 @@ export const CmdTool = Tool.define(
           yield* ask(ctx, scan)
           const env = yield* shellEnv(ctx, cwd)
 
-          if (params.run_in_background) {
+          // Background mode: fork into JobManager, return immediately.
+          // Commands run non-blocking by default — the agent sees the job ID
+          // and can poll job_output / job_wait / job_kill. Synchronous
+          // execution is opt-in via run_in_background: false.
+          if (params.run_in_background !== false) {
             const jobSvc = yield* Effect.serviceOption(Jobs.Service)
             if (jobSvc._tag === "None") {
               return yield* run(

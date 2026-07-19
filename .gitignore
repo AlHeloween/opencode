@@ -97,3 +97,4 @@ packages/opencode/.opencode/data/opencode.db
 docs/opencode.db.sql
 UPCOMING_CHANGELOG.md
 /result
+"logseq/"  

@@ -574,6 +574,21 @@ export type EventSessionDiff = {
   }
 }
 
+export type EventJobsUpdated = {
+  type: "jobs.updated"
+  properties: {
+    sessionID: string
+    jobs: Array<{
+      id: string
+      kind: string
+      label: string
+      status: string
+      startedAt: number
+      output: string
+    }>
+  }
+}
+
 export type EventSessionError = {
   type: "session.error"
   properties: {
@@ -707,6 +722,7 @@ export type Event =
   | EventSessionUpdated
   | EventSessionDeleted
   | EventSessionDiff
+  | EventJobsUpdated
   | EventSessionError
   | EventFileWatcherUpdated
   | EventVcsBranchUpdated

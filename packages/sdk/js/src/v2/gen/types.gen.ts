@@ -140,6 +140,21 @@ export type EventSessionDiff = {
   }
 }
 
+export type EventJobsUpdated = {
+  type: "jobs.updated"
+  properties: {
+    sessionID: string
+    jobs: Array<{
+      id: string
+      kind: string
+      label: string
+      status: string
+      startedAt: number
+      output: string
+    }>
+  }
+}
+
 export type ProviderAuthError = {
   name: "ProviderAuthError"
   data: {
@@ -1167,6 +1182,7 @@ export type GlobalEvent = {
     | EventPermissionAsked
     | EventPermissionReplied
     | EventSessionDiff
+    | EventJobsUpdated
     | EventSessionError
     | EventSessionBalanceUpdated
     | EventQuestionAsked
@@ -2168,6 +2184,7 @@ export type Event =
   | EventPermissionAsked
   | EventPermissionReplied
   | EventSessionDiff
+  | EventJobsUpdated
   | EventSessionError
   | EventSessionBalanceUpdated
   | EventQuestionAsked

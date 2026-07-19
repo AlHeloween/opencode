@@ -1480,6 +1480,11 @@ export function Session() {
               <Show when={session()?.parentID}>
                 <SubagentFooter />
               </Show>
+              <TuiPluginRuntime.Slot
+                name="session_jobs"
+                session_id={route.sessionID}
+                visible={visible()}
+              />
               <Show when={visible()}>
                 <TuiPluginRuntime.Slot
                   name="session_prompt"
@@ -2069,6 +2074,15 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
         <Match when={props.part.tool === "skill"}>
           <Skill {...toolprops} />
         </Match>
+        <Match when={props.part.tool === "job_output"}>
+          <JobTool kind="output" {...toolprops} />
+        </Match>
+        <Match when={props.part.tool === "job_kill"}>
+          <JobTool kind="kill" {...toolprops} />
+        </Match>
+        <Match when={props.part.tool === "job_wait"}>
+          <JobTool kind="wait" {...toolprops} />
+        </Match>
         <Match when={true}>
           <GenericTool {...toolprops} />
         </Match>
@@ -2387,6 +2401,97 @@ function ShellTool(props: ToolProps<any> & { kind: "bash" | "cmd" | "run" }) {
           part={props.part}
         >
           {commandLine()}
+        </InlineTool>
+      </Match>
+    </Switch>
+  )
+}
+
+/** Shared renderer for job_output / job_kill / job_wait — shows background job output with status. */
+function JobTool(props: ToolProps<any> & { kind: "output" | "kill" | "wait" }) {
+  const { theme } = useTheme()
+  const meta = () => props.metadata as Record<string, any>
+  const isRunning = createMemo(() => props.part.state.status === "running")
+  const output = createMemo(() => {
+    const m = meta().output
+    const full = typeof props.output === "string" ? props.output : undefined
+    const stream = typeof m === "string" ? m : undefined
+    const raw = stream !== undefined ? stream : (full ?? "")
+    const text = full !== undefined && full.length > raw.length && !isRunning() ? full : raw
+    return stripAnsi(text.trim())
+  })
+  const status = createMemo(() => (meta().status as string) ?? (meta().jobID ? "running" : undefined))
+  const jobID = createMemo(() => (meta().jobID as string) ?? (props.input as any)?.job_id)
+  const lines = createMemo(() => output().split("\n"))
+  const overflow = createMemo(() => lines().length > 10)
+  const [expanded, setExpanded] = createSignal(false)
+  const limited = createMemo(() => {
+    if (expanded() || !overflow()) return output()
+    return [...lines().slice(0, 10), "…"].join("\n")
+  })
+
+  const statusColor = createMemo(() => {
+    switch (status()) {
+      case "running": return theme.accent
+      case "stalled": return theme.warning
+      case "done": return theme.diffAdded
+      case "failed": return theme.error
+      case "killed": return theme.textMuted
+      default: return theme.textMuted
+    }
+  })
+
+  const title = createMemo(() => {
+    const label = props.kind === "kill" ? "Kill job" : props.kind === "wait" ? "Wait jobs" : "Job output"
+    const jid = jobID()
+    const st = status()
+    if (jid && st) return `${label} ${jid} (${st})`
+    if (jid) return `${label} ${jid}`
+    return label
+  })
+
+  const hasBody = createMemo(
+    () =>
+      output() !== "" ||
+      props.part.state.status === "completed" ||
+      props.part.state.status === "error",
+  )
+
+  return (
+    <Switch>
+      <Match when={hasBody()}>
+        <BlockTool
+          title={title()}
+          part={props.part}
+          spinner={isRunning()}
+          onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
+        >
+          <box gap={1}>
+            <box flexDirection="row" gap={1}>
+              <Show when={jobID()}>
+                <text fg={theme.textMuted}>{jobID()}</text>
+              </Show>
+              <Show when={status()}>
+                <text fg={statusColor()}>{status()}</text>
+              </Show>
+            </box>
+            <Show when={output()}>
+              <text fg={theme.text}>{limited()}</text>
+            </Show>
+            <Show when={overflow()}>
+              <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : "Click to expand"}</text>
+            </Show>
+          </box>
+        </BlockTool>
+      </Match>
+      <Match when={true}>
+        <InlineTool
+          icon="⏳"
+          pending={`Waiting for ${jobID() || "job"}...`}
+          complete={title()}
+          part={props.part}
+        >
+          {title()}
         </InlineTool>
       </Match>
     </Switch>

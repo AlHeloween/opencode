@@ -26,6 +26,7 @@ import { PipelineTool } from "./pipeline"
 import { Capability } from "@/capability"
 import { SessionReadTool } from "./session-read"
 import { JobOutputTool, JobWaitTool } from "./job_output"
+import { JobKillTool } from "./job_kill"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@opencode-ai/plugin"
@@ -142,6 +143,7 @@ export const layer: Layer.Layer<
     const sessionread = yield* SessionReadTool
     const joboutput = yield* JobOutputTool
     const jobwait = yield* JobWaitTool
+    const jobkill = yield* JobKillTool
     const capability = yield* CapabilityTool
     const pipeline = yield* PipelineTool
     const agent = yield* Agent.Service
@@ -244,6 +246,7 @@ export const layer: Layer.Layer<
           sessionread: Tool.init(sessionread),
           joboutput: Tool.init(joboutput),
           jobwait: Tool.init(jobwait),
+          jobkill: Tool.init(jobkill),
           capability: Tool.init(capability),
           pipeline: Tool.init(pipeline),
         })
@@ -276,6 +279,7 @@ export const layer: Layer.Layer<
             tool.sessionread,
             tool.joboutput,
             tool.jobwait,
+            tool.jobkill,
             tool.capability,
             tool.pipeline,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),

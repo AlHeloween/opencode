@@ -5,14 +5,31 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Database } from "bun:sqlite"
 import path from "path"
 import { existsSync, mkdirSync } from "fs"
+import { Bus } from "@/bus"
+import { BusEvent } from "@/bus/bus-event"
 
 const log = Log.create({ service: "jobs" })
+
+const JobsUpdated = BusEvent.define(
+  "jobs.updated",
+  Schema.Struct({
+    sessionID: SessionID,
+    jobs: Schema.mutable(Schema.Array(Schema.Struct({
+      id: Schema.String,
+      kind: Schema.String,
+      label: Schema.String,
+      status: Schema.String,
+      startedAt: Schema.Number,
+      output: Schema.String,
+    }))),
+  }),
+)
 
 /** Unique job identifier: "bash-3" or "task-1" */
 export const JobID = Schema.String.pipe(Schema.brand("JobID"))
 export type JobID = Schema.Schema.Type<typeof JobID>
 
-export const JobStatus = Schema.Literals(["running", "done", "failed", "killed"])
+export const JobStatus = Schema.Literals(["running", "stalled", "done", "failed", "killed"])
 export type JobStatus = Schema.Schema.Type<typeof JobStatus>
 
 export const JobKind = Schema.Literals(["bash", "task"])
@@ -37,6 +54,7 @@ interface Job {
   resultSurfaced: boolean
   startedAt: number
   finishedAt: number
+  lastOutputAt: number
   cancel: () => void
 }
 
@@ -212,6 +230,24 @@ export const layer = Layer.effect(
     // Initialize jobs DB
     const db = getJobsDb()
 
+    // Heartbeat: detect stalled background jobs.
+    // A job is "stalled" when it's been running for >15s without producing output.
+    // The agent sees stalled status via job_output / job_wait and can decide to
+    // kill it with job_kill.
+    const STALL_THRESHOLD_MS = 15_000
+    const HEARTBEAT_INTERVAL_MS = 5_000
+    const stallCheck = setInterval(() => {
+      for (const [, j] of jobs) {
+        if (j.status === "running" && Date.now() - j.lastOutputAt > STALL_THRESHOLD_MS) {
+          j.status = "stalled"
+          log.info("job stalled", { id: j.id, kind: j.kind, elapsed: Date.now() - j.startedAt })
+          try { persistUpdate(j); publishJobs(j.sessionID) } catch (_) { /* best-effort */ }
+        }
+      }
+    }, HEARTBEAT_INTERVAL_MS)
+    // Clean up heartbeat on scope disposal
+    yield* Effect.addFinalizer(() => Effect.sync(() => clearInterval(stallCheck)))
+
     function key(sessionID: SessionID, jobID: JobID) {
       return `${sessionID}\x00${jobID}`
     }
@@ -231,6 +267,16 @@ export const layer = Layer.effect(
       try { dbUpdate(db, j) } catch (e) { log.warn("job db update failed", { error: String(e) }) }
     }
 
+    /** Fire-and-forget publish of job state to TUI subscribers. */
+    function publishJobs(sessionID: SessionID) {
+      const list: Array<{ id: string; kind: string; label: string; status: string; startedAt: number; output: string }> = []
+      for (const [k, j] of jobs) {
+        if (!k.startsWith(sessionID + "\x00")) continue
+        list.push({ id: j.id, kind: j.kind, label: j.label, status: j.status, startedAt: j.startedAt, output: j.output })
+      }
+      void Bus.publish(JobsUpdated, { sessionID, jobs: list }).catch(() => {})
+    }
+
     const start = Effect.fn("Jobs.start")(function* (input: {
       sessionID: SessionID
       kind: JobKind
@@ -243,7 +289,7 @@ export const layer = Layer.effect(
       const job: Job = {
         id, kind: input.kind, label: input.label, sessionID: input.sessionID,
         status: "running", output: `[started] ${input.label}`, result: "", resultSurfaced: false,
-        startedAt: Date.now(), finishedAt: 0,
+        startedAt: Date.now(), finishedAt: 0, lastOutputAt: Date.now(),
         cancel: () => controller.abort(),
       }
 
@@ -256,7 +302,7 @@ export const layer = Layer.effect(
         try {
           const writeOutput = (chunk: string) => {
             const j = jobs.get(jobKey)
-            if (j) { j.output += chunk; persistUpdate(j) }
+            if (j) { j.output += chunk; j.lastOutputAt = Date.now(); persistUpdate(j); publishJobs(j.sessionID) }
           }
           const result = yield* Effect.tryPromise({
             try: () => input.run(controller.signal, writeOutput),
@@ -268,6 +314,7 @@ export const layer = Layer.effect(
             else { j.status = "done"; if (input.kind === "task") j.result = result }
             j.finishedAt = Date.now()
             persistUpdate(j)
+            publishJobs(j.sessionID)
             log.info("job completed", { id, status: j.status })
           }
         } catch (err) {
@@ -277,6 +324,7 @@ export const layer = Layer.effect(
             else { j.status = "failed" }
             j.finishedAt = Date.now()
             persistUpdate(j)
+            publishJobs(j.sessionID)
             log.warn("job failed", { id, error: String(err) })
           }
         }
@@ -312,11 +360,12 @@ export const layer = Layer.effect(
 
     const kill = Effect.fn("Jobs.kill")(function* (input: { sessionID: SessionID; jobID: JobID }) {
       const j = jobs.get(key(input.sessionID, input.jobID))
-      if (!j || j.status !== "running") return false
+      if (!j || (j.status !== "running" && j.status !== "stalled")) return false
       j.cancel()
       j.status = "killed"
       j.finishedAt = Date.now()
       persistUpdate(j)
+      publishJobs(j.sessionID)
       return true
     })
 
@@ -369,7 +418,7 @@ export const layer = Layer.effect(
       const job: Job = {
         id, kind: input.kind, label: input.label, sessionID: input.sessionID,
         status: "running", output: `[started] ${input.label}`, result: "", resultSurfaced: false,
-        startedAt: Date.now(), finishedAt: 0,
+        startedAt: Date.now(), finishedAt: 0, lastOutputAt: Date.now(),
         cancel: () => {
           controller.abort()
           if (fiber) bridge.fork(Fiber.interrupt(fiber))
@@ -392,7 +441,9 @@ export const layer = Layer.effect(
             const j = jobs.get(jobKey)
             if (j) {
               j.output = j.output.replace(/^\[started\].*\n?/, "") + text + "\n"
+              j.lastOutputAt = Date.now()
               persistUpdate(j)
+              publishJobs(j.sessionID)
             }
           })),
           Effect.matchEffect({
@@ -404,6 +455,7 @@ export const layer = Layer.effect(
               if (!j.output.includes("[started]")) j.output = result
               j.finishedAt = Date.now()
               persistUpdate(j)
+              publishJobs(j.sessionID)
               completed.push({
                 sessionID: input.sessionID,
                 text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
@@ -418,6 +470,7 @@ export const layer = Layer.effect(
               else { j.status = "failed"; j.output += `\nError: ${err instanceof Error ? err.message : String(err)}` }
               j.finishedAt = Date.now()
               persistUpdate(j)
+              publishJobs(j.sessionID)
               completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed` })
               if (completed.length > 500) completed.shift()
               log.warn("job failed (effect)", { id, error: err instanceof Error ? err.message : String(err) })

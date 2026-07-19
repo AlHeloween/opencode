@@ -23,6 +23,15 @@ import { useProject } from "@tui/context/project"
 import { useEvent } from "@tui/context/event"
 import { useSDK } from "@tui/context/sdk"
 import { Binary } from "@opencode-ai/core/util/binary"
+
+export interface JobInfo {
+  readonly id: string
+  readonly kind: string
+  readonly label: string
+  readonly status: string
+  readonly startedAt: number
+  readonly output: string
+}
 import { createSimpleContext } from "./helper"
 import type { Snapshot } from "@/snapshot"
 import { useExit } from "./exit"
@@ -56,6 +65,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       }
       session_diff: {
         [sessionID: string]: Snapshot.FileDiff[]
+      }
+      session_jobs: {
+        [sessionID: string]: JobInfo[]
       }
       todo: {
         [sessionID: string]: Todo[]
@@ -94,6 +106,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       session: [],
       session_status: {},
       session_diff: {},
+      session_jobs: {},
       todo: {},
       message: {},
       part: {},
@@ -471,6 +484,10 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
         case "session.diff":
           setStore("session_diff", event.properties.sessionID, event.properties.diff)
+          break
+
+        case "jobs.updated":
+          setStore("session_jobs", event.properties.sessionID, event.properties.jobs as JobInfo[])
           break
 
         case "session.deleted": {

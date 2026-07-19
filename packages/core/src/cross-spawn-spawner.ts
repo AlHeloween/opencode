@@ -293,9 +293,20 @@ export const make = Effect.gen(function* () {
     signal: NodeJS.Signals,
   ) => {
     if (globalThis.process.platform === "win32") {
-      return Effect.callback<void, PlatformError.PlatformError>((resume) => {
-        NodeChildProcess.exec(`taskkill /pid ${proc.pid} /T /F`, { windowsHide: true }, (err) => {
-          if (err) return resume(Effect.fail(toPlatformError("kill", toError(err), command)))
+      return Effect.callback<void>((resume) => {
+        // Try proc.kill() first — sends to the direct child immediately.
+        // Then taskkill /T /F to ensure the entire process tree (grandchildren,
+        // job objects, detached processes) is terminated.
+        try {
+          proc.kill("SIGTERM")
+        } catch {
+          // Process may already be dead — that's fine, taskkill will clean up the tree
+        }
+        NodeChildProcess.exec(`taskkill /pid ${proc.pid} /T /F`, { windowsHide: true }, (_err) => {
+          // Don't fail on taskkill errors — process may have already exited,
+          // PID may have been reused, or the process tree was already cleaned up.
+          // The important thing is we tried. Zombie processes are better than a
+          // hanging tool call that never resolves.
           resume(Effect.void)
         })
       })

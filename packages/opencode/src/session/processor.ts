@@ -748,7 +748,7 @@ export const layer: Layer.Layer<
         const pendingToolCalls = Object.entries(ctx.toolcalls)
         yield* Effect.forEach(
           pendingToolCalls.map(([, call]) => call),
-          (call) => Deferred.await(call.done).pipe(Effect.timeout("250 millis"), Effect.ignore),
+          (call) => Deferred.await(call.done).pipe(Effect.timeout("10 seconds"), Effect.ignore),
           { concurrency: "unbounded" },
         )
 

@@ -11,7 +11,7 @@ export const JobOutputTool = Tool.define(
   Effect.gen(function* () {
     const jobs = yield* Jobs.Service
     return {
-      description: "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, done, failed, killed).",
+      description: "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — the agent should consider killing it with job_kill.",
       parameters: JobOutputParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
@@ -55,13 +55,16 @@ export const JobWaitTool = Tool.define(
           const maxWait = params.timeout ?? 30000
           const start = Date.now()
 
-          // Poll until all jobs are done or timeout
+          // Poll until all jobs are done/failed/killed or timeout.
+          // Stalled jobs are NOT terminal — agent must decide to kill them.
           while (Date.now() - start < maxWait) {
             const list = yield* jobs.list({ sessionID: ctx.sessionID })
             const targetIds = ids.length > 0 ? ids : list.map((j) => j.id)
-            const running = list.filter((j) => targetIds.includes(j.id) && j.status === "running")
+            const pending = list.filter((j) =>
+              targetIds.includes(j.id) && (j.status === "running" || j.status === "stalled")
+            )
 
-            if (running.length === 0) break
+            if (pending.length === 0) break
             yield* Effect.sleep(500)
           }
 

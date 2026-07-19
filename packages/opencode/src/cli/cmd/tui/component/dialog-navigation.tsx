@@ -34,7 +34,8 @@ function DirectoryBrowser(props: {
       const dirs = items.filter((d) => d.isDirectory()).map((d) => d.name)
       const parent = path.dirname(resolved)
       return parent !== resolved ? ["..", ...dirs.sort()] : dirs.sort()
-    } catch {
+    } catch (err) {
+      log.warn("bug: DirectoryBrowser readdir failed", { basePath: bp, error: String(err) })
       return []
     }
   })
@@ -48,7 +49,7 @@ function DirectoryBrowser(props: {
               flexDirection="row"
               gap={1}
               paddingLeft={1}
-              backgroundColor={cursor() === i() ? t.primary : undefined}
+              backgroundColor={cursor() >= 0 && cursor() === i() ? t.primary : undefined}
               onMouseUp={() => {
                 setCursor(i())
                 const bp = props.basePath
@@ -188,7 +189,12 @@ function normalizeNavList(list: string[] | undefined): string[] {
 }
 
 function samePath(a: string, b: string) {
-  return path.resolve(EffectiveNavigation.expandPath(a)) === path.resolve(EffectiveNavigation.expandPath(b))
+  const resolvedA = path.resolve(EffectiveNavigation.expandPath(a))
+  const resolvedB = path.resolve(EffectiveNavigation.expandPath(b))
+  if (process.platform === "win32") {
+    return resolvedA.toLowerCase() === resolvedB.toLowerCase()
+  }
+  return resolvedA === resolvedB
 }
 
 function cycleIn<T>(list: readonly T[], current: T, dir: 1 | -1): T {
@@ -209,7 +215,8 @@ async function readJsonFile(file: string): Promise<Record<string, unknown>> {
     const text = await Bun.file(file).text()
     const parsed = JSON.parse(text)
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}
-  } catch {
+  } catch (err) {
+    log.warn("bug: readJsonFile failed", { file, error: String(err) })
     return {}
   }
 }
@@ -383,7 +390,7 @@ export function DialogPermissions() {
     const row = allRows()[idx]
     if (!row || row.kind === "action") return
     if (row.kind === "tool") {
-      const cur = draftTools[row.key] ?? "ask"
+      const cur = draftTools[row.key] ?? TOOL_DEFAULTS[row.key] ?? "ask"
       setDraftTools(row.key, cycleIn(POLICY_ACTIONS, cur, dir))
       return
     }
@@ -465,17 +472,16 @@ export function DialogPermissions() {
       toast.show({ title: "Permissions", message: "No changes to save", variant: "warning" })
       return
     }
-    const permission: Record<string, PolicyAction | Record<string, PolicyAction>> = {}
+    // Preserve ALL existing permission keys (including unknown/custom ones),
+    // then overlay draft tool values on top.
+    const existingPerm = (sync.data.config as any)?.permission as Record<string, unknown> | undefined
+    const permission: Record<string, PolicyAction | Record<string, PolicyAction>> =
+      existingPerm && typeof existingPerm === "object"
+        ? ({ ...existingPerm } as Record<string, PolicyAction | Record<string, PolicyAction>>)
+        : {}
     for (const p of TOOL_POLICIES) {
       const fallback = TOOL_DEFAULTS[p.key] ?? "allow"
       permission[p.key] = draftTools[p.key] ?? fallback
-    }
-    // Preserve existing per-path external_directory rules (e.g. "C:\\Windows\\*": "allow")
-    // that were added via "Add Directory" or manual config editing.
-    const existingPerm = (sync.data.config as any)?.permission as Record<string, unknown> | undefined
-    const existingExt = existingPerm?.external_directory
-    if (existingExt && typeof existingExt === "object" && !Array.isArray(existingExt)) {
-      permission.external_directory = { ...existingExt as Record<string, PolicyAction> }
     }
     const ok = await applyConfigPatch(
       {
@@ -534,8 +540,8 @@ export function DialogPermissions() {
     let allow = normalizeNavList(prev.allow).filter((d) => !samePath(d, resolved))
     let deny = normalizeNavList(prev.deny).filter((d) => !samePath(d, resolved))
 
-    if (action === "allow") allow.push(raw)
-    else deny.push(raw)
+    if (action === "allow") allow.push(resolved)
+    else deny.push(resolved)
 
     const ok = await applyConfigPatch(
       { navigation: navigationObject(allow, deny) },
@@ -543,7 +549,6 @@ export function DialogPermissions() {
     )
     if (ok) {
       setAddPath("")
-      if (pathInput && !pathInput.isDestroyed) pathInput.value = ""
     }
   }
 
@@ -561,8 +566,12 @@ export function DialogPermissions() {
     const patchExt: Record<string, undefined> = {}
     if (extDir && typeof extDir === "object") {
       for (const [pattern, ruleAction] of Object.entries(extDir)) {
-        const patternDir = path.resolve(EffectiveNavigation.expandPath(pattern.replace(/[\\/]+$/, "").replace(/[\\/]\*$/, "")))
-        if (patternDir === resolved || `${patternDir}\\*` === pattern || `${patternDir}/*` === pattern) {
+        const patternDir = path.resolve(EffectiveNavigation.expandPath(pattern.replace(/[\\/]+$/, "").replace(/[\\/]\*+$/, "")))
+        const matchDir = process.platform === "win32" ? patternDir.toLowerCase() === resolved.toLowerCase() : patternDir === resolved
+        const matchPattern = process.platform === "win32"
+          ? `${patternDir}\\*`.toLowerCase() === pattern.toLowerCase() || `${patternDir}/*`.toLowerCase() === pattern.toLowerCase()
+          : `${patternDir}\\*` === pattern || `${patternDir}/*` === pattern
+        if (matchDir || matchPattern) {
           patchExt[pattern] = undefined // remove key via mergePlain
         }
       }
@@ -572,17 +581,20 @@ export function DialogPermissions() {
     if (Object.keys(patchExt).length > 0) {
       patch.permission = { external_directory: patchExt }
     }
-    await applyConfigPatch(patch, `Removed ${action}: ${resolved}`)
+    const removed = await applyConfigPatch(patch, `Removed ${action}: ${resolved}`)
+    if (!removed) {
+      toast.show({ title: "Permissions", message: "Save in progress — try again", variant: "warning" })
+    }
   }
 
   useKeyboard((evt) => {
     if (evt.defaultPrevented) return
     // While typing a path, only intercept Esc (dialog shell) and leave arrows to the input.
     if (pathFocused()) {
-      if (evt.name === "up" || evt.name === "down") {
+      if (evt.name === "up" || evt.name === "down" || evt.name === "escape") {
         pathInput?.blur?.()
         setPathFocused(false)
-        // fall through to list navigation
+        // fall through — up/down navigate list, escape lets dialog shell close
       } else {
         return
       }
@@ -600,19 +612,19 @@ export function DialogPermissions() {
       moveCursor(1)
       return
     }
-    if (evt.name === "left" || evt.name === "h") {
+    if (evt.name === "left" || (evt.name === "h" && !evt.ctrl && !evt.meta)) {
       evt.preventDefault()
       evt.stopPropagation()
       cycleDraft(-1)
       return
     }
-    if (evt.name === "right" || evt.name === "l") {
+    if (evt.name === "right" || (evt.name === "l" && !evt.ctrl && !evt.meta)) {
       evt.preventDefault()
       evt.stopPropagation()
       cycleDraft(1)
       return
     }
-    if (evt.name === "return" || evt.name === "space") {
+    if (evt.name === "return") {
       evt.preventDefault()
       evt.stopPropagation()
       activateRow(cursor())
@@ -646,7 +658,8 @@ export function DialogPermissions() {
       </box>
 
       <text fg={theme.textMuted}>
-        ↑↓ move · ←→ change · Enter cycle · s save · r reload · Esc close. Session "Always" lasts until restart only.
+        ↑↓ move · ←→ change · Enter cycle · s save · r reload · Esc close.
+        Changes are written to config.json and persist across restarts.
       </text>
 
       {/* Tool + external policies (keyboard-navigable draft) */}
@@ -688,7 +701,10 @@ export function DialogPermissions() {
                   }}
                 >
                   <text
-                    fg={busy() ? theme.textMuted : selected() ? selectedFg : draftColor(row)}
+                    fg={
+                      busy() ? theme.textMuted :
+                      selected() ? selectedFg : draftColor(row)
+                    }
                     attributes={TextAttributes.BOLD}
                     onMouseUp={(e) => {
                       e.stopPropagation()
@@ -702,6 +718,7 @@ export function DialogPermissions() {
                   </text>
                   <text
                     fg={
+                      busy() ? theme.textMuted :
                       selected()
                         ? selectedFg
                         : row.kind === "tool" && row.danger
@@ -711,7 +728,7 @@ export function DialogPermissions() {
                   >
                     {row.label}
                   </text>
-                  <text fg={selected() ? selectedFg : theme.textMuted}>
+                  <text fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.textMuted}>
                     {row.kind === "action" ? "" : row.hint}
                   </text>
                 </box>
@@ -736,15 +753,15 @@ export function DialogPermissions() {
           </text>
           <box
             flexGrow={1}
-            onMouseDown={() => {
-              setPathFocused(true)
-              pathInput?.focus()
-            }}
+              onMouseDown={() => {
+                if (!pathFocused()) setPathFocused(true)
+                pathInput?.focus()
+              }}
           >
             <input
               value={addPath()}
               onInput={(v) => {
-                setPathFocused(true)
+                if (!pathFocused()) setPathFocused(true)
                 setAddPath(v)
               }}
               focusedBackgroundColor={theme.backgroundElement}
@@ -774,7 +791,7 @@ export function DialogPermissions() {
 
         <DirectoryBrowser
           basePath={addPath()}
-          onSelect={(p) => { setAddPath(p); pathInput?.focus?.() }}
+          onSelect={(p) => { setAddPath(p); setPathFocused(true); pathInput?.focus?.() }}
           theme={theme}
         />
       </box>
@@ -805,7 +822,7 @@ export function DialogPermissions() {
       </Show>
 
       {/* Denied Directories */}
-      <Show when={denied().length > 0}>
+      <Show when={denied().length > 0} fallback={<text fg={theme.textMuted}>No denied directories</text>}>
         <text fg={theme.error}>Denied</text>
         <For each={denied()}>
           {(rule) => (
@@ -816,12 +833,12 @@ export function DialogPermissions() {
               <text fg={theme.textMuted}>({sourceLabel(rule.source)})</text>
               {(rule.source === "config-deny" || rule.source === "config-permission") && (
                 <text
-                  fg={theme.success}
+                  fg={theme.error}
                   onMouseUp={() => {
                     if (!busy()) void removeDirectory(rule.displayPath, "deny")
                   }}
                 >
-                  ↩
+                  ✕
                 </text>
               )}
             </box>
@@ -839,6 +856,7 @@ export function DialogPermissions() {
             const accent = () => {
               if (isSave && dirty()) return theme.success
               if (row.kind === "action" && row.id === "reload") return theme.info
+              if (row.kind === "action" && row.id === "close" && !dirty()) return theme.text
               return theme.textMuted
             }
             return (

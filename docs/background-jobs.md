@@ -140,6 +140,70 @@ bash "long-command" --timeout 30000
 - Chat: JobTool components render `job_output`/`job_kill`/`job_wait` inline with expandable output
 - Click to expand/collapse job output (last 5 lines shown by default)
 
+## Permission Flow
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                 Permission Evaluation Order                  │
+│                                                              │
+│  1. User config (opencode.json)                              │
+│     permission.external_directory.{path}: "allow"|"deny"|"ask"│
+│                                                              │
+│  2. Navigation rules (opencode.json)                         │
+│     navigation.allow / navigation.deny                       │
+│                                                              │
+│  3. external_directory_mode (opencode.json)                  │
+│     "allow" | "ask" (default) | "deny"                       │
+│                                                              │
+│  4. System defaults (built-in, overridable)                  │
+│     C:\Windows\* → allow    /usr/* → allow                   │
+│     C:\Program Files\* → allow    /bin/* → allow             │
+│     /sbin/* → allow    /etc/* → allow                        │
+│                                                              │
+│  Higher number = lower priority.                             │
+│  User config always wins over system defaults.               │
+└──────────────────────────────────────────────────────────────┘
+
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│              Permission Popup (TUI)                           │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐     │
+│  │ △ External directory access                         │     │
+│  │                                                     │     │
+│  │ C:\Users\...\WindowsApps\*                          │     │
+│  │                                                     │     │
+│  │ [Allow once] [Always allow] [Reject]                │     │
+│  │                                                     │     │
+│  │ "Always allow" → saved to config.json               │     │
+│  │ "Allow once" → session-only, until restart          │     │
+│  │                                                     │     │
+│  │ Permanent policy: /permissions → edit rules          │     │
+│  │ Edit config:     /edit-config → open in editor      │     │
+│  └─────────────────────────────────────────────────────┘     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Editing Permissions
+
+**TUI command `/permissions`** — interactive dialog for tool policies and external_directory mode.
+
+**TUI command `/edit-config`** — opens `config.json` in system default editor (VSCode, Notepad, etc.). Syntax validated on reload.
+
+**Manual edit** — add to `opencode.json`:
+```jsonc
+{
+  "permission": {
+    "external_directory": {
+      "C:\\Users\\*\\AppData\\Local\\Microsoft\\WindowsApps\\*": "allow",
+      "C:\\MyTool\\*": "allow",
+      "/opt/custom/*": "allow"
+    }
+  }
+}
+```
+
 ## Internal Packages
 
 | Package | Role |
@@ -149,7 +213,10 @@ bash "long-command" --timeout 30000
 | `packages/opencode/src/tool/job_output.ts` | LLM-callable output + wait tools |
 | `packages/opencode/src/tool/bash.ts` | Background execution via `Jobs.startEffect` |
 | `packages/opencode/src/tool/cmd.ts` | Same for cmd.exe |
+| `packages/opencode/src/tool/external-directory.ts` | Shared external_directory permission check |
+| `packages/opencode/src/config/config.ts` | Config loading with system defaults |
 | `packages/opencode/src/cli/cmd/tui/feature-plugins/sidebar/jobs.tsx` | TUI sidebar panel |
 | `packages/opencode/src/cli/cmd/tui/context/sync.tsx` | Sync bridge: `session_jobs` store |
+| `packages/opencode/src/cli/cmd/tui/app.tsx` | `/edit-config` and `/permissions` commands |
 | `packages/plugin/src/tui.ts` | Plugin API types: `TuiJobItem` |
 | `packages/sdk/js/src/*/gen/types.gen.ts` | SDK types: `EventJobsUpdated` |

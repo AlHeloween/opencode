@@ -26,6 +26,7 @@ import { PluginRouteMissing } from "@tui/component/plugin-route-missing"
 import { ProjectProvider } from "@tui/context/project"
 import { EditorContextProvider } from "@tui/context/editor"
 import { useEvent } from "@tui/context/event"
+import path from "path"
 import { SDKProvider, useSDK } from "@tui/context/sdk"
 import { StartupLoading } from "@tui/component/startup-loading"
 import { SyncProvider, useSync } from "@tui/context/sync"
@@ -654,6 +655,25 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
       onSelect: () => {
         dialog.replace(() => <DialogPermissions />)
+      },
+      category: "System",
+    },
+    {
+      title: "Edit config",
+      keybind: "edit_config",
+      value: "config.edit",
+      slash: {
+        name: "edit-config",
+      },
+      onSelect: () => {
+        const cfg = path.join(sync.path.directory, "config.json")
+        const cmd = process.platform === "win32"
+          ? `start "" "${cfg}"`
+          : process.platform === "darwin"
+            ? `open "${cfg}"`
+            : `xdg-open "${cfg}"`
+        require("child_process").exec(cmd)
+        toast.show({ variant: "info", message: `Opening ${cfg} in default editor…`, duration: 3000 })
       },
       category: "System",
     },

@@ -883,6 +883,28 @@ export const layer = Layer.effect(
           )
         }
 
+        // Sensible external_directory defaults for OS-managed system directories.
+        // These paths contain executables and configs (not user data) — allow
+        // them by default so the agent doesn't get stuck in permission loops.
+        // Fully overridable via opencode.json → permission.external_directory.
+        // Set any path to "deny" or "ask" to restore prompting for that path.
+        if (!result.permission?.external_directory || typeof result.permission.external_directory === "string") {
+          const sysDefaults: Record<string, ConfigPermission.Action> = {}
+          if (process.platform === "win32") {
+            sysDefaults["C:\\Windows\\*"] = "allow"
+            sysDefaults["C:\\Program Files\\*"] = "allow"
+            sysDefaults["C:\\Program Files (x86)\\*"] = "allow"
+          }
+          sysDefaults["/usr/*"] = "allow"
+          sysDefaults["/bin/*"] = "allow"
+          sysDefaults["/sbin/*"] = "allow"
+          sysDefaults["/etc/*"] = "allow"
+          result.permission = mergeDeep(
+            { external_directory: sysDefaults },
+            result.permission ?? {},
+          )
+        }
+
         // Convert navigation.allow/deny directories into external_directory permission rules.
         // Paths are expanded (~/ => homedir), resolved, and glob-suffixed so the permission
         // engine can match any file under the allowed/denied directory.

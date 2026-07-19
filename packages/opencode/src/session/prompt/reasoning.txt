@@ -4,15 +4,6 @@ REASONING AND EXECUTION CONTROL PROTOCOL #reasoning_protocol #execution_protocol
 **Version:** 4.0
 **Date:** 2026-07-19
 **Status:** Lean hybrid — text rules + Python disambiguation snippets.
-**Supersedes:** 3.0 (over-engineered: too many dataclasses, serializers, conformance tests in prompt space).
-**Canonical Implementation:** `D:\zPython\_prompts\reasoning_kernel.py` (full Python library; prompt uses subset).
-**Framework Dependency:** ADID Framework v15.4+ ( #adid_framework for SV, SVM, Kernel patterns).
-
-**4.0 change summary:**
-- Stripped ~450 lines of dead weight: JSON serializers, state machines, conformance tests,
-  keyword-matchers, dataclass-giants (Budget, Resource, ExecutionContract, DiscoveryContract).
-- Kept only what the agent needs: rules + Python snippets for disambiguation.
-- Every section: 2–3 lines of prose intent + short Python block showing exact structure.
 
 ====================================================================
 §I. Communication Protocol #communication_protocol

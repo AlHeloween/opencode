@@ -722,7 +722,12 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }).pipe(Effect.scoped, Effect.orDie),
           ).pipe(Effect.exit)
 
-          if (Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause) && !Cause.hasDies(exit.cause)) {
+          // Only treat pure fiber interrupt (Fiber.interrupt) as user abort.
+          // Cause.hasInterrupts would also match scope-cleanup interrupts from
+          // Effect.scoped finalizers which are NOT user-initiated cancellations.
+          // Cause.hasInterruptsOnly requires ALL causes to be interrupts — no
+          // errors or defects mixed in.
+          if (Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)) {
             aborted = true
           }
           yield* finish

@@ -12,5 +12,10 @@
     "messagesearch": "allow",
     "session-read": "allow"
   },
-  "external_directory_mode": "allow"
+  "external_directory_mode": "allow",
+  "navigation": {
+    "allow": [
+      "dfdsfsdfs"
+    ]
+  }
 }

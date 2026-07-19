@@ -464,7 +464,11 @@ export const CmdTool = Tool.define(
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
           const abort = Effect.callback<void>((resume) => {
-            if (ctx.abort.aborted) return resume(Effect.void)
+            // Only react to abort events that fire DURING execution.
+            // A pre-aborted signal (stale from a previous tool call or
+            // LLM completion) must NOT cancel the current command — let
+            // the process exit (or timeout) win the race naturally.
+            if (ctx.abort.aborted) return Effect.void
             const handler = () => resume(Effect.void)
             ctx.abort.addEventListener("abort", handler, { once: true })
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))

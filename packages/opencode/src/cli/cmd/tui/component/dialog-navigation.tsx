@@ -412,10 +412,17 @@ export function DialogPermissions() {
       toast.show({ title: "Permissions", message: "No changes to save", variant: "warning" })
       return
     }
-    const permission: Record<string, PolicyAction> = {}
+    const permission: Record<string, PolicyAction | Record<string, PolicyAction>> = {}
     for (const p of TOOL_POLICIES) {
       const fallback = TOOL_DEFAULTS[p.key] ?? "allow"
       permission[p.key] = draftTools[p.key] ?? fallback
+    }
+    // Preserve existing per-path external_directory rules (e.g. "C:\\Windows\\*": "allow")
+    // that were added via "Add Directory" or manual config editing.
+    const existingPerm = (sync.data.config as any)?.permission as Record<string, unknown> | undefined
+    const existingExt = existingPerm?.external_directory
+    if (existingExt && typeof existingExt === "object" && !Array.isArray(existingExt)) {
+      permission.external_directory = { ...existingExt as Record<string, PolicyAction> }
     }
     const ok = await applyConfigPatch(
       {

@@ -1182,7 +1182,7 @@ class TestProjectSpecs:
             _validate_spec(name, spec)
 
     def test_all_specs_loaded(self):
-        assert len(_ALL_SPECS) == 33
+        assert len(_ALL_SPECS) == 34
         assert "CODER" in _ALL_SPECS
         assert "EXPLORER" in _ALL_SPECS
         assert "ORCHESTRATOR" in _ALL_SPECS
@@ -1191,6 +1191,7 @@ class TestProjectSpecs:
         assert "GOVERNANCE" in _ALL_SPECS
         assert "DEFAULT_PROMPT" in _ALL_SPECS
         assert "GROUNDING_RULES" in _ALL_SPECS
+        assert "PLANNING" in _ALL_SPECS
 
     def test_spec_field_counts(self):
         """Verify known field counts to catch regression."""

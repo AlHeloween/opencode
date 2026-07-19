@@ -2353,6 +2353,52 @@ Tag claims with evidence labels. Reference outranks inference.""",
     ],
 )
 
+PLANNING = _spec(
+    intent="""ADID dual-mode planning: Mode 1 (linear decomposition, default) for clear goals —
+decompose into ordered CENTRAL_TASKS via todowrite. Mode 2 (fractal generation) triggers
+after task completion or 10+ undirected messages — use Sierpinski/Quad-tree/L-System
+models + k-medoids clustering for refinement and discovery. The 6-step ADID Workflow:
+GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL.
+Plan before code. State before reasoning. Decompose before expanding.""",
+
+    state={"planning_mode": "Mode 1 (linear) default, Mode 2 (fractal) on trigger"},
+
+    scope="task decomposition, todowrite usage, plan.txt workflow, plan/build agent cycle",
+
+    constraints={
+        "mode_1_default": True,
+        "mode_2_trigger_after_completion": True,
+        "mode_2_trigger_10_plus_messages": True,
+        "plan_before_code": True,
+        "state_before_reasoning": True,
+        "decompose_before_expanding": True,
+        "one_task_in_progress_at_a_time": True,
+        "k_medoids_for_refinement": True,
+    },
+
+    invariants=[
+        "Mode 1 (linear): clear goal → ordered CENTRAL_TASKS → todowrite",
+        "Mode 2 (fractal): after completion OR 10+ undirected messages → Sierpinski/Quad-tree/L-System + k-medoids",
+        "6-step loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL",
+        "Every task tracked via todowrite with priority (high/medium/low) and status (pending/in_progress/completed/cancelled)",
+        "Plan before code — no edits before plan approval",
+        "Fractal models: >=3 peaks → Sierpinski, 2/4/8 orthogonal → Quad/Oct-tree, else → L-System F→F+F-F",
+    ],
+
+    forbidden_actions=[
+        "Skipping plan phase for complex tasks (3+ steps)",
+        "Making code edits before plan approval",
+        "More than one task in_progress at a time",
+        "Fractal generation when clear linear goal exists (use Mode 1)",
+    ],
+
+    acceptance_tests=[
+        "Complex tasks have todowrite plan before first edit",
+        "plan.txt workflow followed for plan-mode sessions",
+        "Mode 2 only activates on defined triggers",
+    ],
+)
+
 GOVERNANCE = _spec(
     intent="""Agent governance — no unapproved mutations, no implicit repair, provenance mandatory.
 Every MODIFY requires an approved ExecutionContract. Inspection does not authorize repair.
@@ -2561,7 +2607,7 @@ RUNTIME_TERMS = MappingProxyType({
     "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.",
     "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.",
     "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
-    "plan": "State, evidence, plan, implementation, verification, and clean next state form the execution trace.",
+    "plan": "ADID planning: Mode 1 (linear decomposition, default) for clear goals → CENTRAL_TASKS; Mode 2 (fractal: Sierpinski/Quad-tree/L-System + k-medoids) for refinement after completion or 10+ undirected messages. State, evidence, plan, implementation, verification, clean next state.",
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
     "verification": "An oracle decides correctness; do not claim fixed without direct evidence.",
 })
@@ -2601,6 +2647,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
     "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification", "infomark", "MEMORY.RANK"),
     "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME"),
     "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "infomark", "MEMORY.RANK"),
+    "plan": ("plan", "evidence", "scope", "mutation", "verification", "MEMORY.RANK"),
     "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
 })
 
@@ -2642,7 +2689,7 @@ SPEC_CONTRACT_IDS = MappingProxyType({
     "DUPLICATE_PR": "command.duplicate_pr", "EXPLORER": "agent.explore", "GENERAL": "agent.general",
     "GOVERNANCE": "policy.governance", "GROUNDING_RULES": "policy.grounding", "ISSUES": "command.issues",
     "LEARN": "command.learn", "MEDIA": "agent.media", "ORCHESTRATOR": "agent.orchestrator",
-    "PATCH_TOOL": "skill.patch_tool", "RAG": "skill.rag", "RESEARCHER": "agent.researcher",
+    "PATCH_TOOL": "skill.patch_tool", "PLANNING": "policy.planning", "RAG": "skill.rag", "RESEARCHER": "agent.researcher",
     "RMSLOP": "command.rmslop", "SPELLCHECK": "command.spellcheck", "SUMMARY": "agent.summary",
     "TITLE": "agent.title", "TRANSLATE": "command.translate", "TRIAGE": "command.triage",
 })
@@ -2673,6 +2720,7 @@ RUNTIME_CONTRACTS = MappingProxyType({
     "policy.default": ("scope",),
     "policy.governance": ("scope", "mutation", "verification", "WRITE.SCOPE"),
     "policy.grounding": ("evidence", "verification", "EVIDENCE.ORDER", "SEARCH.ORDER"),
+    "policy.planning": ("plan", "evidence", "scope", "verification"),
     "skill.adm_exe": ("scope", "mutation", "verification"),
     "skill.adm_mcp": ("scope", "mutation", "verification"),
     "skill.agent_assets": ("scope", "mutation", "verification", "WRITE.SCOPE"),
@@ -2747,7 +2795,7 @@ _TIER_A_AGENTS = frozenset({
 })
 _TIER_A_POLICIES = frozenset({
     "ADID_FRAMEWORK_RULES", "ADID_OPS", "CODING_AGENT_DIRECTIVES", "GOVERNANCE",
-    "DEFAULT_PROMPT", "GROUNDING_RULES",
+    "DEFAULT_PROMPT", "GROUNDING_RULES", "PLANNING",
 })
 _TIER_B_SKILLS = frozenset({
     "ADM_EXE", "CMD_RUNNER", "RAG", "PATCH_TOOL", "AGENT_ASSETS",
@@ -2979,6 +3027,7 @@ _ALL_SPECS = {
     "GOVERNANCE": GOVERNANCE,
     "DEFAULT_PROMPT": DEFAULT_PROMPT,
     "GROUNDING_RULES": GROUNDING_RULES,
+    "PLANNING": PLANNING,
 }
 
 def render_all_specs(tier: str = "A") -> str:

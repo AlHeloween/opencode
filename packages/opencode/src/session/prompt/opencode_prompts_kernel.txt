@@ -18,7 +18,7 @@ TERMS = MappingProxyType({
     'infomark': 'Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.',
     'memory': 'Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.',
     'mutation': 'Modify only within authorized scope; preserve unrelated work and report remaining failure.',
-    'plan': 'State, evidence, plan, implementation, verification, and clean next state form the execution trace.',
+    'plan': 'ADID planning: Mode 1 (linear decomposition, default) for clear goals → CENTRAL_TASKS; Mode 2 (fractal: Sierpinski/Quad-tree/L-System + k-medoids) for refinement after completion or 10+ undirected messages. State, evidence, plan, implementation, verification, clean next state.',
     'scope': 'Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.',
     'verification': 'An oracle decides correctness; do not claim fixed without direct evidence.',
 })
@@ -40,6 +40,7 @@ WORKFLOWS = MappingProxyType({
     'diagnose': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'verification', 'infomark', 'MEMORY.RANK'),
     'modify': ('plan', 'scope', 'cache', 'mutation', 'WRITE.SCOPE', 'CACHE.STABILITY', 'verification', 'VERIFY.OUTCOME'),
     'observe': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'infomark', 'MEMORY.RANK'),
+    'plan': ('plan', 'evidence', 'scope', 'mutation', 'verification', 'MEMORY.RANK'),
     'research': ('evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'verification', 'infomark', 'MEMORY.RANK', 'MEMORY.LINKS'),
 })
 
@@ -93,6 +94,7 @@ CONTRACTS = MappingProxyType({
     'policy.default': ('scope',),
     'policy.governance': ('scope', 'mutation', 'verification', 'WRITE.SCOPE'),
     'policy.grounding': ('evidence', 'verification', 'EVIDENCE.ORDER', 'SEARCH.ORDER'),
+    'policy.planning': ('plan', 'evidence', 'scope', 'verification'),
     'skill.adm_exe': ('scope', 'mutation', 'verification'),
     'skill.adm_mcp': ('scope', 'mutation', 'verification'),
     'skill.agent_assets': ('scope', 'mutation', 'verification', 'WRITE.SCOPE'),
@@ -478,3 +480,32 @@ acceptance:
   • Agent uses glob/grep (priority #5/#6) with noIgnore=true when unbounded search is needed
   • Hardware queries use native tools (nvidia-smi, etc.) — Exact evidence
   • Evidence hierarchy respected: Observation > CodeGraph > Ext Source > Inferred > Hypothetical > Guess
+
+## PLANNING
+ADID dual-mode planning: Mode 1 (linear decomposition, default) for clear goals — decompose into ordered CENTRAL_TASKS via todowrite. Mode 2 (fractal generation) triggers after task completion or 10+ undirected messages — use Sierpinski/Quad-tree/L-System models + k-medoids clustering for refinement and discovery. The 6-step ADID Workflow: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL. Plan before code. State before reasoning. Decompose before expanding.
+scope: task decomposition, todowrite usage, plan.txt workflow, plan/build agent cycle
+constraints:
+  mode_1_default → True
+  mode_2_trigger_after_completion → True
+  mode_2_trigger_10_plus_messages → True
+  plan_before_code → True
+  state_before_reasoning → True
+  decompose_before_expanding → True
+  one_task_in_progress_at_a_time → True
+  k_medoids_for_refinement → True
+invariants:
+  • Mode 1 (linear): clear goal → ordered CENTRAL_TASKS → todowrite
+  • Mode 2 (fractal): after completion OR 10+ undirected messages → Sierpinski/Quad-tree/L-System + k-medoids
+  • 6-step loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL
+  • Every task tracked via todowrite with priority (high/medium/low) and status (pending/in_progress/completed/cancelled)
+  • Plan before code — no edits before plan approval
+  • Fractal models: >=3 peaks → Sierpinski, 2/4/8 orthogonal → Quad/Oct-tree, else → L-System F→F+F-F
+forbidden:
+  • Skipping plan phase for complex tasks (3+ steps)
+  • Making code edits before plan approval
+  • More than one task in_progress at a time
+  • Fractal generation when clear linear goal exists (use Mode 1)
+acceptance:
+  • Complex tasks have todowrite plan before first edit
+  • plan.txt workflow followed for plan-mode sessions
+  • Mode 2 only activates on defined triggers

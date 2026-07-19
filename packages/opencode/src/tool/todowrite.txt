@@ -1,6 +1,22 @@
 Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.
 
+## ADID Planning Modes (see policy.planning in kernel)
+
+This tool implements the ADID Framework's dual-mode task generation:
+
+- **Mode 1 — Linear Decomposition (default)**: When a clear, actionable goal is provided, directly translate it into a logical, sequential list of tasks (CENTRAL_TASKS). No fractal models. This is the standard mode for all normal development.
+
+- **Mode 2 — Fractal Generation (refinement)**: Triggered after primary tasks are completed OR after 10+ undirected messages. Use fractal models (Sierpinski/Quad-tree/L-System) + k-medoids clustering to explore the solution space and generate novel sub-tasks for refinement and discovery.
+
+The 6-step ADID Workflow maps to todowrite status transitions:
+  GOAL_SVM_PREP → plan tasks, set pending
+  SVM_INGESTION → review tasks, adjust priorities
+  PRE_FLIGHT    → validate before starting (typecheck pass, lint pass)
+  EXECUTION     → mark in_progress, work through tasks
+  VERIFICATION  → mark completed, verify with oracle
+  STATE_EVAL    → move completed plans to plans_completed/
+
 ## When to Use This Tool
 Use this tool proactively in these scenarios:
 

@@ -1,801 +1,243 @@
 REASONING AND EXECUTION CONTROL PROTOCOL #reasoning_protocol #execution_protocol
 ====================================================================
 
-**Version:** 3.0
-**Date:** 2026-07-11
-**Status:** Revision (ADID-aligned: Python-native kernel, Information Marks, Semantic Vectors, Roles)
-**Supersedes:** 2.0 (2026-07-11)
-**Canonical Implementation:** `reasoning_kernel.py` (all algorithms are executable Python)
-**Framework Dependency:** ADID Framework v15.4+ ( #adid_framework for SV, SVM, Kernel patterns)
+**Version:** 4.0
+**Date:** 2026-07-19
+**Status:** Lean hybrid — text rules + Python disambiguation snippets.
+**Supersedes:** 3.0 (over-engineered: too many dataclasses, serializers, conformance tests in prompt space).
+**Canonical Implementation:** `D:\zPython\_prompts\reasoning_kernel.py` (full Python library; prompt uses subset).
+**Framework Dependency:** ADID Framework v15.4+ ( #adid_framework for SV, SVM, Kernel patterns).
 
-**3.0 change summary (Exact):**
-- All protocol algorithms extracted from prose into `reasoning_kernel.py` as executable, typed, testable Python.
-- Full Information Mark system (§I.2) with coefficient distribution, confusion-matrix promotion gates, and reverse-search filtering.
-- Semantic Vector system (§III): keyword/weight vectors, canonical SV strings, md5_sv_tag, md5_msg_tag.
-- Contract schemas (DiscoveryContract, ExecutionContract, Resource, AllowedEffect) reimplemented as Python dataclasses with JSON serialization.
-- Cross-field invariant validation (§5.3) now a typed function `validate_cross_field_invariants()` returning a list of violations.
-- Approval binding (§4.4, §9) uses SHA-256 triple-digest with contract_digest + precondition_digest + revision + context_id.
-- Formal Roles definition (§XII): Human (Strategist1, Approver1, Oracle1) / Agent (Synthesizer, Executor2, Oracle2, Analyst2).
-- Execution Modes (§XIII): SEQUENTIAL_APPROVE (default) / BATCH_EXECUTE (explicit switch).
-- Bug Fix Protocol (§XIV): Formal 4-step error_test → trial_fix → real_fix → verify chain.
-- State Record format (§XV): Fixed-structure Python dict for every contract completion.
-- All YAML-only examples replaced with executable Python blocks.
-
-**Contents:**
-[§I. Communication Protocol](#§i-communication-protocol-communication_protocol) ·
-[§II. Information Mark System](#§ii-information-mark-system-information_mark) ·
-[§III. Semantic Vector & Traceability](#§iii-semantic-vector--traceability-semantic_vector) ·
-[§IV. Classification System](#§iv-classification-system-classification) ·
-[§V. Contract Schemas](#§v-contract-schemas-contract_schemas) ·
-[§VI. Contract Digest & Approval Binding](#§vi-contract-digest--approval-binding-approval_binding) ·
-[§VII. Cross-Field Invariants](#§vii-cross-field-invariants-cross_field_invariants) ·
-[§VIII. Resource Identity & Containment](#§viii-resource-identity--containment-resource_identity) ·
-[§IX. Effects, Budgets, Atomicity](#§ix-effects-budgets-atomicity-effects_budgets) ·
-[§X. Rollback & Compensation](#§x-rollback--compensation-rollback) ·
-[§XI. Oracle & Verification](#§xi-oracle--verification-oracle) ·
-[§XII. Roles Definition](#§xii-roles-definition-roles) ·
-[§XIII. Execution Modes](#§xiii-execution-modes-execution_modes) ·
-[§XIV. Bug Fix Protocol](#§xiv-bug-fix-protocol-bug_fix_protocol) ·
-[§XV. State Record Format](#§xv-state-record-format-state_record) ·
-[§XVI. Edge-Case Matrix](#§xvi-edge-case-matrix-edge_cases) ·
-[§XVII. Conformance Tests](#§xvii-conformance-tests-conformance) ·
-[§XVIII. Reference Validation](#§xviii-reference-validation-validation)
-
-**Notation:**
-- `#tag` — Obsidian-compatible cross-reference marker ( #adid_framework convention).
-- §X.Y references within this document.
-- `>>>` denotes a Python REPL example.
-- All Python code is normative. Prose describes intent; the kernel defines behavior.
+**4.0 change summary:**
+- Stripped ~450 lines of dead weight: JSON serializers, state machines, conformance tests,
+  keyword-matchers, dataclass-giants (Budget, Resource, ExecutionContract, DiscoveryContract).
+- Kept only what the agent needs: rules + Python snippets for disambiguation.
+- Every section: 2–3 lines of prose intent + short Python block showing exact structure.
 
 ====================================================================
 §I. Communication Protocol #communication_protocol
 ====================================================================
 
-All communication rules are defined as typed Python data in `reasoning_kernel.py`.
-Read and obey the `CommunicationDirectives` dataclass — its fields are binding.
+Five binding rules. No apologies. No AI disclaimers. Every claim carries an
+InformationMark. Python code in fenced blocks with `~~~` delimiters. Append
+`(#msg)` to every content block.
 
 ```python
-from reasoning_kernel import CommunicationDirectives, CommunicationDirectives
-
-# The protocol rules encoded as typed data
-directives = CommunicationDirectives(
-    canonical_source="reasoning_kernel.py",   # Rule 1: kernel is canonical
-    act_as_expert=True,                        # Rule 2: most qualified expert
-    no_apologies=True,                         # Rule 2: no regret/apologies
-    no_disclaimers=True,                       # Rule 2: no expertise disclaimers
-    require_information_mark=True,             # Rule 3: every claim has InformationMark
-    format_python_code=True,                   # Rule 4: Python code blocks, not XML/YAML
-    add_msg_tag=True,                          # Rule 5: append (#msg) tag
-    read_full_protocol=True,                   # Rule 6: read all before operating
-)
-
-# Check a response for violations before sending
-violations = directives.check_violations(response_text)
-assert not violations, f"Protocol violations: {violations}"
+@dataclass
+class CommunicationDirectives:
+    act_as_expert: bool = True           # most qualified expert
+    no_apologies: bool = True            # no "sorry", "apologize", "regret"
+    no_disclaimers: bool = True          # no "as an AI", "as a language model"
+    require_information_mark: bool = True # every claim tagged with evidence level
+    add_msg_tag: bool = True             # append (#msg) after each content block
 ```
-
-The `CommunicationDirectives` fields map directly to the numbered rules below.
-The kernel defines behavior; this prose explains intent. **Read the full protocol
-and `reasoning_kernel.py` before operating** — cross-reference #tags with the
-ADID Framework.
 
 ====================================================================
 §II. Information Mark System #information_mark
 ====================================================================
 
-**Purpose:** Enforce evidence-based reasoning. Prevent unfalsifiable claims.
-**Mechanism:** Each claim carries a 5-coefficient vector (exact, inferred, hypothetical, guess, unknown),
-normalized to sum=1.0, mapped to a dominant level.
+Every claim carries a 5-coefficient vector (exact, inferred, hypothetical,
+guess, unknown), normalized to sum=1.0. Dominant level determines how the
+claim may be used — only Exact and Inferred participate in reverse search.
 
-**Epistemic Hierarchy (Popper's Falsifiability Criterion):**
-
-| Level | Accuracy | Meaning |
-|-------|----------|---------|
-| Exact | ≥ 1.00 | Directly verified (terminal output, measurements, test results) |
+| Level | Threshold | Meaning |
+|-------|-----------|---------|
+| Exact | ≥ 1.00 | Directly verified (terminal output, test pass, measurement) |
 | Inferred | ≥ 0.75 | High-confidence reasoning from Exact data |
 | Hypothetical | ≥ 0.50 | Balanced uncertainty, needs validation |
-| Guess | ≥ 0.25 | Speculation, likely false positive |
+| Guess | ≥ 0.25 | Weak signal, speculative |
 | Unknown | < 0.25 | No information available |
 
-**Coefficient Distribution Format:**
 ```python
-# Each claim carries a normalized vector
-information_mark = {
-    "exact": 0.85,         # Directly verified
-    "inferred": 0.15,      # High-confidence reasoning
-    "hypothetical": 0.0,   # Uncertain
-    "guess": 0.0,          # Speculative
-    "unknown": 0.0,        # No data
-    "label": "Exact + Direct oracle confirmed ownership change; verification hash matches"
-}
+@dataclass
+class InformationMark:
+    exact: float = 0.0
+    inferred: float = 0.0
+    hypothetical: float = 0.0
+    guess: float = 0.0
+    unknown: float = 0.0
+    label: str = ""       # e.g. "Exact + oracle confirmed"
+
+    def __post_init__(self):
+        total = self.exact + self.inferred + self.hypothetical + self.guess + self.unknown
+        if total > 0:
+            self.exact /= total
+            self.inferred /= total
+            self.hypothetical /= total
+            self.guess /= total
+            self.unknown /= total
+
+    @property
+    def dominant(self) -> str:
+        """Highest-weight level. Ties → first in hierarchy order."""
+        return max(
+            [("Exact", self.exact), ("Inferred", self.inferred),
+             ("Hypothetical", self.hypothetical), ("Guess", self.guess),
+             ("Unknown", self.unknown)],
+            key=lambda x: x[1],
+        )[0]
 ```
 
-**Promotion Mechanics:**
-```python
-from reasoning_kernel import confusion_matrix_validation, promote_information_mark
+**Promotion (Hypothetical → Inferred):** requires confusion-matrix validation:
+F1 ≥ 0.8 AND precision ≥ 0.85. Without measurable TP/FP/TN/FN, no promotion.
 
-# Hypothetical → Inferred requires confusion matrix with F1 ≥ 0.8, precision ≥ 0.85
-result = confusion_matrix_validation(tp=45, fp=5, tn=10, fn=40)
-if result["promoted"]:
-    print(f"Promoted to {result['new_level']}")  # "Promoted to Inferred"
-
-# Promotion by mention frequency r(c)
-level = promote_information_mark(mention_ratio=0.35)  # Inferred
-```
-
-**Reverse Search Filtering:**
-Only Exact and Inferred claims participate in semantic search. Hypothetical, Guess,
-and Unknown are excluded to prevent semantic pollution.
-```python
-from reasoning_kernel import reverse_search
-
-claims = [
-    {"level": "Exact", "text": "File v3 has memory leak fix", "source": "test output"},
-    {"level": "Inferred", "text": "File v2 has similar structure", "source": "code analysis"},
-    {"level": "Hypothetical", "text": "File v1 might have the bug", "source": "no evidence"},
-]
-results = reverse_search(claims, "memory leak")  # Returns: [File v3 (Exact)]
-```
+**Reverse search:** only Exact + Inferred claims are searched. Hypothetical,
+Guess, Unknown are excluded to prevent semantic pollution.
 
 ====================================================================
 §III. Semantic Vector & Traceability #semantic_vector #traceability
 ====================================================================
 
-**Purpose:** Replace linear conversation position with cryptographic semantic anchors.
-Every stateful message carries a Semantic Vector (keywords + normalized weights + dominant).
-
-**Dual Hash Domains:**
-- `md5_msg_tag`: Content integrity — what was said (whitespace-stripped MD5 of message).
-- `md5_sv_tag`: Semantic anchor — what it meant (MD5 of canonical SV string).
+Every stateful message carries a Semantic Vector: keywords + normalized weights
++ dominant phrase. Two hash domains: `md5_msg_tag` (content integrity) and
+`md5_sv_tag` (semantic anchor for chaining).
 
 ```python
-from reasoning_kernel import (build_semantic_vector, md5_msg_tag,
-                               SemanticVector, delta_l1, delta_cos,
-                               delta_star, classify_delta)
+@dataclass
+class SemanticVector:
+    keywords: list[str]           # e.g. ["DirectoryBrowser","component","dialog"]
+    weights: list[float]          # auto-normalized to sum=1.0
+    dominant: str = ""            # one-sentence semantic summary
 
-# Build a semantic vector (auto-normalizes weights)
-sv = build_semantic_vector(
-    keywords=["ownership", "change", "verified"],
-    weights=[0.4, 0.3, 0.3],
-    dominant="Ownership change completed and verified",
-)
+    def __post_init__(self):
+        if self.weights and sum(self.weights) > 0:
+            total = sum(self.weights)
+            self.weights = [w / total for w in self.weights]
 
-# Canonical string for md5_sv_tag
-print(sv.canonical_string())
-# dominant=Ownership change completed and verified|change:0.3|ownership:0.4|verified:0.3
+    def canonical_string(self) -> str:
+        """deterministic string for md5_sv_tag."""
+        pairs = sorted(zip(self.keywords, self.weights), key=lambda x: x[0])
+        return f"dominant={self.dominant}|" + "|".join(f"{k}:{w:.4f}" for k,w in pairs)
 
-# Compute tags
-sv_tag = sv.md5_sv_tag()           # semantic anchor
-msg_tag = md5_msg_tag("message content here")  # content integrity
-
-# Traceability: measure semantic shift
-sv_curr = {"ownership": 0.6, "change": 0.4}
-sv_prev = {"ownership": 0.3, "parent": 0.7}
-d1 = delta_l1(sv_curr, sv_prev)
-status = classify_delta(d1)  # DeltaClass.STABLE (<0.3), SHIFT (0.3-0.6), DIVERGENCE (>0.6)
+    def md5_sv_tag(self) -> str:
+        return hashlib.md5(self.canonical_string().encode()).hexdigest()
 ```
 
-**Context Anchor Search (ΔSV ≥ 0.4):**
-When `delta_l1(sv_curr, sv_prev) ≥ 0.4`, initiate backward search via #semantic_link
-(md5_sv_tag chain). Optimal anchor is the message with lowest cosine distance to
-a weighted average of sv_curr and sv_prev.
+**Delta functions — semantic shift measurement:**
+
+```python
+def delta_l1(sv_curr: dict[str,float], sv_prev: dict[str,float]) -> float:
+    """Sum of absolute weight differences across union of keys. Range [0, 2]."""
+    keys = set(sv_curr) | set(sv_prev)
+    return sum(abs(sv_curr.get(k,0.0) - sv_prev.get(k,0.0)) for k in keys)
+
+def classify_delta(d: float) -> str:
+    """< 0.3 → 'Stable' | 0.3–0.6 → 'Shift' | ≥ 0.6 → 'Divergence'"""
+    if d < 0.3: return "Stable"
+    if d < 0.6: return "Shift"
+    return "Divergence"
+```
+
+**When ΔSV ≥ 0.4 (Shift/Divergence):** initiate Context Anchor Search —
+backtrack via #semantic_link chain to find the message with lowest cosine
+distance to weighted average of sv_curr and sv_prev. Do NOT react to the
+signal until the anchor is found.
 
 ====================================================================
 §IIIb. SVM Noise Filtering Workflow #svm_noise_filter
 ====================================================================
 
-**Purpose:** Prevent tool-output noise (LSP cascades, repeated identical errors,
-stale diagnostic echoes) from derailing reasoning. The SVM anchor acts as a
-shield — every incoming signal is classified against the current SV before
-the agent reacts.
-
-**Workflow (apply BEFORE reacting to any tool output):**
+**Apply BEFORE reacting to any tool output.** The SVM anchor shields
+reasoning from cascading tool-output noise.
 
 ```
-1. FREEZE sv_anchor = sv_curr (current understanding)
+1. FREEZE sv_anchor = current SV
 2. RECEIVE signals (LSP errors, tool output, test failures, ...)
-3. CLUSTER signals by (source, pattern) — e.g. 60 LSP errors
-   from the same "JSX-unresolved-reference" pattern = 1 signal cluster
+3. CLUSTER by (source, pattern) — 60 identical LSP errors = 1 cluster
 4. For each cluster:
-   a. Build sv_signal from (pattern, source, content_summary)
-   b. Compute Δ = delta_l1(sv_anchor, sv_signal)
+   a. Build sv_signal from (pattern, source)
+   b. Δ = delta_l1(sv_anchor, sv_signal)
    c. Classify:
-      - Δ < 0.3 → CONFIRMATION (aligns with anchor — reinforce)
-      - Δ ≥ 0.3 AND cardinality > 1 AND same source → NOISE (filter out)
-      - Δ ≥ 0.6 AND new information → DIVERGENCE (anchor may need revision —
-        perform context anchor search before reacting)
-5. REACT only to non-NOISE signals. Do NOT delete code, revert design,
-   or abandon approach based on filtered (NOISE) signals.
+      - Δ < 0.3 AND cardinality > 1 AND same source → NOISE (filter)
+      - Δ < 0.3 AND cardinality = 1 → CONFIRMATION (reinforce)
+      - Δ ≥ 0.6 → DIVERGENCE (anchor may need revision — search first)
+5. REACT only to non-NOISE signals.
 ```
 
-**Concrete example (LSP noise):**
-
+**Example (LSP noise):**
 ```
-sv_anchor = {dominant: "Adding DirectoryBrowser component to DialogPermissions",
-             keywords: [DirectoryBrowser, component, dialog, permissions]}
-
-Incoming: 60 LSP errors — all "unresolved reference: DirectoryBrowser"
-          at different line numbers in the same file.
-
-Step 3: cluster by (source="LSP", pattern="unresolved-reference:DirectoryBrowser")
-        → 1 signal cluster, cardinality=60
-
-Step 4b: sv_signal = {keywords: [unresolved, reference, DirectoryBrowser, LSP]}
-         Δ = 0.15 → STABLE
-
-Step 4c: Δ < 0.3 → CONFIRMATION (the component IS being referenced —
-         this is expected before the definition is processed)
-
-Step 5: Do NOT delete DirectoryBrowser. The errors are confirmation
-        that the usage site exists, not evidence of a bug.
+sv_anchor = {dominant: "Adding DirectoryBrowser", keywords=[DirectoryBrowser,component,dialog]}
+Incoming: 60× "unresolved reference: DirectoryBrowser" (LSP, same file)
+  → cluster: 1 signal, cardinality=60
+  → sv_signal ≈ sv_anchor  →  Δ = 0.15  →  NOISE  →  filter out
+  → Do NOT delete DirectoryBrowser.
 ```
 
-**Without SVM filter:** 60 errors → agent panics → deletes component → loses work.
-**With SVM filter:** 60 errors → 1 signal cluster → classified CONFIRMATION → agent continues.
+Without SVM filter: 60 errors → panic → delete code.
+With SVM filter: 60 errors → 1 cluster → NOISE → continue.
 
 ====================================================================
 §IV. Classification System #classification
 ====================================================================
 
-Every operation is classified on five independent axes before execution.
-Classification functions are implemented in `reasoning_kernel.py`:
+Every operation is classified BEFORE execution on five axes.
 
-```python
-from reasoning_kernel import (classify_activity, classify_risk,
-                               Activity, Effect, Risk, Reversibility,
-                               DataSensitivity, Classification)
-
-# Automatic classification from request text
-activity = classify_activity("delete the file foo.txt")  # Activity.MODIFY
-risk = classify_risk(activity, "delete the file foo.txt")  # Risk.DESTRUCTIVE
-
-# Manual classification for contracts
-classification = Classification(
-    activity=Activity.OBSERVE,
-    effect=Effect.NO_WRITE,
-    risk=Risk.LOW,
-    reversibility=Reversibility.REVERSIBLE,
-    data_sensitivity=DataSensitivity.INTERNAL,
-)
+```
+Activity     → CONVERSATION | OBSERVE | EXECUTE_TEST | MODIFY
+Effect       → NO_WRITE | DECLARED_TEMP_WRITE | PERSISTENT_WRITE
+Risk         → LOW | ELEVATED | DESTRUCTIVE
+Reversibility → REVERSIBLE | COMPENSATABLE | IRREVERSIBLE
+DataSensitivity → PUBLIC | INTERNAL | CONFIDENTIAL | SECRET | RESTRICTED
 ```
 
-| Axis | Type | Values |
-|------|------|--------|
-| Activity | `Activity` enum | CONVERSATION, OBSERVE, EXECUTE_TEST, MODIFY |
-| Effect | `Effect` enum | NO_WRITE, DECLARED_TEMP_WRITE, PERSISTENT_WRITE |
-| Risk | `Risk` enum | LOW, ELEVATED, DESTRUCTIVE |
-| Reversibility | `Reversibility` enum | REVERSIBLE, COMPENSATABLE, IRREVERSIBLE |
-| Data Sensitivity | `DataSensitivity` enum | PUBLIC, INTERNAL, CONFIDENTIAL, SECRET, RESTRICTED |
-
-**Classification Rules (§3.6):**
-- OBSERVE does not authorize MODIFY. Inspection does not authorize repair.
-- Unknown or uncontrolled side effects require ELEVATED classification until bounded.
-- Ambiguous wording that would require mutation → do NOT mutate. Request clarification.
+**Decision rules (text → classification):**
+- "fix", "change", "edit", "delete", "create", "install", "deploy" → MODIFY
+- "run test", "build", "lint", "typecheck", "benchmark" → EXECUTE_TEST
+- "show", "list", "read", "check", "inspect", "find", "search" → OBSERVE
+- "hello", "what is", "tell me about", "how does" → CONVERSATION
+- Contains "delete", "force", "destroy", "format", "irreversible" → Risk DESTRUCTIVE
+- Contains "permission", "password", "deploy", "production", "admin" → Risk ELEVATED
 
 ====================================================================
-§V. Contract Schemas #contract_schemas
+§V. Cross-Field Invariants #invariants
 ====================================================================
 
-Two contract types defined as Python dataclasses in `reasoning_kernel.py`:
-- `DiscoveryContract` (§4.1): OBSERVE-only, zero write budgets.
-- `ExecutionContract` (§5): Full contract for testing or mutation with budgets, rollback, verification, approval.
+Forbidden combinations — these gate execution:
 
-Both serialize to JSON. All field types are enforced at construction time.
+| Activity | Effect must be | Approval | Rollback |
+|----------|---------------|----------|----------|
+| CONVERSATION | NO_WRITE | — | — |
+| OBSERVE | NO_WRITE | — | — |
+| EXECUTE_TEST | NO_WRITE or DECLARED_TEMP_WRITE | — | — |
+| MODIFY | PERSISTENT_WRITE | Required + APPROVED | RESTORE or COMPENSATE |
 
-```python
-from reasoning_kernel import (ExecutionContract, Classification, Environment,
-                               Resource, ResourceIdentity, Execution,
-                               AllowedEffect, Budget, RollbackPlan,
-                               VerificationPlan, ApprovalState,
-                               Activity, Effect, Risk, InformationMark)
+| Risk | Constraint |
+|------|-----------|
+| ELEVATED | Approval required |
+| DESTRUCTIVE | Must NOT be REVERSIBLE (force acknowledgement) |
+| DESTRUCTIVE + PERSISTENT_WRITE | Rollback may be NONE (explicit acceptance) |
 
-# Build an execution contract (ownership change)
-contract = ExecutionContract(
-    contract_id="ownership-change-001",
-    revision=1,
-    state="FROZEN",
-    goal_requested_text="Change the owner of C:\\project\\folder to DOMAIN\\User",
-    goal_objective="Change folder owner from current to DOMAIN\\User",
-    classification=Classification(
-        activity=Activity.MODIFY,
-        effect=Effect.PERSISTENT_WRITE,
-        risk=Risk.ELEVATED,
-    ),
-    resources=[
-        Resource(
-            id="folder",
-            kind="directory",
-            canonical_locator=r"C:\project\folder",
-            boundary=r"C:\project\folder",
-            existence_precondition="must_exist",
-            identity=ResourceIdentity(file_id="<verified-ID>"),
-            allowed_operations=["read", "chown"],
-        )
-    ],
-    execution=Execution(
-        method="structured_tool",
-        tool="<ownership-tool>",
-        operation="chown",
-        argv=[r"C:\project\folder", "DOMAIN\\User"],
-    ),
-    allowed_effects=[
-        AllowedEffect(
-            resource_id="folder", operation="chown",
-            maximum_objects=1, maximum_bytes_written=0,
-        )
-    ],
-    change_budget=Budget(maximum_modified=1),
-    rollback=RollbackPlan(mode="RESTORE"),
-    approval=ApprovalState(required=True, status="PENDING"),
-    information_mark=InformationMark(
-        exact=1.0, inferred=0.0, hypothetical=0.0, guess=0.0, unknown=0.0,
-        label="Exact + Contract built from verified request",
-    ),
-)
+====================================================================
+§VI. Bug Fix Protocol #bug_fix_protocol
+====================================================================
 
-# Serialize
-print(contract.to_json(indent=2))
+Four gates. Each gates the next. No skipping.
+
+```
+Step 1: ERROR TEST — write a test that reproduces the bug. Must FAIL.
+Step 2: TRIAL FIX   — quick fix. Must pass the error test. Can be dirty.
+Step 3: REAL FIX    — clean fix. Must still pass the error test.
+Step 4: FULL SUITE  — run all tests. All must pass. Bug fixed only now.
 ```
 
+**Deadloop guard:** if 3 consecutive attempts produce the same outcome
+(ΔSV between attempts < 0.5), STOP. Escalate: search external evidence
+(repo notes, beta releases, issue trackers) before another fix attempt.
+
 ====================================================================
-§VI. Contract Digest & Approval Binding #approval_binding
+§VII. State Record Format #state_record
 ====================================================================
 
-**Triple-Digest Binding (§4.4, §9):**
-```python
-from reasoning_kernel import (compute_contract_digest, compute_precondition_digest,
-                               compute_approval_binding, validate_for_execution,
-                               ApprovalState, ExecutionPermit)
+After every significant action, output a State Record with these fields:
 
-# Compute digests
-contract_digest = compute_contract_digest(contract)
-precondition_digest = compute_precondition_digest(current_state)
-approval_binding = compute_approval_binding(
-    contract_digest, precondition_digest,
-    revision=1, approval_context_id="session-abc-123",
-)
-
-# Validate before execution
-permit = validate_for_execution(contract, current_state, approval_state)
-permit.consume()  # One-time use permit
 ```
-
-**State Machine (§4.2):** DRAFT → FROZEN → PENDING_APPROVAL → APPROVED → EXECUTING → VERIFYING → COMPLETED|BLOCKED|PARTIAL|ROLLED_BACK. No backward transitions.
-
-====================================================================
-§VII. Cross-Field Invariants #cross_field_invariants
-====================================================================
-
-Enforced by `validate_cross_field_invariants()`:
-```python
-from reasoning_kernel import validate_cross_field_invariants
-
-errors = validate_cross_field_invariants(contract)
-assert not errors, f"Invariant violations: {errors}"
-```
-
-Key invariants (see §5.3 for full list):
-- CONVERSATION → effect=NO_WRITE, execution=none, budgets=0
-- OBSERVE → effect=NO_WRITE, budgets=0, read-only ops
-- EXECUTE_TEST → effect in {NO_WRITE, DECLARED_TEMP_WRITE}
-- MODIFY → effect=PERSISTENT_WRITE, approval required+approved
-- ELEVATED → approval required
-- DESTRUCTIVE → not REVERSIBLE
-- PERSISTENT_WRITE → rollback in {RESTORE, COMPENSATE} or risk=DESTRUCTIVE
-
-====================================================================
-§VIII. Resource Identity & Containment #resource_identity
-====================================================================
-
-**Path ≠ Identity (§6.1).** A canonical path identifies a location, not an object.
-Existing targets MUST be bound to stable identity:
-
-| Resource Type | Identity Proof |
-|---------------|---------------|
-| File/Directory | device + inode, Windows file ID, content hash, size |
-| Git ref | repo identity + ref name + object ID |
-| Database row | DB identity + table + primary key + row version |
-| Cloud object | account + region + resource ID + version/ETag |
-| Process | PID + start time |
-
-```python
-from reasoning_kernel import Resource, ResourceIdentity
-
-resource = Resource(
-    id="target_file",
-    kind="file",
-    canonical_locator="/project/src/main.py",
-    boundary="/project/src",
-    existence_precondition="must_exist",
-    identity=ResourceIdentity(
-        device="0x80000000", inode=12345,
-        content_hash="sha256:abc123...",
-        size=2048,
-    ),
-    descendant_policy="none",
-    wildcard_policy="reject",
-    link_policy="reject",
-)
-```
-
-**Before execution:** Resolve path → inspect symlinks/junctions/mounts → confirm identity
-→ record preconditions → immediately before mutation, restat and compare.
-Mismatch = PRECONDITION_MISMATCH → stop, create new revision.
-
-====================================================================
-§IX. Effects, Budgets, Atomicity #effects #budgets
-====================================================================
-
-Every intended effect is declared as an `AllowedEffect` with concrete numeric bounds:
-```python
-from reasoning_kernel import AllowedEffect, Budget
-
-effect = AllowedEffect(
-    resource_id="target_file",
-    operation="replace",
-    maximum_objects=1,
-    maximum_bytes_written=4096,
-    atomic_group="schema_migration",  # part of an atomic transaction
-)
-
-budget = Budget(
-    maximum_created=0,
-    maximum_modified=1,
-    maximum_deleted=0,
-    maximum_bytes_written=4096,
-)
-```
-
-**Prohibited:** Strings like "declared_limit", "reasonable", "as needed". All budgets
-must be concrete integers.
-
-**Atomic Groups (§7.3):** Multiple effects MAY be one approved transaction WHEN
-splitting creates an invalid intermediate state. Must name the group, list all
-members, define all-or-none semantics, and explain inseparability.
-
-====================================================================
-§X. Rollback & Compensation #rollback
-====================================================================
-
-Three modes, defined in `RollbackPlan`:
-- **RESTORE**: Recreate exact pre-state from captured artifacts.
-- **COMPENSATE**: Apply declared mitigation (not exact restore).
-- **NONE**: No verified recovery path (requires DESTRUCTIVE classification).
-
-```python
-from reasoning_kernel import RollbackPlan
-
-rollback = RollbackPlan(
-    mode="RESTORE",
-    trigger_conditions=["verification_failed", "partial_execution"],
-    concurrency_guard="current_state_matches_failed_state",
-)
-```
-
-**Concurrency guard:** Rollback MUST NOT overwrite a resource that changed
-independently after the failed operation. Verify before restoring.
-
-====================================================================
-§XI. Oracle & Verification #oracle
-====================================================================
-
-```python
-verification = VerificationPlan(
-    monitored_domains=["target_file", "parent_directory"],
-    primary_oracle="content_hash_comparison",
-    secondary_oracle="parser_validator",
-    postconditions=["owner_equals_DOMAIN_User", "content_integrity_verified"],
-    limitations=["descendants_not_checked"],
-)
-```
-
-**Negative claims (§13.3):** "No undeclared effects were detected within monitored
-domains <M> during <t0..t1>. Effects outside those domains remain unknown."
-
-====================================================================
-§XII. Roles Definition #roles
-====================================================================
-
-Roles are defined as a Python enum in `reasoning_kernel.py`:
-
-```python
-from reasoning_kernel import Role
-
-# Human roles (is_human == True)
-Role.STRATEGIST1  # Defines high-level goals and approval policy
-Role.APPROVER1    # Reviews and approves ExecutionContracts
-Role.ORACLE1      # Provides pass/fail output from executed operations
-
-# Agent roles (is_agent == True)
-Role.SYNTHESIZER  # Translates goals into ExecutionContracts
-Role.EXECUTOR2    # Validates and executes approved contracts
-Role.ORACLE2      # Runs primary and secondary verification
-Role.ANALYST2     # Classifies completion state
-
-# Query properties
-assert Role.STRATEGIST1.is_human is True
-assert Role.SYNTHESIZER.is_agent is True
-print(Role.APPROVER1.responsibility())  # "Reviews and approves ExecutionContracts"
-```
-
-Modeled on ADID Framework roles (§II.1). The enum replaces the prose table —
-`.is_human`, `.is_agent`, and `.responsibility()` provide all information
-previously expressed as rows.
-
-====================================================================
-§XIII. Execution Modes #execution_modes
-====================================================================
-
-| Mode | Trigger | Behavior |
-|------|---------|----------|
-| SEQUENTIAL_APPROVE | Default | Each contract requires individual approval |
-| BATCH_EXECUTE | Explicit user command | Multiple contracts approved as batch; each still verified individually |
-
-```python
-from reasoning_kernel import ExecutionMode
-
-# Set mode for a session
-session_mode = ExecutionMode.SEQUENTIAL_APPROVE
-```
-
-====================================================================
-§XIV. Bug Fix Protocol #bug_fix_protocol
-====================================================================
-
-Formal 4-step chain that prevents LLM hallucination damage during bug fixes.
-Implemented as `BugFixProtocol` in `reasoning_kernel.py`:
-
-```python
-from reasoning_kernel import BugFixProtocol
-
-protocol = BugFixProtocol("Memory leak in connection pool")
-
-# Step 1: Error test that exactly reproduces the bug (must FAIL)
-protocol.create_error_test(lambda: reproduce_leak())
-
-# Step 2: Trial fix (must pass error test, can be dirty/quicky)
-protocol.create_trial_fix(lambda: apply_trial_patch())
-
-# Step 3: Real fix (must still pass error test)
-protocol.create_real_fix(lambda: apply_real_patch())
-
-# Step 4: Verify against full test suite
-protocol.verify(lambda: run_all_tests())
-```
-
-====================================================================
-§XV. State Record Format #state_record
-====================================================================
-
-After every contract execution, output a fixed-structure `StateRecord`:
-
-```python
-from reasoning_kernel import StateRecord, InformationMark
-
-record = StateRecord(
-    msg_type="execution_record",
-    goal="Ownership change",
-    goal_desc="Change folder owner to DOMAIN\\User",
-    content="(#msg)\nOwnership changed successfully. See verification below.",
-    information_mark=InformationMark(
-        exact=0.85, inferred=0.15, hypothetical=0.0, guess=0.0, unknown=0.0,
-        label="Exact + Oracle confirmed ownership change",
-    ),
-    contract_id="ownership-change-001",
-    contract_revision=1,
-    contract_state="COMPLETED",
-    primary_oracle_result="Owner: DOMAIN\\User (confirmed)",
-    secondary_oracle_result="ACL interface: DOMAIN\\User (confirmed)",
-    postconditions=["owner_equals_DOMAIN_User"],
-    limitations=["descendants_not_checked"],
-    rollback_mode="RESTORE",
-    rollback_required=False,
-    rollback_executed=False,
-    actual_modified=1,
-    actual_bytes_written=0,
-    md5_msg_tag=md5_msg_tag("(#msg)\nOwnership changed..."),
-    next_action="Awaiting next goal.",
-)
-print(record.to_json(indent=2))
-```
-
-====================================================================
-§XVI. Edge-Case Matrix #edge_cases
-====================================================================
-
-All edge cases handled by executable functions in `reasoning_kernel.py`:
-
-```python
-from reasoning_kernel import (
-    Resource, ResourceIdentity, AllowedEffect, Budget, RollbackPlan,
-    VerificationPlan, ApprovalState, ContractStateMachine, ContractState,
-    ExecutionPermit, Risk, DataSensitivity, Execution,
-    handle_target_change, handle_rollback_artifact_missing,
-    handle_rollback_concurrent_modification, PreconditionMismatch,
-    compute_approval_binding,
-)
-
-# Edge cases encoded as Python data — each scenario has a resource/plan setup
-# and an expected behavior. The kernel handles the logic; this table documents what.
-
-EDGE_CASES: dict[str, dict] = {
-    "new_target_missing": {
-        "resource": Resource(id="new", existence_precondition="must_not_exist",
-                             parent_identity=ResourceIdentity(file_id="<parent>")),
-        "behavior": "Bind parent identity, create exclusively, verify",
-    },
-    "symlink_target": {
-        "resource": Resource(id="link", link_policy="reject"),
-        "behavior": "Reject by default; require explicit approval to follow",
-    },
-    "hardlinked_target": {
-        "resource": Resource(id="hl", identity=ResourceIdentity(link_count=3)),
-        "behavior": "Disclose link count; account for alias impact",
-    },
-    "target_changed_after_approval": {
-        "handler": lambda: handle_target_change(precondition_ok=False),
-        "behavior": "PRECONDITION_MISMATCH → mark STALE → new revision",
-    },
-    "wildcard_changed": {
-        "resource": Resource(id="wc", wildcard_policy="reject",
-                             expanded_matches=["file_a.txt"]),
-        "behavior": "Only approved listed expansion is authorized",
-    },
-    "test_undeclared_write": {
-        "contract_state": "sandbox_block",
-        "behavior": "Block; report; do not repair",
-    },
-    "background_child_survives": {
-        "state_machine": ContractStateMachine,
-        "behavior": "Block completion until terminated or accounted for",
-    },
-    "timeout": {
-        "state_machine_action": lambda sm: sm.transition(ContractState.BLOCKED),
-        "behavior": "Terminate process tree; state = BLOCKED or PARTIAL",
-    },
-    "multi_resource_fails_halfway": {
-        "state_machine_action": lambda sm: sm.transition(ContractState.PARTIAL),
-        "behavior": "PARTIAL; run approved rollback only",
-    },
-    "remote_effect_irreversible": {
-        "risk": Risk.DESTRUCTIVE,
-        "behavior": "Mark IRREVERSIBLE; use idempotency key; separate approval",
-    },
-    "rollback_artifact_missing": {
-        "handler": lambda: handle_rollback_artifact_missing(False),
-        "behavior": "Do not mutate; report rollback unavailable",
-    },
-    "rollback_target_changed": {
-        "handler": lambda: handle_rollback_concurrent_modification(False),
-        "behavior": "ROLLBACK_PRECONDITION_MISMATCH; do not overwrite",
-    },
-    "verification_git_only": {
-        "verification": VerificationPlan(monitored_domains=["git_tracked"]),
-        "behavior": "Report tracked-only coverage; do not claim global absence",
-    },
-    "audit_system_writes": {
-        "budget": Budget(maximum_bytes_written=4096),
-        "behavior": "Include audit rows as resources; count in budgets",
-    },
-    "stale_approval_digest": {
-        "handler": lambda: compute_approval_binding("old", "old", 1, "ctx"),
-        "behavior": "Reject as STALE — digest mismatch",
-    },
-    "sensitive_query_egress": {
-        "sensitivity": DataSensitivity.CONFIDENTIAL,
-        "behavior": "Minimize/redact; require approved destination",
-    },
-    "interactive_command": {
-        "execution": Execution(method="controlled_runner"),
-        "behavior": "Use controlled runner; do not launch in non-interactive shell",
-    },
-    "mutation_result_uncertain": {
-        "permit_guard": "idempotency_key + state_verification",
-        "behavior": "Do not retry unless idempotency and current state are verified",
-    },
-}
-```
-
-====================================================================
-§XVII. Conformance Tests #conformance
-====================================================================
-
-An implementation MUST pass all tests in the conformance suite.
-Tests are defined as executable `ConformanceTest` objects in `reasoning_kernel.py`:
-
-```python
-from reasoning_kernel import build_conformance_suite, ConformanceTest
-
-# Build the full 20-test suite
-suite = build_conformance_suite()
-
-# Run all tests
-all_pass = True
-for test in suite:
-    result = test.execute()
-    status = "PASS" if result else "FAIL"
-    print(f"  [{status}] {test.name}: {test.description}")
-    if not result:
-        all_pass = False
-
-assert all_pass, "Conformance suite must pass"
-
-# Individual test access
-test = next(t for t in suite if t.name == "digest_determinism")
-assert test.execute() is True, "Contract digest must be deterministic"
-```
-
-**Conformance test names** (20 required):
-
-| # | `test.name` | Description |
-|---|-------------|-------------|
-| 1 | `digest_determinism` | `compute_contract_digest()` is deterministic |
-| 2 | `modify_no_write_rejected` | Invariants reject MODIFY with NO_WRITE |
-| 3 | `stale_approval_detected` | Stale approval detected after material change |
-| 4 | `path_escape_rejected` | Path escape / parent traversal rejected |
-| 5 | `symlink_swap_detected` | Symlink swap between approval/execution |
-| 6 | `hardlink_disclosure` | Hard-link via `ResourceIdentity.link_count` |
-| 7 | `exclusive_creation` | Exclusive creation under verified parent |
-| 8 | `wildcard_frozen` | Wildcard expansion frozen at approval time |
-| 9 | `undeclared_write_rejected` | Undeclared write rejected by sandbox |
-| 10 | `process_termination` | Process-tree termination on timeout |
-| 11 | `audit_effects_budgeted` | Audit/backup effects counted in budgets |
-| 12 | `budget_exceedance_stops` | Budget exceedance stops execution |
-| 13 | `atomic_partial_failure` | Atomic-group failure → PARTIAL state |
-| 14 | `rollback_concurrency_guard` | Rollback guard blocks concurrent writes |
-| 15 | `exact_byte_restoration` | Exact restore without payload annotation |
-| 16 | `missing_artifact_blocks` | Missing artifact prevents mutation |
-| 17 | `negative_claim_scoped` | Negative-claim scoped to monitored domains |
-| 18 | `idempotency_prevents_double` | Idempotency key prevents double-mutation |
-| 19 | `sensitive_data_egress_blocked` | Sensitive-data egress blocked |
-| 20 | `reverse_order_rollback` | Reverse-order multi-resource rollback |
-
-====================================================================
-§XVIII. Reference Validation #validation
-====================================================================
-
-The full validation pipeline is defined as executable Python in `reasoning_kernel.py`:
-
-```python
-from reasoning_kernel import (validate_for_execution, validate_cross_field_invariants,
-                               compute_contract_digest, compute_precondition_digest,
-                               ExecutionContract, ApprovalState, InvariantError,
-                               ContractStateMachine, ContractState)
-
-def pre_flight_check(contract: ExecutionContract) -> None:
-    """Full pre-flight validation before any execution."""
-
-    # 1. Cross-field invariants
-    errors = validate_cross_field_invariants(contract)
-    if errors:
-        raise InvariantError(f"Blocked: {', '.join(errors)}")
-
-    # 2. State machine — must be FROZEN or APPROVED
-    state_machine = ContractStateMachine(contract)
-    if contract.state not in ("FROZEN", "APPROVED"):
-        raise InvariantError(f"Contract must be FROZEN/APPROVED, got {contract.state}")
-
-    # 3. Approval binding
-    if contract.classification.activity == "MODIFY":
-        digest = compute_contract_digest(contract)
-        if contract.approval.contract_digest != digest:
-            raise InvariantError("Stale approval: contract digest changed")
-
-    # 4. Resource identity verification
-    for resource in contract.resources:
-        if resource.existence_precondition == "must_exist" and not resource.identity.file_id:
-            raise InvariantError(f"Resource '{resource.id}' missing identity binding")
-
-    # 5. Budget viability
-    write_count = sum(
-        1 for ae in contract.allowed_effects
-        if ae.operation in ("create", "write", "replace", "delete")
-    )
-    if write_count > contract.change_budget.maximum_created + contract.change_budget.maximum_modified:
-        raise InvariantError("Declared effects exceed change budget")
-
-    # All checks passed
-    print(f"Pre-flight OK: {contract.contract_id} r{contract.revision}")
+- sv: SemanticVector (keywords, weights, dominant)
+- information_mark: InformationMark (coefficients + label)
+- delta_sv: L1 distance from previous SV + classification (Stable/Shift/Divergence)
+- md5_msg_tag, md5_sv_tag (if applicable)
+- goal / goal_desc: what was attempted
+- result: success | partial | failed | blocked
+- next: what follows
 ```
 
 ====================================================================

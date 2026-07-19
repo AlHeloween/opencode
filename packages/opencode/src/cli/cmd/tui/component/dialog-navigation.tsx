@@ -7,7 +7,7 @@ import { useKeyboard } from "@opentui/solid"
 import { EffectiveNavigation } from "../util/effective-navigation"
 import { Truncate } from "@/tool/truncate"
 import { useSync } from "@tui/context/sync"
-import { existsSync } from "fs"
+import { existsSync, readdirSync } from "fs"
 import path from "path"
 import { useSDK } from "@tui/context/sdk"
 import { useToast } from "@tui/ui/toast"
@@ -15,6 +15,59 @@ import * as Log from "@opencode-ai/core/util/log"
 import { useProject } from "@tui/context/project"
 
 const log = Log.create({ service: "tui.dialog-permissions" })
+
+/** Directory browser: lists subdirs of `basePath`, click to fill path input. */
+function DirectoryBrowser(props: {
+  basePath: string
+  onSelect: (p: string) => void
+  theme: { primary: any; text: any; textMuted: any }
+}) {
+  const t = props.theme
+  const [cursor, setCursor] = createSignal(0)
+  const entries = createMemo(() => {
+    const bp = props.basePath
+    if (!bp) return []
+    try {
+      const resolved = path.resolve(EffectiveNavigation.expandPath(bp))
+      if (!existsSync(resolved)) return []
+      const items = readdirSync(resolved, { withFileTypes: true })
+      const dirs = items.filter((d) => d.isDirectory()).map((d) => d.name)
+      const parent = path.dirname(resolved)
+      return parent !== resolved ? ["..", ...dirs.sort()] : dirs.sort()
+    } catch {
+      return []
+    }
+  })
+
+  return (
+    <Show when={entries().length > 0}>
+      <scrollbox height={6}>
+        <For each={entries()}>
+          {(name, i) => (
+            <box
+              flexDirection="row"
+              gap={1}
+              paddingLeft={1}
+              backgroundColor={cursor() === i() ? t.primary : undefined}
+              onMouseUp={() => {
+                setCursor(i())
+                const bp = props.basePath
+                const resolved = name === ".."
+                  ? path.dirname(path.resolve(EffectiveNavigation.expandPath(bp)))
+                  : path.resolve(EffectiveNavigation.expandPath(bp), name)
+                props.onSelect(resolved)
+              }}
+            >
+              <text fg={t.textMuted}>
+                {name === ".." ? "📁 .." : "📁"} {name}
+              </text>
+            </box>
+          )}
+        </For>
+      </scrollbox>
+    </Show>
+  )
+}
 
 type ExternalDirMode = "deny" | "ask" | "allow"
 type PolicyAction = "ask" | "allow" | "deny"
@@ -718,6 +771,12 @@ export function DialogPermissions() {
             + Add
           </text>
         </box>
+
+        <DirectoryBrowser
+          basePath={addPath()}
+          onSelect={(p) => { setAddPath(p); pathInput?.focus?.() }}
+          theme={theme}
+        />
       </box>
 
       {/* Allowed Directories */}

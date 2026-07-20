@@ -3112,6 +3112,7 @@ RUNTIME_RULES = MappingProxyType({
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
     "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked, search web/codegraph/messagesearch before declaring blocked.",
+    "DECOMPOSE": "break problem into sub-goals before planning. k-medoids: cluster around evidence, not random. Sierpinski/L-System: every sub-level shares the same deterministic structure — one recursive pattern (F→F+F-F), not ad-hoc expansion.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -3134,6 +3135,7 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "WHERE_WHICH": "evidence",
     "SV_OUTPUT": "verification",
     "CLEAN_STATE": "verification",
+    "DECOMPOSE": "plan",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
@@ -3141,7 +3143,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
     "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
     "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
     "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
-    "plan": ("plan", "evidence", "scope", "mutation", "verification", "MEMORY.RANK", "SV_OUTPUT", "CLEAN_STATE"),
+    "plan": ("plan", "DECOMPOSE", "evidence", "scope", "mutation", "verification", "MEMORY.RANK", "SV_OUTPUT", "CLEAN_STATE"),
     "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
 })
 

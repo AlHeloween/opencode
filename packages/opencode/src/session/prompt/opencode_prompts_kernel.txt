@@ -28,6 +28,7 @@ RULES = MappingProxyType({
     'ADID.OPS': 'always-on how-to: cmd_runner start/tail/send; adm template→apply→verify; rag index/query; Delphi init+msbuild (see policy.adid_ops)',
     'CACHE.STABILITY': 'keep the system prefix byte-stable for the session',
     'CLEAN_STATE': 'end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked, search web/codegraph/messagesearch before declaring blocked.',
+    'DECOMPOSE': 'break problem into sub-goals before planning. k-medoids: cluster around evidence, not random. Sierpinski/L-System: every sub-level shares the same deterministic structure — one recursive pattern (F→F+F-F), not ad-hoc expansion.',
     'EVIDENCE.ORDER': 'verified > cited > inferred > unknown',
     'MEMORY.LINKS': 'every summary and message* must carry message IDs for session-read recovery',
     'MEMORY.RANK': 'session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact',
@@ -44,7 +45,7 @@ WORKFLOWS = MappingProxyType({
     'diagnose': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'WHERE_WHICH', 'NO_HARDCODE', 'verification', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK'),
     'modify': ('plan', 'scope', 'cache', 'mutation', 'WRITE.SCOPE', 'CACHE.STABILITY', 'verification', 'VERIFY.OUTCOME', 'SV_OUTPUT', 'CLEAN_STATE'),
     'observe': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'WHERE_WHICH', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK'),
-    'plan': ('plan', 'evidence', 'scope', 'mutation', 'verification', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'plan': ('plan', 'DECOMPOSE', 'evidence', 'scope', 'mutation', 'verification', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
     'research': ('evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'WHERE_WHICH', 'NO_HARDCODE', 'verification', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK', 'MEMORY.LINKS'),
 })
 

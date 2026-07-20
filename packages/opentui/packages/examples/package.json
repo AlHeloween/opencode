@@ -27,13 +27,13 @@
     "bun-webgpu": "0.1.7",
     "fft.js": "^4.0.4",
     "planck": "^1.4.2",
-    "three": "0.177.0",
-    "web-tree-sitter": "0.25.10"
+    "three": "catalog:",
+    "web-tree-sitter": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "@types/three": "0.177.0",
+    "@types/three": "catalog:",
     "typescript": "catalog:"
   },
   "engines": {

@@ -22,9 +22,9 @@
     "@solidjs/meta": "catalog:",
     "hono": "catalog:",
     "hono-openapi": "catalog:",
-    "js-base64": "3.7.7",
+    "js-base64": "catalog:",
     "luxon": "catalog:",
-    "nitro": "3.0.260429-beta"
+    "nitro": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",

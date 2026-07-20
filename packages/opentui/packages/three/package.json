@@ -29,7 +29,7 @@
   "dependencies": {
     "@opentui/core": "workspace:*",
     "jimp": "1.6.1",
-    "three": "0.177.0"
+    "three": "catalog:"
   },
   "optionalDependencies": {
     "@dimforge/rapier2d-simd-compat": "^0.17.3",
@@ -39,7 +39,7 @@
   "devDependencies": {
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "@types/three": "0.177.0",
+    "@types/three": "catalog:",
     "commander": "^13.1.0",
     "typescript": "catalog:"
   },

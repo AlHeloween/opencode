@@ -72,7 +72,7 @@
     "@types/bun": "catalog:",
     "@types/react": "^19.2.0",
     "react": "^19.2.0",
-    "solid-js": "1.9.12",
+    "solid-js": "catalog:",
     "tsdown": "^0.16.0"
   },
   "peerDependencies": {

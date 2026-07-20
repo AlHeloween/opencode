@@ -27,17 +27,16 @@
     "electron-context-menu": "4.1.2",
     "electron-log": "^5",
     "electron-store": "^10",
-
     "electron-window-state": "^5.0.3",
     "drizzle-orm": "catalog:",
     "marked": "^15"
   },
   "devDependencies": {
-    "@actions/artifact": "4.0.0",
+    "@actions/artifact": "catalog:",
     "@lydell/node-pty": "catalog:",
     "@opencode-ai/app": "workspace:*",
     "@opencode-ai/ui": "workspace:*",
-    "@solid-primitives/i18n": "2.2.1",
+    "@solid-primitives/i18n": "catalog:",
     "@solid-primitives/storage": "catalog:",
     "@solidjs/meta": "catalog:",
     "@solidjs/router": "0.15.4",

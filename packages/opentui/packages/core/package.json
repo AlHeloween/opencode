@@ -35,14 +35,14 @@
     "@types/node": "catalog:",
     "commander": "^13.1.0",
     "typescript": "catalog:",
-    "web-tree-sitter": "0.25.10"
+    "web-tree-sitter": "catalog:"
   },
   "dependencies": {
     "bun-ffi-structs": "0.2.4",
     "diff": "9.0.0",
     "marked": "17.0.1",
     "string-width": "7.2.0",
-    "strip-ansi": "7.1.2",
+    "strip-ansi": "catalog:",
     "ansi-regex": "6.2.2",
     "emoji-regex": "10.6.0",
     "get-east-asian-width": "1.6.0"

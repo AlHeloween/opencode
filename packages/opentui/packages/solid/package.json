@@ -58,10 +58,10 @@
   },
   "devDependencies": {
     "@opentui/keymap": "workspace:*",
-    "@types/babel__core": "7.20.5",
+    "@types/babel__core": "catalog:",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "solid-js": "1.9.12",
+    "solid-js": "catalog:",
     "typescript": "catalog:"
   },
   "dependencies": {

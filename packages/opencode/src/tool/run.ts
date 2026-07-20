@@ -145,9 +145,9 @@ export const RunTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
+      let interrupted = false
       const chunks: string[] = []
       let fullBytes = 0
-      let aborted = false
 
       yield* ctx.metadata({ output: "", metadata: { output: "", description: input.description } })
 
@@ -218,7 +218,7 @@ export const RunTool = Tool.define(
           ])
 
           if (exit.kind === "abort") {
-            aborted = true
+            interrupted = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
 
@@ -251,7 +251,7 @@ export const RunTool = Tool.define(
       if (!file && end.cut) file = yield* trunc.write(raw)
 
       let output = end.text
-      if (aborted) output = `User aborted the command\n` + output
+      if (interrupted) output = `Command interrupted (abort signal received)\n` + output
       if (!output) output = "(no output)"
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
       return {

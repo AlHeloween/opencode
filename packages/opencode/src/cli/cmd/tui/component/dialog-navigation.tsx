@@ -142,6 +142,7 @@ const TOOL_POLICIES: {
 type NavRow =
   | { kind: "tool"; key: string; label: string; hint: string; danger?: boolean; section?: string }
   | { kind: "external"; label: string; hint: string; section?: string }
+  | { kind: "directory"; displayPath: string; action: "allow" | "deny"; source: string; exists: boolean }
   | { kind: "action"; id: "save" | "reload" | "close"; label: string }
 
 const POLICY_ROWS: NavRow[] = [
@@ -270,8 +271,6 @@ export function DialogPermissions() {
   const [pathFocused, setPathFocused] = createSignal(false)
   let pathInput: { focus: () => void; blur?: () => void; value: string; isDestroyed?: boolean } | undefined
 
-  const allRows = createMemo(() => [...POLICY_ROWS, ...FOOTER_ROWS])
-
   /**
    * Resolve config.permission[key] to ask|allow|deny.
    * When the key is omitted, show the runtime default (agent.ts), not "ask".
@@ -337,8 +336,19 @@ export function DialogPermissions() {
     }
   })
 
-  const allowed = createMemo(() => rules().filter((r) => r.action === "allow"))
-  const denied = createMemo(() => rules().filter((r) => r.action === "deny"))
+  const allRows = createMemo(() => {
+    const dirRows: NavRow[] = rules().map((r) => ({
+      kind: "directory" as const,
+      displayPath: r.displayPath,
+      action: r.action as "allow" | "deny",
+      source: r.source,
+      exists: r.exists,
+    }))
+    return [...POLICY_ROWS, ...dirRows, ...FOOTER_ROWS]
+  })
+
+  /** Index of the directory entry currently being "edited" via browse (Enter on dir row). */
+  const [editingDirPath, setEditingDirPath] = createSignal<string | null>(null)
 
   const modeLabel = (m: PolicyAction) => {
     switch (m) {
@@ -376,12 +386,14 @@ export function DialogPermissions() {
   const draftValue = (row: NavRow): string => {
     if (row.kind === "tool") return modeLabel(draftTools[row.key] ?? "ask")
     if (row.kind === "external") return extModeLabel(draftExternal())
+    if (row.kind === "directory") return row.action === "allow" ? "Allow" : "Deny"
     return row.label
   }
 
   const draftColor = (row: NavRow) => {
     if (row.kind === "tool") return modeColor(draftTools[row.key] ?? "ask")
     if (row.kind === "external") return modeColor(draftExternal())
+    if (row.kind === "directory") return modeColor(row.action)
     return theme.text
   }
 
@@ -394,7 +406,15 @@ export function DialogPermissions() {
       setDraftTools(row.key, cycleIn(POLICY_ACTIONS, cur, dir))
       return
     }
-    setDraftExternal(cycleIn(EXT_MODES, draftExternal(), dir))
+    if (row.kind === "external") {
+      setDraftExternal(cycleIn(EXT_MODES, draftExternal(), dir))
+      return
+    }
+    // directory row: left/right toggles allow ↔ deny
+    if (row.kind === "directory") {
+      if (!busy()) void toggleDirectory(row.displayPath, row.action)
+      return
+    }
   }
 
   /**
@@ -516,6 +536,15 @@ export function DialogPermissions() {
       else dialog.clear()
       return
     }
+    if (row.kind === "directory") {
+      // Enter on a directory row: open browser starting from that path (or project root)
+      const startPath = row.displayPath || sdk.directory || ""
+      setAddPath(startPath)
+      setEditingDirPath(row.displayPath)
+      setPathFocused(true)
+      pathInput?.focus?.()
+      return
+    }
     // Enter on a policy cycles forward (draft only)
     cycleDraft(1, idx)
   }
@@ -540,6 +569,14 @@ export function DialogPermissions() {
     let allow = normalizeNavList(prev.allow).filter((d) => !samePath(d, resolved))
     let deny = normalizeNavList(prev.deny).filter((d) => !samePath(d, resolved))
 
+    // If editing an existing directory (Enter on dir row), remove the old path too
+    const editing = editingDirPath()
+    if (editing) {
+      const oldResolved = path.resolve(EffectiveNavigation.expandPath(editing.replace(/[\\/]+$/, "")))
+      allow = allow.filter((d) => !samePath(d, oldResolved))
+      deny = deny.filter((d) => !samePath(d, oldResolved))
+    }
+
     if (action === "allow") allow.push(resolved)
     else deny.push(resolved)
 
@@ -549,6 +586,7 @@ export function DialogPermissions() {
     )
     if (ok) {
       setAddPath("")
+      setEditingDirPath(null)
     }
   }
 
@@ -587,6 +625,28 @@ export function DialogPermissions() {
     }
   }
 
+  /** Toggle a directory between allow and deny (left/right on a dir row). */
+  const toggleDirectory = async (displayPath: string, currentAction: "allow" | "deny") => {
+    const resolved = path.resolve(EffectiveNavigation.expandPath(displayPath.replace(/[\\/]+$/, "")))
+    const prev = (sync.data.config as any).navigation ?? {}
+    let allow = normalizeNavList(prev.allow)
+    let deny = normalizeNavList(prev.deny)
+
+    if (currentAction === "allow") {
+      allow = allow.filter((d) => !samePath(d, resolved))
+      deny.push(resolved)
+    } else {
+      deny = deny.filter((d) => !samePath(d, resolved))
+      allow.push(resolved)
+    }
+
+    const newAction = currentAction === "allow" ? "deny" : "allow"
+    await applyConfigPatch(
+      { navigation: navigationObject(allow, deny) },
+      `${newAction === "allow" ? "Allowed" : "Denied"}: ${resolved}`,
+    )
+  }
+
   useKeyboard((evt) => {
     if (evt.defaultPrevented) return
     // While typing a path, only intercept Esc (dialog shell) and leave arrows to the input.
@@ -594,6 +654,7 @@ export function DialogPermissions() {
       if (evt.name === "up" || evt.name === "down" || evt.name === "escape") {
         pathInput?.blur?.()
         setPathFocused(false)
+        setEditingDirPath(null)
         // fall through — up/down navigate list, escape lets dialog shell close
       } else {
         return
@@ -630,6 +691,16 @@ export function DialogPermissions() {
       activateRow(cursor())
       return
     }
+    // Backspace / Delete: remove a directory row
+    if ((evt.name === "backspace" || evt.name === "delete") && !evt.ctrl && !evt.meta) {
+      const row = allRows()[cursor()]
+      if (row?.kind === "directory" && !busy()) {
+        evt.preventDefault()
+        evt.stopPropagation()
+        void removeDirectory(row.displayPath, row.action)
+        return
+      }
+    }
     if (evt.name === "s" && !evt.ctrl && !evt.meta) {
       evt.preventDefault()
       evt.stopPropagation()
@@ -658,7 +729,7 @@ export function DialogPermissions() {
       </box>
 
       <text fg={theme.textMuted}>
-        ↑↓ move · ←→ change · Enter cycle · s save · r reload · Esc close.
+        ↑↓ move · ←→ change · Enter on dir browse · Del remove dir · s save · r reload · Esc close.
         Changes are written to config.json and persist across restarts.
       </text>
 
@@ -670,10 +741,10 @@ export function DialogPermissions() {
             const selected = () => isSelected(idx())
             const prevSection = () => {
               const prev = POLICY_ROWS[idx() - 1]
-              if (!prev || prev.kind === "action") return undefined
+              if (!prev || prev.kind === "action" || prev.kind === "directory") return undefined
               return prev.section
             }
-            const section = () => (row.kind === "action" ? undefined : row.section)
+            const section = () => (row.kind === "action" || row.kind === "directory" ? undefined : row.section)
             const showSection = () => {
               const s = section()
               return s && s !== prevSection()
@@ -726,10 +797,10 @@ export function DialogPermissions() {
                           : theme.text
                     }
                   >
-                    {row.label}
+                    {row.kind === "directory" ? row.displayPath : row.label}
                   </text>
                   <text fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.textMuted}>
-                    {row.kind === "action" ? "" : row.hint}
+                    {row.kind === "action" || row.kind === "directory" ? "" : row.hint}
                   </text>
                 </box>
               </box>
@@ -743,7 +814,7 @@ export function DialogPermissions() {
 
       {/* Add Directory */}
       <box gap={0}>
-        <text fg={theme.textMuted}>Add Directory</text>
+        <text fg={theme.textMuted}>{editingDirPath() ? "Edit Directory" : "Add Directory"}</text>
         <box flexDirection="row" gap={1} alignItems="center">
           <text
             fg={addMode() === "allow" ? theme.success : theme.error}
@@ -785,7 +856,7 @@ export function DialogPermissions() {
               if (!busy()) void addDirectory()
             }}
           >
-            + Add
+            {editingDirPath() ? "↻ Update" : "+ Add"}
           </text>
         </box>
 
@@ -796,61 +867,91 @@ export function DialogPermissions() {
         />
       </box>
 
-      {/* Allowed Directories */}
-      <Show when={allowed().length > 0} fallback={<text fg={theme.textMuted}>No allowed directories</text>}>
-        <text fg={theme.success}>Allowed</text>
-        <For each={allowed()}>
-          {(rule) => (
-            <box flexDirection="row" gap={1}>
-              <text fg={rule.exists ? theme.success : theme.error} wrapMode="word">
-                {rule.exists ? "✓" : "✗"} {rule.displayPath}
-              </text>
-              <text fg={theme.textMuted}>({sourceLabel(rule.source)})</text>
-              {(rule.source === "config-allow" || rule.source === "config-permission") && (
+      {/* Allowed / Denied Directories (keyboard-navigable) */}
+      <Show
+        when={rules().length > 0}
+        fallback={<text fg={theme.textMuted}>No directory rules</text>}
+      >
+        <text fg={theme.text} attributes={TextAttributes.BOLD}>
+          Directories
+        </text>
+        <For each={rules()}>
+          {(rule, i) => {
+            const idx = () => POLICY_ROWS.length + i()
+            const selected = () => isSelected(idx())
+            const removable = () =>
+              (rule.action === "allow" && (rule.source === "config-allow" || rule.source === "config-permission")) ||
+              (rule.action === "deny" && (rule.source === "config-deny" || rule.source === "config-permission"))
+            return (
+              <box
+                flexDirection="row"
+                gap={1}
+                alignItems="center"
+                backgroundColor={selected() ? theme.primary : undefined}
+                onMouseUp={() => {
+                  setPathFocused(false)
+                  pathInput?.blur?.()
+                  setCursor(idx())
+                }}
+                onMouseDown={() => {
+                  setPathFocused(false)
+                  setCursor(idx())
+                }}
+              >
                 <text
-                  fg={theme.error}
-                  onMouseUp={() => {
-                    if (!busy()) void removeDirectory(rule.displayPath, "allow")
+                  fg={
+                    busy() ? theme.textMuted :
+                    selected() ? selectedFg :
+                    rule.action === "allow" ? theme.success : theme.error
+                  }
+                  attributes={TextAttributes.BOLD}
+                  onMouseUp={(e) => {
+                    e.stopPropagation()
+                    setPathFocused(false)
+                    setCursor(idx())
+                    cycleDraft(1, idx())
                   }}
                 >
-                  ✕
+                  [{rule.action === "allow" ? "Allow" : "Deny"}]
                 </text>
-              )}
-            </box>
-          )}
-        </For>
-      </Show>
-
-      {/* Denied Directories */}
-      <Show when={denied().length > 0} fallback={<text fg={theme.textMuted}>No denied directories</text>}>
-        <text fg={theme.error}>Denied</text>
-        <For each={denied()}>
-          {(rule) => (
-            <box flexDirection="row" gap={1}>
-              <text fg={rule.exists ? theme.error : theme.textMuted} wrapMode="word">
-                ✕ {rule.displayPath}
-              </text>
-              <text fg={theme.textMuted}>({sourceLabel(rule.source)})</text>
-              {(rule.source === "config-deny" || rule.source === "config-permission") && (
                 <text
-                  fg={theme.error}
-                  onMouseUp={() => {
-                    if (!busy()) void removeDirectory(rule.displayPath, "deny")
-                  }}
+                  fg={
+                    busy() ? theme.textMuted :
+                    selected() ? selectedFg :
+                    rule.exists ? (rule.action === "allow" ? theme.success : theme.error) : theme.textMuted
+                  }
+                  wrapMode="word"
                 >
-                  ✕
+                  {rule.exists ? (rule.action === "allow" ? "✓" : "✕") : "✗"} {rule.displayPath}
                 </text>
-              )}
-            </box>
-          )}
+                <text fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.textMuted}>
+                  ({sourceLabel(rule.source)})
+                </text>
+                <Show when={removable()}>
+                  <text
+                    fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.error}
+                    onMouseUp={(e) => {
+                      e.stopPropagation()
+                      if (!busy()) void removeDirectory(rule.displayPath, rule.action as "allow" | "deny")
+                    }}
+                  >
+                    ✕
+                  </text>
+                </Show>
+              </box>
+            )
+          }}
         </For>
+        <text fg={theme.textMuted}>
+          ←→ toggle allow/deny · Enter browse · Del remove · +/- add/remove
+        </text>
       </Show>
 
       {/* Footer actions: Save / Reload / Close */}
       <box flexDirection="row" gap={2} justifyContent="flex-end" paddingTop={1}>
         <For each={FOOTER_ROWS}>
           {(row, i) => {
-            const idx = () => POLICY_ROWS.length + i()
+            const idx = () => POLICY_ROWS.length + rules().length + i()
             const selected = () => isSelected(idx())
             const isSave = row.kind === "action" && row.id === "save"
             const accent = () => {

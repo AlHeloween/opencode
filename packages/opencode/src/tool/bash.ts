@@ -635,8 +635,6 @@ export const BashTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
-      let aborted = false
-
       const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(input.command)
 
       yield* ctx.metadata({
@@ -716,38 +714,19 @@ export const BashTool = Tool.define(
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
           const abort = Effect.callback<void>((resume) => {
-            // Only react to abort events that fire DURING execution.
-            // A pre-aborted signal (stale from a previous tool call or
-            // LLM completion) must NOT cancel the current command — let
-            // the process exit (or timeout) win the race naturally.
             if (ctx.abort.aborted) return Effect.void
             const handler = () => resume(Effect.void)
             ctx.abort.addEventListener("abort", handler, { once: true })
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
-          // Race: process exit vs user abort only — NO hard timeout.
-          // Long builds (cargo, npm install, etc.) must not be killed
-          // by a fixed deadline. The agent sees stall detection hints
-          // (15s no output → job_output.status = "stalled") and decides
-          // whether to job_kill. The outer Effect.timeoutOrElse below
-          // provides a safety net against truly hung processes.
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
           ])
 
-          // Kill the process tree on abort BEFORE draining pipes.
-          // Killing first stops the process from writing, which causes the OS
-          // to close the pipe handles → drain completes quickly. On normal exit
-          // the pipes are already closed, so drain is instant.
-          //
-          // The drain timeout (shell-output.ts, 10s per pipe) protects against
-          // the Windows edge case where taskkill /T /F closes OS handles before
-          // Node.js streams emit 'end' — if the pipes don't close within 10s,
-          // the drain times out and we move on instead of hanging forever.
           if (exit.kind === "abort") {
-            aborted = true
+            meta.push("Command interrupted (abort signal received)")
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash abort kill failed"))))
           }
 
@@ -767,7 +746,6 @@ export const BashTool = Tool.define(
       )
 
       const meta: string[] = []
-      if (aborted) meta.push("User aborted the command")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true

@@ -669,13 +669,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
           const sh = Shell.preferred(cfg.shell)
           const args = Shell.args(sh, input.command, cwd)
           let output = ""
-          let aborted = false
 
           const finish = Effect.uninterruptible(
             Effect.gen(function* () {
-              if (aborted) {
-                output += "\n\n" + ["<metadata>", "User aborted the command", "</metadata>"].join("\n")
-              }
               if (!msg.time.completed) {
                 msg.time.completed = Date.now()
                 yield* sessions.updateMessage(msg)
@@ -722,17 +718,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
             }).pipe(Effect.scoped, Effect.orDie),
           ).pipe(Effect.exit)
 
-          // Only treat pure fiber interrupt (Fiber.interrupt) as user abort.
-          // Cause.hasInterrupts would also match scope-cleanup interrupts from
-          // Effect.scoped finalizers which are NOT user-initiated cancellations.
-          // Cause.hasInterruptsOnly requires ALL causes to be interrupts — no
-          // errors or defects mixed in.
-          if (Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)) {
-            aborted = true
-          }
-          yield* finish
-
-          if (Exit.isFailure(exit) && !aborted && !Cause.hasInterruptsOnly(exit.cause)) {
+          // Exit with pure interrupts (Fiber.interrupt) → treat as success.
+          // Other failures (errors, defects) → propagate.
+          if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
             return yield* Effect.failCause(exit.cause)
           }
 

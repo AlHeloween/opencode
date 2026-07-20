@@ -416,7 +416,7 @@ export const CmdTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
-      let aborted = false
+      let interrupted = false
 
       yield* ctx.metadata({ metadata: { output: "", description: input.description } })
 
@@ -483,7 +483,7 @@ export const CmdTool = Tool.define(
 
           // Kill the process tree on abort BEFORE draining pipes.
           if (exit.kind === "abort") {
-            aborted = true
+            interrupted = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
           }
           yield* awaitDrain
@@ -503,7 +503,7 @@ export const CmdTool = Tool.define(
       )
 
       const meta: string[] = []
-      if (aborted) meta.push("User aborted the command")
+      if (interrupted) meta.push("Command interrupted (abort signal received)")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true

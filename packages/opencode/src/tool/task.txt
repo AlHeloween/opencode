@@ -4,7 +4,7 @@ Launch a new sub-agent to handle complex, multistep tasks autonomously. The sub-
 
 | Type | Tools Available | Best For |
 |------|----------------|----------|
-| `explore` | read, glob, grep, ls, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research |
+| `explore` | codegraph, read, glob, grep, ls, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research |
 | `general` | All tools | Planning, design alternatives, root-cause analysis, multi-step implementation strategy |
 
 ## Child Session Isolation
@@ -29,6 +29,6 @@ Launch multiple sub-agents concurrently by sending multiple Task tool calls in a
 
 ## When to Use
 
-- **explore**: Searching the codebase, finding files, checking logs, gathering evidence before acting
+- **explore**: Code structure analysis (codegraph), searching the codebase, finding files, checking logs, gathering evidence before acting. Prefer codegraph over grep for structural questions (where is X defined, what calls Y, impact analysis).
 - **general**: Multi-step planning, design discussions, complex analysis, strategy before implementation
 - Do NOT use for single trivial operations (read a file, grep a pattern) — those are single tool calls

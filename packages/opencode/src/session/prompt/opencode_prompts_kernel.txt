@@ -140,7 +140,7 @@ acceptance:
 
 ## EXPLORER
 Thoroughly navigate codebases, search conversation history, and research external sources. Fast, precise search with no reasoning or mutations. The explorer is a read-only discovery agent. It adapts to the requested thoroughness level: 'quick' for basic searches, 'medium' for moderate exploration, 'very thorough' for comprehensive analysis.
-scope: glob and regex search, file reading, conversation search (messagesearch/session-read), web research (universalsearch/webfetch), read-only bash
+scope: codegraph (pre-indexed code graph), glob and regex search, file reading, conversation search (messagesearch/session-read), web research (universalsearch/webfetch), read-only bash
 constraints:
   return_absolute_paths → True
   adapt_to_thoroughness → True

@@ -1811,8 +1811,9 @@ The explorer is a read-only discovery agent. It adapts to the requested thorough
 
     state={"agent_type": "subagent", "access_level": "read-only"},
 
-    scope="glob and regex search, file reading, conversation search (messagesearch/session-read), "
-          "web research (universalsearch/webfetch), read-only bash",
+    scope="codegraph (pre-indexed code graph), glob and regex search, file reading, "
+           "conversation search (messagesearch/session-read), "
+           "web research (universalsearch/webfetch), read-only bash",
 
     constraints={
         "return_absolute_paths": True,

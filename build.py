@@ -357,7 +357,7 @@ def plan(steps: list[Step], manifest: dict, *, full: bool) -> list[tuple[Step, s
     for step in steps:
         fp = step.compute_fp()
         prev = (stored.get(step.name) or {}).get("fp")
-        need = full or prev != fp or (step.outputs and not outputs_exist(step.outputs))
+        need = full or prev != fp or bool(step.outputs and not outputs_exist(step.outputs))
         out.append((step, fp, need))
     return out
 

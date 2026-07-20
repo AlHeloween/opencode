@@ -14,3 +14,14 @@ include = ["opencode_prompts_kernel*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pyrefly]
+preset = "basic"
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
+ignore-missing-imports = [
+    "xxhash",
+    "pytest",
+]

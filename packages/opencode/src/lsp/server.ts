@@ -419,12 +419,12 @@ export const Rubocop: Info = {
   },
 }
 
-export const Ty: Info = {
-  id: "ty",
+export const Pyrefly: Info = {
+  id: "pyrefly",
   extensions: [".py", ".pyi"],
   root: NearestRoot([
     "pyproject.toml",
-    "ty.toml",
+    "pyrefly.toml",
     "setup.py",
     "setup.cfg",
     "requirements.txt",
@@ -432,11 +432,7 @@ export const Ty: Info = {
     "pyrightconfig.json",
   ]),
   async spawn(root) {
-    if (!Flag.OPENCODE_EXPERIMENTAL_LSP_TY) {
-      return undefined
-    }
-
-    let binary = which("ty")
+    let binary = which("pyrefly")
 
     const initialization: Record<string, string> = {}
 
@@ -457,67 +453,95 @@ export const Ty: Info = {
     if (!binary) {
       for (const venvPath of potentialVenvPaths) {
         const isWindows = process.platform === "win32"
-        const potentialTyPath = isWindows ? path.join(venvPath, "Scripts", "ty.exe") : path.join(venvPath, "bin", "ty")
-        if (await Filesystem.exists(potentialTyPath)) {
-          binary = potentialTyPath
+        const potentialPyreflyPath = isWindows
+          ? path.join(venvPath, "Scripts", "pyrefly.exe")
+          : path.join(venvPath, "bin", "pyrefly")
+        if (await Filesystem.exists(potentialPyreflyPath)) {
+          binary = potentialPyreflyPath
           break
         }
       }
     }
 
     if (!binary) {
-      log.error("ty not found, please install ty first")
-      return
-    }
-
-    const proc = spawn(binary, ["server"], {
-      cwd: root,
-    })
-
-    return {
-      process: proc,
-      initialization,
-    }
-  },
-}
-
-export const Pyright: Info = {
-  id: "pyright",
-  extensions: [".py", ".pyi"],
-  root: NearestRoot(["pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile", "pyrightconfig.json"]),
-  async spawn(root) {
-    let binary = which("pyright-langserver")
-    const args = []
-    if (!binary) {
       if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
-      const resolved = await Npm.which("pyright", "pyright-langserver")
-      if (!resolved) return
-      binary = resolved
-    }
-    args.push("--stdio")
+      log.info("pyrefly not found — downloading from GitHub releases")
 
-    const initialization: Record<string, string> = {}
-
-    const potentialVenvPaths = [process.env["VIRTUAL_ENV"], path.join(root, ".venv"), path.join(root, "venv")].filter(
-      (p): p is string => p !== undefined,
-    )
-    for (const venvPath of potentialVenvPaths) {
-      const isWindows = process.platform === "win32"
-      const potentialPythonPath = isWindows
-        ? path.join(venvPath, "Scripts", "python.exe")
-        : path.join(venvPath, "bin", "python")
-      if (await Filesystem.exists(potentialPythonPath)) {
-        initialization["pythonPath"] = potentialPythonPath
-        break
+      const releaseResponse = await fetch("https://api.github.com/repos/facebook/pyrefly/releases/latest")
+      if (!releaseResponse.ok) {
+        log.error("Failed to fetch pyrefly release info")
+        return
       }
+
+      const release = (await releaseResponse.json()) as {
+        assets?: { name?: string; browser_download_url?: string }[]
+      }
+
+      const platform = process.platform
+      const arch = process.arch
+
+      let pyreflyArch: string = arch
+      if (arch === "arm64") pyreflyArch = "arm64"
+      else if (arch === "x64") pyreflyArch = "x86_64"
+      else if (arch === "ia32") pyreflyArch = "i686"
+
+      let pyreflyPlatform: string = platform
+      if (platform === "darwin") pyreflyPlatform = "macos"
+      else if (platform === "win32") pyreflyPlatform = "windows"
+      else if (platform === "linux") pyreflyPlatform = "linux"
+
+      const ext = platform === "win32" ? "zip" : "tar.gz"
+      const assetName = `pyrefly-${pyreflyPlatform}-${pyreflyArch}.${ext}`
+
+      const asset = release.assets?.find((a) => a.name === assetName)
+      if (!asset?.browser_download_url) {
+        log.error(`Could not find pyrefly asset ${assetName} in latest release`)
+        return
+      }
+
+      const downloadResponse = await fetch(asset.browser_download_url)
+      if (!downloadResponse.ok) {
+        log.error("Failed to download pyrefly")
+        return
+      }
+
+      const tempPath = path.join(Global.Path.bin, assetName)
+      if (downloadResponse.body) await Filesystem.writeStream(tempPath, downloadResponse.body)
+
+      if (ext === "zip") {
+        const ok = await Archive.extractZip(tempPath, Global.Path.bin)
+          .then(() => true)
+          .catch((error) => {
+            log.error("Failed to extract pyrefly archive", { error })
+            return false
+          })
+        if (!ok) return
+      } else {
+        await run(["tar", "-xzf", tempPath], { cwd: Global.Path.bin })
+      }
+
+      await fs.rm(tempPath, { force: true })
+
+      binary = path.join(Global.Path.bin, "pyrefly" + (platform === "win32" ? ".exe" : ""))
+
+      if (!(await Filesystem.exists(binary))) {
+        log.error("Failed to extract pyrefly binary")
+        return
+      }
+
+      if (platform !== "win32") {
+        await fs.chmod(binary, 0o755).catch((e) => {
+          log.warn("bug: chmod pyrefly binary failed", { binary, error: String(e) })
+        })
+      }
+
+      log.info(`installed pyrefly`, { binary })
     }
 
-    const proc = spawn(binary, args, {
+    const proc = spawn(binary, ["lsp"], {
       cwd: root,
-      env: {
-        ...process.env,
-      },
     })
+
     return {
       process: proc,
       initialization,

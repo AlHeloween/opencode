@@ -7,7 +7,6 @@ import { pathToFileURL, fileURLToPath } from "url"
 import * as LSPServer from "./server"
 import z from "zod"
 import { Config } from "@/config/config"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import { Process } from "@/util/process"
 import { spawn as lspspawn } from "./launch"
 import { Effect, Layer, Context, Schema } from "effect"
@@ -110,17 +109,8 @@ const kinds = [
   SymbolKind.Enum,
 ]
 
-const filterExperimentalServers = (servers: Record<string, LSPServer.Info>) => {
-  if (Flag.OPENCODE_EXPERIMENTAL_LSP_TY) {
-    if (servers["pyright"]) {
-      log.info("LSP server pyright is disabled because OPENCODE_EXPERIMENTAL_LSP_TY is enabled")
-      delete servers["pyright"]
-    }
-  } else {
-    if (servers["ty"]) {
-      delete servers["ty"]
-    }
-  }
+const filterExperimentalServers = (_servers: Record<string, LSPServer.Info>) => {
+  // Python LSP: Pyrefly is the default. Ty/Pyright removed.
 }
 
 type LocInput = { file: string; line: number; character: number }

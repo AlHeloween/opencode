@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect"
 import path from "path"
-import { execFileSync } from "child_process"
+import { execFileSync, execSync } from "child_process"
 import { InstanceState } from "@/effect/instance-state"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Tool from "./tool"
@@ -42,14 +42,27 @@ function findCodegraph(): string | null {
 function runCodegraph(args: string[], cwd: string, timeoutMs = 30000): string {
   const cgBin = findCodegraph()
   if (!cgBin) throw new Error("codegraph CLI not found")
+
+  // .CMD files cannot be run directly by Bun's execFileSync — must go through shell
+  const useShell = process.platform === "win32" && cgBin.toLowerCase().endsWith(".cmd")
+  if (useShell) {
+    const cmd = `"${cgBin}" ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`
+    return execSync(cmd, {
+      cwd,
+      encoding: "utf-8",
+      timeout: timeoutMs,
+      maxBuffer: 10 * 1024 * 1024,
+      windowsHide: true,
+    }) as string
+  }
+
   return execFileSync(cgBin, args, {
     cwd,
     encoding: "utf-8",
     timeout: timeoutMs,
     maxBuffer: 10 * 1024 * 1024,
     stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-  })
+  }) as string
 }
 
 /** Resolve --path flag value if the user supplied a scoping directory. */

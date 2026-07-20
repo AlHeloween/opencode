@@ -458,16 +458,6 @@ function Invoke-Build {
         throw "opentui.dll not found at $opentuiDllSrc — run without -SkipOpenTui or build packages/opentui/packages/core first"
     }
 
-    # CodeGraph JS CLI sidecar — copied alongside opencode so findCodegraph()
-    # in bootstrap.ts + codegraph.ts can resolve it as a sibling binary when
-    # codegraph isn't on PATH. The tool delegates all queries to the CLI;
-    # there is no embedded SQLite access.
-    $CgJsCli = [IO.Path]::Combine($OpencodePkg, "node_modules", "@colbymchenry", "codegraph", "dist", "bin", "codegraph.js")
-    if (Test-Path $CgJsCli) {
-        Copy-Item $CgJsCli ([IO.Path]::Combine($DistDir, "bin", "codegraph.js"))
-        Write-Success "CodeGraph CLI sidecar copied"
-    }
-
     # Copy WASM modules to dist as fallback sidecars; runtime prefers embedded assets.
     $WasmPkgDir = Join-Path $Root "packages\wasm\core\pkg"
     $WasmDistDir = Join-Path $DistDir "wasm\core\pkg"

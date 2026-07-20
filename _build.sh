@@ -377,14 +377,6 @@ task_build() {
     exit 1
   fi
 
-  # CodeGraph JS CLI sidecar
-  local cg_js="$OPENCODE_PKG/node_modules/@colbymchenry/codegraph/dist/bin/codegraph.js"
-  if [ -f "$cg_js" ]; then
-    mkdir -p "$DIST_DIR/bin"
-    cp "$cg_js" "$DIST_DIR/bin/codegraph.js"
-    ok "CodeGraph CLI sidecar copied"
-  fi
-
   # WASM modules
   local wasm_src="$ROOT/packages/wasm/core/pkg"
   local wasm_dst="$DIST_DIR/wasm/core/pkg"

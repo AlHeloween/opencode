@@ -25,7 +25,6 @@
       "packages/console/*",
       "packages/sdk/js",
       "packages/slack",
-      "external/codegraph",
       "packages/opentui/packages/*",
       "packages/opentui/packages/core-win32-x64"
     ],

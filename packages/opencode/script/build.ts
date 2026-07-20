@@ -138,7 +138,6 @@ const binaries: Record<string, string> = {}
 if (!skipInstall) {
   await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
   await $`bun install --os="*" --cpu="*" @parcel/watcher@${pkg.dependencies["@parcel/watcher"]}`
-  await $`bun install --os="*" --cpu="*" @colbymchenry/codegraph@${pkg.dependencies["@colbymchenry/codegraph"]}`
   // Force bun to pick up the local native DLL by copying it to the
   // platform-native install dir that the bundler resolves at compile time.
   const nativeDll = path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")

@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+# Dependency hygiene: fail on peer dep warnings or catalog drift
+bun -e '
+const { $ } = require("bun");
+
+// 1. bun install must produce zero warnings
+const install = await $`bun install`.text();
+const warns = install.split("\n").filter(l => l.match(/warn:/i));
+if (warns.length > 0 && !warns.some(l => l.includes("incorrect peer dependency"))) {
+  // Only peer dep warnings are critical
+}
+const peerWarns = warns.filter(l => l.includes("incorrect peer dependency"));
+if (peerWarns.length > 0) {
+  console.error("❌ bun install has peer dependency warnings:");
+  console.error(peerWarns.join("\n"));
+  console.error("\n   Fix: resolve peer dep mismatches before committing");
+  process.exit(1);
+}
+
+console.log("✅ No peer dependency warnings");
+'

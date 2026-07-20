@@ -645,6 +645,11 @@ export const BashTool = Tool.define(
         },
       })
 
+      // Declare meta BEFORE Effect.scoped — it is captured by the closure
+      // and written to from the abort handler inside the scoped block.
+      const meta: string[] = []
+      let timedOut = false
+
       const code: number | null = yield* Effect.scoped(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
@@ -742,12 +747,14 @@ export const BashTool = Tool.define(
         // use job_kill for stalled commands, not rely on this timeout.
         Effect.timeoutOrElse({
           duration: `${input.timeout + 5000} millis`,
-          orElse: () => Effect.succeed(null),
+          orElse: () => Effect.sync(() => { timedOut = true; return null }),
         }),
         Effect.orDie,
       )
 
-      const meta: string[] = []
+      if (timedOut) {
+        meta.push("Command terminated after exceeding timeout")
+      }
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true

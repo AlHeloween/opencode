@@ -418,6 +418,7 @@ export const CmdTool = Tool.define(
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
       let interrupted = false
+      let timedOut = false
 
       yield* ctx.metadata({ metadata: { output: "", description: input.description } })
 
@@ -499,13 +500,14 @@ export const CmdTool = Tool.define(
         // (null exit code) instead of crashing with a TimeoutError defect.
         Effect.timeoutOrElse({
           duration: `${input.timeout + 5000} millis`,
-          orElse: () => Effect.succeed(null),
+          orElse: () => Effect.sync(() => { timedOut = true; return null }),
         }),
         Effect.orDie,
       )
 
       const meta: string[] = []
       if (interrupted) meta.push("Command interrupted (abort signal received)")
+      if (timedOut) meta.push("Command terminated after exceeding timeout")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true

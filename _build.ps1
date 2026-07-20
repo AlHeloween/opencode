@@ -458,16 +458,14 @@ function Invoke-Build {
         throw "opentui.dll not found at $opentuiDllSrc — run without -SkipOpenTui or build packages/opentui/packages/core first"
     }
 
-    # Standalone CodeGraph binary (built with bun --compile from external/codegraph)
-    $CgBunEntry = [IO.Path]::Combine($Root, "external", "codegraph", "codegraph.exe")
-    $CgBuiltFromDist = [IO.Path]::Combine($OpencodePkg, "node_modules", "@colbymchenry", "codegraph", "dist", "bin", "codegraph.js")
-    if (Test-Path $CgBunEntry) {
-        Copy-Item $CgBunEntry ([IO.Path]::Combine($DistDir, "bin", "codegraph.exe"))
-        Write-Success "CodeGraph standalone binary copied"
-    } elseif (Test-Path $CgBuiltFromDist) {
-        # Fallback: copy the JS CLI and its node_modules dependencies
-        Write-Warning "Standalone codegraph.exe not built - copying JS CLI"
-        Copy-Item $CgBuiltFromDist ([IO.Path]::Combine($DistDir, "bin", "codegraph.js"))
+    # CodeGraph JS CLI sidecar — copied alongside opencode so findCodegraph()
+    # in bootstrap.ts + codegraph.ts can resolve it as a sibling binary when
+    # codegraph isn't on PATH. The tool delegates all queries to the CLI;
+    # there is no embedded SQLite access.
+    $CgJsCli = [IO.Path]::Combine($OpencodePkg, "node_modules", "@colbymchenry", "codegraph", "dist", "bin", "codegraph.js")
+    if (Test-Path $CgJsCli) {
+        Copy-Item $CgJsCli ([IO.Path]::Combine($DistDir, "bin", "codegraph.js"))
+        Write-Success "CodeGraph CLI sidecar copied"
     }
 
     # Copy WASM modules to dist as fallback sidecars; runtime prefers embedded assets.

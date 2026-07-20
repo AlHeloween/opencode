@@ -24,6 +24,9 @@ import {
 import * as NodeChildProcess from "node:child_process"
 import { PassThrough } from "node:stream"
 import launch from "cross-spawn"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "cross-spawn-spawner" })
 
 const toError = (err: unknown): Error => (err instanceof globalThis.Error ? err : new globalThis.Error(String(err)))
 
@@ -299,8 +302,8 @@ export const make = Effect.gen(function* () {
         // job objects, detached processes) is terminated.
         try {
           proc.kill("SIGTERM")
-        } catch {
-          // Process may already be dead — that's fine, taskkill will clean up the tree
+        } catch (e) {
+          log.debug("proc.kill SIGTERM failed", { error: String(e) })
         }
         NodeChildProcess.exec(`taskkill /pid ${proc.pid} /T /F`, { windowsHide: true }, (_err) => {
           // Don't fail on taskkill errors — process may have already exited,

@@ -15,7 +15,7 @@ export const JobOutputTool = Tool.define(
       parameters: JobOutputParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          const result = yield* jobs.output({ sessionID: ctx.sessionID, jobID: params.job_id as any })
+          const result = yield* jobs.output({ sessionID: ctx.sessionID, jobID: Jobs.JobID.make(params.job_id) })
           if (result.text === "" && result.status !== "running") {
             return {
               title: `Job ${params.job_id} (${result.status})`,
@@ -73,7 +73,7 @@ export const JobWaitTool = Tool.define(
           const list = yield* jobs.list({ sessionID: ctx.sessionID })
           const targetIds = ids.length > 0 ? ids : list.map((j) => j.id)
           for (const jobId of targetIds) {
-            const out = yield* jobs.output({ sessionID: ctx.sessionID, jobID: jobId as any })
+            const out = yield* jobs.output({ sessionID: ctx.sessionID, jobID: Jobs.JobID.make(jobId) })
             const info = list.find((j) => j.id === jobId)
             results.push(`${jobId} (${info?.status ?? "unknown"}): ${out.text.slice(0, 500) || "(no output)"}`)
           }

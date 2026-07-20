@@ -405,6 +405,7 @@ export const CmdTool = Tool.define(
         description: string
       },
       ctx: Tool.Context,
+      onOutput?: (chunk: string) => void,
     ) {
       const limits = yield* trunc.limits()
       const keep = limits.maxBytes * 2
@@ -438,6 +439,7 @@ export const CmdTool = Tool.define(
               cut = true
             }
             last = preview(last + chunk)
+            onOutput?.(chunk)
             if (file) {
               sink?.write(chunk)
               return ctx.metadata({ metadata: { output: last, description: input.description } })
@@ -536,6 +538,7 @@ export const CmdTool = Tool.define(
           exit: code,
           description: input.description,
           truncated: cut,
+          jobID: undefined as string | undefined,
           ...(cut && file ? { outputPath: file } : {}),
         },
         output,
@@ -589,12 +592,13 @@ export const CmdTool = Tool.define(
             }
             const jobID = yield* jobSvc.value.startEffect({
               sessionID: ctx.sessionID,
-              kind: "bash" as any,
+              kind: "cmd",
               label: params.description || params.command.slice(0, 80),
-              run: Effect.gen(function* () {
+              run: (writeOutput) => Effect.gen(function* () {
                 const result = yield* run(
                   { shell, command: params.command, cwd, env, timeout, description: params.description },
                   ctx,
+                  writeOutput,
                 )
                 return result.output
               }),
@@ -609,7 +613,7 @@ export const CmdTool = Tool.define(
                 description: params.description || params.command.slice(0, 80),
                 truncated: false,
               },
-            } as any
+            }
           }
 
           const result = yield* run(

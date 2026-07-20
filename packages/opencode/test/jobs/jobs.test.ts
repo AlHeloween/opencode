@@ -108,7 +108,7 @@ describe("JobManager", () => {
           sessionID: "test-session" as any,
           kind: "task",
           label: "test-subagent",
-          run: Effect.gen(function* () {
+          run: (_writeOutput) => Effect.gen(function* () {
             yield* Effect.sleep(200)
             return "final result text"
           }),
@@ -141,13 +141,13 @@ describe("JobManager", () => {
           sessionID: "test-session" as any,
           kind: "task",
           label: "job-1",
-          run: Effect.never,
+          run: (_writeOutput) => Effect.never,
         })
         const id2 = yield* svc.startEffect({
           sessionID: "test-session" as any,
           kind: "task",
           label: "job-2",
-          run: Effect.never,
+          run: (_writeOutput) => Effect.never,
         })
         // Third job should be queued (semaphore = 2)
         let id3: string | undefined
@@ -158,7 +158,7 @@ describe("JobManager", () => {
               sessionID: "test-session" as any,
               kind: "task",
               label: "job-3",
-              run: Effect.succeed("done"),
+              run: (_writeOutput) => Effect.succeed("done"),
             })
           }).pipe(Effect.provide(Jobs.layer)),
         ).catch(() => {})

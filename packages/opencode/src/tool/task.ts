@@ -298,46 +298,48 @@ export const TaskTool = Tool.define(
             sessionID: ctx.sessionID,
             kind: "task",
             label: params.description,
-            run: Effect.gen(function* () {
-              const messageID = MessageID.ascending()
-              const parts = yield* ops.resolvePromptParts(params.prompt)
-              const result = yield* ops
-                .prompt({
-                  messageID,
-                  sessionID: nextSession.id,
-                  providerCacheKey: cacheLease?.cacheKey,
-                  model: {
-                    modelID: model.modelID,
-                    providerID: model.providerID,
-                  },
-                  agent: next.name,
-                  variant: taskVariant,
-                  tools: {
-                    ...(canTodo ? {} : { todowrite: false }),
-                    ...(canTask ? {} : { task: false }),
-                    ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
-                  },
-                  parts,
-                })
-                .pipe(
-                  Effect.timeout(300_000),
-                  Effect.catch((error) =>
-                    Effect.gen(function* () {
-                      yield* ops.cancel(nextSession.id)
-                      yield* finalizeOrphanAssistant(sessions, nextSession.id, model.providerID, error)
-                      return {
-                        parts: [
-                          {
-                            type: "text" as const,
-                            text: `Sub-agent '${next.name}' failed: ${error instanceof Error ? error.message : String(error)}`,
-                          },
-                        ],
-                      } satisfies { parts: { type: "text"; text: string }[] }
-                    }),
-                  ),
-                )
-              return result.parts.findLast((item) => item.type === "text")?.text ?? ""
-            }).pipe(Effect.ensuring(cacheLease?.release ?? Effect.void)),
+            run: (_writeOutput) => {
+              return Effect.gen(function* () {
+                const messageID = MessageID.ascending()
+                const parts = yield* ops.resolvePromptParts(params.prompt)
+                const result = yield* ops
+                  .prompt({
+                    messageID,
+                    sessionID: nextSession.id,
+                    providerCacheKey: cacheLease?.cacheKey,
+                    model: {
+                      modelID: model.modelID,
+                      providerID: model.providerID,
+                    },
+                    agent: next.name,
+                    variant: taskVariant,
+                    tools: {
+                      ...(canTodo ? {} : { todowrite: false }),
+                      ...(canTask ? {} : { task: false }),
+                      ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
+                    },
+                    parts,
+                  })
+                  .pipe(
+                    Effect.timeout(300_000),
+                    Effect.catch((error) =>
+                      Effect.gen(function* () {
+                        yield* ops.cancel(nextSession.id)
+                        yield* finalizeOrphanAssistant(sessions, nextSession.id, model.providerID, error)
+                        return {
+                          parts: [
+                            {
+                              type: "text" as const,
+                              text: `Sub-agent '${next.name}' failed: ${error instanceof Error ? error.message : String(error)}`,
+                            },
+                          ],
+                        } satisfies { parts: { type: "text"; text: string }[] }
+                      }),
+                    ),
+                  )
+                return result.parts.findLast((item) => item.type === "text")?.text ?? ""
+              }).pipe(Effect.ensuring(cacheLease?.release ?? Effect.void))
+            },
           }).pipe(Effect.tapError(() => cacheLease?.release ?? Effect.void))
           return {
             title: params.description,

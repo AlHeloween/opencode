@@ -136,6 +136,7 @@ export const RunTool = Tool.define(
         description: string
       },
       ctx: Tool.Context,
+      onOutput?: (chunk: string) => void,
     ) {
       const limits = yield* trunc.limits()
       const keep = limits.maxBytes * 2
@@ -168,6 +169,7 @@ export const RunTool = Tool.define(
               cut = true
             }
             last = preview(last + chunk)
+            onOutput?.(chunk)
             if (file) {
               sink?.write(chunk)
               return ctx.metadata({
@@ -261,6 +263,7 @@ export const RunTool = Tool.define(
           exit: code,
           description: input.description,
           truncated: cut,
+          jobID: undefined as string | undefined,
           ...(cut && file ? { outputPath: file } : {}),
         },
         output,
@@ -302,14 +305,14 @@ export const RunTool = Tool.define(
             },
           })
 
-          if (params.run_in_background) {
+          if (params.run_in_background !== false) {
             const jobs = yield* Effect.serviceOption(Jobs.Service)
             if (jobs._tag === "Some") {
-              const jobID = yield* (jobs.value as any).startEffect({
+              const jobID = yield* jobs.value.startEffect({
                 sessionID: ctx.sessionID,
                 kind: "run",
                 label: params.description || params.binary,
-                run: Effect.gen(function* () {
+                run: (writeOutput) => Effect.gen(function* () {
                   return (yield* run(
                     {
                       binary: params.binary,
@@ -320,6 +323,7 @@ export const RunTool = Tool.define(
                       description: params.description,
                     },
                     ctx,
+                    writeOutput,
                   )).output
                 }),
               })
@@ -327,7 +331,7 @@ export const RunTool = Tool.define(
                 title: `Background run ${jobID}`,
                 output: `Started background job ${jobID}. Use job_output to read.`,
                 metadata: { jobID, output: "", exit: null, description: params.description, truncated: false },
-              } as any
+              }
             }
           }
           return yield* run(
@@ -340,7 +344,7 @@ export const RunTool = Tool.define(
               description: params.description,
             },
             ctx,
-          ) as any
+          )
         }) as any,
     }
   }),

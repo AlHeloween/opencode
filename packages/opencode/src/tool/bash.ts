@@ -624,6 +624,7 @@ export const BashTool = Tool.define(
         description: string
       },
       ctx: Tool.Context,
+      onOutput?: (chunk: string) => void,
     ) {
       const limits = yield* trunc.limits()
       const keep = limits.maxBytes * 2
@@ -669,6 +670,7 @@ export const BashTool = Tool.define(
             }
 
             last = preview(last + chunk)
+            onOutput?.(chunk)
 
             if (file) {
               sink?.write(chunk)
@@ -787,6 +789,7 @@ export const BashTool = Tool.define(
           exit: code,
           description: input.description,
           truncated: cut,
+          jobID: undefined as string | undefined,
           ...(cut && file ? { outputPath: file } : {}),
         },
         output,
@@ -888,7 +891,7 @@ export const BashTool = Tool.define(
                   sessionID: ctx.sessionID,
                   kind: "bash",
                   label: params.description || params.command.slice(0, 80),
-                  run: Effect.gen(function* () {
+                  run: (writeOutput) => Effect.gen(function* () {
                     const result = yield* run(
                       {
                         shell,
@@ -899,6 +902,7 @@ export const BashTool = Tool.define(
                         description: params.description,
                       },
                       ctx,
+                      writeOutput,
                     )
                     return result.output
                   }),
@@ -913,7 +917,7 @@ export const BashTool = Tool.define(
                     description: params.description || params.command.slice(0, 80),
                     truncated: false,
                   },
-                } as any
+                }
               }
 
               const result = yield* run(

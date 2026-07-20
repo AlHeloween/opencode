@@ -23,7 +23,7 @@ export const JobKillTool = Tool.define(
       parameters: JobKillParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          const killed = yield* jobs.kill({ sessionID: ctx.sessionID, jobID: params.job_id as any })
+          const killed = yield* jobs.kill({ sessionID: ctx.sessionID, jobID: Jobs.JobID.make(params.job_id) })
           if (killed) {
             return {
               title: `Killed job ${params.job_id}`,

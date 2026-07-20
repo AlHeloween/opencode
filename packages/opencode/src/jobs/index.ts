@@ -32,7 +32,7 @@ export type JobID = Schema.Schema.Type<typeof JobID>
 export const JobStatus = Schema.Literals(["running", "stalled", "done", "failed", "killed"])
 export type JobStatus = Schema.Schema.Type<typeof JobStatus>
 
-export const JobKind = Schema.Literals(["bash", "task"])
+export const JobKind = Schema.Literals(["bash", "task", "run", "cmd"])
 export type JobKind = Schema.Schema.Type<typeof JobKind>
 
 export interface JobInfo {
@@ -75,8 +75,12 @@ export interface Interface {
     sessionID: SessionID
     kind: JobKind
     label: string
-    run: Effect.Effect<string, Error>
+    /** Effect that runs the job. Receives a `writeOutput` callback for incremental output streaming. */
+    run: (writeOutput: (chunk: string) => void) => Effect.Effect<string, Error>
   }) => Effect.Effect<JobID>
+
+  /** Write incremental output to a running job. Used for streaming progress from within the job's effect. */
+  readonly write: (input: { sessionID: SessionID; jobID: JobID; chunk: string }) => Effect.Effect<void>
 
   readonly output: (input: { sessionID: SessionID; jobID: JobID }) => Effect.Effect<{ text: string; status: JobStatus }>
 
@@ -241,7 +245,7 @@ export const layer = Layer.effect(
         if (j.status === "running" && Date.now() - j.lastOutputAt > STALL_THRESHOLD_MS) {
           j.status = "stalled"
           log.info("job stalled", { id: j.id, kind: j.kind, elapsed: Date.now() - j.startedAt })
-          try { persistUpdate(j); publishJobs(j.sessionID) } catch (_) { /* best-effort */ }
+          try { persistUpdate(j); publishJobs(j.sessionID) } catch (e) { log.debug("stall persist failed", { error: String(e) }) }
         }
       }
     }, HEARTBEAT_INTERVAL_MS)
@@ -274,7 +278,7 @@ export const layer = Layer.effect(
         if (!k.startsWith(sessionID + "\x00")) continue
         list.push({ id: j.id, kind: j.kind, label: j.label, status: j.status, startedAt: j.startedAt, output: j.output })
       }
-      void Bus.publish(JobsUpdated, { sessionID, jobs: list }).catch(() => {})
+      void Bus.publish(JobsUpdated, { sessionID, jobs: list }).catch((e) => { log.debug("jobs publish failed", { error: String(e) }) })
     }
 
     const start = Effect.fn("Jobs.start")(function* (input: {
@@ -404,16 +408,39 @@ export const layer = Layer.effect(
       )
     })
 
+    const write = Effect.fn("Jobs.write")(function* (input: { sessionID: SessionID; jobID: JobID; chunk: string }) {
+      const j = jobs.get(key(input.sessionID, input.jobID))
+      if (!j) return
+      j.output += input.chunk
+      j.lastOutputAt = Date.now()
+      try { persistUpdate(j); publishJobs(j.sessionID) } catch (e) { log.debug("job write persist failed", { error: String(e) }) }
+    })
+
     const startEffect = Effect.fn("Jobs.startEffect")(function* (input: {
       sessionID: SessionID
       kind: JobKind
       label: string
-      run: Effect.Effect<string, Error>
+      run: (writeOutput: (chunk: string) => void) => Effect.Effect<string, Error>
     }) {
       const id = nextID(input.sessionID, input.kind)
       const controller = new AbortController()
       const bridge = yield* EffectBridge.make()
       let fiber: Fiber.Fiber<unknown, unknown> | undefined
+
+      // Incremental output writer — callable from within the job's effect.
+      const writeOutput = (chunk: string) => {
+        const j = jobs.get(jobKey)
+        if (j) {
+          // Strip [started] prefix on first real output chunk
+          if (j.output.startsWith("[started]")) {
+            j.output = chunk
+          } else {
+            j.output += chunk
+          }
+          j.lastOutputAt = Date.now()
+          try { persistUpdate(j); publishJobs(j.sessionID) } catch (e) { log.debug("job write persist failed", { error: String(e) }) }
+        }
+      }
 
       const job: Job = {
         id, kind: input.kind, label: input.label, sessionID: input.sessionID,
@@ -432,18 +459,25 @@ export const layer = Layer.effect(
 
       yield* Effect.promise(() => acquire())
 
+      // Resolve the effect with the writeOutput callback injected.
+      const resolvedRun = input.run(writeOutput)
+
       // Run through EffectBridge so Instance/workspace ALS context is restored.
       // Bare Effect.runFork loses project context and can leave sub-agent sessions
       // stuck after creating an assistant message with no stream events.
       fiber = bridge.fork(
-        input.run.pipe(
+        resolvedRun.pipe(
           Effect.tap((text) => Effect.sync(() => {
             const j = jobs.get(jobKey)
             if (j) {
-              j.output = j.output.replace(/^\[started\].*\n?/, "") + text + "\n"
+              // Only append final result if writeOutput was never called (no incremental output)
+              if (j.output.startsWith("[started]")) {
+                j.output = j.output.replace(/^\[started\].*\n?/, "") + text + "\n"
+              } else if (text && !j.output.endsWith(text)) {
+                j.output += text + "\n"
+              }
               j.lastOutputAt = Date.now()
-              persistUpdate(j)
-              publishJobs(j.sessionID)
+              try { persistUpdate(j); publishJobs(j.sessionID) } catch (e) { log.debug("job tap persist failed", { error: String(e) }) }
             }
           })),
           Effect.matchEffect({
@@ -452,9 +486,11 @@ export const layer = Layer.effect(
               if (!j) return
               if (controller.signal.aborted) { j.status = "killed" }
               else { j.status = "done"; j.result = result }
-              if (!j.output.includes("[started]")) j.output = result
+              // If no output was written (no writeOutput calls and [started] still present),
+              // use the final result as the output.
+              if (j.output.startsWith("[started]")) j.output = result
               j.finishedAt = Date.now()
-              persistUpdate(j)
+              try { persistUpdate(j) } catch (e) { log.debug("job done persist failed", { error: String(e) }) }
               publishJobs(j.sessionID)
               completed.push({
                 sessionID: input.sessionID,
@@ -469,7 +505,7 @@ export const layer = Layer.effect(
               if (controller.signal.aborted) { j.status = "killed" }
               else { j.status = "failed"; j.output += `\nError: ${err instanceof Error ? err.message : String(err)}` }
               j.finishedAt = Date.now()
-              persistUpdate(j)
+              try { persistUpdate(j) } catch (e) { log.debug("job fail persist failed", { error: String(e) }) }
               publishJobs(j.sessionID)
               completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed` })
               if (completed.length > 500) completed.shift()
@@ -483,7 +519,7 @@ export const layer = Layer.effect(
       return id
     })
 
-    return Service.of({ start, startEffect, output, kill, list, drainCompletedNote })
+    return Service.of({ start, startEffect, write, output, kill, list, drainCompletedNote })
   }),
 )
 

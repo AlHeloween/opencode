@@ -228,7 +228,7 @@ describeWin("Windows: native command path handling", () => {
             ),
           )
           // robocopy exit code 0 or 1 both indicate success (1 = files copied)
-          expect([0, 1]).toContain(result.metadata.exit)
+          expect([0, 1]).toContain(result.metadata.exit!)
         },
       })
     }),

@@ -429,10 +429,41 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 
 **open-code prompts kernel sync:** Always keep `opencode_prompts_kernel.txt` in sync with the canonical `opencode_prompts_kernel.py` at repo root. The `.txt` copy is loaded by `transform.ts` → `systemPromptPrefix()` and embedded in every model's immutable system prompt prefix — out-of-sync files mean stale agent definitions at runtime.
 
-## Dependency Notes
+## Dependency Catalog (MANDATORY)
 
+All shared dependencies MUST be declared in the root `catalog` (`package.json` → `workspaces.catalog`) and referenced as `"catalog:"` in sub-packages. Hardcoded versions in sub-package `package.json` files cause version drift, duplicate installs, and subtle runtime conflicts.
+
+### Procedure
+
+**After adding, upgrading, or removing any dependency** in any sub-package:
+
+1. Run the consolidation script:
+   ```
+   python consolidate_catalog.py --dry-run
+   ```
+2. Review conflicts (⚠️ = multiple versions picked newest; ⛔ = major version conflict, skipped)
+3. Resolve any ⛔ conflicts manually — major version splits are usually intentional (e.g. React 18 vs 19)
+4. Apply:
+   ```
+   python consolidate_catalog.py
+   ```
+5. Verify:
+   ```
+   bun install   # must produce ZERO "incorrect peer dependency" warnings
+   ```
+
+### Rules
+
+- **Every dep used in 2+ packages belongs in the catalog.** Single-use deps stay in their package.
+- **Never hardcode a version that exists in the catalog.** Use `"catalog:"` reference.
+- **Workspace packages** (`"workspace:*"`) are local and do not go in the catalog.
+- **Version ranges** (`^1.0.0`, `~1.0.0`, `>=2.0.0`) are NOT consolidated — they're intentional flexibility.
 - **Desktop TypeScript version** (`packages/desktop/`, `packages/desktop-electron/`): Both pin `typescript@~5.6.2` while the rest of the monorepo uses `5.8.2` (via root catalog). This is intentional — Tauri Specta bindings and Electron tooling have known compatibility constraints with TS 5.8. Do not upgrade these packages without verifying Tauri/Electron builds.
-- **@opentui vs @opencode-ai/ui**: `@opentui/core` and `@opentui/solid` (catalog: `0.1.105`) are **external** dependencies installed in `node_modules/@opentui/`. The monorepo's own UI library is `@opencode-ai/ui` in `packages/ui/`. To search `@opentui` source, use `glob("**/opentui/**", { noIgnore: true })`.
+- **@opentui vs @opencode-ai/ui**: `@opentui/core` and `@opentui/solid` are **external** dependencies installed in `node_modules/@opentui/`. The monorepo's own UI library is `@opencode-ai/ui` in `packages/ui/`. To search `@opentui` source, use `glob("**/opentui/**", { noIgnore: true })`.
+
+### CI Enforcement (future)
+
+A CI check should run `consolidate_catalog.py --dry-run` and fail if any hardcoded versions could be cataloged. This keeps the monorepo permanently consolidated.
 
 ## Markdown Rendering Flag — DO NOT TOUCH
 
@@ -466,3 +497,14 @@ The project defines these built-in agents (`packages/opencode/src/agent/agent.ts
 | `summary` | primary (hidden) | `prompt/summary.txt` | Session summarization |
 
 **Tools of note:** `pipeline` chains subagents sequentially (researcher→coder, explore→general). `capability` looks up model output modalities against available API keys.
+
+<!-- CODEGRAPH_START -->
+## CodeGraph
+
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
+<!-- CODEGRAPH_END -->

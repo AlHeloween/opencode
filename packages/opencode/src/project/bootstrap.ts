@@ -62,15 +62,24 @@ function initCodeGraphBg(): void {
   // 1. Try the codegraph CLI alongside the running binary, then PATH
   let cgBin = which("codegraph")
   if (!cgBin) {
-    // Check alongside the opencode binary (same directory)
+    // Check alongside the opencode binary (same directory) for any valid extension
     try {
-      const ext = process.platform === "win32" ? ".exe" : ""
-      const sibling = path.join(path.dirname(process.execPath), `codegraph${ext}`)
-      if (require("fs").existsSync(sibling)) cgBin = sibling
+      const exts = process.platform === "win32" ? [".exe", ".cmd", ".CMD"] : [""]
+      const binDir = path.dirname(process.execPath)
+      for (const ext of exts) {
+        const sibling = path.join(binDir, `codegraph${ext}`)
+        if (require("fs").existsSync(sibling)) { cgBin = sibling; break }
+      }
     } catch { /* fall through */ }
   }
   if (cgBin) {
-    const child = spawn(cgBin, ["init"], { cwd: dir, stdio: "ignore", timeout: 120000 })
+    const isScript = process.platform === "win32" && (
+      cgBin.toLowerCase().endsWith(".cmd") || cgBin.toLowerCase().endsWith(".bat")
+    )
+    const args = ["init"]
+    const bin = isScript ? "cmd.exe" : cgBin
+    if (isScript) args.unshift("/c", cgBin)
+    const child = spawn(bin, args, { cwd: dir, stdio: "ignore", timeout: 120000 })
     child.on("error", () => { Log.Default.warn("bug: codegraph init failed") })
     child.unref()
     return

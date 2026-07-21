@@ -503,7 +503,7 @@ export const CmdTool = Tool.define(
       ).pipe(Effect.orDie)
 
       const meta: string[] = []
-      if (interrupted) meta.push("Command interrupted (abort signal received)")
+      if (interrupted && code === null) meta.push("Command interrupted (abort signal received)")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true

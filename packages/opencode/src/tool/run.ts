@@ -261,7 +261,7 @@ export const RunTool = Tool.define(
       if (!file && end.cut) file = yield* trunc.write(raw)
 
       let output = end.text
-      if (interrupted) output = `Command interrupted (abort signal received)\n` + output
+      if (interrupted && code === null) output = `Command interrupted (abort signal received)\n` + output
       if (!output) output = "(no output)"
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
       return {

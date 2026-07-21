@@ -637,6 +637,7 @@ export const BashTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
+      let interrupted = false
       const meta: string[] = []
       const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(input.command)
 
@@ -739,7 +740,7 @@ export const BashTool = Tool.define(
           )
 
           if (exit.kind === "abort") {
-            meta.push("Command interrupted (abort signal received)")
+            interrupted = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash abort kill failed"))))
           }
 
@@ -748,6 +749,7 @@ export const BashTool = Tool.define(
         }),
       ).pipe(Effect.orDie)
 
+      if (interrupted && code === null) meta.push("Command interrupted (abort signal received)")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true

@@ -4,23 +4,12 @@ import * as Log from "@opencode-ai/core/util/log"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import type { JSONSchema } from "zod/v4/core"
 import type * as Provider from "./provider"
-import type * as ModelsDev from "./models"
 import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import PROMPT_REASONING from "@/session/prompt/reasoning.txt"
 import PROMPT_KERNEL from "@/session/prompt/opencode_prompts_kernel.txt"
 
 const tlog = Log.create({ service: "provider.transform" })
-
-type Modality = NonNullable<ModelsDev.Model["modalities"]>["input"][number]
-
-function mimeToModality(mime: string): Modality | undefined {
-  if (mime.startsWith("image/")) return "image"
-  if (mime.startsWith("audio/")) return "audio"
-  if (mime.startsWith("video/")) return "video"
-  if (mime === "application/pdf") return "pdf"
-  return undefined
-}
 
 export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 const OUTPUT_TOKEN_CONTEXT_RESERVE = 20_000
@@ -312,7 +301,7 @@ function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage
   return msgs
 }
 
-function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
+function unsupportedParts(msgs: ModelMessage[]): ModelMessage[] {
   return msgs.map((msg) => {
     if (msg.role !== "user" || !Array.isArray(msg.content)) return msg
 
@@ -333,17 +322,12 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
         }
       }
 
-      const mime = part.type === "image" ? String(part.image).split(";")[0].replace("data:", "") : part.mediaType
-      const filename = part.type === "file" ? part.filename : undefined
-      const modality = mimeToModality(mime)
-      if (!modality) return part
-      if (model.capabilities.input[modality]) return part
-
-      const name = filename ? `"${filename}"` : modality
-      return {
-        type: "text" as const,
-        text: `ERROR: Cannot read ${name} (this model does not support ${modality} input). Inform the user.`,
-      }
+      // Let all file/image parts through. The model decides whether to call the
+      // `read` tool — which handles PDF/DOCX/XLSX/PPTX/ODT/ODS via WASM
+      // conversion, any binary via hex dump, and images/audio/video via
+      // metadata extraction. Pre-emptive blocking confuses agents and hides
+      // content that the read tool can actually process.
+      return part
     })
 
     return { ...msg, content: filtered }
@@ -351,7 +335,7 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
 }
 
 export function message(msgs: ModelMessage[], model: Provider.Model, options: Record<string, unknown>) {
-  msgs = unsupportedParts(msgs, model)
+  msgs = unsupportedParts(msgs)
   msgs = normalizeMessages(msgs, model, options)
   if (
     (model.providerID === "anthropic" ||

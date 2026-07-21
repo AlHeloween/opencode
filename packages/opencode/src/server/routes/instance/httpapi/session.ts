@@ -875,7 +875,7 @@ export const sessionHandlers = Layer.unwrap(
           AppRuntime.runPromise(
             Permission.Service.use((svc) =>
               svc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }),
-            ).pipe(Effect.provide(Permission.defaultLayer)),
+            ),
           ),
         ),
       )

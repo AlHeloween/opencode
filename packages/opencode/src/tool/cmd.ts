@@ -159,7 +159,9 @@ function commands(node: Node, ps: boolean): Node[] {
 
 function hasRedirection(node: Node, ps: boolean): boolean {
   if (ps) return node.descendantsOfType("redirection").length > 0
-  return node.descendantsOfType("redirection").length > 0 || node.descendantsOfType("redirect_stmt").length > 0
+  // In batch grammar, redirection is a sibling of the command inside redirect_stmt,
+  // not a descendant. Check the parent node.
+  return node.descendantsOfType("redirection").length > 0 || node.parent?.type === "redirect_stmt"
 }
 
 function home(text: string) {
@@ -405,7 +407,6 @@ export const CmdTool = Tool.define(
         description: string
       },
       ctx: Tool.Context,
-      onOutput?: (chunk: string) => void,
     ) {
       const limits = yield* trunc.limits()
       const keep = limits.maxBytes * 2
@@ -418,7 +419,6 @@ export const CmdTool = Tool.define(
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
       let interrupted = false
-      let timedOut = false
 
       yield* ctx.metadata({ metadata: { output: "", description: input.description } })
 
@@ -440,7 +440,6 @@ export const CmdTool = Tool.define(
               cut = true
             }
             last = preview(last + chunk)
-            onOutput?.(chunk)
             if (file) {
               sink?.write(chunk)
               return ctx.metadata({ metadata: { output: last, description: input.description } })
@@ -470,7 +469,10 @@ export const CmdTool = Tool.define(
             // A pre-aborted signal (stale from a previous tool call or
             // LLM completion) must NOT cancel the current command — let
             // the process exit (or timeout) win the race naturally.
-            if (ctx.abort.aborted) return Effect.void
+            if (ctx.abort.aborted) {
+              resume(Effect.void)
+              return Effect.void
+            }
             const handler = () => resume(Effect.void)
             ctx.abort.addEventListener("abort", handler, { once: true })
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
@@ -479,10 +481,16 @@ export const CmdTool = Tool.define(
           // Race: process exit vs user abort only — NO hard timeout.
           // Long builds must not be killed by a fixed deadline. The agent
           // sees stall detection hints and decides whether to job_kill.
-          const exit = yield* Effect.raceAll([
-            handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
-            abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-          ])
+          // Pre-aborted signals are excluded from the race so they don't
+          // spuriously cancel the command.
+          const exit = yield* Effect.raceAll(
+            ctx.abort.aborted
+              ? [handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code })))]
+              : [
+                  handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
+                  abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
+                ],
+          )
 
           // Kill the process tree on abort BEFORE draining pipes.
           if (exit.kind === "abort") {
@@ -500,14 +508,13 @@ export const CmdTool = Tool.define(
         // (null exit code) instead of crashing with a TimeoutError defect.
         Effect.timeoutOrElse({
           duration: `${input.timeout + 5000} millis`,
-          orElse: () => Effect.sync(() => { timedOut = true; return null }),
+          orElse: () => Effect.succeed(null),
         }),
         Effect.orDie,
       )
 
       const meta: string[] = []
       if (interrupted) meta.push("Command interrupted (abort signal received)")
-      if (timedOut) meta.push("Command terminated after exceeding timeout")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true
@@ -540,7 +547,6 @@ export const CmdTool = Tool.define(
           exit: code,
           description: input.description,
           truncated: cut,
-          jobID: undefined as string | undefined,
           ...(cut && file ? { outputPath: file } : {}),
         },
         output,
@@ -594,13 +600,12 @@ export const CmdTool = Tool.define(
             }
             const jobID = yield* jobSvc.value.startEffect({
               sessionID: ctx.sessionID,
-              kind: "cmd",
+              kind: "bash" as any,
               label: params.description || params.command.slice(0, 80),
-              run: (writeOutput) => Effect.gen(function* () {
+              run: Effect.gen(function* () {
                 const result = yield* run(
                   { shell, command: params.command, cwd, env, timeout, description: params.description },
                   ctx,
-                  writeOutput,
                 )
                 return result.output
               }),
@@ -615,7 +620,7 @@ export const CmdTool = Tool.define(
                 description: params.description || params.command.slice(0, 80),
                 truncated: false,
               },
-            }
+            } as any
           }
 
           const result = yield* run(

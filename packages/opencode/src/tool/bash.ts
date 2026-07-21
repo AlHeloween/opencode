@@ -125,7 +125,9 @@ const SAFE = new Set([
 
 function hasRedirection(node: Node, isCmd?: boolean): boolean {
   if (isCmd) {
-    return node.descendantsOfType("redirection").length > 0 || node.descendantsOfType("redirect_stmt").length > 0
+    // In batch grammar, redirection is a sibling of the command inside redirect_stmt,
+    // not a descendant. Check the parent node.
+    return node.descendantsOfType("redirection").length > 0 || node.parent?.type === "redirect_stmt"
   }
   return node.descendantsOfType("redirection").length > 0
 }
@@ -624,7 +626,6 @@ export const BashTool = Tool.define(
         description: string
       },
       ctx: Tool.Context,
-      onOutput?: (chunk: string) => void,
     ) {
       const limits = yield* trunc.limits()
       const keep = limits.maxBytes * 2
@@ -636,6 +637,7 @@ export const BashTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
+      const meta: string[] = []
       const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(input.command)
 
       yield* ctx.metadata({
@@ -644,11 +646,6 @@ export const BashTool = Tool.define(
           description: input.description,
         },
       })
-
-      // Declare meta BEFORE Effect.scoped — it is captured by the closure
-      // and written to from the abort handler inside the scoped block.
-      const meta: string[] = []
-      let timedOut = false
 
       const code: number | null = yield* Effect.scoped(
         Effect.gen(function* () {
@@ -675,7 +672,6 @@ export const BashTool = Tool.define(
             }
 
             last = preview(last + chunk)
-            onOutput?.(chunk)
 
             if (file) {
               sink?.write(chunk)
@@ -721,16 +717,26 @@ export const BashTool = Tool.define(
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
           const abort = Effect.callback<void>((resume) => {
-            if (ctx.abort.aborted) return Effect.void
+            if (ctx.abort.aborted) {
+              resume(Effect.void)
+              return Effect.void
+            }
             const handler = () => resume(Effect.void)
             ctx.abort.addEventListener("abort", handler, { once: true })
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
-          const exit = yield* Effect.raceAll([
-            handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
-            abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-          ])
+          // Race: process exit vs user abort only — NO hard timeout.
+          // Pre-aborted signals are excluded from the race so they don't
+          // spuriously cancel the command.
+          const exit = yield* Effect.raceAll(
+            ctx.abort.aborted
+              ? [handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code })))]
+              : [
+                  handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
+                  abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
+                ],
+          )
 
           if (exit.kind === "abort") {
             meta.push("Command interrupted (abort signal received)")
@@ -747,14 +753,11 @@ export const BashTool = Tool.define(
         // use job_kill for stalled commands, not rely on this timeout.
         Effect.timeoutOrElse({
           duration: `${input.timeout + 5000} millis`,
-          orElse: () => Effect.sync(() => { timedOut = true; return null }),
+          orElse: () => Effect.succeed(null),
         }),
         Effect.orDie,
       )
 
-      if (timedOut) {
-        meta.push("Command terminated after exceeding timeout")
-      }
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true
@@ -796,7 +799,6 @@ export const BashTool = Tool.define(
           exit: code,
           description: input.description,
           truncated: cut,
-          jobID: undefined as string | undefined,
           ...(cut && file ? { outputPath: file } : {}),
         },
         output,
@@ -898,7 +900,7 @@ export const BashTool = Tool.define(
                   sessionID: ctx.sessionID,
                   kind: "bash",
                   label: params.description || params.command.slice(0, 80),
-                  run: (writeOutput) => Effect.gen(function* () {
+                  run: Effect.gen(function* () {
                     const result = yield* run(
                       {
                         shell,
@@ -909,7 +911,6 @@ export const BashTool = Tool.define(
                         description: params.description,
                       },
                       ctx,
-                      writeOutput,
                     )
                     return result.output
                   }),
@@ -924,7 +925,7 @@ export const BashTool = Tool.define(
                     description: params.description || params.command.slice(0, 80),
                     truncated: false,
                   },
-                }
+                } as any
               }
 
               const result = yield* run(

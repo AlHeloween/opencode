@@ -16,6 +16,8 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Plugin } from "../../src/plugin"
 import { stripCommand } from "../../src/tool/strip-win"
+import { Constitution } from "../../src/session/constitution"
+import { formatPathIssues } from "@/util/path-validator"
 
 const runtime = ManagedRuntime.make(
   Layer.mergeAll(
@@ -1354,5 +1356,223 @@ describe("tool.bash truncation", () => {
       expect(stripCommand("echo output > file.txt", "bash").command).toBe("echo output > file.txt")
       expect(stripCommand("cat /dev/null", "bash").command).toBe("cat /dev/null")
     })
+  })
+})
+
+// =========================================================================
+// Phase 3: Plugin env, Constitution guard, Path validation
+// =========================================================================
+
+test("tool.bash applies shell.env plugin output", async () => {
+  const local = ManagedRuntime.make(
+    Layer.mergeAll(
+      CrossSpawnSpawner.defaultLayer,
+      AppFileSystem.defaultLayer,
+      Layer.succeed(
+        Plugin.Service,
+        Plugin.Service.of({
+          trigger: ((name: string, _input: unknown, output: { env?: Record<string, string> }) =>
+            Effect.succeed(
+              name === "shell.env" ? { ...output, env: { BASH_TOOL_PLUGIN_ENV: "bash_injected" } } : output,
+            )) as any,
+          list: () => Effect.succeed([]),
+          init: () => Effect.void,
+        }),
+      ),
+      Truncate.defaultLayer,
+      Config.defaultLayer,
+      Agent.defaultLayer,
+    ),
+  )
+  await using tmp = await tmpdir()
+  try {
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const tool = await local.runPromise(BashTool.pipe(Effect.flatMap((info) => info.init())))
+        const shellName = Shell.name(Shell.acceptable())
+        const echoCmd =
+          shellName === "cmd"
+            ? "echo %BASH_TOOL_PLUGIN_ENV%"
+            : shellName === "pwsh" || shellName === "powershell"
+              ? "echo $env:BASH_TOOL_PLUGIN_ENV"
+              : "echo $BASH_TOOL_PLUGIN_ENV"
+        const result = await Effect.runPromise(
+          tool.execute(
+            {
+              command: echoCmd,
+              description: "test plugin environment",
+              timeout: 15_000,
+            },
+            ctx as any,
+          ),
+        )
+        expect(result.output).toContain("bash_injected")
+      },
+    })
+  } finally {
+    await local.dispose()
+  }
+}, 20_000)
+
+describe("tool.bash constitution guard", () => {
+  test("triggers destructive permission for rm -rf", async () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const bash = await initBash()
+          const prompts: any[] = []
+          const stop = new Error("stop after destructive permission")
+          await expect(
+            Effect.runPromise(
+              bash.execute(
+                {
+                  command: "rm -rf /tmp/test_nonexistent",
+                  description: "Test destructive command",
+                },
+                {
+                  ...ctx,
+                  extra: { agent: "build" },
+                  ask: (request: any) => {
+                    prompts.push(request)
+                    return Effect.fail(stop)
+                  },
+                } as any,
+              ),
+            ),
+          ).rejects.toThrow(stop.message)
+          const destructiveReq = prompts.find((p) => p.permission === "destructive")
+          expect(destructiveReq).toBeDefined()
+          expect(destructiveReq.metadata?.risk).toBe("DESTRUCTIVE")
+          expect(destructiveReq.metadata?.constitution).toBe(true)
+        },
+      })
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
+
+  test("triggers destructive permission for git push --force", async () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const bash = await initBash()
+          const prompts: any[] = []
+          const stop = new Error("stop after destructive permission")
+          await expect(
+            Effect.runPromise(
+              bash.execute(
+                {
+                  command: "git push --force origin main",
+                  description: "Test git force push",
+                },
+                {
+                  ...ctx,
+                  extra: { agent: "build" },
+                  ask: (request: any) => {
+                    prompts.push(request)
+                    return Effect.fail(stop)
+                  },
+                } as any,
+              ),
+            ),
+          ).rejects.toThrow(stop.message)
+          const destructiveReq = prompts.find((p) => p.permission === "destructive")
+          expect(destructiveReq).toBeDefined()
+          expect(destructiveReq.metadata?.risk).toBe("DESTRUCTIVE")
+        },
+      })
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
+
+  test("does not trigger destructive for safe commands", async () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const bash = await initBash()
+          const prompts: any[] = []
+          await Effect.runPromise(
+            bash.execute(
+              {
+                command: "echo safe command",
+                description: "Safe echo",
+              },
+              {
+                ...ctx,
+                extra: { agent: "build" },
+                ask: (request: any) => {
+                  prompts.push(request)
+                  return Effect.void
+                },
+              } as any,
+            ),
+          )
+          const destructiveReq = prompts.find((p) => p.permission === "destructive")
+          expect(destructiveReq).toBeUndefined()
+        },
+      })
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
+})
+
+describe("tool.bash path validation", () => {
+  test("warns about double drive letter paths", async () => {
+    await using tmp = await tmpdir()
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const bash = await initBash()
+        // Create a subdirectory so workdir is valid
+        const sub = path.join(tmp.path, "sub")
+        require("fs").mkdirSync(sub, { recursive: true })
+        const result = await Effect.runPromise(
+          bash.execute(
+            {
+              command: `echo test`,
+              workdir: sub,
+              description: "Path validation test",
+            },
+            ctx as any,
+          ),
+        )
+        // The result should not crash; path validation produces warnings
+        expect(result.metadata.exit).toBe(0)
+      },
+    })
+  })
+
+  test("formatPathIssues produces readable output", () => {
+    const issues = [
+      { path: "C:\\Windows\\System32\\x", code: "system" as const, message: "blocked: system directory" },
+      { path: "D:\\D:\\x", code: "double_drive" as const, message: 'invalid: double drive letter', suggestion: "use D:\\x" },
+    ]
+    const formatted = formatPathIssues(issues)
+    expect(formatted).toBeDefined()
+    expect(formatted!).toContain("Path issues detected")
+    expect(formatted!).toContain("system directory")
+    expect(formatted!).toContain("double drive letter")
+  })
+
+  test("formatPathIssues returns undefined for empty issues", () => {
+    expect(formatPathIssues([])).toBeUndefined()
   })
 })

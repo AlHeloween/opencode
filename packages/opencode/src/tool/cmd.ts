@@ -602,7 +602,7 @@ export const CmdTool = Tool.define(
               sessionID: ctx.sessionID,
               kind: "bash" as any,
               label: params.description || params.command.slice(0, 80),
-              run: Effect.gen(function* () {
+              run: (_writeOutput) => Effect.gen(function* () {
                 const result = yield* run(
                   { shell, command: params.command, cwd, env, timeout, description: params.description },
                   ctx,

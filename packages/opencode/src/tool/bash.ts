@@ -900,7 +900,7 @@ export const BashTool = Tool.define(
                   sessionID: ctx.sessionID,
                   kind: "bash",
                   label: params.description || params.command.slice(0, 80),
-                  run: Effect.gen(function* () {
+                  run: (_writeOutput) => Effect.gen(function* () {
                     const result = yield* run(
                       {
                         shell,

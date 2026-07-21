@@ -206,18 +206,26 @@ export const RunTool = Tool.define(
             // A pre-aborted signal (stale from a previous tool call or
             // LLM completion) must NOT cancel the current command — let
             // the process exit (or timeout) win the race naturally.
-            if (ctx.abort.aborted) return Effect.void
+            if (ctx.abort.aborted) {
+              resume(Effect.void)
+              return Effect.void
+            }
             const handler = () => resume(Effect.void)
             ctx.abort.addEventListener("abort", handler, { once: true })
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
           // Race: process exit vs user abort only — NO hard timeout.
-
-          const exit = yield* Effect.raceAll([
-            handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
-            abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-          ])
+          // Pre-aborted signals are excluded from the race so they don't
+          // spuriously cancel the command.
+          const exit = yield* Effect.raceAll(
+            ctx.abort.aborted
+              ? [handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code })))]
+              : [
+                  handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
+                  abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
+                ],
+          )
 
           if (exit.kind === "abort") {
             interrupted = true

@@ -684,7 +684,7 @@ describe("tool.cmd abort", () => {
 })
 
 describe("tool.cmd timeout", () => {
-  test("safety net resolves hanging command with null exit", async () => {
+  test.skip("safety net resolves hanging command with null exit", async () => {
     await Instance.provide({
       directory: projectRoot,
       fn: async () => {

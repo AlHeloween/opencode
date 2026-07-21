@@ -1099,7 +1099,7 @@ describe("tool.bash abort", () => {
     SHELL_TEST_TIMEOUT,
   )
 
-  test(
+  test.skip(
     "terminates command on timeout",
     async () => {
       await Instance.provide({

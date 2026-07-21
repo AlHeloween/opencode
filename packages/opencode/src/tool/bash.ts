@@ -746,17 +746,7 @@ export const BashTool = Tool.define(
           yield* awaitDrain
           return exit.kind === "exit" ? exit.code : null
         }),
-      ).pipe(
-        // Safety net: if the inner Effect.scoped hangs despite all our
-        // safeguards (exitCode, abort, awaitDrain), this outer timeout ensures
-        // the tool call eventually resolves. 30 min default — the agent should
-        // use job_kill for stalled commands, not rely on this timeout.
-        Effect.timeoutOrElse({
-          duration: `${input.timeout + 5000} millis`,
-          orElse: () => Effect.succeed(null),
-        }),
-        Effect.orDie,
-      )
+      ).pipe(Effect.orDie)
 
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)

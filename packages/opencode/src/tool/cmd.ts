@@ -500,18 +500,7 @@ export const CmdTool = Tool.define(
           yield* awaitDrain
           return exit.kind === "exit" ? exit.code : null
         }),
-      ).pipe(
-        // Safety net: if the inner Effect.scoped hangs despite all our
-        // timeouts (exitCode, abort, awaitDrain), this outer timeout ensures
-        // the tool call eventually resolves. 5s grace over the command timeout.
-        // Uses timeoutOrElse (not timeout+orDie) so the tool returns a result
-        // (null exit code) instead of crashing with a TimeoutError defect.
-        Effect.timeoutOrElse({
-          duration: `${input.timeout + 5000} millis`,
-          orElse: () => Effect.succeed(null),
-        }),
-        Effect.orDie,
-      )
+      ).pipe(Effect.orDie)
 
       const meta: string[] = []
       if (interrupted) meta.push("Command interrupted (abort signal received)")

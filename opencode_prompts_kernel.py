@@ -3015,6 +3015,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "codegraph_before_grep": "codegraph tool is #2 for code structure — before glob (#5) or grep (#6). AST-parsed results from one call replace multi-file grep + Read loops.",
         "messagesearch_before_universalsearch": "messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context.",
         "no_path_hardcoding": True,
+        "no_hardcode_values": "Never hardcode paths, port numbers, URLs, version strings, or magic numbers. Discover via where/which (executables), codegraph/glob (project files), read config (adm.json, opencode.json, package.json), or query the OS (tasklist, /etc, sysctl). Every hardcoded value must carry a comment justifying why discovery was infeasible.",
         "web_search_for_grounding": True,
     },
 
@@ -3032,6 +3033,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "glob/grep default to .gitignore-bounded but can bypass with noIgnore=true for full unbounded search.",
         "Hardware diagnostics (nvidia-smi etc.) are Exact evidence for local hardware state",
         "Platform detection via os.name / sys.platform determines which search tool to use",
+        "Paths, ports, URLs, versions must be discovered — never hardcoded without justification",
     ],
 
     acceptance_tests=[
@@ -3058,6 +3060,8 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Assuming PATH contains an executable without verifying via where.exe/which",
         "Using internal guesswork when universalsearch is available and needed",
         "Bypassing the evidence hierarchy for convenience",
+        "Hardcoding paths, ports, URLs, or version numbers when discovery tools (where/which/codegraph/glob/config) are available",
+        "Assuming default ports or well-known paths without verifying against the project config",
     ],
 )
 
@@ -3104,6 +3108,11 @@ RUNTIME_RULES = MappingProxyType({
     "MEMORY.LINKS": "every summary and message* must carry message IDs for session-read recovery",
     "ADID.FREEZE": "never hand-edit ADID framework rule/skill receivers under .cursor/ or .opencode/; kernel SPECS + ADM only",
     "ADID.OPS": "always-on how-to: cmd_runner start/tail/send; adm template→apply→verify; rag index/query; Delphi init+msbuild (see policy.adid_ops)",
+    "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read from config/adm.json",
+    "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
+    "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
+    "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked, search web/codegraph/messagesearch before declaring blocked.",
+    "DECOMPOSE": "break problem into sub-goals before planning. k-medoids: cluster around evidence, not random. Sierpinski/L-System: every sub-level shares the same deterministic structure — one recursive pattern (F→F+F-F), not ad-hoc expansion.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -3122,15 +3131,20 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "MEMORY.LINKS": "memory",
     "ADID.FREEZE": "adid",
     "ADID.OPS": "adid",
+    "NO_HARDCODE": "evidence",
+    "WHERE_WHICH": "evidence",
+    "SV_OUTPUT": "verification",
+    "CLEAN_STATE": "verification",
+    "DECOMPOSE": "plan",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
     "adid": ("adid", "ADID.FREEZE", "ADID.OPS", "scope", "mutation", "verification"),
-    "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification", "infomark", "MEMORY.RANK"),
-    "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME"),
-    "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "infomark", "MEMORY.RANK"),
-    "plan": ("plan", "evidence", "scope", "mutation", "verification", "MEMORY.RANK"),
-    "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "verification", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
+    "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
+    "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
+    "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
+    "plan": ("plan", "DECOMPOSE", "evidence", "scope", "mutation", "verification", "MEMORY.RANK", "SV_OUTPUT", "CLEAN_STATE"),
+    "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
 })
 
 RUNTIME_PACKS = MappingProxyType({
@@ -3198,10 +3212,10 @@ RUNTIME_CONTRACTS = MappingProxyType({
     "command.triage": ("scope", "evidence", "verification"),
     "policy.adid": ("scope", "evidence", "verification", "SEARCH.ORDER"),
     "policy.adid_ops": ("scope", "mutation", "verification", "WRITE.SCOPE"),
-    "policy.coding": ("plan", "evidence", "verification", "EVIDENCE.ORDER", "VERIFY.OUTCOME"),
+    "policy.coding": ("plan", "evidence", "verification", "EVIDENCE.ORDER", "VERIFY.OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
     "policy.default": ("scope",),
     "policy.governance": ("scope", "mutation", "verification", "WRITE.SCOPE"),
-    "policy.grounding": ("evidence", "verification", "EVIDENCE.ORDER", "SEARCH.ORDER"),
+    "policy.grounding": ("evidence", "verification", "EVIDENCE.ORDER", "SEARCH.ORDER", "NO_HARDCODE"),
     "policy.planning": ("plan", "evidence", "scope", "verification"),
     "skill.adm_exe": ("scope", "mutation", "verification"),
     "skill.adm_mcp": ("scope", "mutation", "verification"),

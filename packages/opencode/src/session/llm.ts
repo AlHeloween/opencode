@@ -26,6 +26,7 @@ import { EffectBridge } from "@/effect/bridge"
 import * as Option from "effect/Option"
 import { diagnoseParseError } from "@/util/diagnose-parse-error"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
+import { repairJson as repairJsonAny, repairAny } from "@/util/anyrepair-wasm"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
@@ -579,21 +580,46 @@ const live: Layer.Layer<
               toolName: lower,
             }
           }
-          // Attempt JSON repair on malformed tool call arguments using WASM
-          // before falling back to the "invalid" tool. If WASM returns null,
-          // the tool call is treated as irreparably broken.
           // Strip null bytes first — they break JSON.parse.
           const rawInput = String(failed.toolCall.input).replace(/\x00/g, "")
-          const repaired = await repairJsonWasm(rawInput)
-          if (repaired !== null) {
-            l.info("repaired malformed JSON in tool call", {
+
+          // Tier 1: fast JSON repair via json-repair WASM (proven, lightweight)
+          const repaired1 = await repairJsonWasm(rawInput)
+          if (repaired1 !== null) {
+            l.info("repaired malformed JSON in tool call (json-repair)", {
               tool: failed.toolCall.toolName,
             })
             return {
               ...failed.toolCall,
-              input: repaired,
+              input: repaired1,
             }
           }
+
+          // Tier 2: JSON repair via anyrepair (handles more edge cases)
+          const repaired2 = await repairJsonAny(rawInput)
+          if (repaired2 !== null) {
+            l.info("repaired malformed JSON in tool call (anyrepair-json)", {
+              tool: failed.toolCall.toolName,
+            })
+            return {
+              ...failed.toolCall,
+              input: repaired2,
+            }
+          }
+
+          // Tier 3: auto-detect repair via anyrepair (JSON, XML, or other format)
+          const repaired3 = await repairAny(rawInput)
+          if (repaired3 !== null && repaired3 !== rawInput) {
+            l.info("repaired malformed tool call input (anyrepair-auto)", {
+              tool: failed.toolCall.toolName,
+            })
+            return {
+              ...failed.toolCall,
+              input: repaired3,
+            }
+          }
+
+          // All repair attempts failed — redirect to invalid tool
           return {
             ...failed.toolCall,
             input: JSON.stringify({

@@ -112,6 +112,19 @@ if (Test-Path $JsonRepairDir) {
     Write-Host "json-repair WASM staged to $JsonRepairOut"
 }
 
+# Build anyrepair WASM module (multi-format repair: JSON, XML, YAML, etc.)
+$AnyrepairDir = Join-Path $RepoRoot "packages\wasm\anyrepair"
+$AnyrepairOut = Join-Path $WasmCorePkg "anyrepair"
+if (Test-Path $AnyrepairDir) {
+    Write-Host "Building anyrepair WASM module..."
+    Push-Location $AnyrepairDir
+    wasm-pack build --target nodejs
+    Pop-Location
+    if (-not (Test-Path $AnyrepairOut)) { New-Item -ItemType Directory -Path $AnyrepairOut | Out-Null }
+    Copy-Item -Recurse -Force "$AnyrepairDir\pkg\*" $AnyrepairOut
+    Write-Host "anyrepair WASM staged to $AnyrepairOut"
+}
+
 # Build path_validator WASM (C → wasm32) for bash path feedback
 $PathValidatorSrc = Join-Path $RepoRoot "packages\wasm\core\src\path_validator.c"
 $PathValidatorOut = Join-Path $WasmCorePkg "path_validator.wasm"

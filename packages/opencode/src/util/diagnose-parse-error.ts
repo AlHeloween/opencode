@@ -1,10 +1,12 @@
 /**
- * JSON parse error diagnosis for LLM-generated tool call arguments.
+ * JSON/XML parse error diagnosis for LLM-generated tool call arguments.
  *
  * When the AI SDK's `JSON.parse()` fails on an LLM-generated tool call,
  * the raw error (e.g. "JSON Parse error: Unterminated string") tells
  * the model what went wrong but not how to fix it. This module augments
  * the error with a targeted hint based on the error pattern.
+ *
+ * Supports both JSON and XML error patterns.
  */
 export function diagnoseParseError(rawError: string): string {
   const hint = pickHint(rawError)
@@ -12,6 +14,7 @@ export function diagnoseParseError(rawError: string): string {
 }
 
 function pickHint(msg: string): string {
+  // ── JSON errors ──────────────────────────────────────────────────────
   if (msg.includes("Unterminated string")) {
     return 'Your JSON has an open string value that wasn\'t closed. Every string must end with a double-quote character ("). If your prompt parameter text is very long, ensure you add the closing " immediately after the final text character.'
   }
@@ -24,5 +27,19 @@ function pickHint(msg: string): string {
   if (msg.includes("Unexpected end")) {
     return "Your JSON appears to be truncated. Ensure all objects are closed with } and all arrays with ]."
   }
-  return 'Your JSON tool arguments are malformed. Double-check that all strings are quoted with plain ASCII double-quotes (not curly/smart quotes \u201C\u201D), objects closed with }, arrays closed with ], and there are no trailing commas.'
+
+  // ── XML errors ───────────────────────────────────────────────────────
+  if (msg.includes("XML") || msg.includes("xml") || msg.includes("tag")) {
+    if (msg.includes("unclosed") || msg.includes("Unclosed") || msg.includes("mismatched")) {
+      return "Your XML has unclosed or mismatched tags. Every opening tag like <tag> must have a matching closing tag </tag>. Check that all tags are properly closed and nested correctly."
+    }
+    if (msg.includes("attribute") || msg.includes("malformed")) {
+      return "Your XML has malformed attributes. Ensure attributes use the format name=\"value\" with straight ASCII double quotes. No single quotes or smart/curly quotes."
+    }
+    return "Your XML is malformed. Double-check that all tags are properly opened and closed, attributes use name=\"value\" syntax with straight double quotes, and tags are correctly nested."
+  }
+
+  return 'Your tool arguments are malformed. Double-check that all strings are quoted with plain ASCII double-quotes (not curly/smart quotes \u201C\u201D), objects closed with }, arrays closed with ], and there are no trailing commas. For XML: ensure all tags are closed, attributes use name="value" syntax, and tags are properly nested.'
 }
+
+

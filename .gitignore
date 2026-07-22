@@ -100,3 +100,8 @@ UPCOMING_CHANGELOG.md
 logseq/
 ".opencode/skills/opentui-skill/"  
 .adm.mcp.lock.json
+
+# Local binaries / side tools (not project source — keep on disk, not in git)
+adm.exe
+cmd_runner.exe
+/tools/

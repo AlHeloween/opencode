@@ -92,7 +92,7 @@ export const layer = Layer.effect(
         const defaults = Permission.fromConfig({
           "*": "allow",
           doom_loop: "ask",
-          // Constitution DESTRUCTIVE shell (rm -rf, force-push, reset --hard, …).
+          // Constitution DESTRUCTIVE shell (rm -rf, force-push, reset --hard, checkout, …).
           // Must be deny (not allow) after "*" so bash:* / wildcard cannot skip it.
           // Normal bash/cmd/PowerShell commands stay allowed via "*".
           destructive: "deny",

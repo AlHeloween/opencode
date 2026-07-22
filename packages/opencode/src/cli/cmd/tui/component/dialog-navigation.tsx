@@ -104,7 +104,7 @@ const TOOL_POLICIES: {
   {
     key: "destructive",
     label: "Destructive",
-    hint: "rm -rf, force-push, reset --hard — denied by default (not bash/cmd/ps/run *)",
+    hint: "rm -rf, force-push, reset --hard, git checkout/switch — denied by default (not bash/cmd/ps/run *)",
     danger: true,
     section: "Shell & exec",
   },

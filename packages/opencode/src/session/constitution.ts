@@ -43,6 +43,11 @@ const DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\bgit\s+push\b[^\n]*--force\b/i,
   /\bgit\s+push\b[^\n]*-f\b/i,
   /\bgit\s+reset\s+--hard\b/i,
+  // Branch/file checkout discards or moves HEAD — agents must not switch
+  // branches or clobber the working tree without explicit destructive approval.
+  /\bgit\s+checkout\b/i,
+  /\bgit\s+switch\b/i,
+  /\bgit\s+restore\b/i,
   /\bgit\s+clean\s+-[a-zA-Z]*f/i,
   /\bdrop\s+(table|database)\b/i,
   /\bformat\s+[a-z]:/i,
@@ -126,7 +131,7 @@ export function guardCommand(
       blocked: false,
       message:
         "constitution: DESTRUCTIVE command requires explicit approval " +
-        "(rm -rf, git push --force, reset --hard, …). " +
+        "(rm -rf, git push --force, reset --hard, git checkout/switch/restore, …). " +
         "Or set OPENCODE_ALLOW_DESTRUCTIVE=1.",
     }
   }

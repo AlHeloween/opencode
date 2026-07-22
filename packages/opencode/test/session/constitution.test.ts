@@ -6,6 +6,12 @@ describe("session.constitution", () => {
     expect(Constitution.classifyCommandRisk("rm -rf /tmp/x")).toBe("DESTRUCTIVE")
     expect(Constitution.classifyCommandRisk("git push --force origin main")).toBe("DESTRUCTIVE")
     expect(Constitution.classifyCommandRisk("git reset --hard HEAD~1")).toBe("DESTRUCTIVE")
+    // Agents must not checkout/switch/restore without destructive permission
+    expect(Constitution.classifyCommandRisk("git checkout main")).toBe("DESTRUCTIVE")
+    expect(Constitution.classifyCommandRisk("git checkout -b feature/x")).toBe("DESTRUCTIVE")
+    expect(Constitution.classifyCommandRisk("git checkout -- path/to/file")).toBe("DESTRUCTIVE")
+    expect(Constitution.classifyCommandRisk("git switch Local_Development")).toBe("DESTRUCTIVE")
+    expect(Constitution.classifyCommandRisk("git restore packages/opencode/src/x.ts")).toBe("DESTRUCTIVE")
   })
 
   test("classifyCommandRisk ranks elevated write/publish", () => {

@@ -138,7 +138,7 @@ const TIPS = [
   "Run {highlight}/unshare{/highlight} to remove a session from public access",
   "Permission {highlight}doom_loop{/highlight} prevents infinite tool call loops",
   "Permission {highlight}external_directory{/highlight} protects files outside project",
-  "Permission {highlight}destructive{/highlight} gates rm -rf / force-push — not covered by bash:allow",
+  "Permission {highlight}destructive{/highlight} gates rm -rf / force-push / git checkout — not covered by bash:allow",
   "Use {highlight}/permissions{/highlight} to set permanent tool policies (ask/allow/deny)",
   "Session \"Always this cmd\" for destructive lasts until restart; save permanent defaults in /permissions",
   "Run {highlight}opencode debug config{/highlight} to troubleshoot configuration",

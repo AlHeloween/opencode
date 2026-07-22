@@ -37,7 +37,7 @@ const InputObject = Schema.StructWithRest(
     /** Binary exec via the run tool (not a shell). */
     run: Schema.optional(Rule),
     /**
-     * Constitution DESTRUCTIVE shell (rm -rf, force-push, …).
+     * Constitution DESTRUCTIVE shell (rm -rf, force-push, checkout, …).
      * Not covered by bash/cmd/powershell/run wildcards. Default is deny;
      * normal shell/run commands use their own keys (allow by default).
      */

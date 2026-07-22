@@ -108,3 +108,6 @@ cmd_runner.exe
 
 # Generated / refreshed provider model catalogs (build regenerates; too noisy for git)
 packages/opencode/src/provider/models/
+
+# Generated from opencode_prompts_kernel.py (python ... --render-runtime / _build.ps1)
+packages/opencode/src/session/prompt/opencode_prompts_kernel.txt

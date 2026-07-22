@@ -146,9 +146,11 @@ function extractSemanticVector(text: string): SemanticVector | undefined {
   const match = text.match(/## Semantic Vector\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
   if (!match?.[1]) return undefined
   const block = match[1]
-  const dominantMatch = block.match(/dominant:\s*"([^"]+)"/)
+  // dominant: "..." or dominant: '...' (both quote styles)
+  const dominantMatch = block.match(/dominant:\s*["']([^"']+)["']/)
   const phrases: { phrase: string; weight: number }[] = []
-  const phraseRe = /-\s*phrase:\s*"([^"]+)"\s*\n\s*weight:\s*([\d.]+)/g
+  // - phrase: "..." / '...' with weight on next line
+  const phraseRe = /-\s*phrase:\s*["']([^"']+)["']\s*\n\s*weight:\s*([\d.]+)/g
   let pm
   while ((pm = phraseRe.exec(block)) !== null) {
     phrases.push({ phrase: pm[1], weight: parseFloat(pm[2]) })
@@ -349,7 +351,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
             if (text) {
               const prev = i > 0 ? msgs[i - 1] : undefined
               const range = prev?.info.role === "user" && prev.parts.some((p) => p.type === "text" && (p as any).synthetic)
-                ? extractRangeFromRequest(prev.parts.find((p) => p.type === "text")?.["text"] ?? "")
+                ? extractRangeFromRequest(
+                    (prev.parts.find((p) => p.type === "text" && (p as any).text?.includes("summary-range")) as any)?.text ?? ""
+                  )
                 : {}
               summaries.push({ id: m.info.id, text, ...range })
             }

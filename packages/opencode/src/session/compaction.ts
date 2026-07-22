@@ -78,6 +78,26 @@ function trimToLastInterval(msgs: MessageV2.WithParts[]): number {
   return 0
 }
 
+/** Walk backward through msgs from the end, summing output tokens of assistants
+  * until a summary assistant is found. Returns the total output tokens since
+  * the last summary (or since session start if no summary exists).
+  *
+  * Survives `runLoop` restarts — reads from persisted message tokens rather
+  * than relying on the in-memory `outputTokensSinceLastSummary` counter that
+  * was previously reset on every user message. */
+export function computeOutputSinceLastSummary(msgs: MessageV2.WithParts[]): number {
+  let tokens = 0
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]
+    if (m.info.role === "assistant" && (m.info as any).summary) break
+    if (m.info.role === "assistant") {
+      tokens += (m.info as any).tokens?.output ?? 0
+      tokens += (m.info as any).tokens?.reasoning ?? 0
+    }
+  }
+  return tokens
+}
+
 function summaryRequestMessage(fromId: string, toId: string, sessionID: string) {
   return `Please create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.
 

@@ -1221,6 +1221,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
         let cachedTools: Record<string, AITool> | undefined
         let outputTokensSinceLastSummary = 0
         let pendingSummaryResponse = false
+        let countersSeeded = false
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
@@ -1264,6 +1265,16 @@ You should build your plan incrementally by writing to or editing this file. NOT
           // Without this, mutations to msgs (system-reminder, background-jobs)
           // are lost when cachedMsgs is reused on the next iteration.
           cachedMsgs = msgs
+
+          // Seed outputTokensSinceLastSummary from persisted message tokens.
+          // The counter was previously in-memory only and reset on every
+          // runLoop (every user message), so summaries only triggered when
+          // a single turn produced >32K output tokens.  Now the counter
+          // survives restarts by walking backward through visible messages.
+          if (!countersSeeded) {
+            outputTokensSinceLastSummary = SessionCompaction.computeOutputSinceLastSummary(msgs)
+            countersSeeded = true
+          }
 
           let lastUser: MessageV2.User | undefined
           let lastAssistant: MessageV2.Assistant | undefined

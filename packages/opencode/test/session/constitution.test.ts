@@ -39,6 +39,30 @@ describe("session.constitution", () => {
     }
   })
 
+  test("agent fossil commit/add/checkout are hard-blocked (snapshot is runtime-only)", () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      for (const cmd of [
+        "fossil commit -m 'oops'",
+        "fossil.exe commit -m x",
+        "fossil add file.ts",
+        "fossil checkout tip",
+        "fossil update",
+      ]) {
+        const g = Constitution.guardCommand(cmd)
+        expect(g.blocked).toBe(true)
+        expect(g.message).toMatch(/fossil|auto-snapshot|git/i)
+      }
+      // Read-only fossil CLI not hard-blocked by mutate list
+      expect(Constitution.guardCommand("fossil timeline").blocked).toBe(false)
+      expect(Constitution.guardCommand("fossil status").blocked).toBe(false)
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
+
   test("classifyCommandRisk ranks elevated write/publish", () => {
     expect(Constitution.classifyCommandRisk("git push origin main")).toBe("ELEVATED")
     expect(Constitution.classifyCommandRisk("npm publish")).toBe("ELEVATED")

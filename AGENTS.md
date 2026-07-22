@@ -43,6 +43,7 @@ forbidden_actions:
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
 - Using git push --no-verify (or any --no-verify variant with git push)
 - Using git checkout / git switch / git restore / git reset --hard (HARD BLOCKED — rewrites working tree from VCS; can wipe many files and scramble multi-commit work. Single-file undo = edit .bak backups or Fossil snapshot restore, NEVER git checkout. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1)
+- Running fossil commit/add/checkout/… from the agent shell (HARD BLOCKED — Fossil is automatic session snapshot/undo only; project VCS is git. Runtime Snapshot.track already auto-snapshots after tool edits)
 - Using silent catch {} blocks
 - Labeling errors as "pre-existing" — every error is a deliverable
 - Planning from .opencode/plans/ directory
@@ -304,6 +305,8 @@ Real-time working copy tracking with undo/redo and session-level rollback. See `
 - **Git** (`project/vcs.ts`) — real project source control (branch, agent-facing git status) when the worktree is a git repo
 - **jj** — TUI footer detection only (`.jj`); no snapshot service
 - **TUI indicator** — fossil (green) / jj (blue) / git (red) from checkout markers; a git monorepo still uses Fossil for agent undo
+
+**Agents must never run `fossil commit` / `fossil add` / etc.** Snapshot commits are **runtime-only** (`Snapshot.track` → `auto-snapshot` after tool edits). Agent-facing project history is **git**. Manual fossil CLI mutates the sidecar and confuses undo with project VCS.
 
 **Key functions:**
 - `track(files?)` — Creates snapshot of current working copy

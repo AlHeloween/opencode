@@ -55,12 +55,39 @@ const GIT_HISTORY_REWRITE_PATTERNS: RegExp[] = [
   /\bgit\s+reset\s+--hard\b/i,
 ]
 
+/**
+ * Agent-invoked Fossil CLI that mutates the snapshot sidecar.
+ * Runtime Snapshot.track() commits as "auto-snapshot" outside bash/cmd —
+ * agents must never fossil commit/add/checkout themselves. Project VCS = git.
+ */
+const FOSSIL_AGENT_MUTATE_PATTERNS: RegExp[] = [
+  /\bfossil(\.exe)?\s+commit\b/i,
+  /\bfossil(\.exe)?\s+ci\b/i,
+  /\bfossil(\.exe)?\s+add\b/i,
+  /\bfossil(\.exe)?\s+rm\b/i,
+  /\bfossil(\.exe)?\s+delete\b/i,
+  /\bfossil(\.exe)?\s+addremove\b/i,
+  /\bfossil(\.exe)?\s+checkout\b/i,
+  /\bfossil(\.exe)?\s+co\b/i,
+  /\bfossil(\.exe)?\s+update\b/i,
+  /\bfossil(\.exe)?\s+up\b/i,
+  /\bfossil(\.exe)?\s+merge\b/i,
+  /\bfossil(\.exe)?\s+undo\b/i,
+  /\bfossil(\.exe)?\s+revert\b/i,
+  /\bfossil(\.exe)?\s+close\b/i,
+  /\bfossil(\.exe)?\s+open\b/i,
+  /\bfossil(\.exe)?\s+push\b/i,
+  /\bfossil(\.exe)?\s+pull\b/i,
+  /\bfossil(\.exe)?\s+sync\b/i,
+]
+
 const DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\s+--force)/i,
   /\brm\s+-rf\b/i,
   /\bgit\s+push\b[^\n]*--force\b/i,
   /\bgit\s+push\b[^\n]*-f\b/i,
   ...GIT_HISTORY_REWRITE_PATTERNS,
+  ...FOSSIL_AGENT_MUTATE_PATTERNS,
   /\bgit\s+clean\s+-[a-zA-Z]*f/i,
   /\bdrop\s+(table|database)\b/i,
   /\bformat\s+[a-z]:/i,
@@ -73,6 +100,10 @@ const DESTRUCTIVE_PATTERNS: RegExp[] = [
 
 export function isGitHistoryRewrite(command: string): boolean {
   return GIT_HISTORY_REWRITE_PATTERNS.some((re) => re.test(command.trim()))
+}
+
+export function isFossilAgentMutate(command: string): boolean {
+  return FOSSIL_AGENT_MUTATE_PATTERNS.some((re) => re.test(command.trim()))
 }
 
 const ELEVATED_PATTERNS: RegExp[] = [
@@ -157,8 +188,24 @@ export function guardCommand(
         "constitution: BLOCKED git checkout/switch/restore/reset --hard. " +
         "Do NOT use git to undo a file — that can wipe unrelated working-tree changes " +
         "and scramble multi-commit state. " +
-        "Recover with: edit-tool .bak backups, or Fossil snapshot restore. " +
+        "Recover with: edit-tool .bak backups, or Fossil snapshot restore (UI/runtime). " +
         "Only set OPENCODE_ALLOW_DESTRUCTIVE=1 if you truly intend VCS rewrite.",
+    }
+  }
+
+  // Hard block: agent Fossil CLI mutations. Snapshot Fossil is runtime-only
+  // (Snapshot.track → auto-snapshot). Manual fossil commit is wrong VCS.
+  if (isFossilAgentMutate(command) && !allow) {
+    return {
+      risk: "DESTRUCTIVE",
+      needsDestructivePermission: false,
+      blocked: true,
+      message:
+        "constitution: BLOCKED fossil CLI mutate (commit/add/checkout/…). " +
+        "Fossil is the automatic session undo/snapshot backend — not project VCS. " +
+        "Runtime already snapshots after tool edits (auto-snapshot). " +
+        "For project history use git add/commit/push. " +
+        "Do not fossil commit. Override only OPENCODE_ALLOW_DESTRUCTIVE=1.",
     }
   }
 

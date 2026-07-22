@@ -64,4 +64,61 @@ describe("session.constitution", () => {
     expect(b).toContain("info_mark: Exact")
     expect(b).toContain("ses_1")
   })
+
+  // --- epistemic nudge (plans/2026-07-22_epistemic_guardrails.md step B) ---
+
+  test("epistemicNudge: mutation tools get nudge when floor is Inferred", () => {
+    for (const tool of ["write", "edit", "multiedit", "apply_patch"]) {
+      const n = Constitution.epistemicNudge({ tool, evidenceFloor: "Inferred" })
+      expect(n).toBeDefined()
+      expect(n).toContain("epistemic nudge")
+      expect(n).toContain("Inferred")
+      expect(n).toContain("session-read")
+    }
+  })
+
+  test("epistemicNudge: no nudge when evidence floor is Exact", () => {
+    expect(Constitution.epistemicNudge({ tool: "edit", evidenceFloor: "Exact" })).toBeUndefined()
+    expect(
+      Constitution.epistemicNudge({
+        tool: "bash",
+        evidenceFloor: "Exact",
+        command: "rm -rf /tmp/x",
+      }),
+    ).toBeUndefined()
+  })
+
+  test("epistemicNudge: read-only tools without destructive command skip nudge", () => {
+    expect(Constitution.epistemicNudge({ tool: "read", evidenceFloor: "Inferred" })).toBeUndefined()
+    expect(Constitution.epistemicNudge({ tool: "messagesearch", evidenceFloor: "Guess" })).toBeUndefined()
+    expect(
+      Constitution.epistemicNudge({
+        tool: "bash",
+        evidenceFloor: "Inferred",
+        command: "ls -la",
+      }),
+    ).toBeUndefined()
+  })
+
+  test("epistemicNudge: destructive shell command gets nudge on non-Exact floor", () => {
+    const n = Constitution.epistemicNudge({
+      tool: "bash",
+      evidenceFloor: "Guess",
+      command: "rm -rf /tmp/x",
+    })
+    expect(n).toBeDefined()
+    expect(n).toContain("Guess")
+    expect(n).toContain("session-read recommended")
+  })
+
+  test("epistemicNudge: elevated but non-destructive shell skips nudge", () => {
+    // git push is ELEVATED, not DESTRUCTIVE — soft gate only for DESTRUCTIVE/mutation
+    expect(
+      Constitution.epistemicNudge({
+        tool: "bash",
+        evidenceFloor: "Inferred",
+        command: "git push origin main",
+      }),
+    ).toBeUndefined()
+  })
 })

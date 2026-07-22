@@ -1243,9 +1243,95 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
         expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
         expect(texts.some((t: string) => t.includes("Inferred") && t.includes("info_mark"))).toBe(true)
+        // Epistemic guardrails: required structured sections including Key decisions
+        expect(texts.some((t: string) => t.includes("## Goal"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("## Key decisions"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("## Current state"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("preserved verbatim across compaction"))).toBe(true)
       }),
     ),
   )
+})
+
+// --- computeOutputSinceLastSummary (be7c71c96c Layer-1 seed fix) ---
+
+describe("session.compaction.computeOutputSinceLastSummary", () => {
+  const asst = (
+    id: string,
+    tokens: { output: number; reasoning?: number },
+    summary?: boolean,
+  ): MessageV2.WithParts =>
+    ({
+      info: {
+        id,
+        role: "assistant",
+        summary: summary || undefined,
+        tokens: {
+          output: tokens.output,
+          reasoning: tokens.reasoning ?? 0,
+          input: 0,
+          cache: { read: 0, write: 0 },
+        },
+      },
+      parts: [],
+    }) as any
+
+  const user = (id: string): MessageV2.WithParts =>
+    ({ info: { id, role: "user" }, parts: [] }) as any
+
+  test("sums output+reasoning from end until a summary assistant", () => {
+    const msgs = [
+      user("u0"),
+      asst("s1", { output: 50_000, reasoning: 1_000 }, true),
+      user("u1"),
+      asst("a1", { output: 10_000, reasoning: 2_000 }),
+      asst("a2", { output: 5_000, reasoning: 500 }),
+    ]
+    // Only a1+a2 after s1
+    expect(SessionCompaction.computeOutputSinceLastSummary(msgs)).toBe(17_500)
+  })
+
+  test("sums from session start when no summary exists", () => {
+    const msgs = [
+      user("u0"),
+      asst("a1", { output: 20_000, reasoning: 0 }),
+      asst("a2", { output: 15_000, reasoning: 1_000 }),
+    ]
+    expect(SessionCompaction.computeOutputSinceLastSummary(msgs)).toBe(36_000)
+  })
+
+  test("returns 0 when latest visible assistant is a summary", () => {
+    const msgs = [
+      asst("a1", { output: 99_000 }),
+      asst("s1", { output: 100 }, true),
+    ]
+    expect(SessionCompaction.computeOutputSinceLastSummary(msgs)).toBe(0)
+  })
+
+  test("ignores user messages and missing token fields", () => {
+    const msgs = [
+      user("u0"),
+      { info: { id: "a1", role: "assistant" }, parts: [] } as any,
+      asst("a2", { output: 100 }),
+    ]
+    expect(SessionCompaction.computeOutputSinceLastSummary(msgs)).toBe(100)
+  })
+
+  test("cross-turn seed can exceed SUMMARY_INTERVAL_TOKENS without a single large turn", () => {
+    const half = Math.floor(SessionCompaction.SUMMARY_INTERVAL_TOKENS / 2) + 1
+    const msgs = [
+      asst("a1", { output: half }),
+      asst("a2", { output: half }),
+    ]
+    const total = SessionCompaction.computeOutputSinceLastSummary(msgs)
+    expect(total).toBeGreaterThanOrEqual(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
+    // Documents the fix: multi-turn sum (seed) crosses the inject threshold
+    expect(half).toBeLessThan(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
+  })
+
+  test("empty message list returns 0", () => {
+    expect(SessionCompaction.computeOutputSinceLastSummary([])).toBe(0)
+  })
 })
 
 // --- multiple summary boundaries ---
@@ -1601,6 +1687,202 @@ describe("session.compaction.edge-cases", () => {
         expect(combined).toContain("first cycle summary")
         expect(combined).toContain("post-star-work")
         expect(combined).toContain("summary_message_id")
+      }),
+    ),
+  )
+})
+
+// --- Key decisions preservation (c9cb41e06d / epistemic guardrails step C) ---
+
+describe("session.compaction.key-decisions", () => {
+  it.live(
+    "folds ## Key decisions into a preserved Decisions block on compact",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id,
+          agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: su.id, sessionID: info.id,
+          type: "text", text: "summary-req",
+        })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn", time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: sa.id, sessionID: info.id,
+          type: "text",
+          text: [
+            "## Goal",
+            "Ship epistemic guardrails",
+            "",
+            "## Key decisions",
+            "- Use Fossil for snapshot backend only",
+            "- Keep session-read as Exact ground truth",
+            "",
+            "## Current state",
+            "Implementation in progress",
+          ].join("\n"),
+        })
+
+        const recent = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id,
+          agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: recent.id, sessionID: info.id,
+          type: "text", text: "continue work",
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(msgs).toHaveLength(1)
+        const combined = msgs
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).toContain("Decisions (preserved verbatim across compaction cycles)")
+        expect(combined).toContain("info_mark: Inferred — not re-summarized")
+        expect(combined).toContain("Use Fossil for snapshot backend only")
+        expect(combined).toContain("Keep session-read as Exact ground truth")
+        // Original section still present inside the summary block as well
+        expect(combined).toContain("## Key decisions")
+      }),
+    ),
+  )
+
+  it.live(
+    "preserves Key decisions across a second compaction cycle",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id,
+          agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: su.id, sessionID: info.id,
+          type: "text", text: "summary-req",
+        })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn", time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        const decisionLine = "Adopt AES-256-GCM for checkpoint slots"
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: sa.id, sessionID: info.id,
+          type: "text",
+          text: [
+            "## Goal",
+            "Secure checkpoints",
+            "",
+            "## Key decisions",
+            `- ${decisionLine}`,
+            "",
+            "## Current state",
+            "Done",
+          ].join("\n"),
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after1 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after1).toHaveLength(1)
+        const star1 = after1[0].info.id
+        const text1 = after1
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(text1).toContain(decisionLine)
+
+        // Growth then re-compact — decision must survive (Inferred once, not re-Inferred)
+        const growth = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id,
+          agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(), messageID: growth.id, sessionID: info.id,
+          type: "text", text: "more work after star",
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after2 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after2).toHaveLength(1)
+        expect(after2[0].info.id).not.toBe(star1)
+        const text2 = after2
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(text2).toContain(decisionLine)
+        expect(text2).toContain("Decisions (preserved verbatim across compaction cycles)")
+        expect(text2).toContain("more work after star")
+      }),
+    ),
+  )
+
+  it.live(
+    "collects decisions from multiple summary assistants",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const makeSummary = (decision: string) =>
+          Effect.gen(function* () {
+            const u = yield* ssn.updateMessage({
+              id: MessageID.ascending(), role: "user", sessionID: info.id,
+              agent: "build", model: ref, time: { created: Date.now() },
+            })
+            yield* ssn.updatePart({
+              id: PartID.ascending(), messageID: u.id, sessionID: info.id,
+              type: "text", text: "summary-req",
+            })
+            const a = yield* ssn.updateMessage({
+              id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+              mode: "build", agent: "build", parentID: u.id,
+              modelID: ref.modelID, providerID: ref.providerID,
+              path: { cwd: dir, root: dir }, cost: 0,
+              tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              summary: true, finish: "end_turn", time: { created: Date.now() },
+            } as MessageV2.Assistant)
+            yield* ssn.updatePart({
+              id: PartID.ascending(), messageID: a.id, sessionID: info.id,
+              type: "text",
+              text: `## Goal\nx\n\n## Key decisions\n- ${decision}\n\n## Current state\ny`,
+            })
+          })
+
+        yield* makeSummary("Decision from summary one")
+        yield* makeSummary("Decision from summary two")
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const combined = (yield* MessageV2.filterCompactedEffect(info.id))
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+
+        expect(combined).toContain("Decision from summary one")
+        expect(combined).toContain("Decision from summary two")
+        expect(combined).toContain("Decisions (preserved verbatim across compaction cycles)")
       }),
     ),
   )

@@ -100,6 +100,81 @@ describe("JobManager", () => {
     expect(result).toBeUndefined()
   })
 
+  // --- epistemic labels (plans/2026-07-22_epistemic_guardrails.md step A) ---
+
+  test("drainCompletedNote labels bash completion [Exact]", async () => {
+    const sessionID = `epi-bash-${Date.now()}` as any
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        yield* svc.start({
+          sessionID,
+          kind: "bash",
+          label: "build-step",
+          run: async (_signal, write) => {
+            write("ok")
+            return "Build completed successfully."
+          },
+        })
+        yield* Effect.sleep(150)
+        const note = yield* svc.drainCompletedNote({ sessionID })
+        expect(note).toContain("Background jobs since your last turn:")
+        expect(note).toContain("build-step")
+        expect(note).toContain("[Exact]")
+        expect(note).not.toContain("[Inferred]")
+        // Label sits after status, before result
+        expect(note).toMatch(/→\s*done\s*\[Exact\]/)
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("drainCompletedNote labels task completion [Inferred]", async () => {
+    const sessionID = `epi-task-${Date.now()}` as any
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        yield* svc.startEffect({
+          sessionID,
+          kind: "task",
+          label: "research",
+          run: (_write) => Effect.succeed("Sub-agent concluded X"),
+        })
+        yield* Effect.sleep(150)
+        const note = yield* svc.drainCompletedNote({ sessionID })
+        expect(note).toContain("research")
+        expect(note).toContain("[Inferred]")
+        expect(note).toMatch(/→\s*done\s*\[Inferred\]/)
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("drainCompletedNote marks cmd/run as Exact and task as Inferred in one drain", async () => {
+    const sessionID = `epi-mix-${Date.now()}` as any
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        yield* svc.start({
+          sessionID,
+          kind: "cmd",
+          label: "compile",
+          run: async () => "compiled",
+        })
+        yield* svc.startEffect({
+          sessionID,
+          kind: "task",
+          label: "explore",
+          run: () => Effect.succeed("found files"),
+        })
+        yield* Effect.sleep(200)
+        const note = yield* svc.drainCompletedNote({ sessionID })
+        expect(note).toContain("[Exact]")
+        expect(note).toContain("[Inferred]")
+        expect(note).toContain("compile")
+        expect(note).toContain("explore")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
   test("startEffect has [started] output immediately", async () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {

@@ -21,6 +21,7 @@ import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
 import type { Provider } from "@/provider/provider"
 import { Question } from "@/question"
+import { Constitution } from "./constitution"
 import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { isRecord } from "@/util/record"
@@ -65,6 +66,10 @@ type Input = {
     * Passed from prompt loop to enable mid-turn overflow detection
     * that accounts for full session context, not just per-turn tokens. */
   contentTokenEstimate?: number
+  /** Epistemic floor of the current turn's evidence chain.
+    * Inferred by default; upgraded to Exact after session-read.
+    * Used to inject epistemic nudges before destructive tool calls. */
+  evidenceFloor?: import("../session/constitution").InfoMark
 }
 
 export interface Interface {
@@ -96,6 +101,8 @@ interface ProcessorContext extends Input {
   changedFiles: Set<string>
   /** Cumulative context token estimate from prompt loop. */
   contentTokenEstimate?: number
+  /** Epistemic floor — always resolved by create() from optional Input. */
+  evidenceFloor: import("../session/constitution").InfoMark
 }
 
 type StreamEvent = Event
@@ -201,6 +208,7 @@ export const layer: Layer.Layer<
         firstTokenLogged: false,
         hasWriteToolCall: false,
         changedFiles: new Set<string>(),
+        evidenceFloor: input.evidenceFloor ?? "Inferred",
       }
       let aborted = false
       const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
@@ -286,12 +294,20 @@ export const layer: Layer.Layer<
       ) {
         const match = yield* readToolCall(toolCallID)
         if (!match || match.part.state.status !== "running") return
+        // Epistemic nudge: if evidence floor is not Exact and this is a
+        // mutation/destructive tool, prepend a verification reminder.
+        const nudge = Constitution.epistemicNudge({
+          tool: match.part.tool,
+          evidenceFloor: ctx.evidenceFloor,
+          command: (match.part.state.input as any)?.command,
+        })
+        const finalOutput = nudge ? nudge + "\n" + output.output : output.output
         yield* session.updatePart({
           ...match.part,
           state: {
             status: "completed",
             input: match.part.state.input,
-            output: output.output,
+            output: finalOutput,
             metadata: output.metadata,
             title: output.title,
             time: { start: match.part.state.time.start, end: Date.now() },
@@ -418,6 +434,8 @@ export const layer: Layer.Layer<
           case "tool-call": {
             ctx.toolCallEmitted = true
             if (WRITE_TOOLS.has(value.toolName)) ctx.hasWriteToolCall = true
+            // Upgrade evidence floor: session-read provides Exact ground truth.
+            if (value.toolName === "session-read") ctx.evidenceFloor = "Exact"
             yield* updateToolCall(value.toolCallId, (match) => ({
               ...match,
               tool: value.toolName,

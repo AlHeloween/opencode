@@ -168,4 +168,29 @@ export function infoMarkAtLeast(left: InfoMark, right: InfoMark): boolean {
   return INFO_MARK_ORDER.indexOf(left) <= INFO_MARK_ORDER.indexOf(right)
 }
 
+/** Tools that mutate filesystem or state — always ELEVATED risk. */
+const MUTATION_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch"])
+
+/** Epistemic nudge: injected before a destructive tool when evidence floor
+  * is not Exact (i.e. model is acting on Inferred/Guess data without
+  * verifying via session-read first).  Not a hard gate — advisory only. */
+export function epistemicNudge(input: {
+  tool: string
+  evidenceFloor: InfoMark
+  command?: string
+}): string | undefined {
+  if (input.evidenceFloor === "Exact") return undefined
+
+  const isMutation = MUTATION_TOOLS.has(input.tool)
+  const isDestructiveCmd = input.command
+    ? classifyCommandRisk(input.command) === "DESTRUCTIVE"
+    : false
+  if (!isMutation && !isDestructiveCmd) return undefined
+
+  return (
+    `[epistemic nudge: decision based on ${input.evidenceFloor} data. ` +
+    `session-read recommended for Exact verification.]`
+  )
+}
+
 export * as Constitution from "./constitution"

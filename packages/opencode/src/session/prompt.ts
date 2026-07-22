@@ -1222,6 +1222,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
         let outputTokensSinceLastSummary = 0
         let pendingSummaryResponse = false
         let countersSeeded = false
+        /** Epistemic floor of the current turn's evidence chain.
+          * Starts at Inferred (model memory), upgraded to Exact
+          * only after session-read.  Resets each turn. */
+        let evidenceFloor: import("../session/constitution").InfoMark = "Inferred"
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
@@ -1397,6 +1401,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               model,
               agentName: agent.name,
               contentTokenEstimate: estimateContentTokens(msgs, model),
+              evidenceFloor,
             })
             .pipe(Effect.onInterrupt(() => finalizeInterruptedAssistant))
           yield* slog.debug("prepare", { step, stage: "assistant-ready", agent: agent.name })

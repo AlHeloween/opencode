@@ -21,6 +21,9 @@ constraints:
 - All caught errors must log — silent catch {} is a bug
 - Use warn("bug: ...") for unexpected failures, debug(...) for expected
 - Use explore agent for codebase searching
+- Model provider JSON updates (src/provider/models/*.json) are auto-synced
+  data from OpenCode Zen. Commit them separately from feature work (e.g.
+  `chore: update model provider configurations`) — they are useful, not noise.
 
 invariants:
 - Every catch block must call a log function

@@ -118,7 +118,7 @@ $AnyrepairOut = Join-Path $WasmCorePkg "anyrepair"
 if (Test-Path $AnyrepairDir) {
     Write-Host "Building anyrepair WASM module..."
     Push-Location $AnyrepairDir
-    wasm-pack build --target nodejs
+    wasm-pack build --target nodejs --no-opt
     Pop-Location
     if (-not (Test-Path $AnyrepairOut)) { New-Item -ItemType Directory -Path $AnyrepairOut | Out-Null }
     Copy-Item -Recurse -Force "$AnyrepairDir\pkg\*" $AnyrepairOut

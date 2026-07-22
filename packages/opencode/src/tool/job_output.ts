@@ -40,6 +40,10 @@ export const JobWaitParameters = Schema.Struct({
   timeout: Schema.optional(Schema.Number).annotate({
     description: "Maximum wait time in milliseconds (default: 30000)",
   }),
+  progress_interval_ms: Schema.optional(Schema.Number).annotate({
+    description:
+      "When set, returns every N milliseconds with intermediate progress instead of blocking until completion. The model can then decide to continue (call job_wait again), kill (job_kill), or take other action. Use for long-running tasks (compiles, deploys) where the model needs periodic control. Without this, job_wait blocks until all jobs finish or timeout fires.",
+  }),
 })
 
 export const JobWaitTool = Tool.define(
@@ -47,15 +51,18 @@ export const JobWaitTool = Tool.define(
   Effect.gen(function* () {
     const jobs = yield* Jobs.Service
     return {
-      description: "Wait for background jobs to complete. Blocks until all specified jobs reach a terminal state (done, failed, or killed), then returns their final output.",
+      description:
+        "Wait for background jobs to complete. Blocks until all specified jobs reach a terminal state (done, failed, or killed), then returns their final output. Set progress_interval_ms for periodic progress returns on long-running tasks.",
       parameters: JobWaitParameters,
-      execute: (params: { job_ids?: string[]; timeout?: number }, ctx: Tool.Context) =>
+      execute: (params: { job_ids?: string[]; timeout?: number; progress_interval_ms?: number }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const ids = params.job_ids ?? []
           const maxWait = params.timeout ?? 30000
+          const progressInterval = params.progress_interval_ms
           const start = Date.now()
+          let intervalStart = Date.now()
 
-          // Poll until all jobs are done/failed/killed or timeout.
+          // Poll until all jobs are done/failed/killed, timeout, or progress interval fires.
           // Stalled jobs are NOT terminal — agent must decide to kill them.
           while (Date.now() - start < maxWait) {
             const list = yield* jobs.list({ sessionID: ctx.sessionID })
@@ -65,22 +72,46 @@ export const JobWaitTool = Tool.define(
             )
 
             if (pending.length === 0) break
+
+            // Progress interval: return control to the model for decision-making
+            if (progressInterval && Date.now() - intervalStart >= progressInterval) break
+
             yield* Effect.sleep(500)
           }
 
-          // Collect results
+          // Collect results — including intermediate status for still-running jobs
           const results: string[] = []
           const list = yield* jobs.list({ sessionID: ctx.sessionID })
           const targetIds = ids.length > 0 ? ids : list.map((j) => j.id)
+          const now = Date.now()
+          let stillRunning = false
+
           for (const jobId of targetIds) {
             const out = yield* jobs.output({ sessionID: ctx.sessionID, jobID: Jobs.JobID.make(jobId) })
             const info = list.find((j) => j.id === jobId)
-            results.push(`${jobId} (${info?.status ?? "unknown"}): ${out.text.slice(0, 500) || "(no output)"}`)
+            const status = info?.status ?? "unknown"
+            const elapsed = info ? Math.round((now - info.startedAt) / 1000) : 0
+            const elapsedStr = elapsed >= 60 ? `${Math.floor(elapsed / 60)}m${elapsed % 60}s` : `${elapsed}s`
+
+            if (status === "running" || status === "stalled") {
+              stillRunning = true
+              results.push(
+                `${jobId} (${status}, ${elapsedStr} elapsed): ${out.text.slice(0, 500) || "(no output yet)"}`,
+              )
+            } else {
+              results.push(`${jobId} (${status}): ${out.text.slice(0, 500) || "(no output)"}`)
+            }
+          }
+
+          let output = results.join("\n\n") || "No jobs found."
+          if (stillRunning && progressInterval) {
+            output +=
+              `\n\n[progress tick — jobs still running. Call job_wait again to continue waiting, or job_kill to abort.]`
           }
 
           return {
             title: "Background jobs",
-            output: results.join("\n\n") || "No jobs found.",
+            output,
             metadata: { jobIDs: targetIds },
           }
         }).pipe(Effect.orDie),

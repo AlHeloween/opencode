@@ -1,3 +1,4 @@
+import os from "os"
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import path from "path"
@@ -37,6 +38,10 @@ import { PluginCommand } from "./cli/cmd/plug"
 import { DirsCommand } from "./cli/cmd/dirs"
 import { Heap } from "./cli/heap"
 import { ensureProcessMetadata } from "@opencode-ai/core/util/opencode-process"
+
+// Run opencode at below-normal priority so it never starves user foreground apps.
+// Background jobs inherit this and don't need additional priority management.
+try { os.setPriority(0, 10) } catch { /* best effort — may fail in containers */ }
 
 const processMetadata = ensureProcessMetadata("main")
 

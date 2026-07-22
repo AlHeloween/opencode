@@ -294,16 +294,25 @@ export const layer = Layer.effect(
 
       // Compaction reminder: after message* or a live summary assistant, tell the
       // model it can recover soft-hidden history via session-read / messagesearch.
+      // Detect real message* (starts with marker) or live summary assistants.
+      // Do NOT match reminder text that merely mentions the marker — that would
+      // keep re-arming forever and isMessageStar used to mis-classify those users.
       const hasCompactionMemory = input.messages.some((msg) => {
         if (msg.info.role === "assistant" && (msg.info as { summary?: unknown }).summary === true) return true
         return msg.parts.some(
-          (p) => p.type === "text" && typeof (p as { text?: string }).text === "string" && (p as { text: string }).text.includes("=== COMPACTED ==="),
+          (p) =>
+            p.type === "text" &&
+            typeof (p as { text?: string }).text === "string" &&
+            (p as { text: string }).text.trimStart().startsWith("=== COMPACTED ==="),
         )
       })
       if (hasCompactionMemory && input.agent.name !== "plan") {
+        // Wording must NOT contain the literal "=== COMPACTED ===" marker — that
+        // string is the message* boundary; embedding it made isMessageStar treat
+        // every reminded user message as message* and drop them from the next fold.
         const COMPACTION_REMINDER = `<system-reminder>
 Your conversation history was compacted to stay within context limits.
-Active memory is the compacted message (=== COMPACTED ===) and/or summary assistants.
+Active memory is the compacted message block and/or summary assistants.
 Older messages are soft-hidden in the DB — not deleted.
 Epistemic ranks (InfoMark): summaries = Inferred; session-read(message id) = Exact; unaided recall = Guess.
 Never treat summary text as Exact ground truth without session-read.

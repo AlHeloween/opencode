@@ -113,6 +113,8 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 
 **Visibility:** `MessageV2.filterCompacted` / `filterCompactedEffect` skip `info.compacted === true`. Soft-hidden rows stay in SQLite for tools.
 
+**message* detection:** `isMessageStar` / `isCompactionBoundary` match only text that **starts with** `=== COMPACTED ===`. Do not use `.includes()` — the post-compact system-reminder used to mention that marker and was mis-classified as message*, which **dropped every real user message** from the next Recent fold (assistants only). Reminder wording must never embed the literal marker string.
+
 ---
 
 ## Key files

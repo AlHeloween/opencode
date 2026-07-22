@@ -194,6 +194,138 @@ describe("session.compaction.sequential-compact", () => {
   )
 })
 
+// Regression: COMPACTION_REMINDER used to embed the literal "=== COMPACTED ==="
+// marker. isMessageStar matched that substring on every post-compact user message
+// and excluded them all from the next message* Recent fold — model saw only
+// assistants and lost the user's actual requests.
+describe("session.compaction.user-messages-in-recent", () => {
+  it.live(
+    "second compact keeps real user messages even when they carry a compaction reminder",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const u1 = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: u1.id,
+          sessionID: info.id,
+          type: "text",
+          text: "first user goal",
+        })
+        const a1 = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "build",
+          agent: "build",
+          parentID: u1.id,
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: a1.id,
+          sessionID: info.id,
+          type: "text",
+          text: "assistant reply one",
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after1 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after1).toHaveLength(1)
+        expect(
+          after1[0].parts.some(
+            (p: any) => p.type === "text" && String(p.text).includes("first user goal"),
+          ),
+        ).toBe(true)
+
+        // Simulate post-compact user turn: real prompt + legacy reminder that
+        // *mentions* the marker (old prompt.ts wording). Must not be treated as message*.
+        const u2 = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: u2.id,
+          sessionID: info.id,
+          type: "text",
+          text: "CRITICAL user request after compact",
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: u2.id,
+          sessionID: info.id,
+          type: "text",
+          synthetic: true,
+          text: `<system-reminder>
+Your conversation history was compacted to stay within context limits.
+Active memory is the compacted message (=== COMPACTED ===) and/or summary assistants.
+</system-reminder>`,
+        })
+        const a2 = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "build",
+          agent: "build",
+          parentID: u2.id,
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: a2.id,
+          sessionID: info.id,
+          type: "text",
+          text: "assistant reply two",
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build", force: true })
+        const after2 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after2).toHaveLength(1)
+        const combined = after2
+          .flatMap((m: any) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).toContain("CRITICAL user request after compact")
+        expect(combined).toContain("[user `")
+        expect(combined).toContain("assistant reply two")
+        // Chronological: user request should appear before the following assistant in Recent
+        const userIdx = combined.indexOf("CRITICAL user request after compact")
+        const asstIdx = combined.indexOf("assistant reply two")
+        expect(userIdx).toBeGreaterThan(-1)
+        expect(asstIdx).toBeGreaterThan(userIdx)
+      }),
+    ),
+  )
+})
+
 async function user(sessionID: SessionID, text: string) {
   const msg = await svc.updateMessage({
     id: MessageID.ascending(),
@@ -1238,15 +1370,12 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(msgs).toHaveLength(1)
         expect(msgs[0].info.role).toBe("user")
         const texts = msgs[0].parts.filter((p: any) => p.type === "text").map((p: any) => p.text)
-        expect(texts.some((t: string) => t.includes("Create a structured summary"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id") && t.includes("summary-range") && t.includes("<!--"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("structured summary"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id"))).toBe(true)
         expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
         expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
         expect(texts.some((t: string) => t.includes("Inferred") && t.includes("info_mark"))).toBe(true)
-        // Epistemic guardrails: required structured sections including Semantic Vector
-        expect(texts.some((t: string) => t.includes("## Semantic Vector"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("dominant:"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("key_phrases:"))).toBe(true)
+        // Structured sections in summary request
         expect(texts.some((t: string) => t.includes("## Goal"))).toBe(true)
         expect(texts.some((t: string) => t.includes("## Key decisions"))).toBe(true)
         expect(texts.some((t: string) => t.includes("## Current state"))).toBe(true)
@@ -1687,9 +1816,11 @@ describe("session.compaction.edge-cases", () => {
           .flatMap((m: any) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
         expect(combined).toContain("=== COMPACTED ===")
-        expect(combined).toContain("first cycle summary")
+        // Bounded summary scope: the second message* contains only summaries
+        // from the current compaction window (since the prior message*).
+        // "first cycle summary" belongs to the prior message*, accessible via:
+        expect(combined).toContain("Prior message*")
         expect(combined).toContain("post-star-work")
-        expect(combined).toContain("summary_message_id")
       }),
     ),
   )
@@ -1886,6 +2017,197 @@ describe("session.compaction.key-decisions", () => {
         expect(combined).toContain("Decision from summary one")
         expect(combined).toContain("Decision from summary two")
         expect(combined).toContain("Decisions (preserved verbatim across compaction cycles)")
+      }),
+    ),
+  )
+})
+
+// --- Full-cycle compaction fidelity (messageStar faithful rendering) ---
+
+describe("session.compaction.full-cycle", () => {
+  it.live(
+    "(u1,m1,m2,m3)→s1, (u2,m4,m5,m6)→s2, (m7,u3,m8,m9) <30k → compact → faithful m*",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // --- Helpers ---
+        const mkUser = (text: string) =>
+          Effect.gen(function* () {
+            const m = yield* ssn.updateMessage({
+              id: MessageID.ascending(), role: "user", sessionID: info.id,
+              agent: "build", model: ref, time: { created: Date.now() },
+            })
+            yield* ssn.updatePart({
+              id: PartID.ascending(), messageID: m.id, sessionID: info.id,
+              type: "text", text,
+            })
+            return m
+          })
+
+        const mkAssistant = (parts: Array<{ type: string } & Record<string, any>>) =>
+          Effect.gen(function* () {
+            const m = yield* ssn.updateMessage({
+              id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+              mode: "build", agent: "build",
+              modelID: ref.modelID, providerID: ref.providerID,
+              path: { cwd: dir, root: dir }, cost: 0,
+              tokens: { output: parts.reduce((n, p) => n + ((p as any).text?.length ?? 0), 0), input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              finish: "end_turn", time: { created: Date.now() },
+            } as MessageV2.Assistant)
+            for (const p of parts) {
+              yield* ssn.updatePart({
+                id: PartID.ascending(), messageID: m.id, sessionID: info.id,
+                ...p,
+              } as any)
+            }
+            return m
+          })
+
+        const mkSummary = (goalText: string, keyDecision: string) =>
+          Effect.gen(function* () {
+            // Summary request user message
+            const su = yield* mkUser("summary-req")
+            const sa = yield* ssn.updateMessage({
+              id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+              mode: "build", agent: "build", parentID: su.id,
+              modelID: ref.modelID, providerID: ref.providerID,
+              path: { cwd: dir, root: dir }, cost: 0,
+              tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              summary: true, finish: "end_turn", time: { created: Date.now() },
+            } as MessageV2.Assistant)
+            yield* ssn.updatePart({
+              id: PartID.ascending(), messageID: sa.id, sessionID: info.id,
+              type: "text",
+              text: [
+                "## Goal",
+                goalText,
+                "",
+                "## Key decisions",
+                `- ${keyDecision}`,
+                "",
+                "## Current state",
+                "completed",
+              ].join("\n"),
+            })
+          })
+
+        // ============================================================
+        // Segment 1: u1, m1, m2, m3 → s1
+        // ============================================================
+        yield* mkUser("user-msg-1")
+        yield* mkAssistant([
+          { type: "text", text: "assistant-text-1" },
+          { type: "reasoning", text: "reasoning-for-m1" },
+          { type: "tool", tool: "bash", callID: "c1",
+            state: { status: "completed", output: "tool-output-1", input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" } },
+        ])
+        yield* mkAssistant([{ type: "text", text: "assistant-text-2" }])
+        yield* mkAssistant([
+          { type: "text", text: "assistant-text-3" },
+          { type: "reasoning", text: "reasoning-for-m3" },
+        ])
+        yield* mkSummary("summary for segment 1", "decision-from-s1")
+
+        // ============================================================
+        // Segment 2: u2, m4, m5, m6 → s2
+        // ============================================================
+        yield* mkUser("user-msg-2")
+        yield* mkAssistant([{ type: "text", text: "assistant-text-4" }])
+        yield* mkAssistant([
+          { type: "text", text: "assistant-text-5" },
+          { type: "tool", tool: "cmd", callID: "c2",
+            state: { status: "completed", output: "tool-output-2", input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" } },
+        ])
+        yield* mkAssistant([{ type: "text", text: "assistant-text-6" }])
+        yield* mkSummary("summary for segment 2", "decision-from-s2")
+
+        // ============================================================
+        // Segment 3 (recent, <30k): m7, u3, m8, m9
+        // ============================================================
+        yield* mkAssistant([{ type: "text", text: "assistant-text-7" }])
+        yield* mkUser("user-msg-3")
+        yield* mkAssistant([
+          { type: "text", text: "assistant-text-8" },
+          { type: "reasoning", text: "reasoning-for-m8" },
+        ])
+        yield* mkAssistant([
+          { type: "text", text: "assistant-text-9" },
+          { type: "tool", tool: "bash", callID: "c3",
+            state: { status: "running", input: {}, time: { start: Date.now() } } },
+        ])
+
+        // ============================================================
+        // Compact
+        // ============================================================
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(msgs).toHaveLength(1)
+        expect(msgs[0].info.role).toBe("user")
+
+        const combined = msgs
+          .flatMap((m: any) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+
+        // --- Header ---
+        expect(combined).toContain("=== COMPACTED ===")
+        // First compaction → no Prior message* chain link
+        expect(combined).not.toContain("Prior message*")
+
+        // --- Summaries section (chronological: s1 then s2) ---
+        const s1Idx = combined.indexOf("Summary 1")
+        const s2Idx = combined.indexOf("Summary 2")
+        expect(s1Idx).toBeGreaterThan(-1)
+        expect(s2Idx).toBeGreaterThan(-1)
+        expect(s1Idx).toBeLessThan(s2Idx) // chronological order
+
+        expect(combined).toContain("summary for segment 1")
+        expect(combined).toContain("decision-from-s1")
+        expect(combined).toContain("summary for segment 2")
+        expect(combined).toContain("decision-from-s2")
+        expect(combined).toContain("summary_message_id")
+
+        // --- Decisions block ---
+        expect(combined).toContain("Decisions (preserved verbatim across compaction cycles)")
+        expect(combined).toContain("decision-from-s1")
+        expect(combined).toContain("decision-from-s2")
+
+        // --- Recent section: messages after last summary (s2) ---
+        // User messages must be faithfully rendered (test of ignored guard fix)
+        expect(combined).toContain("user-msg-3")
+
+        // Assistant text and reasoning must be separately labeled
+        expect(combined).toContain("[text]")
+        expect(combined).toContain("[reasoning]")
+
+        // Completed tool outputs in Recent (m9's bash tool, running)
+        expect(combined).toContain("[tool:bash]")
+        // Tool output on summarized messages (m1, m5) is NOT in Recent —
+        // those messages were covered by s1/s2 summaries. Only Recent messages
+        // after the last summary are faithfully rendered.
+
+        // Running tool must also be visible (not just completed)
+        expect(combined).toContain("(running)")
+
+        // Recent messages must be in chronological order
+        const r7Idx = combined.indexOf("assistant-text-7")
+        const u3Idx = combined.indexOf("user-msg-3")
+        const r8Idx = combined.indexOf("assistant-text-8")
+        const r9Idx = combined.indexOf("assistant-text-9")
+        expect(r7Idx).toBeGreaterThan(-1)
+        expect(u3Idx).toBeGreaterThan(-1)
+        expect(r8Idx).toBeGreaterThan(-1)
+        expect(r9Idx).toBeGreaterThan(-1)
+        expect(r7Idx).toBeLessThan(u3Idx)
+        expect(u3Idx).toBeLessThan(r8Idx)
+        expect(r8Idx).toBeLessThan(r9Idx)
+
+        // Messages from earlier segments (summarized) must NOT be in Recent
+        expect(combined.indexOf("assistant-text-1")).toBeLessThan(r7Idx) // in summary block, not recent
       }),
     ),
   )

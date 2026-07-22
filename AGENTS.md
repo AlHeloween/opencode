@@ -375,6 +375,18 @@ abstract_futures/   ← DO NOT IMPLEMENT — graveyard of pre-kernel agent hallu
 - Test actual implementation, do not duplicate logic into tests
 - Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
 
+### ⚠ DO NOT run full `bun test` — 1-hour suite
+
+**`bun test` without a specific file path scans ALL 284 test files** — each takes ~10s minimum. The full suite runs for **1+ hour** and pegs CPU at 99%. This will trigger stall detection, auto-kill, and waste a full dev session.
+
+| ✅ Do | ❌ Don't |
+|-------|---------|
+| `bun test test/session/compaction.test.ts` — single file, 12s | `bun test` — 284 files, 1h+ |
+| `bun typecheck` — 15s, validates all changes | `bun test --filter "pattern"` — hangs on Windows |
+| `python -m pytest tests/ -q` — 256 tests, 1s | `bun test` from repo root — blocked by guard anyway |
+
+**Python tests are safe** — 256 kernel + 55 prompt schema = 311 tests complete in ~1 second. Run them freely.
+
 ## Searching in Gitignored Directories
 
 - The `glob`, `grep`, and `list` tools are bounded by `.gitignore` — they will not return results from `logs/`, `.opencode/data/`, `node_modules/`, or other ignored paths.

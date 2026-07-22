@@ -30,26 +30,75 @@ export const SUMMARY_INTERVAL_TOKENS = 32_768
 const CHARS_PER_TOKEN = 4
 const SUMMARY_INTERVAL_CHARS = SUMMARY_INTERVAL_TOKENS * CHARS_PER_TOKEN
 
+/** True only for the synthetic message* body produced by compact().
+  * Must NOT match COMPACTION_REMINDER text that merely *mentions* the marker
+  * (that reminder is injected onto every post-compact user message — matching
+  * it would exclude all real user messages from the next message* Recent fold). */
 function isMessageStar(msg: MessageV2.WithParts): boolean {
   return msg.parts.some(
-    (p) => p.type === "text" && typeof (p as any).text === "string" && (p as any).text.includes("=== COMPACTED ==="),
+    (p) =>
+      p.type === "text" &&
+      typeof (p as { text?: string }).text === "string" &&
+      (p as { text: string }).text.trimStart().startsWith("=== COMPACTED ==="),
   )
 }
 
-/** Extract content from all content-bearing parts (text + reasoning + tool outputs).
+/** Extract content from ALL part types — faithful rendering for the messageStar.
+  * The messageStar is a SYSTEM artifact, not an AI interpretation. Every part type
+  * that exists in the DB must have a rendering path here so the model can trace
+  * the full turn sequence (user → assistant-text → assistant-reasoning → tool → ...).
+  *
   * Must stay consistent with {@link contentChars} so the model sees everything
   * that was counted toward the ~30K interval threshold. */
 function messageText(msg: MessageV2.WithParts): string {
   const parts: string[] = []
   for (const p of msg.parts) {
-    if (p.type === "text" && !(p as any).ignored) {
-      parts.push((p as any).text ?? "")
-    } else if (p.type === "reasoning") {
-      parts.push(`[reasoning]\n${(p as any).text ?? ""}`)
-    } else if (p.type === "tool" && (p as any).state?.status === "completed") {
-      const label = `[tool:${(p as any).tool}]`
-      const output = (p as any).state?.output ?? ""
-      parts.push(`${label}\n${output}`)
+    switch (p.type) {
+      case "text":
+        // Render ALL text parts regardless of `ignored` flag.
+        // User text parts are marked ignored:true by prompt.ts wrapping —
+        // dropping them causes the model to lose the user's actual words.
+        parts.push(`[text]\n${(p as any).text ?? ""}`)
+        break
+      case "reasoning":
+        parts.push(`[reasoning]\n${(p as any).text ?? ""}`)
+        break
+      case "tool": {
+        const label = `[tool:${(p as any).tool}]`
+        const status = (p as any).state?.status ?? "unknown"
+        const output = (p as any).state?.output ?? ""
+        parts.push(`${label} (${status})\n${output}`)
+        break
+      }
+      case "subtask":
+        parts.push(
+          `[subtask:${(p as any).agent}]\n${(p as any).prompt ?? (p as any).description ?? ""}`,
+        )
+        break
+      case "file":
+        parts.push(`[file: ${(p as any).filename ?? "unknown"} (${(p as any).mediaType ?? (p as any).mime ?? "?"})]`)
+        break
+      case "step-start":
+        parts.push(`[step-start]`)
+        break
+      case "step-finish":
+        parts.push(`[step-finish]`)
+        break
+      case "snapshot":
+        parts.push(`[snapshot: ${(p as any).hash ?? "?"}]`)
+        break
+      case "patch":
+        parts.push(`[patch]\n${((p as any).content ?? "").slice(0, 500)}`)
+        break
+      case "agent":
+        parts.push(`[agent: ${(p as any).agent ?? "?"}]`)
+        break
+      case "retry":
+        parts.push(`[retry attempt=${(p as any).attempt ?? "?"}]`)
+        break
+      case "compaction":
+        // intentional skip — internal compaction markers
+        break
     }
   }
   return parts.join("\n")
@@ -60,9 +109,13 @@ function contentChars(msgs: MessageV2.WithParts[]): number {
   let chars = 0
   for (const m of msgs) {
     for (const p of m.parts) {
-      if (p.type === "text" && !(p as any).ignored) chars += (p as any).text?.length ?? 0
+      // Count ALL text parts (including ignored) — consistent with messageText()
+      if (p.type === "text") chars += (p as any).text?.length ?? 0
       else if (p.type === "reasoning") chars += (p as any).text?.length ?? 0
-      else if (p.type === "tool" && p.state?.status === "completed") chars += (p.state as any).output?.length ?? 0
+      else if (p.type === "tool") chars += (p.state as any)?.output?.length ?? 0
+      else if (p.type === "subtask") chars += ((p as any).prompt?.length ?? 0) + ((p as any).description?.length ?? 0)
+      else if (p.type === "patch") chars += ((p as any).content?.length ?? 0)
+      // step-start, step-finish, snapshot, agent, retry, file, compaction — negligible, skip for perf
     }
   }
   return chars
@@ -98,65 +151,32 @@ export function computeOutputSinceLastSummary(msgs: MessageV2.WithParts[]): numb
   return tokens
 }
 
-function summaryRequestMessage(fromId: string, toId: string, sessionID: string, lastSv?: SemanticVector) {
-  const svHint = lastSv?.dominant
-    ? `\nYour previous semantic vector was: "${lastSv.dominant}".\nLink to it by using a related dominant or referencing its key phrases.\n`
-    : ""
-  return `<!-- summary-range from_id="${fromId}" to_id="${toId}" session_id="${sessionID}" -->
-Create a structured summary of the conversation.${svHint}
-Epistemic rank (info_mark): **Inferred** (not Exact).  Use session-read with message IDs
-from the compaction header to recover Exact detail.
+function summaryRequestMessage(fromId: string, toId: string, sessionID: string) {
+  return `Please create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.
 
-Output ONLY these sections — no preamble, no IDs, no links:
+Epistemic rank of this summary: **Inferred** (not Exact). Exact detail requires session-read with message IDs.
 
-## Semantic Vector
-(Your intent understanding as key phrases with weights, Σ=1.0, 3-5 phrases.
-This is your normalized embedding of intent — without it, the system cannot
-track what you were actually trying to do across compaction cycles.
-If you skip this section, your summary becomes a black box — retrievable
-but not semantically linkable to prior work.)
-Format:
-  dominant: "<3-5 word phrase capturing the core intent>"
-  key_phrases:
-    - phrase: "<key phrase>"
-      weight: <0.0-1.0>
-    - phrase: "<key phrase>"
-      weight: <0.0-1.0>
+Include these message IDs in your summary (required for later recovery via session-read):
+- \`from_id\`: \`${fromId}\`
+- \`to_id\`: \`${toId}\`
+- \`session_id\`: \`${sessionID}\`
+- \`info_mark\`: \`Inferred\`
+
+Also list any important intermediate message IDs you reference.
+
+Output structured summary sections in this order:
 
 ## Goal
-(What the user was trying to accomplish.)
+(What the user was trying to accomplish in this window.)
 
 ## Key decisions
-(Explicit decisions: files created, approaches chosen, tradeoffs accepted.
-Each on a separate "-" line.  Include file paths and rationale.
-This section is preserved verbatim across compaction cycles.)
+(Explicit decisions made: files created, approaches chosen, design tradeoffs accepted.
+Each decision on a separate line starting with "-".  Be specific — include file paths,
+tool names, and rationale.  This section is preserved verbatim across compaction
+cycles — write it so it remains actionable without surrounding context.)
 
 ## Current state
-(What completed, in progress, remaining.)`
-}
-
-/** Parsed semantic vector from a summary's ## Semantic Vector section. */
-interface SemanticVector {
-  dominant?: string
-  keyPhrases: { phrase: string; weight: number }[]
-}
-
-/** Extract ## Semantic Vector from summary text. */
-function extractSemanticVector(text: string): SemanticVector | undefined {
-  const match = text.match(/## Semantic Vector\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
-  if (!match?.[1]) return undefined
-  const block = match[1]
-  // dominant: "..." or dominant: '...' (both quote styles)
-  const dominantMatch = block.match(/dominant:\s*["']([^"']+)["']/)
-  const phrases: { phrase: string; weight: number }[] = []
-  // - phrase: "..." / '...' with weight on next line
-  const phraseRe = /-\s*phrase:\s*["']([^"']+)["']\s*\n\s*weight:\s*([\d.]+)/g
-  let pm
-  while ((pm = phraseRe.exec(block)) !== null) {
-    phrases.push({ phrase: pm[1], weight: parseFloat(pm[2]) })
-  }
-  if (!dominantMatch && phrases.length === 0) return undefined
-  return { dominant: dominantMatch?.[1], keyPhrases: phrases }
+(What was completed, what is in progress, what remains.)`
 }
 
 /** Extract ## Key decisions blocks from summary or messageStar text.
@@ -178,14 +198,13 @@ function buildMessageStar(input: {
   recent: MessageV2.WithParts[]
   /** Decisions preserved from prior compaction cycles (verbatim). */
   priorDecisions?: string[]
+  /** Prior messageStar ID — chain link for recovering older summaries via session-read. */
+  priorMessageStarId?: string
 }): string {
   const summaryBlocks = input.summaries.map((s, i) => {
-    const sv = extractSemanticVector(s.text)
-    const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
     const links = [
       `- info_mark: \`Inferred\``,
       `- summary_message_id: \`${s.id}\``,
-      svLine,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
       s.toId ? `- to_id: \`${s.toId}\`` : undefined,
       `- session_id: \`${input.sessionID}\``,
@@ -209,13 +228,6 @@ function buildMessageStar(input: {
         ].join("\n")
       : undefined
 
-  // Last semantic vector for continuity
-  const lastSummary = input.summaries[input.summaries.length - 1]
-  const lastSv = lastSummary ? extractSemanticVector(lastSummary.text) : undefined
-  const lastSvLine = lastSv?.dominant
-    ? `\nLast semantic vector: \`${lastSv.dominant}\` — link your next summary to this.`
-    : ""
-
   const recentIds = input.recent.map((m) => m.info.id)
   const recentBlocks = input.recent.map((m) => {
     const body = messageText(m)
@@ -235,7 +247,10 @@ function buildMessageStar(input: {
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain in the DB (not deleted).",
     "Epistemic ranks: summaries = Inferred; session-read(id) = Exact; unaided recall = Guess.",
-    `Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).${lastSvLine}`,
+    "Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).",
+    ...(input.priorMessageStarId
+      ? [`Prior message*: \`${input.priorMessageStarId}\` — session-read for older summaries.`]
+      : []),
     "",
     ...summaryBlocks,
     decisionsBlock,
@@ -245,13 +260,14 @@ function buildMessageStar(input: {
     .join("\n\n")
 }
 
-/** Extract summary range from a summary-request user message.
-  * The range is embedded in an HTML comment — invisible to the model,
-  * parsed by compact() to stamp links on the message* block. */
-function extractRangeFromRequest(text: string): { fromId?: string; toId?: string } {
-  const match = text.match(/<!--\s*summary-range\s+from_id="([^"]+)"\s+to_id="([^"]+)"/)
-  if (!match) return {}
-  return { fromId: match[1], toId: match[2] }
+/** Best-effort extract from_id/to_id links embedded in a prior summary text. */
+function extractSummaryLinks(text: string): { fromId?: string; toId?: string } {
+  const from = text.match(/from_id[`:\s]*`?([a-zA-Z0-9_-]+)`?/i)
+  const to = text.match(/to_id[`:\s]*`?([a-zA-Z0-9_-]+)`?/i)
+  return {
+    fromId: from?.[1],
+    toId: to?.[1],
+  }
 }
 
 export interface Interface {
@@ -318,13 +334,20 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
             ? statusOpt.value.set(input.sessionID, { type: next })
             : Effect.void
 
-        const msgs = (yield* session.messages({ sessionID: input.sessionID }).pipe(
+        // Read all messages — use a high limit to avoid silently dropping
+        // summaries for long sessions (>500 messages). The default 500 in
+        // session.messages() was a TUI guard, not appropriate for compaction.
+        const msgs = (yield* session.messages({ sessionID: input.sessionID, limit: 10_000 }).pipe(
           Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
         )) as MessageV2.WithParts[] | undefined
         if (!msgs?.length) {
           yield* finish()
           return
         }
+
+        // session.messages → MessageV2.page() already returns chronological
+        // order (SQL desc for "latest N", then items.reverse()). Do not reverse
+        // again — that re-introduces newest-first Recent folds.
 
         const visible = msgs.filter((m) => !m.info.compacted)
         if (!visible.length) {
@@ -339,26 +362,32 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           return
         }
 
-        // All summary assistants from full DB (including soft-hidden) — never lost.
-        // Range (fromId/toId) is extracted from the summary-request user message
-        // immediately preceding each summary assistant — system-managed, not echoed by model.
+        // Find the prior message* (if any) to bound summary collection.
+        // Collect summaries ONLY from messages created AFTER the last message* —
+        // this keeps the messageStar bounded (O(1) growth) instead of accumulating
+        // every summary from session start (O(n²) unbounded growth).
+        // Older summaries remain recoverable via session-read using the chain link.
+        const priorMsgStarIdx = (() => {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (isMessageStar(msgs[i])) return i
+          }
+          return -1
+        })()
+        const priorMsgStarId = priorMsgStarIdx >= 0 ? msgs[priorMsgStarIdx].info.id : undefined
+
+        // Collect summaries from the current compaction window only.
         const summaries: { id: string; text: string; fromId?: string; toId?: string }[] = []
         let latestSummaryIdx = -1
         for (let i = 0; i < msgs.length; i++) {
+          // Skip messages before (and including) the prior message* — their summaries
+          // were already folded into that prior messageStar.
+          if (priorMsgStarIdx >= 0 && i <= priorMsgStarIdx) continue
           const m = msgs[i]
           if (m.info.role === "assistant" && (m.info as any).summary) {
             const text = messageText(m)
             if (text) {
-              const prev = i > 0 ? msgs[i - 1] : undefined
-              const range = prev?.info.role === "user" && prev.parts.some((p) => p.type === "text" && (p as any).synthetic)
-                ? extractRangeFromRequest(
-                    (prev.parts.find((p) => p.type === "text" && (p as any).text?.includes("summary-range")) as any)?.text ?? ""
-                  )
-                : {}
-              summaries.push({ id: m.info.id, text, ...range })
-            }
-            if (!extractSemanticVector(text)) {
-              log.debug("summary missing semantic vector", { id: m.info.id })
+              const links = extractSummaryLinks(text)
+              summaries.push({ id: m.info.id, text, ...links })
             }
             latestSummaryIdx = i
           }
@@ -367,7 +396,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const latestSummaryId = latestSummaryIdx >= 0 ? msgs[latestSummaryIdx].info.id : undefined
 
         // Recent = visible messages after the latest summary, excluding prior message*.
-        // Prior message* is redundant: its summaries are re-collected from DB above.
+        // The prior message* is NOT re-collected — its summaries belong to the previous
+        // compaction cycle and are recoverable via the chain link.
         let recent = visible.filter((m) => {
           if (isMessageStar(m)) return false
           if (!latestSummaryId) return true
@@ -392,6 +422,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           summaries,
           recent,
           priorDecisions,
+          priorMessageStarId: priorMsgStarId,
         })
 
         // Soft-hide every currently visible message (DB retained for session-read).
@@ -449,9 +480,11 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
       agent: string
     }) =>
       Effect.gen(function* () {
-        const msgs = (yield* session.messages({ sessionID: input.sessionID }).pipe(
+        const msgs = (yield* session.messages({ sessionID: input.sessionID, limit: 10_000 }).pipe(
           Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
         )) as MessageV2.WithParts[] | undefined
+
+        // page() already returns chronological order (see compact() above).
 
         let fromId = "start"
         let toId = "end"
@@ -477,17 +510,6 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           toId = range[range.length - 1]?.info.id ?? pool[pool.length - 1]?.info.id ?? "end"
         }
 
-        // Find the last summary's semantic vector so the model can link to it
-        let lastSv: SemanticVector | undefined
-        if (msgs?.length) {
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            if (msgs[i].info.role === "assistant" && (msgs[i].info as any).summary) {
-              const sv = extractSemanticVector(messageText(msgs[i]))
-              if (sv) { lastSv = sv; break }
-            }
-          }
-        }
-
         const msg = yield* session.updateMessage({
           id: MessageID.ascending(),
           role: "user",
@@ -501,7 +523,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           messageID: msg.id,
           sessionID: msg.sessionID,
           type: "text",
-          text: summaryRequestMessage(fromId, toId, input.sessionID, lastSv),
+          text: summaryRequestMessage(fromId, toId, input.sessionID),
           synthetic: true,
         })
         log.info("injected summary request", { sessionID: input.sessionID, fromId, toId })

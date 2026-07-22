@@ -1140,9 +1140,17 @@ function compactedPageCursor(message: WithParts | undefined) {
   return cursor.encode({ id: message.info.id, time: message.info.time.created })
 }
 
+/** True only for the synthetic message* body (starts with marker), not for
+  * COMPACTION_REMINDER parts that merely mention the marker string. */
 function isCompactionBoundary(message: WithParts | undefined) {
-  return message?.info.role === "user" && message.parts.some(
-    (part) => part.type === "text" && typeof (part as any).text === "string" && (part as any).text.includes("=== COMPACTED ==="),
+  return (
+    message?.info.role === "user" &&
+    message.parts.some(
+      (part) =>
+        part.type === "text" &&
+        typeof (part as { text?: string }).text === "string" &&
+        (part as { text: string }).text.trimStart().startsWith("=== COMPACTED ==="),
+    )
   )
 }
 

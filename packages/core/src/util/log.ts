@@ -142,7 +142,9 @@ function logError(msg: string, extra?: Record<string, any>) {
     message: msg,
     ...extra,
   }) + EOL
-  fs.appendFile(path.join(Global.Path.log, "LoggerErrors.log"), entry).catch((e) => {
+  const logPath = path.join(Global.Path.log, "LoggerErrors.log")
+  try { mkdirSync(path.dirname(logPath), { recursive: true }) } catch { /* best effort */ }
+  fs.appendFile(logPath, entry).catch((e) => {
     process.stderr.write(`LoggerErrors.log write failed: ${String(e)}\n`)
   })
 }

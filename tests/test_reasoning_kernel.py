@@ -289,12 +289,12 @@ class TestSemanticVector:
     """§III Semantic Vector — keyword weights, canonical string, hashing."""
 
     def test_normalization(self):
-        sv = build_semantic_vector(key_phrases=[{"phrase":"a","weight":1.0},{"phrase":"b","weight":3.0}])
+        sv = build_semantic_vector(keywords=["a","b"], weights=[1.0, 3.0])
         assert abs(sum(sv.weights) - 1.0) < 0.01
 
     def test_canonical_string_sorted_keys(self):
         sv = build_semantic_vector(
-            key_phrases=[{"phrase":"z","weight":1.0},{"phrase":"a","weight":2.0},{"phrase":"m","weight":3.0}],
+            keywords=["z","a","m"], weights=[1.0, 2.0, 3.0],
             dominant="test",
         )
         canonical = sv.canonical_string()
@@ -306,14 +306,14 @@ class TestSemanticVector:
         assert "z:" in parts[3]
 
     def test_sv_roundtrip(self):
-        sv = build_semantic_vector(key_phrases=[{"phrase":"key","weight":1.0}], dominant="dom")
+        sv = build_semantic_vector(keywords=["key"], weights=[1.0], dominant="dom")
         assert sv.semantic_dominant == "dom"
-        assert sv.key_phrases[0]["phrase"] == "key"
-        assert abs(sv.key_phrases[0]["weight"] - 1.0) < 0.01
+        assert sv.keywords[0] == "key"
+        assert abs(sv.weights[0] - 1.0) < 0.01
 
     def test_sv_deterministic(self):
-        sv1 = build_semantic_vector(key_phrases=[{"phrase":"a","weight":1.0}], dominant="x")
-        sv2 = build_semantic_vector(key_phrases=[{"phrase":"a","weight":1.0}], dominant="x")
+        sv1 = build_semantic_vector(keywords=["a"], weights=[1.0], dominant="x")
+        sv2 = build_semantic_vector(keywords=["a"], weights=[1.0], dominant="x")
         assert sv1.canonical_string() == sv2.canonical_string()
 
 class TestDeltaFunctions:

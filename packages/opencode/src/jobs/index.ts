@@ -8,7 +8,6 @@ import { existsSync, mkdirSync } from "fs"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import type { InfoMark } from "../session/constitution"
-import os from "os"
 
 const log = Log.create({ service: "jobs" })
 
@@ -211,7 +210,6 @@ export const layer = Layer.effect(
     const completed: Completion[] = []
     const readOffsets = new Map<string, number>()
     const counters = new Map<string, number>()
-    let lowPriorityJobs = 0 // ref-count for os.setPriority
 
     function evictStaleJobs() {
       const now = Date.now()
@@ -496,21 +494,8 @@ export const layer = Layer.effect(
       const bridge = yield* EffectBridge.make()
       let fiber: Fiber.Fiber<unknown, unknown> | undefined
 
-      // Ref-counted process priority: lower to prevent background jobs
-      // (builds, tests, sub-agents) from starving the UI / kernel.
-      // All child processes inherit the lowered priority.
-      let prevPriority: number | undefined
-      if (lowPriorityJobs++ === 0) {
-        try {
-          prevPriority = os.getPriority(0)
-          os.setPriority(0, 10) // 10 = lower priority on all platforms
-        } catch (e) { log.debug("os.setPriority failed", { error: String(e) }) }
-      }
-      const restorePriority = () => {
-        if (--lowPriorityJobs === 0 && prevPriority !== undefined) {
-          try { os.setPriority(0, prevPriority) } catch { /* best effort */ }
-        }
-      }
+      // Process priority is set once at startup (index.ts) to BELOW_NORMAL.
+      // All background jobs and their children inherit this lowered priority.
 
       // Incremental output writer — callable from within the job's effect.
       const writeOutput = (chunk: string) => {
@@ -598,7 +583,7 @@ export const layer = Layer.effect(
               log.warn("job failed (effect)", { id, error: err instanceof Error ? err.message : String(err) })
             }),
           }),
-          Effect.ensuring(Effect.sync(() => { release(); restorePriority() })),
+          Effect.ensuring(Effect.sync(() => { release() })),
         ),
       )
 

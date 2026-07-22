@@ -1,0 +1,122 @@
+# SVM — State Vector Manifest
+# Generated: 2026-07-22T12:54Z
+# Branch: Local_Development
+# Hash: 099f375e70
+
+session_id: ses_076e9e1b2ffeKoXS5HMswQQmfG
+turn_id: 15
+parent_turn_id: 14
+
+master_plan: |
+  Epistemic Guardrails + Semantic Vector integration — fully implemented and committed.
+  All layers aligned: kernel (Python), agent spec (reasoning.txt), TS compaction system.
+
+goals:
+  - id: G1
+    status: done
+    desc: "Fix outputTokensSinceLastSummary reset per user message"
+    sv:
+      semantic_dominant: "counter_persistence"
+      info_mark: Exact
+      key_phrases:
+        - phrase: "seed counter from persisted messages"
+          weight: 0.5
+        - phrase: "compute output since last summary"
+          weight: 0.3
+        - phrase: "survive runLoop restarts"
+          weight: 0.2
+      commit: be7c71c96c
+
+  - id: G2
+    status: done
+    desc: "Implement epistemic guardrails A, B, C"
+    sv:
+      semantic_dominant: "epistemic_enforcement"
+      info_mark: Exact
+      key_phrases:
+        - phrase: "job labels Exact vs Inferred"
+          weight: 0.4
+        - phrase: "epistemic nudge destructive tools"
+          weight: 0.3
+        - phrase: "decisions preserved verbatim"
+          weight: 0.3
+      commits: [690d6c78cf, 8cd4c818d7, c9cb41e06d]
+
+  - id: G3
+    status: done
+    desc: "Job process priority + running visibility"
+    sv:
+      semantic_dominant: "background_priority"
+      info_mark: Exact
+      key_phrases:
+        - phrase: "os.setPriority below normal"
+          weight: 0.5
+        - phrase: "drain background note"
+          weight: 0.3
+        - phrase: "CPU warning 20 percent"
+          weight: 0.2
+      commit: 26dfd3158d
+
+  - id: G4
+    status: done
+    desc: "Semantic Vector in summaries + kernel alignment"
+    sv:
+      semantic_dominant: "sv_summary_integration"
+      info_mark: Exact
+      key_phrases:
+        - phrase: "semantic vector key_phrases format"
+          weight: 0.4
+        - phrase: "MD5 removed message IDs chain"
+          weight: 0.3
+        - phrase: "summary range HTML comment"
+          weight: 0.2
+        - phrase: "kernel artifact regenerated"
+          weight: 0.1
+      commits: [3ef098546b, 26dfd3158d]
+
+tasks:
+  - id: T1
+    status: done
+    desc: "A: [Exact]/[Inferred] in background-jobs"
+  - id: T2
+    status: done
+    desc: "B: epistemicNudge() + evidenceFloor tracking"
+  - id: T3
+    status: done
+    desc: "C: ## Key decisions preserved verbatim"
+  - id: T4
+    status: done
+    desc: "Fix summary range — HTML comment, not model-echoed"
+  - id: T5
+    status: done
+    desc: "os.setPriority(0,10) in jobs/startEffect + drainBackgroundNote"
+  - id: T6
+    status: done
+    desc: "## Semantic Vector in summaryRequestMessage + extractSemanticVector"
+  - id: T7
+    status: done
+    desc: "Kernel: SemanticVector key_phrases, MD5 removed, artifact regenerated"
+  - id: T8
+    status: done
+    desc: "reasoning.txt: new SV format, example, semantic chain description"
+
+test_status:
+  ts_compaction: "56/56 pass"
+  ts_jobs: "pass"
+  ts_constitution: "pass"
+  python_kernel: "256/256 pass"
+  python_prompt: "55/55 pass"
+  typecheck: "clean"
+
+goal_hierarchy:
+  - level: 0
+    desc: "Continuous Memory"
+    sv: { semantic_dominant: "memory_stability" }
+  - level: 1
+    children:
+      - desc: "Epistemic Guardrails"
+        sv: { semantic_dominant: "epistemic_enforcement" }
+      - desc: "Semantic Vector Integration"
+        sv: { semantic_dominant: "sv_summary_integration" }
+      - desc: "Job Process Management"
+        sv: { semantic_dominant: "background_priority" }

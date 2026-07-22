@@ -1,16 +1,24 @@
-# Abstract Futures
+# Abstract Futures — Pre-Kernel Agent Hallucinations
 
-Plans that were considered, partially executed, or fully designed but ultimately
-superseded by faster/better approaches. Kept for reference — the ideas are valid,
-the timing or approach was wrong.
+**These are NOT "deferred designs" or "superseded plans."**
 
-**Rule**: Plans here are NOT active. Do not implement from them. If an idea
-from here becomes relevant again, extract it into a fresh `plans/` plan
-with current context.
+Before `opencode_prompts_kernel.py` was activated as the governance layer, the agent
+(DeepSeek) would generate speculative architectural proposals — memory reorganization,
+Zig toolchain migrations, HTTP API rewrites — without grounding in actual requirements.
+DeepSeek thinks like a software engineer: give it ambiguous instructions and it
+*designs* rather than *executes*. The kernel replaced ambiguity with a machine-readable
+spec (taxonomy, Risk, Effect, Signal, InfoMark), and this entire class of output
+vanished overnight.
 
-| Plan | Why Superseded |
-|------|---------------|
-| `20260625_http_api_v2_plan.md` | Wholesale Hono→HttpApi migration wrong approach. Upstream shows selective coexistence. SDK-level versioning eliminates need for URL path versioning. |
-| `20260625_deferred_architectural_master_plan.md` | Master plan tracking 6 deferred architectural items. All items completed by 2026-06-28. Phase 4 (HTTP API v2) superseded. New direction: C/Rust WASM core framework. |
-| `zig-0.16-migration.md` | OpenTUI native build stays on Zig **0.15.2** for now (working DLL, Sixel/Kitty path). Full 0.16 toolchain + uucode v0.2 bump is a large API break with no current product blocker. Revisit when 0.15.2 is untenable or upstream OpenTUI requires 0.16. |
-| `zig-0.16-source-fixes.md` | Companion source fixes (Mutex, ArrayList `.empty`, fs/EnvMap renames) only matter after the 0.16 build migration. Parked with that plan. |
+**Rule**: Do NOT implement from here. Do NOT reference these files in plans.
+Do NOT extract ideas from here into new plans. If the kernel doesn't mention it,
+it was never a real requirement — it was a hallucination.
+
+| File | Origin |
+|------|--------|
+| `20260625_http_api_v2_plan.md` | Agent hallucinated a wholesale Hono→HttpApi migration |
+| `zig-0.16-migration.md` | Agent hallucinated a Zig 0.16 toolchain bump |
+| `zig-0.16-source-fixes.md` | Companion to the hallucinated migration |
+
+These files are kept as a **warning**, not a backlog. They document what happens
+when a software-engineer-cognition model operates without a precise specification.

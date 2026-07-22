@@ -345,8 +345,20 @@ Real-time working copy tracking with undo/redo and session-level rollback. See `
 
 ## Plans convention
 
+```
+plans/              ← Active plans (to be implemented)
+plans_completed/    ← Done plans (historical record)
+abstract_futures/   ← DO NOT IMPLEMENT — graveyard of pre-kernel agent hallucinations.
+                      Before opencode_prompts_kernel.py was activated, the agent
+                      generated speculative "designs" (memory reorganization, Zig
+                      migrations, HTTP API rewrites). The kernel eliminated this
+                      class of output. These files are kept as a warning, not as
+                      deferred work. Never implement from abstract_futures/.
+```
+
 - Active plans live in `plans/` at the repo root.
 - Completed plans move to `plans_completed/` at the repo root (AGI also auto-moves via `reconcilePlans` when no `[ ]` remain).
+- **`abstract_futures/` is a graveyard, not a backlog.** Ideas there predate the Python instruction kernel — the agent was hallucinating architectures without grounding. Do not read, reference, or implement from `abstract_futures/`. If the kernel doesn't mention it, it doesn't exist.
 - `.opencode/plans/` is strictly prohibited. Do not create, edit, read as authoritative, migrate from, or preserve plan state there.
 - After creating a plan document, run the explore task agent to validate it against the codebase.
 - Correct the plan based on explore feedback before implementing.

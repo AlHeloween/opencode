@@ -11,8 +11,7 @@ Superseded / deferred designs live in `abstract_futures/` (do not implement from
 
 ## Active Plans
 
-_None._ Core TUI perf, startup parallelization, and reasoning-kernel work are complete.
-Optional leftovers (plugin/config caches, session streaming API, deeper memo rewrites) were parked: they risk quality for little measured benefit.
+- `2026-07-22_epistemic_guardrails.md` — close the Inferred/Exact gap: job output marking, verification nudge, compaction decisions preservation
 
 ## Abstract futures (not active)
 
@@ -20,6 +19,10 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-07-22_async_job_streaming_and_progress_interval.md` — background job streaming + interactive job_wait
+- `20260718_system_prompt_order_fix.md` — KV cache ordering (implemented in system-compose.ts)
+- `TUI-session-crash-investigation.md` — TUI session crash (fixed via multiple commits)
+- `organize-gitignore.md` — cosmetic gitignore headers (deferred — not worth the churn)
 - `2026-07-16-tui-startup-parallelization.md`
 - `emergency/2026-07-16-tui-cpu-performance-audit.md`
 - `20260714_reasoning_kernel_taxonomy_compaction.md`

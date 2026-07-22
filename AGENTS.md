@@ -42,7 +42,7 @@ constraints:
 forbidden_actions:
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
 - Using git push --no-verify (or any --no-verify variant with git push)
-- Using git checkout / git switch / git restore (constitution DESTRUCTIVE — can move HEAD or discard working-tree changes; needs explicit destructive approval or OPENCODE_ALLOW_DESTRUCTIVE=1)
+- Using git checkout / git switch / git restore / git reset --hard (HARD BLOCKED — rewrites working tree from VCS; can wipe many files and scramble multi-commit work. Single-file undo = edit .bak backups or Fossil snapshot restore, NEVER git checkout. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1)
 - Using silent catch {} blocks
 - Labeling errors as "pre-existing" — every error is a deliverable
 - Planning from .opencode/plans/ directory

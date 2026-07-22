@@ -1,13 +1,14 @@
 /**
  * Shared constitution preflight for shell/binary tools.
- * DESTRUCTIVE commands (rm -rf, force-push, reset --hard, git checkout/switch/restore, …)
- * require permission "destructive" — not covered by bash/cmd/run wildcards.
+ *
+ * - git checkout/switch/restore/reset --hard: HARD BLOCK (use edit.bak / fossil)
+ * - other DESTRUCTIVE: permission "destructive" (not bash/cmd/run wildcards)
  */
 import { Effect } from "effect"
 import { Constitution } from "@/session/constitution"
 import type * as Tool from "./tool"
 
-/** Ask for destructive permission when constitution classifies the command as DESTRUCTIVE. */
+/** Hard-block VCS rewrite; ask for other DESTRUCTIVE; no-op for safe commands. */
 export function enforceDestructiveShell(
   command: string,
   ctx: Tool.Context,
@@ -18,6 +19,9 @@ export function enforceDestructiveShell(
       sessionID: ctx.sessionID,
       agent: ctx.extra?.agent as string | undefined,
     })
+    if (guard.blocked) {
+      return yield* Effect.fail(new Error(guard.message ?? "constitution: command blocked"))
+    }
     if (!guard.needsDestructivePermission) return
     const pattern = command.slice(0, 160)
     yield* ctx.ask({

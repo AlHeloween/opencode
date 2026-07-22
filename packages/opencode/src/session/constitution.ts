@@ -37,17 +37,30 @@ export const MEMORY_INFO_MARK = {
   unaided: "Guess" as InfoMark,
 } as const
 
+/**
+ * Git ops that rewrite working tree / HEAD from VCS history.
+ * These are NOT the same as edit-tool backups or Fossil snapshot restore:
+ * - edit .bak  → one file, pre-edit content, session-scoped
+ * - fossil restore → agent undo of working copy
+ * - git checkout/switch/restore/reset --hard → can wipe many files and
+ *   erase uncommitted multi-commit work into unreadable chaos
+ *
+ * HARD-BLOCKED for agents (not permission-askable) unless
+ * OPENCODE_ALLOW_DESTRUCTIVE=1. Never use git checkout to "fix one file".
+ */
+const GIT_HISTORY_REWRITE_PATTERNS: RegExp[] = [
+  /\bgit\s+checkout\b/i,
+  /\bgit\s+switch\b/i,
+  /\bgit\s+restore\b/i,
+  /\bgit\s+reset\s+--hard\b/i,
+]
+
 const DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\s+--force)/i,
   /\brm\s+-rf\b/i,
   /\bgit\s+push\b[^\n]*--force\b/i,
   /\bgit\s+push\b[^\n]*-f\b/i,
-  /\bgit\s+reset\s+--hard\b/i,
-  // Branch/file checkout discards or moves HEAD — agents must not switch
-  // branches or clobber the working tree without explicit destructive approval.
-  /\bgit\s+checkout\b/i,
-  /\bgit\s+switch\b/i,
-  /\bgit\s+restore\b/i,
+  ...GIT_HISTORY_REWRITE_PATTERNS,
   /\bgit\s+clean\s+-[a-zA-Z]*f/i,
   /\bdrop\s+(table|database)\b/i,
   /\bformat\s+[a-z]:/i,
@@ -57,6 +70,10 @@ const DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\bRemove-Item\b[^\n]*-Recurse[^\n]*-Force/i,
   /\bRemove-Item\b[^\n]*-Force[^\n]*-Recurse/i,
 ]
+
+export function isGitHistoryRewrite(command: string): boolean {
+  return GIT_HISTORY_REWRITE_PATTERNS.some((re) => re.test(command.trim()))
+}
 
 const ELEVATED_PATTERNS: RegExp[] = [
   /\bgit\s+push\b/i,
@@ -104,7 +121,9 @@ export type CommandGuardResult = {
 
 /**
  * Constitution preflight for shell.
- * - DESTRUCTIVE: needs permission "destructive" unless OPENCODE_ALLOW_DESTRUCTIVE
+ * - git checkout/switch/restore/reset --hard: HARD BLOCK (not askable) unless
+ *   OPENCODE_ALLOW_DESTRUCTIVE=1 — agents must use edit-backup / fossil restore
+ * - other DESTRUCTIVE: needs permission "destructive" unless env allow
  * - ELEVATED: log only
  */
 export function guardCommand(
@@ -116,22 +135,41 @@ export function guardCommand(
     return { risk, needsDestructivePermission: false, blocked: false }
   }
 
+  const allow = allowDestructiveCommands()
   log.warn("constitution.command_risk", {
     risk,
     command: command.slice(0, 200),
     sessionID: meta?.sessionID,
     agent: meta?.agent,
-    allowDestructive: allowDestructiveCommands(),
+    allowDestructive: allow,
+    gitHistoryRewrite: isGitHistoryRewrite(command),
   })
 
-  if (risk === "DESTRUCTIVE" && !allowDestructiveCommands()) {
+  // Hard block: VCS working-tree rewrite. Edit tool has .bak per file; Fossil has
+  // session undo. git checkout of "one file" can still move/discard a whole tree
+  // of uncommitted work — recovery becomes random chaos. Do not permission-ask.
+  if (isGitHistoryRewrite(command) && !allow) {
+    return {
+      risk: "DESTRUCTIVE",
+      needsDestructivePermission: false,
+      blocked: true,
+      message:
+        "constitution: BLOCKED git checkout/switch/restore/reset --hard. " +
+        "Do NOT use git to undo a file — that can wipe unrelated working-tree changes " +
+        "and scramble multi-commit state. " +
+        "Recover with: edit-tool .bak backups, or Fossil snapshot restore. " +
+        "Only set OPENCODE_ALLOW_DESTRUCTIVE=1 if you truly intend VCS rewrite.",
+    }
+  }
+
+  if (risk === "DESTRUCTIVE" && !allow) {
     return {
       risk,
       needsDestructivePermission: true,
       blocked: false,
       message:
         "constitution: DESTRUCTIVE command requires explicit approval " +
-        "(rm -rf, git push --force, reset --hard, git checkout/switch/restore, …). " +
+        "(rm -rf, git push --force, …). " +
         "Or set OPENCODE_ALLOW_DESTRUCTIVE=1.",
     }
   }

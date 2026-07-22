@@ -1498,7 +1498,7 @@ describe("tool.bash constitution guard", () => {
     }
   })
 
-  test("triggers destructive permission for git checkout", async () => {
+  test("hard-blocks git checkout without asking destructive permission", async () => {
     const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
     delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
     try {
@@ -1508,29 +1508,26 @@ describe("tool.bash constitution guard", () => {
         fn: async () => {
           const bash = await initBash()
           const prompts: any[] = []
-          const stop = new Error("stop after destructive permission")
           await expect(
             Effect.runPromise(
               bash.execute(
                 {
                   command: "git checkout main",
-                  description: "Test git checkout",
+                  description: "Test git checkout hard block",
                 },
                 {
                   ...ctx,
                   extra: { agent: "build" },
                   ask: (request: any) => {
                     prompts.push(request)
-                    return Effect.fail(stop)
+                    return Effect.void
                   },
                 } as any,
               ),
             ),
-          ).rejects.toThrow(stop.message)
-          const destructiveReq = prompts.find((p) => p.permission === "destructive")
-          expect(destructiveReq).toBeDefined()
-          expect(destructiveReq.metadata?.risk).toBe("DESTRUCTIVE")
-          expect(String(destructiveReq.metadata?.command ?? "")).toContain("checkout")
+          ).rejects.toThrow(/BLOCKED|checkout/i)
+          // Must fail before permission UI — no destructive ask
+          expect(prompts.find((p) => p.permission === "destructive")).toBeUndefined()
         },
       })
     } finally {

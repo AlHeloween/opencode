@@ -877,7 +877,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   { ...part, messageID: info.id, sessionID: input.sessionID },
                 ]
               }
-              break
+              // Non-text/plain data URLs (PDF, images, etc.) — pass through as file part
+              // so the model receives the attachment with its data URL.
+              return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
             case "file:": {
               log.info("file", { mime: part.mime })
               const filepath = fileURLToPath(part.url)

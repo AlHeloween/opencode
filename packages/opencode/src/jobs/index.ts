@@ -7,6 +7,7 @@ import path from "path"
 import { existsSync, mkdirSync } from "fs"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
+import type { InfoMark } from "../session/constitution"
 
 const log = Log.create({ service: "jobs" })
 
@@ -61,6 +62,14 @@ interface Job {
 interface Completion {
   sessionID: SessionID
   text: string
+  /** Epistemic rank of the completion:
+    * "Exact" for bash/cmd/run (tool output is ground truth),
+    * "Inferred" for task (sub-agent conclusion, not verified). */
+  infoMark: InfoMark
+}
+
+function infoMarkForKind(kind: JobKind): InfoMark {
+  return kind === "task" ? "Inferred" : "Exact"
 }
 
 export interface Interface {
@@ -337,6 +346,7 @@ export const layer = Layer.effect(
           completed.push({
             sessionID: input.sessionID,
             text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
+            infoMark: infoMarkForKind(input.kind),
           })
           if (completed.length > 500) completed.shift()
         }
@@ -386,25 +396,30 @@ export const layer = Layer.effect(
       // Evict stale jobs before processing
       evictStaleJobs()
 
-      const notes: string[] = []
+      const notes: { text: string; infoMark: InfoMark }[] = []
       for (let i = completed.length - 1; i >= 0; i--) {
         if (completed[i].sessionID === input.sessionID) {
-          notes.push(completed[i].text)
+          notes.push({ text: completed[i].text, infoMark: completed[i].infoMark })
           completed.splice(i, 1)
         }
       }
-      // Clean up completed rows from DB for this session — only after TTL, not every drain
-      // (previously deleted on every drain, causing job_output to lose completed jobs)
-      if (notes.length > 0) {
-        // Do NOT delete from DB or in-memory Map on drain — let JOB_TTL handle cleanup.
-        // Previously: aggressive cleanup on every drain caused job_output to return
-        // empty/failed for completed jobs that the user hadn't inspected yet.
-      }
       if (notes.length === 0) return ""
+      const lines = notes.reverse().map((n) => {
+        // Insert [Exact]/[Inferred] after the status, before the colon+result.
+        // Format: "id (label) → status" or "id (label) → status: result"
+        const idx = n.text.indexOf(" → ")
+        if (idx === -1) return `  ${n.text} [${n.infoMark}]`
+        const afterArrow = n.text.slice(idx + 3)
+        const colonIdx = afterArrow.indexOf(": ")
+        if (colonIdx === -1) return `  ${n.text} [${n.infoMark}]`
+        const status = afterArrow.slice(0, colonIdx)
+        const rest = afterArrow.slice(colonIdx + 1)
+        return `  ${n.text.slice(0, idx)} → ${status} [${n.infoMark}]: ${rest}`
+      })
       return (
-        "Background jobs since your last turn: " +
-        notes.reverse().join("; ") +
-        ". Use job_output to read their output, or job_wait if you still need them."
+        "Background jobs since your last turn:\n" +
+        lines.join("\n") +
+        "\nUse job_output to read their output, or job_wait if you still need them."
       )
     })
 
@@ -495,6 +510,7 @@ export const layer = Layer.effect(
               completed.push({
                 sessionID: input.sessionID,
                 text: `${j.id} (${j.label}) → ${j.status}${j.result ? `: ${j.result.slice(0, 100)}` : ""}`,
+                infoMark: infoMarkForKind(input.kind),
               })
               if (completed.length > 500) completed.shift()
               log.info("job completed (effect)", { id, status: j.status })
@@ -507,7 +523,7 @@ export const layer = Layer.effect(
               j.finishedAt = Date.now()
               try { persistUpdate(j) } catch (e) { log.debug("job fail persist failed", { error: String(e) }) }
               publishJobs(j.sessionID)
-              completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed` })
+              completed.push({ sessionID: input.sessionID, text: `${j.id} (${j.label}) → failed`, infoMark: infoMarkForKind(input.kind) })
               if (completed.length > 500) completed.shift()
               log.warn("job failed (effect)", { id, error: err instanceof Error ? err.message : String(err) })
             }),

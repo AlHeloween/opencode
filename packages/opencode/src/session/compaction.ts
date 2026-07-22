@@ -98,14 +98,30 @@ export function computeOutputSinceLastSummary(msgs: MessageV2.WithParts[]): numb
   return tokens
 }
 
-function summaryRequestMessage(fromId: string, toId: string, sessionID: string) {
+function summaryRequestMessage(fromId: string, toId: string, sessionID: string, lastSv?: SemanticVector) {
+  const svHint = lastSv?.dominant
+    ? `\nYour previous semantic vector was: "${lastSv.dominant}".\nLink to it by using a related dominant or referencing its key phrases.\n`
+    : ""
   return `<!-- summary-range from_id="${fromId}" to_id="${toId}" session_id="${sessionID}" -->
-Create a structured summary of the conversation.
-
+Create a structured summary of the conversation.${svHint}
 Epistemic rank (info_mark): **Inferred** (not Exact).  Use session-read with message IDs
 from the compaction header to recover Exact detail.
 
 Output ONLY these sections — no preamble, no IDs, no links:
+
+## Semantic Vector
+(Your intent understanding as key phrases with weights, Σ=1.0, 3-5 phrases.
+This is your normalized embedding of intent — without it, the system cannot
+track what you were actually trying to do across compaction cycles.
+If you skip this section, your summary becomes a black box — retrievable
+but not semantically linkable to prior work.)
+Format:
+  dominant: "<3-5 word phrase capturing the core intent>"
+  key_phrases:
+    - phrase: "<key phrase>"
+      weight: <0.0-1.0>
+    - phrase: "<key phrase>"
+      weight: <0.0-1.0>
 
 ## Goal
 (What the user was trying to accomplish.)
@@ -117,6 +133,28 @@ This section is preserved verbatim across compaction cycles.)
 
 ## Current state
 (What completed, in progress, remaining.)`
+}
+
+/** Parsed semantic vector from a summary's ## Semantic Vector section. */
+interface SemanticVector {
+  dominant?: string
+  keyPhrases: { phrase: string; weight: number }[]
+}
+
+/** Extract ## Semantic Vector from summary text. */
+function extractSemanticVector(text: string): SemanticVector | undefined {
+  const match = text.match(/## Semantic Vector\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
+  if (!match?.[1]) return undefined
+  const block = match[1]
+  const dominantMatch = block.match(/dominant:\s*"([^"]+)"/)
+  const phrases: { phrase: string; weight: number }[] = []
+  const phraseRe = /-\s*phrase:\s*"([^"]+)"\s*\n\s*weight:\s*([\d.]+)/g
+  let pm
+  while ((pm = phraseRe.exec(block)) !== null) {
+    phrases.push({ phrase: pm[1], weight: parseFloat(pm[2]) })
+  }
+  if (!dominantMatch && phrases.length === 0) return undefined
+  return { dominant: dominantMatch?.[1], keyPhrases: phrases }
 }
 
 /** Extract ## Key decisions blocks from summary or messageStar text.
@@ -140,9 +178,12 @@ function buildMessageStar(input: {
   priorDecisions?: string[]
 }): string {
   const summaryBlocks = input.summaries.map((s, i) => {
+    const sv = extractSemanticVector(s.text)
+    const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
     const links = [
       `- info_mark: \`Inferred\``,
       `- summary_message_id: \`${s.id}\``,
+      svLine,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
       s.toId ? `- to_id: \`${s.toId}\`` : undefined,
       `- session_id: \`${input.sessionID}\``,
@@ -166,6 +207,13 @@ function buildMessageStar(input: {
         ].join("\n")
       : undefined
 
+  // Last semantic vector for continuity
+  const lastSummary = input.summaries[input.summaries.length - 1]
+  const lastSv = lastSummary ? extractSemanticVector(lastSummary.text) : undefined
+  const lastSvLine = lastSv?.dominant
+    ? `\nLast semantic vector: \`${lastSv.dominant}\` — link your next summary to this.`
+    : ""
+
   const recentIds = input.recent.map((m) => m.info.id)
   const recentBlocks = input.recent.map((m) => {
     const body = messageText(m)
@@ -185,7 +233,7 @@ function buildMessageStar(input: {
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain in the DB (not deleted).",
     "Epistemic ranks: summaries = Inferred; session-read(id) = Exact; unaided recall = Guess.",
-    "Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).",
+    `Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).${lastSvLine}`,
     "",
     ...summaryBlocks,
     decisionsBlock,
@@ -299,12 +347,14 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           if (m.info.role === "assistant" && (m.info as any).summary) {
             const text = messageText(m)
             if (text) {
-              // Range from the injected user message right before this summary
               const prev = i > 0 ? msgs[i - 1] : undefined
               const range = prev?.info.role === "user" && prev.parts.some((p) => p.type === "text" && (p as any).synthetic)
                 ? extractRangeFromRequest(prev.parts.find((p) => p.type === "text")?.["text"] ?? "")
                 : {}
               summaries.push({ id: m.info.id, text, ...range })
+            }
+            if (!extractSemanticVector(text)) {
+              log.debug("summary missing semantic vector", { id: m.info.id })
             }
             latestSummaryIdx = i
           }
@@ -423,6 +473,17 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           toId = range[range.length - 1]?.info.id ?? pool[pool.length - 1]?.info.id ?? "end"
         }
 
+        // Find the last summary's semantic vector so the model can link to it
+        let lastSv: SemanticVector | undefined
+        if (msgs?.length) {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].info.role === "assistant" && (msgs[i].info as any).summary) {
+              const sv = extractSemanticVector(messageText(msgs[i]))
+              if (sv) { lastSv = sv; break }
+            }
+          }
+        }
+
         const msg = yield* session.updateMessage({
           id: MessageID.ascending(),
           role: "user",
@@ -436,7 +497,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           messageID: msg.id,
           sessionID: msg.sessionID,
           type: "text",
-          text: summaryRequestMessage(fromId, toId, input.sessionID),
+          text: summaryRequestMessage(fromId, toId, input.sessionID, lastSv),
           synthetic: true,
         })
         log.info("injected summary request", { sessionID: input.sessionID, fromId, toId })

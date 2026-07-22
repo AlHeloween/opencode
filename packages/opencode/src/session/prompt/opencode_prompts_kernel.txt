@@ -34,7 +34,7 @@ RULES = MappingProxyType({
     'MEMORY.RANK': 'session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact',
     'NO_HARDCODE': 'never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read from config/adm.json',
     'SEARCH.ORDER': 'where/which > codegraph > messagesearch > universalsearch > glob > grep',
-    'SV_OUTPUT': 'after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).',
+    'SV_OUTPUT': 'after every non-trivial response include ## Semantic Vector with dominant (3-5 word phrase) and key_phrases (3-5 items with phrase+weight, Σ=1.0). The dominant chains across compaction cycles via sv_dominant links. Omit for trivial answers (yes/no, single-line facts, tool output relay).',
     'VERIFY.OUTCOME': 'report outcome, evidence, and remaining failure',
     'WHERE_WHICH': 'use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.',
     'WRITE.SCOPE': 'modify only within user-authorized scope',
@@ -428,7 +428,7 @@ invariants:
   • Every MODIFY operation requires an approved ExecutionContract
   • Inspection does not authorize repair. Testing does not authorize correction
   • All Budget fields are concrete integers — no 'reasonable' or 'as needed'
-  • Every stateful response carries md5_msg_tag and md5_sv_tag
+  • Every stateful response carries a SemanticVector with dominant + key_phrases and InformationMark
   • Claims tagged: Exact > Inferred > Hypothetical > Guess > Unknown
   • All operations repeatable from contract + state record alone
 forbidden:

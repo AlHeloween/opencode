@@ -258,40 +258,45 @@ def reverse_search(claims: list[dict[str, Any]], query: str,
 
 @dataclass
 class SemanticVector:
-    """§III Keyword-weight pairs with normalized weights.
-    Two hash domains: md5_msg_tag (content provenance), md5_sv_tag (semantic anchor).
+    """§III Intent vector — dominant phrase + key_phrases with normalized weights (Σ=1.0).
+    Each key_phrase is an atomic {phrase, weight} pair, not two parallel arrays.
+    No content hashes — identity is carried by message IDs and sv_dominant chains.
     """
-    keywords: list[str] = field(default_factory=list)
-    weights: list[float] = field(default_factory=list)
+    key_phrases: list[dict] = field(default_factory=list)  # [{"phrase": str, "weight": float}, ...]
     semantic_dominant: str = ""
 
     def __post_init__(self):
-        if self.weights and sum(self.weights) > 0:
-            total = sum(self.weights)
-            self.weights = [round(w / total, 4) for w in self.weights]
+        if self.key_phrases:
+            total = sum(p.get("weight", 0) for p in self.key_phrases)
+            if total > 0:
+                for p in self.key_phrases:
+                    p["weight"] = round(p["weight"] / total, 4)
+
+    @property
+    def keywords(self) -> list[str]:
+        """Backward compat: flat keyword list from key_phrases."""
+        return [p["phrase"] for p in self.key_phrases]
+
+    @property
+    def weights(self) -> list[float]:
+        """Backward compat: flat weight list from key_phrases."""
+        return [p["weight"] for p in self.key_phrases]
 
     def canonical_string(self) -> str:
         """Canonical SV: dominant=<d>|k1:w1|k2:w2|... (keys sorted)."""
-        pairs = sorted(zip(self.keywords, self.weights), key=lambda x: x[0])
+        pairs = sorted(
+            [(p["phrase"], p["weight"]) for p in self.key_phrases],
+            key=lambda x: x[0],
+        )
         parts = [f"dominant={self.semantic_dominant}"]
         parts.extend(f"{k}:{w}" for k, w in pairs)
         return "|".join(parts)
 
-    def md5_sv_tag(self) -> str:
-        """Semantic anchor checksum from canonical SV string."""
-        return hashlib.md5(self.canonical_string().encode("utf-8")).hexdigest()
 
-
-def build_semantic_vector(keywords: list[str], weights: list[float],
+def build_semantic_vector(key_phrases: list[dict],
                           dominant: str = "") -> SemanticVector:
-    """Build and auto-normalize a SemanticVector."""
-    return SemanticVector(keywords=keywords, weights=weights, semantic_dominant=dominant)
-
-
-def md5_msg_tag(content: str) -> str:
-    """Message provenance hash — TAB, LF, CR, SPACE stripped before hash."""
-    stripped = "".join(c for c in content if c not in "\t\n\r ")
-    return hashlib.md5(stripped.encode("utf-8")).hexdigest()
+    """Build and auto-normalize a SemanticVector from [{phrase, weight}] pairs."""
+    return SemanticVector(key_phrases=key_phrases, semantic_dominant=dominant)
 
 
 # ======================================================================
@@ -418,8 +423,10 @@ def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
       classify_signal(anchor, signal)  # → 'NOISE'
     """
     sv_signal = build_semantic_vector(
-        keywords=[signal.pattern, signal.source],
-        weights=[0.7, 0.3],
+        key_phrases=[
+            {"phrase": signal.pattern, "weight": 0.7},
+            {"phrase": signal.source, "weight": 0.3},
+        ],
         dominant=signal.content[:100] if signal.content else signal.pattern,
     )
     d = delta_l1(
@@ -702,8 +709,6 @@ class ExecutionContract:
     approval: ApprovalState = field(default_factory=ApprovalState)
     information_mark: Optional[InformationMark] = None
     semantic_vector: Optional[SemanticVector] = None
-    md5_msg_tag: str = ""
-    md5_sv_tag: str = ""
 
     def to_json(self, indent: int = 2) -> str:
         goal: dict[str, Any] = {"requested_text": self.goal_requested_text, "objective": self.goal_objective}
@@ -741,7 +746,7 @@ class InvariantError(Exception):
 def canonical_material_contract(contract: ExecutionContract) -> str:
     """Normalize material fields to deterministic JSON, excluding runtime state."""
     d = json.loads(contract.to_json())
-    for key in ("approval", "md5_msg_tag", "md5_sv_tag", "state"):
+    for key in ("approval", "state"):
         d.pop(key, None)
     return json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
@@ -983,8 +988,6 @@ class StateRecord:
     actual_modified: int = 0
     actual_deleted: int = 0
     actual_bytes_written: int = 0
-    md5_msg_tag: str = ""
-    md5_sv_tag: str = ""
     next_action: str = ""
 
     def to_json(self, indent: int = 2) -> str:
@@ -1015,8 +1018,7 @@ class StateRecord:
                 "created": self.actual_created, "modified": self.actual_modified,
                 "deleted": self.actual_deleted, "bytes_written": self.actual_bytes_written,
             },
-            "md5_msg_tag": self.md5_msg_tag,
-            "md5_sv_tag": self.md5_sv_tag,
+
             "next": self.next_action,
         }
         return json.dumps(d, indent=indent, ensure_ascii=False)
@@ -1147,10 +1149,10 @@ class BugFixSvmTracker:
     REFINING_THRESHOLD: float = 0.8  # Δ_L1 ≤ this → converging (≤2 keywords diff)
 
     def __init__(self, bug_description: str, max_attempts: int = 3):
+        keywords = [w for w in bug_description.lower().split() if len(w) > 2][:5] or ["bug", "fix"]
         self.anchor = SvmAnchor(
             sv=build_semantic_vector(
-                keywords=[w for w in bug_description.lower().split() if len(w) > 2][:5],
-                weights=[0.2] * min(5, len(bug_description.split())),
+                key_phrases=[{"phrase": kw, "weight": 1.0 / len(keywords)} for kw in keywords],
                 dominant=bug_description[:100],
             ),
             phase="bug_fix",
@@ -1169,14 +1171,15 @@ class BugFixSvmTracker:
         n = len(self.attempts) + 1
         if sv_keywords:
             attempt_sv = build_semantic_vector(
-                keywords=sv_keywords,
-                weights=[1.0 / len(sv_keywords)] * len(sv_keywords),
+                key_phrases=[{"phrase": kw, "weight": 1.0 / len(sv_keywords)} for kw in sv_keywords],
                 dominant=approach[:100],
             )
         else:
             attempt_sv = build_semantic_vector(
-                keywords=[approach[:20]],
-                weights=[1.0],
+                key_phrases=[
+                    {"phrase": "fix", "weight": 0.8},
+                    {"phrase": "attempt", "weight": 0.2},
+                ],
                 dominant=approach[:100],
             )
 
@@ -2901,7 +2904,7 @@ All Budget fields are concrete integers — no 'reasonable' or 'as needed'.""",
         "Every MODIFY operation requires an approved ExecutionContract",
         "Inspection does not authorize repair. Testing does not authorize correction",
         "All Budget fields are concrete integers — no 'reasonable' or 'as needed'",
-        "Every stateful response carries md5_msg_tag and md5_sv_tag",
+        "Every stateful response carries a SemanticVector with dominant + key_phrases and InformationMark",
         "Claims tagged: Exact > Inferred > Hypothetical > Guess > Unknown",
         "All operations repeatable from contract + state record alone",
     ],
@@ -3110,7 +3113,7 @@ RUNTIME_RULES = MappingProxyType({
     "ADID.OPS": "always-on how-to: cmd_runner start/tail/send; adm template→apply→verify; rag index/query; Delphi init+msbuild (see policy.adid_ops)",
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read from config/adm.json",
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
-    "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
+    "SV_OUTPUT": "after every non-trivial response include ## Semantic Vector with dominant (3-5 word phrase) and key_phrases (3-5 items with phrase+weight, Σ=1.0). The dominant chains across compaction cycles via sv_dominant links. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked, search web/codegraph/messagesearch before declaring blocked.",
     "DECOMPOSE": "break problem into sub-goals before planning. k-medoids: cluster around evidence, not random. Sierpinski/L-System: every sub-level shares the same deterministic structure — one recursive pattern (F→F+F-F), not ad-hoc expansion.",
 })

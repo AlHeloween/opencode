@@ -8,6 +8,7 @@ import { existsSync, mkdirSync } from "fs"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import type { InfoMark } from "../session/constitution"
+import os from "os"
 
 const log = Log.create({ service: "jobs" })
 
@@ -98,6 +99,8 @@ export interface Interface {
   readonly list: (input: { sessionID: SessionID }) => Effect.Effect<JobInfo[]>
 
   readonly drainCompletedNote: (input: { sessionID: SessionID }) => Effect.Effect<string>
+  /** Combined note: completed + running jobs with CPU usage warning. */
+  readonly drainBackgroundNote: (input: { sessionID: SessionID }) => Effect.Effect<string>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Jobs") {}
@@ -208,6 +211,7 @@ export const layer = Layer.effect(
     const completed: Completion[] = []
     const readOffsets = new Map<string, number>()
     const counters = new Map<string, number>()
+    let lowPriorityJobs = 0 // ref-count for os.setPriority
 
     function evictStaleJobs() {
       const now = Date.now()
@@ -423,6 +427,24 @@ export const layer = Layer.effect(
       )
     })
 
+    const drainBackgroundNote = Effect.fn("Jobs.drainBackgroundNote")(function* (input: { sessionID: SessionID }) {
+      const completedNote = yield* drainCompletedNote(input)
+      const running = Array.from(jobs.entries())
+        .filter(([k, j]) => k.startsWith(input.sessionID + "\x00") && (j.status === "running" || j.status === "stalled"))
+        .map(([, j]) => j)
+      const runningLines = running.map((j) =>
+        `  ${j.id} (${j.label}) → ${j.status} [started ${Math.round((Date.now() - j.startedAt) / 1000)}s ago]`
+      )
+      const warning = running.length > 0
+        ? "\n⚠ CPU: background jobs must stay under 20% total. Avoid launching more if already loaded."
+        : ""
+      const runningBlock = runningLines.length > 0
+        ? "Running background jobs:\n" + runningLines.join("\n")
+        : ""
+      const parts = [completedNote, runningBlock].filter(Boolean)
+      return parts.join("\n") + warning
+    })
+
     const write = Effect.fn("Jobs.write")(function* (input: { sessionID: SessionID; jobID: JobID; chunk: string }) {
       const j = jobs.get(key(input.sessionID, input.jobID))
       if (!j) return
@@ -441,6 +463,22 @@ export const layer = Layer.effect(
       const controller = new AbortController()
       const bridge = yield* EffectBridge.make()
       let fiber: Fiber.Fiber<unknown, unknown> | undefined
+
+      // Ref-counted process priority: lower to prevent background jobs
+      // (builds, tests, sub-agents) from starving the UI / kernel.
+      // All child processes inherit the lowered priority.
+      let prevPriority: number | undefined
+      if (lowPriorityJobs++ === 0) {
+        try {
+          prevPriority = os.getPriority(0)
+          os.setPriority(0, 10) // 10 = lower priority on all platforms
+        } catch (e) { log.debug("os.setPriority failed", { error: String(e) }) }
+      }
+      const restorePriority = () => {
+        if (--lowPriorityJobs === 0 && prevPriority !== undefined) {
+          try { os.setPriority(0, prevPriority) } catch { /* best effort */ }
+        }
+      }
 
       // Incremental output writer — callable from within the job's effect.
       const writeOutput = (chunk: string) => {
@@ -528,14 +566,14 @@ export const layer = Layer.effect(
               log.warn("job failed (effect)", { id, error: err instanceof Error ? err.message : String(err) })
             }),
           }),
-          Effect.ensuring(Effect.sync(() => release())),
+          Effect.ensuring(Effect.sync(() => { release(); restorePriority() })),
         ),
       )
 
       return id
     })
 
-    return Service.of({ start, startEffect, write, output, kill, list, drainCompletedNote })
+    return Service.of({ start, startEffect, write, output, kill, list, drainCompletedNote, drainBackgroundNote })
   }),
 )
 

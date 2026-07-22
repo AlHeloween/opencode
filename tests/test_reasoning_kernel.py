@@ -29,7 +29,7 @@ from opencode_prompts_kernel import (
     promote_information_mark, reverse_search,
 
     # Semantic Vector
-    SemanticVector, build_semantic_vector, md5_msg_tag,
+    SemanticVector, build_semantic_vector,
 
     # Delta
     delta_l1, delta_cos, delta_star, classify_delta, DELTA_STABLE, DELTA_SHIFT,
@@ -289,11 +289,14 @@ class TestSemanticVector:
     """§III Semantic Vector — keyword weights, canonical string, hashing."""
 
     def test_normalization(self):
-        sv = build_semantic_vector(["a", "b"], [1.0, 3.0])
+        sv = build_semantic_vector(key_phrases=[{"phrase":"a","weight":1.0},{"phrase":"b","weight":3.0}])
         assert abs(sum(sv.weights) - 1.0) < 0.01
 
     def test_canonical_string_sorted_keys(self):
-        sv = build_semantic_vector(["z", "a", "m"], [1.0, 2.0, 3.0], dominant="test")
+        sv = build_semantic_vector(
+            key_phrases=[{"phrase":"z","weight":1.0},{"phrase":"a","weight":2.0},{"phrase":"m","weight":3.0}],
+            dominant="test",
+        )
         canonical = sv.canonical_string()
         parts = canonical.split("|")
         assert parts[0] == "dominant=test"
@@ -302,30 +305,16 @@ class TestSemanticVector:
         assert "m:" in parts[2]
         assert "z:" in parts[3]
 
-    def test_md5_sv_tag_format(self):
-        sv = build_semantic_vector(["key"], [1.0], dominant="dom")
-        tag = sv.md5_sv_tag()
-        assert isinstance(tag, str)
-        assert len(tag) == 32  # MD5 hex
-        assert all(c in "0123456789abcdef" for c in tag)
+    def test_sv_roundtrip(self):
+        sv = build_semantic_vector(key_phrases=[{"phrase":"key","weight":1.0}], dominant="dom")
+        assert sv.semantic_dominant == "dom"
+        assert sv.key_phrases[0]["phrase"] == "key"
+        assert abs(sv.key_phrases[0]["weight"] - 1.0) < 0.01
 
-    def test_md5_sv_tag_deterministic(self):
-        sv1 = build_semantic_vector(["a"], [1.0], dominant="x")
-        sv2 = build_semantic_vector(["a"], [1.0], dominant="x")
-        assert sv1.md5_sv_tag() == sv2.md5_sv_tag()
-
-    def test_md5_msg_tag_strips_whitespace(self):
-        tag1 = md5_msg_tag("hello world")
-        tag2 = md5_msg_tag("hello  world")   # extra space
-        tag3 = md5_msg_tag("  hello world ")  # leading/trailing
-        assert tag1 == tag2
-        assert tag1 == tag3
-
-    def test_md5_msg_tag_strips_newlines(self):
-        tag1 = md5_msg_tag("line1\nline2")
-        tag2 = md5_msg_tag("line1line2")
-        assert tag1 == tag2
-
+    def test_sv_deterministic(self):
+        sv1 = build_semantic_vector(key_phrases=[{"phrase":"a","weight":1.0}], dominant="x")
+        sv2 = build_semantic_vector(key_phrases=[{"phrase":"a","weight":1.0}], dominant="x")
+        assert sv1.canonical_string() == sv2.canonical_string()
 
 class TestDeltaFunctions:
     """§III Delta measurement — L1, cosine, star, classification."""
@@ -1935,7 +1924,6 @@ class TestIntegration:
             contract_state="COMPLETED",
             primary_oracle_result="sha256:abc matches expected",
             actual_bytes_written=0,
-            md5_msg_tag=md5_msg_tag("Read complete"),
         )
         js = record.to_json()
         parsed = json.loads(js)

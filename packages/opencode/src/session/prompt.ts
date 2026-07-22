@@ -1506,15 +1506,15 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            // Inject background job completion notes from the JobManager
+            // Inject background job notes from the JobManager (completed + running + CPU warning)
             const jobsNote = yield* Effect.gen(function* () {
               // JobManager is optional — silently skip if not provided in the layer
               try {
                 const svc = yield* Effect.serviceOption(Jobs.Service)
                 if (svc._tag === "None") return ""
-                return yield* svc.value.drainCompletedNote({ sessionID })
+                return yield* svc.value.drainBackgroundNote({ sessionID })
               } catch (e) {
-                Log.Default.warn("bug: failed to drain completed jobs", { error: String(e), sessionID })
+                Log.Default.warn("bug: failed to drain background jobs", { error: String(e), sessionID })
                 return ""
               }
             })

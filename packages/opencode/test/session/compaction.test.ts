@@ -1243,7 +1243,10 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
         expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
         expect(texts.some((t: string) => t.includes("Inferred") && t.includes("info_mark"))).toBe(true)
-        // Epistemic guardrails: required structured sections including Key decisions
+        // Epistemic guardrails: required structured sections including Semantic Vector
+        expect(texts.some((t: string) => t.includes("## Semantic Vector"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("dominant:"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("key_phrases:"))).toBe(true)
         expect(texts.some((t: string) => t.includes("## Goal"))).toBe(true)
         expect(texts.some((t: string) => t.includes("## Key decisions"))).toBe(true)
         expect(texts.some((t: string) => t.includes("## Current state"))).toBe(true)

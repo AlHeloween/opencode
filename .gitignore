@@ -105,3 +105,6 @@ logseq/
 adm.exe
 cmd_runner.exe
 /tools/
+
+# Generated / refreshed provider model catalogs (build regenerates; too noisy for git)
+packages/opencode/src/provider/models/

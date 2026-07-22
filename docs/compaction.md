@@ -56,7 +56,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | ~32 768 output tokens since last summary | `injectSummaryRequest()` — synthetic user message with ID range. If the open range exceeds ~30k content, **trim to the last ~30k**. Model answers normally; all tools available, no restrictions. |
+| **1. Incremental summary** | ~32 768 output tokens since last summary | `injectSummaryRequest()` — synthetic user message with ID range. **Every summary must open with `## Semantic Vector`** (dominant + key_phrases Σ=1.0) for FTS/ranking and `sv_dominant` chaining; then Goal / Key decisions / Current state. Prior dominant is injected when known. If the open range exceeds ~30k content, **trim to the last ~30k**. Model answers normally; all tools available, no restrictions. |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | Collect all `summary: true` assistants from DB (including soft-hidden). Soft-hide every **visible** message. Inject one user `message*` = summaries + recent after last summary. Prior `message*` bodies are not re-nested. |
 | **3. Continuous memory** | Agent needs detail | `session-read` with message IDs from summaries / Recent sections; `messagesearch` by topic. |
 
@@ -103,6 +103,9 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 **Summary request** (synthetic user):
 
 - Range: `from_id` … `to_id`, plus `session_id`
+- **Required first section:** `## Semantic Vector` (dominant + key_phrases with weights, Σ=1.0) — sparse intent embedding for FTS ranking and `sv_dominant` chain
+- Then Goal / Key decisions / Current state
+- Prior summary’s dominant is injected when available so the model can link the chain
 - Instructs model to embed those IDs in the summary for later `session-read`
 
 **`message*`** (synthetic user, marker `=== COMPACTED ===`):

@@ -151,20 +151,68 @@ export function computeOutputSinceLastSummary(msgs: MessageV2.WithParts[]): numb
   return tokens
 }
 
-function summaryRequestMessage(fromId: string, toId: string, sessionID: string) {
-  return `Please create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.
+/** Parsed semantic vector from a summary's ## Semantic Vector section.
+  * Sparse phrase embedding: key_phrases with weights (Σ=1.0), plus dominant. */
+interface SemanticVector {
+  dominant?: string
+  keyPhrases: { phrase: string; weight: number }[]
+}
 
-Epistemic rank of this summary: **Inferred** (not Exact). Exact detail requires session-read with message IDs.
+/** Extract ## Semantic Vector from summary text (both quote styles). */
+function extractSemanticVector(text: string): SemanticVector | undefined {
+  const match = text.match(/## Semantic Vector\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
+  if (!match?.[1]) return undefined
+  const block = match[1]
+  // dominant: "..." or dominant: '...'
+  const dominantMatch = block.match(/dominant:\s*["']([^"']+)["']/)
+  const phrases: { phrase: string; weight: number }[] = []
+  // - phrase: "..." / '...' with weight on next line
+  const phraseRe = /-\s*phrase:\s*["']([^"']+)["']\s*\n\s*weight:\s*([\d.]+)/g
+  let pm: RegExpExecArray | null
+  while ((pm = phraseRe.exec(block)) !== null) {
+    phrases.push({ phrase: pm[1], weight: parseFloat(pm[2]) })
+  }
+  if (!dominantMatch && phrases.length === 0) return undefined
+  return { dominant: dominantMatch?.[1], keyPhrases: phrases }
+}
+
+/** Layer-1 summary request. SVM is mandatory first section — every summary carries
+  * a normalized phrase embedding for FTS/ranking and sv_dominant chaining. */
+function summaryRequestMessage(
+  fromId: string,
+  toId: string,
+  sessionID: string,
+  lastSv?: SemanticVector,
+) {
+  const svHint = lastSv?.dominant
+    ? `\nYour previous semantic vector dominant was: "${lastSv.dominant}".\n` +
+      `Link to it: use a related dominant and/or overlapping key phrases so the chain continues.\n`
+    : ""
+  return `<!-- summary-range from_id="${fromId}" to_id="${toId}" session_id="${sessionID}" -->
+Create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.${svHint}
+Epistemic rank (info_mark): **Inferred** (not Exact). Exact detail requires session-read with message IDs.
 
 Include these message IDs in your summary (required for later recovery via session-read):
 - \`from_id\`: \`${fromId}\`
 - \`to_id\`: \`${toId}\`
 - \`session_id\`: \`${sessionID}\`
 - \`info_mark\`: \`Inferred\`
+- \`sv_dominant\`: (copy your ## Semantic Vector dominant phrase here too)
 
 Also list any important intermediate message IDs you reference.
 
-Output structured summary sections in this order:
+Output structured summary sections in this order — **## Semantic Vector is required on every summary**:
+
+## Semantic Vector
+(Your intent understanding as a sparse normalized embedding: key phrases with weights, Σ=1.0, 3-5 phrases.
+Without this section the summary is a black box — retrievable by ID but not FTS-rankable or chainable.)
+Format:
+  dominant: "<3-5 word phrase capturing the core intent>"
+  key_phrases:
+    - phrase: "<key phrase>"
+      weight: <0.0-1.0>
+    - phrase: "<key phrase>"
+      weight: <0.0-1.0>
 
 ## Goal
 (What the user was trying to accomplish in this window.)
@@ -202,9 +250,12 @@ function buildMessageStar(input: {
   priorMessageStarId?: string
 }): string {
   const summaryBlocks = input.summaries.map((s, i) => {
+    const sv = extractSemanticVector(s.text)
+    const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
     const links = [
       `- info_mark: \`Inferred\``,
       `- summary_message_id: \`${s.id}\``,
+      svLine,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
       s.toId ? `- to_id: \`${s.toId}\`` : undefined,
       `- session_id: \`${input.sessionID}\``,
@@ -228,6 +279,13 @@ function buildMessageStar(input: {
         ].join("\n")
       : undefined
 
+  // Last SV in this window — continuity hint for the next summary cycle
+  const lastSummary = input.summaries[input.summaries.length - 1]
+  const lastSv = lastSummary ? extractSemanticVector(lastSummary.text) : undefined
+  const lastSvLine = lastSv?.dominant
+    ? `\nLast semantic vector: \`${lastSv.dominant}\` — link your next summary to this.`
+    : ""
+
   const recentIds = input.recent.map((m) => m.info.id)
   const recentBlocks = input.recent.map((m) => {
     const body = messageText(m)
@@ -247,7 +305,7 @@ function buildMessageStar(input: {
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain in the DB (not deleted).",
     "Epistemic ranks: summaries = Inferred; session-read(id) = Exact; unaided recall = Guess.",
-    "Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).",
+    `Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).${lastSvLine}`,
     ...(input.priorMessageStarId
       ? [`Prior message*: \`${input.priorMessageStarId}\` — session-read for older summaries.`]
       : []),
@@ -388,6 +446,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
             if (text) {
               const links = extractSummaryLinks(text)
               summaries.push({ id: m.info.id, text, ...links })
+              if (!extractSemanticVector(text)) {
+                log.debug("summary missing semantic vector", { id: m.info.id })
+              }
             }
             latestSummaryIdx = i
           }
@@ -510,6 +571,20 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           toId = range[range.length - 1]?.info.id ?? pool[pool.length - 1]?.info.id ?? "end"
         }
 
+        // Last summary's SVM so the model can chain sv_dominant / key phrases
+        let lastSv: SemanticVector | undefined
+        if (msgs?.length) {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].info.role === "assistant" && (msgs[i].info as any).summary) {
+              const sv = extractSemanticVector(messageText(msgs[i]))
+              if (sv) {
+                lastSv = sv
+                break
+              }
+            }
+          }
+        }
+
         const msg = yield* session.updateMessage({
           id: MessageID.ascending(),
           role: "user",
@@ -523,10 +598,15 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           messageID: msg.id,
           sessionID: msg.sessionID,
           type: "text",
-          text: summaryRequestMessage(fromId, toId, input.sessionID),
+          text: summaryRequestMessage(fromId, toId, input.sessionID, lastSv),
           synthetic: true,
         })
-        log.info("injected summary request", { sessionID: input.sessionID, fromId, toId })
+        log.info("injected summary request", {
+          sessionID: input.sessionID,
+          fromId,
+          toId,
+          lastSvDominant: lastSv?.dominant,
+        })
       })
 
     return Service.of({

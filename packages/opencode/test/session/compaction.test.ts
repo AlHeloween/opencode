@@ -1375,11 +1375,89 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
         expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
         expect(texts.some((t: string) => t.includes("Inferred") && t.includes("info_mark"))).toBe(true)
+        // SVM is mandatory first structured section on every summary
+        expect(texts.some((t: string) => t.includes("## Semantic Vector"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("key_phrases") && t.includes("dominant:"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("sv_dominant"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("summary-range"))).toBe(true)
         // Structured sections in summary request
         expect(texts.some((t: string) => t.includes("## Goal"))).toBe(true)
         expect(texts.some((t: string) => t.includes("## Key decisions"))).toBe(true)
         expect(texts.some((t: string) => t.includes("## Current state"))).toBe(true)
         expect(texts.some((t: string) => t.includes("preserved verbatim across compaction"))).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "injectSummaryRequest passes prior sv_dominant for chain linking",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: su.id,
+          sessionID: info.id,
+          type: "text",
+          text: "summary-req",
+        })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "build",
+          agent: "build",
+          parentID: su.id,
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true,
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: sa.id,
+          sessionID: info.id,
+          type: "text",
+          text: [
+            "## Semantic Vector",
+            'dominant: "wire svm into summaries"',
+            "key_phrases:",
+            '  - phrase: "semantic vector on every summary"',
+            "    weight: 0.6",
+            '  - phrase: "sv_dominant chain"',
+            "    weight: 0.4",
+            "",
+            "## Goal",
+            "Ensure SVM is required.",
+          ].join("\n"),
+        })
+
+        yield* compact.injectSummaryRequest({ sessionID: info.id, model: ref, agent: "build" })
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
+        const last = msgs[msgs.length - 1]
+        const text = last.parts
+          .filter((p: any) => p.type === "text")
+          .map((p: any) => p.text)
+          .join("\n")
+        expect(text).toContain("## Semantic Vector")
+        expect(text).toContain("wire svm into summaries")
+        expect(text).toContain("previous semantic vector dominant")
       }),
     ),
   )

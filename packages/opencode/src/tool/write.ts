@@ -38,6 +38,11 @@ export const WriteTool = Tool.define(
       parameters: Parameters,
       execute: (params: { content: string; filePath: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
+          // Reject code fragments that accidentally became file paths
+          // e.g. "i+1).join(String.fromCharCode(10)))" from malformed tool calls
+          if (params.filePath.includes("(") && params.filePath.includes(")") && !params.filePath.includes(".")) {
+            return yield* Effect.fail(new Error(`filePath does not look like a valid path: ${params.filePath}`))
+          }
           const filepath = path.isAbsolute(params.filePath)
             ? params.filePath
             : path.join(Instance.directory, params.filePath)

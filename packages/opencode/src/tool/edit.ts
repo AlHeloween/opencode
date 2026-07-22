@@ -136,6 +136,11 @@ export const EditTool = Tool.define(
             throw new Error("No changes to apply: oldString and newString are identical.")
           }
 
+          // Reject code fragments that accidentally became file paths
+          if (params.filePath.includes("(") && params.filePath.includes(")") && !params.filePath.includes(".")) {
+            throw new Error(`filePath does not look like a valid path: ${params.filePath}`)
+          }
+
           const filePath = path.isAbsolute(params.filePath)
             ? params.filePath
             : path.join(Instance.directory, params.filePath)

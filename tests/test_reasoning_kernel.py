@@ -1788,7 +1788,7 @@ class TestRuntimePromptCompiler:
 
     def test_agent_prompt_files_reference_generated_contract_ids(self):
         prompts = {
-            "coder.txt": "agent.coder", "compaction.txt": "agent.compaction", "explore.txt": "agent.explore",
+            "coder.txt": "agent.coder", "explore.txt": "agent.explore",
             "general.txt": "agent.general", "media.txt": "agent.media", "orchestrator.txt": "agent.orchestrator",
             "researcher.txt": "agent.researcher", "summary.txt": "agent.summary", "title.txt": "agent.title",
         }

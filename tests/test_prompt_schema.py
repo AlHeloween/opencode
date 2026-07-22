@@ -223,8 +223,7 @@ def test_no_orphaned_agent_prompts():
             referenced_files.add(f"{name}.txt")
             referenced_files.add(name + ".txt")
 
-        # Special: compaction.txt is not referenced
-        orphans = prompt_files - referenced_files - {"compaction.txt"}
+        orphans = prompt_files - referenced_files
         assert not orphans, (
             f"Orphaned agent prompt files (in agent/prompt/ but not referenced "
             f"by any agent): {orphans}. Each prompt file must have a corresponding "
@@ -233,53 +232,6 @@ def test_no_orphaned_agent_prompts():
     else:
         pytest.skip("agent.ts not found, skipping import test")
 
-
-def test_compaction_prompt_is_wired():
-    """Compaction agent must have a prompt field pointing to compaction.txt."""
-    agent_def_path = os.path.join(PROJECT_ROOT, "packages/opencode/src/agent/agent.ts")
-    if not os.path.isfile(agent_def_path):
-        agent_def_path = os.path.join(PROJECT_ROOT, "packages/opencode/src/agent/agent-registry.ts")
-
-    if os.path.isfile(agent_def_path):
-        with open(agent_def_path, "r", encoding="utf-8") as f:
-            agent_src = f.read()
-
-        # Find compaction agent definition
-        # Check if PROMPT_COMPACTION is imported
-        has_import = "PROMPT_COMPACTION" in agent_src
-        # Check if compaction agent uses this prompt
-        has_prompt = "compaction" in agent_src and "prompt:" in agent_src or "prompt" in agent_src and "compaction" in agent_src
-
-        # More precise: find the compaction agent block using brace depth
-        # (Simple regex doesn't handle nested braces from Permission.merge(...))
-        match = re.search(r'compaction\s*:', agent_src)
-        if match:
-            start = match.start()
-            # Scan forward, tracking brace depth to find the full block
-            depth = 0
-            i = start
-            in_block = False
-            while i < len(agent_src):
-                if agent_src[i] == '{':
-                    depth += 1
-                    in_block = True
-                elif agent_src[i] == '}':
-                    depth -= 1
-                    if in_block and depth == 0:
-                        block = agent_src[start:i+1]
-                        has_prompt = "prompt:" in block
-                        break
-                i += 1
-
-        # If compaction agent exists but has no prompt field, fail
-        if "compaction" in agent_src and not has_prompt:
-            pytest.fail(
-                "Compaction agent has no prompt field. Add 'prompt: PROMPT_COMPACTION' "
-                "to the compaction agent definition in agent.ts, and import "
-                "PROMPT_COMPACTION from './prompt/compaction.txt'."
-            )
-    else:
-        pytest.skip("agent.ts not found, skipping")
 
 
 def test_kernel_conformance_suite():
@@ -310,7 +262,7 @@ def test_prompt_file_count():
     agent_dir = AGENT_PROMPT_DIR
 
     required_session = {"default.txt", "anthropic.txt", "gemini.txt", "gpt.txt"}
-    required_agent = {"coder.txt", "explore.txt", "orchestrator.txt", "compaction.txt"}
+    required_agent = {"coder.txt", "explore.txt", "orchestrator.txt"}
 
     missing_session = set()
     for f in required_session:

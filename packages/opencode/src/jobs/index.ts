@@ -215,19 +215,34 @@ export const layer = Layer.effect(
 
     function evictStaleJobs() {
       const now = Date.now()
-      // TTL eviction: remove jobs older than JOB_TTL
+      // TTL eviction: remove jobs older than JOB_TTL.
+      // Cancel any still-running job before map eviction to avoid orphaned OS processes.
       for (const [id, job] of jobs) {
         if (now - job.startedAt > JOB_TTL) {
+          if (job.status === "running" || job.status === "stalled") {
+            job.cancel()
+            job.status = "killed"
+            job.finishedAt = Date.now()
+            persistUpdate(job)
+            log.warn("bug: evicting live job via TTL — possible zombie", { id: job.id, kind: job.kind, elapsed: now - job.startedAt })
+          }
           jobs.delete(id)
           readOffsets.delete(id + ":offset")
         }
       }
-      // Enforce max size: remove oldest entries if over limit
+      // Enforce max size: remove oldest entries if over limit.
       if (jobs.size > MAX_JOBS) {
         const entries = [...jobs.entries()]
         entries.sort((a, b) => a[1].startedAt - b[1].startedAt)
         const toDelete = entries.slice(0, entries.length - MAX_JOBS)
-        for (const [id] of toDelete) {
+        for (const [id, job] of toDelete) {
+          if (job.status === "running" || job.status === "stalled") {
+            job.cancel()
+            job.status = "killed"
+            job.finishedAt = Date.now()
+            persistUpdate(job)
+            log.warn("bug: evicting live job via MAX_JOBS — possible zombie", { id: job.id, kind: job.kind })
+          }
           jobs.delete(id)
           readOffsets.delete(id + ":offset")
         }
@@ -247,18 +262,31 @@ export const layer = Layer.effect(
     // Initialize jobs DB
     const db = getJobsDb()
 
-    // Heartbeat: detect stalled background jobs.
+    // Heartbeat: detect stalled background jobs, auto-kill long-stalled ones.
     // A job is "stalled" when it's been running for >15s without producing output.
     // The agent sees stalled status via job_output / job_wait and can decide to
-    // kill it with job_kill.
+    // kill it with job_kill. If the agent doesn't act, auto-kill kicks in after
+    // STALL_KILL_MS (2 min) to prevent CPU-hogging zombie processes.
     const STALL_THRESHOLD_MS = 15_000
+    const STALL_KILL_MS = 120_000 // auto-kill after 2 min of stall
     const HEARTBEAT_INTERVAL_MS = 5_000
     const stallCheck = setInterval(() => {
+      const now = Date.now()
       for (const [, j] of jobs) {
-        if (j.status === "running" && Date.now() - j.lastOutputAt > STALL_THRESHOLD_MS) {
+        const silentFor = now - j.lastOutputAt
+        if (j.status === "running" && silentFor > STALL_THRESHOLD_MS) {
           j.status = "stalled"
-          log.info("job stalled", { id: j.id, kind: j.kind, elapsed: Date.now() - j.startedAt })
+          log.info("job stalled", { id: j.id, kind: j.kind, elapsed: now - j.startedAt })
           try { persistUpdate(j); publishJobs(j.sessionID) } catch (e) { log.debug("stall persist failed", { error: String(e) }) }
+        }
+        // Auto-kill: if stalled for > STALL_KILL_MS, cancel the process.
+        // This is a safety net — the agent should have called job_kill by now.
+        if (j.status === "stalled" && silentFor > STALL_KILL_MS) {
+          j.cancel()
+          j.status = "killed"
+          j.finishedAt = now
+          log.warn("bug: auto-killed stalled job", { id: j.id, kind: j.kind, silentFor, elapsed: now - j.startedAt })
+          try { persistUpdate(j); publishJobs(j.sessionID) } catch (e) { log.debug("auto-kill persist failed", { error: String(e) }) }
         }
       }
     }, HEARTBEAT_INTERVAL_MS)
@@ -378,12 +406,16 @@ export const layer = Layer.effect(
 
     const kill = Effect.fn("Jobs.kill")(function* (input: { sessionID: SessionID; jobID: JobID }) {
       const j = jobs.get(key(input.sessionID, input.jobID))
-      if (!j || (j.status !== "running" && j.status !== "stalled")) return false
-      j.cancel()
+      // Always cancel if the job exists in the map — status may be stale
+      // (process can be alive even if status says "done" or "failed").
+      if (!j) return false
+      const wasRunning = j.status === "running" || j.status === "stalled"
+      if (wasRunning) j.cancel()
       j.status = "killed"
       j.finishedAt = Date.now()
       persistUpdate(j)
       publishJobs(j.sessionID)
+      if (!wasRunning) log.warn("bug: job_kill on non-running job — possible zombie process", { id: j.id, kind: j.kind, status: j.status })
       return true
     })
 

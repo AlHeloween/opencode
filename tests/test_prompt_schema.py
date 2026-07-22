@@ -46,6 +46,14 @@ EXCLUDED_FILES = {
     "generate.txt",                 # Agent generation prompt
 }
 
+# Rule files are external package docs (ADID framework) synced from upstream —
+# not authored in this repo, not subject to internal PromptSpec schema.
+EXCLUDED_RULES = {
+    "adid-framework-and-adm.mdc",
+    "adid-rag.mdc",
+    "semantic-coding-agent-drop-in.mdc",
+}
+
 # ======================================================================
 # Helpers
 # ======================================================================
@@ -78,11 +86,11 @@ def find_all_prompt_files():
                     if "node_modules" not in fp:
                         found.append(("skill", fp))
 
-    # Rule files (.mdc)
+    # Rule files (.mdc) — skip external ADID framework docs
     for rule_dir in RULE_DIRS:
         if os.path.isdir(rule_dir):
             for f in sorted(os.listdir(rule_dir)):
-                if f.endswith(".mdc"):
+                if f.endswith(".mdc") and f not in EXCLUDED_RULES:
                     found.append(("rule", os.path.join(rule_dir, f)))
 
     # AGENTS.md files

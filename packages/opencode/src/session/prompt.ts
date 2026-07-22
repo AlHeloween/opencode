@@ -65,7 +65,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
 import { EffectBridge } from "@/effect/bridge"
-import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
+import { convertDocument } from "@/util/markdownify"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -877,36 +877,34 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   { ...part, messageID: info.id, sessionID: input.sessionID },
                 ]
               }
-              // Non-text/plain data URLs — convert to text when possible, or add a
-              // placeholder. DeepSeek and other text-only models reject file parts.
-              const ext = part.filename ? path.extname(part.filename).toLowerCase().slice(1) : ""
-              if (isSupportedDocumentFormat(ext)) {
-                // PDF, DOCX, XLSX, etc. — decode base64 and convert to markdown text
-                const commaIdx = part.url.indexOf(",")
-                if (commaIdx !== -1) {
-                  const base64 = part.url.slice(commaIdx + 1)
-                  const bytes = Buffer.from(base64, "base64")
-                  const text = yield* Effect.promise(() => convertDocument(new Uint8Array(bytes), part.filename ?? "file"))
-                  return [
-                    {
-                      messageID: info.id,
-                      sessionID: input.sessionID,
-                      type: "text",
-                      synthetic: true,
-                      text: `Called the Read tool with the following input: ${JSON.stringify({ filePath: part.filename })}`,
-                    },
-                    {
-                      messageID: info.id,
-                      sessionID: input.sessionID,
-                      type: "text",
-                      synthetic: true,
-                      text,
-                    },
-                  ]
-                }
+              // Non-text/plain data URLs — decode and convert to text.
+              // convertDocument handles all formats: documents → markdown content,
+              // media/binary → metadata (EXIF, size, format, duration, etc.).
+              // DeepSeek and other text-only models reject file parts.
+              const commaIdx = part.url.indexOf(",")
+              if (commaIdx !== -1) {
+                const base64 = part.url.slice(commaIdx + 1)
+                const bytes = Buffer.from(base64, "base64")
+                const text = yield* Effect.promise(() =>
+                  convertDocument(new Uint8Array(bytes), part.filename ?? "file"),
+                )
+                return [
+                  {
+                    messageID: info.id,
+                    sessionID: input.sessionID,
+                    type: "text",
+                    synthetic: true,
+                    text: `Called the Read tool with the following input: ${JSON.stringify({ filePath: part.filename })}`,
+                  },
+                  {
+                    messageID: info.id,
+                    sessionID: input.sessionID,
+                    type: "text",
+                    synthetic: true,
+                    text,
+                  },
+                ]
               }
-              // Unsupported binary format (images, etc.) — add placeholder so model
-              // knows the file was attached but can't process it directly.
               return [
                 {
                   messageID: info.id,

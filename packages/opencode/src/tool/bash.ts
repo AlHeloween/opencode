@@ -27,7 +27,7 @@ import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner
 import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
-import { Constitution } from "@/session/constitution"
+import { enforceDestructiveShell } from "./shell-constitution"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 min safety net — agent controls kill via job_kill
@@ -796,28 +796,8 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
-              // Constitution preflight (kernel Risk mirror): DESTRUCTIVE needs a dedicated
-              // "destructive" permission (not bash:*) unless OPENCODE_ALLOW_DESTRUCTIVE=1.
-              const guard = Constitution.guardCommand(params.command, {
-                sessionID: ctx.sessionID,
-                agent: ctx.extra?.agent as string | undefined,
-              })
-              if (guard.needsDestructivePermission) {
-                const pattern = params.command.slice(0, 160)
-                yield* ctx.ask({
-                  permission: "destructive",
-                  patterns: [pattern],
-                  // Session-scoped "always allow" for this exact command shape
-                  always: [pattern],
-                  metadata: {
-                    risk: "DESTRUCTIVE",
-                    constitution: true,
-                    message: guard.message,
-                    command: params.command.slice(0, 400),
-                    description: params.description,
-                  },
-                })
-              }
+              // Constitution: DESTRUCTIVE (incl. git checkout) → permission "destructive"
+              yield* enforceDestructiveShell(params.command, ctx, params.description)
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)
                 : Instance.directory

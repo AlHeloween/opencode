@@ -21,6 +21,7 @@ import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
+import { enforceDestructiveShell } from "./shell-constitution"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
@@ -520,6 +521,9 @@ export const CmdTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
+          // Same constitution gate as bash — cmd must not bypass destructive (e.g. git checkout)
+          yield* enforceDestructiveShell(params.command, ctx, params.description)
+
           const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
           if (params.timeout !== undefined && params.timeout < 0) {
             throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)

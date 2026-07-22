@@ -1028,4 +1028,46 @@ describe("tool.cmd redirection detection", () => {
       },
     })
   })
+
+  test("constitution: git checkout triggers destructive permission (not only cmd)", async () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const prompts: any[] = []
+          const stop = new Error("stop after destructive permission")
+          const tool = await initCmd()
+          await expect(
+            Effect.runPromise(
+              tool.execute(
+                {
+                  command: "git checkout main",
+                  description: "Test git checkout via cmd",
+                  timeout: 5000,
+                },
+                {
+                  ...ctx,
+                  extra: { agent: "build" },
+                  ask: (request: any) => {
+                    prompts.push(request)
+                    return Effect.fail(stop)
+                  },
+                } as any,
+              ),
+            ),
+          ).rejects.toThrow(stop.message)
+          const destructiveReq = prompts.find((p) => p.permission === "destructive")
+          expect(destructiveReq).toBeDefined()
+          expect(destructiveReq.metadata?.risk).toBe("DESTRUCTIVE")
+          expect(destructiveReq.metadata?.constitution).toBe(true)
+        },
+      })
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
 })

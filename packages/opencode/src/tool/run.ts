@@ -12,6 +12,7 @@ import * as Truncate from "./truncate"
 import { Jobs } from "@/jobs"
 import { which } from "@/util/which"
 import * as Log from "@opencode-ai/core/util/log"
+import { enforceDestructiveShell } from "./shell-constitution"
 
 const log = Log.create({ service: "run-tool" })
 
@@ -260,6 +261,10 @@ export const RunTool = Tool.define(
           const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
           if (params.timeout !== undefined && params.timeout < 0) throw new Error(`Invalid timeout: ${params.timeout}`)
           const timeout = params.timeout ?? DEFAULT_TIMEOUT
+
+          // Constitution on reconstructed argv (e.g. run git checkout → destructive)
+          const argvLine = [params.binary, ...params.args].join(" ")
+          yield* enforceDestructiveShell(argvLine, ctx, params.description)
 
           // Permission: dedicated "run" key (binary exec, not a shell).
           if (!Instance.containsPath(cwd)) {

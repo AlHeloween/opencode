@@ -178,7 +178,6 @@ export const Info = Schema.Struct({
         // specialized
         title: Schema.optional(ConfigAgent.Info),
         summary: Schema.optional(ConfigAgent.Info),
-        compaction: Schema.optional(ConfigAgent.Info),
       }),
       [Schema.Record(Schema.String, ConfigAgent.Info)],
     ),
@@ -276,18 +275,8 @@ export const Info = Schema.Struct({
       auto: Schema.optional(Schema.Boolean).annotate({
         description: "Enable automatic compaction when context is full (default: true)",
       }),
-      tail_turns: Schema.optional(NonNegativeInt).annotate({
-        description:
-          "Number of recent user turns, including their following assistant/tool responses, to keep verbatim during compaction (default: 2)",
-      }),
-      preserve_recent_tokens: Schema.optional(NonNegativeInt).annotate({
-        description: "Maximum number of tokens from recent turns to preserve verbatim after compaction",
-      }),
       reserved: Schema.optional(NonNegativeInt).annotate({
         description: "Token buffer for compaction. Leaves enough window to avoid overflow during compaction.",
-      }),
-      soft_ratio: Schema.optional(Schema.Number).annotate({
-        description: "Fraction of context window at which to emit a notice (default: 0.5). Does not compact.",
       }),
       full_ratio: Schema.optional(Schema.Number).annotate({
         description: "Fraction of context window at which to trigger normal compaction (default: 0.8).",

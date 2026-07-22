@@ -1,7 +1,7 @@
 # Mechanistic Compaction — Stable Continuous Memory
 
 **Status:** production  
-**Last updated:** 2026-07-17  
+**Last updated:** 2026-07-22  
 **Code:** `packages/opencode/src/session/compaction.ts`, `prompt.ts` (`runLoop`), `overflow.ts`, `message-v2.ts` (`filterCompacted*`)
 
 ---
@@ -62,6 +62,33 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 Checkpoints: after compact, checkpoint is **removed**; next successful turn saves a fresh checkpoint of the compacted visible set.
 
+### Config
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `auto` | boolean | `true` | Enable automatic compaction |
+| `full_ratio` | number | `0.8` | Fraction of context window to trigger normal compaction |
+| `force_ratio` | number | `0.9` | Fraction to force compaction, bypassing economics check |
+| `reserved` | number | `min(20000, limit * 0.15)` | Token buffer so compaction has room to run |
+
+Config is minimal by design — no soft warnings, no tail-turn knobs. The mechanistic loop handles the rest.
+
+### Design details
+
+**Decisions preservation.** `## Key decisions` lines from every summary are extracted and carried **verbatim** across compaction cycles. They appear in the `message*` as `--- Decisions (preserved verbatim across compaction cycles) ---`. The model never re-summarizes them — "Inferred once, not re-Inferred."
+
+**message* chain linking.** Each `message*` embeds the ID of the prior `message*` (`Prior message*: <id>`). This forms a linked list through compaction history — older summaries are always recoverable via `session-read` by following the chain backward.
+
+**Overflow detection.** Two paths trigger compaction:
+1. **Content-based** (`isOverflowFromContent`): extracts actual text from message parts and runs it through the model's BPE tokenizer. Avoids 3–5× inflation from JSON structural overhead that would cause premature compaction on large-context models.
+2. **Provider-forced** (`result === "compact"`): the model API returns a context-overflow error — compact immediately.
+
+**Re-entrant guard.** `SessionStatus` prevents concurrent compaction. If a compact is already in progress (`type: "compacting"`), subsequent calls are silently skipped.
+
+**Summary collection bounding.** Only summaries created **after** the last `message*` are collected into the new `message*`. Older summaries were already folded into prior cycles and are recoverable via the chain link. This keeps each `message*` O(1) instead of accumulating every summary from session start (O(n²)).
+
+**SVM validation.** If a summary assistant lacks the required `## Semantic Vector` section, a debug log is emitted. The summary is still included but won't contribute `sv_dominant` to the chain.
+
 ### Checkpoint policy (pairs with this loop)
 
 | Rule | Why |
@@ -91,10 +118,11 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 
 | Anti-pattern | Why |
 |--------------|-----|
-| Single-shot “summarize entire session” | Lossy soup; agent drifts |
+| Single-shot "summarize entire session" | Lossy soup; agent drifts |
 | Hard-delete messages | Breaks recovery; archive is the ground truth |
-| Separate compaction agent / special system prompt | Cache break, unreliable tool/reasoning behavior |
-| Permanent “already compacted” global skip | Breaks multi-round loop `(m*, …) → message**` |
+| Separate sub-agent for compaction | Cache break, unreliable tool/reasoning behavior. Summaries are produced by the same agent the user was talking to — no agent switch, no KV discontinuity. |
+| Permanent "already compacted" global skip | Breaks multi-round loop `(m*, …) → message**` |
+| User-facing compaction notifications | Mechanistic — no soft warnings, no "struggling" toasts. When context is full, compact runs. The model doesn't see the machinery. |
 
 ---
 
@@ -110,8 +138,10 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 
 **`message*`** (synthetic user, marker `=== COMPACTED ===`):
 
-- Each summary block: text + `summary_message_id` / optional `from_id`/`to_id` / `session_id`
-- Recent section: tagged `[role \`msg_id\`]` lines + ID range for session-read
+- Each summary block: text + `summary_message_id` / optional `from_id`/`to_id` / `session_id` / `sv_dominant`
+- `Prior message*: <id>` chain link — follow backward via session-read to recover older summaries
+- `--- Decisions ---` block: `## Key decisions` lines preserved verbatim across cycles (not re-summarized)
+- Recent section: tagged `[role \`msg_id\` info_mark=Mixed]` lines + ID range for session-read
 - Explicit note: older messages remain in DB; use session-read / messagesearch
 
 **Visibility:** `MessageV2.filterCompacted` / `filterCompactedEffect` skip `info.compacted === true`. Soft-hidden rows stay in SQLite for tools.
@@ -124,11 +154,10 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 
 | File | Role |
 |------|------|
-| `session/compaction.ts` | `injectSummaryRequest`, `compact`, `isOverflow`, `SUMMARY_INTERVAL_TOKENS` |
-| `session/prompt.ts` | Token counter on normal continues; overflow → compact; checkpoint invalidate; system-reminder |
-| `session/overflow.ts` | Content- and token-based overflow detection |
-| `session/message-v2.ts` | `filterCompacted*`, message schema (`compacted`, `summary`) |
-| `session/processor.ts` | Mid-turn overflow → `"compact"` |
+| `session/compaction.ts` | `injectSummaryRequest`, `compact`, `isOverflow`, `SUMMARY_INTERVAL_TOKENS`, decision preservation, SVM validation |
+| `session/prompt.ts` | Two overflow trigger sites: `isOverflowFromContent()` mid-loop + provider-forced `"compact"` result; checkpoint invalidate; system-reminder |
+| `session/overflow.ts` | Content-based overflow (`isOverflowFromContent` — text extraction + BPE tokenizer to avoid JSON inflation) and token-based overflow (`isOverflow`) |
+| `session/message-v2.ts` | `filterCompacted*`, message schema (`compacted`, `summary`), `CompactionPart` type |
 | `test/session/compaction.test.ts` | Unit coverage for the loop |
 
 ---

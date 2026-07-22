@@ -890,23 +890,6 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     })
   })
 
-  event.on("session.compaction.notice", (evt) => {
-    const pct = Math.round((evt.properties.ratio ?? 0) * 100)
-    toast.show({
-      variant: "info",
-      message: `Context at ${pct}% — compaction will trigger at 80%`,
-      duration: 4000,
-    })
-  })
-
-  event.on("session.compaction.stuck", (evt) => {
-    toast.show({
-      variant: "warning",
-      message: "Compaction struggling — try sending a shorter message or start a new session.",
-      duration: 8000,
-    })
-  })
-
   const plugin = createMemo(() => {
     if (!ready()) return
     if (route.data.type !== "plugin") return

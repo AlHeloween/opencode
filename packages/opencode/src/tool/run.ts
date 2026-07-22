@@ -146,7 +146,6 @@ export const RunTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
-      let interrupted = false
       const chunks: string[] = []
       let fullBytes = 0
 
@@ -201,39 +200,12 @@ export const RunTool = Tool.define(
             })
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
-          const abort = Effect.callback<void>((resume) => {
-            // Only react to abort events that fire DURING execution.
-            // A pre-aborted signal (stale from a previous tool call or
-            // LLM completion) must NOT cancel the current command — let
-            // the process exit (or timeout) win the race naturally.
-            if (ctx.abort.aborted) {
-              resume(Effect.void)
-              return Effect.void
-            }
-            const handler = () => resume(Effect.void)
-            ctx.abort.addEventListener("abort", handler, { once: true })
-            return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
-          })
-
-          // Race: process exit vs user abort only — NO hard timeout.
-          // Pre-aborted signals are excluded from the race so they don't
-          // spuriously cancel the command.
-          const exit = yield* Effect.raceAll(
-            ctx.abort.aborted
-              ? [handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code })))]
-              : [
-                  handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
-                  abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-                ],
-          )
-
-          if (exit.kind === "abort") {
-            interrupted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
-          }
-
+          // Process exit only — NO hard timeout, NO abort race.
+          // Fiber interruption (user cancel, job_kill) kills the process
+          // via Effect.scoped acquireRelease finalizer.
+          const code = yield* handle.exitCode
           yield* awaitDrain
-          return exit.kind === "exit" ? exit.code : null
+          return code
         }),
       )
       if (file)
@@ -261,7 +233,6 @@ export const RunTool = Tool.define(
       if (!file && end.cut) file = yield* trunc.write(raw)
 
       let output = end.text
-      if (interrupted && code === null) output = `Command interrupted (abort signal received)\n` + output
       if (!output) output = "(no output)"
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
       return {

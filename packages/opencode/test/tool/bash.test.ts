@@ -1062,7 +1062,7 @@ describe("tool.bash permissions", () => {
 
 describe("tool.bash abort", () => {
   test(
-    "preserves output when aborted",
+    "ignores abort signal — process completes normally",
     async () => {
       await Instance.provide({
         directory: projectRoot,
@@ -1073,8 +1073,8 @@ describe("tool.bash abort", () => {
           const res = await Effect.runPromise(
             bash.execute(
               {
-                command: `echo before && sleep 30`,
-                description: "Long running command",
+                command: `echo before && echo after`,
+                description: "Short command",
               },
               {
                 ...ctx,
@@ -1091,7 +1091,8 @@ describe("tool.bash abort", () => {
             ),
           )
           expect(res.output).toContain("before")
-          expect(res.output).toContain("User aborted the command")
+          expect(res.output).toContain("after")
+          expect(res.output).not.toContain("Command interrupted")
           expect(collected.length).toBeGreaterThan(0)
         },
       })
@@ -1184,7 +1185,7 @@ describe("tool.bash abort", () => {
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `echo first && sleep 1 && echo second`,
+                command: `echo first && ${process.platform === "win32" ? "ping -n 2 127.0.0.1 > nul" : "sleep 1"} && echo second`,
                 description: "Streaming test",
               },
               {

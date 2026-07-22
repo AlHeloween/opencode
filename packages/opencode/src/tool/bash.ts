@@ -637,9 +637,7 @@ export const BashTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
-      let interrupted = false
       const meta: string[] = []
-      const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(input.command)
 
       yield* ctx.metadata({
         metadata: {
@@ -717,39 +715,17 @@ export const BashTool = Tool.define(
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
-          const abort = Effect.callback<void>((resume) => {
-            if (ctx.abort.aborted) {
-              resume(Effect.void)
-              return Effect.void
-            }
-            const handler = () => resume(Effect.void)
-            ctx.abort.addEventListener("abort", handler, { once: true })
-            return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
-          })
-
-          // Race: process exit vs user abort only — NO hard timeout.
-          // Pre-aborted signals are excluded from the race so they don't
-          // spuriously cancel the command.
-          const exit = yield* Effect.raceAll(
-            ctx.abort.aborted
-              ? [handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code })))]
-              : [
-                  handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
-                  abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-                ],
-          )
-
-          if (exit.kind === "abort") {
-            interrupted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.catchCause(() => Effect.sync(() => log.debug("bash abort kill failed"))))
-          }
-
+          // Process exit only — NO hard timeout, NO abort race.
+          // Long builds must not be killed by a fixed deadline. The agent
+          // sees stall detection hints and decides whether to job_kill.
+          // Fiber interruption (user cancel, job_kill) kills the process
+          // via Effect.scoped acquireRelease finalizer (taskkill /T /F).
+          const code = yield* handle.exitCode
           yield* awaitDrain
-          return exit.kind === "exit" ? exit.code : null
+          return code
         }),
       ).pipe(Effect.orDie)
 
-      if (interrupted && code === null) meta.push("Command interrupted (abort signal received)")
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true

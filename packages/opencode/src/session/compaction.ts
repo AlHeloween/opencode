@@ -111,13 +111,40 @@ Include these message IDs in your summary (required for later recovery via sessi
 
 Also list any important intermediate message IDs you reference.
 
-Output ONLY the structured summary sections starting with ## Goal.`
+Output structured summary sections in this order:
+
+## Goal
+(What the user was trying to accomplish in this window.)
+
+## Key decisions
+(Explicit decisions made: files created, approaches chosen, design tradeoffs accepted.
+Each decision on a separate line starting with "-".  Be specific — include file paths,
+tool names, and rationale.  This section is preserved verbatim across compaction
+cycles — write it so it remains actionable without surrounding context.)
+
+## Current state
+(What was completed, what is in progress, what remains.)`
+}
+
+/** Extract ## Key decisions blocks from summary or messageStar text.
+  * Returns each decision line (trimmed, non-empty, starting with "-").
+  * Used to preserve decisions verbatim across compaction cycles. */
+function extractDecisions(text: string): string[] {
+  // Match ## Key decisions section — capture everything until the next ## heading or end
+  const match = text.match(/## Key decisions\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
+  if (!match?.[1]) return []
+  return match[1]
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("-"))
 }
 
 function buildMessageStar(input: {
   sessionID: string
   summaries: { id: string; text: string; fromId?: string; toId?: string }[]
   recent: MessageV2.WithParts[]
+  /** Decisions preserved from prior compaction cycles (verbatim). */
+  priorDecisions?: string[]
 }): string {
   const summaryBlocks = input.summaries.map((s, i) => {
     const links = [
@@ -131,6 +158,20 @@ function buildMessageStar(input: {
       .join("\n")
     return `--- Summary ${i + 1} ---\n${links}\n\n${s.text}`
   })
+
+  // Collect decisions from current summaries + preserved prior decisions
+  const currentDecisions = input.summaries.flatMap((s) => extractDecisions(s.text))
+  const allDecisions = [...(input.priorDecisions ?? []), ...currentDecisions]
+  const decisionsBlock =
+    allDecisions.length > 0
+      ? [
+          "--- Decisions (preserved verbatim across compaction cycles) ---",
+          `info_mark: Inferred — not re-summarized; preserved from original summary.`,
+          `session_id: \`${input.sessionID}\``,
+          "",
+          ...allDecisions.map((d) => `- ${d.replace(/^- /, "")}`),
+        ].join("\n")
+      : undefined
 
   const recentIds = input.recent.map((m) => m.info.id)
   const recentBlocks = input.recent.map((m) => {
@@ -154,6 +195,7 @@ function buildMessageStar(input: {
     "Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).",
     "",
     ...summaryBlocks,
+    decisionsBlock,
     recentHeader,
   ]
     .filter((line, idx, arr) => !(line === "" && arr[idx - 1] === ""))
@@ -286,10 +328,18 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           recent = recent.slice(start)
         }
 
+        // Collect decisions from the prior messageStar (if any) so they survive
+        // across compaction cycles verbatim — "Inferred once, not re-Inferred."
+        const priorMsgStar = visible.find((m) => isMessageStar(m))
+        const priorDecisions = priorMsgStar
+          ? extractDecisions(messageText(priorMsgStar))
+          : undefined
+
         const combined = buildMessageStar({
           sessionID: input.sessionID,
           summaries,
           recent,
+          priorDecisions,
         })
 
         // Soft-hide every currently visible message (DB retained for session-read).

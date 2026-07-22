@@ -13,14 +13,15 @@ export function enforceDestructiveShell(
   command: string,
   ctx: Tool.Context,
   description?: string,
-): Effect.Effect<void, unknown> {
+): Effect.Effect<void> {
   return Effect.gen(function* () {
     const guard = Constitution.guardCommand(command, {
       sessionID: ctx.sessionID,
       agent: ctx.extra?.agent as string | undefined,
     })
+    // throw (defect) keeps execute error channel `never` — do not Effect.fail
     if (guard.blocked) {
-      return yield* Effect.fail(new Error(guard.message ?? "constitution: command blocked"))
+      throw new Error(guard.message ?? "constitution: command blocked")
     }
     if (!guard.needsDestructivePermission) return
     const pattern = command.slice(0, 160)

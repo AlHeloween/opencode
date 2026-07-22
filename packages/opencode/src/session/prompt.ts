@@ -65,7 +65,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
 import { EffectBridge } from "@/effect/bridge"
-import { convertDocument } from "@/util/markdownify"
+import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false

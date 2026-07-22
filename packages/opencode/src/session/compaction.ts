@@ -99,31 +99,24 @@ export function computeOutputSinceLastSummary(msgs: MessageV2.WithParts[]): numb
 }
 
 function summaryRequestMessage(fromId: string, toId: string, sessionID: string) {
-  return `Please create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.
+  return `<!-- summary-range from_id="${fromId}" to_id="${toId}" session_id="${sessionID}" -->
+Create a structured summary of the conversation.
 
-Epistemic rank of this summary: **Inferred** (not Exact). Exact detail requires session-read with message IDs.
+Epistemic rank (info_mark): **Inferred** (not Exact).  Use session-read with message IDs
+from the compaction header to recover Exact detail.
 
-Include these message IDs in your summary (required for later recovery via session-read):
-- \`from_id\`: \`${fromId}\`
-- \`to_id\`: \`${toId}\`
-- \`session_id\`: \`${sessionID}\`
-- \`info_mark\`: \`Inferred\`
-
-Also list any important intermediate message IDs you reference.
-
-Output structured summary sections in this order:
+Output ONLY these sections — no preamble, no IDs, no links:
 
 ## Goal
-(What the user was trying to accomplish in this window.)
+(What the user was trying to accomplish.)
 
 ## Key decisions
-(Explicit decisions made: files created, approaches chosen, design tradeoffs accepted.
-Each decision on a separate line starting with "-".  Be specific — include file paths,
-tool names, and rationale.  This section is preserved verbatim across compaction
-cycles — write it so it remains actionable without surrounding context.)
+(Explicit decisions: files created, approaches chosen, tradeoffs accepted.
+Each on a separate "-" line.  Include file paths and rationale.
+This section is preserved verbatim across compaction cycles.)
 
 ## Current state
-(What was completed, what is in progress, what remains.)`
+(What completed, in progress, remaining.)`
 }
 
 /** Extract ## Key decisions blocks from summary or messageStar text.
@@ -202,14 +195,13 @@ function buildMessageStar(input: {
     .join("\n\n")
 }
 
-/** Best-effort extract from_id/to_id links embedded in a prior summary text. */
-function extractSummaryLinks(text: string): { fromId?: string; toId?: string } {
-  const from = text.match(/from_id[`:\s]*`?([a-zA-Z0-9_-]+)`?/i)
-  const to = text.match(/to_id[`:\s]*`?([a-zA-Z0-9_-]+)`?/i)
-  return {
-    fromId: from?.[1],
-    toId: to?.[1],
-  }
+/** Extract summary range from a summary-request user message.
+  * The range is embedded in an HTML comment — invisible to the model,
+  * parsed by compact() to stamp links on the message* block. */
+function extractRangeFromRequest(text: string): { fromId?: string; toId?: string } {
+  const match = text.match(/<!--\s*summary-range\s+from_id="([^"]+)"\s+to_id="([^"]+)"/)
+  if (!match) return {}
+  return { fromId: match[1], toId: match[2] }
 }
 
 export interface Interface {
@@ -298,6 +290,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         }
 
         // All summary assistants from full DB (including soft-hidden) — never lost.
+        // Range (fromId/toId) is extracted from the summary-request user message
+        // immediately preceding each summary assistant — system-managed, not echoed by model.
         const summaries: { id: string; text: string; fromId?: string; toId?: string }[] = []
         let latestSummaryIdx = -1
         for (let i = 0; i < msgs.length; i++) {
@@ -305,8 +299,12 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           if (m.info.role === "assistant" && (m.info as any).summary) {
             const text = messageText(m)
             if (text) {
-              const links = extractSummaryLinks(text)
-              summaries.push({ id: m.info.id, text, ...links })
+              // Range from the injected user message right before this summary
+              const prev = i > 0 ? msgs[i - 1] : undefined
+              const range = prev?.info.role === "user" && prev.parts.some((p) => p.type === "text" && (p as any).synthetic)
+                ? extractRangeFromRequest(prev.parts.find((p) => p.type === "text")?.["text"] ?? "")
+                : {}
+              summaries.push({ id: m.info.id, text, ...range })
             }
             latestSummaryIdx = i
           }

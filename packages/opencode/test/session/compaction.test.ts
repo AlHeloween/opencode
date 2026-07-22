@@ -1238,8 +1238,8 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(msgs).toHaveLength(1)
         expect(msgs[0].info.role).toBe("user")
         const texts = msgs[0].parts.filter((p: any) => p.type === "text").map((p: any) => p.text)
-        expect(texts.some((t: string) => t.includes("Please create a structured summary"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("Create a structured summary"))).toBe(true)
+        expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id") && t.includes("summary-range") && t.includes("<!--"))).toBe(true)
         expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
         expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
         expect(texts.some((t: string) => t.includes("Inferred") && t.includes("info_mark"))).toBe(true)
@@ -1654,7 +1654,7 @@ describe("session.compaction.edge-cases", () => {
         const info = yield* ssn.create({})
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
         const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
-        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req <!-- summary-range from_id=\"a\" to_id=\"b\" -->" })
         const sa = yield* ssn.updateMessage({
           id: MessageID.ascending(), role: "assistant", sessionID: info.id,
           mode: "build", agent: "build", parentID: su.id,
@@ -1665,7 +1665,7 @@ describe("session.compaction.edge-cases", () => {
         } as MessageV2.Assistant)
         yield* ssn.updatePart({
           id: PartID.ascending(), messageID: sa.id, sessionID: info.id,
-          type: "text", text: "## Goal\n- first cycle summary\nfrom_id: `a`\nto_id: `b`",
+          type: "text", text: "## Goal\n- first cycle summary",
         })
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after1 = yield* MessageV2.filterCompactedEffect(info.id)

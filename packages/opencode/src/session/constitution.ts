@@ -53,6 +53,13 @@ const GIT_HISTORY_REWRITE_PATTERNS: RegExp[] = [
   /\bgit\s+switch\b/i,
   /\bgit\s+restore\b/i,
   /\bgit\s+reset\s+--hard\b/i,
+  // stash pop/apply over uncommitted work → conflicts / half-applied mess
+  // (same class of chaos as checkout when agent "fixes" without committing)
+  /\bgit\s+stash\s+pop\b/i,
+  /\bgit\s+stash\s+apply\b/i,
+  /\bgit\s+stash\s+drop\b/i,
+  /\bgit\s+stash\s+clear\b/i,
+  /\bgit\s+stash\s+branch\b/i,
 ]
 
 /**
@@ -188,10 +195,11 @@ export function guardCommand(
       needsDestructivePermission: false,
       blocked: true,
       message:
-        "constitution: BLOCKED git checkout/switch/restore/reset --hard. " +
-        "Do NOT use git to undo a file — that can wipe unrelated working-tree changes " +
-        "and scramble multi-commit state. " +
+        "constitution: BLOCKED git checkout/switch/restore/reset --hard/stash pop|apply|drop|clear. " +
+        "Do NOT use git to undo or re-layer WIP — that can wipe uncommitted work " +
+        "and scramble multi-commit state (stash pop on dirty tree is especially bad). " +
         "Recover with: edit-tool .bak backups, or Fossil snapshot restore (UI/runtime). " +
+        "Commit cleanly with git, or use Fossil undo — not stash pop. " +
         "Only set OPENCODE_ALLOW_DESTRUCTIVE=1 if you truly intend VCS rewrite.",
     }
   }

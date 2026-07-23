@@ -23,12 +23,20 @@ describe("session.constitution", () => {
         "git switch Local_Development",
         "git restore src/x.ts",
         "git reset --hard HEAD~1",
+        "git stash pop",
+        "git stash apply",
+        "git stash drop",
+        "git stash clear",
+        "git stash branch wip",
       ]) {
         const g = Constitution.guardCommand(cmd)
         expect(g.blocked).toBe(true)
         expect(g.needsDestructivePermission).toBe(false)
-        expect(g.message).toMatch(/BLOCKED|edit-tool|Fossil/i)
+        expect(g.message).toMatch(/BLOCKED|edit-tool|Fossil|stash/i)
       }
+      // stash push (save WIP) is not hard-blocked — only pop/apply/drop/clear/branch
+      expect(Constitution.guardCommand("git stash push -m save").blocked).toBe(false)
+      expect(Constitution.guardCommand("git stash").blocked).toBe(false)
       // Other destructive still askable
       const rm = Constitution.guardCommand("rm -rf /tmp/x")
       expect(rm.blocked).toBe(false)

@@ -42,7 +42,7 @@ constraints:
 forbidden_actions:
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
 - Using git push --no-verify (or any --no-verify variant with git push)
-- Using git checkout / git switch / git restore / git reset --hard (HARD BLOCKED — rewrites working tree from VCS; can wipe many files and scramble multi-commit work. Single-file undo = edit .bak backups or Fossil snapshot restore, NEVER git checkout. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1)
+- Using git checkout / git switch / git restore / git reset --hard / git stash pop|apply|drop|clear (HARD BLOCKED — rewrites or re-layers working tree; stash pop on uncommitted work is chaos. Single-file undo = edit .bak or Fossil restore, NEVER git checkout/stash pop. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1)
 - Running fossil commit/add/checkout/… from the agent shell (HARD BLOCKED — Fossil is automatic session snapshot/undo only; project VCS is git. Runtime Snapshot.track already auto-snapshots after tool edits)
 - Using silent catch {} blocks
 - Labeling errors as "pre-existing" — every error is a deliverable

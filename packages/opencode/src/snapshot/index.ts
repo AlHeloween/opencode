@@ -19,6 +19,26 @@ export const FileDiff = Schema.Struct({
   .pipe(withStatics((s) => ({ zod: zod(s) })))
 export type FileDiff = typeof FileDiff.Type
 
+/** Lightweight structural impact summary from codegraph analysis. */
+export const ImpactSummary = Schema.Struct({
+  /** Commit hashes compared */
+  from: Schema.String,
+  to: Schema.String,
+  /** Files changed in this range */
+  changedFiles: Schema.Number,
+  /** Symbol counts by kind, e.g. {"function": 5, "class": 3} */
+  symbolCountByKind: Schema.Record(Schema.String, Schema.Number),
+  /** Top symbols touched (name + kind, max 10) */
+  topSymbols: Schema.mutable(Schema.Array(Schema.String)),
+  /** Files outside the change set that reference changed symbols */
+  impactedFiles: Schema.mutable(Schema.Array(Schema.String)),
+  /** Total cross-file caller references found */
+  callerCount: Schema.Number,
+})
+  .annotate({ identifier: "SnapshotImpactSummary" })
+  .pipe(withStatics((s) => ({ zod: zod(s) })))
+export type ImpactSummary = typeof ImpactSummary.Type
+
 export interface Interface {
   readonly init: () => Effect.Effect<void>
   readonly cleanup: () => Effect.Effect<void>
@@ -36,6 +56,8 @@ export interface Interface {
   readonly revert: (patches: Patch[]) => Effect.Effect<void>
   readonly diff: (hash: string) => Effect.Effect<string>
   readonly diffFull: (from: string, to: string) => Effect.Effect<FileDiff[]>
+  /** Structural impact analysis between two snapshots via codegraph. */
+  readonly impact: (from: string, to: string) => Effect.Effect<ImpactSummary | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Snapshot") {}

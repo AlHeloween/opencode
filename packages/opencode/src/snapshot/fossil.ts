@@ -7,8 +7,8 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import { Service as SnapshotService, type Interface, type Patch, type FileDiff } from "."
-import { getCodegraphDbPath, symbolsInFilePaths, serializeForTag } from "@/codegraph/reader"
+import { Service as SnapshotService, type Interface, type Patch, type FileDiff, type ImpactSummary } from "."
+import { getCodegraphDbPath, symbolsInFilePaths, serializeForTag, callersOf } from "@/codegraph/reader"
 
 const log = Log.create({ service: "snapshot-fossil" })
 
@@ -552,6 +552,81 @@ export const layer = Layer.effect(
           )
         })
 
+        const impact = Effect.fnUntraced(function* (from: string, to: string) {
+          return yield* locked(
+            Effect.gen(function* () {
+              if (!(yield* ensureInit())) return undefined
+
+              const resolvedFrom = yield* resolveHash(from)
+              const resolvedTo = yield* resolveHash(to)
+
+              // Get changed files
+              const diff = yield* fossil(
+                ["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief"],
+                { cwd: worktree },
+              )
+              if (diff.code !== 0 || !diff.text.trim()) return undefined
+
+              const changedFiles = diff.text
+                .trim()
+                .split("\n")
+                .map((l: string) => l.replace(/^[A-Z]+\s+/, "").trim())
+                .filter((f: string) => f.length > 0)
+                .map((f: string) => f.replace(/\\/g, "/"))
+
+              if (changedFiles.length === 0) return undefined
+
+              // Query codegraph for symbols and callers
+              const dbPath = getCodegraphDbPath(worktree)
+              const symbols = symbolsInFilePaths(dbPath, changedFiles)
+              if (symbols.length === 0) {
+                return {
+                  from: resolvedFrom,
+                  to: resolvedTo,
+                  changedFiles: changedFiles.length,
+                  symbolCountByKind: {},
+                  topSymbols: [],
+                  impactedFiles: [],
+                  callerCount: 0,
+                }
+              }
+
+              const byKind: Record<string, number> = {}
+              for (const s of symbols) byKind[s.kind] = (byKind[s.kind] ?? 0) + 1
+
+              const topSymbols = symbols
+                .filter((s) => s.kind !== "import" && s.kind !== "file")
+                .slice(0, 10)
+                .map((s) => `${s.name}[${s.kind}]`)
+
+              const symbolIds = symbols.map((s) => s.id)
+              const callers = callersOf(dbPath, symbolIds)
+
+              const impactedFiles = new Set<string>()
+              for (const c of callers) {
+                if (!changedFiles.some((f: string) => f === c.callerFile)) {
+                  impactedFiles.add(c.callerFile)
+                }
+              }
+
+              return {
+                from: resolvedFrom,
+                to: resolvedTo,
+                changedFiles: changedFiles.length,
+                symbolCountByKind: byKind,
+                topSymbols,
+                impactedFiles: [...impactedFiles].sort(),
+                callerCount: callers.length,
+              } satisfies ImpactSummary
+            }).pipe(
+              Effect.catch((err) => {
+                log.debug("impact analysis failed", { err: String(err), from, to })
+                return Effect.succeed(undefined)
+              }),
+            ),
+          )
+        })
+
         // Eager open at instance boot — independent of project git and of the
         // first track(). Lazy-only open meant:
         // - TUI showed red "git" until an agent edit (exclusive marker logic)
@@ -572,7 +647,7 @@ export const layer = Layer.effect(
           else log.warn("fossil snapshot not ready after bootstrap ensureInit", { repoPath })
         }
 
-        return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull }
+        return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull, impact }
       }),
     )
 
@@ -615,6 +690,9 @@ export const layer = Layer.effect(
       }),
       diffFull: Effect.fn("SnapshotFossil.diffFull")(function* (from: string, to: string) {
         return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to))
+      }),
+      impact: Effect.fn("SnapshotFossil.impact")(function* (from: string, to: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.impact(from, to))
       }),
     })
   }),

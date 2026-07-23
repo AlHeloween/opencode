@@ -321,6 +321,8 @@ function buildMessageStar(input: {
     "  messagesearch(\"keyword\")           → find messages by topic across sessions",
     "  db-read(database=\"opencode\")       → query session/message tables directly",
     "    Schema: session(id,title,time_compacting,…)  message(id,session_id,data JSON)",
+    "  fossil diff / fossil timeline        → see runtime file changes (snapshot system)",
+    "  git log --oneline / git diff HEAD~1  → see committed changes (VCS)",
     ...(input.priorMessageStarId
       ? [`Prior message*: \`${input.priorMessageStarId}\` — session-read for older summaries.`]
       : []),

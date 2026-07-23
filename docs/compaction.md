@@ -207,7 +207,7 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 | Piece | Author |
 |-------|--------|
 | Body: SVM / Goal / Key decisions / Current state | **Model** |
-| `--- Exact (system) ---` stamp (`summary_message_id`, `from_id`, `to_id`, `session_id`) | **System** (after reply completes) |
+| `--- Exact (system) ---` stamp (`summary_message_id`, `from_id`, `to_id`, `session_id`) | **System** (after reply completes; `ignored` — not in model context; IDs reappear as passive links in `message*`) |
 | `user.summary.diffs` on the range parent (file list +/−) | **System** via fossil/tool `computeDiff` over the range |
 
 ### `message*` (synthetic user, starts with `=== COMPACTED ===`)
@@ -218,7 +218,7 @@ Entire body is a **system** artifact:
 - `Prior message*: <id>` — system chain
 - `--- Decisions ---` — system copy of model decision lines
 - Recent fold — system faithful render of parts (including tool outputs) after last summary
-- Recovery recipes (`session-read`, `db-read`, fossil, git) — system text
+- Passive InfoMark line only — **no** “Fast recovery / use these tools” recipes (those caused post-compact archive spirals)
 
 **Visibility:** `MessageV2.filterCompacted` / `filterCompactedEffect` skip `info.compacted === true`. Soft-hidden rows stay in SQLite for tools.
 

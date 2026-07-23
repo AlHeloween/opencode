@@ -1276,11 +1276,13 @@ describe("session.compaction.compact", () => {
         // Old raw messages not in message* body (they predate the summary)
         expect(combined).not.toContain("old-1")
         expect(combined).not.toContain("old-2")
-        // session-read links present
+        // System Exact handles present as passive ID lines (not recovery recipes)
         expect(combined).toContain("summary_message_id")
         expect(combined).toContain("session_id")
         expect(combined).toContain("info_mark: `Inferred`")
-        expect(combined).toContain("session-read(id) = Exact")
+        expect(combined).toContain("InfoMark:")
+        expect(combined).not.toContain("Fast recovery")
+        expect(combined).not.toContain("no exploration needed")
       }),
     ),
   )

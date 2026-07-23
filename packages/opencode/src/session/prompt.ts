@@ -310,15 +310,11 @@ export const layer = Layer.effect(
         // Wording must NOT contain the literal "=== COMPACTED ===" marker — that
         // string is the message* boundary; embedding it made isMessageStar treat
         // every reminded user message as message* and drop them from the next fold.
+        // Passive epistemic note only — no tool recipes. Imperative
+        // "use session-read / db-read" lines made models abandon the work
+        // cycle and spiral on archive recovery after every compact.
         const COMPACTION_REMINDER = `<system-reminder>
-Your conversation history was compacted to stay within context limits.
-Active memory is the compacted message block and/or summary assistants.
-Older messages are soft-hidden in the DB — not deleted.
-Epistemic ranks (InfoMark): summaries = Inferred; session-read(message id) = Exact; unaided recall = Guess.
-Never treat summary text as Exact ground truth without session-read.
-Use \`messagesearch\` without a query to browse recent messages, or
-with a query to search for specific topics.
-Use \`session-read\` with message IDs from summaries / Recent sections for Exact retrieval.
+History was compacted. Active memory is the compacted block and/or summary assistants (Inferred). Soft-hidden archive remains in the DB for tools when you need a specific fact — do not recover wholesale; continue the task.
 </system-reminder>`
         if (!hasSynthetic(COMPACTION_REMINDER, "prefix")) {
           const part = yield* sessions.updatePart({
@@ -1854,6 +1850,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                     (p as { text: string }).text.startsWith("--- Exact (system) ---"),
                 )
                 if (!stamped) {
+                  // ignored:true — Exact digits stay in DB for tools / compact fold,
+                  // but must not enter model context. A visible "recover with
+                  // session-read" stamp after every summary derailed the work cycle.
                   yield* sessions.updatePart({
                     id: PartID.ascending(),
                     messageID: msg.id,
@@ -1866,9 +1865,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                       `summary_message_id: \`${msg.id}\`\n` +
                       `from_id: \`${fromId}\`\n` +
                       `to_id: \`${toId}\`\n` +
-                      `session_id: \`${sessionID}\`\n` +
-                      `Use session-read / db-read with these IDs for Exact recovery.`,
+                      `session_id: \`${sessionID}\`\n`,
                     synthetic: true,
+                    ignored: true,
                   })
                 }
               }

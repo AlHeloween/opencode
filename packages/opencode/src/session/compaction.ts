@@ -343,27 +343,19 @@ function buildMessageStar(input: {
     recentIds.length > 0
       ? `--- Recent (${recentIds.length} messages: \`${recentIds[0]}\` .. \`${recentIds[recentIds.length - 1]}\`) ---\n` +
         `session_id: \`${input.sessionID}\`\n` +
-        `info_mark: Mixed — treat as working context; use session-read for Exact.\n` +
-        `Use session-read with these IDs for Exact detail. Use messagesearch for topics.\n\n` +
+        `info_mark: Mixed — working context (Inferred unless re-read).\n\n` +
         recentBlocks.join("\n\n")
       : `--- Recent ---\n(none — all history is covered by summaries above)\nsession_id: \`${input.sessionID}\`\ninfo_mark: Inferred`
 
+  // Passive links + ranks only. No "Fast recovery / use these tools" recipes —
+  // those pushed models into session-read/db-read spirals instead of work.
   return [
     "=== COMPACTED ===",
-    "Active memory for this session. Older messages remain in the DB (not deleted).",
-    "",
-    "Epistemic ranks (InfoMark): summaries = Inferred; session-read(id) = Exact; unaided recall = Guess.",
-    "Never treat summary text as Exact ground truth without session-read.",
-    "",
-    "Fast recovery — use these tools directly, no exploration needed:",
-    "  session-read(sessionId, offset=#N)  → Exact message text (use #N offsets below)",
-    "  messagesearch(\"keyword\")           → find messages by topic across sessions",
-    "  db-read(database=\"opencode\")       → query session/message tables directly",
-    "    Schema: session(id,title,time_compacting,…)  message(id,session_id,data JSON)",
-    "  fossil diff / fossil timeline        → see runtime file changes (snapshot system)",
-    "  git log --oneline / git diff HEAD~1  → see committed changes (VCS)",
+    "Active memory for this session. Older messages remain soft-hidden in the DB (not deleted).",
+    "InfoMark: summary bodies = Inferred; system ID lines below = Exact handles; unaided recall = Guess.",
+    "Continue the task from this memory. Re-read archive only when a specific fact is missing.",
     ...(input.priorMessageStarId
-      ? [`Prior message*: \`${input.priorMessageStarId}\` — session-read for older summaries.`]
+      ? [`Prior message*: \`${input.priorMessageStarId}\``]
       : []),
     lastSvLine,
     "",

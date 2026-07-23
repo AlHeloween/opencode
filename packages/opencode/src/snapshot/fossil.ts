@@ -17,6 +17,22 @@ function currentHash(text: string): string | undefined {
   return text.match(/^checkout:\s+([a-f0-9]+)/m)?.[1] ?? text.match(/^hash:\s+([a-f0-9]+)/m)?.[1]
 }
 
+/** Parse structural tag value from `fossil tag list CHECKIN` output (`sym=VALUE` or `sym VALUE`). */
+function parseSymTagValue(tagListText: string): string | undefined {
+  for (const line of tagListText.split("\n")) {
+    const t = line.trim()
+    // Prefer name=value (current fossil list format)
+    const eq = t.match(/^sym=(.+)$/)
+    if (eq?.[1]) return eq[1].trim()
+    // Legacy / alternate: "sym  value"
+    if (t.startsWith("sym ") || t.startsWith("sym\t")) {
+      const v = t.slice(3).trim()
+      if (v) return v
+    }
+  }
+  return undefined
+}
+
 // Find fossil binary: tools/ relative to executable, then PATH.
 // Probe both `fossil` and `fossil.exe` so Windows tools/ and Linux PATH/symlinks work.
 function findFossil(): string {
@@ -341,14 +357,19 @@ export const layer = Layer.effect(
                         )
                       }),
                     )
+                    // fossil tag add OPTIONS TAGNAME ARTIFACT-ID ?VALUE?
+                    // VALUE must come after the check-in hash — otherwise fossil
+                    // treats the KINDS:… string as an artifact ID (hard fail).
                     const tagValue = hybrid.symTag
                     const tagResult = yield* fossil(
-                      ["tag", "add", "sym", tagValue, afterHash, "--propagate"],
+                      ["tag", "add", "--propagate", "sym", afterHash, tagValue],
                       { cwd: worktree },
                     )
                     if (tagResult.code !== 0) {
                       return yield* Effect.fail(
-                        new Error(`fossil tag add sym failed: ${tagResult.stderr || tagResult.text}`),
+                        new Error(
+                          `fossil tag add sym failed: ${tagResult.stderr || tagResult.text}`.trim(),
+                        ),
                       )
                     }
                   }
@@ -637,18 +658,14 @@ export const layer = Layer.effect(
                 )
               }
 
-              const symLine = tag.text.split("\n").find((l: string) => l.startsWith("sym "))
-              if (!symLine) {
+              // fossil tag list CHECKIN prints "name=value" (or bare name)
+              const tagValue = parseSymTagValue(tag.text)
+              if (!tagValue) {
                 return yield* Effect.fail(
                   new Error(
                     `No sym tag on ${hash}. MCP structural tagging did not run or failed hard previously.`,
                   ),
                 )
-              }
-
-              const tagValue = symLine.replace(/^sym\s+/, "").trim()
-              if (!tagValue) {
-                return yield* Effect.fail(new Error("empty sym tag value"))
               }
 
               const kindSection = tagValue.match(/KINDS:([^|]*)/)?.[1]

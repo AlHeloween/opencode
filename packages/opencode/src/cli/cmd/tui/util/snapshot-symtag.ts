@@ -75,11 +75,20 @@ export function readSymTag(worktree: string): SymTagInfo | null {
       cwd: worktree, encoding: "utf-8", timeout: 5000,
     })
 
-    // Parse sym line: "sym  KINDS:method=224,class=32|TOP:...|IMPACT:..."
-    const symLine = out.split("\n").find((l) => l.startsWith("sym "))
-    if (!symLine) return null
-
-    const tagValue = symLine.replace(/^sym\s+/, "").trim()
+    // fossil tag list CHECKIN: "sym=KINDS:...|TOP:..." (or legacy "sym  VALUE")
+    let tagValue: string | undefined
+    for (const line of out.split("\n")) {
+      const t = line.trim()
+      const eq = t.match(/^sym=(.+)$/)
+      if (eq?.[1]) {
+        tagValue = eq[1].trim()
+        break
+      }
+      if (t.startsWith("sym ") || t.startsWith("sym\t")) {
+        tagValue = t.slice(3).trim()
+        if (tagValue) break
+      }
+    }
     if (!tagValue) return null
 
     const symbolCountByKind: Record<string, number> = {}

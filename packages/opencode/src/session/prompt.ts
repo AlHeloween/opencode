@@ -1362,16 +1362,16 @@ You should build your plan incrementally by writing to or editing this file. NOT
             !pendingSummaryResponse &&
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            // Re-seed the summary token counter from persisted visible messages
-            // on the next loop iteration.  Do NOT zero the counter here — that
-            // prevents injectSummaryRequest from ever crossing the 32K threshold
-            // across multiple compact cycles.
-            countersSeeded = false
-            yield* compaction.compact({
+            // The token counter is cumulative since the last summary —
+            // compaction must not reset or re-seed it.  Set it to the
+            // messageStar token length so the 32K injection threshold
+            // accounts for the compacted context window.
+            const compactResult = yield* compaction.compact({
               sessionID,
               model: lastUser.model,
               agent: lastUser.agent,
             })
+            outputTokensSinceLastSummary = compactResult.messageStarTokens
             // Invalidate checkpoint — the old checkpoint contains pre-compaction
             // message IDs that won't match the new compacted state. Loading it
             // on the next turn would cause a full rebuild, defeating the purpose.
@@ -1802,13 +1802,15 @@ You should build your plan incrementally by writing to or editing this file. NOT
               return "break" as const
             }
             if (result === "compact") {
-              // Re-seed counter from persisted visible messages on next iteration.
-              countersSeeded = false
-              yield* compaction.compact({
+              // Token counter is cumulative since the last summary —
+              // set it to the messageStar token length so compacted
+              // context counts toward the 32K injection threshold.
+              const compactResult = yield* compaction.compact({
                 sessionID,
                 model: lastUser.model,
                 agent: lastUser.agent,
               })
+              outputTokensSinceLastSummary = compactResult.messageStarTokens
               // Invalidate checkpoint — the old checkpoint contains pre-compaction
               // message IDs that won't match the new compacted state.
               yield* Checkpoint.remove(sessionID)

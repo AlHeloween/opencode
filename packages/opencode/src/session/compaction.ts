@@ -356,7 +356,7 @@ export interface Interface {
     model: { providerID: ProviderID; modelID: ModelID }
     agent: string
     force?: boolean
-  }) => Effect.Effect<void>
+  }) => Effect.Effect<{ messageStarTokens: number }>
   readonly injectSummaryRequest: (input: {
     sessionID: SessionID
     model: { providerID: ProviderID; modelID: ModelID }
@@ -543,6 +543,11 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           synthetic: true,
         })
 
+        // Token estimate of the messageStar — prompt.ts uses this
+        // to update outputTokensSinceLastSummary so the 32K summary
+        // injection threshold accounts for the compacted context.
+        const messageStarTokens = Math.ceil(combined.length / 4)
+
         log.info("compacted", {
           compacted,
           summaries: summaries.length,
@@ -551,6 +556,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         })
         yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })
         yield* finish()
+        return { messageStarTokens }
       }).pipe(
         Effect.catch((err) =>
           Effect.gen(function* () {
@@ -668,6 +674,8 @@ export const compact = fn(
   }),
   (input) => runPromise((svc) => svc.compact(input)),
 )
+
+export type CompactResult = Awaited<ReturnType<typeof compact>>
 
 export const injectSummaryRequest = fn(
   z.object({

@@ -494,6 +494,10 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           compacted++
         }
 
+        // Persist compaction timestamp so session metadata reflects
+        // that compaction has occurred (enables DB-level introspection).
+        yield* session.setCompacting({ sessionID: input.sessionID })
+
         const msg = yield* session.updateMessage({
           id: MessageID.ascending(),
           role: "user",

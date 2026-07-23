@@ -566,6 +566,7 @@ export interface Interface {
   }) => Effect.Effect<void>
   readonly clearRevert: (sessionID: SessionID) => Effect.Effect<void>
   readonly setSummary: (input: { sessionID: SessionID; summary: Info["summary"] }) => Effect.Effect<void>
+  readonly setCompacting: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
   readonly diff: (sessionID: SessionID) => Effect.Effect<Snapshot.FileDiff[]>
   readonly messages: (input: { sessionID: SessionID; limit?: number }) => Effect.Effect<MessageV2.WithParts[]>
   readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
@@ -861,6 +862,13 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       yield* patch(input.sessionID, { time: { updated: Date.now() }, summary: input.summary })
     })
 
+    const setCompacting = Effect.fn("Session.setCompacting")(function* (input: {
+      sessionID: SessionID
+      time?: number
+    }) {
+      yield* patch(input.sessionID, { time: { compacting: input.time ?? Date.now(), updated: Date.now() } })
+    })
+
     const diff = Effect.fn("Session.diff")(function* (sessionID: SessionID) {
       return yield* storage
         .read<Snapshot.FileDiff[]>(["session_diff", sessionID])
@@ -943,6 +951,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       setRevert,
       clearRevert,
       setSummary,
+      setCompacting,
       diff,
       messages,
       children,

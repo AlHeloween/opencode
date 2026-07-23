@@ -728,10 +728,25 @@ You should build your plan incrementally by writing to or editing this file. NOT
           ).pipe(Effect.exit)
 
           // Exit with pure interrupts (Fiber.interrupt) → treat as success.
-          // Other failures (errors, defects) → propagate.
+          // Other failures (errors, defects) → propagate but complete the tool part
+          // first so it doesn't remain stuck in "running" status.
           if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
+            if (part.state.status === "running") {
+              part.state = {
+                status: "error",
+                error: Cause.squash(exit.cause) instanceof Error
+                  ? (Cause.squash(exit.cause) as Error).message
+                  : String(Cause.squash(exit.cause)),
+                time: { start: part.state.time.start, end: Date.now() },
+                metadata: part.state.metadata,
+                input: part.state.input,
+              }
+              yield* sessions.updatePart(part)
+            }
             return yield* Effect.failCause(exit.cause)
           }
+
+          yield* finish
 
           return { info: msg, parts: [part] }
         }),
@@ -1347,8 +1362,11 @@ You should build your plan incrementally by writing to or editing this file. NOT
             !pendingSummaryResponse &&
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            outputTokensSinceLastSummary = 0
-            pendingSummaryResponse = false
+            // Re-seed the summary token counter from persisted visible messages
+            // on the next loop iteration.  Do NOT zero the counter here — that
+            // prevents injectSummaryRequest from ever crossing the 32K threshold
+            // across multiple compact cycles.
+            countersSeeded = false
             yield* compaction.compact({
               sessionID,
               model: lastUser.model,
@@ -1784,8 +1802,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
               return "break" as const
             }
             if (result === "compact") {
-              outputTokensSinceLastSummary = 0
-              pendingSummaryResponse = false
+              // Re-seed counter from persisted visible messages on next iteration.
+              countersSeeded = false
               yield* compaction.compact({
                 sessionID,
                 model: lastUser.model,

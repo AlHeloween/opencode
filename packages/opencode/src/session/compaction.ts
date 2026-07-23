@@ -498,7 +498,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // never from model prose (IDs are not model-inferable facts).
         const summaries: { id: string; text: string; fromId?: string; toId?: string }[] = []
         let latestSummaryIdx = -1
-        const byId = new Map(msgs.map((m) => [m.info.id, m]))
+        const byId = new Map(msgs.map((m) => [m.info.id, m] as const))
         for (let i = 0; i < msgs.length; i++) {
           // Skip messages before (and including) the prior message* — their summaries
           // were already folded into that prior messageStar.
@@ -507,9 +507,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           if (m.info.role === "assistant" && (m.info as any).summary) {
             const text = messageText(m)
             if (text) {
-              const parent = (m.info as { parentID?: string }).parentID
-                ? byId.get((m.info as { parentID: string }).parentID)
-                : undefined
+              const parentID =
+                m.info.role === "assistant" ? (m.info as MessageV2.Assistant).parentID : undefined
+              const parent = parentID ? byId.get(parentID) : undefined
               let fromId: string | undefined
               let toId: string | undefined
               if (parent) {

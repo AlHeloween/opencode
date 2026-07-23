@@ -43,9 +43,11 @@ Every **implementable** plan must include:
 3. **Smoke before implement** — record baseline from the plan Smoke Tests section before the first edit; re-run post-impl oracles before marking items `[x]`.
 4. **Build after source checks** — run `pwsh _build.ps1` when a packaged-artifact check is required by the changed surface.
 5. **Never from repo root** — tests run from package dirs (e.g. `packages/opencode`).
+6. **CodeGraph MCP smoke** — from `packages/opencode`: `bun test/codegraph/mcp_diff_smoke.ts` (fossil file diff → `codegraph_explore` over MCP stdio; hard-fail if MCP down).
 
 ## Active Plans
 
+- `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-only + hard-fail if MCP down (no SQL/CLI soft-skip)
 - `2026-07-22_epistemic_guardrails.md` — close the Inferred/Exact gap: job output marking, verification nudge, compaction decisions preservation
 
 ## Abstract futures (not active)

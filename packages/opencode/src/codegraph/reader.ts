@@ -1,14 +1,13 @@
 /**
- * CodeGraph read layer — direct SQLite access to the codegraph index.
+ * CodeGraph SQLite helpers — **NOT for live agent / fossil impact paths**.
  *
- * Reads `.codegraph/codegraph.db` via bun:sqlite. No CLI, no `codegraph sync`.
- * Used by the snapshot system to attach structural metadata to fossil commits.
+ * Live graph: MCP only (`codegraph/mcp-client.ts`, mcp.codegraph serve --mcp).
+ * While MCP is active, SQLite is blocked by CodeGraph; CLI is blocked.
+ * Soft-fail to empty SQL results is forbidden for tools.
  *
- * Schema (from bootstrap.ts and codegraph source):
- *   nodes: id, kind, name, qualified_name, file_path, language,
- *          start_line, end_line, start_column, end_column, docstring, signature
- *   edges: id, source, target, kind, metadata, line, col
- *   files: path, content_hash, language, size, ...
+ * This module remains for offline diagnostics / path constants only.
+ * Schema (codegraph source):
+ *   nodes, edges, files, …
  */
 
 import { Database } from "bun:sqlite"

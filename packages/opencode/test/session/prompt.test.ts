@@ -129,6 +129,8 @@ const mcp = Layer.succeed(
     supportsOAuth: () => Effect.succeed(false),
     hasStoredTokens: () => Effect.succeed(false),
     getAuthStatus: () => Effect.succeed("not_authenticated" as const),
+    callTool: () =>
+      Effect.fail(new Error("MCP callTool mock: not connected (hard-fail)")),
   }),
 )
 

@@ -227,6 +227,16 @@ export interface Interface {
   readonly supportsOAuth: (mcpName: string) => Effect.Effect<boolean>
   readonly hasStoredTokens: (mcpName: string) => Effect.Effect<boolean>
   readonly getAuthStatus: (mcpName: string) => Effect.Effect<AuthStatus>
+  /**
+   * Call a tool on a named MCP server. Ensures the server is connected when
+   * config exists. Fails the Effect if the server/tool is unavailable — callers
+   * must not soft-skip (CodeGraph MCP-down must hard-fail).
+   */
+  readonly callTool: (
+    server: string,
+    toolName: string,
+    args?: Record<string, unknown>,
+  ) => Effect.Effect<string, Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/MCP") {}
@@ -881,6 +891,76 @@ export const layer = Layer.effect(
       return (expired ? "expired" : "authenticated") as AuthStatus
     })
 
+    const callTool = Effect.fn("MCP.callTool")(function* (
+      server: string,
+      toolName: string,
+      args?: Record<string, unknown>,
+    ) {
+      let s = yield* InstanceState.get(state)
+      if (s.status[server]?.status !== "connected" || !s.clients[server]) {
+        const mcp = yield* getMcpConfig(server)
+        if (!mcp) {
+          return yield* Effect.fail(
+            new Error(
+              `MCP server "${server}" is not configured. Add mcp.${server} (e.g. codegraph serve --mcp). ` +
+                `Soft-skip is forbidden — fix config and reconnect.`,
+            ),
+          )
+        }
+        yield* createAndStore(server, { ...mcp, enabled: true })
+        s = yield* InstanceState.get(state)
+      }
+
+      const client = s.clients[server]
+      if (!client || s.status[server]?.status !== "connected") {
+        const st = s.status[server]
+        const detail = st && "error" in st ? String((st as { error?: string }).error ?? st.status) : st?.status ?? "missing"
+        return yield* Effect.fail(
+          new Error(
+            `MCP server "${server}" is not connected (${detail}). ` +
+              `CodeGraph requires a live MCP process — CLI/SQLite are blocked while MCP owns the graph, ` +
+              `and reindex without MCP costs ~20m. Start/fix mcp.${server} (codegraph serve --mcp).`,
+          ),
+        )
+      }
+
+      const listed = s.defs[server] ?? []
+      const resolvedName =
+        listed.find((t) => t.name === toolName)?.name ??
+        listed.find((t) => t.name === `codegraph_${toolName}`)?.name ??
+        listed.find((t) => t.name.endsWith(toolName) || t.name.endsWith(`_${toolName}`))?.name ??
+        toolName
+
+      const cfg = yield* cfgSvc.get()
+      const entry = cfg.mcp?.[server]
+      const timeout =
+        entry && isMcpConfigured(entry) ? (entry.timeout ?? DEFAULT_TIMEOUT) : DEFAULT_TIMEOUT
+
+      const result = yield* Effect.tryPromise({
+        try: () =>
+          client.callTool(
+            { name: resolvedName, arguments: args ?? {} },
+            CallToolResultSchema,
+            { resetTimeoutOnProgress: true, timeout },
+          ),
+        catch: (e) => (e instanceof Error ? e : new Error(String(e))),
+      })
+
+      const content = (result as { content?: Array<{ type?: string; text?: string }> }).content
+      if (Array.isArray(content)) {
+        const text = content
+          .filter((c) => c && (c.type === "text" || c.text))
+          .map((c) => c.text ?? "")
+          .join("\n")
+          .trim()
+        if (text) return text
+      }
+      if ((result as { isError?: boolean }).isError) {
+        return yield* Effect.fail(new Error(`MCP tool ${server}/${resolvedName} returned isError without text`))
+      }
+      return JSON.stringify(result)
+    })
+
     return Service.of({
       status,
       clients,
@@ -899,6 +979,7 @@ export const layer = Layer.effect(
       supportsOAuth,
       hasStoredTokens,
       getAuthStatus,
+      callTool,
     })
   }),
 )

@@ -623,10 +623,13 @@ The project defines these built-in agents (`packages/opencode/src/agent/agent.ts
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 
-In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code.
 
-- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
-- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+**MCP-only (hard rule):** Live graph access is **MCP only** (`mcp.codegraph` → `codegraph serve --mcp`). While MCP is active, **SQLite and CLI are blocked**. Soft-fail / empty success when MCP is down is **forbidden** (would stall tools or force ~20m reindex). Opencode `codegraph` tool and fossil structural impact call MCP and **hard-fail** if disconnected.
 
-If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
+- **MCP / built-in tool:** `codegraph_explore` (and opencode `codegraph` tool) — symbols' verbatim source, call paths (incl. dynamic-dispatch), blast radius. Prefer one explore call over grep/Read on indexed code.
+- **Config:** `opencode.json` → `mcp.codegraph` local `["codegraph","serve","--mcp"]`; optional `CODEGRAPH_MCP_TOOLS` for full tool set.
+- **Do not** open `codegraph.db` or shell `codegraph` CLI for live agent work while MCP owns the graph.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision. Plan: `plans/2026-07-23_codegraph_mcp_only.md`.
 <!-- CODEGRAPH_END -->

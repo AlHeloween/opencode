@@ -131,46 +131,11 @@ function initCodeGraphBg(): void {
     }
   }
 
-  // ——— MCP server daemon (always-on file watcher + auto-sync) ———
-  // The MCP server keeps the codegraph.db fresh via native OS file watchers
-  // (ReadDirectoryChangesW on Windows, FSEvents on macOS, inotify on Linux)
-  // with a 2-second debounced incremental sync. Without this, the DB is
-  // stale and our direct-reader (reader.ts) sees outdated data.
+  // MCP process is owned by opencode mcp.codegraph (stdio: codegraph serve --mcp).
+  // Do NOT spawn a detached serve --mcp here — dual processes fight locks, and
+  // while MCP is active SQLite/CLI are blocked. Soft-skip without MCP is forbidden
+  // for codegraph tools; configure mcp.codegraph in opencode.json instead.
   if (cgBin && dbExists) {
-    try {
-      // Check if a daemon is already running (codegraph daemons lists PIDs)
-      const { execSync } = require("child_process") as typeof import("child_process")
-      const isScript = process.platform === "win32" && (
-        cgBin.toLowerCase().endsWith(".cmd") || cgBin.toLowerCase().endsWith(".bat")
-      )
-      const checkBin = isScript ? "cmd.exe" : cgBin
-      const checkArgs = isScript ? ["/c", cgBin, "daemons"] : ["daemons"]
-      const daemonStatus = execSync(
-        isScript ? `"${cgBin}" daemons` : `${cgBin} daemons`,
-        { encoding: "utf-8", timeout: 5000, windowsHide: true },
-      ) as string
-
-      if (daemonStatus.includes("No CodeGraph daemons running")) {
-        // Spawn MCP server as detached background process.
-        // The --mcp flag activates stdio transport for MCP clients AND the
-        // internal file watcher. With stdio ignored, the watcher still runs.
-        const serveBin = isScript ? "cmd.exe" : cgBin
-        const serveArgs = isScript ? ["/c", cgBin, "serve", "--mcp"] : ["serve", "--mcp"]
-        const child = spawn(serveBin, serveArgs, {
-          cwd: dir,
-          stdio: "ignore",
-          detached: true,
-        })
-        child.on("error", (err) => {
-          Log.Default.warn("bug: codegraph MCP server failed to start", { error: err.message })
-        })
-        child.unref()
-        Log.Default.info("codegraph: MCP server started (auto-sync watcher active)")
-      } else {
-        Log.Default.debug("codegraph: MCP server already running")
-      }
-    } catch (e) {
-      Log.Default.warn("bug: codegraph MCP server check/start failed", { error: String(e) })
-    }
+    Log.Default.debug("codegraph: index present — live graph via mcp.codegraph only (no detached serve)")
   }
 }

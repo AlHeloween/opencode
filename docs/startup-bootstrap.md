@@ -94,8 +94,8 @@ These can still burn CPU/disk **after** bootstrap returns (overlap with first pa
 initCodeGraphBg()
 ```
 
-- If `.codegraph/codegraph.db` exists → return immediately  
-- Else spawn `codegraph init` (unref) or create empty SQLite schema  
+- If `.codegraph/codegraph.db` missing → spawn `codegraph init` (unref) or create empty SQLite schema  
+- Live graph is **not** a detached `serve --mcp` from bootstrap — configure `mcp.codegraph` (`codegraph serve --mcp`). While MCP is active, SQLite/CLI are blocked; codegraph tools **hard-fail** if MCP is down (no soft-skip; reindex without MCP ~20m).  
 - **Does not** gate first HTTP  
 
 Full indexing (when CLI runs) is background and unrelated to the first-request block.

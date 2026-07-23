@@ -1,23 +1,23 @@
-Pre-indexed code knowledge graph for the local codebase. Use this BEFORE grep, glob, or Read for any structural code question — where symbols are defined, how they connect, what calls what, or the impact radius of a change.
+Pre-indexed code knowledge graph for the local codebase — **via CodeGraph MCP only**.
 
-CodeGraph is a tree-sitter-parsed knowledge graph of every symbol, call edge, and dependency in the project. It auto-syncs on file changes, so the index is always current.
+**Hard rules (project):**
+- Live graph access is **MCP only** (`codegraph serve --mcp` as `mcp.codegraph`).
+- While MCP is active, **SQLite and CLI are blocked** by CodeGraph.
+- **Soft-fail is forbidden.** If MCP is down, this tool fails hard. Do not invent graph results; do not reindex (~20m) as a silent fallback.
+- Prefer this / MCP `codegraph_explore` **before** grep/glob/Read for structural questions on indexed code.
 
-**When to use (before grep/glob/Read):**
-- "How does X work?" — trace a function/method through callers and callees
-- "What depends on Y?" — impact/blast-radius analysis before a change
-- "Where is Z defined?" — find symbols by name or pattern across the entire codebase
-- "How does this reach that?" — find the call path between two symbols including dynamic dispatch (callbacks, React re-render, JSX children, EventEmitter)
-- "What imports this file?" — reverse dependency analysis
-- "Find all routes handled by this controller" — framework-aware route→handler mapping
+**When to use:**
+- "How does X work?" — explore with source + call paths (incl. dynamic dispatch)
+- "What depends on Y?" — impact / callers
+- "Where is Z defined?" — search / explore by name
+- Blast radius before a change
 
 **Parameters:**
-- `query` (string, required): Natural language question or symbol name(s) to search for. Be specific — include file paths, class names, function names for best results.
-- `mode` (string, optional): What kind of analysis to run. Values: `"explore"` (default — comprehensive context with source code), `"search"` (FTS symbol search), `"trace"` (caller/callee graph from a symbol), `"impact"` (blast radius), `"path"` (find shortest path between two symbols).
-- `path` (string, optional): Project subdirectory to scope the query to. Uses the current working directory by default.
-- `depth` (number, optional): Traversal depth for trace/impact modes (default: 2).
+- `query` (string, required): Question or symbol name(s). Be specific.
+- `mode` (string, optional): `explore` (default) | `search` | `trace` | `impact` | `path` — mapped to MCP tools (`codegraph_explore`, `codegraph_search`, `codegraph_callers`, `codegraph_impact`, …).
+- `path` (string, optional): projectPath / subdirectory scope.
+- `depth` (number, optional): for impact/trace when supported by the server.
 
-**Output:** Returns matching symbols with their verbatim line-numbered source, call paths (including dynamic dispatch edges), and blast radius summary — all from a single tool call. Results are AST-parsed, not guessed.
+**Config:** `opencode.json` → `mcp.codegraph` local command `["codegraph","serve","--mcp"]`. Optional `CODEGRAPH_MCP_TOOLS` to expose full tool set.
 
-**Trust the results.** They come from a full tree-sitter AST parse of the actual source files. Do NOT re-verify codegraph results with grep — that is slower, less accurate, and wastes context.
-
-**If the project has no `.codegraph/` index:** The tool will suggest running `codegraph init` to build the index first.
+**If MCP fails:** Fix connection / binary / config. Never fall back to direct DB or CLI while MCP owns the graph.

@@ -56,10 +56,16 @@ export interface Interface {
   readonly revert: (patches: Patch[]) => Effect.Effect<void>
   readonly diff: (hash: string) => Effect.Effect<string>
   readonly diffFull: (from: string, to: string) => Effect.Effect<FileDiff[]>
-  /** Structural impact analysis between two snapshots via codegraph. */
-  readonly impact: (from: string, to: string) => Effect.Effect<ImpactSummary | undefined>
-  /** Read the sym tag from the most recent fossil snapshot. */
-  readonly lastImpact: () => Effect.Effect<ImpactSummary | undefined>
+  /**
+   * Structural impact between two snapshots via CodeGraph MCP only.
+   * Hard-fails if MCP unavailable or index missing — never soft-returns empty success.
+   */
+  readonly impact: (from: string, to: string) => Effect.Effect<ImpactSummary>
+  /**
+   * Read the sym tag from the current fossil checkout.
+   * Hard-fails if tag/MCP metadata missing — never soft-returns undefined success.
+   */
+  readonly lastImpact: () => Effect.Effect<ImpactSummary>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Snapshot") {}

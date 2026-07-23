@@ -8,7 +8,11 @@ import { Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import { Service as SnapshotService, type Interface, type Patch, type FileDiff, type ImpactSummary } from "."
-import { getCodegraphDbPath, symbolsInFilePaths, serializeForTag, callersOf } from "@/codegraph/reader"
+import {
+  exploreChangedFilesMcp,
+  hasCodegraphIndex,
+  mcpTextToSymTag,
+} from "@/codegraph/mcp-client"
 
 const log = Log.create({ service: "snapshot-fossil" })
 
@@ -309,17 +313,16 @@ export const layer = Layer.effect(
 
               log.info("tracking", { hash: afterHash, before: beforeHash })
 
-              // Structural tagging: attach codegraph symbols to fossil snapshot.
-              // Reads codegraph.db directly (no CLI). Errors are caught and logged
-              // — must never block or fail the snapshot itself.
-              if (beforeHash) {
-                yield* Effect.gen(function* () {
-                  const diff = yield* fossil(
-                    ["diff", "--from", beforeHash, "--to", afterHash, "--brief"],
-                    { cwd: worktree },
-                  )
-                  if (diff.code !== 0 || !diff.text.trim()) return
-
+              // Structural tagging via CodeGraph MCP only (SQLite/CLI blocked when MCP owns graph).
+              // Soft-skip forbidden: if .codegraph exists, MCP failure fails this Effect (hard-fail).
+              // Fossil commit already succeeded; tag failure still surfaces as track error so agents
+              // never think impact ran when MCP was down.
+              if (beforeHash && hasCodegraphIndex(worktree)) {
+                const diff = yield* fossil(
+                  ["diff", "--from", beforeHash, "--to", afterHash, "--brief"],
+                  { cwd: worktree },
+                )
+                if (diff.code === 0 && diff.text.trim()) {
                   const changedFiles = diff.text
                     .trim()
                     .split("\n")
@@ -327,37 +330,32 @@ export const layer = Layer.effect(
                     .filter((f: string) => f.length > 0)
                     .map((f: string) => f.replace(/\\/g, "/"))
 
-                  if (changedFiles.length === 0) return
-
-                  const dbPath = getCodegraphDbPath(worktree)
-                  const symbols = symbolsInFilePaths(dbPath, changedFiles, { maxResults: 100 })
-                  if (symbols.length === 0) return
-
-                  // Build compact tag value
-                  const byKind: Record<string, number> = {}
-                  for (const s of symbols) byKind[s.kind] = (byKind[s.kind] ?? 0) + 1
-                  const kindStr = Object.entries(byKind)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([k, v]) => `${k}=${v}`)
-                    .join(",")
-                  const topSymbols = symbols
-                    .filter((s) => s.kind !== "import" && s.kind !== "file")
-                    .slice(0, 20)
-                    .map((s) => `${s.name}[${s.kind}@${(s.filePath ?? "").split("/").pop()}]`)
-                    .join(",")
-                  const tagValue = `KINDS:${kindStr}|TOP:${topSymbols}`
-
-                  // Store as fossil tag
-                  yield* fossil(
-                    ["tag", "add", "sym", tagValue, afterHash, "--propagate"],
-                    { cwd: worktree },
-                  )
-                }).pipe(
-                  Effect.catch((err) => {
-                    log.debug("structural tagging skipped", { err: String(err), hash: afterHash })
-                    return Effect.void
-                  }),
-                )
+                  if (changedFiles.length > 0) {
+                    // Same MCP explore shape as test/codegraph/mcp_diff_smoke.ts
+                    const mcpText = yield* exploreChangedFilesMcp(worktree, changedFiles).pipe(
+                      Effect.mapError((err) => {
+                        const msg = err instanceof Error ? err.message : String(err)
+                        log.error("bug: codegraph MCP required for structural tag (hard-fail)", {
+                          err: msg,
+                          hash: afterHash,
+                        })
+                        return new Error(
+                          `CodeGraph MCP unavailable for fossil structural tag (hard-fail). ${msg}`,
+                        )
+                      }),
+                    )
+                    const tagValue = mcpTextToSymTag(mcpText)
+                    const tagResult = yield* fossil(
+                      ["tag", "add", "sym", tagValue, afterHash, "--propagate"],
+                      { cwd: worktree },
+                    )
+                    if (tagResult.code !== 0) {
+                      return yield* Effect.fail(
+                        new Error(`fossil tag add sym failed: ${tagResult.stderr || tagResult.text}`),
+                      )
+                    }
+                  }
+                }
               }
 
               return afterHash
@@ -555,17 +553,29 @@ export const layer = Layer.effect(
         const impact = Effect.fnUntraced(function* (from: string, to: string) {
           return yield* locked(
             Effect.gen(function* () {
-              if (!(yield* ensureInit())) return undefined
+              if (!(yield* ensureInit())) {
+                return yield* Effect.fail(new Error("fossil snapshot not initialized"))
+              }
+              if (!hasCodegraphIndex(worktree)) {
+                return yield* Effect.fail(
+                  new Error(
+                    `No .codegraph/ in ${worktree}. Initialize CodeGraph (codegraph init) before impact.`,
+                  ),
+                )
+              }
 
               const resolvedFrom = yield* resolveHash(from)
               const resolvedTo = yield* resolveHash(to)
 
-              // Get changed files
               const diff = yield* fossil(
                 ["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief"],
                 { cwd: worktree },
               )
-              if (diff.code !== 0 || !diff.text.trim()) return undefined
+              if (diff.code !== 0 || !diff.text.trim()) {
+                return yield* Effect.fail(
+                  new Error(`fossil diff failed or empty (${resolvedFrom} → ${resolvedTo})`),
+                )
+              }
 
               const changedFiles = diff.text
                 .trim()
@@ -574,83 +584,78 @@ export const layer = Layer.effect(
                 .filter((f: string) => f.length > 0)
                 .map((f: string) => f.replace(/\\/g, "/"))
 
-              if (changedFiles.length === 0) return undefined
-
-              // Query codegraph for symbols and callers
-              const dbPath = getCodegraphDbPath(worktree)
-              const symbols = symbolsInFilePaths(dbPath, changedFiles)
-              if (symbols.length === 0) {
-                return {
+              if (changedFiles.length === 0) {
+                const empty: ImpactSummary = {
                   from: resolvedFrom,
                   to: resolvedTo,
-                  changedFiles: changedFiles.length,
+                  changedFiles: 0,
                   symbolCountByKind: {},
                   topSymbols: [],
                   impactedFiles: [],
                   callerCount: 0,
                 }
+                return empty
               }
 
-              const byKind: Record<string, number> = {}
-              for (const s of symbols) byKind[s.kind] = (byKind[s.kind] ?? 0) + 1
+              // MCP only — same explore-on-file-list as mcp_diff_smoke (hard-fail if down).
+              const mcpText = yield* exploreChangedFilesMcp(worktree, changedFiles)
 
-              const topSymbols = symbols
-                .filter((s) => s.kind !== "import" && s.kind !== "file")
+              const topSymbols = mcpText
+                .split("\n")
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0 && l.length < 120)
                 .slice(0, 10)
-                .map((s) => `${s.name}[${s.kind}]`)
 
-              const symbolIds = symbols.map((s) => s.id)
-              const callers = callersOf(dbPath, symbolIds)
-
-              const impactedFiles = new Set<string>()
-              for (const c of callers) {
-                if (!changedFiles.some((f: string) => f === c.callerFile)) {
-                  impactedFiles.add(c.callerFile)
-                }
-              }
-
-              return {
+              const summary: ImpactSummary = {
                 from: resolvedFrom,
                 to: resolvedTo,
                 changedFiles: changedFiles.length,
-                symbolCountByKind: byKind,
+                symbolCountByKind: { mcp: 1 },
                 topSymbols,
-                impactedFiles: [...impactedFiles].sort(),
-                callerCount: callers.length,
-              } satisfies ImpactSummary
-            }).pipe(
-              Effect.catch((err) => {
-                log.debug("impact analysis failed", { err: String(err), from, to })
-                return Effect.succeed(undefined)
-              }),
-            ),
+                impactedFiles: changedFiles.slice(0, 20),
+                callerCount: topSymbols.length,
+              }
+              return summary
+            }).pipe(Effect.orDie),
           )
         })
 
         const lastImpact = Effect.fnUntraced(function* () {
           return yield* locked(
             Effect.gen(function* () {
-              if (!(yield* ensureInit())) return undefined
+              if (!(yield* ensureInit())) {
+                return yield* Effect.fail(new Error("fossil snapshot not initialized"))
+              }
 
-              // Get current hash
               const info = yield* fossil(["info"], { cwd: worktree })
               const hash = currentHash(info.text)
-              if (!hash) return undefined
+              if (!hash) {
+                return yield* Effect.fail(new Error("no fossil checkout hash"))
+              }
 
-              // Read the sym tag
               const tag = yield* fossil(["tag", "list", hash], { cwd: worktree })
-              if (tag.code !== 0 || !tag.text.trim()) return undefined
+              if (tag.code !== 0 || !tag.text.trim()) {
+                return yield* Effect.fail(
+                  new Error(
+                    `No fossil tags for ${hash}. Structural sym tag requires CodeGraph MCP on track.`,
+                  ),
+                )
+              }
 
-              // Parse sym tag: "sym  KINDS:method=224,class=32|TOP:..."
-              const symLine = tag.text
-                .split("\n")
-                .find((l: string) => l.startsWith("sym "))
-              if (!symLine) return undefined
+              const symLine = tag.text.split("\n").find((l: string) => l.startsWith("sym "))
+              if (!symLine) {
+                return yield* Effect.fail(
+                  new Error(
+                    `No sym tag on ${hash}. MCP structural tagging did not run or failed hard previously.`,
+                  ),
+                )
+              }
 
               const tagValue = symLine.replace(/^sym\s+/, "").trim()
-              if (!tagValue) return undefined
+              if (!tagValue) {
+                return yield* Effect.fail(new Error("empty sym tag value"))
+              }
 
-              // Parse KINDS section
               const kindSection = tagValue.match(/KINDS:([^|]*)/)?.[1]
               const symbolCountByKind: Record<string, number> = {}
               if (kindSection) {
@@ -658,35 +663,31 @@ export const layer = Layer.effect(
                   const [k, v] = pair.split("=")
                   if (k && v) symbolCountByKind[k] = parseInt(v) || 0
                 }
+              } else if (tagValue.startsWith("MCP:")) {
+                symbolCountByKind["mcp"] = 1
               }
 
-              // Parse TOP section
               const topSection = tagValue.match(/TOP:([^|]*)/)?.[1]
               const topSymbols = topSection
                 ? topSection.split(",").filter(Boolean)
-                : []
+                : tagValue.startsWith("MCP:")
+                  ? [tagValue.slice(0, 200)]
+                  : []
 
-              // Parse IMPACT section
               const impactSection = tagValue.match(/IMPACT:([^|]*)/)?.[1]
-              const impactedFiles = impactSection
-                ? impactSection.split(",").filter(Boolean)
-                : []
+              const impactedFiles = impactSection ? impactSection.split(",").filter(Boolean) : []
 
-              return {
+              const summary: ImpactSummary = {
                 from: hash,
                 to: hash,
-                changedFiles: 0, // not stored in tag
+                changedFiles: 0,
                 symbolCountByKind,
                 topSymbols,
                 impactedFiles,
-                callerCount: 0, // not stored in tag
-              } satisfies ImpactSummary
-            }).pipe(
-              Effect.catch((err) => {
-                log.debug("lastImpact retrieval failed", { err: String(err) })
-                return Effect.succeed(undefined)
-              }),
-            ),
+                callerCount: topSymbols.length,
+              }
+              return summary
+            }).pipe(Effect.orDie),
           )
         })
 

@@ -1243,15 +1243,44 @@ You should build your plan incrementally by writing to or editing this file. NOT
         /** Cached tool resolution — tool set is stable across loop iterations
           * within a single turn (same agent, model, session, provider). */
         let cachedTools: Record<string, AITool> | undefined
-        let outputTokensSinceLastSummary = 0
+        /** In-memory only for the current runLoop; DB-backed
+          * {@link SessionCompaction.hasPendingSummaryRequest} survives restarts. */
         let pendingSummaryResponse = false
-        let countersSeeded = false
         /** Epistemic floor of the current turn's evidence chain.
           * Starts at Inferred (model memory), upgraded to Exact
           * only after session-read.  Resets each turn. */
         let evidenceFloor: import("../session/constitution").InfoMark = "Inferred"
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
+
+        /** Layer 1: open content window (chars/4 since last summary, or whole
+          * visible window including message*) ≥ ~30K → inject summary request.
+          * Pure recompute from msgs — works after stop, continue, and compact. */
+        const maybeInjectSummary = (input: {
+          visible: MessageV2.WithParts[]
+          model: { providerID: ProviderID; modelID: ModelID }
+          agent: string
+        }) =>
+          Effect.gen(function* () {
+            if (pendingSummaryResponse) return false
+            if (SessionCompaction.hasPendingSummaryRequest(input.visible)) {
+              pendingSummaryResponse = true
+              return false
+            }
+            const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible)
+            if (openTokens < SessionCompaction.SUMMARY_INTERVAL_TOKENS) return false
+            yield* compaction.injectSummaryRequest({
+              sessionID,
+              model: input.model,
+              agent: input.agent,
+            })
+            pendingSummaryResponse = true
+            yield* slog.info("layer1.summary.inject", {
+              openTokens,
+              threshold: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+            })
+            return true
+          })
 
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
@@ -1294,14 +1323,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
           // are lost when cachedMsgs is reused on the next iteration.
           cachedMsgs = msgs
 
-          // Seed outputTokensSinceLastSummary from persisted message tokens.
-          // The counter was previously in-memory only and reset on every
-          // runLoop (every user message), so summaries only triggered when
-          // a single turn produced >32K output tokens.  Now the counter
-          // survives restarts by walking backward through visible messages.
-          if (!countersSeeded) {
-            outputTokensSinceLastSummary = SessionCompaction.computeOutputSinceLastSummary(msgs)
-            countersSeeded = true
+          // Restore pending flag across runLoop restarts from DB.
+          if (!pendingSummaryResponse && SessionCompaction.hasPendingSummaryRequest(msgs)) {
+            pendingSummaryResponse = true
           }
 
           let lastUser: MessageV2.User | undefined
@@ -1356,22 +1380,36 @@ You should build your plan incrementally by writing to or editing this file. NOT
             continue
           }
 
+          // Layer 1 before overflow compact: if open window (incl. message*) is
+          // already ≥ ~30K content tokens, inject summary first so compact folds
+          // a real summary rather than raw recent only.
+          if (
+            lastFinished?.summary !== true &&
+            (yield* maybeInjectSummary({
+              visible: msgs,
+              model: lastUser.model,
+              agent: lastUser.agent,
+            }))
+          ) {
+            cachedMsgs = undefined
+            lastKnownId = undefined
+            continue
+          }
+
           if (
             (lastFinished || lastAssistant) &&
             lastFinished?.summary !== true &&
             !pendingSummaryResponse &&
+            !SessionCompaction.hasPendingSummaryRequest(msgs) &&
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
-            // The token counter is cumulative since the last summary —
-            // compaction must not reset or re-seed it.  Set it to the
-            // messageStar token length so the 32K injection threshold
-            // accounts for the compacted context window.
-            const compactResult = yield* compaction.compact({
+            // Compact produces message*; open-window counter becomes message*
+            // size (chars/4). Next loop iteration may inject Layer-1 if ≥ 30K.
+            yield* compaction.compact({
               sessionID,
               model: lastUser.model,
               agent: lastUser.agent,
             })
-            outputTokensSinceLastSummary = compactResult.messageStarTokens
             // Invalidate checkpoint — the old checkpoint contains pre-compaction
             // message IDs that won't match the new compacted state. Loading it
             // on the next turn would cause a full rebuild, defeating the purpose.
@@ -1786,7 +1824,21 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
             }
 
+            if (msg.summary) {
+              pendingSummaryResponse = false
+            }
+
             if (result === "stop") {
+              // Layer 1 on stop (was missing): final assistant never ran the
+              // continue path, so open windows ≥30K never injected. If we inject,
+              // continue the loop so the model answers the summary request now
+              // (do not leave an orphan summary-range until the next user turn).
+              const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
+              const injected = yield* maybeInjectSummary({
+                visible: visibleAfter,
+                model: lastUser.model,
+                agent: lastUser.agent,
+              })
               if (!titleRequested) {
                 titleRequested = true
                 yield* title({
@@ -1799,18 +1851,21 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   Effect.forkIn(scope),
                 )
               }
+              if (injected) {
+                cachedMsgs = undefined
+                lastKnownId = undefined
+                return "continue" as const
+              }
               return "break" as const
             }
             if (result === "compact") {
-              // Token counter is cumulative since the last summary —
-              // set it to the messageStar token length so compacted
-              // context counts toward the 32K injection threshold.
-              const compactResult = yield* compaction.compact({
+              // Compact → message*; next loop start recomputes open window
+              // (message* chars/4) and injects Layer-1 if ≥ ~30K.
+              yield* compaction.compact({
                 sessionID,
                 model: lastUser.model,
                 agent: lastUser.agent,
               })
-              outputTokensSinceLastSummary = compactResult.messageStarTokens
               // Invalidate checkpoint — the old checkpoint contains pre-compaction
               // message IDs that won't match the new compacted state.
               yield* Checkpoint.remove(sessionID)
@@ -1818,22 +1873,18 @@ You should build your plan incrementally by writing to or editing this file. NOT
               lastKnownId = undefined
               return "continue" as const
             }
-            // Layer 1: accumulate output tokens; every ~30K inject a summary request.
-            // (Must run on normal continues — not nested under the compact branch.)
-            if (!msg.summary) {
-              outputTokensSinceLastSummary += handle.message.tokens.output + handle.message.tokens.reasoning
-            } else {
-              pendingSummaryResponse = false
-              outputTokensSinceLastSummary = 0
-            }
-            if (outputTokensSinceLastSummary >= SessionCompaction.SUMMARY_INTERVAL_TOKENS) {
-              yield* compaction.injectSummaryRequest({
-                sessionID,
+            // Layer 1 on continue: recompute open content window (chars/4).
+            // Includes tool-heavy context that provider output-token counters miss.
+            const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
+            if (
+              yield* maybeInjectSummary({
+                visible: visibleAfter,
                 model: lastUser.model,
                 agent: lastUser.agent,
               })
-              pendingSummaryResponse = true
-              outputTokensSinceLastSummary = 0
+            ) {
+              cachedMsgs = undefined
+              lastKnownId = undefined
             }
             // Save encrypted checkpoint after successful turn.
             // publish() is sync inside save(); disk write is fire-and-forget.

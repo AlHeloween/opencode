@@ -1544,6 +1544,108 @@ describe("session.compaction.computeOutputSinceLastSummary", () => {
   })
 })
 
+// --- computeOpenWindowTokens (content chars/4 Layer-1 counter) ---
+
+describe("session.compaction.computeOpenWindowTokens", () => {
+  const textMsg = (
+    id: string,
+    role: "user" | "assistant",
+    text: string,
+    opts?: { summary?: boolean },
+  ): MessageV2.WithParts =>
+    ({
+      info: {
+        id,
+        role,
+        summary: opts?.summary || undefined,
+        tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      },
+      parts: [{ type: "text", text }],
+    }) as any
+
+  test("counts content chars/4 from session start when no summary", () => {
+    // 40_000 chars → 10_000 tokens
+    const msgs = [
+      textMsg("u0", "user", "x".repeat(20_000)),
+      textMsg("a1", "assistant", "y".repeat(20_000)),
+    ]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(10_000)
+  })
+
+  test("counts only after last summary assistant", () => {
+    const msgs = [
+      textMsg("u0", "user", "x".repeat(40_000)),
+      textMsg("s1", "assistant", "summary", { summary: true }),
+      textMsg("u1", "user", "y".repeat(8_000)),
+      textMsg("a1", "assistant", "z".repeat(4_000)),
+    ]
+    // Only u1+a1 after s1: 12_000 chars → 3_000 tokens
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(3_000)
+  })
+
+  test("message* body alone can exceed SUMMARY_INTERVAL_TOKENS", () => {
+    const body = "=== COMPACTED ===\n" + "m".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4 + 100)
+    const msgs = [textMsg("star", "user", body)]
+    const tokens = SessionCompaction.computeOpenWindowTokens(msgs)
+    expect(tokens).toBeGreaterThanOrEqual(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
+  })
+
+  test("returns 0 when latest message is a summary assistant", () => {
+    const msgs = [
+      textMsg("u0", "user", "x".repeat(40_000)),
+      textMsg("s1", "assistant", "done", { summary: true }),
+    ]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(0)
+  })
+
+  test("empty message list returns 0", () => {
+    expect(SessionCompaction.computeOpenWindowTokens([])).toBe(0)
+  })
+})
+
+describe("session.compaction.hasPendingSummaryRequest", () => {
+  const userText = (id: string, text: string): MessageV2.WithParts =>
+    ({
+      info: { id, role: "user" },
+      parts: [{ type: "text", text }],
+    }) as any
+
+  const asst = (id: string, summary?: boolean): MessageV2.WithParts =>
+    ({
+      info: { id, role: "assistant", summary: summary || undefined },
+      parts: [{ type: "text", text: "ok" }],
+    }) as any
+
+  test("detects open summary-range user message", () => {
+    const msgs = [
+      userText("u0", "hello"),
+      asst("a1"),
+      userText(
+        "req",
+        `<!-- summary-range from_id="a" to_id="b" session_id="s" -->\nCreate a structured summary`,
+      ),
+    ]
+    expect(SessionCompaction.hasPendingSummaryRequest(msgs)).toBe(true)
+  })
+
+  test("false after summary assistant answers the request", () => {
+    const msgs = [
+      userText(
+        "req",
+        `<!-- summary-range from_id="a" to_id="b" session_id="s" -->\nCreate a structured summary`,
+      ),
+      asst("s1", true),
+      userText("u1", "continue"),
+    ]
+    expect(SessionCompaction.hasPendingSummaryRequest(msgs)).toBe(false)
+  })
+
+  test("false when no summary-range present", () => {
+    const msgs = [userText("u0", "hello"), asst("a1")]
+    expect(SessionCompaction.hasPendingSummaryRequest(msgs)).toBe(false)
+  })
+})
+
 // --- multiple summary boundaries ---
 
 describe("session.compaction.multiple-summaries", () => {

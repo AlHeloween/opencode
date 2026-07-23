@@ -137,7 +137,10 @@ function trimToLastInterval(msgs: MessageV2.WithParts[]): number {
   *
   * Survives `runLoop` restarts — reads from persisted message tokens rather
   * than relying on the in-memory `outputTokensSinceLastSummary` counter that
-  * was previously reset on every user message. */
+  * was previously reset on every user message.
+  *
+  * Prefer {@link computeOpenWindowTokens} for Layer-1 injection — that matches
+  * message* sizing (chars/4) and the content window the model actually sees. */
 export function computeOutputSinceLastSummary(msgs: MessageV2.WithParts[]): number {
   let tokens = 0
   for (let i = msgs.length - 1; i >= 0; i--) {
@@ -149,6 +152,49 @@ export function computeOutputSinceLastSummary(msgs: MessageV2.WithParts[]): numb
     }
   }
   return tokens
+}
+
+/** True for the synthetic Layer-1 summary-request user message. */
+export function isSummaryRequestMessage(msg: MessageV2.WithParts): boolean {
+  return msg.parts.some(
+    (p) =>
+      p.type === "text" &&
+      typeof (p as { text?: string }).text === "string" &&
+      (p as { text: string }).text.includes("<!-- summary-range"),
+  )
+}
+
+/**
+ * Content tokens (chars/4) of the open window since the last summary assistant,
+ * or of the entire visible list when no summary is present.
+ *
+ * This is the Layer-1 counter metric:
+ * - Counts real context (text + reasoning + tool output), not provider usage
+ * - Includes message* body after compact (same units as messageStarTokens)
+ * - Survives runLoop restarts (pure function of persisted messages)
+ */
+export function computeOpenWindowTokens(msgs: MessageV2.WithParts[]): number {
+  let start = 0
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].info.role === "assistant" && (msgs[i].info as any).summary) {
+      start = i + 1
+      break
+    }
+  }
+  return Math.ceil(contentChars(msgs.slice(start)) / CHARS_PER_TOKEN)
+}
+
+/**
+ * True when a summary-range user message is still waiting for its summary
+ * assistant. Survives runLoop restarts (unlike in-memory pending flags).
+ */
+export function hasPendingSummaryRequest(msgs: MessageV2.WithParts[]): boolean {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]
+    if (m.info.role === "assistant" && (m.info as any).summary) return false
+    if (m.info.role === "user" && isSummaryRequestMessage(m)) return true
+  }
+  return false
 }
 
 /** Parsed semantic vector from a summary's ## Semantic Vector section.
@@ -396,11 +442,14 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
       force?: boolean
     }) =>
       Effect.gen(function* () {
+        // Always return messageStarTokens (never undefined) for callers.
+        const tokensOf = (m: MessageV2.WithParts) => Math.ceil(contentChars([m]) / CHARS_PER_TOKEN)
+
         if (Option.isSome(statusOpt)) {
           const currentStatus = yield* statusOpt.value.get(input.sessionID)
           if (currentStatus.type === "compacting") {
             log.debug("compaction skipped: already in progress", { sessionID: input.sessionID })
-            return
+            return { messageStarTokens: 0 }
           }
           yield* statusOpt.value.set(input.sessionID, { type: "compacting" })
         }
@@ -418,7 +467,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         )) as MessageV2.WithParts[] | undefined
         if (!msgs?.length) {
           yield* finish()
-          return
+          return { messageStarTokens: 0 }
         }
 
         // session.messages → MessageV2.page() already returns chronological
@@ -428,14 +477,14 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const visible = msgs.filter((m) => !m.info.compacted)
         if (!visible.length) {
           yield* finish()
-          return
+          return { messageStarTokens: 0 }
         }
 
         // Idempotent: only a single prior message* and nothing new to fold.
         if (!input.force && visible.length === 1 && isMessageStar(visible[0])) {
           log.debug("compaction skipped: already message* only", { sessionID: input.sessionID })
           yield* finish()
-          return
+          return { messageStarTokens: tokensOf(visible[0]) }
         }
 
         // Find the prior message* (if any) to bound summary collection.
@@ -543,9 +592,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           synthetic: true,
         })
 
-        // Token estimate of the messageStar — prompt.ts uses this
-        // to update outputTokensSinceLastSummary so the 32K summary
-        // injection threshold accounts for the compacted context.
+        // Token estimate of the messageStar (chars/4). Layer-1 open-window
+        // recompute treats this body as the post-compact content baseline.
         const messageStarTokens = Math.ceil(combined.length / 4)
 
         log.info("compacted", {

@@ -35,7 +35,7 @@ addressable archive =  all messages in DB (soft-hidden from context, still reada
 ## Loop
 
 ```
-every ~30k output tokens
+every ~30k content tokens (chars/4 of open window since last summary / message*)
     → injectSummaryRequest(from_id, to_id, session_id)
     → model writes summary s (assistant.summary = true, with links)
 
@@ -56,7 +56,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | ~32 768 output tokens since last summary | `injectSummaryRequest()` — synthetic user message with ID range. **Every summary must open with `## Semantic Vector`** (dominant + key_phrases Σ=1.0) for FTS/ranking and `sv_dominant` chaining; then Goal / Key decisions / Current state. Prior dominant is injected when known. If the open range exceeds ~30k content, **trim to the last ~30k**. Model answers normally; all tools available, no restrictions. |
+| **1. Incremental summary** | Open content window ≥ ~32 768 tokens (`chars/4` since last summary, or whole visible window including `message*`) | `injectSummaryRequest()` — synthetic user message with ID range. Counter is **recomputed** from visible messages each loop (not provider output-usage); runs on **stop and continue**. After compact, `message*` size is the open window — if already ≥ ~30k, inject immediately. **Every summary must open with `## Semantic Vector`** (dominant + key_phrases Σ=1.0) for FTS/ranking and `sv_dominant` chaining; then Goal / Key decisions / Current state. Prior dominant is injected when known. If the open range exceeds ~30k content, **trim to the last ~30k**. Model answers normally; all tools available, no restrictions. |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | Collect all `summary: true` assistants from DB (including soft-hidden). Soft-hide every **visible** message. Inject one user `message*` = summaries + recent after last summary. Prior `message*` bodies are not re-nested. |
 | **3. Continuous memory** | Agent needs detail | `session-read` with message IDs from summaries / Recent sections; `messagesearch` by topic. |
 
@@ -154,8 +154,8 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 
 | File | Role |
 |------|------|
-| `session/compaction.ts` | `injectSummaryRequest`, `compact`, `isOverflow`, `SUMMARY_INTERVAL_TOKENS`, decision preservation, SVM validation |
-| `session/prompt.ts` | Two overflow trigger sites: `isOverflowFromContent()` mid-loop + provider-forced `"compact"` result; checkpoint invalidate; system-reminder |
+| `session/compaction.ts` | `injectSummaryRequest`, `compact`, `isOverflow`, `SUMMARY_INTERVAL_TOKENS`, `computeOpenWindowTokens`, `hasPendingSummaryRequest`, decision preservation, SVM validation |
+| `session/prompt.ts` | Layer-1 open-window inject (stop+continue+post-compact); two overflow trigger sites: `isOverflowFromContent()` mid-loop + provider-forced `"compact"` result; checkpoint invalidate; system-reminder |
 | `session/overflow.ts` | Content-based overflow (`isOverflowFromContent` — text extraction + BPE tokenizer to avoid JSON inflation) and token-based overflow (`isOverflow`) |
 | `session/message-v2.ts` | `filterCompacted*`, message schema (`compacted`, `summary`), `CompactionPart` type |
 | `test/session/compaction.test.ts` | Unit coverage for the loop |

@@ -234,7 +234,7 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 | `src/session/prompt.ts` | System prompt assembly, fingerprint | System must be identical across paths; fingerprint stored post-plugin |
 | `src/session/cache-control.ts` | Fingerprint computation | `partFingerprint` uses MD5(content) for text, not length |
 | `src/session/llm.ts` | Plugin hook, provider request | Plugin can modify system by reference; fingerprint must be post-hook |
-| `src/session/compaction.ts` | Mechanistic compaction + incremental summaries | `injectSummaryRequest()` every ~32K output tokens; `compact()` soft-hides into `message*` (never hard-deletes); see `docs/compaction.md` |
+| `src/session/compaction.ts` | Mechanistic compaction + incremental summaries | `injectSummaryRequest()` every ~32K open-window content tokens (chars/4); `compact()` soft-hides into `message*` (never hard-deletes); see `docs/compaction.md` |
 | `src/session/message-v2.ts` | Message conversion | No mutable injection in `toModelMessagesEffect` |
 
 ## Conversation Checkpoint System
@@ -261,7 +261,7 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 **Compaction integration (mechanistic continuous memory):** See `docs/compaction.md`.
 
-- **Layer 1:** every ~32K *output* tokens, `injectSummaryRequest()` asks the model for a structured summary of a bounded range (`from_id`/`to_id`/`session_id`). If the open range is larger than ~30K content, trim to the last interval.
+- **Layer 1:** every ~32K *content* tokens (`chars/4` of open window since last summary, including `message*`), `injectSummaryRequest()` asks the model for a structured summary of a bounded range (`from_id`/`to_id`/`session_id`). Runs on stop and continue. If the open range is larger than ~30K content, trim to the last interval.
 - **Layer 2:** on overflow, `compact()` builds one synthetic **`message*`** = all historical summaries + recent messages after the last summary. Visible messages are **soft-hidden** (`info.compacted = true`) — **never deleted**. Full history remains for `session-read` / `messagesearch`.
 - **Loop:** `(m*, s, m, m, …)` grows again → compact again. Lone `message*` is idempotent (no-op until growth).
 - **Why not one giant “summarize 500k”:** that yields unreliable “memory soup” and the agent loses track. Small summaries with **hard links** stay recoverable even when summary text is imperfect.

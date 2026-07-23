@@ -213,12 +213,15 @@ export function reconcilePlans(worktree: string): ReconcileResult {
   }
 }
 
-/** Footer appended to AGI worker directives — plan hygiene duties. */
+/** Footer appended to AGI worker directives — plan hygiene + smoke-before-impl duties. */
 export function planHygieneWorkerFooter(): string {
   return [
     "",
     "=== PLAN HYGIENE (required) ===",
-    "After implementation: mark plan checkboxes [x] only when verified in code.",
+    "REUSE.BEFORE: before non-trivial invent/build (and when stuck after failures), use universalsearch web and/or Sourcegraph code — do not reinvent the wheel.",
+    "PRE_FLIGHT: plan must have ## Smoke Tests (or smoke: N/A). Record baseline [Exact] before first implementation edit.",
+    "Non-trivial plans: note ## Prior art (universalsearch) or reuse: N/A. Do not implement if Smoke Tests are missing. Vague 'test later' is forbidden.",
+    "After implementation: re-run post-impl smoke oracles; mark plan checkboxes [x] only when verified in code and smoke passes.",
     "If a plan under plans/ has no remaining [ ] items, move it to plans_completed/.",
     "Never leave fully-checked plans in plans/. Never leave open [ ] in plans_completed/.",
     "Update master plan references when a subordinate plan is completed.",

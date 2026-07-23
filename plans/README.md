@@ -3,11 +3,46 @@
 Active plans. Completed plans move to `plans_completed/`.
 Superseded / deferred designs live in `abstract_futures/` (do not implement from there).
 
+## Plan structure (required)
+
+Every **implementable** plan must include:
+
+1. **Context / goal** — what and why
+2. **`## Prior art` (REUSE.BEFORE)** — what `universalsearch` found (`web` / Sourcegraph `code` / `hybrid`), or `reuse: N/A — {reason}` for trivial local-only work. Prefer reuse over reinvention.
+3. **Implementation steps** — ordered checkboxes `[ ]` / `[x]`
+4. **`## Smoke Tests` (PRE_FLIGHT gate)** — required before code edits
+
+```markdown
+## Smoke Tests (required — PRE_FLIGHT gate)
+
+### Baseline (run before any implementation edit)
+| # | Command (cwd) | Expected now | Actual [Exact] |
+|---|---------------|--------------|----------------|
+| 1 | `bun test path` from `packages/opencode` | pass \| known fail: … | (record before first edit) |
+
+### Post-implementation oracles
+| # | Command (cwd) | Pass criteria |
+|---|---------------|---------------|
+| 1 | same or extended | must pass |
+
+### Gate
+- [ ] Smoke requirements written
+- [ ] Baseline recorded [Exact]
+- [ ] Implementation only after baseline
+- [ ] Post-impl smoke passed before [x]
+```
+
+- **`smoke: N/A — {reason}`** only for pure docs/plan-only (no runtime/code surface).
+- Vague "test later" or missing Smoke Tests → plan is incomplete; **do not implement**.
+- Kernel rule: `SMOKE.BEFORE` (see `opencode_prompts_kernel.py` / runtime `RULES`).
+
 ## Testing Convention
 
 1. **TS source first** — tests run against TypeScript source (`bun test`), not the compiled binary.
 2. **Targeted evidence** — choose tests that exercise the claimed behavior and yield an actionable pass/fail oracle; elapsed-time runs alone are not acceptance evidence.
-3. **Build after source checks** — run `pwsh _build.ps1` when a packaged-artifact check is required by the changed surface.
+3. **Smoke before implement** — record baseline from the plan Smoke Tests section before the first edit; re-run post-impl oracles before marking items `[x]`.
+4. **Build after source checks** — run `pwsh _build.ps1` when a packaged-artifact check is required by the changed surface.
+5. **Never from repo root** — tests run from package dirs (e.g. `packages/opencode`).
 
 ## Active Plans
 

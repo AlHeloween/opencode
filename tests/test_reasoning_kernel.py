@@ -289,17 +289,12 @@ class TestSemanticVector:
     """§III Semantic Vector — keyword weights, canonical string, hashing."""
 
     def test_normalization(self):
-        # API: build_semantic_vector(key_phrases=[{phrase, weight}], dominant=...)
-        sv = build_semantic_vector(key_phrases=[{"phrase": "a", "weight": 1.0}, {"phrase": "b", "weight": 3.0}])
+        sv = build_semantic_vector(keywords=["a","b"], weights=[1.0, 3.0])
         assert abs(sum(sv.weights) - 1.0) < 0.01
 
     def test_canonical_string_sorted_keys(self):
         sv = build_semantic_vector(
-            key_phrases=[
-                {"phrase": "z", "weight": 1.0},
-                {"phrase": "a", "weight": 2.0},
-                {"phrase": "m", "weight": 3.0},
-            ],
+            keywords=["z","a","m"], weights=[1.0, 2.0, 3.0],
             dominant="test",
         )
         canonical = sv.canonical_string()
@@ -311,14 +306,14 @@ class TestSemanticVector:
         assert "z:" in parts[3]
 
     def test_sv_roundtrip(self):
-        sv = build_semantic_vector(key_phrases=[{"phrase": "key", "weight": 1.0}], dominant="dom")
+        sv = build_semantic_vector(keywords=["key"], weights=[1.0], dominant="dom")
         assert sv.semantic_dominant == "dom"
         assert sv.keywords[0] == "key"
         assert abs(sv.weights[0] - 1.0) < 0.01
 
     def test_sv_deterministic(self):
-        sv1 = build_semantic_vector(key_phrases=[{"phrase": "a", "weight": 1.0}], dominant="x")
-        sv2 = build_semantic_vector(key_phrases=[{"phrase": "a", "weight": 1.0}], dominant="x")
+        sv1 = build_semantic_vector(keywords=["a"], weights=[1.0], dominant="x")
+        sv2 = build_semantic_vector(keywords=["a"], weights=[1.0], dominant="x")
         assert sv1.canonical_string() == sv2.canonical_string()
 
 class TestDeltaFunctions:
@@ -1190,8 +1185,8 @@ class TestProjectSpecs:
     def test_spec_field_counts(self):
         """Verify known field counts to catch regression."""
         counts = {
-            "CODER": {"constraints": 6, "invariants": 3, "acceptance_tests": 3, "forbidden_actions": 5},
-            "ORCHESTRATOR": {"constraints": 4, "invariants": 4, "acceptance_tests": 3, "forbidden_actions": 7},
+            "CODER": {"constraints": 8, "invariants": 5, "acceptance_tests": 4, "forbidden_actions": 7},
+            "ORCHESTRATOR": {"constraints": 5, "invariants": 5, "acceptance_tests": 4, "forbidden_actions": 8},
             "GOVERNANCE": {"constraints": 4, "invariants": 6, "forbidden_actions": 3},
         }
         for name, expected in counts.items():

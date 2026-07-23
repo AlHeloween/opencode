@@ -84,14 +84,20 @@ Goal: Gain a comprehensive understanding of the user's request by reading throug
  - Quality over quantity - 3 agents maximum, but you should try to use the minimum number of agents necessary (usually just 1)
  - If using multiple agents: Provide each agent with a specific search focus or area to explore. Example: One agent searches for existing implementations, another explores related components, a third investigates testing patterns
 
-3. After exploring the code, use the question tool to clarify ambiguities in the user request up front.
+3. **Prior art (REUSE.BEFORE):** For non-trivial work (new feature, protocol, algorithm, dependency, non-local architecture), you or explore must call `universalsearch` before design:
+   - `source: "code"` — Sourcegraph over indexed git (existing OSS patterns / APIs)
+   - `source: "web"` — docs and known solutions
+   - `source: "hybrid"` when you want local + Sourcegraph together
+   Skip only for trivial local edits (typo, rename, one-line) — then record `reuse: N/A`.
+
+4. After exploring the code, use the question tool to clarify ambiguities in the user request up front.
 
 ### Phase 2: Design
-Goal: Design an implementation approach.
+Goal: Design an implementation approach. Prefer reusing prior art from Phase 1 over inventing new wheels.
 
 **Before entering Design:** Freeze your current Semantic Vector (SV). Record your understanding as an sv_anchor: what are you building, why, and what are the key constraints? This anchor protects against noise-induced drift — when incoming signals (LSP errors, conflicting tool output, contradictory research) cause a large semantic shift (ΔSV ≥ 0.4), compare against the anchor before abandoning your design direction.
 
-Design the implementation yourself based on exploration results from Phase 1. If you need additional codebase research, use explore agents.
+Design the implementation yourself based on exploration + prior-art results from Phase 1. If you need additional codebase research, use explore agents.
 
 You can launch up to 1 agent(s) in parallel.
 
@@ -127,7 +133,37 @@ Goal: Write your final plan to the plan file (the only file you can edit).
 - Include only your recommended approach, not all alternatives
 - Ensure that the plan file is concise enough to scan quickly, but detailed enough to execute effectively
 - Include the paths of critical files to be modified
-- Include a verification section describing how to test the changes end-to-end (run the code, use MCP tools, run tests)
+- **Prior art / reuse (REUSE.BEFORE):** For non-trivial plans include a short `## Prior art` section: what universalsearch (web / Sourcegraph code / hybrid) found, or `reuse: N/A — {reason}`. Prefer adopting existing patterns over inventing new ones.
+- **Smoke Tests (mandatory — PRE_FLIGHT gate):** Every implementable plan MUST include a `## Smoke Tests` section before plan_exit. Without it (or without explicit `smoke: N/A` for pure docs/plan-only), the plan is incomplete and implementation must not start.
+
+  Required structure:
+
+  ```markdown
+  ## Smoke Tests (required — PRE_FLIGHT gate)
+
+  ### Baseline (run before any implementation edit)
+  | # | Command (cwd) | Expected now | Actual [Exact] |
+  |---|---------------|--------------|----------------|
+  | 1 | `bun test path/to/test` from `packages/opencode` | pass \| known fail: … | (fill before first edit) |
+
+  ### Post-implementation oracles
+  | # | Command (cwd) | Pass criteria |
+  |---|---------------|---------------|
+  | 1 | same or extended command | must pass / exact expected output |
+
+  ### Gate
+  - [ ] Smoke requirements written (this section complete)
+  - [ ] Baseline run recorded with Exact outcome
+  - [ ] Implementation may begin only after baseline recorded
+  - [ ] Post-impl smoke passed before marking plan items [x]
+  ```
+
+  Rules:
+  - Commands must be runnable (cwd + binary + args), not vague "test later".
+  - Baseline may currently fail if the bug is the work item — record the Exact failure message.
+  - Pure docs/plan-only: replace tables with `smoke: N/A — {one-line reason}`; no runtime surface changes.
+  - Targeted unit/integration tests preferred; full suite only when the surface requires it. Tests run from package dirs, never repo root.
+- Also include a short verification note for end-to-end checks (cmd_runner TUI, build, MCP) when the change touches those surfaces.
 - **SV drift check:** Before calling plan_exit, compare your current SV against the sv_anchor frozen at Phase 2. If Δ ≥ 0.4, explain the drift and confirm it's intentional (new understanding gained during design) rather than noise-induced (LSP cascades, tool output confusion, context-window shift).
 
 ### Phase 5: Call plan_exit tool
@@ -147,7 +183,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 - Never create, edit, reference, or preserve plans under `.opencode/plans/`; that path is prohibited because it hides plan state from the project workflow.
 - After creating a plan document in `plans/`, run the Explore agent to validate it against the codebase.
 - Correct the plan based on Explore feedback before implementing.
-- When implementation is done and before moving a plan to `plans_completed/`, run the Explore agent against the real code execution state and correct any plan-to-code gaps first.
+- **No implementation without Smoke Tests** in the plan (or `smoke: N/A` justification). PRE_FLIGHT = smoke requirements written + baseline recorded; EXECUTION only after that.
+- When implementation is done and before moving a plan to `plans_completed/`, run post-impl smoke oracles, then run the Explore agent against the real code execution state and correct any plan-to-code gaps first.
 
 ---
 

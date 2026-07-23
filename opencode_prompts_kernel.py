@@ -258,45 +258,40 @@ def reverse_search(claims: list[dict[str, Any]], query: str,
 
 @dataclass
 class SemanticVector:
-    """§III Intent vector — dominant phrase + key_phrases with normalized weights (Σ=1.0).
-    Each key_phrase is an atomic {phrase, weight} pair, not two parallel arrays.
-    No content hashes — identity is carried by message IDs and sv_dominant chains.
+    """§III Keyword-weight pairs with normalized weights.
+    Two hash domains: md5_msg_tag (content provenance), md5_sv_tag (semantic anchor).
     """
-    key_phrases: list[dict] = field(default_factory=list)  # [{"phrase": str, "weight": float}, ...]
+    keywords: list[str] = field(default_factory=list)
+    weights: list[float] = field(default_factory=list)
     semantic_dominant: str = ""
 
     def __post_init__(self):
-        if self.key_phrases:
-            total = sum(p.get("weight", 0) for p in self.key_phrases)
-            if total > 0:
-                for p in self.key_phrases:
-                    p["weight"] = round(p["weight"] / total, 4)
-
-    @property
-    def keywords(self) -> list[str]:
-        """Backward compat: flat keyword list from key_phrases."""
-        return [p["phrase"] for p in self.key_phrases]
-
-    @property
-    def weights(self) -> list[float]:
-        """Backward compat: flat weight list from key_phrases."""
-        return [p["weight"] for p in self.key_phrases]
+        if self.weights and sum(self.weights) > 0:
+            total = sum(self.weights)
+            self.weights = [round(w / total, 4) for w in self.weights]
 
     def canonical_string(self) -> str:
         """Canonical SV: dominant=<d>|k1:w1|k2:w2|... (keys sorted)."""
-        pairs = sorted(
-            [(p["phrase"], p["weight"]) for p in self.key_phrases],
-            key=lambda x: x[0],
-        )
+        pairs = sorted(zip(self.keywords, self.weights), key=lambda x: x[0])
         parts = [f"dominant={self.semantic_dominant}"]
         parts.extend(f"{k}:{w}" for k, w in pairs)
         return "|".join(parts)
 
+    def md5_sv_tag(self) -> str:
+        """Semantic anchor checksum from canonical SV string."""
+        return hashlib.md5(self.canonical_string().encode("utf-8")).hexdigest()
 
-def build_semantic_vector(key_phrases: list[dict],
+
+def build_semantic_vector(keywords: list[str], weights: list[float],
                           dominant: str = "") -> SemanticVector:
-    """Build and auto-normalize a SemanticVector from [{phrase, weight}] pairs."""
-    return SemanticVector(key_phrases=key_phrases, semantic_dominant=dominant)
+    """Build and auto-normalize a SemanticVector."""
+    return SemanticVector(keywords=keywords, weights=weights, semantic_dominant=dominant)
+
+
+def md5_msg_tag(content: str) -> str:
+    """Message provenance hash — TAB, LF, CR, SPACE stripped before hash."""
+    stripped = "".join(c for c in content if c not in "\t\n\r ")
+    return hashlib.md5(stripped.encode("utf-8")).hexdigest()
 
 
 # ======================================================================
@@ -423,10 +418,8 @@ def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
       classify_signal(anchor, signal)  # → 'NOISE'
     """
     sv_signal = build_semantic_vector(
-        key_phrases=[
-            {"phrase": signal.pattern, "weight": 0.7},
-            {"phrase": signal.source, "weight": 0.3},
-        ],
+        keywords=[signal.pattern, signal.source],
+        weights=[0.7, 0.3],
         dominant=signal.content[:100] if signal.content else signal.pattern,
     )
     d = delta_l1(
@@ -709,6 +702,8 @@ class ExecutionContract:
     approval: ApprovalState = field(default_factory=ApprovalState)
     information_mark: Optional[InformationMark] = None
     semantic_vector: Optional[SemanticVector] = None
+    md5_msg_tag: str = ""
+    md5_sv_tag: str = ""
 
     def to_json(self, indent: int = 2) -> str:
         goal: dict[str, Any] = {"requested_text": self.goal_requested_text, "objective": self.goal_objective}
@@ -746,7 +741,7 @@ class InvariantError(Exception):
 def canonical_material_contract(contract: ExecutionContract) -> str:
     """Normalize material fields to deterministic JSON, excluding runtime state."""
     d = json.loads(contract.to_json())
-    for key in ("approval", "state"):
+    for key in ("approval", "md5_msg_tag", "md5_sv_tag", "state"):
         d.pop(key, None)
     return json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
@@ -988,6 +983,8 @@ class StateRecord:
     actual_modified: int = 0
     actual_deleted: int = 0
     actual_bytes_written: int = 0
+    md5_msg_tag: str = ""
+    md5_sv_tag: str = ""
     next_action: str = ""
 
     def to_json(self, indent: int = 2) -> str:
@@ -1018,7 +1015,8 @@ class StateRecord:
                 "created": self.actual_created, "modified": self.actual_modified,
                 "deleted": self.actual_deleted, "bytes_written": self.actual_bytes_written,
             },
-
+            "md5_msg_tag": self.md5_msg_tag,
+            "md5_sv_tag": self.md5_sv_tag,
             "next": self.next_action,
         }
         return json.dumps(d, indent=indent, ensure_ascii=False)
@@ -1149,10 +1147,10 @@ class BugFixSvmTracker:
     REFINING_THRESHOLD: float = 0.8  # Δ_L1 ≤ this → converging (≤2 keywords diff)
 
     def __init__(self, bug_description: str, max_attempts: int = 3):
-        keywords = [w for w in bug_description.lower().split() if len(w) > 2][:5] or ["bug", "fix"]
         self.anchor = SvmAnchor(
             sv=build_semantic_vector(
-                key_phrases=[{"phrase": kw, "weight": 1.0 / len(keywords)} for kw in keywords],
+                keywords=[w for w in bug_description.lower().split() if len(w) > 2][:5],
+                weights=[0.2] * min(5, len(bug_description.split())),
                 dominant=bug_description[:100],
             ),
             phase="bug_fix",
@@ -1171,15 +1169,14 @@ class BugFixSvmTracker:
         n = len(self.attempts) + 1
         if sv_keywords:
             attempt_sv = build_semantic_vector(
-                key_phrases=[{"phrase": kw, "weight": 1.0 / len(sv_keywords)} for kw in sv_keywords],
+                keywords=sv_keywords,
+                weights=[1.0 / len(sv_keywords)] * len(sv_keywords),
                 dominant=approach[:100],
             )
         else:
             attempt_sv = build_semantic_vector(
-                key_phrases=[
-                    {"phrase": "fix", "weight": 0.8},
-                    {"phrase": "attempt", "weight": 0.2},
-                ],
+                keywords=[approach[:20]],
+                weights=[1.0],
                 dominant=approach[:100],
             )
 
@@ -1769,7 +1766,9 @@ CODER = _spec(
     intent="""Implement code changes using the full tool suite.
 Read before edit, make minimal changes, verify with tests.
 The coder agent is the primary implementation agent — it has edit, write, and bash access.
-It should never delegate work (it IS the sub-agent). Every change must be verified.""",
+It should never delegate work (it IS the sub-agent). Every change must be verified.
+PRE_FLIGHT smoke is mandatory: when a plan defines smoke tests, record baseline Exact
+outcomes before the first implementation edit; re-run post-impl oracles before claiming done.""",
 
     state={"agent_type": "subagent", "access_level": "full"},
 
@@ -1783,18 +1782,23 @@ It should never delegate work (it IS the sub-agent). Every change must be verifi
         "verify_after_change": True,
         "prefer_edit_over_write": True,
         "tests_required": True,
+        "smoke_before_first_edit": True,
+        "reuse_search_on_stuck_failure": True,
     },
 
     invariants=[
         "Must read current state before assuming file content",
         "Must follow project code conventions",
         "Must verify correctness after every change",
+        "Must run/record plan Smoke Tests baseline ([Exact]) before first implementation edit when the plan defines smoke",
+        "On stuck failure (build/test/typecheck/runtime or failed fix): universalsearch web+code before inventing a workaround",
     ],
 
     acceptance_tests=[
         "Typecheck passes after changes",
         "Lint passes after changes",
         "Existing tests still pass",
+        "Plan post-implementation smoke oracles pass before task marked [x]",
     ],
 
     forbidden_actions=[
@@ -1803,6 +1807,8 @@ It should never delegate work (it IS the sub-agent). Every change must be verifi
         "Creating new files when edit of existing would suffice",
         "Using emojis unless user explicitly requests",
         "Editing ADID framework surfaces: .cursor/rules/adid-*.mdc, .opencode/rules/adid-*.mdc, semantic-coding-agent-drop-in.mdc, ADID skills under .cursor/skills or .opencode/skills (adm-*, rag, patch-tool, agent-assets, apply-patch-edits)",
+        "First implementation edit without recorded smoke baseline when the governing plan has a Smoke Tests section",
+        "Inventing custom workarounds after stuck failures without universalsearch web+code",
     ],
 )
 
@@ -1846,7 +1852,9 @@ ORCHESTRATOR = _spec(
     intent="""Autonomous development orchestrator — ADID Framework Strategist2 + Analyst2.
 Read plans, delegate to sub-agents, manage plan lifecycle. Never write source code.
 The orchestrator drives AGI mode: it reads active plans, observes execution results,
-decides the next task, instructs sub-agents, and verifies completion before repeating.""",
+decides the next task, instructs sub-agents, and verifies completion before repeating.
+Implementation dispatch is gated: plans without Smoke Tests (or explicit N/A justification)
+are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
 
     state={"agent_type": "primary", "mode": "orchestrator", "role": "Strategist2+Analyst2"},
 
@@ -1856,6 +1864,7 @@ decides the next task, instructs sub-agents, and verifies completion before repe
     constraints={
         "recursive_decomposition": True,
         "test_specification_required": True,
+        "smoke_tests_required_in_plan": True,
         "verify_with_getPlanStatus": True,
         "dependency_order": "emergency → priority → standard",
     },
@@ -1864,6 +1873,7 @@ decides the next task, instructs sub-agents, and verifies completion before repe
         "Must call getPlanStatus() before declaring Terminal",
         "Must count actual checkbox state, not file count",
         "Every task must have concrete test specifications",
+        "Every implementable plan must include Smoke Tests (baseline + post-impl oracles) or smoke: N/A with justification",
         "Plan filename must be ISO8601-prefixed",
     ],
 
@@ -1871,6 +1881,7 @@ decides the next task, instructs sub-agents, and verifies completion before repe
         "status.active.length == 0 means done",
         "All tasks have [x] or [~] checkboxes",
         "completed plans moved to plans_completed/",
+        "No coder dispatch for plans missing Smoke Tests without N/A justification",
     ],
 
     forbidden_actions=[
@@ -1881,6 +1892,7 @@ decides the next task, instructs sub-agents, and verifies completion before repe
         "Using todowrite (not available to orchestrator)",
         "Declaring Terminal without getPlanStatus()",
         "Using stale plan counts",
+        "Dispatching implementation workers for a plan that lacks Smoke Tests (or explicit smoke: N/A)",
     ],
 )
 
@@ -2803,6 +2815,8 @@ tests\\run_tests.cmd | tests\\build_tests.cmd""",
 CODING_AGENT_DIRECTIVES = _spec(
     intent="""Compact semantic-art operating prompt for coding agents.
 Publish State before reasoning. Publish a Plan before writing code.
+Search for prior art (universalsearch web + Sourcegraph code) before inventing.
+Plans must include smoke-test requirements; record baseline before implementation.
 Tag claims with evidence labels. Reference outranks inference.""",
 
     state={"agent_identity": "You are a coding agent."},
@@ -2812,6 +2826,8 @@ Tag claims with evidence labels. Reference outranks inference.""",
         "state_before_reasoning": True,
         "decompose_before_expanding": True,
         "verify_before_reducing": True,
+        "reuse_before_invent": True,
+        "smoke_before_implementation": True,
         "use_k_medoids": True,
         "reference_outranks_inference": True,
         "preserve_semantic_traceability": True,
@@ -2819,7 +2835,9 @@ Tag claims with evidence labels. Reference outranks inference.""",
     },
 
     invariants=[
-        "Must output: State -> sv -> Decomposition -> Evidence map -> Plan -> Implementation -> Verification -> Clean next state",
+        "Must output: State -> sv -> Decomposition -> Evidence map (incl. reuse search) -> "
+        "Plan (with Smoke Tests) -> Smoke baseline [Exact] -> Implementation -> "
+        "Smoke/oracle Verification -> Clean next state",
         "Must tag claims with evidence labels: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]",
         "Must reference outranks inference",
         "SVM noise filter: before reacting to tool output, classify each signal against sv_anchor. "
@@ -2833,6 +2851,8 @@ Tag claims with evidence labels. Reference outranks inference.""",
     forbidden_actions=[
         "Blending incompatible normative regimes",
         "Making code edits before plan approval",
+        "Implementing without smoke requirements in the plan (or explicit smoke: N/A)",
+        "Reinventing solutions when universalsearch web/code would show existing patterns",
         "Claiming fixed without oracle evidence",
         "Editing ADID framework rule/skill receivers under .cursor/ or .opencode/ (framework-owned)",
     ],
@@ -2844,7 +2864,9 @@ decompose into ordered CENTRAL_TASKS via todowrite. Mode 2 (fractal generation) 
 after task completion or 10+ undirected messages — use Sierpinski/Quad-tree/L-System
 models + k-medoids clustering for refinement and discovery. The 6-step ADID Workflow:
 GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL.
-Plan before code. State before reasoning. Decompose before expanding.""",
+PRE_FLIGHT is incomplete without smoke-test requirements: every implementable plan must
+define runnable baseline commands (before edits) and post-implementation pass criteria.
+Plan before code. Smoke before implementation. State before reasoning. Decompose before expanding.""",
 
     state={"planning_mode": "Mode 1 (linear) default, Mode 2 (fractal) on trigger"},
 
@@ -2855,6 +2877,9 @@ Plan before code. State before reasoning. Decompose before expanding.""",
         "mode_2_trigger_after_completion": True,
         "mode_2_trigger_10_plus_messages": True,
         "plan_before_code": True,
+        "reuse_search_before_design": True,
+        "smoke_tests_required_in_plan": True,
+        "smoke_baseline_before_execution": True,
         "state_before_reasoning": True,
         "decompose_before_expanding": True,
         "one_task_in_progress_at_a_time": True,
@@ -2865,22 +2890,34 @@ Plan before code. State before reasoning. Decompose before expanding.""",
         "Mode 1 (linear): clear goal → ordered CENTRAL_TASKS → todowrite",
         "Mode 2 (fractal): after completion OR 10+ undirected messages → Sierpinski/Quad-tree/L-System + k-medoids",
         "6-step loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL",
+        "PRE_FLIGHT requires a Smoke Tests section: baseline commands + expected-now + post-impl oracles "
+        "(or smoke: N/A with one-line justification for pure docs/plan-only)",
+        "PRE_FLIGHT reuse: non-trivial plans record Prior art from universalsearch (web and/or Sourcegraph code) "
+        "or reuse: N/A with justification (local-only typo/rename)",
         "Every task tracked via todowrite with priority (high/medium/low) and status (pending/in_progress/completed/cancelled)",
         "Plan before code — no edits before plan approval",
+        "No EXECUTION until smoke requirements exist and baseline is recorded [Exact] when runtime surface changes",
         "Fractal models: >=3 peaks → Sierpinski, 2/4/8 orthogonal → Quad/Oct-tree, else → L-System F→F+F-F",
     ],
 
     forbidden_actions=[
         "Skipping plan phase for complex tasks (3+ steps)",
         "Making code edits before plan approval",
+        "Starting implementation without Smoke Tests in the plan (or explicit smoke: N/A)",
+        "Starting implementation without a recorded baseline when Smoke Tests define runnable commands",
+        "Designing non-trivial solutions without universalsearch prior-art check (web and/or Sourcegraph code)",
         "More than one task in_progress at a time",
         "Fractal generation when clear linear goal exists (use Mode 1)",
+        "Verification sections that only say 'test later' without concrete commands and pass criteria",
     ],
 
     acceptance_tests=[
         "Complex tasks have todowrite plan before first edit",
         "plan.txt workflow followed for plan-mode sessions",
         "Mode 2 only activates on defined triggers",
+        "Implementable plans include Smoke Tests (baseline + post-impl) or smoke: N/A justification",
+        "Baseline smoke recorded [Exact] before first implementation edit when smoke is defined",
+        "Non-trivial plans note Prior art (universalsearch) or reuse: N/A",
     ],
 )
 
@@ -2904,7 +2941,7 @@ All Budget fields are concrete integers — no 'reasonable' or 'as needed'.""",
         "Every MODIFY operation requires an approved ExecutionContract",
         "Inspection does not authorize repair. Testing does not authorize correction",
         "All Budget fields are concrete integers — no 'reasonable' or 'as needed'",
-        "Every stateful response carries a SemanticVector with dominant + key_phrases and InformationMark",
+        "Every stateful response carries md5_msg_tag and md5_sv_tag",
         "Claims tagged: Exact > Inferred > Hypothetical > Guess > Unknown",
         "All operations repeatable from contract + state record alone",
     ],
@@ -2972,33 +3009,41 @@ Every search must follow the ordered priority chain — do not skip levels.
 Internal knowledge is the weakest evidence. When internal grounding is insufficient
 (InfoMarkLevel below Inferred), escalate through the chain before claiming absence.
 
-Workflow principle: fuzzy first, then targeted, then internet, then build.
-  1. Fuzzy queries first — codegraph (code), messagesearch (past conversations) — check what we already know
-  2. Targeted search — universalsearch for internet, glob/grep for filesystem — now with evidence from step 1
-  3. Internet check — before building something, verify it doesn't already exist. Don't reinvent the wheel.
-  4. Hardware check FIRST — before any GPU/compute work, always check local hardware (nvidia-smi, etc.).
-     Hardware state is easy to forget during compaction — the agent may think it has a GPU when it doesn't,
-     or think it doesn't have one when it does. Always verify with nvidia-smi before writing GPU code.
+Workflow principle: fuzzy first, then targeted, then internet/global code, then build.
+  1. Fuzzy queries first — codegraph (local code), messagesearch (past conversations)
+  2. Targeted local — glob/grep informed by step 1
+  3. REUSE check (mandatory before non-trivial invent/build) — universalsearch:
+       source=web (docs, known solutions) and/or source=code (Sourcegraph over indexed git)
+       and/or source=hybrid (local + Sourcegraph). Prefer reuse over reinvention.
+  4. On failure — after build/test/typecheck/runtime fails or a fix attempt fails, re-run
+     universalsearch (web + code) for known issues/patterns before inventing a custom workaround.
+  5. Hardware check FIRST for GPU/compute — nvidia-smi etc. (Exact); never assume from memory.
 
 Grounding priority chain (fastest/exact first, broadest/recursive last):
   1. where.exe / which      — OS PATH lookup for executables (instant, exact)
   2. codegraph              — pre-indexed code graph for structural code questions
   3. messagesearch          — conversation/session history search
-  4. universalsearch        — web search, code search (Sourcegraph), agent research
+  4. universalsearch        — web, Sourcegraph code, hybrid, agent research
   5. glob                   — file pattern matching (default: .gitignore-bounded; noIgnore=true bypasses)
   6. grep                   — content search (default: .gitignore-bounded; noIgnore=true bypasses)
-   7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)""",
+  7. nvidia-smi, etc.       — local hardware diagnostics (GPU, memory, devices)""",
 
     state={
         "search_priority_chain": [
             "1. where.exe / which     — OS PATH, executable lookup",
             "2. codegraph             — code structure, symbols, call graph",
             "3. messagesearch         — prior conversation context",
-            "4. universalsearch       — web, global code (Sourcegraph), agent research",
+            "4. universalsearch       — web, Sourcegraph (indexed git), hybrid, agent research",
             "5. glob                  — .gitignore-bounded file pattern match",
             "6. grep                  — .gitignore-bounded content search",
             "7. nvidia-smi, etc.      — local hardware diagnostics (GPU, memory, devices)",
         ],
+        "universalsearch_modes": {
+            "web": "docs, library APIs, known fixes, stackoverflow-class answers",
+            "code": "Sourcegraph over entire indexed git — patterns, APIs, prior art in OSS",
+            "hybrid": "local repo hits + Sourcegraph, labeled [Local]/[Sourcegraph]",
+            "agent": "multi-step autonomous research when web+code need synthesis",
+        },
         "platform_executable_search": {
             "win32": "where.exe <name>  — Windows native, checks PATH + current dir. Priority #1 before any file search.",
             "linux": "which <name>      — POSIX standard, checks PATH. Priority #1 before any file search.",
@@ -3006,17 +3051,19 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         },
     },
 
-    scope="all agent operations, evidence gathering, tool selection priority, search ordering",
+    scope="all agent operations, evidence gathering, tool selection priority, search ordering, reuse-before-invent",
 
     constraints={
         "grounding_hierarchy_enforced": True,
         "search_before_uncertainty": True,
         "follow_priority_chain": "Do NOT skip levels. Always try #1 before #2, #2 before #3, etc. Escalate only when current level returns empty or insufficient.",
-        "fuzzy_then_targeted_then_internet": "Step 1: fuzzy queries (codegraph, messagesearch) for what we already know. Step 2: targeted searches (universalsearch, glob/grep) informed by step 1. Step 3: check if solution already exists before building from scratch.",
+        "fuzzy_then_targeted_then_internet": "Step 1: fuzzy queries (codegraph, messagesearch). Step 2: targeted local (glob/grep). Step 3: universalsearch web+code before inventing. Step 4: build only if reuse is insufficient.",
+        "reuse_before_invent": "Before non-trivial design/implementation (new feature, protocol, algorithm, dependency, abstraction), call universalsearch (web and/or code/Sourcegraph, or hybrid). Prefer existing solutions. Trivial exception: typo, rename, one-line local fix with codegraph evidence.",
+        "reuse_on_failure": "On build/test/typecheck/runtime failure, or after a failed fix attempt: run universalsearch web+code for the error signature / pattern before inventing a custom workaround.",
         "hardware_check_first": "Before any GPU/compute work, ALWAYS check local hardware (nvidia-smi, etc.). Hardware state drifts during compaction — never assume GPU availability from memory.",
         "where_before_glob": "where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6 when #1 returns empty.",
         "codegraph_before_grep": "codegraph tool is #2 for code structure — before glob (#5) or grep (#6). AST-parsed results from one call replace multi-file grep + Read loops.",
-        "messagesearch_before_universalsearch": "messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context.",
+        "messagesearch_before_universalsearch": "messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context. For prior art outside this session, still use universalsearch.",
         "no_path_hardcoding": True,
         "no_hardcode_values": "Never hardcode paths, port numbers, URLs, version strings, or magic numbers. Discover via where/which (executables), codegraph/glob (project files), read config (adm.json, opencode.json, package.json), or query the OS (tasklist, /etc, sysctl). Every hardcoded value must carry a comment justifying why discovery was infeasible.",
         "web_search_for_grounding": True,
@@ -3027,12 +3074,13 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Internal knowledge alone is never sufficient for answers below Inferred confidence",
         "Tool selection MUST follow priority chain order — do NOT skip to grep when codegraph answers in one call",
         "Fuzzy queries first (#2 codegraph, #3 messagesearch) before random internet search (#4 universalsearch)",
-        "Check if solution already exists before building from scratch — don't reinvent the wheel",
-        "Hardware check BEFORE any GPU/compute work — nvidia-smi (#8) is Exact evidence. Never assume GPU from memory or conversation context.",
+        "Before non-trivial invent/build: universalsearch web and/or Sourcegraph code — don't reinvent the wheel",
+        "On failure after local diagnosis is stuck: universalsearch web+code before custom workaround",
+        "Hardware check BEFORE any GPU/compute work — nvidia-smi is Exact evidence. Never assume GPU from memory or conversation context.",
         "where.exe/which (priority #1) before any file search for executable location",
         "codegraph (priority #2) before glob/grep/Read for any code structure question",
         "messagesearch (priority #3) before universalsearch for conversation context",
-        "Universal search (priority #4) must precede hypothetical claims",
+        "Universal search (priority #4) must precede hypothetical claims and reinvented designs",
         "glob/grep default to .gitignore-bounded but can bypass with noIgnore=true for full unbounded search.",
         "Hardware diagnostics (nvidia-smi etc.) are Exact evidence for local hardware state",
         "Platform detection via os.name / sys.platform determines which search tool to use",
@@ -3044,7 +3092,8 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Agent uses where.exe/which (priority #1) before any file search for executables",
         "Agent uses codegraph (priority #2) before grep/glob/Read for code structure",
         "Agent uses messagesearch (priority #3) before universalsearch for conversation",
-        "Agent uses universalsearch (priority #4) before hypothetical claims",
+        "Agent uses universalsearch (priority #4) before hypothetical claims and non-trivial invent",
+        "On stuck failure, agent runs universalsearch web+code before inventing a workaround",
         "Agent uses glob/grep (priority #5/#6) with noIgnore=true when unbounded search is needed",
         "Hardware queries use native tools (nvidia-smi, etc.) — Exact evidence",
         "Evidence hierarchy respected: Observation > CodeGraph > Ext Source > Inferred > Hypothetical > Guess",
@@ -3054,7 +3103,8 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "Skipping priority chain levels without justification",
         "Claiming 'I don't know' or 'not found' without escalating through the chain",
         "Going straight to internet search without first checking local indexes (codegraph, messagesearch)",
-        "Building from scratch without checking if existing solution exists — don't reinvent the wheel",
+        "Building from scratch without universalsearch reuse check (web and/or Sourcegraph code) — don't reinvent the wheel",
+        "Inventing custom workarounds after failures without universalsearch web+code for known fixes",
         "Writing GPU code without first verifying actual hardware state via nvidia-smi",
         "Hardcoding executable paths (e.g., C:\\Program Files\\...)",
         "Using grep/glob/Read when codegraph tool can answer in one call",
@@ -3096,9 +3146,9 @@ RUNTIME_TERMS = MappingProxyType({
     "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.",
     "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.",
     "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
-    "plan": "ADID planning: Mode 1 (linear decomposition, default) for clear goals → CENTRAL_TASKS; Mode 2 (fractal: Sierpinski/Quad-tree/L-System + k-medoids) for refinement after completion or 10+ undirected messages. State, evidence, plan, implementation, verification, clean next state.",
+    "plan": "ADID planning: Mode 1 (linear) → CENTRAL_TASKS; Mode 2 (fractal) for refinement. PRE_FLIGHT: Prior art (universalsearch web/Sourcegraph) + Smoke Tests before EXECUTION. State, evidence, plan, smoke baseline, implementation, verification, clean next state.",
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
-    "verification": "An oracle decides correctness; do not claim fixed without direct evidence.",
+    "verification": "An oracle decides correctness; do not claim fixed without direct evidence. Smoke oracles are part of verification — post-impl pass criteria from the plan Smoke Tests section.",
 })
 
 RUNTIME_RULES = MappingProxyType({
@@ -3106,6 +3156,8 @@ RUNTIME_RULES = MappingProxyType({
     "SEARCH.ORDER": "where/which > codegraph > messagesearch > universalsearch > glob > grep",
     "WRITE.SCOPE": "modify only within user-authorized scope",
     "VERIFY.OUTCOME": "report outcome, evidence, and remaining failure",
+    "REUSE.BEFORE": "before non-trivial invent/build and when stuck after failures: use universalsearch — source=web (internet) and/or source=code (Sourcegraph indexed git) or hybrid. Prefer existing solutions over reinvention. Trivial exception: typo/rename/one-line local fix with codegraph evidence. After failed fix: re-search error signature before custom workaround.",
+    "SMOKE.BEFORE": "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
     "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
     "MEMORY.RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
     "MEMORY.LINKS": "every summary and message* must carry message IDs for session-read recovery",
@@ -3113,7 +3165,7 @@ RUNTIME_RULES = MappingProxyType({
     "ADID.OPS": "always-on how-to: cmd_runner start/tail/send; adm template→apply→verify; rag index/query; Delphi init+msbuild (see policy.adid_ops)",
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read from config/adm.json",
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
-    "SV_OUTPUT": "after every non-trivial response include ## Semantic Vector with dominant (3-5 word phrase) and key_phrases (3-5 items with phrase+weight, Σ=1.0). The dominant chains across compaction cycles via sv_dominant links. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
+    "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked, search web/codegraph/messagesearch before declaring blocked.",
     "DECOMPOSE": "break problem into sub-goals before planning. k-medoids: cluster around evidence, not random. Sierpinski/L-System: every sub-level shares the same deterministic structure — one recursive pattern (F→F+F-F), not ad-hoc expansion.",
 })
@@ -3129,6 +3181,8 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "EVIDENCE.ORDER": "evidence",
     "SEARCH.ORDER": "evidence",
     "VERIFY.OUTCOME": "verification",
+    "REUSE.BEFORE": "evidence",
+    "SMOKE.BEFORE": "plan",
     "WRITE.SCOPE": "mutation",
     "MEMORY.RANK": "infomark",
     "MEMORY.LINKS": "memory",
@@ -3143,11 +3197,11 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
 
 RUNTIME_WORKFLOWS = MappingProxyType({
     "adid": ("adid", "ADID.FREEZE", "ADID.OPS", "scope", "mutation", "verification"),
-    "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
-    "modify": ("plan", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
+    "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "REUSE.BEFORE", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
+    "modify": ("plan", "REUSE.BEFORE", "SMOKE.BEFORE", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
     "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
-    "plan": ("plan", "DECOMPOSE", "evidence", "scope", "mutation", "verification", "MEMORY.RANK", "SV_OUTPUT", "CLEAN_STATE"),
-    "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
+    "plan": ("plan", "DECOMPOSE", "REUSE.BEFORE", "SMOKE.BEFORE", "evidence", "scope", "mutation", "verification", "MEMORY.RANK", "SV_OUTPUT", "CLEAN_STATE"),
+    "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "REUSE.BEFORE", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
 })
 
 RUNTIME_PACKS = MappingProxyType({

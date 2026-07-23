@@ -118,9 +118,14 @@ describe("PlanStatus", () => {
     expect(isPlanHygieneClean({ active: [], completed: [], misplaced: ["plans/x.md"], totalPlans: 1, totalTasks: 0, completedTasks: 0, completion: 0 })).toBe(false)
   })
 
-  test("planHygieneWorkerFooter mentions plans_completed", () => {
-    expect(planHygieneWorkerFooter()).toContain("plans_completed")
-    expect(planHygieneWorkerFooter()).toContain("[x]")
+  test("planHygieneWorkerFooter mentions plans_completed, smoke, and reuse", () => {
+    const footer = planHygieneWorkerFooter()
+    expect(footer).toContain("plans_completed")
+    expect(footer).toContain("[x]")
+    expect(footer).toContain("Smoke Tests")
+    expect(footer).toContain("baseline")
+    expect(footer).toContain("REUSE.BEFORE")
+    expect(footer).toContain("universalsearch")
   })
 })
 

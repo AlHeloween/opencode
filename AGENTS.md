@@ -42,8 +42,6 @@ constraints:
 forbidden_actions:
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
 - Using git push --no-verify (or any --no-verify variant with git push)
-- Using git checkout / git switch / git restore / git reset --hard / git stash pop|apply|drop|clear (HARD BLOCKED — rewrites or re-layers working tree; stash pop on uncommitted work is chaos. Single-file undo = edit .bak or Fossil restore, NEVER git checkout/stash pop. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1)
-- Running fossil commit/add/checkout/… from the agent shell (HARD BLOCKED — Fossil is automatic session snapshot/undo only; project VCS is git. Runtime Snapshot.track already auto-snapshots after tool edits)
 - Using silent catch {} blocks
 - Labeling errors as "pre-existing" — every error is a deliverable
 - Planning from .opencode/plans/ directory
@@ -181,6 +179,8 @@ DISCOVERY_RULES = {
 
 - **After any implementation task completes, audit all `plans/*.md` files.** Mark items `[x]` if code confirms they're done. Move fully-completed plans to `plans_completed/`.
 - **Never use `.opencode/plans/`.** Active plans live only in repo-root `plans/`, and completed plans live only in repo-root `plans_completed/`; `.opencode/plans/` is prohibited, not a compatibility location.
+- **Reuse before invent (REUSE.BEFORE).** Before non-trivial design/implementation — and again when stuck after build/test/typecheck/runtime failures — use `universalsearch` with `source: "web"` (internet) and/or `source: "code"` (Sourcegraph over indexed git) or `"hybrid"`. Prefer existing solutions; do not reinvent the wheel. Trivial exception: typo/rename/one-line with local codegraph evidence. Plans should note `## Prior art` or `reuse: N/A`. See kernel rule `REUSE.BEFORE`.
+- **Smoke Tests before implementation (PRE_FLIGHT).** Every implementable plan must include a `## Smoke Tests` section: baseline commands (cwd + expected-now + Actual [Exact] before first edit) and post-implementation oracles with pass criteria — or `smoke: N/A — {reason}` for pure docs/plan-only. Vague "test later" is forbidden. Do not start code edits until baseline is recorded when smoke is defined. Do not mark items `[x]` until post-impl smoke passes. See `plans/README.md` and kernel rule `SMOKE.BEFORE`.
 - **Plan-to-code gaps are bugs.** A plan claiming `[ ]` when code is done, or `[x]` when code is missing, is a bug — correct the plan immediately.
 - **Deduplicate overlapping plans.** If two active plans track the same item, pick one as canonical and remove from the other.
 - **Use `messagesearch` to verify task completion.** Before implementing any task, search conversation history for prior work on the same item. Re-doing completed work is a bug. If the task was already done, update the plan — never re-implement.
@@ -306,8 +306,6 @@ Real-time working copy tracking with undo/redo and session-level rollback. See `
 - **jj** — TUI footer detection only (`.jj`); no snapshot service
 - **TUI indicator** — fossil (green) / jj (blue) / git (red) from checkout markers; a git monorepo still uses Fossil for agent undo
 
-**Agents must never run `fossil commit` / `fossil add` / etc.** Snapshot commits are **runtime-only** (`Snapshot.track` → `auto-snapshot` after tool edits). Agent-facing project history is **git**. Manual fossil CLI mutates the sidecar and confuses undo with project VCS.
-
 **Key functions:**
 - `track(files?)` — Creates snapshot of current working copy
 - `diffFull(from, to)` — Returns file-level diffs between two commits
@@ -366,7 +364,8 @@ abstract_futures/   ← DO NOT IMPLEMENT — graveyard of pre-kernel agent hallu
 - `.opencode/plans/` is strictly prohibited. Do not create, edit, read as authoritative, migrate from, or preserve plan state there.
 - After creating a plan document, run the explore task agent to validate it against the codebase.
 - Correct the plan based on explore feedback before implementing.
-- After implementation, verify each plan item against the actual code. Update status markers in the plan document.
+- **PRE_FLIGHT smoke gate:** plan must contain `## Smoke Tests` (or `smoke: N/A`) before any implementation edit; baseline [Exact] recorded first; post-impl oracles before `[x]`.
+- After implementation, verify each plan item against the actual code **and** pass post-impl smoke oracles. Update status markers in the plan document.
 - Plan-to-code gaps (a plan claiming something is done when it is not) are bugs and must be corrected in the plan document.
 - Before moving a resolved plan to `plans_completed/`, run the explore task agent against the real code execution state and correct any plan-to-code gaps it finds.
 - When all items in a plan are resolved and the final explore check is clean, move the plan to `plans_completed/`.
@@ -378,18 +377,6 @@ abstract_futures/   ← DO NOT IMPLEMENT — graveyard of pre-kernel agent hallu
 - Avoid mocks as much as possible
 - Test actual implementation, do not duplicate logic into tests
 - Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
-
-### ⚠ DO NOT run full `bun test` — 1-hour suite
-
-**`bun test` without a specific file path scans ALL 284 test files** — each takes ~10s minimum. The full suite runs for **1+ hour** and pegs CPU at 99%. This will trigger stall detection, auto-kill, and waste a full dev session.
-
-| ✅ Do | ❌ Don't |
-|-------|---------|
-| `bun test test/session/compaction.test.ts` — single file, 12s | `bun test` — 284 files, 1h+ |
-| `bun typecheck` — 15s, validates all changes | `bun test --filter "pattern"` — hangs on Windows |
-| `python -m pytest tests/ -q` — 256 tests, 1s | `bun test` from repo root — blocked by guard anyway |
-
-**Python tests are safe** — 256 kernel + 55 prompt schema = 311 tests complete in ~1 second. Run them freely.
 
 ## Searching in Gitignored Directories
 
@@ -451,13 +438,13 @@ Some files in the repo are auto-generated by tooling. Manual edits to these file
 | `packages/sdk/js/src/gen/` | `@hey-api/openapi-ts` | `bun run packages/sdk/js/script/build.ts` from repo root |
 | `packages/sdk/js/src/v2/gen/` | `@hey-api/openapi-ts` (v2 API) | `bun run packages/sdk/js/script/build.ts` |
 | `packages/desktop/src/bindings.ts` | Tauri Specta | `cargo run -p specta-bindings` from `packages/desktop/src-tauri/` |
-| `packages/opencode/src/session/prompt/opencode_prompts_kernel.txt` | `render_runtime_kernel()` | `python opencode_prompts_kernel.py --render-runtime packages/opencode/src/session/prompt/opencode_prompts_kernel.txt` (also `_build.ps1`) — **gitignored**, not tracked |
+| `packages/opencode/src/session/prompt/opencode_prompts_kernel.txt` | `render_runtime_kernel()` | `python opencode_prompts_kernel.py --render-runtime packages/opencode/src/session/prompt/opencode_prompts_kernel.txt` |
 
 After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before testing.
 
-**open-code prompts kernel sync:** Canonical source is `opencode_prompts_kernel.py` at repo root. The `.txt` runtime copy is **generated** (gitignored) and loaded by `transform.ts` → `systemPromptPrefix()`. Rebuild / re-render after kernel changes — out-of-sync local files mean stale agent definitions at runtime.
+**open-code prompts kernel sync:** Always keep `opencode_prompts_kernel.txt` in sync with the canonical `opencode_prompts_kernel.py` at repo root. The `.txt` copy is loaded by `transform.ts` → `systemPromptPrefix()` and embedded in every model's immutable system prompt prefix — out-of-sync files mean stale agent definitions at runtime.
 
-**Python test suite sync:** Any modification to `opencode_prompts_kernel.py` (contract IDs, SemanticVector fields, class constructors, agent prompt file list) MUST be followed by corresponding updates to `tests/test_reasoning_kernel.py`. Run `python -m pytest tests/test_reasoning_kernel.py -v` after kernel changes; all 309 tests must pass. If agent prompt files are added, removed, or renamed, update the `prompts` dict in `test_agent_prompt_files_reference_generated_contract_ids`.
+**Python test suite sync:** Any modification to `opencode_prompts_kernel.py` (contract IDs, SemanticVector fields, class constructors, agent prompt file list) MUST be followed by corresponding updates to `tests/test_reasoning_kernel.py`. The test `test_agent_prompt_files_reference_generated_contract_ids` validates that agent prompt files reference correct contract IDs — if agent prompt files are added, removed, or renamed, update the `prompts` dict in that test. Run `python -m pytest tests/test_reasoning_kernel.py -v` after kernel changes; all 309 tests must pass.
 
 ## Dependency Catalog (MANDATORY)
 

@@ -194,6 +194,79 @@ describe("session.compaction.sequential-compact", () => {
   )
 })
 
+describe("session.compaction.structural-summary-handoff", () => {
+  it.live(
+    "carries the system-owned structural handle from a Layer-1 summary into message*",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const summaryUser = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+          summary: {
+            diffs: [],
+            impact: {
+              from: "fossil_from",
+              to: "fossil_to",
+              changedFiles: 2,
+              symbolCountByKind: { function: 3, class: 1 },
+              topSymbols: ["compact", "SessionSummary"],
+              impactedFiles: ["src/session/compaction.ts"],
+              callerCount: 4,
+            },
+          },
+        } as MessageV2.User)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: summaryUser.id,
+          sessionID: info.id,
+          type: "text",
+          text: `<!-- summary-range from_id="msg_from" to_id="msg_to" session_id="${info.id}" -->`,
+          synthetic: true,
+          ignored: true,
+        })
+        const summaryAssistant = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "build",
+          agent: "build",
+          parentID: summaryUser.id,
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true,
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: summaryAssistant.id,
+          sessionID: info.id,
+          type: "text",
+          text: "## Goal\n- preserve exact system handles",
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const star = yield* MessageV2.filterCompactedEffect(info.id)
+        const text = star.flatMap((message) => message.parts).find((part) => part.type === "text")?.text ?? ""
+        expect(text).toContain("structural_impact: system index-time Structural")
+        expect(text).toContain("changed_files=2; caller_count=4")
+        expect(text).toContain("top_symbols=compact,SessionSummary")
+        expect(text).toContain("impacted_files=src/session/compaction.ts")
+      }),
+    ),
+  )
+})
+
 // Regression: COMPACTION_REMINDER used to embed the literal "=== COMPACTED ==="
 // marker. isMessageStar matched that substring on every post-compact user message
 // and excluded them all from the next message* Recent fold — model saw only

@@ -1,4 +1,4 @@
-import { Effect, Layer, Context, Schema } from "effect"
+import { Cause, Effect, Layer, Context, Schema } from "effect"
 import { Bus } from "@/bus"
 import { Snapshot } from "@/snapshot"
 import * as SnapshotFossil from "@/snapshot/fossil"
@@ -38,6 +38,27 @@ export function sliceMessagesForSummaryRange(
     if (toId !== "end" && id > toId) return false
     return true
   })
+}
+
+/** Exact Fossil endpoints present in a message range, when both exist. */
+export function snapshotRangeForMessages(messages: MessageV2.WithParts[]): { from: string; to: string } | undefined {
+  let from: string | undefined
+  let to: string | undefined
+  for (const item of messages) {
+    if (!from) {
+      for (const part of item.parts) {
+        if (part.type === "step-start" && part.snapshot) {
+          from = part.snapshot
+          break
+        }
+      }
+    }
+    for (const part of item.parts) {
+      if (part.type === "step-finish" && part.snapshot) to = part.snapshot
+    }
+  }
+  if (!from || !to) return undefined
+  return { from, to }
 }
 
 function unquoteGitPath(input: string) {
@@ -114,24 +135,10 @@ export const layer = Layer.effect(
     const bus = yield* Bus.Service
 
     const computeDiff = Effect.fn("SessionSummary.computeDiff")(function* (input: { messages: MessageV2.WithParts[] }) {
-      let from: string | undefined
-      let to: string | undefined
-      for (const item of input.messages) {
-        if (!from) {
-          for (const part of item.parts) {
-            if (part.type === "step-start" && part.snapshot) {
-              from = part.snapshot
-              break
-            }
-          }
-        }
-        for (const part of item.parts) {
-          if (part.type === "step-finish" && part.snapshot) to = part.snapshot
-        }
-      }
-      if (from && to) {
-        log.info("computeDiff snapshot path", { from, to })
-        return yield* snapshot.diffFull(from, to)
+      const range = snapshotRangeForMessages(input.messages)
+      if (range) {
+        log.info("computeDiff snapshot path", range)
+        return yield* snapshot.diffFull(range.from, range.to)
       }
 
       log.info("computeDiff fallback: scanning tool parts", { msgCount: input.messages.length })
@@ -201,10 +208,12 @@ export const layer = Layer.effect(
       // Layer-1 summary-range: parent is the synthetic request; its child is the
       // summary assistant (no file edits). Diffs must cover from_id..to_id instead.
       let msgDiffSource = turnMessages
+      let summaryRange: { fromId: string; toId: string } | undefined
       for (const p of target.parts) {
         if (p.type !== "text" || typeof (p as { text?: string }).text !== "string") continue
         const range = parseSummaryRange((p as { text: string }).text)
         if (!range) continue
+        summaryRange = range
         const sliced = sliceMessagesForSummaryRange(all, range.fromId, range.toId)
         if (sliced.length > 0) {
           msgDiffSource = sliced
@@ -219,7 +228,21 @@ export const layer = Layer.effect(
       }
 
       const msgDiffs = yield* computeDiff({ messages: msgDiffSource })
-      target.info.summary = { ...target.info.summary, diffs: msgDiffs }
+      const snapshotRange = summaryRange ? snapshotRangeForMessages(msgDiffSource) : undefined
+      const impact = snapshotRange
+        ? yield* snapshot.impact(snapshotRange.from, snapshotRange.to).pipe(
+            Effect.catchCause((cause) => {
+              log.debug("summary structural impact unavailable; omitting handle", {
+                sessionID: input.sessionID,
+                from: snapshotRange.from,
+                to: snapshotRange.to,
+                error: Cause.pretty(cause),
+              })
+              return Effect.succeed(undefined)
+            }),
+          )
+        : undefined
+      target.info.summary = { ...target.info.summary, diffs: msgDiffs, ...(impact ? { impact } : {}) }
       yield* sessions.updateMessage(target.info)
     })
 

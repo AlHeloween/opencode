@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
+import { Bus } from "../../src/bus"
 import { Instance } from "../../src/project/instance"
+import { Session as SessionNs } from "../../src/session/session"
 import { SessionSummary } from "../../src/session/summary"
 import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { ModelID, ProviderID } from "../../src/provider/schema"
-import { tmpdir } from "../fixture/fixture"
+import { Snapshot } from "../../src/snapshot"
+import { Storage } from "../../src/storage/storage"
+import { provideTmpdirInstance, tmpdir } from "../fixture/fixture"
+import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import path from "path"
 
 const sid = SessionID.make("test-session")
@@ -215,6 +220,21 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
     expect(sliced.map((m) => m.info.id)).toEqual([MessageID.make("msg_b"), MessageID.make("msg_c")])
   })
 
+  test("uses system snapshot endpoints for structural summary impact", () => {
+    const messages = [
+      {
+        info: { id: MessageID.make("msg_start"), role: "user", sessionID: sid, time: { created: 1 }, agent: "build", model: ref },
+        parts: [{ type: "step-start", snapshot: "fossil_from" }],
+      },
+      {
+        info: { id: MessageID.make("msg_finish"), role: "assistant", sessionID: sid, time: { created: 2 }, agent: "build" },
+        parts: [{ type: "step-finish", snapshot: "fossil_to" }],
+      },
+    ] as MessageV2.WithParts[]
+    expect(SessionSummary.snapshotRangeForMessages(messages)).toEqual({ from: "fossil_from", to: "fossil_to" })
+    expect(SessionSummary.snapshotRangeForMessages([messages[0]!])).toBeUndefined()
+  })
+
   test("Layer-1 summary turn has no edits but range messages do — range computeDiff is non-empty", async () => {
     // Documents the bug: summarizing only the summary-range parent + summary
     // assistant yields [] diffs; the open window's tool filediffs must be used.
@@ -334,5 +354,131 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
         expect(rangeDiffs[0].additions).toBe(10)
       },
     })
+  })
+})
+
+describe("SessionSummary.summarize structural handles", () => {
+  function layer(impact: Snapshot.Interface["impact"]) {
+    const snapshot = Layer.succeed(
+      Snapshot.Service,
+      Snapshot.Service.of({
+        init: () => Effect.void,
+        cleanup: () => Effect.void,
+        track: () => Effect.succeed(undefined),
+        checkpoint: () => Effect.succeed(undefined),
+        checkout: () => Effect.void,
+        opId: () => Effect.succeed(undefined),
+        opRestore: () => Effect.void,
+        patch: () => Effect.succeed({ hash: "", files: [] }),
+        restore: () => Effect.void,
+        revert: () => Effect.void,
+        diff: () => Effect.succeed(""),
+        diffFull: () => Effect.succeed([]),
+        impact,
+        lastImpact: () => Effect.die("unexpected lastImpact"),
+      }),
+    )
+    return SessionSummary.layer.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(SessionNs.defaultLayer, snapshot, Storage.defaultLayer, Bus.layer, CrossSpawnSpawner.defaultLayer),
+      ),
+    )
+  }
+
+  function setup(impact: Snapshot.Interface["impact"]) {
+    return provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const sessions = yield* SessionNs.Service
+        const info = yield* sessions.create({})
+        const rangeUser = yield* sessions.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: 1 },
+        })
+        yield* sessions.updatePart({
+          id: PartID.ascending(),
+          messageID: rangeUser.id,
+          sessionID: info.id,
+          type: "step-start",
+          snapshot: "fossil_from",
+        })
+        const rangeAssistant = yield* sessions.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          parentID: rangeUser.id,
+          agent: "build",
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          mode: "build",
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: 2 },
+        } as MessageV2.Assistant)
+        yield* sessions.updatePart({
+          id: PartID.ascending(),
+          messageID: rangeAssistant.id,
+          sessionID: info.id,
+          type: "step-finish",
+          reason: "end_turn",
+          snapshot: "fossil_to",
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        })
+        const summaryRequest = yield* sessions.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: 3 },
+        })
+        yield* sessions.updatePart({
+          id: PartID.ascending(),
+          messageID: summaryRequest.id,
+          sessionID: info.id,
+          type: "text",
+          text: `<!-- summary-range from_id="${rangeUser.id}" to_id="${rangeAssistant.id}" session_id="${info.id}" -->`,
+          synthetic: true,
+          ignored: true,
+        })
+        const summary = yield* SessionSummary.Service
+        yield* summary.summarize({ sessionID: info.id, messageID: summaryRequest.id })
+        const messages = yield* sessions.messages({ sessionID: info.id, limit: 20 })
+        return messages.find((message) => message.info.id === summaryRequest.id)!
+      }),
+    ).pipe(Effect.provide(layer(impact)), Effect.provide(CrossSpawnSpawner.defaultLayer))
+  }
+
+  test("attaches the range impact computed by Snapshot.impact", async () => {
+    const calls: Array<[string, string]> = []
+    const message = await Effect.runPromise(Effect.scoped(
+      setup((from, to) => {
+        calls.push([from, to])
+        return Effect.succeed({
+          from,
+          to,
+          changedFiles: 2,
+          symbolCountByKind: { function: 3 },
+          topSymbols: ["compact"],
+          impactedFiles: ["src/session/compaction.ts"],
+          callerCount: 4,
+        })
+      }),
+    ))
+    expect(calls).toEqual([["fossil_from", "fossil_to"]])
+    const summary = message.info.role === "user" ? message.info.summary : undefined
+    expect(summary?.impact?.topSymbols).toEqual(["compact"])
+  })
+
+  test("omits an unavailable structural handle instead of inventing one", async () => {
+    const message = await Effect.runPromise(Effect.scoped(setup(() => Effect.die("CodeGraph index unavailable"))))
+    const summary = message.info.role === "user" ? message.info.summary : undefined
+    expect(summary?.impact).toBeUndefined()
+    expect(summary?.diffs).toEqual([])
   })
 })

@@ -408,6 +408,8 @@ export const User = Schema.Struct({
       title: Schema.optional(Schema.String),
       body: Schema.optional(Schema.String),
       diffs: Schema.Array(Snapshot.FileDiff),
+      /** System-derived CodeGraph/Fossil structure for a Layer-1 summary range. */
+      impact: Schema.optional(Snapshot.ImpactSummary),
     }),
   ),
   agent: Schema.String,

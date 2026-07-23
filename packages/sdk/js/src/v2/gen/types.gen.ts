@@ -132,6 +132,18 @@ export type SnapshotFileDiff = {
   status?: "added" | "deleted" | "modified"
 }
 
+export type SnapshotImpactSummary = {
+  from: string
+  to: string
+  changedFiles: number
+  symbolCountByKind: {
+    [key: string]: number
+  }
+  topSymbols: Array<string>
+  impactedFiles: Array<string>
+  callerCount: number
+}
+
 export type EventSessionDiff = {
   type: "session.diff"
   properties: {
@@ -599,6 +611,7 @@ export type UserMessage = {
     title?: string
     body?: string
     diffs: Array<SnapshotFileDiff>
+    impact?: SnapshotImpactSummary
   }
   agent: string
   model: {

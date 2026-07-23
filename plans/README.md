@@ -47,7 +47,6 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
-- `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-only + hard-fail if MCP down (no SQL/CLI soft-skip)
 - `2026-07-22_epistemic_guardrails.md` — close the Inferred/Exact gap: job output marking, verification nudge, compaction decisions preservation
 
 ## Abstract futures (not active)
@@ -56,6 +55,7 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-touch → readonly SQLite pack, Fossil impact, and production smokes
 - `2026-07-22_async_job_streaming_and_progress_interval.md` — background job streaming + interactive job_wait
 - `20260718_system_prompt_order_fix.md` — KV cache ordering (implemented in system-compose.ts)
 - `TUI-session-crash-investigation.md` — TUI session crash (fixed via multiple commits)

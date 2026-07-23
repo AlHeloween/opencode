@@ -15,6 +15,7 @@ import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
 import { parseSummaryRange } from "./summary"
+import { Snapshot } from "@/snapshot"
 
 const log = Log.create({ service: "session.compaction" })
 
@@ -279,7 +280,7 @@ function extractDecisions(text: string): string[] {
 
 function buildMessageStar(input: {
   sessionID: string
-  summaries: { id: string; text: string; fromId?: string; toId?: string }[]
+  summaries: { id: string; text: string; fromId?: string; toId?: string; impact?: Snapshot.ImpactSummary }[]
   recent: MessageV2.WithParts[]
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
@@ -293,12 +294,22 @@ function buildMessageStar(input: {
   const summaryBlocks = input.summaries.map((s, i) => {
     const sv = extractSemanticVector(s.text)
     const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
+    const impactLine = s.impact
+      ? [
+          `- structural_impact: system index-time Structural`,
+          `  changed_files=${s.impact.changedFiles}; caller_count=${s.impact.callerCount}`,
+          `  kinds=${Object.entries(s.impact.symbolCountByKind).map(([kind, count]) => `${kind}:${count}`).join(",") || "none"}`,
+          `  top_symbols=${s.impact.topSymbols.slice(0, 20).join(",") || "none"}`,
+          `  impacted_files=${s.impact.impactedFiles.slice(0, 20).join(",") || "none"}`,
+        ].join("\n")
+      : undefined
     // Links below are SYSTEM Exact digits — not model-authored.
     const links = [
       `- links: system Exact (not model output)`,
       `- body_info_mark: \`Inferred\``,
       `- summary_message_id: \`${s.id}\``,
       svLine,
+      impactLine,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
       s.toId ? `- to_id: \`${s.toId}\`` : undefined,
       `- session_id: \`${input.sessionID}\``,
@@ -488,7 +499,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // Collect summaries from the current compaction window only.
         // Exact range links come from the SYSTEM summary-range parent comment,
         // never from model prose (IDs are not model-inferable facts).
-        const summaries: { id: string; text: string; fromId?: string; toId?: string }[] = []
+        const summaries: { id: string; text: string; fromId?: string; toId?: string; impact?: Snapshot.ImpactSummary }[] = []
         let latestSummaryIdx = -1
         const byId = new Map(msgs.map((m) => [m.info.id, m] as const))
         for (let i = 0; i < msgs.length; i++) {
@@ -521,7 +532,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
                 fromId = fromId ?? legacy.fromId
                 toId = toId ?? legacy.toId
               }
-              summaries.push({ id: m.info.id, text, fromId, toId })
+              const impact = parent?.info.role === "user" ? parent.info.summary?.impact : undefined
+              summaries.push({ id: m.info.id, text, fromId, toId, impact })
               if (!extractSemanticVector(text)) {
                 log.debug("summary missing semantic vector", { id: m.info.id })
               }

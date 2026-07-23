@@ -1,13 +1,16 @@
 intent:
 Root AGENTS.md — project-wide governance and conventions for opencode.
-Agent governance, coding standards, KV cache continuity, backup/restore, testing.
+Project paradigm (outer-loop continuous development), agent governance, coding standards,
+KV cache continuity, backup/restore, testing.
 
 state:
 default_branch: dev
 local_main: may not exist — use dev or origin/dev for diffs
 upstream: anomalyco/opencode (branch has architectural divergence)
+paradigm: outer-loop fractal prior + continuous memory + reuse + smoke (not train-from-scratch)
 
 scope:
+- project paradigm (formalism below)
 - agent governance rules
 - TypeScript style standards
 - security and secrets management
@@ -80,6 +83,108 @@ Architecture documentation: docs/reasoning-framework.md (full stack diagram)
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 - This `Local_Development` branch has **significant architectural divergence** from upstream `dev` (anomalyco/opencode). See `upstream_comparison/README.md` for fork point, divergence summary, and adoptable patterns.
 - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
+
+## Project Paradigm — Outer-Loop Continuous Development
+
+This fork does **not** rely on training a custom model from scratch (too expensive). The inductive bias lives in the **runtime outer loop**: planning grammar, memory handles, working-copy impact, search, and oracles. Elements already appear elsewhere in this file and in the kernel (`PLANNING`, `SMOKE.BEFORE`, `REUSE.BEFORE`, `docs/compaction.md`); this section is the **formal paradigm** that unifies them.
+
+### Thesis
+
+Ship behavior by **installing priors as process** on a general cosine-native transformer, not by re-initializing weights. Same scientific bet as fractal / multi-scale embedding R&D (self-similarity across grain sizes) — applied at systems layer until weights catch up.
+
+```
+Goal
+  → fractal / linear task lattice (small, meaning-true jobs)
+  → REUSE.BEFORE (web + Sourcegraph) + local codegraph
+  → implement small chunk
+  → SMOKE.BEFORE / post-impl oracles
+  → continuous memory (summary handles + fossil + folder impact)
+  → iterate without leaving goal direction
+```
+
+**No big untestable jobs.** Every unit must be searchable, doable, and smoke-testable. Advanced projects emerge from **many proven medoids**, not one cathedral plan.
+
+### Layer stack
+
+| Layer | Mechanism | Kills | Canonical surfaces |
+|-------|-----------|--------|-------------------|
+| **1. Task geometry** | Mode 1 linear `CENTRAL_TASKS`; Mode 2 fractal (Sierpinski / Quad-tree / L-System) + cosine alignment + **k-medoids grounded on seed tasks** | Monolith plans; transformer length-bias mush; goal drift | Kernel `PLANNING`; plan agent workflow |
+| **2. Prior art** | `universalsearch` `web` / `code` (Sourcegraph) / `hybrid`; local codegraph first for structure | Reinvention; guesswork | Rule `REUSE.BEFORE`; tool `universalsearch` |
+| **3. Oracles** | Plan `## Smoke Tests`: baseline [Exact] before edit; post-impl pass criteria before `[x]` | “Works on vibes” | Rule `SMOKE.BEFORE`; `plans/README.md` |
+| **4. Conversation memory** | Mechanistic compaction: small summaries with hard links → `message*`; never delete; session-read = Exact | Memory soup | `docs/compaction.md`; checkpoint system |
+| **5. Working-copy memory** | Fossil snapshots (runtime undo timeline) + CodeGraph **folder-scoped** impact on change eras (not whole-repo graph every time — too ambiguous) | Tree soup; “what did we change?” | Fossil snapshot system; `codegraph/reader` / structural tags |
+| **6. Direction lock** | Semantic Vector / decisions preserved; re-cluster residual work against original goal seeds | Silent mission creep | Compaction SV + Key decisions; plan master sync |
+
+### Fractal decomposition (why Sierpinski)
+
+Transformers bias toward **output length ≈ input length**. A single huge “plan everything” prompt yields a soft monolith. A **self-similar lattice** (Sierpinski-style `F→F+F−F`, or Quad/L-System when structure fits) forces the same recursive motif at every level — the length bias **fills the lattice** instead of inventing essay architecture.
+
+Pipeline:
+
+1. **Seed tasks** — `Task_1 … Task_n` (Mode 1) or fractal expansion of a clear goal (Mode 2).  
+2. **Over-generate** — each seed → multi-level fractal candidates (structure without a new ontology every time).  
+3. **Cosine filter** — keep candidates aligned with parent-task meaning (SV / task text).  
+4. **k-medoids with seeds as grounding** — initial tasks are cluster centers; foam dies; **middle-ring medoids** remain: small enough to execute, still exactly about the seed.  
+5. **Each medoid** — REUSE search → implement → smoke.  
+6. **Iterate** — next fractal on residual work still measured against original seeds / Goal SV so the project can grow while **matching initial goal direction**.
+
+Cosine similarity is the natural measure on today’s embedding geometry; fractal grammar is the **outer prior**. (Frontier R&D explores fractal Word2Vec / multi-scale embeddings and multifractal net structure — same bet inside \(W\); we cannot afford train-from-scratch, so the prior stays in the loop.)
+
+### Continuous memory + impact (organized agent memory)
+
+On each summary / change era (conceptually aligned with Layer-1 compaction windows):
+
+1. Resolve **fossil positions** that match the record (timeline of real working-copy state).  
+2. **Fossil diff** between those positions.  
+3. Translate diff through CodeGraph **per touched folder only** (exact-enough impact; full-repo graph is ambiguous noise).  
+4. Attach impact to the summary handle so `message*` carries not only chat narrative but **development memory**.
+
+Triple handle per era:
+
+| Handle | Question | Epistemic |
+|--------|----------|-----------|
+| Message IDs (`from_id` / `to_id` / `summary_message_id`) | What was said / decided? | Exact via `session-read` |
+| Fossil hashes + diff | What files actually changed? | Exact (snapshot truth) |
+| Folder-scoped CodeGraph | Which symbols / external callers? | Structural Exact-ish at index time |
+
+Soft-fail if fossil or index is missing — never invent impact; never block compaction or snapshot.
+
+### How a task becomes “trivial”
+
+When all layers are live, work is rarely exploration hell:
+
+1. **Locate** — messagesearch / session-read + fossil impact + local codegraph  
+2. **Reuse** — universalsearch web + Sourcegraph  
+3. **Change** — one medoid-sized edit  
+4. **Prove** — smoke oracle  
+
+Hard remaining work is product judgment; mechanics stop burning the session.
+
+### Tool grain (axe vs sandpaper)
+
+| Tool | Role |
+|------|------|
+| **Axe / sawmill** | Fractal over-generation, large implementers, bulk feature agents |
+| **Sandpaper** | Cosine + k-medoids filter, smoke oracles, correctness review, plan-to-code audit |
+
+Do not rebuild timber with sandpaper; do not finish planks with a sawmill. Large greenfield features: implement with bulk agents; assess correctness in a separate pass.
+
+### Agent obligations (paradigm checklist)
+
+- Prefer **small, named, testable** tasks over epic single-shot implementation.  
+- **REUSE.BEFORE** non-trivial invent; re-search on stuck failure.  
+- **SMOKE.BEFORE** implementation; baseline then post-impl before `[x]`.  
+- Treat summaries as **Inferred handles**, not Exact ground truth — recover via session-read / fossil / codegraph.  
+- Keep plans, memory, and WC impact **aligned with original goal direction** across iterations.  
+- Do not hand-edit ADID receivers; kernel + ADM own framework surfaces. Kernel rules: `REUSE.BEFORE`, `SMOKE.BEFORE`, `PLANNING`, `SEARCH.ORDER`.
+
+### Related docs
+
+- `docs/compaction.md` — mechanistic continuous conversation memory  
+- `docs/agi-workflow.md` — orchestrator / worker loop + plan hygiene  
+- `docs/reasoning-framework.md` — SPECS stack diagram  
+- `plans/README.md` — plan structure (Prior art + Smoke Tests)  
+- `opencode_prompts_kernel.py` — typed SPECS / RUNTIME_RULES (canonical policy data)
 
 ## TypeScript Style Standards
 

@@ -421,18 +421,23 @@ export function Session() {
     const children = scroll.getChildren()
     const scrollTop = scroll.y
 
-    // Get visible messages sorted by position, filtering for valid non-synthetic, non-ignored content
+    // Visible = real user text, or message* (synthetic COMPACTED body — model memory).
     const visibleMessages = children
       .filter((c) => {
         if (!c.id) return false
         const message = messagesList().find((m) => m.id === c.id)
         if (!message) return false
 
-        // Check if message has valid non-synthetic, non-ignored text parts
         const parts = sync.data.part[message.id]
         if (!parts || !Array.isArray(parts)) return false
 
-        return parts.some((part) => part && part.type === "text" && !part.synthetic && !part.ignored)
+        return parts.some(
+          (part) =>
+            part &&
+            part.type === "text" &&
+            !part.ignored &&
+            (!part.synthetic || isMessageStarText((part as { text?: string }).text)),
+        )
       })
       .sort((a, b) => a.y - b.y)
 
@@ -1574,6 +1579,12 @@ const MIME_BADGE: Record<string, string> = {
   "text/css": "css",
 }
 
+/** Synthetic message* body — model active memory after compact. Must stay
+  * user-visible so humans can observe why the model behaves as it does. */
+function isMessageStarText(text: string | undefined): boolean {
+  return typeof text === "string" && text.trimStart().startsWith("=== COMPACTED ===")
+}
+
 function UserMessage(props: {
   message: UserMessage
   parts: Part[]
@@ -1585,17 +1596,20 @@ function UserMessage(props: {
 }) {
   const ctx = use()
   const local = useLocal()
+  // Real user text, plus message* (synthetic COMPACTED body). Other synthetic
+  // parts (system-reminders, summary-range inject) stay hidden from the transcript.
   const text = createMemo(() => {
     const texts = props.parts
       .map((x) => {
-        if (x.type === "text" && !x.synthetic) {
-          return x.text
-        }
+        if (x.type !== "text") return null
+        if (!x.synthetic) return x.text
+        if (isMessageStarText(x.text)) return x.text
         return null
       })
       .filter(Boolean)
     return texts.join("\n\n")
   })
+  const isModelMemory = createMemo(() => isMessageStarText(text()))
   const files = createMemo(() => props.parts.flatMap((x) => (x.type === "file" ? [x] : [])))
   const { theme } = useTheme()
   const [hover, setHover] = createSignal(false)
@@ -1618,9 +1632,11 @@ function UserMessage(props: {
         <box
           id={props.message.id}
           border={["left"]}
-          borderColor={color()}
+          borderColor={isModelMemory() ? theme.borderActive : color()}
           customBorderChars={SplitBorder.customBorderChars}
           marginTop={props.index === 0 ? 0 : 1}
+          title={isModelMemory() ? " Model memory (message*) " : undefined}
+          titleAlignment="left"
         >
           <box
             onMouseOver={() => {
@@ -1636,7 +1652,12 @@ function UserMessage(props: {
             backgroundColor={hover() ? theme.backgroundElement : theme.backgroundPanel}
             flexShrink={0}
           >
-            <text fg={theme.text}>{text()}</text>
+            <Show when={isModelMemory()}>
+              <text fg={theme.textMuted}>
+                Active model context after compaction — observe this to understand model behavior.
+              </text>
+            </Show>
+            <text fg={isModelMemory() ? theme.textMuted : theme.text}>{text()}</text>
             <Show when={files().length}>
               <box flexDirection="row" paddingBottom={metadataVisible() ? 1 : 0} paddingTop={1} gap={1} flexWrap="wrap">
                 <For each={files()}>

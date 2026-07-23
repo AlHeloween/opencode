@@ -62,7 +62,9 @@ export function DialogMessage(props: {
 
             const parts = sync.data.part[msg.id]
             const text = parts.reduce((agg, part) => {
-              if (part.type === "text" && !part.synthetic) {
+              if (part.type !== "text") return agg
+              // Include message* so copy shows model memory when inspecting it.
+              if (!part.synthetic || (typeof part.text === "string" && part.text.trimStart().startsWith("=== COMPACTED ==="))) {
                 agg += part.text
               }
               return agg

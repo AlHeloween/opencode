@@ -67,6 +67,8 @@ export const dict = {
 
   "ui.messagePart.questions.dismissed": "Sorular reddedildi",
   "ui.messagePart.compaction": "Oturum sıkıştırıldı",
+  "ui.messagePart.messageStar": "Model memory (message*)",
+  "ui.messagePart.messageStar.hint": "Active model context after compaction — observe this to understand model behavior.",
   "ui.messagePart.context.read.one": "{{count}} okuma",
   "ui.messagePart.context.read.other": "{{count}} okuma",
   "ui.messagePart.context.search.one": "{{count}} arama",

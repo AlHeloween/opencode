@@ -73,6 +73,8 @@ export const dict: Record<string, string> = {
   "ui.messagePart.review.title": "Перевірте свої відповіді",
   "ui.messagePart.questions.dismissed": "Питання відхилено",
   "ui.messagePart.compaction": "Сесію стиснуто",
+  "ui.messagePart.messageStar": "Model memory (message*)",
+  "ui.messagePart.messageStar.hint": "Active model context after compaction — observe this to understand model behavior.",
   "ui.messagePart.context.read.one": "{{count}} читання",
   "ui.messagePart.context.read.other": "{{count}} читань",
   "ui.messagePart.context.search.one": "{{count}} пошук",

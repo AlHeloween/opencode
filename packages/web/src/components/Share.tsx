@@ -354,7 +354,13 @@ export default function Share(props: {
                           if (x.type === "snapshot") return false
                           if (x.type === "patch") return false
                           if (x.type === "step-finish") return false
-                          if (x.type === "text" && x.synthetic === true) return false
+                          // Hide synthetic system parts, but keep message* (model memory).
+                          if (
+                            x.type === "text" &&
+                            x.synthetic === true &&
+                            !(typeof x.text === "string" && x.text.trimStart().startsWith("=== COMPACTED ==="))
+                          )
+                            return false
                           if (x.type === "text" && !x.text) return false
                           if (x.type === "tool" && (x.state.status === "pending" || x.state.status === "running"))
                             return false

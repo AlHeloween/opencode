@@ -1047,11 +1047,25 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
   const copied = () => state.copied
   const busy = () => state.busy
 
-  const textPart = createMemo(
-    () => props.parts?.find((p) => p.type === "text" && !(p as TextPart).synthetic) as TextPart | undefined,
-  )
+  // Prefer real user text; fall back to message* (synthetic COMPACTED body).
+  // message* is model active memory and must stay user-visible for observability.
+  const textPart = createMemo(() => {
+    const parts = props.parts ?? []
+    const real = parts.find((p) => p.type === "text" && !(p as TextPart).synthetic) as TextPart | undefined
+    if (real) return real
+    return parts.find(
+      (p) =>
+        p.type === "text" &&
+        (p as TextPart).synthetic &&
+        typeof (p as TextPart).text === "string" &&
+        (p as TextPart).text.trimStart().startsWith("=== COMPACTED ==="),
+    ) as TextPart | undefined
+  })
 
   const text = createMemo(() => textPart()?.text || "")
+  const isModelMemory = createMemo(
+    () => !!(textPart()?.synthetic && text().trimStart().startsWith("=== COMPACTED ===")),
+  )
 
   const files = createMemo(() => (props.parts?.filter((p) => p.type === "file") as FilePart[]) ?? [])
 
@@ -1148,7 +1162,17 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
       </Show>
       <Show when={text()}>
         <>
-          <div data-slot="user-message-body">
+          <div
+            data-slot="user-message-body"
+            data-model-memory={isModelMemory() ? "true" : undefined}
+          >
+            <Show when={isModelMemory()}>
+              <div data-slot="user-message-memory-label" class="text-12-regular text-text-weak">
+                {i18n.t("ui.messagePart.messageStar")}
+                {" — "}
+                {i18n.t("ui.messagePart.messageStar.hint")}
+              </div>
+            </Show>
             <div data-slot="user-message-text">
               <HighlightedText text={text()} references={inlineFiles()} agents={agents()} />
             </div>

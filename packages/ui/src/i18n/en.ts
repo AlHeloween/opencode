@@ -73,6 +73,9 @@ export const dict: Record<string, string> = {
   "ui.messagePart.review.title": "Review your answers",
   "ui.messagePart.questions.dismissed": "Questions dismissed",
   "ui.messagePart.compaction": "Session compacted",
+  "ui.messagePart.messageStar": "Model memory (message*)",
+  "ui.messagePart.messageStar.hint":
+    "Active model context after compaction — observe this to understand model behavior.",
   "ui.messagePart.context.read.one": "{{count}} read",
   "ui.messagePart.context.read.other": "{{count}} reads",
   "ui.messagePart.context.search.one": "{{count}} search",

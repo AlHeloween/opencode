@@ -82,8 +82,12 @@ export function formatAssistantHeader(
 }
 
 export function formatPart(part: Part, options: TranscriptOptions): string {
-  if (part.type === "text" && !part.synthetic) {
-    return `${part.text}\n\n`
+  // Include message* (synthetic COMPACTED body) so exported transcripts show model memory.
+  if (part.type === "text") {
+    if (!part.synthetic) return `${part.text}\n\n`
+    if (typeof part.text === "string" && part.text.trimStart().startsWith("=== COMPACTED ===")) {
+      return `### Model memory (message*)\n\n${part.text}\n\n`
+    }
   }
 
   if (part.type === "reasoning") {

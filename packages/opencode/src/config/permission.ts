@@ -37,11 +37,16 @@ const InputObject = Schema.StructWithRest(
     /** Binary exec via the run tool (not a shell). */
     run: Schema.optional(Rule),
     /**
-     * Constitution DESTRUCTIVE shell (rm -rf, force-push, checkout, …).
-     * Not covered by bash/cmd/powershell/run wildcards. Default is deny;
-     * normal shell/run commands use their own keys (allow by default).
+     * @deprecated Use destructive-file / destructive-git / destructive-fossil.
+     * If set, treated as a catch-all for all three families in older configs.
      */
     destructive: Schema.optional(Rule),
+    /** Filesystem wipe (rm -rf, format, …). Not covered by bash:* . Default deny. */
+    "destructive-file": Schema.optional(Rule),
+    /** Git rewrite / force-push / clean -f. Not covered by bash:* . Default deny. */
+    "destructive-git": Schema.optional(Rule),
+    /** Agent fossil CLI mutate. Not covered by bash:* . Default deny (also hard-blocked). */
+    "destructive-fossil": Schema.optional(Rule),
     task: Schema.optional(Rule),
     external_directory: Schema.optional(Rule),
     todowrite: Schema.optional(Action),

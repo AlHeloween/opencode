@@ -38,23 +38,32 @@ export const MEMORY_INFO_MARK = {
 } as const
 
 /**
- * Git ops that rewrite working tree / HEAD from VCS history.
- * These are NOT the same as edit-tool backups or Fossil snapshot restore:
- * - edit .bak  → one file, pre-edit content, session-scoped
- * - fossil restore → agent undo of working copy
- * - git checkout/switch/restore/reset --hard → can wipe many files and
- *   erase uncommitted multi-commit work into unreadable chaos
+ * Three independent permission buckets (do not share settings):
+ *   destructive-file  — filesystem wipe (rm -rf, …)
+ *   destructive-git   — git rewrite / force-push / clean -f / stash pop
+ *   destructive-fossil — agent fossil CLI mutate (snapshot is runtime-only)
  *
- * HARD-BLOCKED for agents (not permission-askable) unless
- * OPENCODE_ALLOW_DESTRUCTIVE=1. Never use git checkout to "fix one file".
+ * Hard-blocked families never use the permission dialog (blocked: true) unless
+ * OPENCODE_ALLOW_DESTRUCTIVE / bypass_constitution. Askable ones use the
+ * matching permission key so policies never cross-contaminate.
  */
+export type DestructiveKind = "file" | "git" | "fossil"
+
+export type DestructivePermission =
+  | "destructive-file"
+  | "destructive-git"
+  | "destructive-fossil"
+
+export function destructivePermission(kind: DestructiveKind): DestructivePermission {
+  return `destructive-${kind}`
+}
+
+/** Git ops that rewrite working tree / HEAD — HARD BLOCK (not askable). */
 const GIT_HISTORY_REWRITE_PATTERNS: RegExp[] = [
   /\bgit\s+checkout\b/i,
   /\bgit\s+switch\b/i,
   /\bgit\s+restore\b/i,
   /\bgit\s+reset\s+--hard\b/i,
-  // stash pop/apply over uncommitted work → conflicts / half-applied mess
-  // (same class of chaos as checkout when agent "fixes" without committing)
   /\bgit\s+stash\s+pop\b/i,
   /\bgit\s+stash\s+apply\b/i,
   /\bgit\s+stash\s+drop\b/i,
@@ -62,11 +71,14 @@ const GIT_HISTORY_REWRITE_PATTERNS: RegExp[] = [
   /\bgit\s+stash\s+branch\b/i,
 ]
 
-/**
- * Agent-invoked Fossil CLI that mutates the snapshot sidecar.
- * Runtime Snapshot.track() commits as "auto-snapshot" outside bash/cmd —
- * agents must never fossil commit/add/checkout themselves. Project VCS = git.
- */
+/** Git DESTRUCTIVE that still go through permission destructive-git. */
+const GIT_ASKABLE_DESTRUCTIVE_PATTERNS: RegExp[] = [
+  /\bgit\s+push\b[^\n]*--force\b/i,
+  /\bgit\s+push\b[^\n]*-f\b/i,
+  /\bgit\s+clean\s+-[a-zA-Z]*f/i,
+]
+
+/** Agent fossil CLI mutate — HARD BLOCK (snapshot is runtime-only). */
 const FOSSIL_AGENT_MUTATE_PATTERNS: RegExp[] = [
   /\bfossil(\.exe)?\s+commit\b/i,
   /\bfossil(\.exe)?\s+ci\b/i,
@@ -88,14 +100,10 @@ const FOSSIL_AGENT_MUTATE_PATTERNS: RegExp[] = [
   /\bfossil(\.exe)?\s+sync\b/i,
 ]
 
-const DESTRUCTIVE_PATTERNS: RegExp[] = [
+/** Filesystem / disk wipe — permission destructive-file. */
+const FILE_DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\s+--force)/i,
   /\brm\s+-rf\b/i,
-  /\bgit\s+push\b[^\n]*--force\b/i,
-  /\bgit\s+push\b[^\n]*-f\b/i,
-  ...GIT_HISTORY_REWRITE_PATTERNS,
-  ...FOSSIL_AGENT_MUTATE_PATTERNS,
-  /\bgit\s+clean\s+-[a-zA-Z]*f/i,
   /\bdrop\s+(table|database)\b/i,
   /\bformat\s+[a-z]:/i,
   /\bmkfs\b/i,
@@ -105,12 +113,38 @@ const DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\bRemove-Item\b[^\n]*-Force[^\n]*-Recurse/i,
 ]
 
+const DESTRUCTIVE_PATTERNS: RegExp[] = [
+  ...FILE_DESTRUCTIVE_PATTERNS,
+  ...GIT_HISTORY_REWRITE_PATTERNS,
+  ...GIT_ASKABLE_DESTRUCTIVE_PATTERNS,
+  ...FOSSIL_AGENT_MUTATE_PATTERNS,
+]
+
 export function isGitHistoryRewrite(command: string): boolean {
   return GIT_HISTORY_REWRITE_PATTERNS.some((re) => re.test(command.trim()))
 }
 
 export function isFossilAgentMutate(command: string): boolean {
   return FOSSIL_AGENT_MUTATE_PATTERNS.some((re) => re.test(command.trim()))
+}
+
+export function isFileDestructive(command: string): boolean {
+  return FILE_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
+}
+
+export function isGitAskableDestructive(command: string): boolean {
+  return GIT_ASKABLE_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
+}
+
+/** Map command → permission family (null if not DESTRUCTIVE). */
+export function classifyDestructiveKind(command: string): DestructiveKind | null {
+  const text = command.trim()
+  if (!text) return null
+  if (isFossilAgentMutate(text)) return "fossil"
+  if (isGitHistoryRewrite(text) || isGitAskableDestructive(text)) return "git"
+  if (isFileDestructive(text)) return "file"
+  if (DESTRUCTIVE_PATTERNS.some((re) => re.test(text))) return "file"
+  return null
 }
 
 const ELEVATED_PATTERNS: RegExp[] = [
@@ -150,21 +184,26 @@ export function classifyCommandRisk(command: string): Risk {
 
 export type CommandGuardResult = {
   risk: Risk
+  /** Which independent policy bucket (file | git | fossil). */
+  kind?: DestructiveKind
+  /** Permission key to ask (destructive-file|git|fossil) when needsDestructivePermission. */
+  permission?: DestructivePermission
   /**
    * When true, caller must obtain user approval via permission
-   * `destructive` (not `bash`, so bash:* allow rules cannot auto-pass).
+   * `destructive-file` | `destructive-git` | `destructive-fossil`
+   * (not bash:*, so shell wildcards cannot auto-pass).
    */
   needsDestructivePermission: boolean
-  /** Hard block without permission UI (legacy message only). */
+  /** Hard block without permission UI. */
   blocked: boolean
   message?: string
 }
 
 /**
  * Constitution preflight for shell.
- * - git checkout/switch/restore/reset --hard: HARD BLOCK (not askable) unless
- *   OPENCODE_ALLOW_DESTRUCTIVE=1 — agents must use edit-backup / fossil restore
- * - other DESTRUCTIVE: needs permission "destructive" unless env allow
+ * - git rewrite / stash pop: HARD BLOCK unless env bypass
+ * - fossil mutate CLI: HARD BLOCK unless env bypass
+ * - askable: permission destructive-file | destructive-git (force-push, clean -f, rm -rf, …)
  * - ELEVATED: log only
  */
 export function guardCommand(
@@ -176,9 +215,11 @@ export function guardCommand(
     return { risk, needsDestructivePermission: false, blocked: false }
   }
 
+  const kind = classifyDestructiveKind(command) ?? undefined
   const allow = allowDestructiveCommands()
   log.warn("constitution.command_risk", {
     risk,
+    kind,
     command: command.slice(0, 200),
     sessionID: meta?.sessionID,
     agent: meta?.agent,
@@ -186,52 +227,58 @@ export function guardCommand(
     gitHistoryRewrite: isGitHistoryRewrite(command),
   })
 
-  // Hard block: VCS working-tree rewrite. Edit tool has .bak per file; Fossil has
-  // session undo. git checkout of "one file" can still move/discard a whole tree
-  // of uncommitted work — recovery becomes random chaos. Do not permission-ask.
+  if (risk === "ELEVATED") {
+    return { risk, kind, needsDestructivePermission: false, blocked: false }
+  }
+
+  // Hard block: git rewrite family
   if (isGitHistoryRewrite(command) && !allow) {
     return {
       risk: "DESTRUCTIVE",
+      kind: "git",
+      permission: "destructive-git",
       needsDestructivePermission: false,
       blocked: true,
       message:
-        "constitution: BLOCKED git checkout/switch/restore/reset --hard/stash pop|apply|drop|clear. " +
-        "Do NOT use git to undo or re-layer WIP — that can wipe uncommitted work " +
-        "and scramble multi-commit state (stash pop on dirty tree is especially bad). " +
-        "Recover with: edit-tool .bak backups, or Fossil snapshot restore (UI/runtime). " +
-        "Commit cleanly with git, or use Fossil undo — not stash pop. " +
-        "Only set OPENCODE_ALLOW_DESTRUCTIVE=1 if you truly intend VCS rewrite.",
+        "constitution: BLOCKED git checkout/switch/restore/reset --hard/stash pop|apply|drop|clear " +
+        "(permission group: destructive-git). " +
+        "Do NOT use git to undo or re-layer WIP — that can wipe uncommitted work. " +
+        "Recover with: edit-tool .bak or Fossil snapshot restore. " +
+        "Only set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution if you truly intend VCS rewrite.",
     }
   }
 
-  // Hard block: agent Fossil CLI mutations. Snapshot Fossil is runtime-only
-  // (Snapshot.track → auto-snapshot). Manual fossil commit is wrong VCS.
+  // Hard block: fossil mutate
   if (isFossilAgentMutate(command) && !allow) {
     return {
       risk: "DESTRUCTIVE",
+      kind: "fossil",
+      permission: "destructive-fossil",
       needsDestructivePermission: false,
       blocked: true,
       message:
-        "constitution: BLOCKED fossil CLI mutate (commit/add/checkout/…). " +
-        "Fossil is the automatic session undo/snapshot backend — not project VCS. " +
-        "Runtime already snapshots after tool edits (auto-snapshot). " +
-        "For project history use git add/commit/push. " +
-        "Do not fossil commit. Override only OPENCODE_ALLOW_DESTRUCTIVE=1.",
+        "constitution: BLOCKED fossil CLI mutate (permission group: destructive-fossil). " +
+        "Fossil is automatic session undo/snapshot — not project VCS. " +
+        "Use git for project history. Override only OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution.",
     }
   }
 
   if (risk === "DESTRUCTIVE" && !allow) {
+    const k = kind ?? "file"
+    const perm = destructivePermission(k)
     return {
       risk,
+      kind: k,
+      permission: perm,
       needsDestructivePermission: true,
       blocked: false,
       message:
-        "constitution: DESTRUCTIVE command requires explicit approval " +
-        "(rm -rf, git push --force, …). " +
-        "Or set OPENCODE_ALLOW_DESTRUCTIVE=1.",
+        `constitution: DESTRUCTIVE (${perm}) requires explicit approval ` +
+        `(rm -rf → destructive-file; force-push → destructive-git). ` +
+        "Or set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution.",
     }
   }
-  return { risk, needsDestructivePermission: false, blocked: false }
+  return { risk, kind, needsDestructivePermission: false, blocked: false }
 }
 
 /** @deprecated prefer guardCommand */

@@ -81,6 +81,9 @@ const EXT_MODES: ExternalDirMode[] = ["ask", "allow", "deny"]
  * "*" allows tools; only constitution DESTRUCTIVE is denied by default.
  */
 const TOOL_DEFAULTS: Record<string, PolicyAction> = {
+  "destructive-file": "deny",
+  "destructive-git": "deny",
+  "destructive-fossil": "deny",
   destructive: "deny",
   bash: "allow",
   cmd: "allow",
@@ -102,9 +105,23 @@ const TOOL_POLICIES: {
   section?: string
 }[] = [
   {
-    key: "destructive",
-    label: "Destructive",
-    hint: "rm -rf, force-push, reset --hard, git checkout/switch — denied by default (not bash/cmd/ps/run *)",
+    key: "destructive-file",
+    label: "Destructive (file)",
+    hint: "rm -rf, disk wipe — independent of git/fossil; not covered by bash:*",
+    danger: true,
+    section: "Shell & exec",
+  },
+  {
+    key: "destructive-git",
+    label: "Destructive (git)",
+    hint: "force-push, clean -f; checkout/stash pop hard-blocked — independent of file/fossil",
+    danger: true,
+    section: "Shell & exec",
+  },
+  {
+    key: "destructive-fossil",
+    label: "Destructive (fossil)",
+    hint: "agent fossil commit/add/… hard-blocked; snapshot is runtime-only",
     danger: true,
     section: "Shell & exec",
   },

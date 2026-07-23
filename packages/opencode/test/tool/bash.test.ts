@@ -1446,9 +1446,10 @@ describe("tool.bash constitution guard", () => {
               ),
             ),
           ).rejects.toThrow(stop.message)
-          const destructiveReq = prompts.find((p) => p.permission === "destructive")
+          const destructiveReq = prompts.find((p) => p.permission === "destructive-file")
           expect(destructiveReq).toBeDefined()
           expect(destructiveReq.metadata?.risk).toBe("DESTRUCTIVE")
+          expect(destructiveReq.metadata?.kind).toBe("file")
           expect(destructiveReq.metadata?.constitution).toBe(true)
         },
       })
@@ -1487,9 +1488,10 @@ describe("tool.bash constitution guard", () => {
               ),
             ),
           ).rejects.toThrow(stop.message)
-          const destructiveReq = prompts.find((p) => p.permission === "destructive")
+          const destructiveReq = prompts.find((p) => p.permission === "destructive-git")
           expect(destructiveReq).toBeDefined()
           expect(destructiveReq.metadata?.risk).toBe("DESTRUCTIVE")
+          expect(destructiveReq.metadata?.kind).toBe("git")
         },
       })
     } finally {
@@ -1526,8 +1528,8 @@ describe("tool.bash constitution guard", () => {
               ),
             ),
           ).rejects.toThrow(/BLOCKED|checkout/i)
-          // Must fail before permission UI — no destructive ask
-          expect(prompts.find((p) => p.permission === "destructive")).toBeUndefined()
+          // Must fail before permission UI — no destructive-* ask
+          expect(prompts.find((p) => String(p.permission).startsWith("destructive"))).toBeUndefined()
         },
       })
     } finally {
@@ -1562,7 +1564,7 @@ describe("tool.bash constitution guard", () => {
               } as any,
             ),
           )
-          const destructiveReq = prompts.find((p) => p.permission === "destructive")
+          const destructiveReq = prompts.find((p) => String(p.permission).startsWith("destructive"))
           expect(destructiveReq).toBeUndefined()
         },
       })

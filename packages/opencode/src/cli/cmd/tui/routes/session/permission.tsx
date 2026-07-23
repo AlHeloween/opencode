@@ -21,6 +21,11 @@ import { useTuiConfig } from "../../context/tui-config"
 
 type PermissionStage = "permission" | "always" | "reject"
 
+/** constitution: destructive-file | destructive-git | destructive-fossil | legacy destructive */
+function isDestructivePermission(permission: string) {
+  return permission === "destructive" || permission.startsWith("destructive-")
+}
+
 function normalizePath(input?: string) {
   if (!input) return ""
 
@@ -158,15 +163,15 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
     <Switch>
       <Match when={store.stage === "always"}>
         <Prompt
-          title={props.request.permission === "destructive" ? "Always allow this command" : "Always allow"}
+          title={isDestructivePermission(props.request.permission) ? "Always allow this command" : "Always allow"}
           body={
             <Switch>
-              <Match when={props.request.permission === "destructive"}>
+              <Match when={isDestructivePermission(props.request.permission)}>
                 <box paddingLeft={1} gap={1}>
                   <text fg={theme.error}>Session only — not written to config.</text>
                   <text fg={theme.textMuted}>
-                    Exact command will be allowed until OpenCode restarts. Permanent policy: /permissions → Destructive
-                    shell.
+                    Exact command will be allowed until OpenCode restarts. Permanent policy: /permissions →{" "}
+                    {props.request.permission} (file / git / fossil are separate).
                   </text>
                   <box>
                     <For each={props.request.always.length ? props.request.always : props.request.patterns}>
@@ -202,7 +207,7 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
           }
           options={{ confirm: "Confirm", cancel: "Cancel" }}
           escapeKey="cancel"
-          borderColor={props.request.permission === "destructive" ? "error" : undefined}
+          borderColor={isDestructivePermission(props.request.permission) ? "error" : undefined}
           onSelect={(option) => {
             setStore("stage", "permission")
             if (option === "cancel") return
@@ -324,7 +329,7 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
               }
             }
 
-            if (permission === "destructive") {
+            if (isDestructivePermission(permission)) {
               const meta = props.request.metadata ?? {}
               const command =
                 typeof meta.command === "string"
@@ -460,7 +465,7 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
 
           const current = info()
 
-          const isDestructive = props.request.permission === "destructive"
+          const isDestructive = isDestructivePermission(props.request.permission)
           const header = () => (
             <box flexDirection="column" gap={0}>
               <box flexDirection="row" gap={1} flexShrink={0}>

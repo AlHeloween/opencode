@@ -796,7 +796,7 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
-              // Constitution: DESTRUCTIVE (incl. git checkout) → permission "destructive"
+              // Constitution: destructive-file | destructive-git | destructive-fossil
               yield* enforceDestructiveShell(params.command, ctx, params.description)
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)

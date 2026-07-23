@@ -1145,7 +1145,8 @@ test("Config.update permission overlay is visible to get() without dispose", asy
     directory: tmp.path,
     fn: async () => {
       const before = await load()
-      expect(before.permission?.destructive).toBeUndefined()
+      expect(before.permission?.["destructive-file"]).toBeUndefined()
+      expect((before.permission as any)?.destructive).toBeUndefined()
 
       await Effect.runPromise(
         Config.Service.use((svc) =>
@@ -1162,7 +1163,8 @@ test("Config.update permission overlay is visible to get() without dispose", asy
       )
 
       const after = await load()
-      expect(after.permission?.destructive).toBe("ask")
+      // legacy key still accepted in config
+      expect((after.permission as any)?.destructive).toBe("ask")
       expect(after.permission?.bash).toBe("deny")
     },
   })

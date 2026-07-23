@@ -37,10 +37,18 @@ describe("session.constitution", () => {
       // stash push (save WIP) is not hard-blocked — only pop/apply/drop/clear/branch
       expect(Constitution.guardCommand("git stash push -m save").blocked).toBe(false)
       expect(Constitution.guardCommand("git stash").blocked).toBe(false)
-      // Other destructive still askable
+      // File destructive askable under destructive-file (not git)
       const rm = Constitution.guardCommand("rm -rf /tmp/x")
       expect(rm.blocked).toBe(false)
       expect(rm.needsDestructivePermission).toBe(true)
+      expect(rm.permission).toBe("destructive-file")
+      expect(rm.kind).toBe("file")
+      // Force-push under destructive-git
+      const fp = Constitution.guardCommand("git push --force origin main")
+      expect(fp.blocked).toBe(false)
+      expect(fp.needsDestructivePermission).toBe(true)
+      expect(fp.permission).toBe("destructive-git")
+      expect(fp.kind).toBe("git")
     } finally {
       if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
       else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev

@@ -91,9 +91,11 @@ export const layer = Layer.effect(
         const defaults = Permission.fromConfig({
           "*": "allow",
           doom_loop: "ask",
-          // Constitution DESTRUCTIVE shell (rm -rf, force-push, reset --hard, checkout, …).
-          // Must be deny (not allow) after "*" so bash:* / wildcard cannot skip it.
-          // Normal bash/cmd/PowerShell commands stay allowed via "*".
+          // Three independent constitution buckets — deny after "*" so bash:* cannot skip.
+          "destructive-file": "deny",
+          "destructive-git": "deny",
+          "destructive-fossil": "deny",
+          // Legacy catch-all (older configs / docs)
           destructive: "deny",
           external_directory: {
             "*": "ask",
@@ -139,6 +141,9 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 plan_exit: "allow",
+                "destructive-file": "deny",
+                "destructive-git": "deny",
+                "destructive-fossil": "deny",
                 destructive: "deny",
                 edit: {
                   "*": "deny",
@@ -173,7 +178,7 @@ export const layer = Layer.effect(
                 cmd: "allow",
                 powershell: "allow",
                 run: "allow",
-                // inherits defaults.destructive = deny (constitution)
+                // inherits defaults destructive-file/git/fossil = deny
                 task: "allow",
                 todowrite: "deny",
                 read: "allow",

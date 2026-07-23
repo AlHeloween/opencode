@@ -1058,7 +1058,7 @@ describe("tool.cmd redirection detection", () => {
               ),
             ),
           ).rejects.toThrow(/BLOCKED|checkout/i)
-          expect(prompts.find((p) => p.permission === "destructive")).toBeUndefined()
+          expect(prompts.find((p) => String(p.permission).startsWith("destructive"))).toBeUndefined()
         },
       })
     } finally {

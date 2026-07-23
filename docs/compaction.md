@@ -35,18 +35,28 @@ addressable archive =  all messages in DB (soft-hidden from context, still reada
 ## Loop
 
 ```
-every ~30k content tokens (chars/4 of open window since last summary / message*)
+counter = content tokens (chars/4) of open window since last summary
+         (or whole visible window if no summary yet)
+
+every time counter ≥ ~32_768
     → injectSummaryRequest(from_id, to_id, session_id)
     → model writes summary s (assistant.summary = true, with links)
+    → open window restarts after s  (counter effectively 0)
 
 (m, m, m, s, m, m, s, m, m, m)
         ↓ overflow → compact()
 message* = (s, s, recent m…)     ← only visible memory
-        ↓ work continues
-(m*, s, m, m, m, s, m, m …)
+        ↓
+counter := len(message*)/4       ← same counter, not a special branch
+        ↓ + new m… grows open window
+        ↓ when counter ≥ ~32k (at once if message* already large, or later)
+(m*, s, m, m …)
         ↓ compact again
 message** = (s…, recent m…)
+        → counter := len(message**)/4 again
 ```
+
+There is **no** separate rule "if message* > 32k". After compact there is no summary after the star yet, so the open window *is* the star body: **message* length/4 becomes the Layer-1 counter**. The normal ≥ ~32k threshold then fires either immediately or after more messages.
 
 Idempotent: if the only visible message is already a lone `message*`, compact is a no-op until growth.
 
@@ -56,7 +66,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | Open content window ≥ ~32 768 tokens (`chars/4` since last summary, or whole visible window including `message*`) | `injectSummaryRequest()` — synthetic user message with ID range. Counter is **recomputed** from visible messages each loop (not provider output-usage); runs on **stop and continue**. After compact, `message*` size is the open window — if already ≥ ~30k, inject immediately. **Every summary must open with `## Semantic Vector`** (dominant + key_phrases Σ=1.0) for FTS/ranking and `sv_dominant` chaining; then Goal / Key decisions / Current state. Prior dominant is injected when known. If the open range exceeds ~30k content, **trim to the last ~30k**. Model answers normally; all tools available, no restrictions. |
+| **1. Incremental summary** | Open-window **counter** ≥ ~32 768 | Counter = `chars/4` of content since last summary assistant (or whole visible set if none). **Recomputed** each loop from DB (not provider output-usage); runs on **stop and continue**. After `compact()`, the open window is the new `message*` (+ later msgs) → **counter becomes `len(message*)/4`** by the same rule (no special “if message* > 32k” branch). When counter ≥ threshold, `injectSummaryRequest()`; model writes structured summary. **Every summary must open with `## Semantic Vector`** (dominant + key_phrases Σ=1.0); then Goal / Key decisions / Current state. Prior dominant injected when known. If the open range exceeds ~30k content, **trim to the last ~30k**. |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | Collect all `summary: true` assistants from DB (including soft-hidden). Soft-hide every **visible** message. Inject one user `message*` = summaries + recent after last summary. Prior `message*` bodies are not re-nested. |
 | **3. Continuous memory** | Agent needs detail | `session-read` with message IDs from summaries / Recent sections; `messagesearch` by topic. |
 

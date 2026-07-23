@@ -165,12 +165,14 @@ export function isSummaryRequestMessage(msg: MessageV2.WithParts): boolean {
 }
 
 /**
- * Content tokens (chars/4) of the open window since the last summary assistant,
- * or of the entire visible list when no summary is present.
+ * Layer-1 summary **token counter**: content tokens (chars/4) of the open window
+ * since the last summary assistant, or of the entire visible list when none.
  *
- * This is the Layer-1 counter metric:
- * - Counts real context (text + reasoning + tool output), not provider usage
- * - Includes message* body after compact (same units as messageStarTokens)
+ * After compact there is no summary after the new message*, so this returns
+ * ~len(message*)/4 (+ any newer msgs). That *is* the counter baseline — not a
+ * special “if message* > 32k” rule. Threshold is always SUMMARY_INTERVAL_TOKENS.
+ *
+ * - Real context (text + reasoning + tool output), not provider usage
  * - Survives runLoop restarts (pure function of persisted messages)
  */
 export function computeOpenWindowTokens(msgs: MessageV2.WithParts[]): number {

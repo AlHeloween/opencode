@@ -261,7 +261,7 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 **Compaction integration (mechanistic continuous memory):** See `docs/compaction.md`.
 
-- **Layer 1:** every ~32K *content* tokens (`chars/4` of open window since last summary, including `message*`), `injectSummaryRequest()` asks the model for a structured summary of a bounded range (`from_id`/`to_id`/`session_id`). Runs on stop and continue. If the open range is larger than ~30K content, trim to the last interval.
+- **Layer 1:** open-window **counter** (`chars/4` since last summary) ≥ ~32K → `injectSummaryRequest()` for a bounded range (`from_id`/`to_id`/`session_id`). After compact, counter becomes `len(message*)/4` by the same rule (no special message* branch). Runs on stop and continue. If the open range is larger than ~30K content, trim to the last interval.
 - **Layer 2:** on overflow, `compact()` builds one synthetic **`message*`** = all historical summaries + recent messages after the last summary. Visible messages are **soft-hidden** (`info.compacted = true`) — **never deleted**. Full history remains for `session-read` / `messagesearch`.
 - **Loop:** `(m*, s, m, m, …)` grows again → compact again. Lone `message*` is idempotent (no-op until growth).
 - **Why not one giant “summarize 500k”:** that yields unreliable “memory soup” and the agent loses track. Small summaries with **hard links** stay recoverable even when summary text is imperfect.

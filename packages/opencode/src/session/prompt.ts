@@ -1253,8 +1253,10 @@ You should build your plan incrementally by writing to or editing this file. NOT
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
-        /** Layer 1: open content window (chars/4 since last summary, or whole
-          * visible window including message*) ≥ ~30K → inject summary request.
+        /** Layer 1: open-window counter (chars/4 since last summary, or whole
+          * visible set if none) ≥ ~30K → inject summary request.
+          * After compact the open window is message* → counter becomes
+          * len(message*)/4 by the same rule (not a special branch).
           * Pure recompute from msgs — works after stop, continue, and compact. */
         const maybeInjectSummary = (input: {
           visible: MessageV2.WithParts[]
@@ -1380,9 +1382,8 @@ You should build your plan incrementally by writing to or editing this file. NOT
             continue
           }
 
-          // Layer 1 before overflow compact: if open window (incl. message*) is
-          // already ≥ ~30K content tokens, inject summary first so compact folds
-          // a real summary rather than raw recent only.
+          // Layer 1 before overflow compact: same open-window counter as always.
+          // Prefer a summary before folding raw recent into message*.
           if (
             lastFinished?.summary !== true &&
             (yield* maybeInjectSummary({
@@ -1859,8 +1860,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
               return "break" as const
             }
             if (result === "compact") {
-              // Compact → message*; next loop start recomputes open window
-              // (message* chars/4) and injects Layer-1 if ≥ ~30K.
+              // Compact → message*. Next loop recomputes the open-window
+              // counter: no summary after the star yet → counter = len(message*)/4.
+              // Normal ≥ ~32k threshold then applies (at once or after growth).
               yield* compaction.compact({
                 sessionID,
                 model: lastUser.model,

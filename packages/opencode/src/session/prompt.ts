@@ -1827,6 +1827,51 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
             if (msg.summary) {
               pendingSummaryResponse = false
+              // SYSTEM Exact stamp: digits from inject HTML + this message id.
+              // Nail and hammer — not microscope (model does not invent IDs).
+              const parentParts = msgs.find((m) => m.info.id === lastUser.id)?.parts ?? []
+              let fromId: string | undefined
+              let toId: string | undefined
+              for (const p of parentParts) {
+                if (p.type !== "text" || typeof (p as { text?: string }).text !== "string") continue
+                const m = (p as { text: string }).text.match(
+                  /<!-- summary-range from_id="([^"]+)" to_id="([^"]+)" session_id="([^"]+)" -->/,
+                )
+                if (m) {
+                  fromId = m[1]
+                  toId = m[2]
+                  break
+                }
+              }
+              if (fromId && toId) {
+                const asstParts = (yield* MessageV2.filterCompactedEffect(sessionID)).find(
+                  (m) => m.info.id === msg.id,
+                )?.parts
+                const stamped = asstParts?.some(
+                  (p) =>
+                    p.type === "text" &&
+                    typeof (p as { text?: string }).text === "string" &&
+                    (p as { text: string }).text.startsWith("--- Exact (system) ---"),
+                )
+                if (!stamped) {
+                  yield* sessions.updatePart({
+                    id: PartID.ascending(),
+                    messageID: msg.id,
+                    sessionID,
+                    type: "text",
+                    text:
+                      `--- Exact (system) ---\n` +
+                      `links_info_mark: Exact — system-computed, not model output\n` +
+                      `body_info_mark: Inferred\n` +
+                      `summary_message_id: \`${msg.id}\`\n` +
+                      `from_id: \`${fromId}\`\n` +
+                      `to_id: \`${toId}\`\n` +
+                      `session_id: \`${sessionID}\`\n` +
+                      `Use session-read / db-read with these IDs for Exact recovery.`,
+                    synthetic: true,
+                  })
+                }
+              }
             }
 
             if (result === "stop") {

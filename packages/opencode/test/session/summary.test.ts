@@ -189,3 +189,150 @@ describe("SessionSummary.computeDiff", () => {
     })
   })
 })
+
+describe("SessionSummary.parseSummaryRange / sliceMessagesForSummaryRange", () => {
+  test("parses from_id and to_id from synthetic summary-range text", () => {
+    const text = `<!-- summary-range from_id="msg_aaa" to_id="msg_zzz" session_id="ses_1" -->
+Create a structured summary of the conversation from message \`msg_aaa\` to \`msg_zzz\`.`
+    expect(SessionSummary.parseSummaryRange(text)).toEqual({
+      fromId: "msg_aaa",
+      toId: "msg_zzz",
+    })
+  })
+
+  test("returns undefined for ordinary user text", () => {
+    expect(SessionSummary.parseSummaryRange("please fix the bug")).toBeUndefined()
+  })
+
+  test("slices inclusive range by ascending message id", () => {
+    const mk = (id: string): MessageV2.WithParts =>
+      ({
+        info: { id: MessageID.make(id), role: "user", sessionID: sid, time: { created: 1 }, agent: "build", model: ref },
+        parts: [],
+      }) as any
+    const all = [mk("msg_a"), mk("msg_b"), mk("msg_c"), mk("msg_d")]
+    const sliced = SessionSummary.sliceMessagesForSummaryRange(all, "msg_b", "msg_c")
+    expect(sliced.map((m) => m.info.id)).toEqual([MessageID.make("msg_b"), MessageID.make("msg_c")])
+  })
+
+  test("Layer-1 summary turn has no edits but range messages do — range computeDiff is non-empty", async () => {
+    // Documents the bug: summarizing only the summary-range parent + summary
+    // assistant yields [] diffs; the open window's tool filediffs must be used.
+    await using tmp = await tmpdir({ git: true })
+
+    const idA = MessageID.make("msg_range_a")
+    const idB = MessageID.make("msg_range_b")
+    const idReq = MessageID.make("msg_summary_req")
+    const idSum = MessageID.make("msg_summary_asst")
+
+    const rangeWork: MessageV2.WithParts[] = [
+      {
+        info: {
+          id: idA,
+          sessionID: sid,
+          role: "user",
+          time: { created: 1 },
+          agent: "build",
+          model: ref,
+        },
+        parts: [{ id: pid, type: "text", text: "edit files", sessionID: sid, messageID: idA }],
+      },
+      {
+        info: {
+          id: idB,
+          sessionID: sid,
+          role: "assistant",
+          parentID: idA,
+          time: { created: 2, completed: 2 },
+          agent: "build",
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          cost: 0,
+          mode: "primary",
+          path: { cwd: "/", root: "/" },
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        },
+        parts: [fileDiff(path.join(tmp.path, "work.ts"), 10, 2)].map((p) => ({
+          ...p,
+          messageID: idB,
+        })),
+      },
+    ]
+
+    const summaryTurn: MessageV2.WithParts[] = [
+      {
+        info: {
+          id: idReq,
+          sessionID: sid,
+          role: "user",
+          time: { created: 3 },
+          agent: "build",
+          model: ref,
+        },
+        parts: [
+          {
+            id: pid,
+            type: "text",
+            text: `<!-- summary-range from_id="${idA}" to_id="${idB}" session_id="${sid}" -->\nCreate a structured summary`,
+            sessionID: sid,
+            messageID: idReq,
+            synthetic: true,
+          },
+        ],
+      },
+      {
+        info: {
+          id: idSum,
+          sessionID: sid,
+          role: "assistant",
+          parentID: idReq,
+          summary: true,
+          time: { created: 4, completed: 4 },
+          agent: "build",
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          cost: 0,
+          mode: "primary",
+          path: { cwd: "/", root: "/" },
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        },
+        parts: [
+          {
+            id: pid,
+            type: "text",
+            text: "## Semantic Vector\ndominant: \"test\"\n\n## Goal\n- done",
+            sessionID: sid,
+            messageID: idSum,
+          },
+        ],
+      },
+    ]
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const turnOnly = await Effect.runPromise(
+          SessionSummary.Service.use((svc) => svc.computeDiff({ messages: summaryTurn })).pipe(
+            Effect.provide(SessionSummary.defaultLayer),
+          ),
+        )
+        expect(turnOnly.length).toBe(0)
+
+        const range = SessionSummary.parseSummaryRange((summaryTurn[0].parts[0] as any).text)!
+        const sliced = SessionSummary.sliceMessagesForSummaryRange(
+          [...rangeWork, ...summaryTurn],
+          range.fromId,
+          range.toId,
+        )
+        const rangeDiffs = await Effect.runPromise(
+          SessionSummary.Service.use((svc) => svc.computeDiff({ messages: sliced })).pipe(
+            Effect.provide(SessionSummary.defaultLayer),
+          ),
+        )
+        expect(rangeDiffs.length).toBe(1)
+        expect(rangeDiffs[0].file.endsWith("work.ts")).toBe(true)
+        expect(rangeDiffs[0].additions).toBe(10)
+      },
+    })
+  })
+})

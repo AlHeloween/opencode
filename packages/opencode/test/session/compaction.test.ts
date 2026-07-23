@@ -1369,22 +1369,30 @@ describe("session.compaction.injectSummaryRequest", () => {
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         expect(msgs).toHaveLength(1)
         expect(msgs[0].info.role).toBe("user")
-        const texts = msgs[0].parts.filter((p: any) => p.type === "text").map((p: any) => p.text)
-        expect(texts.some((t: string) => t.includes("structured summary"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("from_id") && t.includes("to_id"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("session_id") && t.includes(info.id))).toBe(true)
-        expect(texts.some((t: string) => t.includes("session-read"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("Inferred") && t.includes("info_mark"))).toBe(true)
-        // SVM is mandatory first structured section on every summary
-        expect(texts.some((t: string) => t.includes("## Semantic Vector"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("key_phrases") && t.includes("dominant:"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("sv_dominant"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("summary-range"))).toBe(true)
-        // Structured sections in summary request
-        expect(texts.some((t: string) => t.includes("## Goal"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("## Key decisions"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("## Current state"))).toBe(true)
-        expect(texts.some((t: string) => t.includes("preserved verbatim across compaction"))).toBe(true)
+        const parts = msgs[0].parts.filter((p: any) => p.type === "text") as any[]
+        const systemParts = parts.filter((p) => p.ignored)
+        const modelParts = parts.filter((p) => !p.ignored)
+        const modelBody = modelParts.map((p) => p.text).join("\n")
+        const systemBody = systemParts.map((p) => p.text).join("\n")
+
+        // Model-facing: SVM / goal / decisions / state only — no digital facts.
+        expect(modelBody).toContain("structured summary")
+        expect(modelBody).toContain("## Semantic Vector")
+        expect(modelBody).toContain("## Goal")
+        expect(modelBody).toContain("## Key decisions")
+        expect(modelBody).toContain("## Current state")
+        expect(modelBody).toContain("Inferred")
+        expect(modelBody).not.toContain("<!-- summary-range")
+        expect(modelBody).not.toContain("from_id=")
+        expect(modelBody).not.toContain("to_id=")
+        expect(modelBody).not.toContain(`session_id="${info.id}"`)
+        expect(modelBody).not.toContain("Include these message IDs")
+
+        // System-only ignored part: Exact range digits for runtime (fossil diffs / stamp).
+        expect(systemBody).toContain("<!-- summary-range")
+        expect(systemBody).toContain(`session_id="${info.id}"`)
+        expect(systemBody).toMatch(/from_id="[^"]+"/)
+        expect(systemBody).toMatch(/to_id="[^"]+"/)
       }),
     ),
   )
@@ -1457,7 +1465,7 @@ describe("session.compaction.injectSummaryRequest", () => {
           .join("\n")
         expect(text).toContain("## Semantic Vector")
         expect(text).toContain("wire svm into summaries")
-        expect(text).toContain("previous semantic vector dominant")
+        expect(text).toContain("Prior window dominant")
       }),
     ),
   )

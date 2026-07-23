@@ -14,6 +14,7 @@ import { isOverflow as overflow } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
+import { parseSummaryRange } from "./summary"
 
 const log = Log.create({ service: "session.compaction" })
 
@@ -224,36 +225,25 @@ function extractSemanticVector(text: string): SemanticVector | undefined {
   return { dominant: dominantMatch?.[1], keyPhrases: phrases }
 }
 
-/** Layer-1 summary request. SVM is mandatory first section — every summary carries
-  * a normalized phrase embedding for FTS/ranking and sv_dominant chaining. */
-function summaryRequestMessage(
-  fromId: string,
-  toId: string,
-  sessionID: string,
-  lastSv?: SemanticVector,
-) {
+/** SYSTEM-only range marker (stored as ignored text part — not sent to the model). */
+export function summaryRangeSystemMarker(fromId: string, toId: string, sessionID: string) {
+  return `<!-- summary-range from_id="${fromId}" to_id="${toId}" session_id="${sessionID}" -->`
+}
+
+/**
+ * Model-facing Layer-1 request: Inferred prose only (SVM, goal, decisions, state).
+ * No digital facts — no IDs, diffs, hashes, codegraph. Those are system/fossil/CG.
+ */
+function summaryRequestProse(lastSv?: SemanticVector) {
   const svHint = lastSv?.dominant
-    ? `\nYour previous semantic vector dominant was: "${lastSv.dominant}".\n` +
-      `Link to it: use a related dominant and/or overlapping key phrases so the chain continues.\n`
+    ? `\nPrior window dominant (chain continuity only): "${lastSv.dominant}". Prefer a related dominant and/or overlapping key phrases.\n`
     : ""
-  return `<!-- summary-range from_id="${fromId}" to_id="${toId}" session_id="${sessionID}" -->
-Create a structured summary of the conversation from message \`${fromId}\` to \`${toId}\`.${svHint}
-Epistemic rank (info_mark): **Inferred** (not Exact). Exact detail requires session-read with message IDs.
-
-Include these message IDs in your summary (required for later recovery via session-read):
-- \`from_id\`: \`${fromId}\`
-- \`to_id\`: \`${toId}\`
-- \`session_id\`: \`${sessionID}\`
-- \`info_mark\`: \`Inferred\`
-- \`sv_dominant\`: (copy your ## Semantic Vector dominant phrase here too)
-
-Also list any important intermediate message IDs you reference.
-
-Output structured summary sections in this order — **## Semantic Vector is required on every summary**:
+  return `Create a structured summary of the recent conversation window.${svHint}
+Write **Inferred** narrative only: Semantic Vector, goal, key decisions, current state.
+Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data.
 
 ## Semantic Vector
-(Your intent understanding as a sparse normalized embedding: key phrases with weights, Σ=1.0, 3-5 phrases.
-Without this section the summary is a black box — retrievable by ID but not FTS-rankable or chainable.)
+(Sparse normalized embedding: key phrases with weights, Σ=1.0, 3-5 phrases.)
 Format:
   dominant: "<3-5 word phrase capturing the core intent>"
   key_phrases:
@@ -266,10 +256,9 @@ Format:
 (What the user was trying to accomplish in this window.)
 
 ## Key decisions
-(Explicit decisions made: files created, approaches chosen, design tradeoffs accepted.
-Each decision on a separate line starting with "-".  Be specific — include file paths,
-tool names, and rationale.  This section is preserved verbatim across compaction
-cycles — write it so it remains actionable without surrounding context.)
+(Explicit decisions: approaches chosen, design tradeoffs.
+Each decision on a separate line starting with "-". Specific and actionable —
+this section is preserved verbatim across compaction cycles.)
 
 ## Current state
 (What was completed, what is in progress, what remains.)`
@@ -304,8 +293,10 @@ function buildMessageStar(input: {
   const summaryBlocks = input.summaries.map((s, i) => {
     const sv = extractSemanticVector(s.text)
     const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
+    // Links below are SYSTEM Exact digits — not model-authored.
     const links = [
-      `- info_mark: \`Inferred\``,
+      `- links: system Exact (not model output)`,
+      `- body_info_mark: \`Inferred\``,
       `- summary_message_id: \`${s.id}\``,
       svLine,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
@@ -503,8 +494,11 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const priorMsgStarId = priorMsgStarIdx >= 0 ? msgs[priorMsgStarIdx].info.id : undefined
 
         // Collect summaries from the current compaction window only.
+        // Exact range links come from the SYSTEM summary-range parent comment,
+        // never from model prose (IDs are not model-inferable facts).
         const summaries: { id: string; text: string; fromId?: string; toId?: string }[] = []
         let latestSummaryIdx = -1
+        const byId = new Map(msgs.map((m) => [m.info.id, m]))
         for (let i = 0; i < msgs.length; i++) {
           // Skip messages before (and including) the prior message* — their summaries
           // were already folded into that prior messageStar.
@@ -513,8 +507,29 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           if (m.info.role === "assistant" && (m.info as any).summary) {
             const text = messageText(m)
             if (text) {
-              const links = extractSummaryLinks(text)
-              summaries.push({ id: m.info.id, text, ...links })
+              const parent = (m.info as { parentID?: string }).parentID
+                ? byId.get((m.info as { parentID: string }).parentID)
+                : undefined
+              let fromId: string | undefined
+              let toId: string | undefined
+              if (parent) {
+                for (const p of parent.parts) {
+                  if (p.type !== "text" || typeof (p as { text?: string }).text !== "string") continue
+                  const range = parseSummaryRange((p as { text: string }).text)
+                  if (range) {
+                    fromId = range.fromId
+                    toId = range.toId
+                    break
+                  }
+                }
+              }
+              // Fallback only if legacy summaries stored links in body before system stamp.
+              if (!fromId || !toId) {
+                const legacy = extractSummaryLinks(text)
+                fromId = fromId ?? legacy.fromId
+                toId = toId ?? legacy.toId
+              }
+              summaries.push({ id: m.info.id, text, fromId, toId })
               if (!extractSemanticVector(text)) {
                 log.debug("summary missing semantic vector", { id: m.info.id })
               }
@@ -681,12 +696,23 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           agent: input.agent,
           time: { created: Date.now() },
         })
+        // SYSTEM Exact range (ignored → never in model context). parseSummaryRange / diffs use this.
         yield* session.updatePart({
           id: PartID.ascending(),
           messageID: msg.id,
           sessionID: msg.sessionID,
           type: "text",
-          text: summaryRequestMessage(fromId, toId, input.sessionID, lastSv),
+          text: summaryRangeSystemMarker(fromId, toId, input.sessionID),
+          synthetic: true,
+          ignored: true,
+        })
+        // Model sees prose only (SVM / goal / decisions / state).
+        yield* session.updatePart({
+          id: PartID.ascending(),
+          messageID: msg.id,
+          sessionID: msg.sessionID,
+          type: "text",
+          text: summaryRequestProse(lastSv),
           synthetic: true,
         })
         log.info("injected summary request", {

@@ -13,6 +13,33 @@ import { Config } from "@/config/config"
 
 const log = Log.create({ service: "session.summary" })
 
+/** Parse Layer-1 synthetic summary-range user text (`<!-- summary-range from_id="…" to_id="…" -->`). */
+export function parseSummaryRange(text: string): { fromId: string; toId: string } | undefined {
+  if (!text.includes("<!-- summary-range")) return undefined
+  const fromId = text.match(/from_id="([^"]+)"/)?.[1]
+  const toId = text.match(/to_id="([^"]+)"/)?.[1]
+  if (!fromId || !toId) return undefined
+  return { fromId, toId }
+}
+
+/**
+ * Messages in a Layer-1 summary window (inclusive), by ascending message ID order.
+ * Used so summary-turn `summary.diffs` reflects file changes *in the summarized
+ * range*, not the empty diff of the summary-writing assistant itself.
+ */
+export function sliceMessagesForSummaryRange(
+  all: MessageV2.WithParts[],
+  fromId: string,
+  toId: string,
+): MessageV2.WithParts[] {
+  return all.filter((m) => {
+    const id = m.info.id
+    if (fromId !== "start" && id < fromId) return false
+    if (toId !== "end" && id > toId) return false
+    return true
+  })
+}
+
 function unquoteGitPath(input: string) {
   if (!input.startsWith('"')) return input
   if (!input.endsWith('"')) return input
@@ -131,7 +158,9 @@ export const layer = Layer.effect(
       sessionID: SessionID
       messageID: MessageID
     }) {
-      const all = yield* sessions.messages({ sessionID: input.sessionID })
+      // High limit: summary-range may cover early messages in long sessions.
+      // Default 500 silently dropped history and produced empty range diffs.
+      const all = yield* sessions.messages({ sessionID: input.sessionID, limit: 10_000 })
       if (!all.length) return
 
       const cfg = config._tag === "Some" ? yield* config.value.get() : undefined
@@ -162,12 +191,34 @@ export const layer = Layer.effect(
       yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
       yield* bus.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
 
-      const messages = all.filter(
+      // Per-user-turn diffs (shown on the turn / summary-range in UI).
+      const turnMessages = all.filter(
         (m) => m.info.id === input.messageID || (m.info.role === "assistant" && m.info.parentID === input.messageID),
       )
-      const target = messages.find((m) => m.info.id === input.messageID)
+      const target = turnMessages.find((m) => m.info.id === input.messageID)
       if (!target || target.info.role !== "user") return
-      const msgDiffs = yield* computeDiff({ messages })
+
+      // Layer-1 summary-range: parent is the synthetic request; its child is the
+      // summary assistant (no file edits). Diffs must cover from_id..to_id instead.
+      let msgDiffSource = turnMessages
+      for (const p of target.parts) {
+        if (p.type !== "text" || typeof (p as { text?: string }).text !== "string") continue
+        const range = parseSummaryRange((p as { text: string }).text)
+        if (!range) continue
+        const sliced = sliceMessagesForSummaryRange(all, range.fromId, range.toId)
+        if (sliced.length > 0) {
+          msgDiffSource = sliced
+          log.info("summarize summary-range diffs", {
+            sessionID: input.sessionID,
+            fromId: range.fromId,
+            toId: range.toId,
+            rangeMessages: sliced.length,
+          })
+        }
+        break
+      }
+
+      const msgDiffs = yield* computeDiff({ messages: msgDiffSource })
       target.info.summary = { ...target.info.summary, diffs: msgDiffs }
       yield* sessions.updateMessage(target.info)
     })

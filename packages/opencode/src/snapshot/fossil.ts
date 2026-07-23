@@ -8,6 +8,7 @@ import { Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import { Service as SnapshotService, type Interface, type Patch, type FileDiff } from "."
+import { getCodegraphDbPath, symbolsInFilePaths, serializeForTag } from "@/codegraph/reader"
 
 const log = Log.create({ service: "snapshot-fossil" })
 
@@ -307,6 +308,58 @@ export const layer = Layer.effect(
               ).slice(0, 40)
 
               log.info("tracking", { hash: afterHash, before: beforeHash })
+
+              // Structural tagging: attach codegraph symbols to fossil snapshot.
+              // Reads codegraph.db directly (no CLI). Errors are caught and logged
+              // — must never block or fail the snapshot itself.
+              if (beforeHash) {
+                yield* Effect.gen(function* () {
+                  const diff = yield* fossil(
+                    ["diff", "--from", beforeHash, "--to", afterHash, "--brief"],
+                    { cwd: worktree },
+                  )
+                  if (diff.code !== 0 || !diff.text.trim()) return
+
+                  const changedFiles = diff.text
+                    .trim()
+                    .split("\n")
+                    .map((l: string) => l.replace(/^[A-Z]+\s+/, "").trim())
+                    .filter((f: string) => f.length > 0)
+                    .map((f: string) => f.replace(/\\/g, "/"))
+
+                  if (changedFiles.length === 0) return
+
+                  const dbPath = getCodegraphDbPath(worktree)
+                  const symbols = symbolsInFilePaths(dbPath, changedFiles, { maxResults: 100 })
+                  if (symbols.length === 0) return
+
+                  // Build compact tag value
+                  const byKind: Record<string, number> = {}
+                  for (const s of symbols) byKind[s.kind] = (byKind[s.kind] ?? 0) + 1
+                  const kindStr = Object.entries(byKind)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(",")
+                  const topSymbols = symbols
+                    .filter((s) => s.kind !== "import" && s.kind !== "file")
+                    .slice(0, 20)
+                    .map((s) => `${s.name}[${s.kind}@${(s.filePath ?? "").split("/").pop()}]`)
+                    .join(",")
+                  const tagValue = `KINDS:${kindStr}|TOP:${topSymbols}`
+
+                  // Store as fossil tag
+                  yield* fossil(
+                    ["tag", "add", "sym", tagValue, afterHash, "--propagate"],
+                    { cwd: worktree },
+                  )
+                }).pipe(
+                  Effect.catch((err) => {
+                    log.debug("structural tagging skipped", { err: String(err), hash: afterHash })
+                    return Effect.void
+                  }),
+                )
+              }
+
               return afterHash
             }).pipe(Effect.orDie),
           )

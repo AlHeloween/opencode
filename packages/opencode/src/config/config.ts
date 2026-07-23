@@ -35,6 +35,7 @@ import { ConfigLayout } from "./layout"
 import { ConfigLSP } from "./lsp"
 import { ConfigManaged } from "./managed"
 import { ConfigMCP } from "./mcp"
+import { injectAutoCodegraphMcp } from "./codegraph-mcp-auto"
 import { ConfigModelID } from "./model-id"
 import { ConfigParse } from "./parse"
 import { ConfigPaths } from "./paths"
@@ -861,6 +862,16 @@ export const layer = Layer.effect(
         }
 
         if (!result.username) result.username = os.userInfo().username
+
+        // Auto-inject mcp.codegraph when missing so hybrid CodeGraph (MCP→SQLite)
+        // works without hand-editing gitignored opencode.json. Respects explicit
+        // mcp.codegraph (including { enabled: false }) and OPENCODE_CODEGRAPH_MCP=0.
+        {
+          const auto = injectAutoCodegraphMcp(result.mcp as any, ctx.worktree)
+          if (auto.injected || Object.keys(auto.mcp).length > 0) {
+            result.mcp = auto.mcp as typeof result.mcp
+          }
+        }
 
         if (result.autoshare === true && !result.share) {
           result.share = "auto"

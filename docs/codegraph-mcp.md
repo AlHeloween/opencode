@@ -12,22 +12,36 @@
 
 ## Config (opencode)
 
-`opencode.json` is often gitignored. Add (or merge):
+### Automatic (default)
+
+When config is loaded, opencode **auto-injects** `mcp.codegraph` if:
+
+- it is **not** already set in any config layer, and  
+- `.codegraph/` exists **or** `codegraph` is on PATH (incl. `Global.Path.bin`), and  
+- env is not opting out: `OPENCODE_CODEGRAPH_MCP=0|false|off|no`
+
+Injected shape:
 
 ```json
 {
-  "mcp": {
-    "codegraph": {
-      "type": "local",
-      "command": ["codegraph", "serve", "--mcp"],
-      "enabled": true,
-      "timeout": 120000,
-      "environment": {
-        "CODEGRAPH_MCP_TOOLS": "explore,search,callers,callees,impact,node,files,status"
-      }
-    }
+  "type": "local",
+  "command": ["codegraph", "serve", "--mcp"],
+  "enabled": true,
+  "timeout": 120000,
+  "environment": {
+    "CODEGRAPH_MCP_TOOLS": "explore,search,callers,callees,impact,node,files,status"
   }
 }
+```
+
+This is **in-memory** on load (no write to gitignored `opencode.json`). MCP service then starts stdio `serve --mcp` like any other local MCP server.
+
+### Manual override
+
+Set `mcp.codegraph` explicitly in `opencode.json` / global config to customize or disable:
+
+```json
+{ "mcp": { "codegraph": { "enabled": false } } }
 ```
 
 Installer snippet: `codegraph install --print-config opencode`.

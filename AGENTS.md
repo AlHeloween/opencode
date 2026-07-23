@@ -629,7 +629,7 @@ In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the re
 
 - **Built-in `codegraph` tool:** MCP touch → SQLite pack (symbols, cross-file edges, external files). Prefer including file paths in the query.
 - **Fossil impact/tag:** same hybrid on changed files (`KINDS|TOP|IMPACT` from SQLite).
-- **Config:** `mcp.codegraph` + optional `CODEGRAPH_MCP_TOOLS` / `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default 500). See `docs/codegraph-mcp.md`.
+- **Config:** `mcp.codegraph` is **auto-injected** on config load when `.codegraph/` or `codegraph` binary exists (opt out: `OPENCODE_CODEGRAPH_MCP=0`). Optional `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default 500). See `docs/codegraph-mcp.md`.
 - **Do not** write `codegraph.db` or use CLI reindex as a silent fallback (~20m).
 
 If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision. Plan: `plans/2026-07-23_codegraph_mcp_only.md`.

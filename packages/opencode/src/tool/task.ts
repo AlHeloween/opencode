@@ -6,6 +6,7 @@ import { MessageV2 } from "../session/message-v2"
 import { Agent } from "../agent/agent"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
+import { Permission } from "@/permission"
 import { InstanceState } from "@/effect/instance-state"
 import { Checkpoint } from "../session/checkpoint"
 import { Effect, Exit, Option, Schema } from "effect"
@@ -158,8 +159,9 @@ export const TaskTool = Tool.define(
         )
       }
 
-      const canTask = next.permission.some((rule) => rule.permission === id)
-      const canTodo = next.permission.some((rule) => rule.permission === "todowrite")
+      // Evaluate real allow (so defaults "*" allow counts — not only an explicit todowrite rule)
+      const canTask = Permission.evaluate(id, "*", next.permission).action === "allow"
+      const canTodo = Permission.evaluate("todowrite", "*", next.permission).action === "allow"
 
       const taskID = params.task_id
       const session = taskID

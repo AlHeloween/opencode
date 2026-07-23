@@ -160,29 +160,32 @@ export const layer = Layer.effect(
           orchestrator: {
             name: "orchestrator",
             color: "#90EE50",
-            description: `Autonomous development orchestrator`,
+            description: `Autonomous development orchestrator — plans + directives only; workers implement`,
             options: {},
             prompt: PROMPT_ORCHESTRATOR,
+            // AGI loop: orch writes plan hygiene + XML worker directives; build workers execute.
+            // No shell (workers verify). Edit only plans/ + plans_completed/. task → explore only.
             permission: Permission.merge(
               defaults,
               user,
               Permission.fromConfig({
                 edit: {
                   "*": "deny",
-                  [path.join(".opencode", "data", "memory", "*_orchestrator.md")]: "allow",
                   [path.join("plans", "*")]: "allow",
+                  [path.join("plans_completed", "*")]: "allow",
+                  [path.join(".opencode", "data", "memory", "*_orchestrator.md")]: "allow",
                 },
                 write: {
                   "*": "deny",
                   [path.join("plans", "*")]: "allow",
+                  [path.join("plans_completed", "*")]: "allow",
+                  [path.join(".opencode", "data", "memory", "*_orchestrator.md")]: "allow",
                 },
-                bash: "allow",
-                cmd: "allow",
-                powershell: "allow",
-                run: "allow",
-                // inherits defaults destructive-file/db/git/fossil = deny
+                bash: "deny",
+                cmd: "deny",
+                powershell: "deny",
+                run: "deny",
                 task: "allow",
-                todowrite: "deny",
                 read: "allow",
                 glob: "allow",
                 grep: "allow",
@@ -195,18 +198,13 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+            // Only explore — not general/coder (workers implement via AGI main session)
             subagents: ["explore"],
           },
           general: {
             name: "general",
             description: `General-purpose subagent for planning, design alternatives, root-cause analysis, and multi-step implementation strategy. Use this after explore has gathered scope evidence, or when a focused non-explore subtask should run in parallel.`,
-            permission: Permission.merge(
-              defaults,
-              user,
-              Permission.fromConfig({
-                todowrite: "deny",
-              }),
-            ),
+            permission: Permission.merge(defaults, user),
             prompt: PROMPT_GENERAL,
             options: {},
             mode: "subagent",
@@ -251,7 +249,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               Permission.fromConfig({
-                todowrite: "deny",
                 task: "deny",
               }),
             ),
@@ -281,6 +278,7 @@ export const layer = Layer.effect(
                 universalsearch: "allow",
                 messagesearch: "allow",
                 "session-read": "allow",
+                todowrite: "allow",
                 external_directory: {
                   "*": "ask",
                   ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
@@ -299,7 +297,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               Permission.fromConfig({
-                todowrite: "deny",
                 task: "deny",
                 webfetch: "deny",
                 universalsearch: "deny",

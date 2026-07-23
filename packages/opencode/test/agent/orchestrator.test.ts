@@ -55,31 +55,41 @@ test("orchestrator has light green color", async () => {
   })
 })
 
-test("orchestrator prompt contains strategist and ADID references", async () => {
+test("orchestrator prompt is coordinator contract (plans, no source edits)", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const orch = await load(tmp.path, (svc) => svc.get("orchestrator"))
       expect(orch!.prompt).toBeDefined()
-      expect(orch!.prompt!.length).toBeGreaterThan(100)
-      expect(orch!.prompt!).toContain("STRATEGIST")
-      expect(orch!.prompt!).toContain("ADID Framework")
+      expect(orch!.prompt!).toContain("agent.orchestrator")
+      expect(orch!.prompt!).toMatch(/plans|delegate/i)
     },
   })
 })
 
-test("orchestrator denies edit, write, bash, task, todowrite", async () => {
+test("orchestrator is coordinator: no shell; plan dirs only; task + explore only", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const orch = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      // No implementer shell — workers (build) execute
+      expect(evalPerm(orch, "bash")).toBe("deny")
+      expect(evalPerm(orch, "cmd")).toBe("deny")
+      expect(evalPerm(orch, "powershell")).toBe("deny")
+      expect(evalPerm(orch, "run")).toBe("deny")
+      // Default path deny for edit/write (*); plan paths allowed separately
       expect(evalPerm(orch, "edit")).toBe("deny")
       expect(evalPerm(orch, "write")).toBe("deny")
-      expect(evalPerm(orch, "bash")).toBe("deny")
-      expect(evalPerm(orch, "task")).toBe("deny")
-      expect(evalPerm(orch, "todowrite")).toBe("deny")
+      expect(Permission.evaluate("edit", "plans/foo.md", orch!.permission).action).toBe("allow")
+      expect(Permission.evaluate("edit", "plans_completed/foo.md", orch!.permission).action).toBe("allow")
+      expect(Permission.evaluate("edit", "packages/opencode/src/x.ts", orch!.permission).action).toBe("deny")
+      // Delegate only via task; subagents list is explore-only
+      expect(evalPerm(orch, "task")).toBe("allow")
+      expect(orch!.subagents).toEqual(["explore"])
+      expect(orch!.subagents).not.toContain("general")
+      expect(orch!.subagents).not.toContain("coder")
     },
   })
 })

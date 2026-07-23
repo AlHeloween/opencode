@@ -79,7 +79,7 @@ test("explore agent denies edit and write", async () => {
       expect(explore?.mode).toBe("subagent")
       expect(evalPerm(explore, "edit")).toBe("deny")
       expect(evalPerm(explore, "write")).toBe("deny")
-      expect(evalPerm(explore, "todowrite")).toBe("deny")
+      expect(evalPerm(explore, "todowrite")).toBe("allow")
     },
   })
 })
@@ -98,7 +98,7 @@ test("explore agent asks for external directories and allows Truncate.truncateGl
   })
 })
 
-test("general agent denies todo tools", async () => {
+test("general agent allows todo tools (per-session list)", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
@@ -108,7 +108,7 @@ test("general agent denies todo tools", async () => {
       expect(general?.mode).toBe("subagent")
       expect(general?.hidden).toBeUndefined()
       expect(general?.description).toContain("planning")
-      expect(evalPerm(general, "todowrite")).toBe("deny")
+      expect(evalPerm(general, "todowrite")).toBe("allow")
     },
   })
 })

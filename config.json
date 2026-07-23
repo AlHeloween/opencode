@@ -10,7 +10,15 @@
     "doom_loop": "allow",
     "webfetch": "allow",
     "messagesearch": "allow",
-    "session-read": "allow"
+    "session-read": "allow",
+    "external_directory": {
+      "*": "allow",
+      "D:\\zPython\\opencode\\dfdsfsdfs\\*": "allow"
+    },
+    "destructive-file": "deny",
+    "destructive-db": "deny",
+    "destructive-git": "deny",
+    "destructive-fossil": "allow"
   },
   "external_directory_mode": "allow",
   "navigation": {

@@ -312,11 +312,19 @@ function buildMessageStar(input: {
   return [
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain in the DB (not deleted).",
-    "Epistemic ranks: summaries = Inferred; session-read(id) = Exact; unaided recall = Guess.",
-    `Recover Exact detail with session-read (message IDs below) or messagesearch (keywords).${lastSvLine}`,
+    "",
+    "Epistemic ranks (InfoMark): summaries = Inferred; session-read(id) = Exact; unaided recall = Guess.",
+    "Never treat summary text as Exact ground truth without session-read.",
+    "",
+    "Fast recovery — use these tools directly, no exploration needed:",
+    "  session-read(sessionId, offset=#N)  → Exact message text (use #N offsets below)",
+    "  messagesearch(\"keyword\")           → find messages by topic across sessions",
+    "  db-read(database=\"opencode\")       → query session/message tables directly",
+    "    Schema: session(id,title,time_compacting,…)  message(id,session_id,data JSON)",
     ...(input.priorMessageStarId
       ? [`Prior message*: \`${input.priorMessageStarId}\` — session-read for older summaries.`]
       : []),
+    lastSvLine,
     "",
     ...summaryBlocks,
     decisionsBlock,

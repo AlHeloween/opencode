@@ -457,6 +457,8 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 
 **open-code prompts kernel sync:** Canonical source is `opencode_prompts_kernel.py` at repo root. The `.txt` runtime copy is **generated** (gitignored) and loaded by `transform.ts` → `systemPromptPrefix()`. Rebuild / re-render after kernel changes — out-of-sync local files mean stale agent definitions at runtime.
 
+**Python test suite sync:** Any modification to `opencode_prompts_kernel.py` (contract IDs, SemanticVector fields, class constructors, agent prompt file list) MUST be followed by corresponding updates to `tests/test_reasoning_kernel.py`. Run `python -m pytest tests/test_reasoning_kernel.py -v` after kernel changes; all 309 tests must pass. If agent prompt files are added, removed, or renamed, update the `prompts` dict in `test_agent_prompt_files_reference_generated_contract_ids`.
+
 ## Dependency Catalog (MANDATORY)
 
 All shared dependencies MUST be declared in the root `catalog` (`package.json` → `workspaces.catalog`) and referenced as `"catalog:"` in sub-packages. Hardcoded versions in sub-package `package.json` files cause version drift, duplicate installs, and subtle runtime conflicts.

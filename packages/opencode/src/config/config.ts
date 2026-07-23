@@ -216,6 +216,10 @@ export const Info = Schema.Struct({
   }),
   layout: Schema.optional(ConfigLayout.Layout).annotate({ description: "@deprecated Always uses stretch layout." }),
   permission: Schema.optional(ConfigPermission.Info),
+  bypass_constitution: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Bypass constitution hard-blocks for destructive commands (fossil commit, git checkout, etc.). When true, the constitution guard is skipped entirely. Separate from permission.destructive which controls the user-facing permission dialog.",
+  }),
   navigation: Schema.optional(
     Schema.Struct({
       allow: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
@@ -1162,6 +1166,8 @@ export const ENV_TO_CONFIG_MAP: Record<string, string> = {
   OPENCODE_DB: "paths.dbPath",
   // Terminal
   OPENCODE_TERMINAL: "terminal.mode",
+  // Constitution bypass — skips hard-blocks on fossil/git destructive commands
+  OPENCODE_BYPASS_CONSTITUTION: "bypass_constitution",
 }
 
 function parseEnvValue(raw: string): unknown {

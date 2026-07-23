@@ -53,6 +53,22 @@ function Mcp(props: { api: TuiPluginApi }) {
   )
 }
 
+function ConstitutionBypass() {
+  const bypassed = createMemo(() => {
+    const v = process.env["OPENCODE_BYPASS_CONSTITUTION"]
+    return v === "1" || v?.toLowerCase() === "true" || v?.toLowerCase() === "yes"
+  })
+  if (!bypassed()) return null
+  return (
+    <box flexShrink={0}>
+      <text>
+        <span style={{ fg: "#ebcb8b" }}>⚠</span>
+        <span style={{ fg: "#d08770" }}> bypass</span>
+      </text>
+    </box>
+  )
+}
+
 function Version(props: { api: TuiPluginApi }) {
   const theme = () => props.api.theme.current
 
@@ -95,6 +111,7 @@ function View(props: { api: TuiPluginApi }) {
       <Directory api={props.api} />
       <Mcp api={props.api} />
       <SnapshotBackend />
+      <ConstitutionBypass />
       <box flexGrow={1} />
       <Version api={props.api} />
     </box>

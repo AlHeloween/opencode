@@ -48,76 +48,129 @@ export const InstanceBootstrap = Effect.gen(function* () {
   )
 }).pipe(Effect.withSpan("InstanceBootstrap"))
 
-// ——— CodeGraph auto-init (self-contained, no external CLI needed) ———
+// ——— CodeGraph auto-init + MCP server (self-contained, no external CLI needed) ———
+
+/**
+ * Find the codegraph binary. Same resolution as tool/codegraph.ts:
+ * PATH first, then sibling of the opencode executable.
+ */
+function findCodegraphBin(): string | null {
+  const bin = which("codegraph")
+  if (bin) return bin
+  try {
+    const exts = process.platform === "win32" ? [".exe", ".cmd", ".CMD"] : [""]
+    const binDir = path.dirname(process.execPath)
+    for (const ext of exts) {
+      const sibling = path.join(binDir, `codegraph${ext}`)
+      if (require("fs").existsSync(sibling)) return sibling
+    }
+  } catch { /* fall through */ }
+  return null
+}
 
 function initCodeGraphBg(): void {
   const dir = Global.Path.worktree || Global.Path.home
   const cgDir = path.join(dir, ".codegraph")
   const dbPath = path.join(cgDir, "codegraph.db")
 
-  try {
-    if (require("fs").existsSync(dbPath)) return // already initialized
-  } catch { /* ignore */ }
+  const dbExists = (() => {
+    try { return require("fs").existsSync(dbPath) }
+    catch { return false }
+  })()
 
-  // 1. Try the codegraph CLI alongside the running binary, then PATH
-  let cgBin = which("codegraph")
-  if (!cgBin) {
-    // Check alongside the opencode binary (same directory) for any valid extension
-    try {
-      const exts = process.platform === "win32" ? [".exe", ".cmd", ".CMD"] : [""]
-      const binDir = path.dirname(process.execPath)
-      for (const ext of exts) {
-        const sibling = path.join(binDir, `codegraph${ext}`)
-        if (require("fs").existsSync(sibling)) { cgBin = sibling; break }
+  const cgBin = findCodegraphBin()
+
+  // ——— Init (only if DB doesn't exist) ———
+  if (!dbExists) {
+    if (cgBin) {
+      const isScript = process.platform === "win32" && (
+        cgBin.toLowerCase().endsWith(".cmd") || cgBin.toLowerCase().endsWith(".bat")
+      )
+      const args = ["init"]
+      const bin = isScript ? "cmd.exe" : cgBin
+      if (isScript) args.unshift("/c", cgBin)
+      const child = spawn(bin, args, { cwd: dir, stdio: "ignore", timeout: 120000 })
+      child.on("error", () => { Log.Default.warn("bug: codegraph init failed") })
+      child.unref()
+    } else {
+      // Self-contained init: create directory + empty schema via bun:sqlite
+      Log.Default.debug("codegraph CLI not found — creating empty index via bun:sqlite")
+      try {
+        require("fs").mkdirSync(cgDir, { recursive: true })
+        const { Database } = require("bun:sqlite") as typeof import("bun:sqlite")
+        const db = new Database(dbPath)
+        db.run("PRAGMA journal_mode=WAL")
+        db.run(`CREATE TABLE IF NOT EXISTS nodes (
+          id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL,
+          qualified_name TEXT NOT NULL, file_path TEXT NOT NULL, language TEXT NOT NULL,
+          start_line INTEGER NOT NULL, end_line INTEGER NOT NULL,
+          start_column INTEGER NOT NULL, end_column INTEGER NOT NULL,
+          docstring TEXT, signature TEXT, visibility TEXT,
+          is_exported INTEGER DEFAULT 0, is_async INTEGER DEFAULT 0,
+          is_static INTEGER DEFAULT 0, is_abstract INTEGER DEFAULT 0,
+          decorators TEXT, type_parameters TEXT, return_type TEXT, updated_at INTEGER NOT NULL
+        )`)
+        db.run(`CREATE TABLE IF NOT EXISTS edges (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL,
+          target TEXT NOT NULL, kind TEXT NOT NULL, metadata TEXT,
+          line INTEGER, col INTEGER, provenance TEXT DEFAULT NULL
+        )`)
+        db.run("CREATE INDEX IF NOT EXISTS idx_edges_source_kind ON edges(source, kind)")
+        db.run("CREATE INDEX IF NOT EXISTS idx_edges_target_kind ON edges(target, kind)")
+        try { db.run(`CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+          id, name, qualified_name, docstring, signature, content='nodes', content_rowid='rowid'
+        )`) } catch { /* FTS5 not available — queries still work via LIKE */ }
+        db.run("CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, language TEXT NOT NULL, size INTEGER NOT NULL, modified_at INTEGER NOT NULL, indexed_at INTEGER NOT NULL, node_count INTEGER DEFAULT 0, errors TEXT)")
+        db.run("CREATE TABLE IF NOT EXISTS project_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)")
+        db.run("INSERT OR IGNORE INTO project_metadata (key, value, updated_at) VALUES ('index_state', 'empty', 1)")
+        db.close()
+        Log.Default.info("codegraph: empty index created — run 'codegraph init' with the CLI for full indexing")
+      } catch (e) {
+        Log.Default.warn("bug: codegraph self-init failed", { error: String(e) })
       }
-    } catch { /* fall through */ }
-  }
-  if (cgBin) {
-    const isScript = process.platform === "win32" && (
-      cgBin.toLowerCase().endsWith(".cmd") || cgBin.toLowerCase().endsWith(".bat")
-    )
-    const args = ["init"]
-    const bin = isScript ? "cmd.exe" : cgBin
-    if (isScript) args.unshift("/c", cgBin)
-    const child = spawn(bin, args, { cwd: dir, stdio: "ignore", timeout: 120000 })
-    child.on("error", () => { Log.Default.warn("bug: codegraph init failed") })
-    child.unref()
-    return
+    }
   }
 
-  // 2. Self-contained init: create directory + empty schema via bun:sqlite
-  Log.Default.debug("codegraph CLI not found — creating empty index via bun:sqlite")
-  try {
-    require("fs").mkdirSync(cgDir, { recursive: true })
-    const { Database } = require("bun:sqlite") as typeof import("bun:sqlite")
-    const db = new Database(dbPath)
-    db.run("PRAGMA journal_mode=WAL")
-    db.run(`CREATE TABLE IF NOT EXISTS nodes (
-      id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL,
-      qualified_name TEXT NOT NULL, file_path TEXT NOT NULL, language TEXT NOT NULL,
-      start_line INTEGER NOT NULL, end_line INTEGER NOT NULL,
-      start_column INTEGER NOT NULL, end_column INTEGER NOT NULL,
-      docstring TEXT, signature TEXT, visibility TEXT,
-      is_exported INTEGER DEFAULT 0, is_async INTEGER DEFAULT 0,
-      is_static INTEGER DEFAULT 0, is_abstract INTEGER DEFAULT 0,
-      decorators TEXT, type_parameters TEXT, return_type TEXT, updated_at INTEGER NOT NULL
-    )`)
-    db.run(`CREATE TABLE IF NOT EXISTS edges (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL,
-      target TEXT NOT NULL, kind TEXT NOT NULL, metadata TEXT,
-      line INTEGER, col INTEGER, provenance TEXT DEFAULT NULL
-    )`)
-    db.run("CREATE INDEX IF NOT EXISTS idx_edges_source_kind ON edges(source, kind)")
-    db.run("CREATE INDEX IF NOT EXISTS idx_edges_target_kind ON edges(target, kind)")
-    try { db.run(`CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
-      id, name, qualified_name, docstring, signature, content='nodes', content_rowid='rowid'
-    )`) } catch { /* FTS5 not available — queries still work via LIKE */ }
-    db.run("CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, language TEXT NOT NULL, size INTEGER NOT NULL, modified_at INTEGER NOT NULL, indexed_at INTEGER NOT NULL, node_count INTEGER DEFAULT 0, errors TEXT)")
-    db.run("CREATE TABLE IF NOT EXISTS project_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)")
-    db.run("INSERT OR IGNORE INTO project_metadata (key, value, updated_at) VALUES ('index_state', 'empty', 1)")
-    db.close()
-    Log.Default.info("codegraph: empty index created — run 'codegraph init' with the CLI for full indexing")
-  } catch (e) {
-    Log.Default.warn("bug: codegraph self-init failed", { error: String(e) })
+  // ——— MCP server daemon (always-on file watcher + auto-sync) ———
+  // The MCP server keeps the codegraph.db fresh via native OS file watchers
+  // (ReadDirectoryChangesW on Windows, FSEvents on macOS, inotify on Linux)
+  // with a 2-second debounced incremental sync. Without this, the DB is
+  // stale and our direct-reader (reader.ts) sees outdated data.
+  if (cgBin && dbExists) {
+    try {
+      // Check if a daemon is already running (codegraph daemons lists PIDs)
+      const { execSync } = require("child_process") as typeof import("child_process")
+      const isScript = process.platform === "win32" && (
+        cgBin.toLowerCase().endsWith(".cmd") || cgBin.toLowerCase().endsWith(".bat")
+      )
+      const checkBin = isScript ? "cmd.exe" : cgBin
+      const checkArgs = isScript ? ["/c", cgBin, "daemons"] : ["daemons"]
+      const daemonStatus = execSync(
+        isScript ? `"${cgBin}" daemons` : `${cgBin} daemons`,
+        { encoding: "utf-8", timeout: 5000, windowsHide: true },
+      ) as string
+
+      if (daemonStatus.includes("No CodeGraph daemons running")) {
+        // Spawn MCP server as detached background process.
+        // The --mcp flag activates stdio transport for MCP clients AND the
+        // internal file watcher. With stdio ignored, the watcher still runs.
+        const serveBin = isScript ? "cmd.exe" : cgBin
+        const serveArgs = isScript ? ["/c", cgBin, "serve", "--mcp"] : ["serve", "--mcp"]
+        const child = spawn(serveBin, serveArgs, {
+          cwd: dir,
+          stdio: "ignore",
+          detached: true,
+        })
+        child.on("error", (err) => {
+          Log.Default.warn("bug: codegraph MCP server failed to start", { error: err.message })
+        })
+        child.unref()
+        Log.Default.info("codegraph: MCP server started (auto-sync watcher active)")
+      } else {
+        Log.Default.debug("codegraph: MCP server already running")
+      }
+    } catch (e) {
+      Log.Default.warn("bug: codegraph MCP server check/start failed", { error: String(e) })
+    }
   }
 }

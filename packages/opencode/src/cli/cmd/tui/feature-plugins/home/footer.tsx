@@ -3,6 +3,7 @@ import { createMemo, createResource, Match, Show, Switch } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
 import { formatProjectDirectory } from "../../util/directory-display"
 import { detectIndicatorBackend, indicatorColor } from "../../util/vcs-indicator"
+import { readSymTag, type SymTagInfo } from "../../util/snapshot-symtag"
 
 const id = "internal:home-footer"
 
@@ -58,6 +59,7 @@ function ConstitutionBypass() {
     const v = process.env["OPENCODE_BYPASS_CONSTITUTION"]
     return v === "1" || v?.toLowerCase() === "true" || v?.toLowerCase() === "yes"
   })
+  // no-op when not bypassed — clean footer
   if (!bypassed()) return null
   return (
     <box flexShrink={0}>
@@ -86,12 +88,37 @@ function SnapshotBackend() {
   const color = createMemo(() => indicatorColor(backend()))
   const vcs = createMemo(() => (backend() ? backend()! : "no vcs"))
 
+  // Structural metadata from the last snapshot's sym tag (lazy, ~20ms fossil subprocess).
+  const worktree = Global.Path.worktree || Global.Path.home
+  const [symTag] = createResource(
+    () => backend() === "fossil" ? worktree : null,
+    async (wt) => readSymTag(wt),
+  )
+
+  const symSummary = createMemo(() => {
+    const tag = symTag()
+    if (!tag?.totalSymbols) return null
+    // Compact: top 3 kinds + total, e.g. "fn=5,class=3,method=224 (410)"
+    const topKinds = Object.entries(tag.symbolCountByKind)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(",")
+    return `${topKinds} (${tag.totalSymbols})`
+  })
+
   return (
     <box flexShrink={0} gap={1} flexDirection="row">
       <text>
         <span style={{ fg: color() }}>●</span>{" "}
         <span style={{ fg: backend() ? "#d8dee9" : "#4c566a" }}>{vcs()}</span>
       </text>
+      <Show when={symSummary()}>
+        <text>
+          <span style={{ fg: "#b48ead" }}>◆</span>{" "}
+          <span style={{ fg: "#81a1c1" }}>{symSummary()}</span>
+        </text>
+      </Show>
     </box>
   )
 }

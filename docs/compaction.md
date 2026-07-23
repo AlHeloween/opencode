@@ -1,8 +1,63 @@
 # Mechanistic Compaction — Stable Continuous Memory
 
 **Status:** production  
-**Last updated:** 2026-07-22  
-**Code:** `packages/opencode/src/session/compaction.ts`, `prompt.ts` (`runLoop`), `overflow.ts`, `message-v2.ts` (`filterCompacted*`)
+**Last updated:** 2026-07-23  
+**Code:** `packages/opencode/src/session/compaction.ts`, `prompt.ts` (`runLoop`), `summary.ts`, `overflow.ts`, `message-v2.ts` (`filterCompacted*`)
+
+---
+
+## Model vs system (non-negotiable)
+
+Asking a model to invent **digital facts** (message IDs, session IDs, diffs, hashes, DB offsets) is the wrong instrument — same class of error as asking it to guess a SHA-256. Those values are produced by **code**, not prose.
+
+### Model generates (Inferred narrative only)
+
+| Output | Role |
+|--------|------|
+| `## Semantic Vector` | dominant + key_phrases (Σ=1.0) — sparse intent for FTS / chain |
+| `## Goal` | what the user was trying to do in the window |
+| `## Key decisions` | decision lines (later preserved verbatim by system across compact) |
+| `## Current state` | done / in progress / remaining |
+
+That is **all** the Layer-1 summary request asks the model to write. No IDs, no diffs, no tool recipes, no “include these message IDs.”
+
+### System generates (Exact machinery)
+
+| Output | How / where |
+|--------|-------------|
+| Open-window **counter** | `computeOpenWindowTokens` — `chars/4` since last summary / of visible set |
+| **When** to inject Layer-1 | Counter ≥ `SUMMARY_INTERVAL_TOKENS` (32 768) on stop + continue + pre-overflow |
+| Summary **range** `from_id` / `to_id` / `session_id` | Ignored text part: `<!-- summary-range … -->` — **not** sent to the model (`toModelMessages` skips `ignored`) |
+| Model-facing inject prose | Synthetic non-ignored part: SVM/goal/decisions/state template only |
+| `assistant.summary = true` | Flag on the next assistant so the reply is the Layer-1 summary |
+| **Exact stamp** after summary | Synthetic part on the summary assistant: `summary_message_id`, `from_id`, `to_id`, `session_id` (from ignored marker + DB id) |
+| **File diffs** for the window | `SessionSummary.summarize` → fossil/tool `computeDiff` over `from_id`…`to_id` → `user.summary.diffs` + session Modified Files |
+| **Structural detail** | CodeGraph / fossil `sym` tags / `Snapshot.impact` — not model text |
+| **`message*` body** | Entire `=== COMPACTED ===` artifact: system links, decisions block, Recent fold, recovery recipes |
+| Soft-hide / `compacted` | System flags; never hard-delete |
+| Prior `message*` chain, `#N` offsets | System when building the next star |
+| Decisions block on star | System extracts `## Key decisions` from summary bodies and copies them |
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  MODEL (Inferred)                                           │
+│    Semantic Vector · Goal · Key decisions · Current state   │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  SYSTEM (Exact)                                             │
+│    range IDs · counter · stamps · soft-hide · message*      │
+│    fossil diffs · CodeGraph structure · session-read links  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Anti-pattern (forbidden)
+
+| Never | Why |
+|-------|-----|
+| Ask the model to echo `from_id` / `to_id` / `session_id` | Digits are not model-reliable |
+| Ask the model to produce file diffs or hashes | Fossil / CodeGraph own Exact change |
+| Trust summary prose as Exact ground truth | Inferred until `session-read` / diff / graph |
+| Hide `message*` from the user UI | Model memory must stay observable |
 
 ---
 
@@ -18,12 +73,12 @@ That compression ratio exceeds what information theory allows for actionable det
 
 ### Mechanistic (stable continuous memory)
 
-1. Summarize **small ~30k segments** regularly — a bounded job.
-2. Each summary may be imperfect, but it always carries **hard links** (`from_id`, `to_id`, `summary_message_id`, `session_id`).
-3. On overflow, fold history into one active **`message*`** of `(s, s, s, recent m…)`.
+1. Summarize **small ~30k segments** regularly — a bounded job (model = prose).
+2. Each summary is imperfect prose, but **system** always attaches **hard links** (`from_id`, `to_id`, `summary_message_id`, `session_id`) and range **diffs**.
+3. On overflow, **system** folds history into one active **`message*`** of `(s, s, s, recent m…)`.
 4. **Never delete** messages. Soft-hide them from the model context; full DB remains for `session-read` / `messagesearch`.
 
-**Key benefit:** even a thin summary is a **handle**, not a final rewrite of the past. The agent recovers detail on the fly. Memory stays **stable and continuous**.
+**Key benefit:** even a thin summary is a **handle**, not a final rewrite of the past. Exact recovery is system + archive, not model recall.
 
 ```
 active working set  =  message* + recent s/m
@@ -36,16 +91,17 @@ addressable archive =  all messages in DB (soft-hidden from context, still reada
 
 ```
 counter = content tokens (chars/4) of open window since last summary
-         (or whole visible window if no summary yet)
+         (or whole visible window if no summary yet)     ← SYSTEM
 
 every time counter ≥ ~32_768
-    → injectSummaryRequest(from_id, to_id, session_id)
-    → model writes summary s (assistant.summary = true, with links)
+    → SYSTEM: inject ignored range marker + prose request
+    → MODEL: writes s (SVM / goal / decisions / state only)
+    → SYSTEM: stamp Exact links; attach fossil diffs for range
     → open window restarts after s  (counter effectively 0)
 
 (m, m, m, s, m, m, s, m, m, m)
-        ↓ overflow → compact()
-message* = (s, s, recent m…)     ← only visible memory
+        ↓ overflow → SYSTEM compact()
+message* = (s, s, recent m…)     ← only visible memory (system artifact)
         ↓
 counter := len(message*)/4       ← same counter, not a special branch
         ↓ + new m… grows open window
@@ -66,9 +122,9 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | Open-window **counter** ≥ ~32 768 | Counter = `chars/4` of content since last summary (or whole visible set if none). When threshold hits, system injects a summary request. **Model writes only Inferred prose:** `## Semantic Vector`, Goal, Key decisions, Current state. **Digital facts are never model-authored:** `from_id`/`to_id`/`session_id` live in an **ignored** system marker part; **file diffs** are attached by system via fossil snapshot/`computeDiff` over that range; **structural detail** via CodeGraph. System stamps Exact links after the summary assistant completes. |
-| **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | Collect all `summary: true` assistants from DB (including soft-hidden). Soft-hide every **visible** message. Inject one user `message*` = summaries + recent after last summary. Prior `message*` bodies are not re-nested. |
-| **3. Continuous memory** | Agent needs detail | `session-read` with message IDs from summaries / Recent sections; `messagesearch` by topic. |
+| **1. Incremental summary** | Open-window **counter** ≥ ~32 768 | **System** injects request (ignored range + prose). **Model** writes SVM / Goal / Key decisions / Current state. **System** stamps Exact IDs and attaches **fossil**/tool diffs for `from_id`…`to_id`; structural detail via **CodeGraph**. |
+| **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | **System only:** soft-hide visible messages; build `message*` = summaries (with system links) + Recent; prior star not re-nested. |
+| **3. Continuous memory** | Agent needs detail | **System tools:** `session-read` by ID, `messagesearch`, fossil diff, CodeGraph — not unaided model memory. |
 
 Checkpoints: after compact, checkpoint is **removed**; next successful turn saves a fresh checkpoint of the compacted visible set.
 
@@ -132,33 +188,43 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 | Hard-delete messages | Breaks recovery; archive is the ground truth |
 | Separate sub-agent for compaction | Cache break, unreliable tool/reasoning behavior. Summaries are produced by the same agent the user was talking to — no agent switch, no KV discontinuity. |
 | Permanent "already compacted" global skip | Breaks multi-round loop `(m*, …) → message**` |
-| User-facing compaction notifications | Mechanistic — no soft warnings, no "struggling" toasts. When context is full, compact runs. The model doesn't see the machinery. |
+| User-facing compaction notifications | Mechanistic — no soft warnings, no "struggling" toasts. When context is full, compact runs. |
+| Model-authored Exact IDs / diffs / hashes | System + fossil + CodeGraph only |
 
 ---
 
 ## Message shapes
 
-**Summary request** (synthetic user):
+### Layer-1 summary request (synthetic user — two parts)
 
-- Range: `from_id` … `to_id`, plus `session_id`
-- **Required first section:** `## Semantic Vector` (dominant + key_phrases with weights, Σ=1.0) — sparse intent embedding for FTS ranking and `sv_dominant` chain
-- Then Goal / Key decisions / Current state
-- Prior summary’s dominant is injected when available so the model can link the chain
-- Instructs model to embed those IDs in the summary for later `session-read`
+| Part | Flags | Author | Content |
+|------|-------|--------|---------|
+| Range marker | `synthetic` + **`ignored`** | **System** | `<!-- summary-range from_id="…" to_id="…" session_id="…" -->` — not in model context |
+| Prose request | `synthetic` | **System template → model answers** | Instructs **Inferred only**: Semantic Vector, Goal, Key decisions, Current state. Prior dominant hint optional. **No** “echo these IDs.” |
 
-**`message*`** (synthetic user, marker `=== COMPACTED ===`):
+### Summary assistant (`assistant.summary = true`)
 
-- Each summary block: text + `summary_message_id` / optional `from_id`/`to_id` / `session_id` / `sv_dominant`
-- `Prior message*: <id>` chain link — follow backward via session-read to recover older summaries
-- `--- Decisions ---` block: `## Key decisions` lines preserved verbatim across cycles (not re-summarized)
-- Recent section: tagged `[role \`msg_id\` info_mark=Mixed]` lines + ID range for session-read
-- Explicit note: older messages remain in DB; use session-read / messagesearch
+| Piece | Author |
+|-------|--------|
+| Body: SVM / Goal / Key decisions / Current state | **Model** |
+| `--- Exact (system) ---` stamp (`summary_message_id`, `from_id`, `to_id`, `session_id`) | **System** (after reply completes) |
+| `user.summary.diffs` on the range parent (file list +/−) | **System** via fossil/tool `computeDiff` over the range |
+
+### `message*` (synthetic user, starts with `=== COMPACTED ===`)
+
+Entire body is a **system** artifact:
+
+- Summary blocks: model body + **system** link lines (IDs from ignored parent range, not model prose)
+- `Prior message*: <id>` — system chain
+- `--- Decisions ---` — system copy of model decision lines
+- Recent fold — system faithful render of parts (including tool outputs) after last summary
+- Recovery recipes (`session-read`, `db-read`, fossil, git) — system text
 
 **Visibility:** `MessageV2.filterCompacted` / `filterCompactedEffect` skip `info.compacted === true`. Soft-hidden rows stay in SQLite for tools.
 
-**User-visible model memory:** `message*` is stored as a synthetic user text part (so it is not treated as typed user input for undo/fork), but the TUI and web UI **must render it** (labeled e.g. “Model memory (message*)”). Hiding it makes agent behavior unobservable. Other synthetic traffic (system-reminders, summary-range inject) stays hidden.
+**User-visible model memory:** `message*` is synthetic (not typed user input for undo/fork) but TUI/web UI **must render it** (e.g. “Model memory (message*)”). Hiding it makes post-compact behavior unobservable. Other synthetic traffic (system-reminders, ignored range marker) stays hidden from the human transcript.
 
-**message* detection:** `isMessageStar` / `isCompactionBoundary` match only text that **starts with** `=== COMPACTED ===`. Do not use `.includes()` — the post-compact system-reminder used to mention that marker and was mis-classified as message*, which **dropped every real user message** from the next Recent fold (assistants only). Reminder wording must never embed the literal marker string.
+**message* detection:** match only text that **starts with** `=== COMPACTED ===`. Do not use `.includes()` — post-compact reminders must never embed that literal marker.
 
 ---
 
@@ -166,11 +232,14 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 
 | File | Role |
 |------|------|
-| `session/compaction.ts` | `injectSummaryRequest`, `compact`, `isOverflow`, `SUMMARY_INTERVAL_TOKENS`, `computeOpenWindowTokens`, `hasPendingSummaryRequest`, decision preservation, SVM validation |
-| `session/prompt.ts` | Layer-1 open-window inject (stop+continue+post-compact); two overflow trigger sites: `isOverflowFromContent()` mid-loop + provider-forced `"compact"` result; checkpoint invalidate; system-reminder |
-| `session/overflow.ts` | Content-based overflow (`isOverflowFromContent` — text extraction + BPE tokenizer to avoid JSON inflation) and token-based overflow (`isOverflow`) |
-| `session/message-v2.ts` | `filterCompacted*`, message schema (`compacted`, `summary`), `CompactionPart` type |
-| `test/session/compaction.test.ts` | Unit coverage for the loop |
+| `session/compaction.ts` | `injectSummaryRequest` (ignored range + prose), `compact` / `message*`, open-window counter, decision preservation |
+| `session/summary.ts` | `parseSummaryRange`, range `computeDiff` (fossil/tool), `user.summary.diffs` |
+| `session/prompt.ts` | Layer-1 inject sites; Exact stamp after summary assistant; overflow → compact |
+| `session/overflow.ts` | Content-based overflow |
+| `session/message-v2.ts` | `filterCompacted*`, `ignored` parts skipped for model; `compacted` / `summary` fields |
+| `snapshot/fossil.ts` | Exact file diffs; structural tags / impact (CodeGraph) |
+| `test/session/compaction.test.ts` | Loop + model/system inject split |
+| `test/session/summary.test.ts` | Range parse + range diffs |
 
 ---
 

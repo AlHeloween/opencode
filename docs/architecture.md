@@ -150,24 +150,24 @@ Full write-up: **`docs/compaction.md`**.
 
 **Problem:** One-shot “summarize 500k tokens” produces unreliable memory soup; the agent drifts.
 
-**Solution:** Bounded ~30k summaries with hard message-ID links + soft-hide compact into `message*`. Archive stays in DB for `session-read` / `messagesearch`.
+**Solution:** Bounded ~30k summaries + soft-hide compact into `message*`. **Model** writes Inferred prose only (SVM / goal / decisions / state). **System** owns Exact digits (range IDs, stamps, fossil diffs, CodeGraph). Archive stays in DB for `session-read` / `messagesearch`. Full ownership table: **`docs/compaction.md` § Model vs system**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              MECHANISTIC COMPACTION LOOP                     │
 │                                                              │
-│  Layer 1 — every ~32K output tokens:                         │
-│    injectSummaryRequest(from_id, to_id, session_id)          │
-│    → model writes s (assistant.summary=true) with links      │
-│    → if open range > ~30K content, trim to last interval     │
+│  Layer 1 — open window ≥ ~32K content tokens (chars/4):      │
+│    SYSTEM: ignored range marker + prose inject               │
+│    MODEL:  s = SVM / Goal / Key decisions / Current state    │
+│    SYSTEM: Exact stamp + fossil diffs for from_id..to_id     │
+│            (CodeGraph = structural detail on those diffs)    │
 │                                                              │
-│  Layer 2 — on overflow:                                      │
+│  Layer 2 — on overflow (SYSTEM only):                        │
 │    (m,m,s,m,m,s,m,m) → message* = (s,s, recent m…)           │
 │    soft-hide all visible (info.compacted); never delete      │
-│    prior message* not re-nested; summaries re-collected      │
 │                                                              │
 │  Loop:  (m*, s, m, m, …) → compact again → message**         │
-│  Idempotent when only a lone message* is visible             │
+│  counter after compact := len(message*)/4                    │
 │                                                              │
 │  Memory model:                                               │
 │    active  = message* + recent s/m                           │

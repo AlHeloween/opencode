@@ -261,10 +261,10 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 **Compaction integration (mechanistic continuous memory):** See `docs/compaction.md`.
 
-- **Layer 1:** open-window **counter** (`chars/4` since last summary) ≥ ~32K → `injectSummaryRequest()` for a bounded range (`from_id`/`to_id`/`session_id`). After compact, counter becomes `len(message*)/4` by the same rule (no special message* branch). Runs on stop and continue. If the open range is larger than ~30K content, trim to the last interval.
-- **Layer 2:** on overflow, `compact()` builds one synthetic **`message*`** = all historical summaries + recent messages after the last summary. Visible messages are **soft-hidden** (`info.compacted = true`) — **never deleted**. Full history remains for `session-read` / `messagesearch`.
+- **Layer 1:** open-window **counter** (`chars/4` since last summary) ≥ ~32K → system injects summary request. **Model** writes only Inferred prose (SVM, Goal, Key decisions, Current state). **System** owns Exact digits: ignored `from_id`/`to_id`/`session_id` marker, post-summary Exact stamp, fossil/tool diffs for the range, CodeGraph structure. After compact, counter becomes `len(message*)/4` (same rule). Runs on stop and continue. See `docs/compaction.md` § Model vs system.
+- **Layer 2:** on overflow, **system** `compact()` builds **`message*`** (summaries + Recent); soft-hide visible messages — **never deleted**. Full history for `session-read` / `messagesearch`.
 - **Loop:** `(m*, s, m, m, …)` grows again → compact again. Lone `message*` is idempotent (no-op until growth).
-- **Why not one giant “summarize 500k”:** that yields unreliable “memory soup” and the agent loses track. Small summaries with **hard links** stay recoverable even when summary text is imperfect.
+- **Why not one giant “summarize 500k”:** memory soup. **Why not model-authored IDs/diffs:** same class of error as guessing a SHA-256 — system + fossil + CodeGraph only.
 - Checkpoint is **removed** on compact; next successful turn saves a fresh `Checkpoint.save()` of the compacted visible set. No separate compaction agent.
 
 **Rollback safety:** Atomic write via temp file + rename — no partial state ever touches disk.

@@ -244,6 +244,10 @@ function buildMessageStar(input: {
   sessionID: string
   summaries: { id: string; text: string; fromId?: string; toId?: string }[]
   recent: MessageV2.WithParts[]
+  /** 1-based global offset of the first recent message in the session.
+    * Used to render `#N` positions so the model can call session-read
+    * with an exact offset directly, without messagesearch indirection. */
+  recentStartOffset?: number
   /** Decisions preserved from prior compaction cycles (verbatim). */
   priorDecisions?: string[]
   /** Prior messageStar ID — chain link for recovering older summaries via session-read. */
@@ -287,9 +291,13 @@ function buildMessageStar(input: {
     : ""
 
   const recentIds = input.recent.map((m) => m.info.id)
-  const recentBlocks = input.recent.map((m) => {
+  const recentBlocks = input.recent.map((m, i) => {
+    const offset = input.recentStartOffset != null ? input.recentStartOffset + i : undefined
+    const offsetTag = offset != null ? ` #${offset}` : ""
     const body = messageText(m)
-    return body ? `[${m.info.role} \`${m.info.id}\` info_mark=Mixed]\n${body}` : `[${m.info.role} \`${m.info.id}\` info_mark=Mixed]`
+    return body
+      ? `[${m.info.role} \`${m.info.id}\`${offsetTag} info_mark=Mixed]\n${body}`
+      : `[${m.info.role} \`${m.info.id}\`${offsetTag} info_mark=Mixed]`
   })
 
   const recentHeader =
@@ -478,10 +486,20 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           ? extractDecisions(messageText(priorMsgStar))
           : undefined
 
+        // Compute 1-based global offset of the first recent message
+        // so the messageStar can render #N positions for session-read.
+        let recentStartOffset: number | undefined
+        if (recent.length > 0) {
+          const firstRecentId = recent[0].info.id
+          const idx = msgs.findIndex((m) => m.info.id === firstRecentId)
+          if (idx >= 0) recentStartOffset = idx + 1 // 1-based
+        }
+
         const combined = buildMessageStar({
           sessionID: input.sessionID,
           summaries,
           recent,
+          recentStartOffset,
           priorDecisions,
           priorMessageStarId: priorMsgStarId,
         })

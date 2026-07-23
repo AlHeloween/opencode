@@ -442,13 +442,14 @@ test("default permission includes doom_loop and external_directory as ask", asyn
   })
 })
 
-test("destructive-file/git/fossil are denied by default; normal tools allowed", async () => {
+test("destructive-file/db/git/fossil are denied by default; normal tools allowed", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
       expect(evalPerm(build, "destructive-file")).toBe("deny")
+      expect(evalPerm(build, "destructive-db")).toBe("deny")
       expect(evalPerm(build, "destructive-git")).toBe("deny")
       expect(evalPerm(build, "destructive-fossil")).toBe("deny")
       expect(evalPerm(build, "bash")).toBe("allow")

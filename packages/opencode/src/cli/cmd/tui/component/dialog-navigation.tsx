@@ -82,6 +82,7 @@ const EXT_MODES: ExternalDirMode[] = ["ask", "allow", "deny"]
  */
 const TOOL_DEFAULTS: Record<string, PolicyAction> = {
   "destructive-file": "deny",
+  "destructive-db": "deny",
   "destructive-git": "deny",
   "destructive-fossil": "deny",
   destructive: "deny",
@@ -107,14 +108,21 @@ const TOOL_POLICIES: {
   {
     key: "destructive-file",
     label: "Destructive (file)",
-    hint: "rm -rf, disk wipe — independent of git/fossil; not covered by bash:*",
+    hint: "rm -rf, disk wipe — independent of db/git/fossil; not covered by bash:*",
+    danger: true,
+    section: "Shell & exec",
+  },
+  {
+    key: "destructive-db",
+    label: "Destructive (db)",
+    hint: "DROP TABLE/DATABASE, TRUNCATE — independent of file/git/fossil",
     danger: true,
     section: "Shell & exec",
   },
   {
     key: "destructive-git",
     label: "Destructive (git)",
-    hint: "force-push, clean -f; checkout/stash pop hard-blocked — independent of file/fossil",
+    hint: "force-push, clean -f; checkout/stash pop hard-blocked — independent of file/db/fossil",
     danger: true,
     section: "Shell & exec",
   },

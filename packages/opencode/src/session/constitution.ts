@@ -38,19 +38,21 @@ export const MEMORY_INFO_MARK = {
 } as const
 
 /**
- * Three independent permission buckets (do not share settings):
- *   destructive-file  — filesystem wipe (rm -rf, …)
- *   destructive-git   — git rewrite / force-push / clean -f / stash pop
+ * Four independent permission buckets (do not share settings):
+ *   destructive-file   — filesystem wipe (rm -rf, …)
+ *   destructive-db     — drop table/database, …
+ *   destructive-git    — git rewrite / force-push / clean -f / stash pop
  *   destructive-fossil — agent fossil CLI mutate (snapshot is runtime-only)
  *
  * Hard-blocked families never use the permission dialog (blocked: true) unless
  * OPENCODE_ALLOW_DESTRUCTIVE / bypass_constitution. Askable ones use the
  * matching permission key so policies never cross-contaminate.
  */
-export type DestructiveKind = "file" | "git" | "fossil"
+export type DestructiveKind = "file" | "db" | "git" | "fossil"
 
 export type DestructivePermission =
   | "destructive-file"
+  | "destructive-db"
   | "destructive-git"
   | "destructive-fossil"
 
@@ -104,7 +106,6 @@ const FOSSIL_AGENT_MUTATE_PATTERNS: RegExp[] = [
 const FILE_DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\s+--force)/i,
   /\brm\s+-rf\b/i,
-  /\bdrop\s+(table|database)\b/i,
   /\bformat\s+[a-z]:/i,
   /\bmkfs\b/i,
   /\bdd\s+if=/i,
@@ -113,8 +114,16 @@ const FILE_DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\bRemove-Item\b[^\n]*-Force[^\n]*-Recurse/i,
 ]
 
+/** Database schema destruction — permission destructive-db (separate from files). */
+const DB_DESTRUCTIVE_PATTERNS: RegExp[] = [
+  /\bdrop\s+(table|database|schema|index|view)\b/i,
+  /\btruncate\s+table\b/i,
+  /\bdelete\s+from\b/i, // bulk delete; still gated — prefer app-level tools
+]
+
 const DESTRUCTIVE_PATTERNS: RegExp[] = [
   ...FILE_DESTRUCTIVE_PATTERNS,
+  ...DB_DESTRUCTIVE_PATTERNS,
   ...GIT_HISTORY_REWRITE_PATTERNS,
   ...GIT_ASKABLE_DESTRUCTIVE_PATTERNS,
   ...FOSSIL_AGENT_MUTATE_PATTERNS,
@@ -132,6 +141,10 @@ export function isFileDestructive(command: string): boolean {
   return FILE_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
 }
 
+export function isDbDestructive(command: string): boolean {
+  return DB_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
+}
+
 export function isGitAskableDestructive(command: string): boolean {
   return GIT_ASKABLE_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
 }
@@ -142,6 +155,7 @@ export function classifyDestructiveKind(command: string): DestructiveKind | null
   if (!text) return null
   if (isFossilAgentMutate(text)) return "fossil"
   if (isGitHistoryRewrite(text) || isGitAskableDestructive(text)) return "git"
+  if (isDbDestructive(text)) return "db"
   if (isFileDestructive(text)) return "file"
   if (DESTRUCTIVE_PATTERNS.some((re) => re.test(text))) return "file"
   return null
@@ -203,7 +217,7 @@ export type CommandGuardResult = {
  * Constitution preflight for shell.
  * - git rewrite / stash pop: HARD BLOCK unless env bypass
  * - fossil mutate CLI: HARD BLOCK unless env bypass
- * - askable: permission destructive-file | destructive-git (force-push, clean -f, rm -rf, …)
+ * - askable: permission destructive-file | destructive-db | destructive-git
  * - ELEVATED: log only
  */
 export function guardCommand(
@@ -274,7 +288,7 @@ export function guardCommand(
       blocked: false,
       message:
         `constitution: DESTRUCTIVE (${perm}) requires explicit approval ` +
-        `(rm -rf → destructive-file; force-push → destructive-git). ` +
+        `(rm -rf → destructive-file; DROP TABLE → destructive-db; force-push → destructive-git). ` +
         "Or set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution.",
     }
   }

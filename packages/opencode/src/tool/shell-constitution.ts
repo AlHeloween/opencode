@@ -1,8 +1,9 @@
 /**
  * Shared constitution preflight for shell/binary tools.
  *
- * Three independent permission groups (never share settings):
+ * Four independent permission groups (never share settings):
  *   destructive-file   — rm -rf, disk wipe
+ *   destructive-db     — DROP TABLE/DATABASE, TRUNCATE
  *   destructive-git    — force-push, clean -f; hard-block checkout/stash pop
  *   destructive-fossil — agent fossil mutate (hard-block)
  */

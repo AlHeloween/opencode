@@ -91,8 +91,9 @@ export const layer = Layer.effect(
         const defaults = Permission.fromConfig({
           "*": "allow",
           doom_loop: "ask",
-          // Three independent constitution buckets — deny after "*" so bash:* cannot skip.
+          // Four independent constitution buckets — deny after "*" so bash:* cannot skip.
           "destructive-file": "deny",
+          "destructive-db": "deny",
           "destructive-git": "deny",
           "destructive-fossil": "deny",
           // Legacy catch-all (older configs / docs)
@@ -142,6 +143,7 @@ export const layer = Layer.effect(
                 question: "allow",
                 plan_exit: "allow",
                 "destructive-file": "deny",
+                "destructive-db": "deny",
                 "destructive-git": "deny",
                 "destructive-fossil": "deny",
                 destructive: "deny",
@@ -178,7 +180,7 @@ export const layer = Layer.effect(
                 cmd: "allow",
                 powershell: "allow",
                 run: "allow",
-                // inherits defaults destructive-file/git/fossil = deny
+                // inherits defaults destructive-file/db/git/fossil = deny
                 task: "allow",
                 todowrite: "deny",
                 read: "allow",

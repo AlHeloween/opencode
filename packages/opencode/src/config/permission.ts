@@ -37,12 +37,13 @@ const InputObject = Schema.StructWithRest(
     /** Binary exec via the run tool (not a shell). */
     run: Schema.optional(Rule),
     /**
-     * @deprecated Use destructive-file / destructive-git / destructive-fossil.
-     * If set, treated as a catch-all for all three families in older configs.
+     * @deprecated Use destructive-file / destructive-db / destructive-git / destructive-fossil.
      */
     destructive: Schema.optional(Rule),
     /** Filesystem wipe (rm -rf, format, …). Not covered by bash:* . Default deny. */
     "destructive-file": Schema.optional(Rule),
+    /** DB schema wipe (DROP TABLE/DATABASE, TRUNCATE, …). Separate from files. Default deny. */
+    "destructive-db": Schema.optional(Rule),
     /** Git rewrite / force-push / clean -f. Not covered by bash:* . Default deny. */
     "destructive-git": Schema.optional(Rule),
     /** Agent fossil CLI mutate. Not covered by bash:* . Default deny (also hard-blocked). */

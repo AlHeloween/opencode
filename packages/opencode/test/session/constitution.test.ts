@@ -49,6 +49,12 @@ describe("session.constitution", () => {
       expect(fp.needsDestructivePermission).toBe(true)
       expect(fp.permission).toBe("destructive-git")
       expect(fp.kind).toBe("git")
+      // DROP TABLE under destructive-db (not file)
+      const drop = Constitution.guardCommand("DROP TABLE users;")
+      expect(drop.blocked).toBe(false)
+      expect(drop.needsDestructivePermission).toBe(true)
+      expect(drop.permission).toBe("destructive-db")
+      expect(drop.kind).toBe("db")
     } finally {
       if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
       else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev

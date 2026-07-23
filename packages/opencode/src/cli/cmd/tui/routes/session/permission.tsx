@@ -21,7 +21,7 @@ import { useTuiConfig } from "../../context/tui-config"
 
 type PermissionStage = "permission" | "always" | "reject"
 
-/** constitution: destructive-file | destructive-git | destructive-fossil | legacy destructive */
+/** constitution: destructive-file | destructive-db | destructive-git | destructive-fossil | legacy */
 function isDestructivePermission(permission: string) {
   return permission === "destructive" || permission.startsWith("destructive-")
 }
@@ -171,7 +171,7 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
                   <text fg={theme.error}>Session only — not written to config.</text>
                   <text fg={theme.textMuted}>
                     Exact command will be allowed until OpenCode restarts. Permanent policy: /permissions →{" "}
-                    {props.request.permission} (file / git / fossil are separate).
+                    {props.request.permission} (file / db / git / fossil are separate).
                   </text>
                   <box>
                     <For each={props.request.always.length ? props.request.always : props.request.patterns}>

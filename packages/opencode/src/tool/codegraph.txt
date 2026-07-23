@@ -1,23 +1,25 @@
-Pre-indexed code knowledge graph for the local codebase — **via CodeGraph MCP only**.
+Pre-indexed code knowledge graph — **hybrid: MCP touch → SQLite pack** (low noise for agents).
 
-**Hard rules (project):**
-- Live graph access is **MCP only** (`codegraph serve --mcp` as `mcp.codegraph`).
-- While MCP is active, **SQLite and CLI are blocked** by CodeGraph.
-- **Soft-fail is forbidden.** If MCP is down, this tool fails hard. Do not invent graph results; do not reindex (~20m) as a silent fallback.
-- Prefer this / MCP `codegraph_explore` **before** grep/glob/Read for structural questions on indexed code.
+**Pipeline:**
+1. **MCP** (`codegraph serve --mcp`) refreshes / owns the live graph for your query.
+2. **SQLite readonly** packs symbols, kinds, cross-file edges, external files.
+3. **MCP prose is not returned** — it is too noisy; structure is what agents need.
 
-**When to use:**
-- "How does X work?" — explore with source + call paths (incl. dynamic dispatch)
-- "What depends on Y?" — impact / callers
-- "Where is Z defined?" — search / explore by name
-- Blast radius before a change
+**Hard rules:**
+- MCP must be connected. Soft-fail / empty success is forbidden.
+- Do not open the DB as a writer; do not use CLI reindex as a silent fallback (~20m).
+
+**When to use (before grep/glob/Read on indexed code):**
+- How does X work / what depends on Y / blast radius before a change
+- Include **file paths** in `query` when known for a tighter pack
 
 **Parameters:**
-- `query` (string, required): Question or symbol name(s). Be specific.
-- `mode` (string, optional): `explore` (default) | `search` | `trace` | `impact` | `path` — mapped to MCP tools (`codegraph_explore`, `codegraph_search`, `codegraph_callers`, `codegraph_impact`, …).
-- `path` (string, optional): projectPath / subdirectory scope.
-- `depth` (number, optional): for impact/trace when supported by the server.
+- `query` (required): question, symbol, or path(s)
+- `mode` (optional): explore|search|trace|impact|path — MCP touch only; output is always the pack
+- `path` / `depth` (optional)
 
-**Config:** `opencode.json` → `mcp.codegraph` local command `["codegraph","serve","--mcp"]`. Optional `CODEGRAPH_MCP_TOOLS` to expose full tool set.
+**Output:** Packed markdown (files, kinds, symbols, cross-file edges, external impact).
 
-**If MCP fails:** Fix connection / binary / config. Never fall back to direct DB or CLI while MCP owns the graph.
+**Limits:** Field *access* edges may be missing from the index. Class/function/import deps are reliable.
+
+**Config:** `mcp.codegraph` local `["codegraph","serve","--mcp"]`. `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default 500).

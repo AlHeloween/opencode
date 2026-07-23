@@ -10,7 +10,11 @@ import {
   callCodegraphMcpOptionalRuntime,
   exploreChangedFilesMcp,
   mcpTextToSymTag,
+  mcpTouchThenSqlitePack,
 } from "../../src/codegraph/mcp-client"
+import path from "path"
+
+const RUST_ROOT = path.resolve(import.meta.dir, "../../../../external/codegraph-rust")
 
 function mcpLayer(callTool: MCP.Interface["callTool"]) {
   return Layer.succeed(
@@ -142,6 +146,46 @@ describe("exploreChangedFilesMcp (diff expansion)", () => {
       exploreChangedFilesMcp("/w", ["packages/opencode/src/foo.ts"]).pipe(Effect.provide(layer)),
     )
     expect(Exit.isFailure(exit)).toBe(true)
-    expect(String((exit as Exit.Failure<Error>).cause ?? exit)).toMatch(/MCP down|20m|fail/i)
+    expect(String(exit)).toMatch(/MCP down|20m|fail/i)
+  })
+})
+
+describe("mcpTouchThenSqlitePack (hybrid)", () => {
+  test("hard-fails when MCP is down (no soft empty pack)", async () => {
+    const layer = mcpLayer(() => Effect.fail(new Error("MCP server codegraph not connected")))
+    const exit = await Effect.runPromiseExit(
+      mcpTouchThenSqlitePack(RUST_ROOT, ["sandbox_field_test/def.ts"], { debounceMs: 0 }).pipe(
+        Effect.provide(layer),
+      ),
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+  })
+
+  test("MCP success then SQLite pack markdown (no MCP prose body)", async () => {
+    const layer = mcpLayer(() =>
+      Effect.succeed(
+        [
+          "Exploration of sandbox_field_test/def.ts and sandbox_field_test/use.ts",
+          "SandboxConfig callers in use.ts",
+        ].join("\n"),
+      ),
+    )
+    const result = await Effect.runPromise(
+      mcpTouchThenSqlitePack(
+        RUST_ROOT,
+        ["sandbox_field_test/def.ts", "sandbox_field_test/use.ts"],
+        { debounceMs: 0 },
+      ).pipe(Effect.provide(layer)),
+    )
+    expect(result.markdown).toContain("CodeGraph pack")
+    expect(result.markdown).toContain("SQLite structure")
+    expect(result.markdown).not.toMatch(/Found \d+ symbols across \d+ files/)
+    expect(result.symTag).toMatch(/KINDS:/)
+    expect(result.mcpText).toContain("SandboxConfig")
+    // if index present, expect real structure
+    if (result.pack.symbols.length > 0) {
+      expect(result.pack.symbols.some((s) => s.name === "SandboxConfig")).toBe(true)
+      expect(result.pack.crossFileEdges.length).toBeGreaterThan(0)
+    }
   })
 })

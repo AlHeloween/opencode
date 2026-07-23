@@ -8,11 +8,8 @@ import { Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import { Service as SnapshotService, type Interface, type Patch, type FileDiff, type ImpactSummary } from "."
-import {
-  exploreChangedFilesMcp,
-  hasCodegraphIndex,
-  mcpTextToSymTag,
-} from "@/codegraph/mcp-client"
+import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
+import { packToImpactFields } from "@/codegraph/sqlite-pack"
 
 const log = Log.create({ service: "snapshot-fossil" })
 
@@ -331,20 +328,20 @@ export const layer = Layer.effect(
                     .map((f: string) => f.replace(/\\/g, "/"))
 
                   if (changedFiles.length > 0) {
-                    // Same MCP explore shape as test/codegraph/mcp_diff_smoke.ts
-                    const mcpText = yield* exploreChangedFilesMcp(worktree, changedFiles).pipe(
+                    // Hybrid: MCP touch (refresh) → SQLite pack → compact tag (not MCP prose)
+                    const hybrid = yield* mcpTouchThenSqlitePack(worktree, changedFiles).pipe(
                       Effect.mapError((err) => {
                         const msg = err instanceof Error ? err.message : String(err)
-                        log.error("bug: codegraph MCP required for structural tag (hard-fail)", {
+                        log.error("bug: codegraph hybrid required for structural tag (hard-fail)", {
                           err: msg,
                           hash: afterHash,
                         })
                         return new Error(
-                          `CodeGraph MCP unavailable for fossil structural tag (hard-fail). ${msg}`,
+                          `CodeGraph MCP→SQLite unavailable for fossil structural tag (hard-fail). ${msg}`,
                         )
                       }),
                     )
-                    const tagValue = mcpTextToSymTag(mcpText)
+                    const tagValue = hybrid.symTag
                     const tagResult = yield* fossil(
                       ["tag", "add", "sym", tagValue, afterHash, "--propagate"],
                       { cwd: worktree },
@@ -597,23 +594,21 @@ export const layer = Layer.effect(
                 return empty
               }
 
-              // MCP only — same explore-on-file-list as mcp_diff_smoke (hard-fail if down).
-              const mcpText = yield* exploreChangedFilesMcp(worktree, changedFiles)
-
-              const topSymbols = mcpText
-                .split("\n")
-                .map((l) => l.trim())
-                .filter((l) => l.length > 0 && l.length < 120)
-                .slice(0, 10)
+              // Hybrid: MCP touch → SQLite pack (structured impact, low noise)
+              const hybrid = yield* mcpTouchThenSqlitePack(worktree, changedFiles)
+              const fields = packToImpactFields(hybrid.pack)
 
               const summary: ImpactSummary = {
                 from: resolvedFrom,
                 to: resolvedTo,
                 changedFiles: changedFiles.length,
-                symbolCountByKind: { mcp: 1 },
-                topSymbols,
-                impactedFiles: changedFiles.slice(0, 20),
-                callerCount: topSymbols.length,
+                symbolCountByKind: fields.symbolCountByKind,
+                topSymbols: fields.topSymbols,
+                impactedFiles:
+                  fields.impactedFiles.length > 0
+                    ? fields.impactedFiles
+                    : changedFiles.slice(0, 20),
+                callerCount: fields.callerCount,
               }
               return summary
             }).pipe(Effect.orDie),

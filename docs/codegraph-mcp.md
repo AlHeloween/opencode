@@ -5,10 +5,10 @@
 
 ## Hard rules
 
-1. **MCP only** while the graph is live — `codegraph serve --mcp`.
-2. While MCP is active, **SQLite is blocked** and **CLI graph queries are blocked**.
-3. **Soft-fail is forbidden.** MCP down → hard-fail (tools / fossil impact). No empty “success.” Without MCP, a real reindex is ~20 minutes — not an agent fallback.
-4. Fossil file diffs get structural expansion via the **same MCP explore** path as the smoke test.
+1. **MCP owns the live graph** — `codegraph serve --mcp` (writer + watcher).
+2. **Agent/fossil path is hybrid:** MCP touch (refresh) → **readonly SQLite pack** (structure). MCP prose is suppressed (too noisy for agents).
+3. **Soft-fail is forbidden.** MCP down → hard-fail. Without MCP, reindex ~20m is not a fallback.
+4. Concurrent **readonly** SQLite under WAL is OK after MCP touch; never write the DB from opencode.
 
 ## Config (opencode)
 
@@ -44,9 +44,11 @@ Set `CODEGRAPH_MCP_TOOLS` as above so impact/search modes work.
 
 | Surface | Backend |
 |---------|---------|
-| Built-in `codegraph` tool | MCP (`codegraph/mcp-client.ts`) |
-| `Snapshot.impact` / track `sym` tag | MCP explore on fossil changed files |
-| Agent MCP tools list | same server via `mcp.codegraph` |
+| Built-in `codegraph` tool | **MCP touch → SQLite pack** (`mcpTouchQueryThenSqlitePack`) |
+| `Snapshot.impact` / track `sym` tag | **MCP touch → SQLite pack** (`mcpTouchThenSqlitePack` + `KINDS\|TOP\|IMPACT`) |
+| Agent MCP tools list | same server via `mcp.codegraph` (optional raw explore) |
+
+Env: `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default `500`) between MCP touch and SQLite read.
 
 ## Smoke (from `packages/opencode`)
 

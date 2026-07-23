@@ -625,11 +625,12 @@ The project defines these built-in agents (`packages/opencode/src/agent/agent.ts
 
 In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code.
 
-**MCP-only (hard rule):** Live graph access is **MCP only** (`mcp.codegraph` → `codegraph serve --mcp`). While MCP is active, **SQLite and CLI are blocked**. Soft-fail / empty success when MCP is down is **forbidden** (would stall tools or force ~20m reindex). Opencode `codegraph` tool and fossil structural impact call MCP and **hard-fail** if disconnected.
+**CodeGraph hybrid (hard rule):** MCP owns the live graph (`mcp.codegraph` → `codegraph serve --mcp`). Opencode then packs **readonly SQLite** structure for agents/fossil (low noise). MCP prose is **not** the agent output. Soft-fail when MCP is down is **forbidden**.
 
-- **MCP / built-in tool:** `codegraph_explore` (and opencode `codegraph` tool) — symbols' verbatim source, call paths (incl. dynamic-dispatch), blast radius. Prefer one explore call over grep/Read on indexed code.
-- **Config:** `opencode.json` → `mcp.codegraph` local `["codegraph","serve","--mcp"]`; optional `CODEGRAPH_MCP_TOOLS` for full tool set.
-- **Do not** open `codegraph.db` or shell `codegraph` CLI for live agent work while MCP owns the graph.
+- **Built-in `codegraph` tool:** MCP touch → SQLite pack (symbols, cross-file edges, external files). Prefer including file paths in the query.
+- **Fossil impact/tag:** same hybrid on changed files (`KINDS|TOP|IMPACT` from SQLite).
+- **Config:** `mcp.codegraph` + optional `CODEGRAPH_MCP_TOOLS` / `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default 500). See `docs/codegraph-mcp.md`.
+- **Do not** write `codegraph.db` or use CLI reindex as a silent fallback (~20m).
 
 If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision. Plan: `plans/2026-07-23_codegraph_mcp_only.md`.
 <!-- CODEGRAPH_END -->

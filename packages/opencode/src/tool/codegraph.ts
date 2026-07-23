@@ -2,24 +2,40 @@ import { Effect, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Tool from "./tool"
-import { hasCodegraphIndex, modeToMcpCall, callCodegraphMcpOptionalRuntime } from "@/codegraph/mcp-client"
+import { hasCodegraphIndex, mcpTouchQueryThenSqlitePack } from "@/codegraph/mcp-client"
 import DESCRIPTION from "./codegraph.txt"
 
-// ——— CodeGraph tool — MCP only.
-//     When MCP is active, SQLite and CLI are blocked by CodeGraph.
-//     Soft-fail is forbidden: MCP down → hard error (no empty "success").
+// ——— CodeGraph tool — hybrid: MCP touch (refresh) → SQLite pack (low noise).
+//     MCP down → hard-fail. Agent sees packed structure, not MCP prose.
 // ———
 
 const Mode = Schema.Literals(["explore", "search", "trace", "impact", "path"])
 
 export const Parameters = Schema.Struct({
-  query: Schema.String.annotate({ description: "Natural language question or symbol name(s) to search for." }),
-  mode: Schema.optional(Mode).annotate({ description: "Analysis mode (default: explore). Mapped to CodeGraph MCP tools." }),
-  path: Schema.optional(Schema.String).annotate({ description: "Project subdirectory / projectPath for MCP tools." }),
-  depth: Schema.optional(Schema.Number).annotate({ description: "Traversal depth for impact/trace (default server-side)." }),
+  query: Schema.String.annotate({
+    description:
+      "Question, symbol name, or file path(s). Prefer including paths when known for tighter SQLite packs.",
+  }),
+  mode: Schema.optional(Mode).annotate({
+    description: "MCP touch mode (default: explore). Output is always SQLite-packed after MCP.",
+  }),
+  path: Schema.optional(Schema.String).annotate({
+    description: "Project subdirectory / projectPath scope.",
+  }),
+  depth: Schema.optional(Schema.Number).annotate({
+    description: "Traversal depth for impact/trace MCP touch (default server-side).",
+  }),
 })
 
-type Metadata = { resultCount: number; mode: string; hasCodegraph: boolean; via: "mcp" }
+type Metadata = {
+  resultCount: number
+  mode: string
+  hasCodegraph: boolean
+  via: "mcp+sqlite"
+  packedFiles: number
+  symbols: number
+  crossFileEdges: number
+}
 
 export const CodeGraphTool = Tool.define(
   "codegraph",
@@ -46,37 +62,37 @@ export const CodeGraphTool = Tool.define(
         yield* assertExternalDirectoryEffect(ctx, projectRoot, { kind: "directory" })
 
         if (!hasCodegraphIndex(projectRoot)) {
-          const meta: Metadata = { resultCount: 0, mode, hasCodegraph: false, via: "mcp" }
+          const meta: Metadata = {
+            resultCount: 0,
+            mode,
+            hasCodegraph: false,
+            via: "mcp+sqlite",
+            packedFiles: 0,
+            symbols: 0,
+            crossFileEdges: 0,
+          }
           return {
             title: "CodeGraph not initialized",
             metadata: meta,
             output:
               `No .codegraph/ index in "${projectRoot}".\n` +
               `Run: codegraph init\n` +
-              `Then ensure mcp.codegraph is configured (codegraph serve --mcp) and reconnect.\n` +
-              `Do not use SQLite/CLI while MCP owns the graph; reindex without MCP ~20m.`,
+              `Then ensure mcp.codegraph is configured (codegraph serve --mcp).\n` +
+              `Hybrid path: MCP touch → SQLite pack. Soft-skip forbidden.`,
           }
         }
 
-        const { tool, args } = modeToMcpCall(mode, params.query, {
-          path: params.path ?? projectRoot,
+        const hybrid = yield* mcpTouchQueryThenSqlitePack(projectRoot, mode, params.query, {
+          path: params.path,
           depth: params.depth,
-        })
-        const callArgs = {
-          ...args,
-          projectPath: (args.projectPath as string) ?? projectRoot,
-        }
-
-        // Hard-fail via orDie: MCP down must not become a soft empty success.
-        const output = yield* callCodegraphMcpOptionalRuntime(tool, callArgs).pipe(
+        }).pipe(
           Effect.mapError((err) => {
             const message = err instanceof Error ? err.message : String(err)
             return new Error(
               [
-                "CodeGraph MCP call failed (hard-fail — soft-skip forbidden).",
+                "CodeGraph hybrid (MCP→SQLite) failed (hard-fail — soft-skip forbidden).",
                 message,
-                "Fix: mcp.codegraph enabled → codegraph serve --mcp; CODEGRAPH_MCP_TOOLS as needed.",
-                "While MCP is active, SQLite and CLI are blocked. Without MCP, reindex ~20m — not a fallback.",
+                "Fix: mcp.codegraph → codegraph serve --mcp. MCP must refresh before SQLite pack.",
               ].join(" "),
             )
           }),
@@ -84,15 +100,18 @@ export const CodeGraphTool = Tool.define(
         )
 
         const meta: Metadata = {
-          resultCount: output.split("\n").filter((l) => l.trim()).length,
+          resultCount: hybrid.pack.symbols.length + hybrid.pack.crossFileEdges.length,
           mode,
           hasCodegraph: true,
-          via: "mcp",
+          via: "mcp+sqlite",
+          packedFiles: hybrid.files.length,
+          symbols: hybrid.pack.symbols.length,
+          crossFileEdges: hybrid.pack.crossFileEdges.length,
         }
         return {
-          title: `CodeGraph ${mode}: ${params.query.slice(0, 60)}`,
+          title: `CodeGraph pack: ${params.query.slice(0, 50)}`,
           metadata: meta,
-          output,
+          output: hybrid.markdown,
         }
       }).pipe(Effect.orDie),
   }),

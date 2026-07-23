@@ -1,15 +1,22 @@
 /**
- * CodeGraph via MCP only.
+ * CodeGraph hybrid: MCP touch (live owner / refresh) → SQLite pack (structure).
  *
- * When MCP is active, SQLite and CLI are blocked by CodeGraph. Direct readers
- * and CLI fallbacks are illegal. Soft-fail is forbidden — if MCP is down,
- * operations Effect.fail with an actionable error (reindex without MCP ~20m).
+ * MCP must run first so the index is fresh. Agent-facing output is the packed
+ * SQLite structure (low noise). MCP prose is not returned by default.
+ * Soft-fail if MCP is down is forbidden.
  */
 import { Effect, Option } from "effect"
 import { existsSync } from "fs"
 import path from "path"
 import { MCP } from "@/mcp"
 import { getCodegraphDbPath } from "./reader"
+import {
+  extractPathsFromText,
+  formatPackMarkdown,
+  packGraphForFiles,
+  packToSymTag,
+  type GraphPack,
+} from "./sqlite-pack"
 
 export const CODEGRAPH_MCP_SERVER = "codegraph"
 
@@ -128,6 +135,7 @@ export function exploreArgsForChangedFiles(
 
 /**
  * Live structural text for changed files via MCP explore. Hard-fails if MCP down.
+ * Prefer {@link mcpTouchThenSqlitePack} for agent/fossil (packed, low noise).
  */
 export function exploreChangedFilesMcp(
   worktree: string,
@@ -135,4 +143,120 @@ export function exploreChangedFilesMcp(
 ): Effect.Effect<string, Error> {
   const { tool, args } = exploreArgsForChangedFiles(worktree, changedFiles)
   return callCodegraphMcpOptionalRuntime(tool, args)
+}
+
+export type HybridPackResult = {
+  pack: GraphPack
+  /** Packed markdown for agents (MCP narrative suppressed). */
+  markdown: string
+  /** Fossil sym tag from SQLite pack. */
+  symTag: string
+  /** Raw MCP text kept for diagnostics only (not default agent output). */
+  mcpText: string
+  files: string[]
+}
+
+function hybridDebounceMs(override?: number): number {
+  if (override != null) return override
+  const n = Number(process.env.CODEGRAPH_HYBRID_DEBOUNCE_MS ?? "500")
+  return Number.isFinite(n) && n >= 0 ? n : 500
+}
+
+/**
+ * MCP explore on file list (force live refresh) → debounce → SQLite pack.
+ * Hard-fails if MCP is down. Returns packed structure, not MCP prose.
+ */
+export function mcpTouchThenSqlitePack(
+  worktree: string,
+  changedFiles: string[],
+  opts?: { debounceMs?: number; queryLabel?: string },
+): Effect.Effect<HybridPackResult, Error> {
+  return Effect.gen(function* () {
+    const files = [...new Set(changedFiles.map((f) => f.replace(/\\/g, "/")).filter(Boolean))]
+    if (files.length === 0) {
+      return yield* Effect.fail(new Error("mcpTouchThenSqlitePack: empty file list"))
+    }
+
+    const { tool, args } = exploreArgsForChangedFiles(worktree, files)
+    const mcpText = yield* callCodegraphMcpOptionalRuntime(tool, args)
+
+    const wait = hybridDebounceMs(opts?.debounceMs)
+    if (wait > 0) {
+      yield* Effect.promise(() => new Promise<void>((r) => setTimeout(r, wait)))
+    }
+
+    const pack = packGraphForFiles(worktree, files)
+    const markdown = formatPackMarkdown(pack, {
+      query: opts?.queryLabel ?? files.slice(0, 12).join(", "),
+    })
+    const symTag = packToSymTag(pack)
+    return { pack, markdown, symTag, mcpText, files }
+  })
+}
+
+/**
+ * Free-form agent query: MCP touch first, derive file paths, then SQLite pack.
+ * Hard-fails if MCP is down. Output markdown is SQLite pack (low noise).
+ */
+export function mcpTouchQueryThenSqlitePack(
+  worktree: string,
+  mode: string,
+  query: string,
+  opts?: { path?: string; depth?: number; debounceMs?: number },
+): Effect.Effect<HybridPackResult, Error> {
+  return Effect.gen(function* () {
+    const { tool, args } = modeToMcpCall(mode, query, {
+      path: opts?.path ?? worktree,
+      depth: opts?.depth,
+    })
+    const callArgs = {
+      ...args,
+      projectPath: (args.projectPath as string) ?? worktree,
+    }
+    const mcpText = yield* callCodegraphMcpOptionalRuntime(tool, callArgs)
+
+    const wait = hybridDebounceMs(opts?.debounceMs)
+    if (wait > 0) {
+      yield* Effect.promise(() => new Promise<void>((r) => setTimeout(r, wait)))
+    }
+
+    let files = extractPathsFromText(mcpText, worktree)
+    // If query looks like a path, include it
+    const q = query.trim().replace(/\\/g, "/")
+    if (/\.(ts|tsx|js|jsx|rs|py)$/i.test(q) && existsSync(path.join(worktree, q))) {
+      files = [...new Set([q, ...files])]
+    }
+    if (opts?.path && !path.extname(opts.path)) {
+      // directory scope: keep extracted files under that prefix
+      const prefix = opts.path.replace(/\\/g, "/").replace(/\/$/, "")
+      files = files.filter((f) => f.startsWith(prefix + "/") || f.startsWith(prefix))
+    }
+
+    if (files.length === 0) {
+      // Still return empty pack with a clear structured note (MCP did run).
+      const pack = packGraphForFiles(worktree, [])
+      const markdown = [
+        "# CodeGraph pack (MCP-touched → SQLite structure)",
+        "",
+        `**Query:** ${query}`,
+        "",
+        "MCP refresh succeeded but no file paths were resolved for SQLite packing.",
+        "Re-run with a file path in `query` or `path`, or a more specific symbol.",
+        "",
+        "_MCP narrative suppressed._",
+      ].join("\n")
+      return {
+        pack,
+        markdown,
+        symTag: "KINDS:none|TOP:none|XF:0",
+        mcpText,
+        files: [],
+      }
+    }
+
+    const pack = packGraphForFiles(worktree, files)
+    const markdown = formatPackMarkdown(pack, { query })
+    const symTag = packToSymTag(pack)
+    return { pack, markdown, symTag, mcpText, files }
+  })
 }

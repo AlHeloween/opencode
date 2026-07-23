@@ -627,6 +627,69 @@ export const layer = Layer.effect(
           )
         })
 
+        const lastImpact = Effect.fnUntraced(function* () {
+          return yield* locked(
+            Effect.gen(function* () {
+              if (!(yield* ensureInit())) return undefined
+
+              // Get current hash
+              const info = yield* fossil(["info"], { cwd: worktree })
+              const hash = currentHash(info.text)
+              if (!hash) return undefined
+
+              // Read the sym tag
+              const tag = yield* fossil(["tag", "list", hash], { cwd: worktree })
+              if (tag.code !== 0 || !tag.text.trim()) return undefined
+
+              // Parse sym tag: "sym  KINDS:method=224,class=32|TOP:..."
+              const symLine = tag.text
+                .split("\n")
+                .find((l: string) => l.startsWith("sym "))
+              if (!symLine) return undefined
+
+              const tagValue = symLine.replace(/^sym\s+/, "").trim()
+              if (!tagValue) return undefined
+
+              // Parse KINDS section
+              const kindSection = tagValue.match(/KINDS:([^|]*)/)?.[1]
+              const symbolCountByKind: Record<string, number> = {}
+              if (kindSection) {
+                for (const pair of kindSection.split(",")) {
+                  const [k, v] = pair.split("=")
+                  if (k && v) symbolCountByKind[k] = parseInt(v) || 0
+                }
+              }
+
+              // Parse TOP section
+              const topSection = tagValue.match(/TOP:([^|]*)/)?.[1]
+              const topSymbols = topSection
+                ? topSection.split(",").filter(Boolean)
+                : []
+
+              // Parse IMPACT section
+              const impactSection = tagValue.match(/IMPACT:([^|]*)/)?.[1]
+              const impactedFiles = impactSection
+                ? impactSection.split(",").filter(Boolean)
+                : []
+
+              return {
+                from: hash,
+                to: hash,
+                changedFiles: 0, // not stored in tag
+                symbolCountByKind,
+                topSymbols,
+                impactedFiles,
+                callerCount: 0, // not stored in tag
+              } satisfies ImpactSummary
+            }).pipe(
+              Effect.catch((err) => {
+                log.debug("lastImpact retrieval failed", { err: String(err) })
+                return Effect.succeed(undefined)
+              }),
+            ),
+          )
+        })
+
         // Eager open at instance boot — independent of project git and of the
         // first track(). Lazy-only open meant:
         // - TUI showed red "git" until an agent edit (exclusive marker logic)
@@ -647,7 +710,7 @@ export const layer = Layer.effect(
           else log.warn("fossil snapshot not ready after bootstrap ensureInit", { repoPath })
         }
 
-        return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull, impact }
+        return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull, impact, lastImpact }
       }),
     )
 
@@ -693,6 +756,9 @@ export const layer = Layer.effect(
       }),
       impact: Effect.fn("SnapshotFossil.impact")(function* (from: string, to: string) {
         return yield* InstanceState.useEffect(state, (s) => s.impact(from, to))
+      }),
+      lastImpact: Effect.fn("SnapshotFossil.lastImpact")(function* () {
+        return yield* InstanceState.useEffect(state, (s) => s.lastImpact())
       }),
     })
   }),

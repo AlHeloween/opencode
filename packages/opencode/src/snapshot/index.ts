@@ -58,6 +58,8 @@ export interface Interface {
   readonly diffFull: (from: string, to: string) => Effect.Effect<FileDiff[]>
   /** Structural impact analysis between two snapshots via codegraph. */
   readonly impact: (from: string, to: string) => Effect.Effect<ImpactSummary | undefined>
+  /** Read the sym tag from the most recent fossil snapshot. */
+  readonly lastImpact: () => Effect.Effect<ImpactSummary | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Snapshot") {}

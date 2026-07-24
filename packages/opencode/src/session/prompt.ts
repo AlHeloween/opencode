@@ -1473,7 +1473,11 @@ You should build your plan incrementally by writing to or editing this file. NOT
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
 
             let tools: Record<string, AITool>
-            if (cachedTools) {
+            // Layer-1 summary turn: prose only. Full tools let the model Read/bash
+            // instead of writing SVM/goal/decisions — finish with empty body + Exact stamp.
+            if (msg.summary) {
+              tools = {}
+            } else if (cachedTools) {
               tools = cachedTools
             } else {
               tools = yield* SessionTools.resolve({
@@ -1495,7 +1499,12 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
               cachedTools = tools
             }
-            yield* slog.debug("prepare", { step, stage: "tools-ready", toolCount: Object.keys(tools).length })
+            yield* slog.debug("prepare", {
+              step,
+              stage: "tools-ready",
+              toolCount: Object.keys(tools).length,
+              summaryTurn: !!msg.summary,
+            })
 
             // summarize() moved to common step-1 block before task dispatch
 
@@ -1839,10 +1848,48 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   break
                 }
               }
-              if (fromId && toId) {
-                const asstParts = (yield* MessageV2.filterCompactedEffect(sessionID)).find(
-                  (m) => m.info.id === msg.id,
-                )?.parts
+              const asstParts = (yield* MessageV2.filterCompactedEffect(sessionID)).find(
+                (m) => m.info.id === msg.id,
+              )?.parts
+              // Inferred body only — ignore Exact stamp / other ignored synthetics.
+              const summaryBody = (asstParts ?? [])
+                .filter(
+                  (p) =>
+                    p.type === "text" &&
+                    !(p as { ignored?: boolean }).ignored &&
+                    typeof (p as { text?: string }).text === "string" &&
+                    !(p as { text: string }).text.startsWith("--- Exact (system) ---"),
+                )
+                .map((p) => (p as { text: string }).text.trim())
+                .join("\n")
+                .trim()
+              const hasSummaryBody = summaryBody.length >= 40
+
+              const summaryDone =
+                !handle.message.error &&
+                !!handle.message.finish &&
+                !["tool-calls", "unknown"].includes(handle.message.finish)
+
+              // Empty shell: summary flag + maybe header, no Inferred prose.
+              // Re-ask; do not stamp or resume as if memory was written.
+              if (summaryDone && !hasSummaryBody) {
+                yield* slog.warn("layer1.summary.empty_body", {
+                  sessionID,
+                  summaryID: msg.id,
+                  bodyLen: summaryBody.length,
+                })
+                yield* compaction.injectSummaryRequest({
+                  sessionID,
+                  model: lastUser.model,
+                  agent: lastUser.agent,
+                })
+                pendingSummaryResponse = true
+                cachedMsgs = undefined
+                lastKnownId = undefined
+                return "continue" as const
+              }
+
+              if (fromId && toId && hasSummaryBody) {
                 const stamped = asstParts?.some(
                   (p) =>
                     p.type === "text" &&
@@ -1851,8 +1898,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 )
                 if (!stamped) {
                   // ignored:true — Exact digits stay in DB for tools / compact fold,
-                  // but must not enter model context. A visible "recover with
-                  // session-read" stamp after every summary derailed the work cycle.
+                  // but must not enter model context.
                   yield* sessions.updatePart({
                     id: PartID.ascending(),
                     messageID: msg.id,
@@ -1872,16 +1918,9 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 }
               }
 
-              // Summary finished cleanly. Without a resume user turn the runLoop
-              // exit condition (finished assistant after last user = summary-range)
-              // stops the session — user must type "continue". Always auto-resume:
-              // open work continues; if the user task is already complete, wording
-              // below tells the model not to invent new work.
-              const summaryDone =
-                !handle.message.error &&
-                !!handle.message.finish &&
-                !["tool-calls", "unknown"].includes(handle.message.finish)
-              if (summaryDone) {
+              // Summary finished with body. Without a resume user turn the runLoop
+              // exit condition stops the session — user must type "continue".
+              if (summaryDone && hasSummaryBody) {
                 const resumeMsg = yield* sessions.updateMessage({
                   id: MessageID.ascending(),
                   role: "user",

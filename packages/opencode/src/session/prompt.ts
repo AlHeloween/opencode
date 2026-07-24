@@ -1871,6 +1871,40 @@ You should build your plan incrementally by writing to or editing this file. NOT
                   })
                 }
               }
+
+              // Summary finished cleanly. Without a resume user turn the runLoop
+              // exit condition (finished assistant after last user = summary-range)
+              // stops the session — user must type "continue". Always auto-resume:
+              // open work continues; if the user task is already complete, wording
+              // below tells the model not to invent new work.
+              const summaryDone =
+                !handle.message.error &&
+                !!handle.message.finish &&
+                !["tool-calls", "unknown"].includes(handle.message.finish)
+              if (summaryDone) {
+                const resumeMsg = yield* sessions.updateMessage({
+                  id: MessageID.ascending(),
+                  role: "user",
+                  model: lastUser.model,
+                  sessionID,
+                  agent: lastUser.agent,
+                  time: { created: Date.now() },
+                })
+                yield* sessions.updatePart({
+                  id: PartID.ascending(),
+                  messageID: resumeMsg.id,
+                  sessionID,
+                  type: "text",
+                  text: `<system-reminder>
+Layer-1 summary is complete (Inferred handle only). Continue the open user task from the conversation after that summary. Do not re-summarize unless a new summary request appears. Prefer tools and edits over restating history. If the user's request is already fully complete, give a brief status and stop — do not invent new work.
+</system-reminder>`,
+                  synthetic: true,
+                })
+                yield* slog.info("layer1.summary.resume", { sessionID, summaryID: msg.id })
+                cachedMsgs = undefined
+                lastKnownId = undefined
+                return "continue" as const
+              }
             }
 
             if (result === "stop") {

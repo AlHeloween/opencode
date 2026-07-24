@@ -122,7 +122,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | Open-window **counter** ≥ ~32 768 | **System** injects request (ignored range + prose). **Model** writes SVM / Goal / Key decisions / Current state. **System** stamps Exact IDs and attaches **fossil**/tool diffs for `from_id`…`to_id`; structural detail via **CodeGraph**. |
+| **1. Incremental summary** | Open-window **counter** ≥ ~32 768 | **System** injects request (ignored range + prose). **Model** writes SVM / Goal / Key decisions / Current state. **System** stamps Exact IDs (ignored) and attaches **fossil**/tool diffs for `from_id`…`to_id`; structural detail via **CodeGraph**. After a successful summary, system injects a synthetic **resume** turn so the work flow continues without the user typing “continue” (if the user task is already complete, the model should brief-status and stop — not invent work). |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | **System only:** soft-hide visible messages; build `message*` = summaries (with system links) + Recent; prior star not re-nested. |
 | **3. Continuous memory** | Agent needs detail | **System tools:** `session-read` by ID, `messagesearch`, fossil diff, CodeGraph — not unaided model memory. |
 

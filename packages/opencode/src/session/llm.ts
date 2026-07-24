@@ -218,16 +218,17 @@ const live: Layer.Layer<
       // TODO: move this to a proper hook
       const isOpenaiOauth = item.id === "openai" && info?.type === "oauth"
 
-      const systemPromptPrefix = ProviderTransform.systemPromptPrefix(input.model)
-      // Split combined reasoning+kernel into separate components for KV cache ordering.
-      // systemPromptPrefix returns "reasoning.txt\n\nopencode_prompts_kernel.txt"
-      const [reasoningPrefix, ...kernelParts] = systemPromptPrefix.split("\n\n")
-      const kernel = kernelParts.join("\n\n")
+      // Separate parts — do NOT split(joined, "\n\n"): both files use blank lines,
+      // so that left only the reasoning title and buried PROMPT_ABI inside "kernel".
+      const { reasoning: reasoningPrefix, kernel } = ProviderTransform.systemPromptParts(input.model)
       const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : "reasoning-only"
 
       l.info("system prompt", {
         reasoning: !!reasoningPrefix,
+        reasoningBytes: Buffer.byteLength(reasoningPrefix, "utf8"),
         kernel: !!kernel,
+        kernelBytes: Buffer.byteLength(kernel, "utf8"),
+        kernelHasAbi: kernel.includes("PROMPT_ABI"),
         prompt: promptFile,
         agent: input.agent.name,
         model: input.model.id,

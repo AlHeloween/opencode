@@ -430,8 +430,26 @@ export function topK(model: Provider.Model) {
   return undefined
 }
 
-export function systemPromptPrefix(_model: Provider.Model) {
-  return [PROMPT_REASONING, PROMPT_KERNEL].filter((x) => x).join("\n\n")
+/**
+ * Stable identity pair for the provider system prefix.
+ * NEVER join+split on "\\n\\n" — both files contain blank lines; that would
+ * leave only the first reasoning paragraph as "reasoning" and shove the rest
+ * of reasoning.txt + the entire Pythonic kernel into "kernel".
+ */
+export function systemPromptParts(_model?: Provider.Model): {
+  reasoning: string
+  kernel: string
+} {
+  return {
+    reasoning: PROMPT_REASONING || "",
+    kernel: PROMPT_KERNEL || "",
+  }
+}
+
+/** Byte-stable join of reasoning then Pythonic kernel (for identity fingerprints). */
+export function systemPromptPrefix(model?: Provider.Model) {
+  const parts = systemPromptParts(model)
+  return [parts.reasoning, parts.kernel].filter((x) => x.length > 0).join("\n\n")
 }
 
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]

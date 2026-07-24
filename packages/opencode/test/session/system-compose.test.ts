@@ -183,6 +183,20 @@ describe("system prefix digest (kernel + reasoning)", () => {
     expect(a.endsWith(PROMPT_KERNEL) || a.includes(PROMPT_KERNEL.slice(0, 80))).toBe(true)
   })
 
+  test("systemPromptParts keeps full reasoning and full Pythonic kernel separate", () => {
+    const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
+    // Regression: split("\\n\\n") on the join left only ~149 bytes of reasoning.
+    expect(parts.reasoning.length).toBeGreaterThan(5_000)
+    expect(parts.reasoning).toContain("Communication Protocol")
+    expect(parts.reasoning).not.toContain("PROMPT_ABI")
+    expect(parts.kernel.length).toBeGreaterThan(5_000)
+    expect(parts.kernel).toContain("PROMPT_ABI")
+    expect(parts.kernel).toContain("MappingProxyType")
+    expect(parts.kernel.startsWith("# Generated from opencode_prompts_kernel.py") || parts.kernel.includes("PROMPT_ABI")).toBe(
+      true,
+    )
+  })
+
   test("reports prefix byte sizes for reasoning and kernel", () => {
     const reasoningBytes = Buffer.byteLength(PROMPT_REASONING, "utf8")
     const kernelBytes = Buffer.byteLength(PROMPT_KERNEL, "utf8")

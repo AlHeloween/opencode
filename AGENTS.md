@@ -549,7 +549,7 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 
 **open-code prompts kernel sync:** Always keep `opencode_prompts_kernel.txt` in sync with the canonical `opencode_prompts_kernel.py` at repo root. The `.txt` copy is loaded by `transform.ts` → `systemPromptPrefix()` and embedded in every model's immutable system prompt prefix — out-of-sync files mean stale agent definitions at runtime.
 
-**Python test suite sync:** Any modification to `opencode_prompts_kernel.py` (contract IDs, SemanticVector fields, class constructors, agent prompt file list) MUST be followed by corresponding updates to `tests/test_reasoning_kernel.py`. The test `test_agent_prompt_files_reference_generated_contract_ids` validates that agent prompt files reference correct contract IDs — if agent prompt files are added, removed, or renamed, update the `prompts` dict in that test. Run `python -m pytest tests/test_reasoning_kernel.py -v` after kernel changes; all 309 tests must pass.
+**Python test suite sync:** Any modification to `opencode_prompts_kernel.py` (contract IDs, SemanticVector fields, class constructors, agent prompt file list) MUST be followed by corresponding updates to `tests/test_reasoning_kernel.py`. The test `test_agent_prompt_files_reference_generated_contract_ids` validates that agent prompt files reference correct contract IDs — if agent prompt files are added, removed, or renamed, update the `prompts` dict in that test. Run `python -m pytest tests/` after kernel changes; all tests must pass (includes TaskGeometry + pocket protocol binds).
 
 ## Dependency Catalog (MANDATORY)
 

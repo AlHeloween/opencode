@@ -41,7 +41,8 @@ describe("session.system", () => {
       expect(prompt).toContain("explore")
       expect(prompt).toContain("general")
     }
-    expect(PROMPT_REASONING).toContain("Communication Protocol")
+    expect(PROMPT_REASONING).toContain("REASONING PROTOCOL")
+    expect(PROMPT_REASONING).toContain("ALGORITHM_CARD")
   })
 
   test("prompts kernel contains compact runtime dictionary roots", () => {

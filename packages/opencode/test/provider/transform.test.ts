@@ -131,14 +131,16 @@ describe("ProviderTransform.systemPromptPrefix", () => {
     ]) {
       const prefix = ProviderTransform.systemPromptPrefix(createModel(modelId))
       expect(prefix).toBeString()
-      // Reasoning protocol is always present
-      expect(prefix).toContain("Communication Protocol")
-      expect(prefix).toContain("Information Mark System")
+      // Reasoning protocol is always present (lean ADID density)
+      expect(prefix).toContain("REASONING PROTOCOL")
+      expect(prefix).toContain("InformationMark")
+      expect(prefix).toContain("ALGORITHM_CARD")
       // The generated keyword dictionary is always embedded after reasoning.txt.
       expect(prefix).toContain("PROMPT_ABI")
       expect(prefix).toContain("TERMS")
       expect(prefix).toContain("WORKFLOWS")
-      expect(prefix.indexOf("Communication Protocol")).toBeLessThan(prefix.indexOf("PROMPT_ABI"))
+      expect(prefix.indexOf("REASONING PROTOCOL")).toBeLessThan(prefix.indexOf("ALGORITHM_CARD"))
+      expect(prefix.indexOf("ALGORITHM_CARD")).toBeLessThan(prefix.indexOf("PROMPT_ABI"))
       expect(prefix).not.toContain("_ALL_SPECS")
     }
   })

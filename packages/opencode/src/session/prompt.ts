@@ -21,15 +21,18 @@ import { Checkpoint } from "./checkpoint"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
+import { assemblePathSystem } from "./system-compose"
 import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
 import PROMPT_PLAN_RAW from "../session/prompt/plan.txt"
+import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
 import BUILD_SWITCH_RAW from "../session/prompt/build-switch.txt"
 // Normalize CRLF → LF so exact text comparisons match DB-stored versions
 // regardless of OS line-ending conventions. Failure to do this causes
 // hasSynthetic() to miss existing synthetic parts, leading to re-push
 // with new PartID → KV cache break on every turn.
 const PROMPT_PLAN = PROMPT_PLAN_RAW.replace(/\r\n/g, "\n")
+const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
 const BUILD_SWITCH = BUILD_SWITCH_RAW.replace(/\r\n/g, "\n")
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import { ToolRegistry } from "@/tool/registry"
@@ -330,6 +333,9 @@ History was compacted. Active memory is the compacted block and/or summary assis
       }
 
       if (!Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE) {
+        // plan/build mode text is conversation-tail only (synthetic on last user).
+        // Never put it in system/agent.prompt — same model switches plan↔build in
+        // one session; system prefix must stay byte-stable for KV cache.
         if (input.agent.name === "plan") {
           if (!hasSynthetic(PROMPT_PLAN)) {
             const part = yield* sessions.updatePart({
@@ -343,9 +349,21 @@ History was compacted. Active memory is the compacted block and/or summary assis
             userMessage.parts.push(part)
           }
         }
-        const wasPlan = input.messages.some((msg) => msg.info.role === "assistant" && msg.info.agent === "plan")
-        if (wasPlan && input.agent.name === "build") {
-          if (!hasSynthetic(BUILD_SWITCH)) {
+        if (input.agent.name === "build") {
+          // ALGORITHM_CARD spine for default build (finite medoids, not infinity).
+          if (!hasSynthetic(PROMPT_BUILD)) {
+            const part = yield* sessions.updatePart({
+              id: PartID.ascending(),
+              messageID: userMessage.info.id,
+              sessionID: userMessage.info.sessionID,
+              type: "text",
+              text: PROMPT_BUILD,
+              synthetic: true,
+            })
+            userMessage.parts.push(part)
+          }
+          const wasPlan = input.messages.some((msg) => msg.info.role === "assistant" && msg.info.agent === "plan")
+          if (wasPlan && !hasSynthetic(BUILD_SWITCH)) {
             const part = yield* sessions.updatePart({
               id: PartID.ascending(),
               messageID: userMessage.info.id,
@@ -1722,11 +1740,17 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
                   instruction.system().pipe(Effect.orDie),
                   instruction.rules().pipe(Effect.orDie),
                 ])
-            // Stable-first order: skills/env/rules before mutable AGENTS.md instructions
-            // so partial KV-cache hits survive when only project instructions change.
+            // Stable-first path: rules → skills → env → AGENTS (instructions last).
+            // ADID rules/skills early; env paths + project AGENTS last (multi-project KV).
+            // Must match assemblePathSystem — do not reintroduce skills→env→rules drift.
             const system = checkpointUsable
               ? [...checkpointUsable.systemPrompt]
-              : [...(skills ? [skills] : []), ...env, ...rules, ...instructions]
+              : assemblePathSystem({
+                  skills: skills || undefined,
+                  env,
+                  rules,
+                  instructions,
+                })
             if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
 
             // Snapshot system before handle.process() may mutate it via plugin hook.

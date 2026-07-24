@@ -7,6 +7,7 @@ import type * as Provider from "./provider"
 import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import PROMPT_REASONING from "@/session/prompt/reasoning.txt"
+import PROMPT_ALGORITHM from "@/session/prompt/algorithm_card.txt"
 import PROMPT_KERNEL from "@/session/prompt/opencode_prompts_kernel.txt"
 
 const tlog = Log.create({ service: "provider.transform" })
@@ -431,25 +432,31 @@ export function topK(model: Provider.Model) {
 }
 
 /**
- * Stable identity pair for the provider system prefix.
- * NEVER join+split on "\\n\\n" — both files contain blank lines; that would
+ * Stable identity parts for the provider system prefix.
+ * NEVER join+split on "\\n\\n" — files contain blank lines; that would
  * leave only the first reasoning paragraph as "reasoning" and shove the rest
- * of reasoning.txt + the entire Pythonic kernel into "kernel".
+ * of reasoning.txt + algorithm card + kernel into the wrong slot.
+ *
+ * Order inside identity: reasoning → ALGORITHM_CARD → kernel.
+ * Card is commented Python bound to opencode_prompts_kernel symbols
+ * (select_planning_mode, select_fractal_model, k_medoids_modifications, …).
  */
 export function systemPromptParts(_model?: Provider.Model): {
   reasoning: string
+  algorithm: string
   kernel: string
 } {
   return {
     reasoning: PROMPT_REASONING || "",
+    algorithm: PROMPT_ALGORITHM || "",
     kernel: PROMPT_KERNEL || "",
   }
 }
 
-/** Byte-stable join of reasoning then Pythonic kernel (for identity fingerprints). */
+/** Byte-stable join of reasoning + algorithm card + Pythonic kernel (identity fingerprint). */
 export function systemPromptPrefix(model?: Provider.Model) {
   const parts = systemPromptParts(model)
-  return [parts.reasoning, parts.kernel].filter((x) => x.length > 0).join("\n\n")
+  return [parts.reasoning, parts.algorithm, parts.kernel].filter((x) => x.length > 0).join("\n\n")
 }
 
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]

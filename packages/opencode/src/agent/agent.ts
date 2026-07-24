@@ -131,6 +131,8 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+            // No agent.prompt — plan/build switch same model/session; mode text is
+            // synthetic on the user message (prompt.ts insertReminders), not system prefix.
           },
           plan: {
             name: "plan",

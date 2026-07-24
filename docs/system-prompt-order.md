@@ -15,12 +15,12 @@ Two stages:
 ```mermaid
 flowchart TB
   subgraph prompt_ts["prompt.ts — pathSystem"]
+    RU[rules]
     SK[skills]
     EN[env]
-    RU[rules]
     IN[instructions / AGENTS.md]
     SO[optional structured-output prompt]
-    SK --> EN --> RU --> IN --> SO
+    RU --> SK --> EN --> IN --> SO
   end
 
   subgraph llm_ts["llm.ts — assembleSystemMessages"]
@@ -32,11 +32,12 @@ flowchart TB
   end
 
   subgraph stable_body["system[2] stable body (join order)"]
-    R[reasoning.txt prefix]
+    R[reasoning.txt]
+    AC[algorithm_card.txt]
     K[opencode_prompts_kernel.txt]
     P[pathSystem from prompt.ts]
-    A[agent.prompt e.g. build/coder]
-    R --> K --> P
+    A[agent.prompt e.g. coder — NOT plan/build]
+    R --> AC --> K --> P
     A -.->|inserted before last path elem if present| P
   end
 
@@ -55,7 +56,7 @@ flowchart TB
 
 | Slot | Content | Mutability |
 |------|---------|------------|
-| **[0]** | `UNIVERSAL_ENV` (“You are a coding assistant.” + static capabilities) | Frozen forever |
+| **[0]** | `UNIVERSAL_ENV` (thin role + handoff to REASONING / ALGORITHM_CARD + Exact stance) | Frozen forever |
 | **[1]** | Serialized tool **schemas** (all tools, sorted) | Stable per app version |
 | **[2]** | **Stable body** (single joined string): reasoning → kernel → path → agent (see below) | Stable per agent + project; rebuild on identity mismatch |
 | **[3]** | Active tools line + session banner + optional `user.system` | **Most mutable** — must stay last |
@@ -64,12 +65,17 @@ flowchart TB
 
 ```
 reasoningPrefix          ← MOST STABLE (full reasoning.txt)
+algorithmCard            ← ALGORITHM_CARD (commented Python routes; shared plan+build)
 kernel                   ← full opencode_prompts_kernel.txt (Pythonic PROMPT_ABI / RULES / …)
-pathSystem[0..n-2]       ← today: skills, env, rules  (from prompt.ts)
-agentPrompt              ← agent.prompt (if any), inserted before last path elem
+pathSystem[0..n-2]       ← rules → skills → env  (assemblePathSystem)
+agentPrompt              ← agent.prompt for subagents (coder/…); plan/build have NONE
 pathSystem[last]         ← instructions (AGENTS.md etc.) — most mutable of path
 (+ structured-output prompt may be last path element when json_schema)
 ```
+
+**plan/build mode text is NOT in system.** Injected as synthetic parts on the last
+user message (`plan.txt`, `build.txt`, `build-switch.txt`) so plan↔build can switch
+on the same model/session without rewriting the system prefix (KV cache).
 
 **Bug fixed (2026-07-24):** `llm.ts` used to do `systemPromptPrefix().split("\\n\\n")`.  
 Both files contain blank lines, so “reasoning” became only the title (~150 bytes) and the rest of `reasoning.txt` was glued into the “kernel” string. Use `ProviderTransform.systemPromptParts()` — never join-then-split on blank lines.
@@ -108,17 +114,15 @@ sequenceDiagram
 
 ---
 
-## 2. Known inconsistency (investigate when editing)
+## 2. Path order (fixed)
 
-| Source | Path order claimed / used |
-|--------|---------------------------|
-| **prompt.ts (live)** | `skills → env → rules → instructions` (`ae84baa812`) |
-| **system-compose `assemblePathSystem`** | `rules → skills → env → instructions` |
-| **system-compose header comment** | `reasoning → kernel → rules → skills → env → agent → instructions` |
+| Source | Path order |
+|--------|------------|
+| **prompt.ts (live)** | `assemblePathSystem` → `rules → skills → env → instructions` |
+| **system-compose `assemblePathSystem`** | same |
+| **Identity block** | `reasoning → ALGORITHM_CARD → kernel → path → agent? → AGENTS` |
 
-`prompt.ts` does **not** call `assemblePathSystem` today; live path is **skills, env, rules, instructions**.  
-Agent prompt is still injected by `assembleSystemMessages` **before the last path element** (instructions).
-
+plan/build: conversation-tail synthetics only (see §1).
 ---
 
 ## 3. Commit timeline (when order was modified)

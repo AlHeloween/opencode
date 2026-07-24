@@ -95,40 +95,15 @@ export interface Interface {
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
 }
 
-// Module-level constant: capabilities description (purely static, same for every invocation).
-const CAPABILITIES_TEXT = [
-  `## Capabilities`,
-  ``,
-  `You have powerful tools at your disposal. Here are some key capabilities you should be aware of:`,
-  ``,
-  `- **Document conversion**: The read tool can extract text and convert many file formats to markdown, including PDFs, Word documents (.docx, .odt), Excel spreadsheets (.xlsx, .ods, .csv), PowerPoint presentations (.pptx, .odp), and plain text formats (.txt, .md, .json, .xml, .html)`,
-  `- **Archive reading**: You can read the contents of compressed archives including .zip, .tar, .gz, and .7z files`,
-  `- **Media files**: You can read image metadata (EXIF data), and extract information from audio and video files`,
-  `- **Terminal image rendering**: Images in tool outputs are rendered inline using the best available terminal graphics protocol (Kitty, Sixel, iTerm2, or Unicode symbols). Configure via \`image_protocol\` in tui.json (values: "auto", "kitty", "sixel", "iterm2", "symbols"). WezTerm is the recommended cross-platform terminal (supports all three graphics protocols).`,
-  `- **Visual output**: Use Mermaid only in complete \`mermaid\` fenced blocks. Return generated images and videos as real media attachments; do not emit \`<image-plane>\`, XML separators, ANSI escape codes, base64 data, or Markdown URLs expecting inline TUI rendering. Video attachments provide a thumbnail preview; playback is external.`,
-  `- **Web + global code search (reuse first)**: The universalsearch tool searches the web (\`source: "web"\`), Sourcegraph over indexed git (\`source: "code"\`), both (\`source: "hybrid"\`), or an autonomous research agent (\`source: "agent"\`). Use it **before** non-trivial invent/build and **again when stuck after failures** — prefer existing solutions over reinventing. All modes go through the same configured URL — never use any other port.`,
-  `- **Conversation search**: The messagesearch tool provides FTS5 full-text search with BM25 + epistemic hybrid ranking over a dedicated memory database`,
-  `- **Database diagnostics**: The db-read tool lets you query any SQLite database under .opencode/data/ with read-only SELECT`,
-  `- **Log search**: The logsearch tool enables fast bug finding across .opencode/data/log/ files`,
-  `- **Session reading**: The session-read tool reads full messages by index from any session, including summaries`,
-  `- **Directory listing**: The list tool provides a tree-style directory listing with automatic ignore of common directories`,
-  `- **Multi-edit**: The multiedit tool allows multiple sequential edits to a single file in one operation`,
-  `- **Web fetching**: The webfetch tool can retrieve and convert web pages to markdown, text, or HTML format`,
-  `- **Sub-agents**: The task tool can spawn specialized sub-agents for focused work on specific domains`,
-  ``,
-  `When a user asks you to read or analyze a file, consider using the read tool — it supports far more formats than plain text. If a file type is unfamiliar, try reading it rather than assuming you cannot.`,
-].join("\n")
-
 /**
- * Universal env block — 100% immutable across sessions and projects.
- * Always placed as system[0] in the provider-facing system array.
- * Contains only the generic identity + static capabilities.
- * No per-path, per-model, or per-session content.
+ * Universal head — 100% immutable across sessions, projects, agents, models.
+ * Always system[0]. Role + handoff only — not a tool catalogue (schemas + cards own that).
+ * No per-path, per-model, or per-session content. [KV-CACHE] eternal prefix.
  */
 export const UNIVERSAL_ENV = [
-  "You are a coding assistant.",
-  "",
-  CAPABILITIES_TEXT,
+  "You are a coding assistant for software engineering in this product.",
+  "Follow REASONING PROTOCOL and ALGORITHM_CARD in the system identity.",
+  "Prefer Exact evidence (tools) over unaided recall.",
 ].join("\n")
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SystemPrompt") {}

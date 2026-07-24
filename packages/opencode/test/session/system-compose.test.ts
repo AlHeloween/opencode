@@ -8,6 +8,7 @@ import {
 } from "../../src/session/system-compose"
 import PROMPT_KERNEL from "../../src/session/prompt/opencode_prompts_kernel.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
+import PROMPT_ALGORITHM from "../../src/session/prompt/algorithm_card.txt"
 import { ProviderTransform } from "../../src/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
 import type { Provider } from "../../src/provider/provider"
@@ -67,6 +68,7 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
+      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
@@ -75,11 +77,11 @@ describe("system-compose provider assembly", () => {
       userSystem: "USER",
       checkpoint: false,
     })
-    // Order: reasoning → kernel → rules → skills → env → agentPrompt → instructions
+    // Order: reasoning → ALGORITHM_CARD → kernel → rules → skills → env → agentPrompt → instructions
     expect(parts).toEqual([
       "UE",
       "TOOLS",
-      "REASONING\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
+      "REASONING\nALGORITHM_CARD\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
       "Active tools: a\n[session: ses_1]\nUSER",
     ])
   })
@@ -89,6 +91,7 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
+      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["OLD_IDENTITY", "RULES", "SKILLS", "ENV"],
@@ -96,8 +99,8 @@ describe("system-compose provider assembly", () => {
       banner: "[session: ses_1]",
       checkpoint: true,
     })
-    // After stripping OLD_IDENTITY: reasoning → kernel → rules → skills → agentPrompt → env
-    expect(parts[2]).toBe("REASONING\nKERNEL\nRULES\nSKILLS\nAGENT_PROMPT\nENV")
+    // After stripping OLD_IDENTITY: reasoning → card → kernel → rules → skills → agentPrompt → env
+    expect(parts[2]).toBe("REASONING\nALGORITHM_CARD\nKERNEL\nRULES\nSKILLS\nAGENT_PROMPT\nENV")
     expect(parts.join("\n")).not.toContain("OLD_IDENTITY")
     expect(parts.some((p) => p === "USER")).toBe(false)
   })
@@ -107,6 +110,7 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
+      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
@@ -120,7 +124,7 @@ describe("system-compose provider assembly", () => {
     expect(collapsed).toEqual([
       "UE",
       "TOOLS",
-      "REASONING\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
+      "REASONING\nALGORITHM_CARD\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
       "Active tools: a\n[session: ses_1]",
     ])
     expect(collapsed[2]).not.toContain("[session:")
@@ -132,6 +136,7 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
+      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV"],
@@ -173,22 +178,31 @@ describe("system prefix digest (kernel + reasoning)", () => {
     expect(PROMPT_KERNEL).not.toContain("_ALL_SPECS")
   })
 
-  test("systemPromptPrefix is reasoning then kernel, byte-stable across calls", () => {
+  test("systemPromptPrefix is reasoning then algorithm then kernel, byte-stable", () => {
     const model = mockModel("anthropic/claude-sonnet-4")
     const a = ProviderTransform.systemPromptPrefix(model)
     const b = ProviderTransform.systemPromptPrefix(model)
     expect(a).toBe(b)
-    expect(a.indexOf("Communication Protocol")).toBeLessThan(a.indexOf("PROMPT_ABI"))
+    expect(a.indexOf("REASONING PROTOCOL")).toBeLessThan(a.indexOf("ALGORITHM_CARD"))
+    expect(a.indexOf("ALGORITHM_CARD")).toBeLessThan(a.indexOf("PROMPT_ABI"))
     expect(a).toContain(PROMPT_REASONING.slice(0, 40))
+    expect(a).toContain(PROMPT_ALGORITHM.slice(0, 40))
     expect(a.endsWith(PROMPT_KERNEL) || a.includes(PROMPT_KERNEL.slice(0, 80))).toBe(true)
   })
 
-  test("systemPromptParts keeps full reasoning and full Pythonic kernel separate", () => {
+  test("systemPromptParts keeps full reasoning, algorithm card, and kernel separate", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
-    // Regression: split("\\n\\n") on the join left only ~149 bytes of reasoning.
-    expect(parts.reasoning.length).toBeGreaterThan(5_000)
-    expect(parts.reasoning).toContain("Communication Protocol")
+    // Lean ADID density: reasoning is a pocket protocol, not a 11KB essay.
+    // Regression: split("\\n\\n") on the join must not truncate/mis-slot files.
+    expect(parts.reasoning.length).toBeGreaterThan(1_500)
+    expect(parts.reasoning.length).toBeLessThan(8_000)
+    expect(parts.reasoning).toContain("REASONING PROTOCOL")
+    expect(parts.reasoning).toContain("SVM noise filter")
+    expect(parts.reasoning).toContain("ALGORITHM_CARD")
     expect(parts.reasoning).not.toContain("PROMPT_ABI")
+    expect(parts.algorithm).toContain("ALGORITHM_CARD")
+    expect(parts.algorithm).toContain("run_task_geometry")
+    expect(parts.algorithm).not.toContain("PROMPT_ABI")
     expect(parts.kernel.length).toBeGreaterThan(5_000)
     expect(parts.kernel).toContain("PROMPT_ABI")
     expect(parts.kernel).toContain("MappingProxyType")
@@ -197,8 +211,9 @@ describe("system prefix digest (kernel + reasoning)", () => {
     )
   })
 
-  test("reports prefix byte sizes for reasoning and kernel", () => {
+  test("reports prefix byte sizes for reasoning, algorithm, and kernel", () => {
     const reasoningBytes = Buffer.byteLength(PROMPT_REASONING, "utf8")
+    const algorithmBytes = Buffer.byteLength(PROMPT_ALGORITHM, "utf8")
     const kernelBytes = Buffer.byteLength(PROMPT_KERNEL, "utf8")
     const combined = Buffer.byteLength(
       ProviderTransform.systemPromptPrefix(mockModel("openai/gpt-4")),
@@ -206,8 +221,10 @@ describe("system prefix digest (kernel + reasoning)", () => {
     )
     expect(kernelBytes).toBeGreaterThan(5_000)
     expect(kernelBytes).toBeLessThan(80_000)
-    expect(reasoningBytes).toBeGreaterThan(5_000)
-    expect(combined).toBeGreaterThanOrEqual(reasoningBytes + kernelBytes)
+    expect(reasoningBytes).toBeGreaterThan(1_500)
+    expect(reasoningBytes).toBeLessThan(8_000)
+    expect(algorithmBytes).toBeGreaterThan(500)
+    expect(combined).toBeGreaterThanOrEqual(reasoningBytes + algorithmBytes + kernelBytes)
   })
 })
 
@@ -217,6 +234,7 @@ describe("validateSystemOrder", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: PROMPT_REASONING,
+      algorithmCard: PROMPT_ALGORITHM,
       kernel: PROMPT_KERNEL,
       agentPrompt: "AGENT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],

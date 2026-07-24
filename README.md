@@ -14,6 +14,10 @@
   <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
+This project is not “another coding agent with more tools.” It is an **attempt to make agentic coding mechanically continuous and geometrically bounded** — memory with links, work with medoids, evidence with ranks, cache with frozen prefixes.
+
+The prompt surface is built to match that architecture: thin product identity, pocket reasoning + ALGORITHM_CARD routes, plan/build as conversation-tail (KV-safe), continuous memory with Exact system stamps and links—not soup.
+
 <p align="center">
   <a href="README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |

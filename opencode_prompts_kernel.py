@@ -1455,6 +1455,118 @@ def cluster_and_explore(modifications: list[PlanModification]) -> list[tuple[Pla
 
 
 # ======================================================================
+# §12c. TASK GEOMETRY — ALGORITHM_CARD bindings
+# ======================================================================
+# Model-facing card: packages/opencode/src/session/prompt/algorithm_card.txt
+# These functions are the real symbols the card names. Cut evaluation area:
+# over-generate lattice → k-medoids → medoids only (never evaluate infinity).
+
+
+def select_planning_mode(
+    goal: str,
+    *,
+    undirected_message_count: int = 0,
+    primary_tasks_complete: bool = False,
+    clear_actionable_goal: bool | None = None,
+) -> str:
+    """Mode 1 (linear) default; Mode 2 (fractal) on ADID triggers.
+
+    Returns:
+        \"mode_1\" | \"mode_2\"
+    """
+    if clear_actionable_goal is None:
+        clear_actionable_goal = bool(goal and goal.strip())
+    if primary_tasks_complete or undirected_message_count >= 10:
+        return "mode_2"
+    if clear_actionable_goal:
+        return "mode_1"
+    return "mode_2"
+
+
+def select_fractal_model(peaks: list, delta_v: float = 0.0) -> str:
+    """Select fractal model from peak count (ADID Mode 2).
+
+    >=3 peaks → Sierpinski
+    2/4/8 peaks → Quad/Oct-tree
+    else → L-System (F→F+F-F)
+    delta_v reserved for |ΔV| / orthogonal gates when embeddings are live.
+    """
+    _ = delta_v  # reserved for cosine/orthogonal gates
+    n_peaks = len(peaks)
+    if n_peaks >= 3:
+        return "Sierpinski"
+    if n_peaks in (2, 4, 8):
+        return "Quad/Oct-tree"
+    return "L-System"
+
+
+def lsystem_rewrite(axiom: str = "F", rules: dict[str, str] | None = None, depth: int = 3) -> str:
+    """L-System rewrite F→F+F-F (depth >= 3). Lattice grammar, not free prose."""
+    if rules is None:
+        rules = {"F": "F+F-F"}
+    result = axiom
+    for _ in range(max(1, depth)):
+        result = "".join(rules.get(c, c) for c in result)
+    return result
+
+
+def select_medoids_tasks(tasks: list[str], k: int | None = None) -> list[str]:
+    """Keep finite CENTRAL_TASKS from candidate foam. k = ceil(N/2).
+
+    When tasks are short clauses only (no PlanModification), take evenly spaced
+    medoid indices — same k rule as k_medoids_modifications. Prefer
+    k_medoids_modifications for file-level plan clusters.
+    """
+    n = len(tasks)
+    if n == 0:
+        return []
+    if k is None:
+        k = max(1, (n + 1) // 2)
+    k = min(k, n)
+    if k == n:
+        return list(tasks)
+    indices = [int(i * (n - 1) / max(k - 1, 1)) for i in range(k)]
+    seen: set[int] = set()
+    out: list[str] = []
+    for i in indices:
+        if i not in seen:
+            seen.add(i)
+            out.append(tasks[i])
+    return out
+
+
+def run_task_geometry(
+    goal: str,
+    candidates: list[str],
+    *,
+    undirected_message_count: int = 0,
+    primary_tasks_complete: bool = False,
+    peaks: list | None = None,
+) -> dict:
+    """Pipeline named by ALGORITHM_CARD — returns mode, model, CENTRAL_TASKS.
+
+    Does not call tools (ground / todowrite / execute are agent-side).
+    Pure cut: candidates → medoids only.
+    """
+    mode = select_planning_mode(
+        goal,
+        undirected_message_count=undirected_message_count,
+        primary_tasks_complete=primary_tasks_complete,
+    )
+    model = None
+    if mode == "mode_2":
+        model = select_fractal_model(peaks if peaks is not None else candidates)
+    central = select_medoids_tasks(candidates)
+    return {
+        "mode": mode,
+        "model": model,
+        "central_tasks": central,
+        "candidate_count": len(candidates),
+        "medoid_count": len(central),
+    }
+
+
+# ======================================================================
 # §13. EDGE-CASE HANDLERS
 # ======================================================================
 

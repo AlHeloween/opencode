@@ -218,14 +218,20 @@ const live: Layer.Layer<
       // TODO: move this to a proper hook
       const isOpenaiOauth = item.id === "openai" && info?.type === "oauth"
 
-      // Separate parts — do NOT split(joined, "\n\n"): both files use blank lines,
+      // Separate parts — do NOT split(joined, "\n\n"): files use blank lines,
       // so that left only the reasoning title and buried PROMPT_ABI inside "kernel".
-      const { reasoning: reasoningPrefix, kernel } = ProviderTransform.systemPromptParts(input.model)
+      const {
+        reasoning: reasoningPrefix,
+        algorithm: algorithmCard,
+        kernel,
+      } = ProviderTransform.systemPromptParts(input.model)
       const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : "reasoning-only"
 
       l.info("system prompt", {
         reasoning: !!reasoningPrefix,
         reasoningBytes: Buffer.byteLength(reasoningPrefix, "utf8"),
+        algorithm: !!algorithmCard,
+        algorithmBytes: Buffer.byteLength(algorithmCard, "utf8"),
         kernel: !!kernel,
         kernelBytes: Buffer.byteLength(kernel, "utf8"),
         kernelHasAbi: kernel.includes("PROMPT_ABI"),
@@ -254,6 +260,7 @@ const live: Layer.Layer<
         universalEnv: UNIVERSAL_ENV,
         toolSchemas: toolSchemaText,
         reasoningPrefix,
+        algorithmCard,
         kernel,
         agentPrompt: input.agent.prompt ?? "",
         pathSystem: input.system,

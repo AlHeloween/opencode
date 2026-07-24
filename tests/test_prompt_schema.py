@@ -37,13 +37,23 @@ RULE_DIRS = [
 ]
 
 # Files to exclude from validation
+# Pocket protocols / mode synthetics use algorithm-with-comments density, not PromptSpec YAML.
 EXCLUDED_FILES = {
-    "opencode_prompts_kernel.txt",  # Python kernel — not a prompt file
-    "reasoning.txt",                 # Reference document, not instructions
-    "max-steps.txt",                 # Trivial mode switch
-    "build-switch.txt",             # Trivial mode switch
+    "opencode_prompts_kernel.txt",  # Generated Pythonic SPECS — not a prompt file
+    "reasoning.txt",                # Lean REASONING PROTOCOL (algorithm + comments)
+    "algorithm_card.txt",           # ALGORITHM_CARD task geometry (algorithm + comments)
+    "build.txt",                    # Build mode conversation-tail synthetic (KV-safe)
+    "max-steps.txt",                # Trivial mode switch
+    "build-switch.txt",             # Plan→build conversation-tail synthetic
     "test_agent.txt",               # Test fixture
     "generate.txt",                 # Agent generation prompt
+}
+
+# Session pocket protocols that must exist and bind to kernel / each other
+POCKET_PROTOCOL_FILES = {
+    "reasoning.txt": ("REASONING PROTOCOL", "ALGORITHM_CARD"),
+    "algorithm_card.txt": ("ALGORITHM_CARD", "run_task_geometry", "select_fractal_model"),
+    "build.txt": ("Build mode", "ALGORITHM_CARD", "conversation tail"),
 }
 
 # Rule files are external package docs (ADID framework) synced from upstream —
@@ -231,6 +241,58 @@ def test_no_orphaned_agent_prompts():
         )
     else:
         pytest.skip("agent.ts not found, skipping import test")
+
+
+def test_build_has_no_agent_prompt_system_bind():
+    """plan/build mode text must not live in agent.prompt (KV: conversation tail only)."""
+    agent_def_path = os.path.join(PROJECT_ROOT, "packages/opencode/src/agent/agent.ts")
+    if not os.path.isfile(agent_def_path):
+        pytest.skip("agent.ts not found")
+    with open(agent_def_path, "r", encoding="utf-8") as f:
+        src = f.read()
+    assert "PROMPT_BUILD" not in src
+    # build agent block must not set prompt: (mode text is session/prompt/build.txt synthetic)
+    # Match the build: { ... } object without pulling later agents
+    m = re.search(r"build:\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}", src, re.DOTALL)
+    assert m, "build agent definition not found"
+    assert "prompt:" not in m.group(1)
+
+
+def test_pocket_protocol_files_exist_and_markers():
+    """REASONING / ALGORITHM_CARD / build synthetic are pocket density, not PromptSpec."""
+    for name, markers in POCKET_PROTOCOL_FILES.items():
+        fp = os.path.join(SESSION_PROMPT_DIR, name)
+        assert os.path.isfile(fp), f"missing pocket protocol: {name}"
+        with open(fp, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert len(content) < 12_000, f"{name} grew past pocket size ({len(content)} bytes)"
+        for marker in markers:
+            assert marker in content, f"{name} missing marker {marker!r}"
+
+
+def test_algorithm_card_binds_to_kernel_symbols():
+    """ALGORITHM_CARD names must resolve on opencode_prompts_kernel (hybrid bind)."""
+    import opencode_prompts_kernel as kernel
+
+    card_path = os.path.join(SESSION_PROMPT_DIR, "algorithm_card.txt")
+    with open(card_path, "r", encoding="utf-8") as f:
+        card = f.read()
+
+    # Symbols the card must name; each must be a real callable on the kernel
+    required = [
+        "select_planning_mode",
+        "select_fractal_model",
+        "k_medoids_modifications",
+        "select_medoids_tasks",
+        "lsystem_rewrite",
+        "run_task_geometry",
+    ]
+    for name in required:
+        assert name in card, f"algorithm_card.txt should name {name}"
+        assert hasattr(kernel, name) and callable(getattr(kernel, name)), (
+            f"kernel missing callable {name}"
+        )
+    assert "PLANNING" in card and "PLANNING" in kernel._ALL_SPECS
 
 
 

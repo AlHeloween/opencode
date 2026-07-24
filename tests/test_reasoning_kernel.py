@@ -7,6 +7,7 @@ Run: pytest tests/  (from repo root)
 Covers: Enums, Information Mark system, Semantic Vectors, Delta functions,
         Contract validation, Digest computation, State machine, Classification,
         Bug Fix Protocol, Execution Permit, Edge-case handlers, State Record,
+        Task geometry (Mode 1/2, fractal select, k-medoids, run_task_geometry),
         Conformance suite, and all project specs (agents, skills, commands, rules).
 """
 
@@ -94,6 +95,12 @@ from opencode_prompts_kernel import (
     PROMPT_ABI, RUNTIME_CONTRACTS, RUNTIME_PACKS, RUNTIME_RULE_ALIASES, RUNTIME_RULE_OWNERS,
     RUNTIME_RULES, RUNTIME_TERMS, RUNTIME_WORKFLOWS, SPEC_CONTRACT_IDS, _ALL_SPECS,
     runtime_kernel_digest,
+
+    # Task geometry (ALGORITHM_CARD bindings)
+    PlanModification, PlanCluster,
+    k_medoids_modifications, cluster_and_explore,
+    select_planning_mode, select_fractal_model, lsystem_rewrite,
+    select_medoids_tasks, run_task_geometry,
 )
 
 
@@ -1875,6 +1882,117 @@ class TestRuntimePromptCompiler:
         # Full tier still available offline
         full = render_runtime_kernel(tier="full")
         assert "--- Skill Specs" in full
+
+
+# ======================================================================
+# TASK GEOMETRY (ALGORITHM_CARD bindings)
+# ======================================================================
+
+class TestTaskGeometry:
+    """Mode select, fractal model pick, medoids — cut evaluation area."""
+
+    def test_select_planning_mode_clear_goal_is_mode_1(self):
+        assert select_planning_mode("fix the summary counter") == "mode_1"
+
+    def test_select_planning_mode_undirected_triggers_mode_2(self):
+        assert select_planning_mode("hi", undirected_message_count=10) == "mode_2"
+        assert select_planning_mode("hi", undirected_message_count=9) == "mode_1"
+
+    def test_select_planning_mode_after_primary_complete_is_mode_2(self):
+        assert select_planning_mode("next polish", primary_tasks_complete=True) == "mode_2"
+
+    def test_select_planning_mode_empty_goal_mode_2(self):
+        assert select_planning_mode("   ", clear_actionable_goal=False) == "mode_2"
+
+    def test_select_fractal_model_sierpinski(self):
+        assert select_fractal_model(["a", "b", "c"]) == "Sierpinski"
+        assert select_fractal_model(list("abcdef")) == "Sierpinski"
+
+    def test_select_fractal_model_quad_oct(self):
+        # n in (2, 4, 8) only when not already >=3 → Sierpinski wins for 4/8
+        assert select_fractal_model(["a", "b"]) == "Quad/Oct-tree"
+        # 4 and 8 peaks: ADID table lists Quad/Oct, but kernel prioritizes >=3 → Sierpinski
+        assert select_fractal_model(list("abcd")) == "Sierpinski"
+        assert select_fractal_model(list("abcdefgh")) == "Sierpinski"
+
+    def test_select_fractal_model_lsystem_default(self):
+        assert select_fractal_model([]) == "L-System"
+        assert select_fractal_model(["only"]) == "L-System"
+
+    def test_lsystem_rewrite_depth(self):
+        assert lsystem_rewrite(depth=1) == "F+F-F"
+        out = lsystem_rewrite(depth=2)
+        assert out.startswith("F")
+        assert "F+F-F" in out or out.count("F") > 1
+
+    def test_select_medoids_tasks_cuts_area(self):
+        tasks = [f"t{i}" for i in range(6)]
+        medoids = select_medoids_tasks(tasks)
+        # k = ceil(N/2) → finite subset, not full foam
+        assert 1 <= len(medoids) <= len(tasks)
+        assert len(medoids) == 3  # ceil(6/2)
+        assert all(m in tasks for m in medoids)
+
+    def test_select_medoids_tasks_empty(self):
+        assert select_medoids_tasks([]) == []
+
+    def test_select_medoids_tasks_single(self):
+        assert select_medoids_tasks(["only"]) == ["only"]
+
+    def test_run_task_geometry_mode_1_finite_central(self):
+        candidates = [f"step {i}" for i in range(5)]
+        result = run_task_geometry("implement feature X", candidates)
+        assert result["mode"] == "mode_1"
+        assert result["model"] is None
+        assert result["candidate_count"] == 5
+        assert result["medoid_count"] == len(result["central_tasks"])
+        assert result["medoid_count"] < result["candidate_count"]
+        assert result["medoid_count"] == 3  # ceil(5/2)
+
+    def test_run_task_geometry_mode_2_sets_model(self):
+        candidates = ["a", "b", "c", "d"]
+        result = run_task_geometry(
+            "explore residual",
+            candidates,
+            undirected_message_count=12,
+            peaks=["p1", "p2", "p3"],
+        )
+        assert result["mode"] == "mode_2"
+        assert result["model"] == "Sierpinski"
+        assert result["medoid_count"] == 2
+        assert result["central_tasks"]
+
+    def test_k_medoids_modifications_clusters(self):
+        mods = [
+            PlanModification("a.ts", "session.prompt", "logic", "high", "fix compose"),
+            PlanModification("b.ts", "session.prompt", "logic", "medium", "path order"),
+            PlanModification("c.ts", "agent.agent", "api_surface", "low", "build bind"),
+            PlanModification("d.ts", "provider.transform", "data_flow", "medium", "parts"),
+        ]
+        clusters = k_medoids_modifications(mods)
+        assert len(clusters) >= 1
+        assert all(isinstance(c, PlanCluster) for c in clusters)
+        total = sum(c.cluster_size for c in clusters)
+        assert total == len(mods)
+
+    def test_cluster_and_explore_returns_prompts(self):
+        mods = [
+            PlanModification("x.ts", "session.compaction", "logic", "high", "summary"),
+            PlanModification("y.ts", "session.compaction", "logic", "high", "counter"),
+        ]
+        pairs = cluster_and_explore(mods)
+        assert len(pairs) >= 1
+        for cluster, prompt in pairs:
+            assert isinstance(cluster, PlanCluster)
+            assert "Pre-flight" in prompt or "Investigation" in prompt or "investigate" in prompt.lower()
+
+    def test_planning_spec_in_all_specs(self):
+        assert "PLANNING" in _ALL_SPECS
+        planning = _ALL_SPECS["PLANNING"]
+        # PromptSpec-like: intent mentions dual-mode / fractal
+        intent = planning.get("intent") or planning.get("Intent") or str(planning)
+        text = intent if isinstance(intent, str) else str(planning)
+        assert "Mode 1" in text or "fractal" in text.lower() or "CENTRAL" in text
 
 
 # ======================================================================

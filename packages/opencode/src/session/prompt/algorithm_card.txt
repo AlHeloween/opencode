@@ -2,7 +2,7 @@
 # Canonical code: opencode_prompts_kernel.py
 #   PLANNING, DECOMPOSE, REUSE.BEFORE, SMOKE.BEFORE
 #   k_medoids_modifications, select_fractal_model, select_planning_mode
-#   run_task_geometry (pipeline)
+#   select_medoids_tasks, lsystem_rewrite, run_task_geometry (pipeline)
 # Cut evaluation area: over-generate lattice → keep medoids only. Never evaluate infinity.
 
 ```python
@@ -11,6 +11,8 @@ from opencode_prompts_kernel import (  # normative names; runtime is this proces
     select_planning_mode,   # Mode 1 linear | Mode 2 fractal
     select_fractal_model,   # Sierpinski | Quad/Oct-tree | L-System
     k_medoids_modifications,
+    select_medoids_tasks,   # clause-level cut; k = ceil(N/2)
+    lsystem_rewrite,        # F→F+F-F lattice grammar
     PLANNING,               # policy.planning SPEC
 )
 
@@ -37,7 +39,7 @@ def run_task_geometry(goal: str, signals: list) -> list[str]:
 
     # 4. select_medoids — cut area; seeds ground cluster centers; middle-ring only
     #    k = ceil(N/2); cosine; k_medoids_modifications for file-level plans
-    central_tasks = select_medoids(candidates)  # FINITE set — do not keep foam
+    central_tasks = select_medoids_tasks(candidates)  # FINITE set — do not keep foam
 
     # 5. todowrite — one in_progress; CENTRAL_TASKS = medoids
     todowrite(central_tasks)  # tool: todowrite | TodoWrite

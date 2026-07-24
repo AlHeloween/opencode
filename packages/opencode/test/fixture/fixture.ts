@@ -3,16 +3,20 @@ import * as fs from "fs/promises"
 import os from "os"
 import path from "path"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
-import { Context, Effect, Scope } from "effect"
+import { Context, Effect, Scope, Semaphore } from "effect"
 import { Config } from "../../src/config/config"
 import { InstanceRef } from "../../src/effect/instance-ref"
 import { Instance } from "../../src/project/instance"
+import * as Log from "@opencode-ai/core/util/log"
 import * as PlatformError from "effect/PlatformError"
 import { TestLLMServer } from "../lib/llm-server"
 
 // Use repo-local .temp/test from preload.ts env var, fallback to os.tmpdir()
 // for tests that don't go through preload.
 const TEST_TEMP = process.env["OPENCODE_TEST_TEMP"] ?? path.join(os.tmpdir(), "opencode-test")
+// Instance boot mutates process-global portable paths and log streams. Live
+// test cases must not overlap until each temporary instance has been disposed.
+const tmpdirInstanceLock = Semaphore.makeUnsafe(1)
 
 function sanitizePath(str: string) {
   return str.replace(/\0/g, "")
@@ -138,24 +142,29 @@ export function provideTmpdirInstance<A, E, R>(
   self: (path: string) => Effect.Effect<A, E, R>,
   options?: { git?: boolean; config?: Partial<Config.Info> },
 ) {
-  return Effect.gen(function* () {
-    const path = yield* tmpdirScoped(options)
-    let provided = false
+  return tmpdirInstanceLock.withPermits(1)(
+    Effect.gen(function* () {
+      const path = yield* tmpdirScoped(options)
+      let provided = false
 
-    yield* Effect.addFinalizer(() =>
-      provided
-        ? Effect.promise(() =>
-            Instance.provide({
-              directory: path,
-              fn: () => Instance.dispose(),
-            }),
-          ).pipe(Effect.ignore)
-        : Effect.void,
-    )
+      yield* Effect.addFinalizer(() =>
+        provided
+          ? Effect.promise(() =>
+              Instance.provide({
+                directory: path,
+                fn: async () => {
+                  await Instance.dispose()
+                  await Log.reopen()
+                },
+              }),
+            ).pipe(Effect.ignore)
+          : Effect.void,
+      )
 
-    provided = true
-    return yield* self(path).pipe(provideInstance(path))
-  })
+      provided = true
+      return yield* self(path).pipe(provideInstance(path))
+    }),
+  )
 }
 
 export function provideTmpdirServer<A, E, R>(

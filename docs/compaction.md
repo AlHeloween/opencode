@@ -1,7 +1,7 @@
 # Mechanistic Compaction — Stable Continuous Memory
 
 **Status:** production  
-**Last updated:** 2026-07-23  
+**Last updated:** 2026-07-24
 **Code:** `packages/opencode/src/session/compaction.ts`, `prompt.ts` (`runLoop`), `summary.ts`, `overflow.ts`, `message-v2.ts` (`filterCompacted*`)
 
 ---
@@ -26,13 +26,14 @@ That is **all** the Layer-1 summary request asks the model to write. No IDs, no 
 | Output | How / where |
 |--------|-------------|
 | Open-window **counter** | `computeOpenWindowTokens` — `chars/4` since last summary / of visible set |
-| **When** to inject Layer-1 | Counter ≥ `SUMMARY_INTERVAL_TOKENS` (32 768) on stop + continue + pre-overflow |
+| **When** to inject Layer-1 | Counter ≥ `SUMMARY_INTERVAL_TOKENS` (32 768) only after a normal assistant answer has completed with no pending tool work |
 | Summary **range** `from_id` / `to_id` / `session_id` | Ignored text part: `<!-- summary-range … -->` — **not** sent to the model (`toModelMessages` skips `ignored`) |
 | Model-facing inject prose | Synthetic non-ignored part: SVM/goal/decisions/state template only |
-| `assistant.summary = true` | Flag on the next assistant so the reply is the Layer-1 summary |
+| `assistant.summary = true` | Set only after the prose reply passes required-section validation; failed attempts are never boundaries |
 | **Exact stamp** after summary | Synthetic part on the summary assistant: `summary_message_id`, `from_id`, `to_id`, `session_id` (from ignored marker + DB id) |
-| **File diffs** for the window | `SessionSummary.summarize` → fossil/tool `computeDiff` over `from_id`…`to_id` → `user.summary.diffs` + session Modified Files |
-| **Structural detail** | CodeGraph / fossil `sym` tags / `Snapshot.impact` — not model text |
+| **File diffs** for the window | After accepted Layer-1 promotion, `SessionSummary.summarize` → Fossil `computeDiff` over `from_id`…`to_id` → `user.summary.diffs` + session Modified Files |
+| **Structural detail** | In that same accepted-range job, CodeGraph MCP incrementally touches the changed files, then its readonly SQLite pack supplies `Snapshot.impact` / Fossil `sym` tags |
+| **Exact handoff in `message*`** | Compaction only reads the persisted range handle: bounded Fossil file list (+/−/status) plus CodeGraph structural fields. It never reruns Fossil or CodeGraph. |
 | **`message*` body** | Entire `=== COMPACTED ===` artifact: system links, decisions block, Recent fold, recovery recipes |
 | Soft-hide / `compacted` | System flags; never hard-delete |
 | Prior `message*` chain, `#N` offsets | System when building the next star |
@@ -93,10 +94,11 @@ addressable archive =  all messages in DB (soft-hidden from context, still reada
 counter = content tokens (chars/4) of open window since last summary
          (or whole visible window if no summary yet)     ← SYSTEM
 
-every time counter ≥ ~32_768
+when a normal assistant answer completes and counter ≥ ~32_768
     → SYSTEM: inject ignored range marker + prose request
     → MODEL: writes s (SVM / goal / decisions / state only)
-    → SYSTEM: stamp Exact links; attach fossil diffs for range
+    → SYSTEM: validate/promote; stamp Exact links; attach fossil diffs for range
+    → SYSTEM: inject one synthetic resume turn so agentic work continues
     → open window restarts after s  (counter effectively 0)
 
 (m, m, m, s, m, m, s, m, m, m)
@@ -112,7 +114,7 @@ message** = (s…, recent m…)
         → counter := len(message**)/4 again
 ```
 
-There is **no** separate rule "if message* > 32k". After compact there is no summary after the star yet, so the open window *is* the star body: **message* length/4 becomes the Layer-1 counter**. The normal ≥ ~32k threshold then fires either immediately or after more messages.
+There is **no** separate rule "if message* > 32k". After compact there is no summary after the star yet, so the open window *is* the star body: **message* length/4 becomes the Layer-1 counter**. The normal ≥ ~32k threshold is checked when the next normal assistant answer completes.
 
 Idempotent: if the only visible message is already a lone `message*`, compact is a no-op until growth.
 
@@ -122,7 +124,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | Open-window **counter** ≥ ~32 768 | **System** injects request (ignored range + prose). **Model** writes SVM / Goal / Key decisions / Current state (**no tools** on that turn — otherwise empty body + Exact stamp only). **System** stamps Exact IDs only if Inferred body is present (`ignored`). After a successful body, synthetic **resume** continues work. Empty body → re-inject summary request (no stamp, no resume). |
+| **1. Incremental summary** | A normal assistant answer completes, has no pending tool work, and open-window **counter** ≥ ~32 768 | **System** then injects request (ignored range + prose); never during tool/reasoning continuation. The summary attempt has **no tools**. Only a body with all required sections is promoted to `assistant.summary`, stamped, and enriched with Fossil/CodeGraph. Invalid attempts retry against the same request at most twice; terminal failure is persisted and never becomes a boundary. A successful summary gets one synthetic **resume** turn. |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | **System only:** soft-hide visible messages; build `message*` = summaries (with system links) + Recent; prior star not re-nested. |
 | **3. Continuous memory** | Agent needs detail | **System tools:** `session-read` by ID, `messagesearch`, fossil diff, CodeGraph — not unaided model memory. |
 
@@ -153,7 +155,7 @@ Config is minimal by design — no soft warnings, no tail-turn knobs. The mechan
 
 **Summary collection bounding.** Only summaries created **after** the last `message*` are collected into the new `message*`. Older summaries were already folded into prior cycles and are recoverable via the chain link. This keeps each `message*` O(1) instead of accumulating every summary from session start (O(n²)).
 
-**SVM validation.** If a summary assistant lacks the required `## Semantic Vector` section, a debug log is emitted. The summary is still included but won't contribute `sv_dominant` to the chain.
+**Summary validation.** A summary is accepted only when Semantic Vector, Goal, Key decisions, and Current state all contain prose. An invalid attempt is not included in the chain and cannot reset the open-window counter.
 
 ### Checkpoint policy (pairs with this loop)
 
@@ -206,15 +208,16 @@ Identity prefix is **Tier A** only (dictionary + agent/policy SPECS). Skills/com
 
 | Piece | Author |
 |-------|--------|
-| Body: SVM / Goal / Key decisions / Current state | **Model** |
+| Body: SVM / Goal / Key decisions / Current state | **Model** — all required before the system promotes this assistant to a summary boundary |
 | `--- Exact (system) ---` stamp (`summary_message_id`, `from_id`, `to_id`, `session_id`) | **System** (after reply completes; `ignored` — not in model context; IDs reappear as passive links in `message*`) |
 | `user.summary.diffs` on the range parent (file list +/−) | **System** via fossil/tool `computeDiff` over the range |
+| `user.summary.impact` on the range parent (changed files, symbols, callers, impacted files) | **System** through incremental CodeGraph MCP touch → readonly SQLite pack |
 
 ### `message*` (synthetic user, starts with `=== COMPACTED ===`)
 
 Entire body is a **system** artifact:
 
-- Summary blocks: model body + **system** link lines (IDs from ignored parent range, not model prose)
+- Summary blocks: model body + **system** Exact handle lines (IDs, bounded Fossil changed files, and CodeGraph structural impact from the already-persisted parent range; no computation during compact)
 - `Prior message*: <id>` — system chain
 - `--- Decisions ---` — system copy of model decision lines
 - Recent fold — system faithful render of parts (including tool outputs) after last summary

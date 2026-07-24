@@ -15,13 +15,13 @@
  *   OPENCODE_ROOT   — monorepo / worktree root (default: 4 levels up from this file)
  *   SMOKE_MIN_CHARS — min MCP text length (default 80)
  */
-import { spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js"
+import { fossilRange, fossilSidecar, fossilSidecarCommand } from "./fossil-sidecar"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // packages/opencode/test/codegraph → monorepo root
@@ -42,39 +42,16 @@ function ok(msg: string) {
 }
 
 function fossil(args: string[]): { code: number; text: string; err: string } {
-  const r = spawnSync("fossil", args, {
-    cwd: ROOT,
-    encoding: "utf-8",
-    timeout: 60_000,
-    windowsHide: true,
-  })
+  const r = fossilSidecarCommand(ROOT, args)
   return {
-    code: r.status ?? 1,
-    text: (r.stdout ?? "").toString(),
-    err: (r.stderr ?? "").toString(),
+    code: r.code,
+    text: r.text,
+    err: r.error,
   }
 }
 
 function resolveHashes(argv: string[]): { from: string; to: string } {
-  if (argv.length >= 2) return { from: argv[0]!, to: argv[1]! }
-
-  const tl = fossil(["timeline", "-n", "5", "--type", "ci"])
-  if (tl.code !== 0) fail(`fossil timeline failed: ${tl.err || tl.text}`)
-
-  // Lines like: 06:58:28 [62ac36573c] *CURRENT* auto-snapshot
-  const hashes: string[] = []
-  for (const line of tl.text.split("\n")) {
-    const m = line.match(/\[([a-f0-9]{8,40})\]/i)
-    if (m?.[1]) hashes.push(m[1])
-  }
-  if (hashes.length < 2) {
-    fail(
-      `Need ≥2 fossil commits for auto range (found ${hashes.length}). ` +
-        `Pass: bun …/mcp_diff_smoke.ts <from> <to>`,
-    )
-  }
-  // timeline is newest-first: to = current, from = previous
-  return { from: hashes[1]!, to: hashes[0]! }
+  return fossilRange(ROOT, argv)
 }
 
 function fossilChangedFiles(from: string, to: string): string[] {
@@ -113,6 +90,7 @@ async function main() {
     fail(`No .codegraph/ under ${ROOT}. Run: codegraph init`)
   }
   ok(".codegraph/ present")
+  ok(`Fossil sidecar: ${fossilSidecar(ROOT)}`)
 
   const { from, to } = resolveHashes(process.argv.slice(2))
   console.log(`Fossil range: ${from} → ${to}`)

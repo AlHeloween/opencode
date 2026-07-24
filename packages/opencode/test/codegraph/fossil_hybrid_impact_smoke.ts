@@ -5,7 +5,6 @@
  * Usage (from packages/opencode):
  *   bun test/codegraph/fossil_hybrid_impact_smoke.ts [from_hash to_hash]
  */
-import { spawnSync } from "node:child_process"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { Effect } from "effect"
@@ -13,6 +12,7 @@ import { MCP } from "../../src/mcp"
 import { Snapshot } from "../../src/snapshot"
 import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { provideInstance } from "../fixture/fixture"
+import { fossilRange } from "./fossil-sidecar"
 
 const ROOT = process.env.OPENCODE_ROOT
   ? path.resolve(process.env.OPENCODE_ROOT)
@@ -24,21 +24,7 @@ function fail(message: string): never {
 }
 
 function hashes(args: string[]) {
-  if (args.length >= 2) return { from: args[0]!, to: args[1]! }
-  const result = spawnSync("fossil", ["timeline", "-n", "5", "--type", "ci"], {
-    cwd: ROOT,
-    encoding: "utf-8",
-    timeout: 60_000,
-    windowsHide: true,
-  })
-  if (result.status !== 0) fail(`fossil timeline failed: ${result.stderr || result.stdout}`)
-  const found = result.stdout
-    .toString()
-    .split("\n")
-    .map((line) => line.match(/\[([a-f0-9]{8,40})\]/i)?.[1])
-    .filter((hash): hash is string => Boolean(hash))
-  if (found.length < 2) fail(`need two Fossil snapshots; found ${found.length}`)
-  return { from: found[1]!, to: found[0]! }
+  return fossilRange(ROOT, args)
 }
 
 async function main() {

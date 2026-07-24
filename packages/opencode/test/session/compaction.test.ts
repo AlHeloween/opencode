@@ -210,7 +210,22 @@ describe("session.compaction.structural-summary-handoff", () => {
           model: ref,
           time: { created: Date.now() },
           summary: {
-            diffs: [],
+            diffs: [
+              {
+                file: "src/session/summary.ts",
+                patch: "",
+                additions: 12,
+                deletions: 3,
+                status: "modified",
+              },
+              {
+                file: "src/snapshot/fossil.ts",
+                patch: "",
+                additions: 4,
+                deletions: 0,
+                status: "added",
+              },
+            ],
             impact: {
               from: "fossil_from",
               to: "fossil_to",
@@ -262,6 +277,9 @@ describe("session.compaction.structural-summary-handoff", () => {
         expect(text).toContain("changed_files=2; caller_count=4")
         expect(text).toContain("top_symbols=compact,SessionSummary")
         expect(text).toContain("impacted_files=src/session/compaction.ts")
+        expect(text).toContain("fossil_diff: system Exact")
+        expect(text).toContain("src/session/summary.ts (+12/-3 modified)")
+        expect(text).toContain("src/snapshot/fossil.ts (+4/-0 added)")
       }),
     ),
   )
@@ -1726,6 +1744,49 @@ describe("session.compaction.hasPendingSummaryRequest", () => {
   test("false when no summary-range present", () => {
     const msgs = [userText("u0", "hello"), asst("a1")]
     expect(SessionCompaction.hasPendingSummaryRequest(msgs)).toBe(false)
+  })
+
+  test("keeps an unaccepted attempt pending for its bounded retry", () => {
+    const msgs = [
+      userText(
+        "req",
+        `<!-- summary-range from_id="a" to_id="b" session_id="s" -->\nCreate a structured summary`,
+      ),
+      {
+        info: { id: "a1", role: "assistant", parentID: "req" },
+        parts: [{ type: "text", text: "not a structured summary" }],
+      } as any,
+    ]
+    expect(SessionCompaction.hasPendingSummaryRequest(msgs)).toBe(true)
+    expect(SessionCompaction.summaryAttemptCount(msgs, "req" as any)).toBe(1)
+  })
+
+  test("terminal summary request cannot hijack a later real user turn", () => {
+    const terminal = userText(
+      "req",
+      `<!-- summary-range from_id="a" to_id="b" session_id="s" -->\n${SessionCompaction.summaryTerminalMarker()}`,
+    )
+    expect(SessionCompaction.hasPendingSummaryRequest([terminal])).toBe(false)
+    expect(SessionCompaction.hasPendingSummaryRequest([terminal, userText("u1", "continue")])).toBe(false)
+  })
+})
+
+describe("session.compaction.isValidSummaryBody", () => {
+  test("requires every Layer-1 section", () => {
+    expect(
+      SessionCompaction.isValidSummaryBody(`## Semantic Vector
+dominant: "memory"
+
+## Goal
+Keep memory stable.
+
+## Key decisions
+- Promote only valid bodies.
+
+## Current state
+Ready.`),
+    ).toBe(true)
+    expect(SessionCompaction.isValidSummaryBody("## Goal\nNot enough")).toBe(false)
   })
 })
 

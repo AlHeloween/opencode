@@ -28,9 +28,11 @@ export const Event = {
 
 /** ~30K output tokens between incremental summary requests. */
 export const SUMMARY_INTERVAL_TOKENS = 32_768
+export const MAX_SUMMARY_ATTEMPTS = 2
 
 const CHARS_PER_TOKEN = 4
 const SUMMARY_INTERVAL_CHARS = SUMMARY_INTERVAL_TOKENS * CHARS_PER_TOKEN
+const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
 
 /** True only for the synthetic message* body produced by compact().
   * Must NOT match COMPACTION_REMINDER text that merely *mentions* the marker
@@ -166,6 +168,26 @@ export function isSummaryRequestMessage(msg: MessageV2.WithParts): boolean {
   )
 }
 
+/** A bounded summary attempt that exhausted its retries. It is not pending. */
+export function isTerminalSummaryRequestMessage(msg: MessageV2.WithParts): boolean {
+  return msg.parts.some(
+    (p) =>
+      p.type === "text" &&
+      typeof (p as { text?: string }).text === "string" &&
+      (p as { text: string }).text.includes(SUMMARY_TERMINAL_MARKER),
+  )
+}
+
+/** Persisted marker keeps a failed range from hijacking a later real user turn. */
+export function summaryTerminalMarker() {
+  return SUMMARY_TERMINAL_MARKER
+}
+
+/** Attempts are assistant rows attached to one synthetic summary-request user row. */
+export function summaryAttemptCount(msgs: MessageV2.WithParts[], requestID: MessageID): number {
+  return msgs.filter((m) => m.info.role === "assistant" && m.info.parentID === requestID).length
+}
+
 /**
  * Layer-1 summary **token counter**: content tokens (chars/4) of the open window
  * since the last summary assistant, or of the entire visible list when none.
@@ -193,12 +215,18 @@ export function computeOpenWindowTokens(msgs: MessageV2.WithParts[]): number {
  * assistant. Survives runLoop restarts (unlike in-memory pending flags).
  */
 export function hasPendingSummaryRequest(msgs: MessageV2.WithParts[]): boolean {
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const m = msgs[i]
-    if (m.info.role === "assistant" && (m.info as any).summary) return false
-    if (m.info.role === "user" && isSummaryRequestMessage(m)) return true
-  }
-  return false
+  const request = msgs.findLast((m) => m.info.role === "user")
+  if (!request || !isSummaryRequestMessage(request)) return false
+  if (isTerminalSummaryRequestMessage(request)) return false
+  return !msgs.some((m) => m.info.role === "assistant" && m.info.parentID === request.info.id && m.info.summary)
+}
+
+/** Required Layer-1 sections; an arbitrary 40-character reply is not a handle. */
+export function isValidSummaryBody(text: string): boolean {
+  return ["Semantic Vector", "Goal", "Key decisions", "Current state"].every((heading) => {
+    const section = text.match(new RegExp(`^## ${heading}\\s*\\n([\\s\\S]*?)(?=^## |$)`, "im"))
+    return !!section?.[1]?.trim()
+  })
 }
 
 /** Parsed semantic vector from a summary's ## Semantic Vector section.
@@ -280,7 +308,7 @@ function extractDecisions(text: string): string[] {
 
 function buildMessageStar(input: {
   sessionID: string
-  summaries: { id: string; text: string; fromId?: string; toId?: string; impact?: Snapshot.ImpactSummary }[]
+  summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary }[]
   recent: MessageV2.WithParts[]
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
@@ -294,6 +322,19 @@ function buildMessageStar(input: {
   const summaryBlocks = input.summaries.map((s, i) => {
     const sv = extractSemanticVector(s.text)
     const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
+    const diffLine =
+      s.diffs && s.diffs.length > 0
+        ? [
+            `- fossil_diff: system Exact`,
+            `  files=${s.diffs.length}; additions=${s.diffs.reduce((sum, diff) => sum + diff.additions, 0)}; deletions=${s.diffs.reduce((sum, diff) => sum + diff.deletions, 0)}`,
+            ...s.diffs
+              .slice(0, 20)
+              .map((diff) => `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`),
+            ...(s.diffs.length > 20
+              ? [`  - … +${s.diffs.length - 20} more; session-read this summary range for the full Exact list`]
+              : []),
+          ].join("\n")
+        : undefined
     const impactLine = s.impact
       ? [
           `- structural_impact: system index-time Structural`,
@@ -309,6 +350,7 @@ function buildMessageStar(input: {
       `- body_info_mark: \`Inferred\``,
       `- summary_message_id: \`${s.id}\``,
       svLine,
+      diffLine,
       impactLine,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
       s.toId ? `- to_id: \`${s.toId}\`` : undefined,
@@ -499,7 +541,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // Collect summaries from the current compaction window only.
         // Exact range links come from the SYSTEM summary-range parent comment,
         // never from model prose (IDs are not model-inferable facts).
-        const summaries: { id: string; text: string; fromId?: string; toId?: string; impact?: Snapshot.ImpactSummary }[] = []
+        const summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary }[] = []
         let latestSummaryIdx = -1
         const byId = new Map(msgs.map((m) => [m.info.id, m] as const))
         for (let i = 0; i < msgs.length; i++) {
@@ -532,8 +574,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
                 fromId = fromId ?? legacy.fromId
                 toId = toId ?? legacy.toId
               }
+              const diffs = parent?.info.role === "user" ? parent.info.summary?.diffs : undefined
               const impact = parent?.info.role === "user" ? parent.info.summary?.impact : undefined
-              summaries.push({ id: m.info.id, text, fromId, toId, impact })
+              summaries.push({ id: m.info.id, text, fromId, toId, diffs, impact })
               if (!extractSemanticVector(text)) {
                 log.debug("summary missing semantic vector", { id: m.info.id })
               }

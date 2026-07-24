@@ -9,13 +9,13 @@
  * Usage (from packages/opencode):
  *   bun test/codegraph/mcp_hybrid_production_smoke.ts [from_hash to_hash]
  */
-import { spawnSync } from "node:child_process"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { Effect } from "effect"
 import { MCP } from "../../src/mcp"
 import { mcpTouchThenSqlitePack } from "../../src/codegraph/mcp-client"
 import { provideInstance } from "../fixture/fixture"
+import { fossilRange, fossilSidecarCommand } from "./fossil-sidecar"
 
 const ROOT = process.env.OPENCODE_ROOT
   ? path.resolve(process.env.OPENCODE_ROOT)
@@ -27,24 +27,11 @@ function fail(message: string): never {
 }
 
 function fossil(args: string[]) {
-  const result = spawnSync("fossil", args, { cwd: ROOT, encoding: "utf-8", timeout: 60_000, windowsHide: true })
-  return {
-    code: result.status ?? 1,
-    text: result.stdout.toString(),
-    error: result.stderr.toString(),
-  }
+  return fossilSidecarCommand(ROOT, args)
 }
 
 function hashes(args: string[]) {
-  if (args.length >= 2) return { from: args[0]!, to: args[1]! }
-  const timeline = fossil(["timeline", "-n", "5", "--type", "ci"])
-  if (timeline.code !== 0) fail(`fossil timeline failed: ${timeline.error || timeline.text}`)
-  const found = timeline.text
-    .split("\n")
-    .map((line) => line.match(/\[([a-f0-9]{8,40})\]/i)?.[1])
-    .filter((hash): hash is string => Boolean(hash))
-  if (found.length < 2) fail(`need two Fossil snapshots; found ${found.length}`)
-  return { from: found[1]!, to: found[0]! }
+  return fossilRange(ROOT, args)
 }
 
 function changedFiles(from: string, to: string) {

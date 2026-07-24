@@ -1280,6 +1280,29 @@ You should build your plan incrementally by writing to or editing this file. NOT
             return true
           })
 
+        const injectSummaryResume = (input: { summaryID: MessageID; parent: MessageV2.User }) =>
+          Effect.gen(function* () {
+            const resumeMsg = yield* sessions.updateMessage({
+              id: MessageID.ascending(),
+              role: "user",
+              model: input.parent.model,
+              sessionID,
+              agent: input.parent.agent,
+              time: { created: Date.now() },
+            })
+            yield* sessions.updatePart({
+              id: PartID.ascending(),
+              messageID: resumeMsg.id,
+              sessionID,
+              type: "text",
+              text: `<system-reminder>
+Layer-1 summary is complete (Inferred handle only). Continue the open user task from the conversation after that summary. Do not re-summarize unless a new summary request appears. Prefer tools and edits over restating history. If the user's request is already fully complete, give a brief status and stop — do not invent new work.
+</system-reminder>`,
+              synthetic: true,
+            })
+            yield* slog.info("layer1.summary.resume", { sessionID, summaryID: input.summaryID })
+          })
+
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
           yield* slog.info("loop", { step })
@@ -1342,6 +1365,13 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
           if (!lastUser) throw new Error("No user message found in stream. This should never happen.")
 
+          const lastUserMsg = msgs.findLast((m): m is MessageV2.WithParts & { info: MessageV2.User } => m.info.id === lastUser.id)
+          const summaryAttempt = !!lastUserMsg && SessionCompaction.hasPendingSummaryRequest(msgs)
+          const terminalSummaryAttempt =
+            !!lastUserMsg &&
+            SessionCompaction.isSummaryRequestMessage(lastUserMsg) &&
+            SessionCompaction.isTerminalSummaryRequestMessage(lastUserMsg)
+
           const lastAssistantMsg = msgs.findLast(
             (msg) => msg.info.role === "assistant" && msg.info.id === lastAssistant?.id,
           )
@@ -1352,18 +1382,38 @@ You should build your plan incrementally by writing to or editing this file. NOT
           const hasToolCalls =
             lastAssistantMsg?.parts.some((part) => part.type === "tool" && !part.metadata?.providerExecuted) ?? false
 
+          if (lastAssistant?.summary && lastUser.id < lastAssistant.id) {
+            yield* injectSummaryResume({ summaryID: lastAssistant.id, parent: lastUser })
+            cachedMsgs = undefined
+            lastKnownId = undefined
+            continue
+          }
+
           if (
             lastAssistant?.finish &&
             !["tool-calls"].includes(lastAssistant.finish) &&
             !hasToolCalls &&
-            lastUser.id < lastAssistant.id
+            lastUser.id < lastAssistant.id &&
+            !summaryAttempt
           ) {
+            if (!terminalSummaryAttempt) {
+              const injected = yield* maybeInjectSummary({
+                visible: msgs,
+                model: lastUser.model,
+                agent: lastUser.agent,
+              })
+              if (injected) {
+                cachedMsgs = undefined
+                lastKnownId = undefined
+                continue
+              }
+            }
             yield* slog.info("exiting loop", { step })
             break
           }
 
           step++
-          if (step === 1) {
+          if (step === 1 && !summaryAttempt) {
             // Fire on step 1 for ALL paths (compaction/subtask/normal)
             // so file diffs accumulate regardless of which handler runs.
             yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
@@ -1375,21 +1425,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
 
           if (task?.type === "subtask") {
             yield* handleSubtask({ task, model, lastUser, sessionID, session, msgs })
-            continue
-          }
-
-          // Layer 1 before overflow compact: same open-window counter as always.
-          // Prefer a summary before folding raw recent into message*.
-          if (
-            lastFinished?.summary !== true &&
-            (yield* maybeInjectSummary({
-              visible: msgs,
-              model: lastUser.model,
-              agent: lastUser.agent,
-            }))
-          ) {
-            cachedMsgs = undefined
-            lastKnownId = undefined
             continue
           }
 
@@ -1434,7 +1469,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
             role: "assistant",
             mode: agent.name,
             agent: agent.name,
-            summary: pendingSummaryResponse || undefined,
             variant: lastUser.model.variant,
             path: { cwd: ctx.directory, root: ctx.worktree },
             cost: 0,
@@ -1469,13 +1503,13 @@ You should build your plan incrementally by writing to or editing this file. NOT
           yield* slog.debug("prepare", { step, stage: "assistant-ready", agent: agent.name })
 
           const outcome: "break" | "continue" = yield* Effect.gen(function* () {
-            const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
 
             let tools: Record<string, AITool>
             // Layer-1 summary turn: prose only. Full tools let the model Read/bash
-            // instead of writing SVM/goal/decisions — finish with empty body + Exact stamp.
-            if (msg.summary) {
+            // instead of writing SVM/goal/decisions. The accepted `summary` flag
+            // is set only after validation, so use the persisted request state here.
+            if (summaryAttempt) {
               tools = {}
             } else if (cachedTools) {
               tools = cachedTools
@@ -1503,7 +1537,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               step,
               stage: "tools-ready",
               toolCount: Object.keys(tools).length,
-              summaryTurn: !!msg.summary,
+              summaryTurn: summaryAttempt,
             })
 
             // summarize() moved to common step-1 block before task dispatch
@@ -1830,8 +1864,7 @@ You should build your plan incrementally by writing to or editing this file. NOT
               }
             }
 
-            if (msg.summary) {
-              pendingSummaryResponse = false
+            if (summaryAttempt) {
               // SYSTEM Exact stamp: digits from inject HTML + this message id.
               // Nail and hammer — not microscope (model does not invent IDs).
               const parentParts = msgs.find((m) => m.info.id === lastUser.id)?.parts ?? []
@@ -1863,87 +1896,88 @@ You should build your plan incrementally by writing to or editing this file. NOT
                 .map((p) => (p as { text: string }).text.trim())
                 .join("\n")
                 .trim()
-              const hasSummaryBody = summaryBody.length >= 40
-
               const summaryDone =
                 !handle.message.error &&
                 !!handle.message.finish &&
                 !["tool-calls", "unknown"].includes(handle.message.finish)
+              const hasSummaryBody = SessionCompaction.isValidSummaryBody(summaryBody)
+              const accepted = summaryDone && hasSummaryBody && !!fromId && !!toId
 
-              // Empty shell: summary flag + maybe header, no Inferred prose.
-              // Re-ask; do not stamp or resume as if memory was written.
-              if (summaryDone && !hasSummaryBody) {
-                yield* slog.warn("layer1.summary.empty_body", {
-                  sessionID,
-                  summaryID: msg.id,
-                  bodyLen: summaryBody.length,
-                })
-                yield* compaction.injectSummaryRequest({
-                  sessionID,
-                  model: lastUser.model,
-                  agent: lastUser.agent,
-                })
-                pendingSummaryResponse = true
-                cachedMsgs = undefined
-                lastKnownId = undefined
-                return "continue" as const
-              }
-
-              if (fromId && toId && hasSummaryBody) {
-                const stamped = asstParts?.some(
-                  (p) =>
-                    p.type === "text" &&
-                    typeof (p as { text?: string }).text === "string" &&
-                    (p as { text: string }).text.startsWith("--- Exact (system) ---"),
-                )
-                if (!stamped) {
-                  // ignored:true — Exact digits stay in DB for tools / compact fold,
-                  // but must not enter model context.
-                  yield* sessions.updatePart({
-                    id: PartID.ascending(),
-                    messageID: msg.id,
+              if (!accepted) {
+                const attempt = SessionCompaction.summaryAttemptCount(msgs, lastUser.id) + 1
+                if (attempt < SessionCompaction.MAX_SUMMARY_ATTEMPTS) {
+                  yield* slog.warn("layer1.summary.retry", {
                     sessionID,
-                    type: "text",
-                    text:
-                      `--- Exact (system) ---\n` +
-                      `links_info_mark: Exact — system-computed, not model output\n` +
-                      `body_info_mark: Inferred\n` +
-                      `summary_message_id: \`${msg.id}\`\n` +
-                      `from_id: \`${fromId}\`\n` +
-                      `to_id: \`${toId}\`\n` +
-                      `session_id: \`${sessionID}\`\n`,
-                    synthetic: true,
-                    ignored: true,
+                    summaryID: msg.id,
+                    attempt,
+                    summaryDone,
+                    bodyLen: summaryBody.length,
+                    hasRange: !!fromId && !!toId,
                   })
+                  pendingSummaryResponse = true
+                  cachedMsgs = undefined
+                  lastKnownId = undefined
+                  return "continue" as const
                 }
-              }
-
-              // Summary finished with body. Without a resume user turn the runLoop
-              // exit condition stops the session — user must type "continue".
-              if (summaryDone && hasSummaryBody) {
-                const resumeMsg = yield* sessions.updateMessage({
-                  id: MessageID.ascending(),
-                  role: "user",
-                  model: lastUser.model,
-                  sessionID,
-                  agent: lastUser.agent,
-                  time: { created: Date.now() },
-                })
                 yield* sessions.updatePart({
                   id: PartID.ascending(),
-                  messageID: resumeMsg.id,
+                  messageID: lastUser.id,
                   sessionID,
                   type: "text",
-                  text: `<system-reminder>
-Layer-1 summary is complete (Inferred handle only). Continue the open user task from the conversation after that summary. Do not re-summarize unless a new summary request appears. Prefer tools and edits over restating history. If the user's request is already fully complete, give a brief status and stop — do not invent new work.
-</system-reminder>`,
+                  text: SessionCompaction.summaryTerminalMarker(),
                   synthetic: true,
+                  ignored: true,
                 })
-                yield* slog.info("layer1.summary.resume", { sessionID, summaryID: msg.id })
-                cachedMsgs = undefined
-                lastKnownId = undefined
-                return "continue" as const
+                pendingSummaryResponse = false
+                yield* slog.warn("layer1.summary.terminal", {
+                  sessionID,
+                  summaryID: msg.id,
+                  attempt,
+                  summaryDone,
+                  bodyLen: summaryBody.length,
+                  hasRange: !!fromId && !!toId,
+                })
+                return "break" as const
               }
+
+              handle.message.summary = true
+              yield* sessions.updateMessage(handle.message)
+              pendingSummaryResponse = false
+              const stamped = asstParts?.some(
+                (p) =>
+                  p.type === "text" &&
+                  typeof (p as { text?: string }).text === "string" &&
+                  (p as { text: string }).text.startsWith("--- Exact (system) ---"),
+              )
+              if (!stamped) {
+                // ignored:true — Exact digits stay in DB for tools / compact fold,
+                // but must not enter model context.
+                yield* sessions.updatePart({
+                  id: PartID.ascending(),
+                  messageID: msg.id,
+                  sessionID,
+                  type: "text",
+                  text:
+                    `--- Exact (system) ---\n` +
+                    `links_info_mark: Exact — system-computed, not model output\n` +
+                    `body_info_mark: Inferred\n` +
+                    `summary_message_id: \`${msg.id}\`\n` +
+                    `from_id: \`${fromId}\`\n` +
+                    `to_id: \`${toId}\`\n` +
+                    `session_id: \`${sessionID}\`\n`,
+                  synthetic: true,
+                  ignored: true,
+                })
+              }
+              yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(
+                Effect.catchCause((cause) =>
+                  slog.debug("layer1.summary.enrichment_failed", { sessionID, summaryID: msg.id, error: Cause.pretty(cause) }),
+                ),
+              )
+              yield* injectSummaryResume({ summaryID: msg.id, parent: lastUser })
+              cachedMsgs = undefined
+              lastKnownId = undefined
+              return "continue" as const
             }
 
             if (result === "stop") {
@@ -1991,19 +2025,6 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
               cachedMsgs = undefined
               lastKnownId = undefined
               return "continue" as const
-            }
-            // Layer 1 on continue: recompute open content window (chars/4).
-            // Includes tool-heavy context that provider output-token counters miss.
-            const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
-            if (
-              yield* maybeInjectSummary({
-                visible: visibleAfter,
-                model: lastUser.model,
-                agent: lastUser.agent,
-              })
-            ) {
-              cachedMsgs = undefined
-              lastKnownId = undefined
             }
             // Save encrypted checkpoint after successful turn.
             // publish() is sync inside save(); disk write is fire-and-forget.

@@ -110,6 +110,10 @@ function getOrCreateStream(model: string, sessionID: string, op: "log" | "diff" 
   const filepath = logPath(op, model, sessionID, ext)
   mkdirSync(Global.Path.log, { recursive: true })
   const stream = createWriteStream(filepath, { flags: "a" })
+  stream.on("error", (error) => {
+    if (contextStreams.get(key) === stream) contextStreams.delete(key)
+    logError("context log stream failed", { filepath, error: String(error) })
+  })
   contextStreams.set(key, stream)
   return stream
 }
@@ -125,12 +129,30 @@ export function closeStreams(sessionID: string): void {
   }
 }
 
-/** Close all context streams (shutdown). */
-function closeAllStreams(): void {
-  for (const [, stream] of contextStreams) {
-    stream.end()
-  }
+/** Close all context streams before a worktree/log-root switch. */
+async function closeAllStreams(): Promise<void> {
+  const streams = [...contextStreams.values()]
   contextStreams.clear()
+  await Promise.all(
+    streams.map(
+      (stream) => {
+        if (stream.writableFinished || stream.destroyed) return Promise.resolve()
+        return new Promise<void>((resolve, reject) => {
+          const onError = (error: Error) => {
+            stream.off("finish", onFinish)
+            reject(error)
+          }
+          const onFinish = () => {
+            stream.off("error", onError)
+            resolve()
+          }
+          stream.once("error", onError)
+          stream.once("finish", onFinish)
+          stream.end()
+        })
+      },
+    ),
+  )
 }
 
 // Backward-compat: initSession / closeSession removed; use closeStreams instead.
@@ -209,7 +231,7 @@ export async function init(options: Options = {}) {
   await cleanup(Global.Path.log)
   mkdirSync(Global.Path.log, { recursive: true })
   // Close any previous streams
-  closeAllStreams()
+  await closeAllStreams()
   flushDedup()
   if (dedupTimer) clearInterval(dedupTimer)
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
@@ -219,7 +241,7 @@ export async function init(options: Options = {}) {
 export async function reopen() {
   printLogs = printLogs // preserve
   mkdirSync(Global.Path.log, { recursive: true })
-  closeAllStreams()
+  await closeAllStreams()
   flushDedup()
   if (dedupTimer) clearInterval(dedupTimer)
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)

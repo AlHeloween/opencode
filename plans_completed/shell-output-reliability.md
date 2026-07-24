@@ -125,7 +125,7 @@ same command, the agent has two information sources but no protocol for:
 
 ## 6. Immediate Action Items
 
-- [ ] Audit tool output flow for user-executed vs agent-executed tools
-- [ ] Define failure marker priority rules
-- [ ] Implement Option A (system prompt instruction) as immediate mitigation
-- [ ] Evaluate Options B/C for architectural fix
+- [x] Audit tool output flow for user-executed vs agent-executed tools
+- [x] Define failure marker priority rules
+- [x] Implement Option A (system prompt instruction) as immediate mitigation
+- [x] Evaluate Options B/C for architectural fix

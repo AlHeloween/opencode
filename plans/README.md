@@ -33,6 +33,7 @@ Every **implementable** plan must include:
 ```
 
 - **`smoke: N/A — {reason}`** only for pure docs/plan-only (no runtime/code surface).
+- A bug fix is implementation: **do not edit code first and add smoke evidence later**. Record the current baseline (including a known failure) before the first fix, then prove the intended behavior after it.
 - Vague "test later" or missing Smoke Tests → plan is incomplete; **do not implement**.
 - Kernel rule: `SMOKE.BEFORE` (see `opencode_prompts_kernel.py` / runtime `RULES`).
 
@@ -47,7 +48,7 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
-- `2026-07-22_epistemic_guardrails.md` — close the Inferred/Exact gap: job output marking, verification nudge, compaction decisions preservation
+_None._
 
 ## Abstract futures (not active)
 
@@ -56,7 +57,12 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 ## Recently completed → `plans_completed/`
 
 - `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-touch → readonly SQLite pack, Fossil impact, and production smokes
+- `2026-07-22_epistemic_guardrails.md` — Inferred/Exact guardrails
 - `2026-07-24_summary-after-completion.md` — Layer-1 completion/resume plus persisted Fossil + CodeGraph Exact handles in `message*`
+- `memory after compaction report.md` — historical compaction report
+- `shell-output-parsing-bug.md` — shell-output parsing work
+- `shell-output-reliability.md` — shell-output reliability work
+- `state before compaction rev3.md` — historical compaction state record
 - `2026-07-22_async_job_streaming_and_progress_interval.md` — background job streaming + interactive job_wait
 - `20260718_system_prompt_order_fix.md` — KV cache ordering (implemented in system-compose.ts)
 - `TUI-session-crash-investigation.md` — TUI session crash (fixed via multiple commits)

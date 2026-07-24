@@ -96,7 +96,7 @@ Files: `compaction.ts` (~30 lines)
 - [x] Destructive tool calls after Inferred evidence trigger a nudge (not a block) — `8cd4c818d7`; unit tests in `test/session/constitution.test.ts` (`epistemicNudge`)
 - [x] Summary requests require `## Key decisions` section — `c9cb41e06d`; covered by `injectSummaryRequest` test
 - [x] `## Key decisions` blocks preserved across compaction cycles — `c9cb41e06d`; tests in `session.compaction.key-decisions`
-- [ ] Typecheck passes (not re-run in this pass)
+- [x] Typecheck passes — `bun typecheck` exit 0 (2026-07-24)
 - [x] Existing tests pass (no behavior change for current flows) — 78 pass across jobs/constitution/compaction
 
 **Also covered (related Layer-1 fix):** `be7c71c96c` seed counter — unit tests `session.compaction.computeOutputSinceLastSummary`.

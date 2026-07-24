@@ -124,7 +124,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | A normal assistant answer completes, has no pending tool work, and open-window **counter** ≥ ~32 768 | **System** then injects request (ignored range + prose); never during tool/reasoning continuation. The summary attempt has **no tools**. Only a body with all required sections is promoted to `assistant.summary`, stamped, and enriched with Fossil/CodeGraph. Invalid attempts retry against the same request at most twice; terminal failure is persisted and never becomes a boundary. A successful summary gets one synthetic **resume** turn. |
+| **1. Incremental summary** | A normal assistant answer **fully completes** (`isAssistantTurnComplete`: finish set, not tool-calls, all reasoning parts have `time.end`) and open-window **counter** ≥ ~32 768 | **System** then injects request (ignored range + prose). **Never inject mid-reasoning stream or mid-tool-loop** — reasoning models must finish the open turn first; synthetic user messages only after completion. Summary attempt has **no tools**. Body must include all required sections before stamp/resume; invalid attempts retry ≤2× then terminal marker. |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | **System only:** soft-hide visible messages; build `message*` = summaries (with system links) + Recent; prior star not re-nested. |
 | **3. Continuous memory** | Agent needs detail | **System tools:** `session-read` by ID, `messagesearch`, fossil diff, CodeGraph — not unaided model memory. |
 

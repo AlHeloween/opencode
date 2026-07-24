@@ -1253,16 +1253,29 @@ You should build your plan incrementally by writing to or editing this file. NOT
           * visible set if none) ≥ ~30K → inject summary request.
           * After compact the open window is message* → counter becomes
           * len(message*)/4 by the same rule (not a special branch).
-          * Pure recompute from msgs — works after stop, continue, and compact. */
+          * Pure recompute from msgs — works after stop and compact.
+          *
+          * HARD RULE: never inject mid-reasoning / mid-tool-calls. For reasoning
+          * models the open turn must complete first; synthetic user messages
+          * only after {@link SessionCompaction.isAssistantTurnComplete}. */
         const maybeInjectSummary = (input: {
           visible: MessageV2.WithParts[]
           model: { providerID: ProviderID; modelID: ModelID }
           agent: string
+          /** Last assistant that must be fully complete before inject (optional). */
+          afterAssistant?: MessageV2.WithParts
         }) =>
           Effect.gen(function* () {
             if (pendingSummaryResponse) return false
             if (SessionCompaction.hasPendingSummaryRequest(input.visible)) {
               pendingSummaryResponse = true
+              return false
+            }
+            if (input.afterAssistant && !SessionCompaction.isAssistantTurnComplete(input.afterAssistant)) {
+              yield* slog.debug("layer1.summary.defer_incomplete_turn", {
+                sessionID,
+                finish: (input.afterAssistant.info as MessageV2.Assistant).finish,
+              })
               return false
             }
             const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible)
@@ -1382,18 +1395,26 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
           const hasToolCalls =
             lastAssistantMsg?.parts.some((part) => part.type === "tool" && !part.metadata?.providerExecuted) ?? false
 
-          if (lastAssistant?.summary && lastUser.id < lastAssistant.id) {
+          // Resume only after a completed summary assistant (reasoning closed).
+          if (
+            lastAssistant?.summary &&
+            lastUser.id < lastAssistant.id &&
+            lastAssistantMsg &&
+            SessionCompaction.isAssistantTurnComplete(lastAssistantMsg)
+          ) {
             yield* injectSummaryResume({ summaryID: lastAssistant.id, parent: lastUser })
             cachedMsgs = undefined
             lastKnownId = undefined
             continue
           }
 
+          // Terminal work turn complete → optional Layer-1 inject, then exit.
+          // Never inject while tool-calls / open reasoning still run.
           if (
-            lastAssistant?.finish &&
-            !["tool-calls"].includes(lastAssistant.finish) &&
+            lastAssistantMsg &&
+            SessionCompaction.isAssistantTurnComplete(lastAssistantMsg) &&
             !hasToolCalls &&
-            lastUser.id < lastAssistant.id &&
+            lastUser.id < lastAssistant!.id &&
             !summaryAttempt
           ) {
             if (!terminalSummaryAttempt) {
@@ -1401,6 +1422,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
                 visible: msgs,
                 model: lastUser.model,
                 agent: lastUser.agent,
+                afterAssistant: lastAssistantMsg,
               })
               if (injected) {
                 cachedMsgs = undefined
@@ -1981,15 +2003,16 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             }
 
             if (result === "stop") {
-              // Layer 1 on stop (was missing): final assistant never ran the
-              // continue path, so open windows ≥30K never injected. If we inject,
-              // continue the loop so the model answers the summary request now
-              // (do not leave an orphan summary-range until the next user turn).
+              // Layer 1 only after this assistant fully completed (reasoning closed).
+              // Never inject mid-stream or mid-tool-loop — reasoning models require
+              // the open turn to finish before any synthetic user message.
               const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
+              const completedAsst = visibleAfter.find((m) => m.info.id === msg.id)
               const injected = yield* maybeInjectSummary({
                 visible: visibleAfter,
                 model: lastUser.model,
                 agent: lastUser.agent,
+                afterAssistant: completedAsst,
               })
               if (!titleRequested) {
                 titleRequested = true

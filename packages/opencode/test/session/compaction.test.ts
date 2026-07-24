@@ -1790,6 +1790,56 @@ Ready.`),
   })
 })
 
+describe("session.compaction.isAssistantTurnComplete", () => {
+  const base = {
+    info: {
+      id: "msg_a" as any,
+      role: "assistant" as const,
+      sessionID: "ses_x" as any,
+      parentID: "msg_u" as any,
+      mode: "build",
+      agent: "build",
+      modelID: "m" as any,
+      providerID: "p" as any,
+      path: { cwd: "/", root: "/" },
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      time: { created: 1 },
+    },
+    parts: [] as any[],
+  }
+
+  test("false while tool-calls or open reasoning", () => {
+    expect(
+      SessionCompaction.isAssistantTurnComplete({
+        ...base,
+        info: { ...base.info, finish: "tool-calls" },
+        parts: [],
+      } as any),
+    ).toBe(false)
+    expect(
+      SessionCompaction.isAssistantTurnComplete({
+        ...base,
+        info: { ...base.info, finish: "stop" },
+        parts: [{ type: "reasoning", text: "...", time: { start: 1 } }],
+      } as any),
+    ).toBe(false)
+  })
+
+  test("true when finish set and reasoning closed", () => {
+    expect(
+      SessionCompaction.isAssistantTurnComplete({
+        ...base,
+        info: { ...base.info, finish: "stop" },
+        parts: [
+          { type: "reasoning", text: "think", time: { start: 1, end: 2 } },
+          { type: "text", text: "done" },
+        ],
+      } as any),
+    ).toBe(true)
+  })
+})
+
 // --- multiple summary boundaries ---
 
 describe("session.compaction.multiple-summaries", () => {

@@ -229,6 +229,27 @@ export function isValidSummaryBody(text: string): boolean {
   })
 }
 
+/**
+ * True when an assistant turn is fully complete and safe for synthetic injects
+ * (Layer-1 summary-range, resume, etc.).
+ *
+ * Reasoning models (and several providers) reject or corrupt mid-stream / mid-turn
+ * user inserts while thinking or tool-calls are still open. Inject only after:
+ * - finish is set and not tool-calls/unknown
+ * - every reasoning part has time.end (stream closed)
+ */
+export function isAssistantTurnComplete(msg: MessageV2.WithParts | undefined): boolean {
+  if (!msg || msg.info.role !== "assistant") return false
+  const finish = (msg.info as MessageV2.Assistant).finish
+  if (!finish || finish === "tool-calls" || finish === "unknown") return false
+  for (const p of msg.parts) {
+    if (p.type !== "reasoning") continue
+    const end = (p as { time?: { end?: number } }).time?.end
+    if (end == null) return false
+  }
+  return true
+}
+
 /** Parsed semantic vector from a summary's ## Semantic Vector section.
   * Sparse phrase embedding: key_phrases with weights (Σ=1.0), plus dominant. */
 interface SemanticVector {

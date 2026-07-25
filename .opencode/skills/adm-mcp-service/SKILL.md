@@ -3,41 +3,57 @@ name: adm-mcp-service
 description: Run adm as an MCP server (stdio or HTTP) and install it as a service on Windows or Linux.
 ---
 
-intent:
-Run adm as an MCP server (stdio or HTTP) and install as a service on Windows or Linux.
-Both modes require adm.json in the launch folder.
+# adm-mcp-service
 
-state:
-  tool: adm-rag.exe
-
-scope:
-  - MCP stdio mode
-  - MCP HTTP mode
-  - Windows/Linux service installation
-
-constraints:
-  - adm_json_required: True
-
-invariants:
-  (none)
-
-forbidden_actions:
-  (none)
+`adm` can run an MCP server that exposes RAG tools.
 
 ## Modes
-Stdio: tools/adm.exe --mcp  or  tools/adm-rag.exe --mcp
-HTTP: tools/adm.exe --mcp-http [host] [port]  (default 127.0.0.1:7990, endpoint POST /mcp)
-Prefer using adm-rag.exe directly for service definitions (avoids forwarding hop).
 
-## Codex MCP Client
-codex mcp add project_rag --cwd <project_root> -- <project_root>\tools\adm-rag.exe --mcp
-codex mcp list
-codex mcp get project_rag
+- **Stdio (spawned by a client):** `tools/adm.exe --mcp` or direct helper `tools/adm-rag.exe --mcp`
+- **HTTP (service-friendly):** `tools/adm.exe --mcp-http [host] [port]` or direct helper `tools/adm-rag.exe --mcp-http [host] [port]` (default: `127.0.0.1 7990`, endpoint: `POST /mcp`)
 
-## Windows Service
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\internal\install_adm_mcp_service_windows.ps1 -RepoRoot <repo> -Port 7990
-sc.exe query ADID_ADM_MCP
+Both require `adm.json` in the launch folder.
+Startup fails fast unless the configured local embedder can be loaded.
+After a successful MCP `initialize`, the server reports the resolved RAG DB path and configured embedding backend/model/device.
 
-## Linux Service
-sudo ./scripts/internal/install_adm_mcp_service_linux.sh /abs/repo_root 7990
-systemctl status adid-adm-mcp.service --no-pager
+Bundled binary split note:
+- `adm.exe` is the lightweight front-end and forwards MCP/RAG commands to `adm-rag.exe`.
+- For service definitions and client wiring, using `adm-rag.exe` directly is preferred because it avoids the extra forwarding hop.
+
+## Wire into Codex (MCP client)
+
+Codex can launch `adm` as a stdio MCP server and call the RAG tools through it.
+
+- Add server (writes to `~/.codex/config.toml`):
+  - `codex mcp add project_rag --cwd <real_project_root> -- <real_project_root>\\tools\\adm-rag.exe --mcp`
+- Reference fixture: `artefacts/README.md` — replace with the real project root before running MCP commands.
+- Verify:
+  - `codex mcp list`
+  - `codex mcp get project_rag`
+
+## Windows (service)
+
+Install (Admin PowerShell):
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\internal\install_adm_mcp_service_windows.ps1 -RepoRoot <repo> -Port 7990`
+
+Service target:
+- point the service at `tools\\adm-rag.exe --mcp-http ...` when you want the direct helper entrypoint
+- `tools\\adm.exe --mcp-http ...` still works because it forwards to the helper
+
+Check:
+
+- `sc.exe query ADID_ADM_MCP`
+
+## Linux (systemd service)
+
+Install:
+
+- `sudo ./scripts/internal/install_adm_mcp_service_linux.sh /abs/repo_root 7990`
+
+Service target:
+- prefer `/abs/repo_root/tools/adm-rag.exe --mcp-http ...` when using the packaged helper directly
+
+Check:
+
+- `systemctl status adid-adm-mcp.service --no-pager`

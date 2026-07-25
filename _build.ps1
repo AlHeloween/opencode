@@ -231,7 +231,7 @@ function Sync-KernelPrompt {
         return $false
     }
 
-    & python $kernelSrc --render-runtime $kernelDst --render-skills "$(Join-Path $Root ".opencode\skills")" "$(Join-Path $Root ".cursor\skills")"
+    & python $kernelSrc --render-runtime $kernelDst
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel runtime compilation failed"
         return $false

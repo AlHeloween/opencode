@@ -95,8 +95,7 @@ Sync the prompt kernel into the binary’s embed path:
 
 ```bash
 python3 opencode_prompts_kernel.py \
-  --render-runtime packages/opencode/src/session/prompt/opencode_prompts_kernel.txt \
-  --render-skills .opencode/skills .cursor/skills
+  --render-runtime packages/opencode/src/session/prompt/opencode_prompts_kernel.txt
 ```
 
 Optional integrity:

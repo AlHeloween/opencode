@@ -181,18 +181,12 @@ def save_manifest(manifest: dict) -> None:
 
 def step_kernel() -> None:
     dst = ROOT / "packages/opencode/src/session/prompt/opencode_prompts_kernel.txt"
-    skills = [
-        str(ROOT / ".opencode/skills"),
-        str(ROOT / ".cursor/skills"),
-    ]
     _run(
         [
             sys.executable,
             str(ROOT / "opencode_prompts_kernel.py"),
             "--render-runtime",
             str(dst),
-            "--render-skills",
-            *skills,
         ]
     )
 

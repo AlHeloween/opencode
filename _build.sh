@@ -143,8 +143,7 @@ sync_kernel_prompt() {
     return 1
   fi
 
-  python3 "$kernel_src" --render-runtime "$kernel_dst" \
-    --render-skills "$ROOT/.opencode/skills" "$ROOT/.cursor/skills" || {
+  python3 "$kernel_src" --render-runtime "$kernel_dst" || {
     fail "Kernel runtime compilation failed"
     return 1
   }

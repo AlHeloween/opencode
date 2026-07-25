@@ -29,12 +29,8 @@ SESSION_PROMPT_DIR = os.path.join(PROJECT_ROOT, "packages/opencode/src/session/p
 AGENT_PROMPT_DIR = os.path.join(PROJECT_ROOT, "packages/opencode/src/agent/prompt")
 SKILL_DIRS = [
     os.path.join(PROJECT_ROOT, "packages/opencode/src/skill"),
-    os.path.join(PROJECT_ROOT, ".cursor/skills"),
 ]
-RULE_DIRS = [
-    os.path.join(PROJECT_ROOT, ".opencode/rules"),
-    os.path.join(PROJECT_ROOT, ".cursor/rules"),
-]
+RULE_DIRS: list[str] = []
 
 # Files to exclude from validation
 # Pocket protocols / mode synthetics use algorithm-with-comments density, not PromptSpec YAML.

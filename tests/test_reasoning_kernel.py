@@ -1178,12 +1178,10 @@ class TestProjectSpecs:
             _validate_spec(name, spec)
 
     def test_all_specs_loaded(self):
-        assert len(_ALL_SPECS) == 34
+        assert len(_ALL_SPECS) == 23
         assert "CODER" in _ALL_SPECS
         assert "EXPLORER" in _ALL_SPECS
         assert "ORCHESTRATOR" in _ALL_SPECS
-        assert "ADM_EXE" in _ALL_SPECS
-        assert "ADID_OPS" in _ALL_SPECS
         assert "GOVERNANCE" in _ALL_SPECS
         assert "DEFAULT_PROMPT" in _ALL_SPECS
         assert "GROUNDING_RULES" in _ALL_SPECS
@@ -1242,13 +1240,6 @@ class TestSyntaxProjection:
                 f"{field} missing .mdc syntax template"
             )
 
-    def test_all_fields_have_skill_md(self):
-        """Every projected field must have an '.SKILL.md' entry."""
-        for field in _SPEC_FIELDS:
-            assert ".SKILL.md" in SYNTAX_PROJECTION[field], (
-                f"{field} missing .SKILL.md syntax template"
-            )
-
     def test_all_fields_have_agents_md(self):
         """Every projected field must have an 'AGENTS.md' entry."""
         for field in _SPEC_FIELDS:
@@ -1259,7 +1250,7 @@ class TestSyntaxProjection:
     def test_inverse_map_completeness(self):
         """SYNTAX_FORMATS inverse map must contain all formats."""
         expected_formats = {"kernel", ".agent.txt", ".session.txt", ".mdc",
-                           ".SKILL.md", "AGENTS.md", ".txt.plan"}
+                           "AGENTS.md", ".txt.plan"}
         for fmt in expected_formats:
             assert fmt in SYNTAX_FORMATS, (
                 f"Missing format in SYNTAX_FORMATS: {fmt}"
@@ -1279,7 +1270,7 @@ class TestSyntaxProjection:
 
     def test_tree_sitter_grammars_defined(self):
         """Tree-sitter grammar mapping must have entries for all key formats."""
-        required = {".agent.txt", ".session.txt", ".mdc", ".SKILL.md",
+        required = {".agent.txt", ".session.txt", ".mdc",
                     "AGENTS.md", "kernel", "agent.ts"}
         for fmt in required:
             assert fmt in TREESITTER_GRAMMARS, (
@@ -1877,11 +1868,10 @@ class TestRuntimePromptCompiler:
         assert "MEMORY.RANK" in runtime
         assert "infomark" in runtime
         # Tier A excludes skill/command SPECS bodies (Tier B surfaces)
-        assert "--- Skill Specs" not in runtime
         assert "--- Command Specs" not in runtime
         # Full tier still available offline
         full = render_runtime_kernel(tier="full")
-        assert "--- Skill Specs" in full
+        assert "--- Command Specs" in full
 
 
 # ======================================================================

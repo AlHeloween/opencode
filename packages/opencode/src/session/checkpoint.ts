@@ -3,8 +3,10 @@
  *
  * Stores the fully-assembled model-ready conversation state (system prompt +
  * AI SDK messages) as an encrypted checkpoint file. On restart or model
- * switch, the checkpoint is loaded — eliminating per-turn prompt assembly
- * and reducing DB reads to delta messages only.
+ * switch, the checkpoint is loaded to skip system re-assembly and reconvert
+ * only the message suffix after the shared prefix (see reusablePrefixLength /
+ * takeModelPrefix). Soft-hidden (compacted) archive is excluded at SQL level
+ * by filterCompactedEffect — checkpoint does not re-hydrate lifetime history.
  *
  * Design (KV-cache continuous memory):
  * - Path system (skills/env/rules/AGENTS.md) is FROZEN until compaction or

@@ -95,6 +95,8 @@ export default [
   SyncEvent.project(MessageV2.Event.Updated, (db, data) => {
     const time_created = data.info.time.created
     const { id, sessionID, ...rest } = data.info
+    // First-class column for indexable visible loads (soft-hide archive stays in DB).
+    const compacted = rest.compacted ? 1 : 0
 
     try {
       db.insert(MessageTable)
@@ -102,9 +104,13 @@ export default [
           id,
           session_id: sessionID,
           time_created,
+          compacted,
           data: rest,
         })
-        .onConflictDoUpdate({ target: MessageTable.id, set: { data: rest } })
+        .onConflictDoUpdate({
+          target: MessageTable.id,
+          set: { data: rest, compacted },
+        })
         .run()
     } catch (err) {
       if (!foreign(err)) throw err

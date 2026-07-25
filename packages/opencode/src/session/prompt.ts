@@ -1847,8 +1847,9 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
               : currentFP
             CacheControl.storePrevFingerprint(sessionID, model.id, finalFP, agent.name)
 
-            // Diff logging — previous formatted request from memory (survives
-            // compact) or from checkpoint. Always remember current for next turn.
+            // Diff logging — suffix-only format (O(new messages), not full history).
+            // Cold restore with checkpoint: skip prev re-format of entire checkpoint;
+            // remember current suffix so the *next* turn has a cheap baseline.
             const cfg = yield* config.get()
             if (cfg.diff_requests !== false) {
               const diffMeta: RequestDiff.DiffMeta = {
@@ -1859,31 +1860,29 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
                 agent: agent.name,
                 timestamp: Date.now(),
               }
+              // Suffix-only: DB prefix → model-message end index (tool calls expand 1:N).
+              const dbPrefix =
+                checkpointUsable != null
+                  ? Checkpoint.reusablePrefixLength(msgs, checkpointUsable, (m) =>
+                      CacheControl.messageFingerprint(m).hash,
+                    )
+                  : 0
+              const modelFrom =
+                checkpointUsable != null
+                  ? (Checkpoint.modelMessageEnd(checkpointUsable, dbPrefix) ?? 0)
+                  : 0
               const formatted = RequestDiff.formatRequest(
                 systemForDiff,
                 modelMsgs,
                 diffMeta,
                 modelMessageIDs,
+                { fromIndex: modelFrom, preferNewest: true },
               )
               const remembered = RequestDiff.getPreviousFormatted(diffMeta)
-              let prevText = remembered?.text
-              let prevMeta = remembered?.meta
-              if (!prevText && checkpointUsable) {
-                prevMeta = {
-                  sessionID,
-                  modelID: checkpointUsable.model.modelID,
-                  providerID: checkpointUsable.model.providerID,
-                  turn: checkpointUsable.turn,
-                  agent: checkpointUsable.agent,
-                  timestamp: checkpointUsable.timestamp,
-                }
-                prevText = RequestDiff.formatRequest(
-                  checkpointUsable.systemPrompt,
-                  checkpointUsable.messages,
-                  prevMeta,
-                  checkpointUsable.messageIDs,
-                )
-              }
+              const prevText = remembered?.text
+              const prevMeta = remembered?.meta
+              // Do NOT re-format full checkpoint.messages as prev — that re-walked
+              // the entire model history on every cold restore.
               if (prevText && prevMeta) {
                 const diff = RequestDiff.diffRequest(prevText, formatted, prevMeta, diffMeta)
                 if (diff) RequestDiff.writeDiff(diff, diffMeta)
@@ -2083,7 +2082,12 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             const identityFp = Checkpoint.identityFingerprint(cleanIdentity)
             yield* Effect.forkIn(scope)(
               Effect.gen(function* () {
-                const checkpointMsgs = yield* MessageV2.filterCompactedEffect(sessionID)
+                // Reuse in-loop visible msgs when still valid — avoid a second
+                // full visible hydrate just to save the checkpoint.
+                const checkpointMsgs =
+                  cachedMsgs && lastKnownId
+                    ? [...cachedMsgs, ...MessageV2.messagesSince(sessionID, lastKnownId)]
+                    : yield* MessageV2.filterCompactedEffect(sessionID)
                 const prefixLen = checkpointUsable
                   ? Checkpoint.reusablePrefixLength(checkpointMsgs, checkpointUsable, (m) =>
                       CacheControl.messageFingerprint(m).hash,

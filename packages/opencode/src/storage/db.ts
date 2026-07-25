@@ -118,9 +118,11 @@ CREATE TABLE IF NOT EXISTS "message" (
   session_id text NOT NULL,
   time_created integer NOT NULL,
   time_updated integer NOT NULL,
+  compacted integer NOT NULL DEFAULT 0,
   data text NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "message_session_time_created_id_idx" ON "message" ("session_id", "time_created", "id");
+CREATE INDEX IF NOT EXISTS "message_session_compacted_time_id_idx" ON "message" ("session_id", "compacted", "time_created", "id");
 
 CREATE TABLE IF NOT EXISTS "part" (
   id text PRIMARY KEY NOT NULL,

@@ -328,13 +328,31 @@ const live: Layer.Layer<
         ? input.messages
         : input.messages
 
-      // Cached token estimate — only recompute when message count changes
+      // Cached token estimate — avoid full JSON.stringify of huge histories.
+      // chars/4 over string content is good enough for maxOutputTokens budgeting.
       let contentTokens: number
       const msgCount = messages.length
       if (_cachedTokenEstimate && _cachedTokenEstimate.count === msgCount) {
         contentTokens = _cachedTokenEstimate.value
       } else {
-        contentTokens = Math.ceil((JSON.stringify(messages).length + JSON.stringify(system).length) / 4)
+        let chars = 0
+        for (const s of system) chars += s.length
+        for (const m of messages) {
+          const c = (m as { content?: unknown }).content
+          if (typeof c === "string") chars += c.length
+          else if (Array.isArray(c)) {
+            for (const part of c) {
+              if (part && typeof part === "object" && "text" in part && typeof (part as { text: unknown }).text === "string") {
+                chars += (part as { text: string }).text.length
+              } else if (part && typeof part === "object" && "type" in part) {
+                chars += 64 // tool-call / image / etc. — rough fixed cost
+              }
+            }
+          } else {
+            chars += 32
+          }
+        }
+        contentTokens = Math.ceil(chars / 4)
         _cachedTokenEstimate = { count: msgCount, value: contentTokens }
       }
 

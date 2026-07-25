@@ -766,18 +766,21 @@ export function clearConversionCache() {
 }
 
 /**
- * Compute a fast content hash of all part texts for cache invalidation.
- * When text content changes (e.g. UTC timestamp append), the hash
- * changes and the conversion cache produces a fresh result.
+ * Fast content fingerprint of part texts for conversion-cache invalidation.
+ * Uses length + sample endpoints + Bun.hash — O(1) per part, not O(chars).
+ * When text changes (e.g. UTC append), length/endpoints change → miss.
  */
 function hashPartTexts(parts: readonly Part[]): number {
-  let h = 0
+  let h = 2166136261
   for (const part of parts) {
-    if ("text" in part && typeof part.text === "string") {
-      for (let i = 0; i < part.text.length; i++) {
-        h = ((h << 5) - h + part.text.charCodeAt(i)) | 0
-      }
-    }
+    if (!("text" in part) || typeof part.text !== "string") continue
+    const t = part.text
+    const len = t.length
+    // Sample head/tail so mid-edits that preserve length still miss often enough.
+    const head = len > 0 ? t.slice(0, Math.min(64, len)) : ""
+    const tail = len > 64 ? t.slice(-64) : ""
+    const piece = `${part.id}:${len}:${head}:${tail}`
+    h = (Math.imul(h ^ Number(Bun.hash(piece)), 16777619)) | 0
   }
   return h
 }
@@ -1087,11 +1090,19 @@ export const toModelMessagesWithCountsEffect = Effect.fnUntraced(function* (
   return { messages, counts }
 })
 
-export function page(input: { sessionID: SessionID; limit: number; before?: string }) {
+/** Page messages newest-first (then reverse to ascending). Optional visible-only. */
+export function page(input: {
+  sessionID: SessionID
+  limit: number
+  before?: string
+  /** When true, skip soft-hidden (compacted) rows at SQL level. */
+  visibleOnly?: boolean
+}) {
   const before = input.before ? cursor.decode(input.before) : undefined
-  const where = before
-    ? and(eq(MessageTable.session_id, input.sessionID), older(before))
-    : eq(MessageTable.session_id, input.sessionID)
+  const conds: Parameters<typeof and>[0][] = [eq(MessageTable.session_id, input.sessionID)]
+  if (input.visibleOnly) conds.push(eq(MessageTable.compacted, 0))
+  if (before) conds.push(older(before))
+  const where = and(...conds)
   const rows = Database.use((db) =>
     db
       .select()
@@ -1125,12 +1136,21 @@ export function page(input: { sessionID: SessionID; limit: number; before?: stri
   }
 }
 
-export function messagesSince(sessionID: SessionID, after: string) {
+/**
+ * Messages after `after` id (exclusive), ascending.
+ * Default: non-compacted only (delta after checkpoint / last known id).
+ * Pass `visibleOnly: false` to include soft-hidden archive rows.
+ */
+export function messagesSince(sessionID: SessionID, after: string, opts?: { visibleOnly?: boolean }) {
+  const visibleOnly = opts?.visibleOnly !== false
+  const where = visibleOnly
+    ? and(eq(MessageTable.session_id, sessionID), sql`${MessageTable.id} > ${after}`, eq(MessageTable.compacted, 0))
+    : and(eq(MessageTable.session_id, sessionID), sql`${MessageTable.id} > ${after}`)
   const rows = Database.use((db) =>
     db
       .select()
       .from(MessageTable)
-      .where(and(eq(MessageTable.session_id, sessionID), sql`${MessageTable.id} > ${after}`))
+      .where(where)
       .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
       .all(),
   )
@@ -1156,38 +1176,106 @@ function isCompactionBoundary(message: WithParts | undefined) {
   )
 }
 
+/** Oldest non-compacted messages (ascending), for message* pin on paged UI. */
+function visibleHead(sessionID: SessionID, limit: number) {
+  const rows = Database.use((db) =>
+    db
+      .select()
+      .from(MessageTable)
+      .where(and(eq(MessageTable.session_id, sessionID), eq(MessageTable.compacted, 0)))
+      .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
+      .limit(limit)
+      .all(),
+  )
+  return hydrate(rows)
+}
+
+/**
+ * Page model-visible messages (non-compacted) without hydrating the soft-hidden archive.
+ * Pins compaction boundary (message* + summary assistant) when present on first page.
+ */
 export const pageCompacted = Effect.fnUntraced(function* (input: {
   sessionID: SessionID
   limit: number
   before?: string
 }) {
-  if (input.before) return page(input)
-
   const limit = Math.max(input.limit, 1)
-  const active = yield* filterCompactedEffect(input.sessionID)
-  if (active.length <= limit) {
-    return {
-      items: active,
+  const t0 = typeof performance !== "undefined" ? performance.now() : 0
+
+  // Cursor pages: SQL-visible only (never full-session hydrate).
+  if (input.before) {
+    const result = page({
+      sessionID: input.sessionID,
+      limit,
+      before: input.before,
+      visibleOnly: true,
+    })
+    Log.Default.debug("pageCompacted", {
+      sessionID: input.sessionID,
+      limit,
+      before: true,
+      items: result.items.length,
+      more: result.more,
+      ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+    })
+    return result
+  }
+
+  // First page: take newest `limit` visible rows (cheap DESC LIMIT).
+  const tailPage = page({ sessionID: input.sessionID, limit, visibleOnly: true })
+  if (!tailPage.more) {
+    Log.Default.debug("pageCompacted", {
+      sessionID: input.sessionID,
+      limit,
+      items: tailPage.items.length,
       more: false,
-    }
+      ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+    })
+    return tailPage
   }
 
-  if (isCompactionBoundary(active[0]) && active[1]?.info.role === "assistant" && active[1].info.summary && limit > 1) {
-    const pinned = active.slice(0, 2)
+  // Pin message* + summary assistant at top when they exist (O(1) head query).
+  const head = visibleHead(input.sessionID, 2)
+  if (
+    isCompactionBoundary(head[0]) &&
+    head[1]?.info.role === "assistant" &&
+    head[1].info.summary &&
+    limit > 1
+  ) {
+    const pinned = head.slice(0, 2)
     const tailLimit = Math.max(limit - pinned.length, 0)
-    const tail = tailLimit > 0 ? active.slice(-tailLimit) : []
-    return {
-      items: [...pinned, ...tail.filter((message) => !pinned.some((item) => item.info.id === message.info.id))],
-      more: true,
-      cursor: compactedPageCursor(tail[0]),
+    const tailOnly = page({ sessionID: input.sessionID, limit: tailLimit, visibleOnly: true })
+    const items = [
+      ...pinned,
+      ...tailOnly.items.filter((message) => !pinned.some((item) => item.info.id === message.info.id)),
+    ]
+    const result = {
+      items,
+      more: true as const,
+      cursor: compactedPageCursor(tailOnly.items[0] ?? items[pinned.length]),
     }
+    Log.Default.debug("pageCompacted", {
+      sessionID: input.sessionID,
+      limit,
+      pinned: true,
+      items: result.items.length,
+      more: true,
+      ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+    })
+    return result
   }
 
-  const items = active.slice(-limit)
-  return {
-    items,
+  Log.Default.debug("pageCompacted", {
+    sessionID: input.sessionID,
+    limit,
+    items: tailPage.items.length,
     more: true,
-    cursor: compactedPageCursor(items[0]),
+    ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+  })
+  return {
+    items: tailPage.items,
+    more: true,
+    cursor: compactedPageCursor(tailPage.items[0]),
   }
 })
 
@@ -1247,20 +1335,28 @@ export function filterCompacted(msgs: Iterable<WithParts>) {
   return result
 }
 
+/**
+ * Model-visible messages only (soft-hidden archive excluded at SQL level).
+ * Does NOT load compacted lifetime rows — use get() / session-read for Exact recovery.
+ */
 export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: SessionID) {
   const t0 = typeof performance !== "undefined" ? performance.now() : 0
-  const allRows = Database.use((db) =>
+  const rows = Database.use((db) =>
     db
       .select()
       .from(MessageTable)
-      .where(eq(MessageTable.session_id, sessionID))
+      .where(and(eq(MessageTable.session_id, sessionID), eq(MessageTable.compacted, 0)))
       .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
       .all(),
   )
-  const hydrated = hydrate(allRows)
+  const hydrated = hydrate(rows)
+  // Safety net for pre-migration / race: still honor JSON compacted flag.
   const result = filterCompacted(hydrated)
   Log.Default.debug("filterCompactedEffect", {
-    sessionID, total: hydrated.length, visible: result.length,
+    sessionID,
+    total: hydrated.length,
+    visible: result.length,
+    sqlVisible: true,
     ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
   })
   return result

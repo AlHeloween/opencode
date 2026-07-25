@@ -48,9 +48,19 @@ export const MessageTable = sqliteTable(
     id: text().$type<MessageID>().primaryKey(),
     session_id: text().$type<SessionID>().notNull(),
     ...Timestamps,
+    /** Soft-hide flag promoted from JSON data.compacted for indexable visible loads. */
+    compacted: integer().notNull().default(0),
     data: text({ mode: "json" }).notNull().$type<InfoData>(),
   },
-  (table) => [index("message_session_time_created_id_idx").on(table.session_id, table.time_created, table.id)],
+  (table) => [
+    index("message_session_time_created_id_idx").on(table.session_id, table.time_created, table.id),
+    index("message_session_compacted_time_id_idx").on(
+      table.session_id,
+      table.compacted,
+      table.time_created,
+      table.id,
+    ),
+  ],
 )
 
 export const PartTable = sqliteTable(

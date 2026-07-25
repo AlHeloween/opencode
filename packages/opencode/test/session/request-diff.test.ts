@@ -142,8 +142,39 @@ describe("formatRequest", () => {
     }))
     const result = RequestDiff.formatRequest(["system ".repeat(20_000)], msgs, baseMeta())
     expect(result.length).toBeLessThan(300_000)
-    expect(result).toContain("request diff baseline truncated")
-    expect(result).toContain("truncated from message")
+    // Suffix-first under budget: oldest dropped, or hard truncate marker.
+    expect(
+      result.includes("older messages omitted") || result.includes("request diff baseline truncated"),
+    ).toBe(true)
+    // Newest content should be present (not only ancient prefix).
+    expect(result).toContain("message 199")
+  })
+
+  test("fromIndex formats only the message suffix", () => {
+    const msgs: ModelMessage[] = [
+      { role: "user", content: "old-alpha" },
+      { role: "assistant", content: "old-beta" },
+      { role: "user", content: "new-gamma" },
+    ]
+    const result = RequestDiff.formatRequest(makeSystem(), msgs, baseMeta(), ["a", "b", "c"], {
+      fromIndex: 2,
+    })
+    expect(result).toContain("messages_from_index: 2")
+    expect(result).toContain("new-gamma")
+    expect(result).not.toContain("old-alpha")
+    expect(result).not.toContain("old-beta")
+  })
+
+  test("preferNewest keeps latest messages under budget", () => {
+    const msgs = Array.from({ length: 80 }, (_, i): ModelMessage => ({
+      role: "user",
+      content: `msg-${i} ${"z".repeat(4000)}`,
+    }))
+    const result = RequestDiff.formatRequest(makeSystem(), msgs, baseMeta(), undefined, {
+      preferNewest: true,
+    })
+    expect(result).toContain("msg-79")
+    expect(result.includes("older messages omitted") || result.includes("msg-0")).toBe(true)
   })
 
   test("handles reasoning parts", () => {

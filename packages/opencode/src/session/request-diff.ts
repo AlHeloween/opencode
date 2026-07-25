@@ -75,17 +75,40 @@ export function clearPreviousFormatted(sessionID: string): void {
   }
 }
 
+export type FormatRequestOpts = {
+  /**
+   * Start index into modelMsgs/messageIDs (inclusive). Use checkpoint prefixLen
+   * so only new/dirty suffix is formatted — O(new) not O(history).
+   */
+  fromIndex?: number
+  /**
+   * When the byte budget is exceeded, prefer newest messages (suffix-first).
+   * Default true so huge sessions do not only capture ancient prefix.
+   */
+  preferNewest?: boolean
+}
+
 /**
  * Format the LLM request (system prompt + model messages) as
  * a deterministic, human-readable text blob for diffing.
  * Optional messageIDs (parallel to modelMsgs) enable id-stable MESSAGES diffs.
+ *
+ * Pass `fromIndex` (e.g. checkpoint reusable prefix length) to format only the
+ * delta — the common case between consecutive turns.
  */
 export function formatRequest(
   system: string[],
   modelMsgs: ModelMessage[],
   meta: DiffMeta,
   messageIDs?: string[],
+  opts?: FormatRequestOpts,
 ): string {
+  const t0 = typeof performance !== "undefined" ? performance.now() : 0
+  const from = Math.max(0, Math.min(opts?.fromIndex ?? 0, modelMsgs.length))
+  const preferNewest = opts?.preferNewest !== false
+  const slice = modelMsgs.slice(from)
+  const idSlice = messageIDs?.slice(from)
+
   const lines: string[] = []
   let chars = 0
   const pushLine = (line: string): boolean => {
@@ -114,19 +137,67 @@ export function formatRequest(
   pushLine(`agent: ${meta.agent}`)
   pushLine(`turn: ${meta.turn}`)
   pushLine(`timestamp: ${new Date(meta.timestamp).toISOString()}`)
+  if (from > 0) pushLine(`messages_from_index: ${from}`)
 
   pushLine("")
   pushLine("=== SYSTEM ===")
   for (const s of system) {
-    if (!pushLine(truncateText(s, MAX_FORMATTED_SYSTEM_CHARS, "system entry"))) return lines.join("\n")
+    if (!pushLine(truncateText(s, MAX_FORMATTED_SYSTEM_CHARS, "system entry"))) {
+      log.debug("formatRequest", {
+        from,
+        modelMsgs: modelMsgs.length,
+        formatted: 0,
+        ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+        truncated: true,
+      })
+      return lines.join("\n")
+    }
   }
 
   pushLine("")
   pushLine("=== MESSAGES ===")
-  for (let i = 0; i < modelMsgs.length; i++) {
-    if (!pushLine(formatModelMessage(modelMsgs[i], i, messageIDs?.[i]))) break
+
+  // Pre-format message blocks, then emit oldest→newest or drop oldest under budget.
+  const blocks: string[] = []
+  for (let i = 0; i < slice.length; i++) {
+    blocks.push(formatModelMessage(slice[i], from + i, idSlice?.[i]))
   }
 
+  if (preferNewest && blocks.length > 0) {
+    // Greedy from the end: keep newest messages that fit remaining budget.
+    const budget = MAX_FORMATTED_REQUEST_CHARS - chars
+    let used = 0
+    let start = blocks.length
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      const need = blocks[i].length + 1
+      if (used + need > budget && start < blocks.length) break
+      if (used + need > budget) {
+        // Single oversized newest block — still push via pushLine truncation.
+        start = i
+        break
+      }
+      used += need
+      start = i
+    }
+    if (start > 0) {
+      pushLine(`... (${start} older messages omitted; suffix-only)`)
+    }
+    for (let i = start; i < blocks.length; i++) {
+      if (!pushLine(blocks[i])) break
+    }
+  } else {
+    for (const block of blocks) {
+      if (!pushLine(block)) break
+    }
+  }
+
+  log.debug("formatRequest", {
+    from,
+    modelMsgs: modelMsgs.length,
+    formatted: blocks.length,
+    ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0),
+    chars,
+  })
   return lines.join("\n")
 }
 

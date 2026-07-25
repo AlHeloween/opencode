@@ -1,5 +1,8 @@
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
+import { AppRuntime } from "@/effect/app-runtime"
+import * as InstanceState from "@/effect/instance-state"
+import { Instance } from "@/project/instance"
 import { Effect, Layer, Schema } from "effect"
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "./auth"
@@ -49,21 +52,31 @@ export const PermissionApi = HttpApi.make("permission")
 
 export const permissionHandlers = Layer.unwrap(
   Effect.gen(function* () {
-    const svc = yield* Permission.Service
-
     const list = Effect.fn("PermissionHttpApi.list")(function* () {
-      return yield* svc.list()
+      const instance = yield* InstanceState.context
+      return yield* Effect.promise(() =>
+        Instance.restore(instance, () => AppRuntime.runPromise(Permission.Service.use((svc) => svc.list()))),
+      )
     })
 
     const reply = Effect.fn("PermissionHttpApi.reply")(function* (ctx: {
       params: { requestID: PermissionID }
       payload: Permission.ReplyBody
     }) {
-      yield* svc.reply({
-        requestID: ctx.params.requestID,
-        reply: ctx.payload.reply,
-        message: ctx.payload.message,
-      })
+      const instance = yield* InstanceState.context
+      yield* Effect.promise(() =>
+        Instance.restore(instance, () =>
+          AppRuntime.runPromise(
+            Permission.Service.use((svc) =>
+              svc.reply({
+                requestID: ctx.params.requestID,
+                reply: ctx.payload.reply,
+                message: ctx.payload.message,
+              }),
+            ),
+          ),
+        ),
+      )
       return true
     })
 

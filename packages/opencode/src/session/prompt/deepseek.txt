@@ -1,0 +1,5 @@
+---
+models:
+  - deepseek
+family: DeepSeek 4 Pro
+---

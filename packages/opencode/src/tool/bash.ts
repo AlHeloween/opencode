@@ -20,7 +20,7 @@ import { stripCommand } from "./strip-win"
 import { BashArity } from "@/permission/arity"
 import * as Truncate from "./truncate"
 import { Plugin } from "@/plugin"
-import { Effect } from "effect"
+import { Effect, Cause } from "effect"
 import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
@@ -715,12 +715,26 @@ export const BashTool = Tool.define(
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
-          // Process exit only — NO hard timeout, NO abort race.
-          // Long builds must not be killed by a fixed deadline. The agent
-          // sees stall detection hints and decides whether to job_kill.
-          // Fiber interruption (user cancel, job_kill) kills the process
+          // Wait for process exit with timeout enforcement.
+          // Previously NO hard timeout (the agent decided whether to job_kill),
+          // but cmd_runner tail --wait-ms and similar commands can hang
+          // indefinitely when the underlying process stalls. A hard timeout
+          // ensures the bash tool always completes, returning partial output.
+          // Fiber interruption (user cancel, job_kill) still kills the process
           // via Effect.scoped acquireRelease finalizer (taskkill /T /F).
-          const code = yield* handle.exitCode
+          const code: number | null = yield* handle.exitCode.pipe(
+            Effect.timeout(input.timeout),
+            Effect.catch((e) => {
+              if (Cause.isTimeoutError(e)) {
+                log.warn("bash timeout reached, killing process", {
+                  timeout: input.timeout,
+                  command: input.command.slice(0, 120),
+                })
+                return Effect.succeed(null) // null exit = timeout
+              }
+              return Effect.fail(e)
+            }),
+          )
           yield* awaitDrain
           return code
         }),
@@ -735,6 +749,9 @@ export const BashTool = Tool.define(
 
       let output = end.text
       if (!output) output = "(no output)"
+      if (code === null) {
+        output = `[TIMEOUT after ${input.timeout}ms]\n\n` + (output !== "(no output)" ? output : "Process did not complete within the timeout.")
+      }
 
       if (cut && file) {
         output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output

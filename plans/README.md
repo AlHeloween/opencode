@@ -48,7 +48,8 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
-_None._
+- `2026-07-25_session_restore_checkpoint_delta.md` — checkpoint as load gate; SQL-visible only; request-diff suffix-only (kill full-history reprocess on huge restore)
+
 
 ## Abstract futures (not active)
 

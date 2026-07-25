@@ -1,0 +1,36 @@
+Makes a direct, stateless LLM call. Sends a prompt (with optional file context)
+to any available model and returns the prose-only response. The model has no
+tool access — it just reads the prompt and responds.
+
+Use `ai-call` for single-pass LLM work that does NOT need multi-step reasoning,
+tool delegation, or conversational back-and-forth:
+- Large file transforms (e.g., "rewrite this 2000-line module to use async/await")
+- Text translation, summarization, or generation
+- Code refactoring where the full file fits in one prompt
+- Any task where a direct prompt → response is sufficient
+
+Do NOT use `ai-call` for tasks that require:
+- Multi-step reasoning or planning
+- Tool access (reading other files, running commands, editing)
+- Conversational back-and-forth with the user
+- Delegation to sub-agents
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | string | yes | The instructions or prompt to send |
+| `files` | string[] | no | File paths to read and include as context before the prompt |
+| `output_file` | string | no | Save the response to this file instead of returning inline |
+| `model` | string | no | Model override. Uses session default if omitted |
+| `provider` | string | no | Provider override. Uses session default if omitted |
+| `temperature` | number | no | Sampling temperature (0-2). Uses agent default if omitted |
+| `max_tokens` | number | no | Maximum output tokens. Uses agent default if omitted |
+
+## Behavior
+
+- Creates an isolated child session with tools disabled — the model responds with prose only
+- Files are read explicitly and included as context before the prompt
+- If `output_file` is provided, the response is written to that file (creating parent directories)
+- The model call is abortable — cancelling the parent cancels the child session
+- Response is returned inline when `output_file` is omitted (may be truncated if very long)

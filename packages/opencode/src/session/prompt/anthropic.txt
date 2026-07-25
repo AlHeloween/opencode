@@ -1,7 +1,6 @@
 ---
 models:
   - claude
-  - deepseek
 family: Claude
 ---
 intent:

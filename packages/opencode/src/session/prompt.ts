@@ -2026,6 +2026,15 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             }
 
             if (result === "stop") {
+              // Tool-call chain: if the assistant turn ended with pending tool
+              // calls (finish === "tool-calls"), continue the loop so tool results
+              // can be fed back to the LLM in the next iteration. This is NOT
+              // auto-continue — it's completing the tool-call cycle within one
+              // logical turn. Provider-executed tools (finish === "stop") were
+              // already handled in-stream and need no external processing.
+              if (msg.finish === "tool-calls") {
+                return "continue" as const
+              }
               // Layer 1 only after this assistant fully completed (reasoning closed).
               // Never inject mid-stream or mid-tool-loop — reasoning models require
               // the open turn to finish before any synthetic user message.

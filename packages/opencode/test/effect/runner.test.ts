@@ -30,7 +30,7 @@ describe("Runner", () => {
   )
 
   it.live(
-    "concurrent callers share the same run",
+    "concurrent callers queue: first runs immediately, second runs after",
     Effect.gen(function* () {
       const s = yield* Scope.Scope
       const runner = Runner.make<string>(s)
@@ -45,9 +45,11 @@ describe("Runner", () => {
         concurrency: "unbounded",
       })
 
+      // Both callers get "shared", but work executes twice — second caller's
+      // work is queued via RunningThenRun and executes after the first finishes.
       expect(a).toBe("shared")
       expect(b).toBe("shared")
-      expect(yield* Ref.get(calls)).toBe(1)
+      expect(yield* Ref.get(calls)).toBe(2)
     }),
   )
 
@@ -82,7 +84,7 @@ describe("Runner", () => {
   )
 
   it.live(
-    "second ensureRunning ignores new work if already running",
+    "ensureRunning queues new work behind running, then executes it",
     Effect.gen(function* () {
       const s = yield* Scope.Scope
       const runner = Runner.make<string>(s)
@@ -102,9 +104,11 @@ describe("Runner", () => {
         concurrency: "unbounded",
       })
 
+      // First caller gets first result. Second caller gets second result
+      // because its work was queued and executed after the first finished.
       expect(a).toBe("first-result")
-      expect(b).toBe("first-result")
-      expect(yield* Ref.get(ran)).toEqual(["first"])
+      expect(b).toBe("second-result")
+      expect(yield* Ref.get(ran)).toEqual(["first", "second"])
     }),
   )
 

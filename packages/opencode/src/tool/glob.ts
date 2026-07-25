@@ -43,7 +43,14 @@ export const GlobTool = Tool.define(
           let search = params.path ?? ins.directory
           search = path.isAbsolute(search) ? search : path.resolve(ins.directory, search)
           const info = yield* fs.stat(search).pipe(Effect.catch(() => Effect.succeed(undefined)))
-          if (info?.type === "File") {
+          if (!info) {
+            return {
+              title: path.relative(ins.worktree, search),
+              metadata: { count: 0, truncated: false },
+              output: `Directory not found: ${search}`,
+            }
+          }
+          if (info.type === "File") {
             throw new Error(`glob path must be a directory: ${search}`)
           }
           yield* assertExternalDirectoryEffect(ctx, search, { kind: "directory" })

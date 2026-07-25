@@ -904,7 +904,11 @@ export const layer: Layer.Layer<
 
           if (ctx.needsCompaction) return "compact"
           if (ctx.blocked || ctx.assistantMessage.error) return "stop"
-          return "continue"
+          // Default: stop after each turn. Auto-continue only after Layer-1 summary
+          // resume or compaction — the runLoop outcome handler overrides "stop" to
+          // "continue" when the assistant has non-provider-executed tool parts that
+          // need result processing.
+          return "stop"
         })
       })
 

@@ -32,6 +32,7 @@ interface PendingHandle<A, E> {
 export type State<A, E> =
   | { readonly _tag: "Idle" }
   | { readonly _tag: "Running"; readonly run: RunHandle<A, E> }
+  | { readonly _tag: "RunningThenRun"; readonly run: RunHandle<A, E>; readonly pending: PendingHandle<A, E> }
   | { readonly _tag: "Shell"; readonly shell: ShellHandle<A, E> }
   | { readonly _tag: "ShellThenRun"; readonly shell: ShellHandle<A, E>; readonly run: PendingHandle<A, E> }
 
@@ -90,6 +91,25 @@ export const make = <A, E = never>(
       return { id, done, fiber } satisfies RunHandle<A, E>
     })
 
+  /** Fork the pending work after the current run completes. */
+  const forkPendingAfter = (currentDone: Deferred.Deferred<A, E | Cancelled>, pending: PendingHandle<A, E>) =>
+    Effect.gen(function* () {
+      // Wait for the current run to finish (ignore result)
+      yield* Deferred.await(currentDone).pipe(Effect.exit, Effect.asVoid)
+      // Atomically start the pending run
+      yield* SynchronizedRef.modifyEffect(
+        ref,
+        Effect.fnUntraced(function* (st) {
+          if (st._tag === "RunningThenRun" && st.pending.id === pending.id) {
+            const run = yield* startRun(pending.work, pending.done)
+            return [Effect.void, { _tag: "Running", run }] as const
+          }
+          // Pending was cancelled or replaced — nothing to do
+          return [Effect.void, st] as const
+        }),
+      ).pipe(Effect.flatten)
+    }).pipe(Effect.forkIn(scope))
+
   const finishShell = (id: number) =>
     SynchronizedRef.modifyEffect(
       ref,
@@ -117,7 +137,30 @@ export const make = <A, E = never>(
       ref,
       Effect.fnUntraced(function* (st) {
         switch (st._tag) {
-          case "Running":
+          case "Running": {
+            // Queue the new work behind the current run.
+            // The caller gets the *pending* work's result — they wait for
+            // their own work to complete, not the current run.
+            const pending = {
+              id: next(),
+              done: yield* Deferred.make<A, E | Cancelled>(),
+              work,
+            } satisfies PendingHandle<A, E>
+            yield* forkPendingAfter(st.run.done, pending)
+            return [awaitDone(pending.done), { _tag: "RunningThenRun", run: st.run, pending }] as const
+          }
+          case "RunningThenRun": {
+            // Replace stale pending — the latest caller wins.
+            const pending = {
+              id: next(),
+              done: yield* Deferred.make<A, E | Cancelled>(),
+              work,
+            } satisfies PendingHandle<A, E>
+            // Fail the old pending — its caller gets onInterrupt
+            yield* Deferred.fail(st.pending.done, new Cancelled()).pipe(Effect.ignore)
+            yield* forkPendingAfter(st.run.done, pending)
+            return [awaitDone(pending.done), { _tag: "RunningThenRun", run: st.run, pending }] as const
+          }
           case "ShellThenRun":
             return [awaitDone(st.run.done), st] as const
           case "Shell": {
@@ -182,6 +225,16 @@ export const make = <A, E = never>(
           Effect.gen(function* () {
             yield* Fiber.interrupt(st.run.fiber)
             yield* Deferred.await(st.run.done).pipe(Effect.exit, Effect.asVoid)
+            yield* idleIfCurrent()
+          }),
+          { _tag: "Idle" } as const,
+        ] as const
+      case "RunningThenRun":
+        return [
+          Effect.gen(function* () {
+            yield* Fiber.interrupt(st.run.fiber)
+            yield* Deferred.await(st.run.done).pipe(Effect.exit, Effect.asVoid)
+            yield* Deferred.fail(st.pending.done, new Cancelled()).pipe(Effect.asVoid)
             yield* idleIfCurrent()
           }),
           { _tag: "Idle" } as const,

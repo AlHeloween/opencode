@@ -94,7 +94,17 @@ export const LogSearchTool = Tool.define(
           rgArgs.push(logDir)
 
           const result = yield* Effect.promise<{ stdout: string; stderr: string; exitCode: number }>(async (signal) => {
-            const proc = Bun.spawn(["rg", ...rgArgs], {
+            // Pre-flight: check rg is available before spawning.
+            const rgPath = Bun.which("rg")
+            if (!rgPath) {
+              return {
+                stdout: "",
+                stderr: "ripgrep (rg) is not installed",
+                exitCode: -2,
+              }
+            }
+
+            const proc = Bun.spawn([rgPath!, ...rgArgs], {
               stdout: "pipe",
               stderr: "pipe",
               signal,
@@ -104,10 +114,20 @@ export const LogSearchTool = Tool.define(
               new Response(proc.stdout).text(),
               new Response(proc.stderr).text(),
             ])
-            const exitCode = await proc.exitCode
+            // Bun: proc.exitCode is a synchronous number|null (NOT a Promise).
+            // Use proc.exited (Promise<number>) to await the actual exit code.
+            const exitCode = await proc.exited
 
-            return { stdout, stderr, exitCode: exitCode ?? -1 }
+            return { stdout, stderr, exitCode }
           })
+
+          if (result.exitCode === -2) {
+            return {
+              title: "LogSearch",
+              metadata: { pattern: params.pattern, results: 0, error: -2 },
+              output: "ripgrep (rg) is not installed. Install from https://github.com/BurntSushi/ripgrep",
+            }
+          }
 
           if (result.exitCode !== 0 && result.exitCode !== 1 && result.exitCode !== 2) {
             return {

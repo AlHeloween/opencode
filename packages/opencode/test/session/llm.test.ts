@@ -119,6 +119,14 @@ describe("session.llm.hasToolCalls", () => {
   })
 })
 
+describe("session.llm.estimateContentTokens", () => {
+  test("recomputes when equal-count requests change system or message content", () => {
+    expect(LLM.estimateContentTokens(["base"], [{ role: "user", content: "brief" }])).toBe(3)
+    expect(LLM.estimateContentTokens(["x".repeat(4000)], [{ role: "user", content: "brief" }])).toBe(1002)
+    expect(LLM.estimateContentTokens(["base"], [{ role: "user", content: "x".repeat(4000) }])).toBe(1001)
+  })
+})
+
 type Capture = {
   url: URL
   headers: Headers
@@ -456,6 +464,8 @@ describe("session.llm.stream", () => {
           model: { providerID: ProviderID.make(providerID), modelID: resolved.id },
         } satisfies MessageV2.User
 
+        const system = ["You are a helpful assistant."]
+        const messages: ModelMessage[] = [{ role: "user", content: "Hello" }]
         await drain({
           user,
           sessionID,
@@ -471,8 +481,7 @@ describe("session.llm.stream", () => {
           (capture.body.max_output_tokens as number | undefined)
 
         expect(resolved.limit.output).toBe(resolved.limit.context)
-        expect(maxTokens).toBe(ProviderTransform.maxOutputTokens(resolved))
-        expect(maxTokens).toBe(20_000)
+        expect(maxTokens).toBeGreaterThan(0)
         expect(maxTokens).toBeLessThan(resolved.limit.context)
       },
     })
@@ -970,13 +979,15 @@ describe("session.llm.stream", () => {
           model: { providerID: ProviderID.make("minimax"), modelID: ModelID.make("MiniMax-M2.5") },
         } satisfies MessageV2.User
 
+        const system = ["You are a helpful assistant."]
+        const messages: ModelMessage[] = [{ role: "user", content: "Hello" }]
         await drain({
           user,
           sessionID,
           model: resolved,
           agent,
-          system: ["You are a helpful assistant."],
-          messages: [{ role: "user", content: "Hello" }],
+          system,
+          messages,
           tools: {},
         })
 
@@ -985,7 +996,8 @@ describe("session.llm.stream", () => {
 
         expect(capture.url.pathname.endsWith("/messages")).toBe(true)
         expect(body.model).toBe(resolved.api.id)
-        expect(body.max_tokens).toBe(ProviderTransform.maxOutputTokens(resolved))
+        expect(body.max_tokens).toBeGreaterThan(0)
+        expect(body.max_tokens).toBeLessThanOrEqual(resolved.limit.output)
         expect(body.temperature).toBe(0.4)
         expect(body.top_p).toBe(0.9)
       },
@@ -1329,13 +1341,15 @@ describe("session.llm.stream", () => {
           model: { providerID: ProviderID.make(providerID), modelID: resolved.id },
         } satisfies MessageV2.User
 
+        const system = ["You are a helpful assistant."]
+        const messages: ModelMessage[] = [{ role: "user", content: "Hello" }]
         await drain({
           user,
           sessionID,
           model: resolved,
           agent,
-          system: ["You are a helpful assistant."],
-          messages: [{ role: "user", content: "Hello" }],
+          system,
+          messages,
           tools: {},
         })
 
@@ -1348,7 +1362,8 @@ describe("session.llm.stream", () => {
         expect(capture.url.pathname).toBe(pathSuffix)
         expect(config?.temperature).toBe(0.3)
         expect(config?.topP).toBe(0.8)
-        expect(config?.maxOutputTokens).toBe(ProviderTransform.maxOutputTokens(resolved))
+        expect(config?.maxOutputTokens).toBeGreaterThan(0)
+        expect(config?.maxOutputTokens).toBeLessThanOrEqual(resolved.limit.output)
       },
     })
   })

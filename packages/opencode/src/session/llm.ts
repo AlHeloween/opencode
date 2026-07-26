@@ -65,9 +65,6 @@ function serializeToolSchemas(tools: Record<string, Tool>): string {
   return lines.join("\n")
 }
 
-// Cache for token estimation — avoids re-serializing messages+system when count is unchanged
-let _cachedTokenEstimate: { count: number; value: number } | undefined
-
 /** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
   * LRU-evicted at 500 entries to prevent unbounded growth. */
 const systemContentHashes = new Map<string, number>()
@@ -328,33 +325,7 @@ const live: Layer.Layer<
         ? input.messages
         : input.messages
 
-      // Cached token estimate — avoid full JSON.stringify of huge histories.
-      // chars/4 over string content is good enough for maxOutputTokens budgeting.
-      let contentTokens: number
-      const msgCount = messages.length
-      if (_cachedTokenEstimate && _cachedTokenEstimate.count === msgCount) {
-        contentTokens = _cachedTokenEstimate.value
-      } else {
-        let chars = 0
-        for (const s of system) chars += s.length
-        for (const m of messages) {
-          const c = (m as { content?: unknown }).content
-          if (typeof c === "string") chars += c.length
-          else if (Array.isArray(c)) {
-            for (const part of c) {
-              if (part && typeof part === "object" && "text" in part && typeof (part as { text: unknown }).text === "string") {
-                chars += (part as { text: string }).text.length
-              } else if (part && typeof part === "object" && "type" in part) {
-                chars += 64 // tool-call / image / etc. — rough fixed cost
-              }
-            }
-          } else {
-            chars += 32
-          }
-        }
-        contentTokens = Math.ceil(chars / 4)
-        _cachedTokenEstimate = { count: msgCount, value: contentTokens }
-      }
+      const contentTokens = estimateContentTokens(system, messages)
 
       const params = yield* plugin.trigger(
         "chat.params",
@@ -743,6 +714,31 @@ export function hasToolCalls(messages: ModelMessage[]): boolean {
     }
   }
   return false
+}
+
+/** Approximate request content for dynamic output budgeting. Recompute on every
+ * request: equal message counts do not imply equal system or message content. */
+export function estimateContentTokens(system: string[], messages: ModelMessage[]): number {
+  let chars = system.reduce((total, content) => total + content.length, 0)
+  for (const message of messages) {
+    const content = message.content
+    if (typeof content === "string") {
+      chars += content.length
+      continue
+    }
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+          chars += part.text.length
+          continue
+        }
+        if (part && typeof part === "object" && "type" in part) chars += 64
+      }
+      continue
+    }
+    chars += 32
+  }
+  return Math.ceil(chars / 4)
 }
 
 export * as LLM from "./llm"

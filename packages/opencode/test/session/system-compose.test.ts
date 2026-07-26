@@ -77,11 +77,12 @@ describe("system-compose provider assembly", () => {
       userSystem: "USER",
       checkpoint: false,
     })
-    // Order: reasoning → ALGORITHM_CARD → kernel → rules → skills → env → agentPrompt → instructions
+    // Order: [0] UE, [1] reasoning+card+kernel, [2] tools, [3] path system, [4] mutable
     expect(parts).toEqual([
       "UE",
+      "REASONING\nALGORITHM_CARD\nKERNEL",
       "TOOLS",
-      "REASONING\nALGORITHM_CARD\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
+      "RULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
       "Active tools: a\n[session: ses_1]\nUSER",
     ])
   })
@@ -99,8 +100,8 @@ describe("system-compose provider assembly", () => {
       banner: "[session: ses_1]",
       checkpoint: true,
     })
-    // After stripping OLD_IDENTITY: reasoning → card → kernel → rules → skills → agentPrompt → env
-    expect(parts[2]).toBe("REASONING\nALGORITHM_CARD\nKERNEL\nRULES\nSKILLS\nAGENT_PROMPT\nENV")
+    // After stripping OLD_IDENTITY, the path body retains its own stable slot.
+    expect(parts[3]).toBe("RULES\nSKILLS\nAGENT_PROMPT\nENV")
     expect(parts.join("\n")).not.toContain("OLD_IDENTITY")
     expect(parts.some((p) => p === "USER")).toBe(false)
   })
@@ -123,12 +124,13 @@ describe("system-compose provider assembly", () => {
     // forced a full path/skills recompute on every new session.
     expect(collapsed).toEqual([
       "UE",
+      "REASONING\nALGORITHM_CARD\nKERNEL",
       "TOOLS",
-      "REASONING\nALGORITHM_CARD\nKERNEL\nRULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
+      "RULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
       "Active tools: a\n[session: ses_1]",
     ])
-    expect(collapsed[2]).not.toContain("[session:")
-    expect(collapsed[3]).toContain("[session: ses_1]")
+    expect(collapsed[3]).not.toContain("[session:")
+    expect(collapsed[4]).toContain("[session: ses_1]")
   })
 
   test("two sessions share identical stable prefix bytes", () => {
@@ -155,12 +157,13 @@ describe("system-compose provider assembly", () => {
     expect(a[0]).toBe(b[0])
     expect(a[1]).toBe(b[1])
     expect(a[2]).toBe(b[2])
-    expect(a[2]).toContain("SKILLS")
+    expect(a[3]).toContain("SKILLS")
     expect(a[2]).not.toContain("ses_")
     // Only the mutable tail differs
-    expect(a[3]).not.toBe(b[3])
-    expect(a[3]).toContain("ses_AAA")
-    expect(b[3]).toContain("ses_BBB")
+    expect(a[3]).toEqual(b[3])
+    expect(a[4]).not.toBe(b[4])
+    expect(a[4]).toContain("ses_AAA")
+    expect(b[4]).toContain("ses_BBB")
   })
 
   test("collapse is a no-op when header was mutated by a plugin", () => {
@@ -192,10 +195,10 @@ describe("system prefix digest (kernel + reasoning)", () => {
 
   test("systemPromptParts keeps full reasoning, algorithm card, and kernel separate", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
-    // Lean ADID density: reasoning is a pocket protocol, not a 11KB essay.
+    // Keep the full reasoning protocol bounded without truncating its sections.
     // Regression: split("\\n\\n") on the join must not truncate/mis-slot files.
     expect(parts.reasoning.length).toBeGreaterThan(1_500)
-    expect(parts.reasoning.length).toBeLessThan(8_000)
+    expect(parts.reasoning.length).toBeLessThan(16_000)
     expect(parts.reasoning).toContain("REASONING PROTOCOL")
     expect(parts.reasoning).toContain("SVM noise filter")
     expect(parts.reasoning).toContain("ALGORITHM_CARD")
@@ -222,7 +225,7 @@ describe("system prefix digest (kernel + reasoning)", () => {
     expect(kernelBytes).toBeGreaterThan(5_000)
     expect(kernelBytes).toBeLessThan(80_000)
     expect(reasoningBytes).toBeGreaterThan(1_500)
-    expect(reasoningBytes).toBeLessThan(8_000)
+    expect(reasoningBytes).toBeLessThan(16_000)
     expect(algorithmBytes).toBeGreaterThan(500)
     expect(combined).toBeGreaterThanOrEqual(reasoningBytes + algorithmBytes + kernelBytes)
   })

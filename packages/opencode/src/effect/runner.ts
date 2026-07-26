@@ -137,29 +137,28 @@ export const make = <A, E = never>(
       ref,
       Effect.fnUntraced(function* (st) {
         switch (st._tag) {
-          case "Running": {
-            // Queue the new work behind the current run.
-            // The caller gets the *pending* work's result — they wait for
-            // their own work to complete, not the current run.
-            const pending = {
-              id: next(),
-              done: yield* Deferred.make<A, E | Cancelled>(),
-              work,
-            } satisfies PendingHandle<A, E>
-            yield* forkPendingAfter(st.run.done, pending)
-            return [awaitDone(pending.done), { _tag: "RunningThenRun", run: st.run, pending }] as const
-          }
+          case "Running":
           case "RunningThenRun": {
-            // Replace stale pending — the latest caller wins.
-            const pending = {
-              id: next(),
-              done: yield* Deferred.make<A, E | Cancelled>(),
-              work,
-            } satisfies PendingHandle<A, E>
-            // Fail the old pending — its caller gets onInterrupt
-            yield* Deferred.fail(st.pending.done, new Cancelled()).pipe(Effect.ignore)
-            yield* forkPendingAfter(st.run.done, pending)
-            return [awaitDone(pending.done), { _tag: "RunningThenRun", run: st.run, pending }] as const
+            // New message supersedes the current run — interrupt it and start fresh.
+            const existingRun = st._tag === "RunningThenRun" ? st.run : st.run
+            const existingPending = st._tag === "RunningThenRun" ? st.pending : undefined
+
+            // Fire-and-forget interrupt: don't block on a fiber stuck in native I/O
+            yield* Fiber.interrupt(existingRun.fiber).pipe(
+              Effect.timeout("3 seconds"),
+              Effect.ignore,
+              Effect.forkIn(scope),
+            )
+
+            // Fail the superseded pending work
+            if (existingPending) {
+              yield* Deferred.fail(existingPending.done, new Cancelled()).pipe(Effect.ignore)
+            }
+
+            // Start the new work immediately
+            const done = yield* Deferred.make<A, E | Cancelled>()
+            const run = yield* startRun(work, done)
+            return [awaitDone(done), { _tag: "Running", run }] as const
           }
           case "ShellThenRun":
             return [awaitDone(st.run.done), st] as const

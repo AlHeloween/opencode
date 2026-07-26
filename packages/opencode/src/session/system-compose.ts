@@ -4,13 +4,17 @@
  * Order is cache-sensitive — see AGENTS.md KV Cache Continuity.
  *
  * Layout (stable prefix first, mutable last):
- *   [0] UNIVERSAL_ENV          — immutable forever
- *   [1] tool schemas           — stable per app version
- *   [2] identity + path system — stable per agent + project (skills/env/rules/AGENTS)
- *   [3] mutable tail           — active tools line, session banner, user system
+ *   [0] UNIVERSAL_ENV            — immutable forever
+ *   [1] stable identity prefix   — reasoning → ALGORITHM_CARD → kernel (MOST STABLE)
+ *   [2] tool schemas             — stable per app version
+ *   [3] path system              — rules → skills → env → agentPrompt → instructions
+ *   [4] mutable tail             — active tools line, session banner, user system
+ *
+ * Reasoning moved before tool schemas so the model sees how to think before
+ * learning what tools are available — protocol-first, tools-second.
  *
  * NEVER put session IDs, timestamps, or per-turn tool-active lines inside
- * segments [0–2]. Collapse used to join identity+path+banner into one string,
+ * segments [0–3]. Collapse used to join identity+path+banner into one string,
  * so a new session invalidated the entire path/skills block (~20–40k tokens).
  */
 
@@ -18,7 +22,7 @@ export type SystemComposeInput = {
   universalEnv: string
   /** Empty string skips the tool-schemas slot. */
   toolSchemas: string
-  /** Reasoning prefix (reasoning.txt). MOST STABLE — goes first in identity block. */
+  /** Reasoning prefix (reasoning.txt). MOST STABLE — slot [1], before tool schemas. */
   reasoningPrefix: string
   /**
    * ALGORITHM_CARD (algorithm_card.txt) — commented Python routes bound to kernel symbols.
@@ -50,19 +54,23 @@ export type SystemComposeInput = {
  */
 export function assembleSystemMessages(input: SystemComposeInput): string[] {
   const system: string[] = [input.universalEnv]
-  if (input.toolSchemas) system.push(input.toolSchemas)
 
-  // system[2]: Identity + Path System (ordered by mutability level)
-  // Required order: reasoning → ALGORITHM_CARD → kernel → rules → skills → env → agentPrompt → instructions
-  // Stable prefix: reasoning → card → kernel (MOST STABLE)
-  // Tool schemas stay slot [1] for app-version cache; card is first *route* in identity.
+  // system[1]: Stable identity prefix — reasoning → ALGORITHM_CARD → kernel
+  // Goes BEFORE tool schemas: model sees how to think, then what tools exist.
+  // Required order: reasoning → ALGORITHM_CARD → kernel (MOST STABLE first)
   const stablePrefix = [
     input.reasoningPrefix,
     input.algorithmCard ?? "",
     input.kernel,
   ].filter((s) => s.length > 0)
+  if (stablePrefix.length > 0) system.push(stablePrefix.join("\n"))
 
+  // system[2]: Tool schemas — stable per app version
+  if (input.toolSchemas) system.push(input.toolSchemas)
+
+  // system[3]: Path system + agent prompt
   // Path system: rules → skills → env → instructions
+  // (stable prefix already injected at slot [1])
   const path =
     input.checkpoint && input.pathSystem.length > 0
       ? input.pathSystem.slice(1) // drop stored identity prefix
@@ -78,12 +86,12 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
       // or after the single element if path has only one element.
       const allButLast = path.slice(0, -1)
       const last = path.slice(-1)
-      stableBodyParts = [...stablePrefix, ...allButLast, input.agentPrompt, ...last]
+      stableBodyParts = [...allButLast, input.agentPrompt, ...last]
     } else {
-      stableBodyParts = [...stablePrefix, input.agentPrompt]
+      stableBodyParts = [input.agentPrompt]
     }
   } else {
-    stableBodyParts = [...stablePrefix, ...path]
+    stableBodyParts = [...path]
   }
 
   const stableBody = stableBodyParts
@@ -104,34 +112,34 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
 
 /**
  * Collapse for provider cache:
- *   [UNIVERSAL_ENV, toolSchemas, stableBody, mutableTail]
+ *   [UNIVERSAL_ENV, stablePrefix?, toolSchemas, pathBody, mutableTail]
  *
  * When there are only 3 parts already (UE, tools, rest), leave as-is only if
- * `rest` is purely mutable — prefer 4-part layout from assembleSystemMessages.
+ * `rest` is purely mutable — prefer 5-part layout from assembleSystemMessages.
  * Does NOT merge the last (mutable) segment into the stable body.
  */
 export function collapseSystemMessages(system: string[], header: string): string[] {
   if (system.length <= 2 || system[0] !== header) return system
 
-  // assembleSystemMessages produces 3–4 slots:
-  //   [UE, tools?, stableBody, mutable?]
+  // assembleSystemMessages produces 3–5 slots:
+  //   [UE, stablePrefix?, tools?, pathBody, mutable?]
   // Keep them separate. Only join accidental middle fragments if a plugin
   // inserted extras between tools and the final mutable segment.
-  if (system.length === 3) {
-    // [UE, tools|stable, mutable] or [UE, tools, stable+mutable mixed]
-    return system
-  }
-  if (system.length === 4) {
-    // [UE, tools, stable, mutable] — ideal
+  if (system.length <= 5) {
     return system
   }
 
-  // Plugin added parts: [UE, tools, ...middle, lastMutable]
+  // Plugin added parts: [UE, stablePrefix?, tools?, ...middle, lastMutable]
   const second = system[1]!
+  const third = system.length > 3 ? system[2]! : undefined
   const last = system[system.length - 1]!
-  const middle = system.slice(2, -1)
-  if (middle.length === 0) return [header, second, last]
-  return [header, second, middle.join("\n"), last]
+  const middle = system.slice(third ? 3 : 2, -1)
+  if (middle.length === 0) return system.length === 4
+    ? [header, second, third!, last]
+    : [header, second, last]
+  return system.length === 4
+    ? [header, second, middle.join("\n"), last]
+    : [header, second, third!, middle.join("\n"), last]
 }
 
 /** Stable-first path assembly used by prompt.ts (non-checkpoint). */

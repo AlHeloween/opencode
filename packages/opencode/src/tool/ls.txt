@@ -1,5 +1,7 @@
 Lists files and directories in a tree format. Must use an absolute path parameter.
 
+Use `directoriesOnly: true` to show directory structure only (like `tree -d`).
+
 ## Output Format
 
 Returns a hierarchical tree with directory branches and file leaves. Directories are suffixed with `/`. Example:
@@ -20,6 +22,8 @@ The following are **hardcoded ignores** and do NOT need to be specified:
 
 Use the `ignore` parameter to add additional glob patterns. The tool performs gitignore-aware file discovery.
 
+Set `directoriesOnly: true` to show only directory structure (no files).
+
 ## Limits
 
 - **Maximum 100 entries** returned. If a directory has more, the output notes truncation.
@@ -31,3 +35,4 @@ Use the `ignore` parameter to add additional glob patterns. The tool performs gi
 |-----------|------|---------|-------------|
 | `path` | string | workspace root | Absolute path to directory to list |
 | `ignore` | string[] | — | Additional glob patterns to ignore |
+| `directoriesOnly` | boolean | false | Show only directories (no files). Like `tree -d`. |

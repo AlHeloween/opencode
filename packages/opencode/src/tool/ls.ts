@@ -43,6 +43,9 @@ export const Parameters = Schema.Struct({
   ignore: Schema.optional(Schema.Array(Schema.String)).annotate({
     description: "List of glob patterns to ignore",
   }),
+  directoriesOnly: Schema.optional(Schema.Boolean).annotate({
+    description: "When true, show only directories (no files). Like `tree -d`. Default: false.",
+  }),
 })
 
 export const ListTool = Tool.define(
@@ -53,7 +56,7 @@ export const ListTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { path?: string; ignore?: string[] }, ctx: Tool.Context) =>
+      execute: (params: { path?: string; ignore?: string[]; directoriesOnly?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
           const searchPath = path.resolve(ins.directory, params.path || ".")
@@ -87,9 +90,8 @@ export const ListTool = Tool.define(
           const filesByDir = new Map<string, string[]>()
 
           for (const file of files) {
-            const dir = path.dirname(file)
-            const normalizedDir = dir.replace(/\\/g, "/")
-            const parts = normalizedDir === "." ? [] : normalizedDir.split("/")
+            const dir = path.dirname(file).replace(/\\/g, "/")
+            const parts = dir === "." ? [] : dir.split("/")
 
             for (let i = 0; i <= parts.length; i++) {
               const dirPath = i === 0 ? "." : parts.slice(0, i).join("/")
@@ -110,16 +112,19 @@ export const ListTool = Tool.define(
 
             const childIndent = "  ".repeat(depth + 1)
             const children = Array.from(dirs)
-              .filter((d) => d.replace(/\\/g, "/") === dirPath && d !== dirPath)
+              .filter((d) => d !== "." && path.dirname(d).replace(/\\/g, "/") === dirPath)
               .sort()
 
             for (const child of children) {
               output += renderDir(child, depth + 1)
             }
 
-            const dirFiles = filesByDir.get(dirPath) || []
-            for (const file of dirFiles.sort()) {
-              output += `${childIndent}${file}\n`
+            if (!params.directoriesOnly) {
+              const dirFiles = filesByDir.get(dirPath) || []
+              for (const file of dirFiles.sort()) {
+                output += `${childIndent}${file}
+`
+              }
             }
 
             return output

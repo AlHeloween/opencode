@@ -1,0 +1,26 @@
+Recursively compare two directories and report differences: files only in A, only in B, or different (by size/timestamp).
+
+Use this tool to see what changed between two directory trees — e.g. before/after a build, between branches, or after a refactor.
+
+## What it does
+
+1. Walks both directory trees recursively
+2. For each file found in either tree, reports:
+   - `A only` — exists only in first directory
+   - `B only` — exists only in second directory
+   - `changed` — exists in both but differs (size or mtime)
+   - `same` — identical (only shown in verbose mode)
+3. Skips common ignore patterns (node_modules, .git, etc.)
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `pathA` | string | — | First directory path (required) |
+| `pathB` | string | — | Second directory path (required) |
+| `verbose` | boolean | false | Include identical files in output |
+| `ignore` | string[] | — | Additional glob patterns to ignore |
+
+## Output
+
+Returns a summary line plus a categorized listing of files grouped by status (only A, only B, changed, same).

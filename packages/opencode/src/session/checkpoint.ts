@@ -162,10 +162,10 @@ function isStructurallyValid(data: CheckpointData): boolean {
 }
 
 /** Try to decrypt and parse a checkpoint file. Returns null on failure. */
-async function tryLoadSlot(filePath: string, encKey: CryptoKey): Promise<CheckpointData | null> {
+async function tryLoadSlot(filePath: string, encKey: Buffer): Promise<CheckpointData | null> {
   try {
     const encrypted = await fs.readFile(filePath)
-    const plaintext = await decryptBaseline(encrypted, encKey)
+    const plaintext = decryptBaseline(encrypted, encKey)
     const data: CheckpointData = JSON.parse(plaintext)
     if (!isStructurallyValid(data)) {
       try { await fs.unlink(filePath) } catch (e) {
@@ -294,9 +294,9 @@ export function save(input: {
         input.data.agent,
       )
       const filePath = await olderSlot(slots)
-      const encKey = await deriveKey(input.projectID, input.sessionID)
+      const encKey = deriveKey(input.projectID, input.sessionID)
       const plaintext = JSON.stringify(input.data)
-      const encrypted = await encryptBaseline(plaintext, encKey)
+      const encrypted = encryptBaseline(plaintext, encKey)
       await writeAtomic(filePath, encrypted)
     },
     catch: (error) => new Error("Failed to save checkpoint", { cause: error }),
@@ -310,7 +310,9 @@ export function save(input: {
   })))
 }
 
-/** Load checkpoint: memory first, then newest disk slot. */
+/** Load checkpoint: memory first, then newest disk slot.
+ *  Wrapped in Promise.race with a hard timeout — native crypto / fs hangs
+ *  (Bun subtleties, antivirus file locks) must not block the prompt loop. */
 export function load(input: {
   sessionID: string
   providerID: string
@@ -318,7 +320,9 @@ export function load(input: {
   projectID: string
   agentName?: string
 }): Effect.Effect<CheckpointData | null> {
-  return Effect.promise(async () => {
+  const LOAD_TIMEOUT_MS = 15_000
+
+  const doLoad = async (): Promise<CheckpointData | null> => {
     const key = memoryKey(input.sessionID, input.providerID, input.modelID, input.agentName)
     const mem = memory.get(key)
     if (mem) {
@@ -342,7 +346,7 @@ export function load(input: {
 
     if (existing.length === 0) return null
 
-    const encKey = await deriveKey(input.projectID, input.sessionID)
+    const encKey = deriveKey(input.projectID, input.sessionID)
     for (const { path: filePath } of existing) {
       const data = await tryLoadSlot(filePath, encKey)
       if (data) {
@@ -353,7 +357,9 @@ export function load(input: {
 
     log.warn("bug: all checkpoint slots corrupt", { sessionID: input.sessionID })
     return null
-  })
+  }
+
+  return Effect.promise(() => doLoad())
 }
 
 /** Load the OLDER checkpoint slot (diagnostic / optional fallback). */
@@ -381,7 +387,7 @@ export function loadPrevious(input: {
 
     if (existing.length === 0) return null
 
-    const encKey = await deriveKey(input.projectID, input.sessionID)
+    const encKey = deriveKey(input.projectID, input.sessionID)
     for (const { path: filePath } of existing) {
       const data = await tryLoadSlot(filePath, encKey)
       if (data) return data

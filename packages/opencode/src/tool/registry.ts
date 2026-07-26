@@ -9,6 +9,7 @@ import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
 import { TaskTool } from "./task"
 import { AiCallTool } from "./ai-call"
+import { CompareTool } from "./compare"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
@@ -119,6 +120,7 @@ export const layer: Layer.Layer<
     const invalid = yield* InvalidTool
     const task = yield* TaskTool
     const aicall = yield* AiCallTool
+    const compare = yield* CompareTool
     const read = yield* ReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
@@ -223,6 +225,7 @@ export const layer: Layer.Layer<
           invalid: Tool.init(invalid),
           bash: Tool.init(bash),
           aicall: Tool.init(aicall),
+          compare: Tool.init(compare),
           cmd: Tool.init(cmd),
           run: Tool.init(run),
           read: Tool.init(read),
@@ -261,6 +264,7 @@ export const layer: Layer.Layer<
             ...(questionEnabled ? [tool.question] : []),
             tool.bash,
             tool.aicall,
+            tool.compare,
             tool.run,
             tool.read,
             tool.glob,

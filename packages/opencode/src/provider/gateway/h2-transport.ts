@@ -67,6 +67,27 @@ function getSessionKey(baseUrl: string): string {
   }
 }
 
+async function healthCheck(session: H2Session, timeoutMs: number): Promise<boolean> {
+  try {
+    const result = await Promise.race([
+      new Promise<boolean>((resolve) => {
+        session.session.ping((err) => {
+          if (err) {
+            log.debug("h2 health ping failed", { error: err.message })
+            resolve(false)
+          } else {
+            resolve(true)
+          }
+        })
+      }),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+    ])
+    return result
+  } catch {
+    return false
+  }
+}
+
 function getOrCreateSession(baseUrl: string): H2Session | null {
   const key = getSessionKey(baseUrl)
   const existing = sessions.get(key)
@@ -187,11 +208,27 @@ export interface H2Response {
   error?: NormalizedError
 }
 
+async function getOrCreateHealthySession(baseUrl: string): Promise<H2Session | null> {
+  const key = getSessionKey(baseUrl)
+  const existing = sessions.get(key)
+  if (existing && !existing.session.closed) {
+    const ok = await healthCheck(existing, 3000)
+    if (ok) {
+      existing.lastUsedAt = Date.now()
+      return existing
+    }
+    log.debug("h2 health check failed — closing session", { baseUrl, key })
+    existing.session.close()
+    sessions.delete(key)
+  }
+  return getOrCreateSession(baseUrl)
+}
+
 export async function request(options: H2RequestOptions): Promise<H2Response> {
   const sample = M.makeSample(0, options.headers["x-request-id"])
   sample.queuedAt = Date.now()
 
-  const session = getOrCreateSession(options.baseUrl)
+  const session = await getOrCreateHealthySession(options.baseUrl)
   if (!session) {
     const err = new Error("Failed to create H2 session")
     const normalized = normalizeError(err)
@@ -363,7 +400,7 @@ export async function requestStream(
   const sample = M.makeSample(0, options.headers["x-request-id"])
   sample.queuedAt = Date.now()
 
-  const session = getOrCreateSession(options.baseUrl)
+  const session = await getOrCreateHealthySession(options.baseUrl)
   if (!session) {
     throw new Error("Failed to create H2 session")
   }

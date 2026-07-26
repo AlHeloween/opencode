@@ -20,7 +20,7 @@
 import path from "path"
 import { EOL } from "os"
 import fs from "fs"
-import { createHash } from "node:crypto"
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto"
 import type { ModelMessage } from "ai"
 import { Global } from "@opencode-ai/core/global"
 import { logPath } from "@opencode-ai/core/util/log"
@@ -214,32 +214,32 @@ function formatModelMessage(msg: ModelMessage, index: number, messageID?: string
 // ── Shared encryption primitives (used by checkpoint.ts) ──────────────────────
 
 /**
- * Derive an AES-256-GCM key from project+session identity.
+ * Derive an AES-128-GCM key from project+session identity.
+ * Uses Node.js crypto (synchronous, no crypto.subtle). Key is 16 bytes.
  * Deterministic — same inputs always produce the same key.
  */
-export async function deriveKey(
-  projectID: string,
-  sessionID: string,
-): Promise<CryptoKey> {
+export function deriveKey(projectID: string, sessionID: string): Buffer {
   const material = `${projectID}:${sessionID}${KEY_DERIVATION_SALT}`
-  const keyBytes = createHash("sha256").update(material).digest()
-  return crypto.subtle.importKey("raw", new Uint8Array(keyBytes), "AES-GCM", false, ["encrypt", "decrypt"])
+  return createHash("sha256").update(material).digest().subarray(0, 16)
 }
 
-/** Encrypt a string with AES-256-GCM. Returns IV (12 bytes) prepended to ciphertext+authTag. */
-export async function encryptBaseline(plaintext: string, key: CryptoKey): Promise<Buffer> {
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const encoded = new TextEncoder().encode(plaintext)
-  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded))
-  return Buffer.concat([Buffer.from(iv), Buffer.from(ciphertext)])
+/** Encrypt a string with AES-128-GCM. Returns IV (12 bytes) + ciphertext + authTag (16 bytes). */
+export function encryptBaseline(plaintext: string, key: Buffer): Buffer {
+  const iv = randomBytes(12)
+  const cipher = createCipheriv("aes-128-gcm", key, iv)
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()])
+  const authTag = cipher.getAuthTag()
+  return Buffer.concat([iv, encrypted, authTag])
 }
 
-/** Decrypt an AES-256-GCM ciphertext (IV prepended format). */
-export async function decryptBaseline(encrypted: Buffer, key: CryptoKey): Promise<string> {
-  const iv = new Uint8Array(encrypted.subarray(0, 12))
-  const ciphertext = new Uint8Array(encrypted.subarray(12))
-  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext)
-  return new TextDecoder().decode(plaintext)
+/** Decrypt an AES-128-GCM ciphertext (IV + data + authTag format). */
+export function decryptBaseline(encrypted: Buffer, key: Buffer): string {
+  const iv = encrypted.subarray(0, 12)
+  const authTag = encrypted.subarray(encrypted.length - 16)
+  const ciphertext = encrypted.subarray(12, encrypted.length - 16)
+  const decipher = createDecipheriv("aes-128-gcm", key, iv)
+  decipher.setAuthTag(authTag)
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8")
 }
 
 /**

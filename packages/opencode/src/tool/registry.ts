@@ -1,5 +1,6 @@
 import { PlanExitTool } from "./plan"
 import { ReasoningEnterTool, ReasoningExitTool } from "./reasoning"
+import { MemoryTool } from "./memory"
 import { Session } from "@/session/session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
@@ -129,6 +130,7 @@ export const layer: Layer.Layer<
     const plan = yield* PlanExitTool
     const reasoningEnter = yield* ReasoningEnterTool
     const reasoningExit = yield* ReasoningExitTool
+    const memory = yield* MemoryTool
     const webfetch = yield* WebFetchTool
     const bash = yield* BashTool
     const cmd = yield* CmdTool
@@ -247,6 +249,7 @@ export const layer: Layer.Layer<
           plan: Tool.init(plan),
           reasoningEnter: Tool.init(reasoningEnter),
           reasoningExit: Tool.init(reasoningExit),
+          memory: Tool.init(memory),
           list: Tool.init(listtool),
           multiedit: Tool.init(multiedit),
           universalsearch: Tool.init(universalsearch),
@@ -300,6 +303,7 @@ export const layer: Layer.Layer<
             ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
             tool.reasoningEnter,
             tool.reasoningExit,
+            tool.memory,
           ],
           task: tool.task,
           read: tool.read,

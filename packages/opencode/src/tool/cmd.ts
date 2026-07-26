@@ -16,7 +16,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 
 import * as Truncate from "./truncate"
 import { Plugin } from "@/plugin"
-import { Effect } from "effect"
+import { Cause, Effect } from "effect"
 import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
@@ -25,6 +25,7 @@ import { enforceDestructiveShell } from "./shell-constitution"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
+const DIRECT_TIMEOUT = 30 * 1000 // 30 seconds — for direct (non-job) calls: fast feedback, no hanging
 const CWD = new Set(["cd", "pushd", "popd"])
 
 // Known-safe read-only cmd commands that never trigger permission scanning.
@@ -464,12 +465,24 @@ export const CmdTool = Tool.define(
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
-          // Process exit only — NO hard timeout, NO abort race.
-          // Long builds must not be killed by a fixed deadline. The agent
-          // sees stall detection hints and decides whether to job_kill.
+          // Process exit with optional timeout. Background jobs have no
+          // timeout (DEFAULT_TIMEOUT is infinite for practical purposes);
+          // direct calls use 30s timeout for fast feedback.
           // Fiber interruption (user cancel, job_kill) kills the process
           // via Effect.scoped acquireRelease finalizer (taskkill /T /F).
-          const code = yield* handle.exitCode
+          const code: number | null = yield* handle.exitCode.pipe(
+            input.timeout ? Effect.timeout(input.timeout) : (eff) => eff,
+            Effect.catch((e) => {
+              if (Cause.isTimeoutError(e)) {
+                log.warn("cmd timeout reached, killing process", {
+                  timeout: input.timeout,
+                  command: input.command.slice(0, 120),
+                })
+                return Effect.succeed(null) // null exit = timeout
+              }
+              return Effect.fail(e)
+            }),
+          )
           yield* awaitDrain
           return code
         }),
@@ -482,6 +495,10 @@ export const CmdTool = Tool.define(
       if (!file && end.cut) file = yield* trunc.write(raw)
       let output = end.text
       if (!output) output = "(no output)"
+      if (code === null) {
+        const hint = input.timeout === DIRECT_TIMEOUT ? " Direct shell calls max 30 seconds — use run_in_background:true for long-running commands." : ""
+        output = `[TIMEOUT after ${input.timeout}ms]${hint}\n\n` + (output !== "(no output)" ? output : "Process did not complete within the timeout.")
+      }
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
       if (meta.length > 0) output += "\n\n<cmd_metadata>\n" + meta.join("\n") + "\n</cmd_metadata>"
       if (sink) {
@@ -532,7 +549,9 @@ export const CmdTool = Tool.define(
           const ADM_TIMEOUT = 3 * 60 * 1000
           const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
           const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
-          const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
+          const direct = params.run_in_background === false
+          const timeout =
+            params.timeout ?? (direct ? DIRECT_TIMEOUT : isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
           const shell = process.env.COMSPEC || "cmd.exe"
 
           const p = yield* Effect.promise(() => parser())

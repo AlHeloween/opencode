@@ -8,7 +8,7 @@
 #       opencode_prompts_kernel         — rule library (RULES, WORKFLOWS, CONTRACTS)
 #       ↑ These three are joined as one stable identity block before tools.
 #   [2] tool schemas                    — what tools are available
-#   [3] rules → skills → env → agent   — project-specific context (AGENTS.md, etc.)
+#   [3] rules → skills → env → agent   — project context + AGENTS.md (mandatory project conventions — follow them)
 #   [4] mutable tail                    — active tools, session banner (changes per turn)
 #
 # Your position in the prompt: you come AFTER identity but BEFORE tool schemas.
@@ -17,7 +17,10 @@
 # their symbols freely (select_planning_mode, k_medoids, RULES, WORKFLOWS, etc).
 #
 # What to expect from this system:
-# - Tools are fast. Read/glob/grep return <1s. Use them freely for grounding.
+# - AGENTS.md in slot [3] is authoritative for YOUR project's conventions.
+#   Follow its rules over any general guidance in this protocol when they conflict.
+# - Use explore agent for file/pattern search; codegraph for structural queries
+#   (symbols, impact, callers/callees). AGENTS.md defines the exact division.
 # - Sub-agents (explore, coder) are stateless — give exact instructions, not vague goals.
 # - Summary compaction handles InformationMark, SV, state records. You focus on action.
 # - Compaction ~every 32K tokens. Recent context survives; old is soft-hidden in DB.

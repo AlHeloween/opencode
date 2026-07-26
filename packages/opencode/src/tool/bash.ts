@@ -31,6 +31,7 @@ import { enforceDestructiveShell } from "./shell-constitution"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 min safety net — agent controls kill via job_kill
+const DIRECT_TIMEOUT = 30 * 1000 // 30 seconds — for direct (non-job) calls: fast feedback, no hanging
 const CWD = new Set(["cd", "popd", "pushd", "push-location", "set-location"])
 const FILES = new Set([...CWD, "cat", "chmod", "chown", "cp", "ln", "mkdir", "mv", "rm", "touch"])
 
@@ -750,7 +751,8 @@ export const BashTool = Tool.define(
       let output = end.text
       if (!output) output = "(no output)"
       if (code === null) {
-        output = `[TIMEOUT after ${input.timeout}ms]\n\n` + (output !== "(no output)" ? output : "Process did not complete within the timeout.")
+        const hint = input.timeout === DIRECT_TIMEOUT ? " Direct shell calls max 30 seconds — use run_in_background:true for long-running commands." : ""
+        output = `[TIMEOUT after ${input.timeout}ms]${hint}\n\n` + (output !== "(no output)" ? output : "Process did not complete within the timeout.")
       }
 
       if (cut && file) {
@@ -825,8 +827,9 @@ export const BashTool = Tool.define(
               const ADM_TIMEOUT = 3 * 60 * 1000 // 3 min — adm --query needs model cold-load (~20-30s)
               const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
               const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
+              const direct = params.run_in_background === false
               const timeout =
-                params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
+                params.timeout ?? (direct ? DIRECT_TIMEOUT : isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
               const ps = Shell.ps(shell)
               // On Windows: detect cmd.exe shell to select batch grammar + cmd SAFE/FILES.
               // Shell.posix(shell) is false for cmd.exe; Shell.ps(shell) is false for cmd.exe.

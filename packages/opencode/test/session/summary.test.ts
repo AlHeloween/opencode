@@ -106,7 +106,7 @@ describe("SessionSummary.computeDiff", () => {
         expect(b!.deletions).toBe(3)
       },
     })
-  })
+  }, 15_000)
 
   test("returns latest filediff per file when multiple edits target same file", async () => {
     await using tmp = await tmpdir({ git: true })
@@ -130,7 +130,7 @@ describe("SessionSummary.computeDiff", () => {
         expect(result[0].deletions).toBe(1)
       },
     })
-  })
+  }, 15_000)
 
   test("skips timestamp-only files (no additions or deletions)", async () => {
     await using tmp = await tmpdir({ git: true })

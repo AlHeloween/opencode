@@ -1440,6 +1440,7 @@ describe("session.compaction.compact", () => {
         expect(combined).toContain("=== COMPACTED ===")
         expect(combined.includes("msg-28") || combined.includes("msg-29")).toBe(true)
         expect(combined).not.toContain("msg-0-")
+        expect(combined).not.toContain("msg-1-")
       }),
     ),
   )

@@ -27,6 +27,7 @@ import { Plugin } from "../plugin"
 import PROMPT_PLAN_RAW from "../session/prompt/plan.txt"
 import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
 import BUILD_SWITCH_RAW from "../session/prompt/build-switch.txt"
+import PROMPT_REASONING_RAW from "../session/prompt/reasoning-mode.txt"
 // Normalize CRLF → LF so exact text comparisons match DB-stored versions
 // regardless of OS line-ending conventions. Failure to do this causes
 // hasSynthetic() to miss existing synthetic parts, leading to re-push
@@ -34,6 +35,7 @@ import BUILD_SWITCH_RAW from "../session/prompt/build-switch.txt"
 const PROMPT_PLAN = PROMPT_PLAN_RAW.replace(/\r\n/g, "\n")
 const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
 const BUILD_SWITCH = BUILD_SWITCH_RAW.replace(/\r\n/g, "\n")
+const PROMPT_REASONING = PROMPT_REASONING_RAW.replace(/\r\n/g, "\n")
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
@@ -370,6 +372,20 @@ History was compacted. Active memory is the compacted block and/or summary assis
               sessionID: userMessage.info.sessionID,
               type: "text",
               text: BUILD_SWITCH,
+              synthetic: true,
+            })
+            userMessage.parts.push(part)
+          }
+        }
+        if (input.agent.name === "reasoning") {
+          // Reasoning mode — zero tools, memory-only responses.
+          if (!hasSynthetic(PROMPT_REASONING)) {
+            const part = yield* sessions.updatePart({
+              id: PartID.ascending(),
+              messageID: userMessage.info.id,
+              sessionID: userMessage.info.sessionID,
+              type: "text",
+              text: PROMPT_REASONING,
               synthetic: true,
             })
             userMessage.parts.push(part)

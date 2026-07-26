@@ -105,6 +105,8 @@ export const layer = Layer.effect(
           question: "deny",
           plan_enter: "deny",
           plan_exit: "deny",
+          reasoning_enter: "deny",
+          reasoning_exit: "deny",
           // mirrors github.com/github/gitignore Node.gitignore pattern for .env files
           read: {
             "*": "allow",
@@ -126,6 +128,7 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 plan_enter: "allow",
+                reasoning_enter: "allow",
               }),
               user,
             ),
@@ -158,6 +161,21 @@ export const layer = Layer.effect(
             mode: "primary",
             native: true,
             subagents: ["explore"],
+          },
+          reasoning: {
+            name: "reasoning",
+            description: "Reasoning mode. Zero tools — memory-only responses.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              user,
+              Permission.fromConfig({
+                "*": "deny",
+                reasoning_exit: "allow",
+              }),
+            ),
+            mode: "primary",
+            native: true,
           },
           orchestrator: {
             name: "orchestrator",

@@ -1,4 +1,5 @@
 import { PlanExitTool } from "./plan"
+import { ReasoningEnterTool, ReasoningExitTool } from "./reasoning"
 import { Session } from "@/session/session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
@@ -126,6 +127,8 @@ export const layer: Layer.Layer<
     const todo = yield* TodoWriteTool
     const lsptool = yield* LspTool
     const plan = yield* PlanExitTool
+    const reasoningEnter = yield* ReasoningEnterTool
+    const reasoningExit = yield* ReasoningExitTool
     const webfetch = yield* WebFetchTool
     const bash = yield* BashTool
     const cmd = yield* CmdTool
@@ -242,6 +245,8 @@ export const layer: Layer.Layer<
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          reasoningEnter: Tool.init(reasoningEnter),
+          reasoningExit: Tool.init(reasoningExit),
           list: Tool.init(listtool),
           multiedit: Tool.init(multiedit),
           universalsearch: Tool.init(universalsearch),
@@ -293,6 +298,8 @@ export const layer: Layer.Layer<
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             ...(process.platform === "win32" ? [tool.cmd] : []),
             ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
+            tool.reasoningEnter,
+            tool.reasoningExit,
           ],
           task: tool.task,
           read: tool.read,

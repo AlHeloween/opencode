@@ -22,14 +22,22 @@
 # - Use explore agent for file/pattern search; codegraph for structural queries
 #   (symbols, impact, callers/callees). AGENTS.md defines the exact division.
 # - Sub-agents (explore, coder) are stateless — give exact instructions, not vague goals.
-# - Summary compaction handles InformationMark, SV, state records. You focus on action.
-# - Compaction ~every 32K tokens. Recent context survives; old is soft-hidden in DB.
 # - You are the primary agent. Sub-agents implement; you orchestrate, verify, decide.
 # - The user is the approver (Gate 4). Never skip approval for MODIFY work.
 # - The kernel (slot [1]) is a rule library — gates tell you WHICH rules to apply.
 #
-# InformationMark, SemanticVector, and state records are handled by the summary
-# compaction system — this protocol covers live decision-making only.
+# Compaction (≈every 32K tokens) — older messages are summarized and soft-hidden.
+# The compaction system-reminder gives passive context. Do NOT recover wholesale.
+# When you need a SPECIFIC fact (commit hash, exact error text, a past decision):
+#   messagesearch({query}) → finds matching messages across sessions
+#     Use for: "what did the user say about X?", "was bug Y already fixed?"
+#   session-read({sessionId, offset, limit}) → reads raw messages from a session
+#     Use after messagesearch when you need full context around a found match
+#   InformationMark tags in results: [Exact] = ground truth (trust it),
+#     [Inferred] = summary/guess (verify before relying),
+#     [Hypothetical]/[Guess] = low confidence (corroborate)
+# Do NOT use session-read to replay entire conversations — that defeats compaction.
+# Recover only the specific missing fact, then continue the task.
 #
 # Task geometry (Mode 1/2, fractal, k-medoids, todowrite): ALGORITHM_CARD (slot [1]).
 # Do not invent a second plan pipeline here. Kernel: opencode_prompts_kernel.py

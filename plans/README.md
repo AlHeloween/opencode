@@ -60,6 +60,7 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 - `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-touch → readonly SQLite pack, Fossil impact, and production smokes
 - `2026-07-22_epistemic_guardrails.md` — Inferred/Exact guardrails
 - `2026-07-24_summary-after-completion.md` — Layer-1 completion/resume plus persisted Fossil + CodeGraph Exact handles in `message*`
+- `2026-07-26_mode_transition_guardrails.md` — one-shot mode-entry instructions; steady-state software enforcement
 - `memory after compaction report.md` — historical compaction report
 - `shell-output-parsing-bug.md` — shell-output parsing work
 - `shell-output-reliability.md` — shell-output reliability work

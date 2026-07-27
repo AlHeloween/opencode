@@ -12,6 +12,7 @@ import { ReadTool } from "./read"
 import { TaskTool } from "./task"
 import { AiCallTool } from "./aicall"
 import { CompareTool } from "./compare"
+import { TreeDiffTool } from "./treediff"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
@@ -128,6 +129,7 @@ export const layer: Layer.Layer<
     const task = yield* TaskTool
     const aicall = yield* AiCallTool
     const compare = yield* CompareTool
+    const treediff = yield* TreeDiffTool
     const read = yield* ReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
@@ -237,6 +239,7 @@ export const layer: Layer.Layer<
           bash: Tool.init(bash),
           aicall: Tool.init(aicall),
           compare: Tool.init(compare),
+          treediff: Tool.init(treediff),
           cmd: Tool.init(cmd),
           run: Tool.init(run),
           read: Tool.init(read),
@@ -278,6 +281,7 @@ export const layer: Layer.Layer<
             tool.bash,
             tool.aicall,
             tool.compare,
+            tool.treediff,
             tool.run,
             tool.read,
             tool.glob,

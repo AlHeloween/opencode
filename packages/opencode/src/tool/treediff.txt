@@ -1,0 +1,33 @@
+Compare two arbitrary files or directory trees with Git's text-native
+`diff --no-index`. Neither path needs to be a Git repository. This is a
+read-only evidence tool: exit code 1 means differences were found, not failure.
+
+Use `treediff` before reading many individual files when you need a complete,
+machine-readable map of divergence between two worktrees, generated outputs,
+snapshots, ports, or recovery candidates.
+
+## Choose the smallest useful mode
+
+- `names` (default): changed paths and status. Use first to map a large tree.
+- `numstat`: per-file additions/deletions. Use to prioritize review scope.
+- `patch`: unified content diff. Use only after the changed-file set is bounded.
+
+## High-leverage workflow
+
+1. `treediff` in `names` mode answers what differs without loading each file.
+2. Use `numstat` to identify the meaningful changes.
+3. Read only the relevant files, or send the bounded set to `ai-call` for one
+   coherent large-context analysis/refactor.
+4. Apply changes with normal edit/patch tools and prove them with focused tests.
+
+Do not use `treediff` for a single known file, for semantic code impact, or as
+proof that two same-sized files are equivalent. It reports textual differences;
+use CodeGraph, tests, and review for behavior.
+
+## Parameters
+
+| Parameter | Meaning |
+|---|---|
+| `pathA`, `pathB` | Two files or directory trees to compare. |
+| `mode` | `names`, `numstat`, or `patch`. |
+| `context` | Context lines in patch mode, from 0 to 100. |

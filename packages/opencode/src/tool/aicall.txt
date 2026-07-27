@@ -1,36 +1,58 @@
-Makes a direct, stateless LLM call. Sends a prompt (with optional file context)
-to any available model and returns the prose-only response. The model has no
-tool access — it just reads the prompt and responds.
+Use `aicall` as a whole-object cognition accelerator: one isolated LLM call on
+the exact files and constraints you supply. It is not a subagent and has no
+tools, no repository discovery, and no authority to change the working tree.
 
-Use `aicall` for single-pass LLM work that does NOT need multi-step reasoning,
-tool delegation, or conversational back-and-forth:
-- Large file transforms (e.g., "rewrite this 2000-line module to use async/await")
-- Text translation, summarization, or generation
-- Code refactoring where the full file fits in one prompt
-- Any task where a direct prompt → response is sufficient
+Choose it when a strong long-context model can reason about a bounded object in
+one coherent pass more cheaply and accurately than a long sequence of
+`glob → grep → read → partial edit` calls.
 
-Do NOT use `aicall` for tasks that require:
-- Multi-step reasoning or planning
-- Tool access (reading other files, running commands, editing)
-- Conversational back-and-forth with the user
-- Delegation to sub-agents
+## High-value uses
+
+- Refactor a large self-contained module while preserving named APIs and
+  behavioral invariants.
+- Produce a unified diff, complete replacement file, compatibility audit, test
+  matrix, migration draft, extraction, translation, or structured review.
+- Analyse a bounded set of files selected by `treediff`, CodeGraph, or an
+  already-proven local search.
+
+## Call contract
+
+1. Attach every file needed for correctness with `files`.
+2. State the goal, preserved behavior, forbidden changes, and output format.
+3. Choose `model` and `provider` deliberately when a faster or larger-context
+   model is appropriate; otherwise the tool auto-selects its configured default.
+4. Ask for a patch/replacement plus risks and focused tests.
+5. Treat the result as Inferred: inspect it, apply selectively with normal
+   edit/patch tools, and run the stated tests.
+
+Example prompt:
+
+    Refactor the attached module only. Preserve its public API and all listed
+    invariants. Return a unified diff only, then concise compatibility risks and
+    focused tests. Do not assume files not supplied.
+
+## Do not use it for
+
+- Repository discovery, unknown dependencies, shell commands, or edits.
+- Multi-step work that needs tool results between reasoning steps.
+- A task whose correctness depends on unsupplied files or a live conversation
+  state.
+- Replacing review, patch application, or tests.
 
 ## Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `prompt` | string | yes | The instructions or prompt to send |
-| `files` | string[] | no | File paths to read and include as context before the prompt |
-| `output_file` | string | no | Save the response to this file instead of returning inline |
-| `model` | string | no | Model override. Uses session default if omitted |
-| `provider` | string | no | Provider override. Uses session default if omitted |
-| `temperature` | number | no | Sampling temperature (0-2). Uses agent default if omitted |
-| `max_tokens` | number | no | Maximum output tokens. Uses agent default if omitted |
+| `prompt` | string | yes | Explicit objective, constraints, and output contract. |
+| `files` | string[] | no | File paths read and embedded before the prompt. |
+| `output_file` | string | no | Save prose response to this path instead of returning it inline. |
+| `model` | string | no | Explicit model override. |
+| `provider` | string | no | Explicit provider override. |
 
 ## Behavior
 
-- Creates an isolated child session with tools disabled — the model responds with prose only
-- Files are read explicitly and included as context before the prompt
-- If `output_file` is provided, the response is written to that file (creating parent directories)
-- The model call is abortable — cancelling the parent cancels the child session
-- Response is returned inline when `output_file` is omitted (may be truncated if very long)
+- Runs in an isolated child session with tools disabled; the response is prose.
+- Reads only the explicitly supplied files and prompt text.
+- Is abortable through the parent session.
+- Returns inline output unless `output_file` is supplied; very large results may
+  be truncated by normal tool-output limits.

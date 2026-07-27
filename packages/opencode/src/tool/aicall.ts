@@ -32,12 +32,6 @@ export const Parameters = Schema.Struct({
   provider: Schema.optional(Schema.String).annotate({
     description: "Provider override. Uses session default if omitted",
   }),
-  temperature: Schema.optional(Schema.Number).annotate({
-    description: "Sampling temperature (0-2). Uses agent default if omitted",
-  }),
-  max_tokens: Schema.optional(Schema.Number).annotate({
-    description: "Maximum output tokens. Uses agent default if omitted",
-  }),
 })
 
 type Metadata = {

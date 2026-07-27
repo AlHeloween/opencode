@@ -28,6 +28,7 @@ describe("tool.registry", () => {
           const ids = yield* registry.ids()
           expect(new Set(ids).size).toBe(ids.length)
           expect(ids).toSatisfy((names) => names.every((id) => /^[a-z0-9]+$/.test(id)))
+          expect(ids).toContain("treediff")
           expect(ids.filter((id) => id === "cmd")).toHaveLength(process.platform === "win32" ? 1 : 0)
         }),
       ),

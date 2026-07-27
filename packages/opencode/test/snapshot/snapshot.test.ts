@@ -1305,6 +1305,26 @@ test("diffFull with file modifications", async () => {
   })
 })
 
+test("diffFull scopes a Fossil range to selected paths", async () => {
+  await using tmp = await bootstrap()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const before = await run(tmp.path, (snapshot) => snapshot.track())
+      expect(before).toBeTruthy()
+
+      await Filesystem.write(path.join(tmp.path, "a.txt"), "selected change")
+      await Filesystem.write(path.join(tmp.path, "b.txt"), "unselected change")
+
+      const after = await run(tmp.path, (snapshot) => snapshot.track())
+      expect(after).toBeTruthy()
+
+      const diffs = await run(tmp.path, (snapshot) => snapshot.diffFull(before!, after!, [fwd(tmp.path, "a.txt")]))
+      expect(diffs.map((item) => item.file)).toEqual([fwd(tmp.path, "a.txt")])
+    },
+  })
+}, 15_000)
+
 test("diffFull with file deletions", async () => {
   await using tmp = await bootstrap()
   await Instance.provide({

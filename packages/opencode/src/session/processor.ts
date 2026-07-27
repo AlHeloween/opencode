@@ -99,6 +99,7 @@ interface ProcessorContext extends Input {
   firstTokenLogged: boolean
   hasWriteToolCall: boolean
   changedFiles: Set<string>
+  changedDiffs: Map<string, Snapshot.FileDiff>
   /** Cumulative context token estimate from prompt loop. */
   contentTokenEstimate?: number
   /** Epistemic floor — always resolved by create() from optional Input. */
@@ -216,6 +217,7 @@ export const layer: Layer.Layer<
         firstTokenLogged: false,
         hasWriteToolCall: false,
         changedFiles: new Set<string>(),
+        changedDiffs: new Map<string, Snapshot.FileDiff>(),
         evidenceFloor: input.evidenceFloor ?? "Inferred",
       }
       let aborted = false
@@ -323,8 +325,11 @@ export const layer: Layer.Layer<
           },
         })
         // Track changed files for snapshot
-        const filediff = output.metadata?.filediff as { file?: string } | undefined
-        if (filediff?.file) ctx.changedFiles.add(filediff.file)
+        const filediff = output.metadata?.filediff as Snapshot.FileDiff | undefined
+        if (filediff?.file) {
+          ctx.changedFiles.add(filediff.file)
+          ctx.changedDiffs.set(filediff.file, filediff)
+        }
         yield* settleToolCall(toolCallID)
       })
 
@@ -564,12 +569,19 @@ export const layer: Layer.Layer<
             // track() commits the changes and returns the NEW hash, but
             // patch() needs the BEFORE hash to diff against HEAD.
             const snapshotBeforeTrack = ctx.snapshot
+            const wroteWorkingCopy = ctx.hasWriteToolCall
+            const changedFiles = [...ctx.changedFiles]
+            const changedDiffs = [...ctx.changedDiffs.values()]
+            // Structured tools supply exact paths. Opaque writers (bash/run)
+            // supply none, so Fossil must reconcile once to preserve rollback
+            // and produce the concrete changed-file set for incremental diffing.
+            const snapshotAfterTrack = wroteWorkingCopy
+              ? yield* snapshot.track(changedFiles.length ? changedFiles : undefined)
+              : ctx.snapshot
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: ctx.hasWriteToolCall
-                ? yield* snapshot.track([...ctx.changedFiles])
-                : ctx.snapshot,
+              snapshot: snapshotAfterTrack,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",
@@ -650,17 +662,28 @@ export const layer: Layer.Layer<
                   hash: patch.hash,
                   files: patch.files,
                 })
+                if (snapshotAfterTrack) {
+                  yield* summary.update({
+                    sessionID: ctx.sessionID,
+                    messageID: ctx.assistantMessage.parentID,
+                    before: snapshotBeforeTrack,
+                    after: snapshotAfterTrack,
+                    files: patch.files,
+                  })
+                }
               }
             }
-            ctx.snapshot = undefined
-            // Call sequentially (not forked) so the DB write from
-            // session.updatePart above is committed before summarize
-            // reads messages from the same DB connection.
-            yield* summary
-              .summarize({
+            if (!snapshotBeforeTrack || !snapshotAfterTrack) {
+              yield* summary.updateFallback({
                 sessionID: ctx.sessionID,
                 messageID: ctx.assistantMessage.parentID,
+                diffs: changedDiffs,
               })
+            }
+            ctx.snapshot = undefined
+            ctx.hasWriteToolCall = false
+            ctx.changedFiles.clear()
+            ctx.changedDiffs.clear()
             if (
               !ctx.assistantMessage.summary &&
               (isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model }) ||

@@ -74,3 +74,95 @@ Pass criteria:
 - A model-authored checkpoint is Inferred prose. Exact identifiers, snapshots, and structural impact remain system-computed.
 - Sidecar failure must log at debug/warn level and leave normal workflow untouched; no retry may create visible messages.
 - A 65,536 target is documented current behavior. Do not silently restore 32,768; use `summaryWindowLimit` only as the provider-safe lower bound.
+
+## Runtime completion-flow correction — 2026-07-27
+
+### Baseline
+
+From `packages/opencode`:
+
+- [Exact] `bun test test/session/checkpoint.test.ts` — 18 pass, 0 fail.
+- [Exact] `bun test test/session/prompt.test.ts --test-name-pattern "Layer-1 captures a hidden checkpoint after a completed answer"` — 1 pass, 0 fail.
+
+### Scope
+
+- [x] Build and publish the normal provider checkpoint exactly once after the completed main turn; persist its encrypted disk copy asynchronously without delaying the main outcome.
+- [x] Feed the 64K sidecar request from that already-built checkpoint's `systemPrompt` and `messages`; do not re-hydrate or re-convert visible history for the sidecar request.
+- [x] Keep `summaryInFlight` scoped to the detached capture and clear it in `finally`; its success or failure must not change the main turn's original `break`/`continue` outcome.
+- [x] Keep the summary body only in `project_checkpoint` until Layer-2 materializes `message*`; the normal provider checkpoint remains the active main state.
+- [x] Add regression coverage for checkpoint publication before detached capture, one 64K sidecar call, and an unchanged next real-user request. Run focused checkpoint/prompt/compaction tests and `bun typecheck`.
+
+### Verification — 2026-07-27
+
+- [Exact] `bun test test/session/checkpoint.test.ts` — 18 pass, 0 fail.
+- [Exact] `bun test test/session/prompt.test.ts --test-name-pattern "Layer-1 captures a hidden checkpoint after a completed answer"` — 1 pass, 0 fail.
+- [Exact] `bun test test/session/compaction.test.ts` — 78 pass, 0 fail.
+- [Exact] `bun test test/session/system-compose.test.ts` — 12 pass, 0 fail.
+- [Exact] `bun typecheck` and `git diff --check` — pass.
+
+## Incremental session-diff worker — 2026-07-27
+
+### Baseline
+
+From `packages/opencode`:
+
+- [Exact] `bun test test/session/summary.test.ts` — 11 pass, 0 fail.
+
+### Scope
+
+- [x] Remove the global `SessionSummary.summarize()` launch from ordinary text turns.
+- [x] At a completed write-tool step, retain the session's first Fossil base and recompute only files reported by that step from the base to its new snapshot; replace only those entries in `session_diff`. For a legacy session that already has `session_diff` but no base marker, read up to 10,000 messages once to recover its earliest snapshot.
+- [x] Preserve exact per-turn Fossil diffs and rare Layer-1 range/CodeGraph enrichment; do not use an LLM or mutate model-visible messages. A no-snapshot path logs and retains the existing tool-`filediff` fallback.
+- [x] Add regression coverage proving that normal text turns do not invoke the worker and repeated writes recompute only the changed file set. Reset write paths after every completed provider step; opaque writers reconcile Fossil once because they cannot report paths.
+- [x] Run focused summary and snapshot-race tests, compaction regression, typecheck, and `git diff --check`.
+
+### Smoke Tests
+
+From `packages/opencode`:
+
+```powershell
+bun test test/session/summary.test.ts
+bun test test/session/snapshot-tool-race.test.ts
+bun test test/session/compaction.test.ts
+bun typecheck
+```
+
+Pass criteria: the UI's session diff remains exact for files touched in a write step; normal text turns perform no history scan or Fossil diff; summary sidecar enrichment remains range-scoped.
+
+### Verification — 2026-07-27
+
+- [Exact] `bun test test/session/summary.test.ts` — 12 pass, 0 fail. Includes scoped repeated-write regression.
+- [Exact] `bun test test/session/snapshot-tool-race.test.ts` — 1 pass, 0 fail. Opaque `bash` write receives a fresh Fossil hash and non-empty session diff.
+- [Exact] `bun test test/snapshot/snapshot.test.ts --test-name-pattern "diffFull scopes a Fossil range to selected paths"` — 1 pass, 0 fail. The public Fossil wrapper forwards selected paths and excludes an unselected changed file.
+- [Exact] `bun test test/session/compaction.test.ts` — 78 pass, 0 fail.
+- [Exact] `bun test test/session/system-compose.test.ts` — 12 pass, 0 fail.
+- [Exact] `bun test test/session/prompt.test.ts --test-name-pattern "Layer-1 captures a hidden checkpoint after a completed answer"` — 1 pass, 0 fail.
+- [Exact] `bun typecheck` and `git diff --check` — pass.
+
+### Commit boundary and P0 diagnosis — 2026-07-28
+
+- [ ] Re-run the incremental worker smoke suite from `packages/opencode`: `summary.test.ts`, `snapshot-tool-race.test.ts`, selected-path `snapshot.test.ts`, `checkpoint.test.ts`, focused hidden-sidecar `prompt.test.ts`, `compaction.test.ts`, `system-compose.test.ts`, `bun typecheck`, and `git diff --check`. If all pass, commit all 12 tracked files plus their ADM XML descriptors as a diagnostic boundary only; it is not push-ready until P0 suites pass.
+- [ ] From the resulting clean Git base, diagnose `processor-effect.test.ts` with isolated test names and processor lifecycle traces. Resolve every timeout and `continue` / `stop` mismatch before the next commit.
+- [ ] Obtain a bounded, diagnostic full `prompt.test.ts` result; remove or replace only legacy assertions that contradict the detached-sidecar contract.
+- [ ] Use a new ADM descriptor for every corrective source/test/plan mutation. Apply it, run `tools/adm.exe --verify-all packages/opencode/src packages/opencode/test`, then run the affected Bun smoke tests.
+- [ ] Only after P0 passes, continue the unimplemented sidecar lifecycle: completed-sidecar counter boundary, invalidation on history mutation, atomic `message*` materialization, and removal of the legacy synthetic summary flow.
+
+### Unresolved validation
+
+- [Exact] Full `bun test test/session/prompt.test.ts` exceeded the 180-second command limit without a diagnostic result.
+- [Exact] `bun test test/session/processor-effect.test.ts` produced 1 pass and 12 failures/timeouts, including two asserted `continue` to `stop` mismatches. This is not accepted for a push and needs a separate bounded diagnosis.
+
+<!-- ADID_ROLLBACK (from adm.exe)
+  SDID_ROLLBACK {
+    "target_file": "D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md"
+    "update_script": "adm.exe"
+    "backup_path": "D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md.backup_20260728T021047_731132"
+    "created_at": "2026-07-27T18:10:47.745709+00:00"
+    "backup_hash": "77eb7564c5f33d85349810da0e58cedb"
+    "new_hash": "6b1c171c8824ba982deb5598432e9c2d"
+    "goal_id": "complete_incremental_commit_gate"
+    "semantics": "Require every directly modified runtime surface to pass its focused regression before the diagnostic commit. The commit narrows investigation but is not eligible for push while P0 tests remain unresolved."
+    "update_attrs": {"relative_path": "plans/2026-07-27-sidecar-incremental-checkpoints.md", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "- [ ] Re-run the incremental worker smoke suite from `packages/opencode`; if it passes, commit only this verified scope: incremental `SessionSummary.update`, selected-path Fossil diff, checkpoint/sidecar continuity changes already covered by focused tests, and regression coverage.", "replace_present": true}
+    "restore_cmd": "python -m adm \u002d\u002drollback \"D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md\""
+  }
+-->

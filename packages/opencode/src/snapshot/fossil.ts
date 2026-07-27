@@ -504,7 +504,7 @@ export const layer = Layer.effect(
           return earliest ?? hash
         })
 
-        const diffFull = Effect.fnUntraced(function* (from: string, to: string) {
+        const diffFull = Effect.fnUntraced(function* (from: string, to: string, paths?: readonly string[]) {
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* ensureInit())) return []
@@ -512,17 +512,27 @@ export const layer = Layer.effect(
               // Resolve hashes — fallback for old git hashes
               const resolvedFrom = yield* resolveHash(from)
               const resolvedTo = yield* resolveHash(to)
+              const selected = paths
+                ?.map((file) => path.relative(worktree, file).replaceAll("\\", "/"))
+                .filter((file) => file && !file.startsWith("../"))
+              const targets = selected?.length ? selected : undefined
 
               // Get numstat (insertions/deletions per file)
-              const statusResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "-s"], {
+              const statusResult = yield* fossil(
+                ["diff", "--from", resolvedFrom, "--to", resolvedTo, "-s", ...(targets ?? [])],
+                {
                 cwd: worktree,
-              })
+                },
+              )
               if (statusResult.code !== 0) return []
 
               // Get brief status (ADDED/DELETED/EDITED/CHANGED per file)
-              const briefResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief"], {
+              const briefResult = yield* fossil(
+                ["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief", ...(targets ?? [])],
+                {
                 cwd: worktree,
-              })
+                },
+              )
               const statusMap = new Map<string, "added" | "deleted" | "modified">()
               if (briefResult.code === 0) {
                 for (const line of briefResult.text.trim().split("\n").filter(Boolean)) {
@@ -535,7 +545,7 @@ export const layer = Layer.effect(
                 }
               }
 
-              const files = statusResult.text
+              const entries = statusResult.text
                 .trim()
                 .split("\n")
                 .filter(Boolean)
@@ -547,7 +557,7 @@ export const layer = Layer.effect(
                 .filter(Boolean)
 
               const result: FileDiff[] = []
-              for (const file of files) {
+              for (const file of entries) {
                 const rel = path.join(worktree, file).replaceAll("\\", "/")
                 const statLine = statusResult.text.split("\n").find((l) => l.includes(file)) ?? ""
                 const parts = statLine.trim().split(/\s+/)
@@ -764,8 +774,8 @@ export const layer = Layer.effect(
       diff: Effect.fn("SnapshotFossil.diff")(function* (hash: string) {
         return yield* InstanceState.useEffect(state, (s) => s.diff(hash))
       }),
-      diffFull: Effect.fn("SnapshotFossil.diffFull")(function* (from: string, to: string) {
-        return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to))
+      diffFull: Effect.fn("SnapshotFossil.diffFull")(function* (from: string, to: string, files?: readonly string[]) {
+        return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to, files))
       }),
       impact: Effect.fn("SnapshotFossil.impact")(function* (from: string, to: string) {
         return yield* InstanceState.useEffect(state, (s) => s.impact(from, to))

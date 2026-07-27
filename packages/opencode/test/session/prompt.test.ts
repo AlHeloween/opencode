@@ -28,6 +28,7 @@ import { SessionSummary } from "../../src/session/summary"
 import { Instruction } from "../../src/session/instruction"
 import { SessionProcessor } from "../../src/session/processor"
 import { SessionPrompt } from "../../src/session/prompt"
+import { Checkpoint } from "../../src/session/checkpoint"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { SessionRevert } from "../../src/session/revert"
 import { SessionRunState } from "../../src/session/run-state"
@@ -55,6 +56,8 @@ const summary = Layer.succeed(
   SessionSummary.Service,
   SessionSummary.Service.of({
     summarize: () => Effect.void,
+    update: () => Effect.void,
+    updateFallback: () => Effect.void,
     diff: () => Effect.succeed([]),
     computeDiff: () => Effect.succeed([]),
     enrichRange: () => Effect.succeed({ diffs: [] }),
@@ -79,12 +82,14 @@ const orderedSummary = Layer.succeed(
         const control = summaryOrdering
         if (!control) return
         control.calls++
-        if (control.calls !== 2) return
+        if (control.calls !== 1) return
         control.messageID = input.messageID
         control.started.resolve()
         yield* Effect.promise(() => control.release.promise)
         yield* control.persist()
       }),
+    update: () => Effect.void,
+    updateFallback: () => Effect.void,
     diff: () => Effect.succeed([]),
     computeDiff: () => Effect.succeed([]),
     enrichRange: () => Effect.succeed({ diffs: [] }),
@@ -721,6 +726,15 @@ The flow will resume.`)
         const checkpoint = IncrementalCheckpoint.listOpen(session.id)
         expect(checkpoint).toHaveLength(1)
         expect(checkpoint[0]?.toMessageID).toBe(messages[normalIndex]?.info.id)
+        const mainCheckpoint = yield* Checkpoint.load({
+          sessionID: session.id,
+          providerID: ref.providerID,
+          modelID: ref.modelID,
+          projectID: session.projectID,
+          agentName: "build",
+        })
+        expect(JSON.stringify(mainCheckpoint?.messages)).toContain("normal answer")
+        expect(JSON.stringify(mainCheckpoint?.messages)).not.toContain("Create a structured summary")
 
         yield* prompt.prompt({
           sessionID: session.id,
@@ -733,6 +747,7 @@ The flow will resume.`)
         const inputs = yield* llm.inputs
         expect(inputs).toHaveLength(3)
         const followUpRequest = JSON.stringify(inputs[2]?.messages)
+        expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
         expect(followUpRequest).toContain("normal answer")
         expect(followUpRequest).toContain("real follow-up")
         expect(followUpRequest).not.toContain("Create a structured summary")
@@ -830,7 +845,9 @@ The protected flow can resume.`)
   60_000,
 )
 
-orderedIt.live(
+// Superseded by the detached sidecar assertion above: a summary has no visible
+// resume turn, so ordering a legacy visible summary callback is invalid.
+orderedIt.live.skip(
   "Layer-1 persists the range handle before creating its resume turn",
   () =>
     provideTmpdirServer(

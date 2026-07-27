@@ -17,7 +17,7 @@ import { isOverflowFromContent, estimateContentTokens, summaryWindowLimit, usabl
 import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
-import { Checkpoint } from "./checkpoint"
+import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
@@ -103,6 +103,7 @@ const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested struc
 
 const log = Log.create({ service: "session.prompt" })
 const elog = EffectLogger.create({ service: "session.prompt" })
+const sidecarInFlight = new Set<string>()
 
 /** Reusable: filter thenmap visible agent names from a list. */
 const visibleNames = (agents: Agent.Info[]) => agents.filter((a) => !a.hidden).map((a) => a.name)
@@ -1155,12 +1156,12 @@ export const layer = Layer.effect(
           agent: Agent.Info
           cacheIdentity: Agent.Info
           user: MessageV2.User
-          system: string[]
-          tools: Record<string, AITool>
+          checkpoint: CheckpointData
           afterAssistant?: MessageV2.WithParts
         }) =>
           Effect.gen(function* () {
             if (input.afterAssistant && !SessionCompaction.isAssistantTurnComplete(input.afterAssistant)) return false
+            if (sidecarInFlight.has(sessionID)) return false
             const threshold = summaryWindowLimit({
               cfg: yield* config.get(),
               model: input.model,
@@ -1173,58 +1174,59 @@ export const layer = Layer.effect(
             const start = boundary ? input.visible.findIndex((m) => m.info.id === boundary) + 1 : 0
             const range = input.visible.slice(Math.max(0, start))
             if (!range.length) return false
-            // The normal request snapshot predates the assistant response that
-            // closed this turn. Capture from completed visible M instead.
-            const modelMessages = yield* MessageV2.toModelMessagesEffect(input.visible, input.model)
-
-            const body = yield* llm
-              .stream({
-                user: input.user,
-                agent: input.agent,
-                cacheIdentity: input.cacheIdentity,
-                permission: session.permission,
-                sessionID,
-                providerCacheKey: input.user.providerCacheKey,
-                system: [...input.system],
-                messages: [...modelMessages, { role: "user", content: SessionCompaction.summaryRequestProse() }],
-                tools: input.tools,
-                toolChoice: "none",
-                model: input.model,
-              })
-              .pipe(
-                Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
-                Stream.map((event) => event.text),
-                Stream.mkString,
+            sidecarInFlight.add(sessionID)
+            return yield* Effect.gen(function* () {
+              const body = yield* llm
+                .stream({
+                  user: input.user,
+                  agent: input.agent,
+                  cacheIdentity: input.cacheIdentity,
+                  permission: session.permission,
+                  sessionID,
+                  providerCacheKey: input.user.providerCacheKey
+                    ? `${input.user.providerCacheKey}:sidecar`
+                    : undefined,
+                  system: [...input.checkpoint.systemPrompt],
+                  messages: [...input.checkpoint.messages, { role: "user", content: SessionCompaction.summaryRequestProse() }],
+                  tools: {},
+                  toolChoice: "none",
+                  model: input.model,
+                })
+                .pipe(
+                  Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
+                  Stream.map((event) => event.text),
+                  Stream.mkString,
+                  Effect.catchCause((cause) => {
+                    slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
+                    return Effect.succeed("")
+                  }),
+                )
+              if (!SessionCompaction.isValidSummaryBody(body)) {
+                yield* slog.debug("sidecar checkpoint rejected", { bodyLen: body.length, openTokens, threshold })
+                return false
+              }
+              const enrichment = yield* summary.enrichRange({ sessionID, messages: range }).pipe(
                 Effect.catchCause((cause) => {
-                  slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
-                  return Effect.succeed("")
+                  slog.debug("sidecar checkpoint enrichment failed", { error: Cause.pretty(cause) })
+                  return Effect.succeed({ diffs: [], impact: undefined })
                 }),
               )
-            if (!SessionCompaction.isValidSummaryBody(body)) {
-              yield* slog.debug("sidecar checkpoint rejected", { bodyLen: body.length, openTokens, threshold })
-              return false
-            }
-            const enrichment = yield* summary.enrichRange({ sessionID, messages: range }).pipe(
-              Effect.catchCause((cause) => {
-                slog.debug("sidecar checkpoint enrichment failed", { error: Cause.pretty(cause) })
-                return Effect.succeed({ diffs: [], impact: undefined })
-              }),
-            )
-            IncrementalCheckpoint.save({
-              id: ulid(),
-              sessionID,
-              fromMessageID: range[0].info.id,
-              toMessageID: range[range.length - 1].info.id,
-              predecessorID: previous?.id,
-              providerID: input.model.providerID,
-              modelID: input.model.id,
-              agent: input.cacheIdentity.name,
-              body,
-              diffs: enrichment.diffs,
-              impact: enrichment.impact,
-            })
-            yield* slog.info("sidecar checkpoint captured", { openTokens, threshold, fromID: range[0].info.id, toID: range[range.length - 1].info.id })
-            return true
+              IncrementalCheckpoint.save({
+                id: ulid(),
+                sessionID,
+                fromMessageID: range[0].info.id,
+                toMessageID: range[range.length - 1].info.id,
+                predecessorID: previous?.id,
+                providerID: input.model.providerID,
+                modelID: input.model.id,
+                agent: input.cacheIdentity.name,
+                body,
+                diffs: enrichment.diffs,
+                impact: enrichment.impact,
+              })
+              yield* slog.info("sidecar checkpoint captured", { openTokens, threshold, fromID: range[0].info.id, toID: range[range.length - 1].info.id })
+              return true
+            }).pipe(Effect.ensuring(Effect.sync(() => sidecarInFlight.delete(sessionID))))
           })
 
         while (true) {
@@ -1331,12 +1333,6 @@ export const layer = Layer.effect(
           }
 
           step++
-          if (step === 1 && !summaryAttempt) {
-            // Fire on step 1 for ALL paths (compaction/subtask/normal)
-            // so file diffs accumulate regardless of which handler runs.
-            yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
-          }
-
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
           yield* slog.debug("prepare", { step, stage: "model-ready", providerID: model.providerID, modelID: model.id })
           const task = tasks.pop()
@@ -1859,35 +1855,35 @@ export const layer = Layer.effect(
               // the open turn to finish before any synthetic user message.
               const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
               const completedAsst = visibleAfter.find((m) => m.info.id === msg.id)
-              // Persist normal M before opening the ephemeral sidecar branch.
-              // The sidecar request itself never publishes a provider checkpoint.
+              // Publish normal M before opening the ephemeral sidecar branch.
+              // Its disk copy is durability only; the sidecar receives this exact
+              // model-ready state and cannot alter the main outcome.
               const converted = yield* MessageV2.toModelMessagesWithCountsEffect(visibleAfter, model)
-              yield* Checkpoint.save({
-                sessionID,
-                projectID: ctx.project.id,
-                data: {
-                  kind: Checkpoint.CHECKPOINT_KIND,
-                  version: Checkpoint.CHECKPOINT_VERSION,
-                  systemPrompt: checkpointUsable ? [...system] : cleanIdentity ? [cleanIdentity, ...system] : [...system],
-                  identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
-                  messages: converted.messages,
-                  messageIDs: visibleAfter.map((item) => item.info.id),
-                  messageFingerprints: visibleAfter.map((item) => CacheControl.messageFingerprint(item).hash),
-                  modelMessageCounts: converted.counts,
-                  model: { providerID: model.providerID, modelID: model.id },
-                  agent: cacheAgent.name,
-                  turn: step + 1,
-                  timestamp: Date.now(),
-                },
-              })
+              const checkpointData = {
+                kind: Checkpoint.CHECKPOINT_KIND,
+                version: Checkpoint.CHECKPOINT_VERSION,
+                systemPrompt: checkpointUsable ? [...system] : cleanIdentity ? [cleanIdentity, ...system] : [...system],
+                identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
+                messages: converted.messages,
+                messageIDs: visibleAfter.map((item) => item.info.id),
+                messageFingerprints: visibleAfter.map((item) => CacheControl.messageFingerprint(item).hash),
+                modelMessageCounts: converted.counts,
+                model: { providerID: model.providerID, modelID: model.id },
+                agent: cacheAgent.name,
+                turn: step + 1,
+                timestamp: Date.now(),
+              } satisfies CheckpointData
+              Checkpoint.publish({ sessionID, data: checkpointData })
+              yield* Effect.forkIn(scope)(
+                Checkpoint.persist({ sessionID, projectID: ctx.project.id, data: checkpointData }),
+              )
               yield* maybeCaptureSidecar({
                 visible: visibleAfter,
                 model,
                 agent,
                 cacheIdentity: cacheAgent,
                 user: lastUser,
-                system,
-                tools,
+                checkpoint: checkpointData,
                 afterAssistant: completedAsst,
               })
               if (!titleRequested) {

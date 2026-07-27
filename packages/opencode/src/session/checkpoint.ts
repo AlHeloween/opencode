@@ -276,15 +276,12 @@ export function takeModelPrefix(data: CheckpointData, prefixLen: number): ModelM
   return data.messages.slice(0, end)
 }
 
-/** Save checkpoint to encrypted file with 2-slot rotation + memory publish. */
-export function save(input: {
+/** Persist an already-published checkpoint to encrypted rotating disk slots. */
+export function persist(input: {
   sessionID: string
   projectID: string
   data: CheckpointData
 }): Effect.Effect<void> {
-  // Publish first so the next loop step never waits on disk.
-  publish({ sessionID: input.sessionID, data: input.data })
-
   return Effect.tryPromise({
     try: async () => {
       const slots = checkpointSlotPaths(
@@ -308,6 +305,18 @@ export function save(input: {
       agent: input.data.agent,
     })
   })))
+}
+
+/** Save checkpoint to encrypted file with 2-slot rotation + memory publish. */
+export function save(input: {
+  sessionID: string
+  projectID: string
+  data: CheckpointData
+}): Effect.Effect<void> {
+  // Publish first so the next loop step never waits on disk.
+  publish({ sessionID: input.sessionID, data: input.data })
+
+  return persist(input)
 }
 
 /** Load checkpoint: memory first, then newest disk slot.

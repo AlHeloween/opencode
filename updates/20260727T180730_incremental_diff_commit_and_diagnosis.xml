@@ -13,15 +13,12 @@
     <semantics>Record the verified incremental worker as a commit boundary before test diagnosis; preserve the incomplete sidecar lifecycle as the next independent scope.</semantics>
     <content_md5_c464bc7f14ceb217fac4a4bb57afb5a2>
       ### Commit boundary and P0 diagnosis — 2026-07-28
-      
       - [ ] Re-run the incremental worker smoke suite from `packages/opencode`; if it passes, commit only this verified scope: incremental `SessionSummary.update`, selected-path Fossil diff, checkpoint/sidecar continuity changes already covered by focused tests, and regression coverage.
       - [ ] From the resulting clean Git base, diagnose `processor-effect.test.ts` with isolated test names and processor lifecycle traces. Resolve every timeout and `continue` / `stop` mismatch before the next commit.
       - [ ] Obtain a bounded, diagnostic full `prompt.test.ts` result; remove or replace only legacy assertions that contradict the detached-sidecar contract.
       - [ ] Use a new ADM descriptor for every corrective source/test/plan mutation. Apply it, run `tools/adm.exe --verify-all packages/opencode/src packages/opencode/test`, then run the affected Bun smoke tests.
       - [ ] Only after P0 passes, continue the unimplemented sidecar lifecycle: completed-sidecar counter boundary, invalidation on history mutation, atomic `message*` materialization, and removal of the legacy synthetic summary flow.
-      
       ### Unresolved validation
-      
       - [Exact] Full `bun test test/session/prompt.test.ts` exceeded the 180-second command limit without a diagnostic result.
       - [Exact] `bun test test/session/processor-effect.test.ts` produced 1 pass and 12 failures/timeouts, including two asserted `continue` to `stop` mismatches. This is not accepted for a push and needs a separate bounded diagnosis.
     </content_md5_c464bc7f14ceb217fac4a4bb57afb5a2>

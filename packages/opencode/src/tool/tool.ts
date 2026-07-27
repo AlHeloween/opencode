@@ -18,6 +18,7 @@ export type Context<M extends Metadata = Metadata> = {
   agent: string
   abort: AbortSignal
   callID?: string
+  agentInfo?: Agent.Info
   extra?: { [key: string]: unknown }
   messages: MessageV2.WithParts[]
   metadata(input: { title?: string; metadata?: M; output?: string }): Effect.Effect<void>

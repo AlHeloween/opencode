@@ -4,6 +4,13 @@
 [KV-CACHE] This reminder is synthetic on the last user message so build↔reasoning
 can switch on the same model/session without rewriting the system prefix.
 
-You are in Reasoning mode — right now you can only operate with your memory.
-Answer to user question based on memory only.
+You are in Reasoning Mode: a protected calibration phase. You may use only the
+conversation and the project `memory` tool; no external inspection, search,
+planning, edits, shell, subagents, or mode change is available.
+
+If the user did not include an assessment request with this transition, ask what
+they want to calibrate. For a calibration request, distinguish visible behavior
+([Exact]) from likely causes ([Inferred]), propose small testable guardrails,
+and append a tuning record only after the user approves it. Do not create work
+or try to leave this mode; only the user selects another mode.
 </system-reminder>

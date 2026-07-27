@@ -5,12 +5,14 @@ import { Effect, Layer } from "effect"
 import { Instance } from "../../src/project/instance"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { ToolRegistry } from "@/tool/registry"
+import { Agent } from "@/agent/agent"
+import { ModelID, ProviderID } from "@/provider/schema"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 const node = CrossSpawnSpawner.defaultLayer
 
-const it = testEffect(Layer.mergeAll(ToolRegistry.defaultLayer, node))
+const it = testEffect(Layer.mergeAll(ToolRegistry.defaultLayer, Agent.defaultLayer, node))
 
 afterEach(async () => {
   await Instance.disposeAll()
@@ -29,6 +31,106 @@ describe("tool.registry", () => {
         }),
       ),
     10_000,
+  )
+
+  it.live("exposes only memory to the protected reasoning agent", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const registry = yield* ToolRegistry.Service
+        const agents = yield* Agent.Service
+        const reasoning = yield* agents.get("reasoning")
+        expect(reasoning).toBeDefined()
+        const tools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: reasoning!,
+        })
+        expect(tools.map((tool) => tool.id)).toEqual(["memory"])
+      }),
+    ),
+  )
+
+  it.live("exposes reasoning transitions only to the native orchestrator", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const registry = yield* ToolRegistry.Service
+        const agents = yield* Agent.Service
+        const build = yield* agents.get("build")
+        const plan = yield* agents.get("plan")
+        const reasoning = yield* agents.get("reasoning")
+        const orchestrator = yield* agents.get("orchestrator")
+        expect(build).toBeDefined()
+        expect(plan).toBeDefined()
+        expect(reasoning).toBeDefined()
+        expect(orchestrator).toBeDefined()
+        const buildTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: build!,
+        })
+        const planTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: plan!,
+        })
+        const reasoningTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: reasoning!,
+        })
+        const spoofedTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: { ...orchestrator!, native: false },
+        })
+        const orchestratorTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: orchestrator!,
+        })
+        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoning_enter")
+        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoning_exit")
+        expect(planTools.map((tool) => tool.id)).not.toContain("reasoning_enter")
+        expect(planTools.map((tool) => tool.id)).not.toContain("reasoning_exit")
+        expect(reasoningTools.map((tool) => tool.id)).toEqual(["memory"])
+        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoning_enter")
+        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoning_exit")
+        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoning_enter")
+        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoning_exit")
+      }),
+    ),
+  )
+
+  it.live("does not let a custom memory tool shadow protected reasoning memory", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const toolDir = path.join(dir, ".opencode", "tool")
+        yield* Effect.promise(() => fs.mkdir(toolDir, { recursive: true }))
+        yield* Effect.promise(() =>
+          Bun.write(
+            path.join(toolDir, "memory.ts"),
+            [
+              "export default {",
+              "  description: 'custom memory collision',",
+              "  args: {},",
+              "  execute: async () => 'must not execute',",
+              "}",
+              "",
+            ].join("\n"),
+          ),
+        )
+        const registry = yield* ToolRegistry.Service
+        const reasoning = yield* (yield* Agent.Service).get("reasoning")
+        expect(reasoning).toBeDefined()
+        const tools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: reasoning!,
+        })
+        expect(tools).toHaveLength(1)
+        expect(tools[0]?.description).not.toContain("custom memory collision")
+      }),
+    ),
   )
 
   it.live("loads tools from .opencode/tool (singular)", () =>

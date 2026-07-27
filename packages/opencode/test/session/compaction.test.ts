@@ -2587,3 +2587,100 @@ describe("session.compaction.full-cycle", () => {
     ),
   )
 })
+
+// --- Reasoning-memory transcript fidelity ---
+
+describe("session.compaction.reasoning-memory-regression", () => {
+  it.live(
+    "preserves completed memory read and append interactions in the unified message* transcript",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const user = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "reasoning",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: user.id,
+          sessionID: info.id,
+          type: "text",
+          text: "Assess the recent calibration failure.",
+        })
+
+        const assistant = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "reasoning",
+          agent: "reasoning",
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: assistant.id,
+          sessionID: info.id,
+          type: "tool",
+          tool: "memory",
+          callID: "memory-read-1",
+          state: {
+            status: "completed",
+            input: { action: "read" },
+            output: "[Rule] For assessment requests: answer and stop; do not inspect, plan, or edit.",
+            metadata: {},
+            time: { start: 0, end: 1 },
+            title: "Memory",
+          },
+        } as any)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: assistant.id,
+          sessionID: info.id,
+          type: "tool",
+          tool: "memory",
+          callID: "memory-append-1",
+          state: {
+            status: "completed",
+            input: {
+              action: "append",
+              content: "[Rule] For assessment requests: answer and stop; do not inspect, plan, or edit.",
+            },
+            output: "Insight appended to memory.",
+            metadata: {},
+            time: { start: 1, end: 2 },
+            title: "Memory appended",
+          },
+        } as any)
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "reasoning" })
+
+        const visible = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(visible).toHaveLength(1)
+        const transcript = visible
+          .flatMap((message) => message.parts.filter((part: any) => part.type === "text").map((part: any) => part.text))
+          .join("\n")
+
+        // The memory read is a completed interaction in the shared transcript,
+        // not a separately injected prompt layer. After the fold its label,
+        // completion state, and calibration content remain model-visible.
+        expect(transcript).toContain("[tool:memory] (completed)")
+        expect(transcript).toContain("For assessment requests: answer and stop")
+        expect(transcript).toContain("Insight appended to memory")
+      }),
+    ),
+  )
+})

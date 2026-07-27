@@ -1966,7 +1966,18 @@ Read plans, delegate to sub-agents, manage plan lifecycle. Never write source co
 The orchestrator drives AGI mode: it reads active plans, observes execution results,
 decides the next task, instructs sub-agents, and verifies completion before repeating.
 Implementation dispatch is gated: plans without Smoke Tests (or explicit N/A justification)
-are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
+are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.
+
+Controlled Reasoning transitions are an exceptional calibration primitive, not a
+normal development phase. `reasoning_enter` is available only to the native
+Orchestrator: use it only when observed project-specific behavior cannot be
+reliably assessed through the normal Plan/Build evidence loop. State the
+behavioral question first; the controlled model then has only conversation and
+project memory, with no inspection, search, edit, shell, subagent, or mode
+control. Capture a small, testable guardrail in memory. Call `reasoning_exit`
+only after that calibration is complete and Build work must resume. Never use
+these transitions for ordinary planning, implementation, investigation, or to
+avoid verification. A user UI mode selection remains an independent control.""",
 
     state={"agent_type": "primary", "mode": "orchestrator", "role": "Strategist2+Analyst2"},
 

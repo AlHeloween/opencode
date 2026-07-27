@@ -1,16 +1,20 @@
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
-import { Question } from "../question"
 import { Session } from "@/session/session"
 import { MessageV2 } from "../session/message-v2"
 import { Provider } from "@/provider/provider"
-import { type SessionID, MessageID, PartID } from "../session/schema"
+import { type SessionID, MessageID } from "../session/schema"
 
 function getLastModel(sessionID: SessionID) {
   for (const item of MessageV2.stream(sessionID)) {
     if (item.info.role === "user" && item.info.model) return item.info.model
   }
   return undefined
+}
+
+function requireNativeOrchestrator(ctx: Tool.Context) {
+  if (ctx.agentInfo?.native && ctx.agentInfo.name === "orchestrator") return Effect.void
+  return Effect.die(new Error("reasoning transitions require the native orchestrator"))
 }
 
 export const ReasoningEnterParameters = Schema.Struct({})
@@ -20,33 +24,15 @@ export const ReasoningEnterTool = Tool.define(
   "reasoning_enter",
   Effect.gen(function* () {
     const session = yield* Session.Service
-    const question = yield* Question.Service
     const provider = yield* Provider.Service
 
     return {
       description:
-        "Switch from build mode to reasoning mode (memory-only, zero tools). Use when the user asks a question that can be answered from your existing knowledge without consulting files, code, or logs.",
+        "Move a controlled session into protected reasoning mode. Only the native Orchestrator may use this transition; Reasoning Mode has only the project memory tool.",
       parameters: ReasoningEnterParameters,
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          const answers = yield* question.ask({
-            sessionID: ctx.sessionID,
-            questions: [
-              {
-                question: "Switch to reasoning mode? You will lose access to all tools — memory-only responses.",
-                header: "Reasoning Mode",
-                custom: false,
-                options: [
-                  { label: "Yes", description: "Enter reasoning mode (memory-only, zero tools)" },
-                  { label: "No", description: "Stay in build mode with full tool access" },
-                ],
-              },
-            ],
-            tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
-          })
-
-          if (answers[0]?.[0] === "No") yield* new Question.RejectedError()
-
+          yield* requireNativeOrchestrator(ctx)
           const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
 
           const msg: MessageV2.User = {
@@ -58,14 +44,6 @@ export const ReasoningEnterTool = Tool.define(
             model,
           }
           yield* session.updateMessage(msg)
-          yield* session.updatePart({
-            id: PartID.ascending(),
-            messageID: msg.id,
-            sessionID: ctx.sessionID,
-            type: "text",
-            text: "Entering reasoning mode. Answer from memory only — no tools available.",
-            synthetic: true,
-          } satisfies MessageV2.TextPart)
 
           return {
             title: "Switching to reasoning mode",
@@ -85,29 +63,20 @@ export const ReasoningExitTool = Tool.define(
 
     return {
       description:
-        "Exit reasoning mode and return to build mode with full tool access. Use when the user asks you to do something that requires tools (reading files, searching code, running commands, editing).",
+        "Return a controlled session from protected reasoning mode to build mode. Only the native Orchestrator may use this transition.",
       parameters: ReasoningExitParameters,
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
+          yield* requireNativeOrchestrator(ctx)
           const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
-
-          const msg: MessageV2.User = {
+          yield* session.updateMessage({
             id: MessageID.ascending(),
             sessionID: ctx.sessionID,
             role: "user",
             time: { created: Date.now() },
             agent: "build",
             model,
-          }
-          yield* session.updateMessage(msg)
-          yield* session.updatePart({
-            id: PartID.ascending(),
-            messageID: msg.id,
-            sessionID: ctx.sessionID,
-            type: "text",
-            text: "Returning to build mode with full tool access. Execute the user's request.",
-            synthetic: true,
-          } satisfies MessageV2.TextPart)
+          } satisfies MessageV2.User)
 
           return {
             title: "Switching to build mode",

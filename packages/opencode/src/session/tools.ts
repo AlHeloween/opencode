@@ -46,6 +46,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     callID: options.toolCallId,
     extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps: input.promptOps },
     agent: input.agent.name,
+    agentInfo: input.agent,
     messages: input.messages,
     metadata: (val: { title?: string; metadata?: Record<string, unknown>; output?: string }) =>
       input.processor.updateToolCall(options.toolCallId, (match) => {
@@ -118,7 +119,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     })
   }
 
-  for (const [key, item] of Object.entries(yield* mcp.tools())) {
+  // MCP tools are outside ToolRegistry. Reasoning Mode exposes no MCP surface:
+  // its sole capability is the project-local reasoning memory builtin.
+  const mcpTools = input.agent.name === "reasoning" ? {} : yield* mcp.tools()
+  for (const [key, item] of Object.entries(mcpTools)) {
     const execute = item.execute
     if (!execute) continue
 

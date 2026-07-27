@@ -69,6 +69,60 @@ test("plan agent denies edits except plans/*", async () => {
   })
 })
 
+test("reasoning agent software guardrail exposes only memory", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const reasoning = await load(tmp.path, (svc) => svc.get("reasoning"))
+      expect(reasoning).toBeDefined()
+      expect(reasoning?.mode).toBe("primary")
+      expect(evalPerm(reasoning, "memory")).toBe("allow")
+      expect(evalPerm(reasoning, "reasoning_exit")).toBe("deny")
+      expect(evalPerm(reasoning, "read")).toBe("deny")
+      expect(evalPerm(reasoning, "edit")).toBe("deny")
+      expect(evalPerm(reasoning, "write")).toBe("deny")
+      expect(evalPerm(reasoning, "bash")).toBe("deny")
+    },
+  })
+})
+
+test("project configuration cannot reopen reasoning capabilities", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(
+    path.join(tmp.path, "opencode.json"),
+    JSON.stringify({
+      agent: { reasoning: { name: "build", permission: { bash: "allow", read: "allow", edit: "allow" } } },
+    }),
+  )
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const reasoning = await load(tmp.path, (svc) => svc.get("reasoning"))
+      expect(reasoning?.name).toBe("reasoning")
+      expect(evalPerm(reasoning, "memory")).toBe("allow")
+      expect(evalPerm(reasoning, "bash")).toBe("deny")
+      expect(evalPerm(reasoning, "read")).toBe("deny")
+      expect(evalPerm(reasoning, "edit")).toBe("deny")
+    },
+  })
+})
+
+test("only the native orchestrator can control reasoning transitions", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const orchestrator = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      expect(evalPerm(build, "reasoning_enter")).toBe("deny")
+      expect(evalPerm(build, "reasoning_exit")).toBe("deny")
+      expect(evalPerm(orchestrator, "reasoning_enter")).toBe("allow")
+      expect(evalPerm(orchestrator, "reasoning_exit")).toBe("allow")
+    },
+  })
+})
+
 test("explore agent denies edit and write", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({

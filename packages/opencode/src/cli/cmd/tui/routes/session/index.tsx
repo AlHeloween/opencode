@@ -347,11 +347,11 @@ export function Session() {
     } else if (part.tool === "plan_enter") {
       local.agent.set("plan")
       lastSwitch = part.id
-    } else if (part.tool === "reasoning_exit") {
-      local.agent.set("build")
-      lastSwitch = part.id
     } else if (part.tool === "reasoning_enter") {
       local.agent.set("reasoning")
+      lastSwitch = part.id
+    } else if (part.tool === "reasoning_exit") {
+      local.agent.set("build")
       lastSwitch = part.id
     }
   })

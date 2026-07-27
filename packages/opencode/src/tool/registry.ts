@@ -71,12 +71,17 @@ const log = Log.create({ service: "tool.registry" })
 
 type TaskDef = Tool.InferDef<typeof TaskTool>
 type ReadDef = Tool.InferDef<typeof ReadTool>
+type MemoryDef = Tool.InferDef<typeof MemoryTool>
+type ReasoningEnterDef = Tool.InferDef<typeof ReasoningEnterTool>
+type ReasoningExitDef = Tool.InferDef<typeof ReasoningExitTool>
 
 type State = {
-  custom: Tool.Def[]
   builtin: Tool.Def[]
   task: TaskDef
   read: ReadDef
+  memory: MemoryDef
+  reasoningEnter: ReasoningEnterDef
+  reasoningExit: ReasoningExitDef
 }
 
 export interface Interface {
@@ -157,15 +162,11 @@ export const layer: Layer.Layer<
     const pipeline = yield* PipelineTool
     const agent = yield* Agent.Service
 
-    const state = yield* InstanceState.make<State>(
-      Effect.fn("ToolRegistry.state")(function* (ctx) {
+    const customState = yield* InstanceState.make<Tool.Def[]>(
+      Effect.fn("ToolRegistry.customState")(function* (ctx) {
         const custom: Tool.Def[] = []
 
         function fromPlugin(id: string, def: ToolDefinition): Tool.Def {
-          // Plugin tools define their args as a raw Zod shape. Wrap the
-          // derived Zod object in a `Schema.declare` so it slots into the
-          // Schema-typed framework, and annotate with `ZodOverride` so the
-          // walker emits the original Zod object for LLM JSON Schema.
           const zodParams = z.object(def.args)
           const parameters = Schema.declare<unknown>((u): u is unknown => zodParams.safeParse(u).success).annotate({
             [ZodOverride]: zodParams,
@@ -207,8 +208,6 @@ export const layer: Layer.Layer<
         if (matches.length) yield* config.waitForDependencies()
         for (const match of matches) {
           const namespace = path.basename(match, path.extname(match))
-          // `match` is an absolute filesystem path from `Glob.scanSync(..., { absolute: true })`.
-          // Import it as `file://` so Node on Windows accepts the dynamic import.
           const mod = yield* Effect.promise(() => import(pathToFileURL(match).href))
           for (const [id, def] of Object.entries<ToolDefinition>(mod)) {
             custom.push(fromPlugin(id === "default" ? namespace : `${namespace}_${id}`, def))
@@ -222,6 +221,12 @@ export const layer: Layer.Layer<
           }
         }
 
+        return custom
+      }),
+    )
+
+    const state = yield* InstanceState.make<State>(
+      Effect.fn("ToolRegistry.state")(function* (ctx) {
         yield* config.get()
         const questionEnabled =
           ["app", "cli", "desktop"].includes(Flag.OPENCODE_CLIENT) || Flag.OPENCODE_ENABLE_QUESTION_TOOL
@@ -266,7 +271,6 @@ export const layer: Layer.Layer<
         })
 
         return {
-          custom,
           builtin: [
             tool.invalid,
             ...(questionEnabled ? [tool.question] : []),
@@ -307,13 +311,16 @@ export const layer: Layer.Layer<
           ],
           task: tool.task,
           read: tool.read,
+          memory: tool.memory,
+          reasoningEnter: tool.reasoningEnter,
+          reasoningExit: tool.reasoningExit,
         }
       }),
     )
 
     const all: Interface["all"] = Effect.fn("ToolRegistry.all")(function* () {
       const s = yield* InstanceState.get(state)
-      return [...s.builtin, ...s.custom] as Tool.Def[]
+      return [...s.builtin, ...(yield* InstanceState.get(customState))] as Tool.Def[]
     })
 
     const ids: Interface["ids"] = Effect.fn("ToolRegistry.ids")(function* () {
@@ -355,7 +362,16 @@ export const layer: Layer.Layer<
     })
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
-      const filtered = (yield* all()).filter((tool) => {
+      const s = yield* InstanceState.get(state)
+      const isReasoning = input.agent.native && input.agent.name === "reasoning"
+      const isOrchestrator = input.agent.native && input.agent.name === "orchestrator"
+      const candidates = isReasoning ? [s.memory] : yield* all()
+      const filtered = candidates.filter((tool) => {
+        // Reasoning Mode is a protected calibration boundary, not a best-effort
+        // permission convention. Do not expose schemas for tools the model must
+        // never call; this also excludes project custom tools.
+        if (isReasoning && tool !== s.memory) return false
+        if ((tool === s.reasoningEnter || tool === s.reasoningExit) && !isOrchestrator) return false
         const usePatch =
           input.modelID.includes("gpt-") && !input.modelID.includes("oss") && !input.modelID.includes("gpt-4")
         if (tool.id === ApplyPatchTool.id) return usePatch

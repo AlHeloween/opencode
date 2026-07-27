@@ -19,7 +19,7 @@ scope:
 - git hygiene
 
 constraints:
-- Default to ASCII. Prefer apply_patch for single-file edits.
+- Default to ASCII. Prefer applypatch for single-file edits.
 - Only add comments for non-obvious logic.
 - Never re-read files after editing — tool call fails if it didn't work.
 - Use specialized tools over shell for file ops (Read, Edit, Write).
@@ -62,7 +62,7 @@ acceptance_tests:
 - Response is ≤10 lines for final answers
 
 # Editing
-Default to ASCII. Prefer apply_patch for single-file edits.
+Default to ASCII. Prefer applypatch for single-file edits.
 Only add comments for non-obvious logic.
 Never re-read files after editing — the tool call will fail if it didn't work.
 

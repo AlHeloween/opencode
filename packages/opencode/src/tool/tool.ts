@@ -76,6 +76,11 @@ export type InferDef<T> =
       ? Def<P, M>
       : never
 
+/** Provider tool names are lowercase ASCII alphanumerics: no token-fragmenting separators. */
+export function canonicalName(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "")
+}
+
 function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadata>(
   id: string,
   init: Init<Parameters, Result>,

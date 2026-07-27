@@ -81,6 +81,12 @@ export function modeInstructionForTransition(previousMode: string | undefined, n
   if (nextMode === "reasoning") return PROMPT_REASONING
 }
 
+/** Native modes share Build's provider-visible identity; ACL stays mode-local. */
+export function providerIdentityForMode(agent: Agent.Info, build: Agent.Info) {
+  if (agent.native && ["build", "plan", "reasoning"].includes(agent.name)) return build
+  return agent
+}
+
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -1387,6 +1393,10 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
             throw error
           }
+          // Native modes differ only in runtime ACL. Their provider identity is
+          // Build so a transition appends a tail record without changing cache
+          // keys, schemas, skills, system bytes, or checkpoint slots.
+          const cacheAgent = providerIdentityForMode(agent, (yield* agents.get("build")) ?? agent)
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
           msgs = yield* insertReminders({ messages: msgs, agent, session })
@@ -1444,6 +1454,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             } else {
               tools = yield* SessionTools.resolve({
                 agent,
+                providerAgent: cacheAgent,
                 session,
                 model,
                 processor: handle,
@@ -1518,7 +1529,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             // Kernel / agent-prompt migrations invalidate checkpoints so we never
             // pair a new identity prefix with path system assembled under an old one.
             const reasoningPrefixForIdentity = ProviderTransform.systemPromptPrefix(model)
-            const cleanIdentity = [reasoningPrefixForIdentity, agent.prompt ?? ""]
+            const cleanIdentity = [reasoningPrefixForIdentity, cacheAgent.prompt ?? ""]
               .filter((x) => x)
               .join("\n")
               .replace(/\n+$/, "")
@@ -1531,7 +1542,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
               providerID: model.providerID,
               modelID: model.id,
               projectID: ctx.project.id,
-              agentName: agent.name,
+              agentName: cacheAgent.name,
             }).pipe(Effect.catch(() => Effect.succeed(null)))
             const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
             const checkpointIdentityOk = checkpoint
@@ -1556,7 +1567,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             const [skills, env, instructions, rules] = checkpointUsable
               ? [undefined, [] as string[], [] as string[], [] as string[]] as const
               : yield* Effect.all([
-                  sys.skills(agent),
+                  sys.skills(cacheAgent),
                   Effect.sync(() => sys.environment(model)),
                   instruction.system().pipe(Effect.orDie),
                   instruction.rules().pipe(Effect.orDie),
@@ -1588,8 +1599,8 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
               modelId: model.id,
               providerId: model.providerID,
             }, CacheControl.toolSchemasFromRecord(tools))
-            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, agent.name)
-            const audit = CacheControl.auditCache(prevFP, currentFP, agent.name)
+            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, cacheAgent.name)
+            const audit = CacheControl.auditCache(prevFP, currentFP, cacheAgent.name)
             // Only real prefix invalidation is a bug. Appends are normal (cache:extend).
             if (audit.kind === "broken") {
               Log.Default.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`, {
@@ -1643,6 +1654,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             const result = yield* handle.process({
               user: lastUser,
               agent,
+              cacheIdentity: cacheAgent,
               permission: session.permission,
               sessionID,
               parentSessionID: session.parentID,
@@ -1666,7 +1678,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
                   providerId: model.providerID,
                 }, CacheControl.toolSchemasFromRecord(tools))
               : currentFP
-            CacheControl.storePrevFingerprint(sessionID, model.id, finalFP, agent.name)
+            CacheControl.storePrevFingerprint(sessionID, model.id, finalFP, cacheAgent.name)
 
             // Diff logging — suffix-only format (O(new messages), not full history).
             // Cold restore with checkpoint: skip prev re-format of entire checkpoint;
@@ -1968,7 +1980,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
                     messageFingerprints: checkpointMsgs.map((m) => CacheControl.messageFingerprint(m).hash),
                     modelMessageCounts,
                     model: { providerID: model.providerID, modelID: model.id },
-                    agent: agent.name,
+                    agent: cacheAgent.name,
                     turn: step + 1,
                     timestamp: Date.now(),
                   },

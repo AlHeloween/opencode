@@ -8,7 +8,7 @@ import * as EffectZod from "@/util/effect-zod"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { Plugin } from "@/plugin"
-import { Tool } from "@/tool/tool"
+import { Tool, canonicalName } from "@/tool/tool"
 import type { TaskPromptOps } from "@/tool/task"
 import { Effect } from "effect"
 import { MessageV2 } from "./message-v2"
@@ -20,9 +20,20 @@ import { EffectBridge } from "@/effect/bridge"
 import { ModelID } from "@/provider/schema"
 
 const log = Log.create({ service: "session.tools" })
+const originalNames = new WeakMap<Record<string, AITool>, Map<string, string>>()
+
+export function originalName(tools: Record<string, AITool>, name: string) {
+  return originalNames.get(tools)?.get(name) ?? name
+}
+
+export function preserveOriginalNames(source: Record<string, AITool>, target: Record<string, AITool>) {
+  originalNames.set(target, new Map(Object.keys(target).map((name) => [name, originalName(source, name)])))
+  return target
+}
 
 export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   agent: Agent.Info
+  providerAgent?: Agent.Info
   model: Provider.Model
   session: Session.Info
   processor: Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">
@@ -32,12 +43,31 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
 }) {
   using _ = log.time("resolveTools")
   const tools: Record<string, AITool> = {}
+  const names = new Map<string, string>()
   const run = yield* EffectBridge.make()
   const plugin = yield* Plugin.Service
   const permission = yield* Permission.Service
   const registry = yield* ToolRegistry.Service
   const mcp = yield* MCP.Service
   const truncate = yield* Truncate.Service
+  const disabled = (toolID: string) => {
+    const permission = ["edit", "write", "apply_patch"].includes(toolID) ? "edit" : toolID
+    return (
+      Permission.evaluate(permission, "*", input.agent.permission).action === "deny" ||
+      Permission.evaluate(permission, "*", input.session.permission ?? []).action === "deny"
+    )
+  }
+
+  const rejected = (toolID: string, callID: string) =>
+    Effect.gen(function* () {
+      const output = {
+        title: "Tool unavailable",
+        metadata: { mode: input.agent.name, tool: toolID },
+        output: `Tool \"${toolID}\" is unavailable in ${input.agent.name} mode.`,
+      }
+      yield* input.processor.completeToolCall(callID, output)
+      return output
+    })
 
   const context = (args: Record<string, unknown>, options: ToolExecutionOptions<any>): Tool.Context => ({
     sessionID: input.session.id,
@@ -74,18 +104,34 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         .pipe(Effect.orDie),
   })
 
+  const register = (name: string, value: AITool, original: string) => {
+    if (!name) {
+      log.warn("bug: provider tool name has no ASCII alphanumerics", { original })
+      throw new Error(`Provider tool "${original}" has no ASCII alphanumeric name`)
+    }
+    if (!tools[name]) {
+      tools[name] = value
+      names.set(name, original)
+      return
+    }
+    log.warn("bug: provider tool-name collision", { canonical: name, original })
+    throw new Error(`Provider tool name collision for "${name}" from "${original}"`)
+  }
+
   for (const item of yield* registry.tools({
     modelID: ModelID.make(input.model.api.id),
     providerID: input.model.providerID,
-    agent: input.agent,
+    agent: input.providerAgent ?? input.agent,
   })) {
+    const name = canonicalName(item.id)
     const schema = ProviderTransform.schema(input.model, EffectZod.toJsonSchema(item.parameters))
-    tools[item.id] = tool({
+    register(name, tool({
       description: item.description,
       inputSchema: jsonSchema(schema),
       execute(args, options) {
         return run.promise(
           Effect.gen(function* () {
+            if (disabled(item.id)) return yield* rejected(item.id, options.toolCallId)
             const ctx = context(args, options)
             yield* plugin.trigger(
               "tool.execute.before",
@@ -116,22 +162,24 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           }),
         )
       },
-    })
+    }), item.id)
   }
 
-  // MCP tools are outside ToolRegistry. Reasoning Mode exposes no MCP surface:
-  // its sole capability is the project-local reasoning memory builtin.
-  const mcpTools = input.agent.name === "reasoning" ? {} : yield* mcp.tools()
+  // Provider-visible tools stay stable across native mode transitions; runtime
+  // permissions still guard every execution below.
+  const mcpTools = yield* mcp.tools()
   for (const [key, item] of Object.entries(mcpTools)) {
     const execute = item.execute
     if (!execute) continue
 
     const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
+    const name = canonicalName(key)
     const transformed = ProviderTransform.schema(input.model, schema)
     item.inputSchema = jsonSchema(transformed)
     item.execute = (args, opts) =>
       run.promise(
         Effect.gen(function* () {
+          if (disabled(key)) return yield* rejected(key, opts.toolCallId)
           const ctx = context(args, opts)
           yield* plugin.trigger(
             "tool.execute.before",
@@ -196,9 +244,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           return output
         }),
       )
-    tools[key] = item
+    register(name, item, key)
   }
 
+  originalNames.set(tools, names)
   return tools
 })
 

@@ -22,7 +22,7 @@ const mcp = Layer.succeed(
   MCP.Service.of({
     status: () => Effect.succeed({}),
     clients: () => Effect.succeed({}),
-    tools: () => Effect.die("unexpected MCP tool discovery"),
+    tools: () => Effect.succeed({}),
     prompts: () => Effect.succeed({}),
     resources: () => Effect.succeed({}),
     add: () => Effect.die("unexpected MCP add"),
@@ -58,20 +58,30 @@ afterEach(async () => {
 })
 
 describe("session.tools", () => {
-  it.live("resolves only native memory for protected reasoning", () =>
+  it.live("keeps reasoning execution-protected while declaring the canonical provider schema", () =>
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
-        const agent = yield* (yield* Agent.Service).get("reasoning")
+        const agents = yield* Agent.Service
+        const agent = yield* agents.get("reasoning")
+        const plan = yield* agents.get("plan")
+        const providerAgent = yield* agents.get("build")
         expect(agent).toBeDefined()
+        expect(plan).toBeDefined()
+        expect(providerAgent).toBeDefined()
         const model = ProviderTest.model({ providerID: ProviderID.make("test") })
+        const completed: Array<{ id: string; output: unknown }> = []
         const resolved = yield* SessionTools.resolve({
           agent: agent!,
+          providerAgent: providerAgent!,
           model,
           session: { id: SessionID.descending() } as Session.Info,
           processor: {
             message: { id: MessageID.ascending() } as SessionProcessor.Handle["message"],
             updateToolCall: () => Effect.succeed(undefined),
-            completeToolCall: () => Effect.void,
+            completeToolCall: (id, output) =>
+              Effect.sync(() => {
+                completed.push({ id, output })
+              }),
           } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
           bypassAgentCheck: false,
           messages: [],
@@ -81,8 +91,45 @@ describe("session.tools", () => {
             prompt: () => Effect.die("unexpected task prompt"),
           },
         })
-        expect(Object.keys(resolved)).toEqual(["memory"])
+        expect(Object.keys(resolved)).toSatisfy((names) => names.every((name) => /^[a-z0-9]+$/.test(name)))
+        expect(SessionTools.originalName(resolved, "applypatch")).toBe("apply_patch")
+        expect(Object.keys(resolved)).toContain("memory")
+        expect(Object.keys(resolved)).toContain("read")
+        yield* Effect.promise(() => resolved.read!.execute!({} as never, { toolCallId: "call-rejected" } as never))
+        expect(completed).toHaveLength(1)
+        expect(completed[0]?.id).toBe("call-rejected")
+        expect(completed[0]?.output).toMatchObject({ output: expect.stringContaining("unavailable in reasoning mode") })
+
+        const planResolved = yield* SessionTools.resolve({
+          agent: plan!,
+          providerAgent: providerAgent!,
+          model,
+          session: { id: SessionID.descending() } as Session.Info,
+          processor: {
+            message: { id: MessageID.ascending() } as SessionProcessor.Handle["message"],
+            updateToolCall: () => Effect.succeed(undefined),
+            completeToolCall: (id, output) =>
+              Effect.sync(() => {
+                completed.push({ id, output })
+              }),
+          } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+          bypassAgentCheck: false,
+          messages: [],
+          promptOps: {
+            cancel: () => Effect.void,
+            resolvePromptParts: () => Effect.succeed([]),
+            prompt: () => Effect.die("unexpected task prompt"),
+          },
+        })
+        const planEdit = planResolved.applypatch ?? planResolved.write ?? planResolved.edit
+        expect(planEdit).toBeDefined()
+        yield* Effect.promise(() => planEdit!.execute!({} as never, { toolCallId: "call-plan-rejected" } as never))
+        yield* Effect.promise(() => resolved.memory!.execute!({ action: "read" }, { toolCallId: "call-memory" } as never))
+        expect(completed).toHaveLength(3)
+        expect(completed[1]?.output).toMatchObject({ output: expect.stringContaining("unavailable in plan mode") })
+        expect(completed[2]?.output).toMatchObject({ title: "Memory (empty)" })
       }),
     ),
+    { timeout: 20_000 },
   )
 })

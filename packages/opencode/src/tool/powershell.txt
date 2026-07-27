@@ -1,4 +1,4 @@
-Executes a PowerShell command as a **non-blocking background job** by default. Use `job_output` to read output, `job_wait` to wait for completion, or `job_kill` to stop the job. For quick synchronous commands, set `run_in_background: false`.
+Executes a PowerShell command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands, set `run_in_background: false`.
 
 Be aware: OS: ${os}, Shell: powershell
 
@@ -6,7 +6,7 @@ All commands run in the current working directory by default. Use the `workdir` 
 
 ## Background Jobs
 
-Commands run as background jobs (job ID like `bash-1`). Use `job_output`, `job_wait`, `job_kill` to manage. Stalled jobs (no output for 15s) are NOT auto-killed — call `job_kill` to stop them. Set `run_in_background: false` for quick sync commands.
+Commands run as background jobs (job ID like `bash-1`). Use `joboutput`, `jobwait`, `jobkill` to manage. Stalled jobs (no output for 15s) are NOT auto-killed — call `jobkill` to stop them. Set `run_in_background: false` for quick sync commands.
 
 ## Permission Scanning
 

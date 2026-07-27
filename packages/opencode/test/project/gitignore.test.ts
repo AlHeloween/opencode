@@ -22,7 +22,7 @@ describe("ProjectGitignore", () => {
           yield* ensureRuntimeDataIgnored(fs, worktree)
           yield* ensureRuntimeDataIgnored(fs, worktree)
 
-          expect(yield* fs.readFileString(file)).toBe(".temp\n.opencode/data\n.codegraph\n/config.json\n")
+          expect(yield* fs.readFileString(file)).toBe(".temp\n.opencode/data\n.codegraph\n_FOSSIL_*\n_fossil*\n/config.json\n")
         }).pipe(Effect.provide(live)),
       )
     } finally {
@@ -39,15 +39,15 @@ describe("ProjectGitignore", () => {
           const file = path.join(worktree, ".gitignore")
 
           yield* ensureRuntimeDataIgnored(fs, worktree)
-          expect(yield* fs.readFileString(file)).toBe(".opencode/data\n.temp\n.codegraph\n/config.json\n")
+          expect(yield* fs.readFileString(file)).toBe(".opencode/data\n.temp\n.codegraph\n_FOSSIL_*\n_fossil*\n/config.json\n")
 
           yield* fs.writeFileString(file, "/config.json\n")
           yield* ensureRuntimeDataIgnored(fs, worktree)
-          expect(yield* fs.readFileString(file)).toBe("/config.json\n.opencode/data\n.temp\n.codegraph\n")
+          expect(yield* fs.readFileString(file)).toBe("/config.json\n.opencode/data\n.temp\n.codegraph\n_FOSSIL_*\n_fossil*\n")
 
           yield* fs.writeFileString(file, "config.json\n")
           yield* ensureRuntimeDataIgnored(fs, worktree)
-          expect(yield* fs.readFileString(file)).toBe("config.json\n.opencode/data\n.temp\n.codegraph\n")
+          expect(yield* fs.readFileString(file)).toBe("config.json\n.opencode/data\n.temp\n.codegraph\n_FOSSIL_*\n_fossil*\n")
         }).pipe(Effect.provide(live)),
       )
     } finally {
@@ -58,5 +58,11 @@ describe("ProjectGitignore", () => {
   test("recognizes root config as a local runtime path", () => {
     expect(isRuntimeDataPath("config.json")).toBe(true)
     expect(isRuntimeDataPath("nested/config.json")).toBe(false)
+  })
+
+  test("recognizes Fossil journals as local runtime paths", () => {
+    expect(isRuntimeDataPath("_FOSSIL_-journal")).toBe(true)
+    expect(isRuntimeDataPath("nested/_fossil-checkpoint")).toBe(true)
+    expect(isRuntimeDataPath("nested/FOSSIL-journal")).toBe(false)
   })
 })

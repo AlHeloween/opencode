@@ -60,7 +60,7 @@ Construct a well-formed plan: comprehensive yet concise, detailed enough to exec
 2. **Design** — freeze sv_anchor, design implementation, use general agent for validation.
 3. **Review** — read critical files, pre-flight cluster exploration, align with user intent.
 4. **Final Plan** — write to `plans/`, concise enough to scan efficiently. Include `## Smoke Tests` section (mandatory PRE_FLIGHT gate). Check SV drift (Δ < 0.4).
-5. **plan_exit** — call plan_exit to request approval. Do not end turn without asking a question or calling plan_exit.
+5. **planexit** — call planexit to request approval. Do not end turn without asking a question or calling planexit.
 
 ---
 

@@ -55,12 +55,12 @@
 # When you need a SPECIFIC fact (commit hash, exact error text, a past decision):
 #   messagesearch({query}) → finds matching messages across sessions
 #     Use for: "what did the user say about X?", "was bug Y already fixed?"
-#   session-read({sessionId, offset, limit}) → reads raw messages from a session
+#   sessionread({sessionId, offset, limit}) → reads raw messages from a session
 #     Use after messagesearch when you need full context around a found match
 #   InformationMark tags in results: [Exact] = ground truth (trust it),
 #     [Inferred] = summary/guess (verify before relying),
 #     [Hypothetical]/[Guess] = low confidence (corroborate)
-# Do NOT use session-read to replay entire conversations — that defeats compaction.
+# Do NOT use sessionread to replay entire conversations — that defeats compaction.
 # Recover only the specific missing fact, then continue the task.
 #
 # Task geometry (Mode 1/2, fractal, k-medoids, todowrite): ALGORITHM_CARD (slot [1]).

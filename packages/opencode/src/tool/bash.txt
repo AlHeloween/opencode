@@ -1,4 +1,4 @@
-Executes a bash command as a **non-blocking background job** by default. Use `job_output` to read output, `job_wait` to wait for completion, or `job_kill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
+Executes a bash command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
 
 Be aware: OS: ${os}, Shell: ${shell}
 
@@ -10,9 +10,9 @@ IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO N
 
 Commands run as background jobs. The tool returns immediately with a job ID (e.g., `bash-1`). You then:
 
-1. **Read output incrementally:** `job_output { job_id: "bash-1" }` — returns new text + status (`running`, `stalled`, `done`, `failed`, `killed`)
-2. **Wait for completion:** `job_wait { job_ids: ["bash-1"] }` — blocks until done
-3. **Kill a stuck job:** `job_kill { job_id: "bash-1" }` — use when status is `stalled` (no output for 15s)
+1. **Read output incrementally:** `joboutput { job_id: "bash-1" }` — returns new text + status (`running`, `stalled`, `done`, `failed`, `killed`)
+2. **Wait for completion:** `jobwait { job_ids: ["bash-1"] }` — blocks until done
+3. **Kill a stuck job:** `jobkill { job_id: "bash-1" }` — use when status is `stalled` (no output for 15s)
 
 For quick commands where you need the result immediately, opt out of background mode:
 ```
@@ -38,7 +38,7 @@ Stdout and stderr are both captured into the tool result. If the output exceeds 
 
 The default timeout is 60000ms (1 minute). You can specify an optional timeout in milliseconds. The timeout can also be overridden via the `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` environment variable.
 
-**Timeout behavior:** When the timeout is exceeded, the job is killed (tree kill — all child processes). Its status becomes `killed` and any output produced before termination is preserved. Stalled jobs (no output for 15s) are NOT auto-killed — you must explicitly call `job_kill` if you want to stop a stalled job.
+**Timeout behavior:** When the timeout is exceeded, the job is killed (tree kill — all child processes). Its status becomes `killed` and any output produced before termination is preserved. Stalled jobs (no output for 15s) are NOT auto-killed — you must explicitly call `jobkill` if you want to stop a stalled job.
 
 Before executing the command, please follow these steps:
 

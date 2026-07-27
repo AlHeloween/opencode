@@ -2,14 +2,14 @@ Makes a direct, stateless LLM call. Sends a prompt (with optional file context)
 to any available model and returns the prose-only response. The model has no
 tool access — it just reads the prompt and responds.
 
-Use `ai-call` for single-pass LLM work that does NOT need multi-step reasoning,
+Use `aicall` for single-pass LLM work that does NOT need multi-step reasoning,
 tool delegation, or conversational back-and-forth:
 - Large file transforms (e.g., "rewrite this 2000-line module to use async/await")
 - Text translation, summarization, or generation
 - Code refactoring where the full file fits in one prompt
 - Any task where a direct prompt → response is sufficient
 
-Do NOT use `ai-call` for tasks that require:
+Do NOT use `aicall` for tasks that require:
 - Multi-step reasoning or planning
 - Tool access (reading other files, running commands, editing)
 - Conversational back-and-forth with the user

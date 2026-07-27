@@ -127,6 +127,36 @@ describe("session.llm.estimateContentTokens", () => {
   })
 })
 
+test("provider cache key is determined by the stable provider identity", () => {
+  const build = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "build" })
+  const reasoning = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "build" })
+  const broken = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "reasoning" })
+  expect(reasoning).toBe(build)
+  expect(broken).not.toBe(build)
+})
+
+test("tool call repair resolves separator aliases to the canonical provider name", () => {
+  const tools = {
+    planexit: tool({ inputSchema: z.object({}), execute: async () => "" }),
+  }
+  expect(LLM.resolveToolName("plan_exit", tools)).toBe("planexit")
+  expect(LLM.resolveToolName("PLAN-EXIT", tools)).toBe("planexit")
+  expect(LLM.resolveToolName("planexit", tools)).toBe("planexit")
+  expect(LLM.resolveToolName("unknown_tool", tools)).toBeUndefined()
+})
+
+test("legacy user tool disables apply to canonical provider schema names", () => {
+  const tools = {
+    reasoningenter: tool({ inputSchema: z.object({}), execute: async () => "" }),
+  }
+  const visible = LLM.resolveTools({
+    tools,
+    agent: { permission: [] } as unknown as Agent.Info,
+    user: { tools: { reasoning_enter: false } } as unknown as LLM.StreamInput["user"],
+  })
+  expect(visible).toEqual({})
+})
+
 type Capture = {
   url: URL
   headers: Headers

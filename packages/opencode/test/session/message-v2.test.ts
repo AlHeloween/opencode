@@ -265,7 +265,7 @@ describe("session.message-v2.toModelMessage", () => {
             type: "file",
             mediaType: "image/png",
             filename: "img.png",
-            data: "https://example.com/img.png",
+            data: { type: "url", url: new URL("https://example.com/img.png") },
           },
           { type: "text", text: "The following tool was executed by the user" },
         ],
@@ -325,7 +325,7 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
+    expect<unknown>(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
         content: [{ type: "text", text: "run tool" }],
@@ -355,7 +355,7 @@ describe("session.message-v2.toModelMessage", () => {
               type: "content",
               value: [
                 { type: "text", text: "ok" },
-                { type: "file-data", mediaType: "image/png", data: "Zm9v" },
+                { type: "media", mediaType: "image/png", data: "Zm9v" },
               ],
             },
             providerOptions: { openai: { tool: "meta" } },
@@ -442,10 +442,10 @@ describe("session.message-v2.toModelMessage", () => {
         type: "content",
         value: [
           { type: "text", text: "Image read successfully" },
-          { type: "file-data", mediaType: "image/jpeg", data: jpeg },
+          { type: "media", mediaType: "image/jpeg", data: jpeg },
         ],
       },
-    })
+    } as object)
   })
 
   test("preserves image tool-result media for openai-compatible models with image capabilities", async () => {

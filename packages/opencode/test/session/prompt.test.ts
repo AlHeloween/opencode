@@ -486,6 +486,50 @@ it.live("static loop uses provider cache key for cache-visible session banner", 
   ),
 )
 
+it.live("native mode transition keeps the provider identity and declared tools stable", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ llm }) {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const session = yield* sessions.create({
+        title: "Mode cache continuity",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+
+      yield* prompt.prompt({
+        sessionID: session.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "build task" }],
+      })
+      yield* llm.text("build complete")
+      yield* prompt.loop({ sessionID: session.id })
+
+      yield* prompt.prompt({
+        sessionID: session.id,
+        agent: "reasoning",
+        noReply: true,
+        parts: [{ type: "text", text: "calibrate the outcome" }],
+      })
+      yield* llm.text("reasoning complete")
+      yield* prompt.loop({ sessionID: session.id })
+
+      const [build, reasoning] = yield* llm.inputs
+      expect(build).toBeDefined()
+      expect(reasoning).toBeDefined()
+      const buildMessages = build?.messages as Array<{ role: string }> | undefined
+      const reasoningMessages = reasoning?.messages as Array<{ role: string }> | undefined
+      expect(buildMessages?.filter((message) => message.role === "system")).toEqual(
+        reasoningMessages?.filter((message) => message.role === "system"),
+      )
+      expect(build?.tools).toEqual(reasoning?.tools)
+      expect(JSON.stringify(reasoningMessages)).toContain("Reasoning Mode")
+    }),
+    { git: true, config: providerCfg },
+  ),
+  20_000,
+)
+
 it.live("static loop consumes queued replies across turns", () =>
   provideTmpdirServer(
     Effect.fnUntraced(function* ({ llm }) {

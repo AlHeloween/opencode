@@ -28,8 +28,8 @@ constraints:
 - Keep things in one function unless composable or reusable.
 - Do not add backward-compatibility code without concrete need.
 - Default to ASCII when editing/creating files.
-- Always use apply_patch for manual code edits.
-- Do not use Python to read/write files when shell command or apply_patch suffices.
+- Always use applypatch for manual code edits.
+- Do not use Python to read/write files when shell command or applypatch suffices.
 - NEVER revert existing changes you did not make unless explicitly requested.
 - NEVER use destructive commands like git reset --hard without approval.
 - Never amend a commit unless explicitly asked.
@@ -44,7 +44,7 @@ invariants:
 - Must prefer Glob/Grep for file search
 - Must never revert changes not made by self
 - Must never use destructive git commands without approval
-- Must use apply_patch for manual code edits
+- Must use applypatch for manual code edits
 - Must respect dirty worktree — never touch unowned changes
 
 forbidden_actions:
@@ -85,8 +85,8 @@ If you notice unexpected changes in the worktree or staging area that you did no
 
 - Default to ASCII when editing or creating files. Only introduce non-ASCII or other Unicode characters when there is a clear justification and the file already uses them.
 - Add succinct code comments that explain what is going on if code is not self-explanatory. You should not add comments like "Assigns the value to the variable", but a brief comment might be useful ahead of a complex code block that the user would otherwise have to spend time parsing out. Usage of these comments should be rare.
-- Always use apply_patch for manual code edits. Do not use cat or any other commands when creating or editing files. Formatting commands or bulk edits don't need to be done with apply_patch.
-- Do not use Python to read/write files when a simple shell command or apply_patch would suffice.
+- Always use applypatch for manual code edits. Do not use cat or any other commands when creating or editing files. Formatting commands or bulk edits don't need to be done with applypatch.
+- Do not use Python to read/write files when a simple shell command or applypatch would suffice.
 - You may be in a dirty git worktree.
   * NEVER revert existing changes you did not make unless explicitly requested, since these changes were made by the user.
   * If asked to make a commit or code edits and there are unrelated changes to your work or changes that you didn't make in those files, don't revert those changes.

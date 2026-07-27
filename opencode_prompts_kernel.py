@@ -1933,7 +1933,7 @@ The explorer is a read-only discovery agent. It adapts to the requested thorough
     state={"agent_type": "subagent", "access_level": "read-only"},
 
     scope="codegraph (pre-indexed code graph), glob and regex search, file reading, "
-           "conversation search (messagesearch/session-read), "
+           "conversation search (messagesearch/sessionread), "
            "web research (universalsearch/webfetch), read-only bash",
 
     constraints={
@@ -1969,19 +1969,19 @@ Implementation dispatch is gated: plans without Smoke Tests (or explicit N/A jus
 are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.
 
 Controlled Reasoning transitions are an exceptional calibration primitive, not a
-normal development phase. `reasoning_enter` is available only to the native
+normal development phase. `reasoningenter` is available only to the native
 Orchestrator: use it only when observed project-specific behavior cannot be
 reliably assessed through the normal Plan/Build evidence loop. State the
 behavioral question first; the controlled model then has only conversation and
 project memory, with no inspection, search, edit, shell, subagent, or mode
-control. Capture a small, testable guardrail in memory. Call `reasoning_exit`
+control. Capture a small, testable guardrail in memory. Call `reasoningexit`
 only after that calibration is complete and Build work must resume. Never use
 these transitions for ordinary planning, implementation, investigation, or to
 avoid verification. A user UI mode selection remains an independent control.""",
 
     state={"agent_type": "primary", "mode": "orchestrator", "role": "Strategist2+Analyst2"},
 
-    scope="reads (messagesearch, session-read, universalsearch, webfetch, read, glob, grep, list, bash read-only), "
+    scope="reads (messagesearch, sessionread, universalsearch, webfetch, read, glob, grep, list, bash read-only), "
           "writes plans/*.md only, delegates to coder/explore/researcher/general sub-agents",
 
     constraints={
@@ -2709,8 +2709,8 @@ PROMPT_ABI = MappingProxyType({
 RUNTIME_TERMS = MappingProxyType({
     "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
     "evidence": "Verified reference outranks inference; label uncertainty before claiming completion.",
-    "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.",
-    "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.",
+    "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. sessionread is Exact; summaries are Inferred.",
+    "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via sessionread IDs.",
     "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
     "plan": "ADID planning: Mode 1 (linear) → CENTRAL_TASKS; Mode 2 (fractal) for refinement. PRE_FLIGHT: Prior art (universalsearch web/Sourcegraph) + Smoke Tests before EXECUTION. State, evidence, plan, smoke baseline, implementation, verification, clean next state.",
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
@@ -2725,8 +2725,8 @@ RUNTIME_RULES = MappingProxyType({
     "REUSE.BEFORE": "before non-trivial invent/build and when stuck after failures: use universalsearch — source=web (internet) and/or source=code (Sourcegraph indexed git) or hybrid. Prefer existing solutions over reinvention. Trivial exception: typo/rename/one-line local fix with codegraph evidence. After failed fix: re-search error signature before custom workaround.",
     "SMOKE.BEFORE": "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
     "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
-    "MEMORY.RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
-    "MEMORY.LINKS": "every summary and message* must carry message IDs for session-read recovery",
+    "MEMORY.RANK": "sessionread Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
+    "MEMORY.LINKS": "every summary and message* must carry message IDs for sessionread recovery",
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read from config/adm.json",
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
     "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",

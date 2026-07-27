@@ -35,6 +35,7 @@ import { zod, ZodOverride } from "@/util/effect-zod"
 import { NonNegativeInt, withStatics } from "@/util/schema"
 import { namedSchemaError } from "@/util/named-schema-error"
 import * as EffectLogger from "@opencode-ai/core/effect/logger"
+import { canonicalName } from "@/tool/tool"
 
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
 interface FetchDecompressionError extends Error {
@@ -931,7 +932,8 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             type: "step-start",
           })
         if (part.type === "tool") {
-          toolNames.add(part.tool)
+          const toolName = canonicalName(part.tool)
+          toolNames.add(toolName)
           if (part.state.status === "completed") {
             const outputText = part.state.time.compacted
               ? "[Old tool result content cleared]"
@@ -957,7 +959,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 
             assistantMessage.parts.push({
               // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-              type: ("tool-" + part.tool) as `tool-${string}`,
+              type: ("tool-" + toolName) as `tool-${string}`,
               state: "output-available",
               toolCallId: part.callID,
               input: part.state.input,
@@ -971,7 +973,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             if (typeof output === "string") {
               assistantMessage.parts.push({
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-                type: ("tool-" + part.tool) as `tool-${string}`,
+                type: ("tool-" + toolName) as `tool-${string}`,
                 state: "output-available",
                 toolCallId: part.callID,
                 input: part.state.input,
@@ -982,7 +984,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             } else {
               assistantMessage.parts.push({
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-                type: ("tool-" + part.tool) as `tool-${string}`,
+                type: ("tool-" + toolName) as `tool-${string}`,
                 state: "output-error",
                 toolCallId: part.callID,
                 input: part.state.input,
@@ -997,7 +999,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           if (part.state.status === "pending" || part.state.status === "running")
             assistantMessage.parts.push({
               // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-              type: ("tool-" + part.tool) as `tool-${string}`,
+              type: ("tool-" + toolName) as `tool-${string}`,
               state: "output-error",
               toolCallId: part.callID,
               input: part.state.input,

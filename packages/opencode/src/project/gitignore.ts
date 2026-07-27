@@ -5,9 +5,11 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 const runtimeDataIgnore = ".opencode/data"
 const tempIgnore = ".temp"
 const codeGraphDir = ".codegraph"
+const fossilUpperIgnore = "_FOSSIL_*"
+const fossilLowerIgnore = "_fossil*"
 const configFileName = "config.json"
 const configIgnore = `/${configFileName}`
-const defaultIgnores = [runtimeDataIgnore, tempIgnore, codeGraphDir, configIgnore]
+const defaultIgnores = [runtimeDataIgnore, tempIgnore, codeGraphDir, fossilUpperIgnore, fossilLowerIgnore, configIgnore]
 
 function hasIgnore(text: string, value: string) {
   const normalized = value.replace(/^\//, "")
@@ -27,6 +29,7 @@ export function isRuntimeDataPath(file: string) {
     normalized.startsWith(`${tempIgnore}/`) ||
     normalized === codeGraphDir ||
     normalized.startsWith(`${codeGraphDir}/`) ||
+    normalized.split("/").some((segment) => segment.startsWith("_FOSSIL_") || segment.startsWith("_fossil")) ||
     normalized === configFileName
   )
 }

@@ -36,9 +36,9 @@ Results are grouped by session. Each result includes:
 - Snippet with query term highlighting (`**term**`)
 - Combined rank score with BM25 and epistemic sub-scores
 
-Output is capped at 50KB. Use `session-read` to get full context around found messages.
+Output is capped at 50KB. Use `sessionread` to get full context around found messages.
 
-**Epistemic ranks:** messagesearch hits are **Inferred** (index snippets). Use `session-read` for **Exact** ground truth around those IDs.
+**Epistemic ranks:** messagesearch hits are **Inferred** (index snippets). Use `sessionread` for **Exact** ground truth around those IDs.
 
 ## Parameters
 

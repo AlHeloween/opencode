@@ -12,8 +12,8 @@ Session.vim
 **/.jj/
 
 # ── Fossil SCM ──
-_FOSSIL_
-_fossil
+_FOSSIL_*
+_fossil*
 .fslckout
 *.fsl
 FSL_*.db
@@ -74,6 +74,7 @@ src.bak/
 # ── Project Tooling ──
 .opencode
 .codex
+.codegraph/
 .reasonix
 .serena/
 **/.serena

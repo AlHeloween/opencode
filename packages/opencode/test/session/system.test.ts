@@ -57,20 +57,14 @@ describe("session.system", () => {
     expect(kernel).not.toContain("run_conformance")
   })
 
-  test("plan reminders use general as planning subagent, not plan", async () => {
-    expect(PROMPT_PLAN).toContain("`general` subagent")
+  test("plan reminders preserve the compact read-only planning contract", async () => {
+    expect(PROMPT_PLAN).toContain("use general agent for validation")
     expect(PROMPT_PLAN).not.toContain("Plan subagent")
     expect(PROMPT_PLAN).not.toContain("Plan agent")
-
-    for (const prompt of [PROMPT_PLAN]) {
-      expect(prompt).toContain("cmd_runner session control/inspection")
-      expect(prompt).toContain("do not launch general")
-      expect(prompt).toContain("plans_completed")
-      expect(prompt).toContain(".opencode/plans")
-      expect(prompt).toContain("prohibited")
-      expect(prompt).toContain("Explore agent")
-      expect(prompt).toContain("real code execution state")
-    }
+    expect(PROMPT_PLAN).toContain("READ-ONLY phase")
+    expect(PROMPT_PLAN).toContain("No modifications allowed")
+    expect(PROMPT_PLAN).toContain("cmd_runner session control/inspection")
+    expect(PROMPT_PLAN).toContain("manage directly")
   })
 
   test("session plan path uses repo root plans directory", async () => {
@@ -201,10 +195,11 @@ describe("prompt matching (specificity-based)", () => {
     expect(promptFamily(m)).toBe("Claude")
   })
 
-  test("deepseek models match anthropic.txt", () => {
+  test("deepseek models match the intentional no-override prompt", () => {
     const m = mockModel("deepseek-v4-pro")
-    expect(providerName(m)).toBe("anthropic.txt")
-    expect(promptFamily(m)).toBe("Claude")
+    expect(providerName(m)).toBe("deepseek.txt")
+    expect(promptFamily(m)).toBe("DeepSeek 4 Pro")
+    expect(provider(m)).toEqual([""])
   })
 
   test("gpt-4 models match beast.txt (specificity: gpt-4 > gpt)", () => {
@@ -270,7 +265,6 @@ describe("prompt content clean of frontmatter", () => {
   test("provider() returns content without frontmatter block", () => {
     for (const apiId of [
       "claude-sonnet-4",
-      "deepseek-v4",
       "gpt-4-turbo",
       "gpt-5",
       "gemini-3-pro",

@@ -26,7 +26,6 @@ import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
 import PROMPT_PLAN_RAW from "../session/prompt/plan.txt"
 import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
-import BUILD_SWITCH_RAW from "../session/prompt/build-switch.txt"
 import PROMPT_REASONING_RAW from "../session/prompt/reasoning-mode.txt"
 // Normalize CRLF → LF so exact text comparisons match DB-stored versions
 // regardless of OS line-ending conventions. Failure to do this causes
@@ -34,13 +33,11 @@ import PROMPT_REASONING_RAW from "../session/prompt/reasoning-mode.txt"
 // with new PartID → KV cache break on every turn.
 const PROMPT_PLAN = PROMPT_PLAN_RAW.replace(/\r\n/g, "\n")
 const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
-const BUILD_SWITCH = BUILD_SWITCH_RAW.replace(/\r\n/g, "\n")
 const PROMPT_REASONING = PROMPT_REASONING_RAW.replace(/\r\n/g, "\n")
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
 import { LSP } from "@/lsp/lsp"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import { ulid } from "ulid"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
@@ -71,6 +68,18 @@ import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
 import { EffectBridge } from "@/effect/bridge"
 import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
+
+/**
+ * Mode text is a one-shot conversation transition record. It must never be
+ * re-injected while an agent remains in the same mode: steady-state mode
+ * boundaries are enforced by software permissions, not fresh prompt prose.
+ */
+export function modeInstructionForTransition(previousMode: string | undefined, nextMode: string) {
+  if (previousMode === nextMode) return
+  if (nextMode === "plan") return PROMPT_PLAN
+  if (nextMode === "build") return PROMPT_BUILD
+  if (nextMode === "reasoning") return PROMPT_REASONING
+}
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -279,165 +288,30 @@ export const layer = Layer.effect(
       const userMessage = input.messages.findLast((msg) => msg.info.role === "user")
       if (!userMessage) return input.messages
 
-      // Idempotency guard: check if a synthetic text part already exists on
-      // this user message with the given text (exact match) or prefix.
-      // Without this, every turn pushes a new synthetic part with a new
-      // PartID.ascending(), which changes the message fingerprint → KV cache
-      // break on every turn → ~32k tokens reprocessed every step.
-      // normalizeNL handles \r\n vs \n mismatch between imported .txt files (LF)
-      // and DB-stored text from Windows JSON serialization (CRLF).
+      // Idempotency prevents a retry/reload from adding another transition part
+      // with a new PartID, which would break the cached message prefix.
       const normalizeNL = (s: string) => s.replace(/\r\n/g, "\n")
-      const hasSynthetic = (text: string, match: "exact" | "prefix" = "exact") =>
+      const hasSynthetic = (text: string) =>
         userMessage.parts.some(
           (p) =>
             p.type === "text" &&
             (p as MessageV2.TextPart & { synthetic?: boolean }).synthetic === true &&
-            (match === "exact"
-              ? normalizeNL(p.text) === normalizeNL(text)
-              : normalizeNL(p.text).startsWith(normalizeNL(text))),
+            normalizeNL(p.text) === normalizeNL(text),
         )
 
-      // Compaction reminder: after message* or a live summary assistant, tell the
-      // model it can recover soft-hidden history via session-read / messagesearch.
-      // Detect real message* (starts with marker) or live summary assistants.
-      // Do NOT match reminder text that merely mentions the marker — that would
-      // keep re-arming forever and isMessageStar used to mis-classify those users.
-      const hasCompactionMemory = input.messages.some((msg) => {
-        if (msg.info.role === "assistant" && (msg.info as { summary?: unknown }).summary === true) return true
-        return msg.parts.some(
-          (p) =>
-            p.type === "text" &&
-            typeof (p as { text?: string }).text === "string" &&
-            (p as { text: string }).text.trimStart().startsWith("=== COMPACTED ==="),
-        )
+      const userIndex = input.messages.findLastIndex((msg) => msg.info.id === userMessage.info.id)
+      const previousMode = input.messages.slice(0, userIndex).findLast((msg) => msg.info.agent)?.info.agent
+      const instruction = modeInstructionForTransition(previousMode, input.agent.name)
+      if (!instruction || hasSynthetic(instruction)) return input.messages
+      const part = yield* sessions.updatePart({
+        id: PartID.ascending(),
+        messageID: userMessage.info.id,
+        sessionID: userMessage.info.sessionID,
+        type: "text",
+        text: instruction,
+        synthetic: true,
       })
-      if (hasCompactionMemory && input.agent.name !== "plan") {
-        // Wording must NOT contain the literal "=== COMPACTED ===" marker — that
-        // string is the message* boundary; embedding it made isMessageStar treat
-        // every reminded user message as message* and drop them from the next fold.
-        // Passive epistemic note only — no tool recipes. Imperative
-        // "use session-read / db-read" lines made models abandon the work
-        // cycle and spiral on archive recovery after every compact.
-        const COMPACTION_REMINDER = `<system-reminder>
-History was compacted. Active memory is the compacted block and/or summary assistants (Inferred). Soft-hidden archive remains in the DB for tools when you need a specific fact — do not recover wholesale; continue the task.
-</system-reminder>`
-        if (!hasSynthetic(COMPACTION_REMINDER, "prefix")) {
-          const part = yield* sessions.updatePart({
-            id: PartID.ascending(),
-            messageID: userMessage.info.id,
-            sessionID: userMessage.info.sessionID,
-            type: "text",
-            text: COMPACTION_REMINDER,
-            synthetic: true,
-          })
-          userMessage.parts.push(part)
-        }
-      }
-
-      if (!Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE) {
-        // plan/build mode text is conversation-tail only (synthetic on last user).
-        // Never put it in system/agent.prompt — same model switches plan↔build in
-        // one session; system prefix must stay byte-stable for KV cache.
-        if (input.agent.name === "plan") {
-          if (!hasSynthetic(PROMPT_PLAN)) {
-            const part = yield* sessions.updatePart({
-              id: PartID.ascending(),
-              messageID: userMessage.info.id,
-              sessionID: userMessage.info.sessionID,
-              type: "text",
-              text: PROMPT_PLAN,
-              synthetic: true,
-            })
-            userMessage.parts.push(part)
-          }
-        }
-        if (input.agent.name === "build") {
-          // ALGORITHM_CARD spine for default build (finite medoids, not infinity).
-          if (!hasSynthetic(PROMPT_BUILD)) {
-            const part = yield* sessions.updatePart({
-              id: PartID.ascending(),
-              messageID: userMessage.info.id,
-              sessionID: userMessage.info.sessionID,
-              type: "text",
-              text: PROMPT_BUILD,
-              synthetic: true,
-            })
-            userMessage.parts.push(part)
-          }
-          const wasPlan = input.messages.some((msg) => msg.info.role === "assistant" && msg.info.agent === "plan")
-          if (wasPlan && !hasSynthetic(BUILD_SWITCH)) {
-            const part = yield* sessions.updatePart({
-              id: PartID.ascending(),
-              messageID: userMessage.info.id,
-              sessionID: userMessage.info.sessionID,
-              type: "text",
-              text: BUILD_SWITCH,
-              synthetic: true,
-            })
-            userMessage.parts.push(part)
-          }
-        }
-        if (input.agent.name === "reasoning") {
-          // Reasoning mode — zero tools, memory-only responses.
-          if (!hasSynthetic(PROMPT_REASONING)) {
-            const part = yield* sessions.updatePart({
-              id: PartID.ascending(),
-              messageID: userMessage.info.id,
-              sessionID: userMessage.info.sessionID,
-              type: "text",
-              text: PROMPT_REASONING,
-              synthetic: true,
-            })
-            userMessage.parts.push(part)
-          }
-        }
-        return input.messages
-      }
-
-      const assistantMessage = input.messages.findLast((msg) => msg.info.role === "assistant")
-      if (input.agent.name !== "plan" && assistantMessage?.info.agent === "plan") {
-        const plan = Session.plan(input.session)
-        if (!(yield* fsys.existsSafe(plan))) return input.messages
-        const reminderText = `${BUILD_SWITCH}\n\nA plan file exists at ${plan}. You should execute on the plan defined within it`
-        if (!hasSynthetic(BUILD_SWITCH, "prefix")) {
-          const part = yield* sessions.updatePart({
-            id: PartID.ascending(),
-            messageID: userMessage.info.id,
-            sessionID: userMessage.info.sessionID,
-            type: "text",
-            text: reminderText,
-            synthetic: true,
-          })
-          userMessage.parts.push(part)
-        }
-        return input.messages
-      }
-
-      if (input.agent.name !== "plan" || assistantMessage?.info.agent === "plan") return input.messages
-
-      const plan = Session.plan(input.session)
-      const exists = yield* fsys.existsSafe(plan)
-      if (!exists) yield* fsys.ensureDir(path.dirname(plan)).pipe(
-        Effect.tapError((e) => Effect.sync(() => Log.Default.warn("bug: plan directory creation failed", { plan, error: String(e) }))),
-        Effect.catch(Effect.die),
-      )
-      if (!hasSynthetic("<system-reminder>\nPlan mode", "prefix")) {
-        const part = yield* sessions.updatePart({
-          id: PartID.ascending(),
-          messageID: userMessage.info.id,
-          sessionID: userMessage.info.sessionID,
-          type: "text",
-          text: `<system-reminder>
-Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits (with the exception of the plan file mentioned below), run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supersedes any other instructions you have received.
-
-## Plan File Info:
-${exists ? `A plan file already exists at ${plan}. You can read it and make incremental edits using the edit tool.` : `No plan file exists yet. You should create your plan at ${plan} using the write tool.`}
-Plans must live in plans/ at the repo root. Completed plans must move to plans_completed/ at the repo root. Never create, edit, reference, or preserve plans under .opencode/plans/; that path is prohibited because it hides plan state from the project workflow.
-You should build your plan incrementally by writing to or editing this file. NOTE that this is the only file you are allowed to edit - other than this you are only allowed to take READ-ONLY actions.`,
-          synthetic: true,
-        })
-        userMessage.parts.push(part)
-      }
+      userMessage.parts.push(part)
       return input.messages
     })
 
@@ -613,25 +487,6 @@ You should build your plan incrementally by writing to or editing this file. NOT
         } satisfies MessageV2.ToolPart)
       }
 
-      if (!task.command) return
-
-      const summaryUserMsg: MessageV2.User = {
-        id: MessageID.ascending(),
-        sessionID,
-        role: "user",
-        time: { created: Date.now() },
-        agent: lastUser.agent,
-        model: lastUser.model,
-      }
-      yield* sessions.updateMessage(summaryUserMsg)
-      yield* sessions.updatePart({
-        id: PartID.ascending(),
-        messageID: summaryUserMsg.id,
-        sessionID,
-        type: "text",
-        text: "Summarize the task tool output above and continue with your task.",
-        synthetic: true,
-      } satisfies MessageV2.TextPart)
     })
 
     const shellImpl = Effect.fn("SessionPrompt.shellImpl")(function* (input: ShellInput, ready?: Latch.Latch) {
@@ -1342,7 +1197,12 @@ You should build your plan incrementally by writing to or editing this file. NOT
               messageID: resumeMsg.id,
               sessionID,
               type: "text",
-              text: `<system-reminder>
+              text:
+                input.parent.agent === "reasoning"
+                  ? `<system-reminder>
+Layer-1 summary is complete (Inferred handle only). Resume the same protected reasoning/calibration flow from the conversation after that summary. Do not re-summarize unless a new summary request appears. Remain memory-only; do not create work or attempt a mode change. If the user's request is already fully complete, give a brief status and stop — do not invent new work.
+</system-reminder>`
+                  : `<system-reminder>
 Layer-1 summary is complete (Inferred handle only). Continue the open user task from the conversation after that summary. Do not re-summarize unless a new summary request appears. Prefer tools and edits over restating history. If the user's request is already fully complete, give a brief status and stop — do not invent new work.
 </system-reminder>`,
               synthetic: true,
@@ -1597,73 +1457,6 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             })
 
             // summarize() moved to common step-1 block before task dispatch
-
-            // Wrap user messages after the last finished turn in a system-reminder
-            // block as a DB-persisted synthetic text part. The underlying user
-            // message text part is never mutated — it is marked `ignored: true`
-            // so toModelMessagesEffect skips it in favor of the synthetic part.
-            //
-            // Without DB persistence, the wrapper vanishes on message reload
-            // (DB-stored text is unwrapped). When lastFinished advances between
-            // turns, the guard `m.info.id <= lastFinished.id` prevents re-wrapping
-            // old messages → their text differs from the previously KV-cached
-            // version → cache invalidated from that position forward → ~33k token
-            // miss. DB-persisted synthetic parts eliminate this: the wrapper
-            // survives reloads, and the original text part never changes.
-            //
-            // TARGET: only the LAST user message — matches date-injection
-            // pattern at line 1528. This ensures the system-reminder wrapper
-            // is always at conversation end, preserving assistant→tool→assistant
-            // flow immutability for KV cache continuity.
-            if (lastFinished) {
-              const m = msgs.findLast((m) => m.info.role === "user")
-              if (m && m.info.id > lastFinished.id) {
-                for (const p of m.parts) {
-                  if (p.type !== "text" || p.ignored || p.synthetic) continue
-                  if (!p.text.trim()) continue
-                  // Idempotency guard: once a synthetic system-reminder part
-                  // exists on this message, skip. The synthetic part is DB-backed
-                  // and survives reloads, so this check prevents re-wrapping
-                  // across tool-loop iterations AND across turns.
-                  const alreadyWrapped = m.parts.some(
-                    (part) =>
-                      part.type === "text" &&
-                      (part as MessageV2.TextPart).synthetic === true &&
-                      part.text.startsWith("<system-reminder>"),
-                  )
-                  if (alreadyWrapped) continue
-                  const wrapperText = [
-                    "<system-reminder>",
-                    "The user sent the following message:",
-                    p.text,
-                    "",
-                    "Please address this message and continue with your tasks.",
-                    "</system-reminder>",
-                  ].join("\n")
-                  // Persist wrapper as a synthetic part — survives DB reloads.
-                  const syntheticPart = yield* sessions.updatePart({
-                    id: PartID.ascending(),
-                    messageID: m.info.id,
-                    sessionID: m.info.sessionID,
-                    type: "text" as const,
-                    text: wrapperText,
-                    synthetic: true,
-                  })
-                  // Mark original text part ignored. PERSIST so DB reloads
-                  // preserve the ignored flag. Without this, a reloaded
-                  // text part would render ALONGSIDE the synthetic wrapper.
-                  yield* sessions.updatePart({
-                    ...p,
-                    ignored: true,
-                  } as MessageV2.TextPart)
-                  p.ignored = true
-                  // Prepend synthetic part so it renders BEFORE the ignored
-                  // original text part (though ignored parts are excluded
-                  // from rendering anyway via !part.ignored guard).
-                  m.parts.unshift(syntheticPart)
-                }
-              }
-            }
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 

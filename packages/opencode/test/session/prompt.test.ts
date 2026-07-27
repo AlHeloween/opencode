@@ -666,6 +666,55 @@ The flow will resume.`)
   30_000,
 )
 
+it.live(
+  "Layer-1 summary resumes protected reasoning without action pressure",
+  () =>
+    provideTmpdirServer(
+      Effect.fnUntraced(function* ({ llm }) {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const session = yield* sessions.create({
+          title: "Reasoning summary timing",
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        })
+        yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "reasoning",
+          noReply: true,
+          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
+        })
+        yield* llm.text("reasoning answer")
+        yield* llm.text(`## Semantic Vector
+dominant: "reasoning summary"
+
+## Goal
+Preserve the protected calibration flow.
+
+## Key decisions
+- Do not inject action pressure.
+
+## Current state
+The reasoning flow will resume.`)
+        yield* llm.text("resumed reasoning")
+
+        const result = yield* prompt.loop({ sessionID: session.id })
+        expect(result.parts.some((part) => part.type === "text" && part.text === "resumed reasoning")).toBe(true)
+
+        const messages = yield* MessageV2.filterCompactedEffect(session.id)
+        const summaryIndex = messages.findIndex((message) => message.info.role === "assistant" && message.info.summary)
+        const resume = messages[summaryIndex + 1]
+        const text = resume?.parts
+          .filter((part): part is MessageV2.TextPart => part.type === "text")
+          .map((part) => part.text)
+          .join("\n")
+        expect(text).toContain("protected reasoning/calibration flow")
+        expect(text).not.toContain("Prefer tools and edits")
+      }),
+      { git: true, config: providerCfg },
+    ),
+  30_000,
+)
+
 orderedIt.live(
   "Layer-1 persists the range handle before creating its resume turn",
   () =>

@@ -6,7 +6,7 @@ import { Session } from "@/session/session"
 import { MessageV2 } from "../session/message-v2"
 import { Provider } from "@/provider/provider"
 import { Instance } from "../project/instance"
-import { type SessionID, MessageID, PartID } from "../session/schema"
+import { type SessionID, MessageID } from "../session/schema"
 import EXIT_DESCRIPTION from "./plan-exit.txt"
 
 function getLastModel(sessionID: SessionID) {
@@ -61,14 +61,6 @@ export const PlanExitTool = Tool.define(
             model,
           }
           yield* session.updateMessage(msg)
-          yield* session.updatePart({
-            id: PartID.ascending(),
-            messageID: msg.id,
-            sessionID: ctx.sessionID,
-            type: "text",
-            text: `The plan at ${plan} has been approved, you can now edit files. Execute the plan`,
-            synthetic: true,
-          } satisfies MessageV2.TextPart)
 
           return {
             title: "Switching to build agent",

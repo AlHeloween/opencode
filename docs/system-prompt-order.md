@@ -73,9 +73,11 @@ pathSystem[last]         ← instructions (AGENTS.md etc.) — most mutable of p
 (+ structured-output prompt may be last path element when json_schema)
 ```
 
-**plan/build mode text is NOT in system.** Injected as synthetic parts on the last
-user message (`plan.txt`, `build.txt`, `build-switch.txt`) so plan↔build can switch
-on the same model/session without rewriting the system prefix (KV cache).
+**Mode text is NOT in system.** A single synthetic Plan, Build, or Reasoning
+instruction is persisted only when the user enters or changes mode. Steady-state
+mode boundaries are software-enforced; repeated tails and history-inferred mode
+switches are prohibited. This keeps the system prefix unchanged while the same
+model/session changes mode.
 
 **Bug fixed (2026-07-24):** `llm.ts` used to do `systemPromptPrefix().split("\\n\\n")`.  
 Both files contain blank lines, so “reasoning” became only the title (~150 bytes) and the rest of `reasoning.txt` was glued into the “kernel” string. Use `ProviderTransform.systemPromptParts()` — never join-then-split on blank lines.

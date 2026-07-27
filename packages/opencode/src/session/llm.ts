@@ -488,7 +488,7 @@ const live: Layer.Layer<
 
         const ruleset = Permission.merge(input.agent.permission ?? [], input.permission ?? [])
         workflowModel.sessionPreapprovedTools = Object.keys(tools).filter((name) => {
-          const match = ruleset.findLast((rule) => Wildcard.match(SessionTools.originalName(tools, name), rule.permission))
+          const match = ruleset.findLast((rule) => Wildcard.match(SessionTools.policyName(tools, name), rule.permission))
           return !match || match.action !== "ask"
         })
 
@@ -721,15 +721,12 @@ export const defaultLayer = Layer.suspend(() =>
 )
 
 export function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
-  const disabled = Permission.disabled(
-    Object.keys(input.tools),
-    Permission.merge(input.agent.permission, input.permission ?? []),
-  )
-  return SessionTools.preserveOriginalNames(input.tools, Record.filter(
+  const ruleset = Permission.merge(input.agent.permission, input.permission ?? [])
+  return SessionTools.preservePolicyNames(input.tools, Record.filter(
     input.tools,
     (_, k) =>
       !Object.entries(input.user.tools ?? {}).some(([name, enabled]) => enabled === false && canonicalName(name) === k) &&
-      !disabled.has(k),
+      !Permission.disabled([SessionTools.policyName(input.tools, k)], ruleset).has(SessionTools.policyName(input.tools, k)),
   ))
 }
 

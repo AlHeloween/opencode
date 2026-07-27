@@ -14,7 +14,7 @@ export const JobKillParameters = Schema.Struct({
  * output is preserved for reading via job_output.
  */
 export const JobKillTool = Tool.define(
-  "job_kill",
+  "jobkill",
   Effect.gen(function* () {
     const jobs = yield* Jobs.Service
     return {
@@ -39,4 +39,5 @@ export const JobKillTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "job_kill",
 )

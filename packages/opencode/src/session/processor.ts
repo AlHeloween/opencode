@@ -108,7 +108,15 @@ interface ProcessorContext extends Input {
 type StreamEvent = Event
 
 /** Tools that can modify the filesystem — snapshot tracking only needed after these. */
-const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch", "bash", "run", "task", "pipeline"])
+const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "bash", "run", "task", "pipeline"])
+
+export function writesWorkingCopy(toolName: string) {
+  return WRITE_TOOLS.has(toolName)
+}
+
+export function providesExactEvidence(toolName: string) {
+  return toolName === "sessionread"
+}
 
 export function cacheRatio(tokens: { input: number; cache: { read: number; write: number } }) {
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
@@ -433,9 +441,9 @@ export const layer: Layer.Layer<
 
           case "tool-call": {
             ctx.toolCallEmitted = true
-            if (WRITE_TOOLS.has(value.toolName)) ctx.hasWriteToolCall = true
-            // Upgrade evidence floor: session-read provides Exact ground truth.
-            if (value.toolName === "session-read") ctx.evidenceFloor = "Exact"
+            if (writesWorkingCopy(value.toolName)) ctx.hasWriteToolCall = true
+            // Upgrade evidence floor: sessionread provides Exact ground truth.
+            if (providesExactEvidence(value.toolName)) ctx.evidenceFloor = "Exact"
             yield* updateToolCall(value.toolCallId, (match) => ({
               ...match,
               tool: value.toolName,

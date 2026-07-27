@@ -27,6 +27,7 @@ describe("tool.registry", () => {
           const registry = yield* ToolRegistry.Service
           const ids = yield* registry.ids()
           expect(new Set(ids).size).toBe(ids.length)
+          expect(ids).toSatisfy((names) => names.every((id) => /^[a-z0-9]+$/.test(id)))
           expect(ids.filter((id) => id === "cmd")).toHaveLength(process.platform === "win32" ? 1 : 0)
         }),
       ),
@@ -88,15 +89,16 @@ describe("tool.registry", () => {
           modelID: ModelID.make("test-model"),
           agent: orchestrator!,
         })
-        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoning_enter")
-        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoning_exit")
-        expect(planTools.map((tool) => tool.id)).not.toContain("reasoning_enter")
-        expect(planTools.map((tool) => tool.id)).not.toContain("reasoning_exit")
+        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoningenter")
+        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoningexit")
+        expect(planTools.map((tool) => tool.id)).not.toContain("reasoningenter")
+        expect(planTools.map((tool) => tool.id)).not.toContain("reasoningexit")
         expect(reasoningTools.map((tool) => tool.id)).toEqual(["memory"])
-        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoning_enter")
-        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoning_exit")
-        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoning_enter")
-        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoning_exit")
+        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoningenter")
+        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoningexit")
+        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoningenter")
+        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoningexit")
+        expect(orchestratorTools.find((tool) => tool.id === "reasoningenter")?.policy).toBe("reasoning_enter")
       }),
     ),
   )

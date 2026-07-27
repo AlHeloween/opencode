@@ -30,7 +30,7 @@ export const Parameters = Schema.Struct({
 })
 
 export const SessionReadTool = Tool.define(
-  "session-read",
+  "sessionread",
   Effect.gen(function* () {
     return {
       description: DESCRIPTION,
@@ -128,4 +128,5 @@ export const SessionReadTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "session-read",
 )

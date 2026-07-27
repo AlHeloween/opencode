@@ -341,7 +341,7 @@ describe("tool.apply_patch freeform", () => {
         const patchText = "*** Begin Patch\n*** Update File: missing.txt\n@@\n-nope\n+better\n*** End Patch"
 
         await expect(execute({ patchText }, ctx)).rejects.toThrow(
-          "apply_patch verification failed: Failed to read file to update",
+          "applypatch verification failed: Failed to read file to update",
         )
       },
     })

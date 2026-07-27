@@ -25,7 +25,7 @@ describe("Tool.define", () => {
     const original = makeTool("test")
     const originalExecute = original.execute
 
-    const info = await runtime.runPromise(Tool.define("test-tool", Effect.succeed(original)))
+    const info = await runtime.runPromise(Tool.define("testtool", Effect.succeed(original)))
 
     await Effect.runPromise(info.init())
     await Effect.runPromise(info.init())
@@ -37,7 +37,7 @@ describe("Tool.define", () => {
   test("effect-defined tool returns fresh objects and is unaffected", async () => {
     const info = await runtime.runPromise(
       Tool.define(
-        "test-fn-tool",
+        "testfntool",
         Effect.succeed(() => Effect.succeed(makeTool("test"))),
       ),
     )
@@ -49,7 +49,7 @@ describe("Tool.define", () => {
   })
 
   test("object-defined tool returns distinct objects per init() call", async () => {
-    const info = await runtime.runPromise(Tool.define("test-copy", Effect.succeed(makeTool("test"))))
+    const info = await runtime.runPromise(Tool.define("testcopy", Effect.succeed(makeTool("test"))))
 
     const first = await Effect.runPromise(info.init())
     const second = await Effect.runPromise(info.init())
@@ -64,7 +64,7 @@ describe("Tool.define", () => {
     const calls: Array<Schema.Schema.Type<typeof parameters>> = []
     const info = await runtime.runPromise(
       Tool.define(
-        "test-decoded",
+        "testdecoded",
         Effect.succeed({
           description: "test tool",
           parameters,
@@ -95,5 +95,11 @@ describe("Tool.define", () => {
     await Effect.runPromise(execute({ count: "7" }, ctx))
 
     expect(calls).toEqual([{ count: 5 }, { count: 7 }])
+  })
+
+  test("rejects a separator-bearing runtime ID", () => {
+    expect(() => Tool.define("test-tool", Effect.succeed(makeTool("test")))).toThrow(
+      "must use lowercase ASCII alphanumerics",
+    )
   })
 })

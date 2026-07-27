@@ -38,7 +38,7 @@ type DbReadMeta = {
 }
 
 export const DbReadTool = Tool.define(
-  "db-read",
+  "dbread",
   Effect.gen(function* () {
     return {
       description: DESCRIPTION,
@@ -171,4 +171,5 @@ export const DbReadTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "db-read",
 )

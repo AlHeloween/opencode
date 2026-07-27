@@ -112,7 +112,7 @@ function reply(input: SessionPrompt.PromptInput, text: string): MessageV2.WithPa
 }
 
 function executeTask(
-  def: Omit<Tool.InferDef<typeof TaskTool>, "id">,
+  def: Omit<Tool.InferDef<typeof TaskTool>, "id" | "policy">,
   chat: Session.Info,
   assistant: MessageV2.Assistant,
   promptOps: TaskPromptOps,

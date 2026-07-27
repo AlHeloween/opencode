@@ -11,6 +11,7 @@ import { MessageID, SessionID } from "@/session/schema"
 import type { Session } from "@/session/session"
 import type { SessionProcessor } from "@/session/processor"
 import { SessionTools } from "@/session/tools"
+import { LLM } from "@/session/llm"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { ProviderTest } from "../fake/provider"
@@ -92,7 +93,15 @@ describe("session.tools", () => {
           },
         })
         expect(Object.keys(resolved)).toSatisfy((names) => names.every((name) => /^[a-z0-9]+$/.test(name)))
-        expect(SessionTools.originalName(resolved, "applypatch")).toBe("apply_patch")
+        expect(SessionTools.policyName(resolved, "applypatch")).toBe("apply_patch")
+        const visible = LLM.resolveTools({
+          tools: resolved,
+          agent: {
+            permission: [{ permission: "edit", pattern: "*", action: "deny" }],
+          } as Agent.Info,
+          user: { tools: {} } as never,
+        })
+        expect(visible.applypatch).toBeUndefined()
         expect(Object.keys(resolved)).toContain("memory")
         expect(Object.keys(resolved)).toContain("read")
         yield* Effect.promise(() => resolved.read!.execute!({} as never, { toolCallId: "call-rejected" } as never))

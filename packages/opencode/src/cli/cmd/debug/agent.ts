@@ -13,6 +13,8 @@ import { iife } from "../../../util/iife"
 import { bootstrap } from "../../bootstrap"
 import { cmd } from "../cmd"
 import { AppRuntime } from "@/effect/app-runtime"
+import { canonicalName } from "@/tool/tool"
+import type { Def as ToolDef } from "@/tool/tool"
 
 export const AgentCommand = cmd({
   command: "agent <name>",
@@ -46,19 +48,19 @@ export const AgentCommand = cmd({
       const resolvedTools = await resolveTools(agent, availableTools)
       const toolID = args.tool as string | undefined
       if (toolID) {
-        const tool = availableTools.find((item) => item.id === toolID)
+        const tool = availableTools.find((item) => item.id === canonicalName(toolID))
         if (!tool) {
           process.stderr.write(`Tool ${toolID} not found for agent ${agentName}` + EOL)
           process.exit(1)
         }
-        if (resolvedTools[toolID] === false) {
+        if (resolvedTools[tool.id] === false) {
           process.stderr.write(`Tool ${toolID} is disabled for agent ${agentName}` + EOL)
           process.exit(1)
         }
         const params = parseToolParams(args.params as string | undefined)
         const ctx = await createToolContext(agent)
         const result = await tool.execute(params, ctx)
-        process.stdout.write(JSON.stringify({ tool: toolID, input: params, result }, null, 2) + EOL)
+        process.stdout.write(JSON.stringify({ tool: tool.id, input: params, result }, null, 2) + EOL)
         return
       }
 
@@ -85,14 +87,11 @@ async function getAvailableTools(agent: Agent.Info) {
   )
 }
 
-async function resolveTools(agent: Agent.Info, availableTools: Awaited<ReturnType<typeof getAvailableTools>>) {
-  const disabled = Permission.disabled(
-    availableTools.map((tool) => tool.id),
-    agent.permission,
-  )
+export function resolveTools(agent: Agent.Info, availableTools: ToolDef[]) {
+  const disabled = Permission.disabled(availableTools.map((tool) => tool.policy), agent.permission)
   const resolved: Record<string, boolean> = {}
   for (const tool of availableTools) {
-    resolved[tool.id] = !disabled.has(tool.id)
+    resolved[tool.id] = !disabled.has(tool.policy)
   }
   return resolved
 }

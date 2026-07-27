@@ -124,6 +124,61 @@ describe("session.constitution", () => {
     }
   })
 
+  test("guardCommand blocks shell directory and file enumeration in every supported shell form", () => {
+    for (const command of [
+      "ls -la",
+      "dir /a",
+      "Get-ChildItem -Force",
+      "gci .",
+      "tree /f",
+      "find . -type f",
+      "fd.exe --hidden",
+      "rg --hidden --files",
+      "git -C repo ls-files",
+      "busybox find .",
+      "cmd /c dir",
+      "powershell -Command Get-ChildItem",
+      "powershell -Command ls",
+      "powershell -NoLogo -Command ls",
+      "powershell -ExecutionPolicy Bypass -Command ls",
+      "sh -c \"ls\"",
+      "command rg --files",
+      "sudo rg --files",
+      "sudo -u root rg --files",
+      "env -i A=1 rg --files",
+      "command -- rg --files",
+      "git --work-tree=/x ls-files",
+      "git --git-dir=/x ls-files",
+      "git status && ls",
+      "echo *",
+      "for f in **/*; do echo $f; done",
+      "for /r %f in (*) do @echo %f",
+      "for %%f in (*) do @echo %%f",
+      "Resolve-Path *",
+      "where /r . *.ts",
+    ]) {
+      const guard = Constitution.guardCommand(command)
+      expect(guard.blocked).toBe(true)
+      expect(guard.message).toContain("list tool")
+    }
+  })
+
+  test("guardCommand preserves ordinary commands and content search", () => {
+    for (const command of [
+      "git status",
+      "rg 'TODO' src",
+      "rg \"Get-ChildItem\" src",
+      "rg \"git ls-files\" docs",
+      "rg \"foo|Get-ChildItem\" src",
+      "rg \"foo; Get-ChildItem\" src",
+      "rg \"foo|git ls-files\" src",
+      "echo ls",
+      "node -e \"console.log('ls')\"",
+    ]) {
+      expect(Constitution.guardCommand(command).blocked).toBe(false)
+    }
+  })
+
   test("infoMarkAtLeast ranks Exact over Guess", () => {
     expect(Constitution.infoMarkAtLeast("Exact", "Inferred")).toBe(true)
     expect(Constitution.infoMarkAtLeast("Guess", "Exact")).toBe(false)
@@ -145,12 +200,12 @@ describe("session.constitution", () => {
   // --- epistemic nudge (plans/2026-07-22_epistemic_guardrails.md step B) ---
 
   test("epistemicNudge: mutation tools get nudge when floor is Inferred", () => {
-    for (const tool of ["write", "edit", "multiedit", "apply_patch"]) {
+    for (const tool of ["write", "edit", "multiedit", "applypatch"]) {
       const n = Constitution.epistemicNudge({ tool, evidenceFloor: "Inferred" })
       expect(n).toBeDefined()
       expect(n).toContain("epistemic nudge")
       expect(n).toContain("Inferred")
-      expect(n).toContain("session-read")
+      expect(n).toContain("sessionread")
     }
   })
 
@@ -185,7 +240,7 @@ describe("session.constitution", () => {
     })
     expect(n).toBeDefined()
     expect(n).toContain("Guess")
-    expect(n).toContain("session-read recommended")
+    expect(n).toContain("sessionread recommended")
   })
 
   test("epistemicNudge: elevated but non-destructive shell skips nudge", () => {

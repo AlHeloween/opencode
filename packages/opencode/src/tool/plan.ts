@@ -19,7 +19,7 @@ function getLastModel(sessionID: SessionID) {
 export const Parameters = Schema.Struct({})
 
 export const PlanExitTool = Tool.define(
-  "plan_exit",
+  "planexit",
   Effect.gen(function* () {
     const session = yield* Session.Service
     const question = yield* Question.Service
@@ -70,4 +70,5 @@ export const PlanExitTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "plan_exit",
 )

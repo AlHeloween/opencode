@@ -172,7 +172,8 @@ export const layer: Layer.Layer<
             [ZodOverride]: zodParams,
           })
           return {
-            id,
+            id: Tool.canonicalName(id),
+            policy: id,
             parameters,
             description: def.description,
             execute: (args, toolCtx) =>
@@ -388,9 +389,10 @@ export const layer: Layer.Layer<
             description: tool.description,
             parameters: tool.parameters,
           }
-          yield* plugin.trigger("tool.definition", { toolID: tool.id }, output)
+          yield* plugin.trigger("tool.definition", { toolID: tool.policy }, output)
           return {
             id: tool.id,
+            policy: tool.policy,
             description: [
               output.description,
               tool.id === TaskTool.id ? yield* describeTask(input.agent) : undefined,

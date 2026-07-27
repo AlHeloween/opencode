@@ -21,7 +21,7 @@ export const ReasoningEnterParameters = Schema.Struct({})
 export const ReasoningExitParameters = Schema.Struct({})
 
 export const ReasoningEnterTool = Tool.define(
-  "reasoning_enter",
+  "reasoningenter",
   Effect.gen(function* () {
     const session = yield* Session.Service
     const provider = yield* Provider.Service
@@ -53,10 +53,11 @@ export const ReasoningEnterTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "reasoning_enter",
 )
 
 export const ReasoningExitTool = Tool.define(
-  "reasoning_exit",
+  "reasoningexit",
   Effect.gen(function* () {
     const session = yield* Session.Service
     const provider = yield* Provider.Service
@@ -86,4 +87,5 @@ export const ReasoningExitTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "reasoning_exit",
 )

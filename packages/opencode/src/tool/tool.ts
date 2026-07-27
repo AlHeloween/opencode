@@ -37,6 +37,8 @@ export interface Def<
   M extends Metadata = Metadata,
 > {
   id: string
+  /** Compatibility-only ACL/plugin/config identity; never provider-visible. */
+  policy: string
   description: string
   parameters: Parameters
   jsonSchema?: unknown
@@ -46,13 +48,14 @@ export interface Def<
 export type DefWithoutID<
   Parameters extends Schema.Decoder<unknown> = Schema.Decoder<unknown>,
   M extends Metadata = Metadata,
-> = Omit<Def<Parameters, M>, "id">
+> = Omit<Def<Parameters, M>, "id" | "policy">
 
 export interface Info<
   Parameters extends Schema.Decoder<unknown> = Schema.Decoder<unknown>,
   M extends Metadata = Metadata,
 > {
   id: string
+  policy: string
   init: () => Effect.Effect<DefWithoutID<Parameters, M>>
 }
 
@@ -142,13 +145,17 @@ export function define<
 >(
   id: ID,
   init: Effect.Effect<Init<Parameters, Result>, never, R>,
+  policy = id,
 ): Effect.Effect<Info<Parameters, Result>, never, R | Truncate.Service | Agent.Service> & { id: ID } {
+  if (!id || id !== canonicalName(id)) {
+    throw new Error(`Tool runtime ID "${id}" must use lowercase ASCII alphanumerics`)
+  }
   return Object.assign(
     Effect.gen(function* () {
       const resolved = yield* init
       const truncate = yield* Truncate.Service
       const agents = yield* Agent.Service
-      return { id, init: wrap(id, resolved, truncate, agents) }
+      return { id, policy, init: wrap(id, resolved, truncate, agents) }
     }),
     { id },
   )
@@ -162,6 +169,7 @@ export function init<P extends Schema.Decoder<unknown>, M extends Metadata>(
     return {
       ...init,
       id: info.id,
+      policy: info.policy,
     }
   })
 }

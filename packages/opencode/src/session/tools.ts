@@ -20,16 +20,22 @@ import { EffectBridge } from "@/effect/bridge"
 import { ModelID } from "@/provider/schema"
 
 const log = Log.create({ service: "session.tools" })
-const originalNames = new WeakMap<Record<string, AITool>, Map<string, string>>()
+const policyNames = new WeakMap<Record<string, AITool>, Map<string, string>>()
 
-export function originalName(tools: Record<string, AITool>, name: string) {
-  return originalNames.get(tools)?.get(name) ?? name
+export function policyName(tools: Record<string, AITool>, name: string) {
+  return policyNames.get(tools)?.get(name) ?? name
 }
 
-export function preserveOriginalNames(source: Record<string, AITool>, target: Record<string, AITool>) {
-  originalNames.set(target, new Map(Object.keys(target).map((name) => [name, originalName(source, name)])))
+/** @deprecated use policyName; retained for internal compatibility. */
+export const originalName = policyName
+
+export function preservePolicyNames(source: Record<string, AITool>, target: Record<string, AITool>) {
+  policyNames.set(target, new Map(Object.keys(target).map((name) => [name, policyName(source, name)])))
   return target
 }
+
+/** @deprecated use preservePolicyNames; retained for internal compatibility. */
+export const preserveOriginalNames = preservePolicyNames
 
 export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   agent: Agent.Info
@@ -104,18 +110,18 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         .pipe(Effect.orDie),
   })
 
-  const register = (name: string, value: AITool, original: string) => {
+  const register = (name: string, value: AITool, policy: string) => {
     if (!name) {
-      log.warn("bug: provider tool name has no ASCII alphanumerics", { original })
-      throw new Error(`Provider tool "${original}" has no ASCII alphanumeric name`)
+      log.warn("bug: provider tool name has no ASCII alphanumerics", { policy })
+      throw new Error(`Provider tool with policy "${policy}" has no ASCII alphanumeric name`)
     }
     if (!tools[name]) {
       tools[name] = value
-      names.set(name, original)
+      names.set(name, policy)
       return
     }
-    log.warn("bug: provider tool-name collision", { canonical: name, original })
-    throw new Error(`Provider tool name collision for "${name}" from "${original}"`)
+    log.warn("bug: provider tool-name collision", { canonical: name, policy })
+    throw new Error(`Provider tool name collision for "${name}" from "${policy}"`)
   }
 
   for (const item of yield* registry.tools({
@@ -131,11 +137,11 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       execute(args, options) {
         return run.promise(
           Effect.gen(function* () {
-            if (disabled(item.id)) return yield* rejected(item.id, options.toolCallId)
+            if (disabled(item.policy)) return yield* rejected(item.id, options.toolCallId)
             const ctx = context(args, options)
             yield* plugin.trigger(
               "tool.execute.before",
-              { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID },
+              { tool: item.policy, sessionID: ctx.sessionID, callID: ctx.callID },
               { args },
             )
             const result = yield* item.execute(args, ctx)
@@ -150,7 +156,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
             }
             yield* plugin.trigger(
               "tool.execute.after",
-              { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID, args },
+              { tool: item.policy, sessionID: ctx.sessionID, callID: ctx.callID, args },
               output,
             )
             // Always complete the tool call from the execute callback — the
@@ -162,7 +168,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           }),
         )
       },
-    }), item.id)
+    }), item.policy)
   }
 
   // Provider-visible tools stay stable across native mode transitions; runtime
@@ -247,7 +253,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     register(name, item, key)
   }
 
-  originalNames.set(tools, names)
+  policyNames.set(tools, names)
   return tools
 })
 

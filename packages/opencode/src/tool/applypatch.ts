@@ -21,7 +21,7 @@ export const Parameters = Schema.Struct({
 })
 
 export const ApplyPatchTool = Tool.define(
-  "apply_patch",
+  "applypatch",
   Effect.gen(function* () {
     const lsp = yield* LSP.Service
     const afs = yield* AppFileSystem.Service
@@ -71,7 +71,7 @@ export const ApplyPatchTool = Tool.define(
       for (const hunk of hunks) {
         const filePath = path.resolve(Instance.directory, hunk.path)
         Constitution.noteMutationRisk({
-          tool: "apply_patch",
+          tool: "applypatch",
           path: filePath,
           sessionID: ctx.sessionID,
         })
@@ -304,4 +304,5 @@ new Error(
         run(params, ctx).pipe(Effect.orDie),
     }
   }),
+  "apply_patch",
 )

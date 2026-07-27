@@ -4,6 +4,9 @@ import path from "path"
 import * as Tool from "./tool"
 import { Global } from "@opencode-ai/core/global"
 import DESCRIPTION from "./fossilgrep.txt"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "tool.fossilgrep" })
 
 function findFossil(): string {
   const fs = require("fs") as typeof import("fs")
@@ -18,8 +21,8 @@ function findFossil(): string {
       const c = path.join(dir, name)
       try {
         if (fs.existsSync(c)) return c
-      } catch {
-        /* continue */
+      } catch (error) {
+        log.debug("fossil binary probe failed", { candidate: c, error })
       }
     }
   }
@@ -56,7 +59,7 @@ export const Parameters = Schema.Struct({
 })
 
 export const FossilGrepTool = Tool.define(
-  "fossil_grep",
+  "fossilgrep",
   Effect.gen(function* () {
     return {
       description: DESCRIPTION,
@@ -133,4 +136,5 @@ export const FossilGrepTool = Tool.define(
         }),
     }
   }),
+  "fossil_grep",
 )

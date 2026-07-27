@@ -7,7 +7,7 @@ export const JobOutputParameters = Schema.Struct({
 })
 
 export const JobOutputTool = Tool.define(
-  "job_output",
+  "joboutput",
   Effect.gen(function* () {
     const jobs = yield* Jobs.Service
     return {
@@ -31,6 +31,7 @@ export const JobOutputTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "job_output",
 )
 
 export const JobWaitParameters = Schema.Struct({
@@ -47,7 +48,7 @@ export const JobWaitParameters = Schema.Struct({
 })
 
 export const JobWaitTool = Tool.define(
-  "job_wait",
+  "jobwait",
   Effect.gen(function* () {
     const jobs = yield* Jobs.Service
     return {
@@ -117,4 +118,5 @@ export const JobWaitTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  "job_wait",
 )

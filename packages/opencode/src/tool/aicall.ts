@@ -12,7 +12,8 @@ import { ProviderID, ModelID } from "@/provider/schema"
 import path from "path"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 
-const id = "ai-call"
+const id = "aicall"
+const policy = "ai-call"
 
 export interface AiCallPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -64,7 +65,7 @@ export const AiCallTool = Tool.define(
 
           // Permission check
           yield* ctx.ask({
-            permission: id,
+            permission: policy,
             patterns: [params.prompt],
             always: ["*"],
             metadata: {
@@ -177,4 +178,5 @@ export const AiCallTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
+  policy,
 )

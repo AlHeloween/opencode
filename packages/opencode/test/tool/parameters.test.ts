@@ -9,7 +9,7 @@ import { toJsonSchema } from "../../src/util/effect-zod"
 // prompt.ts` uses to emit tool schemas to the LLM, so the snapshots stay
 // byte-identical regardless of whether a tool has migrated from zod to Schema.
 
-import { Parameters as ApplyPatch } from "../../src/tool/apply_patch"
+import { Parameters as ApplyPatch } from "../../src/tool/applypatch"
 import { Parameters as Bash } from "../../src/tool/bash"
 import { Parameters as Edit } from "../../src/tool/edit"
 import { Parameters as Glob } from "../../src/tool/glob"

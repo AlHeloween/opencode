@@ -3,7 +3,7 @@ import { MessageV2 } from "../session/message-v2"
 import { SessionID } from "../session/schema"
 import * as Tool from "./tool"
 
-import DESCRIPTION from "./session-read.txt"
+import DESCRIPTION from "./sessionread.txt"
 import { Constitution } from "@/session/constitution"
 
 const MAX_OUTPUT = 100 * 1024

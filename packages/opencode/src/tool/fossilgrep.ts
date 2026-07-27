@@ -3,7 +3,7 @@ import { execFile } from "child_process"
 import path from "path"
 import * as Tool from "./tool"
 import { Global } from "@opencode-ai/core/global"
-import DESCRIPTION from "./fossil-grep.txt"
+import DESCRIPTION from "./fossilgrep.txt"
 
 function findFossil(): string {
   const fs = require("fs") as typeof import("fs")

@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_fadee69b344b7f2dadcac9202e43b808 name="legacy_summary_is_terminal" md5="fadee69b344b7f2dadcac9202e43b808" size="59">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>&quot;Layer-1 summary resumes protected reasoning without action pressure&quot;</find_text>
+    <semantics>A visible legacy Layer-1 summary must terminate its own synthetic turn and must not emit a synthetic resume that pressures reasoning. Detached sidecar capture is covered separately.</semantics>
+    <content_md5_fadee69b344b7f2dadcac9202e43b808>
+      &quot;legacy Layer-1 summary is terminal and does not synthesize a resume&quot;
+    </content_md5_fadee69b344b7f2dadcac9202e43b808>
+  </update_md5_fadee69b344b7f2dadcac9202e43b808>
+  <update_md5_3fbf0d56fcdb2eecdc47ab14ca2feeb1 name="assert_legacy_summary_terminal" md5="3fbf0d56fcdb2eecdc47ab14ca2feeb1" size="560">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        const result = yield* prompt.loop({ sessionID: session.id })
+        expect(result.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;resumed reasoning&quot;)).toBe(true)
+
+        const messages = yield* MessageV2.filterCompactedEffect(session.id)
+        const summaryIndex = messages.findIndex((message) =&gt; message.info.role === &quot;assistant&quot; &amp;&amp; message.info.summary)
+        const resume = messages[summaryIndex + 1]
+        const text = resume?.parts
+          .filter((part): part is MessageV2.TextPart =&gt; part.type === &quot;text&quot;)
+          .map((part) =&gt; part.text)
+          .join(&quot;\n&quot;)
+        expect(text).toContain(&quot;protected reasoning/calibration flow&quot;)
+        expect(text).not.toContain(&quot;Prefer tools and edits&quot;)</find_text>
+    <semantics>Assert that legacy synthetic summaries terminate at the summary itself, never schedule a third provider call or append a resume turn, while retaining the protected reasoning wording inside the summary body.</semantics>
+    <content_md5_3fbf0d56fcdb2eecdc47ab14ca2feeb1>
+      yield* prompt.loop({ sessionID: session.id })
+
+      const inputs = yield* llm.inputs
+      expect(inputs).toHaveLength(2)
+
+      const messages = yield* MessageV2.filterCompactedEffect(session.id)
+      const summaryIndex = messages.findIndex((message) =&gt; message.info.role === &quot;assistant&quot; &amp;&amp; message.info.summary)
+      expect(summaryIndex).toBe(messages.length - 1)
+      const summary = messages[summaryIndex]
+      const text = summary?.parts
+        .filter((part): part is MessageV2.TextPart =&gt; part.type === &quot;text&quot;)
+        .map((part) =&gt; part.text)
+        .join(&quot;\n&quot;)
+      expect(text).toContain(&quot;protected calibration flow&quot;)
+      expect(text).not.toContain(&quot;Prefer tools and edits&quot;)
+    </content_md5_3fbf0d56fcdb2eecdc47ab14ca2feeb1>
+  </update_md5_3fbf0d56fcdb2eecdc47ab14ca2feeb1>
+</updates>

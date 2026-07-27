@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_b97208f50ca272210df63b1daed90312 name="reasoning_65k_sidecar_handoff" md5="b97208f50ca272210df63b1daed90312" size="62">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>&quot;Layer-1 summary handoff fits a 65K reasoning-model context&quot;,</find_text>
+    <semantics>The 65K reasoning-model scenario must validate the provider-safe detached sidecar request: normal answer plus one tools-free sidecar request, with no synthetic resume turn.</semantics>
+    <content_md5_b97208f50ca272210df63b1daed90312>
+      &quot;Layer-1 sidecar handoff stays within the 65K reasoning-model budget&quot;,
+    </content_md5_b97208f50ca272210df63b1daed90312>
+  </update_md5_b97208f50ca272210df63b1daed90312>
+  <update_md5_ab770480c3b77a4059dc12a626931eda name="assert_65k_sidecar_provider_boundary" md5="ab770480c3b77a4059dc12a626931eda" size="364">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        const result = yield* prompt.loop({ sessionID: session.id })
+        expect(yield* llm.calls).toBe(3)
+        expect(result.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;resumed within context&quot;)).toBe(true)
+        const messages = yield* MessageV2.filterCompactedEffect(session.id)
+        expect(messages.some((message) =&gt; message.info.role === &quot;assistant&quot; &amp;&amp; message.info.summary)).toBe(true)</find_text>
+    <semantics>Assert two provider calls, preserve the completed answer, require a tools-free sidecar request, and ensure the bounded reasoning-model sidecar receives the completed answer in its provider context.</semantics>
+    <content_md5_ab770480c3b77a4059dc12a626931eda>
+      const result = yield* prompt.loop({ sessionID: session.id })
+      expect(yield* llm.calls).toBe(2)
+      expect(result.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;completed reasoning answer&quot;)).toBe(true)
+      const inputs = yield* llm.inputs
+      expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
+      expect(JSON.stringify(inputs[1]?.messages)).toContain(&quot;completed reasoning answer&quot;)
+    </content_md5_ab770480c3b77a4059dc12a626931eda>
+  </update_md5_ab770480c3b77a4059dc12a626931eda>
+</updates>

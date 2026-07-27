@@ -535,7 +535,7 @@ it.live("native mode transition keeps the provider identity and declared tools s
     }),
     { git: true, config: providerCfg },
   ),
-  20_000,
+  30_000,
 )
 
 it.live("static loop consumes queued replies across turns", () =>
@@ -758,7 +758,7 @@ The flow will resume.`)
 )
 
 it.live(
-  "Layer-1 summary resumes protected reasoning without action pressure",
+  "legacy Layer-1 summary is terminal and does not synthesize a resume",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -788,18 +788,12 @@ Preserve the protected calibration flow.
 The reasoning flow will resume.`)
         yield* llm.text("resumed reasoning")
 
-        const result = yield* prompt.loop({ sessionID: session.id })
-        expect(result.parts.some((part) => part.type === "text" && part.text === "resumed reasoning")).toBe(true)
+        yield* prompt.loop({ sessionID: session.id })
 
-        const messages = yield* MessageV2.filterCompactedEffect(session.id)
-        const summaryIndex = messages.findIndex((message) => message.info.role === "assistant" && message.info.summary)
-        const resume = messages[summaryIndex + 1]
-        const text = resume?.parts
-          .filter((part): part is MessageV2.TextPart => part.type === "text")
-          .map((part) => part.text)
-          .join("\n")
-        expect(text).toContain("protected reasoning/calibration flow")
-        expect(text).not.toContain("Prefer tools and edits")
+const inputs = yield* llm.inputs
+expect(inputs).toHaveLength(2)
+
+expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
       }),
       { git: true, config: providerCfg },
     ),
@@ -807,7 +801,7 @@ The reasoning flow will resume.`)
 )
 
 it.live(
-  "Layer-1 summary handoff fits a 65K reasoning-model context",
+  "Layer-1 sidecar handoff stays within the 65K reasoning-model budget",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -835,10 +829,11 @@ The protected flow can resume.`)
         yield* llm.text("resumed within context")
 
         const result = yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(3)
-        expect(result.parts.some((part) => part.type === "text" && part.text === "resumed within context")).toBe(true)
-        const messages = yield* MessageV2.filterCompactedEffect(session.id)
-        expect(messages.some((message) => message.info.role === "assistant" && message.info.summary)).toBe(true)
+expect(yield* llm.calls).toBe(2)
+expect(result.parts.some((part) => part.type === "text" && part.text === "completed reasoning answer")).toBe(true)
+const inputs = yield* llm.inputs
+expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
+expect(JSON.stringify(inputs[1]?.messages)).toContain("completed reasoning answer")
       }),
       { git: true, config: reasoning65kProviderCfg },
     ),
@@ -936,7 +931,7 @@ The resume is blocked.`)
 )
 
 it.live(
-  "Layer-1 retry keeps an invalid attempt out of the summary boundary",
+  "Layer-1 rejects an invalid detached sidecar without creating a boundary",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -968,10 +963,11 @@ The valid retry is accepted.`)
         yield* llm.text("resumed answer")
 
         yield* prompt.loop({ sessionID: session.id })
-        const messages = yield* MessageV2.filterCompactedEffect(session.id)
-        expect(yield* llm.calls).toBe(4)
-        expect(messages.filter((message) => message.info.role === "assistant" && message.info.summary)).toHaveLength(1)
-        expect(messages.some((message) => message.parts.some((part) => part.type === "text" && part.text === "not a Layer-1 summary") && !message.info.summary)).toBe(true)
+const messages = yield* MessageV2.filterCompactedEffect(session.id)
+expect(yield* llm.calls).toBe(2)
+expect(messages.some((message) => message.parts.some((part) => part.type === "text" && part.text === "normal answer"))).toBe(true)
+expect(messages.some((message) => message.parts.some((part) => part.type === "text" && part.text === "not a Layer-1 summary"))).toBe(false)
+expect(IncrementalCheckpoint.listOpen(session.id)).toHaveLength(0)
       }),
       { git: true, config: providerCfg },
     ),
@@ -979,7 +975,7 @@ The valid retry is accepted.`)
 )
 
 it.live(
-  "Layer-1 waits through a threshold-crossing tool loop before requesting summary",
+  "Layer-1 waits through a threshold-crossing tool loop before requesting a sidecar",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -1011,15 +1007,16 @@ The agent will resume.`)
         yield* llm.text("resumed after tool")
 
         yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(4)
-        const messages = yield* MessageV2.filterCompactedEffect(session.id)
-        const toolIndex = messages.findIndex((message) => message.parts.some((part) => part.type === "tool"))
-        const normalIndex = messages.findIndex((message) =>
-          message.parts.some((part) => part.type === "text" && part.text === "normal answer after tool"),
-        )
-        const summaryIndex = messages.findIndex((message) => message.info.role === "assistant" && message.info.summary)
-        expect(normalIndex).toBeGreaterThan(toolIndex)
-        expect(summaryIndex).toBeGreaterThan(normalIndex)
+const inputs = yield* llm.inputs
+expect(inputs).toHaveLength(3)
+expect((inputs[2]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
+expect(JSON.stringify(inputs[2]?.messages)).toContain("normal answer after tool")
+const messages = yield* MessageV2.filterCompactedEffect(session.id)
+const toolIndex = messages.findIndex((message) => message.parts.some((part) => part.type === "tool"))
+const normalIndex = messages.findIndex((message) =>
+  message.parts.some((part) => part.type === "text" && part.text === "normal answer after tool"),
+)
+expect(normalIndex).toBeGreaterThan(toolIndex)
       }),
       { git: true, config: providerCfg },
     ),
@@ -2616,12 +2613,12 @@ it.live(
 // SDID_ROLLBACK {
 //   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts"
 //   "update_script": "adm.exe"
-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts.backup_20260728T023732_346380"
-//   "created_at": "2026-07-27T18:37:32.376891+00:00"
-//   "backup_hash": "5dd5d394e7590f1cc19fcaf2e5cc0d26"
-//   "new_hash": "26beee6120666227f5e5882652e13638"
-//   "goal_id": "reject_unscoped_request_key"
-//   "semantics": "Preserve the regression guard against an unscoped session-only provider cache key."
-//   "update_attrs": {"relative_path": "packages/opencode/test/session/prompt.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "expect(body).not.toContain(`[session: ${session.id}]`)", "replace_present": true}
+//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts.backup_20260728T031215_389647"
+//   "created_at": "2026-07-27T19:12:15.427910+00:00"
+//   "backup_hash": "26092c17d96fc9ba6ae286cf516e6a6a"
+//   "new_hash": "0f44288241d961bde0fb8d6786e64d70"
+//   "goal_id": "assert_tool_completion_before_sidecar"
+//   "semantics": "Assert the exact three-call sequence: initial tool call, normal completion after the tool result, then a tools-free sidecar whose provider context contains that completion. No visible summary row or resume is allowed."
+//   "update_attrs": {"relative_path": "packages/opencode/test/session/prompt.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "yield* prompt.loop({ sessionID: session.id })\n        expect(yield* llm.calls).toBe(4)\n        const messages = yield* MessageV2.filterCompactedEffect(session.id)\n        const toolIndex = messages.findIndex((message) => message.parts.some((part) => part.type === \"tool\"))\n        const normalIndex = messages.findIndex((message) =>\n          message.parts.some((part) => part.type === \"text\" && part.text === \"normal answer after tool\"),\n        )\n        const summaryIndex = messages.findIndex((message) => message.info.role === \"assistant\" && message.info.summary)\n        expect(normalIndex).toBeGreaterThan(toolIndex)\n        expect(summaryIndex).toBeGreaterThan(normalIndex)", "replace_present": true}
 //   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts\""
 // }

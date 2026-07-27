@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_6e6c35e6560005e1ed6c1f2198fa8f7d name="extend_mode_transition_live_timeout" md5="6e6c35e6560005e1ed6c1f2198fa8f7d" size="7">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>  20_000,</find_text>
+    <semantics>Two complete provider turns cannot reliably fit a 20 second Windows Fossil and Git integration deadline; preserve a bounded 30 second test timeout.</semantics>
+    <content_md5_6e6c35e6560005e1ed6c1f2198fa8f7d>
+      30_000,
+    </content_md5_6e6c35e6560005e1ed6c1f2198fa8f7d>
+  </update_md5_6e6c35e6560005e1ed6c1f2198fa8f7d>
+</updates>

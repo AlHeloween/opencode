@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_5e07c04319819f862b46c16720f73e07 name="rename_tool_boundary_sidecar_test" md5="5e07c04319819f862b46c16720f73e07" size="72">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>&quot;Layer-1 waits through a threshold-crossing tool loop before requesting summary&quot;</find_text>
+    <semantics>A threshold crossing must wait for the tool loop and normal answer to complete before issuing a tools-free detached sidecar request.</semantics>
+    <content_md5_5e07c04319819f862b46c16720f73e07>
+      &quot;Layer-1 waits through a threshold-crossing tool loop before requesting a sidecar&quot;
+    </content_md5_5e07c04319819f862b46c16720f73e07>
+  </update_md5_5e07c04319819f862b46c16720f73e07>
+  <update_md5_2147278695278695168f71dcff26ecb2 name="assert_tool_completion_before_sidecar" md5="2147278695278695168f71dcff26ecb2" size="577">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        yield* prompt.loop({ sessionID: session.id })
+        expect(yield* llm.calls).toBe(4)
+        const messages = yield* MessageV2.filterCompactedEffect(session.id)
+        const toolIndex = messages.findIndex((message) =&gt; message.parts.some((part) =&gt; part.type === &quot;tool&quot;))
+        const normalIndex = messages.findIndex((message) =&gt;
+          message.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;normal answer after tool&quot;),
+        )
+        const summaryIndex = messages.findIndex((message) =&gt; message.info.role === &quot;assistant&quot; &amp;&amp; message.info.summary)
+        expect(normalIndex).toBeGreaterThan(toolIndex)
+        expect(summaryIndex).toBeGreaterThan(normalIndex)</find_text>
+    <semantics>Assert the exact three-call sequence: initial tool call, normal completion after the tool result, then a tools-free sidecar whose provider context contains that completion. No visible summary row or resume is allowed.</semantics>
+    <content_md5_2147278695278695168f71dcff26ecb2>
+      yield* prompt.loop({ sessionID: session.id })
+      const inputs = yield* llm.inputs
+      expect(inputs).toHaveLength(3)
+      expect((inputs[2]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
+      expect(JSON.stringify(inputs[2]?.messages)).toContain(&quot;normal answer after tool&quot;)
+      const messages = yield* MessageV2.filterCompactedEffect(session.id)
+      const toolIndex = messages.findIndex((message) =&gt; message.parts.some((part) =&gt; part.type === &quot;tool&quot;))
+      const normalIndex = messages.findIndex((message) =&gt;
+        message.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;normal answer after tool&quot;),
+      )
+      expect(normalIndex).toBeGreaterThan(toolIndex)
+    </content_md5_2147278695278695168f71dcff26ecb2>
+  </update_md5_2147278695278695168f71dcff26ecb2>
+</updates>

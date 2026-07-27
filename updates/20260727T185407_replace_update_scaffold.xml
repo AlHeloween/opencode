@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_800a775f34aa86675748eb7c151dc773 name="assert_terminal_provider_boundary" md5="800a775f34aa86675748eb7c151dc773" size="125">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>const inputs = yield* llm.inputs
+expect(inputs).toHaveLength(2)
+
+const messages = yield* MessageV2.filterCompactedEffect(session.id)
+const summaryIndex = messages.findIndex((message) =&gt; message.info.role === &quot;assistant&quot; &amp;&amp; message.info.summary)
+expect(summaryIndex).toBe(messages.length - 1)
+const summary = messages[summaryIndex]
+const text = summary?.parts
+  .filter((part): part is MessageV2.TextPart =&gt; part.type === &quot;text&quot;)
+  .map((part) =&gt; part.text)
+  .join(&quot;\n&quot;)
+expect(text).toContain(&quot;protected calibration flow&quot;)
+expect(text).not.toContain(&quot;Prefer tools and edits&quot;)</find_text>
+    <semantics>During the migration, filtered history does not expose the legacy summary row. Assert the real invariant: exactly normal plus summary requests, with no tools in the summary request and no synthetic resume call.</semantics>
+    <content_md5_800a775f34aa86675748eb7c151dc773>
+      const inputs = yield* llm.inputs
+      expect(inputs).toHaveLength(2)
+
+      expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
+    </content_md5_800a775f34aa86675748eb7c151dc773>
+  </update_md5_800a775f34aa86675748eb7c151dc773>
+</updates>

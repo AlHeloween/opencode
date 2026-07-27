@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_535bddd5f905c9aae21a99da4fdab0c4 name="rename_invalid_sidecar_test" md5="535bddd5f905c9aae21a99da4fdab0c4" size="64">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>&quot;Layer-1 retry keeps an invalid attempt out of the summary boundary&quot;</find_text>
+    <semantics>An invalid detached sidecar is isolated, creates no open checkpoint, and must not synthesize a retry or resume turn in the main conversation.</semantics>
+    <content_md5_535bddd5f905c9aae21a99da4fdab0c4>
+      &quot;Layer-1 rejects an invalid detached sidecar without creating a boundary&quot;
+    </content_md5_535bddd5f905c9aae21a99da4fdab0c4>
+  </update_md5_535bddd5f905c9aae21a99da4fdab0c4>
+  <update_md5_0c50fc04a0d7b50cfd92f0b99a8c3b69 name="assert_invalid_sidecar_isolation" md5="0c50fc04a0d7b50cfd92f0b99a8c3b69" size="446">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <find_text>        yield* prompt.loop({ sessionID: session.id })
+        const messages = yield* MessageV2.filterCompactedEffect(session.id)
+        expect(yield* llm.calls).toBe(4)
+        expect(messages.filter((message) =&gt; message.info.role === &quot;assistant&quot; &amp;&amp; message.info.summary)).toHaveLength(1)
+        expect(messages.some((message) =&gt; message.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;not a Layer-1 summary&quot;) &amp;&amp; !message.info.summary)).toBe(true)</find_text>
+    <semantics>Verify the isolated branch consumes one invalid sidecar response but neither stores it nor changes the normal visible answer, leaving no open sidecar boundary.</semantics>
+    <content_md5_0c50fc04a0d7b50cfd92f0b99a8c3b69>
+      yield* prompt.loop({ sessionID: session.id })
+      const messages = yield* MessageV2.filterCompactedEffect(session.id)
+      expect(yield* llm.calls).toBe(2)
+      expect(messages.some((message) =&gt; message.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;normal answer&quot;))).toBe(true)
+      expect(messages.some((message) =&gt; message.parts.some((part) =&gt; part.type === &quot;text&quot; &amp;&amp; part.text === &quot;not a Layer-1 summary&quot;))).toBe(false)
+      expect(IncrementalCheckpoint.listOpen(session.id)).toHaveLength(0)
+    </content_md5_0c50fc04a0d7b50cfd92f0b99a8c3b69>
+  </update_md5_0c50fc04a0d7b50cfd92f0b99a8c3b69>
+</updates>

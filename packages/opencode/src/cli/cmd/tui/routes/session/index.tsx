@@ -26,7 +26,7 @@ import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import { renderMermaidToPngDataUrl } from "@/util/mermaid"
-  import { indexedMermaidSegments, splitTextSegments, type TextSegment } from "./text-segments"
+import { indexedMermaidSegments, splitTextSegments, type TextSegment } from "./text-segments"
 
 import type {
   AssistantMessage,
@@ -57,7 +57,6 @@ import type { TaskTool } from "@/tool/task"
 import type { QuestionTool } from "@/tool/question"
 import type { SkillTool } from "@/tool/skill"
 import { useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import { useSDK } from "@tui/context/sdk"
 import { useCommandDialog } from "@tui/component/dialog-command"
 import type { DialogContext } from "@tui/ui/dialog"
@@ -1663,7 +1662,7 @@ function UserMessage(props: {
                 Active model context after compaction — observe this to understand model behavior.
               </text>
             </Show>
-            <text fg={isModelMemory() ? theme.textMuted : theme.text}>{text()}</text>
+            <RichText content={text()} id={props.message.id} muted={isModelMemory()} streaming={false} surface="panel" />
             <Show when={files().length}>
               <box flexDirection="row" paddingBottom={metadataVisible() ? 1 : 0} paddingTop={1} gap={1} flexWrap="wrap">
                 <For each={files()}>
@@ -1814,12 +1813,13 @@ const PART_MAPPING = {
 }
 
 function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
-  const { theme, subtleSyntax } = useTheme()
   const ctx = use()
+  const { theme } = useTheme()
   const content = createMemo(() => {
     // Filter out redacted reasoning chunks from OpenRouter
     // OpenRouter sends encrypted reasoning data that appears as [REDACTED]
-    return props.part.text.replace("[REDACTED]", "").trim()
+    const text = props.part.text.replace("[REDACTED]", "").trim()
+    return text ? `*Thinking:* ${text}` : ""
   })
   return (
     <Show when={content() && ctx.showThinking()}>
@@ -1832,52 +1832,23 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         customBorderChars={SplitBorder.customBorderChars}
         borderColor={theme.backgroundElement}
       >
-        <markdown
-          syntaxStyle={subtleSyntax()}
-          streaming={!props.part.time?.end}
-          content={"*Thinking:* " + content()}
-          conceal={ctx.conceal()}
-          fg={theme.textMuted}
-          bg={theme.background}
-        />
+        <RichText content={content()} id={props.part.id} muted subtle streaming={!props.part.time?.end} />
       </box>
     </Show>
   )
 }
 
-/**
- * Heal incomplete markdown formatting for streaming display.
- * Closes unclosed **bold**, *italic*, ~~strikethrough~~, and `inline code`
- * that appeared outside fenced code blocks. This significantly reduces
- * tree-sitter zero-highlights events during streaming, because an unclosed
- * formatting span causes the parser to fail the entire block.
- * Operates on text outside code blocks to avoid false-positive counts
- * from formatting markers inside code.
- */
-function healMarkdown(text: string): string {
-  // Strip content inside fenced code blocks and inline code spans
-  // before counting markers. Remaining text is formatting-significant.
-  const outsideCode = text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]*`/g, "")
-
-  const close: string[] = []
-  // **bold** — pairs of exactly **
-  if ((outsideCode.match(/\*\*/g) || []).length % 2 !== 0) close.push("**")
-  // *italic* — single * not part of **
-  if ((outsideCode.match(/(?<!\*)\*(?!\*)/g) || []).length % 2 !== 0) close.push("*")
-  // ~~strikethrough~~
-  if ((outsideCode.match(/~~/g) || []).length % 2 !== 0) close.push("~~")
-  // `inline code` — single backtick
-  if ((outsideCode.match(/(?<!`)`(?!`)/g) || []).length % 2 !== 0) close.push("`")
-
-  return close.length ? text + close.join("") : text
-}
-
-function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
+function RichText(props: {
+  content: string
+  id: string
+  muted?: boolean
+  streaming: boolean
+  subtle?: boolean
+  surface?: "panel"
+}) {
   const ctx = use()
-  const { theme, syntax, mode } = useTheme()
-  const streaming = createMemo(() => !props.part.time?.end)
-
-  const segments = createMemo(() => splitTextSegments(props.part.text))
+  const { theme, syntax, subtleSyntax, mode } = useTheme()
+  const segments = createMemo(() => splitTextSegments(props.content))
 
   const markdownSegmentText = (segment: TextSegment) => (segment.type === "markdown" ? segment.text : "")
   // Progressive mermaid rendering — render each completed mermaid block as soon
@@ -1915,8 +1886,8 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
           }
         })
         .catch((error) => {
-          Log.Default.warn("bug: mermaid render failed in TextPart", {
-            partId: props.part.id,
+          Log.Default.warn("bug: mermaid render failed in rich transcript text", {
+            partId: props.id,
             segment: index,
             error: String(error),
           })
@@ -1926,79 +1897,40 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   })
 
   return (
-    <Show when={segments().length > 0}>
+    <Index each={segments()}>
+      {(segment, index) => (
+        <Switch>
+          <Match when={segment().type === "markdown"}>
+            <markdown
+              syntaxStyle={props.subtle ? subtleSyntax() : syntax()}
+              streaming={props.streaming}
+              content={markdownSegmentText(segment())}
+              conceal={ctx.conceal()}
+              fg={props.muted ? theme.textMuted : theme.markdownText}
+              bg={props.surface === "panel" ? theme.backgroundPanel : theme.background}
+            />
+          </Match>
+          <Match when={segment().type === "mermaid"}>
+            <Show
+              when={mermaidDataUrls()[index]}
+              fallback={<text fg={theme.textMuted}>{mermaidFallback(segment(), index)}</text>}
+            >
+              <MediaImage url={mermaidDataUrls()[index]!} mime="image/png" interactive />
+            </Show>
+          </Match>
+        </Switch>
+      )}
+    </Index>
+  )
+}
+
+function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
+  const streaming = createMemo(() => !props.part.time?.end)
+
+  return (
+    <Show when={props.part.text.trim()}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <Index each={segments()}>
-          {(segment, index) => (
-            <Switch>
-              <Match when={segment().type === "markdown"}>
-                <Switch>
-                  <Match when={Flag.OPENCODE_MARKDOWN}>
-                    <markdown
-                      syntaxStyle={syntax()}
-                      streaming={streaming()}
-                      content={markdownSegmentText(segment())}
-                      conceal={ctx.conceal()}
-                      fg={theme.markdownText}
-                      bg={theme.background}
-                    />
-                  </Match>
-                  <Match when={!Flag.OPENCODE_MARKDOWN}>
-                    <code
-                      filetype="markdown"
-                      drawUnstyledText={false}
-                      streaming={streaming()}
-                      syntaxStyle={syntax()}
-                      content={healMarkdown(markdownSegmentText(segment()))}
-                      conceal={ctx.conceal()}
-                      fg={theme.text}
-                      onHighlight={(() => {
-                        // Persist last successful highlights across async highlight calls.
-                        // Tree-sitter frequently returns zero highlights for incomplete
-                        // markdown mid-stream (e.g. unclosed **bold, unclosed code fences).
-                        // When that happens, @opentui/core's CodeRenderable overwrites the
-                        // styled text buffer with plain text — and sets _highlightsDirty=false,
-                        // so no re-highlight is ever attempted for that content.
-                        // By returning the last known good highlights, we keep the styled
-                        // path active and prevent the plain-text overwrite.
-                        // NOTE: The fallback is active even after streaming ends — tree-sitter
-                        // can return zero highlights for the final content push too, and
-                        // without the fallback the styled buffer is permanently lost.
-                        let lastHighlights: any[] = []
-                        return (highlights: any, context: any) => {
-                          if (highlights && highlights.length > 0) {
-                            lastHighlights = highlights
-                            return highlights
-                          }
-                          if (lastHighlights.length > 0) {
-                            Log.Default.debug(
-                              "bug: tree-sitter returned ZERO highlights, falling back to last known",
-                              {
-                                partId: props.part.id,
-                                content: String(context?.content).slice(0, 200),
-                                lastCount: lastHighlights.length,
-                              },
-                            )
-                            return lastHighlights
-                          }
-                          return highlights
-                        }
-                      })()}
-                    />
-                  </Match>
-                </Switch>
-              </Match>
-              <Match when={segment().type === "mermaid"}>
-                <Show
-                  when={mermaidDataUrls()[index]}
-                  fallback={<text fg={theme.textMuted}>{mermaidFallback(segment(), index)}</text>}
-                >
-                  <MediaImage url={mermaidDataUrls()[index]!} mime="image/png" interactive />
-                </Show>
-              </Match>
-            </Switch>
-          )}
-        </Index>
+        <RichText content={props.part.text} id={props.part.id} streaming={streaming()} />
       </box>
     </Show>
   )

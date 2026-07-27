@@ -57,6 +57,8 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-07-28-reasoning-rich-text.md` — route reasoning through the shared Markdown/Mermaid transcript renderer
+- `2026-07-28-unified-rich-text-rendering.md` — shared Markdown/Mermaid transcript renderer for user and assistant messages
 - `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-touch → readonly SQLite pack, Fossil impact, and production smokes
 - `2026-07-22_epistemic_guardrails.md` — Inferred/Exact guardrails
 - `2026-07-24_summary-after-completion.md` — Layer-1 completion/resume plus persisted Fossil + CodeGraph Exact handles in `message*`

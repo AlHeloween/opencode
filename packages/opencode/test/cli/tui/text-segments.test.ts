@@ -29,4 +29,38 @@ describe("TUI text segments", () => {
   test("preserves leading and trailing whitespace", () => {
     expect(splitTextSegments("  hello  ")).toEqual([{ type: "markdown", text: "  hello  " }])
   })
+
+  test("preserves rich Markdown while extracting Mermaid for image rendering", () => {
+    const segments = splitTextSegments(
+      [
+        "**Tests co-committed with features**",
+        "",
+        "```typescript",
+        "const enabled = true",
+        "```",
+        "",
+        "```mermaid",
+        "graph TD",
+        "  A --> B",
+        "```",
+      ].join("\n"),
+    )
+
+    expect(segments).toEqual([
+      {
+        type: "markdown",
+        text: "**Tests co-committed with features**\n\n```typescript\nconst enabled = true\n```\n\n",
+      },
+      { type: "mermaid", raw: "```mermaid\ngraph TD\n  A --> B\n```", source: "graph TD\n  A --> B" },
+    ])
+  })
+
+  test("keeps the reasoning label and formatting before Mermaid extraction", () => {
+    const segments = splitTextSegments(["*Thinking:* **checking**", "", "```mermaid", "graph TD", "  A --> B", "```"].join("\n"))
+
+    expect(segments).toEqual([
+      { type: "markdown", text: "*Thinking:* **checking**\n\n" },
+      { type: "mermaid", raw: "```mermaid\ngraph TD\n  A --> B\n```", source: "graph TD\n  A --> B" },
+    ])
+  })
 })

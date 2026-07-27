@@ -4145,6 +4145,25 @@ test("paragraph initial render does not flash raw markdown markers", async () =>
   expect(finalFrame).toContain("This has bold text.")
 })
 
+test("paragraph applies bold attributes to co-committed test text", async () => {
+  const md = createMarkdownRenderable({
+    id: "markdown",
+    content: "**Tests co-committed with features**",
+    syntaxStyle: SyntaxStyle.fromStyles({
+      default: { fg: RGBA.fromValues(1, 1, 1, 1) },
+      "markup.strong": { bold: true },
+    }),
+    conceal: true,
+  })
+
+  renderer.root.add(md)
+  await renderMarkdownRenderable(md)
+
+  const span = findSpanContaining(captureSpans(), "Tests co-committed with features")
+  expect(span).toBeDefined()
+  expect(span!.attributes & TextAttributes.BOLD).toBe(TextAttributes.BOLD)
+})
+
 test("paragraph updates do not flash raw markdown markers", async () => {
   const md = createMarkdownRenderable({
     id: "markdown",

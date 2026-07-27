@@ -9,6 +9,7 @@ import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: 
 import markdownifyWasm from "../../../wasm/markdownify/pkg/markdownify_wasm_bg.wasm" with { type: "file" }
 import chafaWasm from "../../../wasm/core/pkg/chafa.wasm" with { type: "file" }
 import treeSitterRuntimeWasm from "web-tree-sitter/web-tree-sitter.wasm" with { type: "file" }
+import mermaidRendererWasm from "mermaid-wasm-renderer/mermaid_wasm_renderer_bg.wasm" with { type: "file" }
 
 // Tree-sitter grammar WASMs — all bundled from packages/wasm/core/pkg/grammars/
 import treeSitterArktsWasm from "../../../wasm/core/pkg/grammars/tree-sitter-arkts.wasm" with { type: "file" }
@@ -139,8 +140,11 @@ const embeddedWasmAssets = new Map([
   ["markdownify/markdownify_wasm_bg.wasm", markdownifyWasm as unknown as string],
   ["chafa.wasm", chafaWasm as unknown as string],
   ["web-tree-sitter.wasm", treeSitterRuntimeWasm],
+  ["mermaid/mermaid_wasm_renderer_bg.wasm", mermaidRendererWasm as unknown as string],
   ...embeddedTreeSitterGrammarAssets,
 ])
+
+export const embeddedWasmAssetPaths = [...embeddedWasmAssets.keys()]
 
 function normalizeWasmAsset(relativePath: string) {
   return relativePath.replaceAll("\\", "/").replace(/^\/+/, "")

@@ -13,6 +13,7 @@ import { Resvg } from "@resvg/resvg-js"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
 import { fitContainSize, parseSvgNaturalSize } from "./fit-image"
+import { getMermaidWasmRenderer, resetMermaidWasmRenderer, type MermaidWasmRenderer } from "./mermaid-wasm"
 import { pixelsToSixel } from "./sixel-render"
 import type { AnsiChunk } from "./image-to-ansi"
 
@@ -104,15 +105,16 @@ export interface MermaidRenderOptions {
 // mermaid-wasm-renderer (CommonJS) reads a 2.8MB .wasm file synchronously at
 // module load via require('fs').readFileSync. We defer that to first render,
 // and also handle errors (missing binary, __dirname in ESM, etc.) gracefully.
-let _renderer: typeof import("mermaid-wasm-renderer") | null = null
-let _rendererLoading: Promise<typeof import("mermaid-wasm-renderer")> | null = null
+let _renderer: MermaidWasmRenderer | null = null
+let _rendererLoading: Promise<MermaidWasmRenderer> | null = null
 
-async function getRenderer(): Promise<typeof import("mermaid-wasm-renderer")> {
+async function getRenderer(): Promise<MermaidWasmRenderer> {
   if (_renderer) return _renderer
   if (_rendererLoading) return _rendererLoading
   _rendererLoading = (async () => {
     try {
-      const mod = await import("mermaid-wasm-renderer")
+      const mod = await getMermaidWasmRenderer()
+      if (!mod) throw new Error("mermaid WASM renderer unavailable")
       _renderer = mod
       return mod
     } finally {
@@ -140,6 +142,7 @@ export async function registerMermaidFont(fontPath: string): Promise<boolean> {
 export function resetRendererCache(): void {
   _renderer = null
   _rendererLoading = null
+  resetMermaidWasmRenderer()
 }
 
 // ── Timeout wrapper ─────────────────────────────────────────────────────────

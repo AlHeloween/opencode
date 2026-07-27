@@ -458,50 +458,31 @@ function Invoke-Build {
         throw "opentui.dll not found at $opentuiDllSrc — run without -SkipOpenTui or build packages/opentui/packages/core first"
     }
 
-    # Copy WASM modules to dist as fallback sidecars; runtime prefers embedded assets.
-    $WasmPkgDir = Join-Path $Root "packages\wasm\core\pkg"
+    # Copy every statically embedded WASM asset to the normalized fallback layout.
+    # The TypeScript registry emits the authoritative logical key/source-path pairs;
+    # do not add a second hand-maintained asset list here.
     $WasmDistDir = Join-Path $DistDir "wasm\core\pkg"
-    if (Test-Path $WasmPkgDir) {
-        New-Item -ItemType Directory -Path $WasmDistDir -Force | Out-Null
-        Copy-Item -Recurse -Force "$WasmPkgDir\rdiff" $WasmDistDir
-        Copy-Item -Recurse -Force "$WasmPkgDir\json_repair" $WasmDistDir
-        Copy-Item -Recurse -Force "$WasmPkgDir\diffy" $WasmDistDir
-        Copy-Item -Recurse -Force "$WasmPkgDir\grammars" $WasmDistDir
-        Copy-Item "$WasmPkgDir\tokenizer.wasm" $WasmDistDir
-        if (Test-Path "$WasmPkgDir\path_validator.wasm") {
-            Copy-Item "$WasmPkgDir\path_validator.wasm" $WasmDistDir
-        }
-        $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "web-tree-sitter.wasm" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } | Select-Object -First 1
-        if ($TreeSitterRuntimeWasm) {
-            Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir "web-tree-sitter.wasm")
-        }
-
-        # Enumerate all WASM assets dynamically — every file in pkg/ and pkg/grammars/ is required.
-        $RequiredWasmAssets = @(
-            "tokenizer.wasm",
-            "path_validator.wasm",
-            "web-tree-sitter.wasm",
-            "diffy\diffy_wasm_bg.wasm",
-            "json_repair\json_repair_bg.wasm",
-            "rdiff\rdiff_bg.wasm"
-        )
-        # Add all grammar WASMs: scan the source grammars dir and build expected paths
-        $GrammarDir = Join-Path $WasmPkgDir "grammars"
-        if (Test-Path $GrammarDir) {
-            $GrammarFiles = Get-ChildItem $GrammarDir -Filter "*.wasm"
-            foreach ($gf in $GrammarFiles) {
-                $RequiredWasmAssets += "grammars\$($gf.Name)"
-            }
-        }
-        # Verify every required asset exists in dist
-        foreach ($asset in $RequiredWasmAssets) {
-            $assetPath = Join-Path $WasmDistDir $asset
-            if (-not (Test-Path $assetPath)) {
-                throw "Required WASM asset missing from dist: $asset"
-            }
-        }
-        Write-Success "WASM modules copied to dist ($($RequiredWasmAssets.Count) assets)"
+    New-Item -ItemType Directory -Path $WasmDistDir -Force | Out-Null
+    $WasmManifestJson = & bun (Join-Path $Root "packages\opencode\script\wasm-assets.ts")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to emit embedded WASM asset manifest"
     }
+    $WasmAssets = $WasmManifestJson | ConvertFrom-Json
+    if (-not $WasmAssets -or $WasmAssets.Count -eq 0) {
+        throw "Embedded WASM asset manifest was empty"
+    }
+    foreach ($asset in $WasmAssets) {
+        if (-not (Test-Path $asset.path)) {
+            throw "Embedded WASM source missing: $($asset.key) at $($asset.path)"
+        }
+        $target = Join-Path $WasmDistDir $asset.key
+        New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
+        Copy-Item $asset.path $target -Force
+        if (-not (Test-Path $target)) {
+            throw "Embedded WASM sidecar missing from dist: $($asset.key)"
+        }
+    }
+    Write-Success "WASM modules copied to dist ($($WasmAssets.Count) assets)"
 
     # SDK (from sdk/js package)
     $sdkDir = [IO.Path]::Combine($Root, "packages", "sdk", "js", "dist")

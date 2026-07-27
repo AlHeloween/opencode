@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core"
 import type { MessageV2 } from "../session/message-v2"
 import type { SessionEntry } from "../v2/session-entry"
 import type { Snapshot } from "../snapshot"
@@ -123,3 +123,37 @@ export const EventTable = sqliteTable("event", {
   type: text().notNull(),
   data: text({ mode: "json" }).$type<Record<string, unknown>>().notNull(),
 })
+
+/** Sidecar project checkpoints stay outside Message/Part until Layer-2 compaction. */
+export const ProjectCheckpointTable = sqliteTable(
+  "project_checkpoint",
+  {
+    id: text().primaryKey(),
+    session_id: text()
+      .$type<SessionID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    from_message_id: text().$type<MessageID>().notNull(),
+    to_message_id: text().$type<MessageID>().notNull(),
+    predecessor_id: text().notNull().default(""),
+    provider_id: text().notNull(),
+    model_id: text().notNull(),
+    agent: text().notNull(),
+    body: text().notNull(),
+    diffs: text({ mode: "json" }).$type<Snapshot.FileDiff[]>(),
+    impact: text({ mode: "json" }).$type<Snapshot.ImpactSummary>(),
+    materialized_message_id: text().$type<MessageID>(),
+    time_materialized: integer(),
+    ...Timestamps,
+  },
+  (table) => [
+    uniqueIndex("project_checkpoint_session_range_predecessor_idx").on(
+      table.session_id,
+      table.from_message_id,
+      table.to_message_id,
+      table.predecessor_id,
+    ),
+    index("project_checkpoint_session_created_idx").on(table.session_id, table.time_created),
+    index("project_checkpoint_session_materialized_idx").on(table.session_id, table.time_materialized),
+  ],
+)

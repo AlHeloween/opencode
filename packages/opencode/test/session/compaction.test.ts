@@ -8,6 +8,7 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
+import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { isOverflowFromContent, estimateContentTokens, summaryWindowLimit } from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
@@ -58,6 +59,7 @@ const summary = Layer.succeed(
     summarize: () => Effect.void,
     diff: () => Effect.succeed([]),
     computeDiff: () => Effect.succeed([]),
+    enrichRange: () => Effect.succeed({ diffs: [] }),
   }),
 )
 
@@ -1598,6 +1600,45 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(text).toContain("## Semantic Vector")
         expect(text).toContain("wire svm into summaries")
         expect(text).toContain("Prior window dominant")
+      }),
+    ),
+  )
+})
+
+describe("session.incremental-checkpoint", () => {
+  it.live(
+    "stores and materializes a sidecar without adding visible messages",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+        const user = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: user.id, sessionID: info.id, type: "text", text: "checkpoint source" })
+        const before = yield* MessageV2.filterCompactedEffect(info.id)
+
+        const saved = IncrementalCheckpoint.save({
+          id: "checkpoint-1",
+          sessionID: info.id,
+          fromMessageID: user.id,
+          toMessageID: user.id,
+          providerID: ref.providerID,
+          modelID: ref.modelID,
+          agent: "build",
+          body: "## Semantic Vector\ncheckpoint\n## Goal\nkeep flow\n## Key decisions\n- sidecar\n## Current state\nstored",
+        })
+        expect(saved.body).toContain("checkpoint")
+        expect((yield* MessageV2.filterCompactedEffect(info.id))).toHaveLength(before.length)
+        expect(IncrementalCheckpoint.listOpen(info.id)).toHaveLength(1)
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const star = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(star).toHaveLength(1)
+        expect(star[0].parts.find((part) => part.type === "text")?.text).toContain("checkpoint_id: `checkpoint-1`")
+        expect(IncrementalCheckpoint.listOpen(info.id)).toHaveLength(0)
       }),
     ),
   )

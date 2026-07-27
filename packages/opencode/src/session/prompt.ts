@@ -18,6 +18,7 @@ import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint } from "./checkpoint"
+import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
@@ -1144,83 +1145,86 @@ export const layer = Layer.effect(
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
-        /** Layer 1: open-window counter (chars/4 since last summary, or whole
-          * visible set if none) reaches its provider-safe target → inject summary request.
-          * After compact the open window is message* → counter becomes
-          * len(message*)/4 by the same rule (not a special branch).
-          * Pure recompute from msgs — works after stop and compact.
-          *
-          * HARD RULE: never inject mid-reasoning / mid-tool-calls. For reasoning
-          * models the open turn must complete first; synthetic user messages
-          * only after {@link SessionCompaction.isAssistantTurnComplete}. */
-        const maybeInjectSummary = (input: {
+        /**
+         * Capture an LLM-authored checkpoint on an isolated branch. The request
+         * and response never become Message/Part rows, so normal M is unchanged.
+         */
+        const maybeCaptureSidecar = (input: {
           visible: MessageV2.WithParts[]
-          model: { providerID: ProviderID; modelID: ModelID }
-          agent: string
-          /** Last assistant that must be fully complete before inject (optional). */
+          model: Provider.Model
+          agent: Agent.Info
+          cacheIdentity: Agent.Info
+          user: MessageV2.User
+          system: string[]
+          tools: Record<string, AITool>
           afterAssistant?: MessageV2.WithParts
         }) =>
           Effect.gen(function* () {
-            if (pendingSummaryResponse) return false
-            if (SessionCompaction.hasPendingSummaryRequest(input.visible)) {
-              pendingSummaryResponse = true
-              return false
-            }
-            if (input.afterAssistant && !SessionCompaction.isAssistantTurnComplete(input.afterAssistant)) {
-              yield* slog.debug("layer1.summary.defer_incomplete_turn", {
-                sessionID,
-                finish: (input.afterAssistant.info as MessageV2.Assistant).finish,
-              })
-              return false
-            }
-            const resolvedModel = yield* getModel(input.model.providerID, input.model.modelID, sessionID)
+            if (input.afterAssistant && !SessionCompaction.isAssistantTurnComplete(input.afterAssistant)) return false
             const threshold = summaryWindowLimit({
               cfg: yield* config.get(),
-              model: resolvedModel,
+              model: input.model,
               target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
             })
-            const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible)
+            const previous = IncrementalCheckpoint.latestOpen(sessionID)
+            const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible, previous?.toMessageID)
             if (openTokens < threshold) return false
-            yield* compaction.injectSummaryRequest({
-              sessionID,
-              model: input.model,
-              agent: input.agent,
-              threshold,
-            })
-            pendingSummaryResponse = true
-            yield* slog.info("layer1.summary.inject", {
-              openTokens,
-              threshold,
-            })
-            return true
-          })
+            const boundary = previous?.toMessageID
+            const start = boundary ? input.visible.findIndex((m) => m.info.id === boundary) + 1 : 0
+            const range = input.visible.slice(Math.max(0, start))
+            if (!range.length) return false
+            // The normal request snapshot predates the assistant response that
+            // closed this turn. Capture from completed visible M instead.
+            const modelMessages = yield* MessageV2.toModelMessagesEffect(input.visible, input.model)
 
-        const injectSummaryResume = (input: { summaryID: MessageID; parent: MessageV2.User }) =>
-          Effect.gen(function* () {
-            const resumeMsg = yield* sessions.updateMessage({
-              id: MessageID.ascending(),
-              role: "user",
-              model: input.parent.model,
+            const body = yield* llm
+              .stream({
+                user: input.user,
+                agent: input.agent,
+                cacheIdentity: input.cacheIdentity,
+                permission: session.permission,
+                sessionID,
+                providerCacheKey: input.user.providerCacheKey,
+                system: [...input.system],
+                messages: [...modelMessages, { role: "user", content: SessionCompaction.summaryRequestProse() }],
+                tools: input.tools,
+                toolChoice: "none",
+                model: input.model,
+              })
+              .pipe(
+                Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
+                Stream.map((event) => event.text),
+                Stream.mkString,
+                Effect.catchCause((cause) => {
+                  slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
+                  return Effect.succeed("")
+                }),
+              )
+            if (!SessionCompaction.isValidSummaryBody(body)) {
+              yield* slog.debug("sidecar checkpoint rejected", { bodyLen: body.length, openTokens, threshold })
+              return false
+            }
+            const enrichment = yield* summary.enrichRange({ sessionID, messages: range }).pipe(
+              Effect.catchCause((cause) => {
+                slog.debug("sidecar checkpoint enrichment failed", { error: Cause.pretty(cause) })
+                return Effect.succeed({ diffs: [], impact: undefined })
+              }),
+            )
+            IncrementalCheckpoint.save({
+              id: ulid(),
               sessionID,
-              agent: input.parent.agent,
-              time: { created: Date.now() },
+              fromMessageID: range[0].info.id,
+              toMessageID: range[range.length - 1].info.id,
+              predecessorID: previous?.id,
+              providerID: input.model.providerID,
+              modelID: input.model.id,
+              agent: input.cacheIdentity.name,
+              body,
+              diffs: enrichment.diffs,
+              impact: enrichment.impact,
             })
-            yield* sessions.updatePart({
-              id: PartID.ascending(),
-              messageID: resumeMsg.id,
-              sessionID,
-              type: "text",
-              text:
-                input.parent.agent === "reasoning"
-                  ? `<system-reminder>
-Layer-1 summary is complete (Inferred handle only). Resume the same protected reasoning/calibration flow from the conversation after that summary. Do not re-summarize unless a new summary request appears. Remain memory-only; do not create work or attempt a mode change. If the user's request is already fully complete, give a brief status and stop — do not invent new work.
-</system-reminder>`
-                  : `<system-reminder>
-Layer-1 summary is complete (Inferred handle only). Continue the open user task from the conversation after that summary. Do not re-summarize unless a new summary request appears. Prefer tools and edits over restating history. If the user's request is already fully complete, give a brief status and stop — do not invent new work.
-</system-reminder>`,
-              synthetic: true,
-            })
-            yield* slog.info("layer1.summary.resume", { sessionID, summaryID: input.summaryID })
+            yield* slog.info("sidecar checkpoint captured", { openTokens, threshold, fromID: range[0].info.id, toID: range[range.length - 1].info.id })
+            return true
           })
 
         while (true) {
@@ -1309,10 +1313,8 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             lastAssistantMsg &&
             SessionCompaction.isAssistantTurnComplete(lastAssistantMsg)
           ) {
-            yield* injectSummaryResume({ summaryID: lastAssistant.id, parent: lastUser })
-            cachedMsgs = undefined
-            lastKnownId = undefined
-            continue
+            yield* slog.info("legacy layer1 summary is terminal", { summaryID: lastAssistant.id })
+            break
           }
 
           // Terminal work turn complete → optional Layer-1 inject, then exit.
@@ -1324,19 +1326,6 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             lastUser.id < lastAssistant!.id &&
             !summaryAttempt
           ) {
-            if (!terminalSummaryAttempt) {
-              const injected = yield* maybeInjectSummary({
-                visible: msgs,
-                model: lastUser.model,
-                agent: lastUser.agent,
-                afterAssistant: lastAssistantMsg,
-              })
-              if (injected) {
-                cachedMsgs = undefined
-                lastKnownId = undefined
-                continue
-              }
-            }
             yield* slog.info("exiting loop", { step })
             break
           }
@@ -1852,10 +1841,7 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
                   slog.debug("layer1.summary.enrichment_failed", { sessionID, summaryID: msg.id, error: Cause.pretty(cause) }),
                 ),
               )
-              yield* injectSummaryResume({ summaryID: msg.id, parent: lastUser })
-              cachedMsgs = undefined
-              lastKnownId = undefined
-              return "continue" as const
+              return "break" as const
             }
 
             if (result === "stop") {
@@ -1873,10 +1859,35 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
               // the open turn to finish before any synthetic user message.
               const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
               const completedAsst = visibleAfter.find((m) => m.info.id === msg.id)
-              const injected = yield* maybeInjectSummary({
+              // Persist normal M before opening the ephemeral sidecar branch.
+              // The sidecar request itself never publishes a provider checkpoint.
+              const converted = yield* MessageV2.toModelMessagesWithCountsEffect(visibleAfter, model)
+              yield* Checkpoint.save({
+                sessionID,
+                projectID: ctx.project.id,
+                data: {
+                  kind: Checkpoint.CHECKPOINT_KIND,
+                  version: Checkpoint.CHECKPOINT_VERSION,
+                  systemPrompt: checkpointUsable ? [...system] : cleanIdentity ? [cleanIdentity, ...system] : [...system],
+                  identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
+                  messages: converted.messages,
+                  messageIDs: visibleAfter.map((item) => item.info.id),
+                  messageFingerprints: visibleAfter.map((item) => CacheControl.messageFingerprint(item).hash),
+                  modelMessageCounts: converted.counts,
+                  model: { providerID: model.providerID, modelID: model.id },
+                  agent: cacheAgent.name,
+                  turn: step + 1,
+                  timestamp: Date.now(),
+                },
+              })
+              yield* maybeCaptureSidecar({
                 visible: visibleAfter,
-                model: lastUser.model,
-                agent: lastUser.agent,
+                model,
+                agent,
+                cacheIdentity: cacheAgent,
+                user: lastUser,
+                system,
+                tools,
                 afterAssistant: completedAsst,
               })
               if (!titleRequested) {
@@ -1890,11 +1901,6 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
                   Effect.catchCause((cause) => slog.error("title generation failed", { error: Cause.squash(cause) })),
                   Effect.forkIn(scope),
                 )
-              }
-              if (injected) {
-                cachedMsgs = undefined
-                lastKnownId = undefined
-                return "continue" as const
               }
               return "break" as const
             }

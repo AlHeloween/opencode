@@ -28,6 +28,7 @@ import { SessionSummary } from "../../src/session/summary"
 import { Instruction } from "../../src/session/instruction"
 import { SessionProcessor } from "../../src/session/processor"
 import { SessionPrompt } from "../../src/session/prompt"
+import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { SessionRevert } from "../../src/session/revert"
 import { SessionRunState } from "../../src/session/run-state"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
@@ -56,6 +57,7 @@ const summary = Layer.succeed(
     summarize: () => Effect.void,
     diff: () => Effect.succeed([]),
     computeDiff: () => Effect.succeed([]),
+    enrichRange: () => Effect.succeed({ diffs: [] }),
   }),
 )
 
@@ -85,6 +87,7 @@ const orderedSummary = Layer.succeed(
       }),
     diff: () => Effect.succeed([]),
     computeDiff: () => Effect.succeed([]),
+    enrichRange: () => Effect.succeed({ diffs: [] }),
   }),
 )
 
@@ -676,7 +679,7 @@ it.live("loop continues when finish is stop but assistant has tool parts", () =>
 )
 
 it.live(
-  "Layer-1 summary runs after a completed answer and resumes the agentic flow",
+  "Layer-1 captures a hidden checkpoint after a completed answer",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -704,25 +707,35 @@ Preserve the completed answer.
 
 ## Current state
 The flow will resume.`)
-        yield* llm.text("resumed answer")
 
         const result = yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(3)
-        expect(result.parts.some((part) => part.type === "text" && part.text === "resumed answer")).toBe(true)
+        expect(yield* llm.calls).toBe(2)
+        expect(result.parts.some((part) => part.type === "text" && part.text === "normal answer")).toBe(true)
 
         const messages = yield* MessageV2.filterCompactedEffect(session.id)
         const normalIndex = messages.findIndex((message) =>
           message.parts.some((part) => part.type === "text" && part.text === "normal answer"),
         )
-        const summaryIndex = messages.findIndex((message) => message.info.role === "assistant" && message.info.summary)
         expect(normalIndex).toBeGreaterThanOrEqual(0)
-        expect(summaryIndex).toBeGreaterThan(normalIndex)
-        const resume = messages[summaryIndex + 1]
-        expect(resume?.info.role).toBe("user")
-        expect(resume?.parts.some((part) => part.type === "text" && part.text.includes("Layer-1 summary is complete"))).toBe(true)
+        expect(messages.some((message) => message.info.role === "assistant" && message.info.summary)).toBe(false)
+        const checkpoint = IncrementalCheckpoint.listOpen(session.id)
+        expect(checkpoint).toHaveLength(1)
+        expect(checkpoint[0]?.toMessageID).toBe(messages[normalIndex]?.info.id)
 
+        yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          parts: [{ type: "text", text: "real follow-up" }],
+        })
+        yield* llm.text("follow-up answer")
+        yield* prompt.loop({ sessionID: session.id })
         const inputs = yield* llm.inputs
-        expect(inputs[1]?.tools).toBeUndefined()
+        expect(inputs).toHaveLength(3)
+        const followUpRequest = JSON.stringify(inputs[2]?.messages)
+        expect(followUpRequest).toContain("normal answer")
+        expect(followUpRequest).toContain("real follow-up")
+        expect(followUpRequest).not.toContain("Create a structured summary")
       }),
       { git: true, config: providerCfg },
     ),

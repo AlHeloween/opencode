@@ -168,6 +168,44 @@ export const PartEmbeddingTable = sqliteTable(
   ],
 )
 
+/**
+ * Model-authored incremental project checkpoints. They are sidecar records:
+ * never converted to provider messages until Layer-2 materializes message*.
+ */
+export const ProjectCheckpointTable = sqliteTable(
+  "project_checkpoint",
+  {
+    id: text().primaryKey(),
+    session_id: text()
+      .$type<SessionID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    from_message_id: text().$type<MessageID>().notNull(),
+    to_message_id: text().$type<MessageID>().notNull(),
+    /** Empty string is the root sentinel so SQLite uniqueness is total. */
+    predecessor_id: text().notNull().default(""),
+    provider_id: text().notNull(),
+    model_id: text().notNull(),
+    agent: text().notNull(),
+    body: text().notNull(),
+    diffs: text({ mode: "json" }).$type<Snapshot.FileDiff[]>(),
+    impact: text({ mode: "json" }).$type<Snapshot.ImpactSummary>(),
+    materialized_message_id: text().$type<MessageID>(),
+    time_materialized: integer(),
+    ...Timestamps,
+  },
+  (table) => [
+    uniqueIndex("project_checkpoint_session_range_predecessor_idx").on(
+      table.session_id,
+      table.from_message_id,
+      table.to_message_id,
+      table.predecessor_id,
+    ),
+    index("project_checkpoint_session_created_idx").on(table.session_id, table.time_created),
+    index("project_checkpoint_session_materialized_idx").on(table.session_id, table.time_materialized),
+  ],
+)
+
 /** KV cache fingerprint persistence — survives runLoop restarts.
   * Prevents model amnesia (full context reprocessing) when the in-memory
   * fingerprint Map is cold after a turn boundary. */

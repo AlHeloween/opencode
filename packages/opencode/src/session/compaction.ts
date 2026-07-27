@@ -14,6 +14,7 @@ import { isOverflow as overflow } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
+import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { parseSummaryRange } from "./summary"
 import { Snapshot } from "@/snapshot"
 
@@ -199,9 +200,13 @@ export function summaryAttemptCount(msgs: MessageV2.WithParts[], requestID: Mess
  * - Real context (text + reasoning + tool output), not provider usage
  * - Survives runLoop restarts (pure function of persisted messages)
  */
-export function computeOpenWindowTokens(msgs: MessageV2.WithParts[]): number {
+export function computeOpenWindowTokens(msgs: MessageV2.WithParts[], checkpointBoundaryID?: string): number {
   let start = 0
   for (let i = msgs.length - 1; i >= 0; i--) {
+    if (checkpointBoundaryID && msgs[i].info.id === checkpointBoundaryID) {
+      start = i + 1
+      break
+    }
     if (msgs[i].info.role === "assistant" && (msgs[i].info as any).summary) {
       start = i + 1
       break
@@ -284,7 +289,7 @@ export function summaryRangeSystemMarker(fromId: string, toId: string, sessionID
  * Model-facing Layer-1 request: Inferred prose only (SVM, goal, decisions, state).
  * No digital facts — no IDs, diffs, hashes, codegraph. Those are system/fossil/CG.
  */
-function summaryRequestProse(lastSv?: SemanticVector) {
+export function summaryRequestProse(lastSv?: SemanticVector) {
   const svHint = lastSv?.dominant
     ? `\nPrior window dominant (chain continuity only): "${lastSv.dominant}". Prefer a related dominant and/or overlapping key phrases.\n`
     : ""
@@ -329,7 +334,15 @@ function extractDecisions(text: string): string[] {
 
 function buildMessageStar(input: {
   sessionID: string
-  summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary }[]
+  summaries: {
+    id: string
+    text: string
+    fromId?: string
+    toId?: string
+    diffs?: Snapshot.FileDiff[]
+    impact?: Snapshot.ImpactSummary
+    sidecar?: boolean
+  }[]
   recent: MessageV2.WithParts[]
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
@@ -369,7 +382,7 @@ function buildMessageStar(input: {
     const links = [
       `- links: system Exact (not model output)`,
       `- body_info_mark: \`Inferred\``,
-      `- summary_message_id: \`${s.id}\``,
+      `- ${s.sidecar ? "checkpoint_id" : "summary_message_id"}: \`${s.id}\``,
       svLine,
       diffLine,
       impactLine,
@@ -565,7 +578,19 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // Collect summaries from the current compaction window only.
         // Exact range links come from the SYSTEM summary-range parent comment,
         // never from model prose (IDs are not model-inferable facts).
-        const summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary }[] = []
+        const summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary; sidecar?: boolean }[] = []
+        const sidecars = IncrementalCheckpoint.listOpen(input.sessionID)
+        for (const checkpoint of sidecars) {
+          summaries.push({
+            id: checkpoint.id,
+            text: checkpoint.body,
+            fromId: checkpoint.fromMessageID,
+            toId: checkpoint.toMessageID,
+            diffs: checkpoint.diffs,
+            impact: checkpoint.impact,
+            sidecar: true,
+          })
+        }
         let latestSummaryIdx = -1
         const byId = new Map(msgs.map((m) => [m.info.id, m] as const))
         for (let i = 0; i < msgs.length; i++) {
@@ -610,14 +635,16 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         }
 
         const latestSummaryId = latestSummaryIdx >= 0 ? msgs[latestSummaryIdx].info.id : undefined
+        const latestSidecarBoundary = sidecars.at(-1)?.toMessageID
+        const latestBoundaryId = [latestSummaryId, latestSidecarBoundary].filter(Boolean).sort().at(-1)
 
         // Recent = visible messages after the latest summary, excluding prior message*.
         // The prior message* is NOT re-collected — its summaries belong to the previous
         // compaction cycle and are recoverable via the chain link.
         let recent = visible.filter((m) => {
           if (isMessageStar(m)) return false
-          if (!latestSummaryId) return true
-          return m.info.id > latestSummaryId
+          if (!latestBoundaryId) return true
+          return m.info.id > latestBoundaryId
         })
 
         // No summary yet: cap Recent at the same effective target used by Layer 1.
@@ -680,6 +707,11 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           type: "text",
           text: combined,
           synthetic: true,
+        })
+        IncrementalCheckpoint.materialize({
+          sessionID: input.sessionID,
+          ids: sidecars.map((checkpoint) => checkpoint.id),
+          messageID: msg.id,
         })
 
         // Token estimate of the messageStar (chars/4). Layer-1 open-window

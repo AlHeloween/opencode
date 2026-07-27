@@ -121,6 +121,10 @@ export interface Interface {
   readonly summarize: (input: { sessionID: SessionID; messageID: MessageID }) => Effect.Effect<void>
   readonly diff: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Snapshot.FileDiff[]>
   readonly computeDiff: (input: { messages: MessageV2.WithParts[] }) => Effect.Effect<Snapshot.FileDiff[]>
+  readonly enrichRange: (input: { sessionID: SessionID; messages: MessageV2.WithParts[] }) => Effect.Effect<{
+    diffs: Snapshot.FileDiff[]
+    impact?: Snapshot.ImpactSummary
+  }>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionSummary") {}
@@ -260,7 +264,28 @@ export const layer = Layer.effect(
       return next
     })
 
-    return Service.of({ summarize, diff, computeDiff })
+    const enrichRange = Effect.fn("SessionSummary.enrichRange")(function* (input: {
+      sessionID: SessionID
+      messages: MessageV2.WithParts[]
+    }) {
+      const diffs = yield* computeDiff({ messages: input.messages })
+      const range = snapshotRangeForMessages(input.messages)
+      if (!range) return { diffs }
+      const impact = yield* snapshot.impact(range.from, range.to).pipe(
+        Effect.catchCause((cause) => {
+          log.debug("sidecar structural impact unavailable; omitting handle", {
+            sessionID: input.sessionID,
+            from: range.from,
+            to: range.to,
+            error: Cause.pretty(cause),
+          })
+          return Effect.succeed(undefined)
+        }),
+      )
+      return { diffs, ...(impact ? { impact } : {}) }
+    })
+
+    return Service.of({ summarize, diff, computeDiff, enrichRange })
   }),
 )
 

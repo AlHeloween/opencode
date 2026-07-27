@@ -66,6 +66,17 @@ const migration: DatabaseMigration.Migration = {
     sqlite.exec(`CREATE INDEX IF NOT EXISTS "session_entry_session_type_idx" ON "session_entry" ("session_id", "type")`)
     sqlite.exec(`CREATE INDEX IF NOT EXISTS "session_entry_time_created_idx" ON "session_entry" ("time_created")`)
 
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS "project_checkpoint" (
+      id text PRIMARY KEY NOT NULL, session_id text NOT NULL REFERENCES session(id) ON DELETE CASCADE,
+      from_message_id text NOT NULL, to_message_id text NOT NULL, predecessor_id text NOT NULL DEFAULT '',
+      provider_id text NOT NULL, model_id text NOT NULL, agent text NOT NULL, body text NOT NULL,
+      diffs text, impact text, materialized_message_id text, time_materialized integer,
+      time_created integer NOT NULL, time_updated integer NOT NULL,
+      UNIQUE (session_id, from_message_id, to_message_id, predecessor_id)
+    )`)
+    sqlite.exec(`CREATE INDEX IF NOT EXISTS "project_checkpoint_session_created_idx" ON "project_checkpoint" ("session_id", "time_created")`)
+    sqlite.exec(`CREATE INDEX IF NOT EXISTS "project_checkpoint_session_materialized_idx" ON "project_checkpoint" ("session_id", "time_materialized")`)
+
     sqlite.exec(`CREATE TABLE IF NOT EXISTS "permission" (
       project_id text PRIMARY KEY NOT NULL, time_created integer NOT NULL,
       time_updated integer NOT NULL, data text NOT NULL

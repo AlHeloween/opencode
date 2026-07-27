@@ -84,7 +84,7 @@ describe("tool.apply_patch freeform", () => {
 
   test("rejects invalid patch format", async () => {
     const { ctx } = makeCtx()
-    await expect(execute({ patchText: "invalid patch" }, ctx)).rejects.toThrow("apply_patch verification failed")
+    await expect(execute({ patchText: "invalid patch" }, ctx)).rejects.toThrow("applypatch verification failed")
   })
 
   test("rejects empty patch", async () => {
@@ -387,7 +387,7 @@ describe("tool.apply_patch freeform", () => {
       fn: async () => {
         const patchText = "*** Begin Patch\n*** Frobnicate File: foo\n*** End Patch"
 
-        await expect(execute({ patchText }, ctx)).rejects.toThrow("apply_patch verification failed")
+        await expect(execute({ patchText }, ctx)).rejects.toThrow("applypatch verification failed")
       },
     })
   })
@@ -404,7 +404,7 @@ describe("tool.apply_patch freeform", () => {
 
         const patchText = "*** Begin Patch\n*** Update File: modify.txt\n@@\n-missing\n+changed\n*** End Patch"
 
-        await expect(execute({ patchText }, ctx)).rejects.toThrow("apply_patch verification failed")
+        await expect(execute({ patchText }, ctx)).rejects.toThrow("applypatch verification failed")
         expect(await fs.readFile(target, "utf-8")).toBe("line1\nline2\n")
       },
     })

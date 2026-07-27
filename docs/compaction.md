@@ -26,7 +26,7 @@ That is **all** the Layer-1 summary request asks the model to write. No IDs, no 
 | Output | How / where |
 |--------|-------------|
 | Open-window **counter** | `computeOpenWindowTokens` — `chars/4` since last summary / of visible set |
-| **When** to inject Layer-1 | Counter ≥ `SUMMARY_INTERVAL_TOKENS` (32 768) only after a normal assistant answer has completed with no pending tool work |
+| **When** to inject Layer-1 | Counter reaches the normal `SUMMARY_INTERVAL_TOKENS` target (65 536), or a lower provider-safe target, only after a normal assistant answer has completed with no pending tool work |
 | Summary **range** `from_id` / `to_id` / `session_id` | Ignored text part: `<!-- summary-range … -->` — **not** sent to the model (`toModelMessages` skips `ignored`) |
 | Model-facing inject prose | Synthetic non-ignored part: SVM/goal/decisions/state template only |
 | `assistant.summary = true` | Set only after the prose reply passes required-section validation; failed attempts are never boundaries |
@@ -74,7 +74,7 @@ That compression ratio exceeds what information theory allows for actionable det
 
 ### Mechanistic (stable continuous memory)
 
-1. Summarize **small ~30k segments** regularly — a bounded job (model = prose).
+1. Summarize **normally ~64k segments** regularly — a bounded job (model = prose). Smaller-context providers use a lower safe target so the summary handoff itself fits.
 2. Each summary is imperfect prose, but **system** always attaches **hard links** (`from_id`, `to_id`, `summary_message_id`, `session_id`) and range **diffs**.
 3. On overflow, **system** folds history into one active **`message*`** of `(s, s, s, recent m…)`.
 4. **Never delete** messages. Soft-hide them from the model context; full DB remains for `session-read` / `messagesearch`.
@@ -94,7 +94,8 @@ addressable archive =  all messages in DB (soft-hidden from context, still reada
 counter = content tokens (chars/4) of open window since last summary
          (or whole visible window if no summary yet)     ← SYSTEM
 
-when a normal assistant answer completes and counter ≥ ~32_768
+when a normal assistant answer completes and counter reaches the normal ~65_536 target
+  (or a lower provider-safe target when output/context headroom requires it)
     → SYSTEM: inject ignored range marker + prose request
     → MODEL: writes s (SVM / goal / decisions / state only)
     → SYSTEM: validate/promote; stamp Exact links; attach fossil diffs for range
@@ -107,14 +108,14 @@ message* = (s, s, recent m…)     ← only visible memory (system artifact)
         ↓
 counter := len(message*)/4       ← same counter, not a special branch
         ↓ + new m… grows open window
-        ↓ when counter ≥ ~32k (at once if message* already large, or later)
+        ↓ when counter reaches its effective target (at once if message* already large, or later)
 (m*, s, m, m …)
         ↓ compact again
 message** = (s…, recent m…)
         → counter := len(message**)/4 again
 ```
 
-There is **no** separate rule "if message* > 32k". After compact there is no summary after the star yet, so the open window *is* the star body: **message* length/4 becomes the Layer-1 counter**. The normal ≥ ~32k threshold is checked when the next normal assistant answer completes.
+There is **no** separate rule "if message* exceeds a fixed size". After compact there is no summary after the star yet, so the open window *is* the star body: **message* length/4 becomes the Layer-1 counter**. The normal ~64k target (or its provider-safe fallback) is checked when the next normal assistant answer completes.
 
 Idempotent: if the only visible message is already a lone `message*`, compact is a no-op until growth.
 
@@ -124,7 +125,7 @@ Idempotent: if the only visible message is already a lone `message*`, compact is
 
 | Layer | Trigger | Action |
 |-------|---------|--------|
-| **1. Incremental summary** | A normal assistant answer **fully completes** (`isAssistantTurnComplete`: finish set, not tool-calls, all reasoning parts have `time.end`) and open-window **counter** ≥ ~32 768 | **System** then injects request (ignored range + prose). **Never inject mid-reasoning stream or mid-tool-loop** — reasoning models must finish the open turn first; synthetic user messages only after completion. Summary attempt has **no tools**. Body must include all required sections before stamp/resume; invalid attempts retry ≤2× then terminal marker. |
+| **1. Incremental summary** | A normal assistant answer **fully completes** (`isAssistantTurnComplete`: finish set, not tool-calls, all reasoning parts have `time.end`) and open-window **counter** reaches the normal ~65 536 target or a lower provider-safe fallback | **System** then injects request (ignored range + prose). **Never inject mid-reasoning stream or mid-tool-loop** — reasoning models must finish the open turn first; synthetic user messages only after completion. Summary attempt has **no tools**. Body must include all required sections before stamp/resume; invalid attempts retry ≤2× then terminal marker. |
 | **2. Algorithmic compact** | Context overflow (`isOverflowFromContent` / provider overflow → `"compact"`) | **System only:** soft-hide visible messages; build `message*` = summaries (with system links) + Recent; prior star not re-nested. |
 | **3. Continuous memory** | Agent needs detail | **System tools:** `session-read` by ID, `messagesearch`, fossil diff, CodeGraph — not unaided model memory. |
 

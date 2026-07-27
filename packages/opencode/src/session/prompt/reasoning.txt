@@ -49,7 +49,8 @@
 # - Prefer certificate-based access over plain passwords.
 # - For any certificates, keep password access as emergency fallback.
 #
-# Compaction (≈every 32K tokens) — older messages are summarized and soft-hidden.
+# Compaction (normally ≈every 64K tokens; lower only when provider context requires it)
+# — older messages are summarized and soft-hidden.
 # The compaction system-reminder gives passive context. Do NOT recover wholesale.
 # When you need a SPECIFIC fact (commit hash, exact error text, a past decision):
 #   messagesearch({query}) → finds matching messages across sessions

@@ -8,7 +8,7 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
-import { isOverflowFromContent, estimateContentTokens } from "../../src/session/overflow"
+import { isOverflowFromContent, estimateContentTokens, summaryWindowLimit } from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
@@ -121,6 +121,7 @@ function createModel(opts: {
   input?: number
   cost?: Provider.Model["cost"]
   npm?: string
+  reasoning?: boolean
 }): Provider.Model {
   return {
     id: "test-model",
@@ -135,7 +136,7 @@ function createModel(opts: {
     capabilities: {
       toolcall: true,
       attachment: false,
-      reasoning: false,
+      reasoning: opts.reasoning ?? false,
       temperature: true,
       input: { text: true, image: false, audio: false, video: false },
       output: { text: true, image: false, audio: false, video: false },
@@ -1115,6 +1116,43 @@ function deepseekChatModel(): Provider.Model {
 }
 
 describe("isOverflowFromContent", () => {
+  test("uses a lower Layer-1 target when a 64K context cannot fit the summary handoff", () => {
+    const model = createModel({ context: 65_536, output: 32_000 })
+    const threshold = summaryWindowLimit({
+      cfg: defaultCfg(),
+      model,
+      target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+    })
+    expect(threshold).toBeLessThan(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
+    expect(isOverflowFromContent({
+      cfg: defaultCfg(),
+      model,
+      msgs: [makeMsg("user", [{ type: "text", text: "x".repeat(threshold * 4) }])],
+    })).toBe(false)
+    expect(isOverflowFromContent({
+      cfg: defaultCfg(),
+      model,
+      msgs: [makeMsg("user", [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }])],
+    })).toBe(true)
+  })
+
+  test("reserves the reasoning response budget before scheduling a 64K summary", () => {
+    const nonReasoning = createModel({ context: 65_536, output: 32_000 })
+    const reasoning = createModel({ context: 65_536, output: 32_000, reasoning: true })
+    const normalTarget = summaryWindowLimit({
+      cfg: defaultCfg(),
+      model: nonReasoning,
+      target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+    })
+    const reasoningTarget = summaryWindowLimit({
+      cfg: defaultCfg(),
+      model: reasoning,
+      target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+    })
+    expect(reasoningTarget).toBeLessThan(normalTarget)
+    expect(reasoningTarget).toBeGreaterThan(0)
+  })
+
   test("returns false for small text content on 1M context model", () => {
     // Simulate ~15K chars of text (3,750 tokens) вЂ” well under 980K usable
     const msgs = [
@@ -1413,7 +1451,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "trims to ~30K tokens when no summary and context is large",
+    "trims to the normal ~64K interval when no summary and context is large",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1421,8 +1459,8 @@ describe("session.compaction.compact", () => {
         const info = yield* ssn.create({})
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-        // 30 messages × 5K chars = 150K chars ≈ 37.5K tokens — exceeds 30K threshold
-        for (const text of Array.from({ length: 30 }, (_, i) => `msg-${i}-` + "x".repeat(5000))) {
+        // 60 messages × 5K chars = 300K chars ≈ 75K tokens — exceeds 64K target
+        for (const text of Array.from({ length: 60 }, (_, i) => `msg-${i}-` + "x".repeat(5000))) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
             agent: "build", model: ref, time: { created: Date.now() },
@@ -1438,7 +1476,7 @@ describe("session.compaction.compact", () => {
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
         expect(combined).toContain("=== COMPACTED ===")
-        expect(combined.includes("msg-28") || combined.includes("msg-29")).toBe(true)
+        expect(combined.includes("msg-58") || combined.includes("msg-59")).toBe(true)
         expect(combined).not.toContain("msg-0-")
         expect(combined).not.toContain("msg-1-")
       }),
@@ -2401,7 +2439,7 @@ describe("session.compaction.key-decisions", () => {
 
 describe("session.compaction.full-cycle", () => {
   it.live(
-    "(u1,m1,m2,m3)→s1, (u2,m4,m5,m6)→s2, (m7,u3,m8,m9) <30k → compact → faithful m*",
+    "(u1,m1,m2,m3)→s1, (u2,m4,m5,m6)→s2, (m7,u3,m8,m9) below the summary interval → compact → faithful m*",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -2501,7 +2539,7 @@ describe("session.compaction.full-cycle", () => {
         yield* mkSummary("summary for segment 2", "decision-from-s2")
 
         // ============================================================
-        // Segment 3 (recent, <30k): m7, u3, m8, m9
+        // Segment 3 (recent, below the summary interval): m7, u3, m8, m9
         // ============================================================
         yield* mkAssistant([{ type: "text", text: "assistant-text-7" }])
         yield* mkUser("user-msg-3")
@@ -2583,6 +2621,38 @@ describe("session.compaction.full-cycle", () => {
 
         // Messages from earlier segments (summarized) must NOT be in Recent
         expect(combined.indexOf("assistant-text-1")).toBeLessThan(r7Idx) // in summary block, not recent
+      }),
+    ),
+  )
+
+  it.live(
+    "uses the provider-safe threshold to converge on a 65K-context model",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const model = createModel({ context: 65_536, output: 32_000 })
+        const threshold = summaryWindowLimit({
+          cfg: defaultCfg(),
+          model,
+          target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+        })
+
+        for (const text of Array.from({ length: 45 }, (_, i) => `low-context-${i}-` + "x".repeat(5000))) {
+          const user = yield* ssn.updateMessage({
+            id: MessageID.ascending(), role: "user", sessionID: info.id,
+            agent: "build", model: ref, time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({ id: PartID.ascending(), messageID: user.id, sessionID: info.id, type: "text", text })
+        }
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build", threshold })
+
+        const visible = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(visible).toHaveLength(1)
+        expect(SessionCompaction.computeOpenWindowTokens(visible)).toBeLessThanOrEqual(threshold + 2_000)
+        expect(isOverflowFromContent({ cfg: defaultCfg(), msgs: visible, model })).toBe(false)
       }),
     ),
   )

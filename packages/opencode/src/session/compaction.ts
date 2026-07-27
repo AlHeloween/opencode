@@ -26,12 +26,11 @@ export const Event = {
   ),
 }
 
-/** ~30K output tokens between incremental summary requests. */
-export const SUMMARY_INTERVAL_TOKENS = 32_768
+/** Normal Layer-1 cadence: ~64K content-token estimates between summaries. */
+export const SUMMARY_INTERVAL_TOKENS = 65_536
 export const MAX_SUMMARY_ATTEMPTS = 2
 
 const CHARS_PER_TOKEN = 4
-const SUMMARY_INTERVAL_CHARS = SUMMARY_INTERVAL_TOKENS * CHARS_PER_TOKEN
 const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
 
 /** True only for the synthetic message* body produced by compact().
@@ -52,8 +51,8 @@ function isMessageStar(msg: MessageV2.WithParts): boolean {
   * that exists in the DB must have a rendering path here so the model can trace
   * the full turn sequence (user → assistant-text → assistant-reasoning → tool → ...).
   *
-  * Must stay consistent with {@link contentChars} so the model sees everything
-  * that was counted toward the ~30K interval threshold. */
+ * Must stay consistent with {@link contentChars} so the model sees everything
+ * that was counted toward the Layer-1 interval threshold. */
 function messageText(msg: MessageV2.WithParts): string {
   const parts: string[] = []
   for (const p of msg.parts) {
@@ -125,12 +124,12 @@ function contentChars(msgs: MessageV2.WithParts[]): number {
   return chars
 }
 
-/** Walk back from the end until ~30K tokens of content; return start index. */
-function trimToLastInterval(msgs: MessageV2.WithParts[]): number {
+/** Walk back from the end until the supplied content-token interval; return start index. */
+function trimToLastInterval(msgs: MessageV2.WithParts[], intervalTokens = SUMMARY_INTERVAL_TOKENS): number {
   let chars = 0
   for (let i = msgs.length - 1; i >= 0; i--) {
     chars += contentChars([msgs[i]])
-    if (chars >= SUMMARY_INTERVAL_CHARS) return i
+    if (chars >= intervalTokens * CHARS_PER_TOKEN) return i
   }
   return 0
 }
@@ -194,7 +193,8 @@ export function summaryAttemptCount(msgs: MessageV2.WithParts[], requestID: Mess
  *
  * After compact there is no summary after the new message*, so this returns
  * ~len(message*)/4 (+ any newer msgs). That *is* the counter baseline — not a
- * special “if message* > 32k” rule. Threshold is always SUMMARY_INTERVAL_TOKENS.
+ * special “if message* > interval” rule. The caller supplies the effective
+ * provider-safe threshold, with SUMMARY_INTERVAL_TOKENS as the normal target.
  *
  * - Real context (text + reasoning + tool output), not provider usage
  * - Survives runLoop restarts (pure function of persisted messages)
@@ -461,11 +461,13 @@ export interface Interface {
     model: { providerID: ProviderID; modelID: ModelID }
     agent: string
     force?: boolean
+    threshold?: number
   }) => Effect.Effect<{ messageStarTokens: number }>
   readonly injectSummaryRequest: (input: {
     sessionID: SessionID
     model: { providerID: ProviderID; modelID: ModelID }
     agent: string
+    threshold?: number
   }) => Effect.Effect<void>
 }
 
@@ -499,6 +501,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
       model: { providerID: ProviderID; modelID: ModelID }
       agent: string
       force?: boolean
+      threshold?: number
     }) =>
       Effect.gen(function* () {
         // Always return messageStarTokens (never undefined) for callers.
@@ -617,9 +620,11 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           return m.info.id > latestSummaryId
         })
 
-        // No summary yet: if past exceeds ~30K, keep only the last interval in message*.
-        if (!summaries.length && contentChars(recent) >= SUMMARY_INTERVAL_CHARS) {
-          const start = trimToLastInterval(recent)
+        // No summary yet: cap Recent at the same effective target used by Layer 1.
+        // This keeps a low-context provider from immediately overflowing again.
+        const threshold = input.threshold ?? SUMMARY_INTERVAL_TOKENS
+        if (!summaries.length && contentChars(recent) >= threshold * CHARS_PER_TOKEN) {
+          const start = trimToLastInterval(recent, threshold)
           recent = recent.slice(start)
         }
 
@@ -702,14 +707,15 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
       )
 
     /**
-     * Layer 1: inject a summary request for the next ~30K window.
+     * Layer 1: inject a summary request for the effective content window.
      * Range starts after the latest summary (or start of visible history).
-     * If the open range exceeds ~30K tokens, trim from_id to the last 30K.
+     * If the open range exceeds that interval, trim from_id to its last range.
      */
     const injectSummaryRequest = (input: {
       sessionID: SessionID
       model: { providerID: ProviderID; modelID: ModelID }
       agent: string
+      threshold?: number
     }) =>
       Effect.gen(function* () {
         const msgs = (yield* session.messages({ sessionID: input.sessionID, limit: 10_000 }).pipe(
@@ -733,9 +739,10 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           }
 
           let range = pool.slice(lastSummaryIdx >= 0 ? lastSummaryIdx + 1 : 0)
-          // Trim to last ~30K if the open segment is larger than one summary interval.
-          if (contentChars(range) >= SUMMARY_INTERVAL_CHARS) {
-            range = range.slice(trimToLastInterval(range))
+          const threshold = input.threshold ?? SUMMARY_INTERVAL_TOKENS
+          // Trim to the effective interval if the open segment is larger.
+          if (contentChars(range) >= threshold * CHARS_PER_TOKEN) {
+            range = range.slice(trimToLastInterval(range, threshold))
           }
 
           fromId = range[0]?.info.id ?? pool[0]?.info.id ?? "start"
@@ -815,6 +822,7 @@ export const compact = fn(
     model: z.object({ providerID: ProviderID.zod, modelID: ModelID.zod }),
     agent: z.string(),
     force: z.boolean().optional(),
+    threshold: z.number().int().positive().optional(),
   }),
   (input) => runPromise((svc) => svc.compact(input)),
 )
@@ -826,6 +834,7 @@ export const injectSummaryRequest = fn(
     sessionID: SessionID.zod,
     model: z.object({ providerID: ProviderID.zod, modelID: ModelID.zod }),
     agent: z.string(),
+    threshold: z.number().int().positive().optional(),
   }),
   (input) => runPromise((svc) => svc.injectSummaryRequest(input)),
 )

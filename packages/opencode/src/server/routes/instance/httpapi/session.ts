@@ -3,13 +3,16 @@ import { AppRuntime } from "@/effect/app-runtime"
 import { Agent } from "@/agent/agent"
 import { Bus } from "@/bus"
 import { Command } from "@/command"
+import { Config } from "@/config/config"
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
 import { Instance } from "@/project/instance"
 import { ModelID, ProviderID } from "@/provider/schema"
+import { Provider } from "@/provider/provider"
 import { SessionShare } from "@/share/session"
 import { Session } from "@/session/session"
 import { SessionCompaction } from "@/session/compaction"
+import { summaryWindowLimit } from "@/session/overflow"
 import { MessageV2 } from "@/session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
@@ -717,6 +720,8 @@ export const sessionHandlers = Layer.unwrap(
               const session = yield* Session.Service
               const revert = yield* SessionRevert.Service
               const compact = yield* SessionCompaction.Service
+              const config = yield* Config.Service
+              const provider = yield* Provider.Service
               const prompt = yield* SessionPrompt.Service
               const agent = yield* Agent.Service
 
@@ -725,6 +730,7 @@ export const sessionHandlers = Layer.unwrap(
               const defaultAgent = yield* agent.defaultAgent()
               const currentAgent =
                 messages.findLast((message) => message.info.role === "user")?.info.agent ?? defaultAgent
+              const model = yield* provider.getModel(ctx.payload.providerID, ctx.payload.modelID)
 
               yield* compact.compact({
                 sessionID: ctx.params.sessionID,
@@ -734,6 +740,11 @@ export const sessionHandlers = Layer.unwrap(
                 },
                 agent: currentAgent,
                 force: true, // User explicitly requested compaction — bypass alreadyCompacted guard
+                threshold: summaryWindowLimit({
+                  cfg: yield* config.get(),
+                  model,
+                  target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+                }),
               })
               yield* prompt.loop({ sessionID: ctx.params.sessionID })
             }).pipe(

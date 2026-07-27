@@ -288,6 +288,25 @@ function providerCfg(url: string) {
   }
 }
 
+function reasoning65kProviderCfg(url: string) {
+  return {
+    ...providerCfg(url),
+    provider: {
+      ...providerCfg(url).provider,
+      test: {
+        ...providerCfg(url).provider.test,
+        models: {
+          "test-model": {
+            ...providerCfg(url).provider.test.models["test-model"],
+            reasoning: true,
+            limit: { context: 65_536, output: 32_000 },
+          },
+        },
+      },
+    },
+  }
+}
+
 const user = Effect.fn("test.user")(function* (sessionID: SessionID, text: string) {
   const session = yield* Session.Service
   const msg = yield* session.updateMessage({
@@ -713,6 +732,45 @@ The reasoning flow will resume.`)
       { git: true, config: providerCfg },
     ),
   30_000,
+)
+
+it.live(
+  "Layer-1 summary handoff fits a 65K reasoning-model context",
+  () =>
+    provideTmpdirServer(
+      Effect.fnUntraced(function* ({ llm }) {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const session = yield* sessions.create({ title: "Reasoning 65K summary timing" })
+        yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "reasoning",
+          noReply: true,
+          parts: [{ type: "text", text: "x".repeat(22_000 * 4) }],
+        })
+        yield* llm.text("completed reasoning answer")
+        yield* llm.text(`## Semantic Vector
+dominant: "reasoning handoff"
+
+## Goal
+Keep the summary handoff inside the provider context.
+
+## Key decisions
+- Reserve the reasoning response budget.
+
+## Current state
+The protected flow can resume.`)
+        yield* llm.text("resumed within context")
+
+        const result = yield* prompt.loop({ sessionID: session.id })
+        expect(yield* llm.calls).toBe(3)
+        expect(result.parts.some((part) => part.type === "text" && part.text === "resumed within context")).toBe(true)
+        const messages = yield* MessageV2.filterCompactedEffect(session.id)
+        expect(messages.some((message) => message.info.role === "assistant" && message.info.summary)).toBe(true)
+      }),
+      { git: true, config: reasoning65kProviderCfg },
+    ),
+  60_000,
 )
 
 orderedIt.live(

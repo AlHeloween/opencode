@@ -234,7 +234,7 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 | `src/session/prompt.ts` | System prompt assembly, fingerprint | System must be identical across paths; fingerprint stored post-plugin |
 | `src/session/cache-control.ts` | Fingerprint computation | `partFingerprint` uses MD5(content) for text, not length |
 | `src/session/llm.ts` | Plugin hook, provider request | Plugin can modify system by reference; fingerprint must be post-hook |
-| `src/session/compaction.ts` | Mechanistic compaction + incremental summaries | `injectSummaryRequest()` every ~32K open-window content tokens (chars/4); `compact()` soft-hides into `message*` (never hard-deletes); see `docs/compaction.md` |
+| `src/session/compaction.ts` | Mechanistic compaction + incremental summaries | `injectSummaryRequest()` normally every ~64K open-window content tokens (chars/4), with a provider-safe lower fallback; `compact()` soft-hides into `message*` (never hard-deletes); see `docs/compaction.md` |
 | `src/session/message-v2.ts` | Message conversion | No mutable injection in `toModelMessagesEffect` |
 
 ## Conversation Checkpoint System
@@ -261,7 +261,7 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 **Compaction integration (mechanistic continuous memory):** See `docs/compaction.md`.
 
-- **Layer 1:** open-window **counter** (`chars/4` since last summary) ≥ ~32K → system injects summary request. **Model** writes only Inferred prose (SVM, Goal, Key decisions, Current state). **System** owns Exact digits: ignored `from_id`/`to_id`/`session_id` marker, post-summary Exact stamp, fossil/tool diffs for the range, CodeGraph structure. After compact, counter becomes `len(message*)/4` (same rule). Runs on stop and continue. See `docs/compaction.md` § Model vs system.
+- **Layer 1:** open-window **counter** (`chars/4` since last summary) reaches the normal ~64K target, or a lower provider-safe fallback, → system injects summary request. **Model** writes only Inferred prose (SVM, Goal, Key decisions, Current state). **System** owns Exact digits: ignored `from_id`/`to_id`/`session_id` marker, post-summary Exact stamp, fossil/tool diffs for the range, CodeGraph structure. After compact, counter becomes `len(message*)/4` (same rule). Runs on stop and continue. See `docs/compaction.md` § Model vs system.
 - **Layer 2:** on overflow, **system** `compact()` builds **`message*`** (summaries + Recent); soft-hide visible messages — **never deleted**. Full history for `session-read` / `messagesearch`.
 - **Loop:** `(m*, s, m, m, …)` grows again → compact again. Lone `message*` is idempotent (no-op until growth).
 - **Why not one giant “summarize 500k”:** memory soup. **Why not model-authored IDs/diffs:** same class of error as guessing a SHA-256 — system + fossil + CodeGraph only.

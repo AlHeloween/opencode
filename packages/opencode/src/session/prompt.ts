@@ -13,7 +13,7 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, type ModelMessage, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
-import { isOverflowFromContent, estimateContentTokens, usable } from "./overflow"
+import { isOverflowFromContent, estimateContentTokens, summaryWindowLimit, usable } from "./overflow"
 import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
@@ -1139,7 +1139,7 @@ export const layer = Layer.effect(
         const session = yield* sessions.get(sessionID)
 
         /** Layer 1: open-window counter (chars/4 since last summary, or whole
-          * visible set if none) ≥ ~30K → inject summary request.
+          * visible set if none) reaches its provider-safe target → inject summary request.
           * After compact the open window is message* → counter becomes
           * len(message*)/4 by the same rule (not a special branch).
           * Pure recompute from msgs — works after stop and compact.
@@ -1167,17 +1167,24 @@ export const layer = Layer.effect(
               })
               return false
             }
+            const resolvedModel = yield* getModel(input.model.providerID, input.model.modelID, sessionID)
+            const threshold = summaryWindowLimit({
+              cfg: yield* config.get(),
+              model: resolvedModel,
+              target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+            })
             const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible)
-            if (openTokens < SessionCompaction.SUMMARY_INTERVAL_TOKENS) return false
+            if (openTokens < threshold) return false
             yield* compaction.injectSummaryRequest({
               sessionID,
               model: input.model,
               agent: input.agent,
+              threshold,
             })
             pendingSummaryResponse = true
             yield* slog.info("layer1.summary.inject", {
               openTokens,
-              threshold: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+              threshold,
             })
             return true
           })
@@ -1352,11 +1359,16 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
           ) {
             // Compact produces message*; open-window counter becomes message*
-            // size (chars/4). Next loop iteration may inject Layer-1 if ≥ 30K.
+            // size (chars/4). Next loop may inject Layer-1 at its effective target.
             yield* compaction.compact({
               sessionID,
               model: lastUser.model,
               agent: lastUser.agent,
+              threshold: summaryWindowLimit({
+                cfg: yield* config.get(),
+                model,
+                target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+              }),
             })
             // Invalidate checkpoint — the old checkpoint contains pre-compaction
             // message IDs that won't match the new compacted state. Loading it
@@ -1877,11 +1889,16 @@ Layer-1 summary is complete (Inferred handle only). Continue the open user task 
             if (result === "compact") {
               // Compact → message*. Next loop recomputes the open-window
               // counter: no summary after the star yet → counter = len(message*)/4.
-              // Normal ≥ ~32k threshold then applies (at once or after growth).
+              // The normal 64K target or a lower provider-safe fallback then applies.
               yield* compaction.compact({
                 sessionID,
                 model: lastUser.model,
                 agent: lastUser.agent,
+                threshold: summaryWindowLimit({
+                  cfg: yield* config.get(),
+                  model,
+                  target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+                }),
               })
               // Invalidate checkpoint — the old checkpoint contains pre-compaction
               // message IDs that won't match the new compacted state.

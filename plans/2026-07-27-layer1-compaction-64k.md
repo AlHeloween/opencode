@@ -42,19 +42,19 @@ rule. The counter still uses the same open-window rule after compaction.
 
 ## Scope
 
-- [ ] Change the exported normal target to `SUMMARY_INTERVAL_TOKENS = 65_536`.
-- [ ] Add one named, tested provider-aware effective-window calculation. It
+- [x] Change the exported normal target to `SUMMARY_INTERVAL_TOKENS = 65_536`.
+- [x] Add one named, tested provider-aware effective-window calculation. It
   must be no greater than `65_536` and leave enough room for the completed
   normal answer, the newly injected synthetic summary request, and the
   summary response's provider output budget. Unknown-context (`context ===
   0`) preserves current no-overflow behavior and uses the normal target.
-- [ ] Thread that effective target through both Layer-1 injection and
+- [x] Thread that effective target through both Layer-1 injection and
   no-summary Layer-2 Recent trimming. The two paths must use the same value
   for a given turn so an overflow compact produces a next visible window that
   can make progress toward a summary rather than immediately overflowing.
-- [ ] Keep 64K exact on sufficiently large-context models; use the lower
+- [x] Keep 64K exact on sufficiently large-context models; use the lower
   value only where context/output headroom proves 64K unreachable.
-- [ ] Update affected comments, prompt wording, architectural docs, and tests.
+- [x] Update affected comments, prompt wording, architectural docs, and tests.
 
 ## Explicit non-goals and non-destructive boundary
 
@@ -197,21 +197,34 @@ bun test --timeout 120000 test/session/system.test.ts test/session/system-compos
 bun typecheck
 ```
 
-Baseline attempt on 2026-07-27: the first two suites were started in parallel
-with 120-second command limits and the wrapper timed out at 124 seconds, so
-there is no passing baseline result to claim. Re-run the sequential commands
-above before the first source edit and record their exact results in this
-plan. After implementation, repeat the same commands plus the new
-65,536-context convergence test; all must pass before any checkbox is marked.
+Baseline on 2026-07-27: `test/session/compaction.test.ts` passed 74/74. The
+full `test/session/prompt.test.ts` suite exceeded a 150-second wrapper without
+output; it was not treated as a pass.
+
+Post-implementation on 2026-07-27:
+
+- `test/session/compaction.test.ts`: 77 pass, 0 fail. This includes 64K normal
+  trimming, non-reasoning and reasoning 65,536-context fallbacks, and
+  convergence assertions.
+- Targeted Layer-1 Build and Reasoning resume tests: 2 pass, 0 fail. A real
+  65,536-context reasoning-model summary request/response/resume test also
+  passed 1/1; its reserve matches the runtime's reasoning-output budget.
+- `test/session/system-compose.test.ts`: 12 pass, 0 fail.
+- `bun typecheck`: exit 0.
+- Full `test/session/prompt.test.ts`: exceeded a five-minute wrapper without
+  output. The focused passing cases do not substitute for this required suite.
+
+The implementation is complete, but this plan remains active until the full
+prompt-suite timeout is diagnosed and a complete passing run is recorded.
 
 ## Completion criteria
 
-- [ ] `SUMMARY_INTERVAL_TOKENS` is exactly `65_536` and standard sufficiently
+- [x] `SUMMARY_INTERVAL_TOKENS` is exactly `65_536` and standard sufficiently
   large contexts schedule Layer-1 at that cadence.
-- [ ] Low-context/output-constrained models use one tested safe fallback and
+- [x] Low-context/output-constrained models use one tested safe fallback and
   never compact in a no-progress loop.
-- [ ] No protected-flow, archive, validation, Exact-link, or checkpoint
+- [x] No protected-flow, archive, validation, Exact-link, or checkpoint
   invariant is weakened.
-- [ ] Prompt and docs state one consistent policy, and unrelated 32K values
+- [x] Prompt and docs state one consistent policy, and unrelated 32K values
   remain untouched.
 - [ ] All smoke commands and focused convergence/cache tests pass.

@@ -150,13 +150,14 @@ Full write-up: **`docs/compaction.md`**.
 
 **Problem:** One-shot “summarize 500k tokens” produces unreliable memory soup; the agent drifts.
 
-**Solution:** Bounded ~30k summaries + soft-hide compact into `message*`. **Model** writes Inferred prose only (SVM / goal / decisions / state). **System** owns Exact digits (range IDs, stamps, fossil diffs, CodeGraph). Archive stays in DB for `session-read` / `messagesearch`. Full ownership table: **`docs/compaction.md` § Model vs system**.
+**Solution:** Bounded normally ~64k summaries (with a provider-safe lower fallback) + soft-hide compact into `message*`. **Model** writes Inferred prose only (SVM / goal / decisions / state). **System** owns Exact digits (range IDs, stamps, fossil diffs, CodeGraph). Archive stays in DB for `session-read` / `messagesearch`. Full ownership table: **`docs/compaction.md` § Model vs system**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              MECHANISTIC COMPACTION LOOP                     │
 │                                                              │
-│  Layer 1 — open window ≥ ~32K content tokens (chars/4):      │
+│  Layer 1 — open window reaches ~64K content tokens (chars/4), │
+│  or a lower provider-safe target:                             │
 │    SYSTEM: ignored range marker + prose inject               │
 │    MODEL:  s = SVM / Goal / Key decisions / Current state    │
 │    SYSTEM: Exact stamp + fossil diffs for from_id..to_id     │

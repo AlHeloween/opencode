@@ -1,5 +1,5 @@
 import * as Tool from "./tool"
-import DESCRIPTION from "./ai-call.txt"
+import DESCRIPTION from "./aicall.txt"
 import { Session } from "@/session/session"
 import { SessionID } from "../session/schema"
 import { MessageV2 } from "../session/message-v2"
@@ -99,14 +99,14 @@ export const AiCallTool = Tool.define(
           // Create child session
           const subSession = yield* sessions.create({
             parentID: ctx.sessionID,
-            title: `ai-call: ${params.prompt.slice(0, 80)}`,
+            title: `aicall: ${params.prompt.slice(0, 80)}`,
           })
 
           const ops = ctx.extra?.promptOps as AiCallPromptOps | undefined
           if (!ops) {
             return {
-              title: "ai-call failed",
-              output: "ai-call requires promptOps in tool context (not available in this session mode)",
+              title: "aicall failed",
+              output: "aicall requires promptOps in tool context (not available in this session mode)",
               metadata: { sessionId: "(none)", model: { providerID: "", modelID: "" } },
             }
           }
@@ -157,7 +157,7 @@ export const AiCallTool = Tool.define(
               : path.join(ins.directory, params.output_file)
             yield* fs.writeWithDirs(outPath, output)
             return {
-              title: `ai-call → ${params.output_file}`,
+              title: `aicall → ${params.output_file}`,
               metadata: {
                 sessionId: subSession.id,
                 model: { providerID: model.providerID, modelID: model.id },
@@ -167,7 +167,7 @@ export const AiCallTool = Tool.define(
           }
 
           return {
-            title: `ai-call: ${params.prompt.slice(0, 40)}${params.prompt.length > 40 ? "..." : ""}`,
+            title: `aicall: ${params.prompt.slice(0, 40)}${params.prompt.length > 40 ? "..." : ""}`,
             metadata: {
               sessionId: subSession.id,
                 model: { providerID: model.providerID, modelID: model.id },

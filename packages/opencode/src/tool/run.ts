@@ -333,7 +333,7 @@ export const RunTool = Tool.define(
               })
               return {
                 title: `Background run ${jobID}`,
-                output: `Started background job ${jobID}. Use job_output to read.`,
+                output: `Started background job ${jobID}. Use joboutput to read.`,
                 metadata: { jobID, output: "", exit: null, description: params.description, truncated: false },
               }
             }

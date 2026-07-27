@@ -65,7 +65,7 @@ export const DbReadTool = Tool.define(
           const normalizedDataDir = path.resolve(dataDir)
           if (!normalizedPath.startsWith(normalizedDataDir)) {
             return {
-              title: `db-read: ${params.database}`,
+              title: `dbread: ${params.database}`,
               metadata: { database: params.database, rows: 0, error: "path_escape" },
               output: `Error: database path must be under ${normalizedDataDir}`,
             }
@@ -73,7 +73,7 @@ export const DbReadTool = Tool.define(
 
           if (!existsSync(dbPath)) {
             return {
-              title: `db-read: ${params.database}`,
+              title: `dbread: ${params.database}`,
               metadata: { database: params.database, rows: 0, error: "not_found" },
               output: `Error: database not found at ${dbPath}`,
             }
@@ -83,7 +83,7 @@ export const DbReadTool = Tool.define(
           const sqlUpper = params.sql.trim().toUpperCase()
           if (!sqlUpper.startsWith("SELECT") && !sqlUpper.startsWith("PRAGMA") && !sqlUpper.startsWith("WITH")) {
             return {
-              title: `db-read: ${params.database}`,
+              title: `dbread: ${params.database}`,
               metadata: { database: params.database, rows: 0, error: "write_rejected" },
               output: "Error: Only SELECT, PRAGMA, and WITH queries are allowed (read-only).",
             }
@@ -99,7 +99,7 @@ export const DbReadTool = Tool.define(
 
               if (rows.length === 0) {
                 return {
-                  title: `db-read: ${params.database}`,
+                  title: `dbread: ${params.database}`,
                   metadata: { database: params.database, rows: 0, error: "" },
                   output: "Query returned 0 rows.",
                 }
@@ -150,7 +150,7 @@ export const DbReadTool = Tool.define(
               }
 
               return {
-                title: `db-read: ${params.database}`,
+                title: `dbread: ${params.database}`,
                 metadata: {
                   database: params.database,
                   rows: limited.length,
@@ -163,7 +163,7 @@ export const DbReadTool = Tool.define(
             }
           } catch (err) {
             return {
-              title: `db-read: ${params.database}`,
+              title: `dbread: ${params.database}`,
               metadata: { database: params.database, rows: 0, error: "query_failed" },
               output: `Error executing query: ${err instanceof Error ? err.message : String(err)}`,
             }

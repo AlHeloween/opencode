@@ -19,7 +19,7 @@ export const JobKillTool = Tool.define(
     const jobs = yield* Jobs.Service
     return {
       description:
-        "Kill a running or stalled background job. Use this when a job is taking too long (stalled) or no longer needed. The job's output up to the kill point is preserved and can be read with job_output.",
+        "Kill a running or stalled background job. Use this when a job is taking too long (stalled) or no longer needed. The job's output up to the kill point is preserved and can be read with joboutput.",
       parameters: JobKillParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
@@ -27,7 +27,7 @@ export const JobKillTool = Tool.define(
           if (killed) {
             return {
               title: `Killed job ${params.job_id}`,
-              output: `Job ${params.job_id} has been killed. Use job_output to read any output produced before termination.`,
+              output: `Job ${params.job_id} has been killed. Use joboutput to read any output produced before termination.`,
               metadata: { jobID: params.job_id, killed: true },
             }
           }

@@ -352,7 +352,7 @@ function buildMessageStar(input: {
               .slice(0, 20)
               .map((diff) => `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`),
             ...(s.diffs.length > 20
-              ? [`  - … +${s.diffs.length - 20} more; session-read this summary range for the full Exact list`]
+              ? [`  - … +${s.diffs.length - 20} more; sessionread this summary range for the full Exact list`]
               : []),
           ].join("\n")
         : undefined

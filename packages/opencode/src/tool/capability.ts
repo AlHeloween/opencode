@@ -11,7 +11,7 @@ Use this tool before:
 - Generating images, audio, or video (to find capable models)
 - Processing non-text attachments (to find models with vision/audio input)
 - Any task requiring model capabilities beyond text output
-- Choosing the right model for ai-call based on output limits and cost
+- Choosing the right model for aicall based on output limits and cost
 
 ## Modes
 
@@ -148,7 +148,7 @@ export const CapabilityTool = Tool.define("capability", Effect.gen(function* () 
               sep,
               "",
               "Output = max output tokens. Cost = per 1M input/output tokens.",
-              "Use ai-call with model: '<model_id>' to target a specific model.",
+              "Use aicall with model: '<model_id>' to target a specific model.",
             ].join("\n"),
           }
         }

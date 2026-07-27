@@ -10,7 +10,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { trimDiff } from "./edit"
 import { LSP } from "@/lsp/lsp"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
-import DESCRIPTION from "./apply_patch.txt"
+import DESCRIPTION from "./applypatch.txt"
 import { File } from "../file"
 import { Format } from "../format"
 import * as Bom from "@/util/bom"
@@ -42,7 +42,7 @@ export const ApplyPatchTool = Tool.define(
         const parseResult = Patch.parsePatch(params.patchText)
         hunks = parseResult.hunks
       } catch (error) {
-        return yield* Effect.fail(new Error(`apply_patch verification failed: ${error}`))
+        return yield* Effect.fail(new Error(`applypatch verification failed: ${error}`))
       }
 
       if (hunks.length === 0) {
@@ -50,7 +50,7 @@ export const ApplyPatchTool = Tool.define(
         if (normalized === "*** Begin Patch\n*** End Patch") {
           return yield* Effect.fail(new Error("patch rejected: empty patch"))
         }
-        return yield* Effect.fail(new Error("apply_patch verification failed: no hunks found"))
+        return yield* Effect.fail(new Error("applypatch verification failed: no hunks found"))
       }
 
       // Validate file paths and check permissions
@@ -109,7 +109,7 @@ export const ApplyPatchTool = Tool.define(
             const stats = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
             if (!stats || stats.type === "Directory") {
               return yield* Effect.fail(
-                new Error(`apply_patch verification failed: Failed to read file to update: ${filePath}`),
+                new Error(`applypatch verification failed: Failed to read file to update: ${filePath}`),
               )
             }
 
@@ -124,7 +124,7 @@ export const ApplyPatchTool = Tool.define(
               newContent = fileUpdate.content
               bom = fileUpdate.bom
             } catch (error) {
-              return yield* Effect.fail(new Error(`apply_patch verification failed: ${error}`))
+              return yield* Effect.fail(new Error(`applypatch verification failed: ${error}`))
             }
 
             const diff = trimDiff((yield* Effect.promise(() => createPatch(oldContent, newContent))) ?? "")
@@ -156,9 +156,9 @@ export const ApplyPatchTool = Tool.define(
             const source = yield* Bom.readFile(afs, filePath).pipe(
               Effect.catch((error) =>
                 Effect.fail(
-                  new Error(
-                    `apply_patch verification failed: ${error instanceof Error ? error.message : String(error)}`,
-                  ),
+new Error(
+                  `applypatch verification failed: ${error instanceof Error ? error.message : String(error)}`,
+                ),
                 ),
               ),
             )

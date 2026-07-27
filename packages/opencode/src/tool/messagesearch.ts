@@ -77,7 +77,7 @@ export const MessageSearchTool = Tool.define(
                 if (totalSize >= MAX_OUTPUT) break
                 const header =
                   `\n## Session: ${sessionID}\n` +
-                  `info_mark: Inferred — index snippets; use session-read for Exact.\n`
+                  `info_mark: Inferred — index snippets; use sessionread for Exact.\n`
                 output += header
                 totalSize += header.length
 
@@ -150,7 +150,7 @@ export const MessageSearchTool = Tool.define(
               if (totalSize >= MAX_OUTPUT) break
               const header =
                 `\n## Session: ${sessionID}\n` +
-                `info_mark: Inferred — index snippets; use session-read for Exact.\n`
+                `info_mark: Inferred — index snippets; use sessionread for Exact.\n`
               output += header
               totalSize += header.length
 

@@ -351,7 +351,7 @@ export function epistemicNudge(input: {
 
   return (
     `[epistemic nudge: decision based on ${input.evidenceFloor} data. ` +
-    `session-read recommended for Exact verification.]`
+    `sessionread recommended for Exact verification.]`
   )
 }
 

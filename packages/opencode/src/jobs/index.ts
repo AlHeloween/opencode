@@ -453,7 +453,7 @@ export const layer = Layer.effect(
       return (
         "Background jobs since your last turn:\n" +
         lines.join("\n") +
-        "\nUse job_output to read their output, or job_wait if you still need them."
+        "\nUse joboutput to read their output, or jobwait if you still need them."
       )
     })
 

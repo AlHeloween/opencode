@@ -11,7 +11,7 @@ export const JobOutputTool = Tool.define(
   Effect.gen(function* () {
     const jobs = yield* Jobs.Service
     return {
-      description: "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — the agent should consider killing it with job_kill.",
+      description: "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — the agent should consider killing it with jobkill.",
       parameters: JobOutputParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
@@ -42,7 +42,7 @@ export const JobWaitParameters = Schema.Struct({
   }),
   progress_interval_ms: Schema.optional(Schema.Number).annotate({
     description:
-      "When set, returns every N milliseconds with intermediate progress instead of blocking until completion. The model can then decide to continue (call job_wait again), kill (job_kill), or take other action. Use for long-running tasks (compiles, deploys) where the model needs periodic control. Without this, job_wait blocks until all jobs finish or timeout fires.",
+      "When set, returns every N milliseconds with intermediate progress instead of blocking until completion. The model can then decide to continue (call jobwait again), kill (jobkill), or take other action. Use for long-running tasks (compiles, deploys) where the model needs periodic control. Without this, jobwait blocks until all jobs finish or timeout fires.",
   }),
 })
 
@@ -106,7 +106,7 @@ export const JobWaitTool = Tool.define(
           let output = results.join("\n\n") || "No jobs found."
           if (stillRunning && progressInterval) {
             output +=
-              `\n\n[progress tick — jobs still running. Call job_wait again to continue waiting, or job_kill to abort.]`
+              `\n\n[progress tick — jobs still running. Call jobwait again to continue waiting, or jobkill to abort.]`
           }
 
           return {

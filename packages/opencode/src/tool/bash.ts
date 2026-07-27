@@ -160,7 +160,7 @@ export const Parameters = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed(true)),
   ).annotate({
     description:
-      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or job_kill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
+      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use joboutput to read output, jobwait to wait for completion, or jobkill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
   }),
 })
 
@@ -885,7 +885,7 @@ export const BashTool = Tool.define(
                 })
                 return {
                   title: `Background bash ${jobID}`,
-                  output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use job_output to read its output, or job_wait to wait for completion.`,
+                  output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use joboutput to read its output, or jobwait to wait for completion.`,
                   metadata: {
                     jobID,
                     output: "",

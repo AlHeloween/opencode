@@ -115,7 +115,7 @@ export const Parameters = Schema.Struct({
   }),
   command: Schema.optional(Schema.String).annotate({ description: "The command that triggered this task" }),
   run_in_background: Schema.optional(Schema.Boolean).annotate({
-    description: "If true, run the sub-agent as a background job and return immediately with a job ID. Use job_output to read the result.",
+    description: "If true, run the sub-agent as a background job and return immediately with a job ID. Use joboutput to read the result.",
   }),
 })
 
@@ -349,7 +349,7 @@ export const TaskTool = Tool.define(
               sessionId: nextSession.id,
               model,
             },
-            output: `Task spawned as background job ${jobID}. Use job_output(${jobID}) to read the result when ready, or job_wait to block until completion.`,
+            output: `Task spawned as background job ${jobID}. Use joboutput(${jobID}) to read the result when ready, or jobwait to block until completion.`,
           }
         }
       }

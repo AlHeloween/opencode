@@ -27,6 +27,7 @@ FSL_*.db-journal
 opencode.jsonc
 gateway.jsonc
 auth.json
+/config.json
 
 # ── Dependencies ──
 node_modules

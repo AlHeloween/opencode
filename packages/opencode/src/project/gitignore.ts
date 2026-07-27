@@ -5,26 +5,17 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 const runtimeDataIgnore = ".opencode/data"
 const tempIgnore = ".temp"
 const codeGraphDir = ".codegraph"
-const acceptedRuntimeDataIgnores = new Set([
-  runtimeDataIgnore,
-  `${runtimeDataIgnore}/`,
-  `/${runtimeDataIgnore}`,
-  `/${runtimeDataIgnore}/`,
-  tempIgnore,
-  `${tempIgnore}/`,
-  `/${tempIgnore}`,
-  `/${tempIgnore}/`,
-  codeGraphDir,
-  `${codeGraphDir}/`,
-  `/${codeGraphDir}`,
-  `/${codeGraphDir}/`,
-])
+const configFileName = "config.json"
+const configIgnore = `/${configFileName}`
+const defaultIgnores = [runtimeDataIgnore, tempIgnore, codeGraphDir, configIgnore]
 
-function hasRuntimeDataIgnore(text: string) {
+function hasIgnore(text: string, value: string) {
+  const normalized = value.replace(/^\//, "")
+  const accepted = new Set([value, `${value}/`, normalized, `${normalized}/`, `/${normalized}`, `/${normalized}/`])
   return text
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .some((line) => !line.startsWith("#") && acceptedRuntimeDataIgnores.has(line))
+    .some((line) => !line.startsWith("#") && accepted.has(line))
 }
 
 export function isRuntimeDataPath(file: string) {
@@ -35,7 +26,8 @@ export function isRuntimeDataPath(file: string) {
     normalized === tempIgnore ||
     normalized.startsWith(`${tempIgnore}/`) ||
     normalized === codeGraphDir ||
-    normalized.startsWith(`${codeGraphDir}/`)
+    normalized.startsWith(`${codeGraphDir}/`) ||
+    normalized === configFileName
   )
 }
 
@@ -45,13 +37,7 @@ export const ensureRuntimeDataIgnored = Effect.fn("ProjectGitignore.ensureRuntim
 ) {
   const file = path.join(worktree, ".gitignore")
   const text = yield* fs.readFileString(file).pipe(Effect.catch(() => Effect.succeed("")))
-  if (hasRuntimeDataIgnore(text)) return
-
-  // Add .opencode/data, .temp, and .codegraph if missing
-  const linesToAdd = []
-  if (!text.includes(".opencode/data")) linesToAdd.push(".opencode/data")
-  if (!text.includes(".temp")) linesToAdd.push(".temp")
-  if (!text.includes(codeGraphDir)) linesToAdd.push(codeGraphDir)
+  const linesToAdd = defaultIgnores.filter((value) => !hasIgnore(text, value))
   if (linesToAdd.length === 0) return
 
   yield* fs

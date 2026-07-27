@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_3787c348722c41602b95ee4be5c3e7fd name="record_processor_effect_resolution" md5="3787c348722c41602b95ee4be5c3e7fd" size="357">
+    <file>plans/2026-07-27-sidecar-incremental-checkpoints.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>- [ ] From the resulting clean Git base, diagnose `processor-effect.test.ts` with isolated test names and processor lifecycle traces. Resolve every timeout and `continue` / `stop` mismatch before the next commit.</find_text>
+    <semantics>Record exact P0 resolution: raw processor ends the current turn with stop, prompt owns continuation, and Fossil and Git integration tests have an explicit bounded test deadline.</semantics>
+    <content_md5_3787c348722c41602b95ee4be5c3e7fd>
+      - [x] (Exact) Diagnosed and resolved `processor-effect.test.ts`: raw `SessionProcessor.process()` returns `stop` after a completed turn (prompt run-loop owns continuation), so five stale `continue` expectations were corrected. Twelve live Fossil/Git integration cases now receive an explicit 30 second `it.live` deadline. `bun test test/session/processor-effect.test.ts` — 13 pass, 0 fail (2026-07-28).
+    </content_md5_3787c348722c41602b95ee4be5c3e7fd>
+  </update_md5_3787c348722c41602b95ee4be5c3e7fd>
+</updates>

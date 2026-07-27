@@ -19,7 +19,7 @@ import { ModelID, ProviderID } from "../../src/provider/schema"
 import { Question } from "../../src/question"
 import { Todo } from "../../src/session/todo"
 import { Session } from "@/session/session"
-import { LLM } from "../../src/session/llm"
+import { buildProviderCacheKey, LLM } from "../../src/session/llm"
 import { MessageV2 } from "../../src/session/message-v2"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Capability } from "@/capability"
@@ -486,9 +486,9 @@ it.live("static loop uses provider cache key for cache-visible session banner", 
       yield* llm.text("world")
       yield* prompt.loop({ sessionID: session.id })
 
-      const body = JSON.stringify((yield* llm.inputs)[0])
-      expect(body).toContain(`[session: ${providerCacheKey}]`)
-      expect(body).not.toContain(`[session: ${session.id}]`)
+      const request = (yield* llm.inputs)[0] as { prompt_cache_key?: string }
+      expect(request.prompt_cache_key).toBe(buildProviderCacheKey({ sessionID: session.id, providerCacheKey, modelID: "test-model", identity: "build" }))
+      expect(request.prompt_cache_key).not.toBe(session.id)
     }),
     { git: true, config: providerCfg },
   ),
@@ -2611,3 +2611,17 @@ it.live(
     ),
   30_000,
 )
+
+// ADID_ROLLBACK (from adm.exe)
+// SDID_ROLLBACK {
+//   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts"
+//   "update_script": "adm.exe"
+//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts.backup_20260728T023732_346380"
+//   "created_at": "2026-07-27T18:37:32.376891+00:00"
+//   "backup_hash": "5dd5d394e7590f1cc19fcaf2e5cc0d26"
+//   "new_hash": "26beee6120666227f5e5882652e13638"
+//   "goal_id": "reject_unscoped_request_key"
+//   "semantics": "Preserve the regression guard against an unscoped session-only provider cache key."
+//   "update_attrs": {"relative_path": "packages/opencode/test/session/prompt.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "expect(body).not.toContain(`[session: ${session.id}]`)", "replace_present": true}
+//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts\""
+// }

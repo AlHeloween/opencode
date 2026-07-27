@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_cab91fd6a459f14fdd2fae6e917d3b01 name="record_incremental_recovery_boundary" md5="cab91fd6a459f14fdd2fae6e917d3b01" size="448">
+    <file>plans/2026-07-27-sidecar-incremental-checkpoints.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>- [ ] Re-run the incremental worker smoke suite from `packages/opencode`: `summary.test.ts`, `snapshot-tool-race.test.ts`, selected-path `snapshot.test.ts`, `checkpoint.test.ts`, focused hidden-sidecar `prompt.test.ts`, `compaction.test.ts`, `system-compose.test.ts`, `bun typecheck`, and `git diff --check`. If all pass, commit all 12 tracked files plus their ADM XML descriptors as a diagnostic boundary only; it is not push-ready until P0 suites pass.</find_text>
+    <semantics>Mark the recovery boundary exact after all focused smoke oracles pass. Preserve the explicit no-push constraint for the unresolved processor and full prompt suites.</semantics>
+    <content_md5_cab91fd6a459f14fdd2fae6e917d3b01>
+      - [x] (Exact) Re-ran `summary.test.ts` (12/12), `snapshot-tool-race.test.ts` (1/1), selected-path `snapshot.test.ts` (1/1), `checkpoint.test.ts` (18/18), focused hidden-sidecar `prompt.test.ts` (1/1), `compaction.test.ts` (78/78), `system-compose.test.ts` (12/12), `bun typecheck`, `git diff --check`, and ADM verification (330 OK, 0 WARN). Committed the recovery boundary as `3be75d6`; `541724d` removes XML trailing whitespace. This remains diagnostic-only and is not push-ready until P0 suites pass.
+    </content_md5_cab91fd6a459f14fdd2fae6e917d3b01>
+  </update_md5_cab91fd6a459f14fdd2fae6e917d3b01>
+</updates>

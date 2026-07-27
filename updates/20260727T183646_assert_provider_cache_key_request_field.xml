@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_162b2331ae2c9a615d321bb60d55cea3 name="read_provider_cache_key_field" md5="162b2331ae2c9a615d321bb60d55cea3" size="62">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>const body = JSON.stringify((yield* llm.inputs)[0])</find_text>
+    <semantics>Read the structured request value so the assertion validates the provider option rather than serialized prompt prose.</semantics>
+    <content_md5_162b2331ae2c9a615d321bb60d55cea3>
+      const request = (yield* llm.inputs)[0] as { prompt_cache_key?: string }
+    </content_md5_162b2331ae2c9a615d321bb60d55cea3>
+  </update_md5_162b2331ae2c9a615d321bb60d55cea3>
+  <update_md5_d453aad7a8f9544d8e35291916f41f9f name="assert_identity_scoped_request_key" md5="d453aad7a8f9544d8e35291916f41f9f" size="139">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>expect(body).toContain(`[session: ${buildProviderCacheKey({ sessionID: session.id, providerCacheKey, modelID: &quot;test-model&quot;, identity: &quot;build&quot; })}]`)</find_text>
+    <semantics>Verify the exact identity-scoped key used by the provider request.</semantics>
+    <content_md5_d453aad7a8f9544d8e35291916f41f9f>
+      expect(request.prompt_cache_key).toBe(buildProviderCacheKey({ sessionID: session.id, providerCacheKey, modelID: &quot;test-model&quot;, identity: &quot;build&quot; }))
+    </content_md5_d453aad7a8f9544d8e35291916f41f9f>
+  </update_md5_d453aad7a8f9544d8e35291916f41f9f>
+  <update_md5_306a290c71e6ba5d27dd8ffd1ba3a313 name="reject_unscoped_request_key" md5="306a290c71e6ba5d27dd8ffd1ba3a313" size="53">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>expect(body).not.toContain(`[session: ${session.id}]`)</find_text>
+    <semantics>Preserve the regression guard against an unscoped session-only provider cache key.</semantics>
+    <content_md5_306a290c71e6ba5d27dd8ffd1ba3a313>
+      expect(request.prompt_cache_key).not.toBe(session.id)
+    </content_md5_306a290c71e6ba5d27dd8ffd1ba3a313>
+  </update_md5_306a290c71e6ba5d27dd8ffd1ba3a313>
+</updates>

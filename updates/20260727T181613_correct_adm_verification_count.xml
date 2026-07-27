@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_36655d1710d00fd4ab46407379081829 name="correct_adm_verification_count" md5="36655d1710d00fd4ab46407379081829" size="38">
+    <file>plans/2026-07-27-sidecar-incremental-checkpoints.md</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>and ADM verification (330 OK, 0 WARN).</find_text>
+    <semantics>Replace the shortened report count with the exact full src plus test verification result.</semantics>
+    <content_md5_36655d1710d00fd4ab46407379081829>
+      and ADM verification (1,216 OK, 0 warnings).
+    </content_md5_36655d1710d00fd4ab46407379081829>
+  </update_md5_36655d1710d00fd4ab46407379081829>
+</updates>

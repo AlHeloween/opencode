@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_463dff4c94bf881ac9cc649d6c9b1523 name="set_processor_live_test_timeout" md5="463dff4c94bf881ac9cc649d6c9b1523" size="49">
+    <file>packages/opencode/test/session/processor-effect.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>12</expected_matches>
+    <find_text>{ git: true, config: (url) =&gt; providerCfg(url) },</find_text>
+    <semantics>Live tests initialize isolated Git and Fossil state and exceed Bun&#x27;s default 5 second test deadline. Preserve a bounded 30 second timeout in the test definition so CI runs the same contract as local validation.</semantics>
+    <content_md5_463dff4c94bf881ac9cc649d6c9b1523>
+      { git: true, config: (url) =&gt; providerCfg(url) },
+          30_000,
+    </content_md5_463dff4c94bf881ac9cc649d6c9b1523>
+  </update_md5_463dff4c94bf881ac9cc649d6c9b1523>
+</updates>

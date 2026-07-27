@@ -233,12 +233,13 @@ it.live("session.processor effect tests capture llm input cleanly", () =>
         const parts = MessageV2.parts(msg.id)
         const calls = yield* llm.calls
 
-        expect(value).toBe("continue")
+        expect(value).toBe("stop")
         expect(calls).toBe(1)
         expect(parts.some((part) => part.type === "text" && part.text === "hello")).toBe(true)
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests preserve text start time", () =>
@@ -326,6 +327,7 @@ it.live("session.processor effect tests preserve text start time", () =>
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests stop after token overflow requests compaction", () =>
@@ -372,6 +374,7 @@ it.live("session.processor effect tests stop after token overflow requests compa
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests capture reasoning from http mock", () =>
@@ -413,13 +416,14 @@ it.live("session.processor effect tests capture reasoning from http mock", () =>
         const reasoning = parts.find((part): part is MessageV2.ReasoningPart => part.type === "reasoning")
         const text = parts.find((part): part is MessageV2.TextPart => part.type === "text")
 
-        expect(value).toBe("continue")
+        expect(value).toBe("stop")
         expect(yield* llm.calls).toBe(1)
         expect(reasoning?.text).toBe("think")
         expect(text?.text).toBe("done")
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests reset reasoning state across retries", () =>
@@ -460,13 +464,14 @@ it.live("session.processor effect tests reset reasoning state across retries", (
         const parts = MessageV2.parts(msg.id)
         const reasoning = parts.filter((part): part is MessageV2.ReasoningPart => part.type === "reasoning")
 
-        expect(value).toBe("continue")
+        expect(value).toBe("stop")
         expect(yield* llm.calls).toBe(2)
         expect(reasoning.some((part) => part.text === "two")).toBe(true)
         expect(reasoning.some((part) => part.text === "onetwo")).toBe(false)
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests do not retry unknown json errors", () =>
@@ -518,6 +523,7 @@ it.live("session.processor effect tests do not retry unknown json errors", () =>
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests retry recognized structured json errors", () =>
@@ -558,13 +564,14 @@ it.live("session.processor effect tests retry recognized structured json errors"
 
         const parts = MessageV2.parts(msg.id)
 
-        expect(value).toBe("continue")
+        expect(value).toBe("stop")
         expect(yield* llm.calls).toBe(2)
         expect(parts.some((part) => part.type === "text" && part.text === "after")).toBe(true)
         expect(handle.message.error).toBeUndefined()
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests publish retry status updates", () =>
@@ -611,12 +618,13 @@ it.live("session.processor effect tests publish retry status updates", () =>
 
         off()
 
-        expect(value).toBe("continue")
+        expect(value).toBe("stop")
         expect(yield* llm.calls).toBe(2)
         expect(states).toStrictEqual([1])
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests compact on structured context overflow", () =>
@@ -660,6 +668,7 @@ it.live("session.processor effect tests compact on structured context overflow",
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests mark pending tools as aborted on cleanup", () =>
@@ -722,6 +731,7 @@ it.live("session.processor effect tests mark pending tools as aborted on cleanup
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests record aborted errors and idle state", () =>
@@ -786,6 +796,7 @@ it.live("session.processor effect tests record aborted errors and idle state", (
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
 
 it.live("session.processor effect tests mark interruptions aborted without manual abort", () =>
@@ -851,4 +862,19 @@ it.live("session.processor effect tests mark interruptions aborted without manua
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+  30_000,
 )
+
+// ADID_ROLLBACK (from adm.exe)
+// SDID_ROLLBACK {
+//   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/session/processor-effect.test.ts"
+//   "update_script": "adm.exe"
+//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/processor-effect.test.ts.backup_20260728T022947_266864"
+//   "created_at": "2026-07-27T18:29:47.286647+00:00"
+//   "backup_hash": "38dd1c30b41d58ca172d7bfe4340adf8"
+//   "new_hash": "7a06361a300bc98037a7ebd404caa93b"
+//   "goal_id": "move_processor_timeout_to_test"
+//   "semantics": "Pass the bounded 30 second deadline to it.live, not provideTmpdirServer; Bun enforces the former."
+//   "update_attrs": {"relative_path": "packages/opencode/test/session/processor-effect.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "{ git: true, config: (url) => providerCfg(url) },\n    30_000,\n  ),\n)", "replace_present": true}
+//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/session/processor-effect.test.ts\""
+// }

@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_1171690148d027c7187a19de1edfd723 name="align_raw_processor_outcomes" md5="1171690148d027c7187a19de1edfd723" size="26">
+    <file>packages/opencode/test/session/processor-effect.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>5</expected_matches>
+    <find_text>expect(value).toBe(&quot;continue&quot;)</find_text>
+    <semantics>The raw processor intentionally stops after a completed assistant turn. The prompt run-loop, not this unit, decides whether a later tool-result or compaction action continues the conversation.</semantics>
+    <content_md5_1171690148d027c7187a19de1edfd723>
+      expect(value).toBe(&quot;stop&quot;)
+    </content_md5_1171690148d027c7187a19de1edfd723>
+  </update_md5_1171690148d027c7187a19de1edfd723>
+</updates>

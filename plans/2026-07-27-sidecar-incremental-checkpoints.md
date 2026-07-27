@@ -141,8 +141,8 @@ Pass criteria: the UI's session diff remains exact for files touched in a write 
 
 ### Commit boundary and P0 diagnosis — 2026-07-28
 
-- [ ] Re-run the incremental worker smoke suite from `packages/opencode`: `summary.test.ts`, `snapshot-tool-race.test.ts`, selected-path `snapshot.test.ts`, `checkpoint.test.ts`, focused hidden-sidecar `prompt.test.ts`, `compaction.test.ts`, `system-compose.test.ts`, `bun typecheck`, and `git diff --check`. If all pass, commit all 12 tracked files plus their ADM XML descriptors as a diagnostic boundary only; it is not push-ready until P0 suites pass.
-- [ ] From the resulting clean Git base, diagnose `processor-effect.test.ts` with isolated test names and processor lifecycle traces. Resolve every timeout and `continue` / `stop` mismatch before the next commit.
+- [x] (Exact) Re-ran `summary.test.ts` (12/12), `snapshot-tool-race.test.ts` (1/1), selected-path `snapshot.test.ts` (1/1), `checkpoint.test.ts` (18/18), focused hidden-sidecar `prompt.test.ts` (1/1), `compaction.test.ts` (78/78), `system-compose.test.ts` (12/12), `bun typecheck`, `git diff --check`, and ADM verification (1,216 OK, 0 warnings). Committed the recovery boundary as `3be75d6`; `541724d` removes XML trailing whitespace. This remains diagnostic-only and is not push-ready until P0 suites pass.
+- [x] (Exact) Diagnosed and resolved `processor-effect.test.ts`: raw `SessionProcessor.process()` returns `stop` after a completed turn (prompt run-loop owns continuation), so five stale `continue` expectations were corrected. Twelve live Fossil/Git integration cases now receive an explicit 30 second `it.live` deadline. `bun test test/session/processor-effect.test.ts` — 13 pass, 0 fail (2026-07-28).
 - [ ] Obtain a bounded, diagnostic full `prompt.test.ts` result; remove or replace only legacy assertions that contradict the detached-sidecar contract.
 - [ ] Use a new ADM descriptor for every corrective source/test/plan mutation. Apply it, run `tools/adm.exe --verify-all packages/opencode/src packages/opencode/test`, then run the affected Bun smoke tests.
 - [ ] Only after P0 passes, continue the unimplemented sidecar lifecycle: completed-sidecar counter boundary, invalidation on history mutation, atomic `message*` materialization, and removal of the legacy synthetic summary flow.
@@ -156,13 +156,13 @@ Pass criteria: the UI's session diff remains exact for files touched in a write 
   SDID_ROLLBACK {
     "target_file": "D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md"
     "update_script": "adm.exe"
-    "backup_path": "D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md.backup_20260728T021047_731132"
-    "created_at": "2026-07-27T18:10:47.745709+00:00"
-    "backup_hash": "77eb7564c5f33d85349810da0e58cedb"
-    "new_hash": "6b1c171c8824ba982deb5598432e9c2d"
-    "goal_id": "complete_incremental_commit_gate"
-    "semantics": "Require every directly modified runtime surface to pass its focused regression before the diagnostic commit. The commit narrows investigation but is not eligible for push while P0 tests remain unresolved."
-    "update_attrs": {"relative_path": "plans/2026-07-27-sidecar-incremental-checkpoints.md", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "- [ ] Re-run the incremental worker smoke suite from `packages/opencode`; if it passes, commit only this verified scope: incremental `SessionSummary.update`, selected-path Fossil diff, checkpoint/sidecar continuity changes already covered by focused tests, and regression coverage.", "replace_present": true}
+    "backup_path": "D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md.backup_20260728T023332_902831"
+    "created_at": "2026-07-27T18:33:32.920612+00:00"
+    "backup_hash": "9020a7838ad243b50688a5f43ea36066"
+    "new_hash": "8fd63aa64678a14289dbfefb21e2769e"
+    "goal_id": "record_processor_effect_resolution"
+    "semantics": "Record exact P0 resolution: raw processor ends the current turn with stop, prompt owns continuation, and Fossil and Git integration tests have an explicit bounded test deadline."
+    "update_attrs": {"relative_path": "plans/2026-07-27-sidecar-incremental-checkpoints.md", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "- [ ] From the resulting clean Git base, diagnose `processor-effect.test.ts` with isolated test names and processor lifecycle traces. Resolve every timeout and `continue` / `stop` mismatch before the next commit.", "replace_present": true}
     "restore_cmd": "python -m adm \u002d\u002drollback \"D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md\""
   }
 -->

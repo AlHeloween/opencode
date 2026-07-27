@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_870b0e21c298e8e6e776943dca86c00a name="import_provider_cache_key_builder" md5="870b0e21c298e8e6e776943dca86c00a" size="60">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>import { LLM } from &quot;../../src/session/llm&quot;</find_text>
+    <semantics>Use the production cache-key contract in the integration assertion instead of duplicating its old format.</semantics>
+    <content_md5_870b0e21c298e8e6e776943dca86c00a>
+      import { buildProviderCacheKey, LLM } from &quot;../../src/session/llm&quot;
+    </content_md5_870b0e21c298e8e6e776943dca86c00a>
+  </update_md5_870b0e21c298e8e6e776943dca86c00a>
+  <update_md5_e33cdee53d7fdee9395cfab5cc2f75eb name="assert_identity_scoped_provider_cache_key" md5="e33cdee53d7fdee9395cfab5cc2f75eb" size="139">
+    <file>packages/opencode/test/session/prompt.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>expect(body).toContain(`[session: ${providerCacheKey}]`)</find_text>
+    <semantics>Assert the identity-scoped key emitted by LLM.buildProviderCacheKey so the test detects an omitted or incorrectly ordered agent namespace.</semantics>
+    <content_md5_e33cdee53d7fdee9395cfab5cc2f75eb>
+      expect(body).toContain(`[session: ${buildProviderCacheKey({ sessionID: session.id, providerCacheKey, modelID: &quot;test-model&quot;, identity: &quot;build&quot; })}]`)
+    </content_md5_e33cdee53d7fdee9395cfab5cc2f75eb>
+  </update_md5_e33cdee53d7fdee9395cfab5cc2f75eb>
+</updates>

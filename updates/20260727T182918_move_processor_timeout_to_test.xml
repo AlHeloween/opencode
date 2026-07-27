@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_4f2714b68d798f74abf76a357b9518cd name="move_processor_timeout_to_test" md5="4f2714b68d798f74abf76a357b9518cd" size="52">
+    <file>packages/opencode/test/session/processor-effect.test.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>12</expected_matches>
+    <find_text>{ git: true, config: (url) =&gt; providerCfg(url) },
+    30_000,
+  ),
+)</find_text>
+    <semantics>Pass the bounded 30 second deadline to it.live, not provideTmpdirServer; Bun enforces the former.</semantics>
+    <content_md5_4f2714b68d798f74abf76a357b9518cd>
+      { git: true, config: (url) =&gt; providerCfg(url) },
+        ),
+        30_000,
+      )
+    </content_md5_4f2714b68d798f74abf76a357b9518cd>
+  </update_md5_4f2714b68d798f74abf76a357b9518cd>
+</updates>

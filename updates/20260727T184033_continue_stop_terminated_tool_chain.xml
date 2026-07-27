@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<updates>
+  <update_md5_ad7488414f06eece5ac555eae7385ca5 name="continue_nonprovider_tool_after_stop" md5="ad7488414f06eece5ac555eae7385ca5" size="144">
+    <file>packages/opencode/src/session/prompt.ts</file>
+    <update_type>text</update_type>
+    <mode>replace</mode>
+    <encoding>utf-8</encoding>
+    <expected_matches>1</expected_matches>
+    <find_text>              if (msg.finish === &quot;tool-calls&quot;) {
+                return &quot;continue&quot; as const
+              }</find_text>
+    <semantics>Provider finish labels are not authoritative for non-provider-executed tool parts. Continue exactly when a pending tool result must be returned to the model; keep provider-executed stop turns terminal.</semantics>
+    <content_md5_ad7488414f06eece5ac555eae7385ca5>
+      if (msg.finish === &quot;tool-calls&quot; || MessageV2.parts(msg.id).some((part) =&gt; part.type === &quot;tool&quot; &amp;&amp; !part.metadata?.providerExecuted)) return &quot;continue&quot; as const
+    </content_md5_ad7488414f06eece5ac555eae7385ca5>
+  </update_md5_ad7488414f06eece5ac555eae7385ca5>
+</updates>

@@ -192,6 +192,11 @@ export function nativeImagePixelSize(input: {
   return { width, height }
 }
 
+/** Reserve the same terminal rows as OpenTUI's native image layout. */
+export function nativeImageCellRows(imageHeight: number, cellHeight: number): number {
+  return Math.max(1, Math.ceil(imageHeight / Math.max(1, cellHeight)))
+}
+
 async function waitForCapabilities(renderer: CapsRenderer, timeoutMs: number): Promise<void> {
   if (nativeGraphicsLayoutMode(renderer) !== "none") return
   const deadline = Date.now() + timeoutMs
@@ -553,6 +558,8 @@ export function MediaImage(props: {
             paddingTop={1}
             paddingLeft={2}
             flexDirection="column"
+            flexShrink={0}
+            minHeight={nativeImageCellRows(f().height, cellPixelSize(renderer as CapsRenderer, mode).cellHeight) + 1}
             onMouseScroll={props.interactive ? handleMouse : undefined}
             onMouseDown={props.interactive ? handleMouse : undefined}
             onMouseDrag={props.interactive ? handleMouse : undefined}

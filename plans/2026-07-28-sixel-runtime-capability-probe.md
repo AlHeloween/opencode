@@ -22,6 +22,7 @@ defines `CSI ? 2 ; 1 ; 0 S` and successful `CSI ? 2 ; 0 ; … S` replies.
 - [x] Make `image_protocol: "sixel"` set native OpenTUI Sixel capability explicitly; `symbols` must disable native graphics.
 - [x] Add native and TypeScript regression coverage for successful/failed probes and explicit overrides.
 - [x] Resolve the TUI `auto` policy with the independent graphics detector and persist its selected native protocol; log rejected remote overrides and the iTerm2 symbols fallback.
+- [ ] Reserve native image layout rows so assistant metadata cannot overlap Sixel diagrams.
 - [ ] Rebuild and verify the packaged TUI records the probe result or override and selects native Sixel.
 
 ## Smoke Tests

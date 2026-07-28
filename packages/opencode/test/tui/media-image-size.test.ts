@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   nativeImagePixelSize,
+  nativeImageCellRows,
   graphicsLayoutMode,
   hasTerminalPixelGeometry,
   hasSixelCellGeometry,
@@ -142,6 +143,11 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
         "sixel",
       ),
     ).toEqual({ cellWidth: 8, cellHeight: 20 })
+  })
+
+  test("native image row reservation contains the pixel plane and box padding", () => {
+    expect(nativeImageCellRows(240, 20)).toBe(12)
+    expect(nativeImageCellRows(241, 20)).toBe(13)
   })
 
   test("Kitty graphics do not require Sixel geometry calibration", () => {

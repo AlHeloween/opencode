@@ -1,7 +1,7 @@
 import { render, TimeToFirstDraw, useKeyboard, useRenderer, useTerminalDimensions, extend } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
 import * as Selection from "@tui/util/selection"
-import { createCliRenderer, MouseButton, type CliRendererConfig } from "@opentui/core"
+import { CliRenderEvents, createCliRenderer, MouseButton, type CliRendererConfig } from "@opentui/core"
 import { FrameSyncWriter } from "@/util/frame-writer"
 import { RouteProvider, useRoute } from "@tui/context/route"
 import {
@@ -153,6 +153,28 @@ export function tui(input: {
     }
 
     const renderer = await createCliRenderer(rendererConfig(input.config))
+    const terminalIdentity = {
+      platform: process.platform,
+      wtSession: process.env["WT_SESSION"] !== undefined,
+      term: process.env["TERM"] ?? "",
+      termProgram: process.env["TERM_PROGRAM"] ?? "",
+      terminalProgramVersion: process.env["TERM_PROGRAM_VERSION"] ?? "",
+      configuredImageProtocol: input.config.image_protocol ?? "auto",
+    }
+    Log.Default.info("TUI terminal graphics initialized", {
+      ...terminalIdentity,
+      capabilities: renderer.capabilities,
+      resolution: renderer.resolution,
+      cellSize: renderer.cellSize,
+    })
+    renderer.on(CliRenderEvents.CAPABILITIES, (capabilities) => {
+      Log.Default.info("TUI terminal graphics capabilities updated", {
+        ...terminalIdentity,
+        capabilities,
+        resolution: renderer.resolution,
+        cellSize: renderer.cellSize,
+      })
+    })
     FrameSyncWriter.init(renderer)
     // Most terminals answer OSC theme queries in <200ms; 400ms is enough headroom
     // without adding a full second of cold-start latency on fast hosts.

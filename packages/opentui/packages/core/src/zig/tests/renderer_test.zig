@@ -103,7 +103,7 @@ test "renderer - create and destroy" {
     try std.testing.expectEqual(@as(u32, 24), cli_renderer.height);
 }
 
-test "renderer - preserves queued pixel patches until sixel emission" {
+test "renderer - preserves queued pixel patches until sixel emission and restores the input cursor" {
     const pool = gp.initGlobalPool(std.testing.allocator);
     defer gp.deinitGlobalPool();
     var local_link_pool = link.LinkPool.init(std.testing.allocator);
@@ -113,6 +113,7 @@ test "renderer - preserves queued pixel patches until sixel emission" {
     defer test_renderer.deinit();
     const cli_renderer = test_renderer.renderer;
     cli_renderer.terminal.caps.sixel = true;
+    cli_renderer.terminal.setCursorPosition(3, 4, true);
 
     const rgba = [_]u8{
         255, 0, 0, 255, 255, 0, 0, 255,
@@ -122,7 +123,9 @@ test "renderer - preserves queued pixel patches until sixel emission" {
 
     _ = cli_renderer.render(true);
 
-    try std.testing.expect(std.mem.indexOf(u8, test_renderer.lastOutput(), "\x1bP0;1;0q") != null);
+    const output = test_renderer.lastOutput();
+    try std.testing.expect(std.mem.indexOf(u8, output, "\x1bP0;1;0q") != null);
+    try std.testing.expect(std.mem.endsWith(u8, output, "\x1b[?25l\x1b[4;3H\x1b[?25h"));
 }
 
 test "renderer - clipboard allocates one exact encoded sequence" {

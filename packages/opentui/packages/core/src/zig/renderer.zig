@@ -785,7 +785,9 @@ pub const CliRenderer = struct {
                 b.beginFrame();
                 var w = b.writer();
                 self.prepareRenderFrameWithWriter(&w, force, false);
-                self.renderPixels(&w);
+                if (self.renderPixels(&w)) {
+                    self.restoreCursorAfterPixelRender(&w);
+                }
                 write_status = b.endFrame();
             },
         }
@@ -1338,7 +1340,7 @@ pub const CliRenderer = struct {
         return self.currentPixelBuffer;
     }
 
-    pub fn renderPixels(self: *CliRenderer, writer: anytype) void {
+    pub fn renderPixels(self: *CliRenderer, writer: anytype) bool {
         // JavaScript fills nextPixelBuffer before render(). Keep those patches
         // alive through protocol emission, then free their owned RGBA bytes.
         defer self.nextPixelBuffer.clear();
@@ -1346,8 +1348,10 @@ pub const CliRenderer = struct {
         const use_sixel = !use_kitty and self.terminal.caps.sixel;
         if (!use_kitty and !use_sixel) {
             // No graphics protocol — drop patches; TS may render symbols into the cell buffer.
-            return;
+            return false;
         }
+
+        var emitted = false;
 
         // check for removed patches — iterate backwards to avoid skipping elements
         const currentPatches = self.currentPixelBuffer.patches.items;
@@ -1361,6 +1365,7 @@ pub const CliRenderer = struct {
                 } else {
                     sixel.IMAGE.delete(writer, patch.x, patch.y + self.renderOffset, patch.cell_w, patch.cell_h);
                 }
+                emitted = true;
                 // removePatch frees owned RGBA
                 self.currentPixelBuffer.removePatch(patch);
             }
@@ -1396,10 +1401,24 @@ pub const CliRenderer = struct {
                         self.allocator,
                     );
                 }
+                emitted = true;
                 // Copy into current so next.clear() can free its own buffers safely.
                 self.currentPixelBuffer.adoptCopy(patch);
             }
         }
+
+        return emitted;
+    }
+
+    /// Native graphics move the physical terminal cursor after the text frame
+    /// restored it. Return it to the active editor after each emitted patch.
+    fn restoreCursorAfterPixelRender(self: *CliRenderer, writer: anytype) void {
+        const cursor = self.terminal.getCursorPosition();
+        if (!cursor.visible) return;
+
+        writer.writeAll(ansi.ANSI.hideCursor) catch {};
+        ansi.ANSI.moveToOutput(writer, cursor.x, cursor.y + self.renderOffset) catch {};
+        writer.writeAll(ansi.ANSI.showCursor) catch {};
     }
 
     /// Generic over the writer type so each backend can provide its own writer

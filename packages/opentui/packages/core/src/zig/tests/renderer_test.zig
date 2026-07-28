@@ -103,6 +103,28 @@ test "renderer - create and destroy" {
     try std.testing.expectEqual(@as(u32, 24), cli_renderer.height);
 }
 
+test "renderer - preserves queued pixel patches until sixel emission" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 8, 4, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.sixel = true;
+
+    const rgba = [_]u8{
+        255, 0, 0, 255, 255, 0, 0, 255,
+        255, 0, 0, 255, 255, 0, 0, 255,
+    };
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &rgba, 1, 1);
+
+    _ = cli_renderer.render(true);
+
+    try std.testing.expect(std.mem.indexOf(u8, test_renderer.lastOutput(), "\x1bP0;1;0q") != null);
+}
+
 test "renderer - clipboard allocates one exact encoded sequence" {
     const pool = gp.initGlobalPool(std.testing.allocator);
     defer gp.deinitGlobalPool();

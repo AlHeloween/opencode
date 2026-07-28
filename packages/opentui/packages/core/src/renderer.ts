@@ -46,7 +46,9 @@ import {
 import { calculateRenderGeometry } from "./lib/render-geometry.js"
 import {
   isCapabilityResponse,
+  isCellPixelSizeResponse,
   isPixelResolutionResponse,
+  parseCellPixelSize,
   parsePixelResolution,
 } from "./lib/terminal-capability-detection.js"
 import { type Clock, type TimerHandle, SystemClock } from "./lib/clock.js"
@@ -759,6 +761,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   private postProcessFns: ((buffer: OptimizedBuffer, deltaTime: number) => void)[] = []
   private backgroundColor: RGBA = RGBA.fromInts(0, 0, 0, 0)
   private waitingForPixelResolution: boolean = false
+  private waitingForCellPixelSize: boolean = false
   private readonly clock: Clock
 
   private rendering: boolean = false
@@ -797,6 +800,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
   private _console: TerminalConsole
   private _resolution: PixelResolution | null = null
+  private _cellSize: PixelResolution | null = null
   private _keyHandler: InternalKeyHandler
   private stdinParser: StdinParser | null = null
   private readonly oscSubscribers = new Set<(sequence: string) => void>()
@@ -1598,6 +1602,11 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
   public get resolution(): PixelResolution | null {
     return this._resolution
+  }
+
+  /** Physical terminal cell metrics, used for Sixel placement. */
+  public get cellSize(): PixelResolution | null {
+    return this._cellSize
   }
 
   public get console(): TerminalConsole {
@@ -3371,7 +3380,22 @@ export class CliRenderer extends EventEmitter implements RenderContext {
           this._resolution = resolution
         }
         this.waitingForPixelResolution = false
-        this.updateStdinParserProtocolContext({ pixelResolutionQueryActive: false }, true)
+        this.updateStdinParserProtocolContext(
+          { pixelResolutionQueryActive: this.waitingForCellPixelSize },
+          true,
+        )
+        return true
+      }
+      if (isCellPixelSizeResponse(sequence) && this.waitingForCellPixelSize) {
+        const cellSize = parseCellPixelSize(sequence)
+        if (cellSize) {
+          this._cellSize = cellSize
+        }
+        this.waitingForCellPixelSize = false
+        this.updateStdinParserProtocolContext(
+          { pixelResolutionQueryActive: this.waitingForPixelResolution },
+          true,
+        )
         return true
       }
       return false
@@ -3706,6 +3730,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
   private queryPixelResolution() {
     this.waitingForPixelResolution = true
+    this.waitingForCellPixelSize = true
     this.updateStdinParserProtocolContext({ pixelResolutionQueryActive: true })
     this.lib.queryPixelResolution(this.rendererPtr)
   }
@@ -4010,6 +4035,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
     this.disableMouse()
     this.removeExitListeners()
     this.waitingForPixelResolution = false
+    this.waitingForCellPixelSize = false
     this.updateStdinParserProtocolContext({
       privateCapabilityRepliesActive: false,
       pixelResolutionQueryActive: false,
@@ -4180,6 +4206,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
     this._isRunning = false
     this.waitingForPixelResolution = false
+    this.waitingForCellPixelSize = false
     this.updateStdinParserProtocolContext(
       {
         privateCapabilityRepliesActive: false,

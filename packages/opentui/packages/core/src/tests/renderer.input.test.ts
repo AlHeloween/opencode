@@ -2056,6 +2056,21 @@ test("chunked pixel resolution response", async () => {
   expect(currentRenderer.resolution).toEqual({ width: 1280, height: 720 })
 })
 
+test("cell pixel size response calibrates Sixel without triggering a keypress", async () => {
+  const keypresses: KeyEvent[] = []
+  currentRenderer.keyInput.on("keypress", (event) => {
+    keypresses.push(event)
+  })
+
+  // @ts-expect-error - accessing private property for testing
+  currentRenderer.waitingForCellPixelSize = true
+  currentRenderer.stdin.emit("data", Buffer.from("\x1b[6;20;8t"))
+  advanceCurrentClock()
+
+  expect(keypresses).toHaveLength(0)
+  expect(currentRenderer.cellSize).toEqual({ width: 8, height: 20 })
+})
+
 test("kitty full capability response arriving in realistic chunks", async () => {
   const keypresses: KeyEvent[] = []
   currentRenderer.keyInput.on("keypress", (event) => {

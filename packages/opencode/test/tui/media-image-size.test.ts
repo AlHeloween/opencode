@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test"
 import {
   nativeImagePixelSize,
   graphicsLayoutMode,
+  hasTerminalPixelGeometry,
+  hasSixelCellGeometry,
   cellPixelSize,
+  mediaImageCellBounds,
+  nativeGraphicsLayoutMode,
+  solidBorderCropBounds,
 } from "../../src/cli/cmd/tui/component/media-image"
 
 describe("MediaImage native pixel sizing (contain-fit)", () => {
@@ -68,6 +73,28 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
     expect(size.height % 6).toBe(0)
   })
 
+  test("diagram previews use a compact transcript budget", () => {
+    expect(mediaImageCellBounds({ layout: "diagram", terminalCols: 120, terminalRows: 50 })).toEqual({
+      maxCols: 32,
+      maxRows: 12,
+    })
+    expect(mediaImageCellBounds({ layout: "attachment", terminalCols: 120, terminalRows: 50 })).toEqual({
+      maxCols: 80,
+      maxRows: 40,
+    })
+  })
+
+  test("diagram crop removes uniform canvas margins while retaining a safety pad", () => {
+    const data = new Uint8Array(5 * 5 * 4).fill(0x1a)
+    for (let offset = 3; offset < data.length; offset += 4) data[offset] = 255
+    const center = (2 * 5 + 2) * 4
+    data[center] = 240
+    data[center + 1] = 240
+    data[center + 2] = 240
+
+    expect(solidBorderCropBounds({ data, width: 5, height: 5 }, 1)).toEqual({ x: 1, y: 1, w: 3, h: 3 })
+  })
+
   test("graphicsLayoutMode prefers kitty over sixel", () => {
     expect(
       graphicsLayoutMode({
@@ -80,6 +107,45 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
       }),
     ).toBe("sixel")
     expect(graphicsLayoutMode({ capabilities: null })).toBe("none")
+  })
+
+  test("native Sixel requires measured terminal pixel geometry", () => {
+    const uncalibrated = {
+      capabilities: { kitty_graphics: false, sixel: true },
+      resolution: { width: 1920, height: 1080 },
+      width: 120,
+      height: 40,
+    }
+    expect(hasTerminalPixelGeometry(uncalibrated)).toBe(true)
+    expect(hasSixelCellGeometry(uncalibrated)).toBe(false)
+    expect(nativeGraphicsLayoutMode(uncalibrated)).toBe("none")
+
+    const calibrated = { ...uncalibrated, cellSize: { width: 8, height: 20 } }
+    expect(hasSixelCellGeometry(calibrated)).toBe(true)
+    expect(nativeGraphicsLayoutMode(calibrated)).toBe("sixel")
+  })
+
+  test("Sixel uses direct terminal cell pixels rather than DPI-scaled window pixels", () => {
+    expect(
+      cellPixelSize(
+        {
+          capabilities: { kitty_graphics: false, sixel: true },
+          resolution: { width: 1920, height: 1080 },
+          width: 120,
+          height: 40,
+          cellSize: { width: 8, height: 20 },
+        },
+        "sixel",
+      ),
+    ).toEqual({ cellWidth: 8, cellHeight: 20 })
+  })
+
+  test("Kitty graphics do not require Sixel geometry calibration", () => {
+    expect(
+      nativeGraphicsLayoutMode({
+        capabilities: { kitty_graphics: true, sixel: false },
+      }),
+    ).toBe("kitty")
   })
 
   test("cellPixelSize uses resolution when available", () => {

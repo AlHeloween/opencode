@@ -1,7 +1,9 @@
 import { test, expect, describe } from "bun:test"
 import {
   isCapabilityResponse,
+  isCellPixelSizeResponse,
   isPixelResolutionResponse,
+  parseCellPixelSize,
   parsePixelResolution,
 } from "./terminal-capability-detection.js"
 
@@ -115,6 +117,19 @@ describe("isPixelResolutionResponse", () => {
     expect(isPixelResolutionResponse("a")).toBe(false)
     expect(isPixelResolutionResponse("\x1b[A")).toBe(false)
     expect(isPixelResolutionResponse("\x1b[?1016;2$y")).toBe(false)
+  })
+})
+
+describe("cell pixel size responses", () => {
+  test("detects and parses CSI 16t replies", () => {
+    expect(isCellPixelSizeResponse("\x1b[6;20;8t")).toBe(true)
+    expect(parseCellPixelSize("\x1b[6;20;8t")).toEqual({ width: 8, height: 20 })
+    expect(isCapabilityResponse("\x1b[6;20;8t")).toBe(true)
+  })
+
+  test("rejects non-cell-size replies", () => {
+    expect(isCellPixelSizeResponse("\x1b[4;720;1280t")).toBe(false)
+    expect(parseCellPixelSize("\x1b[6;20t")).toBeNull()
   })
 })
 

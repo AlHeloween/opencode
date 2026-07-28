@@ -48,6 +48,7 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
+- `2026-07-28-opentui-pixel-buffer-emission.md` — preserve pixel patches until native Kitty/Sixel emission
 - `2026-07-25_session_restore_checkpoint_delta.md` — checkpoint as load gate; SQL-visible only; request-diff suffix-only (kill full-history reprocess on huge restore)
 
 
@@ -57,6 +58,11 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-07-28-opentui-sixel-standalone-lab.md` — isolated Mermaid-to-ImageRenderable visual oracle for direct Windows Terminal
+- `2026-07-28-sixel-cell-calibration.md` — direct terminal cell metrics for calibrated Sixel placement
+- `2026-07-28-sixel-quality.md` — Chafa-compatible Sixel raster and palette fidelity
+- `2026-07-28-sixel-geometry-gating.md` — calibrated native Sixel Mermaid previews with safe fallback
+- `2026-07-28-compact-mermaid-preview.md` — compact, readable Mermaid previews for native terminal graphics
 - `2026-07-28-reasoning-rich-text.md` — route reasoning through the shared Markdown/Mermaid transcript renderer
 - `2026-07-28-unified-rich-text-rendering.md` — shared Markdown/Mermaid transcript renderer for user and assistant messages
 - `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-touch → readonly SQLite pack, Fossil impact, and production smokes

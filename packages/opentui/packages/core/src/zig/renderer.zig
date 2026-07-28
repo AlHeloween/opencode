@@ -1339,6 +1339,9 @@ pub const CliRenderer = struct {
     }
 
     pub fn renderPixels(self: *CliRenderer, writer: anytype) void {
+        // JavaScript fills nextPixelBuffer before render(). Keep those patches
+        // alive through protocol emission, then free their owned RGBA bytes.
+        defer self.nextPixelBuffer.clear();
         const use_kitty = self.terminal.caps.kitty_graphics;
         const use_sixel = !use_kitty and self.terminal.caps.sixel;
         if (!use_kitty and !use_sixel) {
@@ -1669,8 +1672,6 @@ pub const CliRenderer = struct {
 
         self.nextRenderBuffer.clear(self.backgroundColor, null);
 
-        self.nextPixelBuffer.clear();
-
         // Compare hit grids before swap to detect changes. This allows TypeScript to
         // know if hover state needs rechecking without manually tracking dirty state.
         self.hitGridDirty = self.hitGridResizeInvalidated or !std.mem.eql(u32, self.currentHitGrid, self.nextHitGrid);
@@ -1981,7 +1982,7 @@ pub const CliRenderer = struct {
     }
 
     pub fn queryPixelResolution(self: *CliRenderer) void {
-        self.writeOut(ansi.ANSI.queryPixelSize);
+        self.writeOut(ansi.ANSI.queryPixelSize ++ ansi.ANSI.queryCellPixelSize);
     }
 
     pub fn queryThemeColors(self: *CliRenderer) void {

@@ -42,17 +42,61 @@ const CAPS_POLL_MS = 50
 /** Cap source decode for interactive zoom (memory). */
 const INTERACTIVE_SRC_MAX = 2048
 
+export type MediaImageLayout = "attachment" | "diagram"
+
 export type GraphicsLayoutMode = "kitty" | "sixel" | "none"
 
-type RgbaFrame = {
+export type RgbaFrame = {
   data: Uint8Array
   width: number
   height: number
 }
 
+export function mediaImageCellBounds(input: {
+  layout?: MediaImageLayout
+  terminalCols?: number
+  terminalRows?: number
+}): { maxCols: number; maxRows: number } {
+  const limits = input.layout === "diagram" ? { maxCols: 32, maxRows: 12 } : { maxCols: MAX_COLS, maxRows: MAX_ROWS }
+  return {
+    maxCols: Math.min(limits.maxCols, input.terminalCols ?? limits.maxCols),
+    maxRows: Math.max(8, Math.min(limits.maxRows, input.terminalRows ? Math.max(8, input.terminalRows - 6) : limits.maxRows)),
+  }
+}
+
+/** Crop only a uniform outer raster border; leave a small safety pad around diagram strokes. */
+export function solidBorderCropBounds(frame: RgbaFrame, padding: number = 0, tolerance: number = 4) {
+  if (frame.width < 3 || frame.height < 3) return undefined
+  const background = [frame.data[0]!, frame.data[1]!, frame.data[2]!, frame.data[3]!]
+  const isBackground = (x: number, y: number) => {
+    const offset = (y * frame.width + x) * 4
+    return [0, 1, 2, 3].every((channel) => Math.abs(frame.data[offset + channel]! - background[channel]!) <= tolerance)
+  }
+  const rowIsBackground = (y: number) => Array.from({ length: frame.width }, (_, x) => isBackground(x, y)).every(Boolean)
+  const columnIsBackground = (x: number) => Array.from({ length: frame.height }, (_, y) => isBackground(x, y)).every(Boolean)
+
+  let top = 0
+  let bottom = frame.height - 1
+  let left = 0
+  let right = frame.width - 1
+  while (top < bottom && rowIsBackground(top)) top++
+  while (bottom > top && rowIsBackground(bottom)) bottom--
+  while (left < right && columnIsBackground(left)) left++
+  while (right > left && columnIsBackground(right)) right--
+  if (top === 0 && bottom === frame.height - 1 && left === 0 && right === frame.width - 1) return undefined
+
+  const pad = Math.max(0, Math.round(padding))
+  const x = Math.max(0, left - pad)
+  const y = Math.max(0, top - pad)
+  const rightWithPad = Math.min(frame.width - 1, right + pad)
+  const bottomWithPad = Math.min(frame.height - 1, bottom + pad)
+  return { x, y, w: rightWithPad - x + 1, h: bottomWithPad - y + 1 }
+}
+
 type CapsRenderer = {
   capabilities: { kitty_graphics?: boolean; sixel?: boolean } | null
   resolution?: { width: number; height: number } | null
+  cellSize?: { width: number; height: number } | null
   width?: number
   height?: number
 }
@@ -65,7 +109,41 @@ export function graphicsLayoutMode(renderer: CapsRenderer): GraphicsLayoutMode {
   return "none"
 }
 
-export function cellPixelSize(renderer: CapsRenderer): { cellWidth: number; cellHeight: number } {
+/** Sixel pixels and TUI cells must share measured terminal geometry to stay aligned. */
+export function hasTerminalPixelGeometry(renderer: CapsRenderer): boolean {
+  return Boolean(
+    renderer.resolution &&
+      renderer.resolution.width > 0 &&
+      renderer.resolution.height > 0 &&
+      renderer.width &&
+      renderer.width > 0 &&
+      renderer.height &&
+      renderer.height > 0,
+  )
+}
+
+/** Sixel needs direct cell metrics; DPI-scaled window resolution is insufficient. */
+export function hasSixelCellGeometry(renderer: CapsRenderer): boolean {
+  return Boolean(renderer.cellSize && renderer.cellSize.width > 0 && renderer.cellSize.height > 0)
+}
+
+/**
+ * Keep Kitty available without a resolution response, but never emit raw Sixel
+ * until its source pixels can be reserved by the same measured cell geometry.
+ */
+export function nativeGraphicsLayoutMode(renderer: CapsRenderer): GraphicsLayoutMode {
+  const mode = graphicsLayoutMode(renderer)
+  if (mode !== "sixel" || hasSixelCellGeometry(renderer)) return mode
+  return "none"
+}
+
+export function cellPixelSize(renderer: CapsRenderer, mode?: GraphicsLayoutMode): { cellWidth: number; cellHeight: number } {
+  if (mode === "sixel" && hasSixelCellGeometry(renderer)) {
+    return {
+      cellWidth: renderer.cellSize!.width,
+      cellHeight: renderer.cellSize!.height,
+    }
+  }
   const res = renderer.resolution
   const cols = renderer.width
   const rows = renderer.height
@@ -110,10 +188,10 @@ export function nativeImagePixelSize(input: {
 }
 
 async function waitForCapabilities(renderer: CapsRenderer, timeoutMs: number): Promise<void> {
-  if (renderer.capabilities) return
+  if (nativeGraphicsLayoutMode(renderer) !== "none") return
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    if (renderer.capabilities) return
+    if (nativeGraphicsLayoutMode(renderer) !== "none") return
     await new Promise((r) => setTimeout(r, CAPS_POLL_MS))
   }
 }
@@ -141,7 +219,7 @@ async function decodeDataUrlToRgba(
   mode: GraphicsLayoutMode,
   cellWidth: number,
   cellHeight: number,
-  opts?: { keepSourceMax?: number },
+  opts?: { keepSourceMax?: number; cropSolidBorder?: boolean },
 ): Promise<{ display: RgbaFrame; source: RgbaFrame } | null> {
   const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!match) return null
@@ -159,6 +237,11 @@ async function decodeDataUrlToRgba(
       w: Math.max(1, Math.round(img.width * scale)),
       h: Math.max(1, Math.round(img.height * scale)),
     })
+  }
+
+  if (opts?.cropSolidBorder) {
+    const crop = solidBorderCropBounds(copyBitmap(img), Math.min(cellWidth, cellHeight))
+    if (crop) img.crop(crop)
   }
 
   const source = copyBitmap(img)
@@ -185,6 +268,8 @@ async function decodeDataUrlToRgba(
 export function MediaImage(props: {
   url: string
   mime: string
+  /** Diagrams use a compact transcript preview; attachments keep the larger budget. */
+  layout?: MediaImageLayout
   /** Enable mouse-wheel zoom and drag-to-pan (mermaid diagrams). */
   interactive?: boolean
 }) {
@@ -245,22 +330,28 @@ export function MediaImage(props: {
     await waitForCapabilities(renderer as CapsRenderer, CAPS_WAIT_MS)
     if (cancelled) return
 
-    mode = graphicsLayoutMode(renderer as CapsRenderer)
-    const cells = cellPixelSize(renderer as CapsRenderer)
+    const detectedMode = graphicsLayoutMode(renderer as CapsRenderer)
+    mode = nativeGraphicsLayoutMode(renderer as CapsRenderer)
+    const cells = cellPixelSize(renderer as CapsRenderer, mode)
+    const bounds = mediaImageCellBounds({
+      layout: props.layout,
+      terminalCols: (renderer as CapsRenderer).width,
+      terminalRows: (renderer as CapsRenderer).height,
+    })
 
     if (mode === "kitty" || mode === "sixel") {
       try {
-        const termRows = (renderer as CapsRenderer).height
-        const maxRows = Math.max(8, Math.min(MAX_ROWS, termRows ? Math.max(8, termRows - 6) : MAX_ROWS))
-        const maxCols = Math.min(MAX_COLS, (renderer as CapsRenderer).width ?? MAX_COLS)
         const decoded = await decodeDataUrlToRgba(
           props.url,
-          maxCols,
-          maxRows,
+          bounds.maxCols,
+          bounds.maxRows,
           mode,
           cells.cellWidth,
           cells.cellHeight,
-          props.interactive ? { keepSourceMax: INTERACTIVE_SRC_MAX } : undefined,
+          {
+            ...(props.interactive ? { keepSourceMax: INTERACTIVE_SRC_MAX } : {}),
+            ...(props.layout === "diagram" ? { cropSolidBorder: true } : {}),
+          },
         )
         if (cancelled) return
         if (decoded) {
@@ -276,6 +367,8 @@ export function MediaImage(props: {
           }
           log.debug("MediaImage: native path", {
             mode,
+            detectedMode,
+            calibrated: mode === "sixel" ? hasSixelCellGeometry(renderer as CapsRenderer) : hasTerminalPixelGeometry(renderer as CapsRenderer),
             interactive: Boolean(props.interactive),
             displayW: displaySize.width,
             displayH: displaySize.height,
@@ -291,10 +384,10 @@ export function MediaImage(props: {
     }
 
     try {
-      const tmp = await decodeAndSymbols(props.url)
+      const tmp = await decodeAndSymbols(props.url, bounds.maxCols)
       if (cancelled) return
       if (tmp) {
-        log.debug("MediaImage: symbols path", { mode })
+        log.debug("MediaImage: symbols path", { mode, detectedMode })
         setStyledText(tmp.styled)
         setContentText(tmp.content)
         setState("symbols")
@@ -367,7 +460,7 @@ export function MediaImage(props: {
       if (dx === 0 && dy === 0) return
 
       // Layout size in cells from ImageRenderable / pixel layout
-      const cells = cellPixelSize(renderer as CapsRenderer)
+      const cells = cellPixelSize(renderer as CapsRenderer, mode)
       const layoutCols = Math.max(1, Math.ceil(displaySize.width / cells.cellWidth))
       const layoutRows = Math.max(1, Math.ceil(displaySize.height / cells.cellHeight))
       const next = panByCells(
@@ -450,7 +543,7 @@ export function MediaImage(props: {
   )
 }
 
-async function decodeAndSymbols(dataUrl: string): Promise<{ styled: StyledText; content: string } | null> {
+async function decodeAndSymbols(dataUrl: string, maxCols: number): Promise<{ styled: StyledText; content: string } | null> {
   const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!match) return null
   const [, ext, base64] = match
@@ -461,7 +554,7 @@ async function decodeAndSymbols(dataUrl: string): Promise<{ styled: StyledText; 
   const tmpFile = join(tmpdir(), `opencode_img_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${extName}`)
   try {
     writeFileSync(tmpFile, Buffer.from(base64!, "base64"))
-    const chunks = await imageToChunks(tmpFile, { width: MAX_COLS })
+    const chunks = await imageToChunks(tmpFile, { width: maxCols })
     const all: Array<{ __isChunk: true; text: string; fg: any; bg: any }> = []
     const lines: string[] = []
     for (let i = 0; i < chunks.length; i++) {
@@ -478,8 +571,8 @@ async function decodeAndSymbols(dataUrl: string): Promise<{ styled: StyledText; 
   } finally {
     try {
       if (existsSync(tmpFile)) unlinkSync(tmpFile)
-    } catch {
-      // best-effort temp cleanup
+    } catch (error) {
+      log.debug("MediaImage: temp cleanup failed", { error: String(error) })
     }
   }
 }

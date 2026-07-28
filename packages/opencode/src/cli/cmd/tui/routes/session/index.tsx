@@ -1879,6 +1879,7 @@ function RichText(props: {
       // PNG data URL → used by Sixel / symbols rendering
       renderMermaidToPngDataUrl(segment.source, {
         theme: mode() === "dark" ? "dark" : "default",
+        background: mode() === "dark" ? "#1a1b26" : "#ffffff",
       })
         .then((pngDataUrl) => {
           if (pngDataUrl) {
@@ -1915,7 +1916,7 @@ function RichText(props: {
               when={mermaidDataUrls()[index]}
               fallback={<text fg={theme.textMuted}>{mermaidFallback(segment(), index)}</text>}
             >
-              <MediaImage url={mermaidDataUrls()[index]!} mime="image/png" interactive />
+              <MediaImage url={mermaidDataUrls()[index]!} mime="image/png" layout="diagram" />
             </Show>
           </Match>
         </Switch>

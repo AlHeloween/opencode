@@ -1,11 +1,33 @@
 // Sixel graphics protocol — RGBA → DCS sixel stream for PixelBuffer patches.
-// Algorithm mirrors packages/opencode/src/util/sixel-render.ts (5-6-5 quantize, 6-row bands).
+// The palette is capped at the Sixel-standard 256 registers, but overflow colors
+// map to their nearest emitted register instead of collapsing to the background.
 
 const std = @import("std");
 const ansi = @import("ansi.zig");
 const Allocator = std.mem.Allocator;
 
 const MAX_PALETTE: usize = 256;
+
+fn colorDistance(color: [3]u8, r: u8, g: u8, b: u8) u32 {
+    const dr = @as(i32, color[0]) - @as(i32, r);
+    const dg = @as(i32, color[1]) - @as(i32, g);
+    const db = @as(i32, color[2]) - @as(i32, b);
+    return @intCast(dr * dr + dg * dg + db * db);
+}
+
+fn nearestPaletteIndex(palette: []const [3]u8, r: u8, g: u8, b: u8) u16 {
+    std.debug.assert(palette.len > 0);
+    var index: usize = 0;
+    var distance = colorDistance(palette[0], r, g, b);
+    for (palette[1..], 1..) |candidate, candidate_index| {
+        const candidate_distance = colorDistance(candidate, r, g, b);
+        if (candidate_distance < distance) {
+            index = candidate_index;
+            distance = candidate_distance;
+        }
+    }
+    return @intCast(index);
+}
 
 pub const IMAGE = struct {
     /// Encode raw RGBA (`width * height * 4`) to sixel and write at cursor (x,y).
@@ -136,8 +158,9 @@ pub fn encode(rgba: []const u8, width: u32, height: u32, allocator: Allocator) !
             const gop = try key_to_idx.getOrPut(key);
             if (!gop.found_existing) {
                 if (palette_len >= MAX_PALETTE) {
-                    // Clamp to nearest existing by reusing slot 0 — rare for photos at 5-6-5.
-                    gop.value_ptr.* = 0;
+                    // Anti-aliased diagrams exceed 256 5-6-5 bins. Preserve their
+                    // edges by mapping each new bin to the closest emitted color.
+                    gop.value_ptr.* = nearestPaletteIndex(palette[0..palette_len], r, g, b);
                 } else {
                     const idx: u16 = @intCast(palette_len);
                     gop.value_ptr.* = idx;
@@ -155,7 +178,10 @@ pub fn encode(rgba: []const u8, width: u32, height: u32, allocator: Allocator) !
 
     var out: std.ArrayList(u8) = .empty;
     errdefer out.deinit(allocator);
-    try out.appendSlice(allocator, "\x1bPq");
+    // Chafa-compatible Sixel header: declare RGB mode plus an explicit 1:1
+    // raster. Without this, terminals are free to assume legacy dot geometry.
+    try out.appendSlice(allocator, "\x1bP0;1;0q");
+    try std.fmt.format(out.writer(allocator), "\"1;1;{d};{d}", .{ width, sixel_rows });
 
     var pi: usize = 0;
     while (pi < palette_len) : (pi += 1) {
@@ -225,9 +251,15 @@ test "sixel encode solid red 2x2" {
     const encoded = try encode(&pixels, 2, 2, allocator);
     defer allocator.free(encoded);
 
-    try std.testing.expect(std.mem.startsWith(u8, encoded, "\x1bPq"));
+    try std.testing.expect(std.mem.startsWith(u8, encoded, "\x1bP0;1;0q\"1;1;2;6"));
     try std.testing.expect(std.mem.endsWith(u8, encoded, "\x1b\\"));
     try std.testing.expect(std.mem.indexOf(u8, encoded, "#0;2;") != null);
+}
+
+test "sixel overflow chooses the nearest emitted palette color" {
+    const palette = [_][3]u8{ .{ 0, 0, 0 }, .{ 255, 255, 255 }, .{ 255, 0, 0 } };
+    try std.testing.expectEqual(@as(u16, 1), nearestPaletteIndex(&palette, 230, 235, 240));
+    try std.testing.expectEqual(@as(u16, 2), nearestPaletteIndex(&palette, 245, 10, 10));
 }
 
 test "sixel encode empty rejects" {

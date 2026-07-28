@@ -8,7 +8,13 @@ import type { RenderContext } from "../types.js"
 const DEFAULT_CELL_WIDTH = 18
 const DEFAULT_CELL_HEIGHT = 35
 
-function getCellSize(renderer: CliRenderer): { cellWidth: number | null; cellHeight: number | null } {
+function getCellSize(renderer: CliRenderer, mode: "kitty" | "sixel" | "none"): { cellWidth: number | null; cellHeight: number | null } {
+  if (mode === "sixel" && renderer.cellSize) {
+    return {
+      cellWidth: renderer.cellSize.width,
+      cellHeight: renderer.cellSize.height,
+    }
+  }
   if (!renderer.resolution) {
     return { cellWidth: null, cellHeight: null }
   }
@@ -69,7 +75,7 @@ export class ImageRenderable extends Renderable {
     const { data, imageWidth, imageHeight } = options
 
     const mode = graphicsLayoutMode(renderer)
-    const { cellWidth, cellHeight } = getCellSize(renderer)
+    const { cellWidth, cellHeight } = getCellSize(renderer, mode)
     const { width, height } = getImageSize(imageWidth, imageHeight, cellWidth, cellHeight, mode)
 
     super(ctx, { ...options, width, height })
@@ -83,7 +89,7 @@ export class ImageRenderable extends Renderable {
   public updateCellSize(): void {
     const renderer = this._ctx as CliRenderer
     const mode = graphicsLayoutMode(renderer)
-    const { cellWidth, cellHeight } = getCellSize(renderer)
+    const { cellWidth, cellHeight } = getCellSize(renderer, mode)
     const { width, height } = getImageSize(this.imageWidth, this.imageHeight, cellWidth, cellHeight, mode)
     this.cellWidth = cellWidth
     this.cellHeight = cellHeight

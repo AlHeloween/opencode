@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-type RendererFactory = "test" | "direct-process-memory" | "cli-custom-memory" | "cli-custom-feed"
+type RendererFactory = "test" | "direct-process-memory" | "cli-process-memory" | "cli-custom-memory" | "cli-custom-feed"
 
 async function getCapabilitiesFromChild(
   options: { remote?: boolean },
@@ -22,6 +22,14 @@ async function getCapabilitiesFromChild(
     } else if (${JSON.stringify(factory)} === "direct-process-memory") {
       renderer = new CliRenderer(createTestStdin(), process.stdout, 80, 24, {
         ...options,
+        bufferedOutput: "memory",
+        consoleMode: "disabled",
+      })
+    } else if (${JSON.stringify(factory)} === "cli-process-memory") {
+      renderer = await createCliRenderer({
+        ...options,
+        stdin: createTestStdin(),
+        stdout: process.stdout,
         bufferedOutput: "memory",
         consoleMode: "disabled",
       })
@@ -179,6 +187,23 @@ describe("remote detection", () => {
     expect(caps.ansi256).toBe(false)
     expect(caps.notifications).toBe(false)
     expect(caps.terminal.name).toBe("")
+  })
+
+  test("auto local process stdout forwards Windows Terminal capability identity", async () => {
+    const caps = await getCapabilitiesFromChild(
+      {},
+      {
+        PATH: process.env.PATH ?? "",
+        HOME: process.env.HOME ?? "",
+        TMPDIR: process.env.TMPDIR ?? "/tmp",
+        TERM: "xterm-256color",
+        WT_SESSION: "windows-terminal-session",
+      },
+      "cli-process-memory",
+    )
+
+    expect(caps.remote).toBe(false)
+    expect(caps.sixel).toBe(true)
   })
 
   test("custom stdout with memory output preserves auto remote detection", async () => {

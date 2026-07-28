@@ -33,7 +33,10 @@ const log = Log.create({ service: "tui.media.image" })
 const MAX_COLS = 80
 /** Cap image height in cells so tall diagrams don't dominate the session. */
 const MAX_ROWS = 40
-/** Match OpenTUI Image.ts defaults when terminal pixel resolution is unknown. */
+/** Windows Terminal Sixel fallback when node-pty hides CSI 14t/16t replies. */
+const SIXEL_FALLBACK_CELL_WIDTH = 12
+const SIXEL_FALLBACK_CELL_HEIGHT = 20
+/** Match OpenTUI Image.ts defaults when Kitty resolution is unknown. */
 const DEFAULT_CELL_WIDTH = 18
 const DEFAULT_CELL_HEIGHT = 35
 /** Capability detection can arrive after first paint — wait before locking path. */
@@ -122,19 +125,18 @@ export function hasTerminalPixelGeometry(renderer: CapsRenderer): boolean {
   )
 }
 
-/** Sixel needs direct cell metrics; DPI-scaled window resolution is insufficient. */
+/** Direct CSI 16t cell metrics are preferred for Sixel placement. */
 export function hasSixelCellGeometry(renderer: CapsRenderer): boolean {
   return Boolean(renderer.cellSize && renderer.cellSize.width > 0 && renderer.cellSize.height > 0)
 }
 
 /**
- * Keep Kitty available without a resolution response, but never emit raw Sixel
- * until its source pixels can be reserved by the same measured cell geometry.
+ * Keep Kitty available without geometry. Sixel needs a physical pixel budget,
+ * supplied by CSI 16t when available or derived from CSI 14t plus terminal
+ * rows/columns when node-pty does not forward the cell-specific reply.
  */
 export function nativeGraphicsLayoutMode(renderer: CapsRenderer): GraphicsLayoutMode {
-  const mode = graphicsLayoutMode(renderer)
-  if (mode !== "sixel" || hasSixelCellGeometry(renderer)) return mode
-  return "none"
+  return graphicsLayoutMode(renderer)
 }
 
 export function cellPixelSize(renderer: CapsRenderer, mode?: GraphicsLayoutMode): { cellWidth: number; cellHeight: number } {
@@ -152,6 +154,9 @@ export function cellPixelSize(renderer: CapsRenderer, mode?: GraphicsLayoutMode)
       cellWidth: res.width / cols,
       cellHeight: res.height / rows,
     }
+  }
+  if (mode === "sixel") {
+    return { cellWidth: SIXEL_FALLBACK_CELL_WIDTH, cellHeight: SIXEL_FALLBACK_CELL_HEIGHT }
   }
   return { cellWidth: DEFAULT_CELL_WIDTH, cellHeight: DEFAULT_CELL_HEIGHT }
 }
@@ -293,6 +298,19 @@ export function MediaImage(props: {
   let lastDragX = 0
   let lastDragY = 0
   let dragging = false
+  let nativeImageMounted = false
+
+  const traceDiagram = (message: string, payload: Record<string, unknown> = {}) => {
+    if (props.layout !== "diagram") return
+    log.info(message, {
+      ...payload,
+      capabilities: renderer.capabilities,
+      terminalCols: renderer.width,
+      terminalRows: renderer.height,
+      resolution: renderer.resolution,
+      cellSize: renderer.cellSize,
+    })
+  }
 
   const pushFrame = (next: RgbaFrame) => {
     setFrame(next)
@@ -338,6 +356,15 @@ export function MediaImage(props: {
       terminalCols: (renderer as CapsRenderer).width,
       terminalRows: (renderer as CapsRenderer).height,
     })
+    traceDiagram("mermaid image pipeline selected", {
+      detectedMode,
+      selectedMode: mode,
+      bounds,
+      cellWidth: cells.cellWidth,
+      cellHeight: cells.cellHeight,
+      directCellGeometry: hasSixelCellGeometry(renderer as CapsRenderer),
+      resolutionGeometry: hasTerminalPixelGeometry(renderer as CapsRenderer),
+    })
 
     if (mode === "kitty" || mode === "sixel") {
       try {
@@ -358,6 +385,13 @@ export function MediaImage(props: {
           sourceFrame = decoded.source
           fitFrame = decoded.display
           displaySize = { width: decoded.display.width, height: decoded.display.height }
+          traceDiagram("mermaid PNG decoded for native image", {
+            protocol: mode,
+            sourceWidth: sourceFrame.width,
+            sourceHeight: sourceFrame.height,
+            displayWidth: displaySize.width,
+            displayHeight: displaySize.height,
+          })
           // Always show the decoded frame at zoom=1 — never nearest-neighbor
           // resample through sampleViewport (that turns sharp SVG→PNG into a
           // blurry pixelated stamp). Resample only after user zooms/pans.
@@ -379,7 +413,18 @@ export function MediaImage(props: {
           return
         }
       } catch (e) {
-        log.debug("MediaImage: native decode failed, falling back to symbols", { error: String(e) })
+        if (props.layout === "diagram") {
+          log.warn("bug: diagram native decode failed, falling back to symbols", {
+            error: String(e),
+            selectedMode: mode,
+            detectedMode,
+            bounds,
+            cellWidth: cells.cellWidth,
+            cellHeight: cells.cellHeight,
+          })
+        } else {
+          log.debug("MediaImage: native decode failed, falling back to symbols", { error: String(e) })
+        }
       }
     }
 
@@ -387,17 +432,28 @@ export function MediaImage(props: {
       const tmp = await decodeAndSymbols(props.url, bounds.maxCols)
       if (cancelled) return
       if (tmp) {
-        log.debug("MediaImage: symbols path", { mode, detectedMode })
+        if (props.layout === "diagram") {
+          log.warn("bug: mermaid image fell back to ANSI symbols", { mode, detectedMode, bounds })
+        } else {
+          log.debug("MediaImage: symbols path", { mode, detectedMode })
+        }
         setStyledText(tmp.styled)
         setContentText(tmp.content)
         setState("symbols")
         return
       }
     } catch (e) {
-      log.debug("MediaImage: symbols render failed", { error: String(e) })
+      if (props.layout === "diagram") {
+        log.warn("bug: mermaid ANSI fallback failed", { error: String(e), mode, detectedMode, bounds })
+      } else {
+        log.debug("MediaImage: symbols render failed", { error: String(e) })
+      }
     }
 
-    if (!cancelled) setState("error")
+    if (!cancelled) {
+      traceDiagram("mermaid image unavailable", { mode, detectedMode, bounds })
+      setState("error")
+    }
   })
 
   createEffect(() => {
@@ -506,6 +562,15 @@ export function MediaImage(props: {
             <image
               ref={(r: ImageRenderable) => {
                 imageRef = r
+                if (nativeImageMounted) return
+                nativeImageMounted = true
+                traceDiagram("mermaid native image mounted", {
+                  protocol: mode,
+                  imageWidth: f().width,
+                  imageHeight: f().height,
+                  layoutWidth: r.width,
+                  layoutHeight: r.height,
+                })
               }}
               data={f().data}
               imageWidth={f().width}

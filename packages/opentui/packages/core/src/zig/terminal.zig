@@ -668,7 +668,11 @@ fn checkEnvironmentOverrides(self: *Terminal) void {
         self.caps.remote = self.remote;
     }
 
-    if (self.remote and self.opts.env_map == null) {
+    // A forwarded host environment is used only to decide whether auto mode
+    // is remote. Do not apply its local-terminal heuristics after that
+    // decision; otherwise forwarding WT_SESSION/TERM makes an SSH renderer
+    // advertise host-only graphics capabilities.
+    if (self.remote) {
         return;
     }
 

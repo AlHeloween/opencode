@@ -193,9 +193,10 @@ export function renderSvgToPngDataUrl(
     const pngData = resvg.render()
     const pngBuffer = pngData.asPng()
     const base64 = Buffer.from(pngBuffer).toString("base64")
-    log.debug("mermaid PNG sized from natural SVG", {
+    log.info("mermaid PNG rasterized", {
       outW: pngData.width,
       outH: pngData.height,
+      outputBytes: pngBuffer.length,
     })
     return `data:image/png;base64,${base64}`
   } catch (error) {

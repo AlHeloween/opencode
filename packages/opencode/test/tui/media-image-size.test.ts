@@ -109,18 +109,22 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
     expect(graphicsLayoutMode({ capabilities: null })).toBe("none")
   })
 
-  test("native Sixel requires measured terminal pixel geometry", () => {
-    const uncalibrated = {
+  test("Sixel remains native when CSI 14t and CSI 16t are unavailable", () => {
+    const capabilityOnly = { capabilities: { kitty_graphics: false, sixel: true } }
+    expect(nativeGraphicsLayoutMode(capabilityOnly)).toBe("sixel")
+    expect(cellPixelSize(capabilityOnly, "sixel")).toEqual({ cellWidth: 12, cellHeight: 20 })
+
+    const resolutionOnly = {
       capabilities: { kitty_graphics: false, sixel: true },
       resolution: { width: 1920, height: 1080 },
       width: 120,
       height: 40,
     }
-    expect(hasTerminalPixelGeometry(uncalibrated)).toBe(true)
-    expect(hasSixelCellGeometry(uncalibrated)).toBe(false)
-    expect(nativeGraphicsLayoutMode(uncalibrated)).toBe("none")
+    expect(hasTerminalPixelGeometry(resolutionOnly)).toBe(true)
+    expect(hasSixelCellGeometry(resolutionOnly)).toBe(false)
+    expect(nativeGraphicsLayoutMode(resolutionOnly)).toBe("sixel")
 
-    const calibrated = { ...uncalibrated, cellSize: { width: 8, height: 20 } }
+    const calibrated = { ...resolutionOnly, cellSize: { width: 8, height: 20 } }
     expect(hasSixelCellGeometry(calibrated)).toBe(true)
     expect(nativeGraphicsLayoutMode(calibrated)).toBe("sixel")
   })

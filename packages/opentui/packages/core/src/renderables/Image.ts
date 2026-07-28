@@ -7,6 +7,8 @@ import type { RenderContext } from "../types.js"
 
 const DEFAULT_CELL_WIDTH = 18
 const DEFAULT_CELL_HEIGHT = 35
+const SIXEL_FALLBACK_CELL_WIDTH = 12
+const SIXEL_FALLBACK_CELL_HEIGHT = 20
 
 function getCellSize(renderer: CliRenderer, mode: "kitty" | "sixel" | "none"): { cellWidth: number | null; cellHeight: number | null } {
   if (mode === "sixel" && renderer.cellSize) {
@@ -48,9 +50,8 @@ function getImageSize(
   //
   // Classic 1:1 is only kept as a last resort when mode is sixel AND we
   // have no cell metrics at all (defaults still prefer screen-pixel layout).
-  void mode
-  const cw = cellWidth ?? DEFAULT_CELL_WIDTH
-  const ch = cellHeight ?? DEFAULT_CELL_HEIGHT
+  const cw = cellWidth ?? (mode === "sixel" ? SIXEL_FALLBACK_CELL_WIDTH : DEFAULT_CELL_WIDTH)
+  const ch = cellHeight ?? (mode === "sixel" ? SIXEL_FALLBACK_CELL_HEIGHT : DEFAULT_CELL_HEIGHT)
   const width = Math.ceil(imageWidth / Math.max(1, cw))
   const height = Math.ceil(imageHeight / Math.max(1, ch))
   return { width: Math.max(1, width), height: Math.max(1, height) }

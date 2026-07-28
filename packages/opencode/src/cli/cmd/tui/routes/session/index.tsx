@@ -1662,7 +1662,7 @@ function UserMessage(props: {
                 Active model context after compaction — observe this to understand model behavior.
               </text>
             </Show>
-            <RichText content={text()} id={props.message.id} muted={isModelMemory()} streaming={false} surface="panel" />
+            <RichText content={text} id={props.message.id} muted={isModelMemory()} streaming={false} surface="panel" />
             <Show when={files().length}>
               <box flexDirection="row" paddingBottom={metadataVisible() ? 1 : 0} paddingTop={1} gap={1} flexWrap="wrap">
                 <For each={files()}>
@@ -1832,14 +1832,14 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         customBorderChars={SplitBorder.customBorderChars}
         borderColor={theme.backgroundElement}
       >
-        <RichText content={content()} id={props.part.id} muted subtle streaming={!props.part.time?.end} />
+        <RichText content={content} id={props.part.id} muted subtle streaming={!props.part.time?.end} />
       </box>
     </Show>
   )
 }
 
 function RichText(props: {
-  content: string
+  content: () => string
   id: string
   muted?: boolean
   streaming: boolean
@@ -1848,7 +1848,7 @@ function RichText(props: {
 }) {
   const ctx = use()
   const { theme, syntax, subtleSyntax, mode } = useTheme()
-  const segments = createMemo(() => splitTextSegments(props.content))
+  const segments = createMemo(() => splitTextSegments(props.content()))
 
   const markdownSegmentText = (segment: TextSegment) => (segment.type === "markdown" ? segment.text : "")
   // Progressive mermaid rendering — render each completed mermaid block as soon
@@ -1876,6 +1876,12 @@ function RichText(props: {
         if (mermaidDataUrls()[index]) continue
       }
       renderedSources.set(index, segment.source)
+      Log.Default.info("mermaid transcript render started", {
+        partId: props.id,
+        segment: index,
+        sourceChars: segment.source.length,
+        theme: mode() === "dark" ? "dark" : "default",
+      })
       // PNG data URL → used by Sixel / symbols rendering
       renderMermaidToPngDataUrl(segment.source, {
         theme: mode() === "dark" ? "dark" : "default",
@@ -1883,10 +1889,19 @@ function RichText(props: {
       })
         .then((pngDataUrl) => {
           if (pngDataUrl) {
+            Log.Default.info("mermaid transcript PNG ready", {
+              partId: props.id,
+              segment: index,
+              dataUrlChars: pngDataUrl.length,
+            })
             setMermaidDataUrls((prev) => ({ ...prev, [index]: pngDataUrl }))
+            return
           }
+          setMermaidFailed((prev) => ({ ...prev, [index]: true }))
+          Log.Default.warn("bug: mermaid transcript PNG render returned empty", { partId: props.id, segment: index })
         })
         .catch((error) => {
+          setMermaidFailed((prev) => ({ ...prev, [index]: true }))
           Log.Default.warn("bug: mermaid render failed in rich transcript text", {
             partId: props.id,
             segment: index,
@@ -1926,12 +1941,13 @@ function RichText(props: {
 }
 
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
+  const content = () => props.part.text
   const streaming = createMemo(() => !props.part.time?.end)
 
   return (
-    <Show when={props.part.text.trim()}>
+    <Show when={content().trim()}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <RichText content={props.part.text} id={props.part.id} streaming={streaming()} />
+        <RichText content={content} id={props.part.id} streaming={streaming()} />
       </box>
     </Show>
   )

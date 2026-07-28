@@ -37,7 +37,8 @@ Use this skill when a command may be:
 ## What cmd_runner is
 
 - Windows + Linux compatible.
-- Uses ConPTY (Windows) or PTY (Linux) for terminal I/O.
+- Default backend uses ConPTY (Windows) or PTY (Linux) for terminal I/O.
+- `--direct-terminal` is a Windows Terminal-only graphics backend: the child inherits the actual WT console, so SIXEL capability negotiation and output are not consumed by ConPTY.
 - Raw pipe capture mode (`--raw`) for image protocol passthrough — converts Kitty/iTerm2/Sixel to `[IMG:PROTO:b64]` in logs.
 - Terminal auto-detection: wezterm > Windows Terminal > conhost > bash (Windows); wezterm > guake > yakuake > xterm > bash (Linux).
 - Logs: `logs/cmd_runner/<run_id>/`
@@ -57,16 +58,34 @@ Use this skill when a command may be:
 ### 1) Start a run
 
 ```
-cmd_runner start [--terminal HOST[=ARGS]] [--raw|--no-raw] [--cwd PATH] -- <command ...>
+cmd_runner start [--terminal HOST[=ARGS]] [--cols N --rows N] [--direct-terminal] [--raw|--no-raw] [--cwd PATH] -- <command ...>
 ```
 
 - Prints `run_id` and `inbox=` path.
 - Auto-tails last 5 lines after 500ms (default; `--auto-tail 0` to disable).
 - `--shell cmd|pwsh|bash` — explicit shell wrapper.
 - `--terminal` — select terminal host (see Terminal section below).
+- `--cols` / `--rows` — initial ConPTY grid; with the default `wt` launch they also become `wt --size COLS,ROWS`. Use a taller grid (for example, `80x60`) for portrait graphics rendered by `chafa`.
 - `--raw` — force raw pipes (no ConPTY, non-interactive batch commands only).
 - `--no-raw` — force ConPTY (interactive mode, default).
 - Default: ConPTY (interactive) — supports full send/inbox, TUI apps, interactive shells.
+- `--direct-terminal` — require `--terminal wt`; preserve SIXEL/terminal graphics and retain `status`, `stop`, job control, and inbox `send` while the payload runs. The direct WT window stays visible. Its stdout/stderr cannot be captured to runner logs by design.
+
+### Graphics in Windows Terminal
+
+Use the direct-terminal backend when `chafa` or another renderer chooses a symbol fallback under ConPTY:
+
+```
+cmd_runner start --terminal wt --direct-terminal --cols 80 --rows 60 --keep-open --cwd D:\zPython\ADID_Python\experiments\Vision -- .\dragon.bat
+cmd_runner status <run_id>
+cmd_runner send <run_id> --keys ENTER
+cmd_runner screenshot <run_id>
+cmd_runner screenshot <run_id> --out D:\captures\dragon.png
+```
+
+- The host enables `ENABLE_VIRTUAL_TERMINAL_PROCESSING` before it creates the child, then the child inherits the real WT console handles.
+- Screenshot identifies the visible WT tab by its per-run title. Do not minimize or close that window before capture.
+- Use `tail` for ConPTY/raw runs. Direct-terminal image output is intentionally terminal-only, not a log artifact.
 
 ### 2) Check status
 
@@ -165,6 +184,15 @@ cmd_runner start --raw -- <image_command ...>
 - Text-based tools (`tail`, `assert`, `snapshot`) work on clean text.
 - `--no-raw` forces ConPTY mode (no image capture in logs).
 
+## Screenshot
+
+```
+cmd_runner screenshot <run_id> [--out PATH]
+```
+
+- Captures a visible `--direct-terminal --terminal wt` window to PNG.
+- Without `--out`, writes `logs/cmd_runner/<run_id>/screenshot.png`.
+
 ## Auto-tail options
 
 | Flag | Default | Description |
@@ -203,4 +231,5 @@ cmd_runner send <run_id> --keys ctrl+d                  # end session
 - `.bat`/`.cmd` files auto-wrapped in `cmd.exe /c` to prevent `SearchPathW` AV.
 - `add_crlf` defaults to `false` (no implicit Enter).
 - All subprocess windows open minimized.
+- Direct-terminal Windows Terminal windows are the exception: they remain visible for graphics rendering and screenshot capture.
 - `wait` without `--timeout-s` blocks indefinitely.

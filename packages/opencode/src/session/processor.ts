@@ -573,10 +573,10 @@ export const layer: Layer.Layer<
             const changedFiles = [...ctx.changedFiles]
             const changedDiffs = [...ctx.changedDiffs.values()]
             // Structured tools supply exact paths. Opaque writers (bash/run)
-            // supply none, so Fossil must reconcile once to preserve rollback
-            // and produce the concrete changed-file set for incremental diffing.
+            // can supply none; preserve an empty list so Fossil does not start a
+            // whole-worktree reconciliation on the model continuation path.
             const snapshotAfterTrack = wroteWorkingCopy
-              ? yield* snapshot.track(changedFiles.length ? changedFiles : undefined)
+              ? yield* snapshot.track(changedFiles)
               : ctx.snapshot
             yield* session.updatePart({
               id: PartID.ascending(),

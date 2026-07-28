@@ -1,11 +1,11 @@
 ---
 name: patch-tool
-description: Apply apply_patch-format patches via adm with ADID backups and per-file ledgers.
+description: Repair existing XML update descriptors through adm with ADID backups and per-file ledgers.
 ---
 
 # patch-tool (adm wrapper for apply_patch)
 
-Use this when you need to apply an `apply_patch`-format patch file in a way that still creates ADID rotated backups and per-file JSONL ledgers.
+Use this only when repairing an existing XML update descriptor through its own XML workflow and you need ADID rotated backups and per-file JSONL ledgers. For ordinary source, documentation, configuration, or test edits, use `apply_patch` directly.
 
 ## Command
 
@@ -17,4 +17,3 @@ Use this when you need to apply an `apply_patch`-format patch file in a way that
 - This wrapper calls the bundled `apply_patch.exe` and pre-creates rotated backups for any existing target files.
 - It emits per-file entries to `<file>.adid.log.jsonl` with `"command": "--patch-tool"` so you can audit what changed.
 - Patch files must start with `*** Begin Patch` and end with `*** End Patch`, with file operations like `*** Update File: ...`, `*** Add File: ...`, `*** Delete File: ...`, and `*** Move to: <new_path>` (rename after update).
-

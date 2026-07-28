@@ -22,9 +22,9 @@ defines `CSI ? 2 ; 1 ; 0 S` and successful `CSI ? 2 ; 0 ; … S` replies.
 - [x] Make `image_protocol: "sixel"` set native OpenTUI Sixel capability explicitly; `symbols` must disable native graphics.
 - [x] Add native and TypeScript regression coverage for successful/failed probes and explicit overrides.
 - [x] Resolve the TUI `auto` policy with the independent graphics detector and persist its selected native protocol; log rejected remote overrides and the iTerm2 symbols fallback.
-- [ ] Reserve native image layout rows so assistant metadata cannot overlap Sixel diagrams (implemented; pending packaged visual verification).
-- [ ] Restore the active TUI input cursor after native graphics post-rendering (implemented; pending packaged visual verification).
-- [ ] Rebuild and verify the packaged TUI records the probe result or override and selects native Sixel.
+- [x] Reserve native image layout rows so assistant metadata cannot overlap Sixel diagrams.
+- [x] Restore the active TUI input cursor after native graphics post-rendering.
+- [x] Rebuild and verify the packaged TUI records the probe result or override and selects native Sixel.
 
 ## Smoke Tests
 
@@ -57,3 +57,4 @@ defines `CSI ? 2 ; 1 ; 0 S` and successful `CSI ? 2 ; 0 ; … S` replies.
 | 6 | `pwsh -File .\\_build.ps1 -SkipOpenTui` (repository root through cmd_runner) | complete; packaged 10.0.677 smoke test and release artifact staging passed |
 | 7 | `pwsh -File .\\_build.ps1` (repository root through cmd_runner) | complete; rebuilt native OpenTUI, packaged 10.0.681, smoke test and native DLL staging passed after cursor restoration |
 | 8 | `bun typecheck` (`packages/opencode`) | passed with zero diagnostics after native cursor restoration |
+| 9 | packaged TUI Mermaid run in Windows Terminal | user-confirmed: Sixel raster, image layout, and input cursor restoration all work |

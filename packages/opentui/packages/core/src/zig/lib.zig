@@ -628,6 +628,12 @@ export fn setTerminalEnvVar(renderer_handle: NativeHandle, keyPtr: ?[*]const u8,
     return object_ptr.setTerminalEnvVar(key, value);
 }
 
+export fn setTerminalGraphicsOverride(renderer_handle: NativeHandle, override_value: u8) bool {
+    const object_ptr = acquireRenderer(renderer_handle) orelse return false;
+    const override = std.meta.intToEnum(Terminal.GraphicsOverride, override_value) catch return false;
+    return object_ptr.setTerminalGraphicsOverride(override);
+}
+
 export fn setUseThread(renderer_handle: NativeHandle, useThread: bool) void {
     const object_ptr = acquireRenderer(renderer_handle) orelse return;
     object_ptr.setUseThread(useThread);

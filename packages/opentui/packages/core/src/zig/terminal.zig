@@ -11,6 +11,13 @@ const WidthMethod = utf8.WidthMethod;
 /// Terminal capability detection and management
 pub const Terminal = @This();
 
+pub const GraphicsOverride = enum(u8) {
+    auto,
+    kitty,
+    sixel,
+    symbols,
+};
+
 pub const Capabilities = struct {
     kitty_keyboard: bool = false,
     kitty_graphics: bool = false,
@@ -151,6 +158,8 @@ is_foot: bool = false,
 skip_graphics_query: bool = false,
 skip_explicit_width_query: bool = false,
 graphics_query_pending: bool = false,
+sixel_geometry_query_reprobe_pending: bool = false,
+graphics_override: GraphicsOverride = .auto,
 capability_queries_pending: bool = false,
 startup_cursor_query_pending: bool = false,
 startup_cursor_query_captured: bool = false,
@@ -304,6 +313,18 @@ pub fn queryTerminalSend(self: *Terminal, tty: anytype) !void {
     // Capture the current cursor position before temporary home-position queries.
     try tty.writeAll(ansi.ANSI.cursorPositionRequest);
 
+    // Probe the Sixel graphics implementation itself. Environment variables and
+    // DA1 are useful hints, but a successful XTSMGRAPHICS reply is authoritative
+    // even when a launcher has stripped terminal identity from the child process.
+    if (!self.skip_graphics_query) {
+        if (self.isInTmux()) {
+            try tty.writeAll(ansi.ANSI.sixelGeometryQueryTmux);
+        } else {
+            try tty.writeAll(ansi.ANSI.sixelGeometryQuery);
+            self.sixel_geometry_query_reprobe_pending = true;
+        }
+    }
+
     if (self.isInTmux()) {
         if (self.is_foot) {
             try tty.writeAll(ansi.ANSI.capabilityQueriesFootIsBrokenTmux);
@@ -344,6 +365,17 @@ pub fn sendPendingQueries(self: *Terminal, tty: anytype) !bool {
         }
         // Clear pending flag regardless - non-tmux terminals already received unwrapped queries
         self.capability_queries_pending = false;
+    }
+
+    // XTVERSION is sent before the startup query and can identify tmux only
+    // after the unwrapped XTSMGRAPHICS request was emitted. Re-run the probe
+    // inside tmux's DCS passthrough once that identity is known.
+    if (self.sixel_geometry_query_reprobe_pending and self.term_info.from_xtversion) {
+        if (is_tmux) {
+            try tty.writeAll(ansi.ANSI.sixelGeometryQueryTmux);
+            sent = true;
+        }
+        self.sixel_geometry_query_reprobe_pending = false;
     }
 
     if (self.graphics_query_pending and !self.skip_graphics_query) {
@@ -914,6 +946,33 @@ fn checkEnvironmentOverrides(self: *Terminal) void {
             }
         }
     }
+
+    self.applyGraphicsOverride();
+}
+
+fn applyGraphicsOverride(self: *Terminal) void {
+    switch (self.graphics_override) {
+        .auto => {},
+        .kitty => {
+            self.caps.kitty_graphics = true;
+            self.caps.sixel = false;
+        },
+        .sixel => {
+            self.caps.kitty_graphics = false;
+            self.caps.sixel = true;
+        },
+        .symbols => {
+            self.caps.kitty_graphics = false;
+            self.caps.sixel = false;
+        },
+    }
+}
+
+pub fn setGraphicsOverride(self: *Terminal, override: GraphicsOverride) bool {
+    if (self.remote) return false;
+    self.graphics_override = override;
+    self.applyGraphicsOverride();
+    return true;
 }
 
 fn isRemoteSessionEnv(env_map: *const std.process.EnvMap) bool {
@@ -1085,6 +1144,13 @@ pub fn processCapabilityResponse(self: *Terminal, response: []const u8) void {
     self.parseItermCapabilities(response);
     self.parseXtgettcapMs(response);
 
+    // XTSMGRAPHICS reply for `CSI ? 2 ; 1 ; 0 S`: item 2 is Sixel geometry,
+    // and status 0 means the terminal accepted the query. Do not enable Sixel
+    // for an error or failure response.
+    if (hasSuccessfulSixelGeometryResponse(response)) {
+        self.caps.sixel = true;
+    }
+
     // DECRPM responses
     if (std.mem.indexOf(u8, response, "1016;2$y")) |_| {
         self.caps.sgr_pixels = true;
@@ -1242,6 +1308,8 @@ pub fn processCapabilityResponse(self: *Terminal, response: []const u8) void {
     if (!self.caps.hyperlinks and isHyperlinkTerm(response)) {
         self.caps.hyperlinks = true;
     }
+
+    self.applyGraphicsOverride();
 }
 
 fn parseXtgettcapMs(self: *Terminal, response: []const u8) void {
@@ -1680,4 +1748,76 @@ pub fn getTerminalName(self: *Terminal) []const u8 {
 
 pub fn getTerminalVersion(self: *Terminal) []const u8 {
     return self.term_info.version[0..self.term_info.version_len];
+}
+
+fn hasSuccessfulSixelGeometryResponse(response: []const u8) bool {
+    const prefix = "\x1b[?2;0;";
+    var search_start: usize = 0;
+
+    while (std.mem.indexOfPos(u8, response, search_start, prefix)) |start| {
+        const value_start = start + prefix.len;
+        const end = std.mem.indexOfScalarPos(u8, response, value_start, 'S') orelse return false;
+        const values = response[value_start..end];
+        search_start = end + 1;
+
+        var needs_digit = true;
+        var valid = true;
+        for (values) |byte| {
+            if (std.ascii.isDigit(byte)) {
+                needs_digit = false;
+                continue;
+            }
+            if (byte == ';' and !needs_digit) {
+                needs_digit = true;
+                continue;
+            }
+            valid = false;
+            break;
+        }
+        if (valid and !needs_digit) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+test "XTSMGRAPHICS enables Sixel only after a successful Sixel geometry reply" {
+    var terminal = Terminal{};
+    defer terminal.deinit();
+
+    terminal.processCapabilityResponse("\x1b[?2;3;0S");
+    try std.testing.expect(!terminal.caps.sixel);
+
+    terminal.processCapabilityResponse("\x1b[?2;0;invalidS");
+    try std.testing.expect(!terminal.caps.sixel);
+
+    terminal.processCapabilityResponse("\x1b[?2;0;1500;800S");
+    try std.testing.expect(terminal.caps.sixel);
+}
+
+test "explicit graphics override supersedes inferred graphics capabilities" {
+    var terminal = Terminal{};
+    defer terminal.deinit();
+
+    try std.testing.expect(terminal.setGraphicsOverride(.sixel));
+    try std.testing.expect(terminal.caps.sixel);
+    try std.testing.expect(!terminal.caps.kitty_graphics);
+
+    try std.testing.expect(terminal.setGraphicsOverride(.symbols));
+    try std.testing.expect(!terminal.caps.sixel);
+    try std.testing.expect(!terminal.caps.kitty_graphics);
+
+    terminal.processCapabilityResponse("kitty");
+    try std.testing.expect(!terminal.caps.sixel);
+    try std.testing.expect(!terminal.caps.kitty_graphics);
+
+    try std.testing.expect(terminal.setGraphicsOverride(.sixel));
+    terminal.processCapabilityResponse("kitty");
+    try std.testing.expect(terminal.caps.sixel);
+    try std.testing.expect(!terminal.caps.kitty_graphics);
+
+    terminal.remote = true;
+    try std.testing.expect(!terminal.setGraphicsOverride(.sixel));
+    try std.testing.expect(terminal.caps.sixel);
 }

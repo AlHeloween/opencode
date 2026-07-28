@@ -209,6 +209,8 @@ export interface CliRendererConfig {
   onDestroy?: () => void
 }
 
+export type TerminalImageProtocol = "kitty" | "sixel" | "symbols"
+
 // Controls how the renderer uses terminal space:
 //
 // - "alternate-screen": Use the terminal's alternate screen buffer.
@@ -1844,6 +1846,18 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
   public get capabilities(): TerminalCapabilities | null {
     return this._capabilities
+  }
+
+  /**
+   * Force a verified host graphics protocol through a PTY boundary.
+   */
+  public setImageProtocol(protocol: TerminalImageProtocol): void {
+    const code = protocol === "kitty" ? 1 : protocol === "sixel" ? 2 : 3
+    if (!this.lib.setTerminalGraphicsOverride(this.rendererPtr, code)) return
+    this._capabilities = this.lib.getTerminalCapabilities(this.rendererPtr)
+    this.forceFullRepaintRequested = true
+    this.requestRender()
+    this.emit(CliRenderEvents.CAPABILITIES, this._capabilities)
   }
 
   public triggerNotification(message: string, title?: string): boolean {

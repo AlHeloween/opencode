@@ -8,6 +8,7 @@
  * - Kitty Graphics: ESC _ G ... ESC \
  * - Kitty Keyboard Query: ESC[?Nu where N is 0,1,2,etc
  * - DA1 (Device Attributes): ESC[?...c
+ * - XTSMGRAPHICS Sixel geometry: ESC[?2;status;value...S
  * - Pixel Resolution: ESC[4;height;widtht
  * - Cell Pixel Size: ESC[6;height;widtht
  * - OSC 99 notification capability query response
@@ -58,6 +59,13 @@ export function isCapabilityResponse(sequence: string): boolean {
 
   // DA1 (Device Attributes): ESC[?...c
   if (/\x1b\[\?[0-9;]*c/.test(sequence)) {
+    return true
+  }
+
+  // XTSMGRAPHICS Sixel geometry reply. Its status is interpreted by the
+  // native terminal layer; consume all replies so terminal control traffic
+  // never reaches application input handlers.
+  if (/\x1b\[\?2;[0-3];\d+(?:;\d+)*S/.test(sequence)) {
     return true
   }
 

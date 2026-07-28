@@ -57,6 +57,11 @@ describe("isCapabilityResponse", () => {
     expect(isCapabilityResponse("\x1b[?6c")).toBe(true)
   })
 
+  test("detects XTSMGRAPHICS Sixel geometry responses", () => {
+    expect(isCapabilityResponse("\x1b[?2;0;1500;800S")).toBe(true)
+    expect(isCapabilityResponse("\x1b[?2;3;0S")).toBe(true)
+  })
+
   test("detects Kitty keyboard query responses", () => {
     expect(isCapabilityResponse("\x1b[?0u")).toBe(true)
     expect(isCapabilityResponse("\x1b[?1u")).toBe(true)

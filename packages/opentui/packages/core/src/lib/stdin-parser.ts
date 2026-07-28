@@ -469,6 +469,7 @@ function canCompleteDeferredPrivateReplyCsi(
   if (state.sawDollar) return state.hasDigit && byte === 0x79
   if (byte === 0x63) return state.hasDigit || state.semicolons > 0
   if (byte === 0x6e) return state.hasDigit
+  if (byte === 0x53) return state.hasDigit && state.semicolons >= 2
   return state.hasDigit && byte === 0x75
 }
 

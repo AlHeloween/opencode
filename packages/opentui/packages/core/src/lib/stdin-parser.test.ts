@@ -870,6 +870,8 @@ describe("StdinParser", () => {
       ["focus out", "\x1b[O", [resp("csi", "\x1b[O")]],
       // DA (Device Attributes)
       ["DA1", "\x1b[?62;1;2;6;7;8;9;15;22c", [resp("csi", "\x1b[?62;1;2;6;7;8;9;15;22c")]],
+      // XTSMGRAPHICS Sixel geometry response
+      ["Sixel geometry", "\x1b[?2;0;1500;800S", [resp("csi", "\x1b[?2;0;1500;800S")]],
       // CPR (Cursor Position Report)
       ["CPR", "\x1b[24;80R", [resp("cpr", "\x1b[24;80R")]],
       // Window/cell size
@@ -1302,6 +1304,24 @@ describe("StdinParser", () => {
 
         parser.push(Buffer.from("c"))
         expect(snap(parser)).toEqual([resp("csi", "\x1b[?62;c")])
+      } finally {
+        parser.destroy()
+      }
+    })
+
+    test("partial Sixel geometry reply stays pending after timeout while capability probe is active", () => {
+      const { parser, clock } = createTimedParser({
+        protocolContext: { privateCapabilityRepliesActive: true },
+      })
+
+      try {
+        parser.push(Buffer.from("\x1b[?2;0;1500;"))
+        expect(snap(parser)).toEqual([])
+        clock.advance(10)
+        expect(snap(parser)).toEqual([])
+
+        parser.push(Buffer.from("800S"))
+        expect(snap(parser)).toEqual([resp("csi", "\x1b[?2;0;1500;800S")])
       } finally {
         parser.destroy()
       }

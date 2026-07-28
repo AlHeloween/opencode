@@ -2018,6 +2018,10 @@ pub const CliRenderer = struct {
         return true;
     }
 
+    pub fn setTerminalGraphicsOverride(self: *CliRenderer, override: Terminal.GraphicsOverride) bool {
+        return self.terminal.setGraphicsOverride(override);
+    }
+
     pub fn processCapabilityResponse(self: *CliRenderer, response: []const u8) void {
         self.terminal.processCapabilityResponse(response);
         var stream = std.io.fixedBufferStream(&self.writeOutBuf);

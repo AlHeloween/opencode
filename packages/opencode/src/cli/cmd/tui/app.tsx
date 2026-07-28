@@ -153,6 +153,18 @@ export function tui(input: {
     }
 
     const renderer = await createCliRenderer(rendererConfig(input.config))
+    if (input.config.image_protocol === "kitty" || input.config.image_protocol === "sixel" || input.config.image_protocol === "symbols") {
+      renderer.setImageProtocol(input.config.image_protocol)
+      Log.Default.info("TUI terminal graphics protocol overridden", {
+        protocol: input.config.image_protocol,
+        capabilities: renderer.capabilities,
+      })
+    }
+    if (input.config.image_protocol === "iterm2") {
+      Log.Default.warn("bug: iTerm2 image protocol cannot be emitted by OpenTUI native ImageRenderable", {
+        protocol: input.config.image_protocol,
+      })
+    }
     const terminalIdentity = {
       platform: process.platform,
       wtSession: process.env["WT_SESSION"] !== undefined,

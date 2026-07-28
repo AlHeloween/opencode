@@ -315,6 +315,10 @@ function getOpenTUILib(libPath?: string) {
       args: ["u32", "ptr", "u32", "ptr", "u32"],
       returns: "bool",
     },
+    setTerminalGraphicsOverride: {
+      args: ["u32", "u8"],
+      returns: "bool",
+    },
     destroyRenderer: {
       args: ["u32"],
       returns: "void",
@@ -2013,6 +2017,7 @@ export interface AudioEngineLib {
 export interface RenderLib extends AudioEngineLib {
   createRenderer: (width: number, height: number, options?: NativeRendererCreateOptions) => RendererHandle | null
   setTerminalEnvVar: (renderer: RendererHandle, key: string, value: string) => boolean
+  setTerminalGraphicsOverride: (renderer: RendererHandle, protocol: number) => boolean
   destroyRenderer: (renderer: RendererHandle) => void
   setUseThread: (renderer: RendererHandle, useThread: boolean) => void
   setClearOnShutdown: (renderer: RendererHandle, clear: boolean) => void
@@ -2855,6 +2860,10 @@ class FFIRenderLib implements RenderLib {
       ptrOrNull(valueBytes),
       valueBytes.byteLength,
     )
+  }
+
+  public setTerminalGraphicsOverride(renderer: Pointer, protocol: number): boolean {
+    return this.opentui.symbols.setTerminalGraphicsOverride(renderer, protocol)
   }
 
   public destroyRenderer(renderer: Pointer): void {

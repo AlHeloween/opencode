@@ -73,6 +73,7 @@ import type { RouteMap } from "@/cli/cmd/tui/plugin/api"
 import { FormatError, FormatUnknownError } from "@/cli/error"
 import type { EventSource } from "./context/sdk"
 import { DialogVariant } from "./component/dialog-variant"
+import { detectGraphicsProtocol } from "@/util/terminal-graphics"
 
 // Lazy registration: <image-plane> loaded on first use (not at module load).
 // Three.js/WebGPU (from @opentui/three) is only for the rare fallback path.
@@ -153,17 +154,29 @@ export function tui(input: {
     }
 
     const renderer = await createCliRenderer(rendererConfig(input.config))
-    if (input.config.image_protocol === "kitty" || input.config.image_protocol === "sixel" || input.config.image_protocol === "symbols") {
-      renderer.setImageProtocol(input.config.image_protocol)
-      Log.Default.info("TUI terminal graphics protocol overridden", {
-        protocol: input.config.image_protocol,
+    const graphicsProtocol = detectGraphicsProtocol(input.config.image_protocol)
+    const protocolOverride = graphicsProtocol === "iterm2" ? "symbols" : graphicsProtocol
+    const protocolOverrideAccepted = renderer.setImageProtocol(protocolOverride)
+    if (protocolOverrideAccepted) {
+      Log.Default.info("TUI terminal graphics protocol resolved", {
+        configuredProtocol: input.config.image_protocol ?? "auto",
+        protocol: protocolOverride,
+        capabilities: renderer.capabilities,
+      })
+    } else {
+      Log.Default.warn("bug: TUI terminal graphics protocol override rejected", {
+        configuredProtocol: input.config.image_protocol ?? "auto",
+        protocol: protocolOverride,
         capabilities: renderer.capabilities,
       })
     }
-    if (input.config.image_protocol === "iterm2") {
-      Log.Default.warn("bug: iTerm2 image protocol cannot be emitted by OpenTUI native ImageRenderable", {
-        protocol: input.config.image_protocol,
-      })
+    if (graphicsProtocol === "iterm2") {
+      Log.Default.warn(
+        protocolOverrideAccepted
+          ? "bug: iTerm2 image protocol is unsupported by OpenTUI native ImageRenderable; using symbols"
+          : "bug: iTerm2 image protocol is unsupported and symbols fallback was rejected for remote renderer",
+        { configuredProtocol: input.config.image_protocol ?? "auto" },
+      )
     }
     const terminalIdentity = {
       platform: process.platform,

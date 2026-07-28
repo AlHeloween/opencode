@@ -21,6 +21,7 @@ defines `CSI ? 2 ; 1 ; 0 S` and successful `CSI ? 2 ; 0 ; … S` replies.
 - [x] Consume that reply in the TypeScript capability dispatcher so it cannot become user input.
 - [x] Make `image_protocol: "sixel"` set native OpenTUI Sixel capability explicitly; `symbols` must disable native graphics.
 - [x] Add native and TypeScript regression coverage for successful/failed probes and explicit overrides.
+- [x] Resolve the TUI `auto` policy with the independent graphics detector and persist its selected native protocol; log rejected remote overrides and the iTerm2 symbols fallback.
 - [ ] Rebuild and verify the packaged TUI records the probe result or override and selects native Sixel.
 
 ## Smoke Tests
@@ -49,3 +50,6 @@ defines `CSI ? 2 ; 1 ; 0 S` and successful `CSI ? 2 ; 0 ; … S` replies.
 | 1 | focused OpenTUI terminal tests (`packages/opentui/packages/core`) | 451 pass, 0 fail, 1572 expectations; includes XTSMGRAPHICS and explicit Sixel/symbols override coverage |
 | 2 | `bun typecheck` (`packages/opencode`) | passed with zero diagnostics |
 | 3 | `pwsh -File .\\_build.ps1` (repository root through cmd_runner) | OpenTUI core, solid, three, and spinner all built; packaging remains blocked because `TOTALCMD64.EXE` PID 20564 has `dist\\bin` as its working directory, so `_build.ps1:386` cannot remove the directory |
+| 4 | focused OpenTUI image protocol tests | 452 pass, 0 fail; includes accepted local override and rejected remote override |
+| 5 | `bun typecheck` (`packages/opencode`) | passed with zero diagnostics after auto-policy wiring |
+| 6 | `pwsh -File .\\_build.ps1 -SkipOpenTui` (repository root through cmd_runner) | complete; packaged 10.0.677 smoke test and release artifact staging passed |

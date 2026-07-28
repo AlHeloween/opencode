@@ -1851,13 +1851,14 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   /**
    * Force a verified host graphics protocol through a PTY boundary.
    */
-  public setImageProtocol(protocol: TerminalImageProtocol): void {
+  public setImageProtocol(protocol: TerminalImageProtocol): boolean {
     const code = protocol === "kitty" ? 1 : protocol === "sixel" ? 2 : 3
-    if (!this.lib.setTerminalGraphicsOverride(this.rendererPtr, code)) return
+    if (!this.lib.setTerminalGraphicsOverride(this.rendererPtr, code)) return false
     this._capabilities = this.lib.getTerminalCapabilities(this.rendererPtr)
     this.forceFullRepaintRequested = true
     this.requestRender()
     this.emit(CliRenderEvents.CAPABILITIES, this._capabilities)
+    return true
   }
 
   public triggerNotification(message: string, title?: string): boolean {

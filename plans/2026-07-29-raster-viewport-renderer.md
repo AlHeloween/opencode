@@ -63,8 +63,11 @@ flowchart LR
   selection and eligibility gates: confirmed pixel/cell geometry,
   alternate-screen, no captured stdout, no split footer. Kitty/SIXEL can enable
   it; symbols, remote, and unsupported contexts retain the ANSI-cell backend.
-- [ ] Add a pinned font package and a Zig font subsystem with trusted bundled
-  font bytes, glyph cache, fallback chain, and deterministic cell metrics.
+- [x] Add pinned FreeType 2.14.3 and trusted bundled JetBrains Mono Regular
+  bytes (SIL OFL 1.1) with a Zig `FontRasterizer` that exposes alpha glyph
+  bitmaps. Native build passes on Windows.
+- [ ] Extend the font subsystem with glyph cache, fallback chain, and
+  deterministic cell metrics.
 - [ ] Add shaping and glyph rasterization for every grapheme from the existing
   grapheme pool; consume `OptimizedBuffer` coordinates exactly, preserving
   wrapping, wide-cell continuations, combining marks, ZWJ emoji, CJK fallback,
@@ -113,6 +116,8 @@ flowchart LR
 - `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
   (`packages/opentui/packages/core`): 4 tests, 0 failures, 10 assertions.
 - `bun typecheck` (`packages/opencode`): passes.
+- `bun run build:native:dev` (`packages/opentui/packages/core`): passes after
+  compiling the pinned FreeType dependency and embedded font subsystem.
 - Direct Windows Terminal currently demonstrates the hybrid-layer defect with
   mixed text and Mermaid content; capture a reproducible cmd_runner screenshot
   before the first raster-backend edit.

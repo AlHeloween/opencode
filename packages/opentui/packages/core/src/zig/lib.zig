@@ -23,12 +23,14 @@ const native_renderable = @import("native-renderable.zig");
 const buffer_effects = @import("buffer-methods.zig");
 const handles = @import("handles.zig");
 const native_yoga = @import("yoga.zig");
+const font_raster = @import("font_raster.zig");
 
 pub const OptimizedBuffer = buffer.OptimizedBuffer;
 pub const CliRenderer = renderer.CliRenderer;
 pub const Terminal = terminal.Terminal;
 pub const RGBA = buffer.RGBA;
 pub const NativeHandle = handles.Handle;
+pub const FontRasterizer = font_raster.FontRasterizer;
 
 const INVALID_HANDLE: NativeHandle = 0;
 const EMPTY_U8 = [_]u8{0};

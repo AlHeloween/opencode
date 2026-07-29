@@ -75,8 +75,11 @@ flowchart LR
 - [x] Add pinned FreeType 2.14.3 and trusted bundled JetBrains Mono Regular
   bytes (SIL OFL 1.1) with a Zig `FontRasterizer` that exposes alpha glyph
   bitmaps. Native build passes on Windows.
-- [ ] Extend the font subsystem with glyph cache, fallback chain, and
-  deterministic cell metrics.
+- [x] Add a bounded glyph cache keyed by `(pixel_height, codepoint)`; it owns
+  up to 4,096 FreeType bitmap copies and prevents repeated rasterization of
+  visible glyphs within a viewport frame.
+- [ ] Extend the font subsystem with a fallback chain and deterministic cell
+  metrics.
 - [ ] Add shaping and glyph rasterization for every grapheme from the existing
   grapheme pool; consume `OptimizedBuffer` coordinates exactly, preserving
   wrapping, wide-cell continuations, combining marks, ZWJ emoji, CJK fallback,
@@ -103,8 +106,10 @@ flowchart LR
 - [ ] Add latest-frame coalescing and writer backpressure. Bound viewport pixels,
   palette size, encoded bytes, and raster FPS before raster mode can be enabled;
   dirty internal regions alone do not reduce a full SIXEL payload.
-- [ ] Add a runnable native-test harness/CI command before treating Zig source
-  tests as an oracle; Windows currently disables the Zig `test` step.
+- [x] Restore the Windows native-test command: `bun run test:native` now
+  builds the bundled FreeType test dependency and executes 1,687 passing Zig
+  tests (22 skipped). Raster-specific compositor fixtures remain under the
+  unchecked lifecycle/direct-terminal work.
 - [ ] Add direct Windows Terminal screenshots and input/scroll/resize tests for
   mixed Markdown and Mermaid/image fixtures first. Add chart and PDF-fragment
   producers before claiming their regression coverage.
@@ -134,8 +139,8 @@ flowchart LR
 - `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
   (`packages/opentui/packages/core`): 4 tests, 0 failures, 10 assertions.
 - `bun typecheck` (`packages/opencode`): passes.
-- `bun run build:native:dev` (`packages/opentui/packages/core`): passes after
-  compiling the pinned FreeType dependency and embedded font subsystem.
+- `bun run test:native` (`packages/opentui/packages/core`): 1,687 pass,
+  22 skipped; includes the bundled FreeType glyph-cache test.
 - Direct Windows Terminal currently demonstrates the hybrid-layer defect with
   mixed text and Mermaid content; capture a reproducible cmd_runner screenshot
   before the first raster-backend edit.
@@ -145,7 +150,7 @@ flowchart LR
 | # | Command (cwd) | Pass criteria |
 |---|---------------|---------------|
 | 1 | `bun run build:native:dev` (`packages/opentui/packages/core`) | native library compiles for Windows |
-| 2 | runnable native-test harness (`packages/opentui/packages/core`) | glyph/media/caret compose into one opaque RGBA viewport; no visual ANSI payload |
+| 2 | `bun run test:native` (`packages/opentui/packages/core`) | all native tests pass, including bundled FreeType glyph-cache coverage |
 | 3 | `bun typecheck` (`packages/opencode`) | TypeScript boundary remains valid |
 | 4 | `_build.ps1` then cmd_runner direct WT (`repo root`) | mixed text/media scroll and resize as one image; typing and caret remain usable |
 | 5 | screenshot regression fixtures | Mermaid, PNG, chart, and PDF fragment share one coordinate system |

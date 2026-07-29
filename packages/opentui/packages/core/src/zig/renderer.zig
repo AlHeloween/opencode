@@ -800,13 +800,13 @@ pub const CliRenderer = struct {
             inline else => |*b| {
                 b.beginFrame();
                 var w = b.writer();
-                // Sixel planes are part of the visible terminal scene, not
-                // independent overlays. A moved/removed plane requires a full
-                // text-and-graphics composition in one output frame: clearing
-                // it after the text diff would erase newly painted cells.
+                // Native graphics are a retained renderer layer, not a post-frame
+                // terminal write. Keep clear, text repaint, Sixel/Kitty emission,
+                // and cursor restoration inside one synchronized output frame.
                 const recompose_graphics = force or self.pixelSceneChanged();
+                if (recompose_graphics) beginRenderFrame(&w);
                 const cleared_graphics = if (recompose_graphics) self.clearPixelScene(&w) else false;
-                self.prepareRenderFrameWithWriter(&w, force or recompose_graphics, false);
+                const frame_started = self.prepareRenderFrameWithWriter(&w, force or recompose_graphics, recompose_graphics, !recompose_graphics);
                 const emitted_graphics = if (recompose_graphics)
                     self.emitPixelScene(&w)
                 else blk: {
@@ -817,6 +817,9 @@ pub const CliRenderer = struct {
                 };
                 if (cleared_graphics or emitted_graphics) {
                     self.restoreCursorAfterPixelRender(&w);
+                }
+                if (recompose_graphics and frame_started) {
+                    w.writeAll(ansi.ANSI.syncReset) catch {};
                 }
                 write_status = b.endFrame();
             },
@@ -1006,7 +1009,7 @@ pub const CliRenderer = struct {
                     );
 
                     if (finalize_frame) {
-                        self.prepareRenderFrameWithWriter(&w, redraw_footer, true);
+                        _ = self.prepareRenderFrameWithWriter(&w, redraw_footer, true, true);
                         write_status = b.endFrame();
                         const status = renderStatusFromWrite(write_status);
                         if (status == .failed) {
@@ -1061,7 +1064,7 @@ pub const CliRenderer = struct {
                 self.splitBatchRedrawFooter = self.splitBatchRedrawFooter or redraw_footer;
 
                 if (finalize_frame) {
-                    self.prepareRenderFrameWithWriter(&w, self.splitBatchRedrawFooter, true);
+                    _ = self.prepareRenderFrameWithWriter(&w, self.splitBatchRedrawFooter, true, true);
                     write_status = b.endFrame();
 
                     const status = renderStatusFromWrite(write_status);
@@ -1347,7 +1350,7 @@ pub const CliRenderer = struct {
             inline else => |*b| {
                 b.beginFrame();
                 var w = b.writer();
-                self.prepareRenderFrameWithWriter(&w, redraw_footer, false);
+                _ = self.prepareRenderFrameWithWriter(&w, redraw_footer, false, true);
                 write_status = b.endFrame();
             },
         }
@@ -1380,15 +1383,18 @@ pub const CliRenderer = struct {
 
     fn composePixelScene(self: *const CliRenderer, pixels: *const PixelBuffer) ?CompositedPixelScene {
         const patches = pixels.patches.items;
-        if (patches.len == 0) return null;
+        const first = for (patches) |patch| {
+            if (patch.width > 0 and patch.height > 0 and patch.cell_w > 0 and patch.cell_h > 0) break patch;
+        } else return null;
 
-        var left = patches[0].x;
-        var top = patches[0].y;
-        var right = patches[0].x + patches[0].cell_w;
-        var bottom = patches[0].y + patches[0].cell_h;
-        const pixel_per_cell_w = @max(1, (patches[0].width + patches[0].cell_w - 1) / patches[0].cell_w);
-        const pixel_per_cell_h = @max(1, (patches[0].height + patches[0].cell_h - 1) / patches[0].cell_h);
-        for (patches[1..]) |patch| {
+        var left = first.x;
+        var top = first.y;
+        var right = first.x + first.cell_w;
+        var bottom = first.y + first.cell_h;
+        const pixel_per_cell_w = @max(1, (first.width + first.cell_w - 1) / first.cell_w);
+        const pixel_per_cell_h = @max(1, (first.height + first.cell_h - 1) / first.cell_h);
+        for (patches) |patch| {
+            if (patch.width == 0 or patch.height == 0 or patch.cell_w == 0 or patch.cell_h == 0) continue;
             left = @min(left, patch.x);
             top = @min(top, patch.y);
             right = @max(right, patch.x + patch.cell_w);
@@ -1403,6 +1409,7 @@ pub const CliRenderer = struct {
         var has_pixels = false;
 
         for (patches) |patch| {
+            if (patch.width == 0 or patch.height == 0 or patch.cell_w == 0 or patch.cell_h == 0) continue;
             const dest_x = (patch.x - left) * pixel_per_cell_w;
             const dest_y = (patch.y - top) * pixel_per_cell_h;
             const dest_w = patch.cell_w * pixel_per_cell_w;
@@ -1486,7 +1493,7 @@ pub const CliRenderer = struct {
     /// (buffered frame append or feed streaming) without dispatch in the render path.
     /// `sync_started` is true only when the caller already opened the
     /// synchronized-update envelope for a batched split-footer commit.
-    pub fn prepareRenderFrameWithWriter(self: *CliRenderer, writer: anytype, force: bool, sync_started: bool) void {
+    pub fn prepareRenderFrameWithWriter(self: *CliRenderer, writer: anytype, force: bool, sync_started: bool, close_sync: bool) bool {
         const renderStartTime = std.time.microTimestamp();
         var cellsUpdated: u32 = 0;
         const palette_force = self.last_rendered_palette_epoch == null or self.last_rendered_palette_epoch.? != self.palette_epoch;
@@ -1738,7 +1745,7 @@ pub const CliRenderer = struct {
         }
 
         // Only close sync if we opened it. This keeps true no-op frames empty.
-        if (frame_started) {
+        if (frame_started and close_sync) {
             writer.writeAll(ansi.ANSI.syncReset) catch {};
         }
 
@@ -1763,6 +1770,8 @@ pub const CliRenderer = struct {
         self.currentHitGrid = self.nextHitGrid;
         self.nextHitGrid = temp;
         @memset(self.nextHitGrid, 0);
+
+        return frame_started;
     }
 
     pub fn setDebugOverlay(self: *CliRenderer, enabled: bool, corner: DebugOverlayCorner) void {

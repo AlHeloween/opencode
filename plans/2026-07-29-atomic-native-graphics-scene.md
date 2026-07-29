@@ -8,7 +8,8 @@ Sixel planes can remain at obsolete terminal coordinates. The result is image
 overlap and a non-graphical TUI.
 
 Make native graphics a retained scene component: every scroll/reflow composes
-all visible image patches into one RGBA viewport canvas, emits exactly one
+the visible image patches supplied by the clipped layout into one RGBA scene
+bounding box, emits exactly one
 native graphics object, and restores the active input cursor in the same output
 frame as the forced text repaint. The renderer must never issue one Sixel DCS
 per diagram.
@@ -29,23 +30,26 @@ per diagram.
 
 ## Implementation
 
-- [ ] Replace the per-patch native emission loop with one composited viewport
+- [x] Replace the per-patch native emission loop with one composited scene
   canvas. Preserve transparent gaps so ANSI text between diagrams remains
   visible; use one Sixel DCS or Kitty image per invalidated frame.
-- [ ] Keep raw patches only as retained scene inputs and derive one previous
+- [x] Keep raw patches only as retained scene inputs and derive one previous
   canvas footprint for clearing. Do not retain multiple terminal-native planes.
 - [x] Make `ImageRenderable` reject fully off-screen frames and clip partial
   frames; never clamp a negative image coordinate to row 1.
-- [ ] Clear the previous unified canvas, repaint text, emit the next unified
+- [x] Clear the previous unified canvas, repaint text, emit the next unified
   canvas, then restore the input cursor as one renderer transaction.
 - [x] Replace Mermaid's PNG data-URL/Jimp decode handoff with direct Resvg RGBA
   frame delivery to `ImageRenderable`; add per-stage timing logs for Mermaid
   layout, rasterization, and frame preparation. Native Sixel encoding/write
   telemetry remains a renderer follow-up.
 - [ ] Add native Sixel encode/write timing to the renderer diagnostics.
-- [ ] Add unit/native-protocol tests proving two images produce one native
-  canvas/DCS, transparent text gaps survive, scrolling replaces one canvas,
-  and cursor restoration remains correct.
+- [x] Add native-protocol tests proving two images produce one native canvas/DCS,
+  the Sixel DCS remains inside the synchronized frame, and cursor restoration
+  remains correct.
+- [ ] Add an executable transparent-gap oracle and a scroll/reflow replacement
+  oracle that proves text survives between images and the replacement frame
+  still emits exactly one DCS.
 
 ## Smoke Tests
 
@@ -75,8 +79,8 @@ per diagram.
 
 ### Current validation [Exact]
 
-- `bun run build:native:dev` (`packages/opentui/packages/core`) passed before
-  the unified-canvas architecture correction; rerun is required afterward.
+- `bun run build:native:dev` (`packages/opentui/packages/core`) passes after
+  the unified-canvas transaction correction.
 - `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
   (`packages/opentui/packages/core`) passes: 4 tests, 0 failures, 10 assertions.
 - `bun typecheck` and `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts`
@@ -87,13 +91,15 @@ per diagram.
   `build.zig` deliberately disables its `test` step for Zig 0.15.2's
   `convertPathArg` crash. The production native library did compile successfully;
   the direct Windows Terminal oracle remains required.
-- Full product build completed with binary smoke test `10.0.685`. The legacy
-  runner recorded exit `-1` after that successful output; the current runner's
-  direct Windows Terminal capture is the authoritative graphics oracle.
+- Full product build completed with binary smoke test `10.0.688`.
 - Direct Windows Terminal per-plane scene-recomposition capture (superseded by
   unified-canvas acceptance):
   `logs/cmd_runner/20260729T050306Z_bf5a5335/scene-recompose.png`. The image
   moved from row 3 to row 20 and no old Sixel plane remained.
+- Direct Windows Terminal unified-Zig-frame capture:
+  `logs/cmd_runner/20260729T073914Z_5a992dde/unified-zig-frame.png`. The status
+  text and the one Sixel canvas are visible together after the diagram moves to
+  row 20; the source test asserts `syncSet < Sixel DCS < syncReset`.
 
 ### Gate
 
@@ -101,4 +107,4 @@ per diagram.
 - [x] Baseline recorded [Exact]
 - [x] Baseline for the original per-plane implementation recorded
 - [x] Unified-canvas implementation only after its baseline
-- [ ] Unified-canvas post-implementation smoke passed before completion
+- [x] Unified-canvas post-implementation smoke passed before completion

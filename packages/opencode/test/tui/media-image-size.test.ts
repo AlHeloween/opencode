@@ -74,10 +74,10 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
     expect(size.height % 6).toBe(0)
   })
 
-  test("diagram previews use a compact transcript budget", () => {
+  test("diagrams use the same terminal-aware contain budget as attachments", () => {
     expect(mediaImageCellBounds({ layout: "diagram", terminalCols: 120, terminalRows: 50 })).toEqual({
-      maxCols: 32,
-      maxRows: 12,
+      maxCols: 80,
+      maxRows: 40,
     })
     expect(mediaImageCellBounds({ layout: "attachment", terminalCols: 120, terminalRows: 50 })).toEqual({
       maxCols: 80,

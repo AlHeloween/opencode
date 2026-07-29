@@ -60,10 +60,9 @@ export function mediaImageCellBounds(input: {
   terminalCols?: number
   terminalRows?: number
 }): { maxCols: number; maxRows: number } {
-  const limits = input.layout === "diagram" ? { maxCols: 32, maxRows: 12 } : { maxCols: MAX_COLS, maxRows: MAX_ROWS }
   return {
-    maxCols: Math.min(limits.maxCols, input.terminalCols ?? limits.maxCols),
-    maxRows: Math.max(8, Math.min(limits.maxRows, input.terminalRows ? Math.max(8, input.terminalRows - 6) : limits.maxRows)),
+    maxCols: Math.min(MAX_COLS, input.terminalCols ?? MAX_COLS),
+    maxRows: Math.max(8, Math.min(MAX_ROWS, input.terminalRows ? Math.max(8, input.terminalRows - 6) : MAX_ROWS)),
   }
 }
 
@@ -278,7 +277,7 @@ async function decodeDataUrlToRgba(
 export function MediaImage(props: {
   url: string
   mime: string
-  /** Diagrams use a compact transcript preview; attachments keep the larger budget. */
+  /** Diagrams use the same terminal-aware contain bounds as attachments. */
   layout?: MediaImageLayout
   /** Enable mouse-wheel zoom and drag-to-pan (mermaid diagrams). */
   interactive?: boolean

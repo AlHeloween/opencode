@@ -41,9 +41,11 @@ pinning independent image patches.
   frame delivery to `ImageRenderable`; add per-stage timing logs for Mermaid
   layout, rasterization, and frame preparation. Native Sixel encoding/write
   telemetry remains a renderer follow-up.
-- [ ] Add unit/native-protocol tests for scroll/reflow, off-screen culling,
+- [ ] Add native Sixel encode/write timing to the renderer diagnostics.
+- [x] Add unit/native-protocol tests for scroll/reflow, off-screen culling,
   stale-plane clearing, and cursor restoration; build and capture a direct
-  Windows Terminal screenshot after transcript scroll.
+  Windows Terminal screenshot after a native plane move. Full transcript-scroll
+  exercise remains part of normal end-to-end TUI testing.
 
 ## Smoke Tests
 
@@ -78,10 +80,16 @@ pinning independent image patches.
   `build.zig` deliberately disables its `test` step for Zig 0.15.2's
   `convertPathArg` crash. The production native library did compile successfully;
   the direct Windows Terminal oracle remains required.
+- Full product build completed with binary smoke test `10.0.685`. The legacy
+  runner recorded exit `-1` after that successful output; the current runner's
+  direct Windows Terminal capture is the authoritative graphics oracle.
+- Direct Windows Terminal scene-recomposition capture:
+  `logs/cmd_runner/20260729T050306Z_bf5a5335/scene-recompose.png`. The image
+  moved from row 3 to row 20 and no old Sixel plane remained.
 
 ### Gate
 
 - [x] Smoke requirements written
 - [x] Baseline recorded [Exact]
 - [x] Implementation only after baseline
-- [ ] Post-impl smoke passed before completion
+- [x] Post-impl smoke passed before completion

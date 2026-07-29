@@ -3,8 +3,17 @@ const ansi = @import("ansi.zig");
 const buf = @import("buffer.zig");
 const gp = @import("grapheme.zig");
 const FontRasterizer = @import("font_raster.zig").FontRasterizer;
+const Terminal = @import("terminal.zig");
 
 pub const RasterViewport = struct {
+    pub const Cursor = struct {
+        x: u32,
+        y: u32,
+        visible: bool,
+        style: Terminal.CursorStyle,
+        color: buf.RGBA,
+    };
+
     allocator: std.mem.Allocator,
     font: FontRasterizer,
     pixels: []u8 = &.{},
@@ -29,6 +38,7 @@ pub const RasterViewport = struct {
         cell_width: u32,
         cell_height: u32,
         background: buf.RGBA,
+        cursor: Cursor,
     ) ![]const u8 {
         if (cell_width == 0 or cell_height == 0) return error.InvalidCellGeometry;
         const width = cells.width * cell_width;
@@ -60,6 +70,7 @@ pub const RasterViewport = struct {
             }
         }
         for (media.patches.items) |patch| self.blitPatch(patch);
+        self.drawCursor(cursor);
         return self.pixels;
     }
 
@@ -85,6 +96,12 @@ pub const RasterViewport = struct {
         for (y..bottom) |py| for (x..right) |px| self.writePixel(@as(usize, @intCast(py * self.width + px)), color);
     }
 
+    fn fillRectAlpha(self: *RasterViewport, x: u32, y: u32, width: u32, height: u32, color: buf.RGBA, alpha: u8) void {
+        const right = @min(self.width, x + width);
+        const bottom = @min(self.height, y + height);
+        for (y..bottom) |py| for (x..right) |px| self.blendPixel(@intCast(px), @intCast(py), color, alpha);
+    }
+
     fn blitPatch(self: *RasterViewport, patch: buf.PixelPatch) void {
         const origin_x = patch.x * self.cell_width;
         const origin_y = patch.y * self.cell_height;
@@ -95,6 +112,17 @@ pub const RasterViewport = struct {
                 const source = (y * patch.width + x) * 4;
                 self.blendPixel(@intCast(origin_x + x), @intCast(origin_y + y), .{ patch.data[source], patch.data[source + 1], patch.data[source + 2], 255 }, patch.data[source + 3]);
             }
+        }
+    }
+
+    fn drawCursor(self: *RasterViewport, cursor: Cursor) void {
+        if (!cursor.visible or cursor.x == 0 or cursor.y == 0) return;
+        const x = (cursor.x - 1) * self.cell_width;
+        const y = (cursor.y - 1) * self.cell_height;
+        switch (cursor.style) {
+            .line => self.fillRectAlpha(x, y, @min(2, self.cell_width), self.cell_height, cursor.color, 255),
+            .underline => self.fillRectAlpha(x, y + self.cell_height - @min(2, self.cell_height), self.cell_width, @min(2, self.cell_height), cursor.color, 255),
+            .block, .default => self.fillRectAlpha(x, y, self.cell_width, self.cell_height, cursor.color, 112),
         }
     }
 

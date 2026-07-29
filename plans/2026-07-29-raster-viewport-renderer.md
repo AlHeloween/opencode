@@ -105,9 +105,10 @@ flowchart LR
   direct Unicode glyphs, and `PixelBuffer` media into one opaque RGBA viewport.
   Border/style/selection, grapheme shaping, fallback fonts, and terminal-output
   routing remain under the unchecked compositor/output work.
-- [ ] Rasterize the focused caret and hide the hardware cursor for raster
-  frames; schedule/cancel caret blink invalidation and retain ordinary
-  hardware-cursor semantics for the ANSI fallback.
+- [x] Rasterize the focused caret and hide the hardware cursor for raster
+  frames. The direct path paints block/line/underline cursor geometry into the
+  RGBA image and retains ordinary hardware-cursor semantics for the ANSI
+  fallback. Scheduled blink invalidation remains a performance follow-up.
 - [x] Change the native output path to replace one full viewport image without
   writing visual ANSI cells. Kitty deletes its image id; SIXEL performs an
   explicit full-viewport clear/repaint on the next frame after a mode change.

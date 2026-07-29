@@ -871,7 +871,15 @@ pub const CliRenderer = struct {
                 beginRenderFrame(&w);
                 _ = self.clearPixelScene(&w);
                 _ = self.clearRasterViewport(&w);
-                const pixels = viewport.render(self.nextRenderBuffer, self.nextPixelBuffer, self.rasterCellWidth, self.rasterCellHeight, self.backgroundColor) catch |err| blk: {
+                const cursor = self.terminal.getCursorPosition();
+                const cursor_style = self.terminal.getCursorStyle();
+                const pixels = viewport.render(self.nextRenderBuffer, self.nextPixelBuffer, self.rasterCellWidth, self.rasterCellHeight, self.backgroundColor, .{
+                    .x = cursor.x,
+                    .y = cursor.y,
+                    .visible = cursor.visible,
+                    .style = cursor_style.style,
+                    .color = self.terminal.getCursorColor(),
+                }) catch |err| blk: {
                     logger.warn("bug: raster viewport composition failed: {}", .{err});
                     break :blk null;
                 };

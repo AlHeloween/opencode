@@ -37,6 +37,7 @@ const handles_tests = @import("tests/handles_test.zig");
 const yoga_tests = @import("tests/yoga_test.zig");
 const ansi_tests = @import("tests/ansi_test.zig");
 const sixel_tests = @import("sixel.zig");
+const font_raster_tests = @import("font_raster.zig");
 // const example_tests = @import("example_test.zig");
 
 // Re-export test declarations from individual test files
@@ -80,5 +81,6 @@ comptime {
     _ = handles_tests;
     _ = yoga_tests;
     _ = ansi_tests;
+    _ = font_raster_tests;
     // _ = example_tests;
 }

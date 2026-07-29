@@ -315,8 +315,8 @@ pub fn build(b: *std.Build) void {
         };
     }
 
-    // Test step (native only) — disabled: Zig 0.15.2 convertPathArg assert crash on Windows
-    if (false) {
+    // Test, bench, and debug steps use the native executable target.
+    {
     const test_step = b.step("test", "Run unit tests");
     const native_target = nativeExecutableTarget(b);
     const test_mod = b.createModule(.{
@@ -337,6 +337,7 @@ pub fn build(b: *std.Build) void {
     }
     addNativeAudioDependencies(b, test_artifact, native_target, macos_sdk_path);
     addYogaDependencies(b, test_artifact);
+    addFontDependencies(b, test_mod, test_artifact, native_target, .Debug);
 
     const run_test = b.addRunArtifact(test_artifact);
     test_step.dependOn(&run_test.step);
@@ -396,7 +397,7 @@ pub fn build(b: *std.Build) void {
     });
     const run_debug = b.addRunArtifact(debug_exe);
     debug_step.dependOn(&run_debug.step);
-    } // end if(false) — test/bench/debug disabled for Zig 0.15.2 Windows
+    }
 }
 
 fn buildAllTargets(

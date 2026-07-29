@@ -103,7 +103,7 @@ test "renderer - create and destroy" {
     try std.testing.expectEqual(@as(u32, 24), cli_renderer.height);
 }
 
-test "renderer - emits sixel and restores the input cursor inside one synchronized frame" {
+test "renderer - hides before sixel and restores the input cursor inside one synchronized frame" {
     const pool = gp.initGlobalPool(std.testing.allocator);
     defer gp.deinitGlobalPool();
     var local_link_pool = link.LinkPool.init(std.testing.allocator);
@@ -126,11 +126,15 @@ test "renderer - emits sixel and restores the input cursor inside one synchroniz
     const output = test_renderer.lastOutput();
     const sync_start = std.mem.indexOf(u8, output, ansi.ANSI.syncSet) orelse return error.TestExpectedEqual;
     const image = std.mem.indexOf(u8, output, "\x1bP0;1;0q") orelse return error.TestExpectedEqual;
-    const cursor = std.mem.indexOf(u8, output, "\x1b[?25l\x1b[4;3H\x1b[?25h") orelse return error.TestExpectedEqual;
+    const cursor_hide = std.mem.indexOf(u8, output, ansi.ANSI.hideCursor) orelse return error.TestExpectedEqual;
+    const cursor_move = std.mem.indexOf(u8, output, "\x1b[4;3H") orelse return error.TestExpectedEqual;
+    const cursor_show = std.mem.indexOf(u8, output, ansi.ANSI.showCursor) orelse return error.TestExpectedEqual;
     const sync_end = std.mem.indexOf(u8, output, ansi.ANSI.syncReset) orelse return error.TestExpectedEqual;
-    try std.testing.expect(sync_start < image);
-    try std.testing.expect(image < cursor);
-    try std.testing.expect(cursor < sync_end);
+    try std.testing.expect(sync_start < cursor_hide);
+    try std.testing.expect(cursor_hide < image);
+    try std.testing.expect(image < cursor_move);
+    try std.testing.expect(cursor_move < cursor_show);
+    try std.testing.expect(cursor_show < sync_end);
     try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, output, ansi.ANSI.syncSet));
     try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, output, ansi.ANSI.syncReset));
 }
@@ -160,11 +164,15 @@ test "renderer - recomposes the sixel scene before repainting a moved image" {
     const output = test_renderer.lastOutput();
     const clear = std.mem.indexOf(u8, output, "\x1b[1;1H") orelse return error.TestExpectedEqual;
     const image = std.mem.indexOf(u8, output, "\x1bP0;1;0q") orelse return error.TestExpectedEqual;
-    const cursor = std.mem.indexOf(u8, output, "\x1b[?25l\x1b[4;3H\x1b[?25h") orelse return error.TestExpectedEqual;
+    const cursor_hide = std.mem.indexOf(u8, output, ansi.ANSI.hideCursor) orelse return error.TestExpectedEqual;
+    const cursor_move = std.mem.indexOf(u8, output, "\x1b[4;3H") orelse return error.TestExpectedEqual;
+    const cursor_show = std.mem.indexOf(u8, output, ansi.ANSI.showCursor) orelse return error.TestExpectedEqual;
     const sync_end = std.mem.indexOf(u8, output, ansi.ANSI.syncReset) orelse return error.TestExpectedEqual;
+    try std.testing.expect(cursor_hide < clear);
     try std.testing.expect(clear < image);
-    try std.testing.expect(image < cursor);
-    try std.testing.expect(cursor < sync_end);
+    try std.testing.expect(image < cursor_move);
+    try std.testing.expect(cursor_move < cursor_show);
+    try std.testing.expect(cursor_show < sync_end);
 }
 
 test "renderer - emits multiple visible images as one sixel canvas" {

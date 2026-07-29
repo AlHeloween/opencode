@@ -37,9 +37,10 @@ pinning independent image patches.
 - [x] In the Sixel backend, clear stale plane regions before re-emitting the
   complete visible graphics scene, in the same synchronized frame as the text
   repaint; restore the active input cursor afterward.
-- [ ] Replace Mermaid's PNG data-URL/Jimp decode handoff with direct Resvg RGBA
+- [x] Replace Mermaid's PNG data-URL/Jimp decode handoff with direct Resvg RGBA
   frame delivery to `ImageRenderable`; add per-stage timing logs for Mermaid
-  layout, rasterization, frame preparation, Sixel encoding, and write size.
+  layout, rasterization, and frame preparation. Native Sixel encoding/write
+  telemetry remains a renderer follow-up.
 - [ ] Add unit/native-protocol tests for scroll/reflow, off-screen culling,
   stale-plane clearing, and cursor restoration; build and capture a direct
   Windows Terminal screenshot after transcript scroll.
@@ -70,7 +71,9 @@ pinning independent image patches.
 - `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
   (`packages/opentui/packages/core`) passes: 4 tests, 0 failures, 10 assertions.
 - `bun typecheck` and `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts`
-  (`packages/opencode`) pass: 24 tests, 0 failures, 57 assertions.
+  (`packages/opencode`) pass after the RGBA change: 12 Mermaid tests, 0 failures,
+  30 assertions; the full earlier sizing-plus-Mermaid baseline was 24 tests,
+  0 failures, 57 assertions.
 - Native Zig test execution is not currently exposed on Windows: the local
   `build.zig` deliberately disables its `test` step for Zig 0.15.2's
   `convertPathArg` crash. The production native library did compile successfully;

@@ -275,12 +275,16 @@ async function decodeDataUrlToRgba(
 }
 
 export function MediaImage(props: {
-  url: string
+  url?: string
   mime: string
   /** Diagrams use the same terminal-aware contain bounds as attachments. */
   layout?: MediaImageLayout
   /** Enable mouse-wheel zoom and drag-to-pan (mermaid diagrams). */
   interactive?: boolean
+  /** Native source that is rendered after terminal graphics capabilities settle. */
+  renderNative?: (budget: { maxWidth: number; maxHeight: number }) => Promise<RgbaFrame | null>
+  /** Lazy fallback for terminals without native graphics support. */
+  fallbackDataUrl?: () => Promise<string | null>
 }) {
   const { theme } = useTheme()
   const renderer = useRenderer()
@@ -303,6 +307,8 @@ export function MediaImage(props: {
   let lastDragY = 0
   let dragging = false
   let nativeImageMounted = false
+
+  const resolveDataUrl = async () => props.url ?? (props.fallbackDataUrl ? await props.fallbackDataUrl() : null)
 
   const traceDiagram = (message: string, payload: Record<string, unknown> = {}) => {
     if (props.layout !== "diagram") return
@@ -344,7 +350,7 @@ export function MediaImage(props: {
   }
 
   onMount(async () => {
-    if (!props.url) {
+    if (!props.url && !props.renderNative && !props.fallbackDataUrl) {
       setState("error")
       return
     }
@@ -372,8 +378,34 @@ export function MediaImage(props: {
 
     if (mode === "kitty" || mode === "sixel") {
       try {
+        const nativeFrame = props.renderNative
+          ? await props.renderNative({
+              maxWidth: Math.max(1, Math.round(bounds.maxCols * cells.cellWidth)),
+              maxHeight: Math.max(1, Math.round(bounds.maxRows * cells.cellHeight)),
+            })
+          : null
+        if (cancelled) return
+        if (nativeFrame) {
+          sourceFrame = nativeFrame
+          fitFrame = nativeFrame
+          displaySize = { width: nativeFrame.width, height: nativeFrame.height }
+          traceDiagram("mermaid RGBA frame ready for native image", {
+            protocol: mode,
+            sourceWidth: nativeFrame.width,
+            sourceHeight: nativeFrame.height,
+            displayWidth: nativeFrame.width,
+            displayHeight: nativeFrame.height,
+          })
+          setFrame(nativeFrame)
+          if (props.interactive) setHint("wheel zoom · drag pan · middle-click reset")
+          setState("native")
+          return
+        }
+
+        const dataUrl = await resolveDataUrl()
+        if (!dataUrl) throw new Error("image source unavailable")
         const decoded = await decodeDataUrlToRgba(
-          props.url,
+          dataUrl,
           bounds.maxCols,
           bounds.maxRows,
           mode,
@@ -433,7 +465,9 @@ export function MediaImage(props: {
     }
 
     try {
-      const tmp = await decodeAndSymbols(props.url, bounds.maxCols)
+      const dataUrl = await resolveDataUrl()
+      if (!dataUrl) throw new Error("image source unavailable")
+      const tmp = await decodeAndSymbols(dataUrl, bounds.maxCols)
       if (cancelled) return
       if (tmp) {
         if (props.layout === "diagram") {

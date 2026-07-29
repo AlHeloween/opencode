@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test"
 import {
   renderMermaidToSvg,
   renderMermaidToPngDataUrl,
+  renderMermaidToRgba,
   renderSvgToPngDataUrl,
   resetRendererCache,
 } from "../../src/util/mermaid"
@@ -99,6 +100,18 @@ describe("mermaid rendering", () => {
     const dataUrl = await renderMermaidToPngDataUrl(flowchart, { theme: "dark" })
     expect(dataUrl).not.toBeNull()
     expect(dataUrl!).toMatch(/^data:image\/png;base64,/)
+  })
+
+  test("renderMermaidToRgba produces a native graphics frame without PNG encoding", async () => {
+    const frame = await renderMermaidToRgba(flowchart, {
+      theme: "dark",
+      background: "#1a1b26",
+      budget: { maxWidth: 640, maxHeight: 480 },
+    })
+    expect(frame).not.toBeNull()
+    expect(frame!.width).toBeGreaterThan(0)
+    expect(frame!.height).toBeGreaterThan(0)
+    expect(frame!.data.byteLength).toBe(frame!.width * frame!.height * 4)
   })
 
   test("invalid mermaid returns null", async () => {

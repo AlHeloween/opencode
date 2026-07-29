@@ -101,6 +101,12 @@ export interface MermaidRenderOptions {
   theme?: "default" | "dark" | "forest" | "neutral" | "modern"
 }
 
+export type MermaidRgbaFrame = {
+  data: Uint8Array
+  width: number
+  height: number
+}
+
 // ── Lazy WASM loader ───────────────────────────────────────────────────────
 // mermaid-wasm-renderer (CommonJS) reads a 2.8MB .wasm file synchronously at
 // module load via require('fs').readFileSync. We defer that to first render,
@@ -168,14 +174,51 @@ export async function renderMermaidToSvg(
   source: string,
   options?: MermaidRenderOptions,
 ): Promise<string | null> {
+  const started = performance.now()
   try {
     const mod = await withTimeout(getRenderer(), source)
-    if (options?.theme) return mod.renderSvgWithConfig(source, undefined, options.theme)
-    return mod.renderSvg(source)
+    const svg = options?.theme ? mod.renderSvgWithConfig(source, undefined, options.theme) : mod.renderSvg(source)
+    log.info("mermaid SVG rendered", {
+      sourceChars: source.length,
+      svgChars: svg.length,
+      elapsedMs: Math.round(performance.now() - started),
+    })
+    return svg
   } catch (error) {
     log.warn("bug: mermaid WASM render failed", {
       source: source.slice(0, 100),
       error: String(error),
+      elapsedMs: Math.round(performance.now() - started),
+    })
+    return null
+  }
+}
+
+/** Rasterize SVG directly into the RGBA frame consumed by OpenTUI ImageRenderable. */
+export function renderSvgToRgba(
+  svg: string,
+  background?: string,
+  budget?: SvgFitBudget,
+): MermaidRgbaFrame | null {
+  const started = performance.now()
+  try {
+    const rendered = new Resvg(svg, resvgOptionsForSvg(svg, background ?? "#ffffff", budget)).render()
+    const frame = {
+      data: rendered.pixels,
+      width: rendered.width,
+      height: rendered.height,
+    }
+    log.info("mermaid SVG rasterized to RGBA", {
+      outW: frame.width,
+      outH: frame.height,
+      outputBytes: frame.data.byteLength,
+      elapsedMs: Math.round(performance.now() - started),
+    })
+    return frame
+  } catch (error) {
+    log.warn("bug: mermaid RGBA render failed", {
+      error: String(error),
+      elapsedMs: Math.round(performance.now() - started),
     })
     return null
   }
@@ -354,6 +397,16 @@ export async function renderMermaidToPngDataUrl(
   const svg = await renderMermaidToSvg(source, options)
   if (!svg) return null
   return renderSvgToPngDataUrl(svg, options?.background)
+}
+
+/** Mermaid source → SVG → direct RGBA. Native TUI graphics do not need a PNG hop. */
+export async function renderMermaidToRgba(
+  source: string,
+  options?: MermaidRenderOptions & { background?: string; budget?: SvgFitBudget },
+): Promise<MermaidRgbaFrame | null> {
+  const svg = await renderMermaidToSvg(source, options)
+  if (!svg) return null
+  return renderSvgToRgba(svg, options?.background, options?.budget)
 }
 
 /**

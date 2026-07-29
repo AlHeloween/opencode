@@ -25,8 +25,7 @@ import { Spinner } from "@tui/component/spinner"
 import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
-import { renderMermaidToPngDataUrl } from "@/util/mermaid"
-import { indexedMermaidSegments, splitTextSegments, type TextSegment } from "./text-segments"
+import { splitTextSegments, type TextSegment } from "./text-segments"
 
 import type {
   AssistantMessage,
@@ -64,6 +63,7 @@ import { useKeybind } from "@tui/context/keybind"
 import { useDialog } from "../../ui/dialog"
 import { TodoItem } from "../../component/todo-item"
 import { MediaImage } from "../../component/media-image"
+import { MediaMermaid } from "../../component/media-mermaid"
 import { MediaVideo } from "../../component/media-video"
 import { MediaAudio } from "../../component/media-audio"
 import { DialogMessage } from "./dialog-message"
@@ -1847,71 +1847,11 @@ function RichText(props: {
   surface?: "panel"
 }) {
   const ctx = use()
-  const { theme, syntax, subtleSyntax, mode } = useTheme()
+  const { theme, syntax, subtleSyntax } = useTheme()
   const segments = createMemo(() => splitTextSegments(props.content()))
 
   const markdownSegmentText = (segment: TextSegment) => (segment.type === "markdown" ? segment.text : "")
-  // Progressive mermaid rendering — render each completed mermaid block as soon
-  // as its fence closes, instead of waiting for the entire text part to finalize.
-  // This means the diagram appears mid-stream when the LLM finishes the ```mermaid
-  // block but continues writing after it.
-  // Track rendering state per mermaid block
-  const [mermaidDataUrls, setMermaidDataUrls] = createSignal<Record<number, string>>({})
-  const [mermaidFailed, setMermaidFailed] = createSignal<Record<number, boolean>>({})
-  const renderedSources = new Map<number, string>()
-
-  // Show concise status instead of raw ```mermaid code during loading
-  const mermaidFallback = (segment: TextSegment, idx: number) => {
-    if (segment.type !== "mermaid") return ""
-    if (mermaidFailed()[idx]) return " Diagram unavailable "
-    return " Rendering diagram... "
-  }
-  createEffect(() => {
-    // Watch segments() reactively — re-runs when streaming adds content
-    const currentSegments = segments()
-    const pending: Promise<void>[] = []
-    for (const { index, segment } of indexedMermaidSegments(currentSegments)) {
-      // Skip if this block's source hasn't changed since last render
-      if (renderedSources.get(index) === segment.source) {
-        if (mermaidDataUrls()[index]) continue
-      }
-      renderedSources.set(index, segment.source)
-      Log.Default.info("mermaid transcript render started", {
-        partId: props.id,
-        segment: index,
-        sourceChars: segment.source.length,
-        theme: mode() === "dark" ? "dark" : "default",
-      })
-      // PNG data URL → used by Sixel / symbols rendering
-      renderMermaidToPngDataUrl(segment.source, {
-        theme: mode() === "dark" ? "dark" : "default",
-        background: mode() === "dark" ? "#1a1b26" : "#ffffff",
-      })
-        .then((pngDataUrl) => {
-          if (pngDataUrl) {
-            Log.Default.info("mermaid transcript PNG ready", {
-              partId: props.id,
-              segment: index,
-              dataUrlChars: pngDataUrl.length,
-            })
-            setMermaidDataUrls((prev) => ({ ...prev, [index]: pngDataUrl }))
-            return
-          }
-          setMermaidFailed((prev) => ({ ...prev, [index]: true }))
-          Log.Default.warn("bug: mermaid transcript PNG render returned empty", { partId: props.id, segment: index })
-        })
-        .catch((error) => {
-          setMermaidFailed((prev) => ({ ...prev, [index]: true }))
-          Log.Default.warn("bug: mermaid render failed in rich transcript text", {
-            partId: props.id,
-            segment: index,
-            error: String(error),
-          })
-        })
-    }
-    // No synchronous changed-check needed — signal updates happen in .then()
-  })
-
+  const mermaidSegmentSource = (segment: TextSegment) => (segment.type === "mermaid" ? segment.source : "")
   return (
     <Index each={segments()}>
       {(segment, index) => (
@@ -1927,12 +1867,7 @@ function RichText(props: {
             />
           </Match>
           <Match when={segment().type === "mermaid"}>
-            <Show
-              when={mermaidDataUrls()[index]}
-              fallback={<text fg={theme.textMuted}>{mermaidFallback(segment(), index)}</text>}
-            >
-              <MediaImage url={mermaidDataUrls()[index]!} mime="image/png" layout="diagram" />
-            </Show>
+            <MediaMermaid source={mermaidSegmentSource(segment())} />
           </Match>
         </Switch>
       )}

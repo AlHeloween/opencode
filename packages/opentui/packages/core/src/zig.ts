@@ -2952,6 +2952,15 @@ class FFIRenderLib implements RenderLib {
       averageCellsUpdated: stats.averageCellsUpdated,
       nativeRenderTime: stats.renderTimeValid ? stats.renderTime : undefined,
       nativeStdoutWriteTime: stats.stdoutWriteTimeValid ? stats.stdoutWriteTime : undefined,
+      nativeGraphicsComposeTime: stats.nativeGraphicsComposeTimeValid
+        ? stats.nativeGraphicsComposeTime
+        : undefined,
+      nativeGraphicsEncodeTime: stats.nativeGraphicsEncodeTimeValid
+        ? stats.nativeGraphicsEncodeTime
+        : undefined,
+      nativeGraphicsWriteTime: stats.nativeGraphicsWriteTimeValid
+        ? stats.nativeGraphicsWriteTime
+        : undefined,
     }
   }
 

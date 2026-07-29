@@ -12,7 +12,7 @@
 import { Resvg } from "@resvg/resvg-js"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
-import { fitContainSize, parseSvgNaturalSize } from "./fit-image"
+import { fitToWidthSize, parseSvgNaturalSize } from "./fit-image"
 import { getMermaidWasmRenderer, resetMermaidWasmRenderer, type MermaidWasmRenderer } from "./mermaid-wasm"
 import type { AnsiChunk } from "./image-to-ansi"
 
@@ -25,42 +25,40 @@ const MERMAID_RENDER_TIMEOUT = 10_000 // 10s max per diagram
  * not a ~12×20 low-res stamp that looks like a pixelated screenshot.
  */
 const FALLBACK_CELL_W = 18
-const FALLBACK_CELL_H = 35
-/** Cap mermaid height so a 100×10000 graph does not explode the chat. */
-const DEFAULT_MAX_ROWS = 40
-/**
- * Minimum scale-up for small mermaid SVGs (vector → PNG). Natural mermaid sizes
- * are often ~300px; without upscale, sixel/kitty maps few pixels per cell →
- * chunky aliased text ("Start" as pixel blocks).
- */
-const MIN_VECTOR_UPSCALE = 2
 
 export type SvgFitBudget = {
+  /**
+   * Target SVG/raster **width** in CSS px. Height is never set here — resvg
+   * `fitTo: width` derives height from the diagram's natural aspect.
+   */
   maxWidth?: number
+  /**
+   * @deprecated Ignored for mermaid SVG sizing. Height is automatic from width.
+   * Kept optional so MediaImage can still pass a terminal box without effect.
+   */
   maxHeight?: number
 }
 
-/** Terminal pixel budget for fitting mermaid's natural SVG size. */
-export function mermaidPixelBudget(opts?: SvgFitBudget): { maxWidth: number; maxHeight: number } {
+/** Terminal width budget (px) for mermaid SVG — height is not a budget input. */
+export function mermaidPixelBudget(opts?: SvgFitBudget): { maxWidth: number } {
   const cols = process.stdout.columns ?? 80
-  const rows = process.stdout.rows ?? 40
   return {
     maxWidth: opts?.maxWidth ?? Math.max(64, cols * FALLBACK_CELL_W),
-    maxHeight: opts?.maxHeight ?? Math.max(64, Math.min(DEFAULT_MAX_ROWS, Math.max(8, rows - 6)) * FALLBACK_CELL_H),
   }
 }
 
 /**
- * Build resvg options from mermaid's natural SVG size.
- * Vector sources may upscale into the terminal box (crisp text); only shrink
- * when the diagram exceeds the budget (contain-fit). Never force a fixed width.
+ * Build resvg options: **width only**, height automatic from SVG aspect.
+ *
+ * Large diagrams always match the given width; tall diagrams stay tall (scroll)
+ * instead of being re-shrunk by a maxHeight contain box.
  */
 export function resvgOptionsForSvg(
   svg: string,
   background: string,
   budget?: SvgFitBudget,
-): { background: string; fitTo?: { mode: "zoom"; value: number } } {
-  const box = mermaidPixelBudget(budget)
+): { background: string; fitTo?: { mode: "width"; value: number } } {
+  const maxWidth = mermaidPixelBudget(budget).maxWidth
   // Prefer Resvg's parse of the SVG tree; fall back to attribute/viewBox parse.
   let srcW = 0
   let srcH = 0
@@ -76,24 +74,18 @@ export function resvgOptionsForSvg(
     }
   }
   if (srcW <= 0 || srcH <= 0) {
-    // Unparseable SVG — render as-is (resvg may still succeed).
-    return { background }
+    // Unparseable SVG — still force width so large unknown trees fit horizontally.
+    return { background, fitTo: { mode: "width", value: maxWidth } }
   }
-  // Contain into terminal box; allow upscale so small mermaid SVGs stay sharp.
-  let { scale } = fitContainSize({
+  // Vector: always fill the width budget (upscale small diagrams for sharp sixel).
+  // Height is not an input — fitToWidthSize only uses width + natural aspect.
+  const { width } = fitToWidthSize({
     srcWidth: srcW,
     srcHeight: srcH,
-    maxWidth: box.maxWidth,
-    maxHeight: box.maxHeight,
+    width: maxWidth,
     allowUpscale: true,
   })
-  // Prefer at least 2× when budget allows (natural ~300px is too soft for sixel).
-  if (scale < MIN_VECTOR_UPSCALE) {
-    const room = Math.min(box.maxWidth / srcW, box.maxHeight / srcH)
-    scale = Math.min(MIN_VECTOR_UPSCALE, room)
-  }
-  if (Math.abs(scale - 1) < 0.001) return { background }
-  return { background, fitTo: { mode: "zoom", value: scale } }
+  return { background, fitTo: { mode: "width", value: width } }
 }
 
 export interface MermaidRenderOptions {
@@ -265,12 +257,11 @@ const QUAD_CHARS: Record<number, string> = {
  */
 export function renderSvgToQuadChunks(svg: string, maxCols: number = 60): AnsiChunk[][] | null {
   try {
-    // Quad is 4px/cell (2×2); budget in source pixels then render with contain-fit.
+    // Quad is 4px/cell (2×2); width-only fit, height automatic.
     const resvg = new Resvg(
       svg,
       resvgOptionsForSvg(svg, "#fafafc", {
         maxWidth: maxCols * 4,
-        maxHeight: DEFAULT_MAX_ROWS * 8,
       }),
     )
     const rendered = resvg.render()

@@ -246,6 +246,13 @@ pub const ExternalRenderStats = extern struct {
     average_cells_updated: u32,
     render_time_valid: bool,
     stdout_write_time_valid: bool,
+    // Native graphics diagnostics (microseconds). Appended for ABI growth.
+    native_graphics_compose_time: f64 = 0,
+    native_graphics_encode_time: f64 = 0,
+    native_graphics_write_time: f64 = 0,
+    native_graphics_compose_time_valid: bool = false,
+    native_graphics_encode_time_valid: bool = false,
+    native_graphics_write_time_valid: bool = false,
 };
 
 fn toNonNegativeU64(value: anytype) u64 {
@@ -737,6 +744,12 @@ export fn getRenderStats(renderer_handle: NativeHandle, outPtr: *ExternalRenderS
         .average_cells_updated = stats.averageCellsUpdated,
         .render_time_valid = stats.renderTime != null,
         .stdout_write_time_valid = stats.outputWriteTime != null,
+        .native_graphics_compose_time = stats.nativeGraphicsComposeTime orelse 0,
+        .native_graphics_encode_time = stats.nativeGraphicsEncodeTime orelse 0,
+        .native_graphics_write_time = stats.nativeGraphicsWriteTime orelse 0,
+        .native_graphics_compose_time_valid = stats.nativeGraphicsComposeTime != null,
+        .native_graphics_encode_time_valid = stats.nativeGraphicsEncodeTime != null,
+        .native_graphics_write_time_valid = stats.nativeGraphicsWriteTime != null,
     };
 }
 

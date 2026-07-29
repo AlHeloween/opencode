@@ -2609,16 +2609,3 @@ it.live(
   30_000,
 )
 
-// ADID_ROLLBACK (from adm.exe)
-// SDID_ROLLBACK {
-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts"
-//   "update_script": "adm.exe"
-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts.backup_20260728T031215_389647"
-//   "created_at": "2026-07-27T19:12:15.427910+00:00"
-//   "backup_hash": "26092c17d96fc9ba6ae286cf516e6a6a"
-//   "new_hash": "0f44288241d961bde0fb8d6786e64d70"
-//   "goal_id": "assert_tool_completion_before_sidecar"
-//   "semantics": "Assert the exact three-call sequence: initial tool call, normal completion after the tool result, then a tools-free sidecar whose provider context contains that completion. No visible summary row or resume is allowed."
-//   "update_attrs": {"relative_path": "packages/opencode/test/session/prompt.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "yield* prompt.loop({ sessionID: session.id })\n        expect(yield* llm.calls).toBe(4)\n        const messages = yield* MessageV2.filterCompactedEffect(session.id)\n        const toolIndex = messages.findIndex((message) => message.parts.some((part) => part.type === \"tool\"))\n        const normalIndex = messages.findIndex((message) =>\n          message.parts.some((part) => part.type === \"text\" && part.text === \"normal answer after tool\"),\n        )\n        const summaryIndex = messages.findIndex((message) => message.info.role === \"assistant\" && message.info.summary)\n        expect(normalIndex).toBeGreaterThan(toolIndex)\n        expect(summaryIndex).toBeGreaterThan(normalIndex)", "replace_present": true}
-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/session/prompt.test.ts\""
-// }

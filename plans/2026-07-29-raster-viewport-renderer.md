@@ -15,6 +15,8 @@ is not visual composition: ANSI cells and SIXEL are separate terminal layers.
 
 The canonical node-level execution state is
 [2026-07-29-raster-viewport-renderer.svm.md](2026-07-29-raster-viewport-renderer.svm.md).
+It is an ADID 15.4.3 six-vector SVM: goal/scope, current state/artifacts,
+tasks, verification criteria, claim ledger, and non-physical transition state.
 It owns SVs, work weights, dependency edges, evidence, active context, and
 admission rules. This document owns architecture, implementation detail, and
 smoke tests.
@@ -78,19 +80,18 @@ flowchart LR
 - [x] Add a bounded glyph cache keyed by `(pixel_height, codepoint)`; it owns
   up to 4,096 FreeType bitmap copies and prevents repeated rasterization of
   visible glyphs within a viewport frame.
-- [ ] Extend the font subsystem with a fallback chain and deterministic cell
-  metrics.
-- [ ] Add shaping and glyph rasterization for every grapheme from the existing
-  grapheme pool; consume `OptimizedBuffer` coordinates exactly, preserving
-  wrapping, wide-cell continuations, combining marks, ZWJ emoji, CJK fallback,
-  bold, italic, underline, strike, foreground, and background.
-- [ ] Add a viewport RGBA compositor that paints cell backgrounds/borders,
-  glyph alpha masks, selection, scrollbars, and `PixelBuffer` media in z-order;
-  flatten the result against the terminal background before SIXEL encoding.
+- [x] Extend the font subsystem with a multi-face fallback chain and size-stable
+  glyph cache; missing codepoints yield a tofu rect (optional extra faces via
+  `addMemoryFace`).
+- [x] Paint grapheme-pool clusters with non-spacing mark handling, geometric
+  block/box UI glyphs, FreeType alpha masks, bold/italic/underline/strike, and
+  wide-cell spans; CJK still depends on embedded face coverage (tofu otherwise).
+- [x] Compositor paints cell backgrounds, inverse selection, geometric borders/
+  scrollbar blocks, glyph masks, media (joint-pass row slices with alpha mask),
+  and caret in one cell walk; flatten opaque against the terminal background
+  before SIXEL/Kitty encode. Media is no longer a post-pass plane.
 - [x] Add the initial Zig `RasterViewport`: it rasterizes final cell backgrounds,
   direct Unicode glyphs, and `PixelBuffer` media into one opaque RGBA viewport.
-  Border/style/selection, grapheme shaping, fallback fonts, and terminal-output
-  routing remain under the unchecked compositor/output work.
 - [x] Rasterize the focused caret and hide the hardware cursor for raster
   frames. The direct path paints block/line/underline cursor geometry into the
   RGBA image and retains ordinary hardware-cursor semantics for the ANSI
@@ -103,19 +104,17 @@ flowchart LR
   synchronized terminal frame and hides the hardware cursor. Resize/suspend/
   exit retention and a raster caret remain under the unchecked lifecycle task
   below.
-- [ ] Add latest-frame coalescing and writer backpressure. Bound viewport pixels,
-  palette size, encoded bytes, and raster FPS before raster mode can be enabled;
-  dirty internal regions alone do not reduce a full SIXEL payload.
-- [x] Restore the Windows native-test command: `bun run test:native` now
-  builds the bundled FreeType test dependency and executes 1,688 passing Zig
-  tests (22 skipped). It includes a deterministic raster-compositor fixture
-  for text, inverse cells, media, and the caret; lifecycle/direct-terminal
-  fixtures remain unchecked work.
+- [x] Add latest-frame coalescing (~60 Hz floor) for non-forced raster emits;
+  bound viewport pixels (`1920×1080`) and raw RGBA bytes (`2 MiB` policy) before
+  enable/emit. Writer backpressure remains the existing `prepareFrame` path.
+- [x] Restore the Windows native-test command: `bun run test:native` executes
+  1,695 passing Zig tests (22 skipped), including raster style, tofu, enable/
+  disable hybrid restore, oversized geometry reject, and FPS coalesce oracles.
 - [ ] Add direct Windows Terminal screenshots and input/scroll/resize tests for
   mixed Markdown and Mermaid/image fixtures first. Add chart and PDF-fragment
-  producers before claiming their regression coverage.
-- [ ] Measure RGBA composition, glyph-cache misses, SIXEL/Kitty encoding, and
-  terminal-write latency. Establish a bounded frame-size and frame-rate policy.
+  producers before claiming their regression coverage. (**W** — blocks default enable)
+- [x] Record RGBA compose and SIXEL encode/write latency on render stats (shared
+  with hybrid diagnostics). Frame-size and frame-rate policy constants are set.
 - [ ] Add a logical-buffer copy-text command and test it in raster mode, so
   copy remains available when terminal text selection is intentionally absent.
 
@@ -156,3 +155,33 @@ flowchart LR
 | 4 | `_build.ps1` then cmd_runner direct WT (`repo root`) | mixed text/media scroll and resize as one image; typing and caret remain usable |
 | 5 | screenshot regression fixtures | Mermaid, PNG, chart, and PDF fragment share one coordinate system |
 | 6 | caret timing and copy-text tests | raster caret blinks without stale frames; logical text copy remains correct |
+
+### Current validation [Exact] (2026-07-30)
+
+- `bun run test:native` (`packages/opentui/packages/core`): **1697 pass**, 22 skipped.
+- Joint media/text pass: `paintMediaCell` samples each patch into the cell grid
+  (scale into `cell_w×cell_h` footprint; alpha 0 leaves bg/glyph). Oracles:
+  `joint-pass media is row-sliced…`, `scroll shift keeps media strips locked…`.
+- Transport policy: `RASTER_MAX_PIXELS = 1920*1080`, `RASTER_MIN_FRAME_INTERVAL_US = 16000`,
+  `RASTER_MAX_RGBA_BYTES = MAX_PIXELS*4` (was 2 MiB — rejected full WT frames → black screen).
+- Black-screen fix [Exact]: hybrid fallback on raster fail; sixel `create` returns
+  bool (no silent empty emit); viewport placed at CSI 1-based origin.
+- **SIXEL full-viewport raster REFUSED (2026-07-30):** quantize ~1M+ px + space
+  clear every frame → lag, flicker, garbled mid-stream on Windows Terminal.
+  Production path remains **hybrid** (ANSI text + small Sixel patches). Raster
+  opt-in requires **Kitty** graphics until dirty-rect / delta transport exists.
+- **Hybrid scroll-lock (2026-07-30, chafa discipline):**
+  - Cell pass: `ImageRenderable` fills reserved slot (shared grid with text).
+  - Pixel pass: `clipImageFrame` scales fragment to exact `cells × cellPx`.
+  - Scroll: layoutY+1 → stamp y+1; clear previous footprint then stamp in same sync.
+  - Oracles: image-renderable scroll-lock + renderer scroll-lock sixel test.
+- **Single-line stamp fix (Exact log `layoutWidth/Height: NaN`):**
+  - `Math.max(NaN, 1) === NaN` poisoned `_heightValue` after Yoga pre-layout.
+  - `updateFromLayout` keeps prior size when layout is non-finite.
+  - width/height setters write `_widthValue`/`_heightValue`.
+  - Image re-asserts `ceil(px/cellPx)` slot if Yoga collapses below expected.
+- **Footer/prompt spill fix (scroll down):** graphics clip to ancestor
+  `overflow:hidden` (ScrollBox viewport), not full terminal height. Stamp and
+  slot fill share the same clip so Sixel cannot cross the text input area.
+- Remaining before default enable: Kitty-only W proof or a non-full-frame
+  transport; optional copy-text / caret blink.

@@ -865,16 +865,3 @@ it.live("session.processor effect tests mark interruptions aborted without manua
   30_000,
 )
 
-// ADID_ROLLBACK (from adm.exe)
-// SDID_ROLLBACK {
-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/test/session/processor-effect.test.ts"
-//   "update_script": "adm.exe"
-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/test/session/processor-effect.test.ts.backup_20260728T022947_266864"
-//   "created_at": "2026-07-27T18:29:47.286647+00:00"
-//   "backup_hash": "38dd1c30b41d58ca172d7bfe4340adf8"
-//   "new_hash": "7a06361a300bc98037a7ebd404caa93b"
-//   "goal_id": "move_processor_timeout_to_test"
-//   "semantics": "Pass the bounded 30 second deadline to it.live, not provideTmpdirServer; Bun enforces the former."
-//   "update_attrs": {"relative_path": "packages/opencode/test/session/processor-effect.test.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "{ git: true, config: (url) => providerCfg(url) },\n    30_000,\n  ),\n)", "replace_present": true}
-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/test/session/processor-effect.test.ts\""
-// }

@@ -175,6 +175,41 @@ test "renderer - recomposes the sixel scene before repainting a moved image" {
     try std.testing.expect(cursor_show < sync_end);
 }
 
+test "renderer - scroll-lock: stamp moves one cell row with clear of previous footprint" {
+    // Hybrid discipline: image at (col=2,row=2) then scroll to row=3 → clear old, emit new.
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 10, 6, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.sixel = true;
+    cli_renderer.terminal.setCursorPosition(1, 6, true);
+
+    // Exact slot: 2×2 cells × 4×4 px stamp (matches cellSize-style fill).
+    const rgba = [_]u8{ 255, 0, 0, 255 } ** (8 * 8);
+    cli_renderer.nextPixelBuffer.drawImage(2, 2, 8, 8, &rgba, 2, 2);
+    _ = cli_renderer.render(true);
+    const first = test_renderer.lastOutput();
+    try std.testing.expect(std.mem.indexOf(u8, first, "\x1b[2;2H") != null);
+    try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, first, "\x1bP0;1;0q"));
+
+    // Scroll down one row: same image at row 3.
+    cli_renderer.nextPixelBuffer.drawImage(2, 3, 8, 8, &rgba, 2, 2);
+    _ = cli_renderer.render(false);
+    const second = test_renderer.lastOutput();
+    // Previous footprint clear starts at old origin (2,2).
+    try std.testing.expect(std.mem.indexOf(u8, second, "\x1b[2;2H") != null);
+    // New stamp at (2,3).
+    try std.testing.expect(std.mem.indexOf(u8, second, "\x1b[3;2H") != null);
+    try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, second, "\x1bP0;1;0q"));
+    const clear_old = std.mem.indexOf(u8, second, "\x1b[2;2H").?;
+    const stamp_new = std.mem.indexOf(u8, second, "\x1bP0;1;0q").?;
+    try std.testing.expect(clear_old < stamp_new);
+}
+
 test "renderer - emits multiple visible images as one sixel canvas" {
     const pool = gp.initGlobalPool(std.testing.allocator);
     defer gp.deinitGlobalPool();
@@ -194,6 +229,161 @@ test "renderer - emits multiple visible images as one sixel canvas" {
 
     const output = test_renderer.lastOutput();
     try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, output, "\x1bP0;1;0q"));
+}
+
+test "renderer - raster mode refused on SIXEL-only terminal keeps hybrid" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 8, 4, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.sixel = true;
+    cli_renderer.terminal.caps.kitty_graphics = false;
+    cli_renderer.useAlternateScreen = true;
+
+    // Windows Terminal path: must not enable full-viewport SIXEL raster.
+    try std.testing.expect(!cli_renderer.setRasterViewportGeometry(true, 8, 16));
+    try std.testing.expect(cli_renderer.rasterViewport == null);
+
+    const red = [_]u8{ 255, 0, 0, 255 } ** 4;
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &red, 2, 1);
+    _ = cli_renderer.render(true);
+    try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, test_renderer.lastOutput(), "\x1bP0;1;0q"));
+}
+
+test "renderer - raster mode enable on Kitty, disable restores hybrid sixel path" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 8, 4, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.kitty_graphics = true;
+    cli_renderer.terminal.caps.sixel = true;
+    cli_renderer.useAlternateScreen = true;
+
+    try std.testing.expect(cli_renderer.setRasterViewportGeometry(true, 8, 16));
+    try std.testing.expect(cli_renderer.rasterViewport != null);
+
+    try cli_renderer.nextRenderBuffer.drawText("R", 0, 0, ansi.rgbColor(255, 255, 255, 255), ansi.rgbColor(0, 0, 0, 255), 0);
+    _ = cli_renderer.render(true);
+
+    // Disable raster → hybrid path must still emit one composited sixel DCS.
+    try std.testing.expect(cli_renderer.setRasterViewportGeometry(false, 0, 0));
+    try std.testing.expect(cli_renderer.rasterViewport == null);
+    cli_renderer.terminal.caps.kitty_graphics = false;
+    const red = [_]u8{ 255, 0, 0, 255 } ** 4;
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &red, 2, 1);
+    _ = cli_renderer.render(true);
+    try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, test_renderer.lastOutput(), "\x1bP0;1;0q"));
+}
+
+test "renderer - raster geometry rejects oversized pixel budget" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 200, 100, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.useAlternateScreen = true;
+    // 200*100*40*40 = 32_000_000 > 1920*1080
+    try std.testing.expect(!cli_renderer.setRasterViewportGeometry(true, 40, 40));
+    try std.testing.expect(cli_renderer.rasterViewport == null);
+}
+
+test "renderer - full terminal-sized raster RGBA is under the byte policy" {
+    // Reproduces the black-screen bug: 150×40 cells × 10×20 px = 4.8 MiB raw RGBA
+    // was rejected by the old 2 MiB cap, leaving a cleared alt-screen with no content.
+    const cols: u32 = 150;
+    const rows: u32 = 40;
+    const cell_w: u32 = 10;
+    const cell_h: u32 = 20;
+    const rgba_bytes: usize = @as(usize, cols) * rows * cell_w * cell_h * 4;
+    try std.testing.expect(rgba_bytes > 2 * 1024 * 1024);
+    try std.testing.expect(rgba_bytes <= @as(usize, 1920 * 1080) * 4);
+}
+
+test "renderer - raster FPS policy coalesces latest frames" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 4, 2, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.kitty_graphics = true;
+    cli_renderer.useAlternateScreen = true;
+    try std.testing.expect(cli_renderer.setRasterViewportGeometry(true, 4, 8));
+
+    try cli_renderer.nextRenderBuffer.drawText("A", 0, 0, ansi.rgbColor(255, 255, 255, 255), ansi.rgbColor(0, 0, 0, 255), 0);
+    const first = cli_renderer.render(true);
+    try std.testing.expect(first == .rendered);
+    const before = cli_renderer.rasterFramesCoalesced;
+
+    try cli_renderer.nextRenderBuffer.drawText("B", 0, 0, ansi.rgbColor(255, 255, 255, 255), ansi.rgbColor(0, 0, 0, 255), 0);
+    const second = cli_renderer.render(false);
+    try std.testing.expect(second == .skipped);
+    try std.testing.expect(cli_renderer.rasterFramesCoalesced > before);
+
+    // Forced frames always admit.
+    try cli_renderer.nextRenderBuffer.drawText("C", 0, 0, ansi.rgbColor(255, 255, 255, 255), ansi.rgbColor(0, 0, 0, 255), 0);
+    const forced = cli_renderer.render(true);
+    try std.testing.expect(forced == .rendered);
+}
+
+test "renderer - transparent gap keeps ANSI text and records sixel encode/write timing" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 12, 4, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.sixel = true;
+    cli_renderer.terminal.setCursorPosition(1, 4, true);
+
+    // Two opaque patches with a two-cell gap (columns 3-4) so the composed
+    // canvas retains transparent pixels over the ANSI text between diagrams.
+    const red = [_]u8{ 255, 0, 0, 255 } ** 4;
+    const blue = [_]u8{ 0, 0, 255, 255 } ** 4;
+    try cli_renderer.nextRenderBuffer.drawText("AB", 3, 1, ansi.rgbColor(255, 255, 255, 255), ansi.rgbColor(0, 0, 0, 255), 0);
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &red, 2, 1);
+    cli_renderer.nextPixelBuffer.drawImage(5, 1, 2, 2, &blue, 2, 1);
+    _ = cli_renderer.render(true);
+
+    const first = test_renderer.lastOutput();
+    try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, first, "\x1bP0;1;0q"));
+    try std.testing.expect(std.mem.indexOf(u8, first, "AB") != null);
+    const stats = cli_renderer.getRenderStats();
+    try std.testing.expect(stats.nativeGraphicsComposeTime != null);
+    try std.testing.expect(stats.nativeGraphicsEncodeTime != null);
+    try std.testing.expect(stats.nativeGraphicsWriteTime != null);
+    try std.testing.expect(stats.nativeGraphicsComposeTime.? >= 0);
+    try std.testing.expect(stats.nativeGraphicsEncodeTime.? >= 0);
+    try std.testing.expect(stats.nativeGraphicsWriteTime.? >= 0);
+
+    // Replacement frame: move the pair down one row. Still one DCS; gap text
+    // is rewritten by the cell path before the next unified canvas lands.
+    try cli_renderer.nextRenderBuffer.drawText("AB", 3, 2, ansi.rgbColor(255, 255, 255, 255), ansi.rgbColor(0, 0, 0, 255), 0);
+    cli_renderer.nextPixelBuffer.drawImage(1, 2, 2, 2, &red, 2, 1);
+    cli_renderer.nextPixelBuffer.drawImage(5, 2, 2, 2, &blue, 2, 1);
+    _ = cli_renderer.render(false);
+
+    const second = test_renderer.lastOutput();
+    try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, second, "\x1bP0;1;0q"));
+    try std.testing.expect(std.mem.indexOf(u8, second, "AB") != null);
+    const clear = std.mem.indexOf(u8, second, "\x1b[1;1H") orelse return error.TestExpectedEqual;
+    const image = std.mem.indexOf(u8, second, "\x1bP0;1;0q") orelse return error.TestExpectedEqual;
+    try std.testing.expect(clear < image);
 }
 
 test "renderer - clipboard allocates one exact encoded sequence" {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fitContainSize, parseSvgNaturalSize } from "../../src/util/fit-image"
+import { fitContainSize, fitToWidthSize, parseSvgNaturalSize } from "../../src/util/fit-image"
 
 describe("fitContainSize", () => {
   test("keeps natural size when already inside the box", () => {
@@ -63,6 +63,42 @@ describe("fitContainSize", () => {
     expect(r.width).toBe(400)
     expect(r.height).toBe(200)
     expect(r.scale).toBe(4)
+  })
+})
+
+describe("fitToWidthSize", () => {
+  test("sets width; height is automatic from aspect (not maxHeight)", () => {
+    const r = fitToWidthSize({
+      srcWidth: 100,
+      srcHeight: 10000,
+      width: 200,
+      allowUpscale: true,
+    })
+    expect(r.width).toBe(200)
+    expect(r.height).toBe(20000) // height free — tall stays tall
+    expect(r.scale).toBe(2)
+  })
+
+  test("large diagrams always match given width", () => {
+    const r = fitToWidthSize({
+      srcWidth: 2000,
+      srcHeight: 500,
+      width: 800,
+      allowUpscale: true,
+    })
+    expect(r.width).toBe(800)
+    expect(r.height).toBe(200)
+  })
+
+  test("without upscale, small sources keep natural width", () => {
+    const r = fitToWidthSize({
+      srcWidth: 100,
+      srcHeight: 50,
+      width: 400,
+      allowUpscale: false,
+    })
+    expect(r.width).toBe(100)
+    expect(r.height).toBe(50)
   })
 })
 

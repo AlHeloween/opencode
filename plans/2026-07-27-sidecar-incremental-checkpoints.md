@@ -152,17 +152,3 @@ Pass criteria: the UI's session diff remains exact for files touched in a write 
 - [Exact] Full `bun test test/session/prompt.test.ts` exceeded the 180-second command limit without a diagnostic result.
 - [Exact] `bun test test/session/processor-effect.test.ts` produced 1 pass and 12 failures/timeouts, including two asserted `continue` to `stop` mismatches. This is not accepted for a push and needs a separate bounded diagnosis.
 
-<!-- ADID_ROLLBACK (from adm.exe)
-  SDID_ROLLBACK {
-    "target_file": "D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md"
-    "update_script": "adm.exe"
-    "backup_path": "D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md.backup_20260728T023332_902831"
-    "created_at": "2026-07-27T18:33:32.920612+00:00"
-    "backup_hash": "9020a7838ad243b50688a5f43ea36066"
-    "new_hash": "8fd63aa64678a14289dbfefb21e2769e"
-    "goal_id": "record_processor_effect_resolution"
-    "semantics": "Record exact P0 resolution: raw processor ends the current turn with stop, prompt owns continuation, and Fossil and Git integration tests have an explicit bounded test deadline."
-    "update_attrs": {"relative_path": "plans/2026-07-27-sidecar-incremental-checkpoints.md", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "- [ ] From the resulting clean Git base, diagnose `processor-effect.test.ts` with isolated test names and processor lifecycle traces. Resolve every timeout and `continue` / `stop` mismatch before the next commit.", "replace_present": true}
-    "restore_cmd": "python -m adm \u002d\u002drollback \"D:\\zPython\\opencode\\plans/2026-07-27-sidecar-incremental-checkpoints.md\""
-  }
--->

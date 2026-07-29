@@ -3774,7 +3774,11 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   }
 
   private updateRasterViewportGeometry(): void {
-    const graphics = this._capabilities?.kitty_graphics || this._capabilities?.sixel
+    // Kitty can replace a full-viewport image by id; SIXEL cannot — full-frame
+    // SIXEL raster is refused (lag/flicker/garbage on Windows Terminal).
+    const hasKitty = Boolean(this._capabilities?.kitty_graphics)
+    const hasSixel = Boolean(this._capabilities?.sixel)
+    const graphicsTransportOk = hasKitty
     const geometryMatches =
       this._resolution !== null &&
       this._cellSize !== null &&
@@ -3788,8 +3792,35 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       this.rasterViewportRequested &&
       this._screenMode === "alternate-screen" &&
       this._externalOutputMode === "passthrough" &&
-      graphics === true &&
+      graphicsTransportOk &&
       geometryMatches
+
+    // Always log the admission decision so hybrid-vs-raster is Exact in session logs.
+    if (!this.rasterViewportRequested) {
+      if (!(globalThis as { __opentuiRasterOptInLogged?: boolean }).__opentuiRasterOptInLogged) {
+        ;(globalThis as { __opentuiRasterOptInLogged?: boolean }).__opentuiRasterOptInLogged = true
+        console.info(
+          "[CliRenderer] raster viewport OFF (hybrid ANSI+Sixel patches). Full-viewport SIXEL raster is experimental and disabled on SIXEL-only terminals.",
+        )
+      }
+    } else if (!eligible) {
+      console.info("[CliRenderer] raster viewport requested but not eligible — staying hybrid", {
+        screenMode: this._screenMode,
+        externalOutputMode: this._externalOutputMode,
+        hasKitty,
+        hasSixel,
+        reason: !hasKitty
+          ? "SIXEL-only / no Kitty — full-viewport SIXEL causes lag, flicker, garbled frames"
+          : !geometryMatches
+            ? "geometry mismatch"
+            : "screen/output mode",
+        geometryMatches,
+        resolution: this._resolution,
+        cellSize: this._cellSize,
+        cols: this.width,
+        rows: this.height,
+      })
+    }
 
     const enabled = this.lib.setRasterViewportGeometry(
       this.rendererPtr,
@@ -3801,7 +3832,13 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       console.warn("bug: native raster viewport rejected confirmed terminal geometry")
       return
     }
-    if (enabled) {
+    if (enabled && eligible) {
+      console.info("[CliRenderer] raster viewport ON (joint text+media pass)", {
+        cellWidth: this._cellSize!.width,
+        cellHeight: this._cellSize!.height,
+        cols: this.width,
+        rows: this.height,
+      })
       this.forceFullRepaintRequested = true
       this.requestRender()
     }

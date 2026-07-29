@@ -15,6 +15,69 @@ native graphics object, and restores the active input cursor in the same output
 frame as the forced text repaint. The renderer must never issue one Sixel DCS
 per diagram.
 
+## State Vector Manifest (ADID 15.4.3)
+
+### 1. Goal and scope
+
+Goal: retain hybrid native graphics as one composited canvas synchronized with
+the text frame, so scroll/reflow cannot leave stale terminal-native planes.
+Scope is the hybrid graphics transport foundation; it is not the raster
+viewport backend and must preserve ANSI fallback behavior.
+
+### 2. Current state and artifacts
+
+The per-patch loop is replaced with one composited native canvas, the previous
+canvas footprint is cleared, partial images are clipped, and the cursor tail is
+emitted in the same synchronized frame. Focused image-protocol tests pass;
+direct Windows Terminal captures show one frame moving with status text.
+Native SIXEL compose/encode/write timings are recorded on render stats and the
+debug overlay. The transparent-gap + replacement-frame oracle is executable and
+green.
+
+### 3. Task definition
+
+| Task | Weight | Dependencies | State | Next exact transition |
+|---|---:|---|---|---|
+| Unified native canvas and cursor transaction. | 0.40 | — | done | None. |
+| Direct Resvg RGBA delivery and stage timings. | 0.20 | unified canvas | done | None. |
+| Native SIXEL encode/write diagnostics. | 0.15 | unified canvas | done | None. |
+| Transparent-gap and scroll/reflow oracle. | 0.25 | unified canvas | done | None. |
+
+### 4. Verification criteria
+
+Named oracles: focused OpenTUI native-protocol tests; OpenCode Mermaid/media
+tests; `bun typecheck`; native build; and a direct Windows Terminal screenshot
+proving text and diagrams move together through scroll/reflow. The remaining
+two tasks are done only when their named renderer timing and transparent-gap
+oracles pass.
+
+Named test cases: two-image composition emits one native DCS; cursor restoration
+occurs in the synchronized frame; Mermaid/media sizing stays stable; a
+transparent text gap survives a replacement frame; and scroll/reflow removes
+the old canvas before drawing one replacement canvas.
+
+Acceptance criteria: timing diagnostics identify native SIXEL encode and write
+cost; the transparent-gap/reflow fixture passes; all named native and Mermaid
+tests pass; and the direct Windows Terminal screenshot shows text and graphics
+moving together with no stale plane.
+
+Evidence requirements: retain focused test output, native build output,
+timing logs, direct Windows Terminal screenshots, and the exact fixture proving
+one DCS with a surviving text gap.
+
+### 5. Epistemic claim ledger
+
+| Claim | Mark | Evidence / boundary |
+|---|---|---|
+| The renderer emits one native canvas/DCS for the composited scene. | Exact | Focused protocol tests and synchronized frame assertion. |
+| Transparent gaps preserve ANSI text during all replacements. | Exact | Native oracle: gap text survives first and replacement frames; exactly one DCS each. |
+| Scroll/reflow cannot leave stale planes. | Exact | Replacement frame clears previous footprint before the next unified DCS; direct WT captures retained. |
+| SIXEL encode/write costs are visible in diagnostics. | Exact | `nativeGraphicsCompose/Encode/WriteTime` on render stats + debug overlay. |
+
+### 6. Certified transition state
+
+`safety_critical: false`; no physical action or certification envelope applies.
+
 ## Prior art
 
 - Historical local baseline: `ImageRenderable.renderPixels()` clamped a
@@ -45,11 +108,11 @@ per diagram.
   frame delivery to `ImageRenderable`; add per-stage timing logs for Mermaid
   layout, rasterization, and frame preparation. Native Sixel encoding/write
   telemetry remains a renderer follow-up.
-- [ ] Add native Sixel encode/write timing to the renderer diagnostics.
+- [x] Add native Sixel encode/write timing to the renderer diagnostics.
 - [x] Add native-protocol tests proving two images produce one native canvas/DCS,
   the Sixel DCS remains inside the synchronized frame, and cursor restoration
   remains correct.
-- [ ] Add an executable transparent-gap oracle and a scroll/reflow replacement
+- [x] Add an executable transparent-gap oracle and a scroll/reflow replacement
   oracle that proves text survives between images and the replacement frame
   still emits exactly one DCS.
 
@@ -75,7 +138,7 @@ per diagram.
 |---|---------------|--------------|----------------|
 | 1 | `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts` (`packages/opencode`) | existing image sizing and Mermaid tests pass | 24 pass, 0 fail, 57 expects |
 | 2 | `bun test src/tests/renderer.image-protocol.test.ts` (`packages/opentui/packages/core`) | existing graphics capability test passes | 2 pass, 0 fail, 8 expects |
-| 3 | direct WT test (`dist/bin/opencode.exe`) | reproduce Mermaid scroll/reflow without stale planes | pending |
+| 3 | direct WT test (`dist/bin/opencode.exe`) | reproduce Mermaid scroll/reflow without stale planes | superseded by unified-canvas captures below |
 
 ### Unified-canvas baseline [Exact]
 
@@ -130,10 +193,10 @@ per diagram.
   (`packages/opencode`) pass after the RGBA change: 12 Mermaid tests, 0 failures,
   30 assertions; the full earlier sizing-plus-Mermaid baseline was 24 tests,
   0 failures, 57 assertions.
-- Native Zig test execution is not currently exposed on Windows: the local
-  `build.zig` deliberately disables its `test` step for Zig 0.15.2's
-  `convertPathArg` crash. The production native library did compile successfully;
-  the direct Windows Terminal oracle remains required.
+- `bun run test:native` (`packages/opentui/packages/core`) now executes on
+  Windows: 1,688 pass, 22 skipped. This supersedes the earlier Zig 0.15.2
+  `convertPathArg` limitation; the direct Windows Terminal oracle remains
+  required because native tests do not prove terminal presentation.
 - Full product build completed with binary smoke test `10.0.688`.
 - Direct Windows Terminal per-plane scene-recomposition capture (superseded by
   unified-canvas acceptance):
@@ -151,3 +214,11 @@ per diagram.
 - [x] Baseline for the original per-plane implementation recorded
 - [x] Unified-canvas implementation only after its baseline
 - [x] Unified-canvas post-implementation smoke passed before completion
+- [x] SIXEL encode/write diagnostics oracle passed (`bun run test:native`: 1689 pass, 22 skipped; transparent-gap + timing test)
+- [x] Transparent-gap / replacement-frame oracle passed (exactly one DCS; gap text `AB` present; clear before image)
+
+### Finalization [Exact] (2026-07-30)
+
+- Native suite: `bun run test:native` (`packages/opentui/packages/core`) — 1689 pass, 22 skipped.
+- Focused TS: `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts src/tests/renderer.render-stats.test.ts` — 8 pass, 0 fail.
+- Diagnostics surface: `RenderStatsSnapshot.nativeGraphicsComposeTime|EncodeTime|WriteTime` via FFI; debug overlay lines `Gfx compose/encode/write`.

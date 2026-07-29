@@ -2299,16 +2299,3 @@ const quoteTrimRegex = /^["']|["']$/g
 
 export * as SessionPrompt from "./prompt"
 
-// ADID_ROLLBACK (from adm.exe)
-// SDID_ROLLBACK {
-//   "target_file": "D:\\zPython\\opencode\\packages/opencode/src/session/prompt.ts"
-//   "update_script": "adm.exe"
-//   "backup_path": "D:\\zPython\\opencode\\packages/opencode/src/session/prompt.ts.backup_20260728T024218_556102"
-//   "created_at": "2026-07-27T18:42:18.579614+00:00"
-//   "backup_hash": "d7accd95eaf025f4a14f49872db5e47b"
-//   "new_hash": "782a518abfd11f559bb77bf3f6514700"
-//   "goal_id": "continue_nonprovider_tool_after_stop"
-//   "semantics": "Provider finish labels are not authoritative for non-provider-executed tool parts. Continue exactly when a pending tool result must be returned to the model; keep provider-executed stop turns terminal."
-//   "update_attrs": {"relative_path": "packages/opencode/src/session/prompt.ts", "update_type": "text", "mode": "replace", "encoding": "utf-8", "find_pattern": null, "find_text": "if (msg.finish === \"tool-calls\") {\n                return \"continue\" as const\n              }", "replace_present": true}
-//   "restore_cmd": "python -m adm --rollback \"D:\\zPython\\opencode\\packages/opencode/src/session/prompt.ts\""
-// }

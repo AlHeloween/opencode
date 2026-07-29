@@ -624,11 +624,18 @@ export abstract class Renderable extends BaseRenderable {
 
   public set width(value: number | "auto" | `${number}%`) {
     if (!isDimensionType(value) || this._width === value) {
+      // Still refresh the draw-time value when Yoga/numeric size must stay in sync.
+      if (typeof value === "number" && Number.isFinite(value) && this._widthValue !== value) {
+        this._widthValue = value
+      }
       return
     }
 
     this._width = value
     this.yogaNode.setWidth(value)
+    if (typeof value === "number" && Number.isFinite(value)) {
+      this._widthValue = value
+    }
 
     if (typeof value === "number" && this._flexShrink === 1) {
       this._flexShrink = 0
@@ -644,11 +651,17 @@ export abstract class Renderable extends BaseRenderable {
 
   public set height(value: number | "auto" | `${number}%`) {
     if (!isDimensionType(value) || this._height === value) {
+      if (typeof value === "number" && Number.isFinite(value) && this._heightValue !== value) {
+        this._heightValue = value
+      }
       return
     }
 
     this._height = value
     this.yogaNode.setHeight(value)
+    if (typeof value === "number" && Number.isFinite(value)) {
+      this._heightValue = value
+    }
 
     if (typeof value === "number" && this._flexShrink === 1) {
       this._flexShrink = 0
@@ -1109,8 +1122,12 @@ export abstract class Renderable extends BaseRenderable {
     this._screenX = parentScreenX + this._x + this._translateX
     this._screenY = parentScreenY + this._y + this._translateY
 
-    const newWidth = Math.max(layout.width, 1)
-    const newHeight = Math.max(layout.height, 1)
+    // Yoga can report NaN before the first real layout pass. Math.max(NaN, 1) is
+    // NaN and used to poison image slots (single-line / zero-area graphics).
+    const layoutW = layout.width
+    const layoutH = layout.height
+    const newWidth = Number.isFinite(layoutW) ? Math.max(layoutW, 1) : Math.max(oldWidth, 1)
+    const newHeight = Number.isFinite(layoutH) ? Math.max(layoutH, 1) : Math.max(oldHeight, 1)
     const sizeChanged = oldWidth !== newWidth || oldHeight !== newHeight
 
     this._widthValue = newWidth

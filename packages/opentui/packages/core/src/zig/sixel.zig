@@ -30,6 +30,12 @@ fn nearestPaletteIndex(palette: []const [3]u8, r: u8, g: u8, b: u8) u16 {
     return @intCast(index);
 }
 
+/// Microsecond timings for one native SIXEL emit (encode vs write).
+pub const Timing = struct {
+    encode_us: f64 = 0,
+    write_us: f64 = 0,
+};
+
 pub const IMAGE = struct {
     /// Encode raw RGBA (`width * height * 4`) to sixel and write at cursor (x,y).
     ///
@@ -37,6 +43,11 @@ pub const IMAGE = struct {
     /// NOT crush the bitmap to 1 sixel-column-per-cell. Modern terminals
     /// (Windows Terminal, xterm) map 1 sixel pixel ≈ 1 screen pixel; callers
     /// size RGBA to `cols * cellPxW` so the image fills the reserved cells.
+    ///
+    /// When `timing` is non-null, records encode (scale+palette DCS build) and
+    /// write (cursor move + payload) costs in microseconds.
+    /// Returns false when encode/write cannot produce a terminal payload (empty
+    /// input, OOM, or write failure). Callers must not claim a successful frame.
     pub fn create(
         writer: anytype,
         id: u32,
@@ -48,27 +59,41 @@ pub const IMAGE = struct {
         cell_w: u32,
         cell_h: u32,
         allocator: Allocator,
-    ) void {
+        timing: ?*Timing,
+    ) bool {
         _ = id;
         _ = cell_w;
         _ = cell_h;
-        if (width == 0 or height == 0) return;
+        if (width == 0 or height == 0) return false;
         const expected = @as(usize, width) * @as(usize, height) * 4;
-        if (data.len < expected) return;
+        if (data.len < expected) return false;
 
         // Encode at source resolution (pad height to a sixel band). Do not
         // downscale to cell_w × cell_h*6 — that produced stamp-sized images.
         const target_w = width;
         const target_h: u32 = @max(6, ((height + 5) / 6) * 6);
 
-        const scaled = scaleRgba(data, width, height, target_w, target_h, allocator) catch return;
+        const encode_start = std.time.microTimestamp();
+        const scaled = scaleRgba(data, width, height, target_w, target_h, allocator) catch return false;
         defer allocator.free(scaled);
 
-        const encoded = encode(scaled, target_w, target_h, allocator) catch return;
+        const encoded = encode(scaled, target_w, target_h, allocator) catch return false;
         defer allocator.free(encoded);
+        const encode_end = std.time.microTimestamp();
 
-        ansi.ANSI.moveToOutput(writer, x, y) catch {};
-        writer.writeAll(encoded) catch {};
+        const write_start = encode_end;
+        // CSI positions are 1-based; clamp so full-viewport frames are not lost at 0.
+        const pos_x = if (x == 0) 1 else x;
+        const pos_y = if (y == 0) 1 else y;
+        ansi.ANSI.moveToOutput(writer, pos_x, pos_y) catch return false;
+        writer.writeAll(encoded) catch return false;
+        const write_end = std.time.microTimestamp();
+
+        if (timing) |t| {
+            t.encode_us = @floatFromInt(encode_end - encode_start);
+            t.write_us = @floatFromInt(write_end - write_start);
+        }
+        return true;
     }
 
     /// Sixel has no image-id delete. Clear the reserved cell region with spaces.

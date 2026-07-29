@@ -1,92 +1,106 @@
 # Raster viewport State Vector Manifest
 
-## Canonical transport
+Framework: ADID 15.4.3. This is a stateless briefing for the single raster
+viewport objective. It intentionally uses no canonical node hash, version
+chain, or mandatory envelope transport; 15.4.3 requires verifiable state and
+oracle evidence, not a prescribed manager or serialization format.
 
-```text
-SV = [weighted_key_phrases, [semantic_dominant], complex_hash_tag]
-canonical_id = logical_id + "@" + complex_hash_tag
-CHT = SHA256(canonical JSON of the node envelope; `id` and CHT are excluded)
-```
+## 1. Goal and scope
 
-This manifest uses the ADID 15.4.6 envelope fields: `schema`, `logical_id`,
-`record_type`, `parent_id`, `previous_version_id`, `local_sequence`,
-`sv_payload`, `state`, `progress`, `dependency_ids`, `child_ids`,
-`message_chain_head`, and `evidence_root`. Work weight, blockers, and next
-transition are node state and are kept alongside the committed envelope.
+Goal: make graphics and text render as one scroll-coherent OpenTUI scene in a
+Windows Terminal SIXEL session.
 
-Canonical, independently recomputable envelopes are in
-[2026-07-29-raster-viewport-renderer.svm.envelopes.jsonl](2026-07-29-raster-viewport-renderer.svm.envelopes.jsonl).
-Each line is one envelope; serialize it with sorted keys, compact separators,
-and UTF-8 before calculating the displayed SHA-256 tag.
+Scope: the OpenTUI raster viewport and its direct Windows Terminal validation.
+It does not change the Mermaid layout engine or replace standard ANSI rendering
+outside the raster capability path.
 
-## Root version chain
+Semantic vector: `["unified scene", "scroll coherence", "native graphics"]`
+with weights `[0.40, 0.35, 0.25]`.
 
-The root is versioned to avoid a child-hash cycle: `root@v0` establishes the
-parent identity, child nodes bind to it, and later root records commit their
-canonical IDs. The current canonical state is `root@v5`.
+## 2. Current state and artifacts
 
-```text
-RVP/root@cht1:sha256:b752c3055e05ba4becaf7e37499f740f997012195ef5c376ec127cac17888296  # v0
-  -> child nodes RVP/E, RVP/R, RVP/O, RVP/C, RVP/T, RVP/S, RVP/H, RVP/W, RVP/P
-  -> RVP/root@cht1:sha256:ff3e2c2bdbf6177008ecd9c0c24dce37de30d531f35c750d136cfb39ba8d7d76  # v1
-  -> RVP/root@cht1:sha256:1477f494ce4c2483e884169747cc15a4572fe3d31103a00813845c496e0f4a5c  # v2
-  -> RVP/root@cht1:sha256:e7451411b4ea10beec8663a6e8169ab46882a10d0320bf08bdf968d4288ac21d  # v3
-  -> RVP/root@cht1:sha256:a4592a851b26f2a19477f82a6e57e13e4b9eb6d4b3781b257d5aed50dbbca546  # v4
-  -> RVP/root@cht1:sha256:57c0506c04f1cc37d221aef3dbe868550b1737930c1883f14bf58e7e7b9d2f57  # v5/current
-```
+- `E` safe eligibility: done; native build, library build, and targeted tests
+  passed.
+- `R` final composition input: done.
+- `O` one native output image: done.
+- `C` raster caret: done.
+- `T` text clusters: done; font face chain, non-spacing marks, geometric block
+  fills, and tofu for missing glyphs have native oracles.
+- `S` UI visual fidelity: done; inverse selection, full-block scrollbar, and
+  box-drawing geometry have a native RGBA oracle.
+- `M` joint media/text pass: done; media is row-sliced into the cell grid with
+  alpha mask in the same walk as glyphs (no post-pass plane).
+- `H` native harness: done; enable/emit/disable hybrid restore, oversized
+  geometry reject, and FPS coalesce tests pass.
+- `W` direct Windows Terminal oracle: awaiting external build/run evidence.
+- `P` bounded transport: done; pixel cap `1920×1080`, FPS floor ~60 Hz with
+  latest-frame coalesce, RGBA encoded-byte policy.
 
-## Causal graph
+Artifacts: `packages/opentui/packages/core`, the raster viewport plan, and
+native test fixtures. Recorded evidence: joint-pass + scroll-shift oracles;
+full suite re-run after M.
 
-```mermaid
-flowchart LR
-  G["RVP/root v5\nUnified viewport"] --> E["E eligibility ✓"]
-  G --> R["R composition ✓"]
-  G --> O["O native output ✓"]
-  G --> C["C raster caret ✓"]
-  G --> T["T grapheme text → active"]
-  G --> S["S UI styles → active"]
-  G --> H["H native harness → active"]
-  G --> W["W direct WT oracle awaiting build"]
-  G --> P["P bounds/backpressure pending"]
-  E --> R --> O --> W
-  O --> P
-  H --> W
-```
+## 3. Task definition
 
-## Node records
+| Task | Weight | Dependencies | State | Next exact transition |
+|---|---:|---|---|---|
+| E — safe eligibility | 0.10 | — | done | None. |
+| R — final composition input | 0.15 | E | done | None. |
+| O — one native output image | 0.15 | E, R | done | Direct Windows Terminal proof. |
+| C — raster caret | 0.10 | O | done | Blink scheduler when native mode is admitted. |
+| T — text clusters | 0.12 | R | done | None. |
+| S — UI styles | 0.08 | R | done | None. |
+| M — joint media/text | 0.15 | R, O | done | None. |
+| H — native harness | 0.10 | R, C, M | done | None. |
+| W — Windows Terminal proof | 0.10 | O, C, H, M | awaiting external | Build, run mixed Mermaid+text scroll; screenshot; resize; input; clean exit. |
+| P — transport bounds | 0.05 | O | done | None. |
 
-| Logical node / canonical ID | Local SV | State / progress / work wt. | Parent, dependencies, local chain | Evidence, blocker, next transition |
-|---|---|---|---|---|
-| `RVP/E`<br>`@cht1:sha256:fb5df22deade98521b7ebf0ea94a6e40c67fd81c1a0fc9f1173309733a8454af` | `[{"confirmed geometry":.45,"alternate screen":.30,"capabilities":.25},["Safe eligibility"],CHT]` | `done / 1.00 / .10` | parent `root@v0`; deps `[]`; `RVP/E/M0001` | `evidence_root=oracle:native-build+library-build+targeted-tests`; implementation `b21a254da`; next `none`. |
-| `RVP/R`<br>`@cht1:sha256:0f73f02b8d9f0bf349d67941ba49e110355acae47b66be47e5398b925cd67e21` | `[{"cell buffer":.45,"media patches":.35,"opaque RGBA":.20},["Final composition input"],CHT]` | `done / 1.00 / .15` | parent `root@v0`; deps `[E]`; `RVP/R/M0001` | `evidence_root=oracle:native-build+library-build+targeted-tests`; implementation `3def96120,b21a254da`; next `none`. |
-| `RVP/O`<br>`@cht1:sha256:598d6d15c9ed97388e7a009d7a9fba2ebabe51c8dc46af242c084664d2d16c3a` | `[{"one protocol image":.50,"no ANSI diff":.35,"lifecycle":.15},["Single native output"],CHT]` | `done / 1.00 / .15` | parent `root@v0`; deps `[E,R]`; `RVP/O/M0001` | `evidence_root=oracle:native-build+library-build+targeted-tests`; implementation `b21a254da,14258c51f`; next `direct WT`. |
-| `RVP/C`<br>`@cht1:sha256:11eb4b7ee7074e0e6fc0d6bd222ef8aefec6954d4a7d7874d2bf16afa42b589b` | `[{"caret geometry":.45,"input usability":.35,"no ANSI restore":.20},["Raster caret"],CHT]` | `done / 1.00 / .10` | parent `root@v0`; deps `[O]`; `RVP/C/M0001` | `evidence_root=oracle:native-build+library-build+targeted-tests`; implementation `a5adad714`; next `blink scheduler`. |
-| `RVP/T`<br>`@cht1:sha256:f12255450a217ca8796c060c61d63da5ac20489bf8c64ac5e05f582fec6421f3` | `[{"grapheme pool":.45,"Unicode sequence":.35,"cell metric":.20},["Text cluster fidelity"],CHT]` | `active / 0.40 / .15` | parent `root@v0`; previous `T@v2`; deps `[R]`; `RVP/T/M0003` | Evidence `abb1b4f7d,7c597fcd1,ee4f05e36,f670cee89`; native suite `1688 pass, 22 skip`; blocker `no shaping/fallback`; next `HarfBuzz/fallback`. |
-| `RVP/S`<br>`@cht1:sha256:fcbfe13b5135577e7ffccfc9e9754b9160907bedca72907ba5e0e5ce9f85acf2` | `[{"attributes":.40,"borders":.35,"selection/scrollbar":.25},["UI visual fidelity"],CHT]` | `active / 0.00 / .10` | parent `root@v0`; deps `[R]`; `RVP/S/M0001` | Evidence `6f6c535ee`; blocker `borders/selection/scrollbar`; next `match final cell visuals`. |
-| `RVP/H`<br>`@cht1:sha256:ca9eed5ded7ff627c59f9c0a98d8d198690f871163b8dacc6b8f0508f4ec4ba1` | `[{"native harness":.50,"deterministic pixels":.30,"CI oracle":.20},["Reproducible native proof"],CHT]` | `active / 0.50 / .10` | parent `root@v0`; previous `H@v2`; deps `[R,C]`; `RVP/H/M0003` | Evidence `f670cee89,b2deba517`; fixture proves cell/inverse/media/caret composition in one RGBA frame; blocker `no pixel fixture for full lifecycle`; next `resize/mode-switch fixture`. |
-| `RVP/W`<br>`@cht1:sha256:0c83234950bd54f9ceda5bd9f2e95d5963ff44177030ef671e2e0c99bff7e052` | `[{"Windows Terminal":.45,"screenshot":.35,"resize/input":.20},["Direct observable oracle"],CHT]` | `awaiting_external / 0.00 / .10` | parent `root@v0`; deps `[O,C,H]`; `RVP/W/M0001` | Blocker `needs direct WT build`; next `mixed Mermaid/input/resize/exit evidence`. |
-| `RVP/P`<br>`@cht1:sha256:eddde3a1adf35bb7ed428d9f73e639a96f37e42ebd4ef0ec6ee4e9c04ca1cc0b` | `[{"frame bounds":.45,"coalescing":.30,"transport latency":.25},["Bounded raster transport"],CHT]` | `pending / 0.00 / .05` | parent `root@v0`; deps `[O]`; `RVP/P/M0001` | Blocker `no encoded-byte/FPS policy`; next `limits + latest-frame coalescing`. |
+## 4. Verification criteria
 
-## Current root record
+1. A task is done only after its named oracle passes; a commit ID alone is not
+   an oracle.
+2. `W` requires direct Windows Terminal evidence; source builds do not replace
+   it.
+3. Raster mode cannot become the default before `W` passes (P and H already pass).
+4. The final scene must scroll as one viewport; text, graphics, cursor, and
+   input must not be emitted in separate terminal passes.
 
-```text
-logical_id: RVP/root
-canonical_id: RVP/root@cht1:sha256:57c0506c04f1cc37d221aef3dbe868550b1737930c1883f14bf58e7e7b9d2f57
-previous_version_id: RVP/root@cht1:sha256:a4592a851b26f2a19477f82a6e57e13e4b9eb6d4b3781b257d5aed50dbbca546
-SV: [{"unified scene":.40,"scroll coherence":.35,"native graphics":.25},["One terminal scene"],CHT]
-state: active
-progress: .50 = .10(E) + .15(R) + .15(O) + .10(C)
-children: [E,R,O,C,T,S,H,W,P]
-message_chain_head: RVP/root/M0018
-evidence_root: oracle:native-suite+native-build+library-build+targeted-tests
-next_transition: advance RVP/T, RVP/S, and RVP/H locally; accept RVP/W only from direct Windows Terminal evidence
-```
+Named test cases: native build, library build, targeted image-renderer tests,
+native suite (includes raster style/harness/FPS), and direct Windows Terminal
+mixed Mermaid/input/resize/exit run.
 
-## Admission rules
+Named oracles: `bun run build:native:dev`; `bun run build:lib`; targeted image
+renderer tests; `bun run test:native`; direct Windows Terminal screenshot plus
+resize, input, and clean-exit observation. `W` is incomplete until the last
+oracle passes.
 
-1. A node is `done` only after its named oracle passes; commit hashes identify
-   the evidence-producing implementation, not the oracle by themselves.
-2. `RVP/W` needs direct Windows Terminal evidence; source builds do not replace it.
-3. Raster mode cannot become default before `RVP/P`, `RVP/H`, and `RVP/W` pass.
-4. New work must attach to one node or add a node with its own SV, CHT envelope,
-   work weight, dependencies, evidence root, blocker, and next transition.
+Evidence requirements: preserve command output for every named oracle; record
+the build or commit that produced the tested artifact; attach screenshot and
+interactive observations to `W`.
+
+## 5. Epistemic claim ledger
+
+| Claim | Mark | Evidence / boundary |
+|---|---|---|
+| Native RGBA composition receives cells, media, and caret in one pass. | Exact | Native fixture and targeted renderer tests. |
+| Inverse selection, scrollbar blocks, and box borders paint in the viewport. | Exact | `raster viewport paints selection inverse, scrollbar block, and box borders`. |
+| Missing glyphs fall back to a visible tofu rect via the font chain. | Exact | `raster viewport draws tofu for missing glyphs` + font-chain null test. |
+| Media is joint-pass cell-grid with alpha mask (row-sliced with text). | Exact | `joint-pass media is row-sliced…` + `scroll shift keeps media strips locked to text rows`. |
+| Raster FPS policy coalesces non-forced frames under ~60 Hz. | Exact | `renderer - raster FPS policy coalesces latest frames`. |
+| Oversized geometry is rejected before raster mode enables. | Exact | `renderer - raster geometry rejects oversized pixel budget`. |
+| Disable raster restores hybrid one-DCS sixel path. | Exact | `renderer - raster mode enable, emit, disable restores hybrid sixel path`. |
+| Windows Terminal presents a coherent raster viewport. | Unknown | Requires `W` direct-session screenshot and interaction evidence. |
+| HarfBuzz is necessary for all final text fidelity. | Inferred | Bitmap + geometric path covers UI; complex scripts unproven without shaping. |
+| SIXEL transport needs an explicit coalescing policy. | Exact | FPS coalesce + pixel/byte caps are implemented and tested. |
+
+## 6. Certified transition state
+
+`safety_critical: false`. The work changes local rendering only; no external
+physical action, certification envelope, or simulation report is required.
+
+## Smoke tests
+
+Baseline and post-change acceptance are maintained in
+[2026-07-29-raster-viewport-renderer.md](2026-07-29-raster-viewport-renderer.md).
+Each new task records its baseline before implementation and attaches direct
+oracle output before it is marked done.

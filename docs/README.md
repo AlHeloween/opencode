@@ -9,5 +9,5 @@
 - [Linux deploy](linux-deploy.md) — build and portable install of this fork on Linux (OpenTUI, Fossil, layout)
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, resolution order, Fossil/rg/markdownify, Linux vs Windows packaging
 - [Background Jobs](background-jobs.md) — non-blocking bash/cmd execution, stalled detection, job_kill, TUI visibility, state machine
-- [ADID Framework 15.4](ADID_Framework_15_4.md) — ADID update manager framework specification
+- [ADID Framework 15.4.3](ADID_Framework_15_4_3.md) — active ADID safe-update manager construction contract
 - [Reasoning Kernel Tests](../tests/test_reasoning_kernel.py) — 165 pytest tests for the reasoning kernel

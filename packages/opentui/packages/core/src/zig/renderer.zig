@@ -40,6 +40,15 @@ const CLEAR_CHAR = '\u{0a00}';
 const MAX_STAT_SAMPLES = 30;
 const STAT_SAMPLE_CAPACITY = 30;
 const COMPOSITED_NATIVE_IMAGE_ID = 1;
+/// Hard cap on raster viewport pixels (RGBA samples). Prevents unbounded SIXEL payloads.
+const RASTER_MAX_PIXELS: u64 = 1920 * 1080;
+/// Soft FPS floor for raster emits (~60 Hz). Force repaints still run immediately.
+/// Kept low enough that caret/spinner animation remains visible under full-frame Sixel.
+const RASTER_MIN_FRAME_INTERVAL_US: i64 = 16_000;
+/// Bound on raw RGBA bytes for one viewport frame. Must cover full-terminal
+/// viewports under RASTER_MAX_PIXELS (e.g. 150×40 cells × 10×20 px = 4.8 MiB).
+/// The previous 2 MiB cap rejected every real WT frame → black empty screen.
+const RASTER_MAX_RGBA_BYTES: usize = @as(usize, RASTER_MAX_PIXELS) * 4;
 
 const RasterViewportProtocol = enum {
     kitty,
@@ -119,6 +128,12 @@ pub const RenderStatsSnapshot = struct {
     averageCellsUpdated: u32,
     renderTime: ?f64,
     outputWriteTime: ?f64,
+    /// Pixel-scene composition cost in microseconds (RGBA canvas assembly).
+    nativeGraphicsComposeTime: ?f64 = null,
+    /// Native protocol encode cost in microseconds (SIXEL palette/DCS build).
+    nativeGraphicsEncodeTime: ?f64 = null,
+    /// Native protocol write cost in microseconds (cursor + payload into frame buffer).
+    nativeGraphicsWriteTime: ?f64 = null,
 };
 
 const SplitFooterTransition = struct {
@@ -155,6 +170,10 @@ pub const CliRenderer = struct {
     rasterViewportProtocol: ?RasterViewportProtocol = null,
     rasterViewportCellWidth: u32 = 0,
     rasterViewportCellHeight: u32 = 0,
+    /// Last successful raster emit timestamp (µs). Used for latest-frame FPS coalesce.
+    lastRasterEmitUs: ?i64 = null,
+    /// Frames skipped by the raster FPS policy (diagnostic counter).
+    rasterFramesCoalesced: u32 = 0,
 
     splitScrollback: split_scrollback.SplitScrollback = .{},
     // Batch state for split-footer commit flushing. A single JS render tick can
@@ -178,6 +197,9 @@ pub const CliRenderer = struct {
         overallFrameTime: ?f64,
         bufferResetTime: ?f64,
         outputWriteTime: ?f64,
+        nativeGraphicsComposeTime: ?f64,
+        nativeGraphicsEncodeTime: ?f64,
+        nativeGraphicsWriteTime: ?f64,
         heapUsed: u32,
         heapTotal: u32,
         arrayBuffers: u32,
@@ -189,6 +211,9 @@ pub const CliRenderer = struct {
         overallFrameTime: std.ArrayListUnmanaged(f64),
         bufferResetTime: std.ArrayListUnmanaged(f64),
         outputWriteTime: std.ArrayListUnmanaged(f64),
+        nativeGraphicsComposeTime: std.ArrayListUnmanaged(f64),
+        nativeGraphicsEncodeTime: std.ArrayListUnmanaged(f64),
+        nativeGraphicsWriteTime: std.ArrayListUnmanaged(f64),
         cellsUpdated: std.ArrayListUnmanaged(u32),
         frameCallbackTime: std.ArrayListUnmanaged(f64),
     },
@@ -299,6 +324,12 @@ pub const CliRenderer = struct {
         errdefer bufferResetTime.deinit(allocator);
         var outputWriteTime: std.ArrayListUnmanaged(f64) = .{};
         errdefer outputWriteTime.deinit(allocator);
+        var nativeGraphicsComposeTime: std.ArrayListUnmanaged(f64) = .{};
+        errdefer nativeGraphicsComposeTime.deinit(allocator);
+        var nativeGraphicsEncodeTime: std.ArrayListUnmanaged(f64) = .{};
+        errdefer nativeGraphicsEncodeTime.deinit(allocator);
+        var nativeGraphicsWriteTime: std.ArrayListUnmanaged(f64) = .{};
+        errdefer nativeGraphicsWriteTime.deinit(allocator);
         var cellsUpdated: std.ArrayListUnmanaged(u32) = .{};
         errdefer cellsUpdated.deinit(allocator);
         var frameCallbackTimes: std.ArrayListUnmanaged(f64) = .{};
@@ -309,6 +340,9 @@ pub const CliRenderer = struct {
         try overallFrameTime.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
         try bufferResetTime.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
         try outputWriteTime.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
+        try nativeGraphicsComposeTime.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
+        try nativeGraphicsEncodeTime.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
+        try nativeGraphicsWriteTime.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
         try cellsUpdated.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
         try frameCallbackTimes.ensureTotalCapacity(allocator, STAT_SAMPLE_CAPACITY);
 
@@ -357,6 +391,9 @@ pub const CliRenderer = struct {
                 .overallFrameTime = null,
                 .bufferResetTime = null,
                 .outputWriteTime = null,
+                .nativeGraphicsComposeTime = null,
+                .nativeGraphicsEncodeTime = null,
+                .nativeGraphicsWriteTime = null,
                 .heapUsed = 0,
                 .heapTotal = 0,
                 .arrayBuffers = 0,
@@ -368,6 +405,9 @@ pub const CliRenderer = struct {
                 .overallFrameTime = overallFrameTime,
                 .bufferResetTime = bufferResetTime,
                 .outputWriteTime = outputWriteTime,
+                .nativeGraphicsComposeTime = nativeGraphicsComposeTime,
+                .nativeGraphicsEncodeTime = nativeGraphicsEncodeTime,
+                .nativeGraphicsWriteTime = nativeGraphicsWriteTime,
                 .cellsUpdated = cellsUpdated,
                 .frameCallbackTime = frameCallbackTimes,
             },
@@ -416,6 +456,9 @@ pub const CliRenderer = struct {
         self.statSamples.overallFrameTime.deinit(self.allocator);
         self.statSamples.bufferResetTime.deinit(self.allocator);
         self.statSamples.outputWriteTime.deinit(self.allocator);
+        self.statSamples.nativeGraphicsComposeTime.deinit(self.allocator);
+        self.statSamples.nativeGraphicsEncodeTime.deinit(self.allocator);
+        self.statSamples.nativeGraphicsWriteTime.deinit(self.allocator);
         self.statSamples.cellsUpdated.deinit(self.allocator);
         self.statSamples.frameCallbackTime.deinit(self.allocator);
         self.palette_index_cache.deinit(self.allocator);
@@ -567,6 +610,15 @@ pub const CliRenderer = struct {
         if (self.renderStats.outputWriteTime) |swt| {
             self.addStatSample(f64, &self.statSamples.outputWriteTime, swt);
         }
+        if (self.renderStats.nativeGraphicsComposeTime) |ct| {
+            self.addStatSample(f64, &self.statSamples.nativeGraphicsComposeTime, ct);
+        }
+        if (self.renderStats.nativeGraphicsEncodeTime) |et| {
+            self.addStatSample(f64, &self.statSamples.nativeGraphicsEncodeTime, et);
+        }
+        if (self.renderStats.nativeGraphicsWriteTime) |wt| {
+            self.addStatSample(f64, &self.statSamples.nativeGraphicsWriteTime, wt);
+        }
         self.addStatSample(u32, &self.statSamples.cellsUpdated, self.renderStats.cellsUpdated);
     }
 
@@ -604,6 +656,9 @@ pub const CliRenderer = struct {
             .averageCellsUpdated = getStatAverage(u32, &self.statSamples.cellsUpdated),
             .renderTime = self.renderStats.renderTime,
             .outputWriteTime = self.renderStats.outputWriteTime,
+            .nativeGraphicsComposeTime = self.renderStats.nativeGraphicsComposeTime,
+            .nativeGraphicsEncodeTime = self.renderStats.nativeGraphicsEncodeTime,
+            .nativeGraphicsWriteTime = self.renderStats.nativeGraphicsWriteTime,
         };
     }
 
@@ -807,7 +862,13 @@ pub const CliRenderer = struct {
         self.lastRenderTime = now;
         self.renderDebugOverlay();
 
-        if (self.rasterViewport != null) return self.renderRasterViewport(deltaTime);
+        // Prefer raster when admitted. On failure fall through to hybrid so the
+        // user never gets a cleared alt-screen with no content (black empty).
+        if (self.rasterViewport != null) {
+            const raster_status = self.renderRasterViewport(force or self.force_full_repaint, deltaTime);
+            if (raster_status != .failed) return raster_status;
+            logger.warn("bug: raster viewport frame failed; falling back to hybrid ANSI+Sixel for this frame", .{});
+        }
 
         // `inline else` monomorphizes the writer type per variant — one
         // dispatch site, zero vtable cost.
@@ -856,11 +917,30 @@ pub const CliRenderer = struct {
         return status;
     }
 
-    fn renderRasterViewport(self: *CliRenderer, delta_time: f64) RenderStatus {
+    fn renderRasterViewport(self: *CliRenderer, force: bool, delta_time: f64) RenderStatus {
         const viewport = &(self.rasterViewport orelse return .failed);
         const use_kitty = self.terminal.caps.kitty_graphics;
         const use_sixel = !use_kitty and self.terminal.caps.sixel;
         if (!use_kitty and !use_sixel) return .failed;
+
+        // Latest-frame coalesce: drop intermediate raster emits under the FPS floor.
+        // Keep next buffers so the subsequent admitted frame sees the newest content.
+        // Do not clear skipped-frame state (unlike transport backpressure).
+        if (!force) {
+            if (self.lastRasterEmitUs) |last| {
+                const now = std.time.microTimestamp();
+                if (now - last < RASTER_MIN_FRAME_INTERVAL_US) {
+                    self.rasterFramesCoalesced += 1;
+                    return .skipped;
+                }
+            }
+        }
+
+        const pixel_count: u64 = @as(u64, self.width) * @as(u64, self.height) * @as(u64, self.rasterCellWidth) * @as(u64, self.rasterCellHeight);
+        if (pixel_count == 0 or pixel_count > RASTER_MAX_PIXELS) {
+            logger.warn("bug: raster viewport rejected oversized or empty geometry pixels={d} max={d}", .{ pixel_count, RASTER_MAX_PIXELS });
+            return .failed;
+        }
 
         var rasterized = false;
         var write_status: output.WriteStatus = .ok;
@@ -873,6 +953,7 @@ pub const CliRenderer = struct {
                 _ = self.clearRasterViewport(&w);
                 const cursor = self.terminal.getCursorPosition();
                 const cursor_style = self.terminal.getCursorStyle();
+                const compose_start = std.time.microTimestamp();
                 const pixels = viewport.render(self.nextRenderBuffer, self.nextPixelBuffer, self.pool, self.rasterCellWidth, self.rasterCellHeight, self.backgroundColor, .{
                     .x = cursor.x,
                     .y = cursor.y,
@@ -883,25 +964,69 @@ pub const CliRenderer = struct {
                     logger.warn("bug: raster viewport composition failed: {}", .{err});
                     break :blk null;
                 };
+                const compose_us: f64 = @floatFromInt(std.time.microTimestamp() - compose_start);
                 if (pixels) |data| {
-                    if (use_kitty) {
-                        kitty.IMAGE.create(&w, COMPOSITED_NATIVE_IMAGE_ID, 0, self.renderOffset, viewport.width, viewport.height, data, self.width, self.height, self.allocator);
+                    // Bound raw RGBA to the same budget as RASTER_MAX_PIXELS.
+                    if (data.len > RASTER_MAX_RGBA_BYTES) {
+                        logger.warn("bug: raster viewport RGBA exceeds policy len={d} max={d}", .{ data.len, RASTER_MAX_RGBA_BYTES });
+                        self.nextPixelBuffer.clear();
+                        self.force_full_repaint = true;
+                        // Abort the half-started sync frame without claiming success.
+                        w.writeAll(ansi.ANSI.syncReset) catch {};
+                        write_status = b.endFrame();
                     } else {
-                        sixel.IMAGE.create(&w, COMPOSITED_NATIVE_IMAGE_ID, 0, self.renderOffset, viewport.width, viewport.height, data, self.width, self.height, self.allocator);
+                        var emit_ok = false;
+                        if (use_kitty) {
+                            const emit_start = std.time.microTimestamp();
+                            kitty.IMAGE.create(&w, COMPOSITED_NATIVE_IMAGE_ID, 1, @max(1, self.renderOffset), viewport.width, viewport.height, data, self.width, self.height, self.allocator);
+                            const emit_us: f64 = @floatFromInt(std.time.microTimestamp() - emit_start);
+                            self.renderStats.nativeGraphicsComposeTime = compose_us;
+                            self.renderStats.nativeGraphicsEncodeTime = emit_us;
+                            self.renderStats.nativeGraphicsWriteTime = 0;
+                            self.rasterViewportProtocol = .kitty;
+                            emit_ok = true;
+                        } else {
+                            var timing: sixel.Timing = .{};
+                            emit_ok = sixel.IMAGE.create(
+                                &w,
+                                COMPOSITED_NATIVE_IMAGE_ID,
+                                1,
+                                @max(1, self.renderOffset),
+                                viewport.width,
+                                viewport.height,
+                                data,
+                                self.width,
+                                self.height,
+                                self.allocator,
+                                &timing,
+                            );
+                            self.renderStats.nativeGraphicsComposeTime = compose_us;
+                            self.renderStats.nativeGraphicsEncodeTime = timing.encode_us;
+                            self.renderStats.nativeGraphicsWriteTime = timing.write_us;
+                            self.rasterViewportProtocol = .sixel;
+                        }
+                        if (emit_ok) {
+                            self.rasterViewportVisible = true;
+                            self.rasterViewportCellWidth = self.width;
+                            self.rasterViewportCellHeight = self.height;
+                            self.commitRasterFrame();
+                            self.lastRasterEmitUs = std.time.microTimestamp();
+                            rasterized = true;
+                            // Hardware cursor stays hidden in raster mode; caret is in the image.
+                            self.lastCursorVisible = false;
+                        } else {
+                            logger.warn("bug: raster viewport native emit produced no payload", .{});
+                            self.force_full_repaint = true;
+                        }
+                        w.writeAll(ansi.ANSI.syncReset) catch {};
+                        write_status = b.endFrame();
                     }
-                    self.rasterViewportVisible = true;
-                    self.rasterViewportProtocol = if (use_kitty) .kitty else .sixel;
-                    self.rasterViewportCellWidth = self.width;
-                    self.rasterViewportCellHeight = self.height;
-                    self.commitRasterFrame();
-                    rasterized = true;
                 } else {
                     self.nextPixelBuffer.clear();
                     self.force_full_repaint = true;
+                    w.writeAll(ansi.ANSI.syncReset) catch {};
+                    write_status = b.endFrame();
                 }
-                self.lastCursorVisible = false;
-                w.writeAll(ansi.ANSI.syncReset) catch {};
-                write_status = b.endFrame();
             },
         }
 
@@ -1488,9 +1613,13 @@ pub const CliRenderer = struct {
     }
 
     fn pixelSceneChanged(self: *const CliRenderer) bool {
+        // Bidirectional: catch scroll (position change), add, and remove of stamps.
         if (self.currentPixelBuffer.patches.items.len != self.nextPixelBuffer.patches.items.len) return true;
         for (self.currentPixelBuffer.patches.items) |patch| {
             if (!self.nextPixelBuffer.hasPatch(patch)) return true;
+        }
+        for (self.nextPixelBuffer.patches.items) |patch| {
+            if (!self.currentPixelBuffer.hasPatch(patch)) return true;
         }
         return false;
     }
@@ -1579,17 +1708,33 @@ pub const CliRenderer = struct {
             return false;
         }
 
+        const compose_start = std.time.microTimestamp();
         const scene = self.composePixelScene(self.nextPixelBuffer) orelse return false;
+        const compose_us: f64 = @floatFromInt(std.time.microTimestamp() - compose_start);
         defer scene.deinit(self.allocator);
         for (self.nextPixelBuffer.patches.items) |patch| self.currentPixelBuffer.adoptCopy(patch);
-        if (!scene.has_pixels) return false;
+        if (!scene.has_pixels) {
+            self.renderStats.nativeGraphicsComposeTime = compose_us;
+            self.renderStats.nativeGraphicsEncodeTime = null;
+            self.renderStats.nativeGraphicsWriteTime = null;
+            return false;
+        }
 
         if (use_kitty) {
+            const emit_start = std.time.microTimestamp();
             kitty.IMAGE.create(writer, COMPOSITED_NATIVE_IMAGE_ID, scene.x, scene.y + self.renderOffset, scene.width, scene.height, scene.data, scene.cell_w, scene.cell_h, self.allocator);
-        } else {
-            sixel.IMAGE.create(writer, COMPOSITED_NATIVE_IMAGE_ID, scene.x, scene.y + self.renderOffset, scene.width, scene.height, scene.data, scene.cell_w, scene.cell_h, self.allocator);
+            const emit_us: f64 = @floatFromInt(std.time.microTimestamp() - emit_start);
+            self.renderStats.nativeGraphicsComposeTime = compose_us;
+            self.renderStats.nativeGraphicsEncodeTime = emit_us;
+            self.renderStats.nativeGraphicsWriteTime = 0;
+            return true;
         }
-        return true;
+        var timing: sixel.Timing = .{};
+        const ok = sixel.IMAGE.create(writer, COMPOSITED_NATIVE_IMAGE_ID, scene.x, scene.y + self.renderOffset, scene.width, scene.height, scene.data, scene.cell_w, scene.cell_h, self.allocator, &timing);
+        self.renderStats.nativeGraphicsComposeTime = compose_us;
+        self.renderStats.nativeGraphicsEncodeTime = timing.encode_us;
+        self.renderStats.nativeGraphicsWriteTime = timing.write_us;
+        return ok;
     }
 
     /// Completes the one renderer display list after text and native graphics
@@ -2203,9 +2348,28 @@ pub const CliRenderer = struct {
             self.rasterViewport = null;
             self.rasterCellWidth = 0;
             self.rasterCellHeight = 0;
+            self.lastRasterEmitUs = null;
             return true;
         }
         if (!self.useAlternateScreen or cell_width == 0 or cell_height == 0) return false;
+        // Full-viewport SIXEL is not a viable interactive transport on Windows
+        // Terminal: each frame quantizes ~1M+ pixels into a 256-color DCS and
+        // clears the previous footprint with spaces → multi-second lag, flicker,
+        // and garbled mid-stream output. Keep hybrid (ANSI text + small Sixel
+        // patches) until dirty-rect / Kitty-only / delta transport exists.
+        if (!self.terminal.caps.kitty_graphics and self.terminal.caps.sixel) {
+            logger.warn("raster viewport refused on SIXEL-only terminal; using hybrid ANSI+Sixel patches", .{});
+            return false;
+        }
+        if (!self.terminal.caps.kitty_graphics) {
+            logger.warn("raster viewport refused: no Kitty graphics capability", .{});
+            return false;
+        }
+        const pixel_count: u64 = @as(u64, self.width) * @as(u64, self.height) * @as(u64, cell_width) * @as(u64, cell_height);
+        if (pixel_count == 0 or pixel_count > RASTER_MAX_PIXELS) {
+            logger.warn("bug: raster viewport geometry exceeds pixel policy pixels={d} max={d}", .{ pixel_count, RASTER_MAX_PIXELS });
+            return false;
+        }
         if (self.rasterViewport == null) self.rasterViewport = RasterViewport.init(self.allocator) catch return false;
         self.rasterCellWidth = cell_width;
         self.rasterCellHeight = cell_height;
@@ -2363,6 +2527,29 @@ pub const CliRenderer = struct {
             var writeTimeText: [64]u8 = undefined;
             const writeTimeLen = std.fmt.bufPrint(&writeTimeText, "Output: {d:.3}ms (avg: {d:.3}ms)", .{ writeTime / 1000.0, outputWriteTimeAvg / 1000.0 }) catch return;
             self.nextRenderBuffer.drawText(writeTimeLen, x + 1, y + row, fg, bg, 0) catch {};
+            row += 1;
+        }
+
+        // Native graphics: compose / SIXEL encode / protocol write
+        const nativeComposeAvg = getStatAverage(f64, &self.statSamples.nativeGraphicsComposeTime);
+        const nativeEncodeAvg = getStatAverage(f64, &self.statSamples.nativeGraphicsEncodeTime);
+        const nativeGraphicsWriteAvg = getStatAverage(f64, &self.statSamples.nativeGraphicsWriteTime);
+        if (self.renderStats.nativeGraphicsComposeTime) |composeTime| {
+            var composeText: [72]u8 = undefined;
+            const composeLen = std.fmt.bufPrint(&composeText, "Gfx compose: {d:.3}ms (avg: {d:.3}ms)", .{ composeTime / 1000.0, nativeComposeAvg / 1000.0 }) catch return;
+            self.nextRenderBuffer.drawText(composeLen, x + 1, y + row, fg, bg, 0) catch {};
+            row += 1;
+        }
+        if (self.renderStats.nativeGraphicsEncodeTime) |encodeTime| {
+            var encodeText: [72]u8 = undefined;
+            const encodeLen = std.fmt.bufPrint(&encodeText, "Gfx encode: {d:.3}ms (avg: {d:.3}ms)", .{ encodeTime / 1000.0, nativeEncodeAvg / 1000.0 }) catch return;
+            self.nextRenderBuffer.drawText(encodeLen, x + 1, y + row, fg, bg, 0) catch {};
+            row += 1;
+        }
+        if (self.renderStats.nativeGraphicsWriteTime) |gfxWriteTime| {
+            var gfxWriteText: [72]u8 = undefined;
+            const gfxWriteLen = std.fmt.bufPrint(&gfxWriteText, "Gfx write: {d:.3}ms (avg: {d:.3}ms)", .{ gfxWriteTime / 1000.0, nativeGraphicsWriteAvg / 1000.0 }) catch return;
+            self.nextRenderBuffer.drawText(gfxWriteLen, x + 1, y + row, fg, bg, 0) catch {};
             row += 1;
         }
 

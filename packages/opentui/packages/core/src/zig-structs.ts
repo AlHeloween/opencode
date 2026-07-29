@@ -208,6 +208,12 @@ export type NativeRenderStats = {
   averageCellsUpdated: number
   nativeRenderTime?: number
   nativeStdoutWriteTime?: number
+  /** Pixel-scene / raster composition microseconds when graphics ran. */
+  nativeGraphicsComposeTime?: number
+  /** SIXEL encode (or Kitty emit) microseconds when graphics ran. */
+  nativeGraphicsEncodeTime?: number
+  /** Protocol write microseconds (cursor + DCS payload into frame buffer). */
+  nativeGraphicsWriteTime?: number
 }
 
 export const NativeRenderStatsStruct = defineStruct([
@@ -220,6 +226,12 @@ export const NativeRenderStatsStruct = defineStruct([
   ["averageCellsUpdated", "u32"],
   ["renderTimeValid", "bool_u8"],
   ["stdoutWriteTimeValid", "bool_u8"],
+  ["nativeGraphicsComposeTime", "f64"],
+  ["nativeGraphicsEncodeTime", "f64"],
+  ["nativeGraphicsWriteTime", "f64"],
+  ["nativeGraphicsComposeTimeValid", "bool_u8"],
+  ["nativeGraphicsEncodeTimeValid", "bool_u8"],
+  ["nativeGraphicsWriteTimeValid", "bool_u8"],
 ])
 
 export type GrowthPolicy = "grow" | "block"

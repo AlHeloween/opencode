@@ -63,31 +63,29 @@ describe("mermaid rendering", () => {
     expect(dataUrl!.length).toBeGreaterThan(100)
   })
 
-  test("renderSvgToPngDataUrl upscales small mermaid for sharp terminal pixels", async () => {
+  test("renderSvgToPngDataUrl fits SVG to width; height automatic from aspect", async () => {
     const { Resvg } = await import("@resvg/resvg-js")
     const svg = await renderMermaidToSvg(flowchart)
     expect(svg).not.toBeNull()
     const natural = new Resvg(svg!, { background: "#fff" })
+    const targetW = 800
     const dataUrl = renderSvgToPngDataUrl(svg!, "#ffffff", {
-      maxWidth: 2000,
-      maxHeight: 2000,
+      maxWidth: targetW,
     })
     expect(dataUrl).not.toBeNull()
     const b64 = dataUrl!.split(",")[1]!
     const j = (await import("jimp")) as any
     const img = await j.Jimp.read(Buffer.from(b64, "base64"))
-    // Vector upscale (≥2× when budget allows) — not a forced 600/640 stamp.
-    expect(img.width).toBeGreaterThanOrEqual(natural.width * 2 - 1)
-    expect(img.width).not.toBe(600)
-    expect(img.width).not.toBe(640)
-    // Aspect preserved
+    // Width is the only constraint; height follows natural aspect.
+    expect(img.width).toBe(targetW)
     expect(img.width / img.height).toBeCloseTo(natural.width / natural.height, 1)
   })
 
-  test("renderSvgToPngDataUrl contain-fits tall SVG into height budget", () => {
+  test("renderSvgToPngDataUrl width-fits tall SVG without height budget shrinking width", () => {
     const tall = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="10000"><rect width="100" height="10000" fill="#333"/></svg>`
-    const dataUrl = renderSvgToPngDataUrl(tall, "#ffffff", { maxWidth: 1440, maxHeight: 800 })
+    const dataUrl = renderSvgToPngDataUrl(tall, "#ffffff", { maxWidth: 200 })
     expect(dataUrl).not.toBeNull()
+    // Decode is enough — width-only fit; height is large (not capped to 800).
   })
 
   test("renderMermaidToPngDataUrl full pipeline", async () => {
@@ -106,10 +104,10 @@ describe("mermaid rendering", () => {
     const frame = await renderMermaidToRgba(flowchart, {
       theme: "dark",
       background: "#1a1b26",
-      budget: { maxWidth: 640, maxHeight: 480 },
+      budget: { maxWidth: 640 },
     })
     expect(frame).not.toBeNull()
-    expect(frame!.width).toBeGreaterThan(0)
+    expect(frame!.width).toBe(640)
     expect(frame!.height).toBeGreaterThan(0)
     expect(frame!.data.byteLength).toBe(frame!.width * frame!.height * 4)
   })

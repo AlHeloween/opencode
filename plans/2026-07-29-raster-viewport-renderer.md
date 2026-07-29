@@ -107,9 +107,10 @@ flowchart LR
   palette size, encoded bytes, and raster FPS before raster mode can be enabled;
   dirty internal regions alone do not reduce a full SIXEL payload.
 - [x] Restore the Windows native-test command: `bun run test:native` now
-  builds the bundled FreeType test dependency and executes 1,687 passing Zig
-  tests (22 skipped). Raster-specific compositor fixtures remain under the
-  unchecked lifecycle/direct-terminal work.
+  builds the bundled FreeType test dependency and executes 1,688 passing Zig
+  tests (22 skipped). It includes a deterministic raster-compositor fixture
+  for text, inverse cells, media, and the caret; lifecycle/direct-terminal
+  fixtures remain unchecked work.
 - [ ] Add direct Windows Terminal screenshots and input/scroll/resize tests for
   mixed Markdown and Mermaid/image fixtures first. Add chart and PDF-fragment
   producers before claiming their regression coverage.
@@ -139,7 +140,7 @@ flowchart LR
 - `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
   (`packages/opentui/packages/core`): 4 tests, 0 failures, 10 assertions.
 - `bun typecheck` (`packages/opencode`): passes.
-- `bun run test:native` (`packages/opentui/packages/core`): 1,687 pass,
+- `bun run test:native` (`packages/opentui/packages/core`): 1,688 pass,
   22 skipped; includes the bundled FreeType glyph-cache test.
 - Direct Windows Terminal currently demonstrates the hybrid-layer defect with
   mixed text and Mermaid content; capture a reproducible cmd_runner screenshot

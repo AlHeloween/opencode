@@ -11,6 +11,31 @@ is retained for terminals and screen modes where raster mode is ineligible.
 The existing atomic-native-graphics work remains a transport foundation, but it
 is not visual composition: ANSI cells and SIXEL are separate terminal layers.
 
+## SVM critical path (v1)
+
+```mermaid
+flowchart LR
+  G["G: one scroll-coherent terminal scene"] --> E["E: verified raster eligibility"]
+  E --> R["R: native full-viewport RGBA render branch"]
+  R --> O["O: one Kitty/SIXEL output image; no ANSI cell diff"]
+  O --> W["W: direct Windows Terminal oracle"]
+  W --> Q["Q: quality work: shaping, styles, caret, cache, limits"]
+```
+
+| Node | Local SV / dominant | State and proof | Depends on |
+|---|---|---|---|
+| G | `one scene .40, coherent scroll .35, native graphics .25` / **Unified terminal viewport** | In progress | E, R, O, W |
+| E | `confirmed geometry .45, alternate screen .30, capabilities .25` / **Safe eligibility** | Done: TS requires nonzero CSI pixel/cell replies whose exact product equals the logical grid; native rejects zero cell geometry | — |
+| R | `final cell buffer .45, media patches .35, RGBA .20` / **One composited frame** | Done for direct glyphs, backgrounds, and media; native build passes | E |
+| O | `single protocol image .50, no ANSI diff .35, frame lifecycle .15` / **Single output path** | Done in code: raster branch bypasses `prepareRenderFrameWithWriter`; native/library build pass | R |
+| W | `Windows Terminal .45, screenshot .35, input resize .20` / **Observable oracle** | Pending user full product build and direct WT fixture | O |
+| Q | `shaping .30, caret .25, styles .20, performance .25` / **Production fidelity** | Pending; explicitly not a dependency of W | W |
+
+The SVM work weights are `E=0.10, R=0.25, O=0.25, W=0.25, Q=0.15`.
+They are deliberately independent of the semantic weights above. The first
+admissible transition is `O -> W`; do not introduce Q work before a direct
+Windows Terminal oracle proves or disproves the single-scene path.
+
 ## Architecture
 
 ```mermaid
@@ -59,10 +84,11 @@ flowchart LR
 
 ## Implementation
 
-- [ ] Define a `raster_viewport` render mode with explicit capability/config
+- [x] Define a `raster_viewport` render mode with explicit capability/config
   selection and eligibility gates: confirmed pixel/cell geometry,
   alternate-screen, no captured stdout, no split footer. Kitty/SIXEL can enable
   it; symbols, remote, and unsupported contexts retain the ANSI-cell backend.
+  The opt-in is `rasterViewport: true` or `OPENTUI_RASTER_VIEWPORT=1`.
 - [x] Add pinned FreeType 2.14.3 and trusted bundled JetBrains Mono Regular
   bytes (SIL OFL 1.1) with a Zig `FontRasterizer` that exposes alpha glyph
   bitmaps. Native build passes on Windows.
@@ -82,10 +108,12 @@ flowchart LR
 - [ ] Rasterize the focused caret and hide the hardware cursor for raster
   frames; schedule/cancel caret blink invalidation and retain ordinary
   hardware-cursor semantics for the ANSI fallback.
-- [ ] Change the native output path to replace one full viewport image without
+- [x] Change the native output path to replace one full viewport image without
   writing visual ANSI cells. Kitty deletes its image id; SIXEL performs an
-  explicit full-viewport clear/repaint on resize, suspend/resume, protocol
-  switch, and exit. Restore the hardware cursor on fallback and shutdown.
+  explicit full-viewport clear/repaint on the next frame after a mode change.
+  The direct path owns one synchronized terminal frame and hides the hardware
+  cursor. Resize/suspend/exit retention and a raster caret remain under the
+  unchecked lifecycle task below.
 - [ ] Add latest-frame coalescing and writer backpressure. Bound viewport pixels,
   palette size, encoded bytes, and raster FPS before raster mode can be enabled;
   dirty internal regions alone do not reduce a full SIXEL payload.

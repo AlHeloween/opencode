@@ -193,6 +193,10 @@ export interface CliRendererConfig {
   // Fill the render buffer with this background color. Default transparent.
   backgroundColor?: ColorInput
 
+  // Compose final cells and media into one native Kitty/SIXEL viewport image.
+  // This experimental path needs a confirmed pixel geometry response.
+  rasterViewport?: boolean
+
   // Open the console overlay on uncaught errors. Defaults to true in development.
   openConsoleOnError?: boolean
 
@@ -769,6 +773,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   private maxStatSamples: number = 300
   private postProcessFns: ((buffer: OptimizedBuffer, deltaTime: number) => void)[] = []
   private backgroundColor: RGBA = RGBA.fromInts(0, 0, 0, 0)
+  private rasterViewportRequested: boolean = false
   private waitingForPixelResolution: boolean = false
   private waitingForCellPixelSize: boolean = false
   private readonly clock: Clock
@@ -1100,6 +1105,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
     this._terminalHeight = height
     this._useThread = config.useThread
     this._externalOutputMode = externalOutputMode
+    this.rasterViewportRequested = config.rasterViewport ?? process.env.OPENTUI_RASTER_VIEWPORT === "1"
 
     this.width = initialGeometry.renderWidth
     this.height = initialGeometry.renderHeight
@@ -1855,6 +1861,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
     const code = protocol === "kitty" ? 1 : protocol === "sixel" ? 2 : 3
     if (!this.lib.setTerminalGraphicsOverride(this.rendererPtr, code)) return false
     this._capabilities = this.lib.getTerminalCapabilities(this.rendererPtr)
+    this.updateRasterViewportGeometry()
     this.forceFullRepaintRequested = true
     this.requestRender()
     this.emit(CliRenderEvents.CAPABILITIES, this._capabilities)
@@ -3260,6 +3267,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       this.resolveXtVersionWaiters()
     }
     if (hasStandardCapabilitySignature) {
+      this.updateRasterViewportGeometry()
       this.forceFullRepaintRequested = true
       this.requestRender()
     }
@@ -3406,6 +3414,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
         const resolution = parsePixelResolution(sequence)
         if (resolution) {
           this._resolution = resolution
+          this.updateRasterViewportGeometry()
         }
         this.waitingForPixelResolution = false
         this.updateStdinParserProtocolContext(
@@ -3418,6 +3427,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
         const cellSize = parseCellPixelSize(sequence)
         if (cellSize) {
           this._cellSize = cellSize
+          this.updateRasterViewportGeometry()
         }
         this.waitingForCellPixelSize = false
         this.updateStdinParserProtocolContext(
@@ -3761,6 +3771,40 @@ export class CliRenderer extends EventEmitter implements RenderContext {
     this.waitingForCellPixelSize = true
     this.updateStdinParserProtocolContext({ pixelResolutionQueryActive: true })
     this.lib.queryPixelResolution(this.rendererPtr)
+  }
+
+  private updateRasterViewportGeometry(): void {
+    const graphics = this._capabilities?.kitty_graphics || this._capabilities?.sixel
+    const geometryMatches =
+      this._resolution !== null &&
+      this._cellSize !== null &&
+      this._resolution.width > 0 &&
+      this._resolution.height > 0 &&
+      this._cellSize.width > 0 &&
+      this._cellSize.height > 0 &&
+      this._resolution.width === this.width * this._cellSize.width &&
+      this._resolution.height === this.height * this._cellSize.height
+    const eligible =
+      this.rasterViewportRequested &&
+      this._screenMode === "alternate-screen" &&
+      this._externalOutputMode === "passthrough" &&
+      graphics === true &&
+      geometryMatches
+
+    const enabled = this.lib.setRasterViewportGeometry(
+      this.rendererPtr,
+      eligible,
+      eligible ? this._cellSize!.width : 0,
+      eligible ? this._cellSize!.height : 0,
+    )
+    if (!enabled && eligible) {
+      console.warn("bug: native raster viewport rejected confirmed terminal geometry")
+      return
+    }
+    if (enabled) {
+      this.forceFullRepaintRequested = true
+      this.requestRender()
+    }
   }
 
   private processResize(width: number, height: number): void {

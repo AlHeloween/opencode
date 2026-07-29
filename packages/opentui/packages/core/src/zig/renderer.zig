@@ -7,6 +7,7 @@ const sixel = @import("sixel.zig");
 const gp = @import("grapheme.zig");
 const link = @import("link.zig");
 const split_scrollback = @import("split-scrollback.zig");
+const RasterViewport = @import("raster_viewport.zig").RasterViewport;
 const Terminal = @import("terminal.zig");
 const logger = @import("logger.zig");
 const NativeSpanFeed = @import("native-span-feed.zig");
@@ -142,6 +143,12 @@ pub const CliRenderer = struct {
     useAlternateScreen: bool = true,
     terminalSetup: bool = false,
     clearOnShutdown: bool = true,
+    rasterViewport: ?RasterViewport = null,
+    rasterCellWidth: u32 = 0,
+    rasterCellHeight: u32 = 0,
+    rasterViewportVisible: bool = false,
+    rasterViewportCellWidth: u32 = 0,
+    rasterViewportCellHeight: u32 = 0,
 
     splitScrollback: split_scrollback.SplitScrollback = .{},
     // Batch state for split-footer commit flushing. A single JS render tick can
@@ -395,6 +402,7 @@ pub const CliRenderer = struct {
 
         self.currentPixelBuffer.deinit();
         self.nextPixelBuffer.deinit();
+        if (self.rasterViewport) |*viewport| viewport.deinit();
 
         // Free stat sample arrays
         self.statSamples.lastFrameTime.deinit(self.allocator);
@@ -793,6 +801,8 @@ pub const CliRenderer = struct {
         self.lastRenderTime = now;
         self.renderDebugOverlay();
 
+        if (self.rasterViewport != null) return self.renderRasterViewport(deltaTime);
+
         // `inline else` monomorphizes the writer type per variant — one
         // dispatch site, zero vtable cost.
         var write_status: output.WriteStatus = .ok;
@@ -803,8 +813,10 @@ pub const CliRenderer = struct {
                 // Native graphics are a retained renderer layer, not a post-frame
                 // terminal write. Keep clear, text repaint, Sixel/Kitty emission,
                 // and cursor restoration inside one synchronized output frame.
-                const recompose_graphics = force or self.pixelSceneChanged();
+                const clear_raster_viewport = self.rasterViewportVisible;
+                const recompose_graphics = force or self.pixelSceneChanged() or clear_raster_viewport;
                 if (recompose_graphics) beginRenderFrame(&w);
+                if (clear_raster_viewport) _ = self.clearRasterViewport(&w);
                 if (recompose_graphics) _ = self.clearPixelScene(&w);
                 var frame_started = self.prepareRenderFrameWithWriter(
                     &w,
@@ -836,6 +848,90 @@ pub const CliRenderer = struct {
 
         self.collectFrameStats(deltaTime);
         return status;
+    }
+
+    fn renderRasterViewport(self: *CliRenderer, delta_time: f64) RenderStatus {
+        const viewport = &(self.rasterViewport orelse return .failed);
+        const use_kitty = self.terminal.caps.kitty_graphics;
+        const use_sixel = !use_kitty and self.terminal.caps.sixel;
+        if (!use_kitty and !use_sixel) return .failed;
+
+        var rasterized = false;
+        var write_status: output.WriteStatus = .ok;
+        switch (self.backend) {
+            inline else => |*b| {
+                b.beginFrame();
+                var w = b.writer();
+                beginRenderFrame(&w);
+                _ = self.clearPixelScene(&w);
+                _ = self.clearRasterViewport(&w);
+                const pixels = viewport.render(self.nextRenderBuffer, self.nextPixelBuffer, self.rasterCellWidth, self.rasterCellHeight, self.backgroundColor) catch |err| blk: {
+                    logger.warn("bug: raster viewport composition failed: {}", .{err});
+                    break :blk null;
+                };
+                if (pixels) |data| {
+                    if (use_kitty) {
+                        kitty.IMAGE.create(&w, COMPOSITED_NATIVE_IMAGE_ID, 0, self.renderOffset, viewport.width, viewport.height, data, self.width, self.height, self.allocator);
+                    } else {
+                        sixel.IMAGE.create(&w, COMPOSITED_NATIVE_IMAGE_ID, 0, self.renderOffset, viewport.width, viewport.height, data, self.width, self.height, self.allocator);
+                    }
+                    self.rasterViewportVisible = true;
+                    self.rasterViewportCellWidth = self.width;
+                    self.rasterViewportCellHeight = self.height;
+                    self.commitRasterFrame();
+                    rasterized = true;
+                } else {
+                    self.nextPixelBuffer.clear();
+                    self.force_full_repaint = true;
+                }
+                self.lastCursorVisible = false;
+                w.writeAll(ansi.ANSI.syncReset) catch {};
+                write_status = b.endFrame();
+            },
+        }
+
+        if (!rasterized) return .failed;
+        const status = renderStatusFromWrite(write_status);
+        if (status == .failed) return self.finishFailedFrame();
+        self.collectFrameStats(delta_time);
+        return status;
+    }
+
+    fn clearRasterViewport(self: *CliRenderer, writer: anytype) bool {
+        if (!self.rasterViewportVisible) return false;
+        const use_kitty = self.terminal.caps.kitty_graphics;
+        const use_sixel = !use_kitty and self.terminal.caps.sixel;
+        if (use_kitty) {
+            kitty.IMAGE.delete(writer, COMPOSITED_NATIVE_IMAGE_ID);
+        } else if (use_sixel) {
+            sixel.IMAGE.delete(writer, 0, self.renderOffset, self.rasterViewportCellWidth, self.rasterViewportCellHeight);
+        }
+        self.rasterViewportVisible = false;
+        self.rasterViewportCellWidth = 0;
+        self.rasterViewportCellHeight = 0;
+        return use_kitty or use_sixel;
+    }
+
+    fn commitRasterFrame(self: *CliRenderer) void {
+        var cells_updated: u32 = 0;
+        for (0..self.height) |y| {
+            for (0..self.width) |x| {
+                const next_cell = self.nextRenderBuffer.get(@intCast(x), @intCast(y)) orelse continue;
+                self.currentRenderBuffer.syncCell(@intCast(x), @intCast(y), next_cell);
+                cells_updated += 1;
+            }
+        }
+        self.currentPixelBuffer.clear();
+        self.nextPixelBuffer.clear();
+        self.nextRenderBuffer.clear(self.backgroundColor, null);
+        self.renderStats.cellsUpdated = cells_updated;
+        self.last_rendered_palette_epoch = self.palette_epoch;
+        self.force_full_repaint = false;
+        self.hitGridDirty = self.hitGridResizeInvalidated or !std.mem.eql(u32, self.currentHitGrid, self.nextHitGrid);
+        const hit_grid = self.currentHitGrid;
+        self.currentHitGrid = self.nextHitGrid;
+        self.nextHitGrid = hit_grid;
+        @memset(self.nextHitGrid, 0);
     }
 
     fn splitOutputOffset(self: *const CliRenderer, surface_offset: u32) u32 {
@@ -2085,6 +2181,21 @@ pub const CliRenderer = struct {
 
     pub fn setTerminalGraphicsOverride(self: *CliRenderer, override: Terminal.GraphicsOverride) bool {
         return self.terminal.setGraphicsOverride(override);
+    }
+
+    pub fn setRasterViewportGeometry(self: *CliRenderer, enabled: bool, cell_width: u32, cell_height: u32) bool {
+        if (!enabled) {
+            if (self.rasterViewport) |*viewport| viewport.deinit();
+            self.rasterViewport = null;
+            self.rasterCellWidth = 0;
+            self.rasterCellHeight = 0;
+            return true;
+        }
+        if (!self.useAlternateScreen or cell_width == 0 or cell_height == 0) return false;
+        if (self.rasterViewport == null) self.rasterViewport = RasterViewport.init(self.allocator) catch return false;
+        self.rasterCellWidth = cell_width;
+        self.rasterCellHeight = cell_height;
+        return true;
     }
 
     pub fn processCapabilityResponse(self: *CliRenderer, response: []const u8) void {

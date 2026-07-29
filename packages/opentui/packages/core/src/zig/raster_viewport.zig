@@ -49,7 +49,7 @@ pub const RasterViewport = struct {
             for (0..cells.width) |x| {
                 const cell = cells.get(@intCast(x), @intCast(y)) orelse continue;
                 self.fillRect(@intCast(x * cell_width), @intCast(y * cell_height), cell_width, cell_height, cell.bg);
-                if (gp.isContinuationChar(cell.char) or cell.char == gp.DEFAULT_SPACE_CHAR) continue;
+                if (gp.isContinuationChar(cell.char) or cell.char == buf.DEFAULT_SPACE_CHAR) continue;
                 if (gp.isGraphemeChar(cell.char)) continue;
                 _ = try self.font.withGlyph(cell.char, .{
                     .viewport = self,

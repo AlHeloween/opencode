@@ -52,7 +52,7 @@ pub const FontRasterizer = struct {
         const width: usize = @intCast(bitmap.width);
         const height: usize = @intCast(bitmap.rows);
         const stride: usize = @intCast(pitch);
-        const data = bitmap.buffer.?[0 .. stride * height];
+        const data = bitmap.buffer[0 .. stride * height];
         paint(context, .{
             .data = data,
             .width = width,

@@ -319,6 +319,10 @@ function getOpenTUILib(libPath?: string) {
       args: ["u32", "u8"],
       returns: "bool",
     },
+    setRasterViewportGeometry: {
+      args: ["u32", "bool", "u32", "u32"],
+      returns: "bool",
+    },
     destroyRenderer: {
       args: ["u32"],
       returns: "void",
@@ -2018,6 +2022,7 @@ export interface RenderLib extends AudioEngineLib {
   createRenderer: (width: number, height: number, options?: NativeRendererCreateOptions) => RendererHandle | null
   setTerminalEnvVar: (renderer: RendererHandle, key: string, value: string) => boolean
   setTerminalGraphicsOverride: (renderer: RendererHandle, protocol: number) => boolean
+  setRasterViewportGeometry: (renderer: RendererHandle, enabled: boolean, cellWidth: number, cellHeight: number) => boolean
   destroyRenderer: (renderer: RendererHandle) => void
   setUseThread: (renderer: RendererHandle, useThread: boolean) => void
   setClearOnShutdown: (renderer: RendererHandle, clear: boolean) => void
@@ -2864,6 +2869,10 @@ class FFIRenderLib implements RenderLib {
 
   public setTerminalGraphicsOverride(renderer: Pointer, protocol: number): boolean {
     return this.opentui.symbols.setTerminalGraphicsOverride(renderer, protocol)
+  }
+
+  public setRasterViewportGeometry(renderer: Pointer, enabled: boolean, cellWidth: number, cellHeight: number): boolean {
+    return this.opentui.symbols.setRasterViewportGeometry(renderer, ffiBool(enabled), cellWidth, cellHeight)
   }
 
   public destroyRenderer(renderer: Pointer): void {

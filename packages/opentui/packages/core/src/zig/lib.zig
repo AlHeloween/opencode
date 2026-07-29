@@ -638,6 +638,11 @@ export fn setTerminalGraphicsOverride(renderer_handle: NativeHandle, override_va
     return object_ptr.setTerminalGraphicsOverride(override);
 }
 
+export fn setRasterViewportGeometry(renderer_handle: NativeHandle, enabled: bool, cell_width: u32, cell_height: u32) bool {
+    const object_ptr = acquireRenderer(renderer_handle) orelse return false;
+    return object_ptr.setRasterViewportGeometry(enabled, cell_width, cell_height);
+}
+
 export fn setUseThread(renderer_handle: NativeHandle, useThread: bool) void {
     const object_ptr = acquireRenderer(renderer_handle) orelse return;
     object_ptr.setUseThread(useThread);

@@ -8,10 +8,10 @@ Sixel planes can remain at obsolete terminal coordinates. The result is image
 overlap and a non-graphical TUI.
 
 Make native graphics a retained scene component: every scroll/reflow composes
-the visible text cells and visible image planes as one terminal frame. Sixel
-scrolling is enabled by default (DECSDM reset); Windows Terminal supports this
-mode. The TUI must therefore preserve normal terminal semantics rather than
-pinning independent image patches.
+all visible image patches into one RGBA viewport canvas, emits exactly one
+native graphics object, and restores the active input cursor in the same output
+frame as the forced text repaint. The renderer must never issue one Sixel DCS
+per diagram.
 
 ## Prior art
 
@@ -29,23 +29,23 @@ pinning independent image patches.
 
 ## Implementation
 
-- [x] Add a native-graphics scene invalidation path: any pixel-plane geometry
-  change, removal, or scroll/reflow forces one complete text-plus-graphics
-  native frame rather than independent patch persistence.
+- [ ] Replace the per-patch native emission loop with one composited viewport
+  canvas. Preserve transparent gaps so ANSI text between diagrams remains
+  visible; use one Sixel DCS or Kitty image per invalidated frame.
+- [ ] Keep raw patches only as retained scene inputs and derive one previous
+  canvas footprint for clearing. Do not retain multiple terminal-native planes.
 - [x] Make `ImageRenderable` reject fully off-screen frames and clip partial
   frames; never clamp a negative image coordinate to row 1.
-- [x] In the Sixel backend, clear stale plane regions before re-emitting the
-  complete visible graphics scene, in the same synchronized frame as the text
-  repaint; restore the active input cursor afterward.
+- [ ] Clear the previous unified canvas, repaint text, emit the next unified
+  canvas, then restore the input cursor as one renderer transaction.
 - [x] Replace Mermaid's PNG data-URL/Jimp decode handoff with direct Resvg RGBA
   frame delivery to `ImageRenderable`; add per-stage timing logs for Mermaid
   layout, rasterization, and frame preparation. Native Sixel encoding/write
   telemetry remains a renderer follow-up.
 - [ ] Add native Sixel encode/write timing to the renderer diagnostics.
-- [x] Add unit/native-protocol tests for scroll/reflow, off-screen culling,
-  stale-plane clearing, and cursor restoration; build and capture a direct
-  Windows Terminal screenshot after a native plane move. Full transcript-scroll
-  exercise remains part of normal end-to-end TUI testing.
+- [ ] Add unit/native-protocol tests proving two images produce one native
+  canvas/DCS, transparent text gaps survive, scrolling replaces one canvas,
+  and cursor restoration remains correct.
 
 ## Smoke Tests
 
@@ -57,19 +57,26 @@ pinning independent image patches.
 | 2 | `bun test src/tests/renderer.image-protocol.test.ts` (`packages/opentui/packages/core`) | existing graphics capability test passes | 2 pass, 0 fail, 8 expects |
 | 3 | direct WT test (`dist/bin/opencode.exe`) | reproduce Mermaid scroll/reflow without stale planes | pending |
 
+### Unified-canvas baseline [Exact]
+
+- `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
+  (`packages/opentui/packages/core`): 4 tests, 0 failures, 10 assertions.
+- `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts`
+  (`packages/opencode`): 25 tests, 0 failures, 61 assertions.
+
 ### Post-implementation oracles
 
 | # | Command (cwd) | Pass criteria |
 |---|---------------|---------------|
-| 1 | targeted OpenTUI Zig/TS image tests (`packages/opentui`) | full scene replacement clears stale Sixel output and restores input cursor |
+| 1 | targeted OpenTUI Zig/TS image tests (`packages/opentui`) | two diagrams compose into one Sixel canvas; text gaps and cursor survive |
 | 2 | `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts` (`packages/opencode`) | direct RGBA pipeline preserves sizing and Mermaid rendering |
 | 3 | `bun typecheck` (`packages/opencode`) | typecheck passes |
 | 4 | `pwsh -File .\\_build.ps1` (repo root) then cmd_runner direct WT screenshot | visible text and diagrams move together through scroll; no overlap |
 
 ### Current validation [Exact]
 
-- `bun run build:native:dev` (`packages/opentui/packages/core`) passes with the
-  new Zig compositor.
+- `bun run build:native:dev` (`packages/opentui/packages/core`) passed before
+  the unified-canvas architecture correction; rerun is required afterward.
 - `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
   (`packages/opentui/packages/core`) passes: 4 tests, 0 failures, 10 assertions.
 - `bun typecheck` and `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts`
@@ -83,7 +90,8 @@ pinning independent image patches.
 - Full product build completed with binary smoke test `10.0.685`. The legacy
   runner recorded exit `-1` after that successful output; the current runner's
   direct Windows Terminal capture is the authoritative graphics oracle.
-- Direct Windows Terminal scene-recomposition capture:
+- Direct Windows Terminal per-plane scene-recomposition capture (superseded by
+  unified-canvas acceptance):
   `logs/cmd_runner/20260729T050306Z_bf5a5335/scene-recompose.png`. The image
   moved from row 3 to row 20 and no old Sixel plane remained.
 
@@ -91,5 +99,6 @@ pinning independent image patches.
 
 - [x] Smoke requirements written
 - [x] Baseline recorded [Exact]
-- [x] Implementation only after baseline
-- [x] Post-impl smoke passed before completion
+- [x] Baseline for the original per-plane implementation recorded
+- [x] Unified-canvas implementation only after its baseline
+- [ ] Unified-canvas post-implementation smoke passed before completion

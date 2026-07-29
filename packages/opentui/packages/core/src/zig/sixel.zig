@@ -7,6 +7,7 @@ const ansi = @import("ansi.zig");
 const Allocator = std.mem.Allocator;
 
 const MAX_PALETTE: usize = 256;
+const TRANSPARENT: u16 = std.math.maxInt(u16);
 
 fn colorDistance(color: [3]u8, r: u8, g: u8, b: u8) u32 {
     const dr = @as(i32, color[0]) - @as(i32, r);
@@ -141,15 +142,14 @@ pub fn encode(rgba: []const u8, width: u32, height: u32, allocator: Allocator) !
         while (px < width) : (px += 1) {
             const pidx = @as(usize, py) * @as(usize, width) + @as(usize, px);
             if (py >= height) {
-                indices[pidx] = 0;
-                if (palette_len == 0) {
-                    palette[0] = .{ 0, 0, 0 };
-                    palette_len = 1;
-                    try key_to_idx.put(0, 0);
-                }
+                indices[pidx] = TRANSPARENT;
                 continue;
             }
             const si = (@as(usize, py) * @as(usize, width) + @as(usize, px)) * 4;
+            if (rgba[si + 3] == 0) {
+                indices[pidx] = TRANSPARENT;
+                continue;
+            }
             const r = rgba[si];
             const g = rgba[si + 1];
             const b = rgba[si + 2];
@@ -214,7 +214,7 @@ pub fn encode(rgba: []const u8, width: u32, height: u32, allocator: Allocator) !
                 if (y >= height) continue;
                 const pidx = @as(usize, y) * @as(usize, width) + @as(usize, x);
                 const color_idx = indices[pidx];
-                if (color_idx >= palette_len) continue;
+                if (color_idx == TRANSPARENT or color_idx >= palette_len) continue;
 
                 const gop = try color_bands.getOrPut(color_idx);
                 if (!gop.found_existing) {
@@ -265,4 +265,14 @@ test "sixel overflow chooses the nearest emitted palette color" {
 test "sixel encode empty rejects" {
     const allocator = std.testing.allocator;
     try std.testing.expectError(error.InvalidImage, encode(&[_]u8{}, 0, 0, allocator));
+}
+
+test "sixel encode transparent pixels leaves the terminal background untouched" {
+    const allocator = std.testing.allocator;
+    const pixels = [_]u8{0} ** 16;
+    const encoded = try encode(&pixels, 2, 2, allocator);
+    defer allocator.free(encoded);
+
+    try std.testing.expect(std.mem.startsWith(u8, encoded, "\x1bP0;1;0q"));
+    try std.testing.expect(std.mem.indexOf(u8, encoded, "#0;2;") == null);
 }

@@ -38,6 +38,22 @@ pub const RenderResult = struct {
 const CLEAR_CHAR = '\u{0a00}';
 const MAX_STAT_SAMPLES = 30;
 const STAT_SAMPLE_CAPACITY = 30;
+const COMPOSITED_NATIVE_IMAGE_ID = 1;
+
+const CompositedPixelScene = struct {
+    x: u32,
+    y: u32,
+    cell_w: u32,
+    cell_h: u32,
+    width: u32,
+    height: u32,
+    data: []u8,
+    has_pixels: bool,
+
+    fn deinit(self: CompositedPixelScene, allocator: Allocator) void {
+        allocator.free(self.data);
+    }
+};
 
 pub const RendererError = error{
     OutOfMemory,
@@ -1362,23 +1378,73 @@ pub const CliRenderer = struct {
         return false;
     }
 
+    fn composePixelScene(self: *const CliRenderer, pixels: *const PixelBuffer) ?CompositedPixelScene {
+        const patches = pixels.patches.items;
+        if (patches.len == 0) return null;
+
+        var left = patches[0].x;
+        var top = patches[0].y;
+        var right = patches[0].x + patches[0].cell_w;
+        var bottom = patches[0].y + patches[0].cell_h;
+        const pixel_per_cell_w = @max(1, (patches[0].width + patches[0].cell_w - 1) / patches[0].cell_w);
+        const pixel_per_cell_h = @max(1, (patches[0].height + patches[0].cell_h - 1) / patches[0].cell_h);
+        for (patches[1..]) |patch| {
+            left = @min(left, patch.x);
+            top = @min(top, patch.y);
+            right = @max(right, patch.x + patch.cell_w);
+            bottom = @max(bottom, patch.y + patch.cell_h);
+        }
+        const cell_w = right - left;
+        const cell_h = bottom - top;
+        const width = cell_w * pixel_per_cell_w;
+        const height = cell_h * pixel_per_cell_h;
+        const data = self.allocator.alloc(u8, @as(usize, width) * @as(usize, height) * 4) catch return null;
+        @memset(data, 0);
+        var has_pixels = false;
+
+        for (patches) |patch| {
+            const dest_x = (patch.x - left) * pixel_per_cell_w;
+            const dest_y = (patch.y - top) * pixel_per_cell_h;
+            const dest_w = patch.cell_w * pixel_per_cell_w;
+            const dest_h = patch.cell_h * pixel_per_cell_h;
+            var y: u32 = 0;
+            while (y < dest_h) : (y += 1) {
+                const source_y = @min(patch.height - 1, (y * patch.height) / dest_h);
+                var x: u32 = 0;
+                while (x < dest_w) : (x += 1) {
+                    const source_x = @min(patch.width - 1, (x * patch.width) / dest_w);
+                    const source_index = (@as(usize, source_y) * patch.width + source_x) * 4;
+                    const alpha = patch.data[source_index + 3];
+                    if (alpha == 0) continue;
+                    const dest_index = (@as(usize, dest_y + y) * width + dest_x + x) * 4;
+                    const inverse_alpha = 255 - @as(u32, alpha);
+                    const dest_alpha = @as(u32, data[dest_index + 3]);
+                    data[dest_index] = @intCast((@as(u32, patch.data[source_index]) * alpha + @as(u32, data[dest_index]) * inverse_alpha) / 255);
+                    data[dest_index + 1] = @intCast((@as(u32, patch.data[source_index + 1]) * alpha + @as(u32, data[dest_index + 1]) * inverse_alpha) / 255);
+                    data[dest_index + 2] = @intCast((@as(u32, patch.data[source_index + 2]) * alpha + @as(u32, data[dest_index + 2]) * inverse_alpha) / 255);
+                    data[dest_index + 3] = @intCast(alpha + (dest_alpha * inverse_alpha) / 255);
+                    has_pixels = true;
+                }
+            }
+        }
+
+        return .{ .x = left, .y = top, .cell_w = cell_w, .cell_h = cell_h, .width = width, .height = height, .data = data, .has_pixels = has_pixels };
+    }
+
     fn clearPixelScene(self: *CliRenderer, writer: anytype) bool {
         const use_kitty = self.terminal.caps.kitty_graphics;
         const use_sixel = !use_kitty and self.terminal.caps.sixel;
         if (!use_kitty and !use_sixel) return false;
 
-        var emitted = false;
-        while (self.currentPixelBuffer.patches.items.len > 0) {
-            const patch = self.currentPixelBuffer.patches.items[self.currentPixelBuffer.patches.items.len - 1];
-            if (use_kitty) {
-                kitty.IMAGE.delete(writer, patch.id);
-            } else {
-                sixel.IMAGE.delete(writer, patch.x, patch.y + self.renderOffset, patch.cell_w, patch.cell_h);
-            }
-            self.currentPixelBuffer.removePatch(patch);
-            emitted = true;
+        const scene = self.composePixelScene(self.currentPixelBuffer) orelse return false;
+        defer scene.deinit(self.allocator);
+        if (use_kitty) {
+            kitty.IMAGE.delete(writer, COMPOSITED_NATIVE_IMAGE_ID);
+        } else {
+            sixel.IMAGE.delete(writer, scene.x, scene.y + self.renderOffset, scene.cell_w, scene.cell_h);
         }
-        return emitted;
+        self.currentPixelBuffer.clear();
+        return true;
     }
 
     fn emitPixelScene(self: *CliRenderer, writer: anytype) bool {
@@ -1392,45 +1458,17 @@ pub const CliRenderer = struct {
             return false;
         }
 
-        var emitted = false;
+        const scene = self.composePixelScene(self.nextPixelBuffer) orelse return false;
+        defer scene.deinit(self.allocator);
+        for (self.nextPixelBuffer.patches.items) |patch| self.currentPixelBuffer.adoptCopy(patch);
+        if (!scene.has_pixels) return false;
 
-        // The caller cleared the previous visible scene before the text frame.
-        // Recreate every currently visible plane afterwards so text and pixels
-        // share one coherent scroll/reflow result.
-        for (self.nextPixelBuffer.patches.items) |patch| {
-            if (use_kitty) {
-                kitty.IMAGE.create(
-                    writer,
-                    patch.id,
-                    patch.x,
-                    patch.y + self.renderOffset,
-                    patch.width,
-                    patch.height,
-                    patch.data,
-                    patch.cell_w,
-                    patch.cell_h,
-                    self.allocator,
-                );
-            } else {
-                sixel.IMAGE.create(
-                    writer,
-                    patch.id,
-                    patch.x,
-                    patch.y + self.renderOffset,
-                    patch.width,
-                    patch.height,
-                    patch.data,
-                    patch.cell_w,
-                    patch.cell_h,
-                    self.allocator,
-                );
-            }
-            emitted = true;
-            // Copy into current so next.clear() can free its own buffers safely.
-            self.currentPixelBuffer.adoptCopy(patch);
+        if (use_kitty) {
+            kitty.IMAGE.create(writer, COMPOSITED_NATIVE_IMAGE_ID, scene.x, scene.y + self.renderOffset, scene.width, scene.height, scene.data, scene.cell_w, scene.cell_h, self.allocator);
+        } else {
+            sixel.IMAGE.create(writer, COMPOSITED_NATIVE_IMAGE_ID, scene.x, scene.y + self.renderOffset, scene.width, scene.height, scene.data, scene.cell_w, scene.cell_h, self.allocator);
         }
-
-        return emitted;
+        return true;
     }
 
     /// Native graphics move the physical terminal cursor after the text frame

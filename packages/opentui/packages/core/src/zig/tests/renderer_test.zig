@@ -157,6 +157,27 @@ test "renderer - recomposes the sixel scene before repainting a moved image" {
     try std.testing.expect(std.mem.endsWith(u8, output, "\x1b[?25l\x1b[4;3H\x1b[?25h"));
 }
 
+test "renderer - emits multiple visible images as one sixel canvas" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 12, 4, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.sixel = true;
+
+    const red = [_]u8{ 255, 0, 0, 255 } ** 4;
+    const blue = [_]u8{ 0, 0, 255, 255 } ** 4;
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &red, 2, 1);
+    cli_renderer.nextPixelBuffer.drawImage(4, 1, 2, 2, &blue, 2, 1);
+    _ = cli_renderer.render(true);
+
+    const output = test_renderer.lastOutput();
+    try std.testing.expectEqual(@as(usize, 1), std.mem.count(u8, output, "\x1bP0;1;0q"));
+}
+
 test "renderer - clipboard allocates one exact encoded sequence" {
     const pool = gp.initGlobalPool(std.testing.allocator);
     defer gp.deinitGlobalPool();

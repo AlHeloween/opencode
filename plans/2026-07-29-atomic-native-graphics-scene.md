@@ -2,8 +2,9 @@
 
 ## Context / goal
 
-Native Sixel images are currently emitted as independent incremental pixel
-patches. During a transcript scroll/reflow the text scene changes while old
+Before the unified-scene change, native Sixel images were emitted as independent
+incremental pixel patches. During a transcript scroll/reflow the text scene
+changed while old
 Sixel planes can remain at obsolete terminal coordinates. The result is image
 overlap and a non-graphical TUI.
 
@@ -16,10 +17,11 @@ per diagram.
 
 ## Prior art
 
-- Local: `ImageRenderable.renderPixels()` currently clamps a negative image
-  position to row 1; `ScrollBoxRenderable` changes `content.translateY`.
-- Local: `CliRenderer.render()` writes text first and only then emits native
-  pixel patches, so the composition boundary is already centralized in
+- Historical local baseline: `ImageRenderable.renderPixels()` clamped a
+  negative image position to row 1; `ScrollBoxRenderable` changes
+  `content.translateY`.
+- Historical local baseline: `CliRenderer.render()` wrote text first and only
+  then emitted native pixel patches. The composition boundary is centralized in
   `packages/opentui/packages/core/src/zig/renderer.zig`.
 - External: DECSDM controls scrolling versus fixed-position Sixel graphics;
   Windows Terminal implements the scrolling mode. See
@@ -51,6 +53,18 @@ per diagram.
   oracle that proves text survives between images and the replacement frame
   still emits exactly one DCS.
 
+### Codebase adoption
+
+- [x] Remove the unused `<image-plane>` / Three.js registration and its tests.
+- [x] Remove `FrameSyncWriter` lifecycle wiring; native graphics must have no
+  post-`FRAME` terminal-write path.
+- [x] Keep direct Sixel/Kitty writers isolated to experiments; production TUI
+  code must not import them. Retain PNG only as the symbols fallback input.
+- [x] Move the obsolete production Three.js dependency to dev-only support for
+  isolated experiments, and remove its dedicated image-plane test suite.
+- [x] Update comments and focused tests so `MediaImage` is documented as the
+  single scrollable graphics component.
+
 ## Smoke Tests
 
 ### Baseline
@@ -67,6 +81,29 @@ per diagram.
   (`packages/opentui/packages/core`): 4 tests, 0 failures, 10 assertions.
 - `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts`
   (`packages/opencode`): 25 tests, 0 failures, 61 assertions.
+
+### Codebase-adoption baseline [Exact]
+
+- `packages/opencode/src` has no `<image-plane>` consumer; registration in
+  `app.tsx` and its dedicated tests were the production image-plane path.
+- `FrameSyncWriter` is initialized and destroyed in `app.tsx`, but no caller
+  schedules a write through it.
+- Direct terminal encoders remain live in tracked experiments and must not be
+  deleted in this slice. `MediaImage` uses RGBA for native graphics and PNG
+  only for its symbols fallback.
+
+### Codebase-adoption validation [Exact]
+
+- `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts`
+  (`packages/opencode`): 25 tests, 0 failures, 61 assertions.
+- `bun typecheck` (`packages/opencode`): passed.
+- `bun run script/build.ts --single` (`packages/opencode`): Windows x64 binary
+  smoke passed: `10.0.690`. The unscoped cross-platform build was not used as
+  its installed Bun canary cannot download `bun-linux-aarch64-v1.4.0`.
+- Production-source search has no `FrameSyncWriter`, `TexturePlaneRenderable`,
+  `<image-plane>`, or `@opentui/three` import. `@opentui/three` remains only
+  as a dev dependency for isolated experiments; model-output policy text is not
+  executable TUI code.
 
 ### Post-implementation oracles
 

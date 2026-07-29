@@ -12,7 +12,7 @@ function isGraphicsProtocol(value: string): value is GraphicsProtocol {
 // ---------------------------------------------------------------------------
 // Detect the best terminal graphics protocol available in this terminal.
 // Accepts an optional explicit override (e.g. from tui.json image_protocol).
-// Returns the protocol name to pass to renderImageToTerminal().
+// Returns the protocol used to configure OpenTUI's native ImageRenderable.
 // No silent fallback — every branch is logged.
 // ---------------------------------------------------------------------------
 

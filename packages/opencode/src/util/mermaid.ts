@@ -1,20 +1,19 @@
 /**
- * Mermaid diagram rendering — SVG via WASM, then PNG for 3D display.
+ * Mermaid diagram rendering — SVG via WASM, then RGBA for native TUI display.
  *
- * Pipeline: Mermaid source → mermaid-wasm-renderer (SVG) → resvg-js (PNG)
- * The PNG data URL is passed to <image-plane> in the TUI.
+ * Pipeline: Mermaid source → mermaid-wasm-renderer (SVG) → resvg-js (RGBA).
+ * PNG is produced only when MediaImage needs its symbol-renderer fallback.
  *
  * WASM is loaded lazily on first render — no synchronous 2.8MB read at import time.
  * Timeout guards against pathological diagrams that hang the Rust engine.
  *
- * Image rendering handled by render-image-to-terminal (kitty/sixel/symbols).
+ * Native terminal graphics are emitted by OpenTUI's synchronized Zig renderer.
  */
 import { Resvg } from "@resvg/resvg-js"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
 import { fitContainSize, parseSvgNaturalSize } from "./fit-image"
 import { getMermaidWasmRenderer, resetMermaidWasmRenderer, type MermaidWasmRenderer } from "./mermaid-wasm"
-import { pixelsToSixel } from "./sixel-render"
 import type { AnsiChunk } from "./image-to-ansi"
 
 const log = Log.create({ service: "mermaid.renderer" })
@@ -224,7 +223,7 @@ export function renderSvgToRgba(
   }
 }
 
-/** Render SVG to PNG data URL — ready for <image-plane> */
+/** Render SVG to PNG data URL for MediaImage's symbols fallback. */
 export function renderSvgToPngDataUrl(
   svg: string,
   background?: string,
@@ -244,36 +243,6 @@ export function renderSvgToPngDataUrl(
     return `data:image/png;base64,${base64}`
   } catch (error) {
     log.warn("bug: mermaid PNG render failed", {
-      error: String(error),
-    })
-    return null
-  }
-}
-
-/**
- * Render SVG directly to Sixel escape sequence.
- * Bypasses PNG entirely: SVG → resvg (RGBA pixels) → 5-6-5 quantize → Sixel.
- * Same quality as the Python cube demo — zero PNG artifacts.
- */
-export function renderSvgToSixel(svg: string, maxCols: number = 60, background?: string): string | null {
-  try {
-    const bg = background ?? "#ffffff"
-    const resvg = new Resvg(
-      svg,
-      resvgOptionsForSvg(svg, bg, {
-        maxWidth: maxCols * FALLBACK_CELL_W,
-      }),
-    )
-    const rendered = resvg.render()
-    const pixels: Uint8Array = rendered.pixels
-    const width = rendered.width
-    const height = rendered.height
-
-    if (!pixels || width === 0 || height === 0) return null
-
-    return pixelsToSixel(pixels, width, height)
-  } catch (error) {
-    log.warn("bug: mermaid SVG→Sixel render failed", {
       error: String(error),
     })
     return null
@@ -409,28 +378,13 @@ export async function renderMermaidToRgba(
   return renderSvgToRgba(svg, options?.background, options?.budget)
 }
 
-/**
- * Render Mermaid source directly to Sixel escape sequence.
- * Full pipeline: source → WASM → SVG → resvg pixels → Sixel.
- * Zero PNG — same quality as the Python cube demo.
- * Returns the escape sequence (ready for writeToTerminal) or null.
- */
-export async function renderMermaidToSixelStream(
-  source: string,
-  options?: MermaidRenderOptions & { maxCols?: number },
-): Promise<string | null> {
-  const svg = await renderMermaidToSvg(source, options)
-  if (!svg) return null
-  return renderSvgToSixel(svg, options?.maxCols ?? 60)
-}
-
 // ── Backward compat: old name → new pipeline ─────────────────────
-/** @deprecated Use renderMermaidToPngDataUrl + <image-plane> */
+/** @deprecated Native TUI rendering uses renderSvgToRgba through MediaImage. */
 export async function renderSvgToText(_svg: string): Promise<string | null> {
   return null
 }
 
-/** @deprecated Use renderMermaidToPngDataUrl + <image-plane> */
+/** @deprecated Native TUI rendering uses renderMermaidToRgba through MediaImage. */
 export async function renderMermaidToText(
   _source: string,
   _options?: MermaidRenderOptions,

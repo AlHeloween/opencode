@@ -1,8 +1,7 @@
-import { render, TimeToFirstDraw, useKeyboard, useRenderer, useTerminalDimensions, extend } from "@opentui/solid"
+import { render, TimeToFirstDraw, useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
 import * as Selection from "@tui/util/selection"
 import { CliRenderEvents, createCliRenderer, MouseButton, type CliRendererConfig } from "@opentui/core"
-import { FrameSyncWriter } from "@/util/frame-writer"
 import { RouteProvider, useRoute } from "@tui/context/route"
 import {
   Switch,
@@ -75,17 +74,6 @@ import type { EventSource } from "./context/sdk"
 import { DialogVariant } from "./component/dialog-variant"
 import { detectGraphicsProtocol } from "@/util/terminal-graphics"
 
-// Lazy registration: <image-plane> loaded on first use (not at module load).
-// Three.js/WebGPU (from @opentui/three) is only for the rare fallback path.
-// Primary images use OpenTUI <image> (PixelBuffer → Kitty/Sixel).
-let _imagePlaneRegistered = false
-async function registerImagePlane(): Promise<void> {
-  if (_imagePlaneRegistered) return
-  _imagePlaneRegistered = true
-  const { TexturePlaneRenderable } = await import("./component/texture-plane-renderable")
-  extend({ "image-plane": TexturePlaneRenderable })
-}
-
 function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
   const mouseEnabled = !Flag.OPENCODE_DISABLE_MOUSE && (_config.mouse ?? true)
 
@@ -144,7 +132,6 @@ export function tui(input: {
     win32DisableProcessedInput()
 
     const onExit = async () => {
-      FrameSyncWriter.destroy()
       unguard?.()
       resolve()
     }
@@ -200,13 +187,9 @@ export function tui(input: {
         cellSize: renderer.cellSize,
       })
     })
-    FrameSyncWriter.init(renderer)
     // Most terminals answer OSC theme queries in <200ms; 400ms is enough headroom
     // without adding a full second of cold-start latency on fast hosts.
     const mode = (await renderer.waitForThemeMode(400)) ?? "dark"
-
-    // Register <image-plane> lazily — Three.js/WebGPU only loads on demand
-    await registerImagePlane()
 
     await render(() => {
       return (

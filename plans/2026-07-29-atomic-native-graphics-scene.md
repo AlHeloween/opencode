@@ -64,6 +64,8 @@ per diagram.
   isolated experiments, and remove its dedicated image-plane test suite.
 - [x] Update comments and focused tests so `MediaImage` is documented as the
   single scrollable graphics component.
+- [x] Defer cursor/mouse finalization until the unified graphics node is emitted,
+  so the one renderer display list is text, native canvas, then cursor tail.
 
 ## Smoke Tests
 
@@ -97,6 +99,10 @@ per diagram.
 - `bun test test/tui/media-image-size.test.ts test/util/mermaid.test.ts`
   (`packages/opencode`): 25 tests, 0 failures, 61 assertions.
 - `bun typecheck` (`packages/opencode`): passed.
+- `bun run build:native:dev` (`packages/opentui/packages/core`): passed after
+  moving final cursor ownership to the renderer tail.
+- `bun test src/tests/image-renderable.test.ts src/tests/renderer.image-protocol.test.ts`
+  (`packages/opentui/packages/core`): 4 tests, 0 failures, 10 assertions.
 - `bun run script/build.ts --single` (`packages/opencode`): Windows x64 binary
   smoke passed: `10.0.690`. The unscoped cross-platform build was not used as
   its installed Bun canary cannot download `bun-linux-aarch64-v1.4.0`.

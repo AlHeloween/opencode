@@ -805,21 +805,25 @@ pub const CliRenderer = struct {
                 // and cursor restoration inside one synchronized output frame.
                 const recompose_graphics = force or self.pixelSceneChanged();
                 if (recompose_graphics) beginRenderFrame(&w);
-                const cleared_graphics = if (recompose_graphics) self.clearPixelScene(&w) else false;
-                const frame_started = self.prepareRenderFrameWithWriter(&w, force or recompose_graphics, recompose_graphics, !recompose_graphics);
-                const emitted_graphics = if (recompose_graphics)
-                    self.emitPixelScene(&w)
-                else blk: {
+                if (recompose_graphics) _ = self.clearPixelScene(&w);
+                var frame_started = self.prepareRenderFrameWithWriter(
+                    &w,
+                    force or recompose_graphics,
+                    recompose_graphics,
+                    !recompose_graphics,
+                    !recompose_graphics,
+                );
+                if (recompose_graphics) {
+                    _ = self.emitPixelScene(&w);
+                } else {
                     // No native output is necessary, but the JavaScript scene
                     // builder allocated this frame's RGBA patches.
                     self.nextPixelBuffer.clear();
-                    break :blk false;
-                };
-                if (cleared_graphics or emitted_graphics) {
-                    self.restoreCursorAfterPixelRender(&w);
                 }
-                if (recompose_graphics and frame_started) {
-                    w.writeAll(ansi.ANSI.syncReset) catch {};
+                if (recompose_graphics) {
+                    // The graphics node belongs to the same display list as text.
+                    // Finalize cursor state only after both have emitted.
+                    self.finishRenderFrameWithWriter(&w, &frame_started, true);
                 }
                 write_status = b.endFrame();
             },
@@ -1009,7 +1013,7 @@ pub const CliRenderer = struct {
                     );
 
                     if (finalize_frame) {
-                        _ = self.prepareRenderFrameWithWriter(&w, redraw_footer, true, true);
+                        _ = self.prepareRenderFrameWithWriter(&w, redraw_footer, true, true, true);
                         write_status = b.endFrame();
                         const status = renderStatusFromWrite(write_status);
                         if (status == .failed) {
@@ -1064,7 +1068,7 @@ pub const CliRenderer = struct {
                 self.splitBatchRedrawFooter = self.splitBatchRedrawFooter or redraw_footer;
 
                 if (finalize_frame) {
-                    _ = self.prepareRenderFrameWithWriter(&w, self.splitBatchRedrawFooter, true, true);
+                    _ = self.prepareRenderFrameWithWriter(&w, self.splitBatchRedrawFooter, true, true, true);
                     write_status = b.endFrame();
 
                     const status = renderStatusFromWrite(write_status);
@@ -1350,7 +1354,7 @@ pub const CliRenderer = struct {
             inline else => |*b| {
                 b.beginFrame();
                 var w = b.writer();
-                _ = self.prepareRenderFrameWithWriter(&w, redraw_footer, false, true);
+                _ = self.prepareRenderFrameWithWriter(&w, redraw_footer, false, true, true);
                 write_status = b.endFrame();
             },
         }
@@ -1478,22 +1482,93 @@ pub const CliRenderer = struct {
         return true;
     }
 
-    /// Native graphics move the physical terminal cursor after the text frame
-    /// restored it. Return it to the active editor after each emitted patch.
-    fn restoreCursorAfterPixelRender(self: *CliRenderer, writer: anytype) void {
-        const cursor = self.terminal.getCursorPosition();
-        if (!cursor.visible) return;
+    /// Completes the one renderer display list after text and native graphics
+    /// have both emitted. The terminal cursor is owned only by this tail phase.
+    fn finishRenderFrameWithWriter(self: *CliRenderer, writer: anytype, frame_started: *bool, close_sync: bool) void {
+        const cursorPos = self.terminal.getCursorPosition();
+        const cursorStyle = self.terminal.getCursorStyle();
+        const cursorColor = self.terminal.getCursorColor();
 
-        writer.writeAll(ansi.ANSI.hideCursor) catch {};
-        ansi.ANSI.moveToOutput(writer, cursor.x, cursor.y + self.renderOffset) catch {};
-        writer.writeAll(ansi.ANSI.showCursor) catch {};
+        if (cursorPos.visible) {
+            const cursorStyleCode: []const u8 = switch (cursorStyle.style) {
+                .block => if (cursorStyle.blinking) ansi.ANSI.cursorBlockBlink else ansi.ANSI.cursorBlock,
+                .line => if (cursorStyle.blinking) ansi.ANSI.cursorLineBlink else ansi.ANSI.cursorLine,
+                .underline => if (cursorStyle.blinking) ansi.ANSI.cursorUnderlineBlink else ansi.ANSI.cursorUnderline,
+                .default => ansi.ANSI.defaultCursorStyle,
+            };
+            const cursorR = ansi.red(cursorColor);
+            const cursorG = ansi.green(cursorColor);
+            const cursorB = ansi.blue(cursorColor);
+            const styleTag: u8 = @intFromEnum(cursorStyle.style);
+            const styleChanged = (self.lastCursorStyleTag == null or self.lastCursorStyleTag.? != styleTag) or
+                (self.lastCursorBlinking == null or self.lastCursorBlinking.? != cursorStyle.blinking);
+            const colorChanged = (self.lastCursorColorRGB == null or self.lastCursorColorRGB.?[0] != cursorR or self.lastCursorColorRGB.?[1] != cursorG or self.lastCursorColorRGB.?[2] != cursorB);
+            const cursorX = cursorPos.x;
+            const cursorY = cursorPos.y + self.renderOffset;
+            const positionChanged = self.lastCursorX == null or self.lastCursorY == null or self.lastCursorX.? != cursorX or self.lastCursorY.? != cursorY;
+            const visibilityChanged = self.lastCursorVisible == null or !self.lastCursorVisible.?;
+            const needsCursorRestore = frame_started.* or styleChanged or colorChanged or positionChanged or visibilityChanged;
+
+            if (needsCursorRestore) {
+                if (!frame_started.*) {
+                    beginRenderFrame(writer);
+                    frame_started.* = true;
+                }
+                if (colorChanged) {
+                    ansi.ANSI.cursorColorOutputWriter(writer, cursorR, cursorG, cursorB) catch {};
+                    self.lastCursorColorRGB = .{ cursorR, cursorG, cursorB };
+                }
+                if (styleChanged) {
+                    writer.writeAll(cursorStyleCode) catch {};
+                    self.lastCursorStyleTag = styleTag;
+                    self.lastCursorBlinking = cursorStyle.blinking;
+                }
+                ansi.ANSI.moveToOutput(writer, cursorX, cursorY) catch {};
+                writer.writeAll(ansi.ANSI.showCursor) catch {};
+            }
+
+            self.lastCursorX = cursorX;
+            self.lastCursorY = cursorY;
+            self.lastCursorVisible = true;
+        } else {
+            if (!frame_started.* and (self.lastCursorVisible == null or self.lastCursorVisible.?)) {
+                beginRenderFrame(writer);
+                frame_started.* = true;
+                writer.writeAll(ansi.ANSI.hideCursor) catch {};
+            }
+            self.lastCursorStyleTag = null;
+            self.lastCursorBlinking = null;
+            self.lastCursorColorRGB = null;
+            self.lastCursorX = null;
+            self.lastCursorY = null;
+            self.lastCursorVisible = false;
+        }
+
+        const mousePointer = self.terminal.getMousePointer();
+        if (mousePointer != self.lastMousePointerStyle) {
+            if (!frame_started.*) {
+                beginRenderFrame(writer);
+                frame_started.* = true;
+            }
+            ansi.ANSI.setMousePointerOutput(writer, mousePointer.toName()) catch {};
+            self.lastMousePointerStyle = mousePointer;
+        }
+
+        if (frame_started.* and close_sync) writer.writeAll(ansi.ANSI.syncReset) catch {};
     }
 
     /// Generic over the writer type so each backend can provide its own writer
     /// (buffered frame append or feed streaming) without dispatch in the render path.
     /// `sync_started` is true only when the caller already opened the
     /// synchronized-update envelope for a batched split-footer commit.
-    pub fn prepareRenderFrameWithWriter(self: *CliRenderer, writer: anytype, force: bool, sync_started: bool, close_sync: bool) bool {
+    pub fn prepareRenderFrameWithWriter(
+        self: *CliRenderer,
+        writer: anytype,
+        force: bool,
+        sync_started: bool,
+        close_sync: bool,
+        finalize_frame: bool,
+    ) bool {
         const renderStartTime = std.time.microTimestamp();
         var cellsUpdated: u32 = 0;
         const palette_force = self.last_rendered_palette_epoch == null or self.last_rendered_palette_epoch.? != self.palette_epoch;
@@ -1648,106 +1723,7 @@ pub const CliRenderer = struct {
             writer.writeAll(ansi.ANSI.reset) catch {};
         }
 
-        const cursorPos = self.terminal.getCursorPosition();
-        const cursorStyle = self.terminal.getCursorStyle();
-        const cursorColor = self.terminal.getCursorColor();
-
-        if (cursorPos.visible) {
-            var cursorStyleCode: []const u8 = undefined;
-
-            switch (cursorStyle.style) {
-                .block => {
-                    cursorStyleCode = if (cursorStyle.blinking)
-                        ansi.ANSI.cursorBlockBlink
-                    else
-                        ansi.ANSI.cursorBlock;
-                },
-                .line => {
-                    cursorStyleCode = if (cursorStyle.blinking)
-                        ansi.ANSI.cursorLineBlink
-                    else
-                        ansi.ANSI.cursorLine;
-                },
-                .underline => {
-                    cursorStyleCode = if (cursorStyle.blinking)
-                        ansi.ANSI.cursorUnderlineBlink
-                    else
-                        ansi.ANSI.cursorUnderline;
-                },
-                .default => {
-                    cursorStyleCode = ansi.ANSI.defaultCursorStyle;
-                },
-            }
-
-            const cursorR = ansi.red(cursorColor);
-            const cursorG = ansi.green(cursorColor);
-            const cursorB = ansi.blue(cursorColor);
-
-            const styleTag: u8 = @intFromEnum(cursorStyle.style);
-            const styleChanged = (self.lastCursorStyleTag == null or self.lastCursorStyleTag.? != styleTag) or
-                (self.lastCursorBlinking == null or self.lastCursorBlinking.? != cursorStyle.blinking);
-            const colorChanged = (self.lastCursorColorRGB == null or self.lastCursorColorRGB.?[0] != cursorR or self.lastCursorColorRGB.?[1] != cursorG or self.lastCursorColorRGB.?[2] != cursorB);
-            const cursorX = cursorPos.x;
-            const cursorY = cursorPos.y + self.renderOffset;
-            const positionChanged = self.lastCursorX == null or self.lastCursorY == null or self.lastCursorX.? != cursorX or self.lastCursorY.? != cursorY;
-            const visibilityChanged = self.lastCursorVisible == null or !self.lastCursorVisible.?;
-            // If any visual output was produced this frame, we must restore cursor
-            // state (position + visibility). If frame is otherwise empty, only emit
-            // cursor sequences when some cursor property actually changed.
-            const needsCursorRestore = frame_started or styleChanged or colorChanged or positionChanged or visibilityChanged;
-
-            if (needsCursorRestore) {
-                if (!frame_started) {
-                    beginRenderFrame(writer);
-                    frame_started = true;
-                }
-
-                if (colorChanged) {
-                    ansi.ANSI.cursorColorOutputWriter(writer, cursorR, cursorG, cursorB) catch {};
-                    self.lastCursorColorRGB = .{ cursorR, cursorG, cursorB };
-                }
-                if (styleChanged) {
-                    writer.writeAll(cursorStyleCode) catch {};
-                    self.lastCursorStyleTag = styleTag;
-                    self.lastCursorBlinking = cursorStyle.blinking;
-                }
-
-                ansi.ANSI.moveToOutput(writer, cursorX, cursorY) catch {};
-                writer.writeAll(ansi.ANSI.showCursor) catch {};
-            }
-
-            self.lastCursorX = cursorX;
-            self.lastCursorY = cursorY;
-            self.lastCursorVisible = true;
-        } else {
-            if (!frame_started and (self.lastCursorVisible == null or self.lastCursorVisible.?)) {
-                beginRenderFrame(writer);
-                frame_started = true;
-                writer.writeAll(ansi.ANSI.hideCursor) catch {};
-            }
-
-            self.lastCursorStyleTag = null;
-            self.lastCursorBlinking = null;
-            self.lastCursorColorRGB = null;
-            self.lastCursorX = null;
-            self.lastCursorY = null;
-            self.lastCursorVisible = false;
-        }
-
-        const mousePointer = self.terminal.getMousePointer();
-        if (mousePointer != self.lastMousePointerStyle) {
-            if (!frame_started) {
-                beginRenderFrame(writer);
-                frame_started = true;
-            }
-            ansi.ANSI.setMousePointerOutput(writer, mousePointer.toName()) catch {};
-            self.lastMousePointerStyle = mousePointer;
-        }
-
-        // Only close sync if we opened it. This keeps true no-op frames empty.
-        if (frame_started and close_sync) {
-            writer.writeAll(ansi.ANSI.syncReset) catch {};
-        }
+        if (finalize_frame) self.finishRenderFrameWithWriter(writer, &frame_started, close_sync);
 
         const renderEndTime = std.time.microTimestamp();
         const renderTime = @as(f64, @floatFromInt(renderEndTime - renderStartTime));

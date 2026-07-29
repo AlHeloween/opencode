@@ -43,7 +43,7 @@ flowchart LR
 | `RVP/R` | 0.15 | `cell buffer .45, media patches .35, opaque RGBA .20` / **Final composition input** | Done for backgrounds, direct glyphs, media. Evidence: `3def96120`, `b21a254da`. | E |
 | `RVP/O` | 0.15 | `one protocol image .50, no ANSI diff .35, lifecycle .15` / **Single native output** | Done. Raster branch bypasses ANSI diff; cleanup remembers its source protocol. Evidence: `b21a254da`, `14258c51f`. | E, R |
 | `RVP/C` | 0.10 | `caret geometry .45, input usability .35, no ANSI restore .20` / **Raster caret** | Done. Block/line/underline are painted in the RGBA frame. Evidence: `a5adad714`. | O |
-| `RVP/T` | 0.15 | `grapheme pool .45, Unicode sequence .35, cell metric .20` / **Text cluster fidelity** | Active. Pool UTF-8 now reaches the rasterizer; next: advance/shaping/fallback semantics. | R |
+| `RVP/T` | 0.15 | `grapheme pool .45, Unicode sequence .35, cell metric .20` / **Text cluster fidelity** | Active. Pool UTF-8 is decoded and FreeType advances are bounded to the logical cluster span; next: real shaping/fallback semantics. | R |
 | `RVP/S` | 0.10 | `attributes .40, borders .35, selection/scrollbar .25` / **UI visual fidelity** | Pending. Starts after T has a stable glyph path. | T |
 | `RVP/W` | 0.10 | `Windows Terminal .45, screenshot .35, resize/input .20` / **Direct observable oracle** | Awaiting full user build in a direct WT session; no code blocker. Required evidence: mixed text/Mermaid screenshot, typing, resize, clean exit. | O, C, H |
 | `RVP/P` | 0.05 | `frame bounds .45, coalescing .30, transport latency .25` / **Bounded raster transport** | Pending. Must set pixel/byte/FPS limits before default enablement. | O |

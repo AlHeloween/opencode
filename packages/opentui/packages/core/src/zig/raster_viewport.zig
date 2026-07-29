@@ -65,10 +65,10 @@ pub const RasterViewport = struct {
                 const glyph_x: i32 = @intCast(x * cell_width);
                 const baseline: i32 = @intCast((y + 1) * cell_height - 2);
                 if (gp.isGraphemeChar(cell.char)) {
-                    try self.paintGrapheme(pool, cell.char, glyph_x, baseline, cell.fg);
+                    try self.paintGrapheme(pool, cell.char, glyph_x, baseline, @intCast((gp.charRightExtent(cell.char) + 1) * cell_width), cell.fg);
                     continue;
                 }
-                try self.paintCodepoint(cell.char, glyph_x, baseline, cell.fg);
+                _ = try self.paintCodepoint(cell.char, glyph_x, baseline, cell.fg);
             }
         }
         for (media.patches.items) |patch| self.blitPatch(patch);
@@ -88,8 +88,8 @@ pub const RasterViewport = struct {
         }
     }
 
-    fn paintCodepoint(self: *RasterViewport, codepoint: u32, x: i32, baseline: i32, color: buf.RGBA) !void {
-        _ = try self.font.withGlyph(codepoint, .{
+    fn paintCodepoint(self: *RasterViewport, codepoint: u32, x: i32, baseline: i32, color: buf.RGBA) !?i32 {
+        return self.font.withGlyph(codepoint, .{
             .viewport = self,
             .x = x,
             .baseline = baseline,
@@ -97,12 +97,13 @@ pub const RasterViewport = struct {
         }, paintGlyph);
     }
 
-    fn paintGrapheme(self: *RasterViewport, pool: *gp.GraphemePool, encoded: u32, x: i32, baseline: i32, color: buf.RGBA) !void {
+    fn paintGrapheme(self: *RasterViewport, pool: *gp.GraphemePool, encoded: u32, x: i32, baseline: i32, cell_span: i32, color: buf.RGBA) !void {
         const bytes = pool.get(gp.graphemeIdFromChar(encoded)) catch |err| {
             logger.warn("bug: raster viewport could not resolve grapheme pool entry: {}", .{err});
             return;
         };
         var offset: usize = 0;
+        var pen_x = x;
         while (offset < bytes.len) {
             const sequence_len = std.unicode.utf8ByteSequenceLength(bytes[offset]) catch {
                 logger.warn("bug: raster viewport received malformed grapheme UTF-8", .{});
@@ -116,7 +117,9 @@ pub const RasterViewport = struct {
                 logger.warn("bug: raster viewport could not decode grapheme UTF-8", .{});
                 return;
             };
-            try self.paintCodepoint(codepoint, x, baseline, color);
+            if (try self.paintCodepoint(codepoint, pen_x, baseline, color)) |advance_x| {
+                if (advance_x > 0) pen_x = @min(x + cell_span, pen_x + advance_x);
+            }
             offset += sequence_len;
         }
     }

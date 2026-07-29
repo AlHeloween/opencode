@@ -41,14 +41,15 @@ pub const FontRasterizer = struct {
         codepoint: u32,
         context: anytype,
         paint: anytype,
-    ) !bool {
-        const glyph_index = self.face.getCharIndex(codepoint) orelse return false;
+    ) !?i32 {
+        const glyph_index = self.face.getCharIndex(codepoint) orelse return null;
         try self.face.loadGlyph(glyph_index, .{ .render = true });
         const glyph = self.face.handle.*.glyph.*;
         const bitmap = glyph.bitmap;
-        if (bitmap.buffer == null or bitmap.width == 0 or bitmap.rows == 0) return true;
+        const advance_x: i32 = @intCast(glyph.advance.x >> 6);
+        if (bitmap.buffer == null or bitmap.width == 0 or bitmap.rows == 0) return advance_x;
         const pitch = @as(i32, bitmap.pitch);
-        if (pitch <= 0) return false;
+        if (pitch <= 0) return advance_x;
         const width: usize = @intCast(bitmap.width);
         const height: usize = @intCast(bitmap.rows);
         const stride: usize = @intCast(pitch);
@@ -60,9 +61,9 @@ pub const FontRasterizer = struct {
             .stride = stride,
             .left = glyph.bitmap_left,
             .top = glyph.bitmap_top,
-            .advance_x = glyph.advance.x >> 6,
+            .advance_x = advance_x,
         });
-        return true;
+        return advance_x;
     }
 };
 
@@ -70,9 +71,9 @@ test "bundled raster font exposes glyph alpha" {
     var rasterizer = try FontRasterizer.init();
     defer rasterizer.deinit();
     try rasterizer.setPixelHeight(16);
-    try std.testing.expect(try rasterizer.withGlyph('A', {}, struct {
+    try std.testing.expect((try rasterizer.withGlyph('A', {}, struct {
         fn paint(_: void, bitmap: anytype) void {
             std.debug.assert(bitmap.width > 0 and bitmap.height > 0 and bitmap.data.len > 0);
         }
-    }.paint));
+    }.paint)) != null);
 }

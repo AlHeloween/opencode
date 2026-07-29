@@ -4,6 +4,7 @@ const buf = @import("buffer.zig");
 const gp = @import("grapheme.zig");
 const FontRasterizer = @import("font_raster.zig").FontRasterizer;
 const Terminal = @import("terminal.zig");
+const logger = @import("logger.zig");
 
 pub const RasterViewport = struct {
     pub const Cursor = struct {
@@ -35,6 +36,7 @@ pub const RasterViewport = struct {
         self: *RasterViewport,
         cells: *const buf.OptimizedBuffer,
         media: *const buf.PixelBuffer,
+        pool: *gp.GraphemePool,
         cell_width: u32,
         cell_height: u32,
         background: buf.RGBA,
@@ -60,13 +62,13 @@ pub const RasterViewport = struct {
                 const cell = cells.get(@intCast(x), @intCast(y)) orelse continue;
                 self.fillRect(@intCast(x * cell_width), @intCast(y * cell_height), cell_width, cell_height, cell.bg);
                 if (gp.isContinuationChar(cell.char) or cell.char == buf.DEFAULT_SPACE_CHAR) continue;
-                if (gp.isGraphemeChar(cell.char)) continue;
-                _ = try self.font.withGlyph(cell.char, .{
-                    .viewport = self,
-                    .x = @as(i32, @intCast(x * cell_width)),
-                    .baseline = @as(i32, @intCast((y + 1) * cell_height - 2)),
-                    .color = cell.fg,
-                }, paintGlyph);
+                const glyph_x: i32 = @intCast(x * cell_width);
+                const baseline: i32 = @intCast((y + 1) * cell_height - 2);
+                if (gp.isGraphemeChar(cell.char)) {
+                    try self.paintGrapheme(pool, cell.char, glyph_x, baseline, cell.fg);
+                    continue;
+                }
+                try self.paintCodepoint(cell.char, glyph_x, baseline, cell.fg);
             }
         }
         for (media.patches.items) |patch| self.blitPatch(patch);
@@ -83,6 +85,39 @@ pub const RasterViewport = struct {
                 if (alpha == 0) continue;
                 context.viewport.blendPixel(dst_x + @as(i32, @intCast(x)), dst_y + @as(i32, @intCast(y)), context.color, alpha);
             }
+        }
+    }
+
+    fn paintCodepoint(self: *RasterViewport, codepoint: u32, x: i32, baseline: i32, color: buf.RGBA) !void {
+        _ = try self.font.withGlyph(codepoint, .{
+            .viewport = self,
+            .x = x,
+            .baseline = baseline,
+            .color = color,
+        }, paintGlyph);
+    }
+
+    fn paintGrapheme(self: *RasterViewport, pool: *gp.GraphemePool, encoded: u32, x: i32, baseline: i32, color: buf.RGBA) !void {
+        const bytes = pool.get(gp.graphemeIdFromChar(encoded)) catch |err| {
+            logger.warn("bug: raster viewport could not resolve grapheme pool entry: {}", .{err});
+            return;
+        };
+        var offset: usize = 0;
+        while (offset < bytes.len) {
+            const sequence_len = std.unicode.utf8ByteSequenceLength(bytes[offset]) catch {
+                logger.warn("bug: raster viewport received malformed grapheme UTF-8", .{});
+                return;
+            };
+            if (offset + sequence_len > bytes.len) {
+                logger.warn("bug: raster viewport received truncated grapheme UTF-8", .{});
+                return;
+            }
+            const codepoint = std.unicode.utf8Decode(bytes[offset .. offset + sequence_len]) catch {
+                logger.warn("bug: raster viewport could not decode grapheme UTF-8", .{});
+                return;
+            };
+            try self.paintCodepoint(codepoint, x, baseline, color);
+            offset += sequence_len;
         }
     }
 

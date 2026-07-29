@@ -11,30 +11,49 @@ is retained for terminals and screen modes where raster mode is ineligible.
 The existing atomic-native-graphics work remains a transport foundation, but it
 is not visual composition: ANSI cells and SIXEL are separate terminal layers.
 
-## SVM critical path (v1)
+## State Vector Manifest (SVM v2)
+
+This is the compact, node-scoped execution state for this feature. Semantic
+weights belong only to the node-local SV; work weights alone determine the root
+progress. Evidence is immutable Git history or a reproducible oracle. Node IDs
+are stable logical IDs until the project has an automated CHT writer; no
+hand-authored digest is presented as a canonical CHT.
 
 ```mermaid
 flowchart LR
-  G["G: one scroll-coherent terminal scene"] --> E["E: verified raster eligibility"]
-  E --> R["R: native full-viewport RGBA render branch"]
-  R --> O["O: one Kitty/SIXEL output image; no ANSI cell diff"]
-  O --> W["W: direct Windows Terminal oracle"]
-  W --> Q["Q: quality work: shaping, styles, caret, cache, limits"]
+  G["RVP/root\nUnified viewport"] --> E["E eligibility ✓"]
+  G --> R["R composition ✓"]
+  G --> O["O native output ✓"]
+  G --> C["C raster caret ✓"]
+  G --> T["T grapheme text → active"]
+  G --> S["S UI styles pending"]
+  G --> W["W direct WT oracle awaiting build"]
+  G --> P["P bounds/backpressure pending"]
+  G --> H["H native harness pending"]
+  E --> R --> O --> W
+  T --> S
+  O --> P
+  H --> W
 ```
 
-| Node | Local SV / dominant | State and proof | Depends on |
-|---|---|---|---|
-| G | `one scene .40, coherent scroll .35, native graphics .25` / **Unified terminal viewport** | In progress | E, R, O, W |
-| E | `confirmed geometry .45, alternate screen .30, capabilities .25` / **Safe eligibility** | Done: TS requires nonzero CSI pixel/cell replies whose exact product equals the logical grid; native rejects zero cell geometry | — |
-| R | `final cell buffer .45, media patches .35, RGBA .20` / **One composited frame** | Done for direct glyphs, backgrounds, and media; native build passes | E |
-| O | `single protocol image .50, no ANSI diff .35, frame lifecycle .15` / **Single output path** | Done in code: raster branch bypasses `prepareRenderFrameWithWriter`; native/library build pass | R |
-| W | `Windows Terminal .45, screenshot .35, input resize .20` / **Observable oracle** | Pending user full product build and direct WT fixture | O |
-| Q | `shaping .30, caret .25, styles .20, performance .25` / **Production fidelity** | Pending; explicitly not a dependency of W | W |
+| ID | Work wt. | Local SV / semantic dominant | State, evidence, and next admissible transition | Depends on |
+|---|---:|---|---|---|
+| `RVP/root` | 1.00 | `unified scene .40, scroll coherence .35, native graphics .25` / **One terminal scene** | Progress `0.50` derived from verified leaf weights. Next: accept verified leaf output only. | all children |
+| `RVP/E` | 0.10 | `confirmed geometry .45, alternate screen .30, capabilities .25` / **Safe eligibility** | Done. Nonzero CSI pixel/cell metrics must exactly match logical columns/rows. Evidence: `b21a254da`. | — |
+| `RVP/R` | 0.15 | `cell buffer .45, media patches .35, opaque RGBA .20` / **Final composition input** | Done for backgrounds, direct glyphs, media. Evidence: `3def96120`, `b21a254da`. | E |
+| `RVP/O` | 0.15 | `one protocol image .50, no ANSI diff .35, lifecycle .15` / **Single native output** | Done. Raster branch bypasses ANSI diff; cleanup remembers its source protocol. Evidence: `b21a254da`, `14258c51f`. | E, R |
+| `RVP/C` | 0.10 | `caret geometry .45, input usability .35, no ANSI restore .20` / **Raster caret** | Done. Block/line/underline are painted in the RGBA frame. Evidence: `a5adad714`. | O |
+| `RVP/T` | 0.15 | `grapheme pool .45, Unicode sequence .35, cell metric .20` / **Text cluster fidelity** | Active. Pool UTF-8 now reaches the rasterizer; next: advance/shaping/fallback semantics. | R |
+| `RVP/S` | 0.10 | `attributes .40, borders .35, selection/scrollbar .25` / **UI visual fidelity** | Pending. Starts after T has a stable glyph path. | T |
+| `RVP/W` | 0.10 | `Windows Terminal .45, screenshot .35, resize/input .20` / **Direct observable oracle** | Awaiting full user build in a direct WT session; no code blocker. Required evidence: mixed text/Mermaid screenshot, typing, resize, clean exit. | O, C, H |
+| `RVP/P` | 0.05 | `frame bounds .45, coalescing .30, transport latency .25` / **Bounded raster transport** | Pending. Must set pixel/byte/FPS limits before default enablement. | O |
+| `RVP/H` | 0.10 | `native harness .50, deterministic pixels .30, CI oracle .20` / **Reproducible native proof** | Pending. A runnable Windows-compatible compositor oracle is needed before source-only assertions count as proof. | R, C |
 
-The SVM work weights are `E=0.10, R=0.25, O=0.25, W=0.25, Q=0.15`.
-They are deliberately independent of the semantic weights above. The first
-admissible transition is `O -> W`; do not introduce Q work before a direct
-Windows Terminal oracle proves or disproves the single-scene path.
+The current execution frontier is `RVP/T`. `RVP/W` is deliberately independent
+of Unicode/style implementation: it validates the already-complete single-frame
+route, while T and S improve what that route paints. Failed diagnostics remain
+scoped to their leaf and do not alter the root SV without an oracle-backed state
+transition.
 
 ## Architecture
 

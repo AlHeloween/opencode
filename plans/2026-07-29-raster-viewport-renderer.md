@@ -75,6 +75,10 @@ flowchart LR
 - [ ] Add a viewport RGBA compositor that paints cell backgrounds/borders,
   glyph alpha masks, selection, scrollbars, and `PixelBuffer` media in z-order;
   flatten the result against the terminal background before SIXEL encoding.
+- [x] Add the initial Zig `RasterViewport`: it rasterizes final cell backgrounds,
+  direct Unicode glyphs, and `PixelBuffer` media into one opaque RGBA viewport.
+  Border/style/selection, grapheme shaping, fallback fonts, and terminal-output
+  routing remain under the unchecked compositor/output work.
 - [ ] Rasterize the focused caret and hide the hardware cursor for raster
   frames; schedule/cancel caret blink invalidation and retain ordinary
   hardware-cursor semantics for the ANSI fallback.

@@ -12,6 +12,10 @@
             .url = "git+https://github.com/facebook/yoga#v3.2.1",
             .hash = "N-V-__8AAOYl0gAU76B1VRPFD9AWvy2VkOef2jN0B3sISTeO",
         },
+        .font_freetype = .{
+            .url = "git+https://github.com/allyourcodebase/freetype#884fd2235e6ae1ec4306eda30b3259f20930ed2e",
+            .hash = "freetype-2.14.3-C3-WdXSKAAB-kHs4qgRoeoFnRkNQn6M_SSlUGZ6ywgBQ",
+        },
     },
     .paths = .{
         ".",

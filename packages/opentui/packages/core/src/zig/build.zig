@@ -209,6 +209,21 @@ fn addYogaDependencies(b: *std.Build, artifact: *std.Build.Step.Compile) void {
     });
 }
 
+fn addFontDependencies(
+    b: *std.Build,
+    module: *std.Build.Module,
+    artifact: *std.Build.Step.Compile,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
+    const freetype = b.dependency("font_freetype", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    module.addImport("freetype", freetype.module("freetype"));
+    artifact.linkLibrary(freetype.artifact("freetype"));
+}
+
 /// Apply dependencies to a module
 fn applyDependencies(
     b: *std.Build,
@@ -495,6 +510,7 @@ fn buildTarget(
 
     addNativeAudioDependencies(b, lib, target, macos_sdk_path);
     addYogaDependencies(b, lib);
+    addFontDependencies(b, module, lib, target, optimize);
 
     const install_dir = b.addInstallArtifact(lib, .{
         .dest_dir = .{

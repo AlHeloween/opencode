@@ -41,6 +41,11 @@ const MAX_STAT_SAMPLES = 30;
 const STAT_SAMPLE_CAPACITY = 30;
 const COMPOSITED_NATIVE_IMAGE_ID = 1;
 
+const RasterViewportProtocol = enum {
+    kitty,
+    sixel,
+};
+
 const CompositedPixelScene = struct {
     x: u32,
     y: u32,
@@ -147,6 +152,7 @@ pub const CliRenderer = struct {
     rasterCellWidth: u32 = 0,
     rasterCellHeight: u32 = 0,
     rasterViewportVisible: bool = false,
+    rasterViewportProtocol: ?RasterViewportProtocol = null,
     rasterViewportCellWidth: u32 = 0,
     rasterViewportCellHeight: u32 = 0,
 
@@ -876,6 +882,7 @@ pub const CliRenderer = struct {
                         sixel.IMAGE.create(&w, COMPOSITED_NATIVE_IMAGE_ID, 0, self.renderOffset, viewport.width, viewport.height, data, self.width, self.height, self.allocator);
                     }
                     self.rasterViewportVisible = true;
+                    self.rasterViewportProtocol = if (use_kitty) .kitty else .sixel;
                     self.rasterViewportCellWidth = self.width;
                     self.rasterViewportCellHeight = self.height;
                     self.commitRasterFrame();
@@ -899,17 +906,16 @@ pub const CliRenderer = struct {
 
     fn clearRasterViewport(self: *CliRenderer, writer: anytype) bool {
         if (!self.rasterViewportVisible) return false;
-        const use_kitty = self.terminal.caps.kitty_graphics;
-        const use_sixel = !use_kitty and self.terminal.caps.sixel;
-        if (use_kitty) {
-            kitty.IMAGE.delete(writer, COMPOSITED_NATIVE_IMAGE_ID);
-        } else if (use_sixel) {
-            sixel.IMAGE.delete(writer, 0, self.renderOffset, self.rasterViewportCellWidth, self.rasterViewportCellHeight);
+        const protocol = self.rasterViewportProtocol orelse return false;
+        switch (protocol) {
+            .kitty => kitty.IMAGE.delete(writer, COMPOSITED_NATIVE_IMAGE_ID),
+            .sixel => sixel.IMAGE.delete(writer, 0, self.renderOffset, self.rasterViewportCellWidth, self.rasterViewportCellHeight),
         }
         self.rasterViewportVisible = false;
+        self.rasterViewportProtocol = null;
         self.rasterViewportCellWidth = 0;
         self.rasterViewportCellHeight = 0;
-        return use_kitty or use_sixel;
+        return true;
     }
 
     fn commitRasterFrame(self: *CliRenderer) void {

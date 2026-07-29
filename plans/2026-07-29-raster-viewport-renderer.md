@@ -111,9 +111,11 @@ flowchart LR
 - [x] Change the native output path to replace one full viewport image without
   writing visual ANSI cells. Kitty deletes its image id; SIXEL performs an
   explicit full-viewport clear/repaint on the next frame after a mode change.
-  The direct path owns one synchronized terminal frame and hides the hardware
-  cursor. Resize/suspend/exit retention and a raster caret remain under the
-  unchecked lifecycle task below.
+  The retained footprint records its emitting protocol, so it is cleared
+  correctly across SIXEL/Kitty/symbol switches. The direct path owns one
+  synchronized terminal frame and hides the hardware cursor. Resize/suspend/
+  exit retention and a raster caret remain under the unchecked lifecycle task
+  below.
 - [ ] Add latest-frame coalescing and writer backpressure. Bound viewport pixels,
   palette size, encoded bytes, and raster FPS before raster mode can be enabled;
   dirty internal regions alone do not reduce a full SIXEL payload.

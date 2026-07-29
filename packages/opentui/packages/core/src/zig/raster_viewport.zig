@@ -24,7 +24,7 @@ pub const RasterViewport = struct {
     cell_height: u32 = 0,
 
     pub fn init(allocator: std.mem.Allocator) !RasterViewport {
-        return .{ .allocator = allocator, .font = try FontRasterizer.init() };
+        return .{ .allocator = allocator, .font = try FontRasterizer.init(allocator) };
     }
 
     pub fn deinit(self: *RasterViewport) void {

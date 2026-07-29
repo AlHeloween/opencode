@@ -2,6 +2,7 @@ const std = @import("std");
 const ansi = @import("ansi.zig");
 const buf = @import("buffer.zig");
 const gp = @import("grapheme.zig");
+const link = @import("link.zig");
 const FontRasterizer = @import("font_raster.zig").FontRasterizer;
 const Terminal = @import("terminal.zig");
 const logger = @import("logger.zig");
@@ -215,3 +216,45 @@ pub const RasterViewport = struct {
         self.pixels[base + 3] = 255;
     }
 };
+
+test "raster viewport composes cells, media, and caret into one RGBA frame" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+    const cells = try buf.OptimizedBuffer.init(std.testing.allocator, 2, 2, .{
+        .pool = pool,
+        .link_pool = &local_link_pool,
+    });
+    defer cells.deinit();
+    const media = try buf.PixelBuffer.init(std.testing.allocator);
+    defer media.deinit();
+    var viewport = try RasterViewport.init(std.testing.allocator);
+    defer viewport.deinit();
+
+    const black = ansi.rgbColor(0, 0, 0, 255);
+    const white = ansi.rgbColor(255, 255, 255, 255);
+    const blue = ansi.rgbColor(0, 0, 255, 255);
+    const yellow = ansi.rgbColor(255, 255, 0, 255);
+    const green = ansi.rgbColor(0, 255, 0, 255);
+    cells.clear(black, null);
+    cells.set(0, 0, .{ .char = 'A', .fg = white, .bg = black, .attributes = 0 });
+    cells.set(1, 0, .{ .char = 'B', .fg = blue, .bg = yellow, .attributes = ansi.TextAttributes.INVERSE });
+    const red_pixel = [_]u8{ 255, 0, 0, 255 };
+    media.drawImage(0, 1, 1, 1, &red_pixel, 1, 1);
+
+    const pixels = try viewport.render(cells, media, pool, 8, 16, black, .{
+        .x = 2,
+        .y = 2,
+        .visible = true,
+        .style = .line,
+        .color = green,
+    });
+    try std.testing.expectEqual(@as(usize, 2 * 8 * 2 * 16 * 4), pixels.len);
+    try std.testing.expectEqualSlices(u8, &.{ 0, 0, 255, 255 }, pixels[(8 * 4)..(9 * 4)]);
+    const media_pixel = ((16 * 16) + 0) * 4;
+    try std.testing.expectEqualSlices(u8, &red_pixel, pixels[media_pixel .. media_pixel + 4]);
+    const caret_pixel = ((16 * 16) + 8) * 4;
+    try std.testing.expectEqualSlices(u8, &.{ 0, 255, 0, 255 }, pixels[caret_pixel .. caret_pixel + 4]);
+    try std.testing.expect(std.mem.indexOf(u8, pixels[0 .. 8 * 16 * 4], &.{ 255, 255, 255 }) != null);
+}

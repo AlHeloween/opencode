@@ -784,8 +784,22 @@ pub const CliRenderer = struct {
             inline else => |*b| {
                 b.beginFrame();
                 var w = b.writer();
-                self.prepareRenderFrameWithWriter(&w, force, false);
-                if (self.renderPixels(&w)) {
+                // Sixel planes are part of the visible terminal scene, not
+                // independent overlays. A moved/removed plane requires a full
+                // text-and-graphics composition in one output frame: clearing
+                // it after the text diff would erase newly painted cells.
+                const recompose_graphics = force or self.pixelSceneChanged();
+                const cleared_graphics = if (recompose_graphics) self.clearPixelScene(&w) else false;
+                self.prepareRenderFrameWithWriter(&w, force or recompose_graphics, false);
+                const emitted_graphics = if (recompose_graphics)
+                    self.emitPixelScene(&w)
+                else blk: {
+                    // No native output is necessary, but the JavaScript scene
+                    // builder allocated this frame's RGBA patches.
+                    self.nextPixelBuffer.clear();
+                    break :blk false;
+                };
+                if (cleared_graphics or emitted_graphics) {
                     self.restoreCursorAfterPixelRender(&w);
                 }
                 write_status = b.endFrame();
@@ -1340,7 +1354,34 @@ pub const CliRenderer = struct {
         return self.currentPixelBuffer;
     }
 
-    pub fn renderPixels(self: *CliRenderer, writer: anytype) bool {
+    fn pixelSceneChanged(self: *const CliRenderer) bool {
+        if (self.currentPixelBuffer.patches.items.len != self.nextPixelBuffer.patches.items.len) return true;
+        for (self.currentPixelBuffer.patches.items) |patch| {
+            if (!self.nextPixelBuffer.hasPatch(patch)) return true;
+        }
+        return false;
+    }
+
+    fn clearPixelScene(self: *CliRenderer, writer: anytype) bool {
+        const use_kitty = self.terminal.caps.kitty_graphics;
+        const use_sixel = !use_kitty and self.terminal.caps.sixel;
+        if (!use_kitty and !use_sixel) return false;
+
+        var emitted = false;
+        while (self.currentPixelBuffer.patches.items.len > 0) {
+            const patch = self.currentPixelBuffer.patches.items[self.currentPixelBuffer.patches.items.len - 1];
+            if (use_kitty) {
+                kitty.IMAGE.delete(writer, patch.id);
+            } else {
+                sixel.IMAGE.delete(writer, patch.x, patch.y + self.renderOffset, patch.cell_w, patch.cell_h);
+            }
+            self.currentPixelBuffer.removePatch(patch);
+            emitted = true;
+        }
+        return emitted;
+    }
+
+    fn emitPixelScene(self: *CliRenderer, writer: anytype) bool {
         // JavaScript fills nextPixelBuffer before render(). Keep those patches
         // alive through protocol emission, then free their owned RGBA bytes.
         defer self.nextPixelBuffer.clear();
@@ -1353,58 +1394,40 @@ pub const CliRenderer = struct {
 
         var emitted = false;
 
-        // check for removed patches — iterate backwards to avoid skipping elements
-        const currentPatches = self.currentPixelBuffer.patches.items;
-        var i: usize = currentPatches.len;
-        while (i > 0) {
-            i -= 1;
-            const patch = currentPatches[i];
-            if (!self.nextPixelBuffer.hasPatch(patch)) {
-                if (use_kitty) {
-                    kitty.IMAGE.delete(writer, patch.id);
-                } else {
-                    sixel.IMAGE.delete(writer, patch.x, patch.y + self.renderOffset, patch.cell_w, patch.cell_h);
-                }
-                emitted = true;
-                // removePatch frees owned RGBA
-                self.currentPixelBuffer.removePatch(patch);
-            }
-        }
-
-        // check for new patches in the next pixel buffer
+        // The caller cleared the previous visible scene before the text frame.
+        // Recreate every currently visible plane afterwards so text and pixels
+        // share one coherent scroll/reflow result.
         for (self.nextPixelBuffer.patches.items) |patch| {
-            if (!self.currentPixelBuffer.hasPatch(patch)) {
-                if (use_kitty) {
-                    kitty.IMAGE.create(
-                        writer,
-                        patch.id,
-                        patch.x,
-                        patch.y + self.renderOffset,
-                        patch.width,
-                        patch.height,
-                        patch.data,
-                        patch.cell_w,
-                        patch.cell_h,
-                        self.allocator,
-                    );
-                } else {
-                    sixel.IMAGE.create(
-                        writer,
-                        patch.id,
-                        patch.x,
-                        patch.y + self.renderOffset,
-                        patch.width,
-                        patch.height,
-                        patch.data,
-                        patch.cell_w,
-                        patch.cell_h,
-                        self.allocator,
-                    );
-                }
-                emitted = true;
-                // Copy into current so next.clear() can free its own buffers safely.
-                self.currentPixelBuffer.adoptCopy(patch);
+            if (use_kitty) {
+                kitty.IMAGE.create(
+                    writer,
+                    patch.id,
+                    patch.x,
+                    patch.y + self.renderOffset,
+                    patch.width,
+                    patch.height,
+                    patch.data,
+                    patch.cell_w,
+                    patch.cell_h,
+                    self.allocator,
+                );
+            } else {
+                sixel.IMAGE.create(
+                    writer,
+                    patch.id,
+                    patch.x,
+                    patch.y + self.renderOffset,
+                    patch.width,
+                    patch.height,
+                    patch.data,
+                    patch.cell_w,
+                    patch.cell_h,
+                    self.allocator,
+                );
             }
+            emitted = true;
+            // Copy into current so next.clear() can free its own buffers safely.
+            self.currentPixelBuffer.adoptCopy(patch);
         }
 
         return emitted;

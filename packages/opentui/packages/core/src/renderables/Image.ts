@@ -64,6 +64,43 @@ export interface ImageOptions extends RenderableOptions<ImageRenderable> {
   imageHeight: number
 }
 
+export function clipImageFrame(input: {
+  data: Uint8Array
+  imageWidth: number
+  imageHeight: number
+  layoutX: number
+  layoutY: number
+  layoutWidth: number
+  layoutHeight: number
+  viewportWidth: number
+  viewportHeight: number
+}): { data: Uint8Array; imageWidth: number; imageHeight: number; x: number; y: number; cellWidth: number; cellHeight: number } | null {
+  const x = Math.floor(input.layoutX)
+  const y = Math.floor(input.layoutY)
+  const left = Math.max(0, -x)
+  const top = Math.max(0, -y)
+  const right = Math.min(input.layoutWidth, input.viewportWidth - x)
+  const bottom = Math.min(input.layoutHeight, input.viewportHeight - y)
+  if (right <= left || bottom <= top) return null
+
+  const pxLeft = Math.round((left / input.layoutWidth) * input.imageWidth)
+  const pxRight = Math.round((right / input.layoutWidth) * input.imageWidth)
+  const pxTop = Math.round((top / input.layoutHeight) * input.imageHeight)
+  const pxBottom = Math.round((bottom / input.layoutHeight) * input.imageHeight)
+  const imageWidth = Math.max(1, pxRight - pxLeft)
+  const imageHeight = Math.max(1, pxBottom - pxTop)
+  if (pxLeft === 0 && pxTop === 0 && imageWidth === input.imageWidth && imageHeight === input.imageHeight) {
+    return { data: input.data, imageWidth, imageHeight, x: x + 1, y: y + 1, cellWidth: right - left, cellHeight: bottom - top }
+  }
+
+  const data = new Uint8Array(imageWidth * imageHeight * 4)
+  for (let row = 0; row < imageHeight; row++) {
+    const sourceStart = ((pxTop + row) * input.imageWidth + pxLeft) * 4
+    data.set(input.data.subarray(sourceStart, sourceStart + imageWidth * 4), row * imageWidth * 4)
+  }
+  return { data, imageWidth, imageHeight, x: x + left + 1, y: y + top + 1, cellWidth: right - left, cellHeight: bottom - top }
+}
+
 export class ImageRenderable extends Renderable {
   public data: Uint8Array
   public imageWidth: number
@@ -110,9 +147,19 @@ export class ImageRenderable extends Renderable {
     if (this.cellWidth == null || this.cellHeight == null) {
       this.updateCellSize()
     }
-    // Terminal cursor positions are 1-based; layout x/y are 0-based.
-    const x = Math.max(this.x, 0) + 1
-    const y = Math.max(this.y, 0) + 1
-    pixels.drawImage(x, y, this.imageWidth, this.imageHeight, this.data, this.width, this.height)
+    const renderer = this._ctx as CliRenderer
+    const frame = clipImageFrame({
+      data: this.data,
+      imageWidth: this.imageWidth,
+      imageHeight: this.imageHeight,
+      layoutX: this.x,
+      layoutY: this.y,
+      layoutWidth: this.width,
+      layoutHeight: this.height,
+      viewportWidth: renderer.width,
+      viewportHeight: renderer.height,
+    })
+    if (!frame) return
+    pixels.drawImage(frame.x, frame.y, frame.imageWidth, frame.imageHeight, frame.data, frame.cellWidth, frame.cellHeight)
   }
 }

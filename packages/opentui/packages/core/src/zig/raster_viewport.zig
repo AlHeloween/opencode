@@ -60,15 +60,30 @@ pub const RasterViewport = struct {
         for (0..cells.height) |y| {
             for (0..cells.width) |x| {
                 const cell = cells.get(@intCast(x), @intCast(y)) orelse continue;
-                self.fillRect(@intCast(x * cell_width), @intCast(y * cell_height), cell_width, cell_height, cell.bg);
-                if (gp.isContinuationChar(cell.char) or cell.char == buf.DEFAULT_SPACE_CHAR) continue;
+                const attributes = ansi.TextAttributes.getBaseAttributes(cell.attributes);
+                const inverse = attributes & ansi.TextAttributes.INVERSE != 0;
+                const cell_background = if (inverse) cell.fg else cell.bg;
+                const foreground = if (inverse) cell.bg else cell.fg;
                 const glyph_x: i32 = @intCast(x * cell_width);
+                const glyph_y: u32 = @intCast(y * cell_height);
                 const baseline: i32 = @intCast((y + 1) * cell_height - 2);
-                if (gp.isGraphemeChar(cell.char)) {
-                    try self.paintGrapheme(pool, cell.char, glyph_x, baseline, @intCast((gp.charRightExtent(cell.char) + 1) * cell_width), cell.fg);
+                self.fillRect(@intCast(x * cell_width), glyph_y, cell_width, cell_height, cell_background);
+                if (gp.isContinuationChar(cell.char)) continue;
+                if (attributes & ansi.TextAttributes.HIDDEN != 0) continue;
+                const dimmed_foreground = if (attributes & ansi.TextAttributes.DIM != 0) self.dim(foreground) else foreground;
+                const bold = attributes & ansi.TextAttributes.BOLD != 0;
+                const italic = attributes & ansi.TextAttributes.ITALIC != 0;
+                if (cell.char == buf.DEFAULT_SPACE_CHAR) {
+                    self.drawDecorations(glyph_x, glyph_y, cell_width, cell_height, baseline, dimmed_foreground, attributes);
                     continue;
                 }
-                _ = try self.paintCodepoint(cell.char, glyph_x, baseline, cell.fg);
+                if (gp.isGraphemeChar(cell.char)) {
+                    try self.paintGrapheme(pool, cell.char, glyph_x, baseline, @intCast((gp.charRightExtent(cell.char) + 1) * cell_width), dimmed_foreground, bold, italic);
+                    self.drawDecorations(glyph_x, glyph_y, cell_width, cell_height, baseline, dimmed_foreground, attributes);
+                    continue;
+                }
+                _ = try self.paintCodepoint(cell.char, glyph_x, baseline, dimmed_foreground, bold, italic);
+                self.drawDecorations(glyph_x, glyph_y, cell_width, cell_height, baseline, dimmed_foreground, attributes);
             }
         }
         for (media.patches.items) |patch| self.blitPatch(patch);
@@ -83,21 +98,27 @@ pub const RasterViewport = struct {
             for (0..glyph.width) |x| {
                 const alpha = glyph.data[y * glyph.stride + x];
                 if (alpha == 0) continue;
-                context.viewport.blendPixel(dst_x + @as(i32, @intCast(x)), dst_y + @as(i32, @intCast(y)), context.color, alpha);
+                const italic_offset: i32 = if (context.italic) @intCast((glyph.height - y) / 4) else 0;
+                const pixel_x = dst_x + @as(i32, @intCast(x)) + italic_offset;
+                const pixel_y = dst_y + @as(i32, @intCast(y));
+                context.viewport.blendPixel(pixel_x, pixel_y, context.color, alpha);
+                if (context.bold) context.viewport.blendPixel(pixel_x + 1, pixel_y, context.color, alpha);
             }
         }
     }
 
-    fn paintCodepoint(self: *RasterViewport, codepoint: u32, x: i32, baseline: i32, color: buf.RGBA) !?i32 {
+    fn paintCodepoint(self: *RasterViewport, codepoint: u32, x: i32, baseline: i32, color: buf.RGBA, bold: bool, italic: bool) !?i32 {
         return self.font.withGlyph(codepoint, .{
             .viewport = self,
             .x = x,
             .baseline = baseline,
             .color = color,
+            .bold = bold,
+            .italic = italic,
         }, paintGlyph);
     }
 
-    fn paintGrapheme(self: *RasterViewport, pool: *gp.GraphemePool, encoded: u32, x: i32, baseline: i32, cell_span: i32, color: buf.RGBA) !void {
+    fn paintGrapheme(self: *RasterViewport, pool: *gp.GraphemePool, encoded: u32, x: i32, baseline: i32, cell_span: i32, color: buf.RGBA, bold: bool, italic: bool) !void {
         const bytes = pool.get(gp.graphemeIdFromChar(encoded)) catch |err| {
             logger.warn("bug: raster viewport could not resolve grapheme pool entry: {}", .{err});
             return;
@@ -117,11 +138,22 @@ pub const RasterViewport = struct {
                 logger.warn("bug: raster viewport could not decode grapheme UTF-8", .{});
                 return;
             };
-            if (try self.paintCodepoint(codepoint, pen_x, baseline, color)) |advance_x| {
+            if (try self.paintCodepoint(codepoint, pen_x, baseline, color, bold, italic)) |advance_x| {
                 if (advance_x > 0) pen_x = @min(x + cell_span, pen_x + advance_x);
             }
             offset += sequence_len;
         }
+    }
+
+    fn drawDecorations(self: *RasterViewport, x: i32, y: u32, width: u32, height: u32, baseline: i32, color: buf.RGBA, attributes: u8) void {
+        const underline_y: u32 = @intCast(@max(@as(i32, @intCast(y)), baseline + 1));
+        if (attributes & ansi.TextAttributes.UNDERLINE != 0) self.fillRectAlpha(@intCast(x), underline_y, width, 1, color, 255);
+        if (attributes & ansi.TextAttributes.STRIKETHROUGH != 0) self.fillRectAlpha(@intCast(x), y + height / 2, width, 1, color, 255);
+    }
+
+    fn dim(self: *const RasterViewport, color: buf.RGBA) buf.RGBA {
+        _ = self;
+        return ansi.rgbColor(ansi.red(color) / 2, ansi.green(color) / 2, ansi.blue(color) / 2, ansi.alpha(color));
     }
 
     fn fill(self: *RasterViewport, color: buf.RGBA) void {

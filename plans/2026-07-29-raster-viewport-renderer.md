@@ -11,48 +11,13 @@ is retained for terminals and screen modes where raster mode is ineligible.
 The existing atomic-native-graphics work remains a transport foundation, but it
 is not visual composition: ANSI cells and SIXEL are separate terminal layers.
 
-## State Vector Manifest (SVM v2)
+## State Vector Manifest
 
-This is the compact, node-scoped execution state for this feature. Semantic
-weights belong only to the node-local SV; work weights alone determine the root
-progress. Evidence is immutable Git history or a reproducible oracle. Node IDs
-are stable logical IDs until the project has an automated CHT writer; no
-hand-authored digest is presented as a canonical CHT.
-
-```mermaid
-flowchart LR
-  G["RVP/root\nUnified viewport"] --> E["E eligibility ✓"]
-  G --> R["R composition ✓"]
-  G --> O["O native output ✓"]
-  G --> C["C raster caret ✓"]
-  G --> T["T grapheme text → active"]
-  G --> S["S UI styles → active"]
-  G --> W["W direct WT oracle awaiting build"]
-  G --> P["P bounds/backpressure pending"]
-  G --> H["H native harness pending"]
-  E --> R --> O --> W
-  O --> P
-  H --> W
-```
-
-| ID | Work wt. | Local SV / semantic dominant | State, evidence, and next admissible transition | Depends on |
-|---|---:|---|---|---|
-| `RVP/root` | 1.00 | `unified scene .40, scroll coherence .35, native graphics .25` / **One terminal scene** | Progress `0.50` derived from verified leaf weights. Next: accept verified leaf output only. | all children |
-| `RVP/E` | 0.10 | `confirmed geometry .45, alternate screen .30, capabilities .25` / **Safe eligibility** | Done. Nonzero CSI pixel/cell metrics must exactly match logical columns/rows. Evidence: `b21a254da`. | — |
-| `RVP/R` | 0.15 | `cell buffer .45, media patches .35, opaque RGBA .20` / **Final composition input** | Done for backgrounds, direct glyphs, media. Evidence: `3def96120`, `b21a254da`. | E |
-| `RVP/O` | 0.15 | `one protocol image .50, no ANSI diff .35, lifecycle .15` / **Single native output** | Done. Raster branch bypasses ANSI diff; cleanup remembers its source protocol. Evidence: `b21a254da`, `14258c51f`. | E, R |
-| `RVP/C` | 0.10 | `caret geometry .45, input usability .35, no ANSI restore .20` / **Raster caret** | Done. Block/line/underline are painted in the RGBA frame. Evidence: `a5adad714`. | O |
-| `RVP/T` | 0.15 | `grapheme pool .45, Unicode sequence .35, cell metric .20` / **Text cluster fidelity** | Active. Pool UTF-8 is decoded and FreeType advances are bounded to the logical cluster span; next: real shaping/fallback semantics. | R |
-| `RVP/S` | 0.10 | `attributes .40, borders .35, selection/scrollbar .25` / **UI visual fidelity** | Active. Direct cells now honor inverse/dim/hidden, faux bold/italic, underline and strike; borders, selection and scrollbars remain pending. This leaf can proceed alongside T because both consume the final cell buffer. | R |
-| `RVP/W` | 0.10 | `Windows Terminal .45, screenshot .35, resize/input .20` / **Direct observable oracle** | Awaiting full user build in a direct WT session; no code blocker. Required evidence: mixed text/Mermaid screenshot, typing, resize, clean exit. | O, C, H |
-| `RVP/P` | 0.05 | `frame bounds .45, coalescing .30, transport latency .25` / **Bounded raster transport** | Pending. Must set pixel/byte/FPS limits before default enablement. | O |
-| `RVP/H` | 0.10 | `native harness .50, deterministic pixels .30, CI oracle .20` / **Reproducible native proof** | Pending. A runnable Windows-compatible compositor oracle is needed before source-only assertions count as proof. | R, C |
-
-The current execution frontier is `RVP/T` and `RVP/S`. `RVP/W` is deliberately
-independent of Unicode/style implementation: it validates the already-complete
-single-frame route, while T and S improve what that route paints. Failed
-diagnostics remain scoped to their leaf and do not alter the root SV without an
-oracle-backed state transition.
+The canonical node-level execution state is
+[2026-07-29-raster-viewport-renderer.svm.md](2026-07-29-raster-viewport-renderer.svm.md).
+It owns SVs, work weights, dependency edges, evidence, active context, and
+admission rules. This document owns architecture, implementation detail, and
+smoke tests.
 
 ## Architecture
 

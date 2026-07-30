@@ -1,8 +1,9 @@
 # Mechanistic Compaction — Stable Continuous Memory
 
-**Status:** production design, sidecar Layer-1 migration in progress
-**Last updated:** 2026-07-27
-**Code:** `packages/opencode/src/session/{prompt,compaction,incremental-checkpoint,summary,checkpoint}.ts`
+**Status:** production design (Layer-2 in-band cadence fixed 2026-07-30)
+**Last updated:** 2026-07-30
+**Code:** `packages/opencode/src/session/{prompt,compaction,overflow,incremental-checkpoint,summary,checkpoint}.ts`  
+**Process graph:** `docs/session-memory-graph.md`
 
 ## Contract
 
@@ -58,7 +59,13 @@ results. Exact data is stored beside the inferred body in `project_checkpoint`.
 
 ## Layer 2: algorithmic materialization
 
-On content/provider overflow, `compact()` soft-hides visible history and emits:
+`compact()` costs **zero LLM tokens**. In-band cadence is
+`needsContentCompaction({ openTokens, target: 65_536 })` — never `usable()` or
+`isOverflowFromContent` (those are hard context-safety for real model turns /
+emergency `processor` path only).
+
+On cadence (open window ≥ 65K) or emergency provider overflow, `compact()`
+soft-hides visible history and emits:
 
 ```text
 message* = sidecar checkpoint bodies + Exact handles + bounded Recent fold

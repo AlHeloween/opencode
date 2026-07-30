@@ -1,24 +1,30 @@
 import { describe, expect, test } from "bun:test"
-import path from "path"
 import { invalidatePermissionCache } from "../../src/tool/bash"
-
-const projectRoot = path.join(__dirname, "../..")
+import {
+  invalidatePermissionCache as invalidateFromModule,
+  permissionCacheHit,
+  permissionCacheKey,
+  permissionCacheSet,
+} from "../../src/tool/permission-cache"
 
 describe("BashTool permission cache", () => {
-  test("invalidatePermissionCache clears the cache", () => {
-    // Must not throw — the cache is an in-memory Map
-    expect(() => invalidatePermissionCache()).not.toThrow()
+  test("shared cache hit/miss and clear", () => {
+    const key = permissionCacheKey("bash", ["ls", "pwd"])
+    invalidateFromModule()
+    expect(permissionCacheHit(key)).toBe(false)
+    permissionCacheSet(key)
+    expect(permissionCacheHit(key)).toBe(true)
+    invalidatePermissionCache()
+    expect(permissionCacheHit(key)).toBe(false)
+  })
+
+  test("bash re-exports the shared invalidate helper", () => {
+    expect(invalidatePermissionCache).toBe(invalidateFromModule)
   })
 
   test("invalidatePermissionCache is callable multiple times", () => {
-    // Clear, then clear again — idempotent
     invalidatePermissionCache()
     invalidatePermissionCache()
-    // No throw = pass
-  })
-
-  test("invalidatePermissionCache is exported and accessible", () => {
-    // Verify the function exists and is a function
     expect(typeof invalidatePermissionCache).toBe("function")
   })
 })

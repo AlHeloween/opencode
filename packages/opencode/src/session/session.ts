@@ -41,6 +41,7 @@ import { ModelID } from "../provider/schema"
 
 import type { Provider } from "@/provider/provider"
 import { Permission } from "@/permission"
+import { invalidatePermissionCache } from "@/tool/permission-cache"
 import { Effect, Layer, Option, Context, Schema, Types } from "effect"
 import { zod } from "@/util/effect-zod"
 import { optionalOmitUndefined, withStatics } from "@/util/schema"
@@ -850,6 +851,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       permission: Permission.Ruleset
     }) {
       yield* patch(input.sessionID, { permission: input.permission, time: { updated: Date.now() } })
+      // Exact: bash permission-ask cache must not survive rule changes (B3 residual).
+      invalidatePermissionCache()
     })
 
     const setRevert = Effect.fn("Session.setRevert")(function* (input: {
@@ -949,9 +952,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       return Option.none<MessageV2.WithParts>()
     })
 
-    /** Consolidated finish-step: batches step-finish part + message update
-      * + session token/cost accumulation. Reduces DB transactions from 4-6
-      * to a maximum of 3 per step (batch + optional patch + optional summary). */
+    /** One SQLite TX: step-finish PartUpdated + Message.Updated + cost/tokens.
+      * See docs/finish-step-tx-graph.md (B1 phase-2). Patch/summary stay outside. */
     const finishStep = Effect.fn("Session.finishStep")(function* (input: {
       sessionID: SessionID
       message: MessageV2.Info
@@ -964,38 +966,44 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
         ? { projectID: ctx.value.project.id, directory: ctx.value.worktree }
         : {}
 
-      // Batch 1: step-finish part + message update via SyncEvent
       yield* Effect.sync(() => {
-        SyncEvent.run(MessageV2.Event.PartUpdated, {
-          sessionID: input.sessionID,
-          ...project,
-          part: input.stepFinishPart,
-          time: Date.now(),
-        })
-        SyncEvent.run(MessageV2.Event.Updated, {
-          sessionID: input.sessionID,
-          ...project,
-          info: input.message,
-        })
+        SyncEvent.runBatch(
+          [
+            {
+              def: MessageV2.Event.PartUpdated,
+              data: {
+                sessionID: input.sessionID,
+                ...project,
+                part: input.stepFinishPart,
+                time: Date.now(),
+              },
+            },
+            {
+              def: MessageV2.Event.Updated,
+              data: {
+                sessionID: input.sessionID,
+                ...project,
+                info: input.message,
+              },
+            },
+          ],
+          {
+            after: (tx) => {
+              tx.update(SessionTable)
+                .set({
+                  cost: sql`cost + ${input.cost}`,
+                  tokens_input: sql`tokens_input + ${input.tokens.input + input.tokens.cache.read}`,
+                  tokens_output: sql`tokens_output + ${input.tokens.output}`,
+                  tokens_reasoning: sql`tokens_reasoning + ${input.tokens.reasoning}`,
+                  tokens_cache_read: sql`tokens_cache_read + ${input.tokens.cache.read}`,
+                  tokens_cache_write: sql`tokens_cache_write + ${input.tokens.cache.write}`,
+                })
+                .where(eq(SessionTable.id, input.sessionID))
+                .run()
+            },
+          },
+        )
       })
-
-      // Accumulate session-level token/cost totals
-      yield* Effect.sync(() =>
-        Database.use((db) =>
-          db
-            .update(SessionTable)
-            .set({
-              cost: sql`cost + ${input.cost}`,
-              tokens_input: sql`tokens_input + ${input.tokens.input + input.tokens.cache.read}`,
-              tokens_output: sql`tokens_output + ${input.tokens.output}`,
-              tokens_reasoning: sql`tokens_reasoning + ${input.tokens.reasoning}`,
-              tokens_cache_read: sql`tokens_cache_read + ${input.tokens.cache.read}`,
-              tokens_cache_write: sql`tokens_cache_write + ${input.tokens.cache.write}`,
-            })
-            .where(eq(SessionTable.id, input.sessionID))
-            .run(),
-        ),
-      )
     })
 
     return Service.of({

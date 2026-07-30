@@ -3,7 +3,6 @@
  * Called once at app init and exposed through `opencode debug wasm`.
  */
 import { initDiffy } from "./diff-wasm"
-import { initTokenizer } from "@/tokenizers/bpe-wasm"
 import { initJsonRepair } from "./json-repair-wasm"
 import { initAnyrepair } from "./anyrepair-wasm"
 import { initPathValidator } from "./path-validator"
@@ -46,7 +45,6 @@ function checkMermaidRender() {
 export async function checkWasmModules(): Promise<WasmHealthReport> {
   const results = await Promise.all([
     check("init:diffy", initDiffy),
-    check("init:tokenizer", initTokenizer),
     check("init:json_repair", initJsonRepair),
     check("init:anyrepair", initAnyrepair),
     check("init:path_validator", initPathValidator),

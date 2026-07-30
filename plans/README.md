@@ -52,10 +52,12 @@ Every **implementable** plan must include:
 
 ## Abstract futures (not active)
 
-See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes, superseded HTTP API v2 design, and abandoned B6 compaction-trigger approach.
+See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and superseded HTTP API v2 design.
 
 ## Recently completed → `plans_completed/`
 
+- `2026-07-30-b1-phase2-finish-step-single-tx.md` — **B1 phase-2**: `runBatch` + cost in one TX; graph `docs/finish-step-tx-graph.md`
+- `2026-07-30-fix-mechanistic-compaction-trigger.md` — **B6**: in-band compact cadence = openTokens ≥ 65K (zero-token); graph in `docs/session-memory-graph.md`
 - `2026-07-29-session-processor-acceleration.svm.md` — **Master SVM**: session processor bottleneck optimization (B1+B3+B5)
 - `2026-07-29-session-processor-tx-consolidation.md` — **B1**: finish-step transaction consolidation (4–6→≤3 DB TX)
 - `2026-07-29-permission-cache.md` — **B3**: permission request caching (60s TTL)

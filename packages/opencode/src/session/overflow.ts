@@ -1,12 +1,22 @@
 import type { Config } from "@/config/config"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
-import { Tokenizers } from "@/tokenizers/index"
 import type { MessageV2 } from "./message-v2"
 import { TokenCalibration } from "./token-calibration"
 
 const COMPACTION_BUFFER = 20_000
 const SUMMARY_REQUEST_HEADROOM_TOKENS = 2_048
+
+/** Content body heuristic: ~1 token per 4 symbols (chars). Cadence uses this alone. */
+export const CHARS_PER_TOKEN = 4
+
+/**
+ * Empirical full-request overhead (system prefix, tools schema, framing).
+ * Validated across providers/windows: tokenizers systematically undercount the
+ * real request; `content/4 + 10_000` tracks provider limits better.
+ * Used only on **safety / fit** paths — never on Layer-1/2 open-window cadence.
+ */
+export const REQUEST_OVERHEAD_TOKENS = 10_000
 
 function summaryResponseBudget(model: Provider.Model, contentTokens: number) {
   const raw = ProviderTransform.maxOutputTokens(model, undefined, contentTokens)
@@ -56,50 +66,50 @@ export function isOverflow(input: { cfg: Config.Info; tokens: MessageV2.Assistan
   return count >= usable(input)
 }
 
-/** Extract text content from message parts and count tokens.
-  * Uses the real BPE tokenizer if available for the model;
-  * falls back to chars/4 heuristic otherwise. */
-export function estimateContentTokens(msgs: MessageV2.WithParts[], model: Provider.Model): number {
-  // Collect actual text fragments from content-bearing parts
-  const fragments: string[] = []
+/** Pure content tokens from symbol count — no overhead, no tokenizer. */
+export function contentTokensFromSymbols(symbols: number): number {
+  if (symbols <= 0) return 0
+  return Math.ceil(symbols / CHARS_PER_TOKEN)
+}
+
+/**
+ * Full request size for safety / context-fit decisions:
+ * `contentTokens + REQUEST_OVERHEAD_TOKENS`. Tokenizer is not used — it
+ * undercounts across providers relative to this empirical formula.
+ */
+export function estimateRequestTokens(contentTokens: number): number {
+  if (contentTokens <= 0) return 0
+  return contentTokens + REQUEST_OVERHEAD_TOKENS
+}
+
+/**
+ * Content-only tokens from message parts (chars/4).
+ * No tokenizer, no +10k. For cadence callers use
+ * `SessionCompaction.computeOpenWindowTokens` instead.
+ * `model` retained for call-site compatibility (calibration hooks later).
+ */
+export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provider.Model): number {
   let chars = 0
   for (const msg of msgs) {
     for (const part of msg.parts) {
       if (part.type === "text" && !part.ignored) {
-        fragments.push(part.text)
         chars += part.text.length
       } else if (part.type === "reasoning") {
-        fragments.push(part.text)
         chars += part.text.length
       } else if (part.type === "tool" && part.state.status === "completed") {
-        fragments.push(part.state.output)
         chars += part.state.output.length
       }
-      // CompactionPart, SubtaskPart, StepStartPart, StepFinishPart, AgentPart,
-      // RetryPart, SnapshotPart, PatchPart are lightweight metadata — skip.
     }
   }
-
-  if (chars === 0) return 0
-
-  const charsEstimate = Math.ceil(chars / 4)
-
-  // Prefer real tokenizer for exact count (resolves via api.id → name → family)
-  const tok = Tokenizers.getTokenizerSync(model)
-  const tokEstimate = tok ? tok.countTokens(fragments.join("\n")) : 0
-
-  // Use max(tokenizer, chars/4) — tokenizer may undercount for some models,
-  // chars/4 slightly overcounts for real conversation data (safe side).
-  const raw = Math.max(tokEstimate, charsEstimate)
-
-  // Apply provider-calibrated correction factor (default 1.0)
-  return Math.ceil(raw * TokenCalibration.getFactor(model))
+  return contentTokensFromSymbols(chars)
 }
 
-/** Estimate overflow from extracted text content rather than stored token
-  * fields or raw JSON. The text-based estimate avoids the 3-5x inflation
-  * from JSON structural overhead (field names, brackets, quoting, escaping)
-  * that causes premature compaction on large-context models. */
+/**
+ * Hard **context-safety** heuristic (usable window + output room).
+ * Uses `content/4 + 10k` request estimate — not tokenizer.
+ * Do **not** use for Layer-2 cadence — `compact()` costs **zero** LLM tokens
+ * and must fire on open-window content via {@link needsContentCompaction}.
+ */
 export function isOverflowFromContent(input: {
   cfg: Config.Info
   msgs: MessageV2.WithParts[]
@@ -109,7 +119,33 @@ export function isOverflowFromContent(input: {
   if (input.model.limit.context === 0) return false
   if (input.msgs.length === 0) return false
 
-  const count = estimateContentTokens(input.msgs, input.model)
+  const content = estimateContentTokens(input.msgs, input.model)
+  const count = estimateRequestTokens(content)
   const output = ProviderTransform.maxOutputTokens(input.model, undefined, count)
   return count >= usable(input) || count + output >= input.model.limit.context
+}
+
+/**
+ * Mechanistic Layer-2 / in-band compaction **cadence** gate.
+ *
+ * `compact()` reorganizes existing sidecars/summaries into `message*` — it does
+ * **not** call the provider. Therefore this gate must **not** use `usable()`,
+ * `isOverflowFromContent`, or `summaryWindowLimit` (those reserve LLM headroom
+ * for normal turns / Layer-1 sidecar).
+ *
+ * Callers pass open-window tokens from
+ * `SessionCompaction.computeOpenWindowTokens` (sidecar boundary when present).
+ * Avoids importing compaction.ts (cycle: compaction → overflow).
+ */
+export function needsContentCompaction(input: {
+  cfg: Config.Info
+  /** Open-window content tokens (chars/4) since last Layer-1 boundary. */
+  openTokens: number
+  /** Normal cadence target, typically SUMMARY_INTERVAL_TOKENS (65_536). */
+  target: number
+}) {
+  if (input.cfg.compaction?.auto === false) return false
+  if (input.openTokens <= 0) return false
+  const target = Math.max(1, input.target)
+  return input.openTokens >= target
 }

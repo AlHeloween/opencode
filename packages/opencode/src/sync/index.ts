@@ -286,46 +286,82 @@ export function replayAll(events: SerializedEvent[], options?: { publish: boolea
 }
 
 export function run<Def extends Definition>(def: Def, data: Event<Def>["data"], options?: { publish?: boolean }) {
-  const agg = (data as Record<string, string>)[def.aggregate]
-  // This should never happen: we've enforced it via typescript in
-  // the definition
-  if (agg == null) {
-    throw new Error(`SyncEvent.run: "${def.aggregate}" required but not found: ${JSON.stringify(data)}`)
+  runBatch([{ def, data }], options)
+}
+
+/** One logical write batch: multiple SyncEvents (+ optional tail work) in a
+ *  single `projectTransaction`. Used by finishStep so PartUpdated + Message.Updated
+ *  + session cost share one SQLite TX (see docs/finish-step-tx-graph.md). */
+export type BatchItem = {
+  def: Definition
+  data: Event["data"]
+}
+
+export function runBatch(
+  items: BatchItem[],
+  options?: {
+    publish?: boolean
+    /** Runs inside the same TX after all events are applied (e.g. cost UPDATE). */
+    after?: (tx: Database.TxOrDb) => void
+  },
+): void {
+  if (items.length === 0) {
+    throw new Error("SyncEvent.runBatch: empty batch")
   }
 
-  if (def.version !== versions.get(def.type)) {
-    throw new Error(`SyncEvent.run: running old versions of events is not allowed: ${def.type}`)
+  const { publish = true, after } = options || {}
+
+  let aggregateID: string | undefined
+  for (const item of items) {
+    const agg = (item.data as Record<string, string>)[item.def.aggregate]
+    if (agg == null) {
+      throw new Error(
+        `SyncEvent.runBatch: "${item.def.aggregate}" required but not found: ${JSON.stringify(item.data)}`,
+      )
+    }
+    if (item.def.version !== versions.get(item.def.type)) {
+      throw new Error(`SyncEvent.runBatch: running old versions of events is not allowed: ${item.def.type}`)
+    }
+    if (aggregateID === undefined) aggregateID = agg
+    else if (agg !== aggregateID) {
+      throw new Error(
+        `SyncEvent.runBatch: mixed aggregates not allowed (got "${aggregateID}" and "${agg}")`,
+      )
+    }
   }
 
-  const { publish = true } = options || {}
-
-  const project = resolveProjectInfo(agg, data)
-
-  if (project) {
-    const projector = projectorFor(def)
-    let sequence = -1
-    Database.projectTransaction(
-      project.id,
-      project.worktree,
-      (tx) => {
-        const id = EventID.ascending()
-        const row = tx
-          .select({ seq: EventSequenceTable.seq })
-          .from(EventSequenceTable)
-          .where(eq(EventSequenceTable.aggregate_id, agg))
-          .get()
-        const seq = row?.seq != null ? row.seq + 1 : 0
-        sequence = seq
-
-        const event = { id, seq, aggregateID: agg, data }
-        applyProjectEvent(tx, projector, def, event, { publish })
-      },
-      { behavior: "immediate" },
-    )
-    return
+  const project = resolveProjectInfo(aggregateID!, items[0].data)
+  if (!project) {
+    throw new Error(`SyncEvent.runBatch: no project context for aggregate "${aggregateID}"`)
   }
 
-  throw new Error(`SyncEvent.run: no project context for aggregate "${agg}"`)
+  Database.projectTransaction(
+    project.id,
+    project.worktree,
+    (tx) => {
+      const row = tx
+        .select({ seq: EventSequenceTable.seq })
+        .from(EventSequenceTable)
+        .where(eq(EventSequenceTable.aggregate_id, aggregateID!))
+        .get()
+      let nextSeq = row?.seq != null ? row.seq + 1 : 0
+
+      for (const item of items) {
+        const projector = projectorFor(item.def)
+        const event = {
+          id: EventID.ascending(),
+          seq: nextSeq,
+          aggregateID: aggregateID!,
+          data: item.data,
+        }
+        applyProjectEvent(tx, projector, item.def, event, { publish })
+        nextSeq++
+      }
+
+      after?.(tx)
+    },
+    { behavior: "immediate" },
+  )
 }
 
 export function remove(aggregateID: string) {

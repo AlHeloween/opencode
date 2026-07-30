@@ -13,7 +13,13 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, type ModelMessage, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
-import { isOverflowFromContent, estimateContentTokens, summaryWindowLimit, usable } from "./overflow"
+import {
+  estimateContentTokens,
+  estimateRequestTokens,
+  needsContentCompaction,
+  summaryWindowLimit,
+  usable,
+} from "./overflow"
 import { Jobs } from "../jobs"
 import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
@@ -1170,13 +1176,17 @@ export const layer = Layer.effect(
             const previous = IncrementalCheckpoint.latestOpen(sessionID)
             const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible, previous?.toMessageID)
             if (openTokens < threshold) return false
-            // Pre-flight: skip if the sidecar request itself wouldn't fit in the
-            // model context window. openTokens is a lower bound on the total
-            // request size (system prompts + converted messages + summary prose).
-            // usable() reserves 15% for output; the sidecar needs no output budget
-            // (toolChoice: none), but the input must fit.
-            if (openTokens >= usable({ cfg: yield* config.get(), model: input.model })) {
-              yield* slog.debug("sidecar checkpoint skipped: request exceeds model context", { openTokens, usable: usable({ cfg: yield* config.get(), model: input.model }) })
+            // Pre-flight: full request fit ≈ open content/4 + 10k overhead
+            // (system/tools/framing). Tokenizer not used — undercounts providers.
+            // usable() reserves headroom; sidecar is toolChoice:none (no output budget).
+            const requestTokens = estimateRequestTokens(openTokens)
+            const usableTokens = usable({ cfg: yield* config.get(), model: input.model })
+            if (requestTokens >= usableTokens) {
+              yield* slog.debug("sidecar checkpoint skipped: request exceeds model context", {
+                openTokens,
+                requestTokens,
+                usable: usableTokens,
+              })
               return false
             }
             const boundary = previous?.toMessageID
@@ -1351,15 +1361,25 @@ export const layer = Layer.effect(
             continue
           }
 
+          // Layer-2 cadence: compact() costs zero LLM tokens — gate on open-window
+          // content only (65K), never usable()/isOverflowFromContent (those are
+          // hard context-safety for real model turns; see docs/session-memory-graph.md).
           if (
             (lastFinished || lastAssistant) &&
             lastFinished?.summary !== true &&
             !pendingSummaryResponse &&
             !SessionCompaction.hasPendingSummaryRequest(msgs) &&
-            isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
+            needsContentCompaction({
+              cfg: yield* config.get(),
+              openTokens: SessionCompaction.computeOpenWindowTokens(
+                msgs,
+                IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
+              ),
+              target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+            })
           ) {
             // Compact produces message*; open-window counter becomes message*
-            // size (chars/4). Next loop may inject Layer-1 at its effective target.
+            // size (chars/4). Recent trim still uses provider-safe threshold.
             yield* compaction.compact({
               sessionID,
               model: lastUser.model,
@@ -1428,7 +1448,8 @@ export const layer = Layer.effect(
               sessionID,
               model,
               agentName: agent.name,
-              contentTokenEstimate: estimateContentTokens(msgs, model),
+              // Safety path for processor emergency compact: content/4 + 10k overhead.
+              contentTokenEstimate: estimateRequestTokens(estimateContentTokens(msgs, model)),
               evidenceFloor,
             })
             .pipe(Effect.onInterrupt(() => finalizeInterruptedAssistant))

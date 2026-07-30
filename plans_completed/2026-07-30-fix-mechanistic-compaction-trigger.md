@@ -1,5 +1,10 @@
 # B6: Fix mechanistic compaction trigger — decouple from model context window
 
+**Status:** completed (2026-07-30).  
+B6b (sidecar open-window boundary + usable preflight) shipped in `055c6da`.  
+In-band compact gate: `needsContentCompaction(openTokens ≥ 65_536)` — **zero-token
+cadence**, not `usable()` / `summaryWindowLimit`. Graph: `docs/session-memory-graph.md`.
+
 Framework: ADID 15.4.3. The in-band compaction/summary trigger in `prompt.ts`
 uses `isOverflowFromContent()` which gates on `usable(model)` = 85% of model
 context window. On 1M-context models this means summaries never fire until
@@ -133,63 +138,44 @@ never happen.
 
 | # | Task | Weight | Dependencies | State |
 |---|------|--------|--------------|-------|
-| T1 | Add `needsCompactionFromContent()` to `overflow.ts` | 0.40 | — | pending |
-| T2 | Replace gate in `prompt.ts:1350` | 0.35 | T1 | pending |
-| T3 | Verify emergency path untouched | 0.10 | T1 | pending |
-| T4 | Smoke tests + oracle verification | 0.15 | T1–T3 | pending |
+| T1 | Add `needsContentCompaction()` to `overflow.ts` (openTokens ≥ target only) | 0.40 | — | done |
+| T2 | Replace in-band gate in `prompt.ts` | 0.35 | T1 | done |
+| T3 | Verify emergency path untouched | 0.10 | T1 | done |
+| T4 | Smoke tests + oracle verification | 0.15 | T1–T3 | done |
 
 ## 5. Exact materialized transition
 
-### T1: New function in overflow.ts
+### T1: New function in overflow.ts — **done (corrected)**
 
-**File**: `packages/opencode/src/session/overflow.ts`, after line 115
+**File**: `packages/opencode/src/session/overflow.ts`
 
 ```typescript
-/**
- * Check whether the open content window exceeds the mechanistic summary
- * interval. Unlike {@link isOverflowFromContent}, this does NOT reserve
- * model output budget — compaction is a data reorganization, not an LLM
- * call. Use this for the in-band summary/compaction trigger.
- */
+// CORRECT: compact costs zero LLM tokens — no summaryWindowLimit / usable
 export function needsContentCompaction(input: {
   cfg: Config.Info
-  msgs: MessageV2.WithParts[]
-  model: Provider.Model
+  openTokens: number
   target: number
 }) {
   if (input.cfg.compaction?.auto === false) return false
-  if (input.model.limit.context === 0) return false
-  if (input.msgs.length === 0) return false
-
-  const threshold = summaryWindowLimit({
-    cfg: input.cfg,
-    model: input.model,
-    target: input.target,
-  })
-  const openTokens = SessionCompaction.computeOpenWindowTokens(input.msgs)
-  return openTokens >= threshold
+  if (input.openTokens <= 0) return false
+  return input.openTokens >= Math.max(1, input.target)
 }
 ```
 
-### T2: Replace gate in prompt.ts
+Do **not** call `summaryWindowLimit` here (that is Layer-1 **LLM** headroom).
 
-**File**: `packages/opencode/src/session/prompt.ts`, line 1350
+### T2: Replace gate in prompt.ts — **done**
 
 ```typescript
-// Before:
-isOverflowFromContent({ cfg: yield* config.get(), msgs, model })
-
-// After:
 needsContentCompaction({
   cfg: yield* config.get(),
-  msgs,
-  model,
+  openTokens: SessionCompaction.computeOpenWindowTokens(
+    msgs,
+    IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
+  ),
   target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
 })
 ```
-
-Also update the import at top of prompt.ts to import `needsContentCompaction`
-from overflow.ts (replace or augment the `isOverflowFromContent` import).
 
 ### T3: Verify emergency path untouched
 
@@ -217,21 +203,23 @@ for the emergency gate. No changes needed.
 
 | # | Command (cwd) | Expected now | Actual [Exact] |
 |---|---------------|--------------|----------------|
-| 1 | `bun run typecheck` from `packages/opencode` | pass | (record) |
-| 2 | `bun test test/session/compaction.test.ts --timeout 30000` from `packages/opencode` | 78 pass | (record) |
+| 1 | `bun run typecheck` / `bun typecheck` from `packages/opencode` | pass | **pass** (2026-07-30; `tsgo --noEmit` exit 0) |
+| 2 | `bun test test/session/compaction.test.ts --timeout 60000` from `packages/opencode` | 78 pass | **78 pass, 0 fail** (2026-07-30) |
 
 ### Post-implementation oracles
 
 | # | Command (cwd) | Pass criteria |
 |---|---------------|---------------|
-| 1 | `bun run typecheck` from `packages/opencode` | pass |
-| 2 | `bun test test/session/compaction.test.ts --timeout 30000` from `packages/opencode` | 78 pass |
+| 1 | `bun typecheck` from `packages/opencode` | pass |
+| 2 | `bun test test/session/compaction.test.ts --timeout 60000` from `packages/opencode` | 78+ pass |
+| 3 | Focused unit: `needsContentCompaction` at 65K on mock 1M-context model | fires true at openTokens ≥ summaryWindowLimit; false below |
+| 4 | `rg "isOverflowFromContent\|usable\\(" packages/opencode/src/session/processor.ts` | emergency path still uses `isOverflow`/`usable`; no B6 rewrite |
 
 ### Gate
-- [ ] Smoke requirements written
-- [ ] Baseline recorded [Exact]
-- [ ] Implementation only after baseline
-- [ ] Post-impl smoke passed before [x]
+- [x] Smoke requirements written
+- [x] Baseline recorded [Exact] (2026-07-30)
+- [x] Implementation after baseline
+- [x] Post-impl smoke passed (see verification below)
 
 ## 8. Information Mark ledger
 

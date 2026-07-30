@@ -28,6 +28,14 @@ import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
 import { enforceDestructiveShell } from "./shell-constitution"
+import {
+  invalidatePermissionCache,
+  permissionCacheHit,
+  permissionCacheKey,
+  permissionCacheSet,
+} from "./permission-cache"
+
+export { invalidatePermissionCache }
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 min safety net — agent controls kill via job_kill
@@ -393,30 +401,18 @@ const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolea
   return tree.rootNode
 })
 
-// Permission cache: shell + sorted normalized patterns → TTL.
-// Scoped to process lifetime (in-memory Map). Avoids redundant
-// ctx.ask() round-trips for repeated tool calls within the same session.
-const _permCache = new Map<string, { ts: number }>()
-const PERM_CACHE_TTL_MS = 60_000 // 1 minute
-
 function permCacheKey(shell: string, scan: Scan): string {
   const allPatterns = new Set([
     ...Array.from(scan.dirs).map((d) => path.join(d, "*")),
     ...Array.from(scan.patterns),
   ])
-  return `${shell}:${[...allPatterns].sort().join("|")}`
-}
-
-/** Clear the permission cache (called when permission rules change). */
-export function invalidatePermissionCache() {
-  _permCache.clear()
+  return permissionCacheKey(shell, allPatterns)
 }
 
 const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, shell: string) {
   // Fast path: cache hit — skip full permission check
   const cacheKey = permCacheKey(shell, scan)
-  const cached = _permCache.get(cacheKey)
-  if (cached && Date.now() - cached.ts < PERM_CACHE_TTL_MS) return
+  if (permissionCacheHit(cacheKey)) return
 
   if (scan.dirs.size > 0) {
     const globs = Array.from(scan.dirs).map((dir) => path.join(dir, "*"))
@@ -429,7 +425,7 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, 
   }
 
   if (scan.patterns.size === 0) {
-    _permCache.set(cacheKey, { ts: Date.now() })
+    permissionCacheSet(cacheKey)
     return
   }
   // bash | powershell | cmd — separate keys so /permissions can gate each shell.
@@ -442,7 +438,7 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, 
   })
 
   // Cache on success (errors propagate and are not cached)
-  _permCache.set(cacheKey, { ts: Date.now() })
+  permissionCacheSet(cacheKey)
 })
 
 export function normalizeCommandPaths(command: string): string {

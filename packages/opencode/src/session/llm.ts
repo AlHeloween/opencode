@@ -29,6 +29,7 @@ import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { repairJson as repairJsonAny, repairAny } from "@/util/anyrepair-wasm"
 import { canonicalName } from "@/tool/tool"
 import { SessionTools } from "./tools"
+import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
@@ -742,8 +743,9 @@ export function hasToolCalls(messages: ModelMessage[]): boolean {
   return false
 }
 
-/** Approximate request content for dynamic output budgeting. Recompute on every
- * request: equal message counts do not imply equal system or message content. */
+/** Approximate full request for dynamic output budgeting: symbols/4 + 10k
+ * overhead (system/tools/framing). Tokenizer not used — undercounts providers.
+ * Recompute every request: equal message counts ≠ equal content. */
 export function estimateContentTokens(system: string[], messages: ModelMessage[]): number {
   let chars = system.reduce((total, content) => total + content.length, 0)
   for (const message of messages) {
@@ -764,7 +766,8 @@ export function estimateContentTokens(system: string[], messages: ModelMessage[]
     }
     chars += 32
   }
-  return Math.ceil(chars / 4)
+  if (chars <= 0) return 0
+  return Math.ceil(chars / 4) + REQUEST_OVERHEAD_TOKENS
 }
 
 export * as LLM from "./llm"

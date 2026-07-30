@@ -121,9 +121,10 @@ describe("session.llm.hasToolCalls", () => {
 
 describe("session.llm.estimateContentTokens", () => {
   test("recomputes when equal-count requests change system or message content", () => {
-    expect(LLM.estimateContentTokens(["base"], [{ role: "user", content: "brief" }])).toBe(3)
-    expect(LLM.estimateContentTokens(["x".repeat(4000)], [{ role: "user", content: "brief" }])).toBe(1002)
-    expect(LLM.estimateContentTokens(["base"], [{ role: "user", content: "x".repeat(4000) }])).toBe(1001)
+    // content/4 + 10k request overhead (empirical; tokenizer not used)
+    expect(LLM.estimateContentTokens(["base"], [{ role: "user", content: "brief" }])).toBe(10_003)
+    expect(LLM.estimateContentTokens(["x".repeat(4000)], [{ role: "user", content: "brief" }])).toBe(11_002)
+    expect(LLM.estimateContentTokens(["base"], [{ role: "user", content: "x".repeat(4000) }])).toBe(11_001)
   })
 })
 

@@ -16,6 +16,7 @@ import { Deferred, Effect, Layer, Schema, Context } from "effect"
 import os from "os"
 import { evaluate as evalRule } from "./evaluate"
 import { PermissionID } from "./schema"
+import { invalidatePermissionCache } from "@/tool/permission-cache"
 
 const log = Log.create({ service: "permission" })
 
@@ -251,6 +252,8 @@ export const layer = Layer.effect(
           })
           yield* Deferred.fail(item.deferred, new RejectedError())
         }
+        // Stale "allow" cache entries must not skip re-ask after reject.
+        invalidatePermissionCache()
         return
       }
 
@@ -264,6 +267,8 @@ export const layer = Layer.effect(
           action: "allow",
         })
       }
+      // "always" expands approved ruleset — drop shell cache so next ask re-evaluates.
+      invalidatePermissionCache()
 
       for (const [id, item] of pending.entries()) {
         if (item.info.sessionID !== existing.info.sessionID) continue

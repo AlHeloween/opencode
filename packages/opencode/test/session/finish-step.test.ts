@@ -234,6 +234,74 @@ describe("Session.finishStep", () => {
     })
   })
 
+  test("finishStep persists step-finish part and cost in one logical batch", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const info = await create({ title: "atomic-batch-test" })
+        const messageID = MessageID.ascending()
+        const partID = PartID.ascending()
+
+        const msg: MessageV2.Info = {
+          id: messageID,
+          sessionID: info.id,
+          role: "assistant",
+          time: { created: Date.now() },
+          agent: "test",
+          model: { providerID: "test", modelID: "test" },
+          tools: {},
+          mode: "",
+        } as unknown as MessageV2.Info
+
+        const stepFinishPart: MessageV2.StepFinishPart = {
+          id: partID,
+          messageID,
+          sessionID: info.id,
+          type: "step-finish",
+          reason: "stop",
+          snapshot: undefined,
+          tokens: {
+            total: 100,
+            input: 40,
+            output: 40,
+            reasoning: 10,
+            cache: { read: 5, write: 5 },
+          },
+          cost: 0.02,
+        }
+
+        await finishStep({
+          sessionID: info.id,
+          message: msg,
+          stepFinishPart,
+          cost: 0.02,
+          tokens: {
+            input: 40,
+            output: 40,
+            reasoning: 10,
+            cache: { read: 5, write: 5 },
+          },
+        })
+
+        // Part + message + cost must all be visible after the single batch returns.
+        const part = await AppRuntime.runPromise(
+          SessionNs.Service.use((svc) =>
+            svc.getPart({ sessionID: info.id, messageID, partID }),
+          ),
+        )
+        expect(part?.type).toBe("step-finish")
+
+        const retrieved = await AppRuntime.runPromise(SessionNs.Service.use((svc) => svc.get(info.id)))
+        expect(retrieved.cost).toBeGreaterThanOrEqual(0.02)
+        expect(retrieved.tokens!.input).toBeGreaterThanOrEqual(40)
+
+        await remove(info.id)
+      },
+    })
+  })
+
   test("finishStep handles consecutive calls (multiple steps)", async () => {
     await using tmp = await tmpdir({ git: true })
 

@@ -152,7 +152,6 @@
     "sst": "4.17.1",
     "strip-ansi": "7.2.0",
     "three": "0.185.1",
-    "tiktoken": "1.0.22",
     "turndown": "7.2.4",
     "ulid": "3.0.2",
     "venice-ai-sdk-provider": "2.1.1",

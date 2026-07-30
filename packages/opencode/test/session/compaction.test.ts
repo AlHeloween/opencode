@@ -9,7 +9,14 @@ import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
-import { isOverflowFromContent, estimateContentTokens, summaryWindowLimit } from "../../src/session/overflow"
+import {
+  isOverflowFromContent,
+  estimateContentTokens,
+  estimateRequestTokens,
+  needsContentCompaction,
+  REQUEST_OVERHEAD_TOKENS,
+  summaryWindowLimit,
+} from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
@@ -1268,6 +1275,49 @@ describe("isOverflowFromContent", () => {
   })
 })
 
+// --- needsContentCompaction (Layer-2 zero-token cadence gate) ---
+
+describe("needsContentCompaction", () => {
+  test("fires at SUMMARY_INTERVAL_TOKENS regardless of 1M-context usable()", () => {
+    // 1M model: usable ≈ 980K; isOverflowFromContent stays false at 65K.
+    // Cadence gate must still fire — compact() costs zero LLM tokens.
+    const cfg = defaultCfg()
+    const target = SessionCompaction.SUMMARY_INTERVAL_TOKENS
+    expect(needsContentCompaction({ cfg, openTokens: target - 1, target })).toBe(false)
+    expect(needsContentCompaction({ cfg, openTokens: target, target })).toBe(true)
+    expect(needsContentCompaction({ cfg, openTokens: target + 10_000, target })).toBe(true)
+  })
+
+  test("does not use summaryWindowLimit / output headroom", () => {
+    // Even if a small context would lower summaryWindowLimit for Layer-1 LLM,
+    // compact cadence is pure content open-window vs target.
+    const cfg = defaultCfg()
+    const target = SessionCompaction.SUMMARY_INTERVAL_TOKENS
+    expect(needsContentCompaction({ cfg, openTokens: 65_536, target })).toBe(true)
+  })
+
+  test("respects compaction.auto === false", () => {
+    const cfg = { compaction: { auto: false } } as Config.Info
+    expect(
+      needsContentCompaction({
+        cfg,
+        openTokens: SessionCompaction.SUMMARY_INTERVAL_TOKENS * 2,
+        target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+      }),
+    ).toBe(false)
+  })
+
+  test("returns false for empty open window", () => {
+    expect(
+      needsContentCompaction({
+        cfg: defaultCfg(),
+        openTokens: 0,
+        target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+      }),
+    ).toBe(false)
+  })
+})
+
 // --- estimateContentTokens tests (overflow.ts) ---
 
 describe("estimateContentTokens", () => {
@@ -1336,6 +1386,17 @@ describe("estimateContentTokens", () => {
   test("returns 0 for empty messages", () => {
     const model = createModel({ context: 100_000, output: 32_000 })
     expect(estimateContentTokens([], model)).toBe(0)
+  })
+
+  test("estimateRequestTokens adds fixed 10k overhead for safety only", () => {
+    expect(REQUEST_OVERHEAD_TOKENS).toBe(10_000)
+    expect(estimateRequestTokens(0)).toBe(0)
+    expect(estimateRequestTokens(1_250)).toBe(1_250 + 10_000)
+    // Content-only estimate must stay without overhead (cadence geometry).
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4000) }])]
+    expect(estimateContentTokens(msgs, model)).toBe(1_000)
+    expect(estimateRequestTokens(estimateContentTokens(msgs, model))).toBe(11_000)
   })
 })
 

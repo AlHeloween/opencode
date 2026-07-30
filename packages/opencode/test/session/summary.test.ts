@@ -220,55 +220,6 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
     expect(sliced.map((m) => m.info.id)).toEqual([MessageID.make("msg_b"), MessageID.make("msg_c")])
   })
 
-  test("uses system snapshot endpoints for structural summary impact", () => {
-    const messages = [
-      {
-        info: { id: MessageID.make("msg_start"), role: "user", sessionID: sid, time: { created: 1 }, agent: "build", model: ref },
-        parts: [{ type: "step-start", snapshot: "fossil_from" }],
-      },
-      {
-        info: { id: MessageID.make("msg_finish"), role: "assistant", sessionID: sid, time: { created: 2 }, agent: "build" },
-        parts: [{ type: "step-finish", snapshot: "fossil_to" }],
-      },
-    ] as MessageV2.WithParts[]
-    // Both endpoints in the same list (from=first hash walk, to=last) still works when
-    // the range itself contains start+finish — typical single-pass message list.
-    expect(SessionSummary.snapshotRangeForMessages(messages)).toEqual({ from: "fossil_from", to: "fossil_to" })
-    // Only one hash in range, no prior → from=to (baseline at open); pair still valid.
-    expect(SessionSummary.snapshotRangeForMessages([messages[0]!], [])).toEqual({
-      from: "fossil_from",
-      to: "fossil_from",
-    })
-    // No hash in range → skip even if prior exists.
-    expect(
-      SessionSummary.snapshotRangeForMessages(
-        [
-          {
-            info: { id: MessageID.make("msg_text"), role: "user", sessionID: sid, time: { created: 3 }, agent: "build", model: ref },
-            parts: [{ type: "text", text: "hello" }],
-          },
-        ] as MessageV2.WithParts[],
-        [messages[1]!],
-      ),
-    ).toBeUndefined()
-    // Explicit prior + in-range (contract).
-    expect(SessionSummary.snapshotRangeForMessages([messages[1]!], [messages[0]!])).toEqual({
-      from: "fossil_from",
-      to: "fossil_to",
-    })
-    // Multiple hashes in range → from = prior, to = **last** in range (full multi-edit span).
-    const mid = {
-      info: { id: MessageID.make("msg_mid"), role: "assistant", sessionID: sid, time: { created: 2.5 }, agent: "build" },
-      parts: [
-        { type: "step-finish", snapshot: "fossil_mid" },
-        { type: "patch", hash: "fossil_mid2", files: ["a.ts"] },
-      ],
-    } as MessageV2.WithParts
-    expect(
-      SessionSummary.snapshotRangeForMessages([mid, messages[1]!], [messages[0]!]),
-    ).toEqual({ from: "fossil_from", to: "fossil_to" })
-  })
-
   test("Layer-1 summary turn has no edits but range messages do — range computeDiff is non-empty", async () => {
     // Documents the bug: summarizing only the summary-range parent + summary
     // assistant yields [] diffs; the open window's tool filediffs must be used.
@@ -388,6 +339,105 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
         expect(rangeDiffs[0].additions).toBe(10)
       },
     })
+  })
+})
+
+/**
+ * Critical Exact contract for summary fossil endpoints.
+ * Pure functions — no Fossil binary required.
+ */
+describe("SessionSummary.snapshotRangeForMessages (fossil Exact contract)", () => {
+  const mk = (
+    id: string,
+    parts: Array<Record<string, unknown>>,
+    role: "user" | "assistant" = "assistant",
+  ): MessageV2.WithParts =>
+    ({
+      info: {
+        id: MessageID.make(id),
+        role,
+        sessionID: sid,
+        time: { created: 1 },
+        agent: "build",
+        model: ref,
+      },
+      parts,
+    }) as MessageV2.WithParts
+
+  test("snapshotHashesOnMessage collects step-start, step-finish, and patch", () => {
+    const msg = mk("msg_h", [
+      { type: "step-start", snapshot: "H0" },
+      { type: "text", text: "x" },
+      { type: "step-finish", snapshot: "H1" },
+      { type: "patch", hash: "H2", files: ["a.ts"] },
+    ])
+    expect(SessionSummary.snapshotHashesOnMessage(msg)).toEqual(["H0", "H1", "H2"])
+  })
+
+  test("no hash in range → skip even when prior exists", () => {
+    const prior = [mk("msg_p", [{ type: "step-finish", snapshot: "H_prior" }])]
+    const range = [mk("msg_r", [{ type: "text", text: "hello only" }], "user")]
+    expect(SessionSummary.snapshotRangeForMessages(range, prior)).toBeUndefined()
+  })
+
+  test("prior hash + last hash in multi-hash range → full WC span for CodeGraph", () => {
+    const prior = [mk("msg_p", [{ type: "step-finish", snapshot: "H_prior" }])]
+    const range = [
+      mk("msg_1", [{ type: "step-start", snapshot: "H1" }]),
+      mk("msg_2", [
+        { type: "step-finish", snapshot: "H2" },
+        { type: "patch", hash: "H3", files: ["a.ts"] },
+      ]),
+      mk("msg_3", [{ type: "step-finish", snapshot: "H_last" }]),
+    ]
+    // Multiple changes in summary window: from = prior, to = LAST in range (not H1/H2).
+    expect(SessionSummary.snapshotRangeForMessages(range, prior)).toEqual({
+      from: "H_prior",
+      to: "H_last",
+    })
+  })
+
+  test("no prior: first hash in range is baseline, last is end", () => {
+    const range = [
+      mk("msg_1", [{ type: "step-start", snapshot: "H_open" }]),
+      mk("msg_2", [{ type: "step-finish", snapshot: "H_mid" }]),
+      mk("msg_3", [{ type: "patch", hash: "H_end", files: ["b.ts"] }]),
+    ]
+    expect(SessionSummary.snapshotRangeForMessages(range)).toEqual({
+      from: "H_open",
+      to: "H_end",
+    })
+    expect(SessionSummary.snapshotRangeForMessages(range, [])).toEqual({
+      from: "H_open",
+      to: "H_end",
+    })
+  })
+
+  test("single hash in range, no prior → from === to (empty fossil span is valid)", () => {
+    const range = [mk("msg_1", [{ type: "step-finish", snapshot: "H_only" }])]
+    expect(SessionSummary.snapshotRangeForMessages(range)).toEqual({
+      from: "H_only",
+      to: "H_only",
+    })
+  })
+
+  test("prior wins over first-in-range when both exist", () => {
+    const prior = [mk("msg_p", [{ type: "step-finish", snapshot: "H0" }])]
+    const range = [
+      mk("msg_1", [{ type: "step-start", snapshot: "H1" }]),
+      mk("msg_2", [{ type: "step-finish", snapshot: "H2" }]),
+    ]
+    expect(SessionSummary.snapshotRangeForMessages(range, prior)).toEqual({
+      from: "H0",
+      to: "H2",
+    })
+  })
+
+  test("empty range messages → skip", () => {
+    expect(SessionSummary.snapshotRangeForMessages([])).toBeUndefined()
+    expect(
+      SessionSummary.snapshotRangeForMessages([], [mk("msg_p", [{ type: "step-finish", snapshot: "H0" }])]),
+    ).toBeUndefined()
   })
 })
 

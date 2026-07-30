@@ -2,8 +2,9 @@
 
 ## Memory / session (canonical)
 
-- [Mechanistic Compaction](compaction.md) — **canonical** Layer-1 sidecar + Layer-2 zero-token compact (code-aligned 2026-07-30)
-- [Session memory graph](session-memory-graph.md) — end-to-end mermaid: cadence vs safety, token formulas
+- [Mechanistic Compaction](compaction.md) — **canonical** Layer-1 summary outside content + Layer-2 compact
+- [Summary Exact handles](summary-exact-handles.md) — fossil prior+last-in-range + CodeGraph (critical)
+- [Session memory graph](session-memory-graph.md) — end-to-end mermaid: cadence vs safety
 - [Finish-step TX graph](finish-step-tx-graph.md) — `runBatch` / single SQLite TX at step boundary
 
 ## Product / stack

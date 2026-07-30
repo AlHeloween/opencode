@@ -7,7 +7,8 @@ Two layers of truth:
 
 If they disagree, **do not paper over it**. Fix code toward the contract, or mark gap.
 
-**Graphs:** [`session-memory-graph.md`](session-memory-graph.md)
+**Graphs:** [`session-memory-graph.md`](session-memory-graph.md)  
+**Fossil Exact on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
 
 ---
 

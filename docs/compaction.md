@@ -137,26 +137,23 @@ sequenceDiagram
 | Exact range + fossil + CodeGraph on s | `enrichRange` + save on sidecar | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs** |
-| Compact after enough s / open window | In-band gate **after** loop `break` on completed turns; **stop path has no compact** | **GAP** |
+| Compact after enough s / open window | **`maybeCompactCadence` on stop** after sidecar + while loop continues | **Fixed 2026-07-30** |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
 
-### The critical bug (control flow)
+### Stop-path cadence (shipped)
 
 ```text
-// prompt.ts order today (Exact)
-if (turn complete && !summaryAttempt) break;   // ← exits here on normal stop
-// …
-if (needsContentCompaction(open ≥ 65K)) compact();  // ← often never reached
+stop → Checkpoint M → maybeCaptureSidecar (s outside M)
+     → maybeCompactCadence:
+          visibleTokens = content/4 of **full visible M** (not since-last-s)
+          if ≥ 65_536 → compact() → m* = [s…, recent m…]; soft-hide m
+     → break
 ```
 
-So the **intended** “content grows with out-of-band s, then compact into m*” is only
-reliable today via **emergency** compact (overflow/`usable`), not via clean
-65K/256k-char cadence at turn end.
-
-**Fix direction (code):** on `stop` after sidecar (or when open ≥ threshold and
-enough open `s`), call `compact()` **or** move cadence gate **before** break /
-onto the stop path — without putting `s` into M.
+**Why full visible, not open-since-last-s:** summarized `m` stay in M until
+compact soft-hides them. Sidecar boundary resets open-for-next-s ≈ 0; total M
+still holds prior segments — that total is what must fold into `m*`.
 
 ---
 
@@ -191,10 +188,10 @@ No BPE/tiktoken authority (undercounts providers).
 - [x] `s` outside M (`project_checkpoint`)  
 - [x] AI sections + Exact enrich  
 - [x] Body checker (4 headings)  
+- [x] **Compact on cadence at stop** (`maybeCompactCadence` after sidecar)  
 - [ ] Stronger post-summary field checker / retry on sidecar  
-- [ ] **Compact on cadence at turn boundary** (fix break/stop ordering)  
 - [ ] Remove or quarantine dead `injectSummaryRequest` primary path  
-- [ ] Docs/agents only cite this contract + gap table  
+- [x] Docs cite contract + gap table  
 
 ---
 

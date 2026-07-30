@@ -261,9 +261,7 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 **Compaction / continuous memory:** Canonical **`docs/compaction.md`** (intended contract + code gap table). Graph: **`docs/session-memory-graph.md`**.
 
-**Intended:** content window is only `m…`; each `s` (AI summary + Exact range/session-read/fossil/CodeGraph) lives **outside** content; after checkpoint (inferences done) request summary (user-message shape), store `s`, **restore M**, continue; counter ~**256k chars** (tokens≈chars/4 → ~64k); `compact` → `m* = [s,s,…, recent m…]` with post-summary field checker.
-
-**Code today:** sidecar on `stop` matches “outside content + restore M”; **gap:** completed turns `break` before in-band compact (cadence fold unreliable — emergency only). `injectSummaryRequest` not called from prompt loop. Tokens: content/4 cadence, +10k safety; no tokenizer WASM.
+**Intended + code:** content window is only `m…`; each `s` lives **outside** (`project_checkpoint`); on `stop`: checkpoint → sidecar? → **`maybeCompactCadence`** (full visible content/4 ≥ ~65K) → `m* = [s…, recent m…]`; s never injected into M. Sidecar open window = since last s; compact window = **all visible m** (they remain until soft-hide). Tokens: content/4 cadence, +10k safety. `injectSummaryRequest` not called from prompt loop.
 
 **Rollback safety:** Atomic write via temp file + rename — no partial state ever touches disk.
 

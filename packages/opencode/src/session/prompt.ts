@@ -1248,6 +1248,54 @@ export const layer = Layer.effect(
             }).pipe(Effect.ensuring(Effect.sync(() => sidecarInFlight.delete(sessionID))))
           })
 
+        /**
+         * Layer-2 cadence fold (zero LLM tokens). Intended geometry:
+         *   content M = [m…]; s stored outside; compact → m* = [s…, recent m…]
+         * Gate on **total visible** content (chars/4), not open-since-last-s:
+         * summarized m remain in M until soft-hide; only compact removes them.
+         * Sidecar cadence still uses boundary-limited open window.
+         */
+        const maybeCompactCadence = (input: {
+          model: Provider.Model
+          agent: string
+          msgs?: MessageV2.WithParts[]
+        }) =>
+          Effect.gen(function* () {
+            const visible =
+              input.msgs ?? (yield* MessageV2.filterCompactedEffect(sessionID))
+            const cfg = yield* config.get()
+            // Full visible window — do not pass sidecar boundary (see contract).
+            const visibleTokens = SessionCompaction.computeOpenWindowTokens(visible)
+            if (
+              !needsContentCompaction({
+                cfg,
+                openTokens: visibleTokens,
+                target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+              })
+            ) {
+              return false
+            }
+            yield* slog.info("layer2.cadence.compact", {
+              sessionID,
+              visibleTokens,
+              target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+            })
+            yield* compaction.compact({
+              sessionID,
+              model: { providerID: input.model.providerID, modelID: input.model.id },
+              agent: input.agent,
+              threshold: summaryWindowLimit({
+                cfg,
+                model: input.model,
+                target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+              }),
+            })
+            yield* Checkpoint.remove(sessionID)
+            cachedMsgs = undefined
+            lastKnownId = undefined
+            return true
+          })
+
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
           yield* slog.info("loop", { step })
@@ -1361,41 +1409,15 @@ export const layer = Layer.effect(
             continue
           }
 
-          // Layer-2 cadence: compact() costs zero LLM tokens — gate on open-window
-          // content only (65K), never usable()/isOverflowFromContent (those are
-          // hard context-safety for real model turns; see docs/session-memory-graph.md).
+          // Layer-2 cadence while loop continues (e.g. tools). Stop-path compact
+          // is handled after sidecar in result==="stop" (break used to skip this).
           if (
             (lastFinished || lastAssistant) &&
             lastFinished?.summary !== true &&
             !pendingSummaryResponse &&
             !SessionCompaction.hasPendingSummaryRequest(msgs) &&
-            needsContentCompaction({
-              cfg: yield* config.get(),
-              openTokens: SessionCompaction.computeOpenWindowTokens(
-                msgs,
-                IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
-              ),
-              target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-            })
+            (yield* maybeCompactCadence({ model, agent: lastUser.agent, msgs }))
           ) {
-            // Compact produces message*; open-window counter becomes message*
-            // size (chars/4). Recent trim still uses provider-safe threshold.
-            yield* compaction.compact({
-              sessionID,
-              model: lastUser.model,
-              agent: lastUser.agent,
-              threshold: summaryWindowLimit({
-                cfg: yield* config.get(),
-                model,
-                target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-              }),
-            })
-            // Invalidate checkpoint — the old checkpoint contains pre-compaction
-            // message IDs that won't match the new compacted state. Loading it
-            // on the next turn would cause a full rebuild, defeating the purpose.
-            yield* Checkpoint.remove(sessionID)
-            cachedMsgs = undefined
-            lastKnownId = undefined
             continue
           }
 
@@ -1905,6 +1927,8 @@ export const layer = Layer.effect(
               yield* Effect.forkIn(scope)(
                 Checkpoint.persist({ sessionID, projectID: ctx.project.id, data: checkpointData }),
               )
+              // Contract: checkpoint (inferences done) → summary s outside M → restore M
+              // (sidecar never mutates M) → compact when total visible content ≥ 65K.
               yield* maybeCaptureSidecar({
                 visible: visibleAfter,
                 model,
@@ -1913,6 +1937,12 @@ export const layer = Layer.effect(
                 user: lastUser,
                 checkpoint: checkpointData,
                 afterAssistant: completedAsst,
+              })
+              // Layer-2 fold on stop path (s outside content; m soft-hidden into m*).
+              // Re-load visible after sidecar so materialize sees new open checkpoints.
+              yield* maybeCompactCadence({
+                model,
+                agent: lastUser.agent,
               })
               if (!titleRequested) {
                 titleRequested = true

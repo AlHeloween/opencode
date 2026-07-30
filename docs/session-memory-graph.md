@@ -58,17 +58,21 @@ flowchart TB
 
   STOP --> CK[Checkpoint.publish M]
   CK --> SC[maybeCaptureSidecar]
-  SC --> BRK2[break]
+  SC --> MC[maybeCompactCadence\nfull visible ≥ 65K?]
+  MC -->|yes| CMPS[compact → m*]
+  MC -->|no| BRK2
+  CMPS --> BRK2[break]
 
   BRK --> END([idle])
   BRK2 --> END
 ```
 
-**Read carefully:**
+**Contract path on completed work turns:**
 
-- Green path on completed work turns: **stop → checkpoint → sidecar? → break**.  
-- **`compact` is not on that path.**  
-- In-band `needsContentCompaction` only if the loop **did not break** first.
+`stop → checkpoint → sidecar? (s outside M) → compact if total visible ≥ 65K → break`
+
+- Compact gate uses **full visible** content/4 (m stay in M until soft-hide).  
+- Sidecar gate uses **open since last s** only.
 
 ---
 

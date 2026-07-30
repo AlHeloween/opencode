@@ -232,31 +232,25 @@ const live: Layer.Layer<
         model: input.model.id,
       })
 
-      // Tool schemas — sorted text block for the cached prefix (slot 1).
-      // The AI SDK `tools` parameter is still passed separately for tool calling.
-      const toolSchemaText = serializeToolSchemas(input.tools)
+      // Tool schemas — full shared set in the cached prefix (byte-stable across agents).
+      // AI SDK `tools` also uses the full set; execute ACL is SessionTools + real agent.
+      const providerTools = resolveTools(input)
+      const toolSchemaText = serializeToolSchemas(providerTools)
       const isCheckpoint = input.checkpoint === true
-
-      // Active/inactive tools line — short, changes per agent; lands in collapsed tail.
-      const activeToolSet = resolveTools(input)
-      const activeNames = Object.keys(activeToolSet).sort()
-      const allNames = Object.keys(input.tools).sort()
-      const inactiveNames = allNames.filter((n) => !activeNames.includes(n))
-      const toolsLine = inactiveNames.length > 0
-        ? `Active tools: ${activeNames.join(", ")}\nInactive: ${inactiveNames.join(", ")}`
-        : `Active tools: ${activeNames.join(", ")}`
 
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
 
+      // agentPrompt empty here — role is synthetic conversation notify (insertReminders).
+      // Do not put per-agent prompt or Active/Inactive tool lines in system (KV break).
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
         toolSchemas: toolSchemaText,
         reasoningPrefix,
         algorithmCard,
         kernel,
-        agentPrompt: input.agent.prompt ?? "",
+        agentPrompt: "",
         pathSystem: input.system,
-        activeToolsLine: toolsLine,
+        activeToolsLine: "",
         banner,
         userSystem: input.user.system,
         checkpoint: isCheckpoint,
@@ -281,9 +275,10 @@ const live: Layer.Layer<
 
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.
+      // Shared identity: do not suffix agent name — all roles use the same system prefix.
       const providerCacheKey = input.providerCacheKey
-        ? [input.providerCacheKey, input.agent.name].join(":")
-        : [input.sessionID, input.agent.name, input.model.id].join(":")
+        ? input.providerCacheKey
+        : [input.sessionID, input.model.id].join(":")
       checkSystemStability({
         sessionID: input.sessionID,
         agent: input.agent.name,
@@ -700,17 +695,13 @@ export const defaultLayer = Layer.suspend(() =>
 )
 
 /**
- * Provider-facing tool set. Prefer not stripping by mode ACL here — native modes
- * share a stable tool schema (KV). Mode denials run at execute (SessionTools) with
- * the real agent. `input.agent` for native modes is typically Build (cache identity).
- * Still honor explicit user tool disables and total wildcard denies on this agent.
+ * Provider-facing tool set — keep schemas unified for all agents/modes.
+ * Do **not** strip by agent permission (that would change tool JSON per role and
+ * bust the shared KV prefix). Execute-time SessionTools enforces real-agent ACL.
+ * Only honor explicit `user.tools[k] === false` opt-outs.
  */
 function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
-  const disabled = Permission.disabled(
-    Object.keys(input.tools),
-    Permission.merge(input.permission ?? [], input.agent.permission),
-  )
-  return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
+  return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false)
 }
 
 // Check if messages contain any tool-call content

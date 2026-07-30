@@ -7,15 +7,16 @@
  *   [0] UNIVERSAL_ENV            — immutable forever
  *   [1] stable identity prefix   — reasoning → ALGORITHM_CARD → kernel (MOST STABLE)
  *   [2] tool schemas             — stable per app version
- *   [3] path system              — rules → skills → env → agentPrompt → instructions
- *   [4] mutable tail             — active tools line, session banner, user system
+ *   [3] path system              — rules → skills → env → instructions (NO agent role)
+ *   [4] mutable tail             — session banner, user system (optional)
  *
  * Reasoning moved before tool schemas so the model sees how to think before
  * learning what tools are available — protocol-first, tools-second.
  *
- * NEVER put session IDs, timestamps, or per-turn tool-active lines inside
- * segments [0–3]. Collapse used to join identity+path+banner into one string,
- * so a new session invalidated the entire path/skills block (~20–40k tokens).
+ * Agent/role instructions are conversation notifies (synthetic user parts), not
+ * system-prefix bytes — so explore/coder/plan/reasoning share one tool schema
+ * and path body. NEVER put session IDs, timestamps, per-agent tool lists, or
+ * agent.prompt inside segments [0–3].
  */
 
 export type SystemComposeInput = {
@@ -31,7 +32,10 @@ export type SystemComposeInput = {
   algorithmCard?: string
   /** Kernel file (opencode_prompts_kernel.txt). Stable per app version. */
   kernel: string
-  /** Agent-specific prompt (coder.txt / explore.txt / orchestrator.txt). */
+  /**
+   * @deprecated Prefer conversation role notify. Kept optional for callers;
+   * if set, lands in the **mutable tail only** (never stable path body).
+   */
   agentPrompt: string
   /**
    * Path-level system entries from prompt.ts.
@@ -40,7 +44,10 @@ export type SystemComposeInput = {
    * and replaced by the fresh identity components.
    */
   pathSystem: string[]
-  /** Per-turn / per-agent tool availability — mutable, always last. */
+  /**
+   * @deprecated Per-agent active/inactive tool lines break shared KV. Prefer empty.
+   * If set, mutable tail only.
+   */
   activeToolsLine: string
   /** Session id / provider cache key — mutable, always last. */
   banner: string
@@ -68,41 +75,21 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
   // system[2]: Tool schemas — stable per app version
   if (input.toolSchemas) system.push(input.toolSchemas)
 
-  // system[3]: Path system + agent prompt
-  // Path system: rules → skills → env → instructions
-  // (stable prefix already injected at slot [1])
+  // system[3]: Path system only (rules → skills → env → instructions).
+  // Agent role is NOT here — conversation notify keeps path body shared.
   const path =
     input.checkpoint && input.pathSystem.length > 0
       ? input.pathSystem.slice(1) // drop stored identity prefix
       : input.pathSystem
 
-  // Agent prompt goes after all path elements (rules/skills/env) but before instructions.
-  // If path has instructions (last element), insert agentPrompt before it.
-  // Otherwise, append agentPrompt after all path elements.
-  let stableBodyParts: string[]
-  if (input.agentPrompt) {
-    if (path.length > 0) {
-      // Insert agentPrompt before the last element (instructions) if there are multiple elements,
-      // or after the single element if path has only one element.
-      const allButLast = path.slice(0, -1)
-      const last = path.slice(-1)
-      stableBodyParts = [...allButLast, input.agentPrompt, ...last]
-    } else {
-      stableBodyParts = [input.agentPrompt]
-    }
-  } else {
-    stableBodyParts = [...path]
-  }
-
-  const stableBody = stableBodyParts
-    .filter((s) => s.length > 0)
-    .join("\n")
+  const stableBody = path.filter((s) => s.length > 0).join("\n")
   if (stableBody) system.push(stableBody)
 
-  // Mutable tail — session banner, active tools, user system. Always last so
-  // prefix KV hits survive across sessions on the same project/agent.
+  // Mutable tail — never agent tool lists that differ by role.
+  // Optional agentPrompt (legacy) only in tail if callers still pass it.
   const mutable: string[] = []
   if (input.activeToolsLine) mutable.push(input.activeToolsLine)
+  if (input.agentPrompt) mutable.push(input.agentPrompt)
   if (input.banner) mutable.push(input.banner)
   if (!input.checkpoint && input.userSystem) mutable.push(input.userSystem)
   if (mutable.length > 0) system.push(mutable.join("\n"))

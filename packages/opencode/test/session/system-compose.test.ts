@@ -77,13 +77,14 @@ describe("system-compose provider assembly", () => {
       userSystem: "USER",
       checkpoint: false,
     })
-    // Order: [0] UE, [1] reasoning+card+kernel, [2] tools, [3] path system, [4] mutable
+    // Order: [0] UE, [1] reasoning+card+kernel, [2] tools, [3] path (no agent role), [4] mutable
+    // Agent prompt + active tools line only in mutable tail (not stable path).
     expect(parts).toEqual([
       "UE",
       "REASONING\nALGORITHM_CARD\nKERNEL",
       "TOOLS",
-      "RULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
-      "Active tools: a\n[session: ses_1]\nUSER",
+      "RULES\nSKILLS\nENV\nINSTRUCTIONS",
+      "Active tools: a\nAGENT_PROMPT\n[session: ses_1]\nUSER",
     ])
   })
 
@@ -100,8 +101,9 @@ describe("system-compose provider assembly", () => {
       banner: "[session: ses_1]",
       checkpoint: true,
     })
-    // After stripping OLD_IDENTITY: reasoning → card → kernel → rules → skills → agentPrompt → env
-    expect(parts[3]).toBe("RULES\nSKILLS\nAGENT_PROMPT\nENV")
+    // Path body has no agent role; agentPrompt is mutable tail only.
+    expect(parts[3]).toBe("RULES\nSKILLS\nENV")
+    expect(parts[4]).toContain("AGENT_PROMPT")
     expect(parts.join("\n")).not.toContain("OLD_IDENTITY")
     expect(parts.some((p) => p === "USER")).toBe(false)
   })
@@ -122,14 +124,16 @@ describe("system-compose provider assembly", () => {
     const collapsed = collapseSystemMessages(raw, "UE")
     // Critical: session banner must NOT be joined into identity/path — that
     // forced a full path/skills recompute on every new session.
+    // Agent role is mutable tail only — stable path has no AGENT_PROMPT.
     expect(collapsed).toEqual([
       "UE",
       "REASONING\nALGORITHM_CARD\nKERNEL",
       "TOOLS",
-      "RULES\nSKILLS\nENV\nAGENT_PROMPT\nINSTRUCTIONS",
-      "Active tools: a\n[session: ses_1]",
+      "RULES\nSKILLS\nENV\nINSTRUCTIONS",
+      "Active tools: a\nAGENT_PROMPT\n[session: ses_1]",
     ])
     expect(collapsed[3]).not.toContain("[session:")
+    expect(collapsed[3]).not.toContain("AGENT_PROMPT")
     expect(collapsed[4]).toContain("[session: ses_1]")
   })
 

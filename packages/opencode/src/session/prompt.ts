@@ -88,10 +88,23 @@ export function modeInstructionForTransition(previousMode: string | undefined, n
   if (nextMode === "reasoning") return PROMPT_REASONING
 }
 
-/** Native modes share Build's provider-visible identity; ACL stays mode-local. */
-export function providerIdentityForMode(agent: Agent.Info, build: Agent.Info) {
-  if (agent.native && ["build", "plan", "reasoning"].includes(agent.name)) return build
-  return agent
+/**
+ * Provider-visible identity is always Build (when available): same tool schemas,
+ * skills, and stable system path for every agent — primary modes and subagents.
+ * Role text is a synthetic user notify; ACL is execute-time on the real agent.
+ * [KV-CACHE] Do not put agent-specific tool lists or agent.prompt into the stable prefix.
+ */
+export function providerIdentityForMode(_agent: Agent.Info, build: Agent.Info) {
+  return build
+}
+
+/** Subagent / specialized role as conversation notify (not system-prefix mutation). */
+export function roleInstructionForAgent(agent: Agent.Info): string | undefined {
+  if (!agent.prompt?.trim()) return
+  if (["build", "plan", "reasoning"].includes(agent.name)) return
+  return (
+    `<system-reminder>\n# Role: ${agent.name}\n\n${agent.prompt.trim()}\n</system-reminder>`
+  )
 }
 
 // @ts-ignore
@@ -315,7 +328,11 @@ export const layer = Layer.effect(
 
       const userIndex = input.messages.findLastIndex((msg) => msg.info.id === userMessage.info.id)
       const previousMode = input.messages.slice(0, userIndex).findLast((msg) => msg.info.agent)?.info.agent
-      const instruction = modeInstructionForTransition(previousMode, input.agent.name)
+      // Mode transition (build/plan/reasoning) or subagent role notify on agent switch.
+      // Steady-state same agent: no re-inject (permissions enforce; keep KV message prefix).
+      const instruction =
+        modeInstructionForTransition(previousMode, input.agent.name) ??
+        (previousMode !== input.agent.name ? roleInstructionForAgent(input.agent) : undefined)
       if (!instruction || hasSynthetic(instruction)) return input.messages
       const part = yield* sessions.updatePart({
         id: PartID.ascending(),
@@ -1576,9 +1593,8 @@ export const layer = Layer.effect(
             yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
             throw error
           }
-          // Native modes differ only in runtime ACL. Their provider identity is
-          // Build so a transition appends a tail record without changing cache
-          // keys, schemas, skills, system bytes, or checkpoint slots.
+          // All agents share Build provider identity (tools/skills/stable path).
+          // Role = synthetic notify; ACL = execute on real `agent`.
           const cacheAgent = providerIdentityForMode(agent, (yield* agents.get("build")) ?? agent)
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps

@@ -315,11 +315,8 @@ export const TaskTool = Tool.define(
                     },
                     agent: next.name,
                     variant: taskVariant,
-                    tools: {
-                      ...(canTodo ? {} : { todowrite: false }),
-                      ...(canTask ? {} : { task: false }),
-                      ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
-                    },
+                    // Full tool schemas (shared KV). Nested task/todo blocked via
+                    // session.permission on nextSession, not by stripping tools.
                     parts,
                   })
                   .pipe(
@@ -381,11 +378,7 @@ export const TaskTool = Tool.define(
                   providerID: model.providerID,
                 },
                 agent: next.name,
-                tools: {
-                  ...(canTodo ? {} : { todowrite: false }),
-                  ...(canTask ? {} : { task: false }),
-                  ...Object.fromEntries((cfg.experimental?.primary_tools ?? []).map((item) => [item, false])),
-                },
+                // Full tool schemas; ACL via nextSession.permission + agent.permission.
                 parts,
               })
               .pipe(

@@ -51,8 +51,11 @@ Example prompt:
 
 ## Behavior
 
-- Runs in an isolated child session with tools disabled; the response is prose.
+- Direct LLM call — no session, no system prompt, no tools, no agent reasoning.
+  The model sees ONLY the attached files and your prompt. Pure transformation.
 - Reads only the explicitly supplied files and prompt text.
-- Is abortable through the parent session.
 - Returns inline output unless `output_file` is supplied; very large results may
   be truncated by normal tool-output limits.
+- The response is raw prose — no summarization, no "here's what I did", no
+  agent chatter. If you ask for code, you get code. If you ask for analysis,
+  you get analysis.

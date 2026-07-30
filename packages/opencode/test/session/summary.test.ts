@@ -256,6 +256,17 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
       from: "fossil_from",
       to: "fossil_to",
     })
+    // Multiple hashes in range → from = prior, to = **last** in range (full multi-edit span).
+    const mid = {
+      info: { id: MessageID.make("msg_mid"), role: "assistant", sessionID: sid, time: { created: 2.5 }, agent: "build" },
+      parts: [
+        { type: "step-finish", snapshot: "fossil_mid" },
+        { type: "patch", hash: "fossil_mid2", files: ["a.ts"] },
+      ],
+    } as MessageV2.WithParts
+    expect(
+      SessionSummary.snapshotRangeForMessages([mid, messages[1]!], [messages[0]!]),
+    ).toEqual({ from: "fossil_from", to: "fossil_to" })
   })
 
   test("Layer-1 summary turn has no edits but range messages do — range computeDiff is non-empty", async () => {

@@ -56,10 +56,10 @@ rows are consumed **only at compact** into `m*`.
 |-------|--------|------|
 | AI body | **Inferred** | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
 | System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, checkpoint id |
-| Fossil diff | **Exact** | if **any hash prior** to range **and any hash in** range → `diffFull`; else **skip** |
-| CodeGraph | **Exact** | impact for that fossil pair (when pair exists) |
+| Fossil diff | **Exact** | `from` = hash **prior** to range (or first in range if none); `to` = **last** hash **in** range (covers multi-edit windows). Else **skip**. |
+| CodeGraph | **Exact** | impact over `from`→`to` (all WC changes in that span) |
 
-**Not:** hash on every message. **Yes:** any prior hash + any in-range hash, or skip.
+**Not:** hash on every message. **Yes:** prior baseline + last hash in summary window for one fossil/CodeGraph span.
 
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 

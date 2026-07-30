@@ -54,20 +54,23 @@ export function snapshotHashesOnMessage(msg: MessageV2.WithParts): string[] {
 /**
  * Exact Fossil endpoints for a summary range.
  *
- * Contract (not per-message hashes):
- * - Need **any** hash **prior** to the summary window AND **any** hash **in** it.
- * - `from` = last hash before the range; if none, first hash **in** the range
- *   (baseline at window open — first segment of a session).
- * - `to`   = last hash **in** the range.
- * - No hash in range → skip (no WC activity → no fossil Exact).
- * - No `from` after that rule → skip.
- * - Both present → `diffFull(from, to)` (+ CodeGraph). Summaries themselves are
- *   stored outside content flow; only compact consumes them into m*.
+ * Contract (not one hash per message):
+ * - `from` = hash **prior** to the summary range (last hash before the window).
+ *   If the range is the first segment and there is no prior, fall back to the
+ *   **first** hash in the range (WC baseline at open).
+ * - `to`   = **last** hash **in** the summary range (even if the range has many
+ *   step/patch hashes — multi-edit windows are one fossil span for CodeGraph).
+ * - No hash in range → skip Exact (no tracked WC change).
+ * - Both endpoints present → `diffFull(from, to)` + CodeGraph impact over all
+ *   WC changes between them.
+ *
+ * Summaries live outside content flow; only compact folds them into m*.
  */
 export function snapshotRangeForMessages(
   rangeMessages: MessageV2.WithParts[],
   beforeMessages?: MessageV2.WithParts[],
 ): { from: string; to: string } | undefined {
+  // Any hash prior to the summary range (last wins).
   let prior: string | undefined
   if (beforeMessages?.length) {
     for (const item of beforeMessages) {
@@ -75,6 +78,7 @@ export function snapshotRangeForMessages(
     }
   }
 
+  // All hashes in range: first = optional baseline, last = end of multi-change window.
   let firstInRange: string | undefined
   let lastInRange: string | undefined
   for (const item of rangeMessages) {
@@ -84,12 +88,12 @@ export function snapshotRangeForMessages(
     }
   }
 
-  // Must have some hash activity in the summary range.
   if (!lastInRange) return undefined
 
+  // Prefer hash before range; first-in-range only for the opening segment.
   const from = prior ?? firstInRange
   const to = lastInRange
-  if (!from || !to) return undefined
+  if (!from) return undefined
   return { from, to }
 }
 

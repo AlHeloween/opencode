@@ -146,33 +146,41 @@
 
 ## 5. Mechanistic Compaction (Stable Continuous Memory)
 
-Full write-up: **`docs/compaction.md`**.
+**Canonical:** [`docs/compaction.md`](compaction.md) · **Graphs:** [`session-memory-graph.md`](session-memory-graph.md)
 
 **Problem:** One-shot “summarize 500k tokens” produces unreliable memory soup; the agent drifts.
 
-**Solution:** Bounded normally ~64k summaries (with a provider-safe lower fallback) + soft-hide compact into `message*`. **Model** writes Inferred prose only (SVM / goal / decisions / state). **System** owns Exact digits (range IDs, stamps, fossil diffs, CodeGraph). Archive stays in DB for `session-read` / `messagesearch`. Full ownership table: **`docs/compaction.md` § Model vs system**.
+**Solution (production):**
+
+| Layer | Mechanism | Tokens |
+|-------|-----------|--------|
+| **1 Sidecar** | After completed turn: open window ≥ `summaryWindowLimit` (~65K content/4) → ephemeral LLM → `project_checkpoint`. Visible `M` unchanged. | LLM (hidden branch) |
+| **2 Compact** | `needsContentCompaction(open ≥ 65K)` **or** emergency `usable`/provider overflow → `compact()` → `message*`. Soft-hide; never delete. | **Zero** LLM |
+| **Safety estimate** | request size ≈ content/4 + **10k** (no tokenizer authority) | — |
+
+**Model** = Inferred prose (SVM / Goal / decisions / state). **System** = Exact IDs, diffs, CodeGraph, materialization.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              MECHANISTIC COMPACTION LOOP                     │
+│              MECHANISTIC COMPACTION LOOP (2026-07-30)         │
 │                                                              │
-│  Layer 1 — open window reaches ~64K content tokens (chars/4), │
-│  or a lower provider-safe target:                             │
-│    SYSTEM: ignored range marker + prose inject               │
-│    MODEL:  s = SVM / Goal / Key decisions / Current state    │
-│    SYSTEM: Exact stamp + fossil diffs for from_id..to_id     │
-│            (CodeGraph = structural detail on those diffs)    │
+│  Layer 1 — sidecar (after stop, completed turn):              │
+│    openTokens = content chars/4 since last sidecar boundary  │
+│    if open ≥ summaryWindowLimit AND request fit ( /4+10k ):  │
+│      ephemeral LLM → project_checkpoint (Inferred + Exact)   │
+│      visible M byte-stable                                   │
 │                                                              │
-│  Layer 2 — on overflow (SYSTEM only):                        │
-│    (m,m,s,m,m,s,m,m) → message* = (s,s, recent m…)           │
-│    soft-hide all visible (info.compacted); never delete      │
+│  Layer 2 — compact() ZERO tokens:                            │
+│    in-band: needsContentCompaction(open ≥ 65_536)            │
+│    emergency: isOverflow / requestTokens ≥ usable()          │
+│    → message* = sidecars (+ legacy summaries) + Recent       │
+│    soft-hide visible; archive remains for session-read       │
 │                                                              │
-│  Loop:  (m*, s, m, m, …) → compact again → message**         │
-│  counter after compact := len(message*)/4                    │
+│  Loop:  (m…)+sidecars → message* → growth → compact again    │
+│  counter after compact ≈ len(message*)/4                     │
 │                                                              │
-│  Memory model:                                               │
-│    active  = message* + recent s/m                           │
-│    archive = full SQLite history (session-read / search)     │
+│  Dual path residual: injectSummaryRequest still in code;     │
+│  primary path is sidecar — see docs/compaction.md            │
 │                                                              │
 │  Checkpoint: remove on compact; save after next success      │
 └─────────────────────────────────────────────────────────────┘
@@ -242,17 +250,19 @@ See **`docs/agi-workflow.md`**. Runtime `util/plan-status.ts` standardizes `plan
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `session/prompt.ts` | Main prompt loop, checkpoint, Layer-1 summary tokens | — |
+| `session/prompt.ts` | Main prompt loop, checkpoint, `maybeCaptureSidecar`, Layer-2 cadence gate | — |
 | `util/plan-status.ts` | Plan progress + reconcilePlans hygiene | — |
 | `cli/cmd/tui/context/agi-mode.tsx` | AGI loop, plan hygiene integration | — |
-| `session/llm.ts` | LLM orchestration, system reorder, plugin hook | ~600 |
-| `session/system.ts` | Environment, capabilities, provider prompts | 168 |
-| `session/instruction.ts` | AGENTS.md/rules loading, caching | 270 |
+| `session/llm.ts` | LLM orchestration; request size ≈ content/4+10k | — |
+| `session/system.ts` | Environment, capabilities, provider prompts | — |
+| `session/instruction.ts` | AGENTS.md/rules loading, caching | — |
 | `session/checkpoint.ts` | Per-model encrypted checkpoint save/load | — |
+| `session/incremental-checkpoint.ts` | Sidecar `project_checkpoint` CRUD / materialize | — |
 | `session/cache-control.ts` | MD5 fingerprint, cache audit | — |
 | `session/request-diff.ts` | Encrypted baseline, diff engine | — |
-| `session/compaction.ts` | Mechanistic compact + injectSummaryRequest | — |
-| `session/overflow.ts` | Content/token overflow detection | — |
+| `session/compaction.ts` | `compact()` + legacy summary helpers | — |
+| `session/overflow.ts` | Cadence vs safety gates; `needsContentCompaction` | — |
+| `sync/index.ts` | `SyncEvent.run` / `runBatch` (finishStep one TX) | — |
 | `session/message-v2.ts` | Schema, conversion, `filterCompacted*` | — |
 | `agent/agent.ts` | 10 built-in agent definitions | 395 |
 | `tool/pipeline.ts` | Pipeline tool (agent chaining) | 191 |

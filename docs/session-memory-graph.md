@@ -2,7 +2,7 @@
 
 **Status:** production geometry (ADID 15.4.3)  
 **Code:** `packages/opencode/src/session/{prompt,compaction,overflow,processor,incremental-checkpoint,checkpoint}.ts`  
-**Related:** `docs/compaction.md`
+**Canonical prose:** [`compaction.md`](compaction.md) (if docs conflict, **compaction.md + code** win)
 
 ## Token ownership (Exact)
 
@@ -79,7 +79,7 @@ flowchart TB
     SC["maybeCaptureSidecar"]
     CK --> SC
     SC --> SWL{"≥ summaryWindowLimit?"}
-    SWL -->|yes + fits usable| EP["ephemeral LLM + prose"]
+    SWL -->|yes + request fit /4+10k| EP["ephemeral LLM + prose"]
     EP --> PC[("project_checkpoint")]
   end
 
@@ -87,16 +87,23 @@ flowchart TB
 
   subgraph L2["Layer-2 compact — ZERO tokens"]
     SID["listOpen sidecars"]
+    LEG["legacy assistant.summary\nif any still present"]
     STAR["buildMessageStar"]
     HIDE["soft-hide visible"]
     MS["message* synthetic user"]
     MAT["materialize sidecars"]
-    SID --> STAR --> HIDE --> MS --> MAT
+    SID --> STAR
+    LEG --> STAR
+    STAR --> HIDE --> MS --> MAT
   end
 
   C0 --> L2
   PC -.->|later| L2
 ```
+
+**Dual path:** primary capture is sidecar. `injectSummaryRequest` remains in
+code for legacy; compact still folds old `assistant.summary` rows when present.
+
 
 ---
 

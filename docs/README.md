@@ -1,13 +1,20 @@
 # Documentation
 
-- [Rendering Pipeline](rendering.md) — full LLM→terminal display flow, TUI components, streaming, mermaid, images
-- [Mechanistic Compaction](compaction.md) — stable continuous memory (summaries + links + soft-hide `message*`)
-- [AGI Workflow](agi-workflow.md) — orchestrator/worker loop, plan hygiene, persistence, permissions
+## Memory / session (canonical)
+
+- [Mechanistic Compaction](compaction.md) — **canonical** Layer-1 sidecar + Layer-2 zero-token compact (code-aligned 2026-07-30)
+- [Session memory graph](session-memory-graph.md) — end-to-end mermaid: cadence vs safety, token formulas
+- [Finish-step TX graph](finish-step-tx-graph.md) — `runBatch` / single SQLite TX at step boundary
+
+## Product / stack
+
+- [Rendering Pipeline](rendering.md) — LLM→terminal display, mermaid, images
 - [Architecture](architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
-- [Startup & bootstrap](startup-bootstrap.md) — cold start, InstanceBootstrap, Plugin.init, CodeGraph, Fossil vs git/jj, shell permissions
+- [AGI Workflow](agi-workflow.md) — orchestrator/worker loop, plan hygiene
+- [Startup & bootstrap](startup-bootstrap.md) — cold start, CodeGraph, Fossil vs git/jj
 - [External File Locations](external-file-locations.md) — where opencode reads/writes files
-- [Linux deploy](linux-deploy.md) — build and portable install of this fork on Linux (OpenTUI, Fossil, layout)
-- [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, resolution order, Fossil/rg/markdownify, Linux vs Windows packaging
-- [Background Jobs](background-jobs.md) — non-blocking bash/cmd execution, stalled detection, job_kill, TUI visibility, state machine
-- [ADID Framework 15.4.3](ADID_Framework_15_4_3.md) — active ADID safe-update manager construction contract
-- [Reasoning Kernel Tests](../tests/test_reasoning_kernel.py) — 165 pytest tests for the reasoning kernel
+- [Linux deploy](linux-deploy.md) — Linux build and portable install
+- [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify
+- [Background Jobs](background-jobs.md) — non-blocking shell jobs, job_kill, TUI
+- [ADID Framework 15.4.3](ADID_Framework_15_4_3.md) — safe-update manager contract
+- [Reasoning Kernel Tests](../tests/test_reasoning_kernel.py) — pytest for the reasoning kernel

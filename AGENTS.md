@@ -111,7 +111,7 @@ Goal
 | **1. Task geometry** | Mode 1 linear `CENTRAL_TASKS`; Mode 2 fractal (Sierpinski / Quad-tree / L-System) + cosine alignment + **k-medoids grounded on seed tasks** | Monolith plans; transformer length-bias mush; goal drift | Kernel `PLANNING`; plan agent workflow |
 | **2. Prior art** | `universalsearch` `web` / `code` (Sourcegraph) / `hybrid`; local codegraph first for structure | Reinvention; guesswork | Rule `REUSE.BEFORE`; tool `universalsearch` |
 | **3. Oracles** | Plan `## Smoke Tests`: baseline [Exact] before edit; post-impl pass criteria before `[x]` | “Works on vibes” | Rule `SMOKE.BEFORE`; `plans/README.md` |
-| **4. Conversation memory** | Mechanistic compaction: small summaries with hard links → `message*`; never delete; session-read = Exact | Memory soup | `docs/compaction.md`; checkpoint system |
+| **4. Conversation memory** | Sidecar Layer-1 + zero-token `compact()` → `message*`; never hard-delete; session-read = Exact | Memory soup | `docs/compaction.md`, `docs/session-memory-graph.md` |
 | **5. Working-copy memory** | Fossil snapshots (runtime undo timeline) + CodeGraph **folder-scoped** impact on change eras (not whole-repo graph every time — too ambiguous) | Tree soup; “what did we change?” | Fossil snapshot system; `codegraph/reader` / structural tags |
 | **6. Direction lock** | Semantic Vector / decisions preserved; re-cluster residual work against original goal seeds | Silent mission creep | Compaction SV + Key decisions; plan master sync |
 
@@ -234,7 +234,7 @@ The system prompt is **byte-stable** for the entire session — no timestamps, n
 | `src/session/prompt.ts` | System prompt assembly, fingerprint | System must be identical across paths; fingerprint stored post-plugin |
 | `src/session/cache-control.ts` | Fingerprint computation | `partFingerprint` uses MD5(content) for text, not length |
 | `src/session/llm.ts` | Plugin hook, provider request | Plugin can modify system by reference; fingerprint must be post-hook |
-| `src/session/compaction.ts` | Mechanistic compaction + incremental summaries | `injectSummaryRequest()` normally every ~64K open-window content tokens (chars/4), with a provider-safe lower fallback; `compact()` soft-hides into `message*` (never hard-deletes); see `docs/compaction.md` |
+| `src/session/compaction.ts` | Mechanistic compact + legacy summary helpers | Primary Layer-1 is **sidecar** (`project_checkpoint`); open window = content `chars/4`. Layer-2 `compact()` is **zero LLM tokens** (cadence ≥65K or emergency). See `docs/compaction.md` + `docs/session-memory-graph.md` |
 | `src/session/message-v2.ts` | Message conversion | No mutable injection in `toModelMessagesEffect` |
 
 ## Conversation Checkpoint System
@@ -259,13 +259,14 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 - Checkpoints: `{log}/.checkpoints/` — per-model conversation state
 - Request diffs: `{log}/…_diff_…` diagnostic files; previous request kept in-process (not a separate baseline store)
 
-**Compaction integration (mechanistic continuous memory):** See `docs/compaction.md`.
+**Compaction integration (mechanistic continuous memory):** Canonical: **`docs/compaction.md`**, graphs: **`docs/session-memory-graph.md`**.
 
-- **Layer 1:** open-window **counter** (`chars/4` since last summary) reaches the normal ~64K target, or a lower provider-safe fallback, → system injects summary request. **Model** writes only Inferred prose (SVM, Goal, Key decisions, Current state). **System** owns Exact digits: ignored `from_id`/`to_id`/`session_id` marker, post-summary Exact stamp, fossil/tool diffs for the range, CodeGraph structure. After compact, counter becomes `len(message*)/4` (same rule). Runs on stop and continue. See `docs/compaction.md` § Model vs system.
-- **Layer 2:** on overflow, **system** `compact()` builds **`message*`** (summaries + Recent); soft-hide visible messages — **never deleted**. Full history for `session-read` / `messagesearch`.
-- **Loop:** `(m*, s, m, m, …)` grows again → compact again. Lone `message*` is idempotent (no-op until growth).
-- **Why not one giant “summarize 500k”:** memory soup. **Why not model-authored IDs/diffs:** same class of error as guessing a SHA-256 — system + fossil + CodeGraph only.
-- Checkpoint is **removed** on compact; next successful turn saves a fresh `Checkpoint.save()` of the compacted visible set. No separate compaction agent.
+- **Layer 1 (sidecar, LLM):** After a completed normal turn, if open-window content (`chars/4` since last **sidecar** boundary) ≥ `summaryWindowLimit` (~65K, lower on small context) **and** request fit `content/4+10k < usable()`, capture an ephemeral checkpoint into `project_checkpoint` (Inferred body + Exact range/diff/impact). **Visible `M` unchanged.** Not a synthetic chat user message.
+- **Layer 2 (`compact()`, zero LLM tokens):** In-band gate = `needsContentCompaction(openTokens ≥ 65_536)` — **not** `usable()`. Emergency processor path still uses provider overflow / `usable()`. Builds **`message*`** from open sidecars (+ legacy summary rows if any) + Recent; soft-hide visible — **never hard-delete**.
+- **Token estimate:** cadence = content/4; safety/fit = content/4 + 10k. No WASM/BPE tokenizer authority (undercounts providers).
+- **Loop:** `(m…)+sidecars → message* → growth → compact again`. Lone `message*` idempotent until growth.
+- **Dual path residual:** `injectSummaryRequest` / `assistant.summary` still exist in code; do not document them as the primary path. Prefer sidecar.
+- Checkpoint **removed** on compact; next success re-saves compacted visible set. No separate compaction agent.
 
 **Rollback safety:** Atomic write via temp file + rename — no partial state ever touches disk.
 

@@ -1,111 +1,204 @@
 # Mechanistic Compaction — Stable Continuous Memory
 
-**Status:** production design (Layer-2 in-band cadence fixed 2026-07-30)
-**Last updated:** 2026-07-30
-**Code:** `packages/opencode/src/session/{prompt,compaction,overflow,incremental-checkpoint,summary,checkpoint}.ts`  
-**Process graph:** `docs/session-memory-graph.md`
+**Status:** production (aligned with code 2026-07-30)  
+**Last updated:** 2026-07-30  
+**Code:** `packages/opencode/src/session/{prompt,compaction,overflow,processor,incremental-checkpoint,summary,checkpoint}.ts`  
+**Process graph:** [`session-memory-graph.md`](session-memory-graph.md)  
+**Finish-step TX graph:** [`finish-step-tx-graph.md`](finish-step-tx-graph.md)
 
-## Contract
+This document is the **canonical** memory-path description. If another doc
+disagrees (especially AGENTS.md excerpts that still say “inject summary
+request”), **this file + code win**.
 
-Layer 1 is a hidden, incremental project checkpoint. It is not a message, a mode,
-or a pseudo-agent. The normal conversation remains an uninterrupted sequence.
+---
+
+## Contract (current production)
+
+Layer 1 is a **hidden sidecar project checkpoint**, not a normal chat message
+and not a pseudo-agent. Visible conversation `M` stays byte-stable across capture.
 
 ```text
 M (visible conversation)
-  -> persist normal encrypted provider checkpoint for exactly M
-  -> ephemeral provider branch: M + checkpoint instruction
-  -> model returns checkpoint s
-  -> persist s + exact range/diff/impact in project_checkpoint
-  -> retain visible M unchanged
+  -> Checkpoint.publish/persist exact model-ready M
+  -> maybeCaptureSidecar (ephemeral LLM branch: M + checkpoint instruction)
+  -> model returns body s (Inferred sections only)
+  -> project_checkpoint row: s + Exact range/diff/impact
+  -> visible M unchanged
   -> next real user turn: M + user delta
-  -> Layer 2 materializes message* from sidecar checkpoints + Recent
+  -> Layer 2 compact() folds open sidecars + Recent → message* (ZERO LLM tokens)
 ```
 
-The ephemeral branch is never stored in `message`, `part`, event history, or the
-normal provider checkpoint. Therefore it cannot replay as a user instruction,
-resume a completed task, or alter the next normal provider prefix.
+The ephemeral sidecar branch is **not** written to `message` / `part` / event
+history / the normal provider checkpoint. It must not replay as a user turn.
+
+### Dual path (Exact — do not document as gone)
+
+| Path | Role today |
+|------|------------|
+| **Primary** | `maybeCaptureSidecar` → `project_checkpoint` + `computeOpenWindowTokens(…, sidecarBoundary)` |
+| **Legacy still in code** | `injectSummaryRequest` / `hasPendingSummaryRequest` / `assistant.summary` rows; `compact()` still **folds** legacy summary assistants when present |
+
+**Target end-state** (not fully shipped): remove synthetic in-band summary
+messages; only sidecar + `message*`. Until then, docs must not claim “no
+synthetic summary user message exists in the codebase.”
+
+---
 
 ## Model versus system
 
 | Owner | Data |
-|---|---|
+|-------|------|
 | Model (Inferred) | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
-| System (Exact) | range IDs, sidecar identity/status, cadence counter, Fossil diffs, CodeGraph impact, materialization marker, soft-hide flags, `message*` |
+| System (Exact) | range IDs, sidecar id/status, cadence counter, Fossil diffs, CodeGraph impact, materialization, soft-hide, `message*` |
 
 The model must not invent message IDs, session IDs, hashes, file diffs, or graph
-results. Exact data is stored beside the inferred body in `project_checkpoint`.
+results.
 
-## Layer 1: sidecar capture
+---
 
-- Trigger only after a normal assistant turn fully completes: no unresolved
-  reasoning part and no pending tool-call loop.
-- The normal target is `SUMMARY_INTERVAL_TOKENS = 65_536` content tokens
-  (`chars / 4`), with a lower provider-safe fallback that reserves response and
-  reasoning headroom.
-- The request uses the same model, agent/cache identity, stable system prefix,
-  and tools schema as the normal turn; `toolChoice` is `none`.
-- It is collected by an isolated LLM stream, not `SessionProcessor`. Sidecar
-  output therefore cannot create tool results, assistant rows, resumes, or a
-  new prompt-loop step.
-- A valid body has all four required sections. Failed capture logs at debug and
-  leaves the visible conversation and normal checkpoint untouched.
-- A completed unmaterialized sidecar is the Layer-1 counter boundary. The next
-  range starts after its `to_message_id`.
+## Token geometry (Exact)
+
+| Use | Formula | Notes |
+|-----|---------|--------|
+| Open-window **cadence** (Layer-1 counter, Layer-2 gate) | `contentTokens = symbols / 4` | `computeOpenWindowTokens`; **no** +10k |
+| Layer-1 sidecar **threshold** | `summaryWindowLimit(target=65_536)` | may be **lower** than 65K on small context (LLM headroom) |
+| Layer-1 sidecar **request fit** | `content/4 + 10_000 < usable()` | safety only |
+| Layer-2 **in-band** compact gate | `needsContentCompaction(openTokens ≥ 65_536)` | **zero LLM tokens** — never `usable()` |
+| Emergency compact (processor) | `isOverflow(tokens)` or `requestTokens ≥ usable()` | hard context safety |
+| Full-request safety estimate | `requestTokens = content/4 + 10_000` | tokenizer stack **removed** (undercounts providers) |
 
 ```text
-(m, m, m) --capture--> (m, m, m) + sidecar(s)
-                         ^ visible provider history is byte-stable
+tokenizer  <  provider_actual  ≤  symbols/4 + 10_000   (empirical)
 ```
 
-## Layer 2: algorithmic materialization
+Constants: `SUMMARY_INTERVAL_TOKENS = 65_536`, `CHARS_PER_TOKEN = 4`,
+`REQUEST_OVERHEAD_TOKENS = 10_000` in `overflow.ts` / `compaction.ts`.
 
-`compact()` costs **zero LLM tokens**. In-band cadence is
-`needsContentCompaction({ openTokens, target: 65_536 })` — never `usable()` or
-`isOverflowFromContent` (those are hard context-safety for real model turns /
-emergency `processor` path only).
+---
 
-On cadence (open window ≥ 65K) or emergency provider overflow, `compact()`
-soft-hides visible history and emits:
+## Layer 1: sidecar capture (LLM tokens)
+
+**When:** after a normal assistant turn fully completes (`stop`, no open tools /
+open reasoning). Implemented in `prompt.ts` → `maybeCaptureSidecar`.
+
+**Gate:**
+
+1. `openTokens ≥ summaryWindowLimit({ target: 65_536 })`  
+2. `estimateRequestTokens(openTokens) < usable(model)` (input must fit)
+
+**How:**
+
+- Same model / agent / cache identity / stable system as the main turn  
+- Isolated `LLM.stream` with `toolChoice: "none"` (not `SessionProcessor`)  
+- Body validated (`isValidSummaryBody` — four sections)  
+- Fossil/CodeGraph enrichment is system Exact  
+- Persist via `IncrementalCheckpoint.save` → `project_checkpoint`
 
 ```text
-message* = sidecar checkpoint bodies + Exact handles + bounded Recent fold
+(m, m, m) --capture--> (m, m, m) + open sidecar(s)
+                         ^ visible M unchanged
 ```
 
-Each sidecar block is labelled `checkpoint_id`, not `summary_message_id`, and
-contains its `from_id`/`to_id`, persisted Fossil diff, and CodeGraph structural
-impact. After `message*` exists, those sidecars are marked materialized and the
-normal provider checkpoint is removed. The next successful normal turn creates
-a new checkpoint from the compacted visible set.
+Open-window counter: `computeOpenWindowTokens(msgs, latestOpen?.toMessageID)`.
+Legacy `assistant.summary` is **not** the counter boundary (sidecar path).
 
-`message*` is the only synthetic visible memory artifact. It is user-visible and
-provider-visible; older soft-hidden rows remain recoverable through
-`session-read`, `messagesearch`, Fossil, and CodeGraph.
+---
+
+## Layer 2: `compact()` (ZERO LLM tokens)
+
+**`compact()` never calls the provider.** It only reorganizes DB state.
+
+### In-band cadence (prompt loop)
+
+```text
+needsContentCompaction({
+  openTokens: computeOpenWindowTokens(msgs, sidecarBoundary),
+  target: SUMMARY_INTERVAL_TOKENS,  // 65_536 content tokens
+})
+  → compact({ threshold: summaryWindowLimit(...) })  // threshold trims Recent only
+  → Checkpoint.remove
+```
+
+**Must not** use `isOverflowFromContent` / `usable()` for this gate (B6). Those
+wait until ~85% of a 1M context before firing.
+
+### Emergency (processor finish-step)
+
+```text
+isOverflow(provider tokens) OR contentTokenEstimate ≥ usable()
+  → needsCompaction → compact()
+```
+
+### What `compact()` builds
+
+```text
+message* = open sidecar bodies (+ legacy summary rows if any)
+         + Exact handles (range, diffs, impact)
+         + bounded Recent fold
+```
+
+- Soft-hide all current visible rows (`info.compacted = true`) — **never delete**  
+- Insert synthetic user `message*` text part  
+- `IncrementalCheckpoint.materialize` open sidecars onto the new message id  
+- Checkpoint slot removed; next successful turn re-saves from compacted visible set  
+
+Lone `message*` with nothing new is idempotent (no-op).
+
+---
+
+## Loop shape
+
+```text
+(m, m, m) + sidecars
+  → compact → (message*)
+  → (message*, m, m, …) + new sidecars when open window ≥ 65K again
+  → compact → (message**)
+```
+
+After compact, open-window counter ≈ `len(message* body)/4` until growth.
+
+---
 
 ## KV-cache rule
 
-Normal turns must preserve byte identity of the provider system prefix and all
-prior visible messages. Sidecar capture may add a temporary request only on its
-private branch. The saved normal provider checkpoint remains `M`, not
-`M + checkpoint request + checkpoint response`. Layer-2 compaction is the one
-intentional cache-era boundary.
+Normal turns preserve byte identity of the stable system prefix and retained
+visible messages. Sidecar capture is ephemeral and must not publish into the
+normal checkpoint. Layer-2 compaction is the intentional cache-era boundary.
+
+---
 
 ## Forbidden designs
 
 | Never | Reason |
-|---|---|
-| Synthetic visible summary user message | It becomes replayable conversation state. |
-| Synthetic resume after a checkpoint | It can restart completed work or pressure reasoning. |
-| Separate summary agent/personality | It changes the identity/prefix and is outside the actual project flow. |
-| Model-authored IDs, diffs, or hashes | Digital facts are system-owned. |
-| Hard-delete source messages | The archive is the Exact recovery surface. |
-| Publish the ephemeral branch checkpoint | It poisons the next normal cache prefix. |
+|-------|--------|
+| Treat compact as an LLM call / gate it on `usable()` for cadence | Compact is zero-token; 1M models never cadence |
+| Rely on BPE/tiktoken as sole request size authority | Undercounts vs provider ground truth |
+| Model-authored IDs, diffs, hashes | Exact is system-owned |
+| Hard-delete source messages | Archive is Exact recovery (`session-read` / search) |
+| Publish ephemeral sidecar branch as normal checkpoint | Poisons next prefix |
+| New synthetic summary **agent** / personality | Breaks identity / KV |
+
+**Legacy caveat:** `injectSummaryRequest` still exists. Do not add *new*
+synthetic visible summary UX; prefer sidecar. Removing the dual path is
+remaining cleanup, not “already done.”
+
+---
 
 ## Validation invariants
 
-1. Capturing a sidecar does not add a visible `message` or `part` row.
-2. The next normal request contains exactly retained `M` plus the real user
-   delta; no checkpoint instruction, checkpoint body, or resume exists there.
-3. Sidecar ranges are chronological, unique, and non-overlapping.
-4. `message*` carries the persisted exact handles without recomputing model
-   prose, and Recent remains bounded to the effective provider-safe target.
-5. The encrypted normal checkpoint is removed only after materialization.
+1. Sidecar capture does not add visible `message`/`part` rows for the body.  
+2. Next normal request = retained `M` + real user delta (no checkpoint prose).  
+3. Sidecar ranges chronological / non-overlapping (idempotent save).  
+4. `message*` carries Exact handles; Recent bounded when needed.  
+5. Normal encrypted checkpoint removed only after compact materialization path runs.  
+6. In-band compact fires near **65K open content**, independent of 1M `usable()`.
+
+---
+
+## Related
+
+| Doc | Role |
+|-----|------|
+| [`session-memory-graph.md`](session-memory-graph.md) | End-to-end mermaid graphs |
+| [`finish-step-tx-graph.md`](finish-step-tx-graph.md) | Step-boundary DB TX (not memory) |
+| [`architecture.md`](architecture.md) | Stack diagram (must match this file) |

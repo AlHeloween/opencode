@@ -40,24 +40,47 @@ export function sliceMessagesForSummaryRange(
   })
 }
 
-/** Exact Fossil endpoints present in a message range, when both exist. */
-export function snapshotRangeForMessages(messages: MessageV2.WithParts[]): { from: string; to: string } | undefined {
+/** Collect Fossil WC hashes from a message (step/patch parts). Order = walk order. */
+export function snapshotHashesOnMessage(msg: MessageV2.WithParts): string[] {
+  const hashes: string[] = []
+  for (const part of msg.parts) {
+    if (part.type === "step-start" && part.snapshot) hashes.push(part.snapshot)
+    if (part.type === "step-finish" && part.snapshot) hashes.push(part.snapshot)
+    if (part.type === "patch" && part.hash) hashes.push(part.hash)
+  }
+  return hashes
+}
+
+/**
+ * Exact Fossil endpoints for a summary range.
+ *
+ * Contract (not per-message hashes):
+ * - `from` = last hash **before** the range (if any), else first hash **in** range
+ * - `to`   = last hash **in** the range
+ * - if **no** hash in range → undefined (no WC activity tracked → no fossil Exact)
+ */
+export function snapshotRangeForMessages(
+  rangeMessages: MessageV2.WithParts[],
+  beforeMessages?: MessageV2.WithParts[],
+): { from: string; to: string } | undefined {
   let from: string | undefined
-  let to: string | undefined
-  for (const item of messages) {
-    if (!from) {
-      for (const part of item.parts) {
-        if (part.type === "step-start" && part.snapshot) {
-          from = part.snapshot
-          break
-        }
-      }
-    }
-    for (const part of item.parts) {
-      if (part.type === "step-finish" && part.snapshot) to = part.snapshot
+  if (beforeMessages?.length) {
+    for (const item of beforeMessages) {
+      for (const h of snapshotHashesOnMessage(item)) from = h
     }
   }
-  if (!from || !to) return undefined
+
+  let to: string | undefined
+  let anyInRange = false
+  for (const item of rangeMessages) {
+    for (const h of snapshotHashesOnMessage(item)) {
+      anyInRange = true
+      if (!from) from = h
+      to = h
+    }
+  }
+
+  if (!anyInRange || !from || !to) return undefined
   return { from, to }
 }
 
@@ -133,7 +156,12 @@ export interface Interface {
   }) => Effect.Effect<void>
   readonly diff: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Snapshot.FileDiff[]>
   readonly computeDiff: (input: { messages: MessageV2.WithParts[] }) => Effect.Effect<Snapshot.FileDiff[]>
-  readonly enrichRange: (input: { sessionID: SessionID; messages: MessageV2.WithParts[] }) => Effect.Effect<{
+  readonly enrichRange: (input: {
+    sessionID: SessionID
+    messages: MessageV2.WithParts[]
+    /** Messages before the summary range — last Fossil hash becomes `from`. */
+    beforeMessages?: MessageV2.WithParts[]
+  }) => Effect.Effect<{
     diffs: Snapshot.FileDiff[]
     impact?: Snapshot.ImpactSummary
   }>
@@ -150,14 +178,21 @@ export const layer = Layer.effect(
     const config = yield* Effect.serviceOption(Config.Service)
     const bus = yield* Bus.Service
 
-    const computeDiff = Effect.fn("SessionSummary.computeDiff")(function* (input: { messages: MessageV2.WithParts[] }) {
-      const range = snapshotRangeForMessages(input.messages)
+    const computeDiff = Effect.fn("SessionSummary.computeDiff")(function* (input: {
+      messages: MessageV2.WithParts[]
+      beforeMessages?: MessageV2.WithParts[]
+    }) {
+      const range = snapshotRangeForMessages(input.messages, input.beforeMessages)
       if (range) {
         log.info("computeDiff snapshot path", range)
         return yield* snapshot.diffFull(range.from, range.to)
       }
 
-      log.info("computeDiff fallback: scanning tool parts", { msgCount: input.messages.length })
+      // No Fossil hash pair: no tracked WC endpoints. Optional tool filediff fallback.
+      log.info("computeDiff no fossil endpoints (no hash in range or incomplete pair)", {
+        msgCount: input.messages.length,
+        beforeCount: input.beforeMessages?.length ?? 0,
+      })
 
       const filediffs = new Map<string, Snapshot.FileDiff>()
       for (const item of input.messages) {
@@ -393,21 +428,40 @@ export const layer = Layer.effect(
     const enrichRange = Effect.fn("SessionSummary.enrichRange")(function* (input: {
       sessionID: SessionID
       messages: MessageV2.WithParts[]
+      beforeMessages?: MessageV2.WithParts[]
     }) {
-      const diffs = yield* computeDiff({ messages: input.messages })
-      const range = snapshotRangeForMessages(input.messages)
-      if (!range) return { diffs }
-      const impact = yield* snapshot.impact(range.from, range.to).pipe(
+      const fossilRange = snapshotRangeForMessages(input.messages, input.beforeMessages)
+      const diffs = yield* computeDiff({
+        messages: input.messages,
+        beforeMessages: input.beforeMessages,
+      })
+      // No hash in range → no WC timeline endpoints → diffs empty is correct (not an error).
+      if (!fossilRange) {
+        log.info("enrichRange: no fossil hash pair for range", {
+          sessionID: input.sessionID,
+          rangeMessages: input.messages.length,
+        })
+        return { diffs }
+      }
+      // Hash pair exists → fossil diffs + CodeGraph impact for changed elements.
+      const impact = yield* snapshot.impact(fossilRange.from, fossilRange.to).pipe(
         Effect.catchCause((cause) => {
-          log.debug("sidecar structural impact unavailable; omitting handle", {
+          log.warn("enrichRange: CodeGraph impact unavailable (hash pair present)", {
             sessionID: input.sessionID,
-            from: range.from,
-            to: range.to,
+            from: fossilRange.from,
+            to: fossilRange.to,
             error: Cause.pretty(cause),
           })
           return Effect.succeed(undefined)
         }),
       )
+      log.info("enrichRange: exact handles", {
+        sessionID: input.sessionID,
+        from: fossilRange.from,
+        to: fossilRange.to,
+        files: diffs.length,
+        hasImpact: !!impact,
+      })
       return { diffs, ...(impact ? { impact } : {}) }
     })
 

@@ -130,7 +130,8 @@ sequenceDiagram
 | Contract item | Code today | Status |
 |---------------|------------|--------|
 | `s` not in content window | `maybeCaptureSidecar` → `project_checkpoint`; no body Message/Part | **Match** |
-| After checkpoint when inferences done | `stop` → `Checkpoint.publish` → `maybeCaptureSidecar` | **Match** |
+| After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → `maybeCaptureSidecar` | **Match** (disk before summary) |
+| Fossil + CodeGraph on s | `enrichRange`: hash before range + hash in range → `diffFull` + `impact` | **Match**; no hash in range ⇒ empty Exact (correct) |
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
 | Checker after summary | `isValidSummaryBody` 4 headings; reject body if fail | **Partial** (no multi-retry on sidecar path) |

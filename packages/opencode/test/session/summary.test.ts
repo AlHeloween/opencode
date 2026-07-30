@@ -232,7 +232,28 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
       },
     ] as MessageV2.WithParts[]
     expect(SessionSummary.snapshotRangeForMessages(messages)).toEqual({ from: "fossil_from", to: "fossil_to" })
-    expect(SessionSummary.snapshotRangeForMessages([messages[0]!])).toBeUndefined()
+    // Single hash in range: from=to (diff may be empty); still a valid pair.
+    expect(SessionSummary.snapshotRangeForMessages([messages[0]!])).toEqual({
+      from: "fossil_from",
+      to: "fossil_from",
+    })
+    // No hash in range → no fossil Exact (even if before has a hash).
+    expect(
+      SessionSummary.snapshotRangeForMessages(
+        [
+          {
+            info: { id: MessageID.make("msg_text"), role: "user", sessionID: sid, time: { created: 3 }, agent: "build", model: ref },
+            parts: [{ type: "text", text: "hello" }],
+          },
+        ] as MessageV2.WithParts[],
+        [messages[1]!],
+      ),
+    ).toBeUndefined()
+    // Hash before range + hash in range.
+    expect(SessionSummary.snapshotRangeForMessages([messages[1]!], [messages[0]!])).toEqual({
+      from: "fossil_from",
+      to: "fossil_to",
+    })
   })
 
   test("Layer-1 summary turn has no edits but range messages do — range computeDiff is non-empty", async () => {

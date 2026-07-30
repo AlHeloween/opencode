@@ -1224,12 +1224,20 @@ export const layer = Layer.effect(
                 yield* slog.debug("sidecar checkpoint rejected", { bodyLen: body.length, openTokens, threshold })
                 return false
               }
-              const enrichment = yield* summary.enrichRange({ sessionID, messages: range }).pipe(
-                Effect.catchCause((cause) => {
-                  slog.debug("sidecar checkpoint enrichment failed", { error: Cause.pretty(cause) })
-                  return Effect.succeed({ diffs: [], impact: undefined })
-                }),
-              )
+              // Exact WC handles: hash before range + hash in range → fossil diff + CodeGraph.
+              // No hash in range ⇒ empty diffs (no tracked WC changes). Soft-fail enrich, keep body.
+              const beforeMessages =
+                start > 0 ? input.visible.slice(0, Math.max(0, start)) : []
+              const enrichment = yield* summary
+                .enrichRange({ sessionID, messages: range, beforeMessages })
+                .pipe(
+                  Effect.catchCause((cause) => {
+                    slog.warn("sidecar Exact enrich failed (fossil/codegraph); storing body without handles", {
+                      error: Cause.pretty(cause),
+                    })
+                    return Effect.succeed({ diffs: [], impact: undefined })
+                  }),
+                )
               IncrementalCheckpoint.save({
                 id: ulid(),
                 sessionID,
@@ -1243,7 +1251,14 @@ export const layer = Layer.effect(
                 diffs: enrichment.diffs,
                 impact: enrichment.impact,
               })
-              yield* slog.info("sidecar checkpoint captured", { openTokens, threshold, fromID: range[0].info.id, toID: range[range.length - 1].info.id })
+              yield* slog.info("sidecar checkpoint captured", {
+                openTokens,
+                threshold,
+                fromID: range[0].info.id,
+                toID: range[range.length - 1].info.id,
+                fossilFiles: enrichment.diffs?.length ?? 0,
+                hasCodeGraph: !!enrichment.impact,
+              })
               return true
             }).pipe(Effect.ensuring(Effect.sync(() => sidecarInFlight.delete(sessionID))))
           })
@@ -1924,11 +1939,13 @@ export const layer = Layer.effect(
                 timestamp: Date.now(),
               } satisfies CheckpointData
               Checkpoint.publish({ sessionID, data: checkpointData })
-              yield* Effect.forkIn(scope)(
-                Checkpoint.persist({ sessionID, projectID: ctx.project.id, data: checkpointData }),
-              )
-              // Contract: checkpoint (inferences done) → summary s outside M → restore M
-              // (sidecar never mutates M) → compact when total visible content ≥ 65K.
+              // Contract: summary only AFTER checkpoint is durable on disk (not fire-and-forget).
+              yield* Checkpoint.persist({
+                sessionID,
+                projectID: ctx.project.id,
+                data: checkpointData,
+              })
+              // Then: s outside M (ephemeral summary + Exact fossil/CodeGraph on range).
               yield* maybeCaptureSidecar({
                 visible: visibleAfter,
                 model,

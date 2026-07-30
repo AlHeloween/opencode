@@ -20,11 +20,12 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
 
     return {
       description:
-        "Read or write the project's reasoning memory — a persistent note file " +
-        "available only in reasoning mode. Use action='read' to review past self-assessments " +
-        "and insights. Use action='write' to replace the memory with new findings. " +
-        "Use action='append' to add new insights without losing previous ones. " +
-        `Memory is stored at ${MEMORY_FILE} (per-project, gitignored).`,
+        "Permanent reasoning memory only — the sole I/O tool in reasoning mode. " +
+        "Reads/writes the project note file (not the session database, not messagesearch). " +
+        "action='read' reviews past self-assessments; action='write' replaces the file; " +
+        "action='append' adds insights without losing previous ones. " +
+        `Path: ${MEMORY_FILE} (per-project, gitignored). ` +
+        "Do not use dbread/session-read/messagesearch — those tools are unavailable here.",
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, _ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {

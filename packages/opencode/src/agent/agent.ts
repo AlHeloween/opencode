@@ -171,15 +171,35 @@ export const layer = Layer.effect(
           },
           reasoning: {
             name: "reasoning",
-            description: "Reasoning mode. Zero tools — memory-only responses.",
+            description: "Reasoning mode. Permanent memory file only — no DB/search/shell.",
             options: {},
             permission: Permission.merge(
               defaults,
               user,
               Permission.fromConfig({
+                // Total deny first; only permanent memory tool (reasoning.md) is open.
+                // Explicit DB/history denials so config cannot reopen them by accident.
                 "*": "deny",
-                reasoning_exit: "allow",
                 memory: "allow",
+                reasoning_exit: "allow",
+                dbread: "deny",
+                "db-read": "deny",
+                messagesearch: "deny",
+                "session-read": "deny",
+                logsearch: "deny",
+                codegraph: "deny",
+                universalsearch: "deny",
+                webfetch: "deny",
+                read: "deny",
+                grep: "deny",
+                glob: "deny",
+                list: "deny",
+                bash: "deny",
+                cmd: "deny",
+                run: "deny",
+                edit: "deny",
+                write: "deny",
+                task: "deny",
               }),
             ),
             mode: "primary",
@@ -394,7 +414,11 @@ export const layer = Layer.effect(
           item.name = value.name ?? item.name
           item.steps = value.steps ?? item.steps
           item.options = mergeDeep(item.options, value.options ?? {})
-          item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
+          // Reasoning is a native calibration boundary: permanent memory only.
+          // Project config must not reopen dbread/messagesearch/shell/etc.
+          if (!(key === "reasoning" && item.native)) {
+            item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
+          }
         }
 
         // Ensure truncation output dir is allowed unless explicitly configured

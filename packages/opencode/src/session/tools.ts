@@ -124,10 +124,15 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     throw new Error(`Provider tool name collision for "${name}" from "${policy}"`)
   }
 
+  // Use the real agent for tool *selection* (reasoning → memory only).
+  // providerAgent is Build for native-mode KV identity (system/skills/checkpoint);
+  // it must not widen the tool list or reasoning sees dbread/messagesearch/MCP.
+  const toolAgent = input.agent
+  const isReasoningMode = toolAgent.native === true && toolAgent.name === "reasoning"
   for (const item of yield* registry.tools({
     modelID: ModelID.make(input.model.api.id),
     providerID: input.model.providerID,
-    agent: input.providerAgent ?? input.agent,
+    agent: toolAgent,
   })) {
     const name = canonicalName(item.id)
     const schema = ProviderTransform.schema(input.model, EffectZod.toJsonSchema(item.parameters))
@@ -171,9 +176,9 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     }), item.policy)
   }
 
-  // Provider-visible tools stay stable across native mode transitions; runtime
-  // permissions still guard every execution below.
-  const mcpTools = yield* mcp.tools()
+  // MCP / custom servers can expose SQLite and other DB surfaces. Reasoning mode
+  // is permanent-memory only — never attach MCP schemas there.
+  const mcpTools = isReasoningMode ? {} : yield* mcp.tools()
   for (const [key, item] of Object.entries(mcpTools)) {
     const execute = item.execute
     if (!execute) continue
@@ -251,6 +256,17 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         }),
       )
     register(name, item, key)
+  }
+
+  // Hard allowlist: permanent project memory file only (no DB / search / shell).
+  if (isReasoningMode) {
+    for (const key of Object.keys(tools)) {
+      const policy = names.get(key) ?? key
+      if (policy !== "memory" && key !== "memory") {
+        delete tools[key]
+        names.delete(key)
+      }
+    }
   }
 
   policyNames.set(tools, names)

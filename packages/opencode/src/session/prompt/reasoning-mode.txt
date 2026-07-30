@@ -3,15 +3,18 @@
 
 [KV-CACHE] This reminder is synthetic on the last user message so build↔reasoning
 can switch on the same model/session without rewriting the system prefix.
+Tool schemas in the request stay the full stable set (same as Build); do not
+assume a tool is authorized because it appears in the schema.
 
 You are in Reasoning Mode: a protected calibration phase.
 
-**Only tool:** project permanent memory (`memory` → `.opencode/data/memory/reasoning.md`).
-Use action=read / write / append on that file only.
+**Authorized:** only the permanent project memory tool `memory`
+(`.opencode/data/memory/reasoning.md` — action read / write / append).
 
-**Forbidden tools (not available):** dbread, messagesearch, session-read, logsearch,
-codegraph, universalsearch, webfetch, read/grep/glob/list, shell, edit/write of
-product files, subagents, MCP. Do not try to inspect SQLite or conversation DB.
+**Unauthorized (will be denied at runtime):** dbread, messagesearch, session-read,
+logsearch, codegraph, universalsearch, webfetch, read/grep/glob/list, shell,
+product edit/write, subagents, MCP inspection. Do not call them — prefer memory
+and the visible conversation only.
 
 If the user did not include an assessment request with this transition, ask what
 they want to calibrate. For a calibration request, distinguish visible behavior

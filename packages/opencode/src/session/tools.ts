@@ -56,20 +56,37 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const registry = yield* ToolRegistry.Service
   const mcp = yield* MCP.Service
   const truncate = yield* Truncate.Service
-  const disabled = (toolID: string) => {
-    const permission = ["edit", "write", "apply_patch"].includes(toolID) ? "edit" : toolID
-    return (
-      Permission.evaluate(permission, "*", input.agent.permission).action === "deny" ||
-      Permission.evaluate(permission, "*", input.session.permission ?? []).action === "deny"
-    )
+  /**
+   * Runtime ACL only — must not reshape the provider tool list.
+   * Tool schemas stay byte-stable across native mode switches (KV cache);
+   * mode/role lives in system + mode reminder; this gate refuses execution.
+   */
+  const denied = (toolID: string) => {
+    const keys = new Set<string>([
+      toolID,
+      ...(["edit", "write", "apply_patch"].includes(toolID) ? (["edit"] as const) : []),
+      // dbread registers policy as both "dbread" and "db-read"
+      ...(toolID === "dbread" || toolID === "db-read" ? (["dbread", "db-read"] as const) : []),
+    ])
+    for (const key of keys) {
+      const perm = ["edit", "write", "apply_patch"].includes(key) ? "edit" : key
+      if (Permission.evaluate(perm, "*", input.agent.permission).action === "deny") return true
+      if (Permission.evaluate(perm, "*", input.session.permission ?? []).action === "deny") return true
+    }
+    return false
   }
 
   const rejected = (toolID: string, callID: string) =>
     Effect.gen(function* () {
+      const mode = input.agent.name
+      const hint =
+        mode === "reasoning"
+          ? ` In reasoning mode only the permanent memory tool is authorized (file .opencode/data/memory/reasoning.md). Do not call dbread, messagesearch, session-read, or other inspection tools.`
+          : ""
       const output = {
-        title: "Tool unavailable",
-        metadata: { mode: input.agent.name, tool: toolID },
-        output: `Tool \"${toolID}\" is unavailable in ${input.agent.name} mode.`,
+        title: "Tool denied",
+        metadata: { mode, tool: toolID, denied: true },
+        output: `Permission denied: tool \"${toolID}\" is not authorized in ${mode} mode.${hint}`,
       }
       yield* input.processor.completeToolCall(callID, output)
       return output
@@ -105,7 +122,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           ...req,
           sessionID: input.session.id,
           tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-          ruleset: Permission.merge(input.agent.permission, input.session.permission ?? []),
+          // Agent (mode) ACL last so session-wide allows cannot reopen denied tools.
+          ruleset: Permission.merge(input.session.permission ?? [], input.agent.permission),
         })
         .pipe(Effect.orDie),
   })
@@ -124,15 +142,12 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     throw new Error(`Provider tool name collision for "${name}" from "${policy}"`)
   }
 
-  // Use the real agent for tool *selection* (reasoning → memory only).
-  // providerAgent is Build for native-mode KV identity (system/skills/checkpoint);
-  // it must not widen the tool list or reasoning sees dbread/messagesearch/MCP.
-  const toolAgent = input.agent
-  const isReasoningMode = toolAgent.native === true && toolAgent.name === "reasoning"
+  // Provider-visible tool set: stable identity (providerAgent = Build for native modes).
+  // Do not pass the mode agent here — that would shrink schemas and break KV.
   for (const item of yield* registry.tools({
     modelID: ModelID.make(input.model.api.id),
     providerID: input.model.providerID,
-    agent: toolAgent,
+    agent: input.providerAgent ?? input.agent,
   })) {
     const name = canonicalName(item.id)
     const schema = ProviderTransform.schema(input.model, EffectZod.toJsonSchema(item.parameters))
@@ -142,7 +157,9 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       execute(args, options) {
         return run.promise(
           Effect.gen(function* () {
-            if (disabled(item.policy)) return yield* rejected(item.id, options.toolCallId)
+            if (denied(item.policy) || denied(item.id) || denied(name)) {
+              return yield* rejected(item.id, options.toolCallId)
+            }
             const ctx = context(args, options)
             yield* plugin.trigger(
               "tool.execute.before",
@@ -176,9 +193,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     }), item.policy)
   }
 
-  // MCP / custom servers can expose SQLite and other DB surfaces. Reasoning mode
-  // is permanent-memory only — never attach MCP schemas there.
-  const mcpTools = isReasoningMode ? {} : yield* mcp.tools()
+  // MCP stays in the stable provider tool surface; mode ACL refuses at execute.
+  const mcpTools = yield* mcp.tools()
   for (const [key, item] of Object.entries(mcpTools)) {
     const execute = item.execute
     if (!execute) continue
@@ -190,7 +206,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     item.execute = (args, opts) =>
       run.promise(
         Effect.gen(function* () {
-          if (disabled(key)) return yield* rejected(key, opts.toolCallId)
+          if (denied(key) || denied(name)) return yield* rejected(key, opts.toolCallId)
           const ctx = context(args, opts)
           yield* plugin.trigger(
             "tool.execute.before",
@@ -256,17 +272,6 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         }),
       )
     register(name, item, key)
-  }
-
-  // Hard allowlist: permanent project memory file only (no DB / search / shell).
-  if (isReasoningMode) {
-    for (const key of Object.keys(tools)) {
-      const policy = names.get(key) ?? key
-      if (policy !== "memory" && key !== "memory") {
-        delete tools[key]
-        names.delete(key)
-      }
-    }
   }
 
   policyNames.set(tools, names)

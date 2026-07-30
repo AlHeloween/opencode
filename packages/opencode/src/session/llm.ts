@@ -699,10 +699,16 @@ export const defaultLayer = Layer.suspend(() =>
   ),
 )
 
+/**
+ * Provider-facing tool set. Prefer not stripping by mode ACL here — native modes
+ * share a stable tool schema (KV). Mode denials run at execute (SessionTools) with
+ * the real agent. `input.agent` for native modes is typically Build (cache identity).
+ * Still honor explicit user tool disables and total wildcard denies on this agent.
+ */
 function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
   const disabled = Permission.disabled(
     Object.keys(input.tools),
-    Permission.merge(input.agent.permission, input.permission ?? []),
+    Permission.merge(input.permission ?? [], input.agent.permission),
   )
   return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
 }

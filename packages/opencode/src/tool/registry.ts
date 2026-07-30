@@ -368,14 +368,12 @@ export const layer: Layer.Layer<
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
       const s = yield* InstanceState.get(state)
-      const isReasoning = input.agent.native && input.agent.name === "reasoning"
+      // Provider tool *schemas* are mode-stable (KV): never shrink the list by role.
+      // Reasoning/plan ACL is runtime-only in SessionTools (deny execute + mode message).
       const isOrchestrator = input.agent.native && input.agent.name === "orchestrator"
-      const candidates = isReasoning ? [s.memory] : yield* all()
+      const candidates = yield* all()
       const filtered = candidates.filter((tool) => {
-        // Reasoning Mode is a protected calibration boundary, not a best-effort
-        // permission convention. Do not expose schemas for tools the model must
-        // never call; this also excludes project custom tools.
-        if (isReasoning && tool !== s.memory) return false
+        // Enter/exit mode tools are orchestrator-facing controls, not general work tools.
         if ((tool === s.reasoningEnter || tool === s.reasoningExit) && !isOrchestrator) return false
         const usePatch =
           input.modelID.includes("gpt-") && !input.modelID.includes("oss") && !input.modelID.includes("gpt-4")

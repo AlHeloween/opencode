@@ -171,14 +171,15 @@ export const layer = Layer.effect(
           },
           reasoning: {
             name: "reasoning",
-            description: "Reasoning mode. Permanent memory file only — no DB/search/shell.",
+            description:
+              "Reasoning mode. Full tool schemas (stable KV); runtime allows only permanent memory.",
             options: {},
             permission: Permission.merge(
               defaults,
               user,
               Permission.fromConfig({
-                // Total deny first; only permanent memory tool (reasoning.md) is open.
-                // Explicit DB/history denials so config cannot reopen them by accident.
+                // Runtime ACL only — tool *schemas* stay the full shared set.
+                // Only permanent memory file is authorized to execute.
                 "*": "deny",
                 memory: "allow",
                 reasoning_exit: "allow",

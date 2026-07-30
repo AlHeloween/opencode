@@ -23,7 +23,7 @@ It is **not** a tool capabilities catalogue — tool schemas (slot 1) and pocket
 // system.ts
 export const UNIVERSAL_ENV = [
   "You are a coding assistant for software engineering in this product.",
-  "Follow REASONING PROTOCOL and ALGORITHM_CARD in the system identity.",
+  "Follow the framework governance (kernel + ADID) in the system identity.",
   "Prefer Exact evidence (tools) over unaided recall.",
 ].join("\n")
 ```
@@ -31,7 +31,7 @@ export const UNIVERSAL_ENV = [
 | Line | Role |
 |------|------|
 | coding assistant… | Product role (no brand, no project, no model name) |
-| Follow REASONING… | Handoff to pocket protocols in the identity block |
+| Follow the framework governance… | Handoff to kernel + ADID in the identity block |
 | Prefer Exact… | Epistemic stance before tools/schemas expand |
 
 **[KV-CACHE]** Eternal — no dates, paths, agent names, session IDs, tool lists.

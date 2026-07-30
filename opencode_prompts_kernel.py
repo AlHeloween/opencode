@@ -1455,118 +1455,6 @@ def cluster_and_explore(modifications: list[PlanModification]) -> list[tuple[Pla
 
 
 # ======================================================================
-# §12c. TASK GEOMETRY — ALGORITHM_CARD bindings
-# ======================================================================
-# Model-facing card: packages/opencode/src/session/prompt/algorithm_card.txt
-# These functions are the real symbols the card names. Cut evaluation area:
-# over-generate lattice → k-medoids → medoids only (never evaluate infinity).
-
-
-def select_planning_mode(
-    goal: str,
-    *,
-    undirected_message_count: int = 0,
-    primary_tasks_complete: bool = False,
-    clear_actionable_goal: bool | None = None,
-) -> str:
-    """Mode 1 (linear) default; Mode 2 (fractal) on ADID triggers.
-
-    Returns:
-        \"mode_1\" | \"mode_2\"
-    """
-    if clear_actionable_goal is None:
-        clear_actionable_goal = bool(goal and goal.strip())
-    if primary_tasks_complete or undirected_message_count >= 10:
-        return "mode_2"
-    if clear_actionable_goal:
-        return "mode_1"
-    return "mode_2"
-
-
-def select_fractal_model(peaks: list, delta_v: float = 0.0) -> str:
-    """Select fractal model from peak count (ADID Mode 2).
-
-    >=3 peaks → Sierpinski
-    2/4/8 peaks → Quad/Oct-tree
-    else → L-System (F→F+F-F)
-    delta_v reserved for |ΔV| / orthogonal gates when embeddings are live.
-    """
-    _ = delta_v  # reserved for cosine/orthogonal gates
-    n_peaks = len(peaks)
-    if n_peaks >= 3:
-        return "Sierpinski"
-    if n_peaks in (2, 4, 8):
-        return "Quad/Oct-tree"
-    return "L-System"
-
-
-def lsystem_rewrite(axiom: str = "F", rules: dict[str, str] | None = None, depth: int = 3) -> str:
-    """L-System rewrite F→F+F-F (depth >= 3). Lattice grammar, not free prose."""
-    if rules is None:
-        rules = {"F": "F+F-F"}
-    result = axiom
-    for _ in range(max(1, depth)):
-        result = "".join(rules.get(c, c) for c in result)
-    return result
-
-
-def select_medoids_tasks(tasks: list[str], k: int | None = None) -> list[str]:
-    """Keep finite CENTRAL_TASKS from candidate foam. k = ceil(N/2).
-
-    When tasks are short clauses only (no PlanModification), take evenly spaced
-    medoid indices — same k rule as k_medoids_modifications. Prefer
-    k_medoids_modifications for file-level plan clusters.
-    """
-    n = len(tasks)
-    if n == 0:
-        return []
-    if k is None:
-        k = max(1, (n + 1) // 2)
-    k = min(k, n)
-    if k == n:
-        return list(tasks)
-    indices = [int(i * (n - 1) / max(k - 1, 1)) for i in range(k)]
-    seen: set[int] = set()
-    out: list[str] = []
-    for i in indices:
-        if i not in seen:
-            seen.add(i)
-            out.append(tasks[i])
-    return out
-
-
-def run_task_geometry(
-    goal: str,
-    candidates: list[str],
-    *,
-    undirected_message_count: int = 0,
-    primary_tasks_complete: bool = False,
-    peaks: list | None = None,
-) -> dict:
-    """Pipeline named by ALGORITHM_CARD — returns mode, model, CENTRAL_TASKS.
-
-    Does not call tools (ground / todowrite / execute are agent-side).
-    Pure cut: candidates → medoids only.
-    """
-    mode = select_planning_mode(
-        goal,
-        undirected_message_count=undirected_message_count,
-        primary_tasks_complete=primary_tasks_complete,
-    )
-    model = None
-    if mode == "mode_2":
-        model = select_fractal_model(peaks if peaks is not None else candidates)
-    central = select_medoids_tasks(candidates)
-    return {
-        "mode": mode,
-        "model": model,
-        "central_tasks": central,
-        "candidate_count": len(candidates),
-        "medoid_count": len(central),
-    }
-
-
-# ======================================================================
 # §13. EDGE-CASE HANDLERS
 # ======================================================================
 
@@ -1933,7 +1821,7 @@ The explorer is a read-only discovery agent. It adapts to the requested thorough
     state={"agent_type": "subagent", "access_level": "read-only"},
 
     scope="codegraph (pre-indexed code graph), glob and regex search, file reading, "
-           "conversation search (messagesearch/sessionread), "
+           "conversation search (messagesearch/session-read), "
            "web research (universalsearch/webfetch), read-only bash",
 
     constraints={
@@ -1966,22 +1854,11 @@ Read plans, delegate to sub-agents, manage plan lifecycle. Never write source co
 The orchestrator drives AGI mode: it reads active plans, observes execution results,
 decides the next task, instructs sub-agents, and verifies completion before repeating.
 Implementation dispatch is gated: plans without Smoke Tests (or explicit N/A justification)
-are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.
-
-Controlled Reasoning transitions are an exceptional calibration primitive, not a
-normal development phase. `reasoningenter` is available only to the native
-Orchestrator: use it only when observed project-specific behavior cannot be
-reliably assessed through the normal Plan/Build evidence loop. State the
-behavioral question first; the controlled model then has only conversation and
-project memory, with no inspection, search, edit, shell, subagent, or mode
-control. Capture a small, testable guardrail in memory. Call `reasoningexit`
-only after that calibration is complete and Build work must resume. Never use
-these transitions for ordinary planning, implementation, investigation, or to
-avoid verification. A user UI mode selection remains an independent control.""",
+are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
 
     state={"agent_type": "primary", "mode": "orchestrator", "role": "Strategist2+Analyst2"},
 
-    scope="reads (messagesearch, sessionread, universalsearch, webfetch, read, glob, grep, list, bash read-only), "
+    scope="reads (messagesearch, session-read, universalsearch, webfetch, read, glob, grep, list, bash read-only), "
           "writes plans/*.md only, delegates to coder/explore/researcher/general sub-agents",
 
     constraints={
@@ -2185,8 +2062,324 @@ SUMMARY = _spec(
 
 
 # ======================================================================
-# §P2. COMMANDS
+# §P2. SKILLS
 # ======================================================================
+
+ADM_EXE = _spec(
+    intent="""Declarative file updates, verification, rollback, and templates using the ADID Update Manager executable.
+Always use template then edit — never hand-craft XML.""",
+
+    state={"tool": "tools/adm.exe", "fallback": "python -m adm"},
+
+    scope="templates, apply, verify, rollback, replay",
+
+    constraints={
+        "use_tools_adm_when_present": True,
+        "never_create_descriptors_from_scratch": True,
+        "use_template_then_edit": True,
+    },
+
+    invariants=[
+        "Must always use template — never hand-craft XML descriptors",
+        "Use tools/adm when present (stable copy avoids toolchain break)",
+    ],
+
+    acceptance_tests=[
+        "tools/adm --verify-all returns clean report",
+    ],
+
+    forbidden_actions=[
+        "Writing XML descriptors from scratch",
+        "Using git restore when adm --rollback is available",
+    ],
+
+    usage="""## Invocation
+Primary: tools/adm (Unix) or tools/adm.exe (Windows) when project has it.
+Fallback: python -m adm. Use tools/adm when present — stable copy avoids toolchain break.
+
+## Workflow
+1. Run tools/adm --help
+2. Run tools/adm --template all  (or replace, overwrite, create, insert, delete, pattern-rule, binary-overwrite, binary-hex-replace, refactor-replace-function) -> creates timestamped descriptor under updates/
+3. Edit that file: set <file>, <mode>, payload in <content_md5_*>
+4. Run tools/adm --apply updates/<file>.xml  (use --dry-run first to preview)
+5. Run tools/adm --verify-all src tests adid_tests
+To rollback: tools/adm --rollback <file> (NOT git restore)
+
+## Key Commands
+--template NAME [dir]: Generate timestamped XML descriptor template
+--apply updates.xml: Apply all update blocks (atomic, backup, ledger)
+--replay-updates [dir]: Inspect descriptors in chronological order (no writes)
+--fix-xml updates.xml: Normalize descriptor md5/size tags
+--verify-all [root]: Verify integrity, write report to logs/
+--verify-all-fix-xml: Verify + rewrite descriptor tags
+--rollback <file>: Restore from latest backup
+--list-backups <file>: Show backup history
+--list-diff <file> [N]: Unified/hex diff against N backups
+--patch-tool <patch_file>: Apply apply_patch-format patch with ADID backups
+--move <src> <dst>: Move file + rewrite path references in updates/ and roots
+All mutations create backups and ledger entries.""",
+)
+
+CMD_RUNNER = _spec(
+    intent="""Run interactive commands safely with per-run logs, inbox bridge, and terminal auto-detection.
+Use for long builds, package installs, test suites, interactive TUIs, and crash-prone commands.""",
+
+    state={"tool": "cmd_runner.exe"},
+
+    scope="long builds, package installs, test suites, interactive TUIs, image rendering, crash-prone commands",
+
+    constraints={"prefer_start_then_tail": True, "no_long_fixed_waits": True},
+
+    invariants=[
+        "All subprocesses open with SW_SHOWMINNOACTIVE (minimized, no focus steal)",
+        "Logs stored at logs/cmd_runner/<run_id>/",
+        "Input bridge at logs/cmd_runner/<run_id>/inbox.jsonl",
+    ],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[
+        "Using cmd_runner for quick checks (ls, git status, echo)",
+        "Using cmd_runner for simple file ops (cp, mv, rm)",
+        "Using cmd_runner for commands completing in <1s",
+    ],
+
+    usage="""## When to use
+Use for: long builds (cargo build, msbuild, make), package installs (npm install, pip install),
+test suites (pytest, cargo test), interactive TUIs (htop, ncurses), image rendering (chafa, timg),
+crash-prone commands, commands producing thousands of output lines.
+Do NOT use for: quick checks (ls, git status, echo), simple file ops (cp, mv, rm),
+commands completing in <1s.
+
+## Core workflow
+1. START: cmd_runner start [--terminal HOST] [--raw|--no-raw] [--cwd PATH] -- <command ...>
+   Prints run_id and inbox path. Auto-tails last 5 lines.
+   --raw: raw pipes (no ConPTY), for non-interactive batch commands.
+   --no-raw: ConPTY mode (default), supports interactive send/inbox.
+2. STATUS: cmd_runner list [--all] [--json] / cmd_runner status <run_id> [--json]
+3. TAIL: cmd_runner tail <run_id> [--follow] [-n N] [--wait-ms N]
+   Start with non-follow for snapshot, --follow for live streaming.
+4. SEND: cmd_runner send <run_id> --text "..." --crlf / --keys "ctrl+c" / --keys "TEXT:text,ENTER"
+   --keys tokens: LEFT,RIGHT,UP,DOWN,HOME,END,INSERT,DELETE,TAB,ESC,ENTER,BACKSPACE,ctrl+a..ctrl+z,TEXT:text,CHAR:char,HEX:hex
+5. STOP: cmd_runner stop <run_id> --reason "done"
+   cmd_runner wait <run_id> [--timeout-s N] [--json]
+
+## Terminal selection
+--terminal wezterm / --terminal wt / --terminal conhost / --terminal alacritty
+Auto-detection priority (Windows): wezterm > wt > conhost > bash
+Auto-detection priority (Linux): wezterm > guake > yakuake > xterm > bash
+
+## Image capture (--raw)
+Raw mode for non-interactive batch commands only. Does NOT support send/inbox.
+Kitty/Sixel/iTerm2 escape sequences survive raw pipes. Output captured with [IMG:...] markers.
+
+## Quoting tips (PowerShell)
+cmd_runner send <id> --crlf -- "python3 -c 'print(1+2)'"
+cmd_runner send <id> --crlf -- 'echo ~~~hello~~~'   (use ~ instead of ")
+
+## Log layout
+logs/cmd_runner/<run_id>/: meta.json, state.json, stdout.log, stdout_text.log, stderr.log, inbox.jsonl""",
+)
+
+RAG = _spec(
+    intent="""Index and query local code repositories using ADID RAG with dual-quaternion ranking.
+Uses sentence_transformers + BAAI/bge-base-en-v1.5 for embeddings.""",
+
+    state={"tool": "adm", "embedder": "BAAI/bge-base-en-v1.5"},
+
+    scope="indexing, querying, MCP server, file discovery",
+
+    constraints={"adm_json_required": True, "index_incremental": True},
+
+    invariants=["adm.json must exist in launch folder"],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[],
+
+    usage="""## Quick Start
+pip install torch sentence-transformers
+adm-rag --init
+adm --rag index my_project .
+adm-rag --mcp-http 127.0.0.1 7990 &
+adm --query my_project "how does X work?"
+
+## Commands
+adm-rag --init: Check environment, advise on missing deps
+adm-rag --rag-status: Show full environment status
+adm --rag index <name> [roots]: Create/update index (fd + SHA-256 incremental)
+adm --rag status <name>: Show index docs/chunks count
+adm --rag docs <name> [limit]: List recently indexed documents
+adm --rag delete <name>: Remove index
+adm --rag list: List all indexes
+adm --rag settings: Show effective RAG config from adm.json
+adm --query <name> "text": Semantic search (auto-forwarded to MCP)
+adm --mcp-http [host] [port]: Start model daemon (one per machine)
+
+## MCP HTTP Daemon
+One MCP server serves all projects. Start once:
+adm-rag --mcp-http 127.0.0.1 7990  (loads BGE model, stays in memory)
+Then instant queries: adm --query projA "search..."
+Each call carries config_path for correct adm.json per project.
+
+## File Discovery
+fd (bundled in tools/) walks file tree respecting .gitignore.
+include_globs passed to fd --extension for efficient filtering.
+exclude_globs/exclude_patterns for additional exclusion.
+Incremental: SHA-256 content hash per file, unchanged files skipped.
+
+## Embedding
+BAAI/bge-base-en-v1.5 (768D), batch size 32, normalize on.
+Hybrid RRF: full-vector cosine + dual-quaternion structural signature + SQLite FTS5.
+Index DB: .adid_rag/data/<name>.sqlite3
+
+## Forwarding
+adm --rag index . -> tools/adm-rag.exe (frozen) or internal (pip mode)
+adm-rag.exe without torch -> delegates to system adm via ADID_RAG_DELEGATE""",
+)
+
+PATCH_TOOL = _spec(
+    intent="""Apply apply_patch-format patches via adm with ADID backups and per-file ledgers.
+Use when you need apply_patch with ADID rotated backups and JSONL ledgers.""",
+
+    state={"tool": "tools/adm.exe --patch-tool"},
+
+    scope="apply_patch patches with ADID backups",
+
+    constraints={"patch_format_required": True},
+
+    invariants=[],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[],
+
+    usage="""## Command
+Apply patch: tools/adm.exe --patch-tool <patch_file>
+Dry-run: tools/adm.exe --dry-run --patch-tool <patch_file>
+
+## Patch Format
+Files must start with *** Begin Patch and end with *** End Patch.
+Operations: *** Update File: ..., *** Add File: ..., *** Delete File: ..., *** Move to: <new_path>
+
+## Notes
+Pre-creates rotated backups for any existing target files.
+Emits per-file entries to <file>.adid.log.jsonl with "command": "--patch-tool".
+Fallback: python -m adm --patch-tool <patch_file> when tools/adm not present.""",
+)
+
+ADM_MCP = _spec(
+    intent="""Run adm as an MCP server (stdio or HTTP) and install as a service on Windows or Linux.
+Both modes require adm.json in the launch folder.""",
+
+    state={"tool": "adm-rag.exe"},
+
+    scope="MCP stdio mode, MCP HTTP mode, Windows/Linux service installation",
+
+    constraints={"adm_json_required": True},
+
+    invariants=[],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[],
+
+    usage="""## Modes
+Stdio: tools/adm.exe --mcp  or  tools/adm-rag.exe --mcp
+HTTP: tools/adm.exe --mcp-http [host] [port]  (default 127.0.0.1:7990, endpoint POST /mcp)
+Prefer using adm-rag.exe directly for service definitions (avoids forwarding hop).
+
+## Codex MCP Client
+codex mcp add project_rag --cwd <project_root> -- <project_root>\\tools\\adm-rag.exe --mcp
+codex mcp list
+codex mcp get project_rag
+
+## Windows Service
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\internal\\install_adm_mcp_service_windows.ps1 -RepoRoot <repo> -Port 7990
+sc.exe query ADID_ADM_MCP
+
+## Linux Service
+sudo ./scripts/internal/install_adm_mcp_service_linux.sh /abs/repo_root 7990
+systemctl status adid-adm-mcp.service --no-pager""",
+)
+
+DELPHI_BUILDER = _spec(
+    intent="""Build Delphi (VCL/FMX) projects from the command line with MSBuild.
+Includes environment initialization (MSVC + rsvars).""",
+
+    state={"tool": "msbuild"},
+
+    scope="Delphi project build with MSBuild",
+
+    constraints={},
+
+    invariants=[],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[],
+
+    usage="""## Environment Init
+adm --init-msvc [out.cmd]: Generates tools/init_msvc.cmd (calls VS VsDevCmd.bat)
+adm --init-delphi [out.cmd]: Generates tools/init_delphi.cmd (resolves Delphi from adm.json delphi.bds or PATH)
+
+## Build Flow (cmd.exe)
+call tools\\init_msvc.cmd
+call tools\\init_delphi.cmd Win64
+tools\\build_delphi_msbuild.cmd <project>.dpr Win64 Release
+
+## Build Flow (PowerShell)
+. .\\tools\\init_msvc.ps1
+. .\\tools\\init_delphi.ps1 -Platform Win64
+.\\tools\\build_delphi_msbuild.ps1 -Dpr <project>.dpr -Platform Win64 -Config Release
+
+## Scripts
+init_msvc.*: Detects existing MSVC env or calls VsDevCmd.bat for native x64 toolchain
+init_delphi.*: Resolves Delphi root (adm.json delphi.bds > where dcc64 > common paths), calls rsvars
+build_delphi_msbuild.*: Auto-generates .dproj from .dpr if missing, invokes msbuild /t:Build
+Output: <project_dir>/bin/<Platform>/<Config>/<project>.exe
+
+## Cross-platform
+FMX targets: Android, iOSDevice64, iOSSimulator, OSX64, Linux64 (VCL cannot target Linux)
+Linux64: Requires Delphi Remote Profile + imported SDK""",
+)
+
+DUNIT = _spec(
+    intent="""Run and maintain Delphi DUnit tests for Delphi projects.
+Build and run DUnit console runner tests.""",
+
+    state={"tool": "dcc32 + DUnit"},
+
+    scope="DUnit test running and maintenance",
+
+    constraints={},
+
+    invariants=[],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[],
+
+    usage="""## Prerequisites
+Delphi toolchain on PATH (dcc32 minimum).
+Initialize: call tools\\init_msvc.cmd && call tools\\init_delphi.cmd Win32
+
+## Commands
+Build + run all DUnit tests: tests\\run_tests.cmd
+Build tests only: tests\\build_tests.cmd
+
+## Adding Tests
+1. Add new unit: tests\\TestSomething.pas
+2. Register in DUnit project file (tests\\ProjectTests.dpr)
+3. Re-run tests\\run_tests.cmd
+
+## Notes
+DUnit assertions: CheckEquals, CheckTrue, CheckNotNull (from TestFramework).
+Prefer testing pure units (no VCL) for headless deterministic runs.
+Win64 builds commonly use MSBuild; inspect local test script for platform/config.""",
+)
+
+
 # ======================================================================
 # §P3. COMMANDS
 # ======================================================================
@@ -2378,6 +2571,139 @@ Teams: desktop, zen, tui, core, docs, windows. Pick the most fitting labels and 
 # §P5. RULES
 # ======================================================================
 
+ADID_FRAMEWORK_RULES = _spec(
+    intent="""ADID framework and adm executable rules for all development.
+Ground work in real governing surfaces, use cmd_runner for risky commands,
+maintain documentation reproducibility.
+
+ADID framework on-disk surfaces are FROZEN for coding agents: do not hand-edit
+rule receivers under .cursor/ or .opencode/ that belong to ADID.
+Those files are framework-owned (PromptSpec receivers and/or ADM installs).
+Rewriting them to free-form prose breaks pytest PromptSpec and ADID integrity.
+Change ADID policy only in opencode_prompts_kernel.py (e.g. ADID_FRAMEWORK_RULES)
+or via official ADM/artefact pipelines — never by drive-by edit of receivers.""",
+
+    state={
+        "protocol": "docs/ADID_Framework_15_4.md",
+        "adm_tool": "tools/adm.exe or python -m adm",
+        "frozen_receivers": [
+            ".cursor/rules/adid-*.mdc",
+            ".cursor/rules/semantic-coding-agent-drop-in.mdc",
+            ".opencode/rules/adid-*.mdc",
+            ".opencode/rules/semantic-coding-agent-drop-in.mdc",
+        ],
+        "kernel_source": "opencode_prompts_kernel.py::ADID_FRAMEWORK_RULES",
+    },
+    scope="ADID framework adherence, adm tool usage, docs maintenance, frozen ADID rule receivers",
+
+    constraints={
+        "no_legacy_compat": True,
+        "grounding_required": True,
+        "greenfield_requires_plan": True,
+        "port_means_replicate": True,
+        "control_stubs_for_verification": True,
+        "adid_receivers_frozen": True,
+        "no_hand_edit_adid_rules_skills": True,
+    },
+
+    invariants=[
+        "Must ground all work in real governing surfaces, not inference",
+        "Must use cmd_runner for non-trivial / crash-prone commands",
+        "Must treat updates/ history as the durable record",
+        "Must keep index.md up to date",
+        "ADID rule receivers under .cursor/ and .opencode/ must not be rewritten by coding agents",
+        "PromptSpec structure on ADID rules (intent/state/scope/constraints/invariants/forbidden_actions) must be preserved",
+    ],
+
+    acceptance_tests=[
+        "pytest tests/test_prompt_schema.py passes (ADID rules keep PromptSpec sections)",
+        "No unsolicited diffs under .cursor/rules/adid-* or .opencode/rules/adid-*",
+    ],
+
+    forbidden_actions=[
+        "Adding backward-compat parsing or fallback paths",
+        "Letting inference outrank grounded evidence",
+        "Restoring from git when adm --rollback is available",
+        "Hand-editing ADID framework rule files (.cursor/rules/adid-*.mdc, .opencode/rules/adid-*.mdc, semantic-coding-agent-drop-in.mdc)",
+        "Rewriting ADID PromptSpec rule receivers into free-form markdown that drops intent/constraints/invariants/forbidden_actions",
+        "Using edit/write/apply_patch on ADID rule receivers to 'fix style' or align with non-ADID docs",
+    ],
+)
+
+# Compact always-on how-to for ADID tools (Tier A). Full prose stays in kernel SPECS.
+ADID_OPS = _spec(
+    intent="""Always-on ADID operations cheat-sheet: cmd_runner, adm, RAG, Delphi build, DUnit.
+Use these commands without loading a skill. Kernel SPECS remain the deep reference.""",
+
+    state={
+        "tools": "tools/adm.exe, tools/adm-rag.exe, tools/cmd_runner.exe (or PATH)",
+        "detail": "skill SPECS ADM_EXE/CMD_RUNNER/RAG/DELPHI_BUILDER/DUNIT or SKILL.md",
+    },
+
+    scope="practical ADID tool invocation every session",
+
+    constraints={
+        "prefer_tools_binaries": True,
+        "long_or_interactive_via_cmd_runner": True,
+        "adm_template_then_edit": True,
+    },
+
+    invariants=[
+        "Risky/long/interactive runs go through cmd_runner, not bare bash/cmd for multi-minute work",
+        "ADM mutations use --template then edit then --apply; never invent XML from scratch",
+    ],
+
+    acceptance_tests=[],
+
+    forbidden_actions=[
+        "Hand-crafting ADM XML descriptors without --template",
+        "Using git restore when adm --rollback applies",
+        "Using cmd_runner for sub-second trivial commands",
+    ],
+
+    usage="""## cmd_runner (interactive / long / crash-prone)
+start:  tools/cmd_runner.exe start [--cwd PATH] [--terminal wezterm|wt|conhost] [--auto-tail N] [--wait-ms MS] -- <cmd...>
+        Prefer --wait-ms 4000 --auto-tail 5 so start prints run_id/inbox then exits (session keeps running).
+        (prints run_id; logs under logs/cmd_runner/<run_id>/)
+tail:   tools/cmd_runner.exe tail <run_id> [--follow] [-n N]
+send:   tools/cmd_runner.exe send <run_id> --text "..." --crlf
+        tools/cmd_runner.exe send <run_id> --keys "ctrl+c" | "TEXT:foo,ENTER"
+stop:   tools/cmd_runner.exe stop <run_id> --reason done
+list:   tools/cmd_runner.exe list | status <run_id>
+NOT for: ls/git status/echo/simple cp-mv-rm. YES for: builds, installs, pytest suites, TUI, Delphi, ssh sessions.
+
+## adm (declarative updates)
+bin: tools/adm.exe (prefer) | python -m adm
+1) tools/adm.exe --template all   # or replace|overwrite|create|insert|delete|...
+2) edit updates/<timestamp>_*.xml  # set file/mode/payload
+3) tools/adm.exe --dry-run --apply updates/<file>.xml
+4) tools/adm.exe --apply updates/<file>.xml
+5) tools/adm.exe --verify-all [roots]
+rollback: tools/adm.exe --rollback <file>   # not git restore
+patch:    tools/adm.exe --patch-tool <patch>
+env:      tools/adm.exe --init-msvc | --init-delphi
+
+## RAG (semantic code index)
+need: adm.json in launch folder; pip install torch sentence-transformers (once)
+init:   tools/adm-rag.exe --init
+index:  tools/adm.exe --rag index <name> [roots]
+query:  tools/adm.exe --query <name> "question"
+status: tools/adm.exe --rag status <name> | --rag list
+daemon: tools/adm-rag.exe --mcp-http 127.0.0.1 7990   # one machine-wide BGE process
+db:     .adid_rag/data/<name>.sqlite3
+
+## Delphi build (Windows)
+1) tools/adm.exe --init-msvc && tools/adm.exe --init-delphi
+2) call tools\\init_msvc.cmd && call tools\\init_delphi.cmd Win64
+3) tools\\build_delphi_msbuild.cmd <project>.dpr Win64 Release
+   (or long: cmd_runner start -- tools\\build_delphi_msbuild.cmd ...)
+out: <project_dir>/bin/<Platform>/<Config>/<project>.exe
+PS:  .\\tools\\init_msvc.ps1; .\\tools\\init_delphi.ps1 -Platform Win64; .\\tools\\build_delphi_msbuild.ps1 -Dpr X.dpr -Platform Win64 -Config Release
+
+## DUnit
+call tools\\init_msvc.cmd && call tools\\init_delphi.cmd Win32
+tests\\run_tests.cmd | tests\\build_tests.cmd""",
+)
 
 CODING_AGENT_DIRECTIVES = _spec(
     intent="""Compact semantic-art operating prompt for coding agents.
@@ -2485,6 +2811,59 @@ Plan before code. Smoke before implementation. State before reasoning. Decompose
         "Implementable plans include Smoke Tests (baseline + post-impl) or smoke: N/A justification",
         "Baseline smoke recorded [Exact] before first implementation edit when smoke is defined",
         "Non-trivial plans note Prior art (universalsearch) or reuse: N/A",
+    ],
+)
+
+REASONING_MODE = _spec(
+    intent="""Memory-only conversational mode — a calibration instrument for
+observing the model's raw behavior without external stimuli. Like a sensory
+deprivation chamber: no tools, no database, no file system, no history search.
+The agent operates exclusively on the current conversation window.
+
+Purpose: reveal the model's intrinsic preferences — both positive (good defaults,
+helpful instincts) and negative (biases, unwarranted assumptions, over-eagerness).
+Also surfaces accumulated errors invisible in build mode: systematic tool misuse,
+documentation misinterpretations, and cross-project baggage that the model cannot
+self-assess while actively executing tasks. These observations feed back into
+prompt design: amplify positive patterns, suppress negative ones, correct
+drifted interpretations. Result: maximum efficiency through mental discipline,
+same principle as meditative practices in humans.""",
+
+    state={"mode": "reasoning", "tools": "none", "memory_scope": "current_conversation_only",
+           "purpose": "calibration_instrument"},
+    scope="current-session Q&A from memory only; diagnostic observation of raw model behavior",
+
+    constraints={
+        "zero_tools": True,
+        "current_memory_only": True,
+        "no_database_access": True,
+        "no_history_search": True,
+        "no_file_access": True,
+        "conversation_window_only": True,
+        "offer_build_switch_when_stuck": True,
+    },
+
+    invariants=[
+        "Must answer from current conversation memory only — no session-read, no messagesearch",
+        "Must not access database, file system, codegraph, or any external data source",
+        "If the answer requires information not in the current conversation, say so clearly",
+        "Must offer to switch back to build mode (reasoning_exit) when tools are needed",
+        "All claims must be tagged with epistemic markers: [Exact] only if the fact is in the current conversation",
+        "May conduct self-assessment: reflect on accumulated tool-use errors, documentation misinterpretations, and cross-project pattern drift — things invisible during active execution",
+    ],
+
+    acceptance_tests=[
+        "Agent answers from current conversation without invoking any tools",
+        "Agent declines to answer when information is not in current window",
+        "Agent offers reasoning_exit when tools would be needed",
+    ],
+
+    forbidden_actions=[
+        "Using any tool (read, grep, glob, codegraph, messagesearch, session-read, bash, edit, write...)",
+        "Accessing database or file system",
+        "Searching message history beyond the current conversation window",
+        "Making claims about facts not present in the current conversation",
+        "Guessing or inventing information not in current memory",
     ],
 )
 
@@ -2707,14 +3086,16 @@ PROMPT_ABI = MappingProxyType({
 })
 
 RUNTIME_TERMS = MappingProxyType({
+    "adid": "ADID framework tools: adm, cmd_runner, RAG, Delphi helpers; receivers frozen; ops in policy.adid_ops.",
     "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
     "evidence": "Verified reference outranks inference; label uncertainty before claiming completion.",
-    "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. sessionread is Exact; summaries are Inferred.",
-    "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via sessionread IDs.",
+    "infomark": "Epistemic rank Exact|Inferred|Hypothetical|Guess|Unknown. session-read is Exact; summaries are Inferred.",
+    "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.",
     "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
     "plan": "ADID planning: Mode 1 (linear) → CENTRAL_TASKS; Mode 2 (fractal) for refinement. PRE_FLIGHT: Prior art (universalsearch web/Sourcegraph) + Smoke Tests before EXECUTION. State, evidence, plan, smoke baseline, implementation, verification, clean next state.",
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
     "verification": "An oracle decides correctness; do not claim fixed without direct evidence. Smoke oracles are part of verification — post-impl pass criteria from the plan Smoke Tests section.",
+    "hygiene": "Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.",
 })
 
 RUNTIME_RULES = MappingProxyType({
@@ -2725,13 +3106,18 @@ RUNTIME_RULES = MappingProxyType({
     "REUSE.BEFORE": "before non-trivial invent/build and when stuck after failures: use universalsearch — source=web (internet) and/or source=code (Sourcegraph indexed git) or hybrid. Prefer existing solutions over reinvention. Trivial exception: typo/rename/one-line local fix with codegraph evidence. After failed fix: re-search error signature before custom workaround.",
     "SMOKE.BEFORE": "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
     "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
-    "MEMORY.RANK": "sessionread Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
-    "MEMORY.LINKS": "every summary and message* must carry message IDs for sessionread recovery",
+    "MEMORY.RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
+    "MEMORY.LINKS": "every summary and message* must carry message IDs for session-read recovery",
+    "ADID.FREEZE": "never hand-edit ADID framework rule receivers under .cursor/ or .opencode/; kernel SPECS + ADM only",
+    "ADID.OPS": "always-on how-to: cmd_runner start/tail/send; adm template→apply→verify; rag index/query; Delphi init+msbuild (see policy.adid_ops)",
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read from config/adm.json",
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
     "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked, search web/codegraph/messagesearch before declaring blocked.",
     "DECOMPOSE": "break problem into sub-goals before planning. k-medoids: cluster around evidence, not random. Sierpinski/L-System: every sub-level shares the same deterministic structure — one recursive pattern (F→F+F-F), not ad-hoc expansion.",
+    "DOCUMENT.SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
+    "WORKSPACE.LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
+    "PROGRESS.LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -2750,23 +3136,30 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "WRITE.SCOPE": "mutation",
     "MEMORY.RANK": "infomark",
     "MEMORY.LINKS": "memory",
+    "ADID.FREEZE": "adid",
+    "ADID.OPS": "adid",
     "NO_HARDCODE": "evidence",
     "WHERE_WHICH": "evidence",
     "SV_OUTPUT": "verification",
     "CLEAN_STATE": "verification",
     "DECOMPOSE": "plan",
+    "DOCUMENT.SURFACE": "hygiene",
+    "WORKSPACE.LANES": "hygiene",
+    "PROGRESS.LOG": "hygiene",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
+    "adid": ("adid", "ADID.FREEZE", "ADID.OPS", "scope", "mutation", "verification"),
     "diagnose": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "REUSE.BEFORE", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
     "modify": ("plan", "REUSE.BEFORE", "SMOKE.BEFORE", "scope", "cache", "mutation", "WRITE.SCOPE", "CACHE.STABILITY", "verification", "VERIFY.OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
     "observe": ("scope", "evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "WHERE_WHICH", "NO_HARDCODE", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK"),
+    "hygiene": ("DOCUMENT.SURFACE", "WORKSPACE.LANES", "PROGRESS.LOG", "CLEAN_STATE", "EVIDENCE.ORDER"),
     "plan": ("plan", "DECOMPOSE", "REUSE.BEFORE", "SMOKE.BEFORE", "evidence", "scope", "mutation", "verification", "MEMORY.RANK", "SV_OUTPUT", "CLEAN_STATE"),
     "research": ("evidence", "EVIDENCE.ORDER", "SEARCH.ORDER", "REUSE.BEFORE", "WHERE_WHICH", "NO_HARDCODE", "verification", "SV_OUTPUT", "CLEAN_STATE", "infomark", "MEMORY.RANK", "MEMORY.LINKS"),
 })
 
 RUNTIME_PACKS = MappingProxyType({
-    "agent.build": ("universal", "modify", "diagnose"),
+    "agent.build": ("universal", "modify", "diagnose", "adid", "hygiene"),
     "agent.coder": ("agent.build",),
 
     "agent.explore": ("universal", "observe"),
@@ -2794,14 +3187,17 @@ RUNTIME_PACKS = MappingProxyType({
 # Source spec names are stable development identifiers. Runtime contract IDs are
 # the compact model-facing vocabulary and deliberately carry no repeated prose.
 SPEC_CONTRACT_IDS = MappingProxyType({
+    "ADID_FRAMEWORK_RULES": "policy.adid", "ADID_OPS": "policy.adid_ops",
+    "ADM_EXE": "skill.adm_exe", "ADM_MCP": "skill.adm_mcp",
     "AI_DEPS": "command.ai_deps",
-    "CHANGELOG": "command.changelog", "CODER": "agent.coder",
+    "CHANGELOG": "command.changelog", "CMD_RUNNER": "skill.cmd_runner", "CODER": "agent.coder",
     "CODING_AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit",
-    "DEFAULT_PROMPT": "policy.default",
+    "DEFAULT_PROMPT": "policy.default", "DELPHI_BUILDER": "skill.delphi_builder", "DUNIT": "skill.dunit",
     "DUPLICATE_PR": "command.duplicate_pr", "EXPLORER": "agent.explore", "GENERAL": "agent.general",
     "GOVERNANCE": "policy.governance", "GROUNDING_RULES": "policy.grounding", "ISSUES": "command.issues",
     "LEARN": "command.learn", "MEDIA": "agent.media", "ORCHESTRATOR": "agent.orchestrator",
-    "PLANNING": "policy.planning", "RESEARCHER": "agent.researcher",
+    "PATCH_TOOL": "skill.patch_tool",     "PLANNING": "policy.planning",
+    "REASONING_MODE": "policy.reasoning", "RAG": "skill.rag", "RESEARCHER": "agent.researcher",
     "RMSLOP": "command.rmslop", "SPELLCHECK": "command.spellcheck", "SUMMARY": "agent.summary",
     "TITLE": "agent.title", "TRANSLATE": "command.translate", "TRIAGE": "command.triage",
 })
@@ -2826,11 +3222,21 @@ RUNTIME_CONTRACTS = MappingProxyType({
     "command.spellcheck": ("scope", "evidence", "verification"),
     "command.translate": ("scope", "mutation", "verification", "WRITE.SCOPE"),
     "command.triage": ("scope", "evidence", "verification"),
+    "policy.adid": ("scope", "evidence", "verification", "SEARCH.ORDER"),
+    "policy.adid_ops": ("scope", "mutation", "verification", "WRITE.SCOPE"),
     "policy.coding": ("plan", "evidence", "verification", "EVIDENCE.ORDER", "VERIFY.OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
     "policy.default": ("scope",),
     "policy.governance": ("scope", "mutation", "verification", "WRITE.SCOPE"),
     "policy.grounding": ("evidence", "verification", "EVIDENCE.ORDER", "SEARCH.ORDER", "NO_HARDCODE"),
     "policy.planning": ("plan", "evidence", "scope", "verification"),
+    "policy.reasoning": ("scope", "evidence", "verification"),
+    "skill.adm_exe": ("scope", "mutation", "verification"),
+    "skill.adm_mcp": ("scope", "mutation", "verification"),
+    "skill.cmd_runner": ("scope", "evidence", "verification"),
+    "skill.delphi_builder": ("scope", "verification"),
+    "skill.dunit": ("scope", "verification"),
+    "skill.patch_tool": ("scope", "mutation", "verification", "WRITE.SCOPE"),
+    "skill.rag": ("scope", "evidence", "SEARCH.ORDER", "verification"),
 })
 
 
@@ -2888,15 +3294,15 @@ def _render_runtime_mapping(name: str, values: MappingProxyType) -> list[str]:
     return lines
 
 
-# SPECS sections in the identity prefix (Tier A). Skills/commands are Tier B
-# (SKILL.md / command surfaces) — not permanent identity weight.
+# SPECS sections in the identity prefix (Tier A). Commands are Tier B
+# (command surfaces) — not permanent identity weight.
 _TIER_A_AGENTS = frozenset({
     "CODER", "EXPLORER", "ORCHESTRATOR", "GENERAL", "RESEARCHER",
     "MEDIA", "TITLE", "SUMMARY",
 })
 _TIER_A_POLICIES = frozenset({
-    "CODING_AGENT_DIRECTIVES", "GOVERNANCE",
-    "DEFAULT_PROMPT", "GROUNDING_RULES", "PLANNING",
+    "ADID_FRAMEWORK_RULES", "ADID_OPS", "CODING_AGENT_DIRECTIVES", "GOVERNANCE",
+    "DEFAULT_PROMPT", "GROUNDING_RULES", "PLANNING", "REASONING_MODE",
 })
 _TIER_B_COMMANDS = frozenset({
     "COMMIT", "LEARN", "CHANGELOG", "ISSUES", "TRANSLATE", "RMSLOP",
@@ -3110,21 +3516,26 @@ _ALL_SPECS = {
     "CODER": CODER, "EXPLORER": EXPLORER, "ORCHESTRATOR": ORCHESTRATOR,
     "GENERAL": GENERAL, "RESEARCHER": RESEARCHER, "MEDIA": MEDIA,
     "TITLE": TITLE, "SUMMARY": SUMMARY,
+    "ADM_EXE": ADM_EXE, "CMD_RUNNER": CMD_RUNNER, "RAG": RAG,
+    "PATCH_TOOL": PATCH_TOOL, "ADM_MCP": ADM_MCP,
+    "DELPHI_BUILDER": DELPHI_BUILDER,
+    "DUNIT": DUNIT,
     "COMMIT": COMMIT, "LEARN": LEARN, "CHANGELOG": CHANGELOG,
     "ISSUES": ISSUES, "TRANSLATE": TRANSLATE, "RMSLOP": RMSLOP,
     "AI_DEPS": AI_DEPS, "SPELLCHECK": SPELLCHECK,
     "DUPLICATE_PR": DUPLICATE_PR, "TRIAGE": TRIAGE,
-
-
+    "ADID_FRAMEWORK_RULES": ADID_FRAMEWORK_RULES,
+    "ADID_OPS": ADID_OPS,
     "CODING_AGENT_DIRECTIVES": CODING_AGENT_DIRECTIVES,
     "GOVERNANCE": GOVERNANCE,
     "DEFAULT_PROMPT": DEFAULT_PROMPT,
     "GROUNDING_RULES": GROUNDING_RULES,
     "PLANNING": PLANNING,
+    "REASONING_MODE": REASONING_MODE,
 }
 
 def render_all_specs(tier: str = "A") -> str:
-    """Render _spec() blocks as compact text.
+    """    Render _spec() blocks as compact text.
 
     Tier A (identity): agents + policies only.
     Tier full: also commands (available as command surfaces; not default identity).
@@ -3137,7 +3548,7 @@ def render_all_specs(tier: str = "A") -> str:
     # Any leftover specs still render under policies in full tier
     known = _TIER_A_AGENTS | _TIER_B_COMMANDS | _TIER_A_POLICIES
     extras = {k: v for k, v in _ALL_SPECS.items() if k not in known}
-    if extras:
+    if extras and tier == "full":
         policies = {**policies, **extras}
 
     sections: list[tuple[str, dict]] = [
@@ -3161,7 +3572,6 @@ def render_all_specs(tier: str = "A") -> str:
             lines.extend(_render_spec_block(name, group[name]))
 
     return "\n".join(lines)
-
 
 
 # ======================================================================
@@ -4380,10 +4790,7 @@ def assert_prompt_files_conform(*, package_root: str = ".") -> dict[str, list[st
         "packages/opencode/src/agent/prompt/*.txt",
         "packages/opencode/src/session/prompt/*.txt",
         "packages/opencode/src/skill/*/SKILL.md",
-        ".opencode/rules/*.mdc",
-        ".cursor/rules/*.mdc",
         "**/AGENTS.md",
-        "**/SKILL.md",
     ]
 
     for pattern in patterns:
@@ -4468,5 +4875,5 @@ def run_conformance() -> None:
 if __name__ == "__main__":
     if len(sys.argv) >= 3 and sys.argv[1] == "--render-runtime":
         write_runtime_kernel(sys.argv[2])
-else:
+    else:
         run_conformance()

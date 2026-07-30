@@ -207,6 +207,45 @@ The hierarchy `Universal → Natural/Social → Physics/Economics` mirrors how
 knowledge actually works: general principles constrain domain-specific methods.
 The `PRECEDENCE` table formalizes which level wins in case of conflict.
 
+### Kernel ↔ Protocol dual-layer architecture
+
+The runtime prompt is split into two surfaces with different optimization targets:
+
+| Layer | File | Optimized for | Format |
+|-------|------|--------------|--------|
+| **Kernel** | `opencode_prompts_kernel.txt` | Parsing & immutability | Python `MappingProxyType` dicts |
+| **Protocol** | `reasoning.txt` | LLM comprehension | Commented prose + gate algorithms |
+
+Kernel uses compact Python declarations (`RULES = {'DOCUMENT.SURFACE': '...'}`) —
+machine-friendly, symbol-collision-proof, CI-testable. Protocol uses natural language
+with explicit kernel symbol references (`[kernel: DOCUMENT.SURFACE | wf: hygiene]`) —
+model-friendly, readable at inference time without parsing overhead.
+
+**Integrity verification via BGE cosine similarity:** The two layers are
+mathematically linked. BAAI/bge-base-en-v1.5 embeddings confirm that protocol
+references and kernel declarations cluster together (cosine ≥ 0.79 across all
+tested symbol pairs — DOCUMENT.SURFACE, WORKSPACE.LANES, PROGRESS.LOG). BGE is
+code+text bilingual — it sees through Python syntax into the underlying semantics.
+The test harness lives at `experiments/prompts_test/` (RAG-indexed via
+`tools/adm.exe --rag index`, queried via `tools/adm.exe --query`).
+
+### Reasoning mode: a calibration instrument
+
+Reasoning mode (`REASONING_MODE` spec in kernel, `policy.reasoning`) strips the
+model of all tools, databases, file systems, and history search — only the
+current conversation window remains. This is the AI equivalent of a sensory
+deprivation chamber: without external stimuli, the model's intrinsic preferences
+surface.
+
+- **Positive preferences** — good defaults, helpful instincts, correct reasoning
+  patterns — can be identified and amplified through prompt design.
+- **Negative preferences** — biases, unwarranted assumptions, over-eagerness to
+  act without evidence — can be observed and suppressed.
+
+The result is a calibration loop: observe raw behavior → tune prompts →
+re-observe → achieve maximum efficiency. Same principle as mental discipline
+practices in humans: strip away noise, find the core, strengthen it.
+
 ---
 
 ## File Reference

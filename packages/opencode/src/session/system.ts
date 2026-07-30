@@ -104,7 +104,7 @@ export interface Interface {
  */
 export const UNIVERSAL_ENV = [
   "You are a coding assistant for software engineering in this product.",
-  "Follow REASONING PROTOCOL and ALGORITHM_CARD in the system identity.",
+  "Follow the framework governance (kernel + ADID) in the system identity.",
   "Prefer Exact evidence (tools) over unaided recall.",
 ].join("\n")
 

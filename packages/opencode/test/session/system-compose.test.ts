@@ -100,7 +100,7 @@ describe("system-compose provider assembly", () => {
       banner: "[session: ses_1]",
       checkpoint: true,
     })
-    // After stripping OLD_IDENTITY, the path body retains its own stable slot.
+    // After stripping OLD_IDENTITY: reasoning → card → kernel → rules → skills → agentPrompt → env
     expect(parts[3]).toBe("RULES\nSKILLS\nAGENT_PROMPT\nENV")
     expect(parts.join("\n")).not.toContain("OLD_IDENTITY")
     expect(parts.some((p) => p === "USER")).toBe(false)
@@ -195,10 +195,10 @@ describe("system prefix digest (kernel + reasoning)", () => {
 
   test("systemPromptParts keeps full reasoning, algorithm card, and kernel separate", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
-    // Keep the full reasoning protocol bounded without truncating its sections.
+    // Lean ADID density: reasoning is a pocket protocol, not a 11KB essay.
     // Regression: split("\\n\\n") on the join must not truncate/mis-slot files.
     expect(parts.reasoning.length).toBeGreaterThan(1_500)
-    expect(parts.reasoning.length).toBeLessThan(16_000)
+    expect(parts.reasoning.length).toBeLessThan(8_000)
     expect(parts.reasoning).toContain("REASONING PROTOCOL")
     expect(parts.reasoning).toContain("SVM noise filter")
     expect(parts.reasoning).toContain("ALGORITHM_CARD")
@@ -225,7 +225,7 @@ describe("system prefix digest (kernel + reasoning)", () => {
     expect(kernelBytes).toBeGreaterThan(5_000)
     expect(kernelBytes).toBeLessThan(80_000)
     expect(reasoningBytes).toBeGreaterThan(1_500)
-    expect(reasoningBytes).toBeLessThan(16_000)
+    expect(reasoningBytes).toBeLessThan(8_000)
     expect(algorithmBytes).toBeGreaterThan(500)
     expect(combined).toBeGreaterThanOrEqual(reasoningBytes + algorithmBytes + kernelBytes)
   })

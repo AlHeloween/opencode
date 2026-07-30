@@ -129,13 +129,12 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 plan_enter: "allow",
+                reasoning_enter: "allow",
               }),
               user,
             ),
             mode: "primary",
             native: true,
-            // No agent.prompt — mode-entry text is a one-shot conversation
-            // transition record, never a system-prefix mutation.
           },
           plan: {
             name: "plan",
@@ -164,13 +163,14 @@ export const layer = Layer.effect(
           },
           reasoning: {
             name: "reasoning",
-            description: "Reasoning mode. Memory tool only.",
+            description: "Reasoning mode. Zero tools — memory-only responses.",
             options: {},
             permission: Permission.merge(
               defaults,
               user,
               Permission.fromConfig({
                 "*": "deny",
+                reasoning_exit: "allow",
                 memory: "allow",
               }),
             ),
@@ -214,8 +214,6 @@ export const layer = Layer.effect(
                 "session-read": "allow",
                 universalsearch: "allow",
                 webfetch: "allow",
-                reasoning_enter: "allow",
-                reasoning_exit: "allow",
               }),
             ),
             mode: "primary",
@@ -385,16 +383,10 @@ export const layer = Layer.effect(
           item.mode = value.mode ?? item.mode
           item.color = value.color ?? item.color
           item.hidden = value.hidden ?? item.hidden
-          if (!(["reasoning", "orchestrator"].includes(key) && item.native)) {
-            item.name = value.name ?? item.name
-          }
+          item.name = value.name ?? item.name
           item.steps = value.steps ?? item.steps
           item.options = mergeDeep(item.options, value.options ?? {})
-          // Reasoning is a native calibration boundary. Its memory-only policy
-          // is not a project preference that a local config may reopen.
-          if (!(key === "reasoning" && item.native)) {
-            item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
-          }
+          item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
         }
 
         // Ensure truncation output dir is allowed unless explicitly configured

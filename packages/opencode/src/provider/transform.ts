@@ -431,30 +431,14 @@ export function topK(model: Provider.Model) {
   return undefined
 }
 
-/**
- * Stable identity parts for the provider system prefix.
- * NEVER join+split on "\\n\\n" — files contain blank lines; that would
- * leave only the first reasoning paragraph as "reasoning" and shove the rest
- * of reasoning.txt + algorithm card + kernel into the wrong slot.
- *
- * Order inside identity: reasoning → ALGORITHM_CARD → kernel.
- * Card is commented Python bound to opencode_prompts_kernel symbols
- * (select_planning_mode, select_fractal_model, k_medoids_modifications, …).
- */
-export function systemPromptParts(_model?: Provider.Model): {
-  reasoning: string
-  algorithm: string
-  kernel: string
-} {
-  return {
-    reasoning: PROMPT_REASONING || "",
-    algorithm: PROMPT_ALGORITHM || "",
-    kernel: PROMPT_KERNEL || "",
-  }
+export function systemPromptParts(_model: Provider.Model) {
+  const reasoning = PROMPT_REASONING
+  const algorithm = PROMPT_ALGORITHM
+  const kernel = PROMPT_KERNEL
+  return { reasoning, algorithm, kernel }
 }
 
-/** Byte-stable join of reasoning + algorithm card + Pythonic kernel (identity fingerprint). */
-export function systemPromptPrefix(model?: Provider.Model) {
+export function systemPromptPrefix(model: Provider.Model) {
   const parts = systemPromptParts(model)
   return [parts.reasoning, parts.algorithm, parts.kernel].filter((x) => x.length > 0).join("\n\n")
 }

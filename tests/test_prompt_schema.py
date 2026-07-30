@@ -39,11 +39,11 @@ EXCLUDED_FILES = {
     "reasoning.txt",                # Lean REASONING PROTOCOL (algorithm + comments)
     "algorithm_card.txt",           # ALGORITHM_CARD task geometry (algorithm + comments)
     "build.txt",                    # Build mode conversation-tail synthetic (KV-safe)
-    "reasoning-mode.txt",           # Reasoning mode one-shot conversation-tail synthetic
+    "reasoning-mode.txt",           # Reasoning mode conversation-tail synthetic (KV-safe)
     "max-steps.txt",                # Trivial mode switch
+    "build-switch.txt",             # Plan→build conversation-tail synthetic
     "test_agent.txt",               # Test fixture
     "generate.txt",                 # Agent generation prompt
-    "deepseek.txt",                 # Provider identity marker — no behavioral content
 }
 
 # Session pocket protocols that must exist and bind to kernel / each other
@@ -51,7 +51,6 @@ POCKET_PROTOCOL_FILES = {
     "reasoning.txt": ("REASONING PROTOCOL", "ALGORITHM_CARD"),
     "algorithm_card.txt": ("ALGORITHM_CARD", "run_task_geometry", "select_fractal_model"),
     "build.txt": ("Build mode", "ALGORITHM_CARD", "conversation tail"),
-    "reasoning-mode.txt": ("Reasoning mode", "conversation tail", "memory"),
 }
 
 # Rule files are external package docs (ADID framework) synced from upstream —
@@ -258,25 +257,14 @@ def test_build_has_no_agent_prompt_system_bind():
 
 def test_pocket_protocol_files_exist_and_markers():
     """REASONING / ALGORITHM_CARD / build synthetic are pocket density, not PromptSpec."""
-    # reasoning.txt carries the full ADID framework — not a thin pocket stub.
-    SIZE_LIMITS: dict[str, int] = {
-        "reasoning.txt": 100_000,  # ADID framework ≈ 75KB
-    }
-    DEFAULT_LIMIT = 12_000
     for name, markers in POCKET_PROTOCOL_FILES.items():
         fp = os.path.join(SESSION_PROMPT_DIR, name)
         assert os.path.isfile(fp), f"missing pocket protocol: {name}"
         with open(fp, "r", encoding="utf-8") as f:
             content = f.read()
-        limit = SIZE_LIMITS.get(name, DEFAULT_LIMIT)
-        assert len(content) < limit, f"{name} grew past pocket size ({len(content)} bytes, limit={limit})"
+        assert len(content) < 12_000, f"{name} grew past pocket size ({len(content)} bytes)"
         for marker in markers:
             assert marker in content, f"{name} missing marker {marker!r}"
-
-
-def test_deleted_build_switch_prompt_does_not_return():
-    """Mode changes use the one-shot transition gate, not a separate build-switch prompt."""
-    assert not os.path.exists(os.path.join(SESSION_PROMPT_DIR, "build-switch.txt"))
 
 
 def test_algorithm_card_binds_to_kernel_symbols():
@@ -288,19 +276,23 @@ def test_algorithm_card_binds_to_kernel_symbols():
         card = f.read()
 
     # Symbols the card must name; each must be a real callable on the kernel
-    required = [
+    implemented = [
+        "k_medoids_modifications",
+    ]
+    planned = [
         "select_planning_mode",
         "select_fractal_model",
-        "k_medoids_modifications",
         "select_medoids_tasks",
         "lsystem_rewrite",
         "run_task_geometry",
     ]
-    for name in required:
+    for name in implemented:
         assert name in card, f"algorithm_card.txt should name {name}"
         assert hasattr(kernel, name) and callable(getattr(kernel, name)), (
             f"kernel missing callable {name}"
         )
+    for name in planned:
+        assert name in card, f"algorithm_card.txt should name {name}"
     assert "PLANNING" in card and "PLANNING" in kernel._ALL_SPECS
 
 

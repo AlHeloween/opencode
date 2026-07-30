@@ -4,8 +4,10 @@ import { ProviderTransform } from "@/provider/transform"
 import type { MessageV2 } from "./message-v2"
 import { TokenCalibration } from "./token-calibration"
 
-const COMPACTION_BUFFER = 20_000
 const SUMMARY_REQUEST_HEADROOM_TOKENS = 2_048
+/** Cap on output-token reserve so huge max_output does not erase 1M windows. */
+const MAX_OUTPUT_RESERVE_TOKENS = 32_768
+const FALLBACK_OUTPUT_RESERVE_TOKENS = 8_192
 
 /** Content body heuristic: ~1 token per 4 symbols (chars). Cadence uses this alone. */
 export const CHARS_PER_TOKEN = 4
@@ -14,9 +16,21 @@ export const CHARS_PER_TOKEN = 4
  * Empirical full-request overhead (system prefix, tools schema, framing).
  * Validated across providers/windows: tokenizers systematically undercount the
  * real request; `content/4 + 10_000` tracks provider limits better.
- * Used only on **safety / fit** paths — never on Layer-1/2 open-window cadence.
+ * Used only on **safety / fit** paths — never on Layer-1 open-window cadence.
  */
 export const REQUEST_OVERHEAD_TOKENS = 10_000
+
+/**
+ * Default tokens reserved under model limit for a **normal LLM turn**
+ * (framing + output). Mechanistic compact is zero-token — no separate
+ * "leave 15%/20k for compaction model call" slab.
+ */
+export function defaultUsableReserved(model: Provider.Model): number {
+  const out = model.limit.output ?? 0
+  const outputReserve =
+    out > 0 ? Math.min(out, MAX_OUTPUT_RESERVE_TOKENS) : FALLBACK_OUTPUT_RESERVE_TOKENS
+  return REQUEST_OVERHEAD_TOKENS + outputReserve
+}
 
 function summaryResponseBudget(model: Provider.Model, contentTokens: number) {
   const raw = ProviderTransform.maxOutputTokens(model, undefined, contentTokens)
@@ -34,7 +48,7 @@ export function usable(input: { cfg: Config.Info; model: Provider.Model }) {
   // Prefer observed context limit from provider error messages over model definition
   const observedLimit = TokenCalibration.getObservedLimit(input.model)
   const limit = observedLimit ?? input.model.limit.input ?? context
-  const reserved = input.cfg.compaction?.reserved ?? Math.min(COMPACTION_BUFFER, Math.floor(limit * 0.15))
+  const reserved = input.cfg.compaction?.reserved ?? defaultUsableReserved(input.model)
   return Math.max(0, limit - reserved)
 }
 
@@ -126,22 +140,22 @@ export function isOverflowFromContent(input: {
 }
 
 /**
- * Mechanistic Layer-2 / in-band compaction **cadence** gate.
+ * Mechanistic Layer-2 compact **gate** (zero LLM tokens — pure fold to m*).
  *
- * `compact()` reorganizes existing sidecars/summaries into `message*` — it does
- * **not** call the provider. Therefore this gate must **not** use `usable()`,
- * `isOverflowFromContent`, or `summaryWindowLimit` (those reserve LLM headroom
- * for normal turns / Layer-1 sidecar).
+ * Callers pass **full visible** content tokens (chars/4) and a **model-sized**
+ * target — typically `usable({ cfg, model })` — **not** Layer-1's 65_536.
+ * Layer-1 sidecar cadence is separate (`SUMMARY_INTERVAL_TOKENS` / open window).
  *
- * Callers pass open-window tokens from
- * `SessionCompaction.computeOpenWindowTokens` (sidecar boundary when present).
  * Avoids importing compaction.ts (cycle: compaction → overflow).
  */
 export function needsContentCompaction(input: {
   cfg: Config.Info
-  /** Open-window content tokens (chars/4) since last Layer-1 boundary. */
+  /** Full visible content tokens (chars/4) for Layer-2; not open-since-s. */
   openTokens: number
-  /** Normal cadence target, typically SUMMARY_INTERVAL_TOKENS (65_536). */
+  /**
+   * Fold threshold. Layer-2 must pass `usable(model)` (or similar model room).
+   * Do **not** pass SUMMARY_INTERVAL_TOKENS (65k) — that is Layer-1 s only.
+   */
   target: number
 }) {
   if (input.cfg.compaction?.auto === false) return false

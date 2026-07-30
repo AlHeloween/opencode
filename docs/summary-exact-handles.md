@@ -37,11 +37,16 @@ range messages (from_id..to_id)
 
 ```text
 await Checkpoint.persist
-  → sidecar LLM body (Inferred only)
+  → sidecar LLM:
+       messages = open **range only** (not full M) + summaryRequestProse(lastSv)
+       outputTokenMax ≤ 8k; quality gate isValidSummaryBody (deep sections)
   → enrichRange: tool filediffs + CodeGraph
-  → save s
-  → maybeCompactCadence
+  → save s (outside M)
+  → compact only later (usable model; not same stop as new s)
 ```
+
+**Why range-only:** summarizing full checkpoint M dilutes attention → 3-sentence stubs.
+Old inject geometry was always “this window”.
 
 ---
 

@@ -144,7 +144,7 @@ sequenceDiagram
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs** |
 | Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin | **Match** |
-| Compact after enough s / open window | **`maybeCompactCadence` on stop** after sidecar + while loop continues | **Fixed 2026-07-30** |
+| Compact after enough s / model window full | **`maybeCompactCadence`**: target=`usable(model)` not 64k; skip same stop as new s; skip if 1 open sidecar | **Fixed 2026-07-30** |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
 
@@ -152,15 +152,25 @@ sequenceDiagram
 
 ```text
 stop → Checkpoint M → maybeCaptureSidecar (s outside M)
-     → maybeCompactCadence:
-          visibleTokens = content/4 of **full visible M** (not since-last-s)
-          if ≥ 65_536 → compact() → m* = [s…, recent m…]; soft-hide m
+     → if sidecar captured this stop: do NOT compact (defer Layer-2)
+     → else maybeCompactCadence:
+          open sidecars === 1 → skip (never s→immediate fold)
+          open sidecars ≥ 2 (or 0 legacy)
+            AND full visible content/4 ≥ usable(model)   ← e.g. ~850k on 1M, NOT 64k
+            → compact() → m* = [s…, recent m…]; soft-hide m
      → break
 ```
 
-**Why full visible, not open-since-last-s:** summarized `m` stay in M until
-compact soft-hides them. Sidecar boundary resets open-for-next-s ≈ 0; total M
-still holds prior segments — that total is what must fold into `m*`.
+**Layer-1 vs Layer-2 thresholds (do not conflate):**
+
+| Gate | Target | Meaning |
+|------|--------|---------|
+| Sidecar s | ~`SUMMARY_INTERVAL_TOKENS` (65 536) open since last s | periodic Exact memory rows |
+| Compact m* | **`usable(model)`** (context − LLM headroom) | only when M fills the **model** window |
+
+**`usable` headroom** (not a compaction tax): `request overhead (10k) + min(max_output, 32k)` for the **next LLM turn**. Mechanistic compact is zero-token — no 15%/150k “leave room for summary call”. Optional override: `config.compaction.reserved`.
+
+A 1M model must **not** compact at 64k — that wastes the window and forces the agent into m* soup.
 
 ---
 

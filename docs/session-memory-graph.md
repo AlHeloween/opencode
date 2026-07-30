@@ -27,9 +27,9 @@ compact → m* = [ s1, s2, recent m m m ]
 when: await checkpoint persist (inferences done)
   → summary via user-message shape (ephemeral)
   → store s in DB outside content (+ Exact tool diffs/CG)
-  → M same as before summary
-  → compact if total visible ≥ 65K
-  → continue work
+  → M same as before summary — continue work (no compact same stop)
+  → later stop: compact only if ≥2 open sidecars AND full visible ≥ usable(model)
+    (1M context → hundreds of k of M; 64k is Layer-1 s only, not compact)
 ```
 
 ### Tool Exact on one summary window
@@ -71,7 +71,9 @@ flowchart TB
 
   STOP --> CK[Checkpoint.publish M]
   CK --> SC[maybeCaptureSidecar]
-  SC --> MC[maybeCompactCadence\nfull visible ≥ 65K?]
+  SC -->|captured| DEFER[defer compact\nsame stop]
+  SC -->|no s| MC[maybeCompactCadence\n≥2 open s OR 0;\nfull visible ≥ usable model?]
+  DEFER --> BRK2
   MC -->|yes| CMPS[compact → m*]
   MC -->|no| BRK2
   CMPS --> BRK2[break]

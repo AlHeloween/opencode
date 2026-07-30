@@ -16,6 +16,8 @@ import {
   needsContentCompaction,
   REQUEST_OVERHEAD_TOKENS,
   summaryWindowLimit,
+  usable,
+  defaultUsableReserved,
 } from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
@@ -1413,25 +1415,46 @@ describe("isOverflowFromContent", () => {
   })
 })
 
-// --- needsContentCompaction (Layer-2 zero-token cadence gate) ---
-
-describe("needsContentCompaction", () => {
-  test("fires at SUMMARY_INTERVAL_TOKENS regardless of 1M-context usable()", () => {
-    // 1M model: usable ≈ 980K; isOverflowFromContent stays false at 65K.
-    // Cadence gate must still fire — compact() costs zero LLM tokens.
-    const cfg = defaultCfg()
-    const target = SessionCompaction.SUMMARY_INTERVAL_TOKENS
-    expect(needsContentCompaction({ cfg, openTokens: target - 1, target })).toBe(false)
-    expect(needsContentCompaction({ cfg, openTokens: target, target })).toBe(true)
-    expect(needsContentCompaction({ cfg, openTokens: target + 10_000, target })).toBe(true)
+describe("usable / defaultUsableReserved", () => {
+  test("1M model: no 15% / 150k compaction slab — only overhead + capped output", () => {
+    const model = createModel({ context: 1_000_000, output: 64_000 })
+    const reserved = defaultUsableReserved(model)
+    // 10k framing + min(64k, 32k) output = 42k — not 150k (15%) and not old 20k-only buffer
+    expect(reserved).toBe(REQUEST_OVERHEAD_TOKENS + 32_768)
+    const u = usable({ cfg: defaultCfg(), model })
+    expect(u).toBe(1_000_000 - reserved)
+    expect(1_000_000 - u).toBeLessThan(50_000)
   })
 
-  test("does not use summaryWindowLimit / output headroom", () => {
-    // Even if a small context would lower summaryWindowLimit for Layer-1 LLM,
-    // compact cadence is pure content open-window vs target.
+  test("cfg.compaction.reserved overrides default headroom", () => {
+    const model = createModel({ context: 1_000_000, output: 64_000 })
+    const u = usable({
+      cfg: { compaction: { reserved: 5_000 } } as Config.Info,
+      model,
+    })
+    expect(u).toBe(995_000)
+  })
+})
+
+// --- needsContentCompaction (pure openTokens ≥ target gate) ---
+
+describe("needsContentCompaction", () => {
+  test("compares openTokens to caller target (Layer-2 passes usable(model), not 64k)", () => {
+    // Pure helper: Layer-2 must pass usable(model), not SUMMARY_INTERVAL.
+    // Layer-1 sidecar uses 65k separately in maybeCaptureSidecar.
+    const cfg = defaultCfg()
+    const model = createModel({ context: 1_000_000, output: 64_000 })
+    const layer2Target = usable({ cfg, model })
+    expect(layer2Target).toBeGreaterThan(900_000)
+    expect(needsContentCompaction({ cfg, openTokens: 65_536, target: layer2Target })).toBe(false)
+    expect(needsContentCompaction({ cfg, openTokens: layer2Target - 1, target: layer2Target })).toBe(false)
+    expect(needsContentCompaction({ cfg, openTokens: layer2Target, target: layer2Target })).toBe(true)
+  })
+
+  test("fires at whatever target the caller supplies", () => {
     const cfg = defaultCfg()
     const target = SessionCompaction.SUMMARY_INTERVAL_TOKENS
-    expect(needsContentCompaction({ cfg, openTokens: 65_536, target })).toBe(true)
+    expect(needsContentCompaction({ cfg, openTokens: target, target })).toBe(true)
   })
 
   test("respects compaction.auto === false", () => {
@@ -1712,7 +1735,7 @@ describe("session.compaction.injectSummaryRequest", () => {
         const systemBody = systemParts.map((p) => p.text).join("\n")
 
         // Model-facing: SVM / goal / decisions / state only — no digital facts.
-        expect(modelBody).toContain("structured summary")
+        expect(modelBody).toContain("Layer-1 memory summary")
         expect(modelBody).toContain("## Semantic Vector")
         expect(modelBody).toContain("## Goal")
         expect(modelBody).toContain("## Key decisions")
@@ -1724,7 +1747,7 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(modelBody).not.toContain(`session_id="${info.id}"`)
         expect(modelBody).not.toContain("Include these message IDs")
 
-        // System-only ignored part: Exact range digits for runtime (fossil diffs / stamp).
+        // System-only ignored part: Exact range digits for runtime.
         expect(systemBody).toContain("<!-- summary-range")
         expect(systemBody).toContain(`session_id="${info.id}"`)
         expect(systemBody).toMatch(/from_id="[^"]+"/)
@@ -2055,21 +2078,45 @@ describe("session.compaction.hasPendingSummaryRequest", () => {
 })
 
 describe("session.compaction.isValidSummaryBody", () => {
-  test("requires every Layer-1 section", () => {
+  test("requires every Layer-1 section with real depth (rejects stubs)", () => {
     expect(
       SessionCompaction.isValidSummaryBody(`## Semantic Vector
-dominant: "memory"
+dominant: "session memory handles"
+key_phrases:
+  - phrase: "sidecar summary quality"
+    weight: 0.4
+  - phrase: "tool exact diffs"
+    weight: 0.3
+  - phrase: "compaction cadence"
+    weight: 0.3
 
 ## Goal
-Keep memory stable.
+Keep conversation memory stable across long sessions by writing durable Layer-1
+summaries with Exact tool/CodeGraph handles and folding them only when the model
+window is actually full.
 
 ## Key decisions
-- Promote only valid bodies.
+- Use write/edit/multiedit filediffs for Exact, not fossil spans.
+- Compact target is usable(model), not the 64k Layer-1 interval.
 
 ## Current state
-Ready.`),
+Sidecar range-only prompt and quality gate are in place; next verify live capture
+body length and section depth on a real 1M-context stop path.`),
     ).toBe(true)
     expect(SessionCompaction.isValidSummaryBody("## Goal\nNot enough")).toBe(false)
+    expect(
+      SessionCompaction.isValidSummaryBody(`## Semantic Vector
+dominant: "x"
+
+## Goal
+short
+
+## Key decisions
+- a
+
+## Current state
+b`),
+    ).toBe(false)
   })
 })
 

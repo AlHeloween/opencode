@@ -1195,6 +1195,15 @@ export const layer = Layer.effect(
             if (!range.length) return false
             sidecarInFlight.add(sessionID)
             return yield* Effect.gen(function* () {
+              // Summarize **this open range only** — not the entire checkpoint M.
+              // Full M dilutes attention and yields 3-sentence stubs; old inject
+              // geometry was always the window being summarized.
+              const rangeModel = yield* MessageV2.toModelMessagesWithCountsEffect(range, input.model)
+              const lastSv = previous?.body
+                ? SessionCompaction.extractSemanticVector(previous.body)
+                : undefined
+              // Generous output for a full 4-section memory body (not chat brevity).
+              const summaryOutCap = Math.min(8_192, input.model.limit.output || 8_192)
               const body = yield* llm
                 .stream({
                   user: input.user,
@@ -1206,10 +1215,14 @@ export const layer = Layer.effect(
                     ? `${input.user.providerCacheKey}:sidecar`
                     : undefined,
                   system: [...input.checkpoint.systemPrompt],
-                  messages: [...input.checkpoint.messages, { role: "user", content: SessionCompaction.summaryRequestProse() }],
+                  messages: [
+                    ...rangeModel.messages,
+                    { role: "user", content: SessionCompaction.summaryRequestProse(lastSv) },
+                  ],
                   tools: {},
                   toolChoice: "none",
                   model: input.model,
+                  outputTokenMax: summaryOutCap,
                 })
                 .pipe(
                   Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
@@ -1221,7 +1234,13 @@ export const layer = Layer.effect(
                   }),
                 )
               if (!SessionCompaction.isValidSummaryBody(body)) {
-                yield* slog.debug("sidecar checkpoint rejected", { bodyLen: body.length, openTokens, threshold })
+                yield* slog.warn("sidecar checkpoint rejected (quality gate)", {
+                  bodyLen: body.length,
+                  openTokens,
+                  threshold,
+                  rangeMessages: range.length,
+                  preview: body.slice(0, 200),
+                })
                 return false
               }
               // Exact: write/edit/multiedit tool filediffs in range + CodeGraph on those paths.
@@ -1264,11 +1283,12 @@ export const layer = Layer.effect(
           })
 
         /**
-         * Layer-2 cadence fold (zero LLM tokens). Intended geometry:
-         *   content M = [m…]; s stored outside; compact → m* = [s…, recent m…]
-         * Gate on **total visible** content (chars/4), not open-since-last-s:
-         * summarized m remain in M until soft-hide; only compact removes them.
-         * Sidecar cadence still uses boundary-limited open window.
+         * Layer-2 fold (zero LLM tokens) when **model usable context** is full —
+         * NOT at Layer-1's 64k summary cadence.
+         *
+         * 1M model → work with hundreds of k of M; s still taken every ~64k open
+         * via sidecar. Compact only when full visible content approaches usable().
+         * Never fold on the same stop as a new s; never with exactly one open s.
          */
         const maybeCompactCadence = (input: {
           model: Provider.Model
@@ -1276,16 +1296,29 @@ export const layer = Layer.effect(
           msgs?: MessageV2.WithParts[]
         }) =>
           Effect.gen(function* () {
+            const openSidecars = IncrementalCheckpoint.listOpen(sessionID).length
+            // Hold fold until ≥2 open s rows (or pure history with zero sidecars).
+            if (openSidecars === 1) {
+              yield* slog.info("layer2.cadence.skip_single_sidecar", {
+                sessionID,
+                openSidecars,
+              })
+              return false
+            }
             const visible =
               input.msgs ?? (yield* MessageV2.filterCompactedEffect(sessionID))
             const cfg = yield* config.get()
-            // Full visible window — do not pass sidecar boundary (see contract).
+            // Full visible M (chars/4) — not open-since-last-s.
             const visibleTokens = SessionCompaction.computeOpenWindowTokens(visible)
+            // Compact target = model usable window (e.g. ~850k on 1M), not 65_536.
+            // Layer-1 SUMMARY_INTERVAL is only for sidecar s cadence.
+            const compactTarget = usable({ cfg, model: input.model })
             if (
+              compactTarget <= 0 ||
               !needsContentCompaction({
                 cfg,
                 openTokens: visibleTokens,
-                target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+                target: compactTarget,
               })
             ) {
               return false
@@ -1293,8 +1326,12 @@ export const layer = Layer.effect(
             yield* slog.info("layer2.cadence.compact", {
               sessionID,
               visibleTokens,
-              target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
+              openSidecars,
+              compactTarget,
+              modelContext: input.model.limit.context,
+              summaryInterval: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
             })
+            // Recent trim inside compact (no-s case) still uses Layer-1 interval floor.
             yield* compaction.compact({
               sessionID,
               model: { providerID: input.model.providerID, modelID: input.model.id },
@@ -1946,7 +1983,7 @@ export const layer = Layer.effect(
                 data: checkpointData,
               })
               // Then: s outside M (ephemeral summary + Exact tool diffs/CodeGraph on range).
-              yield* maybeCaptureSidecar({
+              const sidecarCaptured = yield* maybeCaptureSidecar({
                 visible: visibleAfter,
                 model,
                 agent,
@@ -1955,12 +1992,17 @@ export const layer = Layer.effect(
                 checkpoint: checkpointData,
                 afterAssistant: completedAsst,
               })
-              // Layer-2 fold on stop path (s outside content; m soft-hidden into m*).
-              // Re-load visible after sidecar so materialize sees new open checkpoints.
-              yield* maybeCompactCadence({
-                model,
-                agent: lastUser.agent,
-              })
+              // Never compact on the same stop as a new s — work continues with M
+              // intact and s outside. Layer-2 runs on a later stop (and only when
+              // ≥2 open sidecars, see maybeCompactCadence).
+              if (!sidecarCaptured) {
+                yield* maybeCompactCadence({
+                  model,
+                  agent: lastUser.agent,
+                })
+              } else {
+                yield* slog.info("layer2.cadence.defer_after_sidecar", { sessionID })
+              }
               if (!titleRequested) {
                 titleRequested = true
                 yield* title({

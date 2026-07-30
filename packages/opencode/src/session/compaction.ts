@@ -293,12 +293,27 @@ export function hasPendingSummaryRequest(msgs: MessageV2.WithParts[]): boolean {
   return !msgs.some((m) => m.info.role === "assistant" && m.info.parentID === request.info.id && m.info.summary)
 }
 
-/** Required Layer-1 sections; an arbitrary 40-character reply is not a handle. */
+/** Minimum non-empty body chars per required section (rejects 3-sentence stubs). */
+const MIN_SUMMARY_SECTION_CHARS: Record<string, number> = {
+  "Semantic Vector": 40,
+  Goal: 60,
+  "Key decisions": 40,
+  "Current state": 60,
+}
+
+/** Required Layer-1 sections with real content — not headings + one line. */
 export function isValidSummaryBody(text: string): boolean {
-  return ["Semantic Vector", "Goal", "Key decisions", "Current state"].every((heading) => {
-    const section = text.match(new RegExp(`^## ${heading}\\s*\\n([\\s\\S]*?)(?=^## |$)`, "im"))
-    return !!section?.[1]?.trim()
-  })
+  if (!text || text.trim().length < 200) return false
+  for (const heading of ["Semantic Vector", "Goal", "Key decisions", "Current state"] as const) {
+    // Do not use /m with `$` — `$` would match end-of-line and truncate sections.
+    const section = text.match(new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"))
+    const body = section?.[1]?.trim() ?? ""
+    if (body.length < (MIN_SUMMARY_SECTION_CHARS[heading] ?? 40)) return false
+  }
+  // Key decisions must be actionable bullets, not a single vague sentence.
+  const decisions = extractDecisions(text)
+  if (decisions.length < 1) return false
+  return true
 }
 
 /**
@@ -330,7 +345,7 @@ interface SemanticVector {
 }
 
 /** Extract ## Semantic Vector from summary text (both quote styles). */
-function extractSemanticVector(text: string): SemanticVector | undefined {
+export function extractSemanticVector(text: string): SemanticVector | undefined {
   const match = text.match(/## Semantic Vector\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
   if (!match?.[1]) return undefined
   const block = match[1]
@@ -360,10 +375,12 @@ export function summaryRequestProse(lastSv?: SemanticVector) {
   const svHint = lastSv?.dominant
     ? `\nPrior window dominant (chain continuity only): "${lastSv.dominant}". Prefer a related dominant and/or overlapping key phrases.\n`
     : ""
-  return `Create a structured summary of the recent conversation window.${svHint}
-Write **Inferred** narrative only: Semantic Vector, goal, key decisions, current state.
-Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data.
+  return `You are writing a **Layer-1 memory summary** of the conversation window above (all prior messages in this request). This is the durable handle used after compaction — not a chat reply.
 
+Write **Inferred** narrative only under the four headings below. Be specific and dense (names of systems, files, bugs, decisions). Thin 2–3 sentence stubs are **rejected**.
+Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data.
+Do **not** open with "Sure" / "Here is a summary" — start with \`## Semantic Vector\`.
+${svHint}
 ## Semantic Vector
 (Sparse normalized embedding: key phrases with weights, Σ=1.0, 3-5 phrases.)
 Format:
@@ -375,15 +392,15 @@ Format:
       weight: <0.0-1.0>
 
 ## Goal
-(What the user was trying to accomplish in this window.)
+(What the user was trying to accomplish in this window — at least a few sentences, concrete.)
 
 ## Key decisions
 (Explicit decisions: approaches chosen, design tradeoffs.
 Each decision on a separate line starting with "-". Specific and actionable —
-this section is preserved verbatim across compaction cycles.)
+this section is preserved verbatim across compaction cycles. At least one solid bullet.)
 
 ## Current state
-(What was completed, what is in progress, what remains.)`
+(What was completed, what is in progress, what remains — concrete checklist-style prose, not one line.)`
 }
 
 /** Extract ## Key decisions blocks from summary or messageStar text.

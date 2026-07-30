@@ -849,6 +849,17 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 
   for (const msg of input) {
     if (msg.parts.length === 0) continue
+    // Layer-1 summary panels are UI-only (synthetic+ignored). Never send to the provider.
+    if (
+      msg.parts.some(
+        (part) =>
+          part.type === "text" &&
+          typeof (part as { text?: string }).text === "string" &&
+          (part as { text: string }).text.trimStart().startsWith("=== LAYER-1 SUMMARY ==="),
+      )
+    ) {
+      continue
+    }
 
     // Per-message conversion cache: skip redundant conversion of stable messages.
     // Key includes a content hash of part texts so mutations (e.g. UTC

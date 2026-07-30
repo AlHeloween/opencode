@@ -426,7 +426,7 @@ export function Session() {
     const children = scroll.getChildren()
     const scrollTop = scroll.y
 
-    // Visible = real user text, or message* (synthetic COMPACTED body — model memory).
+    // Visible = real user text, message* (COMPACTED), or Layer-1 summary panels.
     const visibleMessages = children
       .filter((c) => {
         if (!c.id) return false
@@ -436,13 +436,12 @@ export function Session() {
         const parts = sync.data.part[message.id]
         if (!parts || !Array.isArray(parts)) return false
 
-        return parts.some(
-          (part) =>
-            part &&
-            part.type === "text" &&
-            !part.ignored &&
-            (!part.synthetic || isMessageStarText((part as { text?: string }).text)),
-        )
+        return parts.some((part) => {
+          if (!part || part.type !== "text") return false
+          const t = (part as { text?: string }).text
+          if (isMessageStarText(t) || isLayer1SummaryText(t)) return true
+          return !part.ignored && !part.synthetic
+        })
       })
       .sort((a, b) => a.y - b.y)
 
@@ -1590,6 +1589,11 @@ function isMessageStarText(text: string | undefined): boolean {
   return typeof text === "string" && text.trimStart().startsWith("=== COMPACTED ===")
 }
 
+/** UI-only Layer-1 summary panel (not in agent/provider messages). */
+function isLayer1SummaryText(text: string | undefined): boolean {
+  return typeof text === "string" && text.trimStart().startsWith("=== LAYER-1 SUMMARY ===")
+}
+
 function UserMessage(props: {
   message: UserMessage
   parts: Part[]
@@ -1601,20 +1605,23 @@ function UserMessage(props: {
 }) {
   const ctx = use()
   const local = useLocal()
-  // Real user text, plus message* (synthetic COMPACTED body). Other synthetic
-  // parts (system-reminders, summary-range inject) stay hidden from the transcript.
+  // Real user text, plus message* (COMPACTED) and Layer-1 summary panels.
+  // Other synthetic parts (system-reminders, summary-range inject) stay hidden.
   const text = createMemo(() => {
     const texts = props.parts
       .map((x) => {
         if (x.type !== "text") return null
         if (!x.synthetic) return x.text
         if (isMessageStarText(x.text)) return x.text
+        if (isLayer1SummaryText(x.text)) return x.text
         return null
       })
       .filter(Boolean)
     return texts.join("\n\n")
   })
   const isModelMemory = createMemo(() => isMessageStarText(text()))
+  const isLayer1Summary = createMemo(() => isLayer1SummaryText(text()))
+  const isMemoryPanel = createMemo(() => isModelMemory() || isLayer1Summary())
   const files = createMemo(() => props.parts.flatMap((x) => (x.type === "file" ? [x] : [])))
   const { theme } = useTheme()
   const [hover, setHover] = createSignal(false)
@@ -1637,10 +1644,16 @@ function UserMessage(props: {
         <box
           id={props.message.id}
           border={["left"]}
-          borderColor={isModelMemory() ? theme.borderActive : color()}
+          borderColor={isMemoryPanel() ? theme.borderActive : color()}
           customBorderChars={SplitBorder.customBorderChars}
           marginTop={props.index === 0 ? 0 : 1}
-          title={isModelMemory() ? " Model memory (message*) " : undefined}
+          title={
+            isModelMemory()
+              ? " Model memory (message*) "
+              : isLayer1Summary()
+                ? " Layer-1 summary "
+                : undefined
+          }
           titleAlignment="left"
         >
           <box
@@ -1662,7 +1675,12 @@ function UserMessage(props: {
                 Active model context after compaction — observe this to understand model behavior.
               </text>
             </Show>
-            <RichText content={text} id={props.message.id} muted={isModelMemory()} streaming={false} surface="panel" />
+            <Show when={isLayer1Summary()}>
+              <text fg={theme.textMuted}>
+                Memory checkpoint (printed for you — not sent to the agent content window).
+              </text>
+            </Show>
+            <RichText content={text} id={props.message.id} muted={isMemoryPanel()} streaming={false} surface="panel" />
             <Show when={files().length}>
               <box flexDirection="row" paddingBottom={metadataVisible() ? 1 : 0} paddingTop={1} gap={1} flexWrap="wrap">
                 <For each={files()}>

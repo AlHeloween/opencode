@@ -1204,11 +1204,12 @@ export const layer = Layer.effect(
                 : undefined
               // Generous output for a full 4-section memory body (not chat brevity).
               const summaryOutCap = Math.min(8_192, input.model.limit.output || 8_192)
+              // Use cacheIdentity for agent ACL/identity when present (sidecar branch).
+              const sidecarAgent = input.cacheIdentity ?? input.agent
               let body = yield* llm
                 .stream({
                   user: input.user,
-                  agent: input.agent,
-                  cacheIdentity: input.cacheIdentity,
+                  agent: sidecarAgent,
                   permission: session.permission,
                   sessionID,
                   providerCacheKey: input.user.providerCacheKey
@@ -1247,8 +1248,7 @@ export const layer = Layer.effect(
                 const fillResponse = yield* llm
                   .stream({
                     user: input.user,
-                    agent: input.agent,
-                    cacheIdentity: input.cacheIdentity,
+                    agent: sidecarAgent,
                     permission: session.permission,
                     sessionID,
                     system: [], // no system prefix — focused micro-task
@@ -1301,11 +1301,23 @@ export const layer = Layer.effect(
                     return Effect.succeed({ diffs: [], impact: undefined })
                   }),
                 )
+              // Old tested product: Inferred body + system Exact (range / diffs / CG).
+              // Placement only differs: project_checkpoint + UI panel, not agent M.
+              const checkpointID = ulid()
+              const fromID = range[0].info.id
+              const toID = range[range.length - 1].info.id
+              if (!SessionCompaction.isValidSummaryBody(body)) {
+                yield* slog.warn("sidecar rejecting invalid summary body", {
+                  bodyLen: body.length,
+                  gaps: SessionCompaction.diagnoseSummaryGaps(body),
+                })
+                return false
+              }
               IncrementalCheckpoint.save({
-                id: ulid(),
+                id: checkpointID,
                 sessionID,
-                fromMessageID: range[0].info.id,
-                toMessageID: range[range.length - 1].info.id,
+                fromMessageID: fromID,
+                toMessageID: toID,
                 predecessorID: previous?.id,
                 providerID: input.model.providerID,
                 modelID: input.model.id,
@@ -1314,13 +1326,45 @@ export const layer = Layer.effect(
                 diffs: enrichment.diffs,
                 impact: enrichment.impact,
               })
+              // Print full old-style s for the user; synthetic+ignored → not agent M.
+              const displayText = SessionCompaction.formatLayer1SummaryDisplay({
+                checkpointID,
+                fromID,
+                toID,
+                sessionID,
+                body,
+                diffs: enrichment.diffs,
+                impact: enrichment.impact,
+              })
+              const displayMsg = yield* sessions.updateMessage({
+                id: MessageID.ascending(),
+                role: "user",
+                sessionID,
+                agent: input.cacheIdentity.name,
+                model: {
+                  providerID: input.model.providerID,
+                  modelID: input.model.id,
+                },
+                time: { created: Date.now() },
+              })
+              yield* sessions.updatePart({
+                id: PartID.ascending(),
+                messageID: displayMsg.id,
+                sessionID,
+                type: "text",
+                text: displayText,
+                synthetic: true,
+                ignored: true,
+              })
               yield* slog.info("sidecar checkpoint captured", {
                 openTokens,
                 threshold,
-                fromID: range[0].info.id,
-                toID: range[range.length - 1].info.id,
+                fromID,
+                toID,
+                checkpointID,
                 toolDiffFiles: enrichment.diffs?.length ?? 0,
                 hasCodeGraph: !!enrichment.impact,
+                displayMessageID: displayMsg.id,
               })
               return true
             }).pipe(Effect.ensuring(Effect.sync(() => sidecarInFlight.delete(sessionID))))
@@ -1444,7 +1488,14 @@ export const layer = Layer.effect(
           let tasks: MessageV2.SubtaskPart[] = []
           for (let i = msgs.length - 1; i >= 0; i--) {
             const msg = msgs[i]
-            if (!lastUser && msg.info.role === "user") lastUser = msg.info
+            // Layer-1 display panels are user-role UI only — never the turn parent.
+            if (
+              !lastUser &&
+              msg.info.role === "user" &&
+              !SessionCompaction.isLayer1SummaryMessage(msg)
+            ) {
+              lastUser = msg.info
+            }
             if (!lastAssistant && msg.info.role === "assistant") lastAssistant = msg.info
             if (!lastFinished && msg.info.role === "assistant" && msg.info.finish) lastFinished = msg.info
             if (lastUser && lastFinished) break
@@ -1784,10 +1835,10 @@ export const layer = Layer.effect(
             }
 
             yield* slog.debug("prepare", { step, stage: "dispatch" })
+            // cacheAgent = build identity for mode transitions (same KV schema as HEAD cacheIdentity).
             const result = yield* handle.process({
               user: lastUser,
-              agent,
-              cacheIdentity: cacheAgent,
+              agent: cacheAgent,
               permission: session.permission,
               sessionID,
               parentSessionID: session.parentID,
@@ -1960,22 +2011,21 @@ export const layer = Layer.effect(
                   typeof (p as { text?: string }).text === "string" &&
                   (p as { text: string }).text.startsWith("--- Exact (system) ---"),
               )
-              if (!stamped) {
+              if (!stamped && fromId && toId) {
                 // ignored:true — Exact digits stay in DB for tools / compact fold,
-                // but must not enter model context.
+                // but must not enter model context. Same stamp helper as sidecar UI.
                 yield* sessions.updatePart({
                   id: PartID.ascending(),
                   messageID: msg.id,
                   sessionID,
                   type: "text",
-                  text:
-                    `--- Exact (system) ---\n` +
-                    `links_info_mark: Exact — system-computed, not model output\n` +
-                    `body_info_mark: Inferred\n` +
-                    `summary_message_id: \`${msg.id}\`\n` +
-                    `from_id: \`${fromId}\`\n` +
-                    `to_id: \`${toId}\`\n` +
-                    `session_id: \`${sessionID}\`\n`,
+                  text: SessionCompaction.formatExactSystemStamp({
+                    id: msg.id,
+                    fromId,
+                    toId,
+                    sessionID,
+                    idKey: "summary_message_id",
+                  }),
                   synthetic: true,
                   ignored: true,
                 })

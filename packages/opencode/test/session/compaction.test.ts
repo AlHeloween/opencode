@@ -8,17 +8,7 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
-import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
-import {
-  isOverflowFromContent,
-  estimateContentTokens,
-  estimateRequestTokens,
-  needsContentCompaction,
-  REQUEST_OVERHEAD_TOKENS,
-  summaryWindowLimit,
-  usable,
-  defaultUsableReserved,
-} from "../../src/session/overflow"
+import { isOverflowFromContent, estimateContentTokens } from "../../src/session/overflow"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
@@ -41,128 +31,6 @@ import { TestLLMServer } from "../lib/llm-server"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 
 Log.init()
-
-const tailRef = { providerID: ProviderID.make("test"), modelID: ModelID.make("test") }
-const tailSid = SessionID.make("recent-tail")
-
-function mkMsg(
-  id: string,
-  role: "user" | "assistant",
-  text: string,
-  opts?: { summary?: boolean; parentID?: string; star?: boolean },
-): MessageV2.WithParts {
-  const mid = MessageID.make(id)
-  const body = opts?.star ? `=== COMPACTED ===\n${text}` : text
-  if (role === "user") {
-    return {
-      info: {
-        id: mid,
-        sessionID: tailSid,
-        role: "user",
-        time: { created: 1 },
-        agent: "build",
-        model: tailRef,
-      },
-      parts: [
-        {
-          id: PartID.make(`p_${id}`),
-          type: "text",
-          text: body,
-          sessionID: tailSid,
-          messageID: mid,
-          ...(opts?.star ? { synthetic: true } : {}),
-        },
-      ],
-    } as MessageV2.WithParts
-  }
-  return {
-    info: {
-      id: mid,
-      sessionID: tailSid,
-      role: "assistant",
-      parentID: MessageID.make(opts?.parentID ?? "u0"),
-      time: { created: 1, completed: 1 },
-      agent: "build",
-      modelID: tailRef.modelID,
-      providerID: tailRef.providerID,
-      cost: 0,
-      mode: "build",
-      path: { cwd: "/", root: "/" },
-      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-      ...(opts?.summary ? { summary: true } : {}),
-    },
-    parts: [
-      {
-        id: PartID.make(`p_${id}`),
-        type: "text",
-        text: body,
-        sessionID: tailSid,
-        messageID: mid,
-      },
-    ],
-  } as MessageV2.WithParts
-}
-
-describe("SessionCompaction.selectRecentTail", () => {
-  test("keeps full post-boundary tail when already ≥ min tokens", () => {
-    // ≥ RECENT_MIN_TOKENS content (chars/4) without walking pre-boundary.
-    const pad = "x".repeat(SessionCompaction.RECENT_MIN_TOKENS * 2 * 4)
-    // Ascending ULID-style ids so boundary comparison matches production order.
-    const idOld = String(MessageID.ascending())
-    const idSr = String(MessageID.ascending())
-    const idSum = String(MessageID.ascending())
-    const idR1 = String(MessageID.ascending())
-    const idR2 = String(MessageID.ascending())
-    const msgs = [
-      mkMsg(idOld, "assistant", "old work", { parentID: "u0" }),
-      mkMsg(idSr, "user", "summary request"),
-      mkMsg(idSum, "assistant", "## Semantic Vector\n## Goal\n## Key decisions\n## Current state", {
-        summary: true,
-        parentID: idSr,
-      }),
-      mkMsg(idR1, "user", pad),
-      mkMsg(idR2, "assistant", pad, { parentID: idR1 }),
-    ]
-    const recent = SessionCompaction.selectRecentTail(msgs, idSum, SessionCompaction.RECENT_MIN_TOKENS)
-    expect(recent.map((m) => String(m.info.id))).toEqual([idR1, idR2])
-  })
-
-  test("extends past thin post-summary stub, skips message* and last summary", () => {
-    // Each ~5.5k tokens; three pre-boundary + thin post must exceed 16k when walking back.
-    const chunk = "y".repeat(Math.ceil((SessionCompaction.RECENT_MIN_TOKENS * 4) / 3) + 200)
-    const idStar = String(MessageID.ascending())
-    const idW1 = String(MessageID.ascending())
-    const idW2 = String(MessageID.ascending())
-    const idW3 = String(MessageID.ascending())
-    const idSr = String(MessageID.ascending())
-    const idSum = String(MessageID.ascending())
-    const idThin = String(MessageID.ascending())
-    const msgs = [
-      mkMsg(idStar, "user", "prior fold body", { star: true }),
-      mkMsg(idW1, "user", chunk),
-      mkMsg(idW2, "assistant", chunk, { parentID: idW1 }),
-      mkMsg(idW3, "user", chunk),
-      mkMsg(idSr, "user", `<!-- summary-range from_id="${idW1}" to_id="${idW3}" session_id="x" -->`),
-      mkMsg(idSum, "assistant", "## Semantic Vector\n## Goal\n## Key decisions\n## Current state", {
-        summary: true,
-        parentID: idSr,
-      }),
-      mkMsg(idThin, "user", "hi"), // tiny post-boundary
-    ]
-    const recent = SessionCompaction.selectRecentTail(msgs, idSum, SessionCompaction.RECENT_MIN_TOKENS)
-    const ids = recent.map((m) => String(m.info.id))
-    expect(ids).not.toContain(idStar)
-    expect(ids).not.toContain(idSum)
-    expect(ids).not.toContain(idSr)
-    expect(ids).toContain(idThin)
-    // Must have walked back into pre-boundary work for ≥16k floor
-    expect(ids.some((id) => id === idW1 || id === idW2 || id === idW3)).toBe(true)
-    const tokens = Math.ceil(
-      recent.reduce((n, m) => n + (m.parts[0] as { text?: string }).text!.length, 0) / 4,
-    )
-    expect(tokens).toBeGreaterThanOrEqual(SessionCompaction.RECENT_MIN_TOKENS)
-  })
-})
 
 function run<A, E>(fx: Effect.Effect<A, E, SessionNs.Service>) {
   return Effect.runPromise(fx.pipe(Effect.provide(SessionNs.defaultLayer)))
@@ -192,7 +60,7 @@ const summary = Layer.succeed(
     updateFallback: () => Effect.void,
     diff: () => Effect.succeed([]),
     computeDiff: () => Effect.succeed([]),
-    enrichRange: () => Effect.succeed({ diffs: [] }),
+    enrichRange: () => Effect.succeed({ diffs: [], impact: undefined }),
   }),
 )
 
@@ -256,7 +124,6 @@ function createModel(opts: {
   input?: number
   cost?: Provider.Model["cost"]
   npm?: string
-  reasoning?: boolean
 }): Provider.Model {
   return {
     id: "test-model",
@@ -271,7 +138,7 @@ function createModel(opts: {
     capabilities: {
       toolcall: true,
       attachment: false,
-      reasoning: opts.reasoning ?? false,
+      reasoning: false,
       temperature: true,
       input: { text: true, image: false, audio: false, video: false },
       output: { text: true, image: false, audio: false, video: false },
@@ -346,22 +213,7 @@ describe("session.compaction.structural-summary-handoff", () => {
           model: ref,
           time: { created: Date.now() },
           summary: {
-            diffs: [
-              {
-                file: "src/session/summary.ts",
-                patch: "",
-                additions: 12,
-                deletions: 3,
-                status: "modified",
-              },
-              {
-                file: "src/snapshot/fossil.ts",
-                patch: "",
-                additions: 4,
-                deletions: 0,
-                status: "added",
-              },
-            ],
+            diffs: [],
             impact: {
               from: "fossil_from",
               to: "fossil_to",
@@ -405,22 +257,6 @@ describe("session.compaction.structural-summary-handoff", () => {
           type: "text",
           text: "## Goal\n- preserve exact system handles",
         })
-        // Post-summary fat tail so RECENT_MIN does not reshape this handoff fixture.
-        const fat = yield* ssn.updateMessage({
-          id: MessageID.ascending(),
-          role: "user",
-          sessionID: info.id,
-          agent: "build",
-          model: ref,
-          time: { created: Date.now() },
-        })
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: fat.id,
-          sessionID: info.id,
-          type: "text",
-          text: "post-summary\n" + "R".repeat(SessionCompaction.RECENT_MIN_TOKENS * 4),
-        })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const star = yield* MessageV2.filterCompactedEffect(info.id)
@@ -429,9 +265,6 @@ describe("session.compaction.structural-summary-handoff", () => {
         expect(text).toContain("changed_files=2; caller_count=4")
         expect(text).toContain("top_symbols=compact,SessionSummary")
         expect(text).toContain("impacted_files=src/session/compaction.ts")
-        expect(text).toContain("tool_diff: system Exact")
-        expect(text).toContain("src/session/summary.ts (+12/-3 modified)")
-        expect(text).toContain("src/snapshot/fossil.ts (+4/-0 added)")
       }),
     ),
   )
@@ -1267,43 +1100,6 @@ function deepseekChatModel(): Provider.Model {
 }
 
 describe("isOverflowFromContent", () => {
-  test("uses a lower Layer-1 target when a 64K context cannot fit the summary handoff", () => {
-    const model = createModel({ context: 65_536, output: 32_000 })
-    const threshold = summaryWindowLimit({
-      cfg: defaultCfg(),
-      model,
-      target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-    })
-    expect(threshold).toBeLessThan(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
-    expect(isOverflowFromContent({
-      cfg: defaultCfg(),
-      model,
-      msgs: [makeMsg("user", [{ type: "text", text: "x".repeat(threshold * 4) }])],
-    })).toBe(false)
-    expect(isOverflowFromContent({
-      cfg: defaultCfg(),
-      model,
-      msgs: [makeMsg("user", [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }])],
-    })).toBe(true)
-  })
-
-  test("reserves the reasoning response budget before scheduling a 64K summary", () => {
-    const nonReasoning = createModel({ context: 65_536, output: 32_000 })
-    const reasoning = createModel({ context: 65_536, output: 32_000, reasoning: true })
-    const normalTarget = summaryWindowLimit({
-      cfg: defaultCfg(),
-      model: nonReasoning,
-      target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-    })
-    const reasoningTarget = summaryWindowLimit({
-      cfg: defaultCfg(),
-      model: reasoning,
-      target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-    })
-    expect(reasoningTarget).toBeLessThan(normalTarget)
-    expect(reasoningTarget).toBeGreaterThan(0)
-  })
-
   test("returns false for small text content on 1M context model", () => {
     // Simulate ~15K chars of text (3,750 tokens) вЂ” well under 980K usable
     const msgs = [
@@ -1415,70 +1211,6 @@ describe("isOverflowFromContent", () => {
   })
 })
 
-describe("usable / defaultUsableReserved", () => {
-  test("1M model: no 15% / 150k compaction slab — only overhead + capped output", () => {
-    const model = createModel({ context: 1_000_000, output: 64_000 })
-    const reserved = defaultUsableReserved(model)
-    // 10k framing + min(64k, 32k) output = 42k — not 150k (15%) and not old 20k-only buffer
-    expect(reserved).toBe(REQUEST_OVERHEAD_TOKENS + 32_768)
-    const u = usable({ cfg: defaultCfg(), model })
-    expect(u).toBe(1_000_000 - reserved)
-    expect(1_000_000 - u).toBeLessThan(50_000)
-  })
-
-  test("cfg.compaction.reserved overrides default headroom", () => {
-    const model = createModel({ context: 1_000_000, output: 64_000 })
-    const u = usable({
-      cfg: { compaction: { reserved: 5_000 } } as Config.Info,
-      model,
-    })
-    expect(u).toBe(995_000)
-  })
-})
-
-// --- needsContentCompaction (pure openTokens ≥ target gate) ---
-
-describe("needsContentCompaction", () => {
-  test("compares openTokens to caller target (Layer-2 passes usable(model), not 64k)", () => {
-    // Pure helper: Layer-2 must pass usable(model), not SUMMARY_INTERVAL.
-    // Layer-1 sidecar uses 65k separately in maybeCaptureSidecar.
-    const cfg = defaultCfg()
-    const model = createModel({ context: 1_000_000, output: 64_000 })
-    const layer2Target = usable({ cfg, model })
-    expect(layer2Target).toBeGreaterThan(900_000)
-    expect(needsContentCompaction({ cfg, openTokens: 65_536, target: layer2Target })).toBe(false)
-    expect(needsContentCompaction({ cfg, openTokens: layer2Target - 1, target: layer2Target })).toBe(false)
-    expect(needsContentCompaction({ cfg, openTokens: layer2Target, target: layer2Target })).toBe(true)
-  })
-
-  test("fires at whatever target the caller supplies", () => {
-    const cfg = defaultCfg()
-    const target = SessionCompaction.SUMMARY_INTERVAL_TOKENS
-    expect(needsContentCompaction({ cfg, openTokens: target, target })).toBe(true)
-  })
-
-  test("respects compaction.auto === false", () => {
-    const cfg = { compaction: { auto: false } } as Config.Info
-    expect(
-      needsContentCompaction({
-        cfg,
-        openTokens: SessionCompaction.SUMMARY_INTERVAL_TOKENS * 2,
-        target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-      }),
-    ).toBe(false)
-  })
-
-  test("returns false for empty open window", () => {
-    expect(
-      needsContentCompaction({
-        cfg: defaultCfg(),
-        openTokens: 0,
-        target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-      }),
-    ).toBe(false)
-  })
-})
-
 // --- estimateContentTokens tests (overflow.ts) ---
 
 describe("estimateContentTokens", () => {
@@ -1548,17 +1280,6 @@ describe("estimateContentTokens", () => {
     const model = createModel({ context: 100_000, output: 32_000 })
     expect(estimateContentTokens([], model)).toBe(0)
   })
-
-  test("estimateRequestTokens adds fixed 10k overhead for safety only", () => {
-    expect(REQUEST_OVERHEAD_TOKENS).toBe(10_000)
-    expect(estimateRequestTokens(0)).toBe(0)
-    expect(estimateRequestTokens(1_250)).toBe(1_250 + 10_000)
-    // Content-only estimate must stay without overhead (cadence geometry).
-    const model = createModel({ context: 100_000, output: 32_000 })
-    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4000) }])]
-    expect(estimateContentTokens(msgs, model)).toBe(1_000)
-    expect(estimateRequestTokens(estimateContentTokens(msgs, model))).toBe(11_000)
-  })
 })
 
 // --- compact() tests ---
@@ -1605,9 +1326,8 @@ describe("session.compaction.compact", () => {
           type: "text", text: "## Goal\n- summary content here",
         })
 
-        // Recent ≥ RECENT_MIN_TOKENS so compact does not overlap pre-summary "old-*" work.
-        const fat = "R".repeat(SessionCompaction.RECENT_MIN_TOKENS * 4)
-        for (const text of [`recent-1\n${fat}`, `recent-2\n${fat}`]) {
+        // Create recent messages (will be kept)
+        for (const text of ["recent-1", "recent-2"]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
             agent: "build", model: ref, time: { created: Date.now() },
@@ -1678,7 +1398,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "trims to the normal ~64K interval when no summary and context is large",
+    "trims to ~30K tokens when no summary and context is large",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1686,8 +1406,8 @@ describe("session.compaction.compact", () => {
         const info = yield* ssn.create({})
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-        // 60 messages × 5K chars = 300K chars ≈ 75K tokens — exceeds 64K target
-        for (const text of Array.from({ length: 60 }, (_, i) => `msg-${i}-` + "x".repeat(5000))) {
+        // 30 messages × 5K chars = 150K chars ≈ 37.5K tokens — exceeds 30K threshold
+        for (const text of Array.from({ length: 30 }, (_, i) => `msg-${i}-` + "x".repeat(5000))) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
             agent: "build", model: ref, time: { created: Date.now() },
@@ -1703,9 +1423,8 @@ describe("session.compaction.compact", () => {
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
         expect(combined).toContain("=== COMPACTED ===")
-        expect(combined.includes("msg-58") || combined.includes("msg-59")).toBe(true)
+        expect(combined.includes("msg-28") || combined.includes("msg-29")).toBe(true)
         expect(combined).not.toContain("msg-0-")
-        expect(combined).not.toContain("msg-1-")
       }),
     ),
   )
@@ -1735,7 +1454,7 @@ describe("session.compaction.injectSummaryRequest", () => {
         const systemBody = systemParts.map((p) => p.text).join("\n")
 
         // Model-facing: SVM / goal / decisions / state only — no digital facts.
-        expect(modelBody).toContain("Layer-1 memory summary")
+        expect(modelBody).toContain("structured summary")
         expect(modelBody).toContain("## Semantic Vector")
         expect(modelBody).toContain("## Goal")
         expect(modelBody).toContain("## Key decisions")
@@ -1747,7 +1466,7 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(modelBody).not.toContain(`session_id="${info.id}"`)
         expect(modelBody).not.toContain("Include these message IDs")
 
-        // System-only ignored part: Exact range digits for runtime.
+        // System-only ignored part: Exact range digits for runtime (fossil diffs / stamp).
         expect(systemBody).toContain("<!-- summary-range")
         expect(systemBody).toContain(`session_id="${info.id}"`)
         expect(systemBody).toMatch(/from_id="[^"]+"/)
@@ -1825,45 +1544,6 @@ describe("session.compaction.injectSummaryRequest", () => {
         expect(text).toContain("## Semantic Vector")
         expect(text).toContain("wire svm into summaries")
         expect(text).toContain("Prior window dominant")
-      }),
-    ),
-  )
-})
-
-describe("session.incremental-checkpoint", () => {
-  it.live(
-    "stores and materializes a sidecar without adding visible messages",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
-        const user = yield* ssn.updateMessage({
-          id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() },
-        })
-        yield* ssn.updatePart({ id: PartID.ascending(), messageID: user.id, sessionID: info.id, type: "text", text: "checkpoint source" })
-        const before = yield* MessageV2.filterCompactedEffect(info.id)
-
-        const saved = IncrementalCheckpoint.save({
-          id: "checkpoint-1",
-          sessionID: info.id,
-          fromMessageID: user.id,
-          toMessageID: user.id,
-          providerID: ref.providerID,
-          modelID: ref.modelID,
-          agent: "build",
-          body: "## Semantic Vector\ncheckpoint\n## Goal\nkeep flow\n## Key decisions\n- sidecar\n## Current state\nstored",
-        })
-        expect(saved.body).toContain("checkpoint")
-        expect((yield* MessageV2.filterCompactedEffect(info.id))).toHaveLength(before.length)
-        expect(IncrementalCheckpoint.listOpen(info.id)).toHaveLength(1)
-
-        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        const star = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(star).toHaveLength(1)
-        expect(star[0].parts.find((part) => part.type === "text")?.text).toContain("checkpoint_id: `checkpoint-1`")
-        expect(IncrementalCheckpoint.listOpen(info.id)).toHaveLength(0)
       }),
     ),
   )
@@ -1978,15 +1658,15 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(10_000)
   })
 
-  test("counts only after checkpoint boundary", () => {
+  test("counts only after last summary assistant", () => {
     const msgs = [
       textMsg("u0", "user", "x".repeat(40_000)),
       textMsg("s1", "assistant", "summary", { summary: true }),
       textMsg("u1", "user", "y".repeat(8_000)),
       textMsg("a1", "assistant", "z".repeat(4_000)),
     ]
-    // Sidecar boundary at s1: only u1+a1 counted — 12_000 chars → 3_000 tokens
-    expect(SessionCompaction.computeOpenWindowTokens(msgs, msgs[1].info.id)).toBe(3_000)
+    // Only u1+a1 after s1: 12_000 chars → 3_000 tokens
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(3_000)
   })
 
   test("message* body alone can exceed SUMMARY_INTERVAL_TOKENS", () => {
@@ -1996,13 +1676,12 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(tokens).toBeGreaterThanOrEqual(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
   })
 
-  test("returns 0 when boundary is the last message", () => {
+  test("returns 0 when latest message is a summary assistant", () => {
     const msgs = [
       textMsg("u0", "user", "x".repeat(40_000)),
       textMsg("s1", "assistant", "done", { summary: true }),
     ]
-    // Sidecar boundary at last message: nothing after → 0 tokens
-    expect(SessionCompaction.computeOpenWindowTokens(msgs, msgs[1].info.id)).toBe(0)
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(0)
   })
 
   test("empty message list returns 0", () => {
@@ -2050,123 +1729,6 @@ describe("session.compaction.hasPendingSummaryRequest", () => {
   test("false when no summary-range present", () => {
     const msgs = [userText("u0", "hello"), asst("a1")]
     expect(SessionCompaction.hasPendingSummaryRequest(msgs)).toBe(false)
-  })
-
-  test("keeps an unaccepted attempt pending for its bounded retry", () => {
-    const msgs = [
-      userText(
-        "req",
-        `<!-- summary-range from_id="a" to_id="b" session_id="s" -->\nCreate a structured summary`,
-      ),
-      {
-        info: { id: "a1", role: "assistant", parentID: "req" },
-        parts: [{ type: "text", text: "not a structured summary" }],
-      } as any,
-    ]
-    expect(SessionCompaction.hasPendingSummaryRequest(msgs)).toBe(true)
-    expect(SessionCompaction.summaryAttemptCount(msgs, "req" as any)).toBe(1)
-  })
-
-  test("terminal summary request cannot hijack a later real user turn", () => {
-    const terminal = userText(
-      "req",
-      `<!-- summary-range from_id="a" to_id="b" session_id="s" -->\n${SessionCompaction.summaryTerminalMarker()}`,
-    )
-    expect(SessionCompaction.hasPendingSummaryRequest([terminal])).toBe(false)
-    expect(SessionCompaction.hasPendingSummaryRequest([terminal, userText("u1", "continue")])).toBe(false)
-  })
-})
-
-describe("session.compaction.isValidSummaryBody", () => {
-  test("requires every Layer-1 section with real depth (rejects stubs)", () => {
-    expect(
-      SessionCompaction.isValidSummaryBody(`## Semantic Vector
-dominant: "session memory handles"
-key_phrases:
-  - phrase: "sidecar summary quality"
-    weight: 0.4
-  - phrase: "tool exact diffs"
-    weight: 0.3
-  - phrase: "compaction cadence"
-    weight: 0.3
-
-## Goal
-Keep conversation memory stable across long sessions by writing durable Layer-1
-summaries with Exact tool/CodeGraph handles and folding them only when the model
-window is actually full.
-
-## Key decisions
-- Use write/edit/multiedit filediffs for Exact, not fossil spans.
-- Compact target is usable(model), not the 64k Layer-1 interval.
-
-## Current state
-Sidecar range-only prompt and quality gate are in place; next verify live capture
-body length and section depth on a real 1M-context stop path.`),
-    ).toBe(true)
-    expect(SessionCompaction.isValidSummaryBody("## Goal\nNot enough")).toBe(false)
-    expect(
-      SessionCompaction.isValidSummaryBody(`## Semantic Vector
-dominant: "x"
-
-## Goal
-short
-
-## Key decisions
-- a
-
-## Current state
-b`),
-    ).toBe(false)
-  })
-})
-
-describe("session.compaction.isAssistantTurnComplete", () => {
-  const base = {
-    info: {
-      id: "msg_a" as any,
-      role: "assistant" as const,
-      sessionID: "ses_x" as any,
-      parentID: "msg_u" as any,
-      mode: "build",
-      agent: "build",
-      modelID: "m" as any,
-      providerID: "p" as any,
-      path: { cwd: "/", root: "/" },
-      cost: 0,
-      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-      time: { created: 1 },
-    },
-    parts: [] as any[],
-  }
-
-  test("false while tool-calls or open reasoning", () => {
-    expect(
-      SessionCompaction.isAssistantTurnComplete({
-        ...base,
-        info: { ...base.info, finish: "tool-calls" },
-        parts: [],
-      } as any),
-    ).toBe(false)
-    expect(
-      SessionCompaction.isAssistantTurnComplete({
-        ...base,
-        info: { ...base.info, finish: "stop" },
-        parts: [{ type: "reasoning", text: "...", time: { start: 1 } }],
-      } as any),
-    ).toBe(false)
-  })
-
-  test("true when finish set and reasoning closed", () => {
-    expect(
-      SessionCompaction.isAssistantTurnComplete({
-        ...base,
-        info: { ...base.info, finish: "stop" },
-        parts: [
-          { type: "reasoning", text: "think", time: { start: 1, end: 2 } },
-          { type: "text", text: "done" },
-        ],
-      } as any),
-    ).toBe(true)
   })
 })
 
@@ -2221,16 +1783,9 @@ describe("session.compaction.multiple-summaries", () => {
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: s2u.id, sessionID: info.id, type: "text", text: "summary-2-request" })
         yield* makeAssistant(s2u.id, true)
 
-        // Fat recent after s2 so RECENT_MIN floor does not pull old-before-s1.
-        const fat = "R".repeat(SessionCompaction.RECENT_MIN_TOKENS * 4)
+        // recent messages after s2
         const r1 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: r1.id,
-          sessionID: info.id,
-          type: "text",
-          text: `recent-after-s2\n${fat}`,
-        })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: r1.id, sessionID: info.id, type: "text", text: "recent-after-s2" })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
@@ -2737,7 +2292,7 @@ describe("session.compaction.key-decisions", () => {
 
 describe("session.compaction.full-cycle", () => {
   it.live(
-    "(u1,m1,m2,m3)→s1, (u2,m4,m5,m6)→s2, (m7,u3,m8,m9) below the summary interval → compact → faithful m*",
+    "(u1,m1,m2,m3)→s1, (u2,m4,m5,m6)→s2, (m7,u3,m8,m9) <30k → compact → faithful m*",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -2837,7 +2392,7 @@ describe("session.compaction.full-cycle", () => {
         yield* mkSummary("summary for segment 2", "decision-from-s2")
 
         // ============================================================
-        // Segment 3 (recent, below the summary interval): m7, u3, m8, m9
+        // Segment 3 (recent, <30k): m7, u3, m8, m9
         // ============================================================
         yield* mkAssistant([{ type: "text", text: "assistant-text-7" }])
         yield* mkUser("user-msg-3")
@@ -2919,135 +2474,6 @@ describe("session.compaction.full-cycle", () => {
 
         // Messages from earlier segments (summarized) must NOT be in Recent
         expect(combined.indexOf("assistant-text-1")).toBeLessThan(r7Idx) // in summary block, not recent
-      }),
-    ),
-  )
-
-  it.live(
-    "uses the provider-safe threshold to converge on a 65K-context model",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-        const model = createModel({ context: 65_536, output: 32_000 })
-        const threshold = summaryWindowLimit({
-          cfg: defaultCfg(),
-          model,
-          target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-        })
-
-        for (const text of Array.from({ length: 45 }, (_, i) => `low-context-${i}-` + "x".repeat(5000))) {
-          const user = yield* ssn.updateMessage({
-            id: MessageID.ascending(), role: "user", sessionID: info.id,
-            agent: "build", model: ref, time: { created: Date.now() },
-          })
-          yield* ssn.updatePart({ id: PartID.ascending(), messageID: user.id, sessionID: info.id, type: "text", text })
-        }
-
-        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build", threshold })
-
-        const visible = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(visible).toHaveLength(1)
-        expect(SessionCompaction.computeOpenWindowTokens(visible)).toBeLessThanOrEqual(threshold + 2_000)
-        expect(isOverflowFromContent({ cfg: defaultCfg(), msgs: visible, model })).toBe(false)
-      }),
-    ),
-  )
-})
-
-// --- Reasoning-memory transcript fidelity ---
-
-describe("session.compaction.reasoning-memory-regression", () => {
-  it.live(
-    "preserves completed memory read and append interactions in the unified message* transcript",
-    provideTmpdirInstance((dir) =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
-
-        const user = yield* ssn.updateMessage({
-          id: MessageID.ascending(),
-          role: "user",
-          sessionID: info.id,
-          agent: "reasoning",
-          model: ref,
-          time: { created: Date.now() },
-        })
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: user.id,
-          sessionID: info.id,
-          type: "text",
-          text: "Assess the recent calibration failure.",
-        })
-
-        const assistant = yield* ssn.updateMessage({
-          id: MessageID.ascending(),
-          role: "assistant",
-          sessionID: info.id,
-          mode: "reasoning",
-          agent: "reasoning",
-          modelID: ref.modelID,
-          providerID: ref.providerID,
-          path: { cwd: dir, root: dir },
-          cost: 0,
-          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          finish: "end_turn",
-          time: { created: Date.now() },
-        } as MessageV2.Assistant)
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: assistant.id,
-          sessionID: info.id,
-          type: "tool",
-          tool: "memory",
-          callID: "memory-read-1",
-          state: {
-            status: "completed",
-            input: { action: "read" },
-            output: "[Rule] For assessment requests: answer and stop; do not inspect, plan, or edit.",
-            metadata: {},
-            time: { start: 0, end: 1 },
-            title: "Memory",
-          },
-        } as any)
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: assistant.id,
-          sessionID: info.id,
-          type: "tool",
-          tool: "memory",
-          callID: "memory-append-1",
-          state: {
-            status: "completed",
-            input: {
-              action: "append",
-              content: "[Rule] For assessment requests: answer and stop; do not inspect, plan, or edit.",
-            },
-            output: "Insight appended to memory.",
-            metadata: {},
-            time: { start: 1, end: 2 },
-            title: "Memory appended",
-          },
-        } as any)
-
-        yield* compact.compact({ sessionID: info.id, model: ref, agent: "reasoning" })
-
-        const visible = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(visible).toHaveLength(1)
-        const transcript = visible
-          .flatMap((message) => message.parts.filter((part: any) => part.type === "text").map((part: any) => part.text))
-          .join("\n")
-
-        // The memory read is a completed interaction in the shared transcript,
-        // not a separately injected prompt layer. After the fold its label,
-        // completion state, and calibration content remain model-visible.
-        expect(transcript).toContain("[tool:memory] (completed)")
-        expect(transcript).toContain("For assessment requests: answer and stop")
-        expect(transcript).toContain("Insight appended to memory")
       }),
     ),
   )

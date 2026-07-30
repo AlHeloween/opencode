@@ -281,8 +281,7 @@ export const Info = Schema.Struct({
         description: "Enable automatic compaction when context is full (default: true)",
       }),
       reserved: Schema.optional(NonNegativeInt).annotate({
-        description:
-          "Optional override for usable-context headroom (LLM framing + output). Default is request overhead + capped max_output — not a % of window. Mechanistic compact is zero-token and does not need a separate compaction reserve.",
+        description: "Token buffer for compaction. Leaves enough window to avoid overflow during compaction.",
       }),
       full_ratio: Schema.optional(Schema.Number).annotate({
         description: "Fraction of context window at which to trigger normal compaction (default: 0.8).",

@@ -41,6 +41,93 @@ export const RECENT_MIN_TOKENS = 16_384
 const CHARS_PER_TOKEN = 4
 const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
 
+/**
+ * User-visible Layer-1 panel (TUI). Same product as old inject summary body + Exact
+ * stamp, but synthetic+ignored so it never enters agent/provider M.
+ */
+export const LAYER1_SUMMARY_MARKER = "=== LAYER-1 SUMMARY ==="
+export const EXACT_SYSTEM_MARKER = "--- Exact (system) ---"
+
+export function isLayer1SummaryText(text: string | undefined): boolean {
+  return typeof text === "string" && text.trimStart().startsWith(LAYER1_SUMMARY_MARKER)
+}
+
+/** UI-only Layer-1 panel message — not agent content, not Recent fold material. */
+export function isLayer1SummaryMessage(msg: MessageV2.WithParts): boolean {
+  return msg.parts.some(
+    (p) => p.type === "text" && isLayer1SummaryText((p as { text?: string }).text),
+  )
+}
+
+/**
+ * Old tested Exact stamp (system digits). Shared by legacy inject assistant parts
+ * and sidecar UI/checkpoint display — same product, different placement.
+ */
+export function formatExactSystemStamp(input: {
+  id: string
+  fromId: string
+  toId: string
+  sessionID: string
+  /** Sidecar uses checkpoint_id; legacy inject uses summary_message_id. */
+  idKey?: "checkpoint_id" | "summary_message_id"
+}): string {
+  const idKey = input.idKey ?? "summary_message_id"
+  return (
+    `${EXACT_SYSTEM_MARKER}\n` +
+    `links_info_mark: Exact — system-computed, not model output\n` +
+    `body_info_mark: Inferred\n` +
+    `${idKey}: \`${input.id}\`\n` +
+    `from_id: \`${input.fromId}\`\n` +
+    `to_id: \`${input.toId}\`\n` +
+    `session_id: \`${input.sessionID}\`\n`
+  )
+}
+
+/** Full user-facing Layer-1 panel: inferred body + Exact stamp (+ optional tool stats). */
+export function formatLayer1SummaryDisplay(input: {
+  checkpointID: string
+  fromID: string
+  toID: string
+  sessionID: string
+  body: string
+  diffs?: Snapshot.FileDiff[]
+  impact?: Snapshot.ImpactSummary
+}): string {
+  const exact = formatExactSystemStamp({
+    id: input.checkpointID,
+    fromId: input.fromID,
+    toId: input.toID,
+    sessionID: input.sessionID,
+    idKey: "checkpoint_id",
+  })
+  const diffLines =
+    input.diffs && input.diffs.length > 0
+      ? [
+          `tool_diff_files: ${input.diffs.length}`,
+          `additions: ${input.diffs.reduce((sum, d) => sum + d.additions, 0)}`,
+          `deletions: ${input.diffs.reduce((sum, d) => sum + d.deletions, 0)}`,
+          ...input.diffs.slice(0, 12).map(
+            (d) => `- ${d.file} (+${d.additions}/-${d.deletions} ${d.status ?? "modified"})`,
+          ),
+          ...(input.diffs.length > 12 ? [`- … +${input.diffs.length - 12} more`] : []),
+        ].join("\n")
+      : "tool_diff_files: 0"
+  const impactLine = input.impact
+    ? `codegraph: changed_files=${input.impact.changedFiles}; callers=${input.impact.callerCount}`
+    : "codegraph: none"
+  return [
+    LAYER1_SUMMARY_MARKER,
+    "",
+    input.body.trim(),
+    "",
+    exact.trimEnd(),
+    "",
+    "### Exact handles (system)",
+    diffLines,
+    impactLine,
+  ].join("\n")
+}
+
 /** True only for the synthetic message* body produced by compact().
   * Must NOT match COMPACTION_REMINDER text that merely *mentions* the marker
   * (that reminder is injected onto every post-compact user message — matching
@@ -119,10 +206,15 @@ function messageText(msg: MessageV2.WithParts): string {
 function contentChars(msgs: MessageV2.WithParts[]): number {
   let chars = 0
   for (const m of msgs) {
+    // Layer-1 display panels are UI-only — never count toward open-window cadence.
+    if (isLayer1SummaryMessage(m)) continue
     for (const p of m.parts) {
       // Count ALL text parts (including ignored) — consistent with messageText()
-      if (p.type === "text") chars += (p as any).text?.length ?? 0
-      else if (p.type === "reasoning") chars += (p as any).text?.length ?? 0
+      if (p.type === "text") {
+        const text = (p as any).text as string | undefined
+        if (isLayer1SummaryText(text)) continue
+        chars += text?.length ?? 0
+      } else if (p.type === "reasoning") chars += (p as any).text?.length ?? 0
       else if (p.type === "tool") chars += (p.state as any)?.output?.length ?? 0
       else if (p.type === "subtask") chars += ((p as any).prompt?.length ?? 0) + ((p as any).description?.length ?? 0)
       else if (p.type === "patch") chars += ((p as any).content?.length ?? 0)
@@ -173,6 +265,8 @@ export function selectRecentTail(
 
   const skip = (m: MessageV2.WithParts) => {
     if (isMessageStar(m)) return true
+    // UI-only Layer-1 panels — s already folded from project_checkpoint.
+    if (isLayer1SummaryMessage(m)) return true
     if (lastSummaryId && m.info.id === lastSummaryId) return true
     if (lastSummaryRequestId && m.info.id === lastSummaryRequestId) return true
     return false

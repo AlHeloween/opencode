@@ -24,17 +24,25 @@ export function DialogTimeline(props: {
     const result = [] as DialogSelectOption<string>[]
     for (const message of messages) {
       if (message.role !== "user") continue
-      // Real user text, or message* (synthetic COMPACTED — model memory, user-visible).
+      // Real user text, message* (COMPACTED), or Layer-1 summary panels.
       const part = (sync.data.part[message.id] ?? []).find((x) => {
-        if (x.type !== "text" || x.ignored) return false
-        if (!x.synthetic) return true
-        return typeof x.text === "string" && x.text.trimStart().startsWith("=== COMPACTED ===")
+        if (x.type !== "text") return false
+        if (!x.synthetic && !x.ignored) return true
+        if (typeof x.text !== "string") return false
+        const t = x.text.trimStart()
+        return t.startsWith("=== COMPACTED ===") || t.startsWith("=== LAYER-1 SUMMARY ===")
       }) as TextPart | undefined
       if (!part) continue
-      const isStar = part.synthetic && part.text.trimStart().startsWith("=== COMPACTED ===")
+      const trimmed = part.text.trimStart()
+      const isStar = part.synthetic && trimmed.startsWith("=== COMPACTED ===")
+      const isL1 = part.synthetic && trimmed.startsWith("=== LAYER-1 SUMMARY ===")
       const preview = part.text.replace(/\n/g, " ")
       result.push({
-        title: isStar ? `[message*] ${preview.slice(0, 120)}` : preview,
+        title: isStar
+          ? `[message*] ${preview.slice(0, 120)}`
+          : isL1
+            ? `[L1 summary] ${preview.slice(0, 120)}`
+            : preview,
         value: message.id,
         footer: Locale.time(message.time.created),
         onSelect: (dialog) => {

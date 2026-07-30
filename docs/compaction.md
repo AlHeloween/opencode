@@ -72,17 +72,16 @@ rows are consumed **only at compact** into `m*`.
 ```text
 1. Normal turn finishes (all tool / reasoning inference done)
 2. Save checkpoint for exact visible M     ← "all inferences done"
-3. Request summary via user-message shape (standard chat turn to the model)
-4. Store s in DB outside content window
-5. Restore messages to state prior to the summary call  ← M unchanged
-6. Continue work on M
+3. Request summary via user-message shape (ephemeral stream / sidecar branch)
+4. Store s in `project_checkpoint` (source of truth for compact)
+5. Print s for the user as `=== LAYER-1 SUMMARY ===` panel
+   (synthetic + ignored message — visible in TUI, not agent/provider M)
+6. Agent content window = same M as before summary
+7. Continue work on M
 ```
 
-Ephemeral meaning of (3)+(5): the summary request must **not** remain as a
-normal user row that poisons the next real turn. Either:
-
-- stream-only user content on a private branch (sidecar), or  
-- inject → complete → strip/restore to pre-inject M.
+(3) must **not** remain as a normal user row that poisons the next real turn.
+Display panel (5) is explicitly ignored by `toModelMessages` and open-window cadence.
 
 ### Compact
 
@@ -134,7 +133,8 @@ sequenceDiagram
 
 | Contract item | Code today | Status |
 |---------------|------------|--------|
-| `s` not in content window | `maybeCaptureSidecar` → `project_checkpoint`; no body Message/Part | **Match** |
+| `s` not in content window | `maybeCaptureSidecar` → `project_checkpoint` + UI panel with **old** Exact stamp product (`=== LAYER-1 SUMMARY ===`, ignored/synthetic; skipped by `toModelMessages` / cadence) | **Match** (old s product, new placement) |
+| Exact stamp / multi-s fold | `formatExactSystemStamp` shared with legacy inject; `compact` folds **all** open checkpoints + legacy `assistant.summary` via `buildMessageStar` | **Match** |
 | After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → `maybeCaptureSidecar` | **Match** (disk before summary) |
 | Exact tool diffs + CodeGraph on s | `enrichRange`: `collectToolFileDiffs` + `mcpTouchThenSqlitePack` (no Fossil) | **Match**; no write/edit/multiedit in range ⇒ empty Exact |
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |

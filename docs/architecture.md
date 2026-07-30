@@ -146,45 +146,29 @@
 
 ## 5. Mechanistic Compaction (Stable Continuous Memory)
 
-**Canonical:** [`docs/compaction.md`](compaction.md) · **Graphs:** [`session-memory-graph.md`](session-memory-graph.md)
+**Canonical (code Exact):** [`docs/compaction.md`](compaction.md) · [`session-memory-graph.md`](session-memory-graph.md)
 
-**Problem:** One-shot “summarize 500k tokens” produces unreliable memory soup; the agent drifts.
-
-**Solution (production):**
-
-| Layer | Mechanism | Tokens |
-|-------|-----------|--------|
-| **1 Sidecar** | After completed turn: open window ≥ `summaryWindowLimit` (~65K content/4) → ephemeral LLM → `project_checkpoint`. Visible `M` unchanged. | LLM (hidden branch) |
-| **2 Compact** | `needsContentCompaction(open ≥ 65K)` **or** emergency `usable`/provider overflow → `compact()` → `message*`. Soft-hide; never delete. | **Zero** LLM |
-| **Safety estimate** | request size ≈ content/4 + **10k** (no tokenizer authority) | — |
-
-**Model** = Inferred prose (SVM / Goal / decisions / state). **System** = Exact IDs, diffs, CodeGraph, materialization.
+Do **not** summarize this section from memory — the control-flow traps are real:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              MECHANISTIC COMPACTION LOOP (2026-07-30)         │
-│                                                              │
-│  Layer 1 — sidecar (after stop, completed turn):              │
-│    openTokens = content chars/4 since last sidecar boundary  │
-│    if open ≥ summaryWindowLimit AND request fit ( /4+10k ):  │
-│      ephemeral LLM → project_checkpoint (Inferred + Exact)   │
-│      visible M byte-stable                                   │
-│                                                              │
-│  Layer 2 — compact() ZERO tokens:                            │
-│    in-band: needsContentCompaction(open ≥ 65_536)            │
-│    emergency: isOverflow / requestTokens ≥ usable()          │
-│    → message* = sidecars (+ legacy summaries) + Recent       │
-│    soft-hide visible; archive remains for session-read       │
-│                                                              │
-│  Loop:  (m…)+sidecars → message* → growth → compact again    │
-│  counter after compact ≈ len(message*)/4                     │
-│                                                              │
-│  Dual path residual: injectSummaryRequest still in code;     │
-│  primary path is sidecar — see docs/compaction.md            │
-│                                                              │
-│  Checkpoint: remove on compact; save after next success      │
-└─────────────────────────────────────────────────────────────┘
+stop path:   finishStep → Checkpoint M → maybeCaptureSidecar? → break
+             ^^^ no compact() here
+
+in-band compact: only if loop does NOT break first (e.g. tool-continue)
+                 AND needsContentCompaction(open ≥ 65_536)
+
+emergency:   processor needsCompaction → compact()
+
+injectSummaryRequest: implemented, NOT called from prompt.ts
 ```
+
+| Piece | Tokens | When |
+|-------|--------|------|
+| Sidecar | ephemeral LLM | stop + thresholds |
+| compact() | **zero** | emergency, or in-band if loop continues |
+| Safety size | content/4 + 10k | fit / usable (not cadence) |
+
+**Model** = Inferred prose. **System** = Exact IDs / diffs / materialize / soft-hide.
 
 ## 6. KV Cache & Diff Architecture
 

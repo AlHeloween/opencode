@@ -1,200 +1,114 @@
-# Session continuous memory — process graph
+# Session memory — control-flow graph (code Exact)
 
-**Status:** production geometry (ADID 15.4.3)  
-**Code:** `packages/opencode/src/session/{prompt,compaction,overflow,processor,incremental-checkpoint,checkpoint}.ts`  
-**Canonical prose:** [`compaction.md`](compaction.md) (if docs conflict, **compaction.md + code** win)
-
-## Token ownership (Exact)
-
-| Operation | LLM tokens? | Gate |
-|-----------|-------------|------|
-| Normal turn (user / assistant / tools) | **Yes** | tool loop / stop |
-| Layer-1 sidecar capture | **Yes** (ephemeral branch) | `openTokens ≥ summaryWindowLimit` and **request fit** `content/4+10k < usable()` |
-| Layer-2 `compact()` → `message*` | **No (zero)** | **cadence:** `openTokens ≥ SUMMARY_INTERVAL_TOKENS` (`needsContentCompaction`) |
-| Emergency compact after finish-step | **No (zero)** | **safety:** `isOverflow(tokens)` or `requestTokens ≥ usable()` |
-| Checkpoint publish / Fossil / CodeGraph | **No** | system Exact |
-
-**Rule:** never gate zero-token `compact()` on `usable()` or `isOverflowFromContent`. Those reserve headroom for **real model turns**.
-
-### Empirical request size (safety only)
-
-```text
-contentTokens = symbols / 4          # open window / message body
-requestTokens = contentTokens + 10_000   # system + tools + framing
-```
-
-- Cadence counters use **content only** (`computeOpenWindowTokens`).
-- Safety / fit uses **`estimateRequestTokens`** — no WASM/BPE/tiktoken tokenizer
-  (removed: fat model.json ~5–6 MB each + large WASM heap). Constants:
-  `CHARS_PER_TOKEN`, `REQUEST_OVERHEAD_TOKENS` in `overflow.ts`.
-
-### Why not a real tokenizer (acceptance)
-
-Across providers and window sizes, **BPE/tiktoken systematically undercount** relative
-to provider ground truth (`usage` / context overflow). They encode body text and miss
-system prefix, tools schema, and framing. Undercount is dangerous: safety gates fire
-too late.
-
-Empirical relation (validated multi-window / multi-provider):
-
-```text
-tokenizer  <  provider_actual  ≤  symbols/4 + 10_000
-```
-
-Our heuristic is **stably a bit above** real model usage — intentional slight
-overcount for safety. Cadence stays content-only so Layer-1/2 do not advance early
-just because of framing overhead.
+**Canonical prose:** [`compaction.md`](compaction.md)  
+If this graph is prettier than code, **code wins**.
 
 ---
 
-## Master process graph
+## Prompt loop (what actually happens)
 
 ```mermaid
 flowchart TB
-  subgraph Visible["Visible M (provider-visible)"]
-    U["user"] --> A["assistant"] --> T["tools"]
-    T -->|tool-calls| A
-  end
+  START([loop iteration]) --> LOAD[load visible msgs]
+  LOAD --> SUM{pending legacy\nsummary request?}
+  SUM -->|yes| SA[summaryAttempt tools={}]
+  SUM -->|no| CHK
+  SA --> CHK
 
-  subgraph Loop["prompt.ts runLoop"]
-    LOAD["load visible msgs"]
-    EXIT{"turn complete?"}
-    CADENCE{"needsContentCompaction?\nopenTokens ≥ 65_536"}
-    LLM["LLM.stream"]
-    PROC["SessionProcessor"]
-    LOAD --> EXIT
-    EXIT -->|yes| STOP["stop → Layer-1 path"]
-    EXIT -->|no| CADENCE
-    CADENCE -->|yes| C0["compact() ZERO tokens"]
-    C0 --> LOAD
-    CADENCE -->|no| LLM --> PROC
-  end
+  CHK{assistant complete\nAND no open tools\nAND lastUser before lastAsst\nAND NOT summaryAttempt?}
+  CHK -->|yes| BRK[break — turn end]
+  CHK -->|no| STEP[step++]
 
-  PROC -->|continue tools| LOAD
-  PROC -->|compact emergency| C0
-  PROC -->|stop| STOP
+  STEP --> SUB{subtask?}
+  SUB -->|yes| HSUB[handleSubtask] --> START
+  SUB -->|no| CAD{needsContentCompaction\nopen ≥ 65_536?}
 
-  subgraph L1["Layer-1 sidecar — LLM tokens"]
-    CK["Checkpoint.publish M"]
-    SC["maybeCaptureSidecar"]
-    CK --> SC
-    SC --> SWL{"≥ summaryWindowLimit?"}
-    SWL -->|yes + request fit /4+10k| EP["ephemeral LLM + prose"]
-    EP --> PC[("project_checkpoint")]
-  end
+  CAD -->|yes| CMP[compact ZERO tokens] --> START
+  CAD -->|no| LLM[normal LLM.stream]
 
-  STOP --> CK
+  LLM --> PROC[SessionProcessor]
+  PROC -->|continue tools| START
+  PROC -->|result compact| CMP2[compact] --> START
+  PROC -->|result stop| STOP
 
-  subgraph L2["Layer-2 compact — ZERO tokens"]
-    SID["listOpen sidecars"]
-    LEG["legacy assistant.summary\nif any still present"]
-    STAR["buildMessageStar"]
-    HIDE["soft-hide visible"]
-    MS["message* synthetic user"]
-    MAT["materialize sidecars"]
-    SID --> STAR
-    LEG --> STAR
-    STAR --> HIDE --> MS --> MAT
-  end
+  STOP --> CK[Checkpoint.publish M]
+  CK --> SC[maybeCaptureSidecar]
+  SC --> BRK2[break]
 
-  C0 --> L2
-  PC -.->|later| L2
+  BRK --> END([idle])
+  BRK2 --> END
 ```
 
-**Dual path:** primary capture is sidecar. `injectSummaryRequest` remains in
-code for legacy; compact still folds old `assistant.summary` rows when present.
+**Read carefully:**
 
+- Green path on completed work turns: **stop → checkpoint → sidecar? → break**.  
+- **`compact` is not on that path.**  
+- In-band `needsContentCompaction` only if the loop **did not break** first.
 
 ---
 
-## Cadence vs safety
+## Sidecar only (Layer-1 that runs)
 
 ```mermaid
 flowchart LR
-  subgraph Cadence["Cadence — structure memory"]
-    OW["computeOpenWindowTokens\nchars/4 + sidecar boundary"]
-    N["needsContentCompaction\ntarget = 65_536"]
-    Z["compact() 0 tok"]
-    OW --> N --> Z
-  end
-
-  subgraph L1LLM["Layer-1 — needs LLM"]
-    SW["summaryWindowLimit\n65K − response headroom"]
-    SIDE["sidecar stream"]
-    SW --> SIDE
-  end
-
-  subgraph Safety["Safety — hard context"]
-    US["usable() ≈ 85% context"]
-    IO["isOverflow / content est"]
-    EM["needsCompaction → compact"]
-    US --> IO --> EM
-  end
+  STOP[stop] --> FIT{open ≥ summaryWindowLimit\nAND requestTokens &lt; usable}
+  FIT -->|no| SKIP[no-op]
+  FIT -->|yes| EP[ephemeral LLM]
+  EP --> VAL{valid 4 sections?}
+  VAL -->|no| SKIP
+  VAL -->|yes| ROW[(project_checkpoint)]
+  ROW -.->|not in| M[visible messages]
 ```
 
 ---
 
-## Timeline (happy path)
-
-```mermaid
-sequenceDiagram
-  participant U as User
-  participant P as prompt loop
-  participant L as LLM
-  participant Pr as Processor
-  participant SC as Sidecar
-  participant C as compact 0 tok
-  participant MS as message*
-
-  U->>P: user message
-  P->>L: normal turn
-  L->>Pr: stream + tools
-  Pr-->>P: stop
-  P->>SC: maybeCaptureSidecar if open ≥ summaryWindowLimit
-  Note over SC: ephemeral LLM; M unchanged
-  loop growth
-    Note over P: open window chars/4
-  end
-  P->>C: needsContentCompaction open ≥ 65K
-  C->>MS: fold sidecars + Recent
-  Note over MS: next open ≈ len(message*)/4
-```
-
----
-
-## compact() internal (zero tokens)
+## compact() data fold (when it *does* run)
 
 ```mermaid
 flowchart TB
-  M["messages limit 10k"] --> V["visible"]
-  V --> S["listOpen sidecars + legacy summaries"]
-  V --> R["Recent after boundary"]
-  S --> B["buildMessageStar"]
-  R --> B
-  B --> H["compacted=true soft-hide"]
-  H --> MS["insert message*"]
-  MS --> X["materialize checkpoints"]
+  IN[visible + open checkpoints] --> FOLD[buildMessageStar]
+  FOLD --> HIDE[soft-hide all visible]
+  HIDE --> STAR[new synthetic user message*]
+  STAR --> MAT[materialize open sidecars]
 ```
 
 ---
 
-## Information Mark ledger
+## Token ownership
 
-| Claim | Mark | Evidence |
-|-------|------|----------|
-| `compact()` does not call the provider | Exact | `compaction.ts` compact body |
-| In-band gate is `needsContentCompaction` | Exact | `prompt.ts` runLoop |
-| Sidecar uses `summaryWindowLimit` | Exact | `maybeCaptureSidecar` |
-| Emergency path uses `usable` / `isOverflow` | Exact | `processor.ts` finish-step |
-| 1M models fire cadence at ~65K open window | Exact | `needsContentCompaction` unit tests |
+| Path | LLM? | Gate in code |
+|------|------|----------------|
+| Normal turn | yes | tools / stop |
+| Sidecar | yes ephemeral | summaryWindowLimit + fit +10k |
+| compact() | **no** | in-band 65K **if loop continues**; or emergency usable/overflow |
+| injectSummaryRequest | would inject visible user | **not called from prompt loop** |
 
 ---
 
-## Forbidden couplings
+## Honest loop shape
 
-| Never | Why |
-|-------|-----|
-| Gate compact on `usable()` | Compact is not an LLM call; 1M models stall until ~980K |
-| Gate compact on `summaryWindowLimit` | That reserves Layer-1 **LLM** response headroom |
-| Put sidecar prose into Message/Part | Poisons visible M and KV prefix |
-| Model-authored range IDs / diffs | Exact is system-owned |
+```text
+visible (m, m, m)
+  stop → maybe sidecar in project_checkpoint; visible unchanged
+  … more turns …
+  stop → more sidecars (if thresholds pass)
+  emergency overflow OR loop-continue + open≥65K
+    → compact → visible (message*) only
+  growth → (message*, m, m, …)
+  … repeat …
+```
+
+Not: “every 65K at end of turn, inject summary then compact.”
+
+---
+
+## Claim ledger
+
+| Claim | Mark |
+|-------|------|
+| Sidecar on stop after checkpoint | Exact |
+| injectSummaryRequest unused by prompt loop | Exact |
+| Break-before-compact on completed turns | Exact |
+| compact zero LLM tokens | Exact |
+| In-band needsContentCompaction can fire on tool-continue | Exact |
+| Docs that said inject every 64K as primary | **False vs code** (fixed in compaction.md) |

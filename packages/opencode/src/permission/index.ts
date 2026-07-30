@@ -326,13 +326,13 @@ const EDIT_TOOLS = ["edit", "write", "apply_patch"]
 /**
  * Tools to hide entirely from the model tool list.
  *
- * Hide only when the permission is a total deny. Path/command-scoped allows
- * (e.g. plan agent: edit denied globally but `plans/*` allowed) must keep the
- * tool available — {@link evaluate} gates each call at runtime.
+ * Hide when the last wildcard (`pattern: "*"`) rule for this permission is
+ * deny **and** there is no more-specific allow/ask (path or command pattern).
+ * Path-scoped allows (plan agent: `edit * → deny` + `plans/* → allow`) must
+ * keep write/edit available — {@link evaluate} gates each path at runtime.
  *
- * Previous logic used findLast(pattern==="*" && deny), which dropped edit/write
- * whenever a trailing `* → deny` followed a more specific allow (or when rules
- * were ordered that way). That made `plans/` unreachable in plan mode.
+ * A bare `permission: edit, pattern: *, action: deny` (with no path allow)
+ * still removes edit/write/apply_patch from the tool list.
  */
 export function disabled(tools: string[], ruleset: Ruleset): Set<string> {
   const result = new Set<string>()
@@ -340,11 +340,13 @@ export function disabled(tools: string[], ruleset: Ruleset): Set<string> {
     const permission = EDIT_TOOLS.includes(tool) ? "edit" : tool
     const matching = ruleset.filter((rule) => Wildcard.match(permission, rule.permission))
     if (matching.length === 0) continue
-    // allow or ask (any pattern) ⇒ tool stays; evaluate/ask gate each call.
-    if (matching.some((rule) => rule.action === "allow" || rule.action === "ask")) continue
-    // Total hide only on wildcard deny with no allow/ask exceptions.
-    const starDeny = matching.findLast((r) => r.pattern === "*" && r.action === "deny")
-    if (starDeny) result.add(tool)
+    const lastStar = matching.findLast((rule) => rule.pattern === "*")
+    if (!lastStar || lastStar.action !== "deny") continue
+    const hasScopedOpen = matching.some(
+      (rule) => rule.pattern !== "*" && (rule.action === "allow" || rule.action === "ask"),
+    )
+    if (hasScopedOpen) continue
+    result.add(tool)
   }
   return result
 }

@@ -48,19 +48,20 @@ Safety/fit uses **content/4 + 10_000**.
 
 ### What one summary `s` is
 
+Stored in **DB outside the content flow** (`project_checkpoint`). Never left as a
+normal chat turn. Content window returns to **exactly pre-summary M**. These `s`
+rows are consumed **only at compact** into `m*`.
+
 | Piece | Owner | Role |
 |-------|--------|------|
 | AI body | **Inferred** | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
-| System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, `session_id` / checkpoint id |
-| Fossil diff | **Exact** | files touched in that range |
-| CodeGraph | **Exact** | structural impact for that fossil diff |
+| System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, checkpoint id |
+| Fossil diff | **Exact** | if **any hash prior** to range **and any hash in** range → `diffFull`; else **skip** |
+| CodeGraph | **Exact** | impact for that fossil pair (when pair exists) |
 
-**Post-summary checker (required):** after the model returns, validate that every
-**asked** field/section is present and non-empty. If the agent omitted a required
-section → reject / retry (do not store a half-handle).
+**Not:** hash on every message. **Yes:** any prior hash + any in-range hash, or skip.
 
-Today’s checker: `isValidSummaryBody` (four `##` headings non-empty). Extend if
-more fields are mandated.
+**Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
 ### When is summary called?
 

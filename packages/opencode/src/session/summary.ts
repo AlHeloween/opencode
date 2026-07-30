@@ -55,32 +55,41 @@ export function snapshotHashesOnMessage(msg: MessageV2.WithParts): string[] {
  * Exact Fossil endpoints for a summary range.
  *
  * Contract (not per-message hashes):
- * - `from` = last hash **before** the range (if any), else first hash **in** range
- * - `to`   = last hash **in** the range
- * - if **no** hash in range → undefined (no WC activity tracked → no fossil Exact)
+ * - Need **any** hash **prior** to the summary window AND **any** hash **in** it.
+ * - `from` = last hash before the range; if none, first hash **in** the range
+ *   (baseline at window open — first segment of a session).
+ * - `to`   = last hash **in** the range.
+ * - No hash in range → skip (no WC activity → no fossil Exact).
+ * - No `from` after that rule → skip.
+ * - Both present → `diffFull(from, to)` (+ CodeGraph). Summaries themselves are
+ *   stored outside content flow; only compact consumes them into m*.
  */
 export function snapshotRangeForMessages(
   rangeMessages: MessageV2.WithParts[],
   beforeMessages?: MessageV2.WithParts[],
 ): { from: string; to: string } | undefined {
-  let from: string | undefined
+  let prior: string | undefined
   if (beforeMessages?.length) {
     for (const item of beforeMessages) {
-      for (const h of snapshotHashesOnMessage(item)) from = h
+      for (const h of snapshotHashesOnMessage(item)) prior = h
     }
   }
 
-  let to: string | undefined
-  let anyInRange = false
+  let firstInRange: string | undefined
+  let lastInRange: string | undefined
   for (const item of rangeMessages) {
     for (const h of snapshotHashesOnMessage(item)) {
-      anyInRange = true
-      if (!from) from = h
-      to = h
+      if (!firstInRange) firstInRange = h
+      lastInRange = h
     }
   }
 
-  if (!anyInRange || !from || !to) return undefined
+  // Must have some hash activity in the summary range.
+  if (!lastInRange) return undefined
+
+  const from = prior ?? firstInRange
+  const to = lastInRange
+  if (!from || !to) return undefined
   return { from, to }
 }
 

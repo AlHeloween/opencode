@@ -231,13 +231,15 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
         parts: [{ type: "step-finish", snapshot: "fossil_to" }],
       },
     ] as MessageV2.WithParts[]
+    // Both endpoints in the same list (from=first hash walk, to=last) still works when
+    // the range itself contains start+finish — typical single-pass message list.
     expect(SessionSummary.snapshotRangeForMessages(messages)).toEqual({ from: "fossil_from", to: "fossil_to" })
-    // Single hash in range: from=to (diff may be empty); still a valid pair.
-    expect(SessionSummary.snapshotRangeForMessages([messages[0]!])).toEqual({
+    // Only one hash in range, no prior → from=to (baseline at open); pair still valid.
+    expect(SessionSummary.snapshotRangeForMessages([messages[0]!], [])).toEqual({
       from: "fossil_from",
       to: "fossil_from",
     })
-    // No hash in range → no fossil Exact (even if before has a hash).
+    // No hash in range → skip even if prior exists.
     expect(
       SessionSummary.snapshotRangeForMessages(
         [
@@ -249,7 +251,7 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
         [messages[1]!],
       ),
     ).toBeUndefined()
-    // Hash before range + hash in range.
+    // Explicit prior + in-range (contract).
     expect(SessionSummary.snapshotRangeForMessages([messages[1]!], [messages[0]!])).toEqual({
       from: "fossil_from",
       to: "fossil_to",

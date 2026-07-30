@@ -85,26 +85,25 @@ describe("Permission.disabled for task tool", () => {
       action,
     }))
 
-  test("task tool is disabled when global deny pattern exists (even with specific allows)", () => {
-    // When "*": "deny" exists, the task tool is disabled because the disabled() function
-    // only checks for wildcard deny patterns - it doesn't consider that specific subagents might be allowed
+  test("task tool stays available when specific allows exist alongside wildcard deny", () => {
+    // Path/command-scoped allows keep the tool; evaluate() gates at call time.
+    // Same rule as plan mode: edit * deny + plans/* allow must not strip write/edit.
     const ruleset = createRuleset({
       "orchestrator-*": "allow",
       "*": "deny",
     })
     const disabled = Permission.disabled(["task", "bash", "read"], ruleset)
-    // The task tool IS disabled because there's a pattern: "*" with action: "deny"
-    expect(disabled.has("task")).toBe(true)
+    expect(disabled.has("task")).toBe(false)
   })
 
-  test("task tool is disabled when global deny pattern exists (even with ask overrides)", () => {
+  test("task tool stays available when ask overrides exist alongside wildcard deny", () => {
     const ruleset = createRuleset({
       "orchestrator-*": "ask",
       "*": "deny",
     })
     const disabled = Permission.disabled(["task"], ruleset)
-    // The task tool IS disabled because there's a pattern: "*" with action: "deny"
-    expect(disabled.has("task")).toBe(true)
+    // ask keeps the tool so the user can approve; evaluate still applies
+    expect(disabled.has("task")).toBe(false)
   })
 
   test("task tool is disabled when global deny pattern exists", () => {

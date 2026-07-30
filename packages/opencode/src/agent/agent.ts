@@ -138,7 +138,7 @@ export const layer = Layer.effect(
           },
           plan: {
             name: "plan",
-            description: "Plan mode. Disallows all edit tools.",
+            description: "Plan mode. Read-only except writing plan files under plans/.",
             options: {},
             permission: Permission.merge(
               defaults,
@@ -151,9 +151,17 @@ export const layer = Layer.effect(
                 "destructive-git": "deny",
                 "destructive-fossil": "deny",
                 destructive: "deny",
+                // Same exception as orchestrator: plan docs only (not implementation).
+                // Use plans/* (not only *.md) so write/edit of any plan file works.
+                // write key is redundant with edit (write tool maps to edit) but kept
+                // explicit for config readers and Permission.disabled path-allows.
                 edit: {
                   "*": "deny",
-                  [path.join("plans", "*.md")]: "allow",
+                  [path.join("plans", "*")]: "allow",
+                },
+                write: {
+                  "*": "deny",
+                  [path.join("plans", "*")]: "allow",
                 },
               }),
             ),

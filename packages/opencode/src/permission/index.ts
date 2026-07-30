@@ -323,13 +323,28 @@ export function merge(...rulesets: Ruleset[]): Ruleset {
 
 const EDIT_TOOLS = ["edit", "write", "apply_patch"]
 
+/**
+ * Tools to hide entirely from the model tool list.
+ *
+ * Hide only when the permission is a total deny. Path/command-scoped allows
+ * (e.g. plan agent: edit denied globally but `plans/*` allowed) must keep the
+ * tool available — {@link evaluate} gates each call at runtime.
+ *
+ * Previous logic used findLast(pattern==="*" && deny), which dropped edit/write
+ * whenever a trailing `* → deny` followed a more specific allow (or when rules
+ * were ordered that way). That made `plans/` unreachable in plan mode.
+ */
 export function disabled(tools: string[], ruleset: Ruleset): Set<string> {
   const result = new Set<string>()
   for (const tool of tools) {
     const permission = EDIT_TOOLS.includes(tool) ? "edit" : tool
-    const rule = ruleset.findLast((rule) => Wildcard.match(permission, rule.permission))
-    if (!rule) continue
-    if (rule.pattern === "*" && rule.action === "deny") result.add(tool)
+    const matching = ruleset.filter((rule) => Wildcard.match(permission, rule.permission))
+    if (matching.length === 0) continue
+    // allow or ask (any pattern) ⇒ tool stays; evaluate/ask gate each call.
+    if (matching.some((rule) => rule.action === "allow" || rule.action === "ask")) continue
+    // Total hide only on wildcard deny with no allow/ask exceptions.
+    const starDeny = matching.findLast((r) => r.pattern === "*" && r.action === "deny")
+    if (starDeny) result.add(tool)
   }
   return result
 }

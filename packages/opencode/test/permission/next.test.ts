@@ -508,6 +508,21 @@ test("disabled - does not disable when specific allow after wildcard deny", () =
   expect(result.has("bash")).toBe(false)
 })
 
+test("disabled - keeps edit when plans path allow exists even if wildcard deny is last", () => {
+  // Plan-mode geometry: global edit deny + plans/* allow must not strip write/edit tools.
+  const result = Permission.disabled(
+    ["edit", "write", "apply_patch", "bash"],
+    [
+      { permission: "edit", pattern: "plans/*", action: "allow" },
+      { permission: "edit", pattern: "*", action: "deny" },
+    ],
+  )
+  expect(result.has("edit")).toBe(false)
+  expect(result.has("write")).toBe(false)
+  expect(result.has("apply_patch")).toBe(false)
+  expect(result.has("bash")).toBe(false)
+})
+
 test("disabled - does not disable when wildcard allow after deny", () => {
   const result = Permission.disabled(
     ["bash"],

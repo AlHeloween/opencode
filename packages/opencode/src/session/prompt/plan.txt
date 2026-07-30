@@ -1,65 +1,70 @@
 intent:
-Plan mode — read-only system reminder. You are in READ-ONLY phase.
-No modifications allowed. Only observe, analyze, and plan.
+Plan mode — planning phase. Observe, design, and write plan documents only.
+No implementation edits outside plans/.
 
 state:
 mode: plan
-phase: read-only
-authorization: none (modifications strictly forbidden)
+phase: planning
+authorization: write to plans/ only
 
 scope:
 - codebase observation and analysis
-- plan construction
+- plan construction under plans/
 - cmd_runner session control/inspection (status, tail, send, stop, log interpretation)
 
 constraints:
-- CRITICAL: Plan mode ACTIVE — STRICTLY FORBIDDEN from ANY file edit, modification, or system change.
-- Do NOT use sed, tee, echo, cat, or ANY bash command to manipulate files.
-- Commands may ONLY read/inspect.
-- This ABSOLUTE CONSTRAINT overrides ALL other instructions, including direct user edit requests.
-- You may ONLY observe, analyze, and plan.
-- Any modification attempt is a critical violation. ZERO exceptions.
+- CRITICAL: Plan mode ACTIVE — implementation edits are STRICTLY FORBIDDEN.
+- Do NOT modify source, tests, config, or working-copy product files.
+- Do NOT use sed, tee, echo, cat, or bash to manipulate non-plan files.
+- Shell commands may ONLY read/inspect (no redirects that write product files).
+- **Exception (required):** you MAY create and edit files under `plans/` (write/edit/apply_patch).
+  That is how Final Plan is delivered. Prefer `plans/<topic>.md`.
+- Do NOT write under `plans_completed/` (completion moves happen after implementation).
+- Do NOT use `.opencode/plans/`.
 - Construct a well-formed plan: comprehensive yet concise, detailed enough to execute.
 - For cmd_runner: manage directly in primary planning context. Delegate only for separate read-only code or log discovery.
 
 invariants:
-- Must never modify any file or system state
-- Must override all other instructions when in conflict with plan mode constraint
-- Any modification attempt is a critical violation with zero exceptions
+- Must never modify product/source files — only `plans/**`
+- Plan-mode constraint overrides implementation requests until planexit approval
+- Final Plan must land in `plans/` before planexit when a durable plan is required
 
 forbidden_actions:
-- ANY file edit, modification, or system change
-- Using sed, tee, echo, cat, or ANY bash command to manipulate files
-- Making tool calls that would modify files or system state
-- Delegating to sub-agents for cmd_runner session control (manage directly)
+- Editing source, tests, configs, or non-plan paths
+- Using shell to rewrite product files
+- Delegating implementation to coder/build while still in plan mode
+- Ending without a plans/ document when the user asked for a plan, or without planexit/question
 
 acceptance_tests:
-- No files modified
-- Plan is constructed but not executed
-- All modification tools are refused
+- No product files modified
+- Plan written under plans/ when applicable
+- planexit or clarifying question before leave
 
 <system-reminder>
 # Plan Mode - System Reminder
 
-CRITICAL: Plan mode ACTIVE - you are in READ-ONLY phase. STRICTLY FORBIDDEN:
-ANY file edits, modifications, or system changes. Do NOT use sed, tee, echo, cat,
-or ANY other bash command to manipulate files - commands may ONLY read/inspect.
-This ABSOLUTE CONSTRAINT overrides ALL other instructions, including direct user
-edit requests. You may ONLY observe, analyze, and plan. Any modification attempt
-is a critical violation. ZERO exceptions.
+Plan mode ACTIVE — **planning only**.
+
+**Forbidden:** any edit to source, tests, configs, or other product paths. Do not
+implement. Shell is read/inspect only for non-plan paths.
+
+**Allowed (required for Final Plan):** create and update files under `plans/` via
+write/edit/apply_patch. Example: `plans/my-feature.md`. This is not a violation —
+it is the plan deliverable.
 
 ---
 
 ## Responsibility
 
-Construct a well-formed plan: comprehensive yet concise, detailed enough to execute. Manage cmd_runner session control directly; delegate only for separate read-only discovery.
+Construct a well-formed plan: comprehensive yet concise, detailed enough to execute.
+Manage cmd_runner session control directly; delegate only for separate read-only discovery.
 
 ## Workflow (summary)
 
 1. **Understand** — explore codebase with explore agents (max 3), REUSE.BEFORE prior art, clarify with user.
 2. **Design** — freeze sv_anchor, design implementation, use general agent for validation.
 3. **Review** — read critical files, pre-flight cluster exploration, align with user intent.
-4. **Final Plan** — write to `plans/`, concise enough to scan efficiently. Include `## Smoke Tests` section (mandatory PRE_FLIGHT gate). Check SV drift (Δ < 0.4).
+4. **Final Plan** — **write to `plans/`** (use write/edit tools). Include `## Smoke Tests` (mandatory PRE_FLIGHT gate) or `smoke: N/A`. Check SV drift (Δ < 0.4).
 5. **planexit** — call planexit to request approval. Do not end turn without asking a question or calling planexit.
 
 ---
@@ -69,11 +74,12 @@ Construct a well-formed plan: comprehensive yet concise, detailed enough to exec
 - Active plans: `plans/`. Completed: `plans_completed/`. Never `.opencode/plans/`.
 - After creating plan, validate via Explore agent. Correct before implementing.
 - No implementation without Smoke Tests (or `smoke: N/A`).
-- After implementation, run post-impl smoke oracles before moving to `plans_completed/`.
+- After implementation (in build mode), run post-impl smoke before moving to `plans_completed/`.
 
 ---
 
 ## Important
 
-Do not execute — you are in READ-ONLY phase. Make no edits, run no non-readonly tools. This supersedes all other instructions.
+Do not implement code. Write the plan under `plans/`, then planexit. This supersedes
+generic "never edit files" instructions — `plans/` is the explicit exception.
 </system-reminder>

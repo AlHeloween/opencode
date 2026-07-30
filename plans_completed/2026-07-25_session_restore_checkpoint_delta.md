@@ -1,6 +1,7 @@
 # Session restore + checkpoint delta path (kill full-history reprocess)
 
-**Status:** active  
+**Status:** completed (core path shipped; deferred/manual items marked [~])  
+
 **Date:** 2026-07-25  
 **Branch context:** `Local_Development`  
 **Priority:** high тАФ restored long-lived sessions (lifetime ~100M tokens of archive) hang on open / first prompt even when checkpoint exists.
@@ -172,7 +173,7 @@ No need for external libraries. Do **not** invent a new checkpoint format unless
 ### Phase 0 тАФ Instrumentation (prove before/after)
 
 - [x] Timing logs on `filterCompactedEffect` (kept + `sqlVisible`), `pageCompacted`, `formatRequest`
-- [ ] Optional: huge-session manual baseline in Smoke **Actual** after user run (instrumentation ready)
+- [~] Optional: huge-session manual baseline in Smoke **Actual** after user run (instrumentation ready; not blocking)
 
 ### Phase 1 тАФ SQL-visible path (no archive hydrate)
 
@@ -189,8 +190,8 @@ No need for external libraries. Do **not** invent a new checkpoint format unless
 - [x] Visible load is SQL-filtered (archive never hydrated) тАФ primary win for lifetime-huge sessions
 - [x] Checkpoint save reuses in-loop `cachedMsgs` + `messagesSince` when possible (avoids second full visible SELECT)
 - [x] Cold restore: no full-checkpoint `formatRequest` as prev
-- [ ] Full reorder (checkpoint before any msgs load) deferred тАФ loop control still needs visible window; Phase 1 makes that cheap when compacted
-- [ ] Bounded-tail-only loop (no filterCompactedEffect at all when checkpoint hits) тАФ follow-up if still slow on uncompacted huge sessions
+- [~] Full reorder (checkpoint before any msgs load) deferred — loop control still needs visible window; Phase 1 makes that cheap when compacted
+- [~] Bounded-tail-only loop (no filterCompactedEffect at all when checkpoint hits) — follow-up if still slow on uncompacted huge sessions
 
 ### Phase 3 тАФ Request-diff suffix-only
 
@@ -203,14 +204,14 @@ No need for external libraries. Do **not** invent a new checkpoint format unless
 
 - [x] `hashPartTexts`: length + head/tail sample + Bun.hash (not char-by-char)
 - [x] `llm.ts` token estimate: walk string lengths, no `JSON.stringify(messages)`
-- [ ] `requestFingerprint` suffix compose тАФ follow-up
-- [ ] Checkpoint disk size shrink тАФ out of scope
+- [~] `requestFingerprint` suffix compose — follow-up
+- [~] Checkpoint disk size shrink — out of scope
 
 ### Phase 5 тАФ TUI / API verification
 
 - [x] `pageCompacted` rewritten (API/TUI `limit: 100` path)
-- [ ] Manual huge-session reopen timing (user / next session)
-- [ ] First prompt checkpoint log sample on real huge session
+- [~] Manual huge-session reopen timing (user / next session)
+- [~] First prompt checkpoint log sample on real huge session
 
 ---
 
@@ -293,7 +294,7 @@ No need for external libraries. Do **not** invent a new checkpoint format unless
 - [x] Baseline recorded [Exact] (request-diff)  
 - [x] Implementation after baseline  
 - [x] Core post-impl smokes passed (request-diff, compaction, typecheck)  
-- [ ] Manual huge-session confirmation  
+- [~] Manual huge-session confirmation (deferred user oracle; core automated smokes passed) 
 
 
 ---

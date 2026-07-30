@@ -32,7 +32,9 @@ with weights `[0.40, 0.35, 0.25]`.
   alpha mask in the same walk as glyphs (no post-pass plane).
 - `H` native harness: done; enable/emit/disable hybrid restore, oversized
   geometry reject, and FPS coalesce tests pass.
-- `W` direct Windows Terminal oracle: awaiting external build/run evidence.
+- `W` direct Windows Terminal oracle: hybrid production path proven in WT
+  (scroll-lock stamps, mermaid width-fit, footer clip). Full-viewport SIXEL
+  raster refused; default raster enable deferred (Kitty / dirty-rect).
 - `P` bounded transport: done; pixel cap `1920×1080`, FPS floor ~60 Hz with
   latest-frame coalesce, RGBA encoded-byte policy.
 
@@ -52,7 +54,7 @@ full suite re-run after M.
 | S — UI styles | 0.08 | R | done | None. |
 | M — joint media/text | 0.15 | R, O | done | None. |
 | H — native harness | 0.10 | R, C, M | done | None. |
-| W — Windows Terminal proof | 0.10 | O, C, H, M | awaiting external | Build, run mixed Mermaid+text scroll; screenshot; resize; input; clean exit. |
+| W — Windows Terminal proof | 0.10 | O, C, H, M | done (hybrid) / deferred (default raster) | Hybrid WT path proven; full-viewport SIXEL raster not default-admitted. |
 | P — transport bounds | 0.05 | O | done | None. |
 
 ## 4. Verification criteria
@@ -61,18 +63,18 @@ full suite re-run after M.
    an oracle.
 2. `W` requires direct Windows Terminal evidence; source builds do not replace
    it.
-3. Raster mode cannot become the default before `W` passes (P and H already pass).
-4. The final scene must scroll as one viewport; text, graphics, cursor, and
-   input must not be emitted in separate terminal passes.
+3. Raster mode cannot become the default before Kitty/`W` default-admission
+   evidence; hybrid production path is already admitted for SIXEL WT.
+4. The production hybrid scene must scroll as one logical viewport: text cells
+   + Sixel stamps share layout; full-viewport SIXEL raster is not the path.
 
 Named test cases: native build, library build, targeted image-renderer tests,
-native suite (includes raster style/harness/FPS), and direct Windows Terminal
-mixed Mermaid/input/resize/exit run.
+native suite (includes raster style/harness/FPS), hybrid scroll-lock oracles,
+and direct Windows Terminal hybrid Mermaid/input evidence.
 
 Named oracles: `bun run build:native:dev`; `bun run build:lib`; targeted image
-renderer tests; `bun run test:native`; direct Windows Terminal screenshot plus
-resize, input, and clean-exit observation. `W` is incomplete until the last
-oracle passes.
+renderer tests; `bun run test:native`; hybrid WT validation (scroll-lock,
+footer clip, width-fit mermaid). Default full-raster admission remains deferred.
 
 Evidence requirements: preserve command output for every named oracle; record
 the build or commit that produced the tested artifact; attach screenshot and

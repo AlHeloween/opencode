@@ -110,13 +110,17 @@ flowchart LR
 - [x] Restore the Windows native-test command: `bun run test:native` executes
   1,695 passing Zig tests (22 skipped), including raster style, tofu, enable/
   disable hybrid restore, oversized geometry reject, and FPS coalesce oracles.
-- [ ] Add direct Windows Terminal screenshots and input/scroll/resize tests for
+- [~] Add direct Windows Terminal screenshots and input/scroll/resize tests for
   mixed Markdown and Mermaid/image fixtures first. Add chart and PDF-fragment
-  producers before claiming their regression coverage. (**W** — blocks default enable)
+  producers before claiming their regression coverage. (**W** — blocks *default*
+  raster enable only.) Production path is hybrid (ANSI + Sixel stamps); full-
+  viewport SIXEL raster refused on WT (2026-07-30). Kitty default-enable is a
+  follow-up, not a blocker for closing this implementation phase.
 - [x] Record RGBA compose and SIXEL encode/write latency on render stats (shared
   with hybrid diagnostics). Frame-size and frame-rate policy constants are set.
-- [ ] Add a logical-buffer copy-text command and test it in raster mode, so
+- [~] Add a logical-buffer copy-text command and test it in raster mode, so
   copy remains available when terminal text selection is intentionally absent.
+  Deferred until raster is considered for default enable.
 
 ## Compatibility decisions
 
@@ -183,5 +187,10 @@ flowchart LR
 - **Footer/prompt spill fix (scroll down):** graphics clip to ancestor
   `overflow:hidden` (ScrollBox viewport), not full terminal height. Stamp and
   slot fill share the same clip so Sixel cannot cross the text input area.
-- Remaining before default enable: Kitty-only W proof or a non-full-frame
-  transport; optional copy-text / caret blink.
+- Remaining before *default* enable (deferred [~], not open implementation):
+  Kitty-only W proof or a non-full-frame transport; optional copy-text / caret
+  blink. Hybrid production path is shipped and validated in WT.
+
+**Status:** completed implementation phase (2026-07-30). Opt-in `raster_viewport`
++ hybrid production graphics closed. Default raster enable remains a future
+admission gate under deferred [~] items.

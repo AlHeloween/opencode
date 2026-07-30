@@ -4,7 +4,7 @@ Launch a new sub-agent to handle complex, multistep tasks autonomously. The sub-
 
 | Type | Tools Available | Best For |
 |------|----------------|----------|
-| `explore` | codegraph, read, glob, grep, ls, bash, webfetch, universalsearch, messagesearch, sessionread | Codebase exploration, file discovery, log searching, prior conversation research |
+| `explore` | codegraph, read, glob, grep, ls, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research |
 | `general` | All tools | Planning, design alternatives, root-cause analysis, multi-step implementation strategy |
 
 ## Child Session Isolation

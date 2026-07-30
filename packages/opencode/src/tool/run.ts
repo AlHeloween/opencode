@@ -1,4 +1,4 @@
-import { Cause, Effect, Schema } from "effect"
+import { Effect, Schema } from "effect"
 import { forkDrainStdoutStderr } from "./shell-output"
 import { createWriteStream } from "node:fs"
 import path from "path"
@@ -17,7 +17,6 @@ import { enforceDestructiveShell } from "./shell-constitution"
 const log = Log.create({ service: "run-tool" })
 
 const DEFAULT_TIMEOUT = 60_000
-const DIRECT_TIMEOUT = 30 * 1000 // 30 seconds — for direct (non-job) calls: fast feedback, no hanging
 
 const Parameters = Schema.Struct({
   binary: Schema.String,
@@ -202,24 +201,10 @@ export const RunTool = Tool.define(
             })
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
-          // Process exit with optional timeout. Background jobs have no
-          // timeout (DEFAULT_TIMEOUT is infinite for practical purposes);
-          // direct calls use 30s timeout for fast feedback.
+          // Process exit only — NO hard timeout, NO abort race.
           // Fiber interruption (user cancel, job_kill) kills the process
           // via Effect.scoped acquireRelease finalizer.
-          const code: number | null = yield* handle.exitCode.pipe(
-            input.timeout ? Effect.timeout(input.timeout) : (eff) => eff,
-            Effect.catch((e) => {
-              if (Cause.isTimeoutError(e)) {
-                log.warn("run timeout reached, killing process", {
-                  timeout: input.timeout,
-                  binary: input.binary,
-                })
-                return Effect.succeed(null) // null exit = timeout
-              }
-              return Effect.fail(e)
-            }),
-          )
+          const code = yield* handle.exitCode
           yield* awaitDrain
           return code
         }),
@@ -250,10 +235,6 @@ export const RunTool = Tool.define(
 
       let output = end.text
       if (!output) output = "(no output)"
-      if (code === null) {
-        const hint = input.timeout === DIRECT_TIMEOUT ? " Direct binary calls max 30 seconds — use run_in_background:true for long-running commands." : ""
-        output = `[TIMEOUT after ${input.timeout}ms]${hint}\n\n` + (output !== "(no output)" ? output : "Process did not complete within the timeout.")
-      }
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
       return {
         title: input.description,
@@ -279,8 +260,7 @@ export const RunTool = Tool.define(
         Effect.gen(function* () {
           const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
           if (params.timeout !== undefined && params.timeout < 0) throw new Error(`Invalid timeout: ${params.timeout}`)
-          const direct = params.run_in_background === false
-          const timeout = params.timeout ?? (direct ? DIRECT_TIMEOUT : DEFAULT_TIMEOUT)
+          const timeout = params.timeout ?? DEFAULT_TIMEOUT
 
           // Constitution on reconstructed argv (e.g. run git checkout → destructive)
           const argvLine = [params.binary, ...params.args].join(" ")
@@ -333,7 +313,7 @@ export const RunTool = Tool.define(
               })
               return {
                 title: `Background run ${jobID}`,
-                output: `Started background job ${jobID}. Use joboutput to read.`,
+                output: `Started background job ${jobID}. Use job_output to read.`,
                 metadata: { jobID, output: "", exit: null, description: params.description, truncated: false },
               }
             }

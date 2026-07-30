@@ -20,7 +20,7 @@ import { stripCommand } from "./strip-win"
 import { BashArity } from "@/permission/arity"
 import * as Truncate from "./truncate"
 import { Plugin } from "@/plugin"
-import { Effect, Cause } from "effect"
+import { Effect } from "effect"
 import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
@@ -28,18 +28,9 @@ import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
 import { enforceDestructiveShell } from "./shell-constitution"
-import {
-  invalidatePermissionCache,
-  permissionCacheHit,
-  permissionCacheKey,
-  permissionCacheSet,
-} from "./permission-cache"
-
-export { invalidatePermissionCache }
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 min safety net — agent controls kill via job_kill
-const DIRECT_TIMEOUT = 30 * 1000 // 30 seconds — for direct (non-job) calls: fast feedback, no hanging
 const CWD = new Set(["cd", "popd", "pushd", "push-location", "set-location"])
 const FILES = new Set([...CWD, "cat", "chmod", "chown", "cp", "ln", "mkdir", "mv", "rm", "touch"])
 
@@ -168,7 +159,7 @@ export const Parameters = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed(true)),
   ).annotate({
     description:
-      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use joboutput to read output, jobwait to wait for completion, or jobkill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
+      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or job_kill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
   }),
 })
 
@@ -401,19 +392,7 @@ const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolea
   return tree.rootNode
 })
 
-function permCacheKey(shell: string, scan: Scan): string {
-  const allPatterns = new Set([
-    ...Array.from(scan.dirs).map((d) => path.join(d, "*")),
-    ...Array.from(scan.patterns),
-  ])
-  return permissionCacheKey(shell, allPatterns)
-}
-
 const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, shell: string) {
-  // Fast path: cache hit — skip full permission check
-  const cacheKey = permCacheKey(shell, scan)
-  if (permissionCacheHit(cacheKey)) return
-
   if (scan.dirs.size > 0) {
     const globs = Array.from(scan.dirs).map((dir) => path.join(dir, "*"))
     yield* ctx.ask({
@@ -424,10 +403,7 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, 
     })
   }
 
-  if (scan.patterns.size === 0) {
-    permissionCacheSet(cacheKey)
-    return
-  }
+  if (scan.patterns.size === 0) return
   // bash | powershell | cmd — separate keys so /permissions can gate each shell.
   const permission = Shell.permissionKey(shell)
   yield* ctx.ask({
@@ -436,9 +412,6 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, 
     always: Array.from(scan.always),
     metadata: { shell: Shell.name(shell), permission },
   })
-
-  // Cache on success (errors propagate and are not cached)
-  permissionCacheSet(cacheKey)
 })
 
 export function normalizeCommandPaths(command: string): string {
@@ -742,26 +715,12 @@ export const BashTool = Tool.define(
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
-          // Wait for process exit with timeout enforcement.
-          // Previously NO hard timeout (the agent decided whether to job_kill),
-          // but cmd_runner tail --wait-ms and similar commands can hang
-          // indefinitely when the underlying process stalls. A hard timeout
-          // ensures the bash tool always completes, returning partial output.
-          // Fiber interruption (user cancel, job_kill) still kills the process
+          // Process exit only — NO hard timeout, NO abort race.
+          // Long builds must not be killed by a fixed deadline. The agent
+          // sees stall detection hints and decides whether to job_kill.
+          // Fiber interruption (user cancel, job_kill) kills the process
           // via Effect.scoped acquireRelease finalizer (taskkill /T /F).
-          const code: number | null = yield* handle.exitCode.pipe(
-            Effect.timeout(input.timeout),
-            Effect.catch((e) => {
-              if (Cause.isTimeoutError(e)) {
-                log.warn("bash timeout reached, killing process", {
-                  timeout: input.timeout,
-                  command: input.command.slice(0, 120),
-                })
-                return Effect.succeed(null) // null exit = timeout
-              }
-              return Effect.fail(e)
-            }),
-          )
+          const code = yield* handle.exitCode
           yield* awaitDrain
           return code
         }),
@@ -776,10 +735,6 @@ export const BashTool = Tool.define(
 
       let output = end.text
       if (!output) output = "(no output)"
-      if (code === null) {
-        const hint = input.timeout === DIRECT_TIMEOUT ? " Direct shell calls max 30 seconds — use run_in_background:true for long-running commands." : ""
-        output = `[TIMEOUT after ${input.timeout}ms]${hint}\n\n` + (output !== "(no output)" ? output : "Process did not complete within the timeout.")
-      }
 
       if (cut && file) {
         output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
@@ -853,9 +808,8 @@ export const BashTool = Tool.define(
               const ADM_TIMEOUT = 3 * 60 * 1000 // 3 min — adm --query needs model cold-load (~20-30s)
               const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
               const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
-              const direct = params.run_in_background === false
               const timeout =
-                params.timeout ?? (direct ? DIRECT_TIMEOUT : isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
+                params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
               const ps = Shell.ps(shell)
               // On Windows: detect cmd.exe shell to select batch grammar + cmd SAFE/FILES.
               // Shell.posix(shell) is false for cmd.exe; Shell.ps(shell) is false for cmd.exe.
@@ -911,7 +865,7 @@ export const BashTool = Tool.define(
                 })
                 return {
                   title: `Background bash ${jobID}`,
-                  output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use joboutput to read its output, or jobwait to wait for completion.`,
+                  output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use job_output to read its output, or job_wait to wait for completion.`,
                   metadata: {
                     jobID,
                     output: "",

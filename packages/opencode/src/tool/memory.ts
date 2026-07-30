@@ -3,13 +3,11 @@ import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { Instance } from "../project/instance"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
-import * as Log from "@opencode-ai/core/util/log"
 
 const MEMORY_FILE = ".opencode/data/memory/reasoning.md"
-const log = Log.create({ service: "tool.memory" })
 
 export const Parameters = Schema.Struct({
-  action: Schema.Literals(["read", "write", "append"]),
+  action: Schema.String,
   content: Schema.optional(Schema.String),
 })
 
@@ -19,10 +17,6 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
   "memory",
   Effect.gen(function* () {
     const fs = yield* AppFileSystem.Service
-    const readMemory = (filepath: string) =>
-      fs.readFileString(filepath).pipe(
-        Effect.tapError((error) => Effect.sync(() => log.debug("reasoning memory read failed", { filepath, error }))),
-      )
 
     return {
       description:
@@ -45,7 +39,7 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
                 metadata: { filepath, action: "read" },
               }
             }
-            const content = yield* readMemory(filepath)
+            const content = yield* fs.readFileString(filepath)
             return {
               title: "Memory",
               output: content,
@@ -64,7 +58,7 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
 
           // append
           const existing = (yield* fs.existsSafe(filepath))
-            ? yield* readMemory(filepath)
+            ? yield* fs.readFileString(filepath)
             : ""
           const separator = existing && !existing.endsWith("\n") ? "\n" : ""
           yield* fs.writeWithDirs(filepath, existing + separator + (params.content ?? "") + "\n")

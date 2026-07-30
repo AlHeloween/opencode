@@ -63,6 +63,8 @@ rows are consumed **only at compact** into `m*`.
 
 **Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph.
 
+**Recent floor:** after compact, work tail is at least ~`RECENT_MIN_TOKENS` (16 384) content tokens from the end, ignoring `message*` and the latest summary — thin post-summary stubs are extended backward (small overlap) so the next open window is real work, not empty → immediate re-summary.
+
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
 ### When is summary called?
@@ -141,6 +143,7 @@ sequenceDiagram
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs** |
+| Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin | **Match** |
 | Compact after enough s / open window | **`maybeCompactCadence` on stop** after sidecar + while loop continues | **Fixed 2026-07-30** |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |

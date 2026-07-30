@@ -40,6 +40,128 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 
 Log.init()
 
+const tailRef = { providerID: ProviderID.make("test"), modelID: ModelID.make("test") }
+const tailSid = SessionID.make("recent-tail")
+
+function mkMsg(
+  id: string,
+  role: "user" | "assistant",
+  text: string,
+  opts?: { summary?: boolean; parentID?: string; star?: boolean },
+): MessageV2.WithParts {
+  const mid = MessageID.make(id)
+  const body = opts?.star ? `=== COMPACTED ===\n${text}` : text
+  if (role === "user") {
+    return {
+      info: {
+        id: mid,
+        sessionID: tailSid,
+        role: "user",
+        time: { created: 1 },
+        agent: "build",
+        model: tailRef,
+      },
+      parts: [
+        {
+          id: PartID.make(`p_${id}`),
+          type: "text",
+          text: body,
+          sessionID: tailSid,
+          messageID: mid,
+          ...(opts?.star ? { synthetic: true } : {}),
+        },
+      ],
+    } as MessageV2.WithParts
+  }
+  return {
+    info: {
+      id: mid,
+      sessionID: tailSid,
+      role: "assistant",
+      parentID: MessageID.make(opts?.parentID ?? "u0"),
+      time: { created: 1, completed: 1 },
+      agent: "build",
+      modelID: tailRef.modelID,
+      providerID: tailRef.providerID,
+      cost: 0,
+      mode: "build",
+      path: { cwd: "/", root: "/" },
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      ...(opts?.summary ? { summary: true } : {}),
+    },
+    parts: [
+      {
+        id: PartID.make(`p_${id}`),
+        type: "text",
+        text: body,
+        sessionID: tailSid,
+        messageID: mid,
+      },
+    ],
+  } as MessageV2.WithParts
+}
+
+describe("SessionCompaction.selectRecentTail", () => {
+  test("keeps full post-boundary tail when already ≥ min tokens", () => {
+    // ≥ RECENT_MIN_TOKENS content (chars/4) without walking pre-boundary.
+    const pad = "x".repeat(SessionCompaction.RECENT_MIN_TOKENS * 2 * 4)
+    // Ascending ULID-style ids so boundary comparison matches production order.
+    const idOld = String(MessageID.ascending())
+    const idSr = String(MessageID.ascending())
+    const idSum = String(MessageID.ascending())
+    const idR1 = String(MessageID.ascending())
+    const idR2 = String(MessageID.ascending())
+    const msgs = [
+      mkMsg(idOld, "assistant", "old work", { parentID: "u0" }),
+      mkMsg(idSr, "user", "summary request"),
+      mkMsg(idSum, "assistant", "## Semantic Vector\n## Goal\n## Key decisions\n## Current state", {
+        summary: true,
+        parentID: idSr,
+      }),
+      mkMsg(idR1, "user", pad),
+      mkMsg(idR2, "assistant", pad, { parentID: idR1 }),
+    ]
+    const recent = SessionCompaction.selectRecentTail(msgs, idSum, SessionCompaction.RECENT_MIN_TOKENS)
+    expect(recent.map((m) => String(m.info.id))).toEqual([idR1, idR2])
+  })
+
+  test("extends past thin post-summary stub, skips message* and last summary", () => {
+    // Each ~5.5k tokens; three pre-boundary + thin post must exceed 16k when walking back.
+    const chunk = "y".repeat(Math.ceil((SessionCompaction.RECENT_MIN_TOKENS * 4) / 3) + 200)
+    const idStar = String(MessageID.ascending())
+    const idW1 = String(MessageID.ascending())
+    const idW2 = String(MessageID.ascending())
+    const idW3 = String(MessageID.ascending())
+    const idSr = String(MessageID.ascending())
+    const idSum = String(MessageID.ascending())
+    const idThin = String(MessageID.ascending())
+    const msgs = [
+      mkMsg(idStar, "user", "prior fold body", { star: true }),
+      mkMsg(idW1, "user", chunk),
+      mkMsg(idW2, "assistant", chunk, { parentID: idW1 }),
+      mkMsg(idW3, "user", chunk),
+      mkMsg(idSr, "user", `<!-- summary-range from_id="${idW1}" to_id="${idW3}" session_id="x" -->`),
+      mkMsg(idSum, "assistant", "## Semantic Vector\n## Goal\n## Key decisions\n## Current state", {
+        summary: true,
+        parentID: idSr,
+      }),
+      mkMsg(idThin, "user", "hi"), // tiny post-boundary
+    ]
+    const recent = SessionCompaction.selectRecentTail(msgs, idSum, SessionCompaction.RECENT_MIN_TOKENS)
+    const ids = recent.map((m) => String(m.info.id))
+    expect(ids).not.toContain(idStar)
+    expect(ids).not.toContain(idSum)
+    expect(ids).not.toContain(idSr)
+    expect(ids).toContain(idThin)
+    // Must have walked back into pre-boundary work for ≥16k floor
+    expect(ids.some((id) => id === idW1 || id === idW2 || id === idW3)).toBe(true)
+    const tokens = Math.ceil(
+      recent.reduce((n, m) => n + (m.parts[0] as { text?: string }).text!.length, 0) / 4,
+    )
+    expect(tokens).toBeGreaterThanOrEqual(SessionCompaction.RECENT_MIN_TOKENS)
+  })
+})
+
 function run<A, E>(fx: Effect.Effect<A, E, SessionNs.Service>) {
   return Effect.runPromise(fx.pipe(Effect.provide(SessionNs.defaultLayer)))
 }
@@ -281,6 +403,22 @@ describe("session.compaction.structural-summary-handoff", () => {
           type: "text",
           text: "## Goal\n- preserve exact system handles",
         })
+        // Post-summary fat tail so RECENT_MIN does not reshape this handoff fixture.
+        const fat = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: fat.id,
+          sessionID: info.id,
+          type: "text",
+          text: "post-summary\n" + "R".repeat(SessionCompaction.RECENT_MIN_TOKENS * 4),
+        })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const star = yield* MessageV2.filterCompactedEffect(info.id)
@@ -289,7 +427,7 @@ describe("session.compaction.structural-summary-handoff", () => {
         expect(text).toContain("changed_files=2; caller_count=4")
         expect(text).toContain("top_symbols=compact,SessionSummary")
         expect(text).toContain("impacted_files=src/session/compaction.ts")
-        expect(text).toContain("fossil_diff: system Exact")
+        expect(text).toContain("tool_diff: system Exact")
         expect(text).toContain("src/session/summary.ts (+12/-3 modified)")
         expect(text).toContain("src/snapshot/fossil.ts (+4/-0 added)")
       }),
@@ -1444,8 +1582,9 @@ describe("session.compaction.compact", () => {
           type: "text", text: "## Goal\n- summary content here",
         })
 
-        // Create recent messages (will be kept)
-        for (const text of ["recent-1", "recent-2"]) {
+        // Recent ≥ RECENT_MIN_TOKENS so compact does not overlap pre-summary "old-*" work.
+        const fat = "R".repeat(SessionCompaction.RECENT_MIN_TOKENS * 4)
+        for (const text of [`recent-1\n${fat}`, `recent-2\n${fat}`]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
             agent: "build", model: ref, time: { created: Date.now() },
@@ -2035,9 +2174,16 @@ describe("session.compaction.multiple-summaries", () => {
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: s2u.id, sessionID: info.id, type: "text", text: "summary-2-request" })
         yield* makeAssistant(s2u.id, true)
 
-        // recent messages after s2
+        // Fat recent after s2 so RECENT_MIN floor does not pull old-before-s1.
+        const fat = "R".repeat(SessionCompaction.RECENT_MIN_TOKENS * 4)
         const r1 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
-        yield* ssn.updatePart({ id: PartID.ascending(), messageID: r1.id, sessionID: info.id, type: "text", text: "recent-after-s2" })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: r1.id,
+          sessionID: info.id,
+          type: "text",
+          text: `recent-after-s2\n${fat}`,
+        })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 

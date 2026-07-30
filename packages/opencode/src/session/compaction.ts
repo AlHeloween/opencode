@@ -30,6 +30,13 @@ export const Event = {
 /** Normal Layer-1 cadence: ~64K content-token estimates between summaries. */
 export const SUMMARY_INTERVAL_TOKENS = 65_536
 export const MAX_SUMMARY_ATTEMPTS = 2
+/**
+ * Minimum Recent tail after compact (content tokens, chars/4).
+ * Walk from the end, skipping message* and the latest summary (request+body),
+ * so m* always keeps a real work tail — not only a thin post-summary stub that
+ * immediately re-triggers Layer-1 summary after fold.
+ */
+export const RECENT_MIN_TOKENS = 16_384
 
 const CHARS_PER_TOKEN = 4
 const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
@@ -133,6 +140,66 @@ function trimToLastInterval(msgs: MessageV2.WithParts[], intervalTokens = SUMMAR
     if (chars >= intervalTokens * CHARS_PER_TOKEN) return i
   }
   return 0
+}
+
+function isSummaryAssistant(msg: MessageV2.WithParts): boolean {
+  return msg.info.role === "assistant" && !!(msg.info as { summary?: boolean }).summary
+}
+
+/**
+ * Recent tail for message* fold.
+ *
+ * 1. Prefer messages after `latestBoundaryId` (last summary / sidecar to_id).
+ * 2. Always exclude message* and the latest in-band summary (request + assistant).
+ * 3. If that tail is under {@link RECENT_MIN_TOKENS}, walk further back (overlap
+ *    into already-summarized window) until the floor or session start.
+ * 4. Caller may still cap a no-summary pool with {@link trimToLastInterval}.
+ */
+export function selectRecentTail(
+  visible: MessageV2.WithParts[],
+  latestBoundaryId?: string,
+  minTokens: number = RECENT_MIN_TOKENS,
+): MessageV2.WithParts[] {
+  let lastSummaryId: string | undefined
+  let lastSummaryRequestId: string | undefined
+  for (let i = visible.length - 1; i >= 0; i--) {
+    const m = visible[i]!
+    if (isMessageStar(m)) continue
+    if (!isSummaryAssistant(m)) continue
+    lastSummaryId = m.info.id
+    lastSummaryRequestId = (m.info as MessageV2.Assistant).parentID
+    break
+  }
+
+  const skip = (m: MessageV2.WithParts) => {
+    if (isMessageStar(m)) return true
+    if (lastSummaryId && m.info.id === lastSummaryId) return true
+    if (lastSummaryRequestId && m.info.id === lastSummaryRequestId) return true
+    return false
+  }
+
+  // Prefer open window after Layer-1 / sidecar boundary.
+  let recent = visible.filter((m) => {
+    if (skip(m)) return false
+    if (!latestBoundaryId) return true
+    return m.info.id > latestBoundaryId
+  })
+
+  const minChars = minTokens * CHARS_PER_TOKEN
+  if (contentChars(recent) >= minChars) return recent
+
+  // Thin post-boundary tail: extend backward past boundary (small overlap).
+  // visible is ascending by id; walk from end, keep messages not skipped.
+  const selected: MessageV2.WithParts[] = []
+  let chars = 0
+  for (let i = visible.length - 1; i >= 0; i--) {
+    const m = visible[i]!
+    if (skip(m)) continue
+    selected.unshift(m)
+    chars += contentChars([m])
+    if (chars >= minChars) break
+  }
+  return selected
 }
 
 /** Walk backward through msgs from the end, summing output tokens of assistants
@@ -643,14 +710,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const latestSidecarBoundary = sidecars.at(-1)?.toMessageID
         const latestBoundaryId = [latestSummaryId, latestSidecarBoundary].filter(Boolean).sort().at(-1)
 
-        // Recent = visible messages after the latest summary, excluding prior message*.
-        // The prior message* is NOT re-collected — its summaries belong to the previous
-        // compaction cycle and are recoverable via the chain link.
-        let recent = visible.filter((m) => {
-          if (isMessageStar(m)) return false
-          if (!latestBoundaryId) return true
-          return m.info.id > latestBoundaryId
-        })
+        // Recent = work tail for m* (≥ RECENT_MIN_TOKENS). Skip message* + latest
+        // summary; if post-boundary stub is thin, overlap back into pre-boundary m.
+        let recent = selectRecentTail(visible, latestBoundaryId, RECENT_MIN_TOKENS)
 
         // No summary yet: cap Recent at the same effective target used by Layer 1.
         // This keeps a low-context provider from immediately overflowing again.
@@ -727,6 +789,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           compacted,
           summaries: summaries.length,
           recent: recent.length,
+          recentTokens: Math.ceil(contentChars(recent) / CHARS_PER_TOKEN),
+          recentMinTokens: RECENT_MIN_TOKENS,
           forced: input.force ?? false,
         })
         yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })

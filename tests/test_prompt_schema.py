@@ -258,12 +258,18 @@ def test_build_has_no_agent_prompt_system_bind():
 
 def test_pocket_protocol_files_exist_and_markers():
     """REASONING / ALGORITHM_CARD / build synthetic are pocket density, not PromptSpec."""
+    # reasoning.txt carries the full ADID framework — not a thin pocket stub.
+    SIZE_LIMITS: dict[str, int] = {
+        "reasoning.txt": 100_000,  # ADID framework ≈ 75KB
+    }
+    DEFAULT_LIMIT = 12_000
     for name, markers in POCKET_PROTOCOL_FILES.items():
         fp = os.path.join(SESSION_PROMPT_DIR, name)
         assert os.path.isfile(fp), f"missing pocket protocol: {name}"
         with open(fp, "r", encoding="utf-8") as f:
             content = f.read()
-        assert len(content) < 12_000, f"{name} grew past pocket size ({len(content)} bytes)"
+        limit = SIZE_LIMITS.get(name, DEFAULT_LIMIT)
+        assert len(content) < limit, f"{name} grew past pocket size ({len(content)} bytes, limit={limit})"
         for marker in markers:
             assert marker in content, f"{name} missing marker {marker!r}"
 

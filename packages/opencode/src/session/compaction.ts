@@ -303,17 +303,74 @@ const MIN_SUMMARY_SECTION_CHARS: Record<string, number> = {
 
 /** Required Layer-1 sections with real content — not headings + one line. */
 export function isValidSummaryBody(text: string): boolean {
-  if (!text || text.trim().length < 200) return false
+  return diagnoseSummaryGaps(text).length === 0
+}
+
+/** Diagnostic: which required sections are deficient (empty = valid). */
+export function diagnoseSummaryGaps(text: string): string[] {
+  const gaps: string[] = []
+  if (!text || text.trim().length < 200) {
+    gaps.push("total_length")
+    // Short-circuit — if the whole body is a stub, listing individual sections is noise.
+    return gaps
+  }
   for (const heading of ["Semantic Vector", "Goal", "Key decisions", "Current state"] as const) {
     // Do not use /m with `$` — `$` would match end-of-line and truncate sections.
     const section = text.match(new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"))
     const body = section?.[1]?.trim() ?? ""
-    if (body.length < (MIN_SUMMARY_SECTION_CHARS[heading] ?? 40)) return false
+    const min = MIN_SUMMARY_SECTION_CHARS[heading] ?? 40
+    if (body.length < min) {
+      gaps.push(`${heading} (${body.length}/${min} chars)`)
+    }
   }
   // Key decisions must be actionable bullets, not a single vague sentence.
   const decisions = extractDecisions(text)
-  if (decisions.length < 1) return false
-  return true
+  if (decisions.length < 1) {
+    gaps.push("Key decisions (0 bullets, need ≥1)")
+  }
+  return gaps
+}
+
+/** Targeted gap-fill request — only asks model for the deficient sections. */
+export function gapFillRequest(originalBody: string, gaps: string[]): string {
+  const gapList = gaps.map((g) => `- ${g}`).join("\n")
+  return `Your Layer-1 summary body was received but these sections need more detail:
+
+${gapList}
+
+Reply with **only** the corrected sections using exactly these headings. Keep the content dense and specific — this is a memory handle, not a chat reply.
+
+${gaps.filter((g) => !g.startsWith("total_length")).map((g) => {
+    const heading = g.split(" (")[0]
+    return `## ${heading}\n...`
+  }).join("\n\n")}
+
+Do NOT repeat the full summary or add introductory text. Start with \`## \`.`;
+}
+
+/** Parse gap-fill response and merge corrected sections into the original body.
+  * Only sections present in the fill are replaced; everything else stays. */
+export function mergeSummarySections(original: string, fillResponse: string): string {
+  if (!fillResponse?.trim()) return original
+  let merged = original
+  for (const heading of ["Semantic Vector", "Goal", "Key decisions", "Current state"] as const) {
+    const fillSection = fillResponse.match(
+      new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
+    )
+    if (!fillSection?.[1]?.trim()) continue
+    const fillBody = fillSection[1].trim()
+    // Replace the original section with the filled one.
+    const origSection = merged.match(
+      new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
+    )
+    if (origSection) {
+      merged = merged.replace(origSection[0], `## ${heading}\n${fillBody}`)
+    } else {
+      // Heading not present in original — append.
+      merged = merged.trimEnd() + `\n\n## ${heading}\n${fillBody}`
+    }
+  }
+  return merged
 }
 
 /**

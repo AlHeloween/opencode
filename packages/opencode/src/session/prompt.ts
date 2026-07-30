@@ -1204,7 +1204,7 @@ export const layer = Layer.effect(
                 : undefined
               // Generous output for a full 4-section memory body (not chat brevity).
               const summaryOutCap = Math.min(8_192, input.model.limit.output || 8_192)
-              const body = yield* llm
+              let body = yield* llm
                 .stream({
                   user: input.user,
                   agent: input.agent,
@@ -1233,15 +1233,59 @@ export const layer = Layer.effect(
                     return Effect.succeed("")
                   }),
                 )
-              if (!SessionCompaction.isValidSummaryBody(body)) {
-                yield* slog.warn("sidecar checkpoint rejected (quality gate)", {
+              const gaps = SessionCompaction.diagnoseSummaryGaps(body)
+              if (gaps.length > 0) {
+                yield* slog.info("sidecar summary gaps — attempting gap-fill", {
                   bodyLen: body.length,
+                  gaps,
                   openTokens,
-                  threshold,
                   rangeMessages: range.length,
-                  preview: body.slice(0, 200),
                 })
-                return false
+                // One-shot gap-fill: ask model to complete only the deficient sections.
+                // Much cheaper than regenerating the full range — no tools, no system prefix.
+                const gapFillPrompt = SessionCompaction.gapFillRequest(body, gaps)
+                const fillResponse = yield* llm
+                  .stream({
+                    user: input.user,
+                    agent: input.agent,
+                    cacheIdentity: input.cacheIdentity,
+                    permission: session.permission,
+                    sessionID,
+                    system: [], // no system prefix — focused micro-task
+                    messages: [
+                      { role: "assistant", content: body },
+                      { role: "user", content: gapFillPrompt },
+                    ],
+                    tools: {},
+                    toolChoice: "none",
+                    model: input.model,
+                    outputTokenMax: Math.min(2_048, input.model.limit.output || 2_048),
+                  })
+                  .pipe(
+                    Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
+                    Stream.map((event) => event.text),
+                    Stream.mkString,
+                    Effect.catchCause((cause) => {
+                      slog.debug("sidecar gap-fill failed", { error: Cause.pretty(cause) })
+                      return Effect.succeed("")
+                    }),
+                  )
+                const merged = SessionCompaction.mergeSummarySections(body, fillResponse)
+                if (!SessionCompaction.isValidSummaryBody(merged)) {
+                  yield* slog.warn("sidecar gap-fill insufficient — rejecting", {
+                    originalLen: body.length,
+                    fillLen: fillResponse.length,
+                    mergedLen: merged.length,
+                    remainingGaps: SessionCompaction.diagnoseSummaryGaps(merged),
+                  })
+                  return false
+                }
+                yield* slog.info("sidecar gap-fill succeeded", {
+                  originalLen: body.length,
+                  fillLen: fillResponse.length,
+                  mergedLen: merged.length,
+                })
+                body = merged
               }
               // Exact: write/edit/multiedit tool filediffs in range + CodeGraph on those paths.
               // Fossil is rollback only — not used here. Soft-fail enrich, keep body.

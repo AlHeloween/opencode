@@ -27,9 +27,6 @@ import * as Option from "effect/Option"
 import { diagnoseParseError } from "@/util/diagnose-parse-error"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { repairJson as repairJsonAny, repairAny } from "@/util/anyrepair-wasm"
-import { canonicalName } from "@/tool/tool"
-import { SessionTools } from "./tools"
-import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
@@ -67,6 +64,9 @@ function serializeToolSchemas(tools: Record<string, Tool>): string {
   }
   return lines.join("\n")
 }
+
+// Cache for token estimation — avoids re-serializing messages+system when count is unchanged
+let _cachedTokenEstimate: { count: number; value: number } | undefined
 
 /** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
   * LRU-evicted at 500 entries to prevent unbounded growth. */
@@ -148,21 +148,6 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
 
-export function buildProviderCacheKey(input: {
-  sessionID: string
-  providerCacheKey?: string
-  modelID: string
-  identity: string
-}) {
-  if (input.providerCacheKey) return [input.providerCacheKey, input.identity].join(":")
-  return [input.sessionID, input.identity, input.modelID].join(":")
-}
-
-export function resolveToolName(name: string, tools: Record<string, Tool>) {
-  const canonical = canonicalName(name)
-  return canonical && tools[canonical] ? canonical : undefined
-}
-
 export type StreamInput = {
   user: MessageV2.User
   sessionID: string
@@ -170,8 +155,6 @@ export type StreamInput = {
   providerCacheKey?: string
   model: Provider.Model
   agent: Agent.Info
-  /** Stable provider identity for a runtime-restricted native mode. */
-  cacheIdentity?: Agent.Info
   permission?: Permission.Ruleset
   system: string[]
   messages: ModelMessage[]
@@ -209,7 +192,6 @@ const live: Layer.Layer<
     const perm = yield* Permission.Service
 
     const run = Effect.fn("LLM.run")(function* (input: StreamRequest) {
-      const cacheIdentity = input.cacheIdentity ?? input.agent
       const l = log
         .clone()
         .tag("providerID", input.model.providerID)
@@ -236,25 +218,17 @@ const live: Layer.Layer<
       // TODO: move this to a proper hook
       const isOpenaiOauth = item.id === "openai" && info?.type === "oauth"
 
-      // Separate parts — do NOT split(joined, "\n\n"): files use blank lines,
-      // so that left only the reasoning title and buried PROMPT_ABI inside "kernel".
-      const {
-        reasoning: reasoningPrefix,
-        algorithm: algorithmCard,
-        kernel,
-      } = ProviderTransform.systemPromptParts(input.model)
-      const promptFile = cacheIdentity.prompt ? `agent:${cacheIdentity.name}` : "reasoning-only"
+      const parts = ProviderTransform.systemPromptParts(input.model)
+      const reasoningPrefix = parts.reasoning
+      const algorithmCard = parts.algorithm
+      const kernel = parts.kernel
+      const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : "reasoning-only"
 
       l.info("system prompt", {
         reasoning: !!reasoningPrefix,
-        reasoningBytes: Buffer.byteLength(reasoningPrefix, "utf8"),
-        algorithm: !!algorithmCard,
-        algorithmBytes: Buffer.byteLength(algorithmCard, "utf8"),
         kernel: !!kernel,
-        kernelBytes: Buffer.byteLength(kernel, "utf8"),
-        kernelHasAbi: kernel.includes("PROMPT_ABI"),
         prompt: promptFile,
-        agent: cacheIdentity.name,
+        agent: input.agent.name,
         model: input.model.id,
       })
 
@@ -264,7 +238,7 @@ const live: Layer.Layer<
       const isCheckpoint = input.checkpoint === true
 
       // Active/inactive tools line — short, changes per agent; lands in collapsed tail.
-      const activeToolSet = resolveTools({ ...input, agent: cacheIdentity })
+      const activeToolSet = resolveTools(input)
       const activeNames = Object.keys(activeToolSet).sort()
       const allNames = Object.keys(input.tools).sort()
       const inactiveNames = allNames.filter((n) => !activeNames.includes(n))
@@ -280,7 +254,7 @@ const live: Layer.Layer<
         reasoningPrefix,
         algorithmCard,
         kernel,
-        agentPrompt: cacheIdentity.prompt ?? "",
+        agentPrompt: input.agent.prompt ?? "",
         pathSystem: input.system,
         activeToolsLine: toolsLine,
         banner,
@@ -307,15 +281,12 @@ const live: Layer.Layer<
 
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.
-      const providerCacheKey = buildProviderCacheKey({
-        sessionID: input.sessionID,
-        providerCacheKey: input.providerCacheKey,
-        modelID: input.model.id,
-        identity: cacheIdentity.name,
-      })
+      const providerCacheKey = input.providerCacheKey
+        ? [input.providerCacheKey, input.agent.name].join(":")
+        : [input.sessionID, input.agent.name, input.model.id].join(":")
       checkSystemStability({
         sessionID: input.sessionID,
-        agent: cacheIdentity.name,
+        agent: input.agent.name,
         modelID: input.model.id,
         cacheKey: providerCacheKey,
         content: system.join(""),
@@ -336,7 +307,7 @@ const live: Layer.Layer<
       const options: Record<string, any> = pipe(
         base,
         mergeDeep(input.model.options),
-        mergeDeep(cacheIdentity.options),
+        mergeDeep(input.agent.options),
         mergeDeep(variant),
       )
 
@@ -349,7 +320,15 @@ const live: Layer.Layer<
         ? input.messages
         : input.messages
 
-      const contentTokens = estimateContentTokens(system, messages)
+      // Cached token estimate — only recompute when message count changes
+      let contentTokens: number
+      const msgCount = messages.length
+      if (_cachedTokenEstimate && _cachedTokenEstimate.count === msgCount) {
+        contentTokens = _cachedTokenEstimate.value
+      } else {
+        contentTokens = Math.ceil((JSON.stringify(messages).length + JSON.stringify(system).length) / 4)
+        _cachedTokenEstimate = { count: msgCount, value: contentTokens }
+      }
 
       const params = yield* plugin.trigger(
         "chat.params",
@@ -362,9 +341,9 @@ const live: Layer.Layer<
         },
         {
           temperature: input.model.capabilities.temperature
-            ? (cacheIdentity.temperature ?? ProviderTransform.temperature(input.model))
+            ? (input.agent.temperature ?? ProviderTransform.temperature(input.model))
             : undefined,
-          topP: cacheIdentity.topP ?? ProviderTransform.topP(input.model),
+          topP: input.agent.topP ?? ProviderTransform.topP(input.model),
           topK: ProviderTransform.topK(input.model),
           maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens),
           options,
@@ -416,7 +395,7 @@ const live: Layer.Layer<
         },
       )
 
-      const tools = resolveTools({ ...input, agent: cacheIdentity })
+      const tools = resolveTools(input)
 
       // LiteLLM and some Anthropic proxies require the tools parameter to be present
       // when message history contains tool calls, even if no tools are being used.
@@ -438,7 +417,7 @@ const live: Layer.Layer<
         Object.keys(tools).length === 0 &&
         hasToolCalls(input.messages)
       ) {
-        tools.noop = tool({
+        tools["_noop"] = tool({
           description: "Do not call this tool. It exists only for API compatibility and must never be invoked.",
           inputSchema: jsonSchema({
             type: "object",
@@ -462,8 +441,7 @@ const live: Layer.Layer<
         workflowModel.sessionID = input.sessionID
         workflowModel.systemPrompt = system.join("\n")
         workflowModel.toolExecutor = async (toolName, argsJson, _requestID) => {
-          const resolvedToolName = resolveToolName(toolName, tools)
-          const t = resolvedToolName ? tools[resolvedToolName] : undefined
+          const t = tools[toolName]
           if (!t || !t.execute) {
             return { result: "", error: `Unknown tool: ${toolName}` }
           }
@@ -489,7 +467,7 @@ const live: Layer.Layer<
 
         const ruleset = Permission.merge(input.agent.permission ?? [], input.permission ?? [])
         workflowModel.sessionPreapprovedTools = Object.keys(tools).filter((name) => {
-          const match = ruleset.findLast((rule) => Wildcard.match(SessionTools.policyName(tools, name), rule.permission))
+          const match = ruleset.findLast((rule) => Wildcard.match(name, rule.permission))
           return !match || match.action !== "ask"
         })
 
@@ -569,15 +547,15 @@ const live: Layer.Layer<
             inputLen: String(failed.toolCall.input).length,
             error: failed.error.message,
           })
-          const canonical = resolveToolName(failed.toolCall.toolName, tools)
-          if (canonical && canonical !== failed.toolCall.toolName) {
+          const lower = failed.toolCall.toolName.toLowerCase()
+          if (lower !== failed.toolCall.toolName && tools[lower]) {
             l.info("repairing tool call", {
               tool: failed.toolCall.toolName,
-              repaired: canonical,
+              repaired: lower,
             })
             return {
               ...failed.toolCall,
-              toolName: canonical,
+              toolName: lower,
             }
           }
           // Strip null bytes first — they break JSON.parse.
@@ -721,14 +699,12 @@ export const defaultLayer = Layer.suspend(() =>
   ),
 )
 
-export function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
-  const ruleset = Permission.merge(input.agent.permission, input.permission ?? [])
-  return SessionTools.preservePolicyNames(input.tools, Record.filter(
-    input.tools,
-    (_, k) =>
-      !Object.entries(input.user.tools ?? {}).some(([name, enabled]) => enabled === false && canonicalName(name) === k) &&
-      !Permission.disabled([SessionTools.policyName(input.tools, k)], ruleset).has(SessionTools.policyName(input.tools, k)),
-  ))
+function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
+  const disabled = Permission.disabled(
+    Object.keys(input.tools),
+    Permission.merge(input.agent.permission, input.permission ?? []),
+  )
+  return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
 }
 
 // Check if messages contain any tool-call content
@@ -741,33 +717,6 @@ export function hasToolCalls(messages: ModelMessage[]): boolean {
     }
   }
   return false
-}
-
-/** Approximate full request for dynamic output budgeting: symbols/4 + 10k
- * overhead (system/tools/framing). Tokenizer not used — undercounts providers.
- * Recompute every request: equal message counts ≠ equal content. */
-export function estimateContentTokens(system: string[], messages: ModelMessage[]): number {
-  let chars = system.reduce((total, content) => total + content.length, 0)
-  for (const message of messages) {
-    const content = message.content
-    if (typeof content === "string") {
-      chars += content.length
-      continue
-    }
-    if (Array.isArray(content)) {
-      for (const part of content) {
-        if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
-          chars += part.text.length
-          continue
-        }
-        if (part && typeof part === "object" && "type" in part) chars += 64
-      }
-      continue
-    }
-    chars += 32
-  }
-  if (chars <= 0) return 0
-  return Math.ceil(chars / 4) + REQUEST_OVERHEAD_TOKENS
 }
 
 export * as LLM from "./llm"

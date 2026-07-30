@@ -9,6 +9,7 @@ import { SessionStatus } from "./status"
 export interface Interface {
   readonly assertNotBusy: (sessionID: SessionID) => Effect.Effect<void>
   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
+  readonly isCancelled: (sessionID: SessionID) => Effect.Effect<boolean>
   readonly ensureRunning: (
     sessionID: SessionID,
     onInterrupt: Effect.Effect<MessageV2.WithParts>,
@@ -33,6 +34,7 @@ export const layer = Layer.effect(
       Effect.fn("SessionRunState.state")(function* () {
         const scope = yield* Scope.Scope
         const runners = new Map<SessionID, Runner.Runner<MessageV2.WithParts>>()
+        const cancelled = new Set<SessionID>()
         yield* Effect.addFinalizer(
           Effect.fnUntraced(function* () {
             yield* Effect.forEach(runners.values(), (runner) => runner.cancel, {
@@ -40,9 +42,10 @@ export const layer = Layer.effect(
               discard: true,
             })
             runners.clear()
+            cancelled.clear()
           }),
         )
-        return { runners, scope }
+        return { runners, cancelled, scope }
       }),
     )
 
@@ -76,6 +79,7 @@ export const layer = Layer.effect(
 
     const cancel = Effect.fn("SessionRunState.cancel")(function* (sessionID: SessionID) {
       const data = yield* InstanceState.get(state)
+      data.cancelled.add(sessionID)
       const existing = data.runners.get(sessionID)
       if (!existing || !existing.busy) {
         yield* status.set(sessionID, { type: "idle" })
@@ -84,11 +88,18 @@ export const layer = Layer.effect(
       yield* existing.cancel
     })
 
+    const isCancelled = Effect.fn("SessionRunState.isCancelled")(function* (sessionID: SessionID) {
+      const data = yield* InstanceState.get(state)
+      return data.cancelled.has(sessionID)
+    })
+
     const ensureRunning = Effect.fn("SessionRunState.ensureRunning")(function* (
       sessionID: SessionID,
       onInterrupt: Effect.Effect<MessageV2.WithParts>,
       work: Effect.Effect<MessageV2.WithParts>,
     ) {
+      const data = yield* InstanceState.get(state)
+      data.cancelled.delete(sessionID)
       return yield* (yield* runner(sessionID, onInterrupt)).ensureRunning(work)
     })
 
@@ -101,7 +112,7 @@ export const layer = Layer.effect(
       return yield* (yield* runner(sessionID, onInterrupt)).startShell(work, ready)
     })
 
-    return Service.of({ assertNotBusy, cancel, ensureRunning, startShell })
+    return Service.of({ assertNotBusy, cancel, isCancelled, ensureRunning, startShell })
   }),
 )
 

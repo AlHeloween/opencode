@@ -13,24 +13,8 @@ import { packToImpactFields } from "@/codegraph/sqlite-pack"
 
 const log = Log.create({ service: "snapshot-fossil" })
 
-/** Exact-handle limits: useful for summary/m*, never dump a whole clone into memory. */
-const MAX_UNIFIED_DIFF_FILES = 30
-const MAX_UNIFIED_DIFF_BYTES_PER_FILE = 16_384
-const MAX_UNIFIED_DIFF_BYTES_TOTAL = 96_000
-const BINARY_EXT =
-  /\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|7z|rar|exe|dll|so|dylib|wasm|bin|o|a|class|jar|woff2?|ttf|eot|mp[34]|webm|mov|avi|sqlite3?|db|lock)$/i
-
 function currentHash(text: string): string | undefined {
   return text.match(/^checkout:\s+([a-f0-9]+)/m)?.[1] ?? text.match(/^hash:\s+([a-f0-9]+)/m)?.[1]
-}
-
-/** Truncate unified diff text for Exact handles (keep real diff format, bound size). */
-function clipUnifiedDiff(text: string, maxBytes: number): string {
-  if (text.length <= maxBytes) return text
-  const cut = text.slice(0, maxBytes)
-  const lastNl = cut.lastIndexOf("\n")
-  const body = lastNl > 0 ? cut.slice(0, lastNl) : cut
-  return `${body}\n\n… [truncated unified diff: ${text.length} bytes total, cap ${maxBytes}]\n`
 }
 
 /** Parse structural tag value from `fossil tag list CHECKIN` output (`sym=VALUE` or `sym VALUE`). */
@@ -520,7 +504,7 @@ export const layer = Layer.effect(
           return earliest ?? hash
         })
 
-        const diffFull = Effect.fnUntraced(function* (from: string, to: string, paths?: readonly string[]) {
+        const diffFull = Effect.fnUntraced(function* (from: string, to: string) {
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* ensureInit())) return []
@@ -528,27 +512,17 @@ export const layer = Layer.effect(
               // Resolve hashes — fallback for old git hashes
               const resolvedFrom = yield* resolveHash(from)
               const resolvedTo = yield* resolveHash(to)
-              const selected = paths
-                ?.map((file) => path.relative(worktree, file).replaceAll("\\", "/"))
-                .filter((file) => file && !file.startsWith("../"))
-              const targets = selected?.length ? selected : undefined
 
               // Get numstat (insertions/deletions per file)
-              const statusResult = yield* fossil(
-                ["diff", "--from", resolvedFrom, "--to", resolvedTo, "-s", ...(targets ?? [])],
-                {
+              const statusResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "-s"], {
                 cwd: worktree,
-                },
-              )
+              })
               if (statusResult.code !== 0) return []
 
               // Get brief status (ADDED/DELETED/EDITED/CHANGED per file)
-              const briefResult = yield* fossil(
-                ["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief", ...(targets ?? [])],
-                {
+              const briefResult = yield* fossil(["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief"], {
                 cwd: worktree,
-                },
-              )
+              })
               const statusMap = new Map<string, "added" | "deleted" | "modified">()
               if (briefResult.code === 0) {
                 for (const line of briefResult.text.trim().split("\n").filter(Boolean)) {
@@ -561,7 +535,7 @@ export const layer = Layer.effect(
                 }
               }
 
-              const entries = statusResult.text
+              const files = statusResult.text
                 .trim()
                 .split("\n")
                 .filter(Boolean)
@@ -573,53 +547,19 @@ export const layer = Layer.effect(
                 .filter(Boolean)
 
               const result: FileDiff[] = []
-              let patchBudget = MAX_UNIFIED_DIFF_BYTES_TOTAL
-              let unifiedFiles = 0
-
-              for (const file of entries) {
+              for (const file of files) {
                 const rel = path.join(worktree, file).replaceAll("\\", "/")
                 const statLine = statusResult.text.split("\n").find((l) => l.includes(file)) ?? ""
                 const parts = statLine.trim().split(/\s+/)
                 const additions = parts.length >= 2 ? parseInt(parts[0]) || 0 : 0
                 const deletions = parts.length >= 3 ? parseInt(parts[1]) || 0 : 0
-                const status = statusMap.get(file) ?? "modified"
-
-                // Real unified diff (---/+++/@@), size-capped — not stats-only.
-                // Skip bulk/binary noise (clone dumps, assets): path+counts only.
-                let patch = ""
-                const wantUnified =
-                  unifiedFiles < MAX_UNIFIED_DIFF_FILES &&
-                  patchBudget > 512 &&
-                  !BINARY_EXT.test(file) &&
-                  additions + deletions < 5_000
-
-                if (wantUnified) {
-                  const perFileCap = Math.min(MAX_UNIFIED_DIFF_BYTES_PER_FILE, patchBudget)
-                  const uni = yield* fossil(
-                    ["diff", "--from", resolvedFrom, "--to", resolvedTo, "--", file],
-                    { cwd: worktree },
-                  )
-                  if (uni.code === 0 && uni.text.trim()) {
-                    patch = clipUnifiedDiff(uni.text, perFileCap)
-                    patchBudget -= patch.length
-                    unifiedFiles++
-                  }
-                }
 
                 result.push({
                   file: rel,
-                  patch,
+                  patch: "",
                   additions,
                   deletions,
-                  status,
-                })
-              }
-
-              if (entries.length > MAX_UNIFIED_DIFF_FILES) {
-                log.info("diffFull: unified patch limited to first N text files", {
-                  files: entries.length,
-                  withUnified: unifiedFiles,
-                  cap: MAX_UNIFIED_DIFF_FILES,
+                  status: statusMap.get(file) ?? "modified",
                 })
               }
 
@@ -824,8 +764,8 @@ export const layer = Layer.effect(
       diff: Effect.fn("SnapshotFossil.diff")(function* (hash: string) {
         return yield* InstanceState.useEffect(state, (s) => s.diff(hash))
       }),
-      diffFull: Effect.fn("SnapshotFossil.diffFull")(function* (from: string, to: string, files?: readonly string[]) {
-        return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to, files))
+      diffFull: Effect.fn("SnapshotFossil.diffFull")(function* (from: string, to: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to))
       }),
       impact: Effect.fn("SnapshotFossil.impact")(function* (from: string, to: string) {
         return yield* InstanceState.useEffect(state, (s) => s.impact(from, to))

@@ -99,7 +99,6 @@ interface ProcessorContext extends Input {
   firstTokenLogged: boolean
   hasWriteToolCall: boolean
   changedFiles: Set<string>
-  changedDiffs: Map<string, Snapshot.FileDiff>
   /** Cumulative context token estimate from prompt loop. */
   contentTokenEstimate?: number
   /** Epistemic floor — always resolved by create() from optional Input. */
@@ -109,15 +108,7 @@ interface ProcessorContext extends Input {
 type StreamEvent = Event
 
 /** Tools that can modify the filesystem — snapshot tracking only needed after these. */
-const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "bash", "run", "task", "pipeline"])
-
-export function writesWorkingCopy(toolName: string) {
-  return WRITE_TOOLS.has(toolName)
-}
-
-export function providesExactEvidence(toolName: string) {
-  return toolName === "sessionread"
-}
+const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch", "bash", "run", "task", "pipeline"])
 
 export function cacheRatio(tokens: { input: number; cache: { read: number; write: number } }) {
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
@@ -217,7 +208,6 @@ export const layer: Layer.Layer<
         firstTokenLogged: false,
         hasWriteToolCall: false,
         changedFiles: new Set<string>(),
-        changedDiffs: new Map<string, Snapshot.FileDiff>(),
         evidenceFloor: input.evidenceFloor ?? "Inferred",
       }
       let aborted = false
@@ -325,11 +315,8 @@ export const layer: Layer.Layer<
           },
         })
         // Track changed files for snapshot
-        const filediff = output.metadata?.filediff as Snapshot.FileDiff | undefined
-        if (filediff?.file) {
-          ctx.changedFiles.add(filediff.file)
-          ctx.changedDiffs.set(filediff.file, filediff)
-        }
+        const filediff = output.metadata?.filediff as { file?: string } | undefined
+        if (filediff?.file) ctx.changedFiles.add(filediff.file)
         yield* settleToolCall(toolCallID)
       })
 
@@ -446,9 +433,9 @@ export const layer: Layer.Layer<
 
           case "tool-call": {
             ctx.toolCallEmitted = true
-            if (writesWorkingCopy(value.toolName)) ctx.hasWriteToolCall = true
-            // Upgrade evidence floor: sessionread provides Exact ground truth.
-            if (providesExactEvidence(value.toolName)) ctx.evidenceFloor = "Exact"
+            if (WRITE_TOOLS.has(value.toolName)) ctx.hasWriteToolCall = true
+            // Upgrade evidence floor: session-read provides Exact ground truth.
+            if (value.toolName === "session-read") ctx.evidenceFloor = "Exact"
             yield* updateToolCall(value.toolCallId, (match) => ({
               ...match,
               tool: value.toolName,
@@ -569,32 +556,36 @@ export const layer: Layer.Layer<
             // track() commits the changes and returns the NEW hash, but
             // patch() needs the BEFORE hash to diff against HEAD.
             const snapshotBeforeTrack = ctx.snapshot
-            const wroteWorkingCopy = ctx.hasWriteToolCall
-            const changedFiles = [...ctx.changedFiles]
-            const changedDiffs = [...ctx.changedDiffs.values()]
-            // Structured tools supply exact paths. Opaque writers (bash/run)
-            // can supply none; preserve an empty list so Fossil does not start a
-            // whole-worktree reconciliation on the model continuation path.
-            const snapshotAfterTrack = wroteWorkingCopy
-              ? yield* snapshot.track(changedFiles)
-              : ctx.snapshot
-            // Consolidated: step-finish part + message update + session token/cost
-            yield* session.finishStep({
-              sessionID: ctx.sessionID,
-              message: ctx.assistantMessage,
-              stepFinishPart: {
-                id: PartID.ascending(),
-                reason: value.finishReason,
-                snapshot: snapshotAfterTrack,
-                messageID: ctx.assistantMessage.id,
-                sessionID: ctx.assistantMessage.sessionID,
-                type: "step-finish",
-                tokens: usage.tokens,
-                cost: usage.cost,
-              },
-              cost: usage.cost,
+            yield* session.updatePart({
+              id: PartID.ascending(),
+              reason: value.finishReason,
+              snapshot: ctx.hasWriteToolCall
+                ? yield* snapshot.track([...ctx.changedFiles])
+                : ctx.snapshot,
+              messageID: ctx.assistantMessage.id,
+              sessionID: ctx.assistantMessage.sessionID,
+              type: "step-finish",
               tokens: usage.tokens,
+              cost: usage.cost,
             })
+            yield* session.updateMessage(ctx.assistantMessage)
+            // Accumulate session-level token/cost totals
+            yield* Effect.sync(() =>
+              Database.use((db) =>
+                db
+                  .update(SessionTable)
+                  .set({
+                    cost: sql`cost + ${usage.cost}`,
+                    tokens_input: sql`tokens_input + ${usage.tokens.input + usage.tokens.cache.read}`,
+                    tokens_output: sql`tokens_output + ${usage.tokens.output}`,
+                    tokens_reasoning: sql`tokens_reasoning + ${usage.tokens.reasoning}`,
+                    tokens_cache_read: sql`tokens_cache_read + ${usage.tokens.cache.read}`,
+                    tokens_cache_write: sql`tokens_cache_write + ${usage.tokens.cache.write}`,
+                  })
+                  .where(eq(SessionTable.id, ctx.sessionID))
+                  .run(),
+              ),
+            )
             // Snapshot provider status and publish for TUI display.
             yield* Effect.gen(function* () {
               // Cost-validation snapshot (internal)
@@ -651,28 +642,17 @@ export const layer: Layer.Layer<
                   hash: patch.hash,
                   files: patch.files,
                 })
-                if (snapshotAfterTrack) {
-                  yield* summary.update({
-                    sessionID: ctx.sessionID,
-                    messageID: ctx.assistantMessage.parentID,
-                    before: snapshotBeforeTrack,
-                    after: snapshotAfterTrack,
-                    files: patch.files,
-                  })
-                }
               }
             }
-            if (!snapshotBeforeTrack || !snapshotAfterTrack) {
-              yield* summary.updateFallback({
+            ctx.snapshot = undefined
+            // Call sequentially (not forked) so the DB write from
+            // session.updatePart above is committed before summarize
+            // reads messages from the same DB connection.
+            yield* summary
+              .summarize({
                 sessionID: ctx.sessionID,
                 messageID: ctx.assistantMessage.parentID,
-                diffs: changedDiffs,
               })
-            }
-            ctx.snapshot = undefined
-            ctx.hasWriteToolCall = false
-            ctx.changedFiles.clear()
-            ctx.changedDiffs.clear()
             if (
               !ctx.assistantMessage.summary &&
               (isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model }) ||
@@ -924,11 +904,7 @@ export const layer: Layer.Layer<
 
           if (ctx.needsCompaction) return "compact"
           if (ctx.blocked || ctx.assistantMessage.error) return "stop"
-          // Default: stop after each turn. Auto-continue only after Layer-1 summary
-          // resume or compaction — the runLoop outcome handler overrides "stop" to
-          // "continue" when the assistant has non-provider-executed tool parts that
-          // need result processing.
-          return "stop"
+          return "continue"
         })
       })
 

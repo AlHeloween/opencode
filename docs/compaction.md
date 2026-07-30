@@ -32,7 +32,7 @@ After compact:
   content window:
     m* = [ s1, s2, recent m, m, m ]
          └── AI body + system Exact handles (range / session-read locus)
-             + fossil diff + CodeGraph for that range
+             + tool filediffs + CodeGraph for that range
 ```
 
 ### Cadence counter
@@ -57,10 +57,11 @@ rows are consumed **only at compact** into `m*`.
 |-------|--------|------|
 | AI body | **Inferred** | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
 | System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, checkpoint id |
-| Fossil diff | **Exact** | `from` = hash **prior** to range (or first in range if none); `to` = **last** hash **in** range (covers multi-edit windows). Else **skip**. |
-| CodeGraph | **Exact** | impact over `from`→`to` (all WC changes in that span) |
+| Tool diffs | **Exact** | write/edit/multiedit `filediff` from session DB — see `summary-exact-handles.md` |
+| CodeGraph | **Exact** | structural impact over those file paths (system, not model) |
+| Fossil | **Rollback only** | WC track/restore — **not** summary Exact |
 
-**Not:** hash on every message. **Yes:** prior baseline + last hash in summary window for one fossil/CodeGraph span.
+**Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph.
 
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
@@ -133,11 +134,11 @@ sequenceDiagram
 |---------------|------------|--------|
 | `s` not in content window | `maybeCaptureSidecar` → `project_checkpoint`; no body Message/Part | **Match** |
 | After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → `maybeCaptureSidecar` | **Match** (disk before summary) |
-| Fossil + CodeGraph on s | `enrichRange`: hash before range + hash in range → `diffFull` + `impact` | **Match**; no hash in range ⇒ empty Exact (correct) |
+| Exact tool diffs + CodeGraph on s | `enrichRange`: `collectToolFileDiffs` + `mcpTouchThenSqlitePack` (no Fossil) | **Match**; no write/edit/multiedit in range ⇒ empty Exact |
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
 | Checker after summary | `isValidSummaryBody` 4 headings; reject body if fail | **Partial** (no multi-retry on sidecar path) |
-| Exact range + fossil + CodeGraph on s | `enrichRange` + save on sidecar | **Match** |
+| Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs** |
 | Compact after enough s / open window | **`maybeCompactCadence` on stop** after sidecar + while loop continues | **Fixed 2026-07-30** |

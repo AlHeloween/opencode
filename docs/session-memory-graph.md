@@ -1,10 +1,11 @@
 # Session memory — graphs
 
 **Canonical contract + gap table:** [`compaction.md`](compaction.md)  
-**Fossil/CodeGraph on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
+**Tool diffs + CodeGraph on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
 
 - Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s,recent m]`
-- Fossil: **prior hash** + **last hash in range** (multi-edit → one CodeGraph span)
+- Exact on s: **write/edit/multiedit** tool filediffs in range + CodeGraph on those paths
+- Fossil: **rollback only** (track/restore) — not summary memory
 
 If a graph is prettier than code, **code wins** for Exact claims.
 
@@ -18,26 +19,26 @@ s (outside):        s1          s2          s3
 
 compact → m* = [ s1, s2, recent m m m ]
            each s = AI body + Exact range/sessionread
-                    + fossil(prior→last hash in range) + CodeGraph
+                    + tool filediffs + CodeGraph
            checker rejects incomplete agent fields
 ```
 
 ```text
 when: await checkpoint persist (inferences done)
   → summary via user-message shape (ephemeral)
-  → store s in DB outside content (+ Exact if hash pair)
+  → store s in DB outside content (+ Exact tool diffs/CG)
   → M same as before summary
   → compact if total visible ≥ 65K
   → continue work
 ```
 
-### Fossil on one summary window
+### Tool Exact on one summary window
 
 ```text
-before: … H0
-range:  H1 → H2 → H3   (many tool steps)
-from=H0  to=H3  → one diff + CodeGraph over all WC edits
-no hash in range → skip Exact
+range messages: write / edit / multiedit completed parts
+  → collectToolFileDiffs
+  → CodeGraph on worktree-relative paths
+  → no mutation tools in range → empty Exact (ok)
 ```
 
 ---

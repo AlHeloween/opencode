@@ -1224,15 +1224,15 @@ export const layer = Layer.effect(
                 yield* slog.debug("sidecar checkpoint rejected", { bodyLen: body.length, openTokens, threshold })
                 return false
               }
-              // Exact WC handles: hash before range + hash in range → fossil diff + CodeGraph.
-              // No hash in range ⇒ empty diffs (no tracked WC changes). Soft-fail enrich, keep body.
+              // Exact: write/edit/multiedit tool filediffs in range + CodeGraph on those paths.
+              // Fossil is rollback only — not used here. Soft-fail enrich, keep body.
               const beforeMessages =
                 start > 0 ? input.visible.slice(0, Math.max(0, start)) : []
               const enrichment = yield* summary
                 .enrichRange({ sessionID, messages: range, beforeMessages })
                 .pipe(
                   Effect.catchCause((cause) => {
-                    slog.warn("sidecar Exact enrich failed (fossil/codegraph); storing body without handles", {
+                    slog.warn("sidecar Exact enrich failed (tool diffs/codegraph); storing body without handles", {
                       error: Cause.pretty(cause),
                     })
                     return Effect.succeed({ diffs: [], impact: undefined })
@@ -1256,7 +1256,7 @@ export const layer = Layer.effect(
                 threshold,
                 fromID: range[0].info.id,
                 toID: range[range.length - 1].info.id,
-                fossilFiles: enrichment.diffs?.length ?? 0,
+                toolDiffFiles: enrichment.diffs?.length ?? 0,
                 hasCodeGraph: !!enrichment.impact,
               })
               return true
@@ -1945,7 +1945,7 @@ export const layer = Layer.effect(
                 projectID: ctx.project.id,
                 data: checkpointData,
               })
-              // Then: s outside M (ephemeral summary + Exact fossil/CodeGraph on range).
+              // Then: s outside M (ephemeral summary + Exact tool diffs/CodeGraph on range).
               yield* maybeCaptureSidecar({
                 visible: visibleAfter,
                 model,

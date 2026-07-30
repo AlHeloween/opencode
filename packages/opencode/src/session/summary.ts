@@ -1,17 +1,23 @@
 import { Cause, Effect, Layer, Context, Schema } from "effect"
 import { Bus } from "@/bus"
+import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
+import { packToImpactFields } from "@/codegraph/sqlite-pack"
+import { Instance } from "@/project/instance"
 import { Snapshot } from "@/snapshot"
 import * as SnapshotFossil from "@/snapshot/fossil"
 import { Storage } from "@/storage/storage"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
 import * as Log from "@opencode-ai/core/util/log"
+import { Config } from "@/config/config"
 import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID } from "./schema"
-import { Config } from "@/config/config"
 
 const log = Log.create({ service: "session.summary" })
+
+/** Tools that mutate WC and store filediff metadata on completed parts. */
+const MUTATION_TOOLS = new Set(["write", "edit", "multiedit"])
 
 /** Parse Layer-1 synthetic summary-range user text (`<!-- summary-range from_id="…" to_id="…" -->`). */
 export function parseSummaryRange(text: string): { fromId: string; toId: string } | undefined {
@@ -40,7 +46,48 @@ export function sliceMessagesForSummaryRange(
   })
 }
 
-/** Collect Fossil WC hashes from a message (step/patch parts). Order = walk order. */
+/**
+ * Exact WC edits for a message range: completed write / edit / multiedit tool
+ * parts already stored in session DB (input + metadata.filediff / results).
+ * Last write wins per path. No Fossil.
+ */
+export function collectToolFileDiffs(messages: MessageV2.WithParts[]): Snapshot.FileDiff[] {
+  const filediffs = new Map<string, Snapshot.FileDiff>()
+
+  const take = (fd: Snapshot.FileDiff | undefined) => {
+    if (!fd?.file) return
+    if ((fd.additions ?? 0) === 0 && (fd.deletions ?? 0) === 0 && !fd.patch?.trim()) return
+    const key = fd.file.replaceAll("\\", "/")
+    filediffs.set(key, {
+      file: fd.file,
+      patch: fd.patch ?? "",
+      additions: fd.additions ?? 0,
+      deletions: fd.deletions ?? 0,
+      status: fd.status,
+    })
+  }
+
+  for (const item of messages) {
+    for (const part of item.parts) {
+      if (part.type !== "tool") continue
+      if (!MUTATION_TOOLS.has(part.tool)) continue
+      const state = part.state
+      if (state.status !== "completed") continue
+      const meta = state.metadata as Record<string, unknown>
+      take(meta.filediff as Snapshot.FileDiff | undefined)
+      // multiedit nests per-edit filediff under results[]
+      if (Array.isArray(meta.results)) {
+        for (const row of meta.results) {
+          if (!row || typeof row !== "object") continue
+          take((row as { filediff?: Snapshot.FileDiff }).filediff)
+        }
+      }
+    }
+  }
+  return [...filediffs.values()]
+}
+
+/** @deprecated Fossil hashes are for rollback only — not summary Exact. Kept for callers that still read step/patch hashes. */
 export function snapshotHashesOnMessage(msg: MessageV2.WithParts): string[] {
   const hashes: string[] = []
   for (const part of msg.parts) {
@@ -51,34 +98,17 @@ export function snapshotHashesOnMessage(msg: MessageV2.WithParts): string[] {
   return hashes
 }
 
-/**
- * Exact Fossil endpoints for a summary range.
- *
- * Contract (not one hash per message):
- * - `from` = hash **prior** to the summary range (last hash before the window).
- *   If the range is the first segment and there is no prior, fall back to the
- *   **first** hash in the range (WC baseline at open).
- * - `to`   = **last** hash **in** the summary range (even if the range has many
- *   step/patch hashes — multi-edit windows are one fossil span for CodeGraph).
- * - No hash in range → skip Exact (no tracked WC change).
- * - Both endpoints present → `diffFull(from, to)` + CodeGraph impact over all
- *   WC changes between them.
- *
- * Summaries live outside content flow; only compact folds them into m*.
- */
+/** @deprecated Fossil endpoints are for rollback only — summary Exact uses collectToolFileDiffs. */
 export function snapshotRangeForMessages(
   rangeMessages: MessageV2.WithParts[],
   beforeMessages?: MessageV2.WithParts[],
 ): { from: string; to: string } | undefined {
-  // Any hash prior to the summary range (last wins).
   let prior: string | undefined
   if (beforeMessages?.length) {
     for (const item of beforeMessages) {
       for (const h of snapshotHashesOnMessage(item)) prior = h
     }
   }
-
-  // All hashes in range: first = optional baseline, last = end of multi-change window.
   let firstInRange: string | undefined
   let lastInRange: string | undefined
   for (const item of rangeMessages) {
@@ -87,10 +117,7 @@ export function snapshotRangeForMessages(
       lastInRange = h
     }
   }
-
   if (!lastInRange) return undefined
-
-  // Prefer hash before range; first-in-range only for the opening segment.
   const from = prior ?? firstInRange
   const to = lastInRange
   if (!from) return undefined
@@ -172,7 +199,7 @@ export interface Interface {
   readonly enrichRange: (input: {
     sessionID: SessionID
     messages: MessageV2.WithParts[]
-    /** Messages before the summary range — last Fossil hash becomes `from`. */
+    /** Unused for Exact (tool diffs only). Kept for call-site compatibility. */
     beforeMessages?: MessageV2.WithParts[]
   }) => Effect.Effect<{
     diffs: Snapshot.FileDiff[]
@@ -195,35 +222,59 @@ export const layer = Layer.effect(
       messages: MessageV2.WithParts[]
       beforeMessages?: MessageV2.WithParts[]
     }) {
-      const range = snapshotRangeForMessages(input.messages, input.beforeMessages)
-      if (range) {
-        log.info("computeDiff snapshot path", range)
-        return yield* snapshot.diffFull(range.from, range.to)
-      }
-
-      // No Fossil hash pair: no tracked WC endpoints. Optional tool filediff fallback.
-      log.info("computeDiff no fossil endpoints (no hash in range or incomplete pair)", {
-        msgCount: input.messages.length,
-        beforeCount: input.beforeMessages?.length ?? 0,
-      })
-
-      const filediffs = new Map<string, Snapshot.FileDiff>()
-      for (const item of input.messages) {
-        for (const part of item.parts) {
-          if (part.type !== "tool") continue
-          // filediff lives in part.state.metadata (tool result metadata),
-          // not part.metadata (tool call metadata — only has providerExecuted).
-          const state = (part as { state?: { status?: string; metadata?: Record<string, unknown> } }).state
-          const meta = state?.status === "completed" ? state.metadata : (part.metadata as Record<string, unknown> | undefined)
-          const fd = meta?.filediff as Snapshot.FileDiff | undefined
-          if (fd?.file && (fd.additions > 0 || fd.deletions > 0)) {
-            filediffs.set(fd.file, fd)
-          }
-        }
-      }
-      log.info("computeDiff filediff result", { count: filediffs.size })
-      return [...filediffs.values()]
+      // Summary / revert Exact: tool filediffs only. Fossil is rollback (track/restore), not memory.
+      void input.beforeMessages
+      const diffs = collectToolFileDiffs(input.messages)
+      log.info("computeDiff tool filediffs", { msgCount: input.messages.length, count: diffs.length })
+      return diffs
     })
+
+    /**
+     * CodeGraph structural impact over paths from tool edits (no Fossil hashes).
+     * SQLite index stores worktree-relative paths — absolutize → relative first.
+     */
+    const impactForToolFiles = (files: string[]) =>
+      Effect.gen(function* () {
+        if (files.length === 0) return undefined as Snapshot.ImpactSummary | undefined
+        const worktree = Instance.worktree
+        if (!hasCodegraphIndex(worktree)) {
+          log.debug("summary CodeGraph impact skipped: no .codegraph index", { worktree })
+          return undefined
+        }
+        const wt = worktree.replaceAll("\\", "/")
+        const relFiles = [
+          ...new Set(
+            files.map((f) => {
+              const n = f.replaceAll("\\", "/")
+              if (n.startsWith(wt + "/")) return n.slice(wt.length + 1)
+              if (n.startsWith(wt)) return n.slice(wt.length).replace(/^\//, "")
+              // already relative or outside worktree
+              return n.replace(/^\.\//, "")
+            }),
+          ),
+        ].filter(Boolean)
+        if (relFiles.length === 0) return undefined
+        const hybrid = yield* mcpTouchThenSqlitePack(worktree, relFiles).pipe(
+          Effect.catchCause((cause) => {
+            log.warn("summary CodeGraph impact unavailable", {
+              files: relFiles.length,
+              error: Cause.pretty(cause),
+            })
+            return Effect.succeed(undefined)
+          }),
+        )
+        if (!hybrid) return undefined
+        const fields = packToImpactFields(hybrid.pack)
+        return {
+          from: "tools",
+          to: "summary-range",
+          changedFiles: relFiles.length,
+          symbolCountByKind: fields.symbolCountByKind,
+          topSymbols: fields.topSymbols,
+          impactedFiles: fields.impactedFiles,
+          callerCount: fields.callerCount,
+        } satisfies Snapshot.ImpactSummary
+      })
 
     const update = Effect.fn("SessionSummary.update")(function* (input: {
       sessionID: SessionID
@@ -384,18 +435,16 @@ export const layer = Layer.effect(
       if (!target || target.info.role !== "user") return
 
       // Layer-1 summary-range: parent is the synthetic request; its child is the
-      // summary assistant (no file edits). Diffs must cover from_id..to_id instead.
+      // summary assistant (no file edits). Exact = tool filediffs in from_id..to_id.
       let msgDiffSource = turnMessages
-      let summaryRange: { fromId: string; toId: string } | undefined
       for (const p of target.parts) {
         if (p.type !== "text" || typeof (p as { text?: string }).text !== "string") continue
         const range = parseSummaryRange((p as { text: string }).text)
         if (!range) continue
-        summaryRange = range
         const sliced = sliceMessagesForSummaryRange(all, range.fromId, range.toId)
         if (sliced.length > 0) {
           msgDiffSource = sliced
-          log.info("summarize summary-range diffs", {
+          log.info("summarize summary-range tool diffs", {
             sessionID: input.sessionID,
             fromId: range.fromId,
             toId: range.toId,
@@ -405,22 +454,16 @@ export const layer = Layer.effect(
         break
       }
 
-      const msgDiffs = yield* computeDiff({ messages: msgDiffSource })
-      const snapshotRange = summaryRange ? snapshotRangeForMessages(msgDiffSource) : undefined
-      const impact = snapshotRange
-        ? yield* snapshot.impact(snapshotRange.from, snapshotRange.to).pipe(
-            Effect.catchCause((cause) => {
-              log.debug("summary structural impact unavailable; omitting handle", {
-                sessionID: input.sessionID,
-                from: snapshotRange.from,
-                to: snapshotRange.to,
-                error: Cause.pretty(cause),
-              })
-              return Effect.succeed(undefined)
-            }),
-          )
-        : undefined
-      target.info.summary = { ...target.info.summary, diffs: msgDiffs, ...(impact ? { impact } : {}) }
+      const rangeDiffs = collectToolFileDiffs(msgDiffSource)
+      const impact =
+        rangeDiffs.length === 0
+          ? undefined
+          : yield* impactForToolFiles(rangeDiffs.map((d) => d.file))
+      target.info.summary = {
+        ...target.info.summary,
+        diffs: rangeDiffs,
+        ...(impact ? { impact } : {}),
+      }
       yield* sessions.updateMessage(target.info)
     })
 
@@ -443,35 +486,18 @@ export const layer = Layer.effect(
       messages: MessageV2.WithParts[]
       beforeMessages?: MessageV2.WithParts[]
     }) {
-      const fossilRange = snapshotRangeForMessages(input.messages, input.beforeMessages)
-      const diffs = yield* computeDiff({
-        messages: input.messages,
-        beforeMessages: input.beforeMessages,
-      })
-      // No hash in range → no WC timeline endpoints → diffs empty is correct (not an error).
-      if (!fossilRange) {
-        log.info("enrichRange: no fossil hash pair for range", {
+      void input.beforeMessages
+      const diffs = collectToolFileDiffs(input.messages)
+      if (diffs.length === 0) {
+        log.info("enrichRange: no write/edit/multiedit filediffs in range", {
           sessionID: input.sessionID,
           rangeMessages: input.messages.length,
         })
-        return { diffs }
+        return { diffs: [] as Snapshot.FileDiff[] }
       }
-      // Hash pair exists → fossil diffs + CodeGraph impact for changed elements.
-      const impact = yield* snapshot.impact(fossilRange.from, fossilRange.to).pipe(
-        Effect.catchCause((cause) => {
-          log.warn("enrichRange: CodeGraph impact unavailable (hash pair present)", {
-            sessionID: input.sessionID,
-            from: fossilRange.from,
-            to: fossilRange.to,
-            error: Cause.pretty(cause),
-          })
-          return Effect.succeed(undefined)
-        }),
-      )
-      log.info("enrichRange: exact handles", {
+      const impact = yield* impactForToolFiles(diffs.map((d) => d.file))
+      log.info("enrichRange: tool Exact + CodeGraph", {
         sessionID: input.sessionID,
-        from: fossilRange.from,
-        to: fossilRange.to,
         files: diffs.length,
         hasImpact: !!impact,
       })

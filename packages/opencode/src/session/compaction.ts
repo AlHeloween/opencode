@@ -359,11 +359,16 @@ function buildMessageStar(input: {
     const diffLine =
       s.diffs && s.diffs.length > 0
         ? [
-            `- fossil_diff: system Exact`,
+            `- tool_diff: system Exact (write/edit/multiedit filediff from session DB)`,
             `  files=${s.diffs.length}; additions=${s.diffs.reduce((sum, diff) => sum + diff.additions, 0)}; deletions=${s.diffs.reduce((sum, diff) => sum + diff.deletions, 0)}`,
-            ...s.diffs
-              .slice(0, 20)
-              .map((diff) => `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`),
+            ...s.diffs.slice(0, 20).flatMap((diff) => {
+              const head = `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`
+              // Bounded unified snippet for agent recovery — not empty stats-only.
+              if (!diff.patch?.trim()) return [head]
+              const lines = diff.patch.trim().split("\n").slice(0, 40)
+              const more = diff.patch.split("\n").length > 40 ? "\n    …" : ""
+              return [head, "    ```diff", ...lines.map((l) => `    ${l}`), `    \`\`\`${more}`]
+            }),
             ...(s.diffs.length > 20
               ? [`  - … +${s.diffs.length - 20} more; sessionread this summary range for the full Exact list`]
               : []),

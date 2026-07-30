@@ -1,91 +1,56 @@
-# Summary Exact handles (Fossil + CodeGraph)
+# Summary Exact handles (tool diffs + CodeGraph)
 
 **Critical contract** for Layer-1 `s` rows (`project_checkpoint` / enrichRange).  
-Aligned with code: `session/summary.ts` (`snapshotRangeForMessages`, `enrichRange`).
+Code: `session/summary.ts` (`collectToolFileDiffs`, `enrichRange`).
+
+**Fossil is not used for summary Exact.** Fossil exists only for **WC snapshot rollback** (`track` / `restore` / undo). Memory Exact is tool-parts + CodeGraph.
 
 ---
 
-## Content vs summary (unchanged)
+## Content vs summary
 
 ```text
-Content flow M:  [m m m] [m m m] …     ← provider-visible, never polluted by s
-Summary store:        s1      s2       ← DB outside content (project_checkpoint)
-
-After summary request: M is the same as before the summary call.
-s is consumed only at compact → m* = [s…, recent m…]
+Content M:  [m m m] …     ← never polluted by s
+s in DB:         s1 …     ← outside content; only compact → m*
 ```
 
 ---
 
-## Fossil endpoints (not per message)
+## Exact sources (no Fossil span)
 
 ```text
-Summary range messages:  [ m_a … m_z ]     (from_id … to_id)
-Before range:            [ … messages before from_id … ]
-
-from = last Fossil hash PRIOR to the range
-       (if none: first hash IN the range — first segment baseline)
-to   = LAST Fossil hash IN the range
-       (even when the range has many step/patch hashes)
-
-if no hash in range → SKIP Exact fossil (no invent)
-if both endpoints   → diffFull(from, to) + CodeGraph impact(from, to)
+range messages (from_id..to_id)
+  → completed tool parts: write | edit | multiedit
+  → metadata.filediff (and multiedit results[].filediff)
+  → CodeGraph impact on those file paths (worktree-relative)
 ```
 
-### Why “last in range”
-
-A ~64k-token content segment may include **many** tool steps:
-
-```text
-prior: H0
-range: H1 (edit a) → H2 (edit b) → H3 (edit c)
-
-from=H0, to=H3  → one fossil span covering ALL WC changes in the summary window
-                 → CodeGraph can describe all changed elements in that span
-```
-
-Using only the first hash in range would miss later edits.
-
-### Hash sources on a message
-
-| Part type | Field |
-|-----------|--------|
-| `step-start` | `snapshot` |
-| `step-finish` | `snapshot` |
-| `patch` | `hash` (+ `files[]` for undo, not required for endpoint pick) |
-
-No requirement that every message has a hash.
+| Piece | Source |
+|-------|--------|
+| Diffs | DB tool-parts already written by the agent |
+| Impact | `mcpTouchThenSqlitePack(worktree, files)` — same paths |
+| Fossil | **Not** in this path |
 
 ---
 
-## Pipeline (stop path)
+## Pipeline (stop)
 
 ```text
-1. finishStep
-2. Checkpoint.publish + await Checkpoint.persist   ← durable M freeze first
-3. maybeCaptureSidecar
-     - open since last s ≥ summaryWindowLimit
-     - ephemeral LLM → AI body (Inferred)
-     - isValidSummaryBody checker
-     - enrichRange(range, beforeMessages):
-         fossil pair? → diffs + CodeGraph
-         else → empty Exact
-     - save project_checkpoint (body + diffs + impact)
-4. maybeCompactCadence (full visible ≥ 65K) → m*
+await Checkpoint.persist
+  → sidecar LLM body (Inferred only)
+  → enrichRange: tool filediffs + CodeGraph
+  → save s
+  → maybeCompactCadence
 ```
 
 ---
 
 ## Tests
 
-Pure unit suite (no Fossil binary):
-
 ```text
-packages/opencode/test/session/summary.test.ts
-  describe("SessionSummary.snapshotRangeForMessages (fossil Exact contract)")
+summary.test.ts — collectToolFileDiffs / range slice
+summary-exact-live.test.ts — tool metadata → enrichRange; CG on monorepo files
 ```
-
-Cases: multi-hash last wins, prior preferred, skip if no hash in range, first-segment baseline, empty range.
 
 ---
 
@@ -93,9 +58,7 @@ Cases: multi-hash last wins, prior preferred, skip if no hash in range, first-se
 
 | Claim | Mark |
 |-------|------|
-| s outside content flow | Exact (project_checkpoint) |
-| from = prior else first-in-range | Exact |
-| to = last hash in range | Exact |
-| multi-hash → full span for CodeGraph | Exact |
-| no hash in range → skip | Exact |
-| checkpoint disk before sidecar | Exact (`await persist`) |
+| s outside content | Exact |
+| tool write/edit/multiedit filediffs | Exact (session DB) |
+| CodeGraph over tool file list | Exact when index/MCP available |
+| Fossil only for rollback | Exact (not summary memory) |

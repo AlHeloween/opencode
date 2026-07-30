@@ -578,34 +578,23 @@ export const layer: Layer.Layer<
             const snapshotAfterTrack = wroteWorkingCopy
               ? yield* snapshot.track(changedFiles)
               : ctx.snapshot
-            yield* session.updatePart({
-              id: PartID.ascending(),
-              reason: value.finishReason,
-              snapshot: snapshotAfterTrack,
-              messageID: ctx.assistantMessage.id,
-              sessionID: ctx.assistantMessage.sessionID,
-              type: "step-finish",
-              tokens: usage.tokens,
+            // Consolidated: step-finish part + message update + session token/cost
+            yield* session.finishStep({
+              sessionID: ctx.sessionID,
+              message: ctx.assistantMessage,
+              stepFinishPart: {
+                id: PartID.ascending(),
+                reason: value.finishReason,
+                snapshot: snapshotAfterTrack,
+                messageID: ctx.assistantMessage.id,
+                sessionID: ctx.assistantMessage.sessionID,
+                type: "step-finish",
+                tokens: usage.tokens,
+                cost: usage.cost,
+              },
               cost: usage.cost,
+              tokens: usage.tokens,
             })
-            yield* session.updateMessage(ctx.assistantMessage)
-            // Accumulate session-level token/cost totals
-            yield* Effect.sync(() =>
-              Database.use((db) =>
-                db
-                  .update(SessionTable)
-                  .set({
-                    cost: sql`cost + ${usage.cost}`,
-                    tokens_input: sql`tokens_input + ${usage.tokens.input + usage.tokens.cache.read}`,
-                    tokens_output: sql`tokens_output + ${usage.tokens.output}`,
-                    tokens_reasoning: sql`tokens_reasoning + ${usage.tokens.reasoning}`,
-                    tokens_cache_read: sql`tokens_cache_read + ${usage.tokens.cache.read}`,
-                    tokens_cache_write: sql`tokens_cache_write + ${usage.tokens.cache.write}`,
-                  })
-                  .where(eq(SessionTable.id, ctx.sessionID))
-                  .run(),
-              ),
-            )
             // Snapshot provider status and publish for TUI display.
             yield* Effect.gen(function* () {
               // Cost-validation snapshot (internal)

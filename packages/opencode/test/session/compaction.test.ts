@@ -1755,15 +1755,15 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(10_000)
   })
 
-  test("counts only after last summary assistant", () => {
+  test("counts only after checkpoint boundary", () => {
     const msgs = [
       textMsg("u0", "user", "x".repeat(40_000)),
       textMsg("s1", "assistant", "summary", { summary: true }),
       textMsg("u1", "user", "y".repeat(8_000)),
       textMsg("a1", "assistant", "z".repeat(4_000)),
     ]
-    // Only u1+a1 after s1: 12_000 chars → 3_000 tokens
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(3_000)
+    // Sidecar boundary at s1: only u1+a1 counted — 12_000 chars → 3_000 tokens
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, msgs[1].info.id)).toBe(3_000)
   })
 
   test("message* body alone can exceed SUMMARY_INTERVAL_TOKENS", () => {
@@ -1773,12 +1773,13 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(tokens).toBeGreaterThanOrEqual(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
   })
 
-  test("returns 0 when latest message is a summary assistant", () => {
+  test("returns 0 when boundary is the last message", () => {
     const msgs = [
       textMsg("u0", "user", "x".repeat(40_000)),
       textMsg("s1", "assistant", "done", { summary: true }),
     ]
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(0)
+    // Sidecar boundary at last message: nothing after → 0 tokens
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, msgs[1].info.id)).toBe(0)
   })
 
   test("empty message list returns 0", () => {

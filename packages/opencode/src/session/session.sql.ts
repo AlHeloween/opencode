@@ -83,12 +83,18 @@ export const PartTable = sqliteTable(
       .notNull()
       .references(() => MessageTable.id, { onDelete: "cascade" }),
     session_id: text().$type<SessionID>().notNull().references(() => SessionTable.id, { onDelete: "cascade" }),
+    // Indexed columns extracted from JSON data for query pushdown
+    type: text().notNull().default("unknown"),
+    tool_name: text(),
+    status: text(),
     ...Timestamps,
     data: text({ mode: "json" }).notNull().$type<PartData>(),
   },
   (table) => [
     index("part_message_id_id_idx").on(table.message_id, table.id),
     index("part_session_idx").on(table.session_id),
+    index("part_type_idx").on(table.type),
+    index("part_tool_status_idx").on(table.tool_name, table.status),
   ],
 )
 

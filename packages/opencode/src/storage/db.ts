@@ -128,12 +128,17 @@ CREATE TABLE IF NOT EXISTS "part" (
   id text PRIMARY KEY NOT NULL,
   message_id text NOT NULL,
   session_id text NOT NULL,
+  type text NOT NULL DEFAULT 'unknown',
+  tool_name text,
+  status text,
   time_created integer NOT NULL,
   time_updated integer NOT NULL,
   data text NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "part_message_id_id_idx" ON "part" ("message_id", "id");
 CREATE INDEX IF NOT EXISTS "part_session_idx" ON "part" ("session_id");
+CREATE INDEX IF NOT EXISTS "part_type_idx" ON "part" ("type");
+CREATE INDEX IF NOT EXISTS "part_tool_status_idx" ON "part" ("tool_name", "status");
 
 CREATE TABLE IF NOT EXISTS "todo" (
   session_id text NOT NULL,

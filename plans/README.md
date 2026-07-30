@@ -48,19 +48,23 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
-- `2026-07-29-raster-viewport-renderer.md` — raster T/S/H/P done; **W** direct Windows Terminal proof before default enable
-- `2026-07-25_session_restore_checkpoint_delta.md` — checkpoint as load gate; SQL-visible only; request-diff suffix-only (kill full-history reprocess on huge restore)
-- `2026-07-27-layer1-compaction-64k.md` — resolve the remaining Layer-1 compaction verification item
-- `2026-07-27-sidecar-incremental-checkpoints.md` — finish checkpoint delta validation and recovery work
-- `2026-07-27-system-reminder-audit.md` — close the remaining system-reminder audit items
-
+- `pre-existing-stuff.md` — documented test failures not caused by our changes
 
 ## Abstract futures (not active)
 
-See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and superseded HTTP API v2 design.
+See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes, superseded HTTP API v2 design, and abandoned B6 compaction-trigger approach.
 
 ## Recently completed → `plans_completed/`
 
+- `2026-07-29-session-processor-acceleration.svm.md` — **Master SVM**: session processor bottleneck optimization (B1+B3+B5)
+- `2026-07-29-session-processor-tx-consolidation.md` — **B1**: finish-step transaction consolidation (4–6→≤3 DB TX)
+- `2026-07-29-permission-cache.md` — **B3**: permission request caching (60s TTL)
+- `2026-07-29-hybrid-part-storage.md` — **B5**: hybrid part storage with indexed columns (migration)
+- `2026-07-27-sidecar-incremental-checkpoints.md` — detached sidecar capture + `project_checkpoint` + session-diff worker; dual-path synthetic-summary removal deferred
+- `2026-07-29-raster-viewport-renderer.md` (+ `.svm.md`) — opt-in raster viewport + hybrid production graphics; default raster enable deferred
+- `2026-07-27-layer1-compaction-64k.md` — Layer-1 cadence `65_536` + provider-safe `summaryWindowLimit`
+- `2026-07-27-system-reminder-audit.md` — neutralize primary whisper language in model-family prompts
+- `2026-07-25_session_restore_checkpoint_delta.md` — SQL-visible restore, checkpoint delta load, request-diff suffix path
 - `2026-07-29-atomic-native-graphics-scene.md` — hybrid one-canvas native graphics + encode/write diagnostics + transparent-gap oracle
 - `2026-07-28-opentui-pixel-buffer-emission.md` — preserve pixel patches until native Kitty/Sixel emission
 - `2026-07-28-opentui-sixel-standalone-lab.md` — isolated Mermaid-to-ImageRenderable visual oracle for direct Windows Terminal

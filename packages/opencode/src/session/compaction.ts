@@ -202,14 +202,14 @@ export function summaryAttemptCount(msgs: MessageV2.WithParts[], requestID: Mess
  */
 export function computeOpenWindowTokens(msgs: MessageV2.WithParts[], checkpointBoundaryID?: string): number {
   let start = 0
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    if (checkpointBoundaryID && msgs[i].info.id === checkpointBoundaryID) {
-      start = i + 1
-      break
-    }
-    if (msgs[i].info.role === "assistant" && (msgs[i].info as any).summary) {
-      start = i + 1
-      break
+  // Sidecar checkpoints are the canonical Layer-1 boundary; the legacy
+  // assistant.summary flag is no longer written in the sidecar path.
+  if (checkpointBoundaryID) {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].info.id === checkpointBoundaryID) {
+        start = i + 1
+        break
+      }
     }
   }
   return Math.ceil(contentChars(msgs.slice(start)) / CHARS_PER_TOKEN)

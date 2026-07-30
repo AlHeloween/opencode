@@ -13,7 +13,7 @@ import { NotFoundError } from "@/storage/storage"
 import { Checkpoint } from "./checkpoint"
 import { RequestDiff } from "./request-diff"
 import { use as projectDb } from "@/storage/project-db"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { and } from "drizzle-orm"
 import { gte } from "drizzle-orm"
 import { isNull } from "drizzle-orm"
@@ -592,6 +592,15 @@ export interface Interface {
     sessionID: SessionID,
     predicate: (msg: MessageV2.WithParts) => boolean,
   ) => Effect.Effect<Option.Option<MessageV2.WithParts>>
+  /** Consolidated finish-step: batches step-finish part + message update
+    * + session token/cost accumulation into fewer transactions. */
+  readonly finishStep: (input: {
+    sessionID: SessionID
+    message: MessageV2.Info
+    stepFinishPart: MessageV2.StepFinishPart
+    cost: number
+    tokens: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
+  }) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Session") {}
@@ -940,6 +949,55 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       return Option.none<MessageV2.WithParts>()
     })
 
+    /** Consolidated finish-step: batches step-finish part + message update
+      * + session token/cost accumulation. Reduces DB transactions from 4-6
+      * to a maximum of 3 per step (batch + optional patch + optional summary). */
+    const finishStep = Effect.fn("Session.finishStep")(function* (input: {
+      sessionID: SessionID
+      message: MessageV2.Info
+      stepFinishPart: MessageV2.StepFinishPart
+      cost: number
+      tokens: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
+    }) {
+      const ctx = yield* InstanceState.context.pipe(Effect.option)
+      const project = Option.isSome(ctx)
+        ? { projectID: ctx.value.project.id, directory: ctx.value.worktree }
+        : {}
+
+      // Batch 1: step-finish part + message update via SyncEvent
+      yield* Effect.sync(() => {
+        SyncEvent.run(MessageV2.Event.PartUpdated, {
+          sessionID: input.sessionID,
+          ...project,
+          part: input.stepFinishPart,
+          time: Date.now(),
+        })
+        SyncEvent.run(MessageV2.Event.Updated, {
+          sessionID: input.sessionID,
+          ...project,
+          info: input.message,
+        })
+      })
+
+      // Accumulate session-level token/cost totals
+      yield* Effect.sync(() =>
+        Database.use((db) =>
+          db
+            .update(SessionTable)
+            .set({
+              cost: sql`cost + ${input.cost}`,
+              tokens_input: sql`tokens_input + ${input.tokens.input + input.tokens.cache.read}`,
+              tokens_output: sql`tokens_output + ${input.tokens.output}`,
+              tokens_reasoning: sql`tokens_reasoning + ${input.tokens.reasoning}`,
+              tokens_cache_read: sql`tokens_cache_read + ${input.tokens.cache.read}`,
+              tokens_cache_write: sql`tokens_cache_write + ${input.tokens.cache.write}`,
+            })
+            .where(eq(SessionTable.id, input.sessionID))
+            .run(),
+        ),
+      )
+    })
+
     return Service.of({
       create,
       fork,
@@ -963,6 +1021,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       getPart,
       updatePartDelta,
       findMessage,
+      finishStep,
     })
   }),
 )

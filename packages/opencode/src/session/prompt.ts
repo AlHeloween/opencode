@@ -1170,6 +1170,15 @@ export const layer = Layer.effect(
             const previous = IncrementalCheckpoint.latestOpen(sessionID)
             const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible, previous?.toMessageID)
             if (openTokens < threshold) return false
+            // Pre-flight: skip if the sidecar request itself wouldn't fit in the
+            // model context window. openTokens is a lower bound on the total
+            // request size (system prompts + converted messages + summary prose).
+            // usable() reserves 15% for output; the sidecar needs no output budget
+            // (toolChoice: none), but the input must fit.
+            if (openTokens >= usable({ cfg: yield* config.get(), model: input.model })) {
+              yield* slog.debug("sidecar checkpoint skipped: request exceeds model context", { openTokens, usable: usable({ cfg: yield* config.get(), model: input.model }) })
+              return false
+            }
             const boundary = previous?.toMessageID
             const start = boundary ? input.visible.findIndex((m) => m.info.id === boundary) + 1 : 0
             const range = input.visible.slice(Math.max(0, start))

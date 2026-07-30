@@ -393,7 +393,31 @@ const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolea
   return tree.rootNode
 })
 
+// Permission cache: shell + sorted normalized patterns → TTL.
+// Scoped to process lifetime (in-memory Map). Avoids redundant
+// ctx.ask() round-trips for repeated tool calls within the same session.
+const _permCache = new Map<string, { ts: number }>()
+const PERM_CACHE_TTL_MS = 60_000 // 1 minute
+
+function permCacheKey(shell: string, scan: Scan): string {
+  const allPatterns = new Set([
+    ...Array.from(scan.dirs).map((d) => path.join(d, "*")),
+    ...Array.from(scan.patterns),
+  ])
+  return `${shell}:${[...allPatterns].sort().join("|")}`
+}
+
+/** Clear the permission cache (called when permission rules change). */
+export function invalidatePermissionCache() {
+  _permCache.clear()
+}
+
 const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, shell: string) {
+  // Fast path: cache hit — skip full permission check
+  const cacheKey = permCacheKey(shell, scan)
+  const cached = _permCache.get(cacheKey)
+  if (cached && Date.now() - cached.ts < PERM_CACHE_TTL_MS) return
+
   if (scan.dirs.size > 0) {
     const globs = Array.from(scan.dirs).map((dir) => path.join(dir, "*"))
     yield* ctx.ask({
@@ -404,7 +428,10 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, 
     })
   }
 
-  if (scan.patterns.size === 0) return
+  if (scan.patterns.size === 0) {
+    _permCache.set(cacheKey, { ts: Date.now() })
+    return
+  }
   // bash | powershell | cmd — separate keys so /permissions can gate each shell.
   const permission = Shell.permissionKey(shell)
   yield* ctx.ask({
@@ -413,6 +440,9 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, 
     always: Array.from(scan.always),
     metadata: { shell: Shell.name(shell), permission },
   })
+
+  // Cache on success (errors propagate and are not cached)
+  _permCache.set(cacheKey, { ts: Date.now() })
 })
 
 export function normalizeCommandPaths(command: string): string {

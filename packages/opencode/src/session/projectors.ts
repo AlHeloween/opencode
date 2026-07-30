@@ -133,16 +133,34 @@ export default [
   SyncEvent.project(MessageV2.Event.PartUpdated, (db, data) => {
     const { id, messageID, sessionID, ...rest } = data.part
 
+    // Extract indexed fields from the part shape for query pushdown.
+    // Keep `type` inside `rest` (required by PartData); read it without
+    // removing from the spread so the JSON column stays complete.
+    const partType = (data.part as any).type ?? "unknown"
+    const toolName = partType === "tool" ? (rest as any).tool ?? null : null
+    const partStatus = (rest as any).state?.status ?? null
+
     try {
       db.insert(PartTable)
         .values({
           id,
           message_id: messageID,
           session_id: sessionID,
+          type: partType,
+          tool_name: toolName,
+          status: partStatus,
           time_created: data.time,
           data: rest,
         })
-        .onConflictDoUpdate({ target: PartTable.id, set: { data: rest } })
+        .onConflictDoUpdate({
+          target: PartTable.id,
+          set: {
+            data: rest,
+            type: partType,
+            tool_name: toolName,
+            status: partStatus,
+          },
+        })
         .run()
     } catch (err) {
       if (!foreign(err)) throw err

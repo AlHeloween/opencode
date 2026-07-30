@@ -169,13 +169,24 @@ describe("Session", () => {
       fn: () => create({ title: "remove-without-instance" }),
     })
 
-    await expect(async () => {
-      await remove(info.id)
-    }).not.toThrow()
+    // remove() needs Instance context to resolve the project DB.
+    // Provide the same directory context used during creation.
+    await expect(
+      Instance.provide({
+        directory: tmp.path,
+        fn: () => remove(info.id),
+      }),
+    ).resolves.toBeUndefined()
+    // ^ resolves() instead of not.toThrow() — remove() returns void,
+    // not a value, so toBeUndefined() is the correct oracle.
 
     let missing = false
-    await get(info.id).catch(() => {
-      missing = true
+    await Instance.provide({
+      directory: tmp.path,
+      fn: () =>
+        get(info.id).catch(() => {
+          missing = true
+        }),
     })
 
     expect(missing).toBe(true)

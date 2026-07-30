@@ -1,11 +1,36 @@
-# Session memory — control-flow graph (code Exact)
+# Session memory — graphs
 
-**Canonical prose:** [`compaction.md`](compaction.md)  
-If this graph is prettier than code, **code wins**.
+**Canonical contract + gap table:** [`compaction.md`](compaction.md)
+
+- **§1 Intended** — content window without `s`; summary after checkpoint; restore M; compact → `m*=[s,s,recent m]`  
+- **§3 Code Exact** — what runs today (including break-before-compact gap)
+
+If a graph is prettier than code, **code wins** for Exact claims.
 
 ---
 
-## Prompt loop (what actually happens)
+## Intended content geometry
+
+```text
+M (content):   [m m m]     [m m m]     [m m m]
+s (outside):        s1          s2          s3
+
+compact → m* = [ s1, s2, recent m m m ]
+           each s = AI body + Exact range/sessionread + fossil + codegraph
+           checker rejects incomplete agent fields
+```
+
+```text
+when: checkpoint saved (inferences done)
+  → summary via user-message shape
+  → store s in DB outside content
+  → restore M prior to summary call
+  → continue work
+```
+
+---
+
+## Prompt loop (what actually happens — Exact)
 
 ```mermaid
 flowchart TB

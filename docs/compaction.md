@@ -1,184 +1,209 @@
-# Session memory & compaction — **code-aligned** (2026-07-30)
+# Session memory & compaction
 
-**Canonical for agents.** If this disagrees with older AGENTS.md snippets or
-design essays, **this file + TypeScript win**.
+Two layers of truth:
 
-**Code:** `prompt.ts`, `compaction.ts`, `overflow.ts`, `processor.ts`,
-`incremental-checkpoint.ts`, `checkpoint.ts`  
+1. **Intended contract** (below) — the flow that was designed / “deleted” in bad docs.  
+2. **Code Exact** — what `prompt.ts` / `compaction.ts` do **today**.
+
+If they disagree, **do not paper over it**. Fix code toward the contract, or mark gap.
+
 **Graphs:** [`session-memory-graph.md`](session-memory-graph.md)
 
 ---
 
-## What actually runs (Exact)
+## 1. Intended contract (restore target)
 
-### A. Normal turn end (`processor` → `stop`)
+### Content window vs summaries
 
-```text
-finishStep (1 SQLite TX: part + message + cost)
-  → Checkpoint.publish M + async persist
-  → maybeCaptureSidecar(...)     // may no-op
-  → break prompt loop
-```
-
-**No `compact()` on this path.**  
-Layer-2 materialization is **not** “after every 65K user turn completes.”
-
-### B. Sidecar capture — `maybeCaptureSidecar` (only Layer-1 that fires in loop)
-
-Called **only** on the `stop` path above (after checkpoint).
-
-| Check | Code |
-|-------|------|
-| Assistant turn complete | `isAssistantTurnComplete` |
-| Not already capturing | `sidecarInFlight` |
-| Open window | `computeOpenWindowTokens(visible, latestOpen?.toMessageID)` ≥ `summaryWindowLimit(target=65_536)` |
-| Request fit | `estimateRequestTokens(open) < usable()` i.e. content/4 **+ 10_000** |
-| Non-empty range | slice after boundary |
-| LLM | ephemeral stream: checkpoint system+messages + `summaryRequestProse()`, `toolChoice: "none"` |
-| Accept body | `isValidSummaryBody` (4 headings) |
-| Persist | `IncrementalCheckpoint.save` → **`project_checkpoint`** |
-| Visible M | **unchanged** (no Message/Part for body) |
-
-Sidecars are **not** in the message stream. They sit in SQLite
-`project_checkpoint` until compact materializes them.
-
-### C. In-band `compact()` gate in the prompt **while** loop
-
-Located **after** the “terminal turn complete → **break**” check:
+Summaries **`s` are not in the provider content window** during normal work.
+Only real messages `m` are.
 
 ```text
-if (assistant complete && !tools && lastUser < lastAssistant && !summaryAttempt)
-  → break   // NEVER reaches compact gate
-step++
-if (needsContentCompaction(open ≥ 65_536) && …)
-  → compact() → continue
+content window (visible M, what the model sees on normal turns):
+
+  [m, m, m]     [m, m, m]     [m, m, m]
+       \             \             \
+        s1            s2            s3     ← stored OUTSIDE content
+        (not in M)    (not in M)    (not in M)
+
+After compact:
+
+  content window:
+    m* = [ s1, s2, recent m, m, m ]
+         └── AI body + system Exact handles (range / session-read locus)
+             + fossil diff + CodeGraph for that range
 ```
 
-So **in-band compact only runs when the loop does not exit** — e.g. tool-call
-continuation, incomplete turn, pending **legacy** summary attempt, etc.
-
-It does **not** mean: “every time open window hits 65K at end of a normal turn.”
-
-### D. Emergency `compact()` from processor
-
-On finish-step, if provider tokens overflow or `contentTokenEstimate ≥ usable()`:
+### Cadence counter
 
 ```text
-ctx.needsCompaction = true → process result "compact"
-  → prompt loop: compaction.compact(...) → continue
+open content size  ≈  content symbols (chars)
+threshold          ≈  256_000 chars
+tokens estimate    =  chars / 4     →  ~64_000 tokens
 ```
 
-This **does** run on hard context pressure independent of the break-before-gate issue.
+Implementation constant today: `SUMMARY_INTERVAL_TOKENS = 65_536` (≈ 262_144 chars
+at /4). Same order as **256k chars**. Cadence uses **content only** (no +10k).
+Safety/fit uses **content/4 + 10_000**.
 
-### E. `injectSummaryRequest` (legacy API)
+### What one summary `s` is
 
-| Fact | Mark |
-|------|------|
-| Still implemented in `compaction.ts` | Exact |
-| Still exported / on Service | Exact |
-| **Called from `prompt.ts` loop** | **Exact false** — zero call sites in `src/` outside compaction module |
-| Loop still *handles* pending summary user messages (`summaryAttempt`) | Exact — for old DB state / manual inject |
+| Piece | Owner | Role |
+|-------|--------|------|
+| AI body | **Inferred** | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
+| System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, `session_id` / checkpoint id |
+| Fossil diff | **Exact** | files touched in that range |
+| CodeGraph | **Exact** | structural impact for that fossil diff |
 
-Do **not** document inject-as-primary. It is dead primary path unless something
-outside the loop calls the export.
+**Post-summary checker (required):** after the model returns, validate that every
+**asked** field/section is present and non-empty. If the agent omitted a required
+section → reject / retry (do not store a half-handle).
+
+Today’s checker: `isValidSummaryBody` (four `##` headings non-empty). Extend if
+more fields are mandated.
+
+### When is summary called?
+
+```text
+1. Normal turn finishes (all tool / reasoning inference done)
+2. Save checkpoint for exact visible M     ← "all inferences done"
+3. Request summary via user-message shape (standard chat turn to the model)
+4. Store s in DB outside content window
+5. Restore messages to state prior to the summary call  ← M unchanged
+6. Continue work on M
+```
+
+Ephemeral meaning of (3)+(5): the summary request must **not** remain as a
+normal user row that poisons the next real turn. Either:
+
+- stream-only user content on a private branch (sidecar), or  
+- inject → complete → strip/restore to pre-inject M.
+
+### Compact
+
+```text
+When enough open content has been summarized (and/or open window demands fold):
+
+  compact()  — ZERO LLM tokens, pure system fold
+
+  m* = [ s, s, … , recent m, m, m ]
+```
+
+- Soft-hide prior visible rows (never hard-delete).  
+- Archive remains for `session-read` / `messagesearch`.  
+- Next growth: `(m*, m, m, …)` then new out-of-band `s` again.
 
 ---
 
-## Token formulas (Exact)
+## 2. Intended sequence diagram
 
-| Purpose | Formula | Used for |
-|---------|---------|----------|
-| Open window | `ceil(contentChars / 4)` from msgs after sidecar `toMessageID` (or full visible if none) | Sidecar threshold; in-band compact gate |
-| Sidecar schedule | `open ≥ summaryWindowLimit(65_536)` | May be **&lt; 65K** on small context (LLM headroom) |
-| Sidecar fit | `open/4 + 10_000 < usable()` | Safety |
-| In-band compact | `open ≥ 65_536` exactly (`needsContentCompaction`) | **Only if loop continues** |
-| Emergency | `isOverflow(tokens)` or request estimate ≥ `usable()` | Processor |
-| Request estimate | content/4 + **10_000** | Safety; **no** BPE/tiktoken |
+```mermaid
+sequenceDiagram
+  participant U as User / tools
+  participant M as Visible M
+  participant CK as Checkpoint
+  participant S as Summary branch
+  participant DB as project_checkpoint / s store
+  participant C as compact
 
-Cadence open-window is **content only** (no +10k).  
-Tokenizer WASM stack **removed** — undercounted vs providers.
-
----
-
-## What `compact()` does (ZERO LLM tokens)
-
-Always pure DB/system work:
-
-1. Load messages (limit 10k).  
-2. `visible = !compacted`.  
-3. If lone `message*` and not `force` → **no-op**.  
-4. Collect **open** sidecars (`listOpen`) + **legacy** `assistant.summary` after prior star.  
-5. `Recent` = visible after latest boundary (sidecar/summary id), exclude prior star.  
-6. If **no** summaries/sidecars and Recent huge → trim Recent by `threshold`.  
-7. `buildMessageStar` → text starting with `=== COMPACTED ===`.  
-8. Soft-hide **all** current visible (`compacted=true`).  
-9. Insert **one new** synthetic user message + text part (`message*`).  
-10. `materialize` open sidecar ids onto that message.  
-11. Bus `session.compacted`; remove provider checkpoint (caller).
-
-**Not** a second type `message**` — each compact creates a **new** star row;
-previous star is soft-hidden; body may chain `priorMessageStarId` + Decisions.
-
-### Visible loop (honest)
-
-```text
-# Growth
-visible: (m, m, m)
-open checkpoints: [s…]   # optional, separate table
-
-# After stop: maybe sidecar only (no compact)
-visible: (m, m, m)
-open: [s…] or still empty
-
-# When compact actually runs (emergency, or in-band if loop continues):
-soft-hide all visible
-materialize open s…
-visible: (message*)          # single synthetic user
-
-# Growth again
-visible: (message*, m, m, …)
-open: new s when maybeCaptureSidecar succeeds on later stops
-
-# Compact again
-visible: (message*)          # new star; old star soft-hidden
+  U->>M: work turns [m,m,m]
+  Note over M: s never in content window
+  M->>CK: save checkpoint (inferences done)
+  CK->>S: user-message shaped summary request
+  S->>S: model writes Inferred sections
+  S->>S: checker required fields present?
+  S->>DB: store s + Exact range/diff/graph
+  S->>M: restore prior M
+  Note over M: continue work
+  U->>M: more [m,m,m]
+  M->>CK: checkpoint again…
+  CK->>S: next s…
+  Note over DB: s1,s2 outside content
+  M->>C: fold when needed
+  C->>M: m* = [s1,s2,recent m…]
 ```
 
 ---
 
-## Model vs system (still true)
+## 3. Code Exact vs contract (gap table)
 
-| Owner | Content |
-|-------|---------|
-| Model Inferred | SV / Goal / Key decisions / Current state (sidecar body or legacy summary body) |
-| System Exact | IDs, ranges, fossil diffs, CodeGraph impact, materialize, soft-hide |
+| Contract item | Code today | Status |
+|---------------|------------|--------|
+| `s` not in content window | `maybeCaptureSidecar` → `project_checkpoint`; no body Message/Part | **Match** |
+| After checkpoint when inferences done | `stop` → `Checkpoint.publish` → `maybeCaptureSidecar` | **Match** |
+| Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
+| Store s + restore M | save checkpoint table; M never mutated | **Match** |
+| Checker after summary | `isValidSummaryBody` 4 headings; reject body if fail | **Partial** (no multi-retry on sidecar path) |
+| Exact range + fossil + CodeGraph on s | `enrichRange` + save on sidecar | **Match** |
+| Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
+| `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs** |
+| Compact after enough s / open window | In-band gate **after** loop `break` on completed turns; **stop path has no compact** | **GAP** |
+| injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
+| Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
+
+### The critical bug (control flow)
+
+```text
+// prompt.ts order today (Exact)
+if (turn complete && !summaryAttempt) break;   // ← exits here on normal stop
+// …
+if (needsContentCompaction(open ≥ 65K)) compact();  // ← often never reached
+```
+
+So the **intended** “content grows with out-of-band s, then compact into m*” is only
+reliable today via **emergency** compact (overflow/`usable`), not via clean
+65K/256k-char cadence at turn end.
+
+**Fix direction (code):** on `stop` after sidecar (or when open ≥ threshold and
+enough open `s`), call `compact()` **or** move cadence gate **before** break /
+onto the stop path — without putting `s` into M.
 
 ---
 
-## Forbidden (engineering)
+## 4. Token formulas (keep)
+
+| Use | Formula |
+|-----|---------|
+| Open-window / cadence | `chars / 4` (content only) |
+| ~256k chars threshold | ↔ ~64k tokens (`65_536` constant) |
+| Safety / request fit | `chars/4 + 10_000` |
+| compact() | **0** LLM tokens |
+
+No BPE/tiktoken authority (undercounts providers).
+
+---
+
+## 5. Forbidden
 
 | Never | Why |
 |-------|-----|
-| Claim “injectSummaryRequest every 64K” as runtime | Not called from prompt loop |
-| Claim “compact on every turn end at 65K” | Break exits before gate; stop path has no compact |
-| Gate zero-token compact on `usable()` for cadence | Emergency only |
+| Leave summary request as permanent user message in M | Poisons next turn / KV |
+| Put `s` bodies into normal content window before compact | Length bias / double-count |
+| Gate compact cadence on `usable()` | 1M models never fold |
+| Accept summary without required fields | Broken handle |
 | Model-authored IDs/diffs | Exact is system |
-| Hard-delete messages | Archive for session-read |
 
 ---
 
-## Known gaps (not papered over)
+## 6. Implementation checklist (toward contract)
 
-1. **In-band 65K compact vs break order** — completed normal turns exit without hitting `needsContentCompaction`. Cadence compact depends on loop-continue paths or emergency. Fixing that is a **code** change, not a doc claim.  
-2. **Dual path leftovers** — inject API + summaryAttempt handling + compact still folds `assistant.summary`.  
-3. **Sidecar without later compact** — open checkpoints pile up until compact runs (emergency or in-band continue).  
-4. **Docs historically mixed design (inject) with code (sidecar)** — this file is the correction.
+- [x] Checkpoint then sidecar capture on stop  
+- [x] `s` outside M (`project_checkpoint`)  
+- [x] AI sections + Exact enrich  
+- [x] Body checker (4 headings)  
+- [ ] Stronger post-summary field checker / retry on sidecar  
+- [ ] **Compact on cadence at turn boundary** (fix break/stop ordering)  
+- [ ] Remove or quarantine dead `injectSummaryRequest` primary path  
+- [ ] Docs/agents only cite this contract + gap table  
 
 ---
 
 ## Related
 
-| Doc | Role |
-|-----|------|
-| [`session-memory-graph.md`](session-memory-graph.md) | Mermaid of real control flow |
-| [`finish-step-tx-graph.md`](finish-step-tx-graph.md) | finishStep TX (orthogonal) |
-| [`architecture.md`](architecture.md) | Must match this file’s Exact claims |
+| File | Role |
+|------|------|
+| `session-memory-graph.md` | Mermaid of **current** control flow (Exact) |
+| `finish-step-tx-graph.md` | finishStep TX (orthogonal) |
+| `overflow.ts` | thresholds + +10k |
+| `incremental-checkpoint.ts` | `s` store |
+| `prompt.ts` | stop / break / sidecar / compact gates |

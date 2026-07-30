@@ -259,14 +259,11 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 - Checkpoints: `{log}/.checkpoints/` — per-model conversation state
 - Request diffs: `{log}/…_diff_…` diagnostic files; previous request kept in-process (not a separate baseline store)
 
-**Compaction integration (mechanistic continuous memory):** Canonical: **`docs/compaction.md`** (code Exact — not design fiction). Graph: **`docs/session-memory-graph.md`**.
+**Compaction / continuous memory:** Canonical **`docs/compaction.md`** (intended contract + code gap table). Graph: **`docs/session-memory-graph.md`**.
 
-- **On `stop`:** checkpoint M → `maybeCaptureSidecar` (optional) → **break**. No compact on this path.
-- **Sidecar (Layer-1 that actually runs):** open content/4 ≥ `summaryWindowLimit` **and** fit content/4+10k &lt; `usable()` → ephemeral LLM → `project_checkpoint`. Visible M unchanged.  
-- **`compact()` (zero LLM tokens):** soft-hide → `message*`. Fires via (1) processor **emergency** overflow/`usable`, or (2) in-band `needsContentCompaction(open≥65K)` **only if the prompt loop does not break first** (e.g. tool-continue). Completed normal turns **exit before** that gate — do not claim “compact every 65K at turn end.”
-- **`injectSummaryRequest`:** still implemented/exported; **not called from prompt.ts**. Loop only *handles* leftover summary-request messages. Do not document as primary Layer-1.
-- **Tokens:** open window = content/4; safety = content/4+10k; no tokenizer WASM.
-- Checkpoint removed on compact; next success re-saves.
+**Intended:** content window is only `m…`; each `s` (AI summary + Exact range/session-read/fossil/CodeGraph) lives **outside** content; after checkpoint (inferences done) request summary (user-message shape), store `s`, **restore M**, continue; counter ~**256k chars** (tokens≈chars/4 → ~64k); `compact` → `m* = [s,s,…, recent m…]` with post-summary field checker.
+
+**Code today:** sidecar on `stop` matches “outside content + restore M”; **gap:** completed turns `break` before in-band compact (cadence fold unreliable — emergency only). `injectSummaryRequest` not called from prompt loop. Tokens: content/4 cadence, +10k safety; no tokenizer WASM.
 
 **Rollback safety:** Atomic write via temp file + rename — no partial state ever touches disk.
 

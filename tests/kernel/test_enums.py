@@ -21,7 +21,6 @@ from opencode_prompts_kernel import (  # noqa: E402
     Execution,
     ExecutionContract,
     ExecutionMode,
-    InfoMarkLevel,
     Reversibility,
     Risk,
     Role,
@@ -57,13 +56,6 @@ class TestEnums:
         assert DataSensitivity.CONFIDENTIAL.value == "CONFIDENTIAL"
         assert DataSensitivity.SECRET.value == "SECRET"
         assert DataSensitivity.RESTRICTED.value == "RESTRICTED"
-
-    def test_info_mark_level(self):
-        assert InfoMarkLevel.from_accuracy(1.0) == InfoMarkLevel.EXACT
-        assert InfoMarkLevel.from_accuracy(0.8) == InfoMarkLevel.INFERRED
-        assert InfoMarkLevel.from_accuracy(0.6) == InfoMarkLevel.HYPOTHETICAL
-        assert InfoMarkLevel.from_accuracy(0.3) == InfoMarkLevel.GUESS
-        assert InfoMarkLevel.from_accuracy(0.1) == InfoMarkLevel.UNKNOWN
 
     def test_contract_state_monotonic(self):
         """Ensure state forward progression only."""

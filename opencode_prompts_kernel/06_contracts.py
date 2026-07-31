@@ -73,7 +73,7 @@ class Classification:
     risk: Risk = Risk.LOW
     reversibility: Reversibility = Reversibility.REVERSIBLE
     data_sensitivity: DataSensitivity = DataSensitivity.INTERNAL
-    information_mark: Optional[InformationMark] = None
+    information_mark: Optional[EpistemicStatus] = None
 
 
 @dataclass
@@ -179,7 +179,7 @@ class DiscoveryContract:
     change_budget: Budget = field(default_factory=Budget)
     uncertainties: list[str] = field(default_factory=list)
     verification_oracles: list[str] = field(default_factory=list)
-    information_mark: Optional[InformationMark] = None
+    information_mark: Optional[EpistemicStatus] = None
     semantic_vector: Optional[SemanticVector] = None
 
     def to_json(self, indent: int = 2) -> str:
@@ -228,7 +228,7 @@ class ExecutionContract:
     rollback: RollbackPlan = field(default_factory=RollbackPlan)
     verification: VerificationPlan = field(default_factory=VerificationPlan)
     approval: ApprovalState = field(default_factory=ApprovalState)
-    information_mark: Optional[InformationMark] = None
+    information_mark: Optional[EpistemicStatus] = None
     semantic_vector: Optional[SemanticVector] = None
     md5_msg_tag: str = ""
     md5_sv_tag: str = ""

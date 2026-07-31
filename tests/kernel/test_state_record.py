@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from opencode_prompts_kernel import (  # noqa: E402
-    InformationMark, StateRecord,
+    EpistemicStatus, StateRecord,
 )
 
 class TestStateRecord:
@@ -33,10 +33,9 @@ class TestStateRecord:
         assert parsed["contract"]["state"] == "COMPLETED"
 
     def test_with_information_mark(self):
-        im = InformationMark(exact=0.85, inferred=0.15, hypothetical=0.0, guess=0.0, unknown=0.0)
         record = StateRecord(
             goal="ownership change",
-            information_mark=im,
+            information_mark=EpistemicStatus("Exact"),
             contract_id="oc-001",
             contract_revision=1,
             contract_state="COMPLETED",
@@ -44,7 +43,7 @@ class TestStateRecord:
         )
         js = record.to_json()
         parsed = json.loads(js)
-        assert abs(parsed["information_mark"]["exact"] - 0.85) < 0.01
+        assert parsed["information_mark"] == "Exact"
         assert parsed["verification"]["primary_oracle"] == "Owner: DOMAIN\\User"
 
     def test_empty_record(self):

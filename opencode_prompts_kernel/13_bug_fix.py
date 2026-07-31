@@ -55,7 +55,7 @@ class BugFixAttempt:
     result: str = ""            # "PASS", "FAIL", "PARTIAL"
     delta_from_anchor: float = 0.0
     classification: str = ""    # "PROGRESS", "STUCK", "DIVERGING"
-    information_mark: Optional[InformationMark] = None
+    information_mark: Optional[EpistemicStatus] = None
 
 
 class BugFixSvmTracker:
@@ -131,11 +131,7 @@ class BugFixSvmTracker:
             result=result,
             delta_from_anchor=round(d, 4),
             classification=classification,
-            information_mark=InformationMark(
-                exact=0.0, inferred=0.8, hypothetical=0.2,
-                guess=0.0, unknown=0.0,
-                label=f"Inferred + Attempt {n}: {classification} (Δ={d:.3f})",
-            ),
+            information_mark=EpistemicStatus("Inferred"),
         )
         self.attempts.append(attempt)
 

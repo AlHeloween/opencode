@@ -12,11 +12,7 @@ def example_ownership_inspection() -> ExecutionContract:
         risk=Risk.LOW,
         reversibility=Reversibility.REVERSIBLE,
         data_sensitivity=DataSensitivity.INTERNAL,
-        information_mark=InformationMark(
-            exact=0.0, inferred=0.95, hypothetical=0.05,
-            guess=0.0, unknown=0.0,
-            label="Inferred + Classification derived from request text analysis",
-        ),
+        information_mark=EpistemicStatus("Inferred"),
     )
 
     resource = Resource(
@@ -59,11 +55,7 @@ def example_ownership_inspection() -> ExecutionContract:
             AllowedEffect(resource_id="folder", operation="read", maximum_objects=1)
         ],
         forbidden_effects=["chown", "chmod", "set_acl", "recursive_traversal"],
-        information_mark=InformationMark(
-            exact=1.0, inferred=0.0, hypothetical=0.0,
-            guess=0.0, unknown=0.0,
-            label="Exact + Direct contract construction",
-        ),
+        information_mark=EpistemicStatus("Exact"),
     )
 
     errors = validate_cross_field_invariants(contract)

@@ -12,7 +12,7 @@ class Signal:
     pattern: str = ""          # clustered key (e.g. "JSX-unresolved-reference")
     cardinality: int = 1       # how many times repeated
     content: str = ""
-    information_mark: Optional[InformationMark] = None
+    information_mark: Optional[EpistemicStatus] = None
 
     @property
     def effective_weight(self) -> float:

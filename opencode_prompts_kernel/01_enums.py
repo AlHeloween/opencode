@@ -39,21 +39,6 @@ class DataSensitivity(str, Enum):
     RESTRICTED = "RESTRICTED"
 
 
-class InfoMarkLevel(str, Enum):
-    """§I.2 Information Mark epistemic hierarchy (Popper's Falsifiability)."""
-    EXACT = "Exact"
-    INFERRED = "Inferred"
-    HYPOTHETICAL = "Hypothetical"
-    GUESS = "Guess"
-    UNKNOWN = "Unknown"
-
-    @classmethod
-    def from_accuracy(cls, acc: float) -> "InfoMarkLevel":
-        if acc >= 1.00: return cls.EXACT
-        elif acc >= 0.75: return cls.INFERRED
-        elif acc >= 0.50: return cls.HYPOTHETICAL
-        elif acc >= 0.25: return cls.GUESS
-        else: return cls.UNKNOWN
 
 
 class ContractState(str, Enum):

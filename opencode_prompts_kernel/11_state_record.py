@@ -8,7 +8,7 @@ class StateRecord:
     goal: str = ""
     goal_desc: str = ""
     content: str = ""
-    information_mark: InformationMark = field(default_factory=InformationMark)
+    information_mark: EpistemicStatus = field(default_factory=lambda: EpistemicStatus("Inferred"))
     contract_id: str = ""
     contract_revision: int = 0
     contract_state: str = ""
@@ -38,7 +38,7 @@ class StateRecord:
             "goal": self.goal,
             "goal_desc": self.goal_desc,
             "content": self.content,
-            "information_mark": asdict(self.information_mark),
+            "information_mark": str(self.information_mark),
             "contract": {"contract_id": self.contract_id, "revision": self.contract_revision, "state": self.contract_state},
             "verification": _omit_none_empty({
                 "primary_oracle": self.primary_oracle_result or None,

@@ -199,13 +199,15 @@ describe("system prefix digest (kernel + reasoning)", () => {
 
   test("systemPromptParts keeps full reasoning, algorithm card, and kernel separate", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
-    // Lean ADID density: reasoning is a pocket protocol, not a 11KB essay.
+    // Agentic pocket: gates + claim_ledger + research ladder (not PromptSpec essay).
     // Regression: split("\\n\\n") on the join must not truncate/mis-slot files.
     expect(parts.reasoning.length).toBeGreaterThan(1_500)
-    expect(parts.reasoning.length).toBeLessThan(8_000)
+    expect(parts.reasoning.length).toBeLessThan(28_000)
     expect(parts.reasoning).toContain("REASONING PROTOCOL")
-    expect(parts.reasoning).toContain("SVM noise filter")
+    expect(parts.reasoning).toMatch(/Noise filter|SVM noise filter/)
     expect(parts.reasoning).toContain("ALGORITHM_CARD")
+    expect(parts.reasoning).toContain("claim_ledger")
+    expect(parts.reasoning).toContain("REUSE.BEFORE")
     expect(parts.reasoning).not.toContain("PROMPT_ABI")
     expect(parts.algorithm).toContain("ALGORITHM_CARD")
     expect(parts.algorithm).toContain("run_task_geometry")
@@ -229,7 +231,7 @@ describe("system prefix digest (kernel + reasoning)", () => {
     expect(kernelBytes).toBeGreaterThan(5_000)
     expect(kernelBytes).toBeLessThan(80_000)
     expect(reasoningBytes).toBeGreaterThan(1_500)
-    expect(reasoningBytes).toBeLessThan(8_000)
+    expect(reasoningBytes).toBeLessThan(28_000)
     expect(algorithmBytes).toBeGreaterThan(500)
     expect(combined).toBeGreaterThanOrEqual(reasoningBytes + algorithmBytes + kernelBytes)
   })

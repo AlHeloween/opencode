@@ -44,6 +44,7 @@ EXCLUDED_FILES = {
     "build-switch.txt",             # Plan→build conversation-tail synthetic
     "test_agent.txt",               # Test fixture
     "generate.txt",                 # Agent generation prompt
+    "deepseek.txt",                 # Intentional no-override family stub (empty body after frontmatter)
 }
 
 # Session pocket protocols that must exist and bind to kernel / each other

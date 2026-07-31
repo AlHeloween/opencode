@@ -61,8 +61,9 @@ describe("session.system", () => {
     expect(PROMPT_PLAN).toContain("use general agent for validation")
     expect(PROMPT_PLAN).not.toContain("Plan subagent")
     expect(PROMPT_PLAN).not.toContain("Plan agent")
-    expect(PROMPT_PLAN).toContain("READ-ONLY phase")
-    expect(PROMPT_PLAN).toContain("No modifications allowed")
+    // Plan mode: planning only + plans/ writes; product paths forbidden
+    expect(PROMPT_PLAN).toMatch(/Plan mode ACTIVE|planning only|planning phase/i)
+    expect(PROMPT_PLAN).toMatch(/STRICTLY FORBIDDEN|Forbidden:|No modifications|implementation edits/i)
     expect(PROMPT_PLAN).toContain("cmd_runner session control/inspection")
     expect(PROMPT_PLAN).toContain("manage directly")
   })

@@ -1,0 +1,53 @@
+# fragment: 02_flowcharts (IMPROVED — no linear branch)
+# source: reasoning_candidate 02 + ALGORITHM_CARD
+
+### Information Mark Assignment
+
+```mermaid
+flowchart TD
+    A[Start: Evaluate Claim] --> B{Has unresolved<br>contradiction?}
+    B -->|Yes| C[UNKNOWN]
+    B -->|No| D{Has supporting<br>direct evidence<br>AND freshness > 0?}
+    D -->|Yes| E[EXACT]
+    D -->|No| F{All premises are<br>Exact AND derivation<br>is non-empty?}
+    F -->|Yes| G[INFERRED]
+    F -->|No| H{Falsifier<br>specified?}
+    H -->|Yes| I[HYPOTHETICAL]
+    H -->|No| J{Has any evidence<br>OR parametric<br>confidence > 0?}
+    J -->|Yes| K[GUESS]
+    J -->|No| C
+```
+
+### SVM Completeness Check
+
+```mermaid
+flowchart TD
+    A[Start: Check SVM] --> B{goal AND tasks<br>AND oracles<br>non-empty?}
+    B -->|No| C[INCOMPLETE<br>Add missing vectors]
+    B -->|Yes| D{safety_critical<br>= true?}
+    D -->|No| E[COMPLETE<br>Non-safety task]
+    D -->|Yes| F{certified_envelope<br>AND<br>simulation_reports<br>AND<br>responsibility_map<br>present?}
+    F -->|Yes| G[COMPLETE<br>Safety-certified]
+    F -->|No| C
+```
+
+### Task geometry (fractal_only — replaces linear trigger chart)
+
+```mermaid
+flowchart TD
+    A[Start] --> B{Trivial 1-line / rename<br>with codegraph Exact?}
+    B -->|Yes| C[Skip full card<br>still Exact-tag]
+    B -->|No| D{Complex work<br>3+ steps?}
+    D -->|No| E[Minimal plan or direct act<br>still REUSE/SMOKE if code]
+    D -->|Yes| F[Ground Exact evidence]
+    F --> G[Seed goal slices]
+    G --> H[Fractal over-generate<br>Sierpinski / Quad / L-System]
+    H --> I[Cosine filter Goal SV]
+    I --> J[k-medoids k=ceil N/2<br>seeds as centers]
+    J --> K[CENTRAL_TASKS = medoids only]
+    K --> L[todowrite + PRE_FLIGHT<br>REUSE + SMOKE]
+    L --> M[Execute one in_progress]
+    M --> N[Residual vs Goal SV]
+```
+
+---

@@ -1,0 +1,41 @@
+# fragment: 06_agi_kernel_fractal (IMPROVED — always-on geometry)
+# source: candidate §15 + kernel ALGORITHM_CARD / PLANNING fractal_only
+
+15. **AGI Reasoning Kernel** (#agi_kernel) — fractal task geometry
+
+**Key idea:** Reasoning kernel, not a soft task list generator. SVM is the evolving
+structured trace of goals, state, claims, transitions. Fractal grammar expands
+candidates; k-medoids keeps **real** medoids (no average centers). Phantom nodes stay
+`Hypothetical` until oracle / Exact evidence promotes them.
+
+Research claims about telepathy / identical clustering across models remain
+`Hypothetical` until benchmarks exist.
+
+**When:** Complex work (3+ steps) — **always** this geometry (no Mode-1 linear default).
+Trivial Exact one-liners may skip the card.
+
+**Process:**
+
+1. **GROUND** — SEARCH.ORDER / REUSE.BEFORE (codegraph, messagesearch, universalsearch…)
+2. **SEEDS** — meaning-true goal slices (Exact-aligned)
+3. **MODEL** — peaks / ΔV → Sierpinski (≥3) | Quad-Oct (2/4/8) | L-System F→F+F−F
+4. **OVER-GENERATE** — same recursive motif every level (depth ≥2 lattice, not monolith essay)
+5. **COSINE FILTER** — keep candidates aligned with Goal SV
+6. **k-MEDOIDS** — k=⌈N/2⌉, cosine; seeds ground centers → **CENTRAL_TASKS = medoids only**
+7. **todowrite** — one `in_progress`; PRE_FLIGHT smoke + prior art
+8. **EXECUTE / VERIFY** — post-impl oracles Exact
+9. **RESIDUAL** — re-cluster only residual work vs original Goal SV
+
+**Output fields:** `MODEL`, `CENTRAL_TASKS` (medoids), `NEXT_STATE_HASH` / emit_state.
+
+**Forbidden:** linear Mode-1 lists; treating candidate foam as CENTRAL_TASKS;
+re-fractaling the entire goal after every medoid.
+
+**Execution modes (human gate):**
+
+- `SEQUENTIAL_CONFIRM` (default) — propose first medoid, await OK
+- `BATCH_EXECUTE` — only on explicit human command; still medoid list, not foam
+
+**Epistemic:** frequency / cluster centrality → salience only; never auto-Exact.
+
+---

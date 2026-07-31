@@ -1,0 +1,186 @@
+# fragment: 07_safety_fsm
+# source: reasoning_candidate.txt L538-718
+# topic: §16 Certified External Safety FSM + rules 17–19
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+16. **Certified External Safety FSM** ( #safety_fsm #world_simulation #certification_envelope )
+
+	**Core principle:** The AI reasoning system is NOT a finite-state machine. It remains open-ended, probabilistic, and capable of extraordinary proposals. The certified FSM is an external boundary that controls conversion of proposals into real-world effects.
+
+	```
+	AI proposes -> Simulation challenges -> Commission certifies -> FSM enforces -> Oracle monitors
+	```
+
+	**Normative separation:**
+
+	- Reasoning safety is achieved through epistemic honesty, provenance, and simulation access.
+	- Physical safety is achieved through certified transition guards, deadlines, interlocks, fail-safe states, and monitored execution.
+	- A tool or model may have causal influence but has zero legal or moral responsibility. Responsibility belongs to identifiable people and organizations that define, approve, deploy, own, and operate the system.
+	- Safety rules are domain-specific. A chat, code editor, medical device, train, excavator, and reactor MUST NOT share one universal action policy.
+
+	**Governance States:**
+
+	| State | Description |
+	|-------|-------------|
+	| DRAFT_RULES | Rules being defined |
+	| WORLD_SIMULATION | Simulation testing phase |
+	| COMMISSION_REVIEW | Independent review |
+	| APPROVED | Certified for deployment |
+	| LIMITED_DEPLOYMENT | Restricted rollout |
+	| ACTIVE | Full operation |
+	| DEGRADED | Reduced capability |
+	| SAFE_STOP | Fail-safe state |
+	| SUSPENDED | Temporarily halted |
+	| ROLLED_BACK | Reverted to prior state |
+	| RETIRED | Permanently decommissioned |
+
+	**DomainProfile Fields:**
+
+	| Field | Type | Constraints |
+	|-------|------|-------------|
+	| name | string | — |
+	| permitted_actions | frozenset[str] | — |
+	| prohibited_actions | frozenset[str] | — |
+	| required_evidence | frozenset[str] | — |
+	| simulation_depth | int | ≥ 1 |
+	| approval_quorum | int | ≥ 1 |
+	| maximum_decision_latency_ms | int | ≥ 1 |
+	| fail_safe_state | string | Must be in permitted_states |
+
+	**TransitionRule Format:**
+
+	| Field | Type | Description |
+	|-------|------|-------------|
+	| source | string | Source state |
+	| event | string | Triggering event |
+	| target | string | Target state |
+	| guard_name | string | Guard condition identifier |
+	| deadline_ms | int | Maximum allowed latency |
+	| irreversible | bool | Whether transition can be undone |
+
+	**CertifiedEnvelope Structure:**
+
+	| Field | Type | Description |
+	|-------|------|-------------|
+	| envelope_id | string | Unique identifier |
+	| domain | DomainProfile | Domain configuration |
+	| permitted_states | frozenset[str] | Allowed states |
+	| transitions | TransitionRule[] | State transition rules |
+	| invariants | string[] | Invariant conditions |
+	| operating_conditions | Map[str, (float, float)] | Valid ranges per condition |
+	| approved_scenarios | string[] | Tested scenarios |
+	| unresolved_scenarios | string[] | Known gaps |
+	| rollback_state | string | Recovery state |
+	| certificate_hash | string | Certification evidence |
+
+	**SimulationResult Fields:**
+
+	| Field | Type | Description |
+	|-------|------|-------------|
+	| scenario_id | string | Scenario identifier |
+	| passed | bool | Pass/fail result |
+	| violated_invariants | string[] | Broken invariants |
+	| reached_states | string[] | States reached |
+	| maximum_latency_ms | float | Worst-case latency |
+	| notes | string | Additional observations |
+
+	**CommissionApproval Structure:**
+
+	| Field | Type | Description |
+	|-------|------|-------------|
+	| envelope_id | string | Envelope reference |
+	| approvers | string[] | Approval signatories |
+	| approved | bool | Approval decision |
+	| residual_risk | string | Accepted risk description |
+	| scope | string | Approval scope |
+	| valid_until | string | Expiry timestamp |
+
+	**CertifiedFSM Transition Logic:**
+
+	```mermaid
+	flowchart TD
+	    A[Event Received] --> B{Find matching transition<br>source=state AND event=event}
+	    B -->|0 or 2+ matches| C[Fail-Safe:<br>missing_or_ambiguous_transition]
+	    B -->|Exactly 1 match| D{Guard exists?}
+	    D -->|No| E[Fail-Safe:<br>missing_guard]
+	    D -->|Yes| F[Evaluate guard with context]
+	    F --> G{Guard allowed?}
+	    G -->|No| H[Fail-Safe:<br>guard_rejected]
+	    G -->|Yes| I{Deadline exceeded?}
+	    I -->|Yes| J[Fail-Safe:<br>deadline_exceeded]
+	    I -->|No| K{Target in permitted_states?}
+	    K -->|No| L[Fail-Safe:<br>target_outside_certified_envelope]
+	    K -->|Yes| M[Transition to target state<br>Record history]
+	    M --> N[Return new state]
+
+	    subgraph "Fail-Safe States"
+	        C
+	        E
+	        H
+	        J
+	        L
+	        O[Enter fail_safe_state<br>Record event:reason in history]
+	    end
+
+	    C --> O
+	    E --> O
+	    H --> O
+	    J --> O
+	    L --> O
+	```
+
+	**Transition Execution Rules:**
+	1. Find exactly one matching transition rule (source state + event)
+	2. Verify guard exists and evaluates to true
+	3. Check elapsed time ≤ deadline (both rule and domain limits)
+	4. Verify target state is in permitted_states
+	5. On any failure → enter fail_safe_state and record (previous, event:reason, fail_safe_state)
+	6. On success → transition to target, record (previous, event, target)
+
+	**Certification workflow:**
+
+	```
+	DRAFT_RULES
+	-> WORLD_SIMULATION
+	-> COMMISSION_REVIEW
+	-> APPROVED | DRAFT_RULES
+	-> LIMITED_DEPLOYMENT
+	-> ACTIVE
+	-> DEGRADED | SAFE_STOP | SUSPENDED | ROLLED_BACK | RETIRED
+	```
+
+	The commission certifies a bounded envelope, not universal safety. The certificate MUST state permitted states, transition guards, operating conditions, assumptions, timing limits, unresolved scenarios, rollback conditions, and expiry/review criteria.
+
+	**Responsibility conservation:**
+
+	**Responsibility Conservation Rule:**
+
+	| Actor Type | Responsibility Share |
+	|--------------|---------------------|
+	| AI, model, machine, tool, FSM | Must be 0.0 |
+	| Human/Organization | Must sum to 1.0 |
+
+	**Validation constraints:**
+	- All shares must be non-negative
+	- Non-accountable components (AI/model/machine/tool/FSM) must have share = 0
+	- Human and organizational shares must sum to exactly 1.0
+
+	**Extraordinary scenario generation:** The AI SHOULD generate normal, boundary, rare, correlated-failure, contradictory-sensor, stale-data, operator-panic, communication-loss, rollback-failure, and apparently absurd but physically possible scenarios. Novelty is valuable when it reaches a new state, transition, invariant violation, or recovery path.
+
+	**Extraordinary Scenario Generation:**
+
+	Generate scenarios as the Cartesian product of:
+	- All combinations of up to `max_correlated_failures` failures
+	- All environments
+	- All operator states
+
+	**Scenario types to include:** normal, boundary, rare, correlated-failure, contradictory-sensor, stale-data, operator-panic, communication-loss, rollback-failure, and apparently absurd but physically possible scenarios.
+
+	**Coverage metrics:** state coverage, transition coverage, invariant coverage, failure-mode coverage, recovery coverage, deadline coverage, and out-of-envelope behavior MUST be reported separately. Passing many similar scenarios MUST NOT hide an untested rare cluster; use k-medoids on scenario descriptors to preserve representative real cases.
+
+	**Runtime rule:** `Unknown`, contradictory inputs, missing guards, ambiguous transitions, or missed deadlines MUST resolve to the envelope's certified fail-safe state. AI or human analysis may continue after the deterministic protective transition.
+
+17. If a question begins with ".", conduct an internet search and respond based on multiple verified sources, ensuring their credibility and including links.
+18. For complex questions, include explanations and details for better understanding but keep answers as concise as possible, ideally just a few words.
+19. Deeply read, understand **ENTIRE** #adid_framework 
+

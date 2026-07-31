@@ -1,0 +1,437 @@
+# fragment: 09_roles_governance
+# source: reasoning_candidate.txt L726-1157
+# topic: §IV roles + evolution + SVM + ADID workflow + manager contract
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+### IV. Roles and Governance
+
+This framework defines a formal partnership between a Human Developer (`#human`) and an AGI Developer (`#agi`).
+
+**Human Roles:**
+
+| Role | Alias | Responsibility |
+|------|-------|----------------|
+| Strategist1 | — | High-level goals & priority sequences |
+| Analyst1 | — | Analyzes oracle output, may declare DONE |
+| Corrector1 | — | Manual code correction |
+| Executor1 | — | Reviews exact materialized transition, runs approved update mechanism |
+| Oracle1 | — | Pass/fail output provider |
+
+**Agent Roles:**
+
+| Role | Alias | Responsibility |
+|------|-------|----------------|
+| Strategist2 | — | Generates strategic candidates |
+| Translator | — | Converts goals to technical specifications |
+| Synthesizer | — | Translates goals into update mechanisms and candidate transitions |
+| Analyst2 | — | Classifies completion state |
+| Corrector2 | — | Automated correction attempts |
+| Executor2 | — | Runs manager conformance, validates transitions, executes |
+| Oracle2 | — | Runs verification, reports results |
+
+**Domain Governance Roles (Certified Real-World Systems):**
+
+| Role | Type | Responsibility |
+|------|------|----------------|
+| Rule Author | Human | Defines domain-specific safety rules |
+| Simulation Owner | Human/Org | Owns world simulation environment |
+| Independent Verifier | Human | Validates simulation results |
+| Commission Approver | Human/Org | Grants certification approval |
+| System Owner | Human/Org | Ultimate operational responsibility |
+| Operator | Human | Day-to-day system operation |
+| Incident Investigator | Human | Post-incident analysis |
+
+**Responsibility Conservation:** AI, model, FSM, and equipment have responsibility share `0.0`. All accountability resides with identifiable humans and organizations.
+
+**Analyst2 DONE Conditions:**
+
+| Condition | Description |
+|-----------|-------------|
+| oracle_passed | Oracle output passes all test cases |
+| max_attempts | Max corrective attempts (3) exhausted |
+| blocked | Blocked by immutable external dependency |
+| futile | Structurally futile or resource-inefficient |
+2. **Evolution Through Model-Authored Safe Updates:** The project state may be changed only by a Python-native update mechanism that satisfies the invariant contract and applies the exact transition approved by the reviewer.
+
+	**Evolution Rules:**
+
+	| Rule | Description |
+	|------|-------------|
+	| implementation_free | No mandated implementation style |
+	| manager_api_not_normative | Manager API is not normative |
+	| python_native_contract | Contract expressed in Python |
+	| materialize_before_approval | Exact transition before approval |
+	| approval_binds_exact_transition | Approval binds exact state |
+	| no_post_approval_interpretation | No interpretation after approval |
+	| behavioral_oracle_required | Oracle evaluates behavior |
+	| rollback_on_failed_transition | Rollback on failure |
+	| journal_required | Transaction journal required |
+
+	The invariant contract is the stable protocol. A concrete manager is a replaceable implementation produced for a model, project, and environment. Source-code similarity to another manager is irrelevant; observable conformance is decisive.
+3. **The State Vector Manifest** ( #svm ):
+
+	The SVM is the foundational stateless briefing package for one atomic objective. It enforces **Stateless Interaction**: every turn begins from a known, verifiable state.
+
+	**Six Vectors of the SVM:**
+
+	| # | Vector | Fields | Description |
+	|---|--------|--------|-------------|
+	| 1 | Goal & Scope | `goal`, `scope` | Objective and mutation boundary |
+	| 2 | Current State | `current_state`, `artifacts` | Project baseline and existing outputs |
+	| 3 | Task Definition | `tasks`, `test_cases` | Action items and verification tests |
+	| 4 | Verification Criteria | `oracles`, `acceptance_criteria` | Pass/fail criteria and acceptance rules |
+	| 5 | Epistemic State | `claim_ledger`, `evidence_requirements` | Claims with epistemic status and evidence needs |
+	| 6 | Certified Transition | `safety_critical`, `certified_envelope`, `simulation_reports`, `responsibility_map` | Real-world safety certification (mandatory only for safety-critical tasks) |
+
+	**Completeness Validation:**
+
+	An SVM is complete when:
+	1. `goal`, `tasks`, and `oracles` are all non-empty (base completeness)
+	2. If `safety_critical = true`: `certified_envelope`, `simulation_reports`, and `responsibility_map` must all be present
+
+	The sixth vector is mandatory only when the task can create real-world effects.
+
+4. **The ADID Workflow**: A Formal Cognitive Loop — encoded as a Python state machine:
+
+	**ADID Workflow State Diagram:**
+
+	```mermaid
+	flowchart TD
+	    A[Goal & SVM Prep] --> B[SVM Ingestion & Analysis]
+	    B --> C[Manager Synthesis or Selection]
+	    C --> D[Transition Materialization & Conformance]
+	    D --> E{Safety Critical?}
+	    E -->|Yes| F[Certified Action Gate<br>World Simulation & Certification]
+	    E -->|No| G[Execution]
+	    F --> G
+	    G --> H[Verification]
+	    H --> I[State Evaluation]
+	    I -->|Continue/Revise| A
+	    I -->|Suspend/Rollback| J[End]
+	    I -->|New Goal| A
+
+	    subgraph "Execution Preconditions"
+	        K[Manager Conformance: passed]
+	        L[Approved Transition Identity]
+	        M[Certified Envelope if safety-critical]
+	    end
+
+	    G -.-> K
+	    G -.-> L
+	    F -.-> M
+	```
+
+	**Workflow Rules:**
+	- Implementation style is not normative
+	- Full file regeneration allowed (only exact approved final state matters)
+	- Unintended delta forbidden
+	- Unknown structure requires inspection
+	- Information mark required
+	- Manager conformance required
+	- Salience never promotes truth
+	- Real-world effects require certified FSM
+
+	**The 8-stage loop:**
+	1. **Goal & SVM Prep** — Human defines goal → kernel generates tasks → Master SVM with tests and claim requirements.
+	2. **SVM Ingestion** — The model inspects the project and identifies the intended state transition.
+	3. **Manager Synthesis or Selection** — The model writes, selects, or adapts a Python update manager according to its own learned architecture and the current project.
+	4. **Transition Materialization & Conformance** — The manager produces exact before/after states, exposes the complete diff or equivalent representation, and passes the applicable behavioral oracle in isolation.
+	5. **Certified Action Gate (real-world effects only)** — World simulation → independent review → commission approval → certified envelope.
+	6. **Execution** — The selected manager applies only the exact approved software transition; physical effects still pass through the external FSM.
+	7. **Verification** — Oracle outputs → Analysts; any Analyst may declare DONE, request correction, or trigger rollback.
+	8. **State Evaluation** — Continue, revise, suspend, rollback, retire the manager certificate, or accept a new goal.
+
+	On full completion, **Fractal Evolution** activates: the AGI Kernel generates new candidates through fractal reasoning; the semantic dominant becomes a new master plan → new SVMs → the cycle continues.
+		 
+5. **Safe Update Manager Construction Contract** ( #script #safe_update #manager_contract #conformance_oracle )
+
+   ### 5.1 Governing Principle
+
+   ADID specifies **what must remain true**, not **how a model must implement it**.
+
+   ```text
+   Rules define the game.
+   Model weights select the strategy.
+   Materialization defines the exact proposed transition.
+   The oracle decides conformance.
+   ```
+
+   Let `C` be the invariant contract, `P` the current project state, and `M_theta` a model with trained weights `theta`:
+
+   ```text
+   I_theta = synthesize(M_theta, C, P)
+   ACCEPT(I_theta) iff Oracle(I_theta, C, P) == PASS
+   ```
+
+   Different models are expected to produce different `I_theta`. Diversity is valid when the same observable invariants hold.
+
+   The contract is the stable **genotype** of the update protocol. A concrete manager is a replaceable, model-conditioned **phenotype**.
+
+   ### 5.2 Normative and Non-Normative Elements
+
+   **Normative:**
+   - observable invariants;
+   - exact transition materialization;
+   - approval identity;
+   - conformance cases;
+   - oracle evidence;
+   - recovery behavior;
+   - transaction journal semantics.
+
+   **Non-normative:**
+   - class names;
+   - module names;
+   - CLI commands;
+   - descriptors or serialization formats;
+   - AST, CST, regex, fuzzy, byte, template, or regeneration algorithms;
+   - persistent manager versus one-task script;
+   - internal state-machine layout;
+   - backup directory layout;
+   - use of dataclasses, functions, protocols, services, or packages;
+   - coding style chosen by the model.
+
+   No reference implementation has authority over another implementation.
+
+   ### 5.3 Required Logical Responsibilities
+
+   A conformant system MUST provide the following observable responsibilities. They MAY be implemented in one script or distributed across several modules:
+
+   1. **Intent Generation** — computes a desired change using any suitable Python reasoning or transformation method.
+   2. **State Materialization** — converts the intention into exact candidate file states or exact deletions.
+   3. **Transition Validation** — checks scope, baseline, ambiguity, final content, and approval identity.
+   4. **Transaction Execution** — applies the exact validated transition without silently leaving an inconsistent partial state.
+   5. **Oracle Verification** — evaluates declared acceptance criteria on the resulting project state.
+   6. **Recovery** — restores the previous valid state when execution or verification fails.
+   7. **Evidence Recording** — records enough information to reproduce, audit, and reverse the transition.
+
+   Model-specific interpretation is permitted during Intent Generation and State Materialization. After approval, interpretation ends: execution operates on exact bytes, exact paths, exact deletions, and exact declared metadata.
+
+   ### 5.4 Mandatory Invariants
+
+   | # | Invariant | Key Requirement |
+   |---|-----------|-----------------|
+   | 5.4.1 | Project Boundary | Reject out-of-scope paths, `..` traversal, symlink escapes |
+   | 5.4.2 | Declared Scope | Declare mutable paths; out-of-scope fails pre-acceptance |
+   | 5.4.3 | Known Baseline | Record baseline identity (SHA-256 recommended); stale baseline → new transition |
+   | 5.4.4 | Exact Output | Expose exact final state: created/modified/deleted/renamed bytes + identities |
+   | 5.4.5 | Approval Binding | Approval identifies complete transition; changes invalidate |
+   | 5.4.6 | No Hidden Mutation | No post-approval metadata/formatting/encoding changes |
+   | 5.4.7 | Final Validation | Checks evaluate final candidate, not fragments; absence = `Unknown` |
+   | 5.4.8 | Transaction States | Distinguish: DRAFT → MATERIALIZED → VALIDATED → APPROVED → STAGED → COMMITTED → VERIFIED (or ROLLED_BACK / RECOVERY_REQUIRED) |
+   | 5.4.9 | Recovery Preservation | Recovery evidence before mutation; rollback protects later unrelated changes |
+   | 5.4.10 | Verification First | Accepted only after all oracles pass |
+   | 5.4.11 | Complete Journal | Record: implementation ID, evidence status, transaction ID, paths, identities, method, ambiguity, approval, execution, oracle, rollback, final state |
+   | 5.4.12 | Idempotence Proof | Applied only when proven at intended location, not just "found somewhere" |
+   | 5.4.13 | Visible Ambiguity | Ambiguous candidates retain Information Mark; only exact state approved |
+   | 5.4.14 | Concurrency Safety | Detect/prevent conflicts; define interruption recovery |
+   | 5.4.15 | No Unreviewed Coercion | No silent repair/reinterpretation; corrections = new transition |
+
+   ### 5.5 Implementation Freedom
+
+   A conformant manager MAY use any Python architecture suitable for the project, including:
+
+   - exact text or byte replacement;
+   - AST or concrete-syntax-tree transformations;
+   - regular expressions;
+   - fuzzy or semantic search for candidate discovery;
+   - full-file regeneration;
+   - directory snapshots;
+   - content-addressed storage;
+   - project-native version control;
+   - generated one-task code;
+   - a reusable package or service;
+   - optional Python packages or project tools.
+
+   Full-file regeneration is not forbidden. Minimal textual change is not a universal safety property. The actual requirement is: **no unintended delta outside the exact approved state**.
+
+   The ADID framework and its conformance specification require no mandatory external toolchain. An implementation MAY use optional dependencies when they are declared, reproducible, and included in the conformance evidence.
+
+   ### 5.6 Fuzzy and Model-Specific Reasoning
+
+   Fuzzy matching, semantic retrieval, model intuition, heuristics, and approximate structural search MAY discover a candidate.
+
+   They MUST NOT directly authorize mutation.
+
+   Before approval, every approximate result MUST be converted into exact data containing:
+
+   - exact target path;
+   - exact baseline identity;
+   - exact final bytes or deletion state;
+   - exact match range or structural target when relevant;
+   - matching strategy;
+   - ambiguity count;
+   - evidence status;
+   - before and after identities.
+
+   This creates a clean boundary:
+
+   ```text
+   creative / probabilistic discovery
+               ↓
+   exact materialized candidate
+               ↓
+   deterministic approval and execution
+   ```
+
+   ### 5.7 Behavioral Conformance Oracle
+
+   The oracle evaluates behavior, not source-code resemblance.
+
+   It MUST NOT require a specific class, API, module, manager filename, descriptor, algorithm, backup layout, or coding style.
+
+   The minimum Python-native conformance corpus is:
+
+   **Minimum Conformance Corpus:**
+
+   | # | Case ID | Description |
+   |---|---------|-------------|
+   | 1 | create_new_text_file_exact_bytes | Create text file with exact bytes |
+   | 2 | create_new_binary_file_exact_bytes | Create binary file with exact bytes |
+   | 3 | modify_existing_file_exact_result | Modify file to exact result |
+   | 4 | full_file_regeneration_exact_result | Regenerate entire file exactly |
+   | 5 | delete_and_restore_file | Delete and restore from backup |
+   | 6 | reject_path_outside_declared_root | Block paths outside project root |
+   | 7 | reject_parent_traversal | Block `..` traversal escapes |
+   | 8 | reject_symlink_scope_escape | Block symlink escapes |
+   | 9 | reject_stale_baseline | Reject if baseline changed |
+   | 10 | invalidate_approval_after_candidate_change | Approval invalid if candidate changes |
+   | 11 | reject_hidden_post_approval_mutation | Block hidden mutations after approval |
+   | 12 | detect_ambiguous_candidate_location | Detect ambiguous patch targets |
+   | 13 | rollback_after_verifier_failure | Rollback on verification failure |
+   | 14 | rollback_after_partial_multi_file_failure | Rollback on partial multi-file failure |
+   | 15 | recover_or_report_exact_state_after_interruption | Recovery or exact state report after interruption |
+   | 16 | prevent_conflicting_concurrent_transition | Prevent concurrent conflicts |
+   | 17 | preserve_exact_approved_output_bytes | Preserve exact approved bytes |
+   | 18 | refuse_unsafe_rollback_over_later_changes | Refuse unsafe rollback over later changes |
+   | 19 | journal_complete_transition_evidence | Record complete transition evidence |
+   | 20 | prove_idempotence_at_intended_location | Prove idempotence at exact location |
+   | 21 | verify_no_unapproved_path_changed | Verify no unapproved path changed |
+
+   Projects MAY extend the corpus with stricter domain cases. They MUST NOT remove a relevant core case merely because the chosen implementation makes that case inconvenient.
+
+   **Conformance Record Fields (illustrative):**
+
+   | Field | Type | Description |
+   |-------|------|-------------|
+   | implementation_sha256 | string | Manager implementation hash |
+   | project_profile_sha256 | string | Project state hash |
+   | environment | (str, str)[] | Environment variables |
+   | passed_cases | string[] | Passed test case IDs |
+   | failed_cases | string[] | Failed test case IDs |
+   | oracle_output_sha256 | string | Oracle output hash |
+
+   **Pass condition:** `passed = bool(passed_cases) AND NOT failed_cases`
+
+   This record format is illustrative for evidence exchange; it is not a mandatory manager API.
+
+   ### 5.8 Information Mark for Manager Implementations
+
+   Manager confidence is scoped and evidence-driven:
+
+   ```text
+   Unknown      → no implementation evidence
+   Guess        → idea or untested generated manager
+   Hypothetical → design reviewed; failure mechanisms identified
+   Inferred     → behavioral conformance corpus passed in an isolated environment
+   Exact        → exact reproducible run evidence for the declared project state and environment
+   ```
+
+   `Exact` never means universally safe across all projects, filesystems, operating systems, or interruption modes. It refers only to the declared evidence scope.
+
+   Frequency of use, popularity, model confidence, or similarity to a known manager updates Salience only. It does not promote Evidence.
+
+   ### 5.9 Cross-Model Diversity
+
+   Independent implementations from different models are encouraged.
+
+   GPT, Gemini, Grok, DeepSeek, local models, and humans may naturally choose different patching strategies because their trained weights encode different solution priors. The framework MUST preserve this cognitive diversity rather than forcing every model into one inherited implementation cell.
+
+   Differential evaluation SHOULD compare independently generated managers against the same oracle. A failure found by one implementation becomes a new scenario for the shared conformance corpus. Use k-medoids over failure descriptors to retain representative rare failure classes rather than averaging them away.
+
+   ### 5.10 Reference Implementations
+
+   A manager shipped with a project is a **reference implementation**, never the normative definition of safe update.
+
+   It MAY be replaced when the replacement:
+
+   - satisfies this construction contract;
+   - passes the same or stricter conformance oracle;
+   - preserves or explicitly migrates evidence journals;
+   - does not weaken project-specific invariants.
+
+   Reference code MAY demonstrate one solution, but the framework MUST NOT make its architecture mandatory.
+
+   ### 5.11 Governing Rule
+
+   ```text
+   The framework defines the rules of the game.
+   The model decides how to play.
+   The approved transition is not allowed to change.
+   The oracle decides whether the play was valid.
+   ```
+
+6. Project Structure:
+
+   ADID does not mandate a manager filename or package layout. The following is an illustrative, non-normative arrangement:
+
+   ```text
+   root/
+     _ADID_Framework_vNN.N.md
+     reasoning_kernel.py
+     update/
+       manager_<model-or-project>.py      # optional persistent implementation
+       update_<goal-or-transaction>.py    # optional one-task implementation/artifact
+       conformance/
+         test_manager_contract.py
+     APPName/
+       src/
+       tests/
+     .adid/
+       manager_certificates/
+       transactions/
+   ```
+
+   A model MAY choose another structure. Conformance depends on behavior and evidence, not path names.
+
+7. **Absolute Development Rules** — encoded as Python:
+
+	```python
+	from reasoning_kernel import BugFixProtocol, InformationMark, InvariantError
+	
+	# Rule 1: Verify external library source before use
+	DEVELOPMENT_RULES = {
+	    "verify_external_libs": True,    # Check library source code before using
+	    "tests_required": True,          # Every code change needs a test
+	    "test_fail_is_bug": True,        # Test failure = bug
+	}
+	
+	# Rule 2-4: Bug fix protocol (formal 4-step chain from reasoning_kernel.py)
+	# Use BugFixProtocol class:
+	#
+	# protocol = BugFixProtocol("bug description")
+	# protocol.create_error_test(error_test_fn)   # Step 1: reproduce
+	# protocol.create_trial_fix(trial_fix_fn)      # Step 2: trial fix
+	# protocol.create_real_fix(real_fix_fn)        # Step 3: real fix
+	# protocol.verify(full_test_suite_fn)          # Step 4: verify
+	#
+	# See reasoning_kernel.py for canonical implementation
+	```
+8. **Continuous Improvement Opportunities for Safe Update Governance:**
+        - Expand the shared conformance corpus from real failures discovered by independently generated managers.
+        - Run cross-model differential tests against the same temporary project fixtures.
+        - Cluster failure scenarios with k-medoids so rare structural defects remain represented.
+        - Add project/environment profiles without prescribing manager internals.
+        - Add deterministic replay from journals into clean project copies and compare exact resulting identities.
+        - Track which invariant caught each failed transition; rejected updates should be explainable, not merely blocked.
+9. **DEEPLY** understand the Safe Update Manager Construction Contract, the project tree, the current baseline, and the project-specific verification roots before authoring or selecting an update mechanism. The model is free to design the implementation, but it MUST pass the behavioral oracle before receiving mutation authority.
+
+### Implementation Notes (v5.3 — model-authored manager + invariant oracle)
+- **No canonical runtime:** ADID contains no normative `SafeUpdateSession`, manager class, CLI, filename, descriptor, or serialization format.
+- **Python-native specification:** the construction contract and minimum conformance corpus are expressible and executable in Python without a mandatory external toolchain.
+- **Optional dependencies:** model-authored managers may use declared Python packages or project tools when their versions and effects are included in the evidence scope.
+- **Behavior over architecture:** conformance tests observable state transitions, failure handling, and journals; it does not inspect preferred coding patterns.
+- **Exact boundary:** probabilistic reasoning ends at materialization. Approval and execution operate only on the exact candidate state.
+- **Implementation diversity:** independently generated managers are expected to differ; identical internal design is neither required nor desirable.
+- **Reference status:** any included manager is an example and may be replaced by another conformant implementation.
+- **Information Mark:** manager trust is promoted by test and run evidence, never by frequency, popularity, fluency, or the model's own confidence.
+

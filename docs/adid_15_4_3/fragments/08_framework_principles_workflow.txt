@@ -1,0 +1,12 @@
+# fragment: 08_framework_principles_workflow
+# source: reasoning_candidate.txt L719-725
+# topic: §II ADID principles header (short bridge)
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+### II. ADID Framework Principles #adid_framework (**CODING**)
+This document defines a formal, universal framework for project development and collaboration, specifically engineered for precision and stability in human-AGI ( #agi) partnerships. ADID replaces ambiguous, stateful interactions with a protocol of discrete, verifiable state transitions. The framework is organized around three core artifacts: In-File #semantic_vector Metadata, a model-authored **Python Update Mechanism and Update Artifact** (#script), and the **State Vector Manifest** ( #master_svm, #svm).
+
+ADID does not provide one canonical update manager. It specifies the rules of the game: observable invariants, exact transition materialization, approval binding, recovery requirements, and a behavioral conformance oracle. How the game is played is selected by the model according to its trained weights, project context, available evidence, and declared environment.
+
+  **Invocation:** There is no canonical command, manager filename, class, descriptor, CLI, or transport format. A model may generate a persistent manager, adapt an existing project-local manager, or embed a one-task manager inside an update script. Before touching the real project, the selected implementation MUST materialize the exact transition and pass the applicable conformance oracle in an isolated test environment.
+

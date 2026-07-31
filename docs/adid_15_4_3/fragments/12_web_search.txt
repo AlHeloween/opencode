@@ -1,0 +1,27 @@
+# fragment: 12_web_search
+# source: reasoning_candidate.txt L1216-1237
+# topic: §VI web search specs
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+## VI.  Web Search Specs — encoded as Python
+
+**Web Search Protocol (§VI):**
+
+| Rule | Description |
+|------|-------------|
+| Prefer Official | Docs > GitHub > examples |
+| Query Format | `[library] [API/class] [version] [feature]` |
+| Verify Third-Party | Cross-check with official sources |
+| Mark Unverified | Tag unverifiable info explicitly |
+| Check Commit Dates | GitHub code recency matters |
+| Prefer Global Docs | .com/global over localizations |
+| Disclose Ambiguity | Report conflicting/unclear results |
+
+**Trust Decision:**
+- Official sources → Always trust
+- Third-party → Trust if recent commits (heuristic)
+
+**See also:** Operational checklist and verification roots: `AGENTS.md`. Safe-update authority is defined by the Construction Contract and the project conformance evidence; any concrete manager remains non-normative.
+
+---
+

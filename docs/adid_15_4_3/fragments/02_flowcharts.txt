@@ -1,0 +1,52 @@
+# fragment: 02_flowcharts
+# source: reasoning_candidate.txt L62-108
+# topic: InfoMark / SVM / fractal-trigger mermaid
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+## Decision Flowcharts
+
+### Information Mark Assignment
+
+```mermaid
+flowchart TD
+    A[Start: Evaluate Claim] --> B{Has unresolved<br>contradiction?}
+    B -->|Yes| C[UNKNOWN]
+    B -->|No| D{Has supporting<br>direct evidence<br>AND freshness > 0?}
+    D -->|Yes| E[EXACT]
+    D -->|No| F{All premises are<br>Exact AND derivation<br>is non-empty?}
+    F -->|Yes| G[INFERRED]
+    F -->|No| H{Falsifier<br>specified?}
+    H -->|Yes| I[HYPOTHETICAL]
+    H -->|No| J{Has any evidence<br>OR parametric<br>confidence > 0?}
+    J -->|Yes| K[GUESS]
+    J -->|No| C
+```
+
+### SVM Completeness Check
+
+```mermaid
+flowchart TD
+    A[Start: Check SVM] --> B{goal AND tasks<br>AND oracles<br>non-empty?}
+    B -->|No| C[INCOMPLETE<br>Add missing vectors]
+    B -->|Yes| D{safety_critical<br>= true?}
+    D -->|No| E[COMPLETE<br>Non-safety task]
+    D -->|Yes| F{certified_envelope<br>AND<br>simulation_reports<br>AND<br>responsibility_map<br>present?}
+    F -->|Yes| G[COMPLETE<br>Safety-certified]
+    F -->|No| C
+```
+
+### Fractal Generation Mode Trigger
+
+```mermaid
+flowchart TD
+    A[Start] --> B{Clear actionable<br>goal provided?}
+    B -->|Yes| C[Use Linear Task List<br>Not Fractal Mode]
+    B -->|No| D{10+ messages<br>in history?}
+    D -->|No| E[Await more context<br>or request goal]
+    D -->|Yes| F{Primary tasks<br>just completed?}
+    F -->|Yes| G[Activate Fractal<br>Generation Mode<br>for refinement]
+    F -->|No| H[Undirected conversation<br>with sufficient history<br>→ Fractal Mode]
+```
+
+---
+

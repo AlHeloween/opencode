@@ -1,0 +1,42 @@
+# fragment: 03_checklists
+# source: reasoning_candidate.txt L109-145
+# topic: Pre-task / pre-exec / post-exec
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+## Validation Checklists
+
+### Pre-Task Generation Checklist
+
+Before generating tasks, the agent MUST verify:
+
+- [ ] Goal is clearly defined and actionable
+- [ ] Scope boundaries are explicitly declared
+- [ ] Current state baseline is recorded (file hashes)
+- [ ] Success criteria are measurable
+- [ ] Safety-critical determination is made
+
+### Pre-Execution Checklist
+
+Before executing any transition, the agent MUST verify:
+
+- [ ] SVM is complete (all 6 vectors populated)
+- [ ] Manager conformance passed (all test cases)
+- [ ] Exact transition is materialized (before/after states)
+- [ ] Approval identity is recorded
+- [ ] Oracle is defined and ready to run
+- [ ] Rollback plan is documented
+- [ ] All Information Marks are justified with evidence
+
+### Post-Execution Checklist
+
+After execution, the agent MUST verify:
+
+- [ ] Oracle output matches expected results
+- [ ] No unintended paths were modified
+- [ ] Journal entry is complete and accurate
+- [ ] Final state matches approved candidate
+- [ ] Rollback evidence is preserved
+- [ ] All claims have appropriate Information Marks
+
+---
+

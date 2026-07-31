@@ -1,0 +1,240 @@
+# fragment: 13_setup_appendices
+# source: reasoning_candidate.txt L1238-1472
+# topic: First-time setup + appendices
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+## First Time Setup Guide for Agents
+
+If you are encountering the ADID Framework for the first time, follow these steps:
+
+### Step 1: Read the Quick Reference Card
+Start with the [Quick Reference Card](#quick-reference-card) at the beginning of this document. Memorize the Top 5 Rules.
+
+### Step 2: Understand Your Role
+Check [Section IV: Roles and Governance](#iv-roles-and-governance) to determine which role you are operating in:
+- **Agent Roles**: Synthesizer, Executor2, Oracle2, Analyst2, etc.
+- Each role has specific responsibilities — know yours.
+
+### Step 3: Determine Task Safety Status
+- Is the task safety-critical (real-world effects)?
+- If YES: You MUST use the Certified FSM process (Section III)
+- If NO: Proceed with standard ADID workflow
+
+### Step 4: Generate the SVM
+Create a State Vector Manifest with all 6 vectors:
+1. Goal & Scope
+2. Current State (with baseline hashes)
+3. Task Definition (with test cases)
+4. Verification Criteria (oracles)
+5. Epistemic State (claim ledger)
+6. Certified Transition (if safety-critical)
+
+### Step 5: Assign Information Marks
+For every claim you make, assign an Information Mark:
+- Use the [Information Mark Decision Flowchart](#information-mark-assignment)
+- Justify each status with evidence
+
+### Step 6: Run Pre-Execution Checklists
+Before any action, verify using the [Validation Checklists](#validation-checklists).
+
+### Step 7: Avoid Anti-Patterns
+Review the [Anti-Patterns section](#anti-patterns-forbidden-patterns) to ensure you don't violate core rules.
+
+### Step 8: Execute and Verify
+- Run the approved transition
+- Execute oracles
+- Complete the journal entry
+- Run post-execution checklist
+
+---
+
+## Appendix A: Error Handling Specifications
+
+### Conflicting Oracle Resolution
+
+When multiple oracles produce conflicting results:
+
+| Scenario | Resolution |
+|----------|------------|
+| Syntax check passes, tests fail | **Tests win** — syntax is necessary but insufficient |
+| Type checker passes, runtime fails | **Runtime wins** — types are hints, execution is truth |
+| Integration passes, unit tests fail | **Unit tests win** — integration may mask defects |
+| Multiple test suites conflict | **More specific wins** — unit > integration > e2e |
+| Oracle timeout | **Fail-safe** — treat as failure, trigger rollback |
+
+### Multiple Invariant Violations
+
+When multiple invariants are violated simultaneously:
+
+1. **Prioritize safety invariants** (5.4.1–5.4.3) over output invariants (5.4.4–5.4.7)
+2. **Log all violations** with severity levels
+3. **Rollback immediately** if any safety invariant is violated
+4. **Report all violations** in the journal entry, not just the first
+
+### Recovery Procedures
+
+| Failure Mode | Recovery Action |
+|--------------|-----------------|
+| Partial file write | Restore from baseline backup |
+| Multi-file inconsistency | Atomic rollback of all affected files |
+| Oracle crash | Retry with timeout; if persistent, enter RECOVERY_REQUIRED |
+| Concurrent transition conflict | Abort later transition, preserve earlier |
+| Interruption during commit | Replay journal to determine exact state |
+| Baseline mismatch | Regenerate candidate with new baseline |
+| Ambiguous patch target | Report ambiguity with Information Mark, do not apply |
+
+### Escalation Paths
+
+| Severity | Escalation |
+|----------|------------|
+| Low (formatting, style) | Log warning, continue |
+| Medium (test failure) | Rollback, notify Analyst2 |
+| High (invariant violation) | Rollback, notify Oracle1, halt execution |
+| Critical (safety boundary breach) | Enter SAFE_STOP, notify Commission, full audit |
+
+## Appendix B: Worked Examples
+
+### Example 1: Complete State Vector Manifest (SVM)
+
+```json
+{
+  "goal": "Add user authentication to web application",
+  "scope": "src/auth/, tests/auth/, requirements.txt",
+  "current_state": {
+    "files": ["src/app.py", "src/db.py", "src/config.py"],
+    "artifacts": ["app binary v1.2.0"],
+    "baseline_hash": "sha256:abc123..."
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "action": "Create User model with password hashing",
+      "epistemic": "Exact",
+      "evidence": ["source code inspection", "bcrypt documentation"]
+    },
+    {
+      "id": "T2",
+      "action": "Implement /login endpoint",
+      "epistemic": "Inferred",
+      "premises": ["T1"],
+      "derivation": "User model exists → session management → login endpoint"
+    },
+    {
+      "id": "T3",
+      "action": "Add JWT token generation",
+      "epistemic": "Exact",
+      "evidence": ["PyJWT documentation", "source code"]
+    }
+  ],
+  "test_cases": [
+    "test_user_creation",
+    "test_login_success",
+    "test_login_failure_invalid_password",
+    "test_password_hashing",
+    "test_jwt_token_generation"
+  ],
+  "oracles": [
+    "pytest passes (all 5 tests)",
+    "mypy type checking passes",
+    "ruff lint passes",
+    "integration test with live DB passes"
+  ],
+  "acceptance_criteria": [
+    "No plaintext passwords stored",
+    "Login rate limiting implemented",
+    "JWT tokens expire after 24h"
+  ],
+  "claim_ledger": [
+    {
+      "claim_id": "C1",
+      "statement": "bcrypt is suitable for password hashing",
+      "status": "Exact",
+      "origin": "primary_source",
+      "evidence": ["OWASP guidelines", "NIST SP 800-63B"]
+    }
+  ],
+  "evidence_requirements": [
+    "source code inspection",
+    "test execution",
+    "documentation review"
+  ],
+  "safety_critical": false
+}
+```
+
+### Example 2: Complete Transaction Journal Entry
+
+```json
+{
+  "transaction_id": "tx_20260730_001",
+  "implementation_sha256": "sha256:def456...",
+  "implementation_type": "one_task_script",
+  "project_profile_sha256": "sha256:ghi789...",
+  "environment": [
+    ["python", "3.11.4"],
+    ["pytest", "7.4.0"],
+    ["mypy", "1.5.0"],
+    ["ruff", "0.0.285"]
+  ],
+  "declared_goal": "Add user authentication to web application",
+  "declared_scope": ["src/auth/", "tests/auth/", "requirements.txt"],
+  "affected_paths": [
+    {"path": "src/auth/__init__.py", "action": "create", "before_identity": null, "after_identity": "sha256:jkl012..."},
+    {"path": "src/auth/models.py", "action": "create", "before_identity": null, "after_identity": "sha256:mno345..."},
+    {"path": "src/auth/routes.py", "action": "create", "before_identity": null, "after_identity": "sha256:pqr678..."},
+    {"path": "requirements.txt", "action": "modify", "before_identity": "sha256:stu901...", "after_identity": "sha256:vwx234..."}
+  ],
+  "materialization_method": "full_file_regeneration",
+  "ambiguity_count": 0,
+  "information_mark": {"exact": 1.0, "inferred": 0.0, "hypothetical": 0.0, "guess": 0.0, "unknown": 0.0},
+  "approval_identity": "sha256:approval_hash...",
+  "execution_result": "success",
+  "oracle_output": {
+    "pytest": "5 passed, 0 failed",
+    "mypy": "Success: no issues found",
+    "ruff": "All checks passed"
+  },
+  "oracle_output_sha256": "sha256:oracle_hash...",
+  "rollback_result": null,
+  "final_state": "VERIFIED",
+  "timestamp": "2026-07-30T17:00:00Z"
+}
+```
+
+## Appendix B: Tag Glossary
+
+| Tag | Full Name | Description |
+|-----|-----------|-------------|
+| `#adid_framework` | ADID Framework | The Autodidactic Development & Intelligence Driver framework |
+| `#information_mark` | Information Mark | Epistemic status indicator for claims (Exact, Inferred, Hypothetical, Guess, Unknown) |
+| `#claim_ledger` | Claim Ledger | Record of all claims with their epistemic status, evidence, and provenance |
+| `#semantic_vector` / `#SV` | Semantic Vector | Normalized keyword-weight distribution representing message content |
+| `#key_words` | Key Words | Keywords extracted from content with associated weights |
+| `#semantic_dominant` | Semantic Dominant | Primary topic or theme of a message |
+| `#md5_msg_tag` | MD5 Message Tag | Compatibility checksum of full message block for provenance identity |
+| `#state_record` | Communication State Record | Message-level provenance artifact (semantic vectors, information marks, traceability) — distinct from the full State Vector Manifest (SVM) |
+| `#md5_sv_tag` | MD5 SV Tag | Semantic anchor checksum computed from canonical SV string |
+| `#semantic_link` | Semantic Link | Reference to previous `#md5_sv_tag` anchors for traceability |
+| `#traceability` | Traceability | Mechanism for tracking content window shifts and semantic drift |
+| `#content_window` | Content Window | Current conversational context scope |
+| `#reverse_search` | Reverse Search | Process of finding conversational anchors via semantic links |
+| `#agi_kernel` | AGI Reasoning Kernel | Task generation system with fractal decomposition and k-medoids clustering |
+| `#agi` | AGI Developer | Artificial General Intelligence development agent role |
+| `#human` | Human Developer | Human participant in the ADID partnership |
+| `#tasks` | Tasks | Action items generated by the AGI kernel |
+| `#safety_fsm` | Safety FSM | Certified External Safety Finite State Machine |
+| `#world_simulation` | World Simulation | Simulation environment for testing safety-critical transitions |
+| `#certification_envelope` | Certification Envelope | Bounded safety certification for domain-specific operations |
+| `#script` | Update Script | Model-authored Python update mechanism |
+| `#safe_update` | Safe Update | Update that satisfies the invariant contract |
+| `#manager_contract` | Manager Construction Contract | Rules governing safe update manager implementation |
+| `#conformance_oracle` | Conformance Oracle | Behavioral test suite for manager validation |
+| `#svm` / `#master_svm` | State Vector Manifest | Foundational stateless briefing package for atomic objectives (6 vectors: goal, current state, tasks, verification, epistemic state, certified transition) |
+| `#msg` | Message Tag | Marker appended after each content block |
+
+## Appendix B: Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 15.4.3 | 2026-07-28 | Consolidated Section 5.4 into table; removed Mode 1/Mode 2 duality; added Section IV: Roles and Governance; added Tag Glossary; renumbered communication rules sequentially |
+| 15.4.2 | — | Previous version |

@@ -1,0 +1,22 @@
+# fragment: 00_front_meta
+# source: reasoning_candidate.txt L1-17
+# topic: Title, version, RFC 2119
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+## The Autodidactic Development & Intelligence Driver (ADID) Framework #adid_framework
+**Version: 15.4.3**
+**Date: 2026-07-28**
+**Status: Production (rules-defined, model-authored safe-update architecture)**
+
+**Contents:** [Quick Reference Card](#quick-reference-card) · [I. Communication and epistemic rules](#i-communication-rules--encoded-as-python-data--adid-framework-directives) · [II. AGI Reasoning Kernel](#15-agi-reasoning-kernelagi_kernel-with-fractal-task-generation-for-agi) · [III. Certified External Safety FSM](#16-certified-external-safety-fsm-safety_fsm) · [IV. ADID Framework Principles](#ii-adid-framework-principles-adid_framework-coding) · [V. Development Guidelines](#iii-development-guidelines--encoded-as-python) · [VI. Operating Protocol](#v--the-agi-operating-protocol-communication-standard-and-artifact-generation-standard) · [VII. Web Search Specs](#vi--web-search-specs--encoded-as-python) · **Python-native manager-construction rules + behavioral conformance oracle**
+
+---
+
+**Normative Language (RFC 2119):**
+- **MUST**: Absolute requirement — non-compliance is a bug
+- **MUST NOT**: Absolute prohibition — violation is forbidden
+- **SHOULD**: Strong recommendation — deviation requires justification
+- **MAY**: Optional — implementer may choose freely
+
+---
+

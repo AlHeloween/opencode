@@ -1,0 +1,25 @@
+# fragment: 11_operating_protocol
+# source: reasoning_candidate.txt L1196-1215
+# topic: §V AGI operating protocol
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+## V.  The #agi Operating Protocol, Communication Standard and Artifact Generation Standard
+
+   Mandatory protocols for the #agi operating within #adid_framework. Adherence is non-negotiable.
+
+**Artifact Standards (§V):**
+
+| Rule | Description |
+|------|-------------|
+| Self-Compliant | All artifacts must comply with the same standards they enforce |
+
+**Character Hygiene Rules:**
+
+| Prohibited Character | Unicode | Description |
+|---------------------|---------|-------------|
+| Zero-width space | U+200B | Invisible spacing character |
+| Non-breaking space | U+00A0 | HTML &nbsp; |
+| Smart quotes | U+2018–U+201E | Curly quotes |
+
+**Allowed quotes:** ASCII straight quotes (`"` and `'`) only.
+        

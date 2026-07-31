@@ -1,0 +1,43 @@
+# fragment: 10_development_guidelines
+# source: reasoning_candidate.txt L1158-1195
+# topic: §III development guidelines
+# status: candidate ADID 15.4.3 — NOT runtime system prompt
+
+## III. Development Guidelines — encoded as Python
+
+**Language Style Profiles:**
+
+| Language | Framework Behavior |
+|----------|-------------------|
+| Python | PEP-8 semantics checked with standard-library parsing |
+| Rust | project-declared Rust style; external formatter optional |
+| C/GCC | project-declared C style; external formatter optional |
+| Microsoft | project-declared Microsoft conventions |
+| Intel 8051 | project-declared 8051 conventions |
+
+**Architectural Principles:**
+
+| Principle | Description |
+|-----------|-------------|
+| Separation of Concerns | Logic ≠ UI ≠ I/O |
+| Centralized Dependencies | Single canonical dependency file |
+| Project File Required | pyproject.toml, Cargo.toml, etc. |
+| Provenance Required | Every decision cites authoritative source |
+| Formal Configuration | Structured, validated config models |
+| Configuration Tool | Config tool in repo |
+| README with SVMs | README lists all modules + SVMs |
+| Directory Layout Defined | src/, include/, etc. |
+| Compliance Mandatory | Reproducibility + traceability + correctness |
+| External Tools Optional | Core must run on Python standard library |
+
+**Language style profiles (external formatters are optional adapters, never core dependencies):**
+| Language | Normative framework behavior |
+|----------|-------------------------------|
+| Python | Parse/compile with Python standard library; enforce project-declared conventions |
+| Rust | Preserve declared style; formatter invocation is optional and external to the core |
+| C/GCC | Preserve declared style; formatter invocation is optional and external to the core |
+| Other targets | Use explicit project configuration and evidence-backed verification |
+
+**Architectural Principles:** Separation of Concerns, Centralized Dependency Management,
+Provenance, Formal Configuration, Mandatory Compliance.
+

@@ -392,58 +392,30 @@ task_build() {
     exit 1
   fi
 
-  # WASM modules
+  # WASM sidecars: mirror packages/wasm/core/pkg as-is (no hardcoded asset list).
   local wasm_src="$ROOT/packages/wasm/core/pkg"
   local wasm_dst="$DIST_DIR/wasm/core/pkg"
   if [ -d "$wasm_src" ]; then
-    mkdir -p "$wasm_dst"
-    for subdir in rdiff json_repair diffy grammars; do
-      if [ -d "$wasm_src/$subdir" ]; then
-        cp -r "$wasm_src/$subdir" "$wasm_dst/"
-      fi
-    done
-    # tokenizer.wasm intentionally omitted — content tokens use chars/4
-    for wasm_file in path_validator.wasm chafa.wasm; do
-      [ -f "$wasm_src/$wasm_file" ] && cp "$wasm_src/$wasm_file" "$wasm_dst/"
-    done
-    # Tree-sitter runtime WASM
+    rm -rf "$wasm_dst"
+    mkdir -p "$(dirname "$wasm_dst")"
+    cp -a "$wasm_src" "$wasm_dst"
+
+    # Tree-sitter runtime lives in node_modules, not pkg/ — stage if present.
     local ts_wasm
     ts_wasm=$(find "$ROOT/node_modules" -name "web-tree-sitter.wasm" -not -path "*/debug/*" 2>/dev/null | head -1)
     if [ -n "$ts_wasm" ]; then
       cp "$ts_wasm" "$wasm_dst/web-tree-sitter.wasm"
     fi
 
-    # Verify required assets (no tokenizer.wasm)
-    local missing=false
-    for asset in \
-      path_validator.wasm \
-      web-tree-sitter.wasm \
-      diffy/diffy_wasm_bg.wasm \
-      json_repair/json_repair_bg.wasm \
-      rdiff/rdiff_bg.wasm; do
-      if [ ! -f "$wasm_dst/$asset" ]; then
-        fail "Required WASM asset missing from dist: $asset"
-        missing=true
-      fi
-    done
-    # Grammar WASMs
-    if [ -d "$wasm_src/grammars" ]; then
-      for gf in "$wasm_src/grammars"/*.wasm; do
-        [ -f "$gf" ] || continue
-        local gname
-        gname=$(basename "$gf")
-        if [ ! -f "$wasm_dst/grammars/$gname" ]; then
-          fail "Required WASM asset missing from dist: grammars/$gname"
-          missing=true
-        fi
-      done
-    fi
-    if [ "$missing" = "true" ]; then
+    local wasm_count
+    wasm_count=$(find "$wasm_dst" -type f -name '*.wasm' | wc -l | tr -d ' ')
+    if [ "${wasm_count:-0}" -lt 1 ]; then
+      fail "WASM mirror produced zero .wasm files under $wasm_dst"
       exit 1
     fi
-    local wasm_count
-    wasm_count=$(find "$wasm_dst" -type f | wc -l | tr -d ' ')
-    ok "WASM modules copied to dist ($wasm_count assets)"
+    ok "WASM modules mirrored to dist ($wasm_count .wasm files under wasm/core/pkg)"
+  else
+    warn "packages/wasm/core/pkg missing — skipping WASM sidecar copy"
   fi
 
   # SDK

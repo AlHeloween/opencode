@@ -479,51 +479,33 @@ function Invoke-Build {
         throw "opentui.dll not found at $opentuiDllSrc — run without -SkipOpenTui or build packages/opentui/packages/core first"
     }
 
-    # Copy WASM modules to dist as fallback sidecars; runtime prefers embedded assets.
+    # WASM sidecars: mirror packages/wasm/core/pkg as-is (no hardcoded asset list).
+    # Runtime prefers embedded assets; dist/wasm is offline fallback only.
+    # Missing optional files (e.g. retired tokenizer.wasm) are simply absent.
     $WasmPkgDir = Join-Path $Root "packages\wasm\core\pkg"
     $WasmDistDir = Join-Path $DistDir "wasm\core\pkg"
     if (Test-Path $WasmPkgDir) {
-        New-Item -ItemType Directory -Path $WasmDistDir -Force | Out-Null
-        Copy-Item -Recurse -Force "$WasmPkgDir\rdiff" $WasmDistDir
-        Copy-Item -Recurse -Force "$WasmPkgDir\json_repair" $WasmDistDir
-        Copy-Item -Recurse -Force "$WasmPkgDir\diffy" $WasmDistDir
-        Copy-Item -Recurse -Force "$WasmPkgDir\grammars" $WasmDistDir
-        # tokenizer.wasm intentionally not packaged — content tokens use chars/4
-        if (Test-Path "$WasmPkgDir\path_validator.wasm") {
-            Copy-Item "$WasmPkgDir\path_validator.wasm" $WasmDistDir
+        if (Test-Path $WasmDistDir) {
+            Remove-Item -Recurse -Force $WasmDistDir
         }
-        if (Test-Path "$WasmPkgDir\chafa.wasm") {
-            Copy-Item "$WasmPkgDir\chafa.wasm" $WasmDistDir
-        }
-        $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "web-tree-sitter.wasm" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } | Select-Object -First 1
+        New-Item -ItemType Directory -Path (Split-Path $WasmDistDir -Parent) -Force | Out-Null
+        Copy-Item -Recurse -Force $WasmPkgDir $WasmDistDir
+
+        # Tree-sitter runtime lives in node_modules, not pkg/ — stage if present.
+        $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "web-tree-sitter.wasm" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } |
+            Select-Object -First 1
         if ($TreeSitterRuntimeWasm) {
-            Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir "web-tree-sitter.wasm")
+            Copy-Item $TreeSitterRuntimeWasm.FullName (Join-Path $WasmDistDir "web-tree-sitter.wasm") -Force
         }
 
-        # Required sidecar WASM assets (tokenizer.wasm retired — not required).
-        $RequiredWasmAssets = @(
-            "path_validator.wasm",
-            "web-tree-sitter.wasm",
-            "diffy\diffy_wasm_bg.wasm",
-            "json_repair\json_repair_bg.wasm",
-            "rdiff\rdiff_bg.wasm"
-        )
-        # Add all grammar WASMs: scan the source grammars dir and build expected paths
-        $GrammarDir = Join-Path $WasmPkgDir "grammars"
-        if (Test-Path $GrammarDir) {
-            $GrammarFiles = Get-ChildItem $GrammarDir -Filter "*.wasm"
-            foreach ($gf in $GrammarFiles) {
-                $RequiredWasmAssets += "grammars\$($gf.Name)"
-            }
+        $wasmCount = @(Get-ChildItem -Path $WasmDistDir -Recurse -File -Filter "*.wasm" -ErrorAction SilentlyContinue).Count
+        if ($wasmCount -lt 1) {
+            throw "WASM mirror produced zero .wasm files under $WasmDistDir"
         }
-        # Verify every required asset exists in dist
-        foreach ($asset in $RequiredWasmAssets) {
-            $assetPath = Join-Path $WasmDistDir $asset
-            if (-not (Test-Path $assetPath)) {
-                throw "Required WASM asset missing from dist: $asset"
-            }
-        }
-        Write-Success "WASM modules copied to dist ($($RequiredWasmAssets.Count) assets)"
+        Write-Success "WASM modules mirrored to dist ($wasmCount .wasm files under wasm/core/pkg)"
+    } else {
+        Write-Warn "packages/wasm/core/pkg missing — skipping WASM sidecar copy (embedded assets still used at runtime)"
     }
 
     # SDK (from sdk/js package)

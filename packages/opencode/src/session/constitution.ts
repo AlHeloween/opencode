@@ -289,25 +289,81 @@ function shellSegments(command: string) {
   return segments.map(unwrapShellCommand).filter(Boolean)
 }
 
-function isDirectoryBrowsingSegment(command: string) {
-  if (/^(?:(?:\/usr)?\/bin\/)?(?:ls|dir|tree)(?:\.exe)?(?:\s|$)/i.test(command)) return true
-  if (/^(?:find|fd|fdfind)(?:\.exe)?(?:\s|$)/i.test(command)) return true
-  if (/^busybox\s+(?:ls|find)\b/i.test(command)) return true
-  if (/^(?:Get-ChildItem|gci|Microsoft\.PowerShell\.Management\\Get-ChildItem)\b/i.test(command)) return true
-  if (/^(?:Get-Item|Resolve-Path)\b[^\n]*\*/i.test(command)) return true
-  if (/^rg(?:\.exe)?\b(?=[^\n]*\s--files\b)/i.test(command)) return true
-  if (
-    /^git(?:\.exe)?\s+(?:(?:-C\s+\S+|--no-pager|-c\s+\S+|--work-tree=\S+|--git-dir=\S+)\s+)*ls-files\b/i.test(
-      command,
-    )
+/**
+ * Coverage-first shell browsing gate.
+ *
+ * Principle: hard-block only when list / glob / grep can answer the same question.
+ *   - list  → directory trees (ls, dir, tree, Get-ChildItem, …)
+ *   - glob  → path-pattern discovery (find, fd, rg --files, shell globs, …)
+ *   - grep  → content search (rg without --files stays allowed)
+ * If tools cannot answer (VCS membership, PATH lookup, git status-ish), do NOT block —
+ * extend list/glob first if we want that capability later.
+ *
+ * Tier 1 — pure FS enumerators (the real problem; 1:1 tool coverage): always block.
+ * Tier 2 — dual-use (git ls-files): block only list/glob equivalents; allow VCS oracles.
+ */
+
+/** Tier 2: git ls-files as list/glob substitute only. */
+function isGitLsFilesEnumeration(command: string) {
+  const match = command.match(
+    /^git(?:\.exe)?\s+(?:(?:-C\s+\S+|--no-pager|-c\s+\S+|--work-tree=\S+|--git-dir=\S+)\s+)*ls-files\b([\s\S]*)$/i,
   )
-    return true
+  if (!match) return false
+
+  const raw = match[1] ?? ""
+  // Flag tokens: do not use \b before `-` (space+`-` is not a word boundary).
+  // Membership / tracked? — list/glob cannot answer. Allow.
+  if (/(?:^|\s)--error-unmatch(?:\s|$)/i.test(raw)) return false
+  // VCS status slices (modified/deleted/unmerged) — not WC browsing; git status sibling. Allow.
+  if (/(?:^|\s)(?:-m|--modified|-d|--deleted|-u|--unmerged)(?:\s|$)/i.test(raw)) return false
+
+  const rest = raw.replace(/(?:^|\s)(?:2>&1|1>&2|&>|[12]?>>?)\s*\S*/g, " ").trim()
+  if (!rest) return true // bare dump ≈ glob **/*
+
+  const pathspecs: string[] = []
+  let endedOptions = false
+  for (const token of rest.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? []) {
+    const bare = token.replace(/^['"]|['"]$/g, "")
+    if (!endedOptions) {
+      if (bare === "--") {
+        endedOptions = true
+        continue
+      }
+      if (bare.startsWith("-")) continue
+    }
+    pathspecs.push(bare)
+  }
+
+  // No pathspecs: full index dump or untracked dump (--others) ≈ list/glob. Block.
+  if (pathspecs.length === 0) return true
+  // Only glob pathspecs → use glob tool. Block.
+  if (pathspecs.every((p) => /[*?\[]/.test(p))) return true
+  // Concrete path(s) → index lookup for known paths. Allow.
+  return false
+}
+
+/** Tier 1: pure filesystem enumerators — always block. */
+function isPureFilesystemEnumerator(command: string) {
+  // Directory listing (list tool)
+  if (/^(?:(?:\/usr)?\/bin\/)?(?:ls|dir|tree)(?:\.exe)?(?:\s|$)/i.test(command)) return true
+  if (/^(?:Get-ChildItem|gci|Microsoft\.PowerShell\.Management\\Get-ChildItem)\b/i.test(command)) return true
+  if (/^busybox\s+(?:ls|find)\b/i.test(command)) return true
+  // Recursive path discovery (glob tool)
+  if (/^(?:find|fd|fdfind)(?:\.exe)?(?:\s|$)/i.test(command)) return true
+  if (/^rg(?:\.exe)?\b(?=[^\n]*\s--files\b)/i.test(command)) return true
+  if (/^(?:Get-Item|Resolve-Path)\b[^\n]*\*/i.test(command)) return true
   if (/^(?:echo|printf)\s+[^\n]*\*/i.test(command)) return true
   if (/^for\s+\w+\s+in\s+[^\n]*\*/i.test(command)) return true
   if (/^for\s+\/r\b/i.test(command)) return true
   if (/^for\s+%%?\w+\s+in\s+\(\*\)/i.test(command)) return true
-  // Windows recursive where = file enum (not bare where.exe for PATH lookup)
+  // Windows recursive where = file enum (bare where.exe PATH lookup is allowed)
   if (/^where(?:\.exe)?\s+\/r\b/i.test(command)) return true
+  return false
+}
+
+function isDirectoryBrowsingSegment(command: string) {
+  if (isPureFilesystemEnumerator(command)) return true
+  if (isGitLsFilesEnumeration(command)) return true
   return false
 }
 
@@ -318,7 +374,7 @@ export function isShellDirectoryBrowsing(command: string) {
 
 /**
  * Constitution preflight for shell.
- * - shell directory enumeration: HARD BLOCK → use list/glob/grep tools
+ * - shell FS enumeration (find/ls/dir/fd/rg --files/…): HARD BLOCK → list/glob/grep
  * - git rewrite / stash pop: HARD BLOCK unless env bypass
  * - fossil mutate CLI: HARD BLOCK unless env bypass
  * - askable: permission destructive-file | destructive-db | destructive-git
@@ -339,8 +395,9 @@ export function guardCommand(
       needsDestructivePermission: false,
       blocked: true,
       message:
-        "constitution: BLOCKED shell directory/file enumeration. Use the list tool for browsing; " +
-        "use glob for path-pattern matching or grep for content search.",
+        "constitution: BLOCKED shell directory/file enumeration (ls/dir/find/fd/rg --files/…). " +
+        "Use the list tool for browsing; glob for path patterns; grep for content. " +
+        "VCS checks (e.g. git ls-files --error-unmatch <path>) and PATH lookup (where/which) stay allowed.",
     }
   }
 

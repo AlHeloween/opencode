@@ -179,6 +179,47 @@ describe("session.constitution", () => {
     }
   })
 
+  test("coverage gate: tier1 FS enumerators blocked; VCS/PATH oracles allowed", () => {
+    // Tier 1 — real problem: pure FS enumerators covered 1:1 by list/glob
+    for (const command of ["ls", "dir /b", "find .", "fd .", "rg --files", "gci", "tree"]) {
+      expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
+    }
+    // Content search is grep-covered → shell rg without --files stays allowed
+    expect(Constitution.isShellDirectoryBrowsing("rg TODO src")).toBe(false)
+    // PATH lookup not covered by list/glob → allow
+    expect(Constitution.isShellDirectoryBrowsing("where.exe node")).toBe(false)
+    expect(Constitution.isShellDirectoryBrowsing("which rg")).toBe(false)
+  })
+
+  test("git ls-files: block list/glob equivalents; allow VCS oracles tools cannot answer", () => {
+    // Covered by glob/list → block
+    for (const command of [
+      "git ls-files",
+      "git -C repo ls-files",
+      "git ls-files --others --exclude-standard",
+      "git ls-files '*.ts'",
+      "git ls-files -- '**/*.json'",
+    ]) {
+      expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
+      expect(Constitution.guardCommand(command).blocked).toBe(true)
+    }
+    // Not covered by list/glob → allow (do not force shell alternatives that cannot answer)
+    for (const command of [
+      "git ls-files --error-unmatch config.json",
+      "git ls-files --error-unmatch config.json 2>&1 && echo TRACKED || echo NOT_TRACKED",
+      "git ls-files config.json",
+      "git ls-files -- config.json",
+      "git -C repo ls-files --error-unmatch packages/opencode/package.json",
+      "git --no-pager ls-files -s -- src/session/constitution.ts",
+      "git ls-files -m",
+      "git ls-files --modified -- src/foo.ts",
+      "git ls-files -d",
+    ]) {
+      expect(Constitution.isShellDirectoryBrowsing(command)).toBe(false)
+      expect(Constitution.guardCommand(command).blocked).toBe(false)
+    }
+  })
+
   test("infoMarkAtLeast ranks Exact over Guess", () => {
     expect(Constitution.infoMarkAtLeast("Exact", "Inferred")).toBe(true)
     expect(Constitution.infoMarkAtLeast("Guess", "Exact")).toBe(false)

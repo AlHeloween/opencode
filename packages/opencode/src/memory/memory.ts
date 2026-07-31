@@ -228,9 +228,10 @@ export function search(params: {
       return []
     }
 
-    // FTS5 MATCH query with BM25 + epistemic hybrid ranking
-    // BM25 scores are typically in 0-10 range; epistemic scores in 0-10 range.
-    // Weight: 0.7 BM25 relevance, 0.3 epistemic confidence.
+    // FTS5 MATCH query with BM25 + epistemic hybrid ranking.
+    // Epistemic coefficients are ordinal (sum=10, one-hot-ish per ClaimStatus).
+    // Ordinal weights: Exact=4, Inferred=3, Hypothetical=2, Guess=1, Unknown=0.
+    // Result in 0–10 range, weighted 0.7 BM25 + 0.3 epistemic.
     const rows = memDb.prepare(`
       SELECT
         p.part_id,
@@ -242,12 +243,12 @@ export function search(params: {
         p.part_type,
         p.role,
         COALESCE(bm25(part_fts, 0.0, 0.0), 0.0) * 0.7 +
-        (p.exact_coef * 10.0 + p.inferred_coef * 7.0 +
-         p.hypothetical_coef * 4.0 + p.guess_coef * 2.0 + p.unknown_coef * 1.0) * 0.3
+        (p.exact_coef * 4.0 + p.inferred_coef * 3.0 +
+         p.hypothetical_coef * 2.0 + p.guess_coef * 1.0) / 10.0 * 10.0 * 0.3
         AS combined_rank,
         COALESCE(bm25(part_fts, 0.0, 0.0), 0.0) AS bm25_score,
-        (p.exact_coef * 10.0 + p.inferred_coef * 7.0 +
-         p.hypothetical_coef * 4.0 + p.guess_coef * 2.0 + p.unknown_coef * 1.0) AS epistemic_score
+        (p.exact_coef * 4.0 + p.inferred_coef * 3.0 +
+         p.hypothetical_coef * 2.0 + p.guess_coef * 1.0) / 10.0 * 10.0 AS epistemic_score
       FROM part_fts
       JOIN part_index p ON p.rowid = part_fts.rowid
       WHERE part_fts MATCH ?

@@ -47,32 +47,34 @@ describe("MessageV2.highlightSnippet", () => {
 })
 
 describe("semantic-vector.classifyText", () => {
-  test("exact keywords produce high exactCoef", () => {
-    const sv = classifyText("The function returns a const value and imports the module correctly")
-    expect(sv.exactCoef).toBeGreaterThan(sv.inferredCoef)
-    expect(sv.exactCoef).toBeGreaterThan(sv.hypotheticalCoef)
-    expect(sv.exactCoef).toBeGreaterThan(sv.guessCoef)
+  test("Exact tag produces Exact-dominant coefficients", () => {
+    const sv = classifyText("[Exact] The oracle confirmed the fix — all 284 tests passed")
+    expect(sv.exactCoef).toBe(7)
+    expect(sv.inferredCoef).toBe(2)
+    expect(sv.hypotheticalCoef).toBe(1)
+    expect(sv.guessCoef).toBe(0)
+    expect(sv.unknownCoef).toBe(0)
   })
 
-  test("inferred keywords produce high inferredCoef", () => {
+  test("inferred signals produce Inferred-dominant coefficients", () => {
     const sv = classifyText("The evidence suggests this pattern indicates a likely correlation based on the data")
     expect(sv.inferredCoef).toBeGreaterThan(sv.exactCoef)
     expect(sv.inferredCoef).toBeGreaterThan(sv.hypotheticalCoef)
   })
 
-  test("hypothetical keywords produce high hypotheticalCoef", () => {
+  test("hypothetical signals produce Hypothetical-dominant coefficients", () => {
     const sv = classifyText("If we suppose this might be a theoretical scenario, it would be potentially useful")
     expect(sv.hypotheticalCoef).toBeGreaterThan(sv.exactCoef)
     expect(sv.hypotheticalCoef).toBeGreaterThan(sv.inferredCoef)
   })
 
-  test("guess keywords produce high guessCoef", () => {
+  test("guess signals produce Guess-dominant coefficients", () => {
     const sv = classifyText("Maybe perhaps I guess we are unsure and could try to experiment and see if it works")
     expect(sv.guessCoef).toBeGreaterThan(sv.exactCoef)
     expect(sv.guessCoef).toBeGreaterThan(sv.inferredCoef)
   })
 
-  test("unknown keywords produce high unknownCoef", () => {
+  test("unknown signals produce Unknown-dominant coefficients", () => {
     const sv = classifyText("The value is unknown and missing, this is unclear and incomplete with a null field")
     expect(sv.unknownCoef).toBeGreaterThan(sv.exactCoef)
     expect(sv.unknownCoef).toBeGreaterThan(sv.inferredCoef)
@@ -80,7 +82,7 @@ describe("semantic-vector.classifyText", () => {
 
   test("coefficients sum to 10", () => {
     const testCases = [
-      "The function returns a const",
+      "[Exact] verified claim",
       "It seems likely based on evidence",
       "If we suppose it might be",
       "Maybe I guess we are unsure",
@@ -93,12 +95,13 @@ describe("semantic-vector.classifyText", () => {
     }
   })
 
-  test("default distribution when no keywords match", () => {
+  test("default distribution when no signals match", () => {
+    // Plain text without epistemic signals → Inferred (middle ground)
     const sv = classifyText("Just regular text here with no special keywords at all")
-    expect(sv.exactCoef).toBe(10)
-    expect(sv.inferredCoef).toBe(0)
-    expect(sv.hypotheticalCoef).toBe(0)
-    expect(sv.guessCoef).toBe(0)
+    expect(sv.inferredCoef).toBe(6)
+    expect(sv.exactCoef).toBe(1)
+    expect(sv.hypotheticalCoef).toBe(2)
+    expect(sv.guessCoef).toBe(1)
     expect(sv.unknownCoef).toBe(0)
   })
 
@@ -113,7 +116,7 @@ describe("semantic-vector.classifyText", () => {
   })
 
   test("topic detection search", () => {
-    const sv = classifyText("The FTS5 full-text search uses BM25 ranking for query relevance matching")
+    const sv = classifyText("The BM25 full-text search relevance ranking uses FTS5 for matching")
     expect(sv.dominant).toBe("search")
   })
 

@@ -1,6 +1,16 @@
+/**
+ * Semantic vector for message indexing and search ranking.
+ *
+ * Produces topic keywords + ordinal epistemic coefficients for FTS5 hybrid
+ * ranking. Coefficients reflect a single dominant ClaimStatus (not a
+ * distribution of "confidence scores"). Epistemic decisions use the Python
+ * kernel's ClaimNode DAG — this module only ranks search results.
+ */
 export type SemanticVector = {
   keywords: Array<{ word: string; score: number }>
   dominant: string
+  /** Ordinal coefficients: one-hot-ish, dominant status gets highest weight.
+   *  Sum always ≤ 10. Used by memory.ts for BM25+epistemic hybrid ranking. */
   exactCoef: number
   inferredCoef: number
   hypotheticalCoef: number
@@ -8,295 +18,124 @@ export type SemanticVector = {
   unknownCoef: number
 }
 
-const EXACT_KEYWORDS = [
-  "calculate",
-  "compute",
-  "result",
-  "output",
-  "error",
-  "success",
-  "done",
-  "executed",
-  "ran",
-  "compiled",
-  "built",
-  "installed",
-  "deployed",
-  "test passed",
-  "test failed",
-  "assertion",
-  "return",
-  "function",
-  "class",
-  "interface",
-  "type",
-  "const",
-  "let",
-  "var",
-  "import",
-  "export",
-  "module",
-  "package",
-  "version",
-  "config",
-  "definition",
-  "schema",
-  "table",
-  "column",
-  "index",
-  "primary",
-  "foreign",
-  "key",
-  "sql",
-  "query",
-  "select",
-  "insert",
-  "update",
-  "delete",
-  "create",
-  "drop",
-  "alter",
-  "migration",
-  "database",
-  "table",
-  "row",
-  "record",
-  "file",
-  "path",
-  "directory",
-  "exists",
-  "found",
-  "not found",
-  "read",
-  "write",
-  "open",
-  "close",
-  "save",
-  "load",
-  "parse",
-  "serialize",
-  "deserialize",
-  "encode",
-  "decode",
-  "hash",
-  "md5",
-  "checksum",
-  "verify",
-  "validated",
-  "confirmed",
-  "exact",
-  "equals",
-  "equal",
-  "same",
-  "identical",
-  "match",
-  "matches",
-  "0",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
+// ---------------------------------------------------------------------------
+// Status classification — lightweight signals, not a full classifier
+// ---------------------------------------------------------------------------
+
+const SIGNALS: Array<{ status: keyof typeof STATUS_WEIGHTS; patterns: RegExp[] }> = [
+  {
+    status: "Exact",
+    patterns: [
+      /\b(exact|verified|confirmed|oracle\s*pass|test\s*pass(ed)?|all\s*pass|263\s*passed)\b/i,
+      /\b\[Exact\]\b/,
+      /\bground-truth\b/i,
+    ],
+  },
+  {
+    status: "Inferred",
+    patterns: [
+      /\b(inferred|derived|deduced|implies|therefore|thus|hence|because)\b/i,
+      /\b\[Inferred\]\b/,
+      /\bbased on\b/i,
+    ],
+  },
+  {
+    status: "Hypothetical",
+    patterns: [
+      /\b(if|suppose|assume|assuming|hypothesis|hypothetical|scenario|would|could|might|potentially)\b/i,
+      /\b\[Hypothetical\]\b/,
+      /\bwhat if\b/i,
+    ],
+  },
+  {
+    status: "Guess",
+    patterns: [
+      /\b(maybe|perhaps|guess|unsure|uncertain|doubt|speculate|not sure)\b/i,
+      /\b\[Guess\]\b/,
+      /\bshot in the dark\b/i,
+    ],
+  },
+  {
+    status: "Unknown",
+    patterns: [
+      /\b(unknown|unclear|undefined|missing|n\/a|tbd|todo|placeholder|stub|incomplete)\b/i,
+      /\b\[Unknown\]\b/,
+      /\bnot (available|applicable|found)\b/i,
+    ],
+  },
 ]
 
-const INFERRED_KEYWORDS = [
-  "likely",
-  "probably",
-  "appears",
-  "suggests",
-  "indicates",
-  "inferred",
-  "implied",
-  "assumed",
-  "presumed",
-  "deduced",
-  "concluded",
-  "derived",
-  "estimated",
-  "approximate",
-  "roughly",
-  "seems",
-  "looks like",
-  "based on",
-  "according to",
-  "evidence",
-  "pattern",
-  "trend",
-  "correlation",
-  "association",
-  "inferred",
-  "not calculated",
-  "not computed",
-  "derived from",
-]
+/** Ordinal weights per status. Sum = 10, monotonic. */
+const STATUS_WEIGHTS = {
+  Exact: [7, 2, 1, 0, 0],
+  Inferred: [1, 6, 2, 1, 0],
+  Hypothetical: [0, 1, 6, 2, 1],
+  Guess: [0, 0, 1, 7, 2],
+  Unknown: [0, 0, 0, 1, 9],
+} as const
 
-const HYPOTHETICAL_KEYWORDS = [
-  "if",
-  "suppose",
-  "what if",
-  "could be",
-  "might be",
-  "would be",
-  "should be",
-  "may be",
-  "potentially",
-  "possibly",
-  "hypothetically",
-  "theoretical",
-  "speculation",
-  "hypothesis",
-  "assumption",
-  "scenario",
-  "case",
-  "condition",
-  "given that",
-  "assuming",
-  "in theory",
-  "ideally",
-  "conceptually",
-]
-
-const GUESS_KEYWORDS = [
-  "maybe",
-  "perhaps",
-  "I guess",
-  "not sure",
-  "unsure",
-  "uncertain",
-  "doubt",
-  "questionable",
-  "speculate",
-  "wild guess",
-  "shot in the dark",
-  "no idea",
-  "don't know",
-  "dunno",
-  "idk",
-  "shrug",
-  "try",
-  "attempt",
-  "experiment",
-  "test",
-  "see if",
-]
-
-const UNKNOWN_KEYWORDS = [
-  "unknown",
-  "unclear",
-  "undefined",
-  "missing",
-  "absent",
-  "null",
-  "none",
-  "n/a",
-  "not available",
-  "not applicable",
-  "tbd",
-  "todo",
-  "placeholder",
-  "stub",
-  "incomplete",
-  "partial",
-  "incomplete",
-  "error",
-  "failed",
-  "crashed",
-  "broken",
-  "bug",
-  "issue",
-]
-
-const TOPIC_KEYWORDS: Record<string, string[]> = {
-  stoichiometry: ["stoichiometry", "molar", "mole", "ratio", "reaction", "equation", "balance"],
-  database: ["database", "sql", "table", "query", "schema", "migration", "fts", "index", "column", "row"],
-  search: ["search", "fts", "fts5", "full-text", "match", "query", "rank", "bm25", "relevance"],
-  typescript: ["typescript", "ts", "type", "interface", "generics", "infer", "brand", "schema"],
-  rust: ["rust", "cargo", "wasm", "crate", "borrow", "lifetime", "trait"],
-  python: ["python", "pip", "venv", "import", "def", "class", "async", "await"],
-  javascript: ["javascript", "node", "npm", "bun", "require", "module", "async", "promise"],
-  config: ["config", "configuration", "settings", "options", "parameters", "env", "environment"],
-  error: ["error", "bug", "crash", "fail", "exception", "throw", "catch"],
-  test: ["test", "spec", "assert", "expect", "describe", "it", "unit", "integration"],
-  build: ["build", "compile", "bundle", "package", "deploy", "release", "artifact"],
-  file: ["file", "path", "directory", "folder", "read", "write", "save", "load"],
-  api: ["api", "endpoint", "request", "response", "http", "rest", "graphql", "client", "server"],
-  performance: ["performance", "speed", "fast", "slow", "optimize", "benchmark", "latency", "throughput"],
-  security: ["security", "auth", "permission", "token", "key", "secret", "encrypt", "hash"],
-  ai: ["ai", "model", "llm", "embedding", "vector", "semantic", "inference", "prompt", "agent"],
-  data: ["data", "dataset", "csv", "json", "array", "object", "record", "field"],
-  git: ["git", "commit", "branch", "merge", "pull", "push", "rebase", "diff", "head"],
-  docker: ["docker", "container", "image", "compose", "volume", "network", "build"],
+function classifyStatus(text: string): keyof typeof STATUS_WEIGHTS {
+  for (const { status, patterns } of SIGNALS) {
+    for (const re of patterns) {
+      if (re.test(text)) return status
+    }
+  }
+  // Default: inferred (most common for analytical/code text)
+  return "Inferred"
 }
 
-export function classifyText(text: string): SemanticVector {
-  const lower = text.toLowerCase()
-  const words = lower.split(/[\s\W]+/).filter((w) => w.length > 0)
-  const wordSet = new Set(words)
+// ---------------------------------------------------------------------------
+// Topic keywords — lightweight domain detection
+// ---------------------------------------------------------------------------
 
-  let exactCoef = 0
-  let inferredCoef = 0
-  let hypotheticalCoef = 0
-  let guessCoef = 0
-  let unknownCoef = 0
+const TOPIC_PATTERNS: Array<{ topic: string; patterns: RegExp[] }> = [
+  { topic: "database", patterns: [/\b(sql|table|query|schema|migration|fts|index|column|row|drizzle)\b/i] },
+  { topic: "search", patterns: [/\b(fts5?|full-text|bm25|search|rank|relevance)\b/i] },
+  { topic: "typescript", patterns: [/\b(typescript|ts|type|interface|generic|brand|schema)\b/i] },
+  { topic: "python", patterns: [/\b(python|pip|pytest|venv|def |class |async |await )\b/i] },
+  { topic: "rust", patterns: [/\b(rust|cargo|wasm|crate|borrow|lifetime|trait)\b/i] },
+  { topic: "javascript", patterns: [/\b(javascript|node|npm|bun|jsx|promise|async)\b/i] },
+  { topic: "config", patterns: [/\b(config|configuration|settings|options|env|environment)\b/i] },
+  { topic: "error", patterns: [/\b(error|bug|crash|fail|exception|throw|catch|stack)\b/i] },
+  { topic: "test", patterns: [/\b(test|spec|assert|expect|describe|pytest|vitest)\b/i] },
+  { topic: "build", patterns: [/\b(build|compile|bundle|package|deploy|release|artifact)\b/i] },
+  { topic: "file", patterns: [/\b(file|path|directory|folder|read|write|save|load)\b/i] },
+  { topic: "api", patterns: [/\b(api|endpoint|request|response|http|rest|graphql)\b/i] },
+  { topic: "performance", patterns: [/\b(perform|speed|fast|slow|optimize|benchmark|latency)\b/i] },
+  { topic: "security", patterns: [/\b(security|auth|permission|token|secret|encrypt|hash)\b/i] },
+  { topic: "ai", patterns: [/\b(model|llm|embedding|vector|semantic|inference|prompt|agent|oracle)\b/i] },
+  { topic: "git", patterns: [/\b(git|commit|branch|merge|pull|push|rebase|diff|head)\b/i] },
+  { topic: "reasoning", patterns: [/\b(reason|think|deliberate|reflect|consider|analyze)\b/i] },
+  { topic: "epistemic", patterns: [/\b(epistemic|claim|evidence|verify|status|dag|weakest.link)\b/i] },
+]
 
-  for (const kw of EXACT_KEYWORDS) {
-    if (lower.includes(kw)) exactCoef += 2
-  }
-  for (const kw of INFERRED_KEYWORDS) {
-    if (lower.includes(kw)) inferredCoef += 2
-  }
-  for (const kw of HYPOTHETICAL_KEYWORDS) {
-    if (lower.includes(kw)) hypotheticalCoef += 2
-  }
-  for (const kw of GUESS_KEYWORDS) {
-    if (lower.includes(kw)) guessCoef += 2
-  }
-  for (const kw of UNKNOWN_KEYWORDS) {
-    if (lower.includes(kw)) unknownCoef += 2
-  }
-
-  const total = exactCoef + inferredCoef + hypotheticalCoef + guessCoef + unknownCoef
-  if (total === 0) {
-    exactCoef = 6
-    inferredCoef = 2
-    hypotheticalCoef = 1
-    guessCoef = 0
-    unknownCoef = 1
-  }
-
-  const scale = 10 / Math.max(total, 1)
-  exactCoef = Math.round(exactCoef * scale)
-  inferredCoef = Math.round(inferredCoef * scale)
-  hypotheticalCoef = Math.round(hypotheticalCoef * scale)
-  guessCoef = Math.round(guessCoef * scale)
-  unknownCoef = Math.round(unknownCoef * scale)
-
-  const diff = 10 - (exactCoef + inferredCoef + hypotheticalCoef + guessCoef + unknownCoef)
-  exactCoef += diff
-
-  const topicScores: Record<string, number> = {}
-  for (const [topic, kws] of Object.entries(TOPIC_KEYWORDS)) {
-    let score = 0
-    for (const kw of kws) {
-      if (lower.includes(kw)) score += 3
+function classifyTopics(text: string): Array<{ word: string; score: number }> {
+  const scores: Record<string, number> = {}
+  for (const { topic, patterns } of TOPIC_PATTERNS) {
+    let hits = 0
+    for (const re of patterns) {
+      const matches = text.match(re)
+      if (matches) hits += matches.length
     }
-    if (score > 0) topicScores[topic] = score
+    if (hits > 0) scores[topic] = hits
   }
-
-  const sortedTopics = Object.entries(topicScores)
+  const sorted = Object.entries(scores)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
+  if (sorted.length === 0) return [{ word: "general", score: 1.0 }]
+  const max = sorted[0]![1]
+  return sorted.map(([word, score]) => ({ word, score: Math.round((score / max) * 100) / 100 }))
+}
 
-  const keywords = sortedTopics.map(([word, score]) => ({
-    word,
-    score: Math.round((score / (sortedTopics[0]?.[1] || 1)) * 100) / 100,
-  }))
+// ---------------------------------------------------------------------------
+// classifyText — main entry point
+// ---------------------------------------------------------------------------
 
-  const dominant = sortedTopics[0]?.[0] || "general"
+export function classifyText(text: string): SemanticVector {
+  const status = classifyStatus(text)
+  const [exactCoef, inferredCoef, hypotheticalCoef, guessCoef, unknownCoef] = STATUS_WEIGHTS[status]
+  const keywords = classifyTopics(text)
+  const dominant = keywords[0]?.word || "general"
 
   return {
     keywords,

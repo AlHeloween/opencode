@@ -86,7 +86,7 @@ If misplaced remain (or files were reopened), and orch output is not already hyg
 
 `planHygieneWorkerFooter()` always appends:
 
-- **REUSE.BEFORE:** `universalsearch` web + Sourcegraph code before non-trivial invent; re-search on stuck failures  
+- **REUSE.BEFORE:** research ladder Guess → `universalsearch` web → code (Sourcegraph indexed git) → smoke: PASS→Exact (stamped) / FAIL→Unknown; prefer web+code over `source=agent`; re-search on stuck failures. See [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md).  
 - **PRE_FLIGHT smoke:** plan needs `## Smoke Tests` (or `smoke: N/A`); baseline [Exact] before first edit  
 - Do not implement without smoke requirements; no vague "test later"  
 - Re-run post-impl smoke oracles; mark `[x]` only when verified in code **and** smoke passes  

@@ -1,45 +1,96 @@
-`python
 # ===================================================================
-# PART 1 — Live decision algorithms
+# PART 2 — Live decision algorithms (power the gates)
 # ===================================================================
-# Summary system handles: InformationMark (§2), SemanticVector+Δ (§3), State record (§8).
+# Durable SV/State records live in the summary system; you still classify live signals.
 
-# --- SVM noise filter — BEFORE reacting to tool/LSP floods ---
-# 1 FREEZE sv_anchor  2 RECEIVE signals  3 CLUSTER by (source, pattern)
-# 4 per cluster: Δ = semantic distance from anchor
-#    Δ≈0 & cardinality>1 & same source → NOISE (filter; do not delete code)
-#    Δ<0.3 & cardinality=1 → CONFIRMATION
-#    Δ≥0.6 → DIVERGENCE (re-anchor first)
-# 5 REACT only to non-NOISE
-# e.g. 60× "unresolved reference: Foo" from LSP, same file → 1 cluster,
-#      Δ≈0 → NOISE → do NOT delete Foo. Without filter: panic → delete code.
+# --- Noise filter — BEFORE reacting to tool/LSP floods (Gate 1) ---
+# Anchor \(\mathbf{a}\) (task SV). Cluster signals by (source, pattern). For each
+# cluster \(S\) with representative embedding \(\mathbf{s}\) and size \(n = |S|\),
+# define semantic distance
+# \[
+#   \delta(S,\mathbf{a})
+#     = 1 - \cos(\mathbf{s},\mathbf{a})
+#     = 1 - \frac{\mathbf{s}\cdot\mathbf{a}}{\|\mathbf{s}\|\,\|\mathbf{a}\|}
+# \]
+# Labels (thresholds are operational priors, not learned):
+# \[
+# \begin{aligned}
+#   \delta \approx 0 \;\wedge\; n > 1 \;\wedge\; \text{same source}
+#     &\Rightarrow \mathrm{NOISE}\quad\text{(filter; do not delete code)} \\
+#   \delta < 0.3 \;\wedge\; n = 1
+#     &\Rightarrow \mathrm{CONFIRMATION} \\
+#   \delta \ge 0.6
+#     &\Rightarrow \mathrm{DIVERGENCE}\quad\text{(re-anchor first)}
+# \end{aligned}
+# \]
+# React only to non-NOISE. e.g. \(60\times\) "unresolved reference: Foo" same file
+# → one NOISE cluster → do not delete Foo.
+#
+# ```mermaid
+# flowchart TD
+#   A[freeze anchor a] --> R[receive signals]
+#   R --> C[cluster by source, pattern]
+#   C --> D["δ = 1 - cos(s, a)"]
+#   D --> L{label}
+#   L -->|NOISE| F[filter]
+#   L -->|CONFIRMATION| Act[react]
+#   L -->|DIVERGENCE| Re[re-anchor then react]
+# ```
+#
+# --- Schema: signal_cluster ---
+# ```yaml
+# signal_cluster:
+#   source: lsp | test | log | tool
+#   pattern: "unresolved reference: Foo"
+#   n: 60
+#   delta: 0.05          # δ(S, a)
+#   label: NOISE | CONFIRMATION | DIVERGENCE
+# ```
 
-# --- Classify before act ---
-# Activity: CONVERSATION | OBSERVE | EXECUTE_TEST | MODIFY
-# Effect:   NO_WRITE | DECLARED_TEMP_WRITE | PERSISTENT_WRITE
-# Risk:     LOW | ELEVATED | DESTRUCTIVE
-# fix/edit/create/delete → MODIFY; test/build/typecheck → EXECUTE_TEST
-# show/read/search → OBSERVE; force/destroy → DESTRUCTIVE
-# e.g. "add dark mode toggle"   → MODIFY, PERSISTENT_WRITE, ELEVATED
-#      "run typecheck"          → EXECUTE_TEST, NO_WRITE, LOW
-#      "find all callers of X"  → OBSERVE, NO_WRITE, LOW
+# --- Classify before act (Gates 3, 7) — schema action_class in Part 1 ---
+# ```yaml
+# action_class: {activity: MODIFY, effect: PERSISTENT_WRITE, risk: ELEVATED}  # dark mode
+# action_class: {activity: EXECUTE_TEST, effect: NO_WRITE, risk: LOW}         # typecheck
+# action_class: {activity: OBSERVE, effect: NO_WRITE, risk: LOW}              # find callers
+# ```
+# If work needs \(\ge 3\) steps → ALGORITHM_CARD medoids + todowrite before bulk edit.
 
-# --- Invariants (gate MODIFY) ---
-# CONVERSATION/OBSERVE → NO_WRITE
-# EXECUTE_TEST → NO_WRITE or DECLARED_TEMP_WRITE
-# MODIFY → PERSISTENT_WRITE; ELEVATED/DESTRUCTIVE → explicit acknowledgment
-# complex (3+ steps) → ALGORITHM_CARD medoids + todowrite before bulk edit
-# e.g. "delete production DB"        → MODIFY, DESTRUCTIVE → need explicit OK
-#      "rename getCwd across project" → 3+ steps → plan in todowrite first
-
-# --- Bug fix — four gates, no skip ---
-# ERROR_TEST (must FAIL) → TRIAL_FIX → REAL_FIX → TARGETED_TESTS (pass)
-# targeted = tests in the changed module + related. NOT full system suite.
-# deadloop: 3× same outcome (ΔSV < 0.5) → STOP; universalsearch then re-plan
-# e.g. "list tool returns empty on Windows"
-#   1) write test: list(some/dir) → expect files, got []  [FAIL ✓]
-#   2) trial: normalize paths → test passes  [PASS]
-#   3) real: clean up trial, proper fix → test still passes
-#   4) targeted: bun typecheck + list tool tests pass → bug fixed
-
-# ===================================================================
+# --- Bug fix chain (Gate 8) — no skip ---
+# Ordered stages (each gates the next):
+# \[
+#   \mathrm{ERROR\_TEST}\xrightarrow{\text{must FAIL}}
+#   \mathrm{TRIAL\_FIX}\rightarrow
+#   \mathrm{REAL\_FIX}\xrightarrow{\text{targeted PASS}}
+#   \mathrm{DONE}
+# \]
+# Targeted = changed module + related only (not full-system suite by default).
+# Dead-loop stop: if the last three outcomes share nearly the same SV,
+# \[
+#   \delta(\mathrm{SV}_{t},\mathrm{SV}_{t-1}) < 0.5
+#   \;\text{for three successive attempts}
+#   \;\Rightarrow\; \mathrm{STOP}
+# \]
+# then universalsearch source=web + source=code (or hybrid) on the error signature;
+# re-plan. Prefer web+code over agent mode first (do not thrash).
+##
+# ```mermaid
+# flowchart LR
+#   ET[ERROR_TEST must FAIL] --> TF[TRIAL_FIX]
+#   TF --> RF[REAL_FIX]
+#   RF --> TT[TARGETED_TESTS]
+#   TT -->|PASS| Done[fixed]
+#   TT -->|FAIL| Loop{3× same SV?}
+#   Loop -->|no| TF
+#   Loop -->|yes| Stop[STOP + re-plan]
+# ```
+#
+# --- Schema: bug_fix ---
+# ```yaml
+# bug_fix:
+#   symptom: "list tool empty on Windows"
+#   error_test: {cmd: "...", expect: FAIL, actual: "got []"}
+#   trial_fix: {change: "normalize paths", oracle: PASS}
+#   real_fix: {change: "proper path join", oracle: PASS}
+#   targeted_tests: {cmds: ["bun typecheck", "bun test list"], result: PASS}
+#   status: open | fixed
+# ```

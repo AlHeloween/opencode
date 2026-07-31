@@ -1,5 +1,14 @@
 Executes a bash command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
 
+## Classification & oracles
+
+- **EXECUTE_TEST** (typecheck, tests, linters, builds) → Gate 8 oracles. PASS on a
+  declared claim may support Exact only for that scoped claim (then `oracle_stamp`
+  when promoting ledger claims). FAIL/timeout → no Exact Done.
+- **Shell that mutates the tree** → treat as MODIFY; prefer edit/write tools for
+  source files. Destructive commands are constitution-gated.
+- Self-certify ("seems fine") is Guess — not an oracle.
+
 Be aware: OS: ${os}, Shell: ${shell}
 
 All commands run in the current working directory by default. Use the `workdir` parameter if you need to run a command in a different directory. AVOID using `cd <directory> && <command>` patterns - use `workdir` instead.
@@ -22,7 +31,8 @@ bash "echo hello" --run_in_background false
 ## Platform Notes
 
 - **Linux**: Bash is the native shell. Use bash syntax (ls, grep, cat, etc.).
-- **Windows**: Bash tool is NOT available. Use the `cmd_runner` skill (via `skill` tool) to run interactive commands. `cmd_runner` supports cmd.exe, PowerShell, and can invoke Git Bash if needed.
+- **Windows**: Bash tool is NOT available. Use `cmd` / PowerShell tools when present,
+  or host-provided interactive runners the runtime surfaces for this session.
 
 ## Permission Scanning
 

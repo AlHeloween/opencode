@@ -51,7 +51,8 @@ forbidden_actions:
 - Breaking KV cache continuity (system prompt must be byte-stable)
 - Running tests from repo root
 - Changing Global.Path.home from worktree to os.homedir()
-- Hand-editing ADID framework receivers under `.cursor/` or `.opencode/` (rules `adid-*`, `semantic-coding-agent-drop-in.mdc`) — framework-owned; change only via `opencode_prompts_kernel.py` SPECS or official ADM pipelines. Skills (`adm-*`, `rag`, …) are a **separate package**, not kernel SPECS.
+- **This worktree only (not product SPECS):** Prefer product code under `packages/**` for architecture. Do not treat this repo’s host skill/rule trees as the product identity to redesign unless the user **explicitly asks**. Runtime-injected host surfaces for the session may still be used. Product kernel/reasoning stay host-agnostic (see `21_skills_boundary.py`).
+- Hand-editing ADID framework receivers when framework work is requested — frozen; change only via kernel SPECS or official ADM pipelines.
 
 invariants:
 - Default branch is dev — never assume main exists
@@ -552,7 +553,10 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 
 **Reasoning protocol fragments:** Edit `packages/opencode/src/session/prompt/reasoning/*.txt` (small topic files), then run `python packages/opencode/script/assemble_reasoning.py` to regenerate `reasoning.txt`. Do not hand-maintain a giant single reasoning blob when fragments exist.
 
-**Skills are not kernel SPECS:** External skills (adm-exe, rag, cmd-runner, …) ship in a **separate package** and update independently. Do not re-embed skill manuals into `opencode_prompts_kernel.py` — they go stale. Identity uses `policy.adid_ops` (tool binaries) only.
+**This file is host-local (THIS repository only).**  
+Product kernel + `reasoning/*` are **host-agnostic**: they must not prescribe or embed `AGENTS.md`, host skill trees, or host rule trees — every worktree differs. Runtime loaders inject whatever *this* host has. See kernel `21_skills_boundary.py`.
+
+**Policy for agents working in this worktree only** (not product SPECS): do not redesign or deep-dive this repo’s `.opencode/skills` / `.opencode/rules` for ordinary product tasks unless the user **explicitly asks**. Using surfaces the runtime already injected for this session is fine.
 
 **Python kernel package:** Canonical source is the `opencode_prompts_kernel/` package (topic modules), not a monofile. Public import remains `from opencode_prompts_kernel import …`. CLI: `python -m opencode_prompts_kernel --render-runtime …`.
 

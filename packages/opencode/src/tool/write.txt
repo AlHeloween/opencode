@@ -1,3 +1,9 @@
+## Mutation class
+
+`write` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (full-file create or replace).
+Prefer `edit` for partial changes to existing files. Runtime may **block** if an
+active claim_ledger has premises outside G. After write: declared oracles before Done.
+
 Writes a file to the local filesystem. Overwrites if the file already exists.
 
 ## Behavior
@@ -18,6 +24,7 @@ Writes a file to the local filesystem. Overwrites if the file already exists.
 
 - Create documentation files (*.md) or README files proactively — only if explicitly requested.
 - Create files unless absolutely necessary for the task. Prefer editing existing files.
+- Treat write success as Exact Done — run Gate 8 oracles for verification claims.
 
 ## Parameters
 

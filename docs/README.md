@@ -11,6 +11,8 @@
 
 - [Rendering Pipeline](rendering.md) — LLM→terminal display, mermaid, images
 - [Architecture](architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
+- [Agentic reasoning runtime](agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger, host-agnostic SPECS
+- [Reasoning framework](reasoning-framework.md) — kernel package / SPECS / IR
 - [AGI Workflow](agi-workflow.md) — orchestrator/worker loop, plan hygiene
 - [Startup & bootstrap](startup-bootstrap.md) — cold start, CodeGraph, Fossil vs git/jj
 - [External File Locations](external-file-locations.md) — where opencode reads/writes files

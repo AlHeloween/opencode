@@ -300,6 +300,7 @@ export const layer: Layer.Layer<
           tool: match.part.tool,
           evidenceFloor: ctx.evidenceFloor,
           command: (match.part.state.input as any)?.command,
+          sessionID: ctx.sessionID,
         })
         const finalOutput = nudge ? nudge + "\n" + output.output : output.output
         yield* session.updatePart({
@@ -434,8 +435,12 @@ export const layer: Layer.Layer<
           case "tool-call": {
             ctx.toolCallEmitted = true
             if (WRITE_TOOLS.has(value.toolName)) ctx.hasWriteToolCall = true
-            // Upgrade evidence floor: session-read provides Exact ground truth.
-            if (value.toolName === "session-read") ctx.evidenceFloor = "Exact"
+            // Raise coarse floor from evidence tools (session-read / read / codegraph → Exact).
+            const upgrade = Constitution.evidenceUpgradeForTool(value.toolName)
+            if (upgrade) {
+              ctx.evidenceFloor = upgrade
+              Constitution.raiseEvidenceFloor(ctx.sessionID, upgrade)
+            }
             yield* updateToolCall(value.toolCallId, (match) => ({
               ...match,
               tool: value.toolName,
@@ -725,6 +730,19 @@ export const layer: Layer.Layer<
             {
               const end = Date.now()
               ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
+            }
+            // Claim ledger + oracle_stamp: system-owned InfoMark promotion path.
+            {
+              const ing = Constitution.ingestAssistantText(ctx.sessionID, ctx.currentText.text)
+              if (ing.ledgerUpdated || ing.stampsApplied.length || ing.demoted.length) {
+                log.debug("claim_ledger.ingest", {
+                  sessionID: ctx.sessionID,
+                  stamps: ing.stampsApplied,
+                  demoted: ing.demoted,
+                  floor: Constitution.decisionFloor(ctx.sessionID),
+                })
+                ctx.evidenceFloor = Constitution.decisionFloor(ctx.sessionID)
+              }
             }
             if (value.providerMetadata) ctx.currentText.metadata = value.providerMetadata
             yield* session.updatePart(ctx.currentText)

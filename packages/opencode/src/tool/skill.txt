@@ -1,6 +1,10 @@
-Load a specialized skill that provides domain-specific instructions and workflows. The skill name must match one of the available skills listed in your system prompt.
+Load a specialized skill that provides domain-specific instructions and workflows.
+The skill name must match one of the **available skills the runtime listed for this
+session** (host-injected; not part of the reasoning SPECS).
 
-When you recognize that a task matches one of the available skills, use this tool to load the full skill instructions. The skill will inject detailed instructions, workflows, and access to bundled resources (scripts, references, templates) into the conversation context.
+When a task matches an available skill, load it for detailed instructions and
+bundled resources. Skill prose is guidance — still obey gates, InfoMark, and
+oracles for Done claims.
 
 ## Return Value
 

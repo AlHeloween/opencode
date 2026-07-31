@@ -62,7 +62,9 @@
 | Salience ≠ Evidence; mention never Exact | `02_info_mark.promote_information_mark` → Guess only; `salience_from_mention_ratio` |
 | Canonical claim classifier | `classify_claim_status(...)` |
 | Oracle PASS → Exact (scoped) | `status_after_oracle_pass(...)` |
-| Pocket protocol | `reasoning/04_infomark_oracles.txt` + Gate 8 |
+| Pocket protocol | `reasoning/03_infomark_oracles.txt` + Gate 8 (`01_gates.txt`); research ladder Guess→web→code→smoke PASS=Exact/FAIL=Unknown |
+| Runtime claim ledger | `session/constitution.ts` + MODIFY gate in `session/tools.ts` |
+| Host vs SPECS | `21_skills_boundary.py` — no external CLI cookbooks in SPECS; see `docs/agentic-reasoning-runtime.md` |
 | RUNTIME terms/rules | `infomark`, `oracle`, `INFOMARK.SEP`, richer `VERIFY.OUTCOME` |
 
 ---

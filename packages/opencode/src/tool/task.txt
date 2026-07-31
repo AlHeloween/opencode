@@ -7,6 +7,14 @@ Launch a new sub-agent to handle complex, multistep tasks autonomously. The sub-
 | `explore` | codegraph, read, glob, grep, ls, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research |
 | `general` | All tools | Planning, design alternatives, root-cause analysis, multi-step implementation strategy |
 
+## Alignment with gates
+
+- **Gate 6** — prefer `explore` with a **bounded** goal (paths, symbols, return shape). Explorer is fast and has weak deep reasoning; vague prompts waste turns.
+- **Gate 1** — exploration is OBSERVE; evidence returned is Exact only when tools re-read sources (not explorer prose alone).
+- Do **not** use task to skip Gate 4 approval or to mark oracle PASS.
+- CORRECT explore prompt: "Find callers of X in src/foo/; return paths, lines, signatures."
+- WRONG: "Search for path-related things."
+
 ## Child Session Isolation
 
 - **Restricted permissions**: Sub-agents cannot use `todowrite` (managing the parent's plan) or `task` (preventing nested sub-agent spawning).

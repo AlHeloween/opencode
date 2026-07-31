@@ -1,4 +1,4 @@
-Use this tool to suggest switching to plan agent when the user's request would benefit from planning before implementation.
+Use this tool to suggest switching to plan agent when the user's request would benefit from planning before implementation (Gates 2–4: decompose → master_plan → approve).
 
 If they explicitly mention wanting to create a plan ALWAYS call this tool first.
 
@@ -8,6 +8,7 @@ Call this tool when:
 - The user's request is complex and would benefit from planning first
 - You want to research and design before making changes
 - The task involves multiple files or significant architectural decisions
+- Multi-step work needs a claim_ledger + smoke/oracles before MODIFY
 
 Do NOT call this tool:
 - For simple, straightforward tasks

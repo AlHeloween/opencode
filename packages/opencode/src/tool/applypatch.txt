@@ -1,3 +1,10 @@
+## Mutation class
+
+`apply_patch` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (multi-file atomic).
+Same grounding rules as edit/write: premises ⊆ G when a claim_ledger is active.
+After apply: run declared oracles (Gate 8) before Done. Prefer when coordinated
+multi-file changes must succeed or fail together.
+
 Apply multiple file changes in a single atomic operation using a structured patch format.
 
 ## Patch Format
@@ -36,3 +43,4 @@ All file changes in a single patch are applied atomically. If any individual cha
 - Making coordinated changes across multiple files
 - Renaming files during edits (Use `*** Move to:`)
 - Operations where partial application would leave the project in a broken state
+- Applying a unified-diff-style proposal (e.g. from `aicall`) after human/agent review — `aicall` output alone is never Done

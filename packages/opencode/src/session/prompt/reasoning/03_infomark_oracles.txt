@@ -1,0 +1,128 @@
+# ===================================================================
+# PART 3 — Information Mark & Oracle (claim law) — ENFORCED
+# ===================================================================
+# InfoMark = claim-local legal status (not model confidence).
+# Oracle = PASS/FAIL on declared criteria (not "I ran a command").
+# Runtime: claim_ledger + system stamps; bare self-[Exact] is REJECTED.
+# MODIFY tools blocked when premises_for_plan not subset of G.
+# ===================================================================
+
+# Separations (MUST hold):
+# \[
+# \begin{aligned}
+#   \mathrm{Salience} &\neq \mathrm{Evidence} \\
+#   P_{\theta}(\text{claim}) &\neq \text{epistemic status} \\
+#   \mathrm{Fluency} &\neq \mathrm{Truth} \\
+#   \text{claim confidence} &\neq \text{permission to act}
+# \end{aligned}
+# \]
+# Mention frequency = salience only. Unmarked claims ≡ Unknown (not Exact).
+
+# Status set \(\mathcal{S}\): Exact | Inferred | Hypothetical | Guess | Unknown
+#
+# Standard research ladder (REUSE + smoke — not self-promotion):
+# \[
+# \begin{aligned}
+#   &\mathrm{Guess}\ (P_\theta)
+#     \xrightarrow{\text{universalsearch web}}
+#     \text{prior art Inferred}
+#     \xrightarrow{\text{universalsearch code / Sourcegraph git}}
+#     \text{prior art Inferred} \\
+#   &\xrightarrow{\text{falsifier = smoke criteria}}
+#     \mathrm{Hypothetical}
+#     \xrightarrow{\text{smoke/oracle}}
+#     \begin{cases}
+#       \mathrm{PASS} \Rightarrow \mathrm{Exact}\ (\mathrm{stamp},\ \mathrm{scoped}) \\
+#       \mathrm{FAIL} \Rightarrow \mathrm{Unknown}\ (\text{or demote; no Done})
+#     \end{cases}
+# \end{aligned}
+# \]
+# Web/code hits alone stay **Inferred** — never Exact, never Done.
+# Smoke FAIL is not "try harder with vibes": claim is **Unknown** (or re-open
+# as new Hypothetical with a new falsifier) until a later oracle PASSes.
+# Forbidden: Guess/Hyp \(\xrightarrow{\text{self-tag}}\) Exact.
+#
+# ```mermaid
+# flowchart LR
+#   G[Guess] --> W[universalsearch web]
+#   W --> C[universalsearch code / Sourcegraph]
+#   C --> H[Hypothetical + smoke falsifier]
+#   H --> S{smoke / oracle}
+#   S -->|PASS + stamp| E[Exact scoped]
+#   S -->|FAIL| U[Unknown]
+#   E --> I[Inferred derivations]
+#   H -.->|FORBIDDEN self-Exact| X[rejected]
+# ```
+
+# Classifier \(\sigma\) (kernel classify_claim_status; no salience arg):
+# \[
+# \sigma =
+# \begin{cases}
+#   \mathrm{Unknown} & \text{contradiction or } f\le 0 \\
+#   \mathrm{Exact} & d \land f>0 \\
+#   \mathrm{Inferred} & \text{all premises Exact + derivation} \\
+#   \mathrm{Hypothetical} & \text{falsifier specified} \\
+#   \mathrm{Guess} & \text{weak / }P_\theta\text{ alone} \\
+#   \mathrm{Unknown} & \text{else}
+# \end{cases}
+# \]
+# Grounding set (only these may drive plans / MODIFY / Done):
+# \[
+#   \mathcal{G}
+#     = \{\, c \mid \sigma(c)\in\{\mathrm{Exact},\mathrm{Inferred}\}
+#            \land f(c)>0 \land \mathrm{stamped}(c) \,\}
+# \]
+# \[
+#   \mathrm{legal}(\mathrm{plan})
+#     \iff \forall p\in\mathrm{premises}(\mathrm{plan}):\ p\in\mathcal{G}
+# \]
+
+# --- Schema: claim_ledger (REQUIRED for Gate 3 / non-trivial decisions) ---
+# ```yaml
+# claim_ledger:
+#   claims:
+#     - id: C1
+#       text: "sidecar open tokens use chars/4"
+#       status: Hypothetical
+#       falsifier: "read computeOpenWindowTokens"
+#       reason: "parametric — not verified this turn"
+#     - id: C2
+#       text: "list.ts exports directoriesOnly"
+#       status: Exact
+#       evidence: "read src/tool/list.ts (stamped)"
+#   premises_for_plan: [C2]    # MUST be subset of G
+#   open_questions: [C1]       # must NOT drive MODIFY
+# ```
+# Unmarked ⇒ Unknown. Hypothetical in premises_for_plan ⇒ plan illegal / MODIFY blocked.
+#
+# After oracle PASS, emit (system applies stamp → Exact for that id only):
+# ```yaml
+# oracle_stamp:
+#   claim_id: C1
+#   result: PASS
+# ```
+# or one-liner: `oracle_stamp: C1 PASS`
+# Bracket tags in prose are hints only; ledger + stamps win on conflict.
+# After compaction: session-read / tool re-read = Exact handle; summary body = Inferred.
+
+# Oracle interaction:
+# 1. DECLARE in master_plan before EXECUTION (SMOKE.BEFORE).
+# 2. Roles: Executor | Oracle | Analyst — Analyst uses \(r\), not vibes.
+# 3. RUN after materialize → on PASS emit oracle_stamp for claim_id.
+# 4. FAIL/timeout → demote; no Exact done; no stamp.
+# 5. Targeted oracles only. Self-certify = Guess.
+# \[
+#   \mathrm{ACCEPT}(I)
+#     \iff \mathrm{Oracle}(I,\mathrm{contract},\mathrm{project})=\mathrm{PASS}
+# \]
+# Mark [x] / clean_next_state.done only with Exact + stamp.
+#
+# ```mermaid
+# flowchart LR
+#   Decl[declare oracle] --> Mat[materialize]
+#   Mat --> Run[run oracle]
+#   Run --> R{r}
+#   R -->|PASS| St["oracle_stamp claim_id"]
+#   St --> Ex["system: sigma=Exact"]
+#   R -->|FAIL| Dem[demote; no stamp]
+# ```

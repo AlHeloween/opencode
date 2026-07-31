@@ -4,17 +4,19 @@ PROMPT_ABI = MappingProxyType({
     "version": "5",
     "precedence": ("safety", "governance", "task", "domain", "style"),
     "line_endings": "LF",
-    # Tier A identity prefix: dictionary + agent/policy SPECS only (skills/commands are Tier B surfaces).
+    # Tier A identity: dictionary + agent/policy SPECS only (host-agnostic).
+    # Host worktree surfaces are runtime-injected, never SPECS subjects
+    # (see 21_skills_boundary).
     "identity_tier": "A",
     # Soft budget for model-facing identity (bytes). CI fails if exceeded.
     "identity_max_bytes": 48_000,
 })
 
 RUNTIME_TERMS = MappingProxyType({
-    "adid": "ADID framework tools: adm, cmd_runner, RAG, Delphi helpers; receivers frozen; ops in policy.adid_ops.",
+    "adid": "ADID receivers frozen when present (no hand-edit). policy.adid_ops = product tool hygiene only (no external CLI cookbooks). SPECS/reasoning host-agnostic; host surfaces runtime-injected.",
     "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
     "evidence": "Verified reference outranks inference; label uncertainty before claiming completion.",
-    "infomark": "Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Salience≠Evidence; parametric conf never Exact. session-read Exact; summaries Inferred. Mention frequency is salience only.",
+    "infomark": "Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Salience≠Evidence; parametric conf never Exact. Grounding set G=stamped Exact|Inferred only; premises_for_plan must ⊆ G or MODIFY blocked. Self-[Exact] rejected without system stamp (oracle_stamp/session-read/direct evidence). Summaries Inferred; unmarked=Unknown. Scientific promotion: Guess→Hypothetical→oracle→Exact.",
     "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.",
     "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
     "oracle": "Declare pass/fail criteria before EXECUTION; run after materialize; PASS→Exact for that claim only; FAIL demotes; no self-certify. Executor≠Oracle≠Analyst (logical roles).",
@@ -29,18 +31,18 @@ RUNTIME_RULES = MappingProxyType({
     "SEARCH.ORDER": "where/which > codegraph > messagesearch > universalsearch > glob > grep",
     "WRITE.SCOPE": "modify only within user-authorized scope",
     "VERIFY.OUTCOME": "declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done",
-    "INFOMARK.SEP": "Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred",
-    "REUSE.BEFORE": "before non-trivial invent/build and when stuck after failures: use universalsearch — source=web (internet) and/or source=code (Sourcegraph indexed git) or hybrid. Prefer existing solutions over reinvention. Trivial exception: typo/rename/one-line local fix with codegraph evidence. After failed fix: re-search error signature before custom workaround.",
+    "INFOMARK.SEP": "Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred; claim_ledger required for non-trivial decisions; premises ⊆ G; system stamps only mint Exact",
+    "REUSE.BEFORE": "research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Unknown (no Done). Prefer reuse over reinvent. Trivial exception: typo/rename/one-line with codegraph. After stuck failure: web+code on error signature before new invent.",
     "SMOKE.BEFORE": "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
     "CACHE.STABILITY": "keep the system prefix byte-stable for the session",
     "MEMORY.RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
     "MEMORY.LINKS": "every summary and message* must carry message IDs for session-read recovery",
-    "ADID.FREEZE": "never hand-edit ADID framework rule receivers under .cursor/ or .opencode/; kernel SPECS + ADM only",
-    "ADID.OPS": "always-on how-to: cmd_runner start/tail/send; adm template→apply→verify; rag index/query; Delphi init+msbuild (see policy.adid_ops)",
-    "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read from config/adm.json",
+    "ADID.FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
+    "ADID.OPS": "prefer product tools (edit/read/codegraph/jobs/oracles); long work via product job runners; never embed external framework CLI cookbooks in SPECS (see policy.adid_ops)",
+    "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)",
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
     "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
-    "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked, search web/codegraph/messagesearch before declaring blocked.",
+    "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",
     "DECOMPOSE": "fractal lattice before work list: over-generate (Sierpinski/Quad/L-System) → cosine to Goal SV → k-medoids (k=ceil(N/2), seeds ground centers) → CENTRAL_TASKS=medoids only. Never Mode-1 linear step lists for multi-step work. Same recursive motif every level (F→F+F-F), not ad-hoc essays.",
     "DOCUMENT.SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
     "WORKSPACE.LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",

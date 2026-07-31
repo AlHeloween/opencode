@@ -18,6 +18,7 @@ import { PartID } from "./schema"
 import * as Log from "@opencode-ai/core/util/log"
 import { EffectBridge } from "@/effect/bridge"
 import { ModelID } from "@/provider/schema"
+import { Constitution } from "./constitution"
 
 const log = Log.create({ service: "session.tools" })
 const policyNames = new WeakMap<Record<string, AITool>, Map<string, string>>()
@@ -159,6 +160,26 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           Effect.gen(function* () {
             if (denied(item.policy) || denied(item.id) || denied(name)) {
               return yield* rejected(item.id, options.toolCallId)
+            }
+            // InfoMark grounding: MODIFY denied when active premises ∉ G
+            const grounding = Constitution.guardMutationGrounding({
+              sessionID: input.session.id,
+              tool: item.id,
+            })
+            if (grounding.blocked) {
+              const output = {
+                title: "Grounding gate",
+                metadata: {
+                  grounding: true,
+                  denied: true,
+                  tool: item.id,
+                  ungrounded: Constitution.premisesGrounded(input.session.id).ungrounded,
+                },
+                output: grounding.message ?? "Premises not in grounding set G (Exact|Inferred).",
+              }
+              log.warn("tool blocked by grounding gate", { tool: item.id, sessionID: input.session.id })
+              yield* input.processor.completeToolCall(options.toolCallId, output)
+              return output
             }
             const ctx = context(args, options)
             yield* plugin.trigger(

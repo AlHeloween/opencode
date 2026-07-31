@@ -2,29 +2,20 @@
 
 
 ADID_FRAMEWORK_RULES = _spec(
-    intent="""ADID framework and adm executable rules for all development.
-Ground work in real governing surfaces, use cmd_runner for risky commands,
-maintain documentation reproducibility.
+    intent="""Framework integrity for product SPECS: ground work in real surfaces,
+keep documentation reproducible, never hand-edit frozen ADID PromptSpec receivers
+when they exist in a worktree. Change framework policy only via this kernel package
+or official artefact pipelines — not drive-by edit of receivers.
 
-ADID framework on-disk surfaces are FROZEN for coding agents: do not hand-edit
-rule receivers under .cursor/ or .opencode/ that belong to ADID.
-Those files are framework-owned (PromptSpec receivers and/or ADM installs).
-Rewriting them to free-form prose breaks pytest PromptSpec and ADID integrity.
-Change ADID policy only in opencode_prompts_kernel.py (e.g. ADID_FRAMEWORK_RULES)
-or via official ADM/artefact pipelines — never by drive-by edit of receivers.""",
+SPECS and reasoning are host-agnostic process law. Host worktree governance, skills,
+and rules are runtime-injected per session — never encoded into product SPECS.""",
 
     state={
-        "protocol": "docs/ADID_Framework_15_4.md",
-        "adm_tool": "tools/adm.exe or python -m adm",
-        "frozen_receivers": [
-            ".cursor/rules/adid-*.mdc",
-            ".cursor/rules/semantic-coding-agent-drop-in.mdc",
-            ".opencode/rules/adid-*.mdc",
-            ".opencode/rules/semantic-coding-agent-drop-in.mdc",
-        ],
         "kernel_source": "opencode_prompts_kernel.py::ADID_FRAMEWORK_RULES",
+        "host_surfaces": "runtime-injected per worktree — not SPECS subjects",
+        "receivers": "frozen PromptSpec ADID surfaces when present in a host tree",
     },
-    scope="ADID framework adherence, adm tool usage, docs maintenance, frozen ADID rule receivers",
+    scope="frozen framework receivers, host-agnostic SPECS, grounding over inference",
 
     constraints={
         "no_legacy_compat": True,
@@ -33,106 +24,76 @@ or via official ADM/artefact pipelines — never by drive-by edit of receivers."
         "port_means_replicate": True,
         "control_stubs_for_verification": True,
         "adid_receivers_frozen": True,
-        "no_hand_edit_adid_rules_skills": True,
+        "specs_host_agnostic": True,
     },
 
     invariants=[
         "Must ground all work in real governing surfaces, not inference",
-        "Must use cmd_runner for non-trivial / crash-prone commands",
-        "Must treat updates/ history as the durable record",
-        "Must keep index.md up to date",
-        "ADID rule receivers under .cursor/ and .opencode/ must not be rewritten by coding agents",
-        "PromptSpec structure on ADID rules (intent/state/scope/constraints/invariants/forbidden_actions) must be preserved",
+        "Must keep index.md up to date when the project uses it",
+        "ADID framework receivers must not be rewritten by coding agents",
+        "PromptSpec structure on ADID rules must be preserved when those receivers exist",
+        "Product SPECS/reasoning stay host-agnostic",
     ],
 
     acceptance_tests=[
-        "pytest tests/test_prompt_schema.py passes (ADID rules keep PromptSpec sections)",
-        "No unsolicited diffs under .cursor/rules/adid-* or .opencode/rules/adid-*",
+        "pytest tests keep PromptSpec integrity for framework receivers when present",
+        "reasoning/* and kernel SPECS do not hardcode host worktree layout or external tool cookbooks",
     ],
 
     forbidden_actions=[
         "Adding backward-compat parsing or fallback paths",
         "Letting inference outrank grounded evidence",
-        "Restoring from git when adm --rollback is available",
-        "Hand-editing ADID framework rule files (.cursor/rules/adid-*.mdc, .opencode/rules/adid-*.mdc, semantic-coding-agent-drop-in.mdc)",
+        "Hand-editing ADID framework rule receivers",
         "Rewriting ADID PromptSpec rule receivers into free-form markdown that drops intent/constraints/invariants/forbidden_actions",
-        "Using edit/write/apply_patch on ADID rule receivers to 'fix style' or align with non-ADID docs",
+        "Encoding host project governance, skill manuals, rule trees, or external tool CLIs into product SPECS or reasoning",
     ],
 )
 
-# Compact always-on how-to for ADID tools (Tier A). Full prose stays in kernel SPECS.
+# Tier A: product tool hygiene only — no external binary/skill cookbooks.
 ADID_OPS = _spec(
-    intent="""Always-on ADID operations cheat-sheet: cmd_runner, adm, RAG, Delphi build, DUnit.
-Use project tool binaries (tools/*.exe). Skill packages are installed separately — not embedded here.""",
+    intent="""Host-agnostic product tool hygiene. Prefer built-in opencode tools for
+files, search, structure, jobs, and oracles. Long or interactive work uses product
+job runners (e.g. bash background + joboutput). External framework binaries and
+skill manuals are host-runtime only — never pasted into SPECS.""",
 
     state={
-        "tools": "tools/adm.exe, tools/adm-rag.exe, tools/cmd_runner.exe (or PATH)",
-        "detail": "separate skill package / SKILL.md on disk — not kernel SPECS",
+        "product_tools": "packages/opencode/src/tool/* (edit, bash, codegraph, aicall, …)",
+        "host_tools": "runtime-injected when present — not SPECS subjects",
     },
 
-    scope="practical ADID tool invocation every session",
+    scope="product tool selection and safe execution hygiene",
 
     constraints={
-        "prefer_tools_binaries": True,
-        "long_or_interactive_via_cmd_runner": True,
-        "adm_template_then_edit": True,
+        "prefer_product_tools": True,
+        "long_jobs_via_product_runners": True,
+        "no_external_cli_cookbook_in_specs": True,
     },
 
     invariants=[
-        "Risky/long/interactive runs go through cmd_runner, not bare bash/cmd for multi-minute work",
-        "ADM mutations use --template then edit then --apply; never invent XML from scratch",
+        "Prefer product tools over shell for file read/write/search",
+        "Long-running commands use product job tools (background + poll), not blocking soup",
+        "External tool manuals stay outside identity SPECS",
     ],
 
-    acceptance_tests=[],
+    acceptance_tests=[
+        "ADID_OPS.usage does not embed host-specific external CLI recipes",
+    ],
 
     forbidden_actions=[
-        "Hand-crafting ADM XML descriptors without --template",
-        "Using git restore when adm --rollback applies",
-        "Using cmd_runner for sub-second trivial commands",
+        "Embedding external framework CLI cookbooks or host skill-binary manuals into SPECS",
+        "Using shell for operations that product tools already cover (read/edit/grep/list)",
     ],
 
-    usage="""## cmd_runner (interactive / long / crash-prone)
-start:  tools/cmd_runner.exe start [--cwd PATH] [--terminal wezterm|wt|conhost] [--auto-tail N] [--wait-ms MS] -- <cmd...>
-        Prefer --wait-ms 4000 --auto-tail 5 so start prints run_id/inbox then exits (session keeps running).
-        (prints run_id; logs under logs/cmd_runner/<run_id>/)
-tail:   tools/cmd_runner.exe tail <run_id> [--follow] [-n N]
-send:   tools/cmd_runner.exe send <run_id> --text "..." --crlf
-        tools/cmd_runner.exe send <run_id> --keys "ctrl+c" | "TEXT:foo,ENTER"
-stop:   tools/cmd_runner.exe stop <run_id> --reason done
-list:   tools/cmd_runner.exe list | status <run_id>
-NOT for: ls/git status/echo/simple cp-mv-rm. YES for: builds, installs, pytest suites, TUI, Delphi, ssh sessions.
+    usage="""## Product tools (prefer)
+- Structure: codegraph before grep/glob when indexed
+- Files: read / edit / write / apply_patch / multiedit
+- Search: messagesearch → sessionread; prior art: universalsearch web and/or code (Sourcegraph), not agent-first
+- Jobs: bash/cmd with background + joboutput/jobwait; oracles for Gate 8
+- Cognition: aicall only on attached files; output is Inferred until apply+oracle
 
-## adm (declarative updates)
-bin: tools/adm.exe (prefer) | python -m adm
-1) tools/adm.exe --template all   # or replace|overwrite|create|insert|delete|...
-2) edit updates/<timestamp>_*.xml  # set file/mode/payload
-3) tools/adm.exe --dry-run --apply updates/<file>.xml
-4) tools/adm.exe --apply updates/<file>.xml
-5) tools/adm.exe --verify-all [roots]
-rollback: tools/adm.exe --rollback <file>   # not git restore
-patch:    tools/adm.exe --patch-tool <patch>
-env:      tools/adm.exe --init-msvc | --init-delphi
-
-## RAG (semantic code index)
-need: adm.json in launch folder; pip install torch sentence-transformers (once)
-init:   tools/adm-rag.exe --init
-index:  tools/adm.exe --rag index <name> [roots]
-query:  tools/adm.exe --query <name> "question"
-status: tools/adm.exe --rag status <name> | --rag list
-daemon: tools/adm-rag.exe --mcp-http 127.0.0.1 7990   # one machine-wide BGE process
-db:     .adid_rag/data/<name>.sqlite3
-
-## Delphi build (Windows)
-1) tools/adm.exe --init-msvc && tools/adm.exe --init-delphi
-2) call tools\\init_msvc.cmd && call tools\\init_delphi.cmd Win64
-3) tools\\build_delphi_msbuild.cmd <project>.dpr Win64 Release
-   (or long: cmd_runner start -- tools\\build_delphi_msbuild.cmd ...)
-out: <project_dir>/bin/<Platform>/<Config>/<project>.exe
-PS:  .\\tools\\init_msvc.ps1; .\\tools\\init_delphi.ps1 -Platform Win64; .\\tools\\build_delphi_msbuild.ps1 -Dpr X.dpr -Platform Win64 -Config Release
-
-## DUnit
-call tools\\init_msvc.cmd && call tools\\init_delphi.cmd Win32
-tests\\run_tests.cmd | tests\\build_tests.cmd""",
+## Host-only surfaces
+If the runtime injects skills or extra binaries for this worktree, follow those
+session surfaces. Do not invent CLI recipes from SPECS memory.""",
 )
 
 CODING_AGENT_DIRECTIVES = _spec(

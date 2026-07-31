@@ -68,7 +68,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "codegraph_before_grep": "codegraph tool is #2 for code structure — before glob (#5) or grep (#6). AST-parsed results from one call replace multi-file grep + Read loops.",
         "messagesearch_before_universalsearch": "messagesearch (#3) checks prior sessions before universalsearch (#4) for conversation context. For prior art outside this session, still use universalsearch.",
         "no_path_hardcoding": True,
-        "no_hardcode_values": "Never hardcode paths, port numbers, URLs, version strings, or magic numbers. Discover via where/which (executables), codegraph/glob (project files), read config (adm.json, opencode.json, package.json), or query the OS (tasklist, /etc, sysctl). Every hardcoded value must carry a comment justifying why discovery was infeasible.",
+        "no_hardcode_values": "Never hardcode paths, port numbers, URLs, version strings, or magic numbers. Discover via where/which (executables), codegraph/glob (project files), read project config (package.json, opencode.json, etc.), or query the OS (tasklist, /etc, sysctl). Every hardcoded value must carry a comment justifying why discovery was infeasible.",
         "web_search_for_grounding": True,
     },
 

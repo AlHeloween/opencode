@@ -1,52 +1,69 @@
-Search the web, code repositories, or use an AI research agent via the Universal Search Service. The service handles all internal routing (web search, code search, Firecrawl, Sourcegraph).
+Search the web, indexed git (Sourcegraph), or a heavy research agent via the
+Universal Search Service. Product-integrated tool for **REUSE.BEFORE**.
 
-## When to use (REUSE.BEFORE — do not reinvent the wheel)
+## Efficiency (prefer these first)
 
-Use this tool **before** non-trivial invent/build and **again when stuck after failures**:
+| Goal | Call |
+|------|------|
+| Internet docs, APIs, known fixes, current events | `source: "web"` |
+| Prior art across **entire indexed git** (Sourcegraph) | `source: "code"` |
+| Both local-ish + global code patterns in one shot | `source: "hybrid"` |
+| Multi-step scrape/synthesize (slow, costly) | `source: "agent"` only if web+code insufficient |
 
-1. **Before design/implementation** — new feature, protocol, algorithm, dependency, or abstraction: run `web` and/or `code` (Sourcegraph over indexed git), or `hybrid`. Prefer existing solutions.
-2. **On failure** — build/test/typecheck/runtime error or a failed fix attempt: search the error signature / pattern (`web` + `code`) before inventing a custom workaround.
-3. **Before claiming "nothing exists"** — escalate through SEARCH.ORDER; universalsearch is the external prior-art step.
+**Default for non-trivial invent/build:** run **web and/or code** (often both, or
+`hybrid`). Do **not** open with `agent` for ordinary prior-art checks — it is
+slower and less precise than targeted web/code.
 
-Skip only for trivial local work (typo, rename, one-line) already grounded in codegraph. Kernel rule: `REUSE.BEFORE`.
+## When to use (REUSE.BEFORE)
 
-## Search Modes
+1. **Before design/implementation** — new feature, protocol, algorithm, dependency,
+   abstraction: `web` and/or `code` (Sourcegraph over indexed git), or `hybrid`.
+   Prefer existing solutions over reinvention.
+2. **On failure** — build/test/typecheck/runtime or failed fix: search the error
+   signature with `web` + `code` before inventing a custom workaround.
+3. **Before "nothing exists"** — escalate SEARCH.ORDER; this tool is the external
+   prior-art step after local codegraph/messagesearch.
 
-| Mode | Description | Use For |
-|------|-------------|---------|
-| `agent` (default) | Autonomous AI researcher that iteratively investigates, scrapes, and synthesizes. Returns a job ID for polling. | Complex research questions requiring multi-step investigation |
-| `web` | Direct web search via Firecrawl. Returns full page content as markdown. | Docs, known fixes, APIs, current events — reuse check on the internet |
-| `code` | Code search via Sourcegraph. Returns file paths, line numbers, and code snippets. | Prior art across indexed git — patterns, API usage, OSS solutions |
-| `hybrid` | Combined local code search + Sourcegraph results. Results labeled `[Local]` or `[Sourcegraph]`. | Local + global code prior art in one call |
+Skip only for trivial local work (typo, rename, one-line) already grounded in
+codegraph. Kernel rule: `REUSE.BEFORE`.
 
-## Agent Mode Workflow
+**InfoMark / research ladder:**
+  Guess → web → code (Sourcegraph git) → still Inferred/Hypothetical
+  → smoke/oracle PASS → Exact (scoped stamp) | FAIL → **Unknown** (no Done).
+Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-proved.
 
-1. Call with `source: "agent"` to start research
-2. Receive a `job_id` in the response
-3. Poll with `job_id: "..."` — automatically polls every 5 seconds, returns results when complete (up to 5 minutes)
-4. The agent iteratively uses search and scrape tools until it reaches a conclusion
+## Modes
 
-## Health & Reliability
+| Mode | Backend | Use for |
+|------|---------|---------|
+| `web` | Firecrawl web search | Docs, known fixes, APIs, current events |
+| `code` | Sourcegraph over indexed git | OSS patterns, API usage, prior implementations |
+| `hybrid` | Local + Sourcegraph (labeled) | Local + global code prior art |
+| `agent` | Autonomous multi-turn research job | Complex multi-hop only after web/code |
 
-- **Health check** runs before every request — detects if the service is available.
-- **Timeout**: 60s per individual request, 5 min max for agent jobs.
-- **Error states**: Service not responding, job cancelled, unknown status — all handled with descriptive errors.
+## Agent mode (when needed)
+
+1. `source: "agent"` → receive `job_id`
+2. Poll with `job_id` (tool auto-polls up to 5 min)
+3. Prefer after web/code already narrowed the question
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `query` | string | — | Search query or research question |
-| `source` | `"agent"`, `"web"`, `"code"`, `"hybrid"` | `"agent"` | Which search backend to use |
-| `limit` | number | 5 (web) / 10 (code) | Max results |
-| `max_turns` | number | 5 | Max agent iterations (agent mode) |
-| `job_id` | string | — | Poll an existing agent job for results |
+| `source` | web \| code \| hybrid \| agent | agent* | Prefer **web** / **code** / **hybrid** for REUSE |
+| `limit` | number | 5 web / 10 code | Max results |
+| `max_turns` | number | 5 | Agent iterations (agent mode only) |
+| `job_id` | string | — | Poll existing agent job |
+
+\*Schema default remains `agent` for backward compatibility; **agents should pass
+`source: "web"`, `"code"`, or `"hybrid"` explicitly for REUSE.BEFORE.**
 
 ## Configuration
 
-Requires `universal_search` config in `opencode.json`:
 ```json
 { "universal_search": { "enabled": true, "url": "http://127.0.0.1:3005" } }
 ```
 
-The Universal Search Service must be running as a system service on the configured port.
+Service must be running. Health-checked before each request.

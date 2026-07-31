@@ -1,8 +1,9 @@
 # Reasoning Framework Architecture
 
 **Status:** production  
-**Last Updated:** 2026-07-17  
-**Canonical Source:** `opencode_prompts_kernel.py`
+**Last Updated:** 2026-07-31  
+**Canonical Source:** `opencode_prompts_kernel/` package (+ rendered `opencode_prompts_kernel.txt`)  
+**Agentic runtime (gates, REUSE ladder, claim ledger):** [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md)
 
 ---
 
@@ -163,7 +164,11 @@ Budget: `PROMPT_ABI["identity_max_bytes"]` (48 000). CI fails if Tier A exceed
 
 Memory ranks (InfoMark) live in TERMS/RULES (`infomark`, `MEMORY.RANK`, `MEMORY.LINKS`) and on compaction surfaces — see `docs/compaction.md`.
 
-TS mirror (risk + InfoMark helpers): `packages/opencode/src/session/constitution.ts`
+**Research ladder (REUSE.BEFORE):** Guess → `universalsearch` web → code (Sourcegraph indexed git) → smoke/oracle: **PASS → Exact (stamped)** | **FAIL → Unknown**. Web/code hits alone stay Inferred. See [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md).
+
+**Host-agnostic SPECS:** kernel + reasoning pocket do not encode host AGENTS.md, host skill/rule trees, or external CLI cookbooks (those update via ADID/host install). Product tools: `packages/opencode/src/tool/*`. Boundary: `opencode_prompts_kernel/21_skills_boundary.py`.
+
+TS mirror (risk, InfoMark, claim ledger, grounding gate): `packages/opencode/src/session/constitution.ts`
 
 - **DESTRUCTIVE shell** (`rm -rf`, `git push --force`, `reset --hard`, `git checkout` / `switch` / `restore`, …) requires permission **`destructive`** (not `bash:*`, so auto-allow bash cannot skip it), or `OPENCODE_ALLOW_DESTRUCTIVE=1`
 - Defaults: `destructive: ask` after `*: allow`. Plan: deny. Explore: `*: deny`.

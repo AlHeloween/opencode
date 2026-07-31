@@ -1,6 +1,17 @@
+## Mutation class
+
+`edit` is **MODIFY / PERSISTENT_WRITE / ELEVATED**. Prefer after plan approval
+when a multi-step plan exists. Runtime may **block** mutation if an active
+claim_ledger has premises outside G (Exact|Inferred, system-stamped).
+
+Before edit: inspect the target (read/codegraph). State the semantic delta, not
+only the path. Preserve unrelated user changes. After edit: run **declared**
+oracles (Gate 8) before Done / `[x]`. Prefer edit over write for partial updates
+(rollback-friendly backups).
+
 ## File Backups
 
-Each edit automatically creates a backup of the file's pre-edit content before applying changes. Backups are stored in `{worktree}/.opencode/data/backups/<sessionID>/`. Each session keeps up to 50 backups; oldest are deleted first.
+Each edit automatically creates a backup of the file's pre-edit content before applying changes. Backups are stored under the worktree data backups directory for the session. Each session keeps up to 50 backups; oldest are deleted first.
 
 ---
 

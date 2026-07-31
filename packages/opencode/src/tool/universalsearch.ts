@@ -12,7 +12,7 @@ export const Parameters = Schema.Struct({
   ),
   source: Schema.optional(Source).annotate({
     description:
-      "Search mode: 'agent' for autonomous research (default), 'web' for web search, 'code' for code search, 'hybrid' for combined",
+      "REUSE.BEFORE: prefer 'web' (internet), 'code' (Sourcegraph indexed git), or 'hybrid'. Use 'agent' only for multi-hop research after web/code. Default if omitted is 'agent' (compat) — pass web/code/hybrid explicitly for prior art.",
   }),
   limit: Schema.optional(Schema.Number).annotate({
     description: "Number of results to return (default: 5 for web, 10 for code)",

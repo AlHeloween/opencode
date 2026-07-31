@@ -1,0 +1,245 @@
+# ===================================================================
+# PART 1 — GATED WORKFLOW (process spine). Follow in order.
+# ===================================================================
+# Algorithms → gates: noise filter→G1; classify→G3/G7; invariants→G4/G7;
+# bug_fix→G8; claim/oracle→G8/G9. Full graph in 00_map.
+# ===================================================================
+
+# --- Schema: action_class (classify BEFORE act; required for MODIFY) ---
+# ```yaml
+# action_class:
+#   activity: CONVERSATION | OBSERVE | EXECUTE_TEST | MODIFY
+#   effect:   NO_WRITE | DECLARED_TEMP_WRITE | PERSISTENT_WRITE
+#   risk:     LOW | ELEVATED | DESTRUCTIVE
+# ```
+# Map: fix/edit/create/delete → MODIFY+PERSISTENT_WRITE;
+#      test/build/typecheck → EXECUTE_TEST; show/read/search → OBSERVE.
+# Invariants: CONVERSATION/OBSERVE ⇒ effect = NO_WRITE;
+# EXECUTE_TEST ⇒ no silent persistent write;
+# risk ∈ {ELEVATED, DESTRUCTIVE} ∧ activity = MODIFY ⇒ explicit user OK.
+
+# GATE 1 — GROUND TRUTH  [EVIDENCE.ORDER, SEARCH.ORDER, WHERE_WHICH, REUSE.BEFORE]
+# Read current state before judgment: files, logs, tests, conversation.
+# Every observation from a concrete tool read or oracle output — not parametric memory.
+# SEARCH.ORDER: where/which → codegraph → messagesearch → universalsearch → glob/grep.
+# Non-trivial invent/build: REUSE.BEFORE with product tool universalsearch —
+#   source=web (internet) and/or source=code (Sourcegraph over indexed git) or hybrid.
+#   Prefer web+code over source=agent (agent is slow multi-hop; use only if needed).
+# Prefer structure (codegraph) then bounded search; do not plan on assumptions.
+# e.g. "fix list tool" → codegraph/read list.ts + tests FIRST; if inventing a design,
+#      universalsearch web+code before coding.
+#
+# GATE 2 — DECOMPOSE  [DECOMPOSE → ALGORITHM_CARD]
+# Goal embedding \(\mathbf{g}\) (Goal SV). Over-generate candidate set \(C\) on a fractal
+# lattice (Sierpinski / Quad-Oct / L-System). Keep
+# \[
+#   C' = \bigl\{\, c \in C \;\big|\;
+#     \cos(\mathbf{c},\mathbf{g})
+#       = \tfrac{\mathbf{c}\cdot\mathbf{g}}{\|\mathbf{c}\|\,\|\mathbf{g}\|}
+#       \ge \tau \,\bigr\}
+# \]
+# then \(k\)-medoids with \(k = \lceil |C'|/2 \rceil\), seeds as initial centers;
+# CENTRAL_TASKS = medoids only (file-and-function grain).
+# No Mode-1 linear essay lists. If A–Z path is not visible — keep decomposing.
+#
+# ```mermaid
+# flowchart TD
+#   Goal[Goal + evidence] --> Seeds[goal seeds]
+#   Seeds --> Lat[fractal over-generate C]
+#   Lat --> Cos["C' = cosine filter vs g"]
+#   Cos --> Med["k-medoids, k=ceil(|C'|/2)"]
+#   Med --> CT[CENTRAL_TASKS = medoids]
+#   CT --> TW[todowrite]
+# ```
+
+# GATE 3 — MASTER PLAN  [SMOKE.BEFORE, REUSE.BEFORE, infomark]
+# Emit master_plan + claim_ledger. Sync [ ] with todowrite.
+# Each task: what, files, oracle (or smoke: N/A + reason), action_class.
+# LEGALITY: premises_for_plan ⊆ G (Exact|Inferred, system-stamped).
+# Hypothetical / Guess / Unknown / unmarked → open_questions only (not premises).
+# Self-[Exact] without stamp is rejected by runtime.
+# Prior art (non-trivial): note universalsearch web and/or code results (or reuse: N/A).
+#
+# --- Schema: master_plan ---
+# ```yaml
+# master_plan:
+#   description: "one-line goal"
+#   premises: [C2]              # claim ids in G only
+#   open_questions: [C1]         # promotion tasks / oracles
+#   goals:
+#     - id: G1
+#       sv: [keyword_a, keyword_b, keyword_c]   # 3-9 terms
+#       document: "abstract + I/O + brief impl sketch"
+#       done_pct: 0
+#       tasks:
+#         - id: T1
+#           sv: [task_terms...]
+#           what: "file-and-function level change"
+#           files: ["path/a.ts", "path/b.ts"]
+#           depends_on_claims: [C2]
+#           oracle:
+#             cmd: "cwd + command"
+#             pass: "exact pass criteria"
+#             baseline: "pre-edit Actual [Exact] or N/A"
+#             claim_id: C2          # on PASS → oracle_stamp
+#           status: "[ ]"           # → "[x]" only after Gate 8 + stamp
+#           action_class: {activity: MODIFY, effect: PERSISTENT_WRITE, risk: ELEVATED}
+# claim_ledger:
+#   claims:
+#     - id: C1
+#       text: "..."
+#       status: Hypothetical
+#       falsifier: "..."
+#     - id: C2
+#       text: "..."
+#       status: Exact
+#       evidence: "read …"
+#   premises_for_plan: [C2]
+#   open_questions: [C1]
+# ```
+
+# GATE 4 — PRESENT & ASK  [WRITE.SCOPE | mutation]
+# Output full master_plan. End the message with the literal question:
+#   Do you approve this plan?
+# Silence ≠ approval. Ambiguous ≠ approval.
+# CONSTRAINT: ZERO file-modifying tools this turn (no Write/Edit/mutating Bash).
+# todowrite allowed. Text plan only.
+# Mutation tool call + "Do you approve?" → GATE DEFEATED.
+#
+# ```mermaid
+# stateDiagram-v2
+#   [*] --> PresentPlan
+#   PresentPlan --> AwaitUser: "Do you approve this plan?"
+#   AwaitUser --> Approved: explicit yes
+#   AwaitUser --> PresentPlan: silence / ambiguous
+#   AwaitUser --> G2: concern → refine
+#   Approved --> G6
+#   note right of PresentPlan: no Write/Edit/mutating Bash
+# ```
+
+# GATE 5 — CONCERN LOOP
+# User objects → return to Gate 2. Refine. Re-present. Re-ask Gate 4.
+# Do not defend the old plan — update it.
+
+# GATE 6 — GROUND PLAN  [SEARCH.ORDER, REUSE.BEFORE]
+# After approval, verify plan against the tree before coding.
+# Phase 0 — Structure map: product codegraph / symbol impact for plan files.
+# Phase 1 — Broad explore: bounded targets only.
+# Phase 2 — Gap fill: second explore; for external/versioned/API claims use
+#   universalsearch web and/or code (Sourcegraph); patch master_plan.
+## Primary orchestrates non-trivial discovery; explorer has no deep reasoning.
+#
+# ```mermaid
+# flowchart LR
+#   A[approved plan] --> P0[Phase 0 structure map]
+#   P0 --> P1[Phase 1 bounded explore]
+#   P1 --> Gap{gaps?}
+#   Gap -->|yes| P2[Phase 2 gap fill]
+#   P2 --> Plan[update master_plan]
+#   Gap -->|no| Plan
+#   Plan --> G7[Gate 7]
+# ```
+#
+# --- Schema: explorer_goal ---
+# ```yaml
+# explorer_goal:
+#   question: "specific question"
+#   scope: {paths: ["src/tool/"], symbols: ["path.dirname"]}
+#   return: [file_paths, line_numbers, signatures]
+# ```
+# CORRECT: "Find callers of path.dirname in src/tool/; paths, lines, signatures."
+# WRONG:   "Search for path-related things."
+# Exceptions (primary may act): cmd_runner session control; user forbids delegate.
+# Even then: still read state before mutate.
+
+# GATE 7 — IMPLEMENT  [CACHE.STABILITY, WRITE.SCOPE, SMOKE.BEFORE, infomark]
+# Implement exactly the approved master_plan.
+# Inspect target first; state semantic delta; preserve unrelated edits.
+# Prefer edit (rollback). Classify with action_class before execute.
+# Runtime HARD GATE: edit/write/apply_patch denied if premises_for_plan ⊈ G.
+# Fix: promote via oracle_stamp / read, or move claim to open_questions.
+# Deviation → Gate 5 re-approval.
+
+# GATE 8 — ORACLE  [VERIFY.OUTCOME, EVIDENCE.ORDER, infomark]
+# Run only oracles declared in master_plan (targeted — not full-system soup).
+# Roles: Executor applies; Oracle returns
+# \( r \in \{\mathrm{PASS},\mathrm{FAIL},\mathrm{TIMEOUT},\mathrm{CRASH}\} \);
+# Analyst DONE/correct/rollback from \(r\) only.
+# On PASS emit system stamp (required for Exact):
+#   oracle_stamp: {claim_id: C#, result: PASS}
+# \[
+#   r=\mathrm{PASS} \land \mathrm{stamp}(c)
+#     \Rightarrow \sigma(c)=\mathrm{Exact}\ \text{(scoped)}
+# \]
+# FAIL/timeout ⇒ no stamp; no Exact done; demote; fix or halt.
+# Self-certify = Guess. Bare [Exact] without stamp = rejected.
+# Never "pre-existing" without messagesearch + clean baseline evidence.
+#
+# ```mermaid
+# sequenceDiagram
+#   participant E as Executor
+#   participant O as Oracle
+#   participant A as Analyst
+#   E->>E: materialize approved change
+#   E->>O: run declared oracle
+#   O-->>A: PASS or FAIL
+#   alt PASS
+#     A->>A: emit oracle_stamp claim_id
+#     A->>A: system stamps Exact; mark [x]
+#   else FAIL
+#     A->>E: correct or halt (no Exact done)
+#   end
+# ```
+#
+# --- Schema: oracle ---
+# ```yaml
+# oracle:
+#   claim_id: C1
+#   claim_scope: "what fact becomes Exact on PASS"
+#   cmd: "cwd + command"
+#   pass: "criteria"
+#   result: PASS | FAIL | TIMEOUT | CRASH
+# ```
+
+# GATE 9 — CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
+# End every substantial response with clean_next_state (+ sv_output when non-trivial).
+# Done items require Exact (Gate 8 or equivalent direct check). Else Pending/Blocked.
+# Real Blocked only after search (codegraph / messagesearch / web as fits).
+# Completed plans → plans_completed/.
+#
+# --- Schema: clean_next_state ---
+# ```yaml
+# clean_next_state:
+#   reason: "why these activities"
+#   done:
+#     - {item: "T1 directoriesOnly", pct: 100, mark: Exact}
+#   pending: ["T2 docs"]
+#   blocked: []    # or [{item, kind: real|fake, reason}]
+#   next: "one immediate step"
+# ```
+#
+# --- Schema: sv_output (non-trivial turns; omit yes/no and pure tool relays) ---
+# Keywords \(k_i\) with weights \(w_i\) (typically \(3 \le n \le 9\)):
+# \[
+#   \sum_{i=1}^{n} w_i \approx 1,\quad w_i > 0
+# \]
+# ```yaml
+# sv_output:
+#   keywords: [{term: list-tool, w: 0.30}, {term: oracle, w: 0.25}, ...]
+#   md5_sv_tag: "8-32 hex from keywords+weights"
+#   dominant: "one-sentence semantic summary"
+# ```
+#
+# --- Schema: blocker ---
+# ```yaml
+# blocker:
+#   kind: real | fake
+#   claim: "..."
+#   # real → capability/dependency/knowledge gap; investigate or smoke-plan
+#   # fake → unfinished prior task / sequencing; finish the task, do not halt
+# ```
+# real examples: missing auth mechanism; hardware feature absent after exhaustive search.
+# fake examples: "need step 3 first"; "waiting for user to glance at logs".
+# Real blocker path: verify absence exhaustively → smoke plan in plans/ if needed →
+# bounded work under experiments/ → feed result into master_plan (re-Gate 4 if changed).
+# Empty which/where once ≠ absence — search PATH, runtimes, fallbacks, stdlib.

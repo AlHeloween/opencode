@@ -205,7 +205,7 @@ describe("session.constitution", () => {
       expect(n).toBeDefined()
       expect(n).toContain("epistemic nudge")
       expect(n).toContain("Inferred")
-      expect(n).toContain("sessionread")
+      expect(n).toContain("session-read")
     }
   })
 
@@ -240,7 +240,7 @@ describe("session.constitution", () => {
     })
     expect(n).toBeDefined()
     expect(n).toContain("Guess")
-    expect(n).toContain("sessionread recommended")
+    expect(n).toContain("session-read")
   })
 
   test("epistemicNudge: elevated but non-destructive shell skips nudge", () => {
@@ -252,5 +252,72 @@ describe("session.constitution", () => {
         command: "git push origin main",
       }),
     ).toBeUndefined()
+  })
+
+  // --- claim ledger / grounding gate ---
+
+  test("self-Exact without stamp is demoted to Hypothetical", () => {
+    Constitution.resetEpistemicState("ses_claim_1")
+    const r = Constitution.ingestAssistantText(
+      "ses_claim_1",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "sidecar is invisible in M"
+      status: Exact
+      reason: "I think so"
+  premises_for_plan: [C1]
+  open_questions: []
+`,
+    )
+    expect(r.demoted).toContain("C1")
+    const led = Constitution.getClaimLedger("ses_claim_1")
+    expect(led.claims.get("C1")?.status).toBe("Hypothetical")
+    expect(led.claims.get("C1")?.stamped).toBe(false)
+  })
+
+  test("oracle_stamp promotes claim to Exact and grounds premises", () => {
+    Constitution.resetEpistemicState("ses_claim_2")
+    Constitution.ingestAssistantText(
+      "ses_claim_2",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "open window uses chars/4"
+      status: Hypothetical
+      falsifier: "read computeOpenWindowTokens"
+  premises_for_plan: [C1]
+`,
+    )
+    expect(Constitution.premisesGrounded("ses_claim_2").ok).toBe(false)
+    expect(Constitution.guardMutationGrounding({ sessionID: "ses_claim_2", tool: "edit" }).blocked).toBe(true)
+
+    Constitution.ingestAssistantText("ses_claim_2", "oracle_stamp: C1 PASS")
+    expect(Constitution.hasStamp("ses_claim_2", "C1")).toBe(true)
+    expect(Constitution.getClaimLedger("ses_claim_2").claims.get("C1")?.status).toBe("Exact")
+    expect(Constitution.premisesGrounded("ses_claim_2").ok).toBe(true)
+    expect(Constitution.guardMutationGrounding({ sessionID: "ses_claim_2", tool: "edit" }).blocked).toBe(false)
+  })
+
+  test("no active ledger does not block mutation", () => {
+    Constitution.resetEpistemicState("ses_claim_3")
+    expect(Constitution.guardMutationGrounding({ sessionID: "ses_claim_3", tool: "write" }).blocked).toBe(false)
+  })
+
+  test("isGroundingMark and parseInfoMark", () => {
+    expect(Constitution.isGroundingMark("Exact")).toBe(true)
+    expect(Constitution.isGroundingMark("Inferred")).toBe(true)
+    expect(Constitution.isGroundingMark("Hypothetical")).toBe(false)
+    expect(Constitution.parseInfoMark("exact")).toBe("Exact")
+    expect(Constitution.parseInfoMark("nope")).toBe("Unknown")
+  })
+
+  test("evidenceUpgradeForTool maps inspection tools", () => {
+    expect(Constitution.evidenceUpgradeForTool("session-read")).toBe("Exact")
+    expect(Constitution.evidenceUpgradeForTool("read")).toBe("Exact")
+    expect(Constitution.evidenceUpgradeForTool("grep")).toBe("Inferred")
+    expect(Constitution.evidenceUpgradeForTool("edit")).toBeUndefined()
   })
 })

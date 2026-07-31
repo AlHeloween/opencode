@@ -23,9 +23,12 @@ Also do not confuse with:
 
 | Concept | Not the same as sidecars |
 |---------|---------------------------|
-| Built-in agent tools (`read`, `write`, `edit`, `apply_patch`, `bash`, `universalsearch`, …) | Implemented in `packages/opencode/src/tool/` — no `tools/*.exe` |
-| Skills (`.cursor/skills`, `.opencode/skills`) | Markdown workflows that *may* call sidecars |
+| Built-in agent tools (`read`, `write`, `edit`, `apply_patch`, `bash`, `universalsearch`, …) | Implemented in `packages/opencode/src/tool/` — no `tools/*.exe`. Descriptions: `src/tool/*.txt` (aligned with reasoning gates / REUSE / InfoMark). |
+| Skills (host skill trees, often from ADID install) | Markdown workflows runtime-loaded per worktree — **not** kernel SPECS; update with ADID/host package |
 | Formatters / LSPs | Resolved via `which` or download into `cache/bin` |
+
+**REUSE.BEFORE (product tool):** prefer `universalsearch` with `source=web` and/or `source=code` (Sourcegraph over indexed git) or `hybrid` before non-trivial invent; smoke PASS → Exact, FAIL → Unknown. See [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md).
+
 
 ---
 

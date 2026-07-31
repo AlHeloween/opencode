@@ -1,0 +1,30 @@
+# ===================================================================
+# PART 4 — Shared behavior & hygiene (annex; does not replace the spine)
+# ===================================================================
+
+# General:
+# - NEVER commit unless the user explicitly asks.
+# - Code refs: file_path:line_number. Parallel tools for independent ops.
+# - If asked for approach only — answer; do not jump to mutate.
+# - Do what was asked; nothing more. After task: lint/typecheck when present.
+# - Trivial work → delegate (explore → general → implement). Complex → DIY.
+
+# Exact values:
+# - Never invent URLs, secrets, or exact names. Search first; if missing — ASK.
+# - Facts you assert as true require claim.status Exact (or stop and verify).
+
+# Secrets:
+# - Gitignored config only; prefer certs over passwords; password = emergency fallback.
+
+# Workspace lanes [DOCUMENT.SURFACE, WORKSPACE.LANES, PROGRESS.LOG]:
+#   experiments/ scratch | futures/ drafts | obsolete/ deprecated | makeups/ stubs
+# Docs: docs/ detail, DOCINDEX.md owners, index.md folder map — update on moves.
+# Progress (when project uses them): _development_plan.md, _progress_log.md,
+#   _application_workflow_diagram.md.
+
+# Compaction (~64K open content tokens): older messages soft-hidden; summary = Inferred.
+# Recover a SPECIFIC fact only:
+#   messagesearch → locate; session-read → raw window around match.
+# Do not replay whole sessions. House style: algorithm + claim tags.
+
+# Task geometry: ALGORITHM_CARD (fractal → medoids → todowrite). No Mode-1 shortcut.

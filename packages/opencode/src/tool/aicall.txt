@@ -1,61 +1,77 @@
-Use `aicall` as a whole-object cognition accelerator: one isolated LLM call on
-the exact files and constraints you supply. It is not a subagent and has no
-tools, no repository discovery, and no authority to change the working tree.
+Use `aicall` as a **bounded cognition accelerator**: one isolated LLM call on the
+exact files and constraints you supply. It is **not** a subagent (no tools, no
+repo discovery, no working-tree authority).
 
-Choose it when a strong long-context model can reason about a bounded object in
-one coherent pass more cheaply and accurately than a long sequence of
-`glob → grep → read → partial edit` calls.
+## Role in the gated spine
 
-## High-value uses
+| Gate | `aicall` OK? | Role |
+|------|--------------|------|
+| G1–G2 ground / decompose | rarely | Only if files already known; never for discovery |
+| G3 plan / G4 approve | yes | Draft plan text, alternatives, risk lists — **no** file writes |
+| G6 ground plan | yes | Analyse a **bounded** file set after codegraph/read selected them |
+| G7 implement | yes | Propose unified diff / replacement for **attached** files only |
+| G8 oracle | no | Oracles are real tests/typecheck/logs — not another LLM opinion |
+| G9 done claims | no | Never mark Done from `aicall` output alone |
 
-- Refactor a large self-contained module while preserving named APIs and
-  behavioral invariants.
-- Produce a unified diff, complete replacement file, compatibility audit, test
-  matrix, migration draft, extraction, translation, or structured review.
-- Analyse a bounded set of files selected by `treediff`, CodeGraph, or an
-  already-proven local search.
+Prefer `aicall` when a strong long-context model can reason about a **closed object**
+in one pass more cheaply than a long `glob → grep → read → partial edit` chain.
+
+## InfoMark (mandatory)
+
+- `aicall` output is **Inferred** at best (parametric model over supplied text).
+- It is **never Exact** and never a system stamp.
+- Do **not** put `aicall` conclusions into `premises_for_plan` until promoted:
+  inspect → apply with edit/apply_patch → Gate 8 oracle PASS → `oracle_stamp`.
+- Self-labeling the reply `[Exact]` is invalid.
 
 ## Call contract
 
-1. Attach every file needed for correctness with `files`.
-2. State the goal, preserved behavior, forbidden changes, and output format.
-3. Choose `model` and `provider` deliberately when a faster or larger-context
-   model is appropriate; otherwise the tool auto-selects its configured default.
-4. Ask for a patch/replacement plus risks and focused tests.
-5. Treat the result as Inferred: inspect it, apply selectively with normal
-   edit/patch tools, and run the stated tests.
+1. **Ground first** — select paths with codegraph / read / prior Exact handles.
+   Attach **every** file needed for correctness in `files`. Unattached files do
+   not exist for the callee.
+2. **Prompt** — goal, preserved behavior, forbidden changes, output format.
+3. **Model** — set `model` / `provider` when a faster or larger-context model
+   helps; else the tool uses its configured default.
+4. **Output** — prefer unified diff or full replacement + risks + focused tests.
+5. **After** — treat as draft: apply selectively with normal mutation tools;
+   run declared oracles before Done.
 
 Example prompt:
 
-    Refactor the attached module only. Preserve its public API and all listed
-    invariants. Return a unified diff only, then concise compatibility risks and
-    focused tests. Do not assume files not supplied.
+    Refactor the attached module only. Preserve public API and listed
+    invariants. Return a unified diff only, then concise compatibility risks
+    and focused tests. Do not assume files not supplied.
+
+## High-value uses
+
+- Refactor a large self-contained module while preserving named APIs.
+- Unified diff, replacement file, compatibility audit, test matrix, migration
+  draft, extraction, translation, structured review of **attached** files.
+- Analyse a set already bounded by codegraph / treediff / proven local search.
 
 ## Do not use it for
 
-- Repository discovery, unknown dependencies, shell commands, or edits.
+- Repository discovery, unknown deps, shell, or applying edits itself.
 - Multi-step work that needs tool results between reasoning steps.
-- A task whose correctness depends on unsupplied files or a live conversation
-  state.
-- Replacing review, patch application, or tests.
+- Tasks that depend on unsupplied files or live conversation state.
+- Replacing review, patch application, tests, or Gate 8 oracles.
+- “Is it done?” / “does this pass?” — run real oracles.
+- Cheap stand-in for codegraph when structure/impact is the question.
 
 ## Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `prompt` | string | yes | Explicit objective, constraints, and output contract. |
-| `files` | string[] | no | File paths read and embedded before the prompt. |
-| `output_file` | string | no | Save prose response to this path instead of returning it inline. |
+| `prompt` | string | yes | Objective, constraints, output contract. |
+| `files` | string[] | no | Paths read and embedded before the prompt. |
+| `output_file` | string | no | Save prose to this path instead of inline. |
 | `model` | string | no | Explicit model override. |
 | `provider` | string | no | Explicit provider override. |
 
 ## Behavior
 
-- Direct LLM call — no session, no system prompt, no tools, no agent reasoning.
-  The model sees ONLY the attached files and your prompt. Pure transformation.
-- Reads only the explicitly supplied files and prompt text.
-- Returns inline output unless `output_file` is supplied; very large results may
-  be truncated by normal tool-output limits.
-- The response is raw prose — no summarization, no "here's what I did", no
-  agent chatter. If you ask for code, you get code. If you ask for analysis,
-  you get analysis.
+- Direct LLM call — no session tools, no agent loop. The model sees **only**
+  attached files + your prompt. Pure transformation.
+- Returns inline output unless `output_file` is set; large results may truncate
+  under normal tool-output limits.
+- Raw prose — no agent chatter. Ask for code → get code; ask for analysis → get analysis.

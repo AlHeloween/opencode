@@ -302,7 +302,7 @@ export function noteCommandRisk(command: string, meta?: { sessionID?: string; ag
 
 /** File mutation is always at least ELEVATED (persistent write). */
 export function noteMutationRisk(input: {
-  tool: "edit" | "write" | "multiedit" | "apply_patch"
+  tool: "edit" | "write" | "multiedit" | "apply_patch" | "applypatch"
   path: string
   sessionID?: string
 }): Risk {
@@ -330,28 +330,420 @@ export function infoMarkAtLeast(left: InfoMark, right: InfoMark): boolean {
   return INFO_MARK_ORDER.indexOf(left) <= INFO_MARK_ORDER.indexOf(right)
 }
 
-/** Tools that mutate filesystem or state — always ELEVATED risk. */
-const MUTATION_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch"])
+/** Grounding set G: only Exact + Inferred (fresh) may anchor plans / MODIFY. */
+export function isGroundingMark(mark: InfoMark): boolean {
+  return mark === "Exact" || mark === "Inferred"
+}
 
-/** Epistemic nudge: injected before a destructive tool when evidence floor
-  * is not Exact (i.e. model is acting on Inferred/Guess data without
-  * verifying via session-read first).  Not a hard gate — advisory only. */
+/** Parse free-form status tokens into InfoMark (unknown → Unknown). */
+export function parseInfoMark(raw: string | undefined | null): InfoMark {
+  if (!raw) return "Unknown"
+  const t = raw.trim().toLowerCase()
+  if (t === "exact") return "Exact"
+  if (t === "inferred") return "Inferred"
+  if (t === "hypothetical") return "Hypothetical"
+  if (t === "guess") return "Guess"
+  if (t === "unknown") return "Unknown"
+  return "Unknown"
+}
+
+// ---------------------------------------------------------------------------
+// Claim ledger — system-owned grounding (model cannot self-mint Exact)
+// ---------------------------------------------------------------------------
+
+export type ClaimRecord = {
+  id: string
+  text: string
+  status: InfoMark
+  reason?: string
+  evidence?: string
+  falsifier?: string
+  /** System stamp required for Exact/Inferred promotion. */
+  stamped: boolean
+}
+
+export type ClaimLedger = {
+  claims: Map<string, ClaimRecord>
+  /** Claim ids that may drive plan/MODIFY — must all be in G. */
+  premises: string[]
+  /** Hypothetical / open — must not drive MODIFY. */
+  openQuestions: string[]
+  /** True once a claim_ledger block was seen this session. */
+  active: boolean
+  updatedAt: number
+}
+
+type SessionEpistemic = {
+  ledger: ClaimLedger
+  /** claim_id → stamp meta (oracle PASS, session-read, …) */
+  stamps: Map<string, { source: string; at: number }>
+  /** Coarse floor for tools that do not use a ledger yet. */
+  evidenceFloor: InfoMark
+}
+
+const sessionEpistemic = new Map<string, SessionEpistemic>()
+
+function emptyLedger(): ClaimLedger {
+  return {
+    claims: new Map(),
+    premises: [],
+    openQuestions: [],
+    active: false,
+    updatedAt: Date.now(),
+  }
+}
+
+function epistemic(sessionID: string): SessionEpistemic {
+  let s = sessionEpistemic.get(sessionID)
+  if (!s) {
+    s = { ledger: emptyLedger(), stamps: new Map(), evidenceFloor: "Inferred" }
+    sessionEpistemic.set(sessionID, s)
+  }
+  return s
+}
+
+/** Test / session teardown helper. */
+export function resetEpistemicState(sessionID?: string) {
+  if (sessionID) sessionEpistemic.delete(sessionID)
+  else sessionEpistemic.clear()
+}
+
+export function getClaimLedger(sessionID: string): ClaimLedger {
+  const led = epistemic(sessionID).ledger
+  return {
+    claims: new Map(led.claims),
+    premises: [...led.premises],
+    openQuestions: [...led.openQuestions],
+    active: led.active,
+    updatedAt: led.updatedAt,
+  }
+}
+
+export function getEvidenceFloor(sessionID: string): InfoMark {
+  return epistemic(sessionID).evidenceFloor
+}
+
+/**
+ * Raise (never lower past Guess→Inferred→Exact) the coarse session floor.
+ * Prefer per-claim stamps for decisions; floor is a fallback for nudges.
+ */
+export function raiseEvidenceFloor(sessionID: string, mark: InfoMark) {
+  const s = epistemic(sessionID)
+  if (infoMarkAtLeast(mark, s.evidenceFloor)) s.evidenceFloor = mark
+}
+
+/** System stamp → claim may legally hold Exact/Inferred (scoped). */
+export function stampClaim(
+  sessionID: string,
+  claimID: string,
+  source: string,
+  status: InfoMark = "Exact",
+) {
+  const promoted: InfoMark = isGroundingMark(status) ? status : "Exact"
+  const s = epistemic(sessionID)
+  const id = claimID.trim()
+  if (!id) return
+  s.stamps.set(id, { source, at: Date.now() })
+  const prev = s.ledger.claims.get(id)
+  const next: ClaimRecord = {
+    id,
+    text: prev?.text ?? "",
+    status: promoted,
+    reason: prev?.reason,
+    evidence: source,
+    falsifier: prev?.falsifier,
+    stamped: true,
+  }
+  s.ledger.claims.set(id, next)
+  s.ledger.active = true
+  s.ledger.updatedAt = Date.now()
+  raiseEvidenceFloor(sessionID, next.status)
+  log.debug("constitution.claim_stamp", { sessionID, claimID: id, source, status: next.status })
+}
+
+export function hasStamp(sessionID: string, claimID: string): boolean {
+  return epistemic(sessionID).stamps.has(claimID.trim())
+}
+
+/** Premises ⊆ G (Exact|Inferred). Missing claim id = ungrounded. */
+export function premisesGrounded(sessionID: string): {
+  ok: boolean
+  ungrounded: { id: string; status: InfoMark | "missing" }[]
+} {
+  const led = epistemic(sessionID).ledger
+  if (!led.active || led.premises.length === 0) return { ok: true, ungrounded: [] }
+  const ungrounded: { id: string; status: InfoMark | "missing" }[] = []
+  for (const id of led.premises) {
+    const c = led.claims.get(id)
+    if (!c) {
+      ungrounded.push({ id, status: "missing" })
+      continue
+    }
+    if (!isGroundingMark(c.status)) ungrounded.push({ id, status: c.status })
+  }
+  return { ok: ungrounded.length === 0, ungrounded }
+}
+
+/** Floor = worst active premise status, else coarse evidenceFloor. */
+export function decisionFloor(sessionID: string): InfoMark {
+  const s = epistemic(sessionID)
+  const led = s.ledger
+  if (led.active && led.premises.length > 0) {
+    let worst: InfoMark = "Exact"
+    for (const id of led.premises) {
+      const c = led.claims.get(id)
+      const m: InfoMark = c?.status ?? "Unknown"
+      if (!infoMarkAtLeast(m, worst)) worst = m
+    }
+    return worst
+  }
+  return s.evidenceFloor
+}
+
+/** Tools that mutate filesystem — hard-gated when premises ungrounded. */
+export const MUTATION_TOOLS = new Set([
+  "write",
+  "edit",
+  "multiedit",
+  "apply_patch",
+  "applypatch",
+])
+
+export function isMutationTool(tool: string): boolean {
+  const t = tool.toLowerCase().replace(/[^a-z0-9]/g, "")
+  if (t === "write" || t === "edit" || t === "multiedit" || t === "applypatch") return true
+  return MUTATION_TOOLS.has(tool)
+}
+
+/**
+ * Hard gate: MODIFY denied when an active claim_ledger has premises outside G.
+ * Soft path (no ledger): allow, rely on epistemicNudge.
+ * Bypass: OPENCODE_BYPASS_GROUNDING=1 or OPENCODE_ALLOW_DESTRUCTIVE=1
+ */
+export function guardMutationGrounding(input: {
+  sessionID: string
+  tool: string
+}): { blocked: boolean; message?: string } {
+  if (!isMutationTool(input.tool)) return { blocked: false }
+  if (process.env["OPENCODE_BYPASS_GROUNDING"] === "1") return { blocked: false }
+  if (process.env["OPENCODE_ALLOW_DESTRUCTIVE"] === "1") return { blocked: false }
+
+  const check = premisesGrounded(input.sessionID)
+  if (check.ok) return { blocked: false }
+
+  const detail = check.ungrounded
+    .map((u) => `${u.id}=${u.status}`)
+    .join(", ")
+  const message =
+    `[grounding gate: BLOCKED ${input.tool}] premises not in G (Exact|Inferred): ${detail}. ` +
+    `Move ungrounded ids to open_questions, or promote via oracle_stamp / session-read / direct evidence ` +
+    `(system stamp required — model self-[Exact] is rejected).`
+  log.warn("constitution.grounding_block", {
+    sessionID: input.sessionID,
+    tool: input.tool,
+    ungrounded: check.ungrounded,
+  })
+  return { blocked: true, message }
+}
+
+/**
+ * Ingest claim_ledger + oracle_stamp blocks from assistant prose.
+ * Model may set Guess|Hypothetical|Unknown freely.
+ * Exact|Inferred only stick when a system stamp exists (or stamp is issued in same text).
+ */
+export function ingestAssistantText(sessionID: string, text: string): {
+  ledgerUpdated: boolean
+  stampsApplied: string[]
+  demoted: string[]
+} {
+  const stampsApplied: string[] = []
+  const demoted: string[] = []
+  if (!text || text.length < 8) return { ledgerUpdated: false, stampsApplied, demoted }
+
+  // oracle_stamp: claim_id: C1 / result: PASS  (YAML-ish or inline)
+  for (const m of text.matchAll(
+    /oracle_stamp\s*:\s*[\s\S]*?claim_id\s*:\s*["']?([A-Za-z0-9_.-]+)["']?[\s\S]*?result\s*:\s*["']?PASS["']?/gi,
+  )) {
+    const id = m[1]
+    stampClaim(sessionID, id, "oracle_stamp:PASS", "Exact")
+    stampsApplied.push(id)
+  }
+  // compact: oracle_stamp: C1 PASS
+  for (const m of text.matchAll(/oracle_stamp\s*:\s*([A-Za-z0-9_.-]+)\s+PASS\b/gi)) {
+    stampClaim(sessionID, m[1], "oracle_stamp:PASS", "Exact")
+    stampsApplied.push(m[1])
+  }
+
+  const block = extractClaimLedgerBlock(text)
+  if (!block) return { ledgerUpdated: stampsApplied.length > 0, stampsApplied, demoted }
+
+  const parsed = parseClaimLedgerYaml(block)
+  if (!parsed) return { ledgerUpdated: stampsApplied.length > 0, stampsApplied, demoted }
+
+  const s = epistemic(sessionID)
+  const next = emptyLedger()
+  next.active = true
+  next.premises = parsed.premises
+  next.openQuestions = parsed.openQuestions
+
+  for (const raw of parsed.claims) {
+    let status = parseInfoMark(raw.status)
+    let stamped = s.stamps.has(raw.id) || hasStamp(sessionID, raw.id)
+    // Self-promotion ban: Exact/Inferred without stamp → Hypothetical
+    if (isGroundingMark(status) && !stamped) {
+      demoted.push(raw.id)
+      status = "Hypothetical"
+      stamped = false
+      log.debug("constitution.self_exact_rejected", { sessionID, claimID: raw.id })
+    }
+    if (stamped && s.stamps.has(raw.id)) {
+      // stamp wins: keep at least Exact
+      const stampedStatus = s.ledger.claims.get(raw.id)?.status
+      if (stampedStatus && isGroundingMark(stampedStatus)) status = stampedStatus
+      else if (!isGroundingMark(status)) status = "Exact"
+    }
+    next.claims.set(raw.id, {
+      id: raw.id,
+      text: raw.text ?? "",
+      status,
+      reason: raw.reason,
+      evidence: raw.evidence,
+      falsifier: raw.falsifier,
+      stamped,
+    })
+  }
+
+  // Preserve prior stamped claims not re-listed
+  for (const [id, c] of s.ledger.claims) {
+    if (!next.claims.has(id) && c.stamped) next.claims.set(id, c)
+  }
+
+  s.ledger = next
+  s.ledger.updatedAt = Date.now()
+  log.debug("constitution.claim_ledger", {
+    sessionID,
+    premises: next.premises,
+    open: next.openQuestions,
+    n: next.claims.size,
+    demoted,
+  })
+  return { ledgerUpdated: true, stampsApplied, demoted }
+}
+
+function extractClaimLedgerBlock(text: string): string | undefined {
+  // fenced ```yaml ... claim_ledger
+  const fence = text.match(/```(?:yaml|yml)?\s*\n([\s\S]*?claim_ledger\s*:[\s\S]*?)```/i)
+  if (fence?.[1]) return fence[1]
+  // bare claim_ledger: ... until blank line x2 or next top heading
+  const idx = text.search(/claim_ledger\s*:/i)
+  if (idx < 0) return undefined
+  const slice = text.slice(idx)
+  const end = slice.search(/\n#{1,3}\s|\n---\s*\n|\nclean_next_state\s*:/i)
+  return end > 0 ? slice.slice(0, end) : slice.slice(0, 8000)
+}
+
+function parseClaimLedgerYaml(block: string): {
+  claims: {
+    id: string
+    text?: string
+    status: string
+    reason?: string
+    evidence?: string
+    falsifier?: string
+  }[]
+  premises: string[]
+  openQuestions: string[]
+} | undefined {
+  const claims: {
+    id: string
+    text?: string
+    status: string
+    reason?: string
+    evidence?: string
+    falsifier?: string
+  }[] = []
+
+  // Per-claim blocks: - id: C1
+  const claimChunks = block.split(/\n\s*-\s+id\s*:/i).slice(1)
+  for (const chunk of claimChunks) {
+    const idM = chunk.match(/^\s*["']?([A-Za-z0-9_.-]+)["']?/)
+    if (!idM) continue
+    const id = idM[1]
+    const field = (name: string) => {
+      const m = chunk.match(new RegExp(`${name}\\s*:\\s*["']?([^\\n"']+)["']?`, "i"))
+      return m?.[1]?.trim()
+    }
+    claims.push({
+      id,
+      text: field("text"),
+      status: field("status") ?? "Unknown",
+      reason: field("reason"),
+      evidence: field("evidence"),
+      falsifier: field("falsifier"),
+    })
+  }
+
+  const listField = (name: string): string[] => {
+    // premises_for_plan: [C1, C2] or premises: [C1]
+    const m = block.match(new RegExp(`${name}\\s*:\\s*\\[([^\\]]*)\\]`, "i"))
+    if (!m) return []
+    return m[1]
+      .split(",")
+      .map((x) => x.replace(/["'\\s]/g, ""))
+      .filter(Boolean)
+  }
+
+  const premises = listField("premises_for_plan").length
+    ? listField("premises_for_plan")
+    : listField("premises")
+  const openQuestions = listField("open_questions").length
+    ? listField("open_questions")
+    : listField("open")
+
+  if (claims.length === 0 && premises.length === 0) return undefined
+  return { claims, premises, openQuestions }
+}
+
+/** Map tool name → floor upgrade (scoped evidence sources). */
+export function evidenceUpgradeForTool(toolName: string): InfoMark | undefined {
+  const t = toolName.toLowerCase().replace(/[^a-z0-9]/g, "")
+  if (t === "sessionread") return "Exact"
+  if (t === "read" || t === "codegraph" || t === "codegraphexplore") return "Exact"
+  if (t === "messagesearch" || t === "grep" || t === "glob" || t === "list") return "Inferred"
+  return undefined
+}
+
+/** Epistemic nudge: advisory when floor not Exact (mutations / destructive). */
 export function epistemicNudge(input: {
   tool: string
   evidenceFloor: InfoMark
   command?: string
+  sessionID?: string
 }): string | undefined {
-  if (input.evidenceFloor === "Exact") return undefined
+  // Use decision floor (worst premise) when session ledger active; else turn floor.
+  const effective = input.sessionID ? decisionFloor(input.sessionID) : input.evidenceFloor
+  // If decision floor is Exact but turn floor is worse, still honor turn floor for nudge.
+  const floor =
+    infoMarkAtLeast(effective, input.evidenceFloor) ? effective : input.evidenceFloor
 
-  const isMutation = MUTATION_TOOLS.has(input.tool)
+  if (floor === "Exact") return undefined
+
+  const isMutation = isMutationTool(input.tool)
   const isDestructiveCmd = input.command
     ? classifyCommandRisk(input.command) === "DESTRUCTIVE"
     : false
   if (!isMutation && !isDestructiveCmd) return undefined
 
+  const g = input.sessionID ? premisesGrounded(input.sessionID) : { ok: true, ungrounded: [] }
+  const extra =
+    !g.ok
+      ? ` Ungrounded premises: ${g.ungrounded.map((u) => `${u.id}=${u.status}`).join(", ")}.`
+      : ""
+
   return (
-    `[epistemic nudge: decision based on ${input.evidenceFloor} data. ` +
-    `session-read recommended for Exact verification.]`
+    `[epistemic nudge: decision based on ${floor} data.${extra} ` +
+    `Only Exact|Inferred (system-stamped) may anchor MODIFY. ` +
+    `session-read / oracle_stamp / direct read for Exact verification.]`
   )
 }
 

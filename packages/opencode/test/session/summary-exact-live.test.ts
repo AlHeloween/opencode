@@ -19,7 +19,6 @@ import { SessionSummary, collectToolFileDiffs } from "../../src/session/summary"
 import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { ModelID, ProviderID } from "../../src/provider/schema"
-import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { Storage } from "../../src/storage/storage"
 import { provideInstance, provideTmpdirInstance } from "../fixture/fixture"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
@@ -34,13 +33,7 @@ const HAS_CODEGRAPH = existsSync(path.join(MONO, ".codegraph"))
 
 const liveSummaryLayer = SessionSummary.layer.pipe(
   Layer.provideMerge(
-    Layer.mergeAll(
-      SessionNs.defaultLayer,
-      SnapshotFossil.defaultLayer,
-      Storage.defaultLayer,
-      Bus.layer,
-      CrossSpawnSpawner.defaultLayer,
-    ),
+    Layer.mergeAll(SessionNs.defaultLayer, Storage.defaultLayer, Bus.layer, CrossSpawnSpawner.defaultLayer),
   ),
 )
 

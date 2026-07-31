@@ -7,7 +7,6 @@ import { SessionSummary } from "../../src/session/summary"
 import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { ModelID, ProviderID } from "../../src/provider/schema"
-import { Snapshot } from "../../src/snapshot"
 import { Storage } from "../../src/storage/storage"
 import { provideTmpdirInstance, tmpdir } from "../fixture/fixture"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
@@ -441,44 +440,13 @@ describe("SessionSummary.snapshotRangeForMessages (deprecated fossil helpers)", 
   })
 })
 
-// Exact Fossil+CodeGraph structural handles: see summary-exact-live.test.ts
-// (real SnapshotFossil + MCP — no mock Snapshot.Service).
+// Exact tool filediffs + CodeGraph: see summary-exact-live.test.ts (no Fossil for summary).
 
-describe("SessionSummary.update", () => {
-  test("recomputes only files reported by each write step", async () => {
-    const calls: Array<{ from: string; to: string; files: readonly string[] | undefined }> = []
-    const snapshot = Layer.succeed(
-      Snapshot.Service,
-      Snapshot.Service.of({
-        init: () => Effect.void,
-        cleanup: () => Effect.void,
-        track: () => Effect.succeed(undefined),
-        checkpoint: () => Effect.succeed(undefined),
-        checkout: () => Effect.void,
-        opId: () => Effect.succeed(undefined),
-        opRestore: () => Effect.void,
-        patch: () => Effect.succeed({ hash: "", files: [] }),
-        restore: () => Effect.void,
-        revert: () => Effect.void,
-        diff: () => Effect.succeed(""),
-        diffFull: (from, to, files) =>
-          Effect.sync(() => {
-            calls.push({ from, to, files })
-            return (files ?? []).map((file) => ({
-              file,
-              patch: "",
-              additions: to === "after_b" ? 2 : 1,
-              deletions: 0,
-              status: "modified" as const,
-            }))
-          }),
-        impact: () => Effect.die("unexpected impact"),
-        lastImpact: () => Effect.die("unexpected lastImpact"),
-      }),
-    )
+describe("SessionSummary.update / updateFallback (tool filediffs only)", () => {
+  test("merges explicit tool filediffs without Fossil diffFull", async () => {
     const layer = SessionSummary.layer.pipe(
       Layer.provideMerge(
-        Layer.mergeAll(SessionNs.defaultLayer, snapshot, Storage.defaultLayer, Bus.layer, CrossSpawnSpawner.defaultLayer),
+        Layer.mergeAll(SessionNs.defaultLayer, Storage.defaultLayer, Bus.layer, CrossSpawnSpawner.defaultLayer),
       ),
     )
 
@@ -497,31 +465,96 @@ describe("SessionSummary.update", () => {
               time: { created: 1 },
             })
             const summary = yield* SessionSummary.Service
-            yield* summary.update({
+            const a = path.join(dir, "a.ts")
+            const b = path.join(dir, "b.ts")
+            yield* summary.updateFallback({
               sessionID: info.id,
               messageID: user.id,
-              before: "base",
-              after: "after_a",
-              files: [path.join(dir, "a.ts")],
+              diffs: [{ file: a, patch: "", additions: 1, deletions: 0, status: "modified" }],
             })
-            yield* summary.update({
+            yield* summary.updateFallback({
               sessionID: info.id,
               messageID: user.id,
-              before: "after_a",
-              after: "after_b",
-              files: [path.join(dir, "b.ts")],
+              diffs: [{ file: b, patch: "", additions: 2, deletions: 0, status: "modified" }],
             })
             const diff = yield* summary.diff({ sessionID: info.id })
             expect(diff.map((item) => path.basename(item.file)).sort()).toEqual(["a.ts", "b.ts"])
+            expect(diff.find((d) => d.file.endsWith("b.ts"))?.additions).toBe(2)
           }),
         ).pipe(Effect.provide(layer)),
       ),
     )
+  })
 
-    expect(calls).toHaveLength(3)
-    expect(calls.every((call) => call.files?.length)).toBe(true)
-    expect(calls[0]?.files?.map((file) => path.basename(file))).toEqual(["a.ts"])
-    expect(calls[1]?.files?.map((file) => path.basename(file))).toEqual(["b.ts"])
-    expect(calls[2]?.files?.map((file) => path.basename(file)).sort()).toEqual(["a.ts", "b.ts"])
+  test("update reads tool filediffs from session DB (ignores fossil hashes)", async () => {
+    const layer = SessionSummary.layer.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(SessionNs.defaultLayer, Storage.defaultLayer, Bus.layer, CrossSpawnSpawner.defaultLayer),
+      ),
+    )
+
+    await Effect.runPromise(
+      Effect.scoped(
+        provideTmpdirInstance((dir) =>
+          Effect.gen(function* () {
+            const sessions = yield* SessionNs.Service
+            const info = yield* sessions.create({})
+            const user = yield* sessions.updateMessage({
+              id: MessageID.ascending(),
+              role: "user",
+              sessionID: info.id,
+              agent: "build",
+              model: ref,
+              time: { created: 1 },
+            })
+            const assistant = yield* sessions.updateMessage({
+              id: MessageID.ascending(),
+              role: "assistant",
+              sessionID: info.id,
+              parentID: user.id,
+              agent: "build",
+              modelID: ref.modelID,
+              providerID: ref.providerID,
+              cost: 0,
+              mode: "primary",
+              path: { cwd: dir, root: dir },
+              tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              time: { created: 2 },
+            })
+            const a = path.join(dir, "a.ts")
+            yield* sessions.updatePart({
+              id: PartID.ascending(),
+              sessionID: info.id,
+              messageID: assistant.id,
+              type: "tool",
+              callID: "c1",
+              tool: "edit",
+              state: {
+                status: "completed",
+                input: {},
+                output: "",
+                title: "edit a",
+                time: { start: 0, end: 1 },
+                metadata: {
+                  filediff: { file: a, patch: "", additions: 3, deletions: 1, status: "modified" },
+                },
+              },
+            })
+            const summary = yield* SessionSummary.Service
+            yield* summary.update({
+              sessionID: info.id,
+              messageID: user.id,
+              before: "ignored-fossil-from",
+              after: "ignored-fossil-to",
+              files: [a],
+            })
+            const diff = yield* summary.diff({ sessionID: info.id })
+            expect(diff).toHaveLength(1)
+            expect(diff[0]?.additions).toBe(3)
+            expect(diff[0]?.deletions).toBe(1)
+          }),
+        ).pipe(Effect.provide(layer)),
+      ),
+    )
   })
 })

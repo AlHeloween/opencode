@@ -4,7 +4,6 @@ import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-clien
 import { packToImpactFields } from "@/codegraph/sqlite-pack"
 import { Instance } from "@/project/instance"
 import { Snapshot } from "@/snapshot"
-import * as SnapshotFossil from "@/snapshot/fossil"
 import { Storage } from "@/storage/storage"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
@@ -182,6 +181,10 @@ function unquoteGitPath(input: string) {
 
 export interface Interface {
   readonly summarize: (input: { sessionID: SessionID; messageID: MessageID }) => Effect.Effect<void>
+  /**
+   * Incremental session-diff merge from tool filediffs already in session DB.
+   * `before`/`after` fossil hashes are ignored (rollback-only); Exact memory is tool metadata.
+   */
   readonly update: (input: {
     sessionID: SessionID
     messageID: MessageID
@@ -189,6 +192,7 @@ export interface Interface {
     after: string
     files: readonly string[]
   }) => Effect.Effect<void>
+  /** Merge explicit tool filediffs into session + turn summary (primary write path). */
   readonly updateFallback: (input: {
     sessionID: SessionID
     messageID: MessageID
@@ -213,16 +217,17 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const sessions = yield* Session.Service
-    const snapshot = yield* Snapshot.Service
     const storage = yield* Storage.Service
     const config = yield* Effect.serviceOption(Config.Service)
     const bus = yield* Bus.Service
+
+    const normalizePath = (file: string) => file.replaceAll("\\", "/")
 
     const computeDiff = Effect.fn("SessionSummary.computeDiff")(function* (input: {
       messages: MessageV2.WithParts[]
       beforeMessages?: MessageV2.WithParts[]
     }) {
-      // Summary / revert Exact: tool filediffs only. Fossil is rollback (track/restore), not memory.
+      // Summary Exact: tool filediffs only. Fossil is rollback (track/restore), not memory.
       void input.beforeMessages
       const diffs = collectToolFileDiffs(input.messages)
       log.info("computeDiff tool filediffs", { msgCount: input.messages.length, count: diffs.length })
@@ -276,81 +281,8 @@ export const layer = Layer.effect(
         } satisfies Snapshot.ImpactSummary
       })
 
-    const update = Effect.fn("SessionSummary.update")(function* (input: {
-      sessionID: SessionID
-      messageID: MessageID
-      before: string
-      after: string
-      files: readonly string[]
-    }) {
-      if (input.files.length === 0) return
-      const cfg = config._tag === "Some" ? yield* config.value.get() : undefined
-      if (cfg?.snapshot === false) return
-
-      const baseKey = ["session_diff_base", input.sessionID]
-      const existing = yield* storage
-        .read<Snapshot.FileDiff[]>(["session_diff", input.sessionID])
-        .pipe(Effect.catch(() => Effect.succeed(undefined)))
-      let base = yield* storage.read<string>(baseKey).pipe(Effect.catch(() => Effect.succeed(undefined)))
-      let prior = existing ?? []
-
-      // Legacy sessions may have a persisted session_diff but no base marker.
-      // Recover the old global base once; new sessions start at this write step.
-      if (!base && existing) {
-        const all = yield* sessions.messages({ sessionID: input.sessionID, limit: 10_000 })
-        const range = snapshotRangeForMessages(all)
-        if (range) {
-          base = range.from
-          prior = yield* snapshot.diffFull(base, input.after)
-          log.info("incremental diff cold recovery", { sessionID: input.sessionID, messageCount: all.length })
-        }
-      }
-      if (!base) base = input.before
-      const write = (key: string[], value: unknown) =>
-        storage.write(key, value).pipe(
-          Effect.catchCause((cause) => {
-            log.debug("incremental diff storage write failed", {
-              sessionID: input.sessionID,
-              key,
-              error: Cause.pretty(cause),
-            })
-            return Effect.void
-          }),
-        )
-      yield* write(baseKey, base)
-
-      const normalize = (file: string) => file.replaceAll("\\", "/")
-      const changed = new Set(input.files.map(normalize))
-      const refreshed = yield* snapshot.diffFull(base, input.after, input.files)
-      const diffs = [...prior.filter((item) => !changed.has(normalize(item.file))), ...refreshed]
-      yield* sessions.setSummary({
-        sessionID: input.sessionID,
-        summary: {
-          additions: diffs.reduce((sum, item) => sum + item.additions, 0),
-          deletions: diffs.reduce((sum, item) => sum + item.deletions, 0),
-          files: diffs.length,
-        },
-      })
-      yield* write(["session_diff", input.sessionID], diffs)
-      yield* bus.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
-
-      const target = MessageV2.get({ sessionID: input.sessionID, messageID: input.messageID })
-      if (target.info.role !== "user") return
-      const turnBaseKey = ["session_turn_diff_base", input.sessionID, input.messageID]
-      const turnBase = yield* storage
-        .read<string>(turnBaseKey)
-        .pipe(Effect.catch(() => Effect.succeed(input.before)))
-      yield* write(turnBaseKey, turnBase)
-      const turnFiles = [...new Set([...(target.info.summary?.diffs ?? []).map((item) => item.file), ...input.files])]
-      const turnDiffs =
-        turnBase === base && turnFiles.length === input.files.length
-          ? refreshed
-          : yield* snapshot.diffFull(turnBase, input.after, turnFiles)
-      target.info.summary = { ...target.info.summary, diffs: turnDiffs }
-      yield* sessions.updateMessage(target.info)
-    })
-
-    const updateFallback = Effect.fn("SessionSummary.updateFallback")(function* (input: {
+    /** Merge tool Exact filediffs into session_diff + optional user-turn summary. */
+    const mergeToolDiffs = Effect.fn("SessionSummary.mergeToolDiffs")(function* (input: {
       sessionID: SessionID
       messageID: MessageID
       diffs: readonly Snapshot.FileDiff[]
@@ -358,15 +290,19 @@ export const layer = Layer.effect(
       if (input.diffs.length === 0) return
       const cfg = config._tag === "Some" ? yield* config.value.get() : undefined
       if (cfg?.snapshot === false) return
-      const normalize = (file: string) => file.replaceAll("\\", "/")
-      const changed = new Set(input.diffs.map((item) => normalize(item.file)))
+
+      const changed = new Set(input.diffs.map((item) => normalizePath(item.file)))
       const current = yield* storage
         .read<Snapshot.FileDiff[]>(["session_diff", input.sessionID])
         .pipe(Effect.catch(() => Effect.succeed([] as Snapshot.FileDiff[])))
-      const diffs = [...current.filter((item) => !changed.has(normalize(item.file))), ...input.diffs]
-      log.debug("Fossil snapshot unavailable; recording tool metadata fallback", {
+      const diffs = [
+        ...current.filter((item) => !changed.has(normalizePath(item.file))),
+        ...input.diffs,
+      ]
+      log.debug("session summary tool filediffs merged", {
         sessionID: input.sessionID,
         files: input.diffs.length,
+        total: diffs.length,
       })
       yield* sessions.setSummary({
         sessionID: input.sessionID,
@@ -378,16 +314,62 @@ export const layer = Layer.effect(
       })
       yield* storage.write(["session_diff", input.sessionID], diffs).pipe(
         Effect.catchCause((cause) => {
-          log.debug("metadata fallback storage write failed", { sessionID: input.sessionID, error: Cause.pretty(cause) })
+          log.debug("session_diff storage write failed", {
+            sessionID: input.sessionID,
+            error: Cause.pretty(cause),
+          })
           return Effect.void
         }),
       )
       yield* bus.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
       const target = MessageV2.get({ sessionID: input.sessionID, messageID: input.messageID })
       if (target.info.role !== "user") return
-      const turn = [...(target.info.summary?.diffs ?? []).filter((item) => !changed.has(normalize(item.file))), ...input.diffs]
+      const turn = [
+        ...(target.info.summary?.diffs ?? []).filter((item) => !changed.has(normalizePath(item.file))),
+        ...input.diffs,
+      ]
       target.info.summary = { ...target.info.summary, diffs: turn }
       yield* sessions.updateMessage(target.info)
+    })
+
+    const update = Effect.fn("SessionSummary.update")(function* (input: {
+      sessionID: SessionID
+      messageID: MessageID
+      before: string
+      after: string
+      files: readonly string[]
+    }) {
+      // Fossil hashes are rollback-only — never source of summary Exact.
+      void input.before
+      void input.after
+      if (input.files.length === 0) return
+
+      const all = yield* sessions.messages({ sessionID: input.sessionID, limit: 10_000 })
+      const toolDiffs = collectToolFileDiffs(all)
+      const wanted = new Set(input.files.map(normalizePath))
+      const refreshed = toolDiffs.filter((item) => {
+        const file = normalizePath(item.file)
+        if (wanted.has(file)) return true
+        for (const w of wanted) {
+          if (file.endsWith("/" + w) || w.endsWith("/" + file)) return true
+          const base = file.slice(file.lastIndexOf("/") + 1)
+          if (base && (w.endsWith("/" + base) || w === base)) return true
+        }
+        return false
+      })
+      yield* mergeToolDiffs({
+        sessionID: input.sessionID,
+        messageID: input.messageID,
+        diffs: refreshed,
+      })
+    })
+
+    const updateFallback = Effect.fn("SessionSummary.updateFallback")(function* (input: {
+      sessionID: SessionID
+      messageID: MessageID
+      diffs: readonly Snapshot.FileDiff[]
+    }) {
+      yield* mergeToolDiffs(input)
     })
 
     const summarize = Effect.fn("SessionSummary.summarize")(function* (input: {
@@ -511,7 +493,6 @@ export const layer = Layer.effect(
 export const defaultLayer = Layer.suspend(() =>
   layer.pipe(
     Layer.provide(Session.defaultLayer),
-    Layer.provide(SnapshotFossil.defaultLayer),
     Layer.provide(Storage.defaultLayer),
     Layer.provide(Bus.layer),
   ),

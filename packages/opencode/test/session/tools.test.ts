@@ -131,12 +131,24 @@ describe("session.tools", () => {
             prompt: () => Effect.die("unexpected task prompt"),
           },
         })
-        const planEdit = planResolved.applypatch ?? planResolved.write ?? planResolved.edit
+        // Plan mode: scoped allow (plans/* → allow) means Gate A no longer
+        // blocks the edit family. Gate B (ctx.ask with real path) enforces
+        // per-path. Use multiedit which accepts simpler args (array of edits).
+        const planEdit = planResolved.multiedit ?? planResolved.applypatch
         expect(planEdit).toBeDefined()
-        yield* Effect.promise(() => planEdit!.execute!({} as never, { toolCallId: "call-plan-rejected" } as never))
+        yield* Effect.promise(() =>
+          planEdit!.execute!(
+            {
+              filePath: "plans/test.md",
+              edits: [{ oldString: "", newString: "# plan test" }],
+            } as never,
+            { toolCallId: "call-plan-allowed" } as never,
+          ),
+        )
         yield* Effect.promise(() => resolved.memory!.execute!({ action: "read" }, { toolCallId: "call-memory" } as never))
         expect(completed).toHaveLength(3)
-        expect(completed[1]?.output).toMatchObject({ output: expect.stringContaining("not authorized in plan mode") })
+        // Plan-mode edit to plans/* must NOT be denied — scoped allow delegates to Gate B.
+        expect(completed[1]?.output).not.toMatchObject({ output: expect.stringContaining("not authorized in plan mode") })
         expect(completed[2]?.output).toMatchObject({ title: "Memory (empty)" })
       }),
     ),

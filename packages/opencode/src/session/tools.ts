@@ -18,6 +18,7 @@ import { PartID } from "./schema"
 import * as Log from "@opencode-ai/core/util/log"
 import { EffectBridge } from "@/effect/bridge"
 import { ModelID } from "@/provider/schema"
+import { Wildcard } from "@/util/wildcard"
 import { Constitution } from "./constitution"
 
 const log = Log.create({ service: "session.tools" })
@@ -66,13 +67,42 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     const keys = new Set<string>([
       toolID,
       ...(["edit", "write", "apply_patch"].includes(toolID) ? (["edit"] as const) : []),
-      // dbread registers policy as both "dbread" and "db-read"
       ...(toolID === "dbread" || toolID === "db-read" ? (["dbread", "db-read"] as const) : []),
     ])
     for (const key of keys) {
       const perm = ["edit", "write", "apply_patch"].includes(key) ? "edit" : key
-      if (Permission.evaluate(perm, "*", input.agent.permission).action === "deny") return true
-      if (Permission.evaluate(perm, "*", input.session.permission ?? []).action === "deny") return true
+
+      // Agent ruleset: a wildcard deny (e.g. edit * → deny) should not block
+      // when the same ruleset also has a path-scoped allow for the edit family
+      // (e.g. plan agent: plans/* → allow). The tool's ctx.ask gate enforces
+      // per-path with the real file path. Other permissions (read, bash, etc.)
+      // keep their wildcard deny — scoped allows there (e.g. *.env=ask) are
+      // for ctx.ask enforcement only, not for bypassing Gate A.
+      const agentEval = Permission.evaluate(perm, "*", input.agent.permission)
+      if (agentEval.action === "deny") {
+        // A wildcard deny should not block when the same ruleset also has a
+        // path-scoped allow for the plan-mode plans/ exception. Only the edit
+        // family (edit/write/apply_patch) uses path-scoped allows to carve out
+        // plans/* from an otherwise flat deny. Other permissions (e.g. read
+        // with *.env=ask) keep their scoped allows for ctx.ask enforcement
+        // only — the wildcard deny at Gate A still stands.
+        const hasScopedAllow =
+          perm === "edit" &&
+          input.agent.permission
+            .filter((rule) => Wildcard.match(perm, rule.permission))
+            .some((rule) => rule.pattern !== "*" && (rule.action === "allow" || rule.action === "ask"))
+        if (!hasScopedAllow) return true
+      }
+
+      const sessionEval = Permission.evaluate(perm, "*", input.session.permission ?? [])
+      if (sessionEval.action === "deny") {
+        const hasScopedAllow =
+          perm === "edit" &&
+          (input.session.permission ?? [])
+            .filter((rule) => Wildcard.match(perm, rule.permission))
+            .some((rule) => rule.pattern !== "*" && (rule.action === "allow" || rule.action === "ask"))
+        if (!hasScopedAllow) return true
+      }
     }
     return false
   }

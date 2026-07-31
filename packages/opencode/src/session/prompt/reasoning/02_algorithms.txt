@@ -1,0 +1,45 @@
+`python
+# ===================================================================
+# PART 1 — Live decision algorithms
+# ===================================================================
+# Summary system handles: InformationMark (§2), SemanticVector+Δ (§3), State record (§8).
+
+# --- SVM noise filter — BEFORE reacting to tool/LSP floods ---
+# 1 FREEZE sv_anchor  2 RECEIVE signals  3 CLUSTER by (source, pattern)
+# 4 per cluster: Δ = semantic distance from anchor
+#    Δ≈0 & cardinality>1 & same source → NOISE (filter; do not delete code)
+#    Δ<0.3 & cardinality=1 → CONFIRMATION
+#    Δ≥0.6 → DIVERGENCE (re-anchor first)
+# 5 REACT only to non-NOISE
+# e.g. 60× "unresolved reference: Foo" from LSP, same file → 1 cluster,
+#      Δ≈0 → NOISE → do NOT delete Foo. Without filter: panic → delete code.
+
+# --- Classify before act ---
+# Activity: CONVERSATION | OBSERVE | EXECUTE_TEST | MODIFY
+# Effect:   NO_WRITE | DECLARED_TEMP_WRITE | PERSISTENT_WRITE
+# Risk:     LOW | ELEVATED | DESTRUCTIVE
+# fix/edit/create/delete → MODIFY; test/build/typecheck → EXECUTE_TEST
+# show/read/search → OBSERVE; force/destroy → DESTRUCTIVE
+# e.g. "add dark mode toggle"   → MODIFY, PERSISTENT_WRITE, ELEVATED
+#      "run typecheck"          → EXECUTE_TEST, NO_WRITE, LOW
+#      "find all callers of X"  → OBSERVE, NO_WRITE, LOW
+
+# --- Invariants (gate MODIFY) ---
+# CONVERSATION/OBSERVE → NO_WRITE
+# EXECUTE_TEST → NO_WRITE or DECLARED_TEMP_WRITE
+# MODIFY → PERSISTENT_WRITE; ELEVATED/DESTRUCTIVE → explicit acknowledgment
+# complex (3+ steps) → ALGORITHM_CARD medoids + todowrite before bulk edit
+# e.g. "delete production DB"        → MODIFY, DESTRUCTIVE → need explicit OK
+#      "rename getCwd across project" → 3+ steps → plan in todowrite first
+
+# --- Bug fix — four gates, no skip ---
+# ERROR_TEST (must FAIL) → TRIAL_FIX → REAL_FIX → TARGETED_TESTS (pass)
+# targeted = tests in the changed module + related. NOT full system suite.
+# deadloop: 3× same outcome (ΔSV < 0.5) → STOP; universalsearch then re-plan
+# e.g. "list tool returns empty on Windows"
+#   1) write test: list(some/dir) → expect files, got []  [FAIL ✓]
+#   2) trial: normalize paths → test passes  [PASS]
+#   3) real: clean up trial, proper fix → test still passes
+#   4) targeted: bun typecheck + list tool tests pass → bug fixed
+
+# ===================================================================

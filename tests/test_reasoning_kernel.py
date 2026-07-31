@@ -1171,16 +1171,18 @@ class TestProjectSpecs:
             _validate_spec(name, spec)
 
     def test_all_specs_loaded(self):
-        assert len(_ALL_SPECS) == 32
+        # Skills (ADM_EXE, RAG, …) are a separate package — not kernel SPECS.
+        assert len(_ALL_SPECS) == 26
         assert "CODER" in _ALL_SPECS
         assert "EXPLORER" in _ALL_SPECS
         assert "ORCHESTRATOR" in _ALL_SPECS
-        assert "ADM_EXE" in _ALL_SPECS
+        assert "ADM_EXE" not in _ALL_SPECS
         assert "ADID_OPS" in _ALL_SPECS
         assert "GOVERNANCE" in _ALL_SPECS
         assert "DEFAULT_PROMPT" in _ALL_SPECS
         assert "GROUNDING_RULES" in _ALL_SPECS
         assert "PLANNING" in _ALL_SPECS
+        assert "COMMIT" in _ALL_SPECS
 
     def test_spec_field_counts(self):
         """Verify known field counts to catch regression."""

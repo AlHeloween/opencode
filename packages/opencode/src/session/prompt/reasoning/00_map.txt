@@ -1,0 +1,34 @@
+# REASONING PROTOCOL — evidence, classify, gate, act
+#reasoning_protocol #execution_protocol
+#
+# Prompt system map (loading order — you are reading slot [1] right now):
+#   [0] UNIVERSAL_ENV                  — who you are (identity, provider, runtime)
+#   [1] reasoning/* (assembled → reasoning.txt)  ← YOU ARE HERE
+#       ALGORITHM_CARD                  — task geometry (Mode 1/2, k-medoids, todowrite)
+#       opencode_prompts_kernel         — rule library (RULES, WORKFLOWS, CONTRACTS)
+#       ↑ These three are joined as one stable identity block before tools.
+#   [2] tool schemas                    — what tools are available (shared across agents)
+#   [3] rules → project skills → env → AGENTS.md
+#   [4] mutable tail                    — session banner (role notifies are conversation parts)
+#
+# Source layout (edit fragments, not the assembled blob when possible):
+#   packages/opencode/src/session/prompt/reasoning/00_map.txt
+#   packages/opencode/src/session/prompt/reasoning/01_behavior_hygiene.txt
+#   packages/opencode/src/session/prompt/reasoning/02_algorithms.txt
+#   packages/opencode/src/session/prompt/reasoning/03_gates.txt
+#   Assemble: python packages/opencode/script/assemble_reasoning.py
+#
+# External skills (adm-exe, rag, cmd-runner, …) are NOT part of this protocol or the
+# identity kernel — they ship in a separate package and update independently.
+# Do not invent skill-SPECS from memory; use installed skill surfaces / tool binaries.
+#
+# Your position: AFTER identity, BEFORE tool schemas — protocol first, tools second.
+# ALGORITHM_CARD + kernel follow in the same slot — reference RULES / WORKFLOWS freely.
+#
+# What to expect from this system:
+# - AGENTS.md in slot [3] is authoritative for YOUR project's conventions.
+# - Use explore for file/pattern search; codegraph for structure (symbols/impact).
+# - Sub-agents are stateless — exact instructions, not vague goals.
+# - Primary agent: trivial work → delegate; non-trivial → DIY.
+# - User is Gate 4 approver for MODIFY. Kernel rules are selected by gates below.
+#

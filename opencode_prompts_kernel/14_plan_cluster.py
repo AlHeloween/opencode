@@ -62,10 +62,21 @@ def embed_modification(mod: PlanModification, dim: int = 512) -> list[float]:
     return _hash_embed(tokens, dim)
 
 
-def _cosine_distance(a: list[float], b: list[float]) -> float:
-    """1 − cosine_similarity for normalized vectors (range [0, 2])."""
-    dot = sum(ai * bi for ai, bi in zip(a, b))
-    return 1.0 - max(-1.0, min(1.0, dot))
+def _manhattan_distance(a: list[float], b: list[float]) -> float:
+    """L1 distance — sum of absolute coordinate differences.
+
+    Manhattan (L1) is ideal for sparse, high-dimensional embeddings from
+    hollow fractal topologies (Sierpinski, etc.). Unlike cosine, it does not
+    collapse all points onto a unit sphere surface. Unlike Euclidean, it
+    preserves interpretability: each dimension's contribution is directly
+    visible as |a_i − b_i|.
+
+    Cosine and Euclidean both place cluster centers in empty fractal voids
+    (points that do not actually exist). Manhattan, combined with k-medoids
+    (which forces centers to be real observed points), provides double
+    protection against empty-space centroids.
+    """
+    return sum(abs(ai - bi) for ai, bi in zip(a, b))
 
 
 def k_medoids_modifications(
@@ -81,7 +92,8 @@ def k_medoids_modifications(
     4. Iterate: assign→recompute medoid until convergence (max 20 iters)
     5. Return PlanCluster per medoid
 
-    Distance metric: cosine distance (1 − similarity).
+    Distance metric: Manhattan (L1) — preserves interpretability in sparse
+    fractal embedding spaces and avoids hollow-centroid artifacts.
     """
     N = len(modifications)
     if N == 0:
@@ -107,7 +119,7 @@ def k_medoids_modifications(
         # Assign each point to nearest medoid
         clusters: dict[int, list[int]] = {m: [] for m in medoid_indices}
         for i, vec in enumerate(vectors):
-            best_m = min(medoid_indices, key=lambda m: _cosine_distance(vec, vectors[m]))
+            best_m = min(medoid_indices, key=lambda m: _manhattan_distance(vec, vectors[m]))
             clusters[best_m].append(i)
 
         # Recompute medoid: point minimizing sum-of-distances within cluster
@@ -117,7 +129,7 @@ def k_medoids_modifications(
                 new_medoids.append(m_idx)
                 continue
             best = min(member_indices, key=lambda candidate:
-                sum(_cosine_distance(vectors[candidate], vectors[member])
+                sum(_manhattan_distance(vectors[candidate], vectors[member])
                     for member in member_indices))
             new_medoids.append(best)
 
@@ -129,7 +141,7 @@ def k_medoids_modifications(
     result: list[PlanCluster] = []
     final_clusters: dict[int, list[int]] = {m: [] for m in medoid_indices}
     for i, vec in enumerate(vectors):
-        best_m = min(medoid_indices, key=lambda m: _cosine_distance(vec, vectors[m]))
+        best_m = min(medoid_indices, key=lambda m: _manhattan_distance(vec, vectors[m]))
         final_clusters[best_m].append(i)
 
     for m_idx, member_indices in final_clusters.items():

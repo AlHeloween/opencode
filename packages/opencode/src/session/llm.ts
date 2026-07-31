@@ -27,7 +27,7 @@ import * as Option from "effect/Option"
 import { diagnoseParseError } from "@/util/diagnose-parse-error"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { repairJson as repairJsonAny, repairAny } from "@/util/anyrepair-wasm"
-import { canonicalName } from "@/tool/tool"
+import { canonicalName, TOOL_ALIASES } from "@/tool/tool"
 import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
@@ -162,10 +162,14 @@ export function buildProviderCacheKey(input: {
   return [input.sessionID, input.modelID].join(":")
 }
 
-/** Resolve a tool-call alias (separators/case) to the provider-canonical name when present. */
+/** Resolve a tool-call alias (separators/case + short-name aliases) to the provider-canonical name when present. */
 export function resolveToolName(name: string, tools: Record<string, Tool>) {
   const canonical = canonicalName(name)
-  return canonical && tools[canonical] ? canonical : undefined
+  if (canonical && tools[canonical]) return canonical
+  // Check explicit short-name aliases (e.g. "todo" → "todowrite")
+  const aliased = TOOL_ALIASES[canonical]
+  if (aliased && tools[aliased]) return aliased
+  return undefined
 }
 
 /**

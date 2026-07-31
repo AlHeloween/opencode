@@ -84,6 +84,22 @@ export function canonicalName(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
+/**
+ * Short-name aliases LLMs may use instead of the canonical tool id.
+ * Maps alias → canonical. Only add when canonicalName alone can't resolve
+ * (e.g. "todo" won't match "todowrite" after stripping).
+ */
+export const TOOL_ALIASES: Record<string, string> = {
+  todo: "todowrite",
+}
+
+/** Resolve a tool name through canonicalName then alias table. Returns undefined if unmatched. */
+export function resolveAlias(name: string): string | undefined {
+  const canonical = canonicalName(name)
+  if (TOOL_ALIASES[canonical]) return TOOL_ALIASES[canonical]
+  return undefined
+}
+
 function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadata>(
   id: string,
   init: Init<Parameters, Result>,

@@ -8,7 +8,7 @@ import * as EffectZod from "@/util/effect-zod"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { Plugin } from "@/plugin"
-import { Tool, canonicalName } from "@/tool/tool"
+import { Tool, canonicalName, TOOL_ALIASES } from "@/tool/tool"
 import type { TaskPromptOps } from "@/tool/task"
 import { Effect } from "effect"
 import { MessageV2 } from "./message-v2"
@@ -293,6 +293,12 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         }),
       )
     register(name, item, key)
+  }
+
+  // Register short-name aliases so LLMs can use e.g. "todo" for "todowrite"
+  for (const [alias, canonical] of Object.entries(TOOL_ALIASES)) {
+    const tool = tools[canonical]
+    if (tool && !tools[alias]) register(alias, tool, names.get(canonical) ?? canonical)
   }
 
   policyNames.set(tools, names)

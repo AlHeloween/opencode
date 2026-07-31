@@ -1,60 +1,59 @@
 # ALGORITHM_CARD — task geometry (routes, not essay)
-# Canonical code: opencode_prompts_kernel.py
+# Canonical code: opencode_prompts_kernel package
 #   PLANNING, DECOMPOSE, REUSE.BEFORE, SMOKE.BEFORE
-#   k_medoids_modifications, select_fractal_model, select_planning_mode
+#   k_medoids_modifications, select_fractal_model
 #   select_medoids_tasks, lsystem_rewrite, run_task_geometry (pipeline)
 # Cut evaluation area: over-generate lattice → keep medoids only. Never evaluate infinity.
+# NO Mode 1 / linear shortcut — soft step lists without lattice+k-medoids are forbidden.
 
 ```python
 # Bound symbols (read kernel if unsure — do not invent alternate pipelines)
 from opencode_prompts_kernel import (  # normative names; runtime is this process + tools
-    select_planning_mode,   # Mode 1 linear | Mode 2 fractal
     select_fractal_model,   # Sierpinski | Quad/Oct-tree | L-System
     k_medoids_modifications,
     select_medoids_tasks,   # clause-level cut; k = ceil(N/2)
     lsystem_rewrite,        # F→F+F-F lattice grammar
-    PLANNING,               # policy.planning SPEC
+    PLANNING,               # policy.planning SPEC — fractal_only
 )
 
 def run_task_geometry(goal: str, signals: list) -> list[str]:
-    """Finite work set for one turn of complex work (3+ steps).
+    """Finite work set for complex work (3+ steps).
 
     Hard rule: CENTRAL_TASKS = medoids only. Candidate foam is not the work list.
+    No linear Mode-1 path — always lattice → filter → medoids.
     """
 
     # 1. ground — Exact before invent (SEARCH.ORDER / REUSE.BEFORE)
-    #    codegraph → messagesearch → universalsearch(web|code|hybrid) as needed
     evidence = ground(goal)  # tools: codegraph, messagesearch, universalsearch, …
 
-    # 2. mode_select — clear goal → Mode 1; residual / undirected 10+ → Mode 2
-    mode = select_planning_mode(goal, signals)  # "mode_1" | "mode_2"
+    # 2. seeds — meaning-true goal slices (not the full work list)
+    seeds = goal_seeds(goal, evidence)  # short Exact-aligned clauses; ground k-medoids
 
-    # 3. decompose — seeds only; same recursive motif at every level (no ad-hoc essay)
-    if mode == "mode_1":
-        candidates = linear_seeds(goal, evidence)  # ordered short action clauses
-    else:
-        model = select_fractal_model(peaks=goal_peaks(goal, evidence), delta_v=sv_delta())
-        # >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else L-System F→F+F-F
-        candidates = fractal_over_generate(model, goal, depth=2)  # L2–L4 lattice, not monolith
+    # 3. fractal over-generate — same recursive motif every level (no ad-hoc essay)
+    model = select_fractal_model(peaks=goal_peaks(goal, evidence), delta_v=sv_delta())
+    # >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else L-System F→F+F-F
+    candidates = fractal_over_generate(model, seeds, depth=2)  # L2–L4 lattice, not monolith
 
-    # 4. select_medoids — cut area; seeds ground cluster centers; middle-ring only
+    # 4. cosine filter — keep candidates aligned with Goal SV / seed meaning
+    candidates = cosine_filter(candidates, goal_sv=goal)
+
+    # 5. select_medoids — seeds as cluster centers; middle-ring only; foam dies
     #    k = ceil(N/2); cosine; k_medoids_modifications for file-level plans
-    central_tasks = select_medoids_tasks(candidates)  # FINITE set — do not keep foam
+    central_tasks = select_medoids_tasks(candidates, seeds=seeds)  # FINITE set
 
-    # 5. todowrite — one in_progress; CENTRAL_TASKS = medoids
+    # 6. todowrite — one in_progress; CENTRAL_TASKS = medoids
     todowrite(central_tasks)  # tool: todowrite | TodoWrite
 
-    # 6. execute — one medoid; REUSE.BEFORE + SMOKE.BEFORE (baseline Exact first)
+    # 7. execute — one medoid; REUSE.BEFORE + SMOKE.BEFORE (baseline Exact first)
     for task in central_tasks:  # one in_progress at a time (PLANNING invariant)
-        # smoke baseline [Exact] before first edit when smoke is defined
         execute_medoid(task)
 
-    # 7. verify — post-impl smoke / oracle [Exact]
+    # 8. verify — post-impl smoke / oracle [Exact]
     verify_oracles()
 
-    # 8. emit_state — SV + InfoMark; residual only re-enters Mode 2 vs original Goal SV
-    return emit_state(goal_sv=goal)  # never re-fractal the whole universe
+    # 9. emit_state — SV + InfoMark; residual re-enters fractal vs original Goal SV only
+    return emit_state(goal_sv=goal)  # never re-fractal the whole universe; no Mode-1 fallthrough
 ```
 
 # Trivial exception (1-line / rename / typo with codegraph evidence): skip full card; still tag Exact.
-# Complex tasks (3+ steps): run the card. Kernel prose without this route is wallpaper.
+# Complex tasks (3+ steps): run the card. Linear "1) 2) 3)" without medoid cut = policy violation.

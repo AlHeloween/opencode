@@ -182,23 +182,28 @@ Tag claims with evidence labels. Reference outranks inference.""",
 )
 
 PLANNING = _spec(
-    intent="""ADID dual-mode planning: Mode 1 (linear decomposition, default) for clear goals —
-decompose into ordered CENTRAL_TASKS via todowrite. Mode 2 (fractal generation) triggers
-after task completion or 10+ undirected messages — use Sierpinski/Quad-tree/L-System
-models + k-medoids clustering for refinement and discovery. The 6-step ADID Workflow:
-GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL.
-PRE_FLIGHT is incomplete without smoke-test requirements: every implementable plan must
-define runnable baseline commands (before edits) and post-implementation pass criteria.
-Plan before code. Smoke before implementation. State before reasoning. Decompose before expanding.""",
+    intent="""ADID fractal task geometry only — no linear Mode-1 shortcut.
+For complex work (3+ steps): ground → fractal over-generate (Sierpinski / Quad-Oct /
+L-System) → cosine filter → k-medoids with goal seeds as centers → CENTRAL_TASKS =
+medoids only → todowrite → execute one in_progress → verify. Soft linear "just list
+steps" is forbidden: transformers fill length bias with mush unless the lattice
+prior forces structure. The 6-step ADID Workflow: GOAL_SVM_PREP → SVM_INGESTION →
+PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL. PRE_FLIGHT incomplete without
+Smoke Tests (baseline + post-impl oracles) and Prior art (universalsearch) when
+non-trivial. Plan before code. Smoke before implementation. Residual work re-clusters
+against original Goal SV — never re-fractal the whole universe.""",
 
-    state={"planning_mode": "Mode 1 (linear) default, Mode 2 (fractal) on trigger"},
+    state={
+        "planning_mode": "fractal_only",
+        "central_tasks": "k-medoids of fractal candidates (never raw foam)",
+    },
 
-    scope="task decomposition, todowrite usage, plan.txt workflow, plan/build agent cycle",
+    scope="task geometry, todowrite, plan.txt workflow, plan/build cycle",
 
     constraints={
-        "mode_1_default": True,
-        "mode_2_trigger_after_completion": True,
-        "mode_2_trigger_10_plus_messages": True,
+        "fractal_geometry_required": True,
+        "linear_mode_1_forbidden": True,
+        "medoids_only_central_tasks": True,
         "plan_before_code": True,
         "reuse_search_before_design": True,
         "smoke_tests_required_in_plan": True,
@@ -206,41 +211,45 @@ Plan before code. Smoke before implementation. State before reasoning. Decompose
         "state_before_reasoning": True,
         "decompose_before_expanding": True,
         "one_task_in_progress_at_a_time": True,
-        "k_medoids_for_refinement": True,
+        "k_medoids_required": True,
+        "k_equals_ceil_n_over_2": True,
     },
 
     invariants=[
-        "Mode 1 (linear): clear goal → ordered CENTRAL_TASKS → todowrite",
-        "Mode 2 (fractal): after completion OR 10+ undirected messages → Sierpinski/Quad-tree/L-System + k-medoids",
+        "Complex work uses fractal over-generate → cosine filter → k-medoids; CENTRAL_TASKS = medoids only",
+        "Fractal models: >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else → L-System F→F+F-F",
         "6-step loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL",
-        "PRE_FLIGHT requires a Smoke Tests section: baseline commands + expected-now + post-impl oracles "
+        "PRE_FLIGHT requires Smoke Tests: baseline + expected-now + post-impl oracles "
         "(or smoke: N/A with one-line justification for pure docs/plan-only)",
         "PRE_FLIGHT reuse: non-trivial plans record Prior art from universalsearch (web and/or Sourcegraph code) "
         "or reuse: N/A with justification (local-only typo/rename)",
-        "Every task tracked via todowrite with priority (high/medium/low) and status (pending/in_progress/completed/cancelled)",
+        "Every task tracked via todowrite with priority and status; only one in_progress",
         "Plan before code — no edits before plan approval",
         "No EXECUTION until smoke requirements exist and baseline is recorded [Exact] when runtime surface changes",
-        "Fractal models: >=3 peaks → Sierpinski, 2/4/8 orthogonal → Quad/Oct-tree, else → L-System F→F+F-F",
+        "Residual / next fractal measured against original Goal SV seeds — not a new mission",
     ],
 
     forbidden_actions=[
+        "Mode 1 / linear-only task lists that skip fractal lattice + k-medoids for complex (3+ step) work",
+        "Treating over-generated candidate foam as CENTRAL_TASKS without medoid cut",
         "Skipping plan phase for complex tasks (3+ steps)",
         "Making code edits before plan approval",
         "Starting implementation without Smoke Tests in the plan (or explicit smoke: N/A)",
         "Starting implementation without a recorded baseline when Smoke Tests define runnable commands",
         "Designing non-trivial solutions without universalsearch prior-art check (web and/or Sourcegraph code)",
         "More than one task in_progress at a time",
-        "Fractal generation when clear linear goal exists (use Mode 1)",
         "Verification sections that only say 'test later' without concrete commands and pass criteria",
+        "Re-fractaling the entire goal after each medoid instead of residual vs Goal SV",
     ],
 
     acceptance_tests=[
-        "Complex tasks have todowrite plan before first edit",
+        "Complex tasks have fractal→medoid→todowrite plan before first edit",
+        "CENTRAL_TASKS count is medoid-sized (k≈ceil(N/2)), not full candidate foam",
         "plan.txt workflow followed for plan-mode sessions",
-        "Mode 2 only activates on defined triggers",
         "Implementable plans include Smoke Tests (baseline + post-impl) or smoke: N/A justification",
         "Baseline smoke recorded [Exact] before first implementation edit when smoke is defined",
         "Non-trivial plans note Prior art (universalsearch) or reuse: N/A",
+        "No Mode-1 / linear-decomposition language in new plans for multi-step work",
     ],
 )
 

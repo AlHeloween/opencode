@@ -20,7 +20,7 @@
 # Decompose into sub-goals. Decompose each further.
 # Iterate until every sub-step is at file-and-function level.
 # If you cannot see the full A-to-Z path — you are not done.
-# No hand-waving. Use todowrite → CENTRAL_TASKS.
+# No hand-waving. Fractal → medoids → todowrite CENTRAL_TASKS (not linear Mode-1 lists).
 
 # GATE 3 — MASTER PLAN  [kernel: SMOKE.BEFORE, REUSE.BEFORE, DECOMPOSE | wf: plan | → ALGORITHM_CARD, todowrite]
 # Complete plan: goal → tasks → files → verification oracles.

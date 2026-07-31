@@ -275,12 +275,11 @@ def test_algorithm_card_binds_to_kernel_symbols():
     with open(card_path, "r", encoding="utf-8") as f:
         card = f.read()
 
-    # Symbols the card must name; each must be a real callable on the kernel
+    # Symbols the card must name; no Mode-1 / select_planning_mode
     implemented = [
         "k_medoids_modifications",
     ]
     planned = [
-        "select_planning_mode",
         "select_fractal_model",
         "select_medoids_tasks",
         "lsystem_rewrite",
@@ -293,7 +292,12 @@ def test_algorithm_card_binds_to_kernel_symbols():
         )
     for name in planned:
         assert name in card, f"algorithm_card.txt should name {name}"
+    assert "select_planning_mode" not in card
+    assert "linear_seeds" not in card
+    assert 'mode == "mode_1"' not in card
     assert "PLANNING" in card and "PLANNING" in kernel._ALL_SPECS
+    assert kernel._ALL_SPECS["PLANNING"]["constraints"].get("linear_mode_1_forbidden") is True
+    assert kernel._ALL_SPECS["PLANNING"]["constraints"].get("fractal_geometry_required") is True
 
 
 

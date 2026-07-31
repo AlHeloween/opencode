@@ -4,7 +4,7 @@
 # Prompt system map (loading order — you are reading slot [1] right now):
 #   [0] UNIVERSAL_ENV                  — who you are (identity, provider, runtime)
 #   [1] reasoning/* (assembled → reasoning.txt)  ← YOU ARE HERE
-#       ALGORITHM_CARD                  — task geometry (Mode 1/2, k-medoids, todowrite)
+#       ALGORITHM_CARD                  — fractal task geometry (lattice → k-medoids → todowrite)
 #       opencode_prompts_kernel         — rule library (RULES, WORKFLOWS, CONTRACTS)
 #       ↑ These three are joined as one stable identity block before tools.
 #   [2] tool schemas                    — what tools are available (shared across agents)

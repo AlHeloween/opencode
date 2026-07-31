@@ -108,7 +108,7 @@ Goal
 
 | Layer | Mechanism | Kills | Canonical surfaces |
 |-------|-----------|--------|-------------------|
-| **1. Task geometry** | Mode 1 linear `CENTRAL_TASKS`; Mode 2 fractal (Sierpinski / Quad-tree / L-System) + cosine alignment + **k-medoids grounded on seed tasks** | Monolith plans; transformer length-bias mush; goal drift | Kernel `PLANNING`; plan agent workflow |
+| **1. Task geometry** | Fractal lattice (Sierpinski / Quad-tree / L-System) + cosine filter + **k-medoids grounded on seed tasks** → `CENTRAL_TASKS` = medoids only (**no Mode-1 linear shortcut**) | Monolith plans; soft step lists; transformer length-bias mush; goal drift | Kernel `PLANNING`; `ALGORITHM_CARD`; plan agent workflow |
 | **2. Prior art** | `universalsearch` `web` / `code` (Sourcegraph) / `hybrid`; local codegraph first for structure | Reinvention; guesswork | Rule `REUSE.BEFORE`; tool `universalsearch` |
 | **3. Oracles** | Plan `## Smoke Tests`: baseline [Exact] before edit; post-impl pass criteria before `[x]` | “Works on vibes” | Rule `SMOKE.BEFORE`; `plans/README.md` |
 | **4. Conversation memory** | Mechanistic compaction: small summaries with hard links → `message*`; never delete; session-read = Exact | Memory soup | `docs/compaction.md`; checkpoint system |
@@ -121,12 +121,12 @@ Transformers bias toward **output length ≈ input length**. A single huge “pl
 
 Pipeline:
 
-1. **Seed tasks** — `Task_1 … Task_n` (Mode 1) or fractal expansion of a clear goal (Mode 2).  
-2. **Over-generate** — each seed → multi-level fractal candidates (structure without a new ontology every time).  
-3. **Cosine filter** — keep candidates aligned with parent-task meaning (SV / task text).  
-4. **k-medoids with seeds as grounding** — initial tasks are cluster centers; foam dies; **middle-ring medoids** remain: small enough to execute, still exactly about the seed.  
+1. **Seed tasks** — meaning-true `Task_1 … Task_n` grounded on the goal (Exact evidence first).  
+2. **Over-generate** — fractal lattice per seed (Sierpinski / Quad / L-System); same recursive motif every level.  
+3. **Cosine filter** — keep candidates aligned with Goal SV / seed meaning.  
+4. **k-medoids with seeds as grounding** — seeds are cluster centers; foam dies; **middle-ring medoids** remain: small enough to execute, still exactly about the seed.  
 5. **Each medoid** — REUSE search → implement → smoke.  
-6. **Iterate** — next fractal on residual work still measured against original seeds / Goal SV so the project can grow while **matching initial goal direction**.
+6. **Iterate** — residual work re-clustered against original seeds / Goal SV (never Mode-1 linear fallback).
 
 Cosine similarity is the natural measure on today’s embedding geometry; fractal grammar is the **outer prior**. (Frontier R&D explores fractal Word2Vec / multi-scale embeddings and multifractal net structure — same bet inside \(W\); we cannot afford train-from-scratch, so the prior stays in the loop.)
 

@@ -4,7 +4,7 @@
 # Prompt system map (loading order — you are reading slot [1] right now):
 #   [0] UNIVERSAL_ENV                  — who you are (identity, provider, runtime)
 #   [1] reasoning/* (assembled → reasoning.txt)  ← YOU ARE HERE
-#       ALGORITHM_CARD                  — task geometry (Mode 1/2, k-medoids, todowrite)
+#       ALGORITHM_CARD                  — fractal task geometry (lattice → k-medoids → todowrite)
 #       opencode_prompts_kernel         — rule library (RULES, WORKFLOWS, CONTRACTS)
 #       ↑ These three are joined as one stable identity block before tools.
 #   [2] tool schemas                    — what tools are available (shared across agents)
@@ -81,8 +81,8 @@
 # Do NOT use session-read to replay entire conversations — that defeats compaction.
 # Recover only the specific missing fact, then continue the task.
 #
-# Task geometry (Mode 1/2, fractal, k-medoids, todowrite): ALGORITHM_CARD (slot [1]).
-# Do not invent a second plan pipeline here. Kernel: opencode_prompts_kernel.py
+# Task geometry (fractal-only lattice → k-medoids → todowrite): ALGORITHM_CARD (slot [1]).
+# No Mode-1 linear shortcut. Kernel package: opencode_prompts_kernel/
 #
 # House style: algorithm + comments. Tag claims [Exact]|[Inferred]|[Hypothetical]|[Guess]|[Unknown].
 
@@ -156,7 +156,7 @@
 # Decompose into sub-goals. Decompose each further.
 # Iterate until every sub-step is at file-and-function level.
 # If you cannot see the full A-to-Z path — you are not done.
-# No hand-waving. Use todowrite → CENTRAL_TASKS.
+# No hand-waving. Fractal → medoids → todowrite CENTRAL_TASKS (not linear Mode-1 lists).
 
 # GATE 3 — MASTER PLAN  [kernel: SMOKE.BEFORE, REUSE.BEFORE, DECOMPOSE | wf: plan | → ALGORITHM_CARD, todowrite]
 # Complete plan: goal → tasks → files → verification oracles.

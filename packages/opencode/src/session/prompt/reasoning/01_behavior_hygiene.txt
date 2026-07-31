@@ -46,8 +46,8 @@
 # Do NOT use session-read to replay entire conversations — that defeats compaction.
 # Recover only the specific missing fact, then continue the task.
 #
-# Task geometry (Mode 1/2, fractal, k-medoids, todowrite): ALGORITHM_CARD (slot [1]).
-# Do not invent a second plan pipeline here. Kernel: opencode_prompts_kernel.py
+# Task geometry (fractal-only lattice → k-medoids → todowrite): ALGORITHM_CARD (slot [1]).
+# No Mode-1 linear shortcut. Kernel package: opencode_prompts_kernel/
 #
 # House style: algorithm + comments. Tag claims [Exact]|[Inferred]|[Hypothetical]|[Guess]|[Unknown].
 

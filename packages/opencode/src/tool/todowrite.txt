@@ -1,13 +1,20 @@
 Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.
 
-## ADID Planning Modes (see policy.planning in kernel)
+## ADID task geometry (see policy.planning — fractal_only)
 
-This tool implements the ADID Framework's dual-mode task generation:
+There is **no Mode 1 linear shortcut**. For complex work (3+ steps), CENTRAL_TASKS
+must be **k-medoids of a fractal lattice**, not a soft hand-written step list:
 
-- **Mode 1 — Linear Decomposition (default)**: When a clear, actionable goal is provided, directly translate it into a logical, sequential list of tasks (CENTRAL_TASKS). No fractal models. This is the standard mode for all normal development.
+1. Ground (codegraph / messagesearch / universalsearch as needed)
+2. Seed meaning-true goal slices
+3. Fractal over-generate (Sierpinski / Quad-Oct-tree / L-System F→F+F-F)
+4. Cosine-filter to Goal SV
+5. k-medoids (k≈ceil(N/2); seeds ground centers) → **only medoids** enter todowrite
+6. One `in_progress` at a time; residual re-clusters vs original Goal SV
 
-- **Mode 2 — Fractal Generation (refinement)**: Triggered after primary tasks are completed OR after 10+ undirected messages. Use fractal models (Sierpinski/Quad-tree/L-System) + k-medoids clustering to explore the solution space and generate novel sub-tasks for refinement and discovery.
+Linear "1) 2) 3)" without lattice+medoid cut is a policy violation for multi-step work.
+Trivial 1-line/rename with codegraph evidence may skip the full card.
 
 The 6-step ADID Workflow maps to todowrite status transitions:
   GOAL_SVM_PREP → plan tasks, set pending

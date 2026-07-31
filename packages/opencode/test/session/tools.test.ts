@@ -108,7 +108,7 @@ describe("session.tools", () => {
         yield* Effect.promise(() => resolved.read!.execute!({} as never, { toolCallId: "call-rejected" } as never))
         expect(completed).toHaveLength(1)
         expect(completed[0]?.id).toBe("call-rejected")
-        expect(completed[0]?.output).toMatchObject({ output: expect.stringContaining("unavailable in reasoning mode") })
+        expect(completed[0]?.output).toMatchObject({ output: expect.stringContaining("not authorized in reasoning mode") })
 
         const planResolved = yield* SessionTools.resolve({
           agent: plan!,
@@ -136,7 +136,7 @@ describe("session.tools", () => {
         yield* Effect.promise(() => planEdit!.execute!({} as never, { toolCallId: "call-plan-rejected" } as never))
         yield* Effect.promise(() => resolved.memory!.execute!({ action: "read" }, { toolCallId: "call-memory" } as never))
         expect(completed).toHaveLength(3)
-        expect(completed[1]?.output).toMatchObject({ output: expect.stringContaining("unavailable in plan mode") })
+        expect(completed[1]?.output).toMatchObject({ output: expect.stringContaining("not authorized in plan mode") })
         expect(completed[2]?.output).toMatchObject({ title: "Memory (empty)" })
       }),
     ),

@@ -1,6 +1,6 @@
 import * as Log from "@opencode-ai/core/util/log"
 
-import tokenizerWasm from "../../../wasm/core/pkg/tokenizer.wasm" with { type: "file" }
+// tokenizer.wasm intentionally omitted — content tokens use chars/4 (no WASM BPE).
 import pathValidatorWasm from "../../../wasm/core/pkg/path_validator.wasm" with { type: "file" }
 import diffyWasm from "../../../wasm/core/pkg/diffy/diffy_wasm_bg.wasm" with { type: "file" }
 import jsonRepairWasm from "../../../wasm/core/pkg/json_repair/json_repair_bg.wasm" with { type: "file" }
@@ -9,6 +9,7 @@ import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: 
 import markdownifyWasm from "../../../wasm/markdownify/pkg/markdownify_wasm_bg.wasm" with { type: "file" }
 import chafaWasm from "../../../wasm/core/pkg/chafa.wasm" with { type: "file" }
 import treeSitterRuntimeWasm from "web-tree-sitter/web-tree-sitter.wasm" with { type: "file" }
+import mermaidRendererWasm from "mermaid-wasm-renderer/mermaid_wasm_renderer_bg.wasm" with { type: "file" }
 
 // Tree-sitter grammar WASMs — all bundled from packages/wasm/core/pkg/grammars/
 import treeSitterArktsWasm from "../../../wasm/core/pkg/grammars/tree-sitter-arkts.wasm" with { type: "file" }
@@ -34,6 +35,7 @@ import treeSitterHaskellWasm from "../../../wasm/core/pkg/grammars/tree-sitter-h
 import treeSitterHclWasm from "../../../wasm/core/pkg/grammars/tree-sitter-hcl.wasm" with { type: "file" }
 import treeSitterHtmlWasm from "../../../wasm/core/pkg/grammars/tree-sitter-html.wasm" with { type: "file" }
 import treeSitterJavaWasm from "../../../wasm/core/pkg/grammars/tree-sitter-java.wasm" with { type: "file" }
+import treeSitterJavascriptWasm from "../../../wasm/core/pkg/grammars/tree-sitter-javascript.wasm" with { type: "file" }
 import treeSitterJsonWasm from "../../../wasm/core/pkg/grammars/tree-sitter-json.wasm" with { type: "file" }
 import treeSitterJuliaWasm from "../../../wasm/core/pkg/grammars/tree-sitter-julia.wasm" with { type: "file" }
 import treeSitterKotlinWasm from "../../../wasm/core/pkg/grammars/tree-sitter-kotlin.wasm" with { type: "file" }
@@ -92,6 +94,7 @@ const embeddedTreeSitterGrammarAssets = [
   ["grammars/tree-sitter-hcl.wasm", treeSitterHclWasm],
   ["grammars/tree-sitter-html.wasm", treeSitterHtmlWasm],
   ["grammars/tree-sitter-java.wasm", treeSitterJavaWasm],
+  ["grammars/tree-sitter-javascript.wasm", treeSitterJavascriptWasm],
   ["grammars/tree-sitter-json.wasm", treeSitterJsonWasm],
   ["grammars/tree-sitter-julia.wasm", treeSitterJuliaWasm],
   ["grammars/tree-sitter-kotlin.wasm", treeSitterKotlinWasm],
@@ -130,7 +133,6 @@ const embeddedTreeSitterGrammarAssets = [
 export const embeddedTreeSitterGrammarAssetPaths = embeddedTreeSitterGrammarAssets.map((asset) => asset[0])
 
 const embeddedWasmAssets = new Map([
-  ["tokenizer.wasm", tokenizerWasm],
   ["path_validator.wasm", pathValidatorWasm as unknown as string],
   ["diffy/diffy_wasm_bg.wasm", diffyWasm as unknown as string],
   ["json_repair/json_repair_bg.wasm", jsonRepairWasm as unknown as string],
@@ -139,8 +141,12 @@ const embeddedWasmAssets = new Map([
   ["markdownify/markdownify_wasm_bg.wasm", markdownifyWasm as unknown as string],
   ["chafa.wasm", chafaWasm as unknown as string],
   ["web-tree-sitter.wasm", treeSitterRuntimeWasm],
+  ["mermaid/mermaid_wasm_renderer_bg.wasm", mermaidRendererWasm as unknown as string],
   ...embeddedTreeSitterGrammarAssets,
 ])
+
+/** All registry keys (for packaging / health). No tokenizer.wasm — unused. */
+export const embeddedWasmAssetPaths = [...embeddedWasmAssets.keys()]
 
 function normalizeWasmAsset(relativePath: string) {
   return relativePath.replaceAll("\\", "/").replace(/^\/+/, "")

@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from opencode_prompts_kernel import (  # noqa: E402
-    ClaimNode,
+    ResearchClaimNode,
     EPISTEMIC_NODE_TYPES,
     PROJECTION_LIBRARY,
     QUESTION_TYPES,
@@ -73,15 +73,15 @@ class TestEpistemicProjection:
             assert qt in QUESTION_TYPES, f"Missing question type: {qt}"
 
     def test_claim_node_defaults(self):
-        """ClaimNode creates with empty defaults."""
-        cn = ClaimNode()
+        """ResearchClaimNode creates with empty defaults."""
+        cn = ResearchClaimNode()
         assert cn.claim_type == ""
         assert cn.subject == ""
         assert cn.source == ""
 
     def test_claim_node_custom(self):
-        """ClaimNode accepts structured claim data."""
-        cn = ClaimNode(
+        """ResearchClaimNode accepts structured claim data."""
+        cn = ResearchClaimNode(
             claim_type="causal_claim",
             subject="education",
             relation="affects",

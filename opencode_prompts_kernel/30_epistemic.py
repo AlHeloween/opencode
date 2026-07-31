@@ -223,11 +223,13 @@ class ResearchKernel:
 # ------------------------------------------------------------------
 
 @dataclass
-class ClaimNode:
+class ResearchClaimNode:
     """A claim node in an epistemic parse tree.
 
     Analogous to a syntax node in tree-sitter: this is the atomic unit
     of reasoning that a discipline projection knows how to validate.
+
+    Renamed from ClaimNode to avoid collision with 02_info_mark.ClaimNode.
     """
     claim_type: str = ""       # definition | observation | measurement | hypothesis | assumption
                                # | causal_claim | mechanistic_claim | comparison | prediction

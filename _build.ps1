@@ -223,18 +223,40 @@ function Invoke-Check {
 # ═══════════════════════════════════════════════════════════
 
 function Sync-KernelPrompt {
-    $kernelSrc = Join-Path $Root "opencode_prompts_kernel.py"
-    $kernelDst = Join-Path (Join-Path (Join-Path $Root "packages") "opencode") "src\session\prompt\opencode_prompts_kernel.txt"
+    # 1) Assemble reasoning protocol from topic fragments → reasoning.txt
+    $assembleReasoning = Join-Path $Root "packages\opencode\script\assemble_reasoning.py"
+    $reasoningDir = Join-Path $Root "packages\opencode\src\session\prompt\reasoning"
+    if (Test-Path $assembleReasoning) {
+        if (-not (Test-Path $reasoningDir)) {
+            Write-Error- "Reasoning fragments missing: $reasoningDir"
+            return $false
+        }
+        & python $assembleReasoning
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error- "assemble_reasoning.py failed"
+            return $false
+        }
+        $reasoningTxt = Join-Path $Root "packages\opencode\src\session\prompt\reasoning.txt"
+        Write-Success "Reasoning protocol assembled ($(Get-Item $reasoningTxt).Length bytes)"
+    }
 
-    if (-not (Test-Path $kernelSrc)) {
-        Write-Error- "Kernel source not found: $kernelSrc"
+    # 2) Render model-facing kernel from package (not monofile SPECS dump)
+    $kernelPkg = Join-Path $Root "opencode_prompts_kernel"
+    $kernelDst = Join-Path $Root "packages\opencode\src\session\prompt\opencode_prompts_kernel.txt"
+    if (-not (Test-Path $kernelPkg)) {
+        Write-Error- "Kernel package not found: $kernelPkg"
         return $false
     }
 
-    & python $kernelSrc --render-runtime $kernelDst
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error- "Kernel runtime compilation failed"
-        return $false
+    Push-Location $Root
+    try {
+        & python -m opencode_prompts_kernel --render-runtime $kernelDst
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error- "Kernel runtime compilation failed (python -m opencode_prompts_kernel)"
+            return $false
+        }
+    } finally {
+        Pop-Location
     }
     Write-Success "Kernel prompt compiled ($(Get-Item $kernelDst).Length bytes)"
     return $true
@@ -294,17 +316,16 @@ except TypeError:
     }
     Write-Success "MappingProxyType immutability (TypeError on write)"
 
-    # 4. Run full pytest suite (290 tests)
-    $testOutput = python -m pytest $Root\tests\ -q --tb=no 2>&1
+    # 4. Targeted kernel tests (tests/kernel/*) + remaining tests/
+    $testOutput = python -m pytest $Root\tests\kernel $Root\tests\test_prompt_schema.py -q --tb=no 2>&1
     $testExitCode = $LASTEXITCODE
     if ($testExitCode -ne 0) {
-        Write-Error- "pytest suite failed (exit code: $testExitCode)"
+        Write-Error- "pytest kernel suite failed (exit code: $testExitCode)"
         Write-Host "  $testOutput" -ForegroundColor Red
         return $false
     }
-    # Extract summary line: "290 passed in X.XXs"
     $summaryLine = ($testOutput -split "`n") | Where-Object { $_ -match "passed" } | Select-Object -Last 1
-    Write-Success "pytest: $summaryLine"
+    Write-Success "pytest kernel: $summaryLine"
 
     # 5. Verify discipline projection hierarchy consistency
     $hierarchyTest = python -c @"

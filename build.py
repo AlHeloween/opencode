@@ -180,19 +180,31 @@ def save_manifest(manifest: dict) -> None:
 
 
 def step_kernel() -> None:
+    """Assemble reasoning fragments + render runtime kernel txt from package."""
+    assemble = ROOT / "packages/opencode/script/assemble_reasoning.py"
+    reasoning_dir = ROOT / "packages/opencode/src/session/prompt/reasoning"
+    if assemble.is_file():
+        if not reasoning_dir.is_dir():
+            raise RuntimeError(f"reasoning fragments missing: {reasoning_dir}")
+        _run([sys.executable, str(assemble)])
     dst = ROOT / "packages/opencode/src/session/prompt/opencode_prompts_kernel.txt"
+    pkg = ROOT / "opencode_prompts_kernel"
+    if not pkg.is_dir():
+        raise RuntimeError(f"kernel package missing: {pkg}")
     _run(
         [
             sys.executable,
-            str(ROOT / "opencode_prompts_kernel.py"),
+            "-m",
+            "opencode_prompts_kernel",
             "--render-runtime",
             str(dst),
-        ]
+        ],
+        cwd=ROOT,
     )
 
 
 def step_reasoning() -> None:
-    # Light integrity check (import + IR roundtrip). Full pytest suite is --full / check.
+    # Light integrity check (import + IR roundtrip). Full suite: pytest tests/kernel.
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
     code = r"""
 import opencode_prompts_kernel as k
@@ -201,6 +213,7 @@ r = {"invariants": ["must balance"], "constraints": ["must be safe"]}
 ir = k.compile_to_ir(r)
 assert k.expand_from_ir(ir) == r
 assert not k.validate_ir_equivalence(r, ir)
+assert k._ALL_SPECS["PLANNING"]["constraints"].get("linear_mode_1_forbidden") is True
 print("OK reasoning kernel")
 """
     r = subprocess.run([sys.executable, "-c", code], cwd=str(ROOT), env=env)
@@ -257,13 +270,15 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
     steps = [
         Step(
             name="kernel",
-            description="Render opencode_prompts_kernel.txt from Python",
+            description="Assemble reasoning/*.txt + render opencode_prompts_kernel.txt",
             inputs=[
-                "opencode_prompts_kernel.py",
-                "packages/opencode/src/session/prompt",
+                "opencode_prompts_kernel",
+                "packages/opencode/script/assemble_reasoning.py",
+                "packages/opencode/src/session/prompt/reasoning",
             ],
             outputs=[
                 "packages/opencode/src/session/prompt/opencode_prompts_kernel.txt",
+                "packages/opencode/src/session/prompt/reasoning.txt",
             ],
             run=step_kernel,
         ),
@@ -272,10 +287,9 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
         steps.append(
             Step(
                 name="reasoning",
-                description="Reasoning kernel import + IR roundtrip",
+                description="Kernel package import + IR roundtrip + PLANNING fractal_only",
                 inputs=[
-                    "opencode_prompts_kernel.py",
-                    "reasoning_kernel.py",
+                    "opencode_prompts_kernel",
                 ],
                 outputs=[],  # pure check
                 run=step_reasoning,

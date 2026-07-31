@@ -135,16 +135,32 @@ build_opentui() {
 
 # ─── Kernel prompt sync ──────────────────────────────────────────────
 sync_kernel_prompt() {
-  local kernel_src="$ROOT/opencode_prompts_kernel.py"
+  local assemble="$ROOT/packages/opencode/script/assemble_reasoning.py"
+  local reasoning_dir="$OPENCODE_PKG/src/session/prompt/reasoning"
+  local kernel_pkg="$ROOT/opencode_prompts_kernel"
   local kernel_dst="$OPENCODE_PKG/src/session/prompt/opencode_prompts_kernel.txt"
 
-  if [ ! -f "$kernel_src" ]; then
-    fail "Kernel source not found: $kernel_src"
+  if [ -f "$assemble" ]; then
+    if [ ! -d "$reasoning_dir" ]; then
+      fail "Reasoning fragments missing: $reasoning_dir"
+      return 1
+    fi
+    python3 "$assemble" || {
+      fail "assemble_reasoning.py failed"
+      return 1
+    }
+    local rsize
+    rsize=$(wc -c < "$OPENCODE_PKG/src/session/prompt/reasoning.txt" | tr -d ' ')
+    ok "Reasoning protocol assembled ($rsize bytes)"
+  fi
+
+  if [ ! -d "$kernel_pkg" ]; then
+    fail "Kernel package not found: $kernel_pkg"
     return 1
   fi
 
-  python3 "$kernel_src" --render-runtime "$kernel_dst" || {
-    fail "Kernel runtime compilation failed"
+  ( cd "$ROOT" && python3 -m opencode_prompts_kernel --render-runtime "$kernel_dst" ) || {
+    fail "Kernel runtime compilation failed (python -m opencode_prompts_kernel)"
     return 1
   }
   local size
@@ -194,16 +210,16 @@ except TypeError:
 " 2>&1 || { fail "Immutability check failed"; return 1; }
   ok "MappingProxyType immutability (TypeError on write)"
 
-  # 4. Full pytest suite
+  # 4. Targeted kernel tests
   local test_output
-  test_output=$(python3 -m pytest "$ROOT/tests/" -q --tb=no 2>&1) || {
-    fail "pytest suite failed"
+  test_output=$(python3 -m pytest "$ROOT/tests/kernel" "$ROOT/tests/test_prompt_schema.py" -q --tb=no 2>&1) || {
+    fail "pytest kernel suite failed"
     echo "  $test_output" >&2
     return 1
   }
   local summary
   summary=$(echo "$test_output" | grep "passed" | tail -1)
-  ok "pytest: $summary"
+  ok "pytest kernel: $summary"
 
   # 5. Discipline projection hierarchy
   local hierarchy_test

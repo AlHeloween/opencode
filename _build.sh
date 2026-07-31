@@ -402,7 +402,8 @@ task_build() {
         cp -r "$wasm_src/$subdir" "$wasm_dst/"
       fi
     done
-    for wasm_file in tokenizer.wasm path_validator.wasm; do
+    # tokenizer.wasm intentionally omitted — content tokens use chars/4
+    for wasm_file in path_validator.wasm chafa.wasm; do
       [ -f "$wasm_src/$wasm_file" ] && cp "$wasm_src/$wasm_file" "$wasm_dst/"
     done
     # Tree-sitter runtime WASM
@@ -412,10 +413,9 @@ task_build() {
       cp "$ts_wasm" "$wasm_dst/web-tree-sitter.wasm"
     fi
 
-    # Verify required assets
+    # Verify required assets (no tokenizer.wasm)
     local missing=false
     for asset in \
-      tokenizer.wasm \
       path_validator.wasm \
       web-tree-sitter.wasm \
       diffy/diffy_wasm_bg.wasm \

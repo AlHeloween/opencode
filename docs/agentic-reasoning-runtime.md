@@ -12,8 +12,29 @@ Related:
 - [AGI workflow](agi-workflow.md) — orchestrator / plans
 - [Compaction](compaction.md) — memory ranks (Exact handles vs Inferred summaries)
 - [Tools and sidecars](tools-and-sidecars.md) — binaries vs built-in LLM tools
+- [ADID Framework 15.4.3](ADID_Framework_15_4_3.md) — formal epistemic / safe-update **contract** (conceptual)
 - Pocket sources: `packages/opencode/src/session/prompt/reasoning/*.txt`
 - Kernel package: `opencode_prompts_kernel/` (host-agnostic SPECS)
+
+---
+
+## 0. Two breeds (do not conflate)
+
+| | **ADID Framework** (docs / dist) | **OpenCode reasoning runtime** (this product) |
+|--|----------------------------------|-----------------------------------------------|
+| **Kind** | Solid **formal model** — invariants, InfoMark law, manager contract, behavioral oracles, optional safe-update construction | **Practical agentic implementation** — TUI session loop, tools, gates, stamps, loaders |
+| **Artifact** | `docs/ADID_Framework_*.md`, ADID release (skills, rules, binaries) | `reasoning/*`, `opencode_prompts_kernel/`, `src/tool/*`, `constitution.ts` |
+| **Job** | Define *what must be true* of knowledge and transitions across hosts | Make agents *do work* efficiently in a live coding session |
+| **Update cadence** | ADID releases (skills/tools/rules) | OpenCode product commits |
+| **Embed into SPECS?** | No — load host surfaces when installed | Yes — process law + product tool descriptions |
+
+Shared DNA (InfoMark ranks, prefer evidence over fluency, oracles decide correctness)
+is intentional. The **breed** differs: ADID is the clean theory and host package;
+OpenCode is the **operational** stack (gates, REUSE web+code, claim ledger hard
+gate, aicall discipline, Fossil/product tools).
+
+Do not try to make the reasoning pocket a second copy of the ADID framework
+document, and do not expect the framework doc alone to run a TUI agent loop.
 
 ---
 

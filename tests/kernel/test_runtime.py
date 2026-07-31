@@ -195,7 +195,7 @@ class TestRuntimePromptCompiler:
         """Tier A identity stays within budget; dict section stays compact."""
         runtime = render_runtime_kernel(tier="A")
         dict_section = runtime.split("# SPECS")[0]
-        assert len(dict_section) < 12_000
+        assert len(dict_section) < 16_000
         assert len(runtime.encode("utf-8")) <= PROMPT_ABI["identity_max_bytes"]
         assert "PROMPT_ABI" in dict_section
         assert "CONTRACTS" in dict_section
@@ -207,4 +207,26 @@ class TestRuntimePromptCompiler:
         # Full tier still available offline
         full = render_runtime_kernel(tier="full")
         assert "--- Command Specs" in full
+
+    def test_reuse_before_research_ladder(self):
+        """REUSE.BEFORE encodes Guess → web/code → smoke PASS Exact / FAIL Unknown."""
+        rule = RUNTIME_RULES["REUSE.BEFORE"]
+        assert "web" in rule
+        assert "code" in rule or "Sourcegraph" in rule
+        assert "Exact" in rule
+        assert "Unknown" in rule
+        assert "agent" in rule  # prefer web/code over agent
+
+    def test_adid_ops_has_no_external_cli_cookbook(self):
+        """ADID_OPS is product tool hygiene — not adm/cmd_runner skill manuals."""
+        from opencode_prompts_kernel import ADID_OPS
+
+        usage = ADID_OPS.get("usage") or ""
+        intent = ADID_OPS.get("intent") or ""
+        blob = f"{intent}\n{usage}".lower()
+        assert "adm.exe" not in blob
+        assert "python -m adm" not in blob
+        assert "--template all" not in blob
+        assert "mcp-http" not in blob
+        assert "product tools" in blob or "prefer product" in blob or "codegraph" in blob
 

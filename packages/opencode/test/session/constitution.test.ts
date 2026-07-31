@@ -320,4 +320,31 @@ claim_ledger:
     expect(Constitution.evidenceUpgradeForTool("grep")).toBe("Inferred")
     expect(Constitution.evidenceUpgradeForTool("edit")).toBeUndefined()
   })
+
+  test("where /r recursive file enum is blocked; bare where for PATH is not", () => {
+    expect(Constitution.isShellDirectoryBrowsing("where /r . *.ts")).toBe(true)
+    expect(Constitution.guardCommand("where /r . *.ts").blocked).toBe(true)
+    // PATH lookup (WHERE_WHICH) is not directory browsing
+    expect(Constitution.isShellDirectoryBrowsing("where.exe node")).toBe(false)
+    expect(Constitution.guardCommand("where.exe node").blocked).toBe(false)
+  })
+
+  test("oracle_stamp then claim_ledger Exact is allowed when stamped", () => {
+    Constitution.resetEpistemicState("ses_claim_4")
+    Constitution.ingestAssistantText("ses_claim_4", "oracle_stamp: C9 PASS")
+    Constitution.ingestAssistantText(
+      "ses_claim_4",
+      `
+claim_ledger:
+  claims:
+    - id: C9
+      text: "smoke passed"
+      status: Exact
+  premises_for_plan: [C9]
+`,
+    )
+    expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.status).toBe("Exact")
+    expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.stamped).toBe(true)
+    expect(Constitution.premisesGrounded("ses_claim_4").ok).toBe(true)
+  })
 })

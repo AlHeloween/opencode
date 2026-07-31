@@ -48,9 +48,25 @@ EXCLUDED_FILES = {
 
 # Session pocket protocols that must exist and bind to kernel / each other
 POCKET_PROTOCOL_FILES = {
-    "reasoning.txt": ("REASONING PROTOCOL", "ALGORITHM_CARD"),
+    # Agentic pocket grew with gates + claim_ledger + research ladder (still algorithm density).
+    "reasoning.txt": (
+        "REASONING PROTOCOL",
+        "ALGORITHM_CARD",
+        "claim_ledger",
+        "REUSE.BEFORE",
+        "universalsearch",
+        "GATE 4",
+        "oracle_stamp",
+    ),
     "algorithm_card.txt": ("ALGORITHM_CARD", "run_task_geometry", "select_fractal_model"),
     "build.txt": ("Build mode", "ALGORITHM_CARD", "conversation tail"),
+}
+
+# Soft budget for pocket protocol files (bytes). reasoning includes full gates + InfoMark.
+POCKET_PROTOCOL_MAX_BYTES = {
+    "reasoning.txt": 28_000,
+    "algorithm_card.txt": 12_000,
+    "build.txt": 12_000,
 }
 
 # Rule files are external package docs (ADID framework) synced from upstream —
@@ -69,7 +85,7 @@ EXCLUDED_RULES = {
 def find_all_prompt_files():
     """Yield all prompt/instruction files that should conform to PromptSpec."""
     found = []
-    excluded_dirs = {".git", ".opencode", "external", "node_modules"}
+    excluded_dirs = {".git", ".opencode", "external", "node_modules", ".temp", "temp", "dist", "coverage"}
 
     # Session prompt files
     if os.path.isdir(SESSION_PROMPT_DIR):
@@ -105,7 +121,13 @@ def find_all_prompt_files():
         dirs[:] = [directory for directory in dirs if directory not in excluded_dirs]
         if "AGENTS.md" in files:
             fp = os.path.join(root, "AGENTS.md")
-            if "node_modules" not in fp and ".opencode" not in fp and "external" not in fp:
+            if (
+                "node_modules" not in fp
+                and ".opencode" not in fp
+                and "external" not in fp
+                and ".temp" not in fp
+                and os.sep + "temp" + os.sep not in fp
+            ):
                 found.append(("agents_md", fp))
 
     return found
@@ -262,7 +284,8 @@ def test_pocket_protocol_files_exist_and_markers():
         assert os.path.isfile(fp), f"missing pocket protocol: {name}"
         with open(fp, "r", encoding="utf-8") as f:
             content = f.read()
-        assert len(content) < 12_000, f"{name} grew past pocket size ({len(content)} bytes)"
+        max_bytes = POCKET_PROTOCOL_MAX_BYTES.get(name, 12_000)
+        assert len(content) < max_bytes, f"{name} grew past pocket size ({len(content)} bytes; max {max_bytes})"
         for marker in markers:
             assert marker in content, f"{name} missing marker {marker!r}"
 

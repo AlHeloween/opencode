@@ -213,8 +213,112 @@ export type CommandGuardResult = {
   message?: string
 }
 
+function unquote(command: string) {
+  const text = command.trim()
+  if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1).trim()
+  }
+  return text
+}
+
+function unwrapShellCommand(command: string) {
+  let text = unquote(command)
+  for (let index = 0; index < 4; index++) {
+    const nested =
+      text.match(/^(?:sh|bash)(?:\.exe)?\s+-(?:c|lc)\s+([\s\S]+)$/i) ??
+      text.match(/^cmd(?:\.exe)?\s+\/[ck]\s+([\s\S]+)$/i) ??
+      text.match(
+        /^(?:powershell|pwsh)(?:\.exe)?\s+(?:(?:-NoProfile|-NoLogo|-NonInteractive)\s+|-ExecutionPolicy\s+\S+\s+)*-(?:Command|c)\s+([\s\S]+)$/i,
+      )
+    if (nested) {
+      text = unquote(nested[1] ?? "")
+      continue
+    }
+    const sudo = text.match(
+      /^sudo(?:(?:\s+(?:-u|-g|-h|-p|-r|-t|-C)\s+\S+)|(?:\s+(?:-E|-H|-K|-b|-n|-s|--preserve-env|--reset-timestamp)))*\s+([\s\S]+)$/i,
+    )
+    if (sudo) {
+      text = unquote(sudo[1] ?? "")
+      continue
+    }
+    const commandWrapper = text.match(/^command(?:\s+--)?\s+([\s\S]+)$/i)
+    if (commandWrapper) {
+      text = unquote(commandWrapper[1] ?? "")
+      continue
+    }
+    const env = text.match(/^env(?:\s+-i)*(?:(?:\s+[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+([\s\S]+)$/i)
+    if (env) {
+      text = unquote(env[1] ?? "")
+      continue
+    }
+    return text
+  }
+  return text
+}
+
+function shellSegments(command: string) {
+  const segments: string[] = []
+  let current = ""
+  let quote: "'" | '"' | undefined
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index]!
+    if (quote) {
+      current += char
+      if (char === "\\" && quote === '"' && command[index + 1]) {
+        current += command[index + 1]
+        index++
+        continue
+      }
+      if (char === quote) quote = undefined
+      continue
+    }
+    if (char === "'" || char === '"') {
+      quote = char
+      current += char
+      continue
+    }
+    if (char === ";" || char === "|" || char === "\n" || (char === "&" && command[index + 1] === "&")) {
+      if (current.trim()) segments.push(current)
+      current = ""
+      if (char === "&" || char === "|") index++
+      continue
+    }
+    current += char
+  }
+  if (current.trim()) segments.push(current)
+  return segments.map(unwrapShellCommand).filter(Boolean)
+}
+
+function isDirectoryBrowsingSegment(command: string) {
+  if (/^(?:(?:\/usr)?\/bin\/)?(?:ls|dir|tree)(?:\.exe)?(?:\s|$)/i.test(command)) return true
+  if (/^(?:find|fd|fdfind)(?:\.exe)?(?:\s|$)/i.test(command)) return true
+  if (/^busybox\s+(?:ls|find)\b/i.test(command)) return true
+  if (/^(?:Get-ChildItem|gci|Microsoft\.PowerShell\.Management\\Get-ChildItem)\b/i.test(command)) return true
+  if (/^(?:Get-Item|Resolve-Path)\b[^\n]*\*/i.test(command)) return true
+  if (/^rg(?:\.exe)?\b(?=[^\n]*\s--files\b)/i.test(command)) return true
+  if (
+    /^git(?:\.exe)?\s+(?:(?:-C\s+\S+|--no-pager|-c\s+\S+|--work-tree=\S+|--git-dir=\S+)\s+)*ls-files\b/i.test(
+      command,
+    )
+  )
+    return true
+  if (/^(?:echo|printf)\s+[^\n]*\*/i.test(command)) return true
+  if (/^for\s+\w+\s+in\s+[^\n]*\*/i.test(command)) return true
+  if (/^for\s+\/r\b/i.test(command)) return true
+  if (/^for\s+%%?\w+\s+in\s+\(\*\)/i.test(command)) return true
+  // Windows recursive where = file enum (not bare where.exe for PATH lookup)
+  if (/^where(?:\.exe)?\s+\/r\b/i.test(command)) return true
+  return false
+}
+
+/** True when shell is used for directory/file listing instead of list/glob/grep tools. */
+export function isShellDirectoryBrowsing(command: string) {
+  return shellSegments(command).some(isDirectoryBrowsingSegment)
+}
+
 /**
  * Constitution preflight for shell.
+ * - shell directory enumeration: HARD BLOCK → use list/glob/grep tools
  * - git rewrite / stash pop: HARD BLOCK unless env bypass
  * - fossil mutate CLI: HARD BLOCK unless env bypass
  * - askable: permission destructive-file | destructive-db | destructive-git
@@ -224,6 +328,22 @@ export function guardCommand(
   command: string,
   meta?: { sessionID?: string; agent?: string },
 ): CommandGuardResult {
+  if (isShellDirectoryBrowsing(command)) {
+    log.warn("constitution.directory_browsing_blocked", {
+      command: command.slice(0, 200),
+      sessionID: meta?.sessionID,
+      agent: meta?.agent,
+    })
+    return {
+      risk: "LOW",
+      needsDestructivePermission: false,
+      blocked: true,
+      message:
+        "constitution: BLOCKED shell directory/file enumeration. Use the list tool for browsing; " +
+        "use glob for path-pattern matching or grep for content search.",
+    }
+  }
+
   const risk = classifyCommandRisk(command)
   if (risk === "LOW") {
     return { risk, needsDestructivePermission: false, blocked: false }

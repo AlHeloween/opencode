@@ -55,7 +55,8 @@ export interface Interface {
   readonly restore: (snapshot: string) => Effect.Effect<void>
   readonly revert: (patches: Patch[]) => Effect.Effect<void>
   readonly diff: (hash: string) => Effect.Effect<string>
-  readonly diffFull: (from: string, to: string) => Effect.Effect<FileDiff[]>
+  /** Optional `paths` scopes the fossil range to selected files (absolute or worktree-relative). */
+  readonly diffFull: (from: string, to: string, paths?: readonly string[]) => Effect.Effect<FileDiff[]>
   /**
    * Structural impact between two snapshots via CodeGraph MCP only.
    * Hard-fails if MCP unavailable or index missing — never soft-returns empty success.

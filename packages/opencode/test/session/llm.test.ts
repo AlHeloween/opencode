@@ -128,12 +128,13 @@ describe("session.llm.estimateContentTokens", () => {
   })
 })
 
-test("provider cache key is determined by the stable provider identity", () => {
+test("provider cache key is stable across agent identities (shared system prefix)", () => {
   const build = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "build" })
-  const reasoning = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "build" })
-  const broken = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "reasoning" })
+  const reasoning = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "reasoning" })
+  const otherSession = LLM.buildProviderCacheKey({ sessionID: "s2", modelID: "m1", identity: "build" })
   expect(reasoning).toBe(build)
-  expect(broken).not.toBe(build)
+  expect(otherSession).not.toBe(build)
+  expect(LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", providerCacheKey: "lease" })).toBe("lease")
 })
 
 test("tool call repair resolves separator aliases to the canonical provider name", () => {

@@ -28,6 +28,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
 import { enforceDestructiveShell } from "./shell-constitution"
+export { invalidatePermissionCache } from "./permission-cache"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 min safety net — agent controls kill via job_kill

@@ -27,6 +27,8 @@ import * as Option from "effect/Option"
 import { diagnoseParseError } from "@/util/diagnose-parse-error"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { repairJson as repairJsonAny, repairAny } from "@/util/anyrepair-wasm"
+import { canonicalName } from "@/tool/tool"
+import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
@@ -64,9 +66,6 @@ function serializeToolSchemas(tools: Record<string, Tool>): string {
   }
   return lines.join("\n")
 }
-
-// Cache for token estimation — avoids re-serializing messages+system when count is unchanged
-let _cachedTokenEstimate: { count: number; value: number } | undefined
 
 /** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
   * LRU-evicted at 500 entries to prevent unbounded growth. */
@@ -147,6 +146,55 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
+
+/**
+ * Stable provider prompt-cache key. Shared across agents for the same session+model
+ * (system prefix is identity-stable; do not suffix agent name).
+ * `identity` is accepted for call-site compatibility and ignored.
+ */
+export function buildProviderCacheKey(input: {
+  sessionID: string
+  providerCacheKey?: string
+  modelID: string
+  identity?: string
+}) {
+  if (input.providerCacheKey) return input.providerCacheKey
+  return [input.sessionID, input.modelID].join(":")
+}
+
+/** Resolve a tool-call alias (separators/case) to the provider-canonical name when present. */
+export function resolveToolName(name: string, tools: Record<string, Tool>) {
+  const canonical = canonicalName(name)
+  return canonical && tools[canonical] ? canonical : undefined
+}
+
+/**
+ * Approximate full request for dynamic output budgeting: symbols/4 + 10k overhead.
+ * Recompute every request — equal message counts ≠ equal content.
+ */
+export function estimateContentTokens(system: string[], messages: ModelMessage[]): number {
+  let chars = system.reduce((total, content) => total + content.length, 0)
+  for (const message of messages) {
+    const content = message.content
+    if (typeof content === "string") {
+      chars += content.length
+      continue
+    }
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+          chars += part.text.length
+          continue
+        }
+        if (part && typeof part === "object" && "type" in part) chars += 64
+      }
+      continue
+    }
+    chars += 32
+  }
+  if (chars <= 0) return 0
+  return Math.ceil(chars / 4) + REQUEST_OVERHEAD_TOKENS
+}
 
 export type StreamInput = {
   user: MessageV2.User
@@ -276,9 +324,12 @@ const live: Layer.Layer<
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.
       // Shared identity: do not suffix agent name — all roles use the same system prefix.
-      const providerCacheKey = input.providerCacheKey
-        ? input.providerCacheKey
-        : [input.sessionID, input.model.id].join(":")
+      const providerCacheKey = buildProviderCacheKey({
+        sessionID: input.sessionID,
+        providerCacheKey: input.providerCacheKey,
+        modelID: input.model.id,
+        identity: input.agent.name,
+      })
       checkSystemStability({
         sessionID: input.sessionID,
         agent: input.agent.name,
@@ -315,15 +366,7 @@ const live: Layer.Layer<
         ? input.messages
         : input.messages
 
-      // Cached token estimate — only recompute when message count changes
-      let contentTokens: number
-      const msgCount = messages.length
-      if (_cachedTokenEstimate && _cachedTokenEstimate.count === msgCount) {
-        contentTokens = _cachedTokenEstimate.value
-      } else {
-        contentTokens = Math.ceil((JSON.stringify(messages).length + JSON.stringify(system).length) / 4)
-        _cachedTokenEstimate = { count: msgCount, value: contentTokens }
-      }
+      const contentTokens = estimateContentTokens(system, messages)
 
       const params = yield* plugin.trigger(
         "chat.params",
@@ -698,10 +741,15 @@ export const defaultLayer = Layer.suspend(() =>
  * Provider-facing tool set — keep schemas unified for all agents/modes.
  * Do **not** strip by agent permission (that would change tool JSON per role and
  * bust the shared KV prefix). Execute-time SessionTools enforces real-agent ACL.
- * Only honor explicit `user.tools[k] === false` opt-outs.
+ * Only honor explicit `user.tools[k] === false` opt-outs (legacy separator names ok).
  */
-function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
-  return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false)
+export function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
+  const disabled = new Set(
+    Object.entries(input.user.tools ?? {})
+      .filter(([, enabled]) => enabled === false)
+      .map(([name]) => canonicalName(name)),
+  )
+  return Record.filter(input.tools, (_, k) => !disabled.has(k))
 }
 
 // Check if messages contain any tool-call content

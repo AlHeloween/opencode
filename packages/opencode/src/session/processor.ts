@@ -107,8 +107,21 @@ interface ProcessorContext extends Input {
 
 type StreamEvent = Event
 
-/** Tools that can modify the filesystem — snapshot tracking only needed after these. */
-const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch", "bash", "run", "task", "pipeline"])
+/**
+ * Provider-canonical tool names that can modify the working copy.
+ * Snapshot tracking only needed after these (names must match wire form, e.g. applypatch).
+ */
+const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "bash", "run", "task", "pipeline"])
+
+/** True only for the exact provider tool id (canonical), not legacy separator forms. */
+export function writesWorkingCopy(toolName: string) {
+  return WRITE_TOOLS.has(toolName)
+}
+
+/** True only for the exact provider tool id that yields Exact evidence. */
+export function providesExactEvidence(toolName: string) {
+  return toolName === "sessionread"
+}
 
 export function cacheRatio(tokens: { input: number; cache: { read: number; write: number } }) {
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
@@ -434,12 +447,17 @@ export const layer: Layer.Layer<
 
           case "tool-call": {
             ctx.toolCallEmitted = true
-            if (WRITE_TOOLS.has(value.toolName)) ctx.hasWriteToolCall = true
-            // Raise coarse floor from evidence tools (session-read / read / codegraph → Exact).
-            const upgrade = Constitution.evidenceUpgradeForTool(value.toolName)
-            if (upgrade) {
-              ctx.evidenceFloor = upgrade
-              Constitution.raiseEvidenceFloor(ctx.sessionID, upgrade)
+            if (writesWorkingCopy(value.toolName)) ctx.hasWriteToolCall = true
+            // Raise coarse floor from evidence tools (sessionread / read / codegraph → Exact).
+            if (providesExactEvidence(value.toolName)) {
+              ctx.evidenceFloor = "Exact"
+              Constitution.raiseEvidenceFloor(ctx.sessionID, "Exact")
+            } else {
+              const upgrade = Constitution.evidenceUpgradeForTool(value.toolName)
+              if (upgrade) {
+                ctx.evidenceFloor = upgrade
+                Constitution.raiseEvidenceFloor(ctx.sessionID, upgrade)
+              }
             }
             yield* updateToolCall(value.toolCallId, (match) => ({
               ...match,

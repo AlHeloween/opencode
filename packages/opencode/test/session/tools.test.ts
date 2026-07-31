@@ -94,6 +94,7 @@ describe("session.tools", () => {
         })
         expect(Object.keys(resolved)).toSatisfy((names) => names.every((name) => /^[a-z0-9]+$/.test(name)))
         expect(SessionTools.policyName(resolved, "applypatch")).toBe("apply_patch")
+        // Provider tool list stays full for KV stability; ACL is enforce-at-execute.
         const visible = LLM.resolveTools({
           tools: resolved,
           agent: {
@@ -101,7 +102,7 @@ describe("session.tools", () => {
           } as Agent.Info,
           user: { tools: {} } as never,
         })
-        expect(visible.applypatch).toBeUndefined()
+        expect(visible.applypatch).toBeDefined()
         expect(Object.keys(resolved)).toContain("memory")
         expect(Object.keys(resolved)).toContain("read")
         yield* Effect.promise(() => resolved.read!.execute!({} as never, { toolCallId: "call-rejected" } as never))

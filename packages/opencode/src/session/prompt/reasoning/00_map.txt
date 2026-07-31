@@ -16,6 +16,7 @@
 #   packages/opencode/src/session/prompt/reasoning/01_behavior_hygiene.txt
 #   packages/opencode/src/session/prompt/reasoning/02_algorithms.txt
 #   packages/opencode/src/session/prompt/reasoning/03_gates.txt
+#   packages/opencode/src/session/prompt/reasoning/04_infomark_oracles.txt
 #   Assemble: python packages/opencode/script/assemble_reasoning.py
 #
 # External skills (adm-exe, rag, cmd-runner, …) are NOT part of this protocol or the

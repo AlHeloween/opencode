@@ -1,23 +1,24 @@
 """Targeted tests for opencode_prompts_kernel (info mark)."""
 from __future__ import annotations
 
-import json
-import os
 import sys
 from pathlib import Path
 
 import pytest
 
-# Repo root on path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from opencode_prompts_kernel import (  # noqa: E402
     InfoMarkLevel,
     InformationMark,
+    classify_claim_status,
     confusion_matrix_validation,
     promote_information_mark,
     reverse_search,
+    salience_from_mention_ratio,
+    status_after_oracle_pass,
 )
+
 
 class TestInformationMark:
     """§I.2 Information Mark system — epistemic status, promotion, reverse search."""
@@ -46,13 +47,19 @@ class TestInformationMark:
         assert abs(im.accuracy - 0.75) < 0.01
 
     def test_with_label(self):
-        im = InformationMark(exact=1.0, inferred=0.0, hypothetical=0.0, guess=0.0, unknown=0.0,
-                             label="Exact + Verified by oracle")
+        im = InformationMark(
+            exact=1.0,
+            inferred=0.0,
+            hypothetical=0.0,
+            guess=0.0,
+            unknown=0.0,
+            label="Exact + Verified by oracle",
+        )
         assert im.label == "Exact + Verified by oracle"
 
 
 class TestConfusionMatrix:
-    """§I.2 Promotion mechanics — Hypothetical -> Inferred gates."""
+    """§I.2 Promotion mechanics — Hypothetical -> Inferred gates (real TP/FP only)."""
 
     def test_promotion_meets_threshold(self):
         r = confusion_matrix_validation(tp=90, fp=5, tn=80, fn=10)
@@ -79,29 +86,76 @@ class TestConfusionMatrix:
         assert r["promoted"] is False
 
 
-class TestPromoteInformationMark:
-    """§I.2 Promotion by mention frequency."""
+class TestSalienceNotPromotion:
+    """Mention frequency is salience only — never Exact/Inferred."""
 
-    def test_exact_ratio(self):
-        assert promote_information_mark(0.5) == InfoMarkLevel.EXACT
+    def test_salience_clamped(self):
+        assert salience_from_mention_ratio(0.5) == 0.5
+        assert salience_from_mention_ratio(-1.0) == 0.0
+        assert salience_from_mention_ratio(2.0) == 1.0
 
-    def test_inferred_ratio(self):
-        assert promote_information_mark(0.35) == InfoMarkLevel.INFERRED
+    def test_promote_legacy_never_exact_or_inferred(self):
+        # High recurrence used to mint Exact — forbidden under ADID
+        assert promote_information_mark(0.99) == InfoMarkLevel.GUESS
+        assert promote_information_mark(0.5) == InfoMarkLevel.GUESS
+        assert promote_information_mark(0.35) == InfoMarkLevel.GUESS
+        assert promote_information_mark(0.01) == InfoMarkLevel.GUESS
+        assert promote_information_mark(0.0) == InfoMarkLevel.UNKNOWN
+        assert promote_information_mark(0.4) != InfoMarkLevel.EXACT
+        assert promote_information_mark(0.4) != InfoMarkLevel.INFERRED
 
-    def test_hypothetical_ratio(self):
-        assert promote_information_mark(0.25) == InfoMarkLevel.HYPOTHETICAL
 
-    def test_guess_ratio(self):
-        assert promote_information_mark(0.15) == InfoMarkLevel.GUESS
+class TestClassifyClaimStatus:
+    """Canonical classifier — evidence + freshness, no salience."""
 
-    def test_unknown_ratio(self):
-        assert promote_information_mark(0.05) == InfoMarkLevel.UNKNOWN
+    def test_contradiction_unknown(self):
+        assert (
+            classify_claim_status(has_unresolved_contradiction=True, has_direct_evidence=True)
+            == InfoMarkLevel.UNKNOWN
+        )
 
-    def test_boundary_values(self):
-        assert promote_information_mark(0.4) == InfoMarkLevel.EXACT
-        assert promote_information_mark(0.3) == InfoMarkLevel.INFERRED
-        assert promote_information_mark(0.2) == InfoMarkLevel.HYPOTHETICAL
-        assert promote_information_mark(0.1) == InfoMarkLevel.GUESS
+    def test_stale_unknown(self):
+        assert (
+            classify_claim_status(has_direct_evidence=True, freshness=0.0) == InfoMarkLevel.UNKNOWN
+        )
+
+    def test_direct_evidence_exact(self):
+        assert (
+            classify_claim_status(has_direct_evidence=True, freshness=1.0) == InfoMarkLevel.EXACT
+        )
+
+    def test_derivation_inferred(self):
+        assert (
+            classify_claim_status(
+                all_premises_exact=True,
+                derivation_nonempty=True,
+                freshness=1.0,
+            )
+            == InfoMarkLevel.INFERRED
+        )
+
+    def test_falsifier_hypothetical(self):
+        assert classify_claim_status(falsifier_specified=True) == InfoMarkLevel.HYPOTHETICAL
+
+    def test_parametric_only_guess(self):
+        assert classify_claim_status(parametric_confidence=0.99) == InfoMarkLevel.GUESS
+        assert classify_claim_status(parametric_confidence=0.99) != InfoMarkLevel.EXACT
+
+    def test_empty_unknown(self):
+        assert classify_claim_status() == InfoMarkLevel.UNKNOWN
+
+
+class TestOraclePass:
+    """Oracle PASS → Exact for verified claim only."""
+
+    def test_oracle_pass_exact(self):
+        assert status_after_oracle_pass() == InfoMarkLevel.EXACT
+
+    def test_oracle_pass_out_of_scope_unknown(self):
+        assert status_after_oracle_pass(claim_scope_ok=False) == InfoMarkLevel.UNKNOWN
+
+    def test_oracle_pass_stale_unknown(self):
+        assert status_after_oracle_pass(freshness=0.0) == InfoMarkLevel.UNKNOWN
 
 
 class TestReverseSearch:
@@ -130,4 +184,3 @@ class TestReverseSearch:
         claims = [{"level": "Exact", "text": "performance improvement", "source": "test"}]
         results = reverse_search(claims, "leak")
         assert len(results) == 0
-

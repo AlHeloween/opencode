@@ -16,5 +16,6 @@ That overwrites `../reasoning.txt` (imported by `ProviderTransform.systemPromptP
 | `01_behavior_hygiene.txt` | Shared behavior, secrets, hygiene, compaction |
 | `02_algorithms.txt` | SVM filter, classify, invariants, bug-fix |
 | `03_gates.txt` | Gates 1–9 workflow |
+| `04_infomark_oracles.txt` | InfoMark separations + oracle define/run/PASS→Exact |
 
 Do **not** embed adm/cmd_runner/rag skill manuals here — those live in the skill package.

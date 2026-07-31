@@ -55,6 +55,16 @@
 | P4 | Manager contract (09) stays docs — never system prefix. |
 | P5 | Do not re-embed skills from any ADID dump. |
 
+### Shipped into runtime (InfoMark + oracle)
+
+| Item | Where |
+|------|--------|
+| Salience ≠ Evidence; mention never Exact | `02_info_mark.promote_information_mark` → Guess only; `salience_from_mention_ratio` |
+| Canonical claim classifier | `classify_claim_status(...)` |
+| Oracle PASS → Exact (scoped) | `status_after_oracle_pass(...)` |
+| Pocket protocol | `reasoning/04_infomark_oracles.txt` + Gate 8 |
+| RUNTIME terms/rules | `infomark`, `oracle`, `INFOMARK.SEP`, richer `VERIFY.OUTCOME` |
+
 ---
 
 ## Commands

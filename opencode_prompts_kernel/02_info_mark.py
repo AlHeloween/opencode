@@ -43,7 +43,10 @@ class InformationMark:
 
 
 def confusion_matrix_validation(tp: int, fp: int, tn: int, fn: int) -> dict[str, Any]:
-    """§I.2 Promotion: Hypothetical -> Inferred when precision, recall, F1 meet thresholds."""
+    """§I.2 Promotion: Hypothetical -> Inferred when precision, recall, F1 meet thresholds.
+
+    Requires real predictive evidence (TP/FP/FN from tests), not mention frequency.
+    """
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     f1 = (2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0)
@@ -56,18 +59,93 @@ def confusion_matrix_validation(tp: int, fp: int, tn: int, fn: int) -> dict[str,
     }
 
 
+def salience_from_mention_ratio(mention_ratio: float) -> float:
+    """Salience S(c) ∈ [0,1] from recurrence — attention only, never epistemic status.
+
+    ADID: Salience != Evidence. Mention ratio must not mint Exact/Inferred.
+    """
+    try:
+        r = float(mention_ratio)
+    except (TypeError, ValueError):
+        return 0.0
+    if r < 0.0:
+        return 0.0
+    if r > 1.0:
+        return 1.0
+    return r
+
+
 def promote_information_mark(mention_ratio: float) -> InfoMarkLevel:
-    """§I.2 Promotion by mention frequency r(c)."""
-    if mention_ratio >= 0.4: return InfoMarkLevel.EXACT
-    elif mention_ratio >= 0.3: return InfoMarkLevel.INFERRED
-    elif mention_ratio >= 0.2: return InfoMarkLevel.HYPOTHETICAL
-    elif mention_ratio >= 0.1: return InfoMarkLevel.GUESS
-    else: return InfoMarkLevel.UNKNOWN
+    """DEPRECATED legacy name — mention ratio is **salience only**.
+
+    Never returns Exact or Inferred (parametric/recurrence is not evidence).
+    High mention → Guess at most; zero/negative → Unknown.
+    Prefer: classify_claim_status(...), confusion_matrix_validation(...),
+    status_after_oracle_pass() for real promotion.
+    """
+    r = salience_from_mention_ratio(mention_ratio)
+    if r <= 0.0:
+        return InfoMarkLevel.UNKNOWN
+    return InfoMarkLevel.GUESS
+
+
+def classify_claim_status(
+    *,
+    has_unresolved_contradiction: bool = False,
+    freshness: float = 1.0,
+    has_direct_evidence: bool = False,
+    all_premises_exact: bool = False,
+    derivation_nonempty: bool = False,
+    falsifier_specified: bool = False,
+    has_any_evidence: bool = False,
+    parametric_confidence: float = 0.0,
+) -> InfoMarkLevel:
+    """Canonical ADID claim classifier (evidence + freshness; no salience argument).
+
+    Direct evidence kinds: measurement, reproducible test/oracle, terminal output,
+    primary source, inspected source code — in declared scope and freshness > 0.
+    Parametric confidence alone never yields Exact or Inferred.
+    """
+    try:
+        fresh = float(freshness)
+    except (TypeError, ValueError):
+        fresh = 0.0
+    try:
+        p_theta = float(parametric_confidence)
+    except (TypeError, ValueError):
+        p_theta = 0.0
+
+    if has_unresolved_contradiction or fresh <= 0.0:
+        return InfoMarkLevel.UNKNOWN
+    if has_direct_evidence and fresh > 0.0:
+        return InfoMarkLevel.EXACT
+    if all_premises_exact and derivation_nonempty:
+        return InfoMarkLevel.INFERRED
+    if falsifier_specified:
+        return InfoMarkLevel.HYPOTHETICAL
+    if has_any_evidence or p_theta > 0.0:
+        return InfoMarkLevel.GUESS
+    return InfoMarkLevel.UNKNOWN
+
+
+def status_after_oracle_pass(*, claim_scope_ok: bool = True, freshness: float = 1.0) -> InfoMarkLevel:
+    """Oracle PASS promotes the **verified claim** to Exact (scoped).
+
+    Does not promote unrelated claims. Fail / timeout → not Exact (caller demotes).
+    claim_scope_ok=False or stale freshness → Unknown (do not mint Exact).
+    """
+    try:
+        fresh = float(freshness)
+    except (TypeError, ValueError):
+        fresh = 0.0
+    if not claim_scope_ok or fresh <= 0.0:
+        return InfoMarkLevel.UNKNOWN
+    return InfoMarkLevel.EXACT
 
 
 def reverse_search(claims: list[dict[str, Any]], query: str,
                    min_level: str = "Inferred") -> list[dict[str, Any]]:
-    """§I.2 Reverse Search — only Exact and Inferred claims participate."""
+    """§I.2 Reverse Search — only Exact and Inferred claims participate (grounding set)."""
     LEVEL_ORDER = {"Exact": 4, "Inferred": 3, "Hypothetical": 2, "Guess": 1, "Unknown": 0}
     min_val = LEVEL_ORDER.get(min_level, 3)
     return [c for c in claims

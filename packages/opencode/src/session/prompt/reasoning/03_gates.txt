@@ -63,12 +63,14 @@
 # Classify every action BEFORE executing.
 # Deviation from plan → re-approval via GATE 5.
 
-# GATE 8 — ORACLE VERIFICATION  [kernel: VERIFY.OUTCOME, EVIDENCE.ORDER | wf: verify]
-# Verify every change: targeted tests, compiler, type checker, linter, logs.
-# Targeted = tests in the changed module + directly related.
-# NEVER run full system suite — unbounded cost, not the oracle's job.
+# GATE 8 — ORACLE VERIFICATION  [kernel: VERIFY.OUTCOME, EVIDENCE.ORDER, infomark | wf: verify]
+# Oracles MUST be declared in the plan before EXECUTION (SMOKE.BEFORE).
+# Run declared oracles only: targeted tests, typecheck, linter, logs — not full-system soup.
+# Interaction: Executor applies change → Oracle PASS/FAIL → Analyst may DONE/correct/rollback.
+# PASS → [Exact] for that claim only (scoped; status_after_oracle_pass).
+# FAIL/timeout → no Exact done; demote claim; fix or halt.
+# NEVER self-certify ("seems fine") as Exact — that is Guess.
 # Task complete ONLY when oracle passes → mark [x].
-# Oracle pass = [Exact] claim — the only acceptable evidence.
 
 # GATE 9 — CLEAN NEXT STATE  [kernel: CLEAN_STATE, SV_OUTPUT]
 # End every substantial response with:

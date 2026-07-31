@@ -62,7 +62,7 @@ class TestDeltaFunctions:
 
     def test_delta_constants(self):
         assert DELTA_STABLE == 0.3
-        assert DELTA_SHIFT == 0.6
+        assert DELTA_SHIFT == 0.5
 
     def test_classify_stable(self):
         assert classify_delta(0.1) == DeltaClass.STABLE

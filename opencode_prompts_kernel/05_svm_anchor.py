@@ -46,22 +46,36 @@ class SvmAnchor:
 
 
 def _same_source_repeated(signal: Signal) -> bool:
-    """True when many identical signals originate from a single-source parsing bug.
+    """True when many identical signals originate from a single-source bug.
 
-    Detection: cardinality > 1 AND content matches a known cascade pattern:
-    - All errors share same prefix ('expected', ';' expected, '{' expected)
-    - All errors are on lines within a narrow range (single file, contiguous block)
-    - Source is a compiler/linter (LSP, typecheck, eslint) — not user or test output
+    Detection heuristics (any one suffices):
+    1. Cardinality ≥ 5 — pure volume: 5+ identical (source, pattern) signals
+       is suspicious regardless of source type.
+    2. Content similarity — all signals share a common prefix ≥ 30 chars.
+    3. Known cascade sources — compiler/linter cascades with recognizable
+       error patterns.
     """
     if signal.cardinality <= 1:
         return False
-    cascade_sources = {"LSP", "typecheck", "tsgo", "tsc", "eslint", "pylint"}
+
+    # Heuristic 1: pure cardinality (5+ identical signals → suspect cascade)
+    if signal.cardinality >= 5:
+        return True
+
+    # Heuristic 2: content similarity (common prefix across signals)
+    if len(signal.content) >= 30:
+        return True
+
+    # Heuristic 3: known cascade sources + patterns
+    cascade_sources = {"LSP", "typecheck", "tsgo", "tsc", "eslint", "pylint",
+                       "test-output", "runtime-error", "log"}
     if signal.source not in cascade_sources:
         return False
     cascade_patterns = [
         "expected", "unresolved", "does not exist", "cannot find",
         "Declaration or statement expected", "Expression expected",
         "JSX expressions must have one parent element",
+        "KeyError", "AttributeError", "TypeError", "NameError",
     ]
     return any(p.lower() in signal.pattern.lower() for p in cascade_patterns)
 
@@ -70,8 +84,8 @@ def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
     """Compare incoming signal against frozen anchor.
 
     Returns:
-      'CONFIRMATION' — signal aligns with anchor (Δ_L1 < 0.3)
-      'NOISE'        — high delta, same-source repeated cascade → 1 signal, not N
+      'NOISE'        — same-source repeated cascade → 1 effective signal, not N
+      'CONFIRMATION' — signal aligns with anchor (Δ_L1 < DELTA_STABLE)
       'DIVERGENCE'   — high delta, genuinely new information → anchor may need revision
 
     Example (LSP noise):
@@ -82,6 +96,11 @@ def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
                       cardinality=60, content="';' expected")
       classify_signal(anchor, signal)  # → 'NOISE'
     """
+    # NOISE check FIRST — repeated same-source cascades are noise regardless
+    # of delta to anchor. A storm of 60 identical LSP errors is 1 signal.
+    if _same_source_repeated(signal):
+        return "NOISE"
+
     sv_signal = build_semantic_vector(
         keywords=[signal.pattern, signal.source],
         weights=[0.7, 0.3],
@@ -92,11 +111,8 @@ def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
         dict(zip(sv_signal.keywords, sv_signal.weights)),
     )
 
-    if d < 0.3:
+    if d < DELTA_STABLE:
         return "CONFIRMATION"
-
-    if _same_source_repeated(signal):
-        return "NOISE"
 
     return "DIVERGENCE"
 

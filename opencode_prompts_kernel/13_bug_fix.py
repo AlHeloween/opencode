@@ -75,8 +75,8 @@ class BugFixSvmTracker:
     """
 
     MAX_ATTEMPTS_DEFAULT: int = 3
-    STUCK_THRESHOLD: float = 0.5    # Δ_L1 ≤ this → same approach (≤1 keyword diff in 4-key vector)
-    REFINING_THRESHOLD: float = 0.8  # Δ_L1 ≤ this → converging (≤2 keywords diff)
+    STUCK_THRESHOLD: float = 0.3     # Δ_L1 ≤ DELTA_STABLE → same approach
+    REFINING_THRESHOLD: float = 0.5  # Δ_L1 ≤ DELTA_SHIFT → converging
 
     def __init__(self, bug_description: str, max_attempts: int = 3):
         self.anchor = SvmAnchor(
@@ -159,10 +159,17 @@ class BugFixSvmTracker:
         return count
 
     def _detect_deadloop(self) -> bool:
-        """Deadloop: last 2+ attempts all STUCK at same anchor."""
+        """Deadloop: ≥2 STUCK in last 3 attempts (sliding window).
+
+        Sliding window catches STUCK→REFINING→STUCK patterns that
+        consecutive-only detection would miss. The agent is cycling
+        through minor variations of the same broken approach.
+        """
         if len(self.attempts) < self.max_attempts:
             return False
-        return self._consecutive_stuck() >= 2
+        recent = self.attempts[-3:]
+        stuck_count = sum(1 for a in recent if a.classification == "STUCK")
+        return stuck_count >= 2
 
     @property
     def is_deadloop(self) -> bool:

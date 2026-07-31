@@ -2,7 +2,7 @@
 
 
 DELTA_STABLE: float = 0.3
-DELTA_SHIFT: float = 0.6
+DELTA_SHIFT: float = 0.5
 
 
 def delta_l1(sv_curr: dict[str, float], sv_last: dict[str, float]) -> float:

@@ -1,5 +1,6 @@
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
+import { SessionID } from "@/session/schema"
 import { AppRuntime } from "@/effect/app-runtime"
 import * as InstanceState from "@/effect/instance-state"
 import { Instance } from "@/project/instance"
@@ -8,6 +9,10 @@ import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, OpenApi } from 
 import { Authorization } from "./auth"
 
 const root = "/permission"
+
+const ReplyQuery = Schema.Struct({
+  sessionID: Schema.optional(SessionID),
+})
 
 export const PermissionApi = HttpApi.make("permission")
   .add(
@@ -24,6 +29,7 @@ export const PermissionApi = HttpApi.make("permission")
         ),
         HttpApiEndpoint.post("reply", `${root}/:requestID/reply`, {
           params: { requestID: PermissionID },
+          query: ReplyQuery,
           payload: Permission.ReplyBody,
           success: Schema.Boolean,
         }).annotateMerge(
@@ -61,15 +67,20 @@ export const permissionHandlers = Layer.unwrap(
 
     const reply = Effect.fn("PermissionHttpApi.reply")(function* (ctx: {
       params: { requestID: PermissionID }
+      query: typeof ReplyQuery.Type
       payload: Permission.ReplyBody
     }) {
       const instance = yield* InstanceState.context
+      const sessionID = ctx.query.sessionID
+        ? Schema.decodeSync(SessionID)(ctx.query.sessionID)
+        : undefined
       yield* Effect.promise(() =>
         Instance.restore(instance, () =>
           AppRuntime.runPromise(
             Permission.Service.use((svc) =>
               svc.reply({
                 requestID: ctx.params.requestID,
+                sessionID,
                 reply: ctx.payload.reply,
                 message: ctx.payload.message,
               }),

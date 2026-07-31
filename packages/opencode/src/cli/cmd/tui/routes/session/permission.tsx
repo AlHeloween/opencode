@@ -214,6 +214,8 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
             void sdk.client.permission.reply({
               reply: "always",
               requestID: props.request.id,
+              sessionID: props.request.sessionID,
+              directory: project.instance.directory(),
               workspace: project.workspace.current(),
             })
           }}
@@ -225,7 +227,9 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
             void sdk.client.permission.reply({
               reply: "reject",
               requestID: props.request.id,
+              sessionID: props.request.sessionID,
               message: message || undefined,
+              directory: project.instance.directory(),
               workspace: project.workspace.current(),
             })
           }}
@@ -507,6 +511,8 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
                   void sdk.client.permission.reply({
                     reply: "reject",
                     requestID: props.request.id,
+                    sessionID: props.request.sessionID,
+                    directory: project.instance.directory(),
                     workspace: project.workspace.current(),
                   })
                   return
@@ -514,6 +520,8 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
                 void sdk.client.permission.reply({
                   reply: "once",
                   requestID: props.request.id,
+                  sessionID: props.request.sessionID,
+                  directory: project.instance.directory(),
                   workspace: project.workspace.current(),
                 })
               }}

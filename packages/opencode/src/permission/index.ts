@@ -123,6 +123,7 @@ export type AskInput = Schema.Schema.Type<typeof AskInput>
 
 export const ReplyInput = Schema.Struct({
   requestID: PermissionID,
+  sessionID: Schema.optional(SessionID),
   ...reply,
 })
   .annotate({ identifier: "PermissionReplyInput" })
@@ -211,15 +212,24 @@ export const layer = Layer.effect(
 
       // Wait for user response with a 60-second timeout.
       // If no response within the timeout, auto-deny (RejectedError).
-      // The ensuring block cleans up the pending entry regardless of outcome.
+      // The ensuring block cleans up the pending entry and publishes Replied
+      // so the TUI removes the stuck permission prompt regardless of outcome.
       const result = yield* Deferred.await(deferred).pipe(
         Effect.timeoutOption("60 seconds"),
         Effect.ensuring(Effect.sync(() => {
           pending.delete(id)
         })),
+        Effect.ensuring(
+          bus.publish(Event.Replied, {
+            sessionID: info.sessionID,
+            requestID: info.id,
+            reply: "reject",
+          }),
+        ),
       )
 
       if (result._tag === "None") {
+        log.warn("bug: permission ask timed out", { id, permission: info.permission, sessionID: info.sessionID })
         return yield* new RejectedError()
       }
     })
@@ -227,7 +237,24 @@ export const layer = Layer.effect(
     const reply = Effect.fn("Permission.reply")(function* (input: ReplyInput) {
       const { approved, pending } = yield* InstanceState.get(state)
       const existing = pending.get(input.requestID)
-      if (!existing) return
+      if (!existing) {
+        log.warn("bug: permission reply for unknown request", {
+          requestID: input.requestID,
+          reply: input.reply,
+          pendingSize: pending.size,
+        })
+        // Still publish Replied so the TUI can clean up the stuck prompt.
+        // Use sessionID from input if available; otherwise the TUI must
+        // rely on the ask timeout's Replied event (60s fallback).
+        if (input.sessionID) {
+          yield* bus.publish(Event.Replied, {
+            sessionID: input.sessionID,
+            requestID: input.requestID,
+            reply: input.reply,
+          })
+        }
+        return
+      }
 
       pending.delete(input.requestID)
       yield* bus.publish(Event.Replied, {

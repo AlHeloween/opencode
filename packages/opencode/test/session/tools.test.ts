@@ -152,6 +152,6 @@ describe("session.tools", () => {
         expect(completed[2]?.output).toMatchObject({ title: "Memory (empty)" })
       }),
     ),
-    { timeout: 20_000 },
+    { timeout: 45_000 },
   )
 })

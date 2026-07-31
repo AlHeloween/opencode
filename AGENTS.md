@@ -554,7 +554,9 @@ After modifying the OpenAPI schema (`openapi.json`), regenerate the SDK before t
 
 **Skills are not kernel SPECS:** External skills (adm-exe, rag, cmd-runner, …) ship in a **separate package** and update independently. Do not re-embed skill manuals into `opencode_prompts_kernel.py` — they go stale. Identity uses `policy.adid_ops` (tool binaries) only.
 
-**Python test suite sync:** Any modification to `opencode_prompts_kernel.py` (contract IDs, SemanticVector fields, class constructors, agent prompt file list) MUST be followed by corresponding updates to `tests/test_reasoning_kernel.py`. The test `test_agent_prompt_files_reference_generated_contract_ids` validates that agent prompt files reference correct contract IDs — if agent prompt files are added, removed, or renamed, update the `prompts` dict in that test. Run `python -m pytest tests/test_reasoning_kernel.py -v` after kernel changes; all 309 tests must pass.
+**Python kernel package:** Canonical source is the `opencode_prompts_kernel/` package (topic modules), not a monofile. Public import remains `from opencode_prompts_kernel import …`. CLI: `python -m opencode_prompts_kernel --render-runtime …`.
+
+**Python test suite sync:** Kernel tests live under `tests/kernel/` (targeted modules: `test_enums.py`, `test_runtime.py`, …). After SPECS/contract ID changes, update the matching file and run `python -m pytest tests/kernel/ -q`. The test `test_agent_prompt_files_reference_generated_contract_ids` in `test_runtime.py` validates agent prompt contract IDs.
 
 ## Dependency Catalog (MANDATORY)
 

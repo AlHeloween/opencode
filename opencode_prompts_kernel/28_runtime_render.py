@@ -260,3 +260,78 @@ def render_all_specs(tier: str = "A") -> str:
     return "\n".join(lines)
 
 
+def render_algorithm_card() -> str:
+    """Generate ALGORITHM_CARD — fractal task geometry pseudocode.
+
+    Single source of truth: kernel symbols auto-listed.
+    The card is a reminder of the pipeline, not a specification.
+    """
+    lines = [
+        "# ALGORITHM_CARD — task geometry (routes, not essay)",
+        "# Canonical code: opencode_prompts_kernel package",
+        "#   PLANNING, DECOMPOSE, REUSE.BEFORE, SMOKE.BEFORE",
+        "#   k_medoids_modifications, select_fractal_model",
+        "#   select_medoids_tasks, lsystem_rewrite, run_task_geometry (pipeline)",
+        "# Cut evaluation area: over-generate lattice → keep medoids only. Never evaluate infinity.",
+        "# NO Mode 1 / linear shortcut — soft step lists without lattice+k-medoids are forbidden.",
+        "",
+        "```python",
+        "# Bound symbols (read kernel if unsure — do not invent alternate pipelines)",
+        "from opencode_prompts_kernel import (  # normative names; runtime is this process + tools",
+        "    select_fractal_model,   # Sierpinski | Quad/Oct-tree | L-System",
+        "    k_medoids_modifications,",
+        "    select_medoids_tasks,   # clause-level cut; k = ceil(N/2)",
+        "    lsystem_rewrite,        # F→F+F-F lattice grammar",
+        "    PLANNING,               # policy.planning SPEC — fractal_only",
+        ")",
+        "",
+        "def run_task_geometry(goal: str, signals: list) -> list[str]:",
+        '    """Finite work set for complex work (3+ steps).',
+        "",
+        "    Hard rule: CENTRAL_TASKS = medoids only. Candidate foam is not the work list.",
+        "    No linear Mode-1 path — always lattice → filter → medoids.",
+        '    """',
+        "",
+        "    # 1. ground — Exact before invent (SEARCH.ORDER / REUSE.BEFORE)",
+        "    evidence = ground(goal)  # tools: codegraph, messagesearch, universalsearch, …",
+        "",
+        "    # 2. seeds — meaning-true goal slices (not the full work list)",
+        "    seeds = goal_seeds(goal, evidence)  # short Exact-aligned clauses; ground k-medoids",
+        "",
+        "    # 3. fractal over-generate — same recursive motif every level (no ad-hoc essay)",
+        "    model = select_fractal_model(peaks=goal_peaks(goal, evidence), delta_v=sv_delta())",
+        "    # >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else L-System F→F+F-F",
+        "    candidates = fractal_over_generate(model, seeds, depth=2)  # L2–L4 lattice, not monolith",
+        "",
+        "    # 4. L1 filter (Manhattan) — lattice-aware; cosine would walk through holes",
+        "    candidates = l1_filter(candidates, goal_sv=goal, tau=0.5)",
+        "",
+        "    # 5. select_medoids — seeds as cluster centers; middle-ring only; foam dies",
+        "    #    k = ceil(N/2); Manhattan (L1); k_medoids_modifications for file-level plans",
+        "    central_tasks = select_medoids_tasks(candidates, seeds=seeds)  # FINITE set",
+        "",
+        "    # 6. todowrite — one in_progress; CENTRAL_TASKS = medoids",
+        "    todowrite(central_tasks)  # tool: todowrite | TodoWrite",
+        "",
+        "    # 7. execute — one medoid; REUSE.BEFORE + SMOKE.BEFORE (baseline Exact first)",
+        "    for task in central_tasks:  # one in_progress at a time (PLANNING invariant)",
+        "        execute_medoid(task)",
+        "",
+        "    # 8. verify — post-impl smoke / oracle [Exact]",
+        "    verify_oracles()",
+        "",
+        "    # 9. emit_state — SV + InfoMark; residual re-enters fractal vs original Goal SV only",
+        "    return emit_state(goal_sv=goal)  # never re-fractal the whole universe; no Mode-1 fallthrough",
+        "```",
+        "",
+        "# Trivial exception (1-line / rename / typo with codegraph evidence): skip full card; still tag Exact.",
+        "# Complex tasks (3+ steps): run the card. Linear \"1) 2) 3)\" without medoid cut = policy violation.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def write_algorithm_card(destination: str | Path) -> None:
+    """Write algorithm_card.txt with LF endings."""
+    Path(destination).write_text(render_algorithm_card(), encoding="utf-8", newline="\n")
+
+

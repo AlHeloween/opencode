@@ -1,9 +1,13 @@
-"""Kernel fragment: 14_plan_cluster (former monofile L1259-1457)."""
+"""Kernel fragment: 14_plan_cluster — fractal planning geometry.
 
-# Pre-flight investigation: cluster planned modifications via k-medoids,
-# dispatch explorer agent to each centroid BEFORE executing changes.
-# This prevents "old midware bugs package" surprises — systemic issues
-# that are invisible from a single file diff.
+Fractal decomposition (ADID): over-generate lattice → L1 filter → k-medoids.
+Supported models: Sierpinski, Quad/Oct-tree, L-System (F→F+F-F).
+
+Pre-flight investigation: cluster planned modifications via k-medoids,
+dispatch explorer agent to each centroid BEFORE executing changes.
+This prevents "old midware bugs package" surprises — systemic issues
+that are invisible from a single file diff.
+"""
 
 import math
 
@@ -209,5 +213,84 @@ def cluster_and_explore(modifications: list[PlanModification]) -> list[tuple[Pla
     """
     clusters = k_medoids_modifications(modifications)
     return [(c, dispatch_explorer_prompt(c)) for c in clusters]
+
+
+def select_fractal_model(peaks: int, delta_v: float = 0.0) -> str:
+    """Choose fractal model by goal complexity.
+
+    Heuristic (kernel spec ALGORITHM_CARD):
+      peaks >= 3              → "Sierpinski"  (triangle/gasket — multi-peak complex)
+      peaks in {2, 4, 8}      → "Quad-Oct"    (tree — hierarchical decomposition)
+      else                    → "L-System"     (F→F+F-F grammar — generic fallback)
+
+    peaks — count of distinct goal-surface peaks (keyword clusters).
+    delta_v — semantic drift since last anchor (reserved, currently unused).
+    """
+    if peaks in (2, 4, 8):
+        return "Quad-Oct"
+    if peaks >= 3:
+        return "Sierpinski"
+    return "L-System"
+
+
+def select_medoids_tasks(
+    modifications: list[PlanModification],
+    seeds: list[PlanModification] | None = None,
+) -> list[str]:
+    """Clause-level cut: cluster → return medoid descriptions only.
+
+    k = ceil(N/2), Manhattan (L1) distance, seeds as initial centers.
+    Foam dies — only medoid descriptions survive as CENTRAL_TASKS.
+    """
+    if not modifications:
+        return []
+    clusters = k_medoids_modifications(modifications)
+    tasks: list[str] = []
+    for c in clusters:
+        tasks.append(c.centroid.description)
+    return tasks
+
+
+# =========================================================================
+# L-System fractal grammar engine (F→F+F-F default)
+# =========================================================================
+
+DEFAULT_LSYSTEM_AXIOM: str = "F"
+DEFAULT_LSYSTEM_RULES: dict[str, str] = {"F": "F+F-F"}
+
+
+def lsystem_rewrite(
+    axiom: str = DEFAULT_LSYSTEM_AXIOM,
+    rules: dict[str, str] | None = None,
+    depth: int = 2,
+) -> list[str]:
+    """Rewrite axiom via production rules for `depth` levels.
+
+    L-System semantics:
+      F   — move forward (draw / generate a task unit)
+      +   — rotate +60° (branch into a new sub-task direction)
+      -   — rotate −60° (branch into a complementary sub-task direction)
+
+    Default rule F → F+F-F produces a Koch-like fractal. At depth 2
+    the string encodes ~30 task units — enough to seed k-medoids
+    without over-generating beyond meaningful work.
+
+    Returns one string per level (0..depth), where level 0 = axiom.
+
+    Example:
+      lsystem_rewrite("F", {"F": "F+F-F"}, depth=2)
+      → ["F", "F+F-F", "F+F-F+F+F-F-F+F-F"]
+    """
+    if rules is None:
+        rules = DEFAULT_LSYSTEM_RULES
+    result: list[str] = [axiom]
+    current = axiom
+    for _ in range(depth):
+        next_chars: list[str] = []
+        for ch in current:
+            next_chars.append(rules.get(ch, ch))
+        current = "".join(next_chars)
+        result.append(current)
+    return result
 
 

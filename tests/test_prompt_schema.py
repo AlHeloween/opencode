@@ -302,11 +302,11 @@ def test_algorithm_card_binds_to_kernel_symbols():
     # Symbols the card must name; no Mode-1 / select_planning_mode
     implemented = [
         "k_medoids_modifications",
-    ]
-    planned = [
         "select_fractal_model",
         "select_medoids_tasks",
         "lsystem_rewrite",
+    ]
+    planned = [
         "run_task_geometry",
     ]
     for name in implemented:
@@ -322,6 +322,22 @@ def test_algorithm_card_binds_to_kernel_symbols():
     assert "PLANNING" in card and "PLANNING" in kernel._ALL_SPECS
     assert kernel._ALL_SPECS["PLANNING"]["constraints"].get("linear_mode_1_forbidden") is True
     assert kernel._ALL_SPECS["PLANNING"]["constraints"].get("fractal_geometry_required") is True
+
+
+def test_algorithm_card_matches_renderer():
+    """On-disk algorithm_card.txt must match render_algorithm_card() output."""
+    import opencode_prompts_kernel as kernel
+
+    card_path = os.path.join(SESSION_PROMPT_DIR, "algorithm_card.txt")
+    with open(card_path, "r", encoding="utf-8") as f:
+        on_disk = f.read()
+
+    generated = kernel.render_algorithm_card()
+    assert on_disk == generated, (
+        "algorithm_card.txt is stale. Run:\n"
+        "  python -c \"from opencode_prompts_kernel import write_algorithm_card; "
+        'write_algorithm_card(\'packages/opencode/src/session/prompt/algorithm_card.txt\')\"'
+    )
 
 
 

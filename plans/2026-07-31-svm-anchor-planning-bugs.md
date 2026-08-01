@@ -1,7 +1,7 @@
 # SVM Anchor & Planning Bugs — Comprehensive Fix
 
 **Date:** 2026-07-31  
-**Status:** plan — Bug A fixed (2026-07-31), B–F + epistemic FSM pending  
+**Status:** ✅ ALL BUGS FIXED — A through F  
 **Scope:** `opencode_prompts_kernel/` + `packages/opencode/src/` (plan-mode permissions)
 
 ---

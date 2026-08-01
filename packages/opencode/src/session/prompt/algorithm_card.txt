@@ -1,8 +1,9 @@
 # ALGORITHM_CARD — task geometry (routes, not essay)
 # Canonical code: opencode_prompts_kernel package
 #   PLANNING, DECOMPOSE, REUSE.BEFORE, SMOKE.BEFORE
-#   k_medoids_modifications, select_fractal_model
-#   select_medoids_tasks, lsystem_rewrite, run_task_geometry (pipeline)
+#   k_medoids_modifications (→ CLARA when N≥100), select_fractal_model
+#   select_medoids_tasks, adaptive_k, adaptive_depth, lsystem_rewrite
+#   run_task_geometry (pipeline), clara_k_medoids_modifications
 # Cut evaluation area: over-generate lattice → keep medoids only. Never evaluate infinity.
 # NO Mode 1 / linear shortcut — soft step lists without lattice+k-medoids are forbidden.
 
@@ -10,11 +11,13 @@
 # Bound symbols (read kernel if unsure — do not invent alternate pipelines)
 from opencode_prompts_kernel import (  # normative names; runtime is this process + tools
     select_fractal_model,    # Sierpinski | Quad/Oct-tree | L-System
-    k_medoids_modifications,
-    select_medoids_tasks,    # clause-level cut; k = ceil(N/2)
+    k_medoids_modifications, # → CLARA auto when N ≥ 100
+    select_medoids_tasks,    # clause-level cut; foam→medoids only
     lsystem_rewrite,         # F→F+F-F lattice grammar
     adaptive_tau,            # percentile-based τ for candidate filter
     adaptive_delta_threshold, # median-based δ for signal classification
+    adaptive_k,              # CV-based k for medoids (dispersion→clusters)
+    adaptive_depth,          # depth by peaks + evidence count
     manhattan_distance,      # L1 distance on keyword-weight vectors
     PLANNING,                # policy.planning SPEC — fractal_only
 )
@@ -32,18 +35,21 @@ def run_task_geometry(goal: str, signals: list) -> list[str]:
     # 2. seeds — meaning-true goal slices (not the full work list)
     seeds = goal_seeds(goal, evidence)  # short Exact-aligned clauses; ground k-medoids
 
-    # 3. fractal over-generate — same recursive motif every level (no ad-hoc essay)
+    # 3. fractal over-generate — adaptive depth (1–3 by peaks/evidence)
     model = select_fractal_model(peaks=goal_peaks(goal, evidence), delta_v=sv_delta())
     # >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else L-System F→F+F-F
-    candidates = fractal_over_generate(model, seeds, depth=2)  # L2–L4 lattice, not monolith
+    depth = adaptive_depth(peaks=goal_peaks(goal, evidence), evidence_count=len(evidence))
+    candidates = fractal_over_generate(model, seeds, depth=depth)
 
     # 4. L1 filter — adaptive τ (percentile-based when N ≥ 20, else fixed 0.5)
     distances = [manhattan_distance(c, goal) for c in candidates]
     tau = adaptive_tau(distances, percentile=0.70)  # keeps closest 70%
     candidates = [c for c, d in zip(candidates, distances) if d <= tau]
 
-    # 5. select_medoids — seeds as cluster centers; middle-ring only; foam dies
-    #    k = ceil(N/2); Manhattan (L1); k_medoids_modifications for file-level plans
+    # 5. select_medoids — adaptive k (CV-based dispersion → cluster count)
+    #    k_medoids_modifications auto-delegates to CLARA when N ≥ 100
+    #    Manhattan (L1); foam dies — only medoid descriptions survive
+    k = adaptive_k(distances, min_k=2)  # dispersion-based, clamped to ceil(N/2)
     central_tasks = select_medoids_tasks(candidates, seeds=seeds)  # FINITE set
 
     # 6. todowrite — one in_progress; CENTRAL_TASKS = medoids

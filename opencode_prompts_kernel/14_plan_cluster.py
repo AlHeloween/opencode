@@ -10,6 +10,7 @@ that are invisible from a single file diff.
 """
 
 import math
+import random
 
 
 @dataclass
@@ -86,8 +87,12 @@ def _manhattan_distance(a: list[float], b: list[float]) -> float:
 def k_medoids_modifications(
     modifications: list[PlanModification],
     k: int | None = None,
+    use_clara: bool = True,
 ) -> list[PlanCluster]:
     """Cluster planned modifications via k-medoids (Lloyd-style).
+
+    For N ≥ 100, delegates to CLARA (sampling k-medoids) to avoid O(N²)
+    cost. Pass use_clara=False to force exact k-medoids regardless of N.
 
     Algorithm:
     1. Embed each modification → 512-d vector
@@ -99,6 +104,8 @@ def k_medoids_modifications(
     Distance metric: Manhattan (L1) — preserves interpretability in sparse
     fractal embedding spaces and avoids hollow-centroid artifacts.
     """
+    if use_clara and len(modifications) >= CLARA_THRESHOLD:
+        return clara_k_medoids_modifications(modifications, k)
     N = len(modifications)
     if N == 0:
         return []
@@ -285,6 +292,161 @@ def adaptive_tau(
     # Clamp: never below 0.1 (avoid degenerate empty filter)
     #        never above 0.9 (ensure at least some filtering)
     return max(0.1, min(0.9, sorted_d[min(idx, n - 1)]))
+
+
+def adaptive_k(
+    distances_to_goal: list[float],
+    min_k: int = 2,
+    max_k: int | None = None,
+    min_n: int = 4,
+) -> int:
+    """Choose k for k-medoids based on distance dispersion (CV).
+
+    Fixed k = ceil(N/2) is safe but can over-fragment naturally tight
+    clusters or under-segment widely spread candidates.
+
+    Heuristic: coefficient of variation (CV = σ / μ) of candidate-to-goal
+    distances. Tight cluster → low CV → fewer medoids. Wide spread →
+    high CV → more medoids (up to ceil(N/2)).
+
+    k = min_k + ⌊(max_k − min_k) · min(CV, 1.0)⌋
+
+    Clamped to [min_k, max_k] and never exceeds N.
+    """
+    n = len(distances_to_goal)
+    if n < min_n:
+        return max(1, min(min_k, n))
+    if max_k is None:
+        max_k = max(min_k, (n + 1) // 2)  # ceil(N/2)
+    max_k = min(max_k, n)
+    if max_k <= min_k:
+        return min_k
+
+    mean = sum(distances_to_goal) / n
+    if mean < 1e-6:
+        return min_k  # all candidates at goal — single cluster
+    variance = sum((d - mean) ** 2 for d in distances_to_goal) / n
+    cv = math.sqrt(variance) / mean  # coefficient of variation ∈ [0, ∞)
+
+    # Map CV → k linearly, saturating at CV ≥ 1.0
+    k = min_k + int((max_k - min_k) * min(cv, 1.0))
+    return max(min_k, min(k, max_k))
+
+
+def adaptive_depth(
+    peaks: int,
+    evidence_count: int = 0,
+) -> int:
+    """Choose fractal generation depth by goal complexity.
+
+    Fixed depth=2 produces ~30 Koch nodes — adequate for 3–5 step tasks
+    but under-generates for complex decompositions and over-generates
+    for trivial single-peak goals.
+
+    Heuristic:
+      peaks ≥ 4  or  evidence_count > 10  →  depth = 3  (complex)
+      peaks ≥ 2                           →  depth = 2  (default)
+      else                                →  depth = 1  (simple/single-peak)
+
+    Depth 1 is a single rewrite step; depth 3 produces ~50–80 nodes for
+    rich decomposition.
+    """
+    if peaks >= 4 or evidence_count > 10:
+        return 3
+    if peaks >= 2:
+        return 2
+    return 1
+
+
+# =========================================================================
+# CLARA: Clustering LARge Applications — sampling k-medoids for N ≥ 100
+# =========================================================================
+
+CLARA_THRESHOLD: int = 100
+CLARA_REPETITIONS: int = 5
+
+
+def clara_k_medoids_modifications(
+    modifications: list[PlanModification],
+    k: int | None = None,
+    sample_size: int | None = None,
+    repetitions: int = CLARA_REPETITIONS,
+) -> list[PlanCluster]:
+    """CLARA k-medoids for large candidate sets (N ≥ 100).
+
+    Exact k-medoids is O(N²) per iteration — prohibitive above ~500
+    candidates. CLARA (Kaufman & Rousseeuw, 1990) samples the dataset
+    repeatedly, runs exact k-medoids on each sample, and keeps the best
+    clustering (lowest total L1 cost over all N points).
+
+    Sampling: 40 + 2k (typical CLARA heuristic), clamped to ≤ N.
+    Repetitions: 5 (default); higher values improve quality at linear cost.
+
+    When N < CLARA_THRESHOLD (100), falls back to exact k-medoids.
+
+    Returns list of PlanCluster — same interface as k_medoids_modifications.
+    """
+    N = len(modifications)
+    if N < CLARA_THRESHOLD:
+        return k_medoids_modifications(modifications, k)
+
+    if k is None:
+        k = max(1, (N + 1) // 2)  # ceil(N/2)
+    k = min(k, N)
+    if sample_size is None:
+        # CLARA heuristic: 40 + 2k, but never sample > 80% of data
+        # (otherwise CLARA degenerates to exact k-medoids)
+        sample_size = min(40 + 2 * k, max(k, int(N * 0.80)))
+    sample_size = max(k, min(sample_size, N))  # must fit at least k points
+
+    all_vectors = [embed_modification(m) for m in modifications]
+    best_cost: float = float("inf")
+    best_clusters: list[PlanCluster] = []
+
+    for _ in range(repetitions):
+        # 1. Draw random sample
+        sample_indices = random.sample(range(N), sample_size)
+        sample_mods = [modifications[i] for i in sample_indices]
+
+        # 2. Exact k-medoids on sample (force exact — sample is small by design)
+        sample_clusters = k_medoids_modifications(sample_mods, k, use_clara=False)
+        sample_medoid_vecs = [embed_modification(c.centroid) for c in sample_clusters]
+        k_eff = len(sample_medoid_vecs)
+        if k_eff == 0:
+            continue
+
+        # 3. Assign ALL N points to nearest sample medoid
+        clusters: list[list[int]] = [[] for _ in range(k_eff)]
+        for i, vec in enumerate(all_vectors):
+            best_j = min(range(k_eff), key=lambda j: _manhattan_distance(vec, sample_medoid_vecs[j]))
+            clusters[best_j].append(i)
+
+        # 4. Compute total L1 cost (sum of point-to-medoid distances)
+        total_cost = 0.0
+        for j, member_indices in enumerate(clusters):
+            medoid_vec = sample_medoid_vecs[j]
+            for idx in member_indices:
+                total_cost += _manhattan_distance(all_vectors[idx], medoid_vec)
+
+        # 5. Keep best
+        if total_cost < best_cost:
+            best_cost = total_cost
+            best_clusters = []
+            for j, member_indices in enumerate(clusters):
+                if not member_indices:
+                    continue
+                # Recompute true medoid within final cluster (real point)
+                true_medoid_idx = min(member_indices, key=lambda candidate:
+                    sum(_manhattan_distance(all_vectors[candidate], all_vectors[m])
+                        for m in member_indices))
+                members = [modifications[i] for i in member_indices]
+                best_clusters.append(PlanCluster(
+                    centroid=modifications[true_medoid_idx],
+                    members=members,
+                    cluster_size=len(members),
+                ))
+
+    return best_clusters if best_clusters else k_medoids_modifications(modifications, k, use_clara=False)
 
 
 # =========================================================================

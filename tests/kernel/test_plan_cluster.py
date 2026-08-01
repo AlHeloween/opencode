@@ -9,8 +9,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from opencode_prompts_kernel import (  # noqa: E402
+    CLARA_THRESHOLD,
+    PlanCluster,
     PlanModification,
+    adaptive_depth,
+    adaptive_k,
     adaptive_tau,
+    clara_k_medoids_modifications,
+    k_medoids_modifications,
     lsystem_rewrite,
     select_fractal_model,
     select_medoids_tasks,
@@ -172,3 +178,141 @@ class TestAdaptiveTau:
         assert 0.1 <= tau <= 0.9
         # Actual 70th percentile of this seed is ~1.07, clamped to 0.9
         assert tau == 0.9
+
+
+class TestAdaptiveK:
+    """CV-based dispersion → k for k-medoids."""
+
+    def test_empty_small_n_fallback(self):
+        """N < min_n (4) → clamped to [1, N]."""
+        assert adaptive_k([], min_k=2, min_n=4) == 1
+        assert adaptive_k([0.1, 0.2], min_k=2, min_n=4) == 2  # N=2 < 4
+
+    def test_all_identical_zero_cv(self):
+        """All distances equal → CV = 0 → k = min_k."""
+        dists = [0.42] * 50
+        k = adaptive_k(dists, min_k=2, min_n=4)
+        assert k == 2
+
+    def test_wide_spread_high_k(self):
+        """High dispersion → k > min_k."""
+        dists = [0.01 * i for i in range(100)]  # 0.00 .. 0.99, wide spread
+        k = adaptive_k(dists, min_k=2, min_n=4)
+        # CV ≈ 0.58 → k in upper half
+        assert 10 <= k <= 50
+
+    def test_clamped_to_max_k(self):
+        """Cannot exceed ceil(N/2)."""
+        dists = [0.0, 0.0, 1.0, 1.0] * 5  # bimodal, N=20
+        k = adaptive_k(dists, min_k=2, min_n=4)
+        assert k <= 10  # ceil(20/2) = 10
+
+    def test_explicit_max_k(self):
+        """Respect explicit max_k parameter."""
+        dists = [0.01 * i for i in range(100)]  # wide spread
+        k = adaptive_k(dists, min_k=2, max_k=5, min_n=4)
+        assert k <= 5
+
+
+class TestAdaptiveDepth:
+    """Depth scaling by peaks + evidence count."""
+
+    def test_simple_single_peak(self):
+        assert adaptive_depth(1, 0) == 1
+        assert adaptive_depth(1, 5) == 1
+
+    def test_default_two_peaks(self):
+        assert adaptive_depth(2, 0) == 2
+        assert adaptive_depth(3, 5) == 2
+
+    def test_complex_many_peaks(self):
+        assert adaptive_depth(4, 0) == 3
+        assert adaptive_depth(10, 0) == 3
+
+    def test_complex_high_evidence(self):
+        """evidence_count > 10 overrides peak count."""
+        assert adaptive_depth(2, 11) == 3
+        assert adaptive_depth(1, 15) == 3
+
+    def test_edge_zero_peaks(self):
+        assert adaptive_depth(0, 0) == 1
+
+
+class TestCLARAKMedoids:
+    """CLARA sampling k-medoids for large N."""
+
+    def _make_mod(self, desc: str, file: str = "test.py", module: str = "test.module") -> PlanModification:
+        return PlanModification(
+            target_file=file,
+            target_module=module,
+            change_type="logic",
+            risk="low",
+            description=desc,
+        )
+
+    def test_small_n_falls_back_to_exact(self):
+        """N < CLARA_THRESHOLD → exact k-medoids."""
+        mods = [self._make_mod(f"fix {i}", f"file{i}.py") for i in range(10)]
+        clusters = clara_k_medoids_modifications(mods)
+        assert len(clusters) > 0
+        total_members = sum(c.cluster_size for c in clusters)
+        assert total_members == len(mods)
+
+    def test_large_n_clara_runs(self):
+        """N ≥ CLARA_THRESHOLD → CLARA path, returns valid clusters."""
+        N = CLARA_THRESHOLD + 5  # 105 — just above threshold
+        mods = [
+            self._make_mod(f"fix {i}", f"file{i % 20}.py", f"mod.{i % 5}")
+            for i in range(N)
+        ]
+        clusters = clara_k_medoids_modifications(mods, repetitions=2)
+        assert len(clusters) > 0
+        total_members = sum(c.cluster_size for c in clusters)
+        assert total_members == N
+
+    def test_medoids_are_real_members(self):
+        """Every medoid must be one of the input modifications."""
+        import random
+        random.seed(123)
+        N = 110
+        mods = [
+            self._make_mod(f"fix {i}", f"f{i}.py", f"m{i % 10}")
+            for i in range(N)
+        ]
+        clusters = clara_k_medoids_modifications(mods, repetitions=2)
+        descriptions = {m.description for m in mods}
+        for c in clusters:
+            assert c.centroid.description in descriptions
+
+    def test_no_duplicate_medoids(self):
+        """Medoid descriptions should be distinct."""
+        import random
+        random.seed(456)
+        N = 110
+        mods = [
+            self._make_mod(f"fix {i}", f"f{i}.py", f"m{i % 8}")
+            for i in range(N)
+        ]
+        clusters = clara_k_medoids_modifications(mods, repetitions=2)
+        medoid_descs = [c.centroid.description for c in clusters]
+        assert len(medoid_descs) == len(set(medoid_descs))
+
+    def test_clara_auto_integrated(self):
+        """k_medoids_modifications auto-delegates to CLARA when N ≥ threshold."""
+        import random
+        random.seed(789)
+        N = 110
+        mods = [
+            self._make_mod(f"fix {i}", f"f{i}.py", f"m{i % 10}")
+            for i in range(N)
+        ]
+        # use_clara=True (default) → CLARA path
+        clusters = k_medoids_modifications(mods)
+        assert len(clusters) > 0
+        total = sum(c.cluster_size for c in clusters)
+        assert total == N
+        # use_clara=False → exact path (small enough to be fast)
+        clusters_exact = k_medoids_modifications(mods, use_clara=False)
+        assert len(clusters_exact) > 0
+        total_exact = sum(c.cluster_size for c in clusters_exact)
+        assert total_exact == N

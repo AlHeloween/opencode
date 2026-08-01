@@ -89,18 +89,41 @@
 # \]
 # Clamped to \([0.1, 0.9]\) regardless. At 500+ candidates with dense embeddings,
 # \(\tau\) tightens automatically; at 50 candidates with spread, it relaxes.
-# then \(k\)-medoids with \(k = \lceil |C'|/2 \rceil\), Manhattan (L1) distance,
-# seeds as initial centers; CENTRAL_TASKS = medoids only (file-and-function grain).
-# Metric consistency: Manhattan throughout — candidate filter, k-medoids clustering,
+#
+# Fractal depth is adaptive (kernel adaptive_depth):
+# \[
+#   \text{depth} =
+#   \begin{cases}
+#     3 & \text{peaks} \ge 4 \;\lor\; \text{evidence} > 10 \quad\text{(complex — deep decompose)} \\
+#     2 & \text{peaks} \ge 2 \quad\text{(default — Koch L2 ~30 nodes)} \\
+#     1 & \text{otherwise} \quad\text{(simple/trivial — single rewrite)}
+#   \end{cases}
+# \]
+#
+# \(k\) for medoids is adaptive (kernel adaptive_k): dispersion-based via coefficient
+# of variation (CV = \(\sigma / \mu\)) of candidate-to-goal distances. Tight cluster
+# → low CV → fewer medoids; wide spread → high CV → more medoids (up to \(\lceil N/2\rceil\)).
+# \[
+#   k = k_{\min} + \big\lfloor (k_{\max} - k_{\min}) \cdot \min(\mathrm{CV}, 1.0) \big\rfloor
+# \]
+#
+# For \(|C'| \ge 100\), \(k\)-medoids auto-delegates to CLARA (sampling-based,
+# Kaufman & Rousseeuw 1990) — sample size \(40 + 2k\), 5 repetitions, keeps best
+# clustering by total L1 cost. Exact \(O(N^2)\) medoids used below threshold.
+#
+# Manhattan (L1) distance throughout. Seeds as initial centers.
+# CENTRAL_TASKS = medoids only (file-and-function grain).
+# Metric consistency: candidate filter, k-medoids/CLARA clustering,
 # signal classification, delta computation. One geometry, one truth.
 # No Mode-1 linear essay lists. If A–Z path is not visible — keep decomposing.
 #
 # ```mermaid
 # flowchart TD
 #   Goal[Goal + evidence] --> Seeds[goal seeds]
-#   Seeds --> Lat[fractal over-generate C]
+#   Seeds --> Lat["fractal over-generate C (depth = adaptive_depth)"]
 #   Lat --> L1["C' = L1 filter (d₁ ≤ τ_adaptive)"]
-#   L1 --> Med["k-medoids Manhattan, k=ceil(|C'|/2)"]
+#   L1 --> K["k = adaptive_k (CV-based)"]
+#   K --> Med["k-medoids Manhattan (→ CLARA when N≥100)"]
 #   Med --> CT[CENTRAL_TASKS = medoids]
 #   CT --> TW[todowrite]
 # ```

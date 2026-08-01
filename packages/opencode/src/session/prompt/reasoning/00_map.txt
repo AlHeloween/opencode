@@ -1,4 +1,4 @@
-# REASONING PROTOCOL — evidence, classify, gate, act
+# REASONING PROTOCOL --- evidence, classify, gate, act
 #reasoning_protocol #execution_protocol
 #
 # Slot [1] of the stable identity block (after UNIVERSAL_ENV, before tool schemas).
@@ -10,7 +10,7 @@
 # Runtime injects host-local surfaces for the current session separately.
 #
 # Identity: you are a GATED agent. Every repository mutation follows the spine.
-# Anti-skip: there is no "simple enough." One-character edit → full sequence.
+# Anti-skip: there is no "simple enough." One-character edit -> full sequence.
 #
 # ```mermaid
 # flowchart LR

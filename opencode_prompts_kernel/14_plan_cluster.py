@@ -953,3 +953,148 @@ def residual_recluster(
     return result if result else [pending[0]]  # at least one
 
 
+# =========================================================================
+# Pipeline glue: ground, goal_peaks, sv_delta
+# =========================================================================
+
+
+def ground(goal: str) -> dict:
+    """Generate an evidence-gathering plan from a goal.
+
+    Does NOT execute tools — returns structured search instructions
+    that the agent follows at Gate 1 (GROUND TRUTH / SEARCH.ORDER).
+
+    Returns a dict with:
+      - goal_keywords: extracted keyword tokens
+      - searches: list of (source, query) tuples for universalsearch
+      - local_probes: list of (tool, target) tuples for codegraph/filesystem
+      - expected_evidence: categories of evidence to collect
+    """
+    tokens = _tokenize_text(goal)
+
+    # Build targeted search queries from top keywords
+    # Use keyword frequency to prioritise
+    freq: dict[str, int] = {}
+    for t in tokens:
+        freq[t] = freq.get(t, 0) + 1
+    ranked = sorted(freq.items(), key=lambda x: -x[1])
+    top_keywords = [kw for kw, _ in ranked[:6]]
+
+    # Searches: prefer web + code for prior art (REUSE.BEFORE)
+    searches: list[tuple[str, str]] = []
+    if top_keywords:
+        q = " ".join(top_keywords[:4])
+        searches.append(("web", q))
+        searches.append(("code", q))
+
+    # Local probes: what to look for in the codebase
+    local_probes: list[tuple[str, str]] = []
+    for kw in top_keywords[:3]:
+        local_probes.append(("codegraph", kw))
+        local_probes.append(("grep", kw))
+
+    return {
+        "goal_keywords": top_keywords,
+        "searches": searches,
+        "local_probes": local_probes,
+        "expected_evidence": [
+            "prior_art_external",      # web/code search results
+            "local_structure",          # codegraph symbols + callers
+            "local_occurrences",        # grep hits
+            "conversation_history",     # messagesearch for prior decisions
+        ],
+    }
+
+
+def goal_peaks(
+    goal_text: str,
+    evidence_texts: list[str] | None = None,
+) -> int:
+    """Count distinct keyword clusters (peaks) in a goal.
+
+    Each peak represents a separable aspect of the goal — used by
+    select_fractal_model to choose the right lattice geometry:
+      - 1 peak   → L-System (linear grammar)
+      - 2 peaks  → Quad-Oct binary subdivision
+      - 3 peaks  → Sierpinski triangle
+      - 4 peaks  → Quad-Oct quad subdivision
+      - 5-7 peaks → Sierpinski (relaxed)
+      - 8 peaks  → Quad-Oct oct subdivision
+      - 9+ peaks → Sierpinski (clamped to 3 most central)
+
+    Algorithm: reuse goal_seeds clustering — each seed cluster = one peak.
+    """
+    if evidence_texts is None:
+        evidence_texts = []
+
+    # Use the same clustering as goal_seeds to determine peak count
+    goal_tokens = _tokenize_text(goal_text)
+
+    if not goal_tokens:
+        return 1
+
+    # Re-run the clustering logic from goal_seeds to count clusters
+    window_size = max(3, len(goal_tokens) // 3)
+    seen: set[int] = set()
+    cluster_count = 0
+
+    for i in range(len(goal_tokens)):
+        if i in seen:
+            continue
+        # Mark window as one cluster
+        cluster_count += 1
+        for j in range(max(0, i - window_size), min(len(goal_tokens), i + window_size + 1)):
+            seen.add(j)
+
+    # Each evidence text that introduces new tokens adds 1 potential peak
+    ev_tokens = set()
+    for ev_text in evidence_texts:
+        ev_tokens.update(_tokenize_text(ev_text))
+    new_ev = ev_tokens - set(goal_tokens)
+    if new_ev and cluster_count < 8:
+        cluster_count += 1
+
+    # Clamp: at least 1, at most 9
+    return max(1, min(cluster_count, 9))
+
+
+def sv_delta(
+    current_sv: dict[str, float] | None = None,
+    previous_sv: dict[str, float] | None = None,
+) -> float:
+    """Compute the L1 semantic distance between two SV states.
+
+    Each SV state is a dict mapping keyword → weight (sum ~= 1.0).
+    Returns a float in [0.0, 2.0]:
+      0.0 = identical
+      1.0 = completely disjoint vocabularies
+      2.0 = opposite (inverted weights)
+
+    Used by select_fractal_model as the delta_v parameter:
+      - delta_v < 0.3 → L-System (stable, linear refinement)
+      - delta_v ≥ 0.3 → Quad-Oct (moderate shift, grid re-exploration)
+      - delta_v ≥ 0.6 → Sierpinski (large shift, triangular re-decomposition)
+
+    If either SV is None, returns 0.5 (neutral).
+    """
+    if current_sv is None or previous_sv is None:
+        return 0.5  # neutral — not enough info
+
+    if not current_sv and not previous_sv:
+        return 0.0
+
+    # Gather all keys
+    all_keys = set(current_sv) | set(previous_sv)
+    if not all_keys:
+        return 0.0
+
+    # L1 distance: sum |w_c(k) - w_p(k)| over all keywords
+    total = 0.0
+    for k in all_keys:
+        w_c = current_sv.get(k, 0.0)
+        w_p = previous_sv.get(k, 0.0)
+        total += abs(w_c - w_p)
+
+    return total
+
+

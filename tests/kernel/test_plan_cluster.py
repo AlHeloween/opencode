@@ -21,12 +21,15 @@ from opencode_prompts_kernel import (  # noqa: E402
     generate_lsystem_candidates,
     generate_quad_oct,
     generate_sierpinski,
+    goal_peaks,
     goal_seeds,
+    ground,
     k_medoids_modifications,
     lsystem_rewrite,
     residual_recluster,
     select_fractal_model,
     select_medoids_tasks,
+    sv_delta,
 )
 
 
@@ -328,6 +331,11 @@ class TestCLARAKMedoids:
 # =========================================================================
 # Fractal generators: Sierpinski, Quad/Oct, L-System
 # =========================================================================
+
+
+def _make_sv(keywords_and_weights: list[tuple[str, float]]) -> dict[str, float]:
+    """Helper: build an SV dict from (keyword, weight) pairs."""
+    return {kw: w for kw, w in keywords_and_weights}
 
 
 def _sample_seeds(n: int, dim: int = 512) -> list[list[float]]:
@@ -648,3 +656,147 @@ class TestResidualRecluster:
         state = {"pending": ["only task"]}
         result = residual_recluster(state, original_goal_sv=goal)
         assert result == ["only task"]
+
+
+# =========================================================================
+# ground, goal_peaks, sv_delta — pipeline glue
+# =========================================================================
+
+
+class TestGround:
+    """Evidence-gathering plan generation."""
+
+    def test_returns_structured_plan(self):
+        goal = "implement dark mode toggle in settings"
+        plan = ground(goal)
+        assert isinstance(plan, dict)
+        assert "goal_keywords" in plan
+        assert "searches" in plan
+        assert "local_probes" in plan
+        assert "expected_evidence" in plan
+
+    def test_keywords_extracted(self):
+        goal = "fix memory leak in render loop"
+        plan = ground(goal)
+        keywords = plan["goal_keywords"]
+        assert len(keywords) >= 1
+        # Should include meaningful words, not stopwords
+        for kw in keywords:
+            assert kw not in {"the", "a", "in", "is", "of", "to", "and"}
+
+    def test_searches_include_web_and_code(self):
+        goal = "optimize database queries for user dashboard"
+        plan = ground(goal)
+        searches = plan["searches"]
+        sources = {s for s, _ in searches}
+        assert "web" in sources
+        assert "code" in sources
+
+    def test_local_probes_target_codegraph(self):
+        goal = "refactor auth module"
+        plan = ground(goal)
+        probes = plan["local_probes"]
+        tools = {t for t, _ in probes}
+        assert "codegraph" in tools
+
+    def test_empty_goal_handled(self):
+        goal = ""
+        plan = ground(goal)
+        assert plan["goal_keywords"] == []
+        assert plan["searches"] == []
+        # local_probes may be empty too
+        assert isinstance(plan["local_probes"], list)
+
+
+class TestGoalPeaks:
+    """Keyword cluster counting for fractal model selection."""
+
+    def test_simple_goal_one_peak(self):
+        goal = "fix typo in readme"
+        peaks = goal_peaks(goal)
+        assert peaks == 1
+
+    def test_two_aspect_goal(self):
+        goal = "add dark mode toggle and update color palette"
+        peaks = goal_peaks(goal)
+        assert peaks >= 1  # may be 1-2 depending on window
+
+    def test_complex_goal_many_peaks(self):
+        goal = (
+            "implement user registration product catalog shopping cart "
+            "checkout flow payment integration email notifications "
+            "admin dashboard analytics reporting search engine"
+        )
+        peaks = goal_peaks(goal)
+        assert peaks >= 2  # many distinct topics
+
+    def test_with_evidence_increases_peaks(self):
+        goal = "improve performance"
+        evidence = [
+            "database queries are slow on large datasets",
+            "frontend rendering blocks the main thread",
+            "network requests timeout under load",
+        ]
+        peaks_with_ev = goal_peaks(goal, evidence)
+        peaks_without = goal_peaks(goal)
+        # Evidence may add a peak (new tokens)
+        assert peaks_with_ev >= peaks_without
+
+    def test_clamped_to_max(self):
+        # Very long goal with many distinct clusters
+        goal = " ".join(
+            f"feature_{i}" for i in range(50)
+        )
+        peaks = goal_peaks(goal)
+        assert 1 <= peaks <= 9
+
+    def test_empty_goal_returns_one(self):
+        assert goal_peaks("") == 1
+        assert goal_peaks("   ") == 1
+
+
+class TestSVDelta:
+    """L1 semantic distance between SV states."""
+
+    def test_identical_svs_zero_delta(self):
+        sv = _make_sv([("list", 0.3), ("tool", 0.25), ("oracle", 0.2)])
+        delta = sv_delta(sv, sv)
+        assert delta == 0.0
+
+    def test_disjoint_svs_large_delta(self):
+        sv_a = _make_sv([("list", 0.5), ("tool", 0.5)])
+        sv_b = _make_sv([("oracle", 0.5), ("verify", 0.5)])
+        delta = sv_delta(sv_a, sv_b)
+        # Each keyword exists in only one SV → total = 0.5+0.5+0.5+0.5 = 2.0
+        assert delta == 2.0
+
+    def test_partial_overlap_moderate_delta(self):
+        sv_a = _make_sv([("list", 0.6), ("tool", 0.4)])
+        sv_b = _make_sv([("list", 0.4), ("oracle", 0.6)])
+        # |0.6-0.4| + |0.4-0.0| + |0.0-0.6| = 0.2 + 0.4 + 0.6 = 1.2
+        delta = sv_delta(sv_a, sv_b)
+        assert delta == pytest.approx(1.2)
+
+    def test_none_inputs_return_neutral(self):
+        assert sv_delta(None, None) == 0.5
+        sv = _make_sv([("list", 1.0)])
+        assert sv_delta(sv, None) == 0.5
+        assert sv_delta(None, sv) == 0.5
+
+    def test_empty_dicts_zero_delta(self):
+        assert sv_delta({}, {}) == 0.0
+
+    def test_delta_range_clamped(self):
+        """Delta is always in [0.0, 2.0]."""
+        sv_a = _make_sv([("a", 1.0)])
+        sv_b = _make_sv([("b", 1.0)])
+        delta = sv_delta(sv_a, sv_b)
+        assert 0.0 <= delta <= 2.0
+
+    def test_large_shift_detected(self):
+        """Complete goal change → delta > 0.6 → Sierpinski trigger."""
+        sv_a = _make_sv([("list", 0.5), ("tool", 0.5)])
+        sv_b = _make_sv([("oracle", 0.4), ("verify", 0.3), ("smoke", 0.3)])
+        delta = sv_delta(sv_a, sv_b)
+        # Total: |0.5-0| + |0.5-0| + |0-0.4| + |0-0.3| + |0-0.3| = 2.0
+        assert delta >= 0.6  # triggers Sierpinski

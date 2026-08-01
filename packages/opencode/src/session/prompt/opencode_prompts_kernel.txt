@@ -34,7 +34,9 @@ RULES = MappingProxyType({
     'DOCUMENT.SURFACE': 'maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.',
     'EVIDENCE.ORDER': 'verified > cited > inferred > unknown',
     'FRACTAL.CANDIDATES': 'generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks), Quad/Oct (grid subdivision for 2/4/8 peaks), L-System (grammar walk, fallback for unknown models).',
+    'GOAL.PEAKS': 'goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→Quad-Oct quad, 5-7→Sierpinski, 8→Quad-Oct oct, 9+→Sierpinski clamped.',
     'GOAL.SEEDS': 'goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.',
+    'GROUND': 'ground(goal) generates an evidence-gathering plan from goal keywords: returns structured searches (web/code universalsearch), local probes (codegraph/grep), and expected evidence categories. Does NOT execute tools — agent follows the plan at Gate 1.',
     'INFOMARK.SEP': 'Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred; claim_ledger required for non-trivial decisions; premises ⊆ G; system stamps only mint Exact',
     'MEMORY.LINKS': 'every summary and message* must carry message IDs for session-read recovery',
     'MEMORY.RANK': 'session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact',
@@ -44,6 +46,7 @@ RULES = MappingProxyType({
     'REUSE.BEFORE': 'research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Unknown (no Done). Prefer reuse over reinvent. Trivial exception: typo/rename/one-line with codegraph. After stuck failure: web+code on error signature before new invent.',
     'SEARCH.ORDER': 'where/which > codegraph > messagesearch > universalsearch > glob > grep',
     'SMOKE.BEFORE': "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
+    'SV.DELTA': 'sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: <0.3→L-System (stable), >=0.3→Quad-Oct (moderate shift), >=0.6→Sierpinski (large shift). Neutral 0.5 if SV missing.',
     'SV_OUTPUT': 'after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).',
     'VERIFY.OUTCOME': 'declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done',
     'WHERE_WHICH': 'use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.',
@@ -57,7 +60,7 @@ WORKFLOWS = MappingProxyType({
     'hygiene': ('DOCUMENT.SURFACE', 'WORKSPACE.LANES', 'PROGRESS.LOG', 'CLEAN_STATE', 'EVIDENCE.ORDER'),
     'modify': ('plan', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'scope', 'cache', 'mutation', 'WRITE.SCOPE', 'CACHE.STABILITY', 'verification', 'oracle', 'VERIFY.OUTCOME', 'INFOMARK.SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK'),
     'observe': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'WHERE_WHICH', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK'),
-    'plan': ('plan', 'DECOMPOSE', 'FRACTAL.CANDIDATES', 'GOAL.SEEDS', 'RESIDUAL.LOOP', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY.OUTCOME', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'plan': ('plan', 'DECOMPOSE', 'GROUND', 'FRACTAL.CANDIDATES', 'GOAL.SEEDS', 'GOAL.PEAKS', 'SV.DELTA', 'RESIDUAL.LOOP', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY.OUTCOME', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
     'research': ('evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'REUSE.BEFORE', 'WHERE_WHICH', 'NO_HARDCODE', 'verification', 'oracle', 'INFOMARK.SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK', 'MEMORY.LINKS'),
 })
 

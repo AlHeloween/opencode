@@ -174,7 +174,8 @@ against original Goal SV — never re-fractal the whole universe.""",
         "decompose_before_expanding": True,
         "one_task_in_progress_at_a_time": True,
         "k_medoids_required": True,
-        "k_equals_ceil_n_over_2": True,
+        "k_adaptive": True,
+        "k_equals_ceil_n_over_2": False,
     },
 
     invariants=[
@@ -206,7 +207,7 @@ against original Goal SV — never re-fractal the whole universe.""",
 
     acceptance_tests=[
         "Complex tasks have fractal→medoid→todowrite plan before first edit",
-        "CENTRAL_TASKS count is medoid-sized (k≈ceil(N/2)), not full candidate foam",
+        "CENTRAL_TASKS count is medoid-sized (adaptive_k via CV dispersion), not full candidate foam",
         "plan.txt workflow followed for plan-mode sessions",
         "Implementable plans include Smoke Tests (baseline + post-impl) or smoke: N/A justification",
         "Baseline smoke recorded [Exact] before first implementation edit when smoke is defined",

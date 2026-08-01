@@ -54,7 +54,7 @@
 #   C --> N{_same_source_repeated?}
 #   N -->| cascade | card≥5 | content≥30 | F[NOISE — filter]
 #   N -->|no| D["δ = Σ|w_s(k) − w_a(k)|"]
-#   D --> L{δ < 0.3?}
+#   D --> L{δ < θ?}
 #   L -->|yes| Act[CONFIRMATION — react]
 #   L -->|no| Re[DIVERGENCE — re-anchor then react]
 # ```

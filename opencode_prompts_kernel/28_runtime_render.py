@@ -284,6 +284,7 @@ def render_algorithm_card() -> str:
         "    lsystem_rewrite,         # F→F+F-F lattice grammar",
         "    adaptive_tau,            # percentile-based τ for candidate filter",
         "    adaptive_delta_threshold, # median-based δ for signal classification",
+        "    manhattan_distance,      # L1 distance on keyword-weight vectors",
         "    PLANNING,                # policy.planning SPEC — fractal_only",
         ")",
         "",

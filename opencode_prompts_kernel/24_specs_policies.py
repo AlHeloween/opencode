@@ -125,9 +125,10 @@ Tag claims with evidence labels. Reference outranks inference.""",
         "Must tag claims with evidence labels: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]",
         "Must reference outranks inference",
         "SVM noise filter: before reacting to tool output, classify each signal against sv_anchor. "
-        "Identical errors from the same source (e.g. 60 LSP 'unresolved reference' on one JSX component) "
-        "are ONE signal, not 60 — cluster by (source, pattern), classify as NOISE if cardinality > 1 "
-        "and delta to anchor < 0.5. Do NOT delete code based on unreplicated single-source noise.",
+        "Noise filter: follow the protocol defined in REASONING_PROTOCOL (Part 2 — Noise filter). "
+        "Use Manhattan (L1) distance on keyword-weight vectors; three independent gates "
+        "(cascade, high cardinality, content similarity) classify NOISE. "
+        "Do NOT delete code based on unreplicated single-source noise.",
     ],
 
     acceptance_tests=[],

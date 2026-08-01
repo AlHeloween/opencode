@@ -61,7 +61,7 @@
 # flowchart TD
 #   Goal[Goal + evidence] --> Seeds[goal seeds]
 #   Seeds --> Lat[fractal over-generate C]
-#   Lat --> L1["C' = L1 filter (d₁ ≤ 0.5)"]
+#   Lat --> L1["C' = L1 filter (d₁ ≤ τ_adaptive)"]
 #   L1 --> Med["k-medoids Manhattan, k=ceil(|C'|/2)"]
 #   Med --> CT[CENTRAL_TASKS = medoids]
 #   CT --> TW[todowrite]

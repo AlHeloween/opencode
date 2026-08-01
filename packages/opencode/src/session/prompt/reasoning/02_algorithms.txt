@@ -104,6 +104,11 @@
 #   Eval -->|ok| Pass
 #   Eval -->|fail| Esc[mark Unknown]
 # ```
+#
+# All numeric thresholds (silhouette 0.3, consistency 0.5, candidate
+# floor 2, percentile 0.70) are configurable defaults --- override via
+# kernel config or per-invocation parameters. Detection logic is
+# invariant; triggers are tuning knobs, not hard constants.
 
 # --- Bug fix chain (Gate 8) --- no skip ---
 # Ordered stages (each gates the next):

@@ -411,38 +411,37 @@
 # If work needs \(\ge 3\) steps -> ALGORITHM_CARD medoids + todowrite before bulk edit.
 
 # --- Metric self-adaptation (autonomous) ---
-# The system detects when its evaluation metrics are insufficient and
-# generates corrective functions without manual intervention:
+# System detects metric gaps and auto-generates corrective functions:
 #
-# Detection triggers:
-#   - silhouette_score < 0.3 for residual_recluster -> clusters are weak;
-#     system auto-generates alternative distance metric (e.g., weighted
-#     Manhattan, cosine with L1 fallback) and re-evaluates.
-#   - internal_consistency < 0.5 for goal_seeds -> seed clusters overlap
-#     semantically; system tightens the co-occurrence window or adds
-#     TF-IDF weighting to disambiguate.
-#   - adaptive_tau at 70th percentile keeps < 2 candidates -> too
-#     aggressive; system relaxes to 85th percentile and re-filters.
+# Triggers:
+#   - silhouette < 0.3 in residual_recluster -> weak clusters;
+#     auto-switches distance metric (weighted Manhattan, cosine+L1).
+#   - internal_consistency < 0.5 in goal_seeds -> overlapping seeds;
+#     tightens co-occurrence window or adds TF-IDF weighting.
+#   - adaptive_tau keeps < 2 candidates -> too aggressive;
+#     relaxes to 85th percentile and re-filters.
 #
-# Architecture: each kernel function exposes a .quality() method that
-# returns a float in [0,1]. Below threshold (default 0.5), the function
-# auto-invokes its corrective variant. The system never ships degraded
-# metric outputs --- it heals before the next pipeline stage.
-#
-# This is NOT a retry loop with the same parameters --- it changes the
-# underlying metric (distance function, clustering window, percentile)
-# based on detected failure mode.
+# Each kernel function exposes .quality() -> float [0,1].
+# Below 0.5, the corrective variant fires. No degraded outputs
+# ever pass to the next pipeline stage.
+# This is NOT a same-parameter retry --- it changes the underlying
+# metric (distance, window, percentile) based on failure mode.
 #
 # ```mermaid
 # flowchart TD
-#   F[function output] --> Q{.quality() >= 0.5?}
-#   Q -->|yes| Pass[pass to next stage]
-#   Q -->|no| Diag[diagnose gap]
-#   Diag --> Gen[generate corrective variant]
-#   Gen --> ReEval[re-evaluate with new metric]
-#   ReEval -->|improved| Pass
-#   ReEval -->|still low| Escalate[mark Unknown + reason]
+#   F[output] --> Q{.quality() >= .5?}
+#   Q -->|yes| Pass[next stage]
+#   Q -->|no| Diag[diagnose]
+#   Diag --> Gen[generate variant]
+#   Gen --> Eval[re-evaluate]
+#   Eval -->|ok| Pass
+#   Eval -->|fail| Esc[mark Unknown]
 # ```
+#
+# All numeric thresholds (silhouette 0.3, consistency 0.5, candidate
+# floor 2, percentile 0.70) are configurable defaults --- override via
+# kernel config or per-invocation parameters. Detection logic is
+# invariant; triggers are tuning knobs, not hard constants.
 
 # --- Bug fix chain (Gate 8) --- no skip ---
 # Ordered stages (each gates the next):

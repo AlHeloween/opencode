@@ -77,9 +77,18 @@
 #   C' = \bigl\{\, c \in C \;\big|\;
 #     d_1(\mathbf{c},\mathbf{g})
 #       = \sum_{k} \bigl| w_c(k) - w_g(k) \bigr|
-#       \le \tau \,\bigr\},
-#   \qquad \tau = 0.5\ \text{(operational prior)}
+#       \le \tau \,\bigr\}
 # \]
+# Threshold \(\tau\) is adaptive (kernel adaptive_tau):
+# \[
+#   \tau =
+#   \begin{cases}
+#     0.5 & N < 20\quad\text{(fixed fallback — reliable on small sets)} \\
+#     P_{70}\bigl(\{d_1(c,g)\}\bigr) & N \ge 20\quad\text{(70th percentile — auto-tunes to density)}
+#   \end{cases}
+# \]
+# Clamped to \([0.1, 0.9]\) regardless. At 500+ candidates with dense embeddings,
+# \(\tau\) tightens automatically; at 50 candidates with spread, it relaxes.
 # then \(k\)-medoids with \(k = \lceil |C'|/2 \rceil\), Manhattan (L1) distance,
 # seeds as initial centers; CENTRAL_TASKS = medoids only (file-and-function grain).
 # Metric consistency: Manhattan throughout — candidate filter, k-medoids clustering,
@@ -319,13 +328,21 @@
 # After noise filtering, classify remaining signals:
 # \[
 # \begin{aligned}
-#   \delta < 0.3
-#     &\Rightarrow \mathrm{CONFIRMATION}\quad\text{(DELTA\_STABLE threshold)} \\
-#   \delta \ge 0.3
+#   \delta < \theta
+#     &\Rightarrow \mathrm{CONFIRMATION}\quad\text{(signal aligns with anchor)} \\
+#   \delta \ge \theta
 #     &\Rightarrow \mathrm{DIVERGENCE}\quad\text{(re-anchor first)}
 # \end{aligned}
 # \]
-# Single threshold 0.3 — no intermediate SHIFT band for signal classification.
+# where \(\theta\) is adaptive (kernel adaptive_delta_threshold):
+# default \(\theta = 0.3\) (DELTA_STABLE). When \(\ge 5\) non-NOISE signals:
+# \[
+#   \theta = \mathrm{median}(\{\delta_i\}) + 0.1
+# \]
+# Spikes (\(>2\times\) median) excluded — they are true divergences, not norms.
+# This adapts to the context's typical semantic spread: tight sessions get
+# tighter thresholds; noisy sessions relax.
+#
 # React only to non-NOISE. e.g. \(60\times\) "unresolved reference: Foo" same file
 # → one NOISE cluster → do not delete Foo.
 #

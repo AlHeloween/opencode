@@ -29,13 +29,21 @@
 # After noise filtering, classify remaining signals:
 # \[
 # \begin{aligned}
-#   \delta < 0.3
-#     &\Rightarrow \mathrm{CONFIRMATION}\quad\text{(DELTA\_STABLE threshold)} \\
-#   \delta \ge 0.3
+#   \delta < \theta
+#     &\Rightarrow \mathrm{CONFIRMATION}\quad\text{(signal aligns with anchor)} \\
+#   \delta \ge \theta
 #     &\Rightarrow \mathrm{DIVERGENCE}\quad\text{(re-anchor first)}
 # \end{aligned}
 # \]
-# Single threshold 0.3 — no intermediate SHIFT band for signal classification.
+# where \(\theta\) is adaptive (kernel adaptive_delta_threshold):
+# default \(\theta = 0.3\) (DELTA_STABLE). When \(\ge 5\) non-NOISE signals:
+# \[
+#   \theta = \mathrm{median}(\{\delta_i\}) + 0.1
+# \]
+# Spikes (\(>2\times\) median) excluded — they are true divergences, not norms.
+# This adapts to the context's typical semantic spread: tight sessions get
+# tighter thresholds; noisy sessions relax.
+#
 # React only to non-NOISE. e.g. \(60\times\) "unresolved reference: Foo" same file
 # → one NOISE cluster → do not delete Foo.
 #

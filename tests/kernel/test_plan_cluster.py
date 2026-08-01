@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from opencode_prompts_kernel import (  # noqa: E402
     PlanModification,
+    adaptive_tau,
     lsystem_rewrite,
     select_fractal_model,
     select_medoids_tasks,
@@ -128,3 +129,46 @@ class TestLSystemRewrite:
         """Characters not in rules pass through unchanged."""
         result = lsystem_rewrite("X", depth=2)
         assert result == ["X", "X", "X"]
+
+
+class TestAdaptiveTau:
+    """Percentile-based candidate filter threshold for GATE 2."""
+
+    def test_empty_fallback(self):
+        assert adaptive_tau([], fallback=0.5) == 0.5
+
+    def test_small_n_fallback(self):
+        """N < min_n (20) → fixed fallback."""
+        dists = [0.1, 0.2, 0.9]
+        assert adaptive_tau(dists, fallback=0.5, min_n=20) == 0.5
+
+    def test_percentile_logic(self):
+        """70th percentile on values in [0,1] range."""
+        # 100 values: 70 below 0.42, 30 above
+        dists = [0.01 * i for i in range(100)]  # 0.00 .. 0.99
+        tau = adaptive_tau(dists, percentile=0.70, min_n=20)
+        # 70th item in sorted 100 items: index 70 → value 0.70
+        assert abs(tau - 0.70) < 0.01
+
+    def test_clamped_low(self):
+        """Never below 0.1."""
+        dists = [0.001] * 50 + [0.002] * 50
+        tau = adaptive_tau(dists, percentile=0.70, min_n=20)
+        assert tau == 0.1  # would be 0.001 or 0.002, clamped to 0.1
+
+    def test_clamped_high(self):
+        """Never above 0.9."""
+        dists = [0.99] * 50 + [0.999] * 50
+        tau = adaptive_tau(dists, percentile=0.70, min_n=20)
+        assert tau == 0.9  # would be ~0.99, clamped to 0.9
+
+    def test_large_diverse_set(self):
+        """Realistic: diverse distances, 70th percentile."""
+        import random
+        random.seed(42)
+        dists = [random.uniform(0.05, 1.5) for _ in range(500)]
+        tau = adaptive_tau(dists, percentile=0.70, min_n=20)
+        # Should be somewhere in the upper third, but clamped between 0.1-0.9
+        assert 0.1 <= tau <= 0.9
+        # Actual 70th percentile of this seed is ~1.07, clamped to 0.9
+        assert tau == 0.9

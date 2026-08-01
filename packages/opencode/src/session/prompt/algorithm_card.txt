@@ -9,11 +9,13 @@
 ```python
 # Bound symbols (read kernel if unsure — do not invent alternate pipelines)
 from opencode_prompts_kernel import (  # normative names; runtime is this process + tools
-    select_fractal_model,   # Sierpinski | Quad/Oct-tree | L-System
+    select_fractal_model,    # Sierpinski | Quad/Oct-tree | L-System
     k_medoids_modifications,
-    select_medoids_tasks,   # clause-level cut; k = ceil(N/2)
-    lsystem_rewrite,        # F→F+F-F lattice grammar
-    PLANNING,               # policy.planning SPEC — fractal_only
+    select_medoids_tasks,    # clause-level cut; k = ceil(N/2)
+    lsystem_rewrite,         # F→F+F-F lattice grammar
+    adaptive_tau,            # percentile-based τ for candidate filter
+    adaptive_delta_threshold, # median-based δ for signal classification
+    PLANNING,                # policy.planning SPEC — fractal_only
 )
 
 def run_task_geometry(goal: str, signals: list) -> list[str]:
@@ -34,8 +36,10 @@ def run_task_geometry(goal: str, signals: list) -> list[str]:
     # >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else L-System F→F+F-F
     candidates = fractal_over_generate(model, seeds, depth=2)  # L2–L4 lattice, not monolith
 
-    # 4. L1 filter (Manhattan) — lattice-aware; cosine would walk through holes
-    candidates = l1_filter(candidates, goal_sv=goal, tau=0.5)
+    # 4. L1 filter — adaptive τ (percentile-based when N ≥ 20, else fixed 0.5)
+    distances = [manhattan_distance(c, goal) for c in candidates]
+    tau = adaptive_tau(distances, percentile=0.70)  # keeps closest 70%
+    candidates = [c for c, d in zip(candidates, distances) if d <= tau]
 
     # 5. select_medoids — seeds as cluster centers; middle-ring only; foam dies
     #    k = ceil(N/2); Manhattan (L1); k_medoids_modifications for file-level plans

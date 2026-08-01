@@ -251,6 +251,42 @@ def select_medoids_tasks(
     return tasks
 
 
+def adaptive_tau(
+    distances: list[float],
+    percentile: float = 0.70,
+    fallback: float = 0.5,
+    min_n: int = 20,
+) -> float:
+    """Percentile-based candidate filter threshold for GATE 2.
+
+    When candidate count is low (< min_n), the fixed fallback τ = 0.5 is
+    reliable. At 500+ candidates, the distance distribution can compress
+    or stretch depending on embedding density. A fixed threshold would
+    either over-filter (losing valid lattice nodes) or under-filter
+    (letting distant noise through).
+
+    Strategy: set τ to the `percentile`-th value of observed distances.
+    This keeps the closest P% of candidates regardless of distribution
+    shape.
+
+    Example:
+      N=50,  distances spread 0.05–1.2, percentile=0.70
+      → τ ≈ 0.84  (70% of candidates are closer than 0.84)
+      N=500, distances spread 0.01–0.3 (dense embeddings)
+      → τ ≈ 0.21  (automatically tightens for dense space)
+    """
+    if not distances:
+        return fallback
+    n = len(distances)
+    if n < min_n:
+        return fallback
+    sorted_d = sorted(distances)
+    idx = int(n * percentile)
+    # Clamp: never below 0.1 (avoid degenerate empty filter)
+    #        never above 0.9 (ensure at least some filtering)
+    return max(0.1, min(0.9, sorted_d[min(idx, n - 1)]))
+
+
 # =========================================================================
 # L-System fractal grammar engine (F→F+F-F default)
 # =========================================================================

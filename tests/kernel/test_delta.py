@@ -16,13 +16,11 @@ from opencode_prompts_kernel import (  # noqa: E402
     DELTA_STABLE,
     DeltaClass,
     classify_delta,
-    delta_cos,
     delta_l1,
-    delta_star,
 )
 
-class TestDeltaFunctions:
-    """§III Delta measurement — L1, cosine, star, classification."""
+class TestDeltaL1:
+    """§III Manhattan (L1) distance on keyword-weight vectors."""
 
     def test_delta_l1_range(self):
         d = delta_l1({"a": 0.6, "b": 0.4}, {"a": 0.3, "c": 0.7})
@@ -36,33 +34,22 @@ class TestDeltaFunctions:
         d = delta_l1({"a": 1.0}, {"b": 1.0})
         assert d == 2.0
 
-    def test_delta_cos_identical(self):
-        d = delta_cos([0.5, 0.5], [0.5, 0.5])
-        assert abs(d) < 0.001
-
-    def test_delta_cos_orthogonal(self):
-        d = delta_cos([1.0, 0.0], [0.0, 1.0])
+    def test_delta_l1_partial_overlap(self):
+        d = delta_l1({"a": 0.7, "b": 0.3}, {"a": 0.5, "c": 0.5})
+        # |0.7-0.5| + |0.3-0.0| + |0.0-0.5| = 0.2 + 0.3 + 0.5 = 1.0
         assert abs(d - 1.0) < 0.001
 
-    def test_delta_cos_opposite(self):
-        d = delta_cos([1.0, 0.0], [-1.0, 0.0])
-        assert abs(d - 2.0) < 0.001
 
-    def test_delta_cos_dim_mismatch(self):
-        with pytest.raises(ValueError, match="Dim mismatch"):
-            delta_cos([1.0], [0.5, 0.5])
-
-    def test_delta_cos_zero_vector(self):
-        d = delta_cos([0.0, 0.0], [1.0, 0.0])
-        assert d == 1.0
-
-    def test_delta_star_composite(self):
-        d = delta_star(0.5, 0.3, 0.2, alpha=0.4, beta=0.4, gamma=0.2)
-        assert abs(d - (0.4*0.5 + 0.4*0.3 + 0.2*0.2)) < 0.01
+class TestDeltaConstants:
+    """Thresholds: 0.3 stable, 0.5 shift."""
 
     def test_delta_constants(self):
         assert DELTA_STABLE == 0.3
         assert DELTA_SHIFT == 0.5
+
+
+class TestClassifyDelta:
+    """Classification boundaries with unified Manhattan thresholds."""
 
     def test_classify_stable(self):
         assert classify_delta(0.1) == DeltaClass.STABLE
@@ -78,4 +65,3 @@ class TestDeltaFunctions:
         assert classify_delta(DELTA_STABLE + 0.001) == DeltaClass.SHIFT
         assert classify_delta(DELTA_SHIFT - 0.001) == DeltaClass.SHIFT
         assert classify_delta(DELTA_SHIFT + 0.001) == DeltaClass.DIVERGENCE
-

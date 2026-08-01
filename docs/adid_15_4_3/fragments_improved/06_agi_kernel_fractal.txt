@@ -21,7 +21,7 @@ Trivial Exact one-liners may skip the card.
 3. **MODEL** — peaks / ΔV → Sierpinski (≥3) | Quad-Oct (2/4/8) | L-System F→F+F−F
 4. **OVER-GENERATE** — same recursive motif every level (depth ≥2 lattice, not monolith essay)
 5. **COSINE FILTER** — keep candidates aligned with Goal SV
-6. **k-MEDOIDS** — k=⌈N/2⌉, cosine; seeds ground centers → **CENTRAL_TASKS = medoids only**
+6. **k-MEDOIDS** — k=⌈N/2⌉, Manhattan (L1); seeds ground centers → **CENTRAL_TASKS = medoids only**
 7. **todowrite** — one `in_progress`; PRE_FLIGHT smoke + prior art
 8. **EXECUTE / VERIFY** — post-impl oracles Exact
 9. **RESIDUAL** — re-cluster only residual work vs original Goal SV

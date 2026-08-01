@@ -145,7 +145,7 @@ Tag claims with evidence labels. Reference outranks inference.""",
 PLANNING = _spec(
     intent="""ADID fractal task geometry only — no linear Mode-1 shortcut.
 For complex work (3+ steps): ground → fractal over-generate (Sierpinski / Quad-Oct /
-L-System) → cosine filter → k-medoids with goal seeds as centers → CENTRAL_TASKS =
+L-System) → Manhattan (L1) filter → k-medoids with goal seeds as centers → CENTRAL_TASKS =
 medoids only → todowrite → execute one in_progress → verify. Soft linear "just list
 steps" is forbidden: transformers fill length bias with mush unless the lattice
 prior forces structure. The 6-step ADID Workflow: GOAL_SVM_PREP → SVM_INGESTION →
@@ -177,7 +177,7 @@ against original Goal SV — never re-fractal the whole universe.""",
     },
 
     invariants=[
-        "Complex work uses fractal over-generate → cosine filter → k-medoids; CENTRAL_TASKS = medoids only",
+        "Complex work uses fractal over-generate → Manhattan (L1) filter → k-medoids; CENTRAL_TASKS = medoids only",
         "Fractal models: >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else → L-System F→F+F-F",
         "6-step loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL",
         "PRE_FLIGHT requires Smoke Tests: baseline + expected-now + post-impl oracles "

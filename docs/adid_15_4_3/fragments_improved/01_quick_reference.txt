@@ -32,7 +32,7 @@
 
 **Task geometry (kernel PLANNING — fractal_only):**
 
-- ✓ Multi-step (3+) work: ground → fractal lattice → cosine → k-medoids → CENTRAL_TASKS = medoids → todowrite
+- ✓ Multi-step (3+) work: ground → fractal lattice → Manhattan (L1) → k-medoids → CENTRAL_TASKS = medoids → todowrite
 - ✓ Residual work: re-cluster vs original Goal SV (not a new mission)
 - ✗ Linear Mode-1 step lists that skip lattice + medoid cut
 - Trivial exception: 1-line / rename / typo with codegraph Exact — skip full card

@@ -39,7 +39,7 @@
 				**Task Generation Pipeline:**
 
 				1. **Embed:** Convert each candidate task to a 512-dimensional vector (using actual embedding model)
-				2. **k-Medoids:** Cluster with k = ⌈N/2⌉ using cosine distance
+				2. **k-Medoids:** Cluster with k = ⌈N/2⌉ using Manhattan (L1) distance
 				3. **Select:** Medoid indices become CENTRAL_TASKS
 
 				**Epistemic Integration:**

@@ -10,7 +10,7 @@ Spine: ALGORITHM_CARD in system identity (shared). Bound code:
 
 ```python
 # Complex tasks (3+ steps) — finite medoids only, not infinity:
-#   ground → seeds → fractal over-generate → cosine filter → select_medoids
+#   ground → seeds → fractal over-generate → Manhattan (L1) filter → select_medoids
 #   → todowrite → execute (one in_progress) → verify → emit_state
 # NO Mode 1 / linear shortcut. CENTRAL_TASKS = medoids, not foam.
 # PRE_FLIGHT: REUSE.BEFORE + SMOKE.BEFORE (baseline Exact before first edit)

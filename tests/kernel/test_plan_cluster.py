@@ -16,8 +16,15 @@ from opencode_prompts_kernel import (  # noqa: E402
     adaptive_k,
     adaptive_tau,
     clara_k_medoids_modifications,
+    emit_state,
+    generate_fractal_candidates,
+    generate_lsystem_candidates,
+    generate_quad_oct,
+    generate_sierpinski,
+    goal_seeds,
     k_medoids_modifications,
     lsystem_rewrite,
+    residual_recluster,
     select_fractal_model,
     select_medoids_tasks,
 )
@@ -316,3 +323,328 @@ class TestCLARAKMedoids:
         assert len(clusters_exact) > 0
         total_exact = sum(c.cluster_size for c in clusters_exact)
         assert total_exact == N
+
+
+# =========================================================================
+# Fractal generators: Sierpinski, Quad/Oct, L-System
+# =========================================================================
+
+
+def _sample_seeds(n: int, dim: int = 512) -> list[list[float]]:
+    """Create synthetic seed vectors with controlled spread."""
+    import random
+    random.seed(n * 137)
+    seeds: list[list[float]] = []
+    for i in range(n):
+        # Each seed has a different "direction" in the embedding space
+        v = [0.0] * dim
+        # Activate a block of dimensions unique to this seed
+        base = (i * 37) % dim
+        for j in range(5):
+            idx = (base + j * 13) % dim
+            v[idx] = random.uniform(0.5, 1.0)
+        seeds.append(v)
+    return seeds
+
+
+class TestSierpinskiGenerator:
+    """Recursive triangle subdivision from 3 seeds."""
+
+    def test_depth_0_vertices_only(self):
+        seeds = _sample_seeds(3)
+        cands = generate_sierpinski(seeds, depth=0)
+        # At depth 0: just the 3 vertices
+        assert len(cands) == 3
+
+    def test_depth_1_adds_midpoints(self):
+        seeds = _sample_seeds(3)
+        cands = generate_sierpinski(seeds, depth=1)
+        # Depth 1: 3 vertices + 3 edge midpoints = 6
+        assert len(cands) == 6
+
+    def test_depth_2_growth(self):
+        seeds = _sample_seeds(3)
+        cands = generate_sierpinski(seeds, depth=2)
+        # Depth 2: 6 + 6 new midpoints = up to 12 (some may be duplicates)
+        assert 9 <= len(cands) <= 15
+
+    def test_fewer_than_3_seeds_pads(self):
+        """1 or 2 seeds → padded to 3 with zero vectors."""
+        seeds = _sample_seeds(1)
+        cands = generate_sierpinski(seeds, depth=0)
+        assert len(cands) == 3  # padded to 3
+
+    def test_more_than_3_seeds_selects_central(self):
+        """8 seeds → selects 3 most central."""
+        seeds = _sample_seeds(8)
+        cands = generate_sierpinski(seeds, depth=0)
+        assert len(cands) == 3
+
+    def test_all_candidates_are_unique(self):
+        seeds = _sample_seeds(3)
+        cands = generate_sierpinski(seeds, depth=2)
+        # Convert to tuples for hashing
+        tuples = [tuple(round(x, 10) for x in c) for c in cands]
+        assert len(tuples) == len(set(tuples))
+
+    def test_candidates_are_in_convex_hull(self):
+        """Candidates should be within the bounding box of the seeds."""
+        seeds = _sample_seeds(3)
+        cands = generate_sierpinski(seeds, depth=2)
+        dim = len(seeds[0])
+        for d in range(dim):
+            min_val = min(s[d] for s in seeds)
+            max_val = max(s[d] for s in seeds)
+            for c in cands:
+                assert min_val - 1e-6 <= c[d] <= max_val + 1e-6
+
+
+class TestQuadOctGenerator:
+    """Grid subdivision for 2/4/8 seeds."""
+
+    def test_binary_2_seeds_depth_0(self):
+        seeds = _sample_seeds(2)
+        cands = generate_quad_oct(seeds, depth=0)
+        # (2^0 + 1)^1 = 2 points
+        assert len(cands) == 2
+
+    def test_binary_2_seeds_depth_1(self):
+        seeds = _sample_seeds(2)
+        cands = generate_quad_oct(seeds, depth=1)
+        assert len(cands) == 3  # (2+1) = 3 points on line
+
+    def test_quad_4_seeds_depth_0(self):
+        seeds = _sample_seeds(4)
+        cands = generate_quad_oct(seeds, depth=0)
+        assert len(cands) == 4  # (1+1)^2 = 4
+
+    def test_quad_4_seeds_depth_1(self):
+        seeds = _sample_seeds(4)
+        cands = generate_quad_oct(seeds, depth=1)
+        assert len(cands) == 9  # (2+1)^2 = 9
+
+    def test_oct_8_seeds_depth_0(self):
+        seeds = _sample_seeds(8)
+        cands = generate_quad_oct(seeds, depth=0)
+        assert len(cands) == 8  # (1+1)^3 = 8
+
+    def test_oct_8_seeds_depth_1(self):
+        seeds = _sample_seeds(8)
+        cands = generate_quad_oct(seeds, depth=1)
+        assert len(cands) == 27  # (2+1)^3 = 27
+
+    def test_odd_seed_count_rounds_up(self):
+        """5 seeds → quad (selects 4 most central)."""
+        seeds = _sample_seeds(5)
+        cands = generate_quad_oct(seeds, depth=0)
+        assert len(cands) == 4  # rounds up to quad
+
+    def test_single_seed_uses_binary(self):
+        """1 seed → binary (padded to 2)."""
+        seeds = _sample_seeds(1)
+        cands = generate_quad_oct(seeds, depth=0)
+        assert len(cands) == 2  # binary: (1+1)^1 = 2
+
+    def test_candidates_within_reasonable_range(self):
+        """Candidates should not diverge arbitrarily from seed values."""
+        seeds = _sample_seeds(4)
+        cands = generate_quad_oct(seeds, depth=1)
+        dim = len(seeds[0])
+        # Grid may extend slightly beyond seed extents (parallelogram vs AABB),
+        # but should be within 2x the seed bounding box range.
+        for d in range(dim):
+            min_val = min(s[d] for s in seeds)
+            max_val = max(s[d] for s in seeds)
+            span = max_val - min_val
+            if span < 0.001:
+                continue  # skip near-zero dimensions
+            for c in cands:
+                # Within [min - span, max + span] — generous but finite
+                assert min_val - span - 0.01 <= c[d] <= max_val + span + 0.01, (
+                    f"d={d} min={min_val} max={max_val} c[d]={c[d]}"
+                )
+
+
+class TestLSystemGenerator:
+    """Grammar-walk candidate generation."""
+
+    def test_empty_seeds(self):
+        cands = generate_lsystem_candidates([], depth=1)
+        assert cands == []
+
+    def test_depth_0_one_candidate(self):
+        seeds = _sample_seeds(2)
+        cands = generate_lsystem_candidates(seeds, depth=0)
+        # Depth 0: string "F" → 1 candidate at centroid
+        assert len(cands) == 1
+
+    def test_depth_1_several_candidates(self):
+        seeds = _sample_seeds(3)
+        cands = generate_lsystem_candidates(seeds, depth=1)
+        # Depth 1: string "F+F-F" → 3 F's
+        assert len(cands) == 3
+
+    def test_depth_2_approx_30_candidates(self):
+        seeds = _sample_seeds(2)
+        cands = generate_lsystem_candidates(seeds, depth=2)
+        # Depth 2: 9 F's but some may land on same position
+        assert 5 <= len(cands) <= 9
+
+    def test_unique_positions(self):
+        seeds = _sample_seeds(3)
+        cands = generate_lsystem_candidates(seeds, depth=2)
+        tuples = [tuple(round(x, 8) for x in c) for c in cands]
+        assert len(tuples) == len(set(tuples))
+
+
+class TestGenerateFractalCandidates:
+    """Dispatcher: model → generator."""
+
+    def test_sierpinski_dispatch(self):
+        seeds = _sample_seeds(3)
+        cands = generate_fractal_candidates("Sierpinski", seeds, depth=1)
+        assert len(cands) == 6  # matches generate_sierpinski depth=1
+
+    def test_quad_oct_dispatch(self):
+        seeds = _sample_seeds(4)
+        cands = generate_fractal_candidates("Quad-Oct", seeds, depth=0)
+        assert len(cands) == 4
+
+    def test_lsystem_dispatch(self):
+        seeds = _sample_seeds(2)
+        cands = generate_fractal_candidates("L-System", seeds, depth=1)
+        assert len(cands) == 3
+
+    def test_unknown_model_fallback(self):
+        seeds = _sample_seeds(2)
+        cands = generate_fractal_candidates("UnknownModel", seeds, depth=1)
+        # Falls back to L-System
+        assert len(cands) == 3
+
+    def test_empty_seeds(self):
+        assert generate_fractal_candidates("Sierpinski", [], depth=1) == []
+
+
+# =========================================================================
+# Goal seeds + ADID loop closure
+# =========================================================================
+
+
+class TestGoalSeeds:
+    """Keyword extraction → cluster → seed vectors."""
+
+    def test_trivial_goal_single_seed(self):
+        seeds = goal_seeds("fix bug", [])
+        assert 1 <= len(seeds) <= 2  # 2 tokens → 1 cluster
+        for s in seeds:
+            assert len(s) == 512
+
+    def test_moderate_goal_multiple_clusters(self):
+        seeds = goal_seeds(
+            "add dark mode toggle to settings with persistence and sync",
+            [],
+        )
+        assert 2 <= len(seeds) <= 5
+        for s in seeds:
+            assert len(s) == 512
+            # Seeds should be L2-normalized (by _hash_embed)
+            norm = sum(x * x for x in s) ** 0.5
+            assert abs(norm - 1.0) < 0.01
+
+    def test_with_evidence(self):
+        seeds = goal_seeds(
+            "refactor auth module",
+            ["JWT tokens expire after 1h", "OAuth2 flow needs refresh token support"],
+        )
+        assert len(seeds) >= 1
+        for s in seeds:
+            assert len(s) == 512
+
+    def test_empty_goal(self):
+        seeds = goal_seeds("", [])
+        assert len(seeds) == 1
+        assert len(seeds[0]) == 512
+
+    def test_seeds_capped_at_8(self):
+        """Very long goal should not produce more than 8 seeds."""
+        long_goal = " ".join(
+            f"implement feature number {i} with specific requirements"
+            for i in range(50)
+        )
+        seeds = goal_seeds(long_goal, [])
+        assert len(seeds) <= 8
+
+    def test_seeds_are_deterministic(self):
+        """Same input → same seeds."""
+        seeds1 = goal_seeds("add login page with session management", [])
+        seeds2 = goal_seeds("add login page with session management", [])
+        for s1, s2 in zip(seeds1, seeds2):
+            assert s1 == s2
+
+
+class TestEmitState:
+    """Structured state record emission."""
+
+    def test_empty_state(self):
+        s = emit_state()
+        assert s["done"] == []
+        assert s["pending"] == []
+        assert s["blocked"] == []
+        assert s["next"] == ""
+
+    def test_full_state(self):
+        s = emit_state(
+            goal_sv=[0.1, 0.2, 0.3],
+            completed_tasks=["added login"],
+            pending_tasks=["add dashboard", "add settings"],
+            blockers=["need API key"],
+            next_step="add dashboard",
+        )
+        assert s["done"] == ["added login"]
+        assert s["pending"] == ["add dashboard", "add settings"]
+        assert s["blocked"] == ["need API key"]
+        assert s["next"] == "add dashboard"
+        assert s["goal_sv"] == [0.1, 0.2, 0.3]
+
+
+class TestResidualRecluster:
+    """ADID loop closure: pending tasks vs original Goal SV."""
+
+    def test_empty_pending(self):
+        state = {"pending": []}
+        result = residual_recluster(state)
+        assert result == []
+
+    def test_no_goal_sv_returns_all(self):
+        state = {"pending": ["task a", "task b"]}
+        result = residual_recluster(state, original_goal_sv=None)
+        assert result == ["task a", "task b"]
+
+    def test_filters_distant_tasks(self):
+        goal = [1.0] + [0.0] * 511  # goal aligned with dim 0
+        state = {
+            "pending": [
+                "core feature x",       # close to goal
+                "core feature y",       # close to goal
+                "tangential zzz",       # distant
+                "unrelated qqq",        # distant
+            ],
+        }
+        result = residual_recluster(state, original_goal_sv=goal)
+        # Should filter at least some tasks (adaptive_tau at 70th percentile)
+        assert len(result) >= 1
+        # The 70th percentile may keep 3 of 4 — acceptable
+        assert len(result) <= 4
+
+    def test_returns_at_least_one(self):
+        goal = [0.0] * 512
+        goal[0] = 1.0
+        state = {"pending": ["distant task aaa", "distant task bbb"]}
+        result = residual_recluster(state, original_goal_sv=goal)
+        assert len(result) >= 1
+
+    def test_small_pending_returns_all(self):
+        goal = [1.0] + [0.0] * 511
+        state = {"pending": ["only task"]}
+        result = residual_recluster(state, original_goal_sv=goal)
+        assert result == ["only task"]

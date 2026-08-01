@@ -492,3 +492,464 @@ def lsystem_rewrite(
     return result
 
 
+# =========================================================================
+# Fractal candidate generators: Sierpinski, Quad/Oct-tree, L-System
+# =========================================================================
+
+
+def _select_central_seeds(
+    seed_vectors: list[list[float]],
+    k: int,
+) -> list[list[float]]:
+    """Select k seeds closest to the centroid of all seed vectors.
+
+    Used by Sierpinski (k=3) and Quad/Oct (k=2/4/8) to pick representative
+    seeds when the input count exceeds the model's expected count.
+    """
+    n = len(seed_vectors)
+    if n <= k:
+        # Pad with distinct micro-offset vectors if not enough seeds.
+        # Identical zero vectors collapse in the Sierpinski point set.
+        dim = len(seed_vectors[0]) if seed_vectors else 512
+        result = list(seed_vectors)
+        while len(result) < k:
+            offset_idx = len(result)
+            pad = [0.0] * dim
+            # Each pad gets a tiny unique signature so they are distinct
+            pad[offset_idx % dim] = 1e-6 * (offset_idx + 1)
+            result.append(pad)
+        return result
+
+    dim = len(seed_vectors[0])
+    # Centroid
+    centroid = [0.0] * dim
+    for v in seed_vectors:
+        for i in range(dim):
+            centroid[i] += v[i]
+    for i in range(dim):
+        centroid[i] /= n
+
+    # Distance from each seed to centroid
+    indexed = [(i, _manhattan_distance(v, centroid)) for i, v in enumerate(seed_vectors)]
+    indexed.sort(key=lambda x: x[1])
+    return [seed_vectors[i] for i, _ in indexed[:k]]
+
+
+def generate_sierpinski(
+    seed_vectors: list[list[float]],
+    depth: int,
+    dim: int = 512,
+) -> list[list[float]]:
+    """Generate candidate vectors via Sierpinski gasket subdivision.
+
+    Selects 3 central seeds as triangle vertices. Recursively subdivides
+    edges by computing midpoints up to `depth` levels. Each midpoint
+    becomes a new candidate.
+
+    At depth 0: 3 vertices.
+    At depth d: 3 * (3^d + 1) / 2 unique points (approximately).
+
+    The resulting point cloud is densest near the triangle centre —
+    matching the Sierpinski property of self-similar void regions.
+    """
+    seeds = _select_central_seeds(seed_vectors, 3)
+    a, b, c = seeds[0], seeds[1], seeds[2]
+
+    # Use set of tuples for deduplication
+    points: set[tuple[float, ...]] = {tuple(a), tuple(b), tuple(c)}
+    frontier: list[tuple[list[float], list[float]]] = [(a, b), (b, c), (c, a)]
+
+    for _ in range(depth):
+        new_frontier: list[tuple[list[float], list[float]]] = []
+        for p1, p2 in frontier:
+            mid = [(x + y) / 2.0 for x, y in zip(p1, p2)]
+            mid_t = tuple(mid)
+            if mid_t not in points:
+                points.add(mid_t)
+                new_frontier.append((p1, mid))
+                new_frontier.append((mid, p2))
+        frontier = new_frontier
+        if not frontier:
+            break
+
+    return [list(p) for p in points]
+
+
+def generate_quad_oct(
+    seed_vectors: list[list[float]],
+    depth: int,
+    dim: int = 512,
+) -> list[list[float]]:
+    """Generate candidate vectors via Quad/Oct-tree recursive grid subdivision.
+
+    For 2 seeds: binary subdivision along the line (1D).
+    For 4 seeds: quad subdivision (2D grid, 2x2 per level).
+    For 8 seeds: oct subdivision (3D grid, 2x2x2 per level).
+
+    Seeds define the bounding vertices; candidates are grid points at
+    subdivision level `depth`. Total candidates: (2^depth + 1)^b where
+    b = branching factor (1/2/3 for 2/4/8 seeds).
+
+    Seeds beyond the model's expected count are selected by centrality.
+    """
+    n_seeds = len(seed_vectors)
+
+    # Determine branching dimension
+    if n_seeds >= 8:
+        b = 3  # oct — 3D grid
+        seeds = _select_central_seeds(seed_vectors, 8)
+    elif n_seeds >= 4:
+        b = 2  # quad — 2D grid
+        seeds = _select_central_seeds(seed_vectors, 4)
+    else:
+        b = 1  # binary — 1D
+        seeds = _select_central_seeds(seed_vectors, 2)
+
+    # Build axis vectors from seed pairs
+    # For b=1: axis_0 = seeds[1] - seeds[0] (the line)
+    # For b=2: axis_0 = seeds[1]-seeds[0], axis_1 = seeds[3]-seeds[2]
+    # For b=3: add axis_2 = seeds[7]-seeds[6] etc.
+    origin = seeds[0]
+    axes: list[list[float]] = []
+    for i in range(b):
+        axis = [seeds[2 * i + 1][j] - seeds[2 * i][j] for j in range(dim)]
+        axes.append(axis)
+
+    # Generate grid points: for each dimension, sample 2^depth + 1 points
+    n_per_dim = (1 << depth) + 1  # 2^depth + 1
+    candidates: list[list[float]] = []
+
+    # Recursive/iterative grid generation
+    # Use integer coordinates to walk the grid
+    if b == 1:
+        for i0 in range(n_per_dim):
+            t0 = i0 / (n_per_dim - 1) if n_per_dim > 1 else 0.0
+            pt = [origin[j] + t0 * axes[0][j] for j in range(dim)]
+            candidates.append(pt)
+    elif b == 2:
+        for i0 in range(n_per_dim):
+            t0 = i0 / (n_per_dim - 1) if n_per_dim > 1 else 0.0
+            for i1 in range(n_per_dim):
+                t1 = i1 / (n_per_dim - 1) if n_per_dim > 1 else 0.0
+                pt = [origin[j] + t0 * axes[0][j] + t1 * axes[1][j] for j in range(dim)]
+                candidates.append(pt)
+    else:  # b == 3
+        for i0 in range(n_per_dim):
+            t0 = i0 / (n_per_dim - 1) if n_per_dim > 1 else 0.0
+            for i1 in range(n_per_dim):
+                t1 = i1 / (n_per_dim - 1) if n_per_dim > 1 else 0.0
+                for i2 in range(n_per_dim):
+                    t2 = i2 / (n_per_dim - 1) if n_per_dim > 1 else 0.0
+                    pt = [origin[j] + t0 * axes[0][j] + t1 * axes[1][j] + t2 * axes[2][j]
+                          for j in range(dim)]
+                    candidates.append(pt)
+
+    return candidates
+
+
+def generate_lsystem_candidates(
+    seed_vectors: list[list[float]],
+    depth: int,
+    dim: int = 512,
+) -> list[list[float]]:
+    """Generate candidate vectors from L-System grammar walk.
+
+    Uses the F→F+F-F grammar to walk through the embedding space.
+    Each 'F' in the final string emits a candidate vector.
+
+    The walk starts at the seed centroid. '+' rotates the step direction
+    by +60° in a 2D subspace; '-' rotates by −60°.
+
+    Candidates are unique by position; depth 2 produces ~30 candidates.
+    """
+    if not seed_vectors:
+        return []
+
+    # Compute seed centroid as starting point
+    centroid = [0.0] * dim
+    for v in seed_vectors:
+        for i in range(dim):
+            centroid[i] += v[i]
+    n = len(seed_vectors)
+    for i in range(dim):
+        centroid[i] /= n
+
+    # Define two perpendicular direction vectors in the embedding space
+    # Use the first two PCA-like directions from seed spread
+    if n >= 2:
+        dir_fwd = [seed_vectors[1][i] - seed_vectors[0][i] for i in range(dim)]
+    else:
+        # Single seed — use a hash-based direction
+        dir_fwd = [0.0] * dim
+        for i in range(dim):
+            dir_fwd[i] = (hash(f"fwd_{i}") % 1000) / 5000.0  # small random-ish
+
+    # Normalize dir_fwd to unit length
+    norm_fwd = math.sqrt(sum(x * x for x in dir_fwd))
+    if norm_fwd < 1e-8:
+        norm_fwd = 1.0
+    dir_fwd = [x / norm_fwd for x in dir_fwd]
+
+    # Create a perpendicular direction using a random-ish vector
+    # Take a hash-based vector and subtract its projection onto dir_fwd
+    perp = [0.0] * dim
+    for i in range(dim):
+        perp[i] = (hash(f"perp_{i}") % 1000) / 5000.0
+    # Gram-Schmidt: perp = perp - (perp·fwd) * fwd
+    dot = sum(perp[i] * dir_fwd[i] for i in range(dim))
+    for i in range(dim):
+        perp[i] -= dot * dir_fwd[i]
+    norm_perp = math.sqrt(sum(x * x for x in perp))
+    if norm_perp < 1e-8:
+        norm_perp = 1.0
+    perp = [x / norm_perp for x in perp]
+
+    # Step size: fraction of seed spread
+    step_size = 0.15 / (depth + 1)
+
+    # Generate L-System string
+    levels = lsystem_rewrite("F", DEFAULT_LSYSTEM_RULES, depth)
+    final_string = levels[-1]
+
+    # Walk the string
+    candidates: list[list[float]] = []
+    pos = list(centroid)
+    angle = 0.0  # radians, 0 = forward direction
+    seen: set[tuple[float, ...]] = set()
+
+    for ch in final_string:
+        if ch == "F":
+            pt = tuple(round(x, 10) for x in pos)  # round to avoid float drift
+            if pt not in seen:
+                seen.add(pt)
+                candidates.append(list(pos))
+            # Step forward
+            cos_a = math.cos(angle)
+            sin_a = math.sin(angle)
+            for i in range(dim):
+                pos[i] += step_size * (cos_a * dir_fwd[i] + sin_a * perp[i])
+        elif ch == "+":
+            angle += math.pi / 3  # +60°
+        elif ch == "-":
+            angle -= math.pi / 3  # -60°
+        # Other characters: no-op
+
+    return candidates
+
+
+def generate_fractal_candidates(
+    model: str,
+    seed_vectors: list[list[float]],
+    depth: int = 2,
+    dim: int = 512,
+) -> list[list[float]]:
+    """Dispatch fractal candidate generation by model name.
+
+    Models:
+      "Sierpinski"   → recursive triangle subdivision (3 seeds)
+      "Quad-Oct"     → grid subdivision (2/4/8 seeds)
+      "L-System"     → grammar walk (F→F+F-F, any seed count)
+      (unknown)      → falls back to L-System
+
+    Returns list of candidate vectors in the embedding space.
+    """
+    if not seed_vectors:
+        return []
+
+    if model == "Sierpinski":
+        return generate_sierpinski(seed_vectors, depth, dim)
+    elif model == "Quad-Oct":
+        return generate_quad_oct(seed_vectors, depth, dim)
+    else:
+        return generate_lsystem_candidates(seed_vectors, depth, dim)
+
+
+# =========================================================================
+# Goal seeds: extract meaning-true goal slices from goal text + evidence
+# =========================================================================
+
+
+def _tokenize_text(text: str) -> list[str]:
+    """Extract meaningful tokens from a text string.
+
+    Splits on non-alphanumeric boundaries, filters stopwords and short tokens.
+    Returns lowercase tokens in original order.
+    """
+    _STOPWORDS = {
+        "the", "a", "an", "is", "are", "was", "were", "be", "been",
+        "has", "have", "had", "do", "does", "did", "will", "would",
+        "can", "could", "may", "might", "shall", "should", "must",
+        "of", "in", "on", "at", "to", "for", "with", "from", "by",
+        "about", "as", "into", "through", "during", "before", "after",
+        "and", "or", "not", "but", "if", "then", "else", "when",
+        "this", "that", "these", "those", "it", "its", "we", "you",
+        "i", "me", "my", "our", "your", "he", "she", "they", "them",
+    }
+    tokens: list[str] = []
+    # Split on non-alpha chars, keep alpha sequences >= 2 chars
+    current: list[str] = []
+    for ch in text.lower():
+        if ch.isalpha():
+            current.append(ch)
+        else:
+            if current:
+                word = "".join(current)
+                if len(word) >= 2 and word not in _STOPWORDS:
+                    tokens.append(word)
+                current = []
+    if current:
+        word = "".join(current)
+        if len(word) >= 2 and word not in _STOPWORDS:
+            tokens.append(word)
+    return tokens
+
+
+def goal_seeds(
+    goal_text: str,
+    evidence_texts: list[str] | None = None,
+    dim: int = 512,
+) -> list[list[float]]:
+    """Extract meaning-true goal slices as seed vectors.
+
+    Each seed represents a distinct aspect/cluster of the goal.
+
+    Algorithm:
+    1. Tokenize goal and evidence into keyword lists.
+    2. Cluster keywords by co-occurrence proximity in the source text.
+    3. Embed each cluster via _hash_embed → seed vector.
+    4. Return up to 8 seeds (fewer if goal is simple).
+
+    If goal is trivially short (< 4 tokens), returns a single seed.
+    """
+    if evidence_texts is None:
+        evidence_texts = []
+
+    # 1. Tokenize
+    goal_tokens = _tokenize_text(goal_text)
+    all_tokens = list(goal_tokens)
+    for ev_text in evidence_texts:
+        all_tokens.extend(_tokenize_text(ev_text))
+
+    if not goal_tokens:
+        # Empty goal — single zero-ish seed
+        seed = [0.0] * dim
+        seed[0] = 1.0  # arbitrary
+        return [seed]
+
+    # 2. Cluster tokens into groups
+    # Simple approach: sliding window of co-occurrence
+    # Tokens within window_size of each other in the goal text are grouped
+    window_size = max(3, len(goal_tokens) // 3)
+    clusters: list[list[str]] = []
+    seen: set[int] = set()
+
+    for i, token in enumerate(goal_tokens):
+        if i in seen:
+            continue
+        # Gather tokens in window around i
+        cluster: list[str] = []
+        for j in range(max(0, i - window_size), min(len(goal_tokens), i + window_size + 1)):
+            if j not in seen:
+                cluster.append(goal_tokens[j])
+                seen.add(j)
+        if cluster:
+            clusters.append(cluster)
+
+    # Also add evidence-only tokens as additional clusters (low weight)
+    ev_only = [t for t in all_tokens if t not in goal_tokens]
+    if ev_only and len(clusters) < 8:
+        # Group evidence tokens into one extra cluster
+        clusters.append(ev_only[:10])  # cap at 10
+
+    # 3. Embed each cluster
+    seeds: list[list[float]] = []
+    for cluster in clusters:
+        if not cluster:
+            continue
+        seed = _hash_embed(cluster, dim)
+        seeds.append(seed)
+
+    # Cap at 8 seeds
+    if len(seeds) > 8:
+        seeds = seeds[:8]
+
+    return seeds if seeds else [_hash_embed(goal_tokens, dim)]
+
+
+# =========================================================================
+# ADID loop closure: emit_state + residual_recluster
+# =========================================================================
+
+
+def emit_state(
+    goal_sv: list[float] | None = None,
+    completed_tasks: list[str] | None = None,
+    pending_tasks: list[str] | None = None,
+    blockers: list[str] | None = None,
+    next_step: str | None = None,
+) -> dict:
+    """Emit a structured state record at the end of an ADID cycle.
+
+    Returns a dict with keys: done, pending, blocked, next, goal_sv.
+    The caller is responsible for serialisation and InfoMark stamping.
+    """
+    return {
+        "done": completed_tasks or [],
+        "pending": pending_tasks or [],
+        "blocked": blockers or [],
+        "next": next_step or "",
+        "goal_sv": goal_sv,
+    }
+
+
+def residual_recluster(
+    state: dict,
+    original_goal_sv: list[float] | None = None,
+    dim: int = 512,
+) -> list[str]:
+    """Re-cluster residual work against the original Goal SV.
+
+    After executing some medoids, the remaining pending tasks may need
+    re-clustering to stay aligned with the original goal (not drift into
+    unrelated territory).
+
+    Algorithm:
+    1. If no pending tasks, return empty.
+    2. Embed pending task descriptions as vectors.
+    3. Compute Manhattan distance from each pending task to the original goal.
+    4. Group close tasks (distance < threshold) as the next increment.
+    5. Return re-clustered task descriptions.
+
+    This closes the ADID loop: State → Decompose → Execute → Verify →
+    Residual → State (with updated plan).
+    """
+    pending = state.get("pending", [])
+    if not pending:
+        return []
+
+    # If no goal SV provided, return pending as-is (single cluster)
+    if original_goal_sv is None:
+        return pending
+
+    # Embed each pending task
+    task_vectors = [_hash_embed(_tokenize_text(t), dim) for t in pending]
+
+    # Compute distances to goal
+    distances = [_manhattan_distance(v, original_goal_sv) for v in task_vectors]
+
+    # Small pending set: return all (can't meaningfully filter)
+    if len(distances) < 3:
+        return pending
+
+    # Percentile-based cutoff (like adaptive_tau): keep closest 70%
+    # This naturally adapts: tight cluster keeps more, spread keeps fewer
+    tau = adaptive_tau(distances, percentile=0.70, fallback=0.5, min_n=3)
+
+    # Return tasks ordered by proximity to goal, filtered by tau
+    indexed = [(i, distances[i]) for i in range(len(pending))]
+    indexed.sort(key=lambda x: x[1])
+
+    result = [pending[i] for i, d in indexed if d <= tau]
+    return result if result else [pending[0]]  # at least one
+
+

@@ -30,9 +30,15 @@
 #      universalsearch web+code before coding.
 #
 # GATE 2 --- DECOMPOSE  [DECOMPOSE -> ALGORITHM_CARD]
-# Goal embedding \(\mathbf{g}\) (Goal SV). Over-generate candidate set \(C\) on a fractal
-# lattice (Sierpinski / Quad-Oct / L-System). Both \(\mathbf{c}\) and \(\mathbf{g}\) are
-# keyword-weight vectors in the same SV space (sum of weights ~= 1).
+# Step 2a: extract meaning-true goal slices via kernel goal_seeds(goal, evidence)
+#   — keyword extraction -> co-occurrence clustering -> seed vectors.
+#   Seeds act as initial centres for fractal generation.
+# Step 2b: fractal over-generate candidate set \(C\) on the chosen lattice
+#   (Sierpinski / Quad-Oct / L-System), dispatched via
+#   generate_fractal_candidates(model, seeds, depth).
+# Both \(\mathbf{c}\) and \(\mathbf{g}\) are keyword-weight vectors in the
+# same SV space (sum of weights ~= 1).
+# Seed count determines fractal model via select_fractal_model(peaks, delta_v).
 # Filter with Manhattan (L1) --- NOT cosine: L1 respects lattice topology (holes are real,
 # you cannot walk through a hole in a Sierpinski gasket):
 # \[
@@ -81,8 +87,8 @@
 #
 # ```mermaid
 # flowchart TD
-#   Goal[Goal + evidence] --> Seeds[goal seeds]
-#   Seeds --> Lat["fractal over-generate C (depth = adaptive_depth)"]
+#   Goal[Goal + evidence] --> Seeds["goal_seeds() — cluster keywords"]
+#   Seeds --> Lat["generate_fractal_candidates(model, seeds, depth)"]
 #   Lat --> L1["C' = L1 filter (d1 <= tau_adaptive)"]
 #   L1 --> K["k = adaptive_k (CV-based)"]
 #   K --> Med["k-medoids Manhattan (-> CLARA when N>=100)"]
@@ -241,6 +247,11 @@
 
 # GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
 # End every substantial response with clean_next_state (+ sv_output when non-trivial).
+# emit_state(goal_sv, completed, pending, blockers, next_step) -> structured state dict.
+# After verification, residual_recluster(state, original_goal_sv) re-clusters pending
+#   tasks against the original Goal SV (not the whole universe) — ADID loop closure.
+#   Uses adaptive_tau at 70th percentile to keep only tasks aligned with the goal.
+#   This closes the ADID cycle: State -> Decompose -> Execute -> Verify -> Residual -> State.
 # Done items require Exact (Gate 8 or equivalent direct check). Else Pending/Blocked.
 # Real Blocked only after search (codegraph / messagesearch / web as fits).
 # Completed plans -> plans_completed/.

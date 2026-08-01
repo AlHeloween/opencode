@@ -77,6 +77,34 @@
 # ```
 # If work needs \(\ge 3\) steps -> ALGORITHM_CARD medoids + todowrite before bulk edit.
 
+# --- Metric self-adaptation (autonomous) ---
+# System detects metric gaps and auto-generates corrective functions:
+#
+# Triggers:
+#   - silhouette < 0.3 in residual_recluster -> weak clusters;
+#     auto-switches distance metric (weighted Manhattan, cosine+L1).
+#   - internal_consistency < 0.5 in goal_seeds -> overlapping seeds;
+#     tightens co-occurrence window or adds TF-IDF weighting.
+#   - adaptive_tau keeps < 2 candidates -> too aggressive;
+#     relaxes to 85th percentile and re-filters.
+#
+# Each kernel function exposes .quality() -> float [0,1].
+# Below 0.5, the corrective variant fires. No degraded outputs
+# ever pass to the next pipeline stage.
+# This is NOT a same-parameter retry --- it changes the underlying
+# metric (distance, window, percentile) based on failure mode.
+#
+# ```mermaid
+# flowchart TD
+#   F[output] --> Q{.quality() >= .5?}
+#   Q -->|yes| Pass[next stage]
+#   Q -->|no| Diag[diagnose]
+#   Diag --> Gen[generate variant]
+#   Gen --> Eval[re-evaluate]
+#   Eval -->|ok| Pass
+#   Eval -->|fail| Esc[mark Unknown]
+# ```
+
 # --- Bug fix chain (Gate 8) --- no skip ---
 # Ordered stages (each gates the next):
 # \[

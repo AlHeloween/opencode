@@ -24,6 +24,7 @@ RUNTIME_TERMS = MappingProxyType({
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
     "verification": "An oracle decides correctness; do not claim fixed without direct evidence. Smoke oracles are part of verification — post-impl pass criteria from the plan Smoke Tests section. ACCEPT only after oracle PASS.",
     "hygiene": "Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.",
+    "metric_adaptation": "System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). No manual intervention required.",
 })
 
 RUNTIME_RULES = MappingProxyType({
@@ -145,6 +146,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "plan",
         "DECOMPOSE",
         "GROUND",
+        "metric_adaptation",
         "FRACTAL.CANDIDATES",
         "GOAL.SEEDS",
         "GOAL.PEAKS",

@@ -65,7 +65,7 @@ POCKET_PROTOCOL_FILES = {
 
 # Soft budget for pocket protocol files (bytes). reasoning includes full gates + InfoMark.
 POCKET_PROTOCOL_MAX_BYTES = {
-    "reasoning.txt": 28_000,
+    "reasoning.txt": 30_000,
     "algorithm_card.txt": 12_000,
     "build.txt": 12_000,
 }

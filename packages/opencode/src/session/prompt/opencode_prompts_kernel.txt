@@ -18,6 +18,7 @@ TERMS = MappingProxyType({
     'hygiene': 'Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.',
     'infomark': 'Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Salience≠Evidence; parametric conf never Exact. Grounding set G=stamped Exact|Inferred only; premises_for_plan must ⊆ G or MODIFY blocked. Self-[Exact] rejected without system stamp (oracle_stamp/session-read/direct evidence). Summaries Inferred; unmarked=Unknown. Scientific promotion: Guess→Hypothetical→oracle→Exact.',
     'memory': 'Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.',
+    'metric_adaptation': 'System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). No manual intervention required.',
     'mutation': 'Modify only within authorized scope; preserve unrelated work and report remaining failure.',
     'oracle': 'Declare pass/fail criteria before EXECUTION; run after materialize; PASS→Exact for that claim only; FAIL demotes; no self-certify. Executor≠Oracle≠Analyst (logical roles).',
     'plan': 'ADID fractal planning only (no Mode-1 linear shortcut): ground → lattice over-generate → Manhattan (L1) filter → k-medoids → CENTRAL_TASKS=medoids → todowrite. PRE_FLIGHT: Prior art (universalsearch web/Sourcegraph) + Smoke Tests before EXECUTION. Residual vs Goal SV. State, evidence, smoke baseline, implement, verify, clean next state.',
@@ -60,7 +61,7 @@ WORKFLOWS = MappingProxyType({
     'hygiene': ('DOCUMENT.SURFACE', 'WORKSPACE.LANES', 'PROGRESS.LOG', 'CLEAN_STATE', 'EVIDENCE.ORDER'),
     'modify': ('plan', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'scope', 'cache', 'mutation', 'WRITE.SCOPE', 'CACHE.STABILITY', 'verification', 'oracle', 'VERIFY.OUTCOME', 'INFOMARK.SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK'),
     'observe': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'WHERE_WHICH', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK'),
-    'plan': ('plan', 'DECOMPOSE', 'GROUND', 'FRACTAL.CANDIDATES', 'GOAL.SEEDS', 'GOAL.PEAKS', 'SV.DELTA', 'RESIDUAL.LOOP', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY.OUTCOME', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'plan': ('plan', 'DECOMPOSE', 'GROUND', 'metric_adaptation', 'FRACTAL.CANDIDATES', 'GOAL.SEEDS', 'GOAL.PEAKS', 'SV.DELTA', 'RESIDUAL.LOOP', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY.OUTCOME', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
     'research': ('evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'REUSE.BEFORE', 'WHERE_WHICH', 'NO_HARDCODE', 'verification', 'oracle', 'INFOMARK.SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK', 'MEMORY.LINKS'),
 })
 

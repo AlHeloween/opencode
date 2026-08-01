@@ -38,7 +38,7 @@ def run_task_geometry(goal: str, signals: list) -> list[str]:
     candidates = cosine_filter(candidates, goal_sv=goal)
 
     # 5. select_medoids — seeds as cluster centers; middle-ring only; foam dies
-    #    k = ceil(N/2); cosine; k_medoids_modifications for file-level plans
+    #    k = ceil(N/2); Manhattan (L1); k_medoids_modifications for file-level plans
     central_tasks = select_medoids_tasks(candidates, seeds=seeds)  # FINITE set
 
     # 6. todowrite — one in_progress; CENTRAL_TASKS = medoids

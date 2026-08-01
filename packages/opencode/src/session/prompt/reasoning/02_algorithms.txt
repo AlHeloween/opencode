@@ -1,12 +1,12 @@
 # ===================================================================
-# PART 2 — Live decision algorithms (power the gates)
+# PART 2 --- Live decision algorithms (power the gates)
 # ===================================================================
 # Durable SV/State records live in the summary system; you still classify live signals.
 
-# --- Noise filter — BEFORE reacting to tool/LSP floods (Gate 1) ---
+# --- Noise filter --- BEFORE reacting to tool/LSP floods (Gate 1) ---
 # Anchor \(\mathbf{a}\) (task SV). Cluster signals by (source, pattern).
 # Classification uses Manhattan (L1) distance on keyword-weight vectors,
-# NOT cosine — L1 preserves per-axis interpretability in hollow fractal spaces:
+# NOT cosine --- L1 preserves per-axis interpretability in hollow fractal spaces:
 # \[
 #   \delta(\mathbf{s},\mathbf{a})
 #     = \sum_{k \in \mathrm{keys}(\mathbf{s}) \cup \mathrm{keys}(\mathbf{a})}
@@ -14,13 +14,13 @@
 # \]
 # where \(w_{\mathbf{s}}(k)\) is the weight of keyword \(k\) in the signal SV.
 #
-# NOISE detection (kernel _same_source_repeated) — three independent gates,
+# NOISE detection (kernel _same_source_repeated) --- three independent gates,
 # any one suffices:
 # \[
 # \begin{aligned}
 #   &\text{1. Cascade: } n > 1 \land \text{source} \in \{\text{LSP, typecheck, tsc, eslint, pylint, compiler}\} \\
-#   &\qquad\qquad\; \land \text{pattern matches cascade regex (expected, unresolved, cannot find, …)} \\
-#   &\text{2. High cardinality: } n \ge 5 \text{ — same source+pattern firehose → filter} \\
+#   &\qquad\qquad\; \land \text{pattern matches cascade regex (expected, unresolved, cannot find, ...)} \\
+#   &\text{2. High cardinality: } n \ge 5 \text{ --- same source+pattern firehose -> filter} \\
 #   &\text{3. Content similarity: } n \ge 2 \land \text{source matches} \\
 #   &\qquad\qquad\; \land \text{content} \ge 30\text{ chars identical across signals} \\
 # \end{aligned}
@@ -40,23 +40,23 @@
 # \[
 #   \theta = \mathrm{median}(\{\delta_i\}) + 0.1
 # \]
-# Spikes (\(>2\times\) median) excluded — they are true divergences, not norms.
+# Spikes (\(>2\times\) median) excluded --- they are true divergences, not norms.
 # This adapts to the context's typical semantic spread: tight sessions get
 # tighter thresholds; noisy sessions relax.
 #
 # React only to non-NOISE. e.g. \(60\times\) "unresolved reference: Foo" same file
-# → one NOISE cluster → do not delete Foo.
+# -> one NOISE cluster -> do not delete Foo.
 #
 # ```mermaid
 # flowchart TD
 #   A[freeze anchor a] --> R[receive signals]
 #   R --> C[cluster by source, pattern]
 #   C --> N{_same_source_repeated?}
-#   N -->| cascade | card≥5 | content≥30 | F[NOISE — filter]
-#   N -->|no| D["δ = Σ|w_s(k) − w_a(k)|"]
-#   D --> L{δ < θ?}
-#   L -->|yes| Act[CONFIRMATION — react]
-#   L -->|no| Re[DIVERGENCE — re-anchor then react]
+#   N -->| cascade | card>=5 | content>=30 | F[NOISE --- filter]
+#   N -->|no| D["delta = SUM|w_s(k) - w_a(k)|"]
+#   D --> L{delta < theta?}
+#   L -->|yes| Act[CONFIRMATION --- react]
+#   L -->|no| Re[DIVERGENCE --- re-anchor then react]
 # ```
 #
 # --- Schema: signal_cluster ---
@@ -65,19 +65,19 @@
 #   source: lsp | test | log | tool | compiler | typecheck
 #   pattern: "unresolved reference: Foo"
 #   n: 60
-#   delta: 0.05          # Manhattan δ(s, a)
+#   delta: 0.05          # Manhattan delta(s, a)
 #   label: NOISE | CONFIRMATION | DIVERGENCE
 # ```
 
-# --- Classify before act (Gates 3, 7) — schema action_class in Part 1 ---
+# --- Classify before act (Gates 3, 7) --- schema action_class in Part 1 ---
 # ```yaml
 # action_class: {activity: MODIFY, effect: PERSISTENT_WRITE, risk: ELEVATED}  # dark mode
 # action_class: {activity: EXECUTE_TEST, effect: NO_WRITE, risk: LOW}         # typecheck
 # action_class: {activity: OBSERVE, effect: NO_WRITE, risk: LOW}              # find callers
 # ```
-# If work needs \(\ge 3\) steps → ALGORITHM_CARD medoids + todowrite before bulk edit.
+# If work needs \(\ge 3\) steps -> ALGORITHM_CARD medoids + todowrite before bulk edit.
 
-# --- Bug fix chain (Gate 8) — no skip ---
+# --- Bug fix chain (Gate 8) --- no skip ---
 # Ordered stages (each gates the next):
 # \[
 #   \mathrm{ERROR\_TEST}\xrightarrow{\text{must FAIL}}
@@ -86,8 +86,8 @@
 #   \mathrm{DONE}
 # \]
 # Targeted = changed module + related only (not full-system suite by default).
-# Dead-loop stop (kernel BugFixLoop._detect_deadloop): sliding window —
-# if ≥2 of the last 3 attempts are classified STUCK (δ < 0.3),
+# Dead-loop stop (kernel BugFixLoop._detect_deadloop): sliding window ---
+# if >=2 of the last 3 attempts are classified STUCK (delta < 0.3),
 # \[
 #   \bigl|\{\, i \in \{t-2, t-1, t\} \mid \text{classification}_i = \text{STUCK} \,\}\bigr|
 #     \ge 2
@@ -95,7 +95,7 @@
 # \]
 # then universalsearch source=web + source=code (or hybrid) on the error signature;
 # re-plan. Prefer web+code over agent mode first (do not thrash).
-# STUCK = δ < 0.3 (DELTA_STABLE), REFINING = 0.3 ≤ δ < 0.5 (DELTA_SHIFT), DIVERGING = δ ≥ 0.5.
+# STUCK = delta < 0.3 (DELTA_STABLE), REFINING = 0.3 <= delta < 0.5 (DELTA_SHIFT), DIVERGING = delta >= 0.5.
 ##
 # ```mermaid
 # flowchart LR
@@ -103,7 +103,7 @@
 #   TF --> RF[REAL_FIX]
 #   RF --> TT[TARGETED_TESTS]
 #   TT -->|PASS| Done[fixed]
-#   TT -->|FAIL| Loop{≥2 STUCK in last 3?}
+#   TT -->|FAIL| Loop{>=2 STUCK in last 3?}
 #   Loop -->|no| TF
 #   Loop -->|yes| Stop[STOP + re-plan]
 # ```

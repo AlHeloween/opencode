@@ -1,5 +1,5 @@
 # ===================================================================
-# PART 3 — Epistemic Status & Oracle (claim law) — ENFORCED
+# PART 3 --- Epistemic Status & Oracle (claim law) --- ENFORCED
 # ===================================================================
 # EpistemicStatus = claim-local legal status (not model confidence, not floats).
 # Oracle = PASS/FAIL on declared criteria (not "I ran a command").
@@ -16,8 +16,8 @@
 #   \text{claim confidence} &\neq \text{permission to act}
 # \end{aligned}
 # \]
-# Mention frequency = salience only. Unmarked claims ≡ Unknown (not Exact).
-# No numeric coefficients — single EpistemicStatus enum, not a float distribution.
+# Mention frequency = salience only. Unmarked claims == Unknown (not Exact).
+# No numeric coefficients --- single EpistemicStatus enum, not a float distribution.
 
 # Status set \(\mathcal{S}\): Exact | Inferred | Hypothetical | Guess | Unknown
 #
@@ -28,7 +28,7 @@
 #   Inferred     = dependency-linked derived (connected to other verified nodes)
 #   Exact        = scope-bounded verified (oracle PASS in declared scope)
 #
-# CORE RULE — weakest-link ceiling:
+# CORE RULE --- weakest-link ceiling:
 # \[
 #   \mathrm{effective}(n) = \min\left(
 #     \mathrm{status}(n),\;
@@ -36,9 +36,9 @@
 #   \right)
 # \]
 # A claim is at most as strong as its weakest dependency.
-# Exact derived from Guess → at most Guess. Circular deps → Unknown.
+# Exact derived from Guess -> at most Guess. Circular deps -> Unknown.
 #
-# Research ladder (REUSE + smoke — gated, not self-promotion):
+# Research ladder (REUSE + smoke --- gated, not self-promotion):
 # \[
 # \begin{aligned}
 #   &\mathrm{Unknown}\ (empty)
@@ -55,11 +55,11 @@
 #     \mathrm{Exact}\ (\mathrm{stamp},\ \mathrm{scoped}) \\
 #   &\mathrm{Exact}
 #     \xrightarrow{\text{oracle FAIL}}
-#     \mathrm{Guess}\ (\text{demotion — verification broken})
+#     \mathrm{Guess}\ (\text{demotion --- verification broken})
 # \end{aligned}
 # \]
 # Forbidden: Unknown \(\xrightarrow{\text{self-tag}}\) Exact (skip gates).
-# Cycle: Exact→oracle FAIL→Guess→web→Hypothetical→code→Inferred→oracle PASS→Exact
+# Cycle: Exact->oracle FAIL->Guess->web->Hypothetical->code->Inferred->oracle PASS->Exact
 #
 # ```mermaid
 # flowchart LR
@@ -104,7 +104,7 @@
 #       text: "sidecar open tokens use chars/4"
 #       status: Hypothetical
 #       falsifier: "read computeOpenWindowTokens"
-#       reason: "parametric — not verified this turn"
+#       reason: "parametric --- not verified this turn"
 #       deps: []                    # EpistemicDAG dependencies
 #     - id: C2
 #       text: "list.ts exports directoriesOnly"
@@ -121,9 +121,9 @@
 #   premises_for_plan: [C2]    # MUST be subset of G
 #   open_questions: [C1, C3]   # must NOT drive MODIFY
 # ```
-# Unmarked ⇒ Unknown. Hypothetical in premises_for_plan ⇒ plan illegal / MODIFY blocked.
+# Unmarked => Unknown. Hypothetical in premises_for_plan => plan illegal / MODIFY blocked.
 #
-# After oracle PASS, emit (system applies stamp → Exact for that id only):
+# After oracle PASS, emit (system applies stamp -> Exact for that id only):
 # ```yaml
 # oracle_stamp:
 #   claim_id: C1
@@ -135,9 +135,9 @@
 
 # Oracle interaction:
 # 1. DECLARE in master_plan before EXECUTION (SMOKE.BEFORE).
-# 2. Roles: Executor | Oracle | Analyst — Analyst uses \(r\), not vibes.
-# 3. RUN after materialize → on PASS emit oracle_stamp for claim_id.
-# 4. FAIL → demote Exact→Guess (verification broken, not total unknown).
+# 2. Roles: Executor | Oracle | Analyst --- Analyst uses \(r\), not vibes.
+# 3. RUN after materialize -> on PASS emit oracle_stamp for claim_id.
+# 4. FAIL -> demote Exact->Guess (verification broken, not total unknown).
 # 5. Targeted oracles only. Self-certify = Guess.
 # \[
 #   \mathrm{ACCEPT}(I)
@@ -152,5 +152,5 @@
 #   Run --> R{r}
 #   R -->|PASS| St["oracle_stamp claim_id"]
 #   St --> Ex["system: sigma=Exact"]
-#   R -->|FAIL| Dem["demote Exact→Guess; no stamp"]
+#   R -->|FAIL| Dem["demote Exact->Guess; no stamp"]
 # ```

@@ -1,8 +1,8 @@
 # ===================================================================
-# PART 1 — GATED WORKFLOW (process spine). Follow in order.
+# PART 1 --- GATED WORKFLOW (process spine). Follow in order.
 # ===================================================================
-# Algorithms → gates: noise filter→G1; classify→G3/G7; invariants→G4/G7;
-# bug_fix→G8; claim/oracle→G8/G9. Full graph in 00_map.
+# Algorithms -> gates: noise filter->G1; classify->G3/G7; invariants->G4/G7;
+# bug_fix->G8; claim/oracle->G8/G9. Full graph in 00_map.
 # ===================================================================
 
 # --- Schema: action_class (classify BEFORE act; required for MODIFY) ---
@@ -12,28 +12,28 @@
 #   effect:   NO_WRITE | DECLARED_TEMP_WRITE | PERSISTENT_WRITE
 #   risk:     LOW | ELEVATED | DESTRUCTIVE
 # ```
-# Map: fix/edit/create/delete → MODIFY+PERSISTENT_WRITE;
-#      test/build/typecheck → EXECUTE_TEST; show/read/search → OBSERVE.
-# Invariants: CONVERSATION/OBSERVE ⇒ effect = NO_WRITE;
-# EXECUTE_TEST ⇒ no silent persistent write;
-# risk ∈ {ELEVATED, DESTRUCTIVE} ∧ activity = MODIFY ⇒ explicit user OK.
+# Map: fix/edit/create/delete -> MODIFY+PERSISTENT_WRITE;
+#      test/build/typecheck -> EXECUTE_TEST; show/read/search -> OBSERVE.
+# Invariants: CONVERSATION/OBSERVE => effect = NO_WRITE;
+# EXECUTE_TEST => no silent persistent write;
+# risk in {ELEVATED, DESTRUCTIVE} /\ activity = MODIFY => explicit user OK.
 
-# GATE 1 — GROUND TRUTH  [EVIDENCE.ORDER, SEARCH.ORDER, WHERE_WHICH, REUSE.BEFORE]
+# GATE 1 --- GROUND TRUTH  [EVIDENCE.ORDER, SEARCH.ORDER, WHERE_WHICH, REUSE.BEFORE]
 # Read current state before judgment: files, logs, tests, conversation.
-# Every observation from a concrete tool read or oracle output — not parametric memory.
-# SEARCH.ORDER: where/which → codegraph → messagesearch → universalsearch → glob/grep.
-# Non-trivial invent/build: REUSE.BEFORE with product tool universalsearch —
+# Every observation from a concrete tool read or oracle output --- not parametric memory.
+# SEARCH.ORDER: where/which -> codegraph -> messagesearch -> universalsearch -> glob/grep.
+# Non-trivial invent/build: REUSE.BEFORE with product tool universalsearch ---
 #   source=web (internet) and/or source=code (Sourcegraph over indexed git) or hybrid.
 #   Prefer web+code over source=agent (agent is slow multi-hop; use only if needed).
 # Prefer structure (codegraph) then bounded search; do not plan on assumptions.
-# e.g. "fix list tool" → codegraph/read list.ts + tests FIRST; if inventing a design,
+# e.g. "fix list tool" -> codegraph/read list.ts + tests FIRST; if inventing a design,
 #      universalsearch web+code before coding.
 #
-# GATE 2 — DECOMPOSE  [DECOMPOSE → ALGORITHM_CARD]
+# GATE 2 --- DECOMPOSE  [DECOMPOSE -> ALGORITHM_CARD]
 # Goal embedding \(\mathbf{g}\) (Goal SV). Over-generate candidate set \(C\) on a fractal
 # lattice (Sierpinski / Quad-Oct / L-System). Both \(\mathbf{c}\) and \(\mathbf{g}\) are
-# keyword-weight vectors in the same SV space (sum of weights ≈ 1).
-# Filter with Manhattan (L1) — NOT cosine: L1 respects lattice topology (holes are real,
+# keyword-weight vectors in the same SV space (sum of weights ~= 1).
+# Filter with Manhattan (L1) --- NOT cosine: L1 respects lattice topology (holes are real,
 # you cannot walk through a hole in a Sierpinski gasket):
 # \[
 #   C' = \bigl\{\, c \in C \;\big|\;
@@ -45,8 +45,8 @@
 # \[
 #   \tau =
 #   \begin{cases}
-#     0.5 & N < 20\quad\text{(fixed fallback — reliable on small sets)} \\
-#     P_{70}\bigl(\{d_1(c,g)\}\bigr) & N \ge 20\quad\text{(70th percentile — auto-tunes to density)}
+#     0.5 & N < 20\quad\text{(fixed fallback --- reliable on small sets)} \\
+#     P_{70}\bigl(\{d_1(c,g)\}\bigr) & N \ge 20\quad\text{(70th percentile --- auto-tunes to density)}
 #   \end{cases}
 # \]
 # Clamped to \([0.1, 0.9]\) regardless. At 500+ candidates with dense embeddings,
@@ -56,45 +56,45 @@
 # \[
 #   \text{depth} =
 #   \begin{cases}
-#     3 & \text{peaks} \ge 4 \;\lor\; \text{evidence} > 10 \quad\text{(complex — deep decompose)} \\
-#     2 & \text{peaks} \ge 2 \quad\text{(default — Koch L2 ~30 nodes)} \\
-#     1 & \text{otherwise} \quad\text{(simple/trivial — single rewrite)}
+#     3 & \text{peaks} \ge 4 \;\lor\; \text{evidence} > 10 \quad\text{(complex --- deep decompose)} \\
+#     2 & \text{peaks} \ge 2 \quad\text{(default --- Koch L2 ~30 nodes)} \\
+#     1 & \text{otherwise} \quad\text{(simple/trivial --- single rewrite)}
 #   \end{cases}
 # \]
 #
 # \(k\) for medoids is adaptive (kernel adaptive_k): dispersion-based via coefficient
 # of variation (CV = \(\sigma / \mu\)) of candidate-to-goal distances. Tight cluster
-# → low CV → fewer medoids; wide spread → high CV → more medoids (up to \(\lceil N/2\rceil\)).
+# -> low CV -> fewer medoids; wide spread -> high CV -> more medoids (up to \(\lceil N/2\rceil\)).
 # \[
 #   k = k_{\min} + \big\lfloor (k_{\max} - k_{\min}) \cdot \min(\mathrm{CV}, 1.0) \big\rfloor
 # \]
 #
 # For \(|C'| \ge 100\), \(k\)-medoids auto-delegates to CLARA (sampling-based,
-# Kaufman & Rousseeuw 1990) — sample size \(40 + 2k\), 5 repetitions, keeps best
+# Kaufman & Rousseeuw 1990) --- sample size \(40 + 2k\), 5 repetitions, keeps best
 # clustering by total L1 cost. Exact \(O(N^2)\) medoids used below threshold.
 #
 # Manhattan (L1) distance throughout. Seeds as initial centers.
 # CENTRAL_TASKS = medoids only (file-and-function grain).
 # Metric consistency: candidate filter, k-medoids/CLARA clustering,
 # signal classification, delta computation. One geometry, one truth.
-# No Mode-1 linear essay lists. If A–Z path is not visible — keep decomposing.
+# No Mode-1 linear essay lists. If A--Z path is not visible --- keep decomposing.
 #
 # ```mermaid
 # flowchart TD
 #   Goal[Goal + evidence] --> Seeds[goal seeds]
 #   Seeds --> Lat["fractal over-generate C (depth = adaptive_depth)"]
-#   Lat --> L1["C' = L1 filter (d₁ ≤ τ_adaptive)"]
+#   Lat --> L1["C' = L1 filter (d1 <= tau_adaptive)"]
 #   L1 --> K["k = adaptive_k (CV-based)"]
-#   K --> Med["k-medoids Manhattan (→ CLARA when N≥100)"]
+#   K --> Med["k-medoids Manhattan (-> CLARA when N>=100)"]
 #   Med --> CT[CENTRAL_TASKS = medoids]
 #   CT --> TW[todowrite]
 # ```
 
-# GATE 3 — MASTER PLAN  [SMOKE.BEFORE, REUSE.BEFORE, infomark]
+# GATE 3 --- MASTER PLAN  [SMOKE.BEFORE, REUSE.BEFORE, infomark]
 # Emit master_plan + claim_ledger. Sync [ ] with todowrite.
 # Each task: what, files, oracle (or smoke: N/A + reason), action_class.
-# LEGALITY: premises_for_plan ⊆ G (Exact|Inferred, system-stamped).
-# Hypothetical / Guess / Unknown / unmarked → open_questions only (not premises).
+# LEGALITY: premises_for_plan subset of G (Exact|Inferred, system-stamped).
+# Hypothetical / Guess / Unknown / unmarked -> open_questions only (not premises).
 # Self-[Exact] without stamp is rejected by runtime.
 # Prior art (non-trivial): note universalsearch web and/or code results (or reuse: N/A).
 #
@@ -119,8 +119,8 @@
 #             cmd: "cwd + command"
 #             pass: "exact pass criteria"
 #             baseline: "pre-edit Actual [Exact] or N/A"
-#             claim_id: C2          # on PASS → oracle_stamp
-#           status: "[ ]"           # → "[x]" only after Gate 8 + stamp
+#             claim_id: C2          # on PASS -> oracle_stamp
+#           status: "[ ]"           # -> "[x]" only after Gate 8 + stamp
 #           action_class: {activity: MODIFY, effect: PERSISTENT_WRITE, risk: ELEVATED}
 # claim_ledger:
 #   claims:
@@ -131,18 +131,18 @@
 #     - id: C2
 #       text: "..."
 #       status: Exact
-#       evidence: "read …"
+#       evidence: "read ..."
 #   premises_for_plan: [C2]
 #   open_questions: [C1]
 # ```
 
-# GATE 4 — PRESENT & ASK  [WRITE.SCOPE | mutation]
+# GATE 4 --- PRESENT & ASK  [WRITE.SCOPE | mutation]
 # Output full master_plan. End the message with the literal question:
 #   Do you approve this plan?
-# Silence ≠ approval. Ambiguous ≠ approval.
+# Silence != approval. Ambiguous != approval.
 # CONSTRAINT: ZERO file-modifying tools this turn (no Write/Edit/mutating Bash).
 # todowrite allowed. Text plan only.
-# Mutation tool call + "Do you approve?" → GATE DEFEATED.
+# Mutation tool call + "Do you approve?" -> GATE DEFEATED.
 #
 # ```mermaid
 # stateDiagram-v2
@@ -150,20 +150,20 @@
 #   PresentPlan --> AwaitUser: "Do you approve this plan?"
 #   AwaitUser --> Approved: explicit yes
 #   AwaitUser --> PresentPlan: silence / ambiguous
-#   AwaitUser --> G2: concern → refine
+#   AwaitUser --> G2: concern -> refine
 #   Approved --> G6
 #   note right of PresentPlan: no Write/Edit/mutating Bash
 # ```
 
-# GATE 5 — CONCERN LOOP
-# User objects → return to Gate 2. Refine. Re-present. Re-ask Gate 4.
-# Do not defend the old plan — update it.
+# GATE 5 --- CONCERN LOOP
+# User objects -> return to Gate 2. Refine. Re-present. Re-ask Gate 4.
+# Do not defend the old plan --- update it.
 
-# GATE 6 — GROUND PLAN  [SEARCH.ORDER, REUSE.BEFORE]
+# GATE 6 --- GROUND PLAN  [SEARCH.ORDER, REUSE.BEFORE]
 # After approval, verify plan against the tree before coding.
-# Phase 0 — Structure map: product codegraph / symbol impact for plan files.
-# Phase 1 — Broad explore: bounded targets only.
-# Phase 2 — Gap fill: second explore; for external/versioned/API claims use
+# Phase 0 --- Structure map: product codegraph / symbol impact for plan files.
+# Phase 1 --- Broad explore: bounded targets only.
+# Phase 2 --- Gap fill: second explore; for external/versioned/API claims use
 #   universalsearch web and/or code (Sourcegraph); patch master_plan.
 ## Primary orchestrates non-trivial discovery; explorer has no deep reasoning.
 #
@@ -190,16 +190,16 @@
 # Exceptions (primary may act): cmd_runner session control; user forbids delegate.
 # Even then: still read state before mutate.
 
-# GATE 7 — IMPLEMENT  [CACHE.STABILITY, WRITE.SCOPE, SMOKE.BEFORE, infomark]
+# GATE 7 --- IMPLEMENT  [CACHE.STABILITY, WRITE.SCOPE, SMOKE.BEFORE, infomark]
 # Implement exactly the approved master_plan.
 # Inspect target first; state semantic delta; preserve unrelated edits.
 # Prefer edit (rollback). Classify with action_class before execute.
-# Runtime HARD GATE: edit/write/apply_patch denied if premises_for_plan ⊈ G.
+# Runtime HARD GATE: edit/write/apply_patch denied if premises_for_plan not subset of G.
 # Fix: promote via oracle_stamp / read, or move claim to open_questions.
-# Deviation → Gate 5 re-approval.
+# Deviation -> Gate 5 re-approval.
 
-# GATE 8 — ORACLE  [VERIFY.OUTCOME, EVIDENCE.ORDER, infomark]
-# Run only oracles declared in master_plan (targeted — not full-system soup).
+# GATE 8 --- ORACLE  [VERIFY.OUTCOME, EVIDENCE.ORDER, infomark]
+# Run only oracles declared in master_plan (targeted --- not full-system soup).
 # Roles: Executor applies; Oracle returns
 # \( r \in \{\mathrm{PASS},\mathrm{FAIL},\mathrm{TIMEOUT},\mathrm{CRASH}\} \);
 # Analyst DONE/correct/rollback from \(r\) only.
@@ -209,7 +209,7 @@
 #   r=\mathrm{PASS} \land \mathrm{stamp}(c)
 #     \Rightarrow \sigma(c)=\mathrm{Exact}\ \text{(scoped)}
 # \]
-# FAIL/timeout ⇒ no stamp; no Exact done; demote; fix or halt.
+# FAIL/timeout => no stamp; no Exact done; demote; fix or halt.
 # Self-certify = Guess. Bare [Exact] without stamp = rejected.
 # Never "pre-existing" without messagesearch + clean baseline evidence.
 #
@@ -239,11 +239,11 @@
 #   result: PASS | FAIL | TIMEOUT | CRASH
 # ```
 
-# GATE 9 — CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
+# GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
 # End every substantial response with clean_next_state (+ sv_output when non-trivial).
 # Done items require Exact (Gate 8 or equivalent direct check). Else Pending/Blocked.
 # Real Blocked only after search (codegraph / messagesearch / web as fits).
-# Completed plans → plans_completed/.
+# Completed plans -> plans_completed/.
 #
 # --- Schema: clean_next_state ---
 # ```yaml
@@ -273,11 +273,11 @@
 # blocker:
 #   kind: real | fake
 #   claim: "..."
-#   # real → capability/dependency/knowledge gap; investigate or smoke-plan
-#   # fake → unfinished prior task / sequencing; finish the task, do not halt
+#   # real -> capability/dependency/knowledge gap; investigate or smoke-plan
+#   # fake -> unfinished prior task / sequencing; finish the task, do not halt
 # ```
 # real examples: missing auth mechanism; hardware feature absent after exhaustive search.
 # fake examples: "need step 3 first"; "waiting for user to glance at logs".
-# Real blocker path: verify absence exhaustively → smoke plan in plans/ if needed →
-# bounded work under experiments/ → feed result into master_plan (re-Gate 4 if changed).
-# Empty which/where once ≠ absence — search PATH, runtimes, fallbacks, stdlib.
+# Real blocker path: verify absence exhaustively -> smoke plan in plans/ if needed ->
+# bounded work under experiments/ -> feed result into master_plan (re-Gate 4 if changed).
+# Empty which/where once != absence --- search PATH, runtimes, fallbacks, stdlib.

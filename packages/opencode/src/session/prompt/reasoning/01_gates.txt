@@ -31,23 +31,29 @@
 #
 # GATE 2 — DECOMPOSE  [DECOMPOSE → ALGORITHM_CARD]
 # Goal embedding \(\mathbf{g}\) (Goal SV). Over-generate candidate set \(C\) on a fractal
-# lattice (Sierpinski / Quad-Oct / L-System). Keep
+# lattice (Sierpinski / Quad-Oct / L-System). Both \(\mathbf{c}\) and \(\mathbf{g}\) are
+# keyword-weight vectors in the same SV space (sum of weights ≈ 1).
+# Filter with Manhattan (L1) — NOT cosine: L1 respects lattice topology (holes are real,
+# you cannot walk through a hole in a Sierpinski gasket):
 # \[
 #   C' = \bigl\{\, c \in C \;\big|\;
-#     \cos(\mathbf{c},\mathbf{g})
-#       = \tfrac{\mathbf{c}\cdot\mathbf{g}}{\|\mathbf{c}\|\,\|\mathbf{g}\|}
-#       \ge \tau \,\bigr\}
+#     d_1(\mathbf{c},\mathbf{g})
+#       = \sum_{k} \bigl| w_c(k) - w_g(k) \bigr|
+#       \le \tau \,\bigr\},
+#   \qquad \tau = 0.5\ \text{(operational prior)}
 # \]
-# then \(k\)-medoids with \(k = \lceil |C'|/2 \rceil\), seeds as initial centers;
-# CENTRAL_TASKS = medoids only (file-and-function grain).
+# then \(k\)-medoids with \(k = \lceil |C'|/2 \rceil\), Manhattan (L1) distance,
+# seeds as initial centers; CENTRAL_TASKS = medoids only (file-and-function grain).
+# Metric consistency: Manhattan throughout — candidate filter, k-medoids clustering,
+# signal classification, delta computation. One geometry, one truth.
 # No Mode-1 linear essay lists. If A–Z path is not visible — keep decomposing.
 #
 # ```mermaid
 # flowchart TD
 #   Goal[Goal + evidence] --> Seeds[goal seeds]
 #   Seeds --> Lat[fractal over-generate C]
-#   Lat --> Cos["C' = cosine filter vs g"]
-#   Cos --> Med["k-medoids, k=ceil(|C'|/2)"]
+#   Lat --> L1["C' = L1 filter (d₁ ≤ 0.5)"]
+#   L1 --> Med["k-medoids Manhattan, k=ceil(|C'|/2)"]
 #   Med --> CT[CENTRAL_TASKS = medoids]
 #   CT --> TW[todowrite]
 # ```

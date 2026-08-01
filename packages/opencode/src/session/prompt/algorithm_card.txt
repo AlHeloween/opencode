@@ -34,8 +34,8 @@ def run_task_geometry(goal: str, signals: list) -> list[str]:
     # >=3 peaks → Sierpinski; 2/4/8 orthogonal → Quad/Oct-tree; else L-System F→F+F-F
     candidates = fractal_over_generate(model, seeds, depth=2)  # L2–L4 lattice, not monolith
 
-    # 4. cosine filter — keep candidates aligned with Goal SV / seed meaning
-    candidates = cosine_filter(candidates, goal_sv=goal)
+    # 4. L1 filter (Manhattan) — lattice-aware; cosine would walk through holes
+    candidates = l1_filter(candidates, goal_sv=goal, tau=0.5)
 
     # 5. select_medoids — seeds as cluster centers; middle-ring only; foam dies
     #    k = ceil(N/2); Manhattan (L1); k_medoids_modifications for file-level plans

@@ -309,8 +309,8 @@ except TypeError:
     }
     Write-Success "MappingProxyType immutability (TypeError on write)"
 
-    # 4. Targeted kernel tests (tests/kernel/*) + remaining tests/
-    $testOutput = python -m pytest $Root\tests\kernel $Root\tests\test_prompt_schema.py -q --tb=no 2>&1
+    # 4. Kernel tests (opencode_prompts_kernel/tests/)
+    $testOutput = python -m pytest $Root\opencode_prompts_kernel\tests -q --tb=no 2>&1
     $testExitCode = $LASTEXITCODE
     if ($testExitCode -ne 0) {
         Write-Error- "pytest kernel suite failed (exit code: $testExitCode)"

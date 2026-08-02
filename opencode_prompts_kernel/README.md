@@ -23,4 +23,4 @@ python -m opencode_prompts_kernel --render-runtime packages/opencode/src/session
 python -m opencode_prompts_kernel   # self-test
 ```
 
-Tests: `pytest tests/kernel/ -q` (targeted modules, not one monotest).
+Tests: `pytest opencode_prompts_kernel/tests/ -q`.

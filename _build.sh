@@ -210,9 +210,9 @@ except TypeError:
 " 2>&1 || { fail "Immutability check failed"; return 1; }
   ok "MappingProxyType immutability (TypeError on write)"
 
-  # 4. Targeted kernel tests
+  # 4. Kernel tests (opencode_prompts_kernel/tests/)
   local test_output
-  test_output=$(python3 -m pytest "$ROOT/tests/kernel" "$ROOT/tests/test_prompt_schema.py" -q --tb=no 2>&1) || {
+  test_output=$(python3 -m pytest "$ROOT/opencode_prompts_kernel/tests" -q --tb=no 2>&1) || {
     fail "pytest kernel suite failed"
     echo "  $test_output" >&2
     return 1

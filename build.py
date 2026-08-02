@@ -204,7 +204,7 @@ def step_kernel() -> None:
 
 
 def step_reasoning() -> None:
-    # Light integrity check (import + IR roundtrip). Full suite: pytest tests/kernel.
+    # Light integrity check (import + IR roundtrip). Full suite: pytest opencode_prompts_kernel/tests/.
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
     code = r"""
 import opencode_prompts_kernel as k

@@ -558,9 +558,9 @@ Product kernel + `reasoning/*` are **host-agnostic**: they must not prescribe or
 
 **Policy for agents working in this worktree only** (not product SPECS): do not redesign or deep-dive this repo’s `.opencode/skills` / `.opencode/rules` for ordinary product tasks unless the user **explicitly asks**. Using surfaces the runtime already injected for this session is fine.
 
-**Python kernel package:** Canonical source is the `opencode_prompts_kernel/` package (topic modules), not a monofile. Public import remains `from opencode_prompts_kernel import …`. CLI: `python -m opencode_prompts_kernel --render-runtime …`.
+**Python kernel package:** Canonical source is the `prompts_kernel/` package (TUI-agnostic, 32 topic modules, self-contained). Public import: `from prompts_kernel import …`. CLI: `python -m prompts_kernel --render-runtime …`. Precompiled module (`_kernel_precompiled.py`) is gitignored — generated at build time.
 
-**Python test suite sync:** Kernel tests live under `tests/kernel/` (targeted modules: `test_enums.py`, `test_runtime.py`, …). After SPECS/contract ID changes, update the matching file and run `python -m pytest tests/kernel/ -q`. The test `test_agent_prompt_files_reference_generated_contract_ids` in `test_runtime.py` validates agent prompt contract IDs.
+**Python test suite sync:** Kernel tests live under `prompts_kernel/tests/` (27 files, 481 tests). After SPECS/contract ID changes, update the matching file and run `python -m pytest prompts_kernel/tests/ -q`. The test `test_runtime_contracts_inventory_every_canonical_spec` in `test_runtime.py` validates agent prompt contract IDs.
 
 ## Dependency Catalog (MANDATORY)
 

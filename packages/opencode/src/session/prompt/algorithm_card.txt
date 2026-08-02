@@ -1,102 +1,72 @@
 # ALGORITHM_CARD — task geometry (routes, not essay)
-# Canonical code: opencode_prompts_kernel package
-#   PLANNING, DECOMPOSE, REUSE.BEFORE, SMOKE.BEFORE
-#   k_medoids_modifications (→ CLARA when N≥100), select_fractal_model
-#   generate_fractal_candidates (Sierpinski|Quad-Oct|L-System dispatch),
-#   goal_seeds (keyword→cluster→seed vectors), select_medoids_tasks,
-#   adaptive_k, adaptive_depth, lsystem_rewrite, residual_recluster,
-#   run_task_geometry (pipeline), clara_k_medoids_modifications
+# Canonical implementation: opencode_prompts_kernel.run_task_geometry
+# Kernel symbols: ground, goal_seeds, goal_peaks, sv_delta,
+#   select_fractal_model, generate_fractal_candidates,
+#   adaptive_tau, adaptive_k, adaptive_depth,
+#   k_medoids_modifications (→ CLARA when N≥100), select_medoids_tasks,
+#   lsystem_rewrite, residual_recluster,
+#   execute_medoid (agent-side contract), verify_oracles (agent-side contract),
+#   emit_state, manhattan_distance, PLANNING (fractal_only)
 # Cut evaluation area: over-generate lattice → keep medoids only. Never evaluate infinity.
 # NO Mode 1 / linear shortcut — soft step lists without lattice+k-medoids are forbidden.
 
 ```python
-# Bound symbols (read kernel if unsure — do not invent alternate pipelines)
-from opencode_prompts_kernel import (  # normative names; runtime is this process + tools
-    select_fractal_model,        # Sierpinski | Quad/Oct-tree | L-System
-    generate_fractal_candidates, # dispatch to Sierpinski/Quad-Oct/L-System
-    k_medoids_modifications,     # → CLARA auto when N ≥ 100
-    select_medoids_tasks,        # clause-level cut; foam→medoids only
-    ground,                      # evidence-gathering plan from goal keywords
-    goal_seeds,                  # keyword extraction → cluster → seed vectors
-    goal_peaks,                  # count distinct keyword clusters (→ select_fractal_model)
-    sv_delta,                    # L1 distance between two SV states (→ delta_v)
-    lsystem_rewrite,             # F→F+F-F lattice grammar
-    adaptive_tau,                # percentile-based τ for candidate filter
-    adaptive_delta_threshold,    # median-based δ for signal classification
-    adaptive_k,                  # CV-based k for medoids (dispersion→clusters)
-    adaptive_depth,              # depth by peaks + evidence count
-    emit_state,                  # structured state record (done/pending/blocked/next)
+# Bound symbols — every name resolves to a kernel function (read kernel if unsure)
+from opencode_prompts_kernel import (
+    run_task_geometry,           # FULL PIPELINE: ground→seeds→fractal→filter→state (one call)
+    execute_medoid,              # agent-side contract: execute one task (REUSE+SMOKE.BEFORE)
+    verify_oracles,              # agent-side contract: post-impl oracle PASS→done, FAIL→pending
+    emit_state,                  # structured state: {done, pending, blocked, next, goal_sv}
     residual_recluster,          # ADID loop closure: pending vs original Goal SV
-    manhattan_distance,          # L1 distance on keyword-weight vectors
+    select_medoids_tasks,        # clause-level cut: foam→medoid descriptions only
     PLANNING,                    # policy.planning SPEC — fractal_only
 )
 
-def run_task_geometry(goal: str, signals: list) -> list[str]:
-    """Finite work set for complex work (3+ steps).
+# === STEP 1–5: KERNEL PIPELINE (one call) ===
+# The kernel computes the fractal geometry — agent does NOT re-derive it.
+result = run_task_geometry(goal, evidence_texts=[...])
+# result = {
+#   seeds_n, peaks, model, depth,              # fractal configuration
+#   candidates_n, filtered_n, tau, k_recommended, # filter + cluster params
+#   distances_min, distances_median, distances_max, # L1 spread
+#   residual_n, evidence_plan_searches, status,     # diagnostics
+# }
 
-    Hard rule: CENTRAL_TASKS = medoids only. Candidate foam is not the work list.
-    No linear Mode-1 path — always lattice → filter → medoids.
-    """
+# === STEP 6: todowrite — CENTRAL_TASKS = medoids only ===
+# Agent synthesises task descriptions from pipeline result + codegraph context.
+# NEVER hand-write a linear step list. Feed the result into todowrite.
+central_tasks = select_medoids_tasks(modifications, seeds=seed_mods)
+# k_medoids_modifications auto-delegates to CLARA when N ≥ 100.
+todowrite(central_tasks)  # tool: todowrite | TodoWrite
 
-    # 1. ground — Exact before invent (SEARCH.ORDER / REUSE.BEFORE)
-    evidence = ground(goal)  # tools: codegraph, messagesearch, universalsearch, …
+# === STEP 7: execute — one medoid at a time ===
+# REUSE.BEFORE: search prior art before inventing.
+# SMOKE.BEFORE: baseline oracles BEFORE first edit (record [Exact]).
+completed, pending, blockers = [], [], []
+for task in central_tasks:  # one in_progress (PLANNING invariant)
+    status, output = execute_medoid(task)
+    # returns ('done'|'blocked'|'pending', detail)
+    if status == 'done':      completed.append(task)
+    elif status == 'blocked':  blockers.append({'task': task, 'reason': output})
+    else:                      pending.append(task)
 
-    # 2. seeds — formalised goal_seeds extracts meaning-true slices from goal + evidence
-    seeds = goal_seeds(goal, evidence)  # keyword extraction → cluster → seed vectors
+# === STEP 8: verify — post-impl smoke/oracle [Exact] ===
+# Re-run SMOKE.BEFORE oracles; compare against baseline.
+# Gate 8: only oracle PASS promotes to Done (never self-certify).
+verify_oracles(completed, pending, blockers)  # mutates in-place
+next_task = pending[0] if pending else None
 
-    # 3. fractal over-generate — model dispatch + adaptive depth (1–3 by peaks/evidence)
-    model = select_fractal_model(peaks=goal_peaks(goal, evidence), delta_v=sv_delta())
-    # >=3 peaks → Sierpinski (triangle subdivision); 2/4/8 → Quad/Oct (grid subdivision)
-    # else → L-System F→F+F-F (grammar walk, fallback)
-    depth = adaptive_depth(peaks=goal_peaks(goal, evidence), evidence_count=len(evidence))
-    candidates = generate_fractal_candidates(model, seeds, depth=depth)
-
-    # 4. L1 filter — adaptive τ (percentile-based when N ≥ 20, else fixed 0.5)
-    distances = [manhattan_distance(c, goal) for c in candidates]
-    tau = adaptive_tau(distances, percentile=0.70)  # keeps closest 70%
-    candidates = [c for c, d in zip(candidates, distances) if d <= tau]
-
-    # 5. select_medoids — adaptive k (CV-based dispersion → cluster count)
-    #    k_medoids_modifications auto-delegates to CLARA when N ≥ 100
-    #    Manhattan (L1); foam dies — only medoid descriptions survive
-    k = adaptive_k(distances, min_k=2)  # dispersion-based, clamped to ceil(N/2)
-    central_tasks = select_medoids_tasks(candidates, seeds=seeds)  # FINITE set
-
-    # 6. todowrite — one in_progress; CENTRAL_TASKS = medoids
-    todowrite(central_tasks)  # tool: todowrite | TodoWrite
-
-    # 7. execute — one medoid; REUSE.BEFORE + SMOKE.BEFORE (baseline Exact first)
-    completed = []  # tasks that passed oracle verification
-    pending = []    # tasks not yet executed or oracle-failed
-    blockers = []   # tasks blocked by external dependency
-    for task in central_tasks:  # one in_progress at a time (PLANNING invariant)
-        status, output = execute_medoid(task)  # returns ('done'|'blocked'|'pending', detail)
-        if status == 'done':
-            completed.append(task)
-        elif status == 'blocked':
-            blockers.append({'task': task, 'reason': output})
-        else:
-            pending.append(task)
-
-    # 8. verify — post-impl smoke / oracle [Exact]; updates completed/pending in-place
-    verify_oracles(completed, pending, blockers)  # re-classifies after oracle run
-    next_task = pending[0] if pending else None
-
-    # 9. emit_state + residual re-cluster — ADID loop closure
-    # completed/pending/blockers/next_task originate from:
-    #   - execute_medoid(task) returns (status, output) per medoid
-    #   - verify_oracles() classifies each medoid as done/pending/blocked
-    #   - next_task is the first non-executed medoid, or None
-    state = emit_state(
-        goal_sv=goal,
-        completed_tasks=completed,
-        pending_tasks=pending,
-        blockers=blockers,
-        next_step=next_task,
-    )
-    # Re-cluster residual pending work against original Goal SV only
-    residual_tasks = residual_recluster(state, original_goal_sv=goal)
-    return state, residual_tasks  # never re-fractal the whole universe; no Mode-1 fallthrough
+# === STEP 9: emit_state + residual — ADID loop closure ===
+state = emit_state(
+    goal_sv=goal_sv,
+    completed_tasks=completed,
+    pending_tasks=pending,
+    blockers=blockers,
+    next_step=next_task,
+)
+residual = residual_recluster(state, original_goal_sv=goal_sv)
+# residual are tasks still aligned with the original goal.
+# Never re-fractal the whole universe; no Mode-1 fallthrough.
 ```
 
 # Trivial exception (1-line / rename / typo with codegraph evidence): skip full card; still tag Exact.

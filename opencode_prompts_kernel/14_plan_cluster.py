@@ -1203,3 +1203,54 @@ def run_task_geometry(
     }
 
 
+# =========================================================================
+# Agent-side stubs — execute_medoid + verify_oracles
+# =========================================================================
+# These are documented contracts, not kernel implementations.
+# The agent drives execution (REUSE.BEFORE, SMOKE.BEFORE, tool calls);
+# the kernel provides the interface specification so every symbol in
+# algorithm_card resolves to a callable.
+
+
+def execute_medoid(task: str) -> tuple[str, str]:
+    """Execute one medoid task (agent-side, kernel contract only).
+
+    The agent MUST:
+    1. Run REUSE.BEFORE (search prior art before inventing)
+    2. Run SMOKE.BEFORE (baseline oracles before first edit)
+    3. Execute the task using product tools (edit, write, bash, …)
+    4. Return status + detail
+
+    Returns:
+        ('done', output)    — task completed, oracle-verified
+        ('blocked', reason) — blocked by external dependency
+        ('pending', detail) — not yet executed or oracle-failed
+
+    This stub returns ('pending', 'agent must drive execution') — the
+    kernel does not execute tasks; the agent interprets the contract.
+    """
+    return ("pending", "agent must drive execution — kernel provides contract only")
+
+
+def verify_oracles(
+    completed: list[str],
+    pending: list[str],
+    blockers: list[dict],
+) -> None:
+    """Verify executed tasks via post-impl oracles (agent-side, kernel contract).
+
+    The agent MUST:
+    1. Re-run SMOKE.BEFORE oracles for each completed task
+    2. Compare post-impl output against baseline [Exact]
+    3. Re-classify: PASS→stays in completed, FAIL→moves to pending
+    4. Update blockers with newly discovered dependencies
+
+    Mutates `completed`, `pending`, `blockers` in-place.
+    Gate 8: only oracle PASS (not self-certify) promotes to Done.
+
+    This stub is a no-op — the agent interprets the contract.
+    """
+    # No-op stub: kernel defines the contract; agent executes it.
+    return
+
+

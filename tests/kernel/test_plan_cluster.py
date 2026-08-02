@@ -17,6 +17,7 @@ from opencode_prompts_kernel import (  # noqa: E402
     adaptive_tau,
     clara_k_medoids_modifications,
     emit_state,
+    execute_medoid,
     generate_fractal_candidates,
     generate_lsystem_candidates,
     generate_quad_oct,
@@ -31,6 +32,7 @@ from opencode_prompts_kernel import (  # noqa: E402
     select_fractal_model,
     select_medoids_tasks,
     sv_delta,
+    verify_oracles,
 )
 
 
@@ -922,3 +924,58 @@ class TestRunTaskGeometry:
         result = run_task_geometry(goal)
         # residual_n <= filtered_n (residual always subset of pending)
         assert result["residual_n"] <= result["filtered_n"]
+
+
+# =========================================================================
+# Agent-side contract stubs
+# =========================================================================
+
+
+class TestExecuteMedoid:
+    """execute_medoid is an agent-side contract stub."""
+
+    def test_returns_tuple(self):
+        status, output = execute_medoid("fix login bug")
+        assert isinstance(status, str)
+        assert isinstance(output, str)
+
+    def test_default_status_is_pending(self):
+        """Stub always returns 'pending' — agent must drive execution."""
+        status, output = execute_medoid("any task")
+        assert status == "pending"
+        assert "agent must drive execution" in output.lower()
+
+    def test_accepts_any_task_description(self):
+        """Accepts any string as task description."""
+        tasks = ["", "x" * 1000, "implement\nmultiline\ntask"]
+        for task in tasks:
+            status, output = execute_medoid(task)
+            assert status == "pending"
+
+
+class TestVerifyOracles:
+    """verify_oracles is an agent-side contract stub."""
+
+    def test_no_op_on_empty_lists(self):
+        completed, pending, blockers = [], [], []
+        verify_oracles(completed, pending, blockers)
+        assert completed == []
+        assert pending == []
+        assert blockers == []
+
+    def test_does_not_mutate_on_no_op(self):
+        completed = ["task_a", "task_b"]
+        pending = ["task_c"]
+        blockers = [{"task": "task_d", "reason": "external dep"}]
+        verify_oracles(completed, pending, blockers)
+        # Stub is no-op — lists unchanged
+        assert completed == ["task_a", "task_b"]
+        assert pending == ["task_c"]
+        assert len(blockers) == 1
+
+    def test_accepts_empty_blockers(self):
+        completed, pending = ["done_task"], ["retry_task"]
+        verify_oracles(completed, pending, [])
+        # No-op stub preserves state
+        assert completed == ["done_task"]
+        assert pending == ["retry_task"]

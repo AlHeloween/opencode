@@ -156,8 +156,8 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "INFOMARK_SEP",
         "MEMORY_RANK",
     ),
-    "hygiene": ("NAMING", "DOCUMENT_SURFACE", "WORKSPACE_LANES", "PROGRESS_LOG", "CLEAN_STATE", "EVIDENCE_ORDER"),
-    "plan": (
+    "hygiene_ops": ("hygiene", "NAMING", "DOCUMENT_SURFACE", "WORKSPACE_LANES", "PROGRESS_LOG", "CLEAN_STATE", "EVIDENCE_ORDER"),
+    "planning": (
         "plan",
         "DECOMPOSE",
         "SMOKE_BEFORE",
@@ -205,15 +205,15 @@ RUNTIME_WORKFLOWS = MappingProxyType({
 })
 
 RUNTIME_PACKS = MappingProxyType({
-    "agent.build": ("universal", "modify", "diagnose", "adid", "hygiene"),
+    "agent.build": ("universal", "modify", "diagnose", "adid", "hygiene_ops"),
     "agent.coder": ("agent.build",),
 
     "agent.explore": ("universal", "observe"),
     "agent.general": ("universal", "observe", "research"),
     "agent.media": ("universal", "scope", "mutation", "verification"),
-    "agent.orchestrator": ("universal", "plan", "observe", "verification"),
+    "agent.orchestrator": ("universal", "planning", "observe", "verification"),
     "agent.researcher": ("agent.general",),
-    "agent.summary": ("universal", "plan", "evidence", "verification", "memory", "infomark"),
+    "agent.summary": ("universal", "planning", "evidence", "verification", "memory", "infomark"),
     "agent.title": ("universal", "scope"),
     "domain.biology": ("domain.natural_science",),
     "domain.chemistry": ("domain.natural_science",),
@@ -247,14 +247,14 @@ SPEC_CONTRACT_IDS = MappingProxyType({
 })
 
 RUNTIME_CONTRACTS = MappingProxyType({
-    "agent.coder": ("plan", "scope", "mutation", "verification", "WRITE_SCOPE", "VERIFY_OUTCOME"),
+    "agent.coder": ("planning", "scope", "mutation", "verification", "WRITE_SCOPE", "VERIFY_OUTCOME"),
 
     "agent.explore": ("scope", "evidence", "SEARCH_ORDER"),
-    "agent.general": ("plan", "scope", "evidence", "verification"),
+    "agent.general": ("planning", "scope", "evidence", "verification"),
     "agent.media": ("scope", "mutation", "verification"),
-    "agent.orchestrator": ("plan", "scope", "evidence", "verification"),
+    "agent.orchestrator": ("planning", "scope", "evidence", "verification"),
     "agent.researcher": ("scope", "evidence", "SEARCH_ORDER", "verification"),
-    "agent.summary": ("plan", "evidence", "verification", "infomark", "memory", "MEMORY_RANK", "MEMORY_LINKS"),
+    "agent.summary": ("planning", "evidence", "verification", "infomark", "memory", "MEMORY_RANK", "MEMORY_LINKS"),
     "agent.title": ("scope",),
     "command.ai_deps": ("scope", "evidence", "verification"),
     "command.changelog": ("scope", "evidence", "verification"),
@@ -268,11 +268,11 @@ RUNTIME_CONTRACTS = MappingProxyType({
     "command.triage": ("scope", "evidence", "verification"),
     "policy.adid": ("scope", "evidence", "verification", "SEARCH_ORDER"),
     "policy.adid_ops": ("scope", "mutation", "verification", "WRITE_SCOPE"),
-    "policy.coding": ("plan", "evidence", "verification", "EVIDENCE_ORDER", "VERIFY_OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
+    "policy.coding": ("planning", "evidence", "verification", "EVIDENCE_ORDER", "VERIFY_OUTCOME", "SV_OUTPUT", "CLEAN_STATE"),
     "policy.default": ("scope",),
     "policy.governance": ("scope", "mutation", "verification", "WRITE_SCOPE"),
     "policy.grounding": ("evidence", "verification", "EVIDENCE_ORDER", "SEARCH_ORDER", "NO_HARDCODE"),
-    "policy.planning": ("plan", "evidence", "scope", "verification"),
+    "policy.planning": ("planning", "evidence", "scope", "verification"),
     "policy.reasoning": ("scope", "evidence", "verification"),
 })
 

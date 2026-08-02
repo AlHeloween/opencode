@@ -98,7 +98,7 @@ class TestRuntimePromptCompiler:
 
     def test_runtime_contracts_inventory_every_canonical_spec(self):
         assert validate_runtime_contracts(
-            RUNTIME_CONTRACTS, SPEC_CONTRACT_IDS, set(_ALL_SPECS), RUNTIME_TERMS, RUNTIME_RULES,
+            RUNTIME_CONTRACTS, SPEC_CONTRACT_IDS, set(_ALL_SPECS), RUNTIME_TERMS, RUNTIME_RULES, RUNTIME_WORKFLOWS,
         ) == []
 
     def test_runtime_pack_hierarchy_is_acyclic(self):
@@ -180,8 +180,8 @@ class TestRuntimePromptCompiler:
         assert validate_runtime_pack_hierarchy(RUNTIME_PACKS) == []
 
     def test_contracts_only_reference_shared_keyword_vocabulary(self):
-        """Agent/tool contracts compile through TERMS/RULES IDs only."""
-        allowed = set(RUNTIME_TERMS) | set(RUNTIME_RULES)
+        """Agent/tool contracts compile through TERMS/RULES/WORKFLOWS IDs only."""
+        allowed = set(RUNTIME_TERMS) | set(RUNTIME_RULES) | set(RUNTIME_WORKFLOWS)
         for contract, refs in RUNTIME_CONTRACTS.items():
             for ref in refs:
                 assert ref in allowed, f"{contract} references non-keyword {ref!r}"

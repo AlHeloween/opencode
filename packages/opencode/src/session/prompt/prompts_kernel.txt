@@ -42,7 +42,7 @@ RULES = MappingProxyType({
     'INFOMARK_SEP': 'Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred; claim_ledger required for non-trivial decisions; premises ⊆ G; system stamps only mint Exact',
     'MEMORY_LINKS': 'every summary and message* must carry message IDs for session-read recovery',
     'MEMORY_RANK': 'session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact',
-    'NAMING': "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter (PEP 8 convention). Dots '.' and hyphens '-' are forbidden in new rule names. Legacy dotted rules (EVIDENCE_ORDER, SEARCH_ORDER, REUSE_BEFORE, INFOMARK_SEP, WRITE_SCOPE, CACHE_STABILITY, VERIFY_OUTCOME, ADID_FREEZE, ADID_OPS, NO_HARDCODE, WHERE_WHICH, SV_OUTPUT, CLEAN_STATE, DECOMPOSE, DOCUMENT_SURFACE, WORKSPACE_LANES, PROGRESS_LOG, MEMORY_RANK, MEMORY_LINKS) are grandfathered — do not extend the dotted namespace with new entries.",
+    'NAMING': "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter (PEP 8 convention). Dots '.' and hyphens '-' are forbidden. All 32 rules are fully underscore-unified — no legacy dotted namespace remains. Python dict keys are case-sensitive: references in WORKFLOWS, CONTRACTS, and OWNERS must match rule keys exactly (including case). No aliases, no fuzzy matching.",
     'NO_HARDCODE': 'never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)',
     'PROGRESS_LOG': 'track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.',
     'RESIDUAL_LOOP': 'residual_recluster(state, original_goal_sv) closes the ADID loop: re-clusters pending tasks against original Goal SV using adaptive_tau at 70th percentile. Returns tasks aligned with the original goal; at least one task always survives.',
@@ -64,22 +64,22 @@ RULES = MappingProxyType({
 WORKFLOWS = MappingProxyType({
     'adid': ('adid', 'ADID_FREEZE', 'ADID_OPS', 'scope', 'mutation', 'verification'),
     'diagnose': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK'),
-    'hygiene': ('NAMING', 'DOCUMENT_SURFACE', 'WORKSPACE_LANES', 'PROGRESS_LOG', 'CLEAN_STATE', 'EVIDENCE_ORDER'),
+    'hygiene_ops': ('hygiene', 'NAMING', 'DOCUMENT_SURFACE', 'WORKSPACE_LANES', 'PROGRESS_LOG', 'CLEAN_STATE', 'EVIDENCE_ORDER'),
     'modify': ('plan', 'REUSE_BEFORE', 'SMOKE_BEFORE', 'SMOKE_VERIFY', 'scope', 'cache', 'mutation', 'WRITE_SCOPE', 'CACHE_STABILITY', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK'),
     'observe': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK'),
-    'plan': ('plan', 'DECOMPOSE', 'SMOKE_BEFORE', 'SMOKE_SPEC', 'SMOKE_VALIDATE', 'GROUND', 'metric_adaptation', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'EMIT_STATE', 'REUSE_BEFORE', 'SMOKE_VERIFY', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY_OUTCOME', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'planning': ('plan', 'DECOMPOSE', 'SMOKE_BEFORE', 'SMOKE_SPEC', 'SMOKE_VALIDATE', 'GROUND', 'metric_adaptation', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'EMIT_STATE', 'REUSE_BEFORE', 'SMOKE_VERIFY', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY_OUTCOME', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
     'research': ('evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'MEMORY_LINKS'),
 })
 
 PACKS = MappingProxyType({
-    'agent.build': ('universal', 'modify', 'diagnose', 'adid', 'hygiene'),
+    'agent.build': ('universal', 'modify', 'diagnose', 'adid', 'hygiene_ops'),
     'agent.coder': ('agent.build',),
     'agent.explore': ('universal', 'observe'),
     'agent.general': ('universal', 'observe', 'research'),
     'agent.media': ('universal', 'scope', 'mutation', 'verification'),
-    'agent.orchestrator': ('universal', 'plan', 'observe', 'verification'),
+    'agent.orchestrator': ('universal', 'planning', 'observe', 'verification'),
     'agent.researcher': ('agent.general',),
-    'agent.summary': ('universal', 'plan', 'evidence', 'verification', 'memory', 'infomark'),
+    'agent.summary': ('universal', 'planning', 'evidence', 'verification', 'memory', 'infomark'),
     'agent.title': ('universal', 'scope'),
     'domain.biology': ('domain.natural_science',),
     'domain.chemistry': ('domain.natural_science',),
@@ -97,13 +97,13 @@ PACKS = MappingProxyType({
 })
 
 CONTRACTS = MappingProxyType({
-    'agent.coder': ('plan', 'scope', 'mutation', 'verification', 'WRITE_SCOPE', 'VERIFY_OUTCOME'),
+    'agent.coder': ('planning', 'scope', 'mutation', 'verification', 'WRITE_SCOPE', 'VERIFY_OUTCOME'),
     'agent.explore': ('scope', 'evidence', 'SEARCH_ORDER'),
-    'agent.general': ('plan', 'scope', 'evidence', 'verification'),
+    'agent.general': ('planning', 'scope', 'evidence', 'verification'),
     'agent.media': ('scope', 'mutation', 'verification'),
-    'agent.orchestrator': ('plan', 'scope', 'evidence', 'verification'),
+    'agent.orchestrator': ('planning', 'scope', 'evidence', 'verification'),
     'agent.researcher': ('scope', 'evidence', 'SEARCH_ORDER', 'verification'),
-    'agent.summary': ('plan', 'evidence', 'verification', 'infomark', 'memory', 'MEMORY_RANK', 'MEMORY_LINKS'),
+    'agent.summary': ('planning', 'evidence', 'verification', 'infomark', 'memory', 'MEMORY_RANK', 'MEMORY_LINKS'),
     'agent.title': ('scope',),
     'command.ai_deps': ('scope', 'evidence', 'verification'),
     'command.changelog': ('scope', 'evidence', 'verification'),
@@ -117,11 +117,11 @@ CONTRACTS = MappingProxyType({
     'command.triage': ('scope', 'evidence', 'verification'),
     'policy.adid': ('scope', 'evidence', 'verification', 'SEARCH_ORDER'),
     'policy.adid_ops': ('scope', 'mutation', 'verification', 'WRITE_SCOPE'),
-    'policy.coding': ('plan', 'evidence', 'verification', 'EVIDENCE_ORDER', 'VERIFY_OUTCOME', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'policy.coding': ('planning', 'evidence', 'verification', 'EVIDENCE_ORDER', 'VERIFY_OUTCOME', 'SV_OUTPUT', 'CLEAN_STATE'),
     'policy.default': ('scope',),
     'policy.governance': ('scope', 'mutation', 'verification', 'WRITE_SCOPE'),
     'policy.grounding': ('evidence', 'verification', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'NO_HARDCODE'),
-    'policy.planning': ('plan', 'evidence', 'scope', 'verification'),
+    'policy.planning': ('planning', 'evidence', 'scope', 'verification'),
     'policy.reasoning': ('scope', 'evidence', 'verification'),
 })
 

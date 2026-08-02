@@ -124,10 +124,13 @@ def validate_runtime_contracts(
     spec_names: set[str],
     terms: Mapping[str, str],
     rules: Mapping[str, str],
+    workflows: Mapping[str, tuple[str, ...]] | None = None,
 ) -> list[str]:
     """Return deterministic errors for runtime contract ownership and references."""
     errors: list[str] = []
     declarations = set(terms) | set(rules)
+    if workflows is not None:
+        declarations |= set(workflows)
     if set(contract_ids) != spec_names:
         errors.append("every canonical spec must have exactly one runtime contract ID")
     if len(set(contract_ids.values())) != len(contract_ids):

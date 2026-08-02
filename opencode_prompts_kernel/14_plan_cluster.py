@@ -898,19 +898,27 @@ def emit_state(
     pending_tasks: list[str] | None = None,
     blockers: list[str] | None = None,
     next_step: str | None = None,
+    smoke_baseline: dict[str, dict] | None = None,
 ) -> dict:
     """Emit a structured state record at the end of an ADID cycle.
 
-    Returns a dict with keys: done, pending, blocked, next, goal_sv.
-    The caller is responsible for serialisation and InfoMark stamping.
+    Returns a dict with keys: done, pending, blocked, next, goal_sv,
+    smoke_baseline. The caller is responsible for serialisation and
+    InfoMark stamping.
+
+    smoke_baseline: {label: {exit_code, stdout_hash, stderr_hash, timestamp}, ...}
+      — recorded by smoke_before_record() before the first edit.
     """
-    return {
+    result: dict = {
         "done": completed_tasks or [],
         "pending": pending_tasks or [],
         "blocked": blockers or [],
         "next": next_step or "",
         "goal_sv": goal_sv,
     }
+    if smoke_baseline is not None:
+        result["smoke_baseline"] = smoke_baseline
+    return result
 
 
 def residual_recluster(
@@ -1252,5 +1260,281 @@ def verify_oracles(
     """
     # No-op stub: kernel defines the contract; agent executes it.
     return
+
+
+# =========================================================================
+# SMOKE.BEFORE — industrial contract: baseline → edit → verify
+# =========================================================================
+# Kernel provides: spec generation, contract validation, baseline recording,
+# post-impl verification. Agent executes the actual commands (shell access).
+#
+# Data contract (SmokeSpec):
+#   {
+#     "smoke_na": bool,
+#     "smoke_na_reason": str | None,
+#     "baseline": [{"label", "cmd", "expected_exit", "tolerance", "scope"}, ...],
+#     "post_checks": [...],
+#     "blast_radius": [str, ...],
+#   }
+
+
+def smoke_before_spec(task: str) -> dict:
+    """Generate a SMOKE.BEFORE specification template from a task description.
+
+    The returned spec has empty baseline/post_checks — the agent MUST fill
+    in concrete, runnable commands before Gate 4 approval.
+
+    Blast radius is inferred from task keywords (e.g. 'database' → db tests,
+    'frontend' → UI tests, 'api' → integration tests).
+
+    Returns a SmokeSpec dict with:
+      - smoke_na: False (agent sets True if smoke not applicable)
+      - smoke_na_reason: None
+      - baseline: [] (agent fills with runnable commands)
+      - post_checks: [] (agent fills with post-impl verification commands)
+      - blast_radius: inferred scope hints from task keywords
+    """
+    # Infer blast radius from task keywords
+    task_lower = task.lower()
+    blast_hints: list[str] = []
+
+    scope_keywords = {
+        "database": "db/",
+        "sql": "db/",
+        "migration": "db/",
+        "frontend": "ui/",
+        "ui": "ui/",
+        "component": "ui/",
+        "react": "ui/",
+        "css": "ui/",
+        "style": "ui/",
+        "api": "api/",
+        "endpoint": "api/",
+        "route": "api/",
+        "server": "api/",
+        "test": "tests/",
+        "typecheck": "typecheck",
+        "lint": "lint",
+        "build": "build",
+        "config": "config/",
+        "auth": "auth/",
+        "login": "auth/",
+        "security": "auth/",
+        "kernel": "kernel/",
+        "pipeline": "kernel/",
+        "prompt": "prompt/",
+        "reasoning": "prompt/",
+    }
+    for keyword, hint in scope_keywords.items():
+        if keyword in task_lower:
+            blast_hints.append(hint)
+
+    if not blast_hints:
+        blast_hints = ["project/"]  # whole-project scope when unclear
+
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    unique_hints: list[str] = []
+    for h in blast_hints:
+        if h not in seen:
+            seen.add(h)
+            unique_hints.append(h)
+
+    return {
+        "smoke_na": False,
+        "smoke_na_reason": None,
+        "baseline": [],
+        "post_checks": [],
+        "blast_radius": unique_hints,
+    }
+
+
+def smoke_before_validate(spec: dict) -> tuple[bool, str]:
+    """Validate a SMOKE.BEFORE specification against the contract.
+
+    Enforcement (Gate 4 — plan approval):
+      1. smoke_na=True requires smoke_na_reason (not None, not empty)
+      2. smoke_na=False requires at least one baseline check
+      3. Every baseline check must have: label, cmd, expected_exit
+      4. Tolerance > 0 requires a note in the check dict
+      5. "Vague 'test later'" → empty baseline with smoke_na=False → REJECT
+
+    Returns (is_valid, diagnostic_message).
+    """
+    smoke_na = spec.get("smoke_na", False)
+    smoke_na_reason = spec.get("smoke_na_reason")
+    baseline = spec.get("baseline", [])
+
+    # Rule 1: smoke_na requires justification
+    if smoke_na:
+        if not smoke_na_reason or not str(smoke_na_reason).strip():
+            return (False, "smoke_na=True requires smoke_na_reason (justification)")
+        return (True, "smoke N/A with justification — accepted")
+
+    # Rule 2: smoke_na=False requires at least one baseline check
+    if not baseline:
+        return (False, "vague 'test later' is forbidden — baseline must have ≥1 runnable check, or set smoke_na=True with justification")
+
+    # Rule 3: every baseline check must have: label, cmd, expected_exit
+    for i, check in enumerate(baseline):
+        label = check.get("label", "").strip()
+        cmd = check.get("cmd", "").strip()
+        expected_exit = check.get("expected_exit")
+
+        if not label:
+            return (False, f"baseline[{i}]: missing 'label'")
+        if not cmd:
+            return (False, f"baseline[{i}] ('{label}'): missing 'cmd' — command must be runnable")
+        if expected_exit is None:
+            return (False, f"baseline[{i}] ('{label}'): missing 'expected_exit' — required for deterministic verification")
+
+        # Rule 4: tolerance > 0 with no justification
+        tolerance = check.get("tolerance", 0.0)
+        if tolerance > 0.0 and not check.get("tolerance_reason", "").strip():
+            return (False, f"baseline[{i}] ('{label}'): tolerance={tolerance}>0 requires 'tolerance_reason' (why fuzzy matching is needed)")
+
+    # Post-checks: same validation if present
+    post_checks = spec.get("post_checks", [])
+    for i, check in enumerate(post_checks):
+        label = check.get("label", "").strip()
+        cmd = check.get("cmd", "").strip()
+        if not label:
+            return (False, f"post_checks[{i}]: missing 'label'")
+        if not cmd:
+            return (False, f"post_checks[{i}] ('{label}'): missing 'cmd'")
+
+    return (True, "SMOKE.BEFORE spec valid")
+
+
+def smoke_before_record(
+    state: dict,
+    smoke_spec: dict,
+    baseline_outputs: dict[str, dict],
+) -> dict:
+    """Record SMOKE.BEFORE baseline outputs into the ADID state.
+
+    Called AFTER the agent runs baseline commands and BEFORE the first edit.
+    Baseline outputs are stamped as [Exact] evidence.
+
+    baseline_outputs: {label: {exit_code, stdout_hash, stderr_hash, timestamp}, ...}
+      - 'label' must match a baseline check label
+      - 'exit_code' is the actual exit code
+      - 'stdout_hash' is md5/sha256 of stdout (for fast comparison)
+      - 'stderr_hash' is md5/sha256 of stderr
+      - 'timestamp' is ISO 8601 UTC
+
+    Returns the state dict with 'smoke_baseline' key added/updated.
+    """
+    recorded: dict[str, dict] = {}
+    for label, output in baseline_outputs.items():
+        recorded[label] = {
+            "exit_code": output.get("exit_code"),
+            "stdout_hash": output.get("stdout_hash", ""),
+            "stderr_hash": output.get("stderr_hash", ""),
+            "timestamp": output.get("timestamp", ""),
+        }
+
+    state["smoke_baseline"] = recorded
+    state["smoke_spec_hash"] = _hash_smoke_spec(smoke_spec)
+
+    return state
+
+
+def smoke_before_verify(
+    state: dict,
+    post_outputs: dict[str, dict],
+) -> dict:
+    """Verify post-implementation outputs against SMOKE.BEFORE baseline.
+
+    Called AFTER implementation, BEFORE marking task as Done.
+    Compares each post_output against the recorded baseline.
+
+    post_outputs: {label: {exit_code, stdout_hash, stderr_hash}, ...}
+
+    Returns:
+      {
+        "status": "PASS" | "FAIL" | "BLOCKED" | "NO_BASELINE",
+        "checks": [
+          {"label", "status": "PASS"|"FAIL"|"MISSING", "detail": str},
+          ...
+        ],
+        "summary": str,
+      }
+    """
+    baseline = state.get("smoke_baseline", {})
+    if not baseline:
+        return {
+            "status": "NO_BASELINE",
+            "checks": [],
+            "summary": "No SMOKE.BEFORE baseline recorded — cannot verify. Run smoke_before_record first.",
+        }
+
+    checks: list[dict] = []
+    all_pass = True
+    any_blocked = False
+
+    for label, expected in baseline.items():
+        actual = post_outputs.get(label)
+        if actual is None:
+            checks.append({
+                "label": label,
+                "status": "MISSING",
+                "detail": f"post-output for '{label}' not provided",
+            })
+            all_pass = False
+            continue
+
+        # Compare exit codes
+        expected_exit = expected.get("exit_code")
+        actual_exit = actual.get("exit_code")
+        if expected_exit is not None and actual_exit is not None:
+            if expected_exit != actual_exit:
+                checks.append({
+                    "label": label,
+                    "status": "FAIL",
+                    "detail": f"exit code: expected {expected_exit}, got {actual_exit}",
+                })
+                all_pass = False
+                continue
+
+        # Compare output hashes (if both present)
+        expected_hash = expected.get("stdout_hash", "")
+        actual_hash = actual.get("stdout_hash", "")
+        if expected_hash and actual_hash and expected_hash != actual_hash:
+            checks.append({
+                "label": label,
+                "status": "FAIL",
+                "detail": "stdout hash mismatch — output changed",
+            })
+            all_pass = False
+            continue
+
+        checks.append({
+            "label": label,
+            "status": "PASS",
+            "detail": "output matches baseline",
+        })
+
+    if all_pass:
+        status = "PASS"
+        summary = f"All {len(checks)} smoke checks passed against baseline"
+    elif any_blocked:
+        status = "BLOCKED"
+        summary = f"{sum(1 for c in checks if c['status']=='FAIL')} checks failed, {sum(1 for c in checks if c['status']=='MISSING')} missing"
+    else:
+        status = "FAIL"
+        failed = sum(1 for c in checks if c["status"] == "FAIL")
+        missing = sum(1 for c in checks if c["status"] == "MISSING")
+        summary = f"{failed} failed, {missing} missing out of {len(checks)} checks"
+
+    return {"status": status, "checks": checks, "summary": summary}
+
+
+def _hash_smoke_spec(spec: dict) -> str:
+    """Stable hash of a smoke spec for integrity verification."""
+    import hashlib
+    import json
+    canonical = json.dumps(spec, sort_keys=True, default=str)
+    return hashlib.md5(canonical.encode()).hexdigest()[:12]
 
 

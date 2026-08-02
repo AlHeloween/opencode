@@ -31,6 +31,10 @@ from opencode_prompts_kernel import (  # noqa: E402
     run_task_geometry,
     select_fractal_model,
     select_medoids_tasks,
+    smoke_before_record,
+    smoke_before_spec,
+    smoke_before_validate,
+    smoke_before_verify,
     sv_delta,
     verify_oracles,
 )
@@ -979,3 +983,271 @@ class TestVerifyOracles:
         # No-op stub preserves state
         assert completed == ["done_task"]
         assert pending == ["retry_task"]
+
+
+# =========================================================================
+# SMOKE.BEFORE — industrial contract tests
+# =========================================================================
+
+
+def _valid_smoke_spec() -> dict:
+    """Helper: a minimal valid smoke spec."""
+    return {
+        "smoke_na": False,
+        "smoke_na_reason": None,
+        "baseline": [
+            {
+                "label": "typecheck",
+                "cmd": "bun typecheck 2>&1",
+                "expected_exit": 0,
+                "tolerance": 0.0,
+                "scope": "typecheck",
+            },
+            {
+                "label": "unit_tests",
+                "cmd": "pytest tests/ -x -q",
+                "expected_exit": 0,
+                "tolerance": 0.0,
+                "scope": "unit",
+            },
+        ],
+        "post_checks": [],
+        "blast_radius": ["src/", "tests/"],
+    }
+
+
+def _valid_baseline_outputs() -> dict:
+    """Helper: baseline outputs matching _valid_smoke_spec."""
+    return {
+        "typecheck": {
+            "exit_code": 0,
+            "stdout_hash": "abc123def456",
+            "stderr_hash": "",
+            "timestamp": "2026-08-02T00:00:00Z",
+        },
+        "unit_tests": {
+            "exit_code": 0,
+            "stdout_hash": "def789ghi012",
+            "stderr_hash": "",
+            "timestamp": "2026-08-02T00:00:01Z",
+        },
+    }
+
+
+class TestSmokeBeforeSpec:
+    """smoke_before_spec generates a structured template from task description."""
+
+    def test_returns_smoke_na_false_by_default(self):
+        spec = smoke_before_spec("fix bug in login")
+        assert spec["smoke_na"] is False
+        assert spec["smoke_na_reason"] is None
+
+    def test_returns_empty_baseline(self):
+        """Agent must fill in baseline commands — kernel provides template."""
+        spec = smoke_before_spec("add dark mode")
+        assert spec["baseline"] == []
+        assert spec["post_checks"] == []
+
+    def test_infers_blast_radius_from_keywords(self):
+        spec = smoke_before_spec("fix database migration and update frontend react component")
+        assert "db/" in spec["blast_radius"]
+        assert "ui/" in spec["blast_radius"]
+
+    def test_default_blast_radius_when_no_keywords(self):
+        spec = smoke_before_spec("do something vague")
+        assert spec["blast_radius"] == ["project/"]
+
+    def test_deduplicates_blast_radius(self):
+        spec = smoke_before_spec("database database database migration sql database")
+        # 'db/' should appear only once (database + sql + migration all map to db/)
+        assert spec["blast_radius"].count("db/") == 1
+
+    def test_task_with_multiple_domains(self):
+        spec = smoke_before_spec("fix api endpoint security and add ui component tests")
+        assert "api/" in spec["blast_radius"]
+        assert "auth/" in spec["blast_radius"]  # 'security' maps to auth/
+        assert "ui/" in spec["blast_radius"]
+
+
+class TestSmokeBeforeValidate:
+    """smoke_before_validate enforces the SMOKE.BEFORE contract."""
+
+    def test_valid_spec_passes(self):
+        ok, msg = smoke_before_validate(_valid_smoke_spec())
+        assert ok, msg
+
+    def test_smoke_na_without_reason_fails(self):
+        spec = {"smoke_na": True, "smoke_na_reason": None, "baseline": []}
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+        assert "justification" in msg.lower()
+
+    def test_smoke_na_with_empty_reason_fails(self):
+        spec = {"smoke_na": True, "smoke_na_reason": "   ", "baseline": []}
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+
+    def test_smoke_na_with_reason_passes(self):
+        spec = {"smoke_na": True, "smoke_na_reason": "documentation-only change", "baseline": []}
+        ok, msg = smoke_before_validate(spec)
+        assert ok
+
+    def test_empty_baseline_without_smoke_na_fails(self):
+        """'test later' is forbidden — must have specs or declare N/A."""
+        spec = {"smoke_na": False, "smoke_na_reason": None, "baseline": []}
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+        assert "test later" in msg.lower()
+
+    def test_missing_label_fails(self):
+        spec = _valid_smoke_spec()
+        spec["baseline"][0].pop("label")
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+        assert "label" in msg.lower()
+
+    def test_missing_cmd_fails(self):
+        spec = _valid_smoke_spec()
+        spec["baseline"][0]["cmd"] = ""
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+        assert "cmd" in msg.lower()
+
+    def test_missing_expected_exit_fails(self):
+        spec = _valid_smoke_spec()
+        spec["baseline"][0].pop("expected_exit")
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+        assert "expected_exit" in msg.lower()
+
+    def test_tolerance_without_reason_fails(self):
+        spec = _valid_smoke_spec()
+        spec["baseline"][0]["tolerance"] = 0.3
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+        assert "tolerance_reason" in msg.lower()
+
+    def test_tolerance_with_reason_passes(self):
+        spec = _valid_smoke_spec()
+        spec["baseline"][0]["tolerance"] = 0.3
+        spec["baseline"][0]["tolerance_reason"] = "timing-dependent integration test"
+        ok, msg = smoke_before_validate(spec)
+        assert ok
+
+    def test_post_checks_validated_too(self):
+        spec = _valid_smoke_spec()
+        spec["post_checks"] = [{"label": "", "cmd": "run something"}]
+        ok, msg = smoke_before_validate(spec)
+        assert not ok
+        assert "post_checks" in msg.lower()
+
+
+class TestSmokeBeforeRecord:
+    """smoke_before_record records baseline outputs into state."""
+
+    def test_records_baseline_into_state(self):
+        state = {"done": [], "pending": ["task1"], "blocked": [], "next": "task1"}
+        spec = _valid_smoke_spec()
+        outputs = _valid_baseline_outputs()
+        result = smoke_before_record(state, spec, outputs)
+        assert "smoke_baseline" in result
+        assert "typecheck" in result["smoke_baseline"]
+        assert result["smoke_baseline"]["typecheck"]["exit_code"] == 0
+
+    def test_preserves_existing_state_keys(self):
+        state = {"done": ["old_task"], "pending": [], "blocked": [], "next": None}
+        spec = _valid_smoke_spec()
+        outputs = _valid_baseline_outputs()
+        result = smoke_before_record(state, spec, outputs)
+        assert result["done"] == ["old_task"]
+
+    def test_adds_smoke_spec_hash(self):
+        state = {"done": [], "pending": [], "blocked": [], "next": None}
+        spec = _valid_smoke_spec()
+        outputs = _valid_baseline_outputs()
+        result = smoke_before_record(state, spec, outputs)
+        assert "smoke_spec_hash" in result
+        assert len(result["smoke_spec_hash"]) == 12  # md5[:12]
+
+    def test_spec_hash_is_stable(self):
+        state = {"done": [], "pending": [], "blocked": [], "next": None}
+        spec = _valid_smoke_spec()
+        outputs = _valid_baseline_outputs()
+        r1 = smoke_before_record(dict(state), spec, outputs)
+        r2 = smoke_before_record(dict(state), spec, outputs)
+        assert r1["smoke_spec_hash"] == r2["smoke_spec_hash"]
+
+
+class TestSmokeBeforeVerify:
+    """smoke_before_verify compares post-impl outputs against baseline."""
+
+    def test_all_pass_when_outputs_match(self):
+        state = {"smoke_baseline": {
+            "typecheck": {"exit_code": 0, "stdout_hash": "abc", "stderr_hash": ""},
+        }}
+        post = {"typecheck": {"exit_code": 0, "stdout_hash": "abc", "stderr_hash": ""}}
+        result = smoke_before_verify(state, post)
+        assert result["status"] == "PASS"
+        assert result["checks"][0]["status"] == "PASS"
+
+    def test_exit_code_mismatch_fails(self):
+        state = {"smoke_baseline": {
+            "typecheck": {"exit_code": 0, "stdout_hash": "abc", "stderr_hash": ""},
+        }}
+        post = {"typecheck": {"exit_code": 1, "stdout_hash": "abc", "stderr_hash": ""}}
+        result = smoke_before_verify(state, post)
+        assert result["status"] == "FAIL"
+
+    def test_hash_mismatch_fails(self):
+        state = {"smoke_baseline": {
+            "typecheck": {"exit_code": 0, "stdout_hash": "abc", "stderr_hash": ""},
+        }}
+        post = {"typecheck": {"exit_code": 0, "stdout_hash": "xyz", "stderr_hash": ""}}
+        result = smoke_before_verify(state, post)
+        assert result["status"] == "FAIL"
+
+    def test_missing_post_output_reported(self):
+        state = {"smoke_baseline": {
+            "typecheck": {"exit_code": 0, "stdout_hash": "abc", "stderr_hash": ""},
+        }}
+        post = {}  # nothing provided
+        result = smoke_before_verify(state, post)
+        assert result["status"] == "FAIL"
+        assert result["checks"][0]["status"] == "MISSING"
+
+    def test_no_baseline_returns_no_baseline_status(self):
+        state = {}
+        post = {"typecheck": {"exit_code": 0, "stdout_hash": "abc"}}
+        result = smoke_before_verify(state, post)
+        assert result["status"] == "NO_BASELINE"
+
+    def test_partial_failure_mixed_status(self):
+        state = {"smoke_baseline": {
+            "typecheck": {"exit_code": 0, "stdout_hash": "abc", "stderr_hash": ""},
+            "unit": {"exit_code": 0, "stdout_hash": "def", "stderr_hash": ""},
+        }}
+        post = {
+            "typecheck": {"exit_code": 0, "stdout_hash": "abc", "stderr_hash": ""},
+            "unit": {"exit_code": 1, "stdout_hash": "xyz", "stderr_hash": "err"},
+        }
+        result = smoke_before_verify(state, post)
+        assert result["status"] == "FAIL"
+        assert result["checks"][0]["status"] == "PASS"
+        assert result["checks"][1]["status"] == "FAIL"
+
+
+class TestEmitStateSmokeBaseline:
+    """emit_state with smoke_baseline parameter."""
+
+    def test_emit_state_includes_smoke_baseline_when_provided(self):
+        state = emit_state(
+            goal_sv=[0.5, 0.5],
+            completed_tasks=["task_a"],
+            smoke_baseline={"check1": {"exit_code": 0}},
+        )
+        assert "smoke_baseline" in state
+        assert state["smoke_baseline"]["check1"]["exit_code"] == 0
+
+    def test_emit_state_omits_smoke_baseline_when_none(self):
+        state = emit_state(completed_tasks=["task_a"])
+        assert "smoke_baseline" not in state

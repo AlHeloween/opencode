@@ -84,6 +84,17 @@ def _manhattan_distance(a: list[float], b: list[float]) -> float:
     return sum(abs(ai - bi) for ai, bi in zip(a, b))
 
 
+def _median(values: list[float]) -> float:
+    """Compute median of a numeric list. Returns 0.0 for empty input."""
+    if not values:
+        return 0.0
+    sorted_v = sorted(values)
+    n = len(sorted_v)
+    if n % 2 == 1:
+        return sorted_v[n // 2]
+    return (sorted_v[n // 2 - 1] + sorted_v[n // 2]) / 2.0
+
+
 def k_medoids_modifications(
     modifications: list[PlanModification],
     k: int | None = None,
@@ -1096,5 +1107,99 @@ def sv_delta(
         total += abs(w_c - w_p)
 
     return total
+
+
+# =========================================================================
+# run_task_geometry — full ADID pipeline, callable as one function
+# =========================================================================
+
+
+def run_task_geometry(
+    goal: str,
+    evidence_texts: list[str] | None = None,
+    dim: int = 512,
+) -> dict:
+    """Execute the full fractal task geometry pipeline.
+
+    Chains: ground → goal_seeds → goal_peaks → select_fractal_model →
+    generate_fractal_candidates → L1 filter → emit_state → residual_recluster.
+
+    Returns a structured dict with pipeline diagnostics — every stage is
+    inspectable for integration testing. The agent uses this output to
+    populate todowrite with CENTRAL_TASKS.
+
+    NOTE: select_medoids_tasks requires PlanModification objects (not raw
+    vectors). This function returns candidate vectors + recommended k;
+    the agent converts vectors to task descriptions before clustering.
+    """
+    if evidence_texts is None:
+        evidence_texts = []
+
+    # 1. ground — evidence plan (informational; agent executes the plan)
+    evidence_plan = ground(goal)
+
+    # 2. seeds — meaning-true goal slices
+    seeds = goal_seeds(goal, evidence_texts, dim=dim)
+
+    # 3. fractal configuration
+    peaks = goal_peaks(goal, evidence_texts)
+    delta_v = sv_delta()  # neutral 0.5 if no previous SV
+    model = select_fractal_model(peaks=peaks, delta_v=delta_v)
+    depth = adaptive_depth(peaks=peaks, evidence_count=len(evidence_texts))
+
+    # 4. fractal over-generate
+    candidates = generate_fractal_candidates(model, seeds, depth=depth, dim=dim)
+
+    # 5. L1 filter — embed goal as vector, compute distances
+    goal_tokens = _tokenize_text(goal)
+    goal_vec = _hash_embed(goal_tokens, dim) if goal_tokens else [0.0] * dim
+
+    if candidates:
+        distances = [_manhattan_distance(c, goal_vec) for c in candidates]
+        tau = adaptive_tau(distances, percentile=0.70)
+        filtered = [c for c, d in zip(candidates, distances) if d <= tau]
+        filtered_distances = [d for d in distances if d <= tau]
+        # Safety: never return zero tasks — keep at least the closest candidate
+        if not filtered:
+            best_idx = min(range(len(distances)), key=lambda i: distances[i])
+            filtered = [candidates[best_idx]]
+            filtered_distances = [distances[best_idx]]
+            tau = distances[best_idx] + 0.001  # expand τ to include it
+        k = adaptive_k(filtered_distances if filtered_distances else distances, min_k=2)
+    else:
+        distances = []
+        tau = 0.5
+        filtered = []
+        k = 2
+
+    # 6. emit state
+    state = emit_state(
+        goal_sv=goal_vec,
+        completed_tasks=[],
+        pending_tasks=[f"candidate_{i}" for i in range(len(filtered))],
+        blockers=[],
+        next_step="cluster filtered candidates via select_medoids_tasks",
+    )
+
+    # 7. residual re-cluster
+    residual = residual_recluster(state, original_goal_sv=goal_vec)
+
+    return {
+        "goal": goal,
+        "seeds_n": len(seeds),
+        "peaks": peaks,
+        "model": model,
+        "depth": depth,
+        "candidates_n": len(candidates),
+        "filtered_n": len(filtered),
+        "tau": round(tau, 4),
+        "k_recommended": k,
+        "distances_min": round(min(distances), 4) if distances else None,
+        "distances_median": round(_median(distances), 4) if distances else None,
+        "distances_max": round(max(distances), 4) if distances else None,
+        "residual_n": len(residual),
+        "evidence_plan_searches": len(evidence_plan.get("searches", [])),
+        "status": "ok" if filtered else "no_candidates_passed_filter",
+    }
 
 

@@ -27,6 +27,7 @@ from opencode_prompts_kernel import (  # noqa: E402
     k_medoids_modifications,
     lsystem_rewrite,
     residual_recluster,
+    run_task_geometry,
     select_fractal_model,
     select_medoids_tasks,
     sv_delta,
@@ -800,3 +801,124 @@ class TestSVDelta:
         delta = sv_delta(sv_a, sv_b)
         # Total: |0.5-0| + |0.5-0| + |0-0.4| + |0-0.3| + |0-0.3| = 2.0
         assert delta >= 0.6  # triggers Sierpinski
+
+
+# =========================================================================
+# Integration: run_task_geometry full pipeline
+# =========================================================================
+
+
+class TestRunTaskGeometry:
+    """End-to-end pipeline: goal → seeds → fractal → filter → state."""
+
+    def test_simple_3_step_goal(self):
+        """A trivial 3-step goal produces valid pipeline output."""
+        goal = "fix typo in readme update changelog bump version"
+        result = run_task_geometry(goal)
+
+        assert result["status"] == "ok"
+        assert result["goal"] == goal
+        assert result["seeds_n"] >= 1
+        assert result["peaks"] >= 1
+        assert result["depth"] >= 1
+        assert result["model"] in ("Sierpinski", "Quad-Oct", "L-System")
+        assert result["candidates_n"] >= 1
+        assert result["filtered_n"] >= 1
+        assert result["tau"] > 0.0
+        assert result["k_recommended"] >= 1
+        assert result["residual_n"] >= 0
+        assert result["evidence_plan_searches"] >= 0
+
+    def test_moderate_5_step_goal(self):
+        """A 5-aspect goal generates multiple candidates and passes filter."""
+        goal = (
+            "implement user registration add login form create database schema "
+            "setup email verification write unit tests"
+        )
+        result = run_task_geometry(goal)
+
+        assert result["status"] == "ok"
+        assert result["candidates_n"] >= result["filtered_n"]  # filter never adds
+        assert result["filtered_n"] >= 1
+        # Model should be non-trivial for 5-aspect goal
+        assert result["model"] in ("Sierpinski", "Quad-Oct", "L-System")
+
+    def test_complex_10_step_goal(self):
+        """A complex multi-topic goal exercises the full deep pipeline."""
+        goal = (
+            "build ecommerce platform with product catalog shopping cart "
+            "checkout flow payment gateway integration order management "
+            "inventory tracking shipping labels email notifications "
+            "admin dashboard analytics reporting search engine optimization "
+            "security audit logging rate limiting"
+        )
+        result = run_task_geometry(goal)
+
+        assert result["status"] == "ok"
+        assert result["peaks"] >= 2  # many distinct topics
+        assert result["candidates_n"] >= 1
+        assert result["filtered_n"] >= 1
+        assert result["k_recommended"] >= 1
+
+    def test_pipeline_deterministic(self):
+        """Same goal twice → same pipeline output (fixed seeds used internally)."""
+        goal = "add dark mode toggle to settings panel"
+        r1 = run_task_geometry(goal)
+        r2 = run_task_geometry(goal)
+
+        # All structural fields must match
+        for key in ("seeds_n", "peaks", "model", "depth", "candidates_n",
+                     "filtered_n", "tau", "k_recommended"):
+            assert r1[key] == r2[key], f"non-deterministic field: {key}"
+
+    def test_empty_goal_handled(self):
+        """Empty goal should not crash the pipeline."""
+        result = run_task_geometry("")
+        assert result["status"] in ("ok", "no_candidates_passed_filter")
+        assert result["seeds_n"] >= 1  # at least one fallback seed
+
+    def test_evidence_improves_seeds(self):
+        """Providing evidence texts increases seed count."""
+        goal = "improve performance"
+        without_ev = run_task_geometry(goal)
+        with_ev = run_task_geometry(goal, evidence_texts=[
+            "database queries are slow on large tables",
+            "frontend rendering blocks the main thread for 2 seconds",
+            "network requests timeout after 30s under load",
+        ])
+        # Evidence may add additional keyword clusters → more or equal seeds
+        assert with_ev["seeds_n"] >= without_ev["seeds_n"]
+
+    def test_filter_never_empty_with_valid_goal(self):
+        """For any non-trivial goal, at least some candidates pass the filter."""
+        goals = [
+            "fix bug in login",
+            "add search bar to navigation",
+            "update dependencies and run tests",
+        ]
+        for goal in goals:
+            result = run_task_geometry(goal)
+            assert result["filtered_n"] >= 1, f"filter lost all candidates for: {goal}"
+
+    def test_tau_in_valid_range(self):
+        """Adaptive tau is clamped to [0.1, 0.9]."""
+        goal = "refactor the entire authentication module with new oauth2 flow"
+        result = run_task_geometry(goal)
+        assert 0.1 <= result["tau"] <= 0.9
+
+    def test_depth_scales_with_complexity(self):
+        """More complex goals get deeper fractal generation."""
+        simple = run_task_geometry("fix typo")
+        complex_goal = run_task_geometry(
+            "implement user registration product catalog shopping cart "
+            "checkout payment admin dashboard analytics"
+        )
+        # Complex goal should have >= depth of simple goal
+        assert complex_goal["depth"] >= simple["depth"]
+
+    def test_residual_returns_subset(self):
+        """residual_recluster returns <= pending count tasks."""
+        goal = "add dark mode with persistence and system preference detection"
+        result = run_task_geometry(goal)
+        # residual_n <= filtered_n (residual always subset of pending)
+        assert result["residual_n"] <= result["filtered_n"]

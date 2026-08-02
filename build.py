@@ -189,7 +189,7 @@ def step_kernel() -> None:
     # Assemble reasoning.txt + algorithm_card.txt from kernel (self-contained)
     _run([sys.executable, "-c",
           "from opencode_prompts_kernel import write_reasoning, write_algorithm_card; "
-          f"write_reasoning(); write_algorithm_card({str(card_dst)!r})"])
+          f"write_reasoning(); write_algorithm_card({card_dst.as_posix()!r})"])
     # Render runtime kernel txt
     _run(
         [

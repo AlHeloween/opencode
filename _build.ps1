@@ -227,7 +227,7 @@ function Sync-KernelPrompt {
     $reasoningDst = Join-Path $Root "packages\opencode\src\session\prompt\reasoning.txt"
     $cardDst = Join-Path $Root "packages\opencode\src\session\prompt\algorithm_card.txt"
     $cardDstUnix = $cardDst -replace '\\', '/'
-    & python -c "from opencode_prompts_kernel import write_reasoning, write_algorithm_card; write_reasoning(); write_algorithm_card('$cardDstUnix')"
+    & python -c "from opencode_prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; write_precompiled_kernel(); write_reasoning(); write_algorithm_card('$cardDstUnix')"
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel reasoning/algorithm_card assembly failed"
         return $false

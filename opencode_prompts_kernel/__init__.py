@@ -64,6 +64,7 @@ import uuid
 
 
 def _bootstrap() -> None:
+    """Fallback: compile + exec each fragment sequentially (~200ms)."""
     g = globals()
     exec(compile(_COMMON_IMPORTS, "<kernel_imports>", "exec"), g)
     base = _Path(__file__).resolve().parent
@@ -96,4 +97,37 @@ def _bootstrap() -> None:
     g["__all__"] = sorted(pub)
 
 
-_bootstrap()
+def _try_precompiled() -> bool:
+    """Attempt to load the precompiled kernel module via __import__ (~20ms cached).
+
+    Uses Python's import machinery which caches bytecode in __pycache__/.
+    On first run, compilation cost is paid (~200ms). Subsequent imports
+    load cached .pyc directly (~20ms). _bootstrap() always recompiles.
+
+    Returns True on success, False if artifact is missing or broken.
+    """
+    pre_path = _Path(__file__).resolve().parent / "_kernel_precompiled.py"
+    if not pre_path.is_file():
+        return False
+    try:
+        _pre = __import__(
+            "opencode_prompts_kernel._kernel_precompiled",
+            fromlist=["__all__"],
+        )
+    except Exception:
+        return False
+
+    # Copy all public symbols from the precompiled module into our namespace.
+    g = globals()
+    for name in getattr(_pre, "__all__", []):
+        obj = getattr(_pre, name, _SENTINEL)
+        if obj is not _SENTINEL:
+            g[name] = obj
+    g["__all__"] = list(_pre.__all__) if hasattr(_pre, "__all__") else []
+    return True
+
+
+_SENTINEL = object()
+
+if not _try_precompiled():
+    _bootstrap()

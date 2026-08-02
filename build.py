@@ -186,10 +186,10 @@ def step_kernel() -> None:
     pkg = ROOT / "opencode_prompts_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
-    # Assemble reasoning.txt + algorithm_card.txt from kernel (self-contained)
+    # Assemble reasoning.txt + algorithm_card.txt + precompiled kernel from kernel
     _run([sys.executable, "-c",
-          "from opencode_prompts_kernel import write_reasoning, write_algorithm_card; "
-          f"write_reasoning(); write_algorithm_card({card_dst.as_posix()!r})"])
+          "from opencode_prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; "
+          f"write_precompiled_kernel(); write_reasoning(); write_algorithm_card({card_dst.as_posix()!r})"])
     # Render runtime kernel txt
     _run(
         [

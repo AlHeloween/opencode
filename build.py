@@ -181,16 +181,16 @@ def save_manifest(manifest: dict) -> None:
 
 def step_kernel() -> None:
     """Assemble reasoning fragments + render runtime kernel txt from package."""
-    assemble = ROOT / "packages/opencode/script/assemble_reasoning.py"
-    reasoning_dir = ROOT / "packages/opencode/src/session/prompt/reasoning"
-    if assemble.is_file():
-        if not reasoning_dir.is_dir():
-            raise RuntimeError(f"reasoning fragments missing: {reasoning_dir}")
-        _run([sys.executable, str(assemble)])
     dst = ROOT / "packages/opencode/src/session/prompt/opencode_prompts_kernel.txt"
+    card_dst = ROOT / "packages/opencode/src/session/prompt/algorithm_card.txt"
     pkg = ROOT / "opencode_prompts_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
+    # Assemble reasoning.txt + algorithm_card.txt from kernel (self-contained)
+    _run([sys.executable, "-c",
+          "from opencode_prompts_kernel import write_reasoning, write_algorithm_card; "
+          f"write_reasoning(); write_algorithm_card({str(card_dst)!r})"])
+    # Render runtime kernel txt
     _run(
         [
             sys.executable,
@@ -270,15 +270,15 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
     steps = [
         Step(
             name="kernel",
-            description="Assemble reasoning/*.txt + render opencode_prompts_kernel.txt",
+            description="Assemble reasoning/*.txt + render opencode_prompts_kernel.txt + algorithm_card.txt",
             inputs=[
                 "opencode_prompts_kernel",
-                "packages/opencode/script/assemble_reasoning.py",
-                "packages/opencode/src/session/prompt/reasoning",
+                "opencode_prompts_kernel/reasoning",
             ],
             outputs=[
                 "packages/opencode/src/session/prompt/opencode_prompts_kernel.txt",
                 "packages/opencode/src/session/prompt/reasoning.txt",
+                "packages/opencode/src/session/prompt/algorithm_card.txt",
             ],
             run=step_kernel,
         ),

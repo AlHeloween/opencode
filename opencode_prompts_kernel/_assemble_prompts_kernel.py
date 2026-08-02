@@ -12,17 +12,15 @@ from pathlib import Path
 
 
 def _default_fragment_dir() -> Path:
-    """Resolve the fragment directory relative to the repo root."""
-    # This file: opencode_prompts_kernel/29_reasoning_render.py
-    # Fragments:  packages/opencode/src/session/prompt/reasoning/
-    kernel_dir = Path(__file__).resolve().parent  # opencode_prompts_kernel/
-    repo_root = kernel_dir.parent  # .../opencode/
-    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning"
+    """Resolve the fragment directory — co-located in kernel package."""
+    return Path(__file__).resolve().parent / "reasoning"
 
 
 def _default_output() -> Path:
-    """Default output path for reasoning.txt."""
-    return _default_fragment_dir().parent / "reasoning.txt"
+    """Default output path for reasoning.txt (packages/opencode/src/session/prompt/)."""
+    kernel_dir = Path(__file__).resolve().parent  # opencode_prompts_kernel/
+    repo_root = kernel_dir.parent
+    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning.txt"
 
 
 def assemble_reasoning(fragment_dir: Path | None = None) -> str:

@@ -223,22 +223,15 @@ function Invoke-Check {
 # ═══════════════════════════════════════════════════════════
 
 function Sync-KernelPrompt {
-    # 1) Assemble reasoning protocol from topic fragments → reasoning.txt
-    $assembleReasoning = Join-Path $Root "packages\opencode\script\assemble_reasoning.py"
-    $reasoningDir = Join-Path $Root "packages\opencode\src\session\prompt\reasoning"
-    if (Test-Path $assembleReasoning) {
-        if (-not (Test-Path $reasoningDir)) {
-            Write-Error- "Reasoning fragments missing: $reasoningDir"
-            return $false
-        }
-        & python $assembleReasoning
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error- "assemble_reasoning.py failed"
-            return $false
-        }
-        $reasoningTxt = Join-Path $Root "packages\opencode\src\session\prompt\reasoning.txt"
-        Write-Success "Reasoning protocol assembled ($(Get-Item $reasoningTxt).Length bytes)"
+    # 1) Assemble reasoning protocol + algorithm_card from kernel (self-contained)
+    $reasoningDst = Join-Path $Root "packages\opencode\src\session\prompt\reasoning.txt"
+    $cardDst = Join-Path $Root "packages\opencode\src\session\prompt\algorithm_card.txt"
+    & python -c "from opencode_prompts_kernel import write_reasoning, write_algorithm_card; write_reasoning(); write_algorithm_card('$cardDst')"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error- "Kernel reasoning/algorithm_card assembly failed"
+        return $false
     }
+    Write-Success "Reasoning + algorithm_card assembled ($(Get-Item $reasoningDst).Length bytes)"
 
     # 2) Render model-facing kernel from package (not monofile SPECS dump)
     $kernelPkg = Join-Path $Root "opencode_prompts_kernel"

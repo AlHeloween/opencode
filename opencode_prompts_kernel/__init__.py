@@ -43,7 +43,7 @@ _FRAGMENTS = [
     "29_syntax",
     "30_epistemic",
     "31_prompt_ir",
-    "32_reasoning_render",
+    "_assemble_prompts_kernel",
 ]
 
 _COMMON_IMPORTS = r"""
@@ -90,6 +90,7 @@ def _bootstrap() -> None:
             "_count",
             "_render_runtime_mapping",
             "_render_spec_block",
+            "_assemble_prompts_kernel",
         )
     ]
     g["__all__"] = sorted(pub)

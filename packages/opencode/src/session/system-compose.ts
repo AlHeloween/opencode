@@ -30,7 +30,7 @@ export type SystemComposeInput = {
    * Immediately after reasoning inside the identity block. Empty string skips.
    */
   algorithmCard?: string
-  /** Kernel file (opencode_prompts_kernel.txt). Stable per app version. */
+  /** Kernel file (prompts_kernel.txt). Stable per app version. */
   kernel: string
   /**
    * @deprecated Prefer conversation role notify. Kept optional for callers;

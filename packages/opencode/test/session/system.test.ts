@@ -11,7 +11,7 @@ import PROMPT_ANTHROPIC from "../../src/session/prompt/anthropic.txt"
 import PROMPT_DEFAULT from "../../src/session/prompt/default.txt"
 import PROMPT_GPT from "../../src/session/prompt/gpt.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
-import PROMPT_KERNEL from "../../src/session/prompt/opencode_prompts_kernel.txt"
+import PROMPT_KERNEL from "../../src/session/prompt/prompts_kernel.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
 import TASK_DESCRIPTION from "../../src/tool/task.txt"
 

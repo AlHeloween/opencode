@@ -8,7 +8,7 @@ import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import PROMPT_REASONING from "@/session/prompt/reasoning.txt"
 import PROMPT_ALGORITHM from "@/session/prompt/algorithm_card.txt"
-import PROMPT_KERNEL from "@/session/prompt/opencode_prompts_kernel.txt"
+import PROMPT_KERNEL from "@/session/prompt/prompts_kernel.txt"
 
 const tlog = Log.create({ service: "provider.transform" })
 

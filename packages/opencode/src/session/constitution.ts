@@ -1,7 +1,7 @@
 /**
  * Thin runtime mirror of reasoning-kernel constitution concepts.
  *
- * Python (`opencode_prompts_kernel.py`) designs the algorithm; this module
+ * Python (`prompts_kernel.py`) designs the algorithm; this module
  * applies a subset at tool time — risk ranks and InfoMarks — without dragging
  * the full kernel into TypeScript.
  *

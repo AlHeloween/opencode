@@ -6,7 +6,7 @@ import {
   collapseSystemMessages,
   validateSystemOrder,
 } from "../../src/session/system-compose"
-import PROMPT_KERNEL from "../../src/session/prompt/opencode_prompts_kernel.txt"
+import PROMPT_KERNEL from "../../src/session/prompt/prompts_kernel.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
 import PROMPT_ALGORITHM from "../../src/session/prompt/algorithm_card.txt"
 import { ProviderTransform } from "../../src/provider/transform"
@@ -16,8 +16,8 @@ import type { Provider } from "../../src/provider/provider"
 /**
  * System prefix digest — update procedure for intentional kernel revisions:
  *
- * 1. Change `opencode_prompts_kernel.py` (canonical source).
- * 2. Regenerate: `python opencode_prompts_kernel.py --render-runtime packages/opencode/src/session/prompt/opencode_prompts_kernel.txt`
+ * 1. Change `prompts_kernel.py` (canonical source).
+ * 2. Regenerate: `python prompts_kernel.py --render-runtime packages/opencode/src/session/prompt/prompts_kernel.txt`
  * 3. Run: `cd packages/opencode && bun test test/session/system-compose.test.ts`
  * 4. If only the digest assertion fails, update EXPECTED_KERNEL_DIGEST below to the
  *    printed actual digest after reviewing the kernel diff.
@@ -215,7 +215,7 @@ describe("system prefix digest (kernel + reasoning)", () => {
     expect(parts.kernel.length).toBeGreaterThan(5_000)
     expect(parts.kernel).toContain("PROMPT_ABI")
     expect(parts.kernel).toContain("MappingProxyType")
-    expect(parts.kernel.startsWith("# Generated from opencode_prompts_kernel.py") || parts.kernel.includes("PROMPT_ABI")).toBe(
+    expect(parts.kernel.startsWith("# Generated from prompts_kernel.py") || parts.kernel.includes("PROMPT_ABI")).toBe(
       true,
     )
   })

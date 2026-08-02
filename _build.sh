@@ -137,8 +137,8 @@ build_opentui() {
 sync_kernel_prompt() {
   local assemble="$ROOT/packages/opencode/script/assemble_reasoning.py"
   local reasoning_dir="$OPENCODE_PKG/src/session/prompt/reasoning"
-  local kernel_pkg="$ROOT/opencode_prompts_kernel"
-  local kernel_dst="$OPENCODE_PKG/src/session/prompt/opencode_prompts_kernel.txt"
+  local kernel_pkg="$ROOT/prompts_kernel"
+  local kernel_dst="$OPENCODE_PKG/src/session/prompt/prompts_kernel.txt"
 
   if [ -f "$assemble" ]; then
     if [ ! -d "$reasoning_dir" ]; then
@@ -159,8 +159,8 @@ sync_kernel_prompt() {
     return 1
   fi
 
-  ( cd "$ROOT" && python3 -m opencode_prompts_kernel --render-runtime "$kernel_dst" ) || {
-    fail "Kernel runtime compilation failed (python -m opencode_prompts_kernel)"
+  ( cd "$ROOT" && python3 -m prompts_kernel --render-runtime "$kernel_dst" ) || {
+    fail "Kernel runtime compilation failed (python -m prompts_kernel)"
     return 1
   }
   local size
@@ -177,7 +177,7 @@ test_reasoning_framework() {
   local import_test
   import_test=$(python3 -c "
 import sys; sys.path.insert(0, '$ROOT')
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 print(f'OK: {len(k._KERNEL_SYMBOLS)} symbols, {len(k.PROJECTION_LIBRARY)} projections')
 " 2>&1) || { fail "Kernel import failed"; echo "  $import_test" >&2; return 1; }
   ok "Kernel imports ($import_test)"
@@ -186,7 +186,7 @@ print(f'OK: {len(k._KERNEL_SYMBOLS)} symbols, {len(k.PROJECTION_LIBRARY)} projec
   local ir_test
   ir_test=$(python3 -c "
 import sys; sys.path.insert(0, '$ROOT')
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 r = {'invariants': ['must balance'], 'constraints': ['must be safe']}
 ir = k.compile_to_ir(r)
 e = k.expand_from_ir(ir)
@@ -200,7 +200,7 @@ print('OK: compile/expand/validate all pass')
   # 3. MappingProxyType immutability
   python3 -c "
 import sys; sys.path.insert(0, '$ROOT')
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 try:
     k._KERNEL_SYMBOLS['_k_hack'] = 'value'
     print('FAIL: mutation should raise TypeError')
@@ -210,9 +210,9 @@ except TypeError:
 " 2>&1 || { fail "Immutability check failed"; return 1; }
   ok "MappingProxyType immutability (TypeError on write)"
 
-  # 4. Kernel tests (opencode_prompts_kernel/tests/)
+  # 4. Kernel tests (prompts_kernel/tests/)
   local test_output
-  test_output=$(python3 -m pytest "$ROOT/opencode_prompts_kernel/tests" -q --tb=no 2>&1) || {
+  test_output=$(python3 -m pytest "$ROOT/prompts_kernel/tests" -q --tb=no 2>&1) || {
     fail "pytest kernel suite failed"
     echo "  $test_output" >&2
     return 1
@@ -225,7 +225,7 @@ except TypeError:
   local hierarchy_test
   hierarchy_test=$(python3 -c "
 import sys; sys.path.insert(0, '$ROOT')
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 checks = 0
 for name, proj in k.PROJECTION_LIBRARY.items():
     if proj.parent:

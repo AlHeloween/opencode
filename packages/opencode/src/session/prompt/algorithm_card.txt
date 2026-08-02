@@ -1,5 +1,5 @@
 # ALGORITHM_CARD — task geometry (routes, not essay)
-# Canonical implementation: opencode_prompts_kernel.run_task_geometry
+# Canonical implementation: prompts_kernel.run_task_geometry
 # Kernel symbols: ground, goal_seeds, goal_peaks, sv_delta,
 #   select_fractal_model, generate_fractal_candidates,
 #   adaptive_tau, adaptive_k, adaptive_depth,
@@ -12,7 +12,7 @@
 
 ```python
 # Bound symbols — every name resolves to a kernel function (read kernel if unsure)
-from opencode_prompts_kernel import (
+from prompts_kernel import (
     run_task_geometry,           # FULL PIPELINE: ground→seeds→fractal→filter→state (one call)
     execute_medoid,              # agent-side contract: execute one task (REUSE+SMOKE_BEFORE)
     verify_oracles,              # agent-side contract: post-impl oracle PASS→done, FAIL→pending

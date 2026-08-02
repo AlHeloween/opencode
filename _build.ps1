@@ -227,7 +227,7 @@ function Sync-KernelPrompt {
     $reasoningDst = Join-Path $Root "packages\opencode\src\session\prompt\reasoning.txt"
     $cardDst = Join-Path $Root "packages\opencode\src\session\prompt\algorithm_card.txt"
     $cardDstUnix = $cardDst -replace '\\', '/'
-    & python -c "from opencode_prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; write_precompiled_kernel(); write_reasoning(); write_algorithm_card('$cardDstUnix')"
+    & python -c "from prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; write_precompiled_kernel(); write_reasoning(); write_algorithm_card('$cardDstUnix')"
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel reasoning/algorithm_card assembly failed"
         return $false
@@ -235,8 +235,8 @@ function Sync-KernelPrompt {
     Write-Success "Reasoning + algorithm_card assembled ($(Get-Item $reasoningDst).Length bytes)"
 
     # 2) Render model-facing kernel from package (not monofile SPECS dump)
-    $kernelPkg = Join-Path $Root "opencode_prompts_kernel"
-    $kernelDst = Join-Path $Root "packages\opencode\src\session\prompt\opencode_prompts_kernel.txt"
+    $kernelPkg = Join-Path $Root "prompts_kernel"
+    $kernelDst = Join-Path $Root "packages\opencode\src\session\prompt\prompts_kernel.txt"
     if (-not (Test-Path $kernelPkg)) {
         Write-Error- "Kernel package not found: $kernelPkg"
         return $false
@@ -244,9 +244,9 @@ function Sync-KernelPrompt {
 
     Push-Location $Root
     try {
-        & python -m opencode_prompts_kernel --render-runtime $kernelDst
+        & python -m prompts_kernel --render-runtime $kernelDst
         if ($LASTEXITCODE -ne 0) {
-            Write-Error- "Kernel runtime compilation failed (python -m opencode_prompts_kernel)"
+            Write-Error- "Kernel runtime compilation failed (python -m prompts_kernel)"
             return $false
         }
     } finally {
@@ -265,7 +265,7 @@ function Test-ReasoningFramework {
     # 1. Verify Python import works (kernel compiles)
     # Use forward slashes to avoid Python SyntaxWarning on Windows backslash escapes
     $importRoot = $Root.Replace("\", "/")
-    $importTest = python -c "import sys; sys.path.insert(0, '$importRoot'); import opencode_prompts_kernel as k; print(f'OK: {len(k._KERNEL_SYMBOLS)} symbols, {len(k.PROJECTION_LIBRARY)} projections')" 2>&1
+    $importTest = python -c "import sys; sys.path.insert(0, '$importRoot'); import prompts_kernel as k; print(f'OK: {len(k._KERNEL_SYMBOLS)} symbols, {len(k.PROJECTION_LIBRARY)} projections')" 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel import failed"
         Write-Host "  $importTest" -ForegroundColor Red
@@ -276,7 +276,7 @@ function Test-ReasoningFramework {
     # 2. Verify IR roundtrip (compile → expand = identity)
     $irTest = python -c @"
 import sys; sys.path.insert(0, '$importRoot')
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 r = {'invariants': ['must balance'], 'constraints': ['must be safe']}
 ir = k.compile_to_ir(r)
 e = k.expand_from_ir(ir)
@@ -295,7 +295,7 @@ print('OK: compile/expand/validate all pass')
     # 3. Verify MappingProxyType immutability
     $immutTest = python -c @"
 import sys; sys.path.insert(0, '$importRoot')
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 try:
     k._KERNEL_SYMBOLS['_k_hack'] = 'value'
     print('FAIL: mutation should raise TypeError')
@@ -310,8 +310,8 @@ except TypeError:
     }
     Write-Success "MappingProxyType immutability (TypeError on write)"
 
-    # 4. Kernel tests (opencode_prompts_kernel/tests/)
-    $testOutput = python -m pytest $Root\opencode_prompts_kernel\tests -q --tb=no 2>&1
+    # 4. Kernel tests (prompts_kernel/tests/)
+    $testOutput = python -m pytest $Root\prompts_kernel\tests -q --tb=no 2>&1
     $testExitCode = $LASTEXITCODE
     if ($testExitCode -ne 0) {
         Write-Error- "pytest kernel suite failed (exit code: $testExitCode)"
@@ -324,7 +324,7 @@ except TypeError:
     # 5. Verify discipline projection hierarchy consistency
     $hierarchyTest = python -c @"
 import sys; sys.path.insert(0, '$importRoot')
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 checks = 0
 for name, proj in k.PROJECTION_LIBRARY.items():
     if proj.parent:
@@ -357,7 +357,7 @@ function Invoke-Build {
         Write-Success ".temp/test/ cleaned"
     }
 
-    # Step 0: Sync opencode_prompts_kernel.py → .txt (canonical prompt source)
+    # Step 0: Sync prompts_kernel.py → .txt (canonical prompt source)
     $kernelSynced = Sync-KernelPrompt
     if (-not $kernelSynced) {
         throw "Kernel prompt sync failed"

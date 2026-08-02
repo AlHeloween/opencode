@@ -181,14 +181,14 @@ def save_manifest(manifest: dict) -> None:
 
 def step_kernel() -> None:
     """Assemble reasoning fragments + render runtime kernel txt from package."""
-    dst = ROOT / "packages/opencode/src/session/prompt/opencode_prompts_kernel.txt"
+    dst = ROOT / "packages/opencode/src/session/prompt/prompts_kernel.txt"
     card_dst = ROOT / "packages/opencode/src/session/prompt/algorithm_card.txt"
-    pkg = ROOT / "opencode_prompts_kernel"
+    pkg = ROOT / "prompts_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
     # Assemble reasoning.txt + algorithm_card.txt + precompiled kernel from kernel
     _run([sys.executable, "-c",
-          "from opencode_prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; "
+          "from prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; "
           f"write_precompiled_kernel(); write_reasoning(); write_algorithm_card({card_dst.as_posix()!r})"])
     # Render runtime kernel txt
     _run(
@@ -204,10 +204,10 @@ def step_kernel() -> None:
 
 
 def step_reasoning() -> None:
-    # Light integrity check (import + IR roundtrip). Full suite: pytest opencode_prompts_kernel/tests/.
+    # Light integrity check (import + IR roundtrip). Full suite: pytest prompts_kernel/tests/.
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
     code = r"""
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 assert k._KERNEL_SYMBOLS
 r = {"invariants": ["must balance"], "constraints": ["must be safe"]}
 ir = k.compile_to_ir(r)
@@ -270,13 +270,13 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
     steps = [
         Step(
             name="kernel",
-            description="Assemble reasoning/*.txt + render opencode_prompts_kernel.txt + algorithm_card.txt",
+            description="Assemble reasoning/*.txt + render prompts_kernel.txt + algorithm_card.txt",
             inputs=[
-                "opencode_prompts_kernel",
-                "opencode_prompts_kernel/reasoning",
+                "prompts_kernel",
+                "prompts_kernel/reasoning",
             ],
             outputs=[
-                "packages/opencode/src/session/prompt/opencode_prompts_kernel.txt",
+                "packages/opencode/src/session/prompt/prompts_kernel.txt",
                 "packages/opencode/src/session/prompt/reasoning.txt",
                 "packages/opencode/src/session/prompt/algorithm_card.txt",
             ],
@@ -289,7 +289,7 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
                 name="reasoning",
                 description="Kernel package import + IR roundtrip + PLANNING fractal_only",
                 inputs=[
-                    "opencode_prompts_kernel",
+            "prompts_kernel",
                 ],
                 outputs=[],  # pure check
                 run=step_reasoning,

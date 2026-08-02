@@ -1215,7 +1215,7 @@ def run_task_geometry(
 # Agent-side stubs — execute_medoid + verify_oracles
 # =========================================================================
 # These are documented contracts, not kernel implementations.
-# The agent drives execution (REUSE.BEFORE, SMOKE.BEFORE, tool calls);
+# The agent drives execution (REUSE.BEFORE, SMOKE_BEFORE, tool calls);
 # the kernel provides the interface specification so every symbol in
 # algorithm_card resolves to a callable.
 
@@ -1225,7 +1225,7 @@ def execute_medoid(task: str) -> tuple[str, str]:
 
     The agent MUST:
     1. Run REUSE.BEFORE (search prior art before inventing)
-    2. Run SMOKE.BEFORE (baseline oracles before first edit)
+    2. Run SMOKE_BEFORE (baseline oracles before first edit)
     3. Execute the task using product tools (edit, write, bash, …)
     4. Return status + detail
 
@@ -1248,7 +1248,7 @@ def verify_oracles(
     """Verify executed tasks via post-impl oracles (agent-side, kernel contract).
 
     The agent MUST:
-    1. Re-run SMOKE.BEFORE oracles for each completed task
+    1. Re-run SMOKE_BEFORE oracles for each completed task
     2. Compare post-impl output against baseline [Exact]
     3. Re-classify: PASS→stays in completed, FAIL→moves to pending
     4. Update blockers with newly discovered dependencies
@@ -1263,7 +1263,7 @@ def verify_oracles(
 
 
 # =========================================================================
-# SMOKE.BEFORE — industrial contract: baseline → edit → verify
+# SMOKE_BEFORE — industrial contract: baseline → edit → verify
 # =========================================================================
 # Kernel provides: spec generation, contract validation, baseline recording,
 # post-impl verification. Agent executes the actual commands (shell access).
@@ -1279,7 +1279,7 @@ def verify_oracles(
 
 
 def smoke_before_spec(task: str) -> dict:
-    """Generate a SMOKE.BEFORE specification template from a task description.
+    """Generate a SMOKE_BEFORE specification template from a task description.
 
     The returned spec has empty baseline/post_checks — the agent MUST fill
     in concrete, runnable commands before Gate 4 approval.
@@ -1350,7 +1350,7 @@ def smoke_before_spec(task: str) -> dict:
 
 
 def smoke_before_validate(spec: dict) -> tuple[bool, str]:
-    """Validate a SMOKE.BEFORE specification against the contract.
+    """Validate a SMOKE_BEFORE specification against the contract.
 
     Enforcement (Gate 4 — plan approval):
       1. smoke_na=True requires smoke_na_reason (not None, not empty)
@@ -1403,7 +1403,7 @@ def smoke_before_validate(spec: dict) -> tuple[bool, str]:
         if not cmd:
             return (False, f"post_checks[{i}] ('{label}'): missing 'cmd'")
 
-    return (True, "SMOKE.BEFORE spec valid")
+    return (True, "SMOKE_BEFORE spec valid")
 
 
 def smoke_before_record(
@@ -1411,7 +1411,7 @@ def smoke_before_record(
     smoke_spec: dict,
     baseline_outputs: dict[str, dict],
 ) -> dict:
-    """Record SMOKE.BEFORE baseline outputs into the ADID state.
+    """Record SMOKE_BEFORE baseline outputs into the ADID state.
 
     Called AFTER the agent runs baseline commands and BEFORE the first edit.
     Baseline outputs are stamped as [Exact] evidence.
@@ -1444,7 +1444,7 @@ def smoke_before_verify(
     state: dict,
     post_outputs: dict[str, dict],
 ) -> dict:
-    """Verify post-implementation outputs against SMOKE.BEFORE baseline.
+    """Verify post-implementation outputs against SMOKE_BEFORE baseline.
 
     Called AFTER implementation, BEFORE marking task as Done.
     Compares each post_output against the recorded baseline.
@@ -1466,7 +1466,7 @@ def smoke_before_verify(
         return {
             "status": "NO_BASELINE",
             "checks": [],
-            "summary": "No SMOKE.BEFORE baseline recorded — cannot verify. Run smoke_before_record first.",
+            "summary": "No SMOKE_BEFORE baseline recorded — cannot verify. Run smoke_before_record first.",
         }
 
     checks: list[dict] = []

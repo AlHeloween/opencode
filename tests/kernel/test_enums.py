@@ -63,9 +63,9 @@ class TestEnums:
         assert ContractState.COMPLETED.value == "COMPLETED"
 
     def test_delta_class_values(self):
-        assert DeltaClass.STABLE.value == "Stable"
-        assert DeltaClass.SHIFT.value == "Shift"
-        assert DeltaClass.DIVERGENCE.value == "Divergence"
+        assert DeltaClass.STABLE.value == "STABLE"
+        assert DeltaClass.SHIFT.value == "SHIFT"
+        assert DeltaClass.DIVERGENCE.value == "DIVERGENCE"
 
     def test_approval_status_values(self):
         assert ApprovalStatus.NOT_REQUIRED.value == "NOT_REQUIRED"
@@ -76,8 +76,8 @@ class TestEnums:
         assert ExecutionMode.BATCH_EXECUTE.value == "BATCH_EXECUTE"
 
     def test_role_properties(self):
-        assert Role.STRATEGIST1.is_human is True
-        assert Role.SYNTHESIZER.is_agent is True
-        assert Role.APPROVER1.responsibility() == "Reviews and approves ExecutionContracts"
-        assert Role.ORACLE2.responsibility() == "Runs primary and secondary verification, reports results"
+        assert Role.HUMAN_STRATEGIST.is_human is True
+        assert Role.AGENT_SYNTHESIZER.is_agent is True
+        assert Role.HUMAN_APPROVER.responsibility() == "Reviews and approves ExecutionContracts"
+        assert Role.AGENT_ORACLE.responsibility() == "Runs primary and secondary verification, reports results"
 

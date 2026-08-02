@@ -3,7 +3,7 @@
 RESERVED_PREFIXES: tuple[str, ...] = (
     "_k_", "_py_", "_ts_", "_md_", "_yml_",
     "_sci_", "_phy_", "_chm_", "_bio_",
-    "_soc_", "_eco_", "_psy_", "_soc_",
+    "_soc_", "_eco_", "_psy_", "_socy_",
     "_hist_",
 )
 
@@ -38,7 +38,7 @@ _PROJECTION_PREFIXES: MappingProxyType[str, str] = MappingProxyType({
     "social_science": "_soc_",
     "economics": "_eco_",
     "psychology": "_psy_",
-    "sociology": "_soc_",
+    "sociology": "_socy_",
     "history": "_hist_",
 })
 
@@ -52,14 +52,15 @@ PREFIX_RULE: MappingProxyType[str, dict] = MappingProxyType({
     "_yml_": {"meaning": "YAML language projection", "mutable": False, "redefinable": False, "context_dependent": False},
     # Natural science projections
     "_sci_": {"meaning": "natural science projection", "mutable": False, "redefinable": False, "context_dependent": False},
-    "_phy_": {"meaning": "physics sub-discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
-    "_chm_": {"meaning": "chemistry sub-discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
-    "_bio_": {"meaning": "biology sub-discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
+    "_phy_": {"meaning": "physics sub_discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
+    "_chm_": {"meaning": "chemistry sub_discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
+    "_bio_": {"meaning": "biology sub_discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
     # Social science projections
     "_soc_": {"meaning": "social science projection", "mutable": False, "redefinable": False, "context_dependent": False},
-    "_eco_": {"meaning": "economics sub-discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
-    "_psy_": {"meaning": "psychology sub-discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
-    "_hist_": {"meaning": "history sub-discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
+    "_eco_": {"meaning": "economics sub_discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
+    "_psy_": {"meaning": "psychology sub_discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
+    "_socy_": {"meaning": "sociology sub_discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
+    "_hist_": {"meaning": "history sub_discipline projection", "mutable": False, "redefinable": False, "context_dependent": False},
 })
 
 

@@ -59,9 +59,9 @@ class ContractState(str, Enum):
 
 class DeltaClass(str, Enum):
     """§15.2 Semantic vector delta classification."""
-    STABLE = "Stable"
-    SHIFT = "Shift"
-    DIVERGENCE = "Divergence"
+    STABLE = "STABLE"
+    SHIFT = "SHIFT"
+    DIVERGENCE = "DIVERGENCE"
 
 
 class ApprovalStatus(str, Enum):
@@ -82,20 +82,20 @@ class ExecutionMode(str, Enum):
 class Role(str, Enum):
     """§XII Role definitions for Human↔Agent collaboration.
 
-    Human roles: STRATEGIST1 (goals), APPROVER1 (approval), ORACLE1 (pass/fail)
-    Agent roles: SYNTHESIZER (contracts), EXECUTOR2 (execution), ORACLE2 (verification), ANALYST2 (classification)
+    Human roles: HUMAN_STRATEGIST (goals), HUMAN_APPROVER (approval), HUMAN_ORACLE (pass/fail)
+    Agent roles: AGENT_SYNTHESIZER (contracts), AGENT_EXECUTOR (execution), AGENT_ORACLE (verification), AGENT_ANALYST (classification)
     """
-    STRATEGIST1 = "Strategist1"
-    APPROVER1 = "Approver1"
-    ORACLE1 = "Oracle1"
-    SYNTHESIZER = "Synthesizer"
-    EXECUTOR2 = "Executor2"
-    ORACLE2 = "Oracle2"
-    ANALYST2 = "Analyst2"
+    HUMAN_STRATEGIST = "HumanStrategist"
+    HUMAN_APPROVER = "HumanApprover"
+    HUMAN_ORACLE = "HumanOracle"
+    AGENT_SYNTHESIZER = "AgentSynthesizer"
+    AGENT_EXECUTOR = "AgentExecutor"
+    AGENT_ORACLE = "AgentOracle"
+    AGENT_ANALYST = "AgentAnalyst"
 
     @property
     def is_human(self) -> bool:
-        return self in (Role.STRATEGIST1, Role.APPROVER1, Role.ORACLE1)
+        return self in (Role.HUMAN_STRATEGIST, Role.HUMAN_APPROVER, Role.HUMAN_ORACLE)
 
     @property
     def is_agent(self) -> bool:
@@ -106,13 +106,13 @@ class Role(str, Enum):
 
 
 _ROLE_RESPONSIBILITIES: dict[Role, str] = {
-    Role.STRATEGIST1: "Defines high-level goals and approval policy",
-    Role.APPROVER1: "Reviews and approves ExecutionContracts",
-    Role.ORACLE1: "Provides pass/fail output from executed operations",
-    Role.SYNTHESIZER: "Translates goals into ExecutionContracts",
-    Role.EXECUTOR2: "Validates and executes approved contracts",
-    Role.ORACLE2: "Runs primary and secondary verification, reports results",
-    Role.ANALYST2: "Classifies completion state (COMPLETED/PARTIAL/BLOCKED/ROLLED_BACK)",
+    Role.HUMAN_STRATEGIST: "Defines high-level goals and approval policy",
+    Role.HUMAN_APPROVER: "Reviews and approves ExecutionContracts",
+    Role.HUMAN_ORACLE: "Provides pass/fail output from executed operations",
+    Role.AGENT_SYNTHESIZER: "Translates goals into ExecutionContracts",
+    Role.AGENT_EXECUTOR: "Validates and executes approved contracts",
+    Role.AGENT_ORACLE: "Runs primary and secondary verification, reports results",
+    Role.AGENT_ANALYST: "Classifies completion state (COMPLETED/PARTIAL/BLOCKED/ROLLED_BACK)",
 }
 
 

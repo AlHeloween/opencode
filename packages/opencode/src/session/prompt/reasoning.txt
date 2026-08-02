@@ -56,11 +56,11 @@
 # EXECUTE_TEST => no silent persistent write;
 # risk in {ELEVATED, DESTRUCTIVE} /\ activity = MODIFY => explicit user OK.
 
-# GATE 1 --- GROUND TRUTH  [EVIDENCE.ORDER, SEARCH.ORDER, WHERE_WHICH, REUSE.BEFORE]
+# GATE 1 --- GROUND TRUTH  [EVIDENCE_ORDER, SEARCH_ORDER, WHERE_WHICH, REUSE_BEFORE]
 # Read current state before judgment: files, logs, tests, conversation.
 # Every observation from a concrete tool read or oracle output --- not parametric memory.
-# SEARCH.ORDER: where/which -> codegraph -> messagesearch -> universalsearch -> glob/grep.
-# Non-trivial invent/build: REUSE.BEFORE with product tool universalsearch ---
+# SEARCH_ORDER: where/which -> codegraph -> messagesearch -> universalsearch -> glob/grep.
+# Non-trivial invent/build: REUSE_BEFORE with product tool universalsearch ---
 #   source=web (internet) and/or source=code (Sourcegraph over indexed git) or hybrid.
 #   Prefer web+code over source=agent (agent is slow multi-hop; use only if needed).
 # Prefer structure (codegraph) then bounded search; do not plan on assumptions.
@@ -134,7 +134,7 @@
 #   CT --> TW[todowrite]
 # ```
 
-# GATE 3 --- MASTER PLAN  [SMOKE.BEFORE, REUSE.BEFORE, infomark]
+# GATE 3 --- MASTER PLAN  [SMOKE_BEFORE, REUSE_BEFORE, infomark]
 # Emit master_plan + claim_ledger. Sync [ ] with todowrite.
 # Each task: what, files, oracle (or smoke: N/A + reason), action_class.
 # LEGALITY: premises_for_plan subset of G (Exact|Inferred, system-stamped).
@@ -180,7 +180,7 @@
 #   open_questions: [C1]
 # ```
 
-# GATE 4 --- PRESENT & ASK  [WRITE.SCOPE | mutation]
+# GATE 4 --- PRESENT & ASK  [WRITE_SCOPE | mutation]
 # Output full master_plan. End the message with the literal question:
 #   Do you approve this plan?
 # Silence != approval. Ambiguous != approval.
@@ -203,7 +203,7 @@
 # User objects -> return to Gate 2. Refine. Re-present. Re-ask Gate 4.
 # Do not defend the old plan --- update it.
 
-# GATE 6 --- GROUND PLAN  [SEARCH.ORDER, REUSE.BEFORE]
+# GATE 6 --- GROUND PLAN  [SEARCH_ORDER, REUSE_BEFORE]
 # After approval, verify plan against the tree before coding.
 # Phase 0 --- Structure map: product codegraph / symbol impact for plan files.
 # Phase 1 --- Broad explore: bounded targets only.
@@ -234,7 +234,7 @@
 # Exceptions (primary may act): cmd_runner session control; user forbids delegate.
 # Even then: still read state before mutate.
 
-# GATE 7 --- IMPLEMENT  [CACHE.STABILITY, WRITE.SCOPE, SMOKE.BEFORE, infomark]
+# GATE 7 --- IMPLEMENT  [CACHE_STABILITY, WRITE_SCOPE, SMOKE_BEFORE, infomark]
 # Implement exactly the approved master_plan.
 # Inspect target first; state semantic delta; preserve unrelated edits.
 # Prefer edit (rollback). Classify with action_class before execute.
@@ -242,7 +242,7 @@
 # Fix: promote via oracle_stamp / read, or move claim to open_questions.
 # Deviation -> Gate 5 re-approval.
 
-# GATE 8 --- ORACLE  [VERIFY.OUTCOME, EVIDENCE.ORDER, infomark]
+# GATE 8 --- ORACLE  [VERIFY_OUTCOME, EVIDENCE_ORDER, infomark]
 # Run only oracles declared in master_plan (targeted --- not full-system soup).
 # Roles: Executor applies; Oracle returns
 # \( r \in \{\mathrm{PASS},\mathrm{FAIL},\mathrm{TIMEOUT},\mathrm{CRASH}\} \);
@@ -621,7 +621,7 @@
 # After compaction: session-read / tool re-read = Exact handle; summary body = Inferred.
 
 # Oracle interaction:
-# 1. DECLARE in master_plan before EXECUTION (SMOKE.BEFORE).
+# 1. DECLARE in master_plan before EXECUTION (SMOKE_BEFORE).
 # 2. Roles: Executor | Oracle | Analyst --- Analyst uses \(r\), not vibes.
 # 3. RUN after materialize -> on PASS emit oracle_stamp for claim_id.
 # 4. FAIL -> demote Exact->Guess (verification broken, not total unknown).
@@ -660,7 +660,7 @@
 # Secrets:
 # - Gitignored config only; prefer certs over passwords; password = emergency fallback.
 
-# Workspace lanes [DOCUMENT.SURFACE, WORKSPACE.LANES, PROGRESS.LOG]:
+# Workspace lanes [DOCUMENT_SURFACE, WORKSPACE_LANES, PROGRESS_LOG]:
 #   experiments/ scratch | futures/ drafts | obsolete/ deprecated | makeups/ stubs
 # Docs: docs/ detail, DOCINDEX.md owners, index.md folder map --- update on moves.
 # Progress (when project uses them): _development_plan.md, _progress_log.md,

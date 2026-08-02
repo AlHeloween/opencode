@@ -58,7 +58,7 @@ class BugFixAttempt:
     information_mark: Optional[EpistemicStatus] = None
 
 
-class BugFixSvmTracker:
+class BugFixSVMTracker:
     """§XIV-b SVM-anchored bug fix tracker — prevents fix deadloops.
 
     Anchors the bug fix SV at the start and compares each attempt's SV
@@ -79,7 +79,7 @@ class BugFixSvmTracker:
     REFINING_THRESHOLD: float = 0.5  # Δ_L1 ≤ DELTA_SHIFT → converging
 
     def __init__(self, bug_description: str, max_attempts: int = 3):
-        self.anchor = SvmAnchor(
+        self.anchor = SVMAnchor(
             sv=build_semantic_vector(
                 keywords=[w for w in bug_description.lower().split() if len(w) > 2][:5],
                 weights=[0.2] * min(5, len(bug_description.split())),

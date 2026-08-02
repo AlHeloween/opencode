@@ -6,7 +6,7 @@
 #   k_medoids_modifications (→ CLARA when N≥100), select_medoids_tasks,
 #   lsystem_rewrite, residual_recluster,
 #   execute_medoid (agent-side contract), verify_oracles (agent-side contract),
-#   emit_state, manhattan_distance, PLANNING (fractal_only)
+#   emit_state, delta_l1, PLANNING (fractal_only)
 # Cut evaluation area: over-generate lattice → keep medoids only. Never evaluate infinity.
 # NO Mode 1 / linear shortcut — soft step lists without lattice+k-medoids are forbidden.
 
@@ -40,7 +40,7 @@ central_tasks = select_medoids_tasks(modifications, seeds=seed_mods)
 todowrite(central_tasks)  # tool: todowrite | TodoWrite
 
 # === STEP 7: execute — one medoid at a time ===
-# REUSE.BEFORE: search prior art before inventing.
+# REUSE_BEFORE: search prior art before inventing.
 # SMOKE_BEFORE: baseline oracles BEFORE first edit (record [Exact]).
 completed, pending, blockers = [], [], []
 for task in central_tasks:  # one in_progress (PLANNING invariant)

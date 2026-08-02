@@ -74,11 +74,11 @@ class TestRuntimePromptCompiler:
 
     def test_normalized_duplicate_requires_explicit_alias(self):
         rules = {
-            "EVIDENCE.ORDER": "Verified reference outranks inference.",
-            "EVIDENCE.COPY": " verified-reference outranks inference ",
+            "EVIDENCE_ORDER": "Verified reference outranks inference.",
+            "EVIDENCE_COPY": " verified-reference outranks inference ",
         }
         assert find_normalized_runtime_rule_duplicates(rules, {})
-        assert find_normalized_runtime_rule_duplicates(rules, {"EVIDENCE.COPY": "EVIDENCE.ORDER"}) == []
+        assert find_normalized_runtime_rule_duplicates(rules, {"EVIDENCE_COPY": "EVIDENCE_ORDER"}) == []
 
     def test_normalized_duplicate_output_is_input_order_independent(self):
         first = {
@@ -199,7 +199,7 @@ class TestRuntimePromptCompiler:
         assert len(runtime.encode("utf-8")) <= PROMPT_ABI["identity_max_bytes"]
         assert "PROMPT_ABI" in dict_section
         assert "CONTRACTS" in dict_section
-        assert "MEMORY.RANK" in runtime
+        assert "MEMORY_RANK" in runtime
         assert "infomark" in runtime
         # Tier A excludes skill/command SPECS bodies (Tier B surfaces)
         assert "--- Skill Specs" not in runtime
@@ -210,7 +210,7 @@ class TestRuntimePromptCompiler:
 
     def test_reuse_before_research_ladder(self):
         """REUSE.BEFORE encodes Guess → web/code → smoke PASS Exact / FAIL Unknown."""
-        rule = RUNTIME_RULES["REUSE.BEFORE"]
+        rule = RUNTIME_RULES["REUSE_BEFORE"]
         assert "web" in rule
         assert "code" in rule or "Sourcegraph" in rule
         assert "Exact" in rule

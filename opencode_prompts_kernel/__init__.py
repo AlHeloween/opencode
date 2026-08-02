@@ -42,7 +42,8 @@ _FRAGMENTS = [
     "28_runtime_render",
     "29_syntax",
     "30_epistemic",
-    "31_prompt_ir"
+    "31_prompt_ir",
+    "32_reasoning_render",
 ]
 
 _COMMON_IMPORTS = r"""

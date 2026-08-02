@@ -12,7 +12,7 @@ import sys
 import pytest
 
 # Add project root to path
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
 
 from opencode_prompts_kernel import (
@@ -54,7 +54,7 @@ POCKET_PROTOCOL_FILES = {
         "REASONING PROTOCOL",
         "ALGORITHM_CARD",
         "claim_ledger",
-        "REUSE.BEFORE",
+        "REUSE_BEFORE",
         "universalsearch",
         "GATE 4",
         "oracle_stamp",

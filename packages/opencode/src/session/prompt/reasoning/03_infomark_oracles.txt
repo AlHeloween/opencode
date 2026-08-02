@@ -134,7 +134,7 @@
 # After compaction: session-read / tool re-read = Exact handle; summary body = Inferred.
 
 # Oracle interaction:
-# 1. DECLARE in master_plan before EXECUTION (SMOKE.BEFORE).
+# 1. DECLARE in master_plan before EXECUTION (SMOKE_BEFORE).
 # 2. Roles: Executor | Oracle | Analyst --- Analyst uses \(r\), not vibes.
 # 3. RUN after materialize -> on PASS emit oracle_stamp for claim_id.
 # 4. FAIL -> demote Exact->Guess (verification broken, not total unknown).

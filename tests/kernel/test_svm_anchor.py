@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from opencode_prompts_kernel import (  # noqa: E402
     Signal,
-    SvmAnchor,
+    SVMAnchor,
     build_semantic_vector,
     classify_signal,
     filter_signal_storm,
@@ -18,7 +18,7 @@ from opencode_prompts_kernel import (  # noqa: E402
 
 
 def _make_anchor(keywords=None, weights=None, dominant="test goal"):
-    return SvmAnchor(
+    return SVMAnchor(
         sv=build_semantic_vector(
             keywords=keywords or ["DirectoryBrowser", "add", "component"],
             weights=weights or [0.5, 0.3, 0.2],

@@ -21,7 +21,7 @@ class Signal:
 
 
 @dataclass
-class SvmAnchor:
+class SVMAnchor:
     """Fixed SV at a decision point — the agent's 'I am doing X' state.
 
     Frozen at phase transitions (plan→design, design→implementation).
@@ -37,7 +37,7 @@ class SvmAnchor:
     def dominant(self) -> str:
         return self.sv.semantic_dominant
 
-    def l1_distance(self, other: "SvmAnchor") -> float:
+    def l1_distance(self, other: "SVMAnchor") -> float:
         """Δ_L1 between this anchor and another SV."""
         return delta_l1(
             dict(zip(self.sv.keywords, self.sv.weights)),
@@ -80,7 +80,7 @@ def _same_source_repeated(signal: Signal) -> bool:
     return any(p.lower() in signal.pattern.lower() for p in cascade_patterns)
 
 
-def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
+def classify_signal(anchor: SVMAnchor, signal: Signal) -> str:
     """Compare incoming signal against frozen anchor.
 
     Returns:
@@ -89,7 +89,7 @@ def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
       'DIVERGENCE'   — high delta, genuinely new information → anchor may need revision
 
     Example (LSP noise):
-      anchor = SvmAnchor(sv=build_sv(["DirectoryBrowser","add","component"],
+      anchor = SVMAnchor(sv=build_semantic_vector(["DirectoryBrowser","add","component"],
                                       [0.5,0.3,0.2], "Adding DirectoryBrowser"),
                          phase="implementation")
       signal = Signal(source="LSP", pattern="JSX-unresolved-reference",
@@ -117,7 +117,7 @@ def classify_signal(anchor: SvmAnchor, signal: Signal) -> str:
     return "DIVERGENCE"
 
 
-def filter_signal_storm(anchor: SvmAnchor, signals: list[Signal]) -> list[Signal]:
+def filter_signal_storm(anchor: SVMAnchor, signals: list[Signal]) -> list[Signal]:
     """Cluster signals by (source, pattern). Each cluster = 1 effective signal.
 
     A storm of 60 identical LSP errors is 1 signal, not 60.
@@ -126,7 +126,7 @@ def filter_signal_storm(anchor: SvmAnchor, signals: list[Signal]) -> list[Signal
 
     Example:
       signals = [60 LSP errors with same pattern]
-      anchor = SvmAnchor(...)  # "Adding DirectoryBrowser"
+      anchor = SVMAnchor(...)  # "Adding DirectoryBrowser"
       result = filter_signal_storm(anchor, signals)  # → [] (all noise)
     """
     # Cluster by (source, pattern)

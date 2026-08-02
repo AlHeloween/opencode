@@ -783,10 +783,10 @@ def generate_fractal_candidates(
 def _tokenize_text(text: str) -> list[str]:
     """Extract meaningful tokens from a text string.
 
-    Splits on non-alphanumeric boundaries, filters stopwords and short tokens.
+    Splits on non-alphanumeric boundary, filters stopwords and short tokens.
     Returns lowercase tokens in original order.
     """
-    _STOPWORDS = {
+    stopwords = {
         "the", "a", "an", "is", "are", "was", "were", "be", "been",
         "has", "have", "had", "do", "does", "did", "will", "would",
         "can", "could", "may", "might", "shall", "should", "must",
@@ -805,12 +805,12 @@ def _tokenize_text(text: str) -> list[str]:
         else:
             if current:
                 word = "".join(current)
-                if len(word) >= 2 and word not in _STOPWORDS:
+                if len(word) >= 2 and word not in stopwords:
                     tokens.append(word)
                 current = []
     if current:
         word = "".join(current)
-        if len(word) >= 2 and word not in _STOPWORDS:
+        if len(word) >= 2 and word not in stopwords:
             tokens.append(word)
     return tokens
 
@@ -981,7 +981,7 @@ def ground(goal: str) -> dict:
     """Generate an evidence-gathering plan from a goal.
 
     Does NOT execute tools — returns structured search instructions
-    that the agent follows at Gate 1 (GROUND TRUTH / SEARCH.ORDER).
+    that the agent follows at Gate 1 (GROUND TRUTH / SEARCH_ORDER).
 
     Returns a dict with:
       - goal_keywords: extracted keyword tokens
@@ -999,7 +999,7 @@ def ground(goal: str) -> dict:
     ranked = sorted(freq.items(), key=lambda x: -x[1])
     top_keywords = [kw for kw, _ in ranked[:6]]
 
-    # Searches: prefer web + code for prior art (REUSE.BEFORE)
+    # Searches: prefer web + code for prior art (REUSE_BEFORE)
     searches: list[tuple[str, str]] = []
     if top_keywords:
         q = " ".join(top_keywords[:4])
@@ -1215,7 +1215,7 @@ def run_task_geometry(
 # Agent-side stubs — execute_medoid + verify_oracles
 # =========================================================================
 # These are documented contracts, not kernel implementations.
-# The agent drives execution (REUSE.BEFORE, SMOKE_BEFORE, tool calls);
+# The agent drives execution (REUSE_BEFORE, SMOKE_BEFORE, tool calls);
 # the kernel provides the interface specification so every symbol in
 # algorithm_card resolves to a callable.
 
@@ -1224,7 +1224,7 @@ def execute_medoid(task: str) -> tuple[str, str]:
     """Execute one medoid task (agent-side, kernel contract only).
 
     The agent MUST:
-    1. Run REUSE.BEFORE (search prior art before inventing)
+    1. Run REUSE_BEFORE (search prior art before inventing)
     2. Run SMOKE_BEFORE (baseline oracles before first edit)
     3. Execute the task using product tools (edit, write, bash, …)
     4. Return status + detail

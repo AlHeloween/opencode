@@ -338,8 +338,8 @@ def salience_from_mention_ratio(mention_ratio: float) -> float:
 def reverse_search(claims: list[dict[str, Any]], query: str,
                    min_level: str = "Inferred") -> list[dict[str, Any]]:
     """Only Exact and Inferred claims participate in grounding set."""
-    LEVEL_ORDER = {"Exact": 4, "Inferred": 3, "Hypothetical": 2, "Guess": 1, "Unknown": 0}
-    min_val = LEVEL_ORDER.get(min_level, 3)
+    level_order = {"Exact": 4, "Inferred": 3, "Hypothetical": 2, "Guess": 1, "Unknown": 0}
+    min_val = level_order.get(min_level, 3)
     return [c for c in claims
-            if LEVEL_ORDER.get(c.get("level", "Unknown"), 0) >= min_val
+            if level_order.get(c.get("level", "Unknown"), 0) >= min_val
             and query.lower() in c.get("text", "").lower()]

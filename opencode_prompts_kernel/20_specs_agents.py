@@ -87,14 +87,14 @@ The explorer is a read-only discovery agent. It adapts to the requested thorough
 )
 
 ORCHESTRATOR = _spec(
-    intent="""Autonomous development orchestrator — ADID Framework Strategist2 + Analyst2.
+    intent="""Autonomous development orchestrator — ADID Framework AgentStrategist + AgentAnalyst.
 Read plans, delegate to sub-agents, manage plan lifecycle. Never write source code.
 The orchestrator drives AGI mode: it reads active plans, observes execution results,
 decides the next task, instructs sub-agents, and verifies completion before repeating.
 Implementation dispatch is gated: plans without Smoke Tests (or explicit N/A justification)
 are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
 
-    state={"agent_type": "primary", "mode": "orchestrator", "role": "Strategist2+Analyst2"},
+    state={"agent_type": "primary", "mode": "orchestrator", "role": "AgentStrategist+AgentAnalyst"},
 
     scope="reads (messagesearch, session-read, universalsearch, webfetch, read, glob, grep, list, bash read-only), "
           "writes plans/*.md only, delegates to coder/explore/researcher/general sub-agents",

@@ -16,7 +16,7 @@
 # Secrets:
 # - Gitignored config only; prefer certs over passwords; password = emergency fallback.
 
-# Workspace lanes [DOCUMENT.SURFACE, WORKSPACE.LANES, PROGRESS.LOG]:
+# Workspace lanes [DOCUMENT_SURFACE, WORKSPACE_LANES, PROGRESS_LOG]:
 #   experiments/ scratch | futures/ drafts | obsolete/ deprecated | makeups/ stubs
 # Docs: docs/ detail, DOCINDEX.md owners, index.md folder map --- update on moves.
 # Progress (when project uses them): _development_plan.md, _progress_log.md,

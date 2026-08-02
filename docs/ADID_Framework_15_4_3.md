@@ -413,13 +413,13 @@ def safety_measures() -> str:
 				DELTA_SHIFT: float = 0.6
 				
 				def classify_delta(d: float) -> str:
-				    """Classify delta into Stable / Shift / Divergence."""
+				    """Classify delta into STABLE / SHIFT / DIVERGENCE."""
 				    if d < DELTA_STABLE:
-				        return "Stable"
+				        return "STABLE"
 				    elif d < DELTA_SHIFT:
-				        return "Shift"
+				        return "SHIFT"
 				    else:
-				        return "Divergence"
+				        return "DIVERGENCE"
 				~~~						
 15. **AGI Reasoning Kernel**( #agi_kernel) with Dual-Mode Task Generation for #agi:
 
@@ -854,26 +854,26 @@ ADID does not provide one canonical update manager. It specifies the rules of th
 	
 	# All framework roles as typed data
 	# Human roles:
-	Role.STRATEGIST1  # High-level goals & priority sequences
-	# Analyst1: Analyzes oracle output, may declare DONE
-	# Corrector1: Manual code correction
-	# Executor1: Reviews the exact materialized transition and runs the approved model-authored update mechanism
-	Role.ORACLE1      # Pass/fail output provider
-	
+	Role.HUMAN_STRATEGIST  # High-level goals & priority sequences
+	# HUMAN_ANALYST: Analyzes oracle output, may declare DONE
+	# HUMAN_CORRECTOR: Manual code correction
+	# HUMAN_EXECUTOR: Reviews the exact materialized transition and runs the approved model-authored update mechanism
+	Role.HUMAN_ORACLE      # Pass/fail output provider
+
 	# Agent roles:
-	Role.SYNTHESIZER  # Translates goals into a model-authored update mechanism and exact candidate transition
-	Role.EXECUTOR2    # Runs manager conformance, validates the approved transition, and executes it
-	Role.ORACLE2      # Runs verification, reports results
-	Role.ANALYST2     # Classifies completion state
-	
+	Role.AGENT_SYNTHESIZER  # Translates goals into a model-authored update mechanism and exact candidate transition
+	Role.AGENT_EXECUTOR    # Runs manager conformance, validates the approved transition, and executes it
+	Role.AGENT_ORACLE      # Runs verification, reports results
+	Role.AGENT_ANALYST     # Classifies completion state
+
 	# Query role properties
-	role = Role.EXECUTOR2
+	role = Role.AGENT_EXECUTOR
 	print(f"{role.value}: {'Human' if role.is_human else 'Agent'}")
 	print(f"  Responsibility: {role.responsibility()}")
 	```
 
-	**Human Roles:** Strategist1, Analyst1, Corrector1, Executor1, Oracle1
-	**Agent Roles:** Strategist2, Translator, Synthesizer, Analyst2, Corrector2, Executor2, Oracle2
+	**Human Roles:** HUMAN_STRATEGIST, HUMAN_ANALYST, HUMAN_CORRECTOR, HUMAN_EXECUTOR, HUMAN_ORACLE
+	**Agent Roles:** AGENT_STRATEGIST, AGENT_TRANSLATOR, AGENT_SYNTHESIZER, AGENT_ANALYST, AGENT_CORRECTOR, AGENT_EXECUTOR, AGENT_ORACLE
 
 	**Domain governance roles for certified real-world systems:** Rule Author, Simulation Owner, Independent Verifier, Commission Approver, System Owner, Operator, Incident Investigator. These roles remain human or organizational. The AI, FSM, and equipment have responsibility share `0.0`.
 	

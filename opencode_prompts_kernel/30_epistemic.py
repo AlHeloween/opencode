@@ -261,7 +261,7 @@ QUESTION_TYPES: list[str] = [
 
 @dataclass
 class DisciplineProjection:
-    """Epistemic projection for a discipline, sub-discipline, or method.
+    """Epistemic projection for a discipline, sub_discipline, or method.
 
     Each projection defines: what vocabulary activates the discipline's
     reasoning, what invariants are non-negotiable, what counts as evidence,

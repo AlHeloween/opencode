@@ -16,12 +16,16 @@ from opencode_prompts_kernel import (  # normative names; runtime is this proces
     generate_fractal_candidates, # dispatch to Sierpinski/Quad-Oct/L-System
     k_medoids_modifications,     # → CLARA auto when N ≥ 100
     select_medoids_tasks,        # clause-level cut; foam→medoids only
+    ground,                      # evidence-gathering plan from goal keywords
     goal_seeds,                  # keyword extraction → cluster → seed vectors
+    goal_peaks,                  # count distinct keyword clusters (→ select_fractal_model)
+    sv_delta,                    # L1 distance between two SV states (→ delta_v)
     lsystem_rewrite,             # F→F+F-F lattice grammar
     adaptive_tau,                # percentile-based τ for candidate filter
     adaptive_delta_threshold,    # median-based δ for signal classification
     adaptive_k,                  # CV-based k for medoids (dispersion→clusters)
     adaptive_depth,              # depth by peaks + evidence count
+    emit_state,                  # structured state record (done/pending/blocked/next)
     residual_recluster,          # ADID loop closure: pending vs original Goal SV
     manhattan_distance,          # L1 distance on keyword-weight vectors
     PLANNING,                    # policy.planning SPEC — fractal_only
@@ -62,11 +66,21 @@ def run_task_geometry(goal: str, signals: list) -> list[str]:
     todowrite(central_tasks)  # tool: todowrite | TodoWrite
 
     # 7. execute — one medoid; REUSE.BEFORE + SMOKE.BEFORE (baseline Exact first)
+    completed = []  # tasks that passed oracle verification
+    pending = []    # tasks not yet executed or oracle-failed
+    blockers = []   # tasks blocked by external dependency
     for task in central_tasks:  # one in_progress at a time (PLANNING invariant)
-        execute_medoid(task)
+        status, output = execute_medoid(task)  # returns ('done'|'blocked'|'pending', detail)
+        if status == 'done':
+            completed.append(task)
+        elif status == 'blocked':
+            blockers.append({'task': task, 'reason': output})
+        else:
+            pending.append(task)
 
-    # 8. verify — post-impl smoke / oracle [Exact]
-    verify_oracles()
+    # 8. verify — post-impl smoke / oracle [Exact]; updates completed/pending in-place
+    verify_oracles(completed, pending, blockers)  # re-classifies after oracle run
+    next_task = pending[0] if pending else None
 
     # 9. emit_state + residual re-cluster — ADID loop closure
     # completed/pending/blockers/next_task originate from:

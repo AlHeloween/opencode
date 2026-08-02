@@ -33,6 +33,7 @@ RULES = MappingProxyType({
     'CLEAN_STATE': 'end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.',
     'DECOMPOSE': 'fractal lattice before work list: over-generate (Sierpinski/Quad/L-System, adaptive_depth 1-3) → Manhattan (L1) to Goal SV → adaptive τ (percentile) → adaptive_k (CV dispersion) → k-medoids (→ CLARA sampling when N≥100, seeds ground centers) → CENTRAL_TASKS=medoids only. Never Mode-1 linear step lists for multi-step work. Same recursive motif every level (F→F+F-F), not ad-hoc essays.',
     'DOCUMENT.SURFACE': 'maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.',
+    'EMIT_STATE': 'emit_state(goal_sv, completed_tasks, pending_tasks, blockers, next_step) returns a structured state dict {done, pending, blocked, next, goal_sv}. Serialised by the caller; InfoMark-stamped at Gate 9.',
     'EVIDENCE.ORDER': 'verified > cited > inferred > unknown',
     'FRACTAL_CANDIDATES': 'generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks), Quad/Oct (grid subdivision for 2/4/8 peaks), L-System (grammar walk, fallback for unknown models).',
     'GOAL_PEAKS': 'goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→Quad-Oct quad, 5-7→Sierpinski, 8→Quad-Oct oct, 9+→Sierpinski clamped.',
@@ -61,7 +62,7 @@ WORKFLOWS = MappingProxyType({
     'hygiene': ('DOCUMENT.SURFACE', 'WORKSPACE.LANES', 'PROGRESS.LOG', 'CLEAN_STATE', 'EVIDENCE.ORDER'),
     'modify': ('plan', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'scope', 'cache', 'mutation', 'WRITE.SCOPE', 'CACHE.STABILITY', 'verification', 'oracle', 'VERIFY.OUTCOME', 'INFOMARK.SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK'),
     'observe': ('scope', 'evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'WHERE_WHICH', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK'),
-    'plan': ('plan', 'DECOMPOSE', 'GROUND', 'metric_adaptation', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY.OUTCOME', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'plan': ('plan', 'DECOMPOSE', 'GROUND', 'metric_adaptation', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'EMIT_STATE', 'REUSE.BEFORE', 'SMOKE.BEFORE', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY.OUTCOME', 'infomark', 'INFOMARK.SEP', 'MEMORY.RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
     'research': ('evidence', 'EVIDENCE.ORDER', 'SEARCH.ORDER', 'REUSE.BEFORE', 'WHERE_WHICH', 'NO_HARDCODE', 'verification', 'oracle', 'INFOMARK.SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY.RANK', 'MEMORY.LINKS'),
 })
 

@@ -188,7 +188,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       execute(args, options) {
         return run.promise(
           Effect.gen(function* () {
-            if (denied(item.policy) || denied(item.id) || denied(name)) {
+            if (denied(item.policy)) {
               return yield* rejected(item.id, options.toolCallId)
             }
             // InfoMark grounding: MODIFY denied when active premises ∉ G

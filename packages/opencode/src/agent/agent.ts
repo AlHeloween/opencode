@@ -90,6 +90,7 @@ export const layer = Layer.effect(
 
         const defaults = Permission.fromConfig({
           "*": "allow",
+          "ai-call": "deny",
           doom_loop: "ask",
           // Four independent constitution buckets — deny after "*" so bash:* cannot skip.
           "destructive-file": "deny",
@@ -130,6 +131,7 @@ export const layer = Layer.effect(
                 question: "allow",
                 plan_enter: "allow",
                 reasoning_enter: "allow",
+                "ai-call": "allow",
               }),
               user,
             ),
@@ -347,8 +349,6 @@ export const layer = Layer.effect(
               user,
               Permission.fromConfig({
                 task: "deny",
-                webfetch: "deny",
-                universalsearch: "deny",
               }),
             ),
             prompt: PROMPT_MEDIA,

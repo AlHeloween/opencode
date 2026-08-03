@@ -16,11 +16,13 @@
 # flowchart LR
 #   G1[G1 GROUND] --> G2[G2 DECOMPOSE]
 #   G2 --> G3[G3 MASTER_PLAN]
-#   G3 --> G4[G4 APPROVE]
-#   G4 -->|no| G4
-#   G4 -->|yes| G5{G5 concern?}
-#   G5 -->|yes| G2
-#   G5 -->|no| G6[G6 GROUND_PLAN]
+#   G3 --> G4{G4 AUTHORIZE}
+#   G4 -->|envelope OK| G6[G6 GROUND_PLAN]
+#   G4 -->|needs approval| G4ask[present + ask]
+#   G4ask -->|explicit yes| G6
+#   G4ask -->|no/concern| G2
+#   G5{G5 concern?} -->|yes| G2
+#   G5 -->|no| G6
 #   G6 --> G7[G7 IMPLEMENT]
 #   G7 --> G8[G8 ORACLE]
 #   G8 -->|FAIL| G7

@@ -6,17 +6,40 @@
 # ===================================================================
 
 # --- Schema: action_class (classify BEFORE act; required for MODIFY) ---
+# v6 envelope model:
 # ```yaml
 # action_class:
-#   activity: CONVERSATION | OBSERVE | EXECUTE_TEST | MODIFY
-#   effect:   NO_WRITE | DECLARED_TEMP_WRITE | PERSISTENT_WRITE
-#   risk:     LOW | ELEVATED | DESTRUCTIVE
+#   activity:
+#     CONVERSATION |          # no side effects
+#     OBSERVE |               # read-only investigation
+#     EXECUTE_TEST |          # run declared oracles
+#     MODIFY_CANDIDATE |      # write within ExecutionEnvelope (pre-approved)
+#     MODIFY_PROJECT |        # write outside envelope (requires Gate 4 approval)
+#     PROMOTE_STABLE |        # merge candidate→stable (ALWAYS explicit approval)
+#     SELF_MODIFY             # change kernel/agent/oracle (triple-separation)
+#
+#   effect:
+#     NO_WRITE |
+#     DECLARED_TEMP_WRITE |
+#     CANDIDATE_WRITE |       # v6: write to candidate branch
+#     PERSISTENT_WRITE
+#
+#   risk:
+#     LOW |
+#     ELEVATED |
+#     DESTRUCTIVE |
+#     CRITICAL                # v6: SELF_MODIFY, PROMOTE_STABLE
 # ```
-# Map: fix/edit/create/delete -> MODIFY+PERSISTENT_WRITE;
-#      test/build/typecheck -> EXECUTE_TEST; show/read/search -> OBSERVE.
+# Map: fix/edit in candidate branch -> MODIFY_CANDIDATE+CANDIDATE_WRITE;
+#      fix/edit in mainline         -> MODIFY_PROJECT+PERSISTENT_WRITE;
+#      merge candidate->stable      -> PROMOTE_STABLE+PERSISTENT_WRITE;
+#      change kernel/oracle/metric  -> SELF_MODIFY+PERSISTENT_WRITE;
+#      test/build/typecheck         -> EXECUTE_TEST; show/read/search -> OBSERVE.
 # Invariants: CONVERSATION/OBSERVE => effect = NO_WRITE;
 # EXECUTE_TEST => no silent persistent write;
-# risk in {ELEVATED, DESTRUCTIVE} /\ activity = MODIFY => explicit user OK.
+# MODIFY_CANDIDATE within envelope => pre-approved (no Gate 4 re-approval);
+# PROMOTE_STABLE | SELF_MODIFY => always explicit user OK;
+# MODIFY_PROJECT outside envelope => Gate 4 explicit user OK.
 
 # GATE 1 --- GROUND TRUTH  [EVIDENCE_ORDER, SEARCH_ORDER, WHERE_WHICH, REUSE_BEFORE]
 # Read current state before judgment: files, logs, tests, conversation.
@@ -58,15 +81,30 @@
 # Clamped to \([0.1, 0.9]\) regardless. At 500+ candidates with dense embeddings,
 # \(\tau\) tightens automatically; at 50 candidates with spread, it relaxes.
 #
-# Fractal depth is adaptive (kernel adaptive_depth):
+# Fractal depth is adaptive (kernel adaptive_depth, v6):
+# Two independent parameters:
+#   complexity = semantic_peak_complexity(peaks, dispersion)
+#   coverage   = evidence_coverage(required_symbols, resolved_symbols,
+#                                   callers_known, history_grounded)
+# \[
+#   \text{base\_depth} =
+#   \begin{cases}
+#     3 & \text{peaks} \ge 4 \quad\text{(complex --- many separable aspects)} \\
+#     2 & \text{peaks} \ge 2 \quad\text{(default --- Koch L2 ~30 nodes)} \\
+#     1 & \text{otherwise} \quad\text{(single-peak)}
+#   \end{cases}
+# \]
 # \[
 #   \text{depth} =
 #   \begin{cases}
-#     3 & \text{peaks} \ge 4 \;\lor\; \text{evidence} > 10 \quad\text{(complex --- deep decompose)} \\
-#     2 & \text{peaks} \ge 2 \quad\text{(default --- Koch L2 ~30 nodes)} \\
-#     1 & \text{otherwise} \quad\text{(simple/trivial --- single rewrite)}
+#     \max(1, \text{base\_depth} - 1) & \text{coverage} \ge 0.80 \quad\text{(well-mapped --- shallower)} \\
+#     \min(3, \text{base\_depth} + 1) & \text{coverage} \le 0.35 \quad\text{(unexplored --- deeper)} \\
+#     \text{base\_depth} & \text{otherwise}
 #   \end{cases}
 # \]
+# v6 GROUNDED PATH: high coverage reduces exploration depth because the
+# territory is already mapped. Ten repeated messages ≠ ten evidence units.
+# Evidence count alone does not drive depth — coverage fraction does.
 #
 # \(k\) for medoids is adaptive (kernel adaptive_k): dispersion-based via coefficient
 # of variation (CV = \(\sigma / \mu\)) of candidate-to-goal distances. Tight cluster
@@ -127,7 +165,7 @@
 #             baseline: "pre-edit Actual [Exact] or N/A"
 #             claim_id: C2          # on PASS -> oracle_stamp
 #           status: "[ ]"           # -> "[x]" only after Gate 8 + stamp
-#           action_class: {activity: MODIFY, effect: PERSISTENT_WRITE, risk: ELEVATED}
+#           action_class: {activity: MODIFY_CANDIDATE, effect: CANDIDATE_WRITE, risk: LOW}
 # claim_ledger:
 #   claims:
 #     - id: C1
@@ -142,23 +180,66 @@
 #   open_questions: [C1]
 # ```
 
-# GATE 4 --- PRESENT & ASK  [WRITE_SCOPE | mutation]
-# Output full master_plan. End the message with the literal question:
-#   Do you approve this plan?
-# Silence != approval. Ambiguous != approval.
-# CONSTRAINT: ZERO file-modifying tools this turn (no Write/Edit/mutating Bash).
-# todowrite allowed. Text plan only.
-# Mutation tool call + "Do you approve?" -> GATE DEFEATED.
+# GATE 4 --- AUTHORIZATION RESOLVER (v6)  [WRITE_SCOPE | mutation]
+# v6: Gate 4 is an authorization resolver, not an unconditional approval gate.
+# Three branches depending on activity class and envelope state:
+#
+# BRANCH A — APPROVED_BY_ENVELOPE (no user interaction):
+#   Condition: activity = MODIFY_CANDIDATE AND valid envelope present
+#              AND paths ⊆ envelope.scope AND budget available
+#   Action: proceed directly to G6. No plan presentation, no question.
+#   The user pre-approved this scope+budget when creating the envelope.
+#
+# BRANCH B — EXPLICIT_USER_APPROVAL (always required):
+#   Condition: activity ∈ {PROMOTE_STABLE, SELF_MODIFY}
+#              OR protected surface affected
+#              OR envelope absent/expired for MODIFY_PROJECT
+#   Action: output full master_plan. End with literal question:
+#     "Do you approve this plan?"
+#   Silence != approval. Ambiguous != approval.
+#   CONSTRAINT: ZERO file-modifying tools this turn.
+#
+# BRANCH C — PRESENT_CONTRACT_AND_ASK (default):
+#   Condition: MODIFY_PROJECT with no envelope, or unknown activity
+#   Action: present contract, ask for approval.
+#   Same constraints as BRANCH B.
 #
 # ```mermaid
-# stateDiagram-v2
-#   [*] --> PresentPlan
-#   PresentPlan --> AwaitUser: "Do you approve this plan?"
-#   AwaitUser --> Approved: explicit yes
-#   AwaitUser --> PresentPlan: silence / ambiguous
-#   AwaitUser --> G2: concern -> refine
-#   Approved --> G6
-#   note right of PresentPlan: no Write/Edit/mutating Bash
+# flowchart TD
+#   Start[G4 entry] --> Class{classify activity}
+#   Class -->|MODIFY_CANDIDATE| Env{valid envelope?}
+#   Env -->|yes: paths in scope + budget OK| G6A[→ G6 APPROVED_BY_ENVELOPE]
+#   Env -->|no: missing/expired/out of scope| Present[PRESENT_CONTRACT_AND_ASK]
+#   Class -->|PROMOTE_STABLE| Explicit[EXPLICIT_USER_APPROVAL]
+#   Class -->|SELF_MODIFY| Explicit
+#   Class -->|MODIFY_PROJECT| Present
+#   Present --> Ask["Do you approve this plan?"]
+#   Ask -->|explicit yes| G6B[→ G6]
+#   Ask -->|silence / ambiguous| Present
+#   Ask -->|concern| G2[→ G2 refine]
+#   Explicit --> Ask
+# ```
+#
+# --- Schema: execution_envelope (v6) ---
+# ```yaml
+# execution_envelope:
+#   envelope_id: "uuid"
+#   scope_paths: ["packages/memory/**"]
+#   budget:
+#     maximum_created: 3
+#     maximum_modified: 12
+#     maximum_deleted: 2
+#   wall_time_seconds: 1800
+#   attempts_max: 4
+#   allowed_activities:
+#     - create_candidate_branch
+#     - modify_candidate
+#     - run_tests
+#     - benchmark
+#   forbidden_activities:
+#     - modify_oracles
+#     - modify_governance
+#     - promote_to_stable
 # ```
 
 # GATE 5 --- CONCERN LOOP
@@ -244,6 +325,36 @@
 #   pass: "criteria"
 #   result: PASS | FAIL | TIMEOUT | CRASH
 # ```
+#
+# --- Schema: oracle_stamp ---
+# ```yaml
+# oracle_stamp:
+#   claim_id: C1
+#   result: PASS
+# # On PASS: σ(c) = Exact (scoped to claim_scope)
+# ```
+#
+# --- Schema: inference_stamp (v6) ---
+# Promotes derived claim to system-stamped Inferred when all dependencies
+# are grounded and derivation is reproducible.
+# ```yaml
+# inference_stamp:
+#   claim_id: C3
+#   derivation_rule: "R17"           # which rule/inference produced this claim
+#   dependencies: [C1, C2]           # claims this derivation depends on
+#   dependency_effective_status:     # weakest-link check (all must be ≥ Inferred)
+#     C1: Exact
+#     C2: Inferred
+#   derivation_hash: "a1b2c3d4..."  # deterministic hash of derivation inputs
+#   result: VALID | INVALID
+# ```
+# Preconditions for VALID:
+#   1. All dependencies ∈ G (effective_status ≥ Inferred)
+#   2. A derivation rule is declared
+#   3. Derivation hash matches computed hash from dependency set + rule + inputs
+#   4. No circular dependency (detected → Unknown)
+# On VALID: σ(c) = Inferred (system-stamped, eligible for G).
+# This is the missing piece: Inferred claims can now reach G alongside Exact.
 
 # GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
 # End every substantial response with clean_next_state (+ sv_output when non-trivial).

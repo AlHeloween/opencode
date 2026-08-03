@@ -125,10 +125,12 @@ Tag claims with evidence labels. Reference outranks inference.""",
         "Must tag claims with evidence labels: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]",
         "Must reference outranks inference",
         "SVM noise filter: before reacting to tool output, classify each signal against sv_anchor. "
-        "Noise filter: follow the protocol defined in REASONING_PROTOCOL (Part 2 — Noise filter). "
+        "Signal filter: follow the protocol defined in REASONING_PROTOCOL (Part 2 — Signal filter). "
         "Use Manhattan (L1) distance on keyword-weight vectors; three independent gates "
-        "(cascade, high cardinality, content similarity) classify NOISE. "
-        "Do NOT delete code based on unreplicated single-source noise.",
+        "(cascade, high cardinality, content similarity) COLLAPSE duplicate signals "
+        "into COLLAPSED_DUPLICATES — evidence cardinality and representative signal "
+        "remain ACTIVE. Never discard evidence; collapse preserves evidential weight. "
+        "Do NOT delete code based on unreplicated single-source signals.",
     ],
 
     acceptance_tests=[],

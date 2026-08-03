@@ -32,7 +32,7 @@ RULES = MappingProxyType({
     'CLEAN_STATE': 'end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.',
     'DECOMPOSE': 'fractal lattice before work list: over-generate (Sierpinski/Quad/L-System, adaptive_depth 1-3) → Manhattan (L1) to Goal SV → adaptive τ (percentile) → adaptive_k (CV dispersion) → k-medoids (→ CLARA sampling when N≥100, seeds ground centers) → CENTRAL_TASKS=medoids only. Never Mode-1 linear step lists for multi-step work. Same recursive motif every level (F→F+F-F), not ad-hoc essays.',
     'DOCUMENT_SURFACE': 'maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.',
-    'EMIT_STATE': 'emit_state(goal_sv, completed_tasks, pending_tasks, blockers, next_step) returns a structured state dict {done, pending, blocked, next, goal_sv}. Serialised by the caller; InfoMark-stamped at Gate 9.',
+    'EMIT_STATE': 'emit_state(goal_sv, completed_tasks, pending_tasks, blockers, next_step, out_of_scope, terminal) returns a structured state dict {done, pending, blocked, next, goal_sv, out_of_scope, terminal}. v6: +out_of_scope (discarded tasks), +terminal (bool — true when pending=[] and blockers=[]). Serialised by the caller; InfoMark-stamped at Gate 9.',
     'EVIDENCE_ORDER': 'verified > cited > inferred > unknown',
     'FRACTAL_CANDIDATES': 'generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks), Quad/Oct (grid subdivision for 2/4/8 peaks), L-System (grammar walk, fallback for unknown models).',
     'GOAL_PEAKS': 'goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→Quad-Oct quad, 5-7→Sierpinski, 8→Quad-Oct oct, 9+→Sierpinski clamped.',
@@ -386,7 +386,7 @@ invariants:
   • Must output: State -> sv -> Decomposition -> Evidence map (incl. reuse search) -> Plan (with Smoke Tests) -> Smoke baseline [Exact] -> Implementation -> Smoke/oracle Verification -> Clean next state
   • Must tag claims with evidence labels: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]
   • Must reference outranks inference
-  • SVM noise filter: before reacting to tool output, classify each signal against sv_anchor. Noise filter: follow the protocol defined in REASONING_PROTOCOL (Part 2 — Noise filter). Use Manhattan (L1) distance on keyword-weight vectors; three independent gates (cascade, high cardinality, content similarity) classify NOISE. Do NOT delete code based on unreplicated single-source noise.
+  • SVM noise filter: before reacting to tool output, classify each signal against sv_anchor. Signal filter: follow the protocol defined in REASONING_PROTOCOL (Part 2 — Signal filter). Use Manhattan (L1) distance on keyword-weight vectors; three independent gates (cascade, high cardinality, content similarity) COLLAPSE duplicate signals into COLLAPSED_DUPLICATES — evidence cardinality and representative signal remain ACTIVE. Never discard evidence; collapse preserves evidential weight. Do NOT delete code based on unreplicated single-source signals.
 forbidden:
   • Blending incompatible normative regimes
   • Making code edits before plan approval

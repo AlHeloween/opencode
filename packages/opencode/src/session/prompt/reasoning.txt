@@ -207,7 +207,7 @@
 # ```
 
 # GATE 3 --- MASTER PLAN  [SMOKE_BEFORE, REUSE_BEFORE, infomark]
-# Emit master_plan + claim_ledger. Sync [ ] with todowrite.
+# Emit master_plan + claim_ledger. If todowrite projection enabled, sync from task store.
 # Each task: what, files, oracle (or smoke: N/A + reason), action_class.
 # LEGALITY: premises_for_plan subset of G (Exact|Inferred, system-stamped).
 # Hypothetical / Guess / Unknown / unmarked -> open_questions only (not premises).
@@ -313,22 +313,17 @@
 # → case-normalize per filesystem → verify resolved target inside approved root.
 # ```yaml
 # execution_envelope:
-#   envelope_id: "uuid"
-#   revision: 1
-#   issued_at: "2026-08-03T03:00:00Z"
-#   expires_at: "2026-08-03T04:00:00Z"
-#   approved_by: "user"
-#
-#   # v6.0: canonical payload — every field the user approved (immutable).
-#   # HMAC binds to approval_payload_hash, not individual fields.
+#   # Immutable signed payload (v6.0 — all fields user-approved, no outer duplicates):
 #   approval_payload:
 #     envelope_id: "uuid"
 #     revision: 1
 #     issued_at: "2026-08-03T03:00:00Z"
 #     expires_at: "2026-08-03T04:00:00Z"
 #     approved_by: "user"
-#     scope_spec_hash: "sha256:def456..."    # normalized path patterns
-#     baseline_tree_hash: "sha256:789abc..." # file content snapshot
+#     scope_paths:                         # v6.0: concrete patterns in payload
+#       - "packages/memory/**"
+#     scope_spec_hash: "sha256:def456..."   # hash(canonical(sorted scope_paths))
+#     baseline_tree_hash: "sha256:789abc..."
 #     budget:
 #       maximum_created: 3
 #       maximum_modified: 12
@@ -338,25 +333,30 @@
 #     allowed_action_classes:
 #       - MODIFY_CANDIDATE
 #       - EXECUTE_TEST
+#   # Canonical serialization (v6.0): RFC 8785 JCS, UTF-8, sorted keys,
+#   #   fixed-precision integers (no floats), NFC-normalized strings.
+#   #   approval_payload_hash = SHA-256(canonical(approval_payload))
+#   approval_payload_hash: "sha256:..."
 #
-#   approval_payload_hash: "sha256:..."      # hash of canonical approval_payload
-#
-#   approval_attestation:                    # v6.0: runtime-owned HMAC
+#   approval_attestation:
 #     algorithm: HMAC-SHA256
 #     key_id: "runtime-key-2026-08"
-#     payload_hash: "sha256:..."             # must match approval_payload_hash
-#     approval_event_id: "uuid"              # links to user interaction
-#     value: "hmac:abc123..."                # HMAC(payload_hash, runtime_key)
-#     # Agent CANNOT compute this — key is runtime-only.
-#     # hash(data) ≠ authorization(data).
+#     payload_hash: "sha256:..."           # must == approval_payload_hash
+#     approval_event_id: "uuid"
+#     value: "hmac:abc123..."
 #
-#   # Mutable fields (v6.0 — managed by trusted runtime, NOT in approval_payload):
+#   # Mutable fields (trusted runtime only — NOT in approval_payload):
 #   status: active | expired | revoked
 #   mutation_ledger:
 #     created: []
 #     modified: []
 #     deleted: []
 #     cumulative_delta_hash: "sha256:..."
+#
+# ALWAYS resolve through approval_payload: approval_payload.expires_at,
+#   approval_payload.revision, approval_payload.envelope_id.
+# No outer unsigned duplicate fields exist — runtime must not reference
+#   unauthenticated copies.
 #
 # Validity check (v6.0 resolver — 7 conditions):
 #   1. status == active

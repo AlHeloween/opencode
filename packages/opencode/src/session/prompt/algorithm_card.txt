@@ -27,7 +27,8 @@ from prompts_kernel import (
     read_task_store,             # v6.0: read medoids from authoritative store
                                  #   (select_medoids_tasks is internal to geometry)
     transition_task,             # v6.0: atomic status transition with version guard
-                                 #   (optimistic concurrency — returns True|False)
+                                 #   returns {committed, task: {id, version, status},
+                                 #            store_version} — NOT True|False
     execute_medoid,              # v6.0: returns MATERIALIZED|BLOCKED|EXECUTION_FAILED
                                  #   (materialization — NOT Done; only Oracle promotes)
     verify_oracles,              # v6.0: returns immutable {passed, failed, blocked}
@@ -62,20 +63,21 @@ store_version = result.task_store_version
 #       transition_task returns {committed, task: {id, version, status}, store_version}.
 #       Only committed transitions are acted upon; uncommitted = version race → reload.
 #       Executor returns materialization status — NOT Done (only Oracle promotes).
+#       EXECUTION_FAILED bounded by envelope attempts_max.
+#       store_version propagated after EVERY transition (including Oracle).
+# After execution: build provisional state from fresh store snapshot, not local lists.
 materialized, execution_failed, blocked = [], [], []
 while True:
-    # Re-read latest from authoritative store each iteration
     central_tasks = read_task_store(
         store_id=store_id,
         expected_store_version=store_version,
         status="pending",
     )
     if not central_tasks:
-        break  # no pending tasks — terminal or move to verify
+        break
 
     task = central_tasks[0]  # one in_progress (PLANNING invariant)
 
-    # Atomically claim this task — optimistic concurrency guard
     claim = transition_task(
         store_id=store_id,
         task_id=task.id,
@@ -84,13 +86,12 @@ while True:
         to_status="in_progress",
     )
     if not claim.committed:
-        # Version race — another worker claimed it; store_version in claim result
         store_version = claim.store_version
         continue
-    task_version = claim.task.version  # track returned version, not arithmetic
+    task_version = claim.task.version
+    store_version = claim.store_version  # v6.0: propagate after claim
 
     status, output = execute_medoid(task)
-    # v6.0 returns: ('MATERIALIZED'|'BLOCKED'|'EXECUTION_FAILED', detail)
 
     if status == 'MATERIALIZED':
         tr = transition_task(
@@ -101,9 +102,10 @@ while True:
             to_status="materialized",
         )
         if tr.committed:
-            materialized.append(tr.task)  # use returned task with updated version
+            materialized.append(tr.task)
+            store_version = tr.store_version
         else:
-            execution_failed.append(task)  # store conflict = execution failed
+            execution_failed.append(task)
 
     elif status == 'BLOCKED':
         tr = transition_task(
@@ -116,32 +118,33 @@ while True:
         )
         if tr.committed:
             blocked.append({'task': tr.task, 'reason': output})
-        # If not committed, task stays in_progress — will be caught on reload
+            store_version = tr.store_version
 
-    else:  # EXECUTION_FAILED
+    else:  # EXECUTION_FAILED — bounded retry
+        attempts = task.attempts + 1
+        max_attempts = envelope.approval_payload.attempts_max
+        target = "blocked" if attempts >= max_attempts else "pending"
         tr = transition_task(
             store_id=store_id,
             task_id=task.id,
             expected_task_version=task_version,
             from_status="in_progress",
-            to_status="pending",
+            to_status=target,
+            attempts=attempts,
             failure=output,
         )
         if tr.committed:
-            execution_failed.append(tr.task)
-    store_version = tr.store_version  # always track latest
+            if target == "blocked":
+                blocked.append({'task': tr.task, 'reason': f'failed {attempts}/{max_attempts} attempts'})
+            store_version = tr.store_version
 
-# === STEP 8: verify — Oracle promotes to Done (v6.0 immutable + committed) ===
-# Re-run SMOKE_BEFORE oracles against materialized tasks.
-# Gate 8: only oracle PASS promotes to Done (never self-certify).
+# Build provisional state from fresh authoritative store snapshot (v6.0):
+snapshot = read_task_store_latest(store_id=store_id)
+pending   = [t for t in snapshot if t.status == 'pending']
+blocked   = [t for t in snapshot if t.status == 'blocked']
+
+# === STEP 8: verify — Oracle promotes to Done (v6.0) ===
 verification = verify_oracles(materialized_tasks=materialized)
-# verification = {
-#   passed:  [...],   # oracle PASS  → DONE
-#   failed:  [...],   # oracle FAIL  → back to pending
-#   blocked: [...],   # oracle can't run → blocked
-# }
-
-# Commit every oracle outcome to the store — check each result:
 completed, pending, blockers = [], [], []
 for task in verification.passed:
     tr = transition_task(
@@ -154,6 +157,7 @@ for task in verification.passed:
     )
     if tr.committed:
         completed.append(tr.task)
+        store_version = tr.store_version  # v6.0: propagate after every transition
 
 for task in verification.failed:
     tr = transition_task(
@@ -166,6 +170,7 @@ for task in verification.failed:
     )
     if tr.committed:
         pending.append(tr.task)
+        store_version = tr.store_version
 
 for task in verification.blocked:
     tr = transition_task(
@@ -178,14 +183,14 @@ for task in verification.blocked:
     )
     if tr.committed:
         blockers.append({'task': tr.task, 'reason': 'oracle unavailable'})
+        store_version = tr.store_version
 
-# Non-materialized outcomes (already committed in STEP 7):
-pending   += execution_failed
-blockers  += blocked
+# Non-materialized (already in store from STEP 7):
+pending   = pending + [t for t in snapshot if t.status == 'pending']
+blockers  = blockers + [{'task': t, 'reason': 'blocked in execution'} for t in snapshot if t.status == 'blocked']
 
 # === STEP 9: residual first, then final state from authoritative store (v6.0) ===
-# residual_recluster determines what survives the Goal-SV threshold.
-# Build provisional state, compute residual, then COMMIT discarded tasks.
+# Build provisional state from store snapshot, compute residual, COMMIT discarded tasks.
 provisional = emit_state(
     goal_sv=goal_sv,
     completed_tasks=completed,
@@ -197,9 +202,9 @@ provisional = emit_state(
 )
 residual, discarded = residual_recluster(provisional, original_goal_sv=goal_sv)
 
-# Commit discarded tasks: pending → out_of_scope in authoritative store
+# Commit discarded tasks: pending → out_of_scope
 for task in discarded:
-    transition_task(
+    tr = transition_task(
         store_id=store_id,
         task_id=task.id,
         expected_task_version=task.version,
@@ -207,20 +212,38 @@ for task in discarded:
         to_status="out_of_scope",
         reason="did not pass Goal-SV residual threshold",
     )
+    if tr.committed:
+        store_version = tr.store_version  # v6.0: propagate after discard
 
-# Read authoritative final snapshot — store is the source of truth:
-final_snapshot = read_task_store(
-    store_id=store_id,
-    expected_store_version=store_version,
-    status=None,  # all statuses
-)
+# Read authoritative final snapshot WITHOUT version guard (read-only):
+final_snapshot = read_task_store_latest(store_id=store_id)
 # Derive clean_state from authoritative store, not local lists:
-done_tasks     = [t for t in final_snapshot if t.status == 'done']
-pending_tasks  = [t for t in final_snapshot if t.status == 'pending']
-blocked_tasks  = [t for t in final_snapshot if t.status == 'blocked']
+done_tasks      = [t for t in final_snapshot if t.status == 'done']
+pending_tasks   = [t for t in final_snapshot if t.status == 'pending']
+blocked_tasks   = [t for t in final_snapshot if t.status == 'blocked']
 discarded_tasks = [t for t in final_snapshot if t.status == 'out_of_scope']
+active_tasks    = [t for t in final_snapshot if t.status in ('in_progress', 'materialized')]
 
-# Final emit_state — after residual + store snapshot (v6.0):
+# Terminal check (v6.0): blocked while any task is in_progress or materialized.
+# Gate 9 emission forbidden while active tasks exist.
+if active_tasks:
+    # Reconcile: stalled active tasks → blocked (lease expired or orphaned)
+    for task in active_tasks:
+        transition_task(
+            store_id=store_id,
+            task_id=task.id,
+            expected_task_version=task.version,
+            from_status=task.status,
+            to_status="blocked",
+            reason="reconciled — active task with no worker",
+        )
+    # Re-read after reconciliation
+    final_snapshot = read_task_store_latest(store_id=store_id)
+    pending_tasks  = [t for t in final_snapshot if t.status == 'pending']
+    blocked_tasks  = [t for t in final_snapshot if t.status == 'blocked']
+    active_tasks   = [t for t in final_snapshot if t.status in ('in_progress', 'materialized')]
+
+# Final emit_state — from authoritative store (v6.0):
 state = emit_state(
     goal_sv=goal_sv,
     completed_tasks=done_tasks,
@@ -228,14 +251,15 @@ state = emit_state(
     blockers=blocked_tasks,
     next_step=pending_tasks[0] if pending_tasks else None,
     out_of_scope=discarded_tasks,
-    terminal=bool(not pending_tasks),  # terminal when nothing left to do
+    terminal=bool(not pending_tasks and not active_tasks),
 )
 # Terminal modes (v6.0):
-#   terminal=True, terminal_mode=SUCCESS      — pending=[], blocked=[]
-#   terminal=True, terminal_mode=BLOCKED      — pending=[], blocked≠[]
-#   terminal=True, terminal_mode=OUT_OF_SCOPE — pending=[], out_of_scope≠[]
-#   terminal=False                            — pending non-empty, continue
+#   terminal=True, terminal_mode=SUCCESS      — pending=[], active=[], blocked=[]
+#   terminal=True, terminal_mode=BLOCKED      — pending=[], active=[], blocked≠[]
+#   terminal=True, terminal_mode=OUT_OF_SCOPE — pending=[], active=[], out_of_scope≠[]
+#   terminal=False                            — pending or active non-empty, continue
 # Precedence: BLOCKED > OUT_OF_SCOPE > SUCCESS.
+# Invariant: Gate 9 emission forbidden while any task is in_progress or materialized.
 # Never re-fractal the whole universe; no Mode-1 fallthrough.
 ```
 

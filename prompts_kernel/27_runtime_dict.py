@@ -17,8 +17,8 @@ PROMPT_ABI = MappingProxyType({
     # Soft budget for the three-surface stable identity slot (bytes).
     # Algorithm Card + Prompt Kernel + Reasoning Protocol are loaded into
     # one stable identity slot. CI warns if exceeded; kernel_max_bytes is the hard gate.
-    # v6.0: 108_000 to fit v6.0 surfaces (~100 KB) with ~8 KB operational margin.
-    "stable_identity_slot_max_bytes": 108_000,
+    # v6.0: 116_000 to fit v6.0 surfaces (~109 KB) with ~7 KB operational margin.
+    "stable_identity_slot_max_bytes": 116_000,
 })
 
 RUNTIME_TERMS = MappingProxyType({

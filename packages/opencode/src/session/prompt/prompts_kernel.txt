@@ -8,7 +8,7 @@ PROMPT_ABI = MappingProxyType({
     'kernel_max_bytes': 56000,
     'line_endings': 'LF',
     'precedence': ('safety', 'governance', 'task', 'domain', 'style'),
-    'stable_identity_slot_max_bytes': 108000,
+    'stable_identity_slot_max_bytes': 116000,
     'version': '6',
 })
 

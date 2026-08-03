@@ -29,7 +29,7 @@ RUNTIME_TERMS = MappingProxyType({
     "memory": "Active set is message* + recent s/m; full history soft-hidden in DB; recover via session-read IDs.",
     "mutation": "Modify only within authorized scope; preserve unrelated work and report remaining failure.",
     "oracle": "Declare pass/fail criteria before EXECUTION; run after materialize; PASS→Exact for that claim only; FAIL demotes; no self-certify. Executor≠Oracle≠Analyst (logical roles).",
-    "plan": "ADID fractal planning only (no Mode-1 linear shortcut): ground → lattice over-generate → Manhattan (L1) filter → k-medoids → CENTRAL_TASKS=medoids → todowrite. PRE_FLIGHT: Prior art (universalsearch web/Sourcegraph) + Smoke Tests before EXECUTION. Residual vs Goal SV. State, evidence, smoke baseline, implement, verify, clean next state.",
+    "plan": "ADID fractal planning only (no Mode-1 linear shortcut): ground → lattice over-generate → Manhattan (L1) filter → k-medoids → CENTRAL_TASKS=medoids → authoritative task store (↘ optional todowrite projection). PRE_FLIGHT: Prior art (universalsearch web/Sourcegraph) + Smoke Tests before EXECUTION. Residual vs Goal SV. State, evidence, smoke baseline, implement, verify, clean next state.",
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
     "verification": "An oracle decides correctness; do not claim fixed without direct evidence. Smoke oracles are part of verification — post-impl pass criteria from the plan Smoke Tests section. ACCEPT only after oracle PASS.",
     "hygiene": "Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.",

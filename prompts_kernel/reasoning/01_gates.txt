@@ -226,17 +226,18 @@
 # BRANCH C — PRESENT_CONTRACT_AND_ASK (default):
 #   Condition: MODIFY_PROJECT (any envelope state)
 #              OR MODIFY_CANDIDATE without valid envelope (absent/expired/out-of-scope)
-#              OR unknown activity
 #   Action: present contract, ask for approval.
 #   NOTE: MODIFY_PROJECT always requires explicit approval —
 #   the envelope pre-approval is only for MODIFY_CANDIDATE.
 #   Same constraints as BRANCH B.
 #
 # UNKNOWN_ACTIVITY → RECLASSIFY_OR_DENY (fail-closed):
-#   Unknown activity is never silently approved. The resolver must classify
-#   the activity first. If classification fails, DENY — do not present to user
-#   as an approvable contract. Approval of an undefined operation does not
+#   Unknown activity is never silently approved and never presented as an
+#   approvable contract. The resolver must classify the activity first.
+#   If classification succeeds → route through appropriate branch (A/B/C).
+#   If classification fails → DENY. Approval of an undefined operation does not
 #   make it defined. This closes a bypass: "unknown → ask → approved."
+#   UNKNOWN_ACTIVITY is NOT in Branch C — it is a separate pre-Gate-4 check.
 #
 # ```mermaid
 # flowchart TD
@@ -260,55 +261,73 @@
 # "Expired" is formally decidable from expires_at vs wall_time.
 # Scope validity checks path PATTERNS, not file contents — permitted writes
 # must not invalidate the envelope.
+#
+# Path authorization (v6.0): normalize → resolve symlink/junction/reparse-point
+# → case-normalize per filesystem → verify resolved target inside approved root.
 # ```yaml
 # execution_envelope:
 #   envelope_id: "uuid"
 #   revision: 1
-#   issued_at: "2026-08-03T03:00:00Z"      # ISO-8601, wall clock
-#   expires_at: "2026-08-03T04:00:00Z"     # after this: envelope invalid
-#   approved_by: "user"                     # only "user" can approve (not agent, not tool)
-#   approval_attestation:                   # v6.0: runtime-owned authentication, NOT public hash
-#     algorithm: HMAC-SHA256               # trusted_runtime holds the key
-#     issuer: trusted_runtime
-#     value: "hmac:abc123..."              # opaque token — agent CANNOT recompute
-#     # law: hash(data) ≠ authorization(data). Public SHA-256 proves
-#     # integrity, not approval. Only the runtime can attest user intent.
-#   scope_spec_hash: "sha256:def456..."    # v6.0: hash of NORMALIZED PATH PATTERNS only
-#     # (sorted scope_paths, canonicalized — NOT file contents)
-#     # Validity check: current scope spec hash == scope_spec_hash.
-#     # Permitted writes within scope do NOT change this hash.
-#   scope_paths: ["packages/memory/**"]
-#   baseline_tree_hash: "sha256:789abc..." # snapshot of file CONTENTS at approval time
-#     # audit/diff reference only — NOT a validity condition.
-#     # This hash WILL change after permitted writes — that is expected.
-#   budget:
-#     maximum_created: 3
-#     maximum_modified: 12
-#     maximum_deleted: 2
-#   wall_time_seconds: 1800
-#   attempts_max: 4
-#   allowed_action_classes:                 # uses action_class.activity enum values
-#     - MODIFY_CANDIDATE
-#     - EXECUTE_TEST
-#   status: active | expired | revoked      # runtime-enforced; expired is decidable
-#   mutation_ledger:                        # tracks cumulative changes within envelope
+#   issued_at: "2026-08-03T03:00:00Z"
+#   expires_at: "2026-08-03T04:00:00Z"
+#   approved_by: "user"
+#
+#   # v6.0: canonical payload — every field the user approved (immutable).
+#   # HMAC binds to approval_payload_hash, not individual fields.
+#   approval_payload:
+#     envelope_id: "uuid"
+#     revision: 1
+#     issued_at: "2026-08-03T03:00:00Z"
+#     expires_at: "2026-08-03T04:00:00Z"
+#     approved_by: "user"
+#     scope_spec_hash: "sha256:def456..."    # normalized path patterns
+#     baseline_tree_hash: "sha256:789abc..." # file content snapshot
+#     budget:
+#       maximum_created: 3
+#       maximum_modified: 12
+#       maximum_deleted: 2
+#     wall_time_seconds: 1800
+#     attempts_max: 4
+#     allowed_action_classes:
+#       - MODIFY_CANDIDATE
+#       - EXECUTE_TEST
+#
+#   approval_payload_hash: "sha256:..."      # hash of canonical approval_payload
+#
+#   approval_attestation:                    # v6.0: runtime-owned HMAC
+#     algorithm: HMAC-SHA256
+#     key_id: "runtime-key-2026-08"
+#     payload_hash: "sha256:..."             # must match approval_payload_hash
+#     approval_event_id: "uuid"              # links to user interaction
+#     value: "hmac:abc123..."                # HMAC(payload_hash, runtime_key)
+#     # Agent CANNOT compute this — key is runtime-only.
+#     # hash(data) ≠ authorization(data).
+#
+#   # Mutable fields (v6.0 — managed by trusted runtime, NOT in approval_payload):
+#   status: active | expired | revoked
+#   mutation_ledger:
 #     created: []
 #     modified: []
 #     deleted: []
-#     cumulative_delta_hash: "sha256:..."   # chain of mutation hashes
+#     cumulative_delta_hash: "sha256:..."
 #
 # Validity check (v6.0 resolver — 7 conditions):
 #   1. status == active
 #   2. now < expires_at  (wall_time decidable)
-#   3. current scope spec hash == scope_spec_hash (patterns match — NOT file contents)
-#   4. approval_attestation verified by trusted_runtime (HMAC check)
-#   5. activity ∈ allowed_action_classes
-#   6. budget available (mutation_ledger counts within limits)
-#   7. approval_attestation.issuer == trusted_runtime (agent cannot self-attest)
+#   3. current scope spec hash == approval_payload.scope_spec_hash (patterns only)
+#   4. approval_attestation.payload_hash == approval_payload_hash (binding check)
+#   5. HMAC(approval_payload_hash, runtime_key) == approval_attestation.value
+#   6. activity ∈ approval_payload.allowed_action_classes
+#   7. mutation_ledger counts within approval_payload.budget limits
+#
+# Path authorization (v6.0):
+#   normalize → resolve symlink/junction/reparse-point
+#   → case-normalize per filesystem → verify resolved target inside approved root.
+#   Windows: junction/reparse-point must be resolved before scope check.
 #
 # UNKNOWN_ACTIVITY → RECLASSIFY_OR_DENY (fail-closed, never approve blind).
 # ```
-
+#
 # GATE 5 --- CONCERN LOOP
 # User objects -> return to Gate 2. Refine. Re-present. Re-ask Gate 4.
 # Do not defend the old plan --- update it.
@@ -358,7 +377,10 @@
 # \( r \in \{\mathrm{PASS},\mathrm{FAIL},\mathrm{TIMEOUT},\mathrm{CRASH}\} \);
 # Analyst DONE/correct/rollback from \(r\) only.
 # On PASS emit system stamp (required for Exact):
-#   oracle_stamp: {claim_id: C#, result: PASS}
+#   oracle_stamp_ref: {claim_id: C#, result: PASS}  # inline reference — runtime expands
+#   to full attested oracle_stamp with common envelope fields.
+#   The ref alone is NOT a valid stamp (no type, issuer, attestation).
+#   Only the runtime-expanded attested stamp enters G.
 # \[
 #   r=\mathrm{PASS} \land \mathrm{stamp}(c)
 #     \Rightarrow \sigma(c)=\mathrm{Exact}\ \text{(scoped)}

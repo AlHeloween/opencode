@@ -27,4 +27,5 @@
 #   messagesearch -> locate; session-read -> raw window around match.
 # Do not replay whole sessions. House style: algorithm + claim tags.
 
-# Task geometry: ALGORITHM_CARD (fractal -> medoids -> todowrite). No Mode-1 shortcut.
+# Task geometry: ALGORITHM_CARD (fractal → medoids → authoritative task store
+#   ↘ optional todowrite). No Mode-1 shortcut. Store owns task identity.

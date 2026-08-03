@@ -238,7 +238,7 @@ GROUNDED PATH (v6): Speed comes from evidence density, not task size.
     ],
 
     acceptance_tests=[
-        "Complex tasks have fractal→medoid→todowrite plan before first edit",
+        "Complex tasks have fractal→medoid→store plan before first edit",
         "CENTRAL_TASKS count is medoid-sized (adaptive_k via CV dispersion), not full candidate foam",
         "plan.txt workflow followed for plan-mode sessions",
         "Implementable plans include Smoke Tests (baseline + post-impl) or smoke: N/A justification",
@@ -333,11 +333,25 @@ All Budget fields are concrete integers — no 'reasonable' or 'as needed'.
 	    candidate_actor_id: "principal"    # proposes change (implementation)
 	    oracle_actor_id: "principal"       # evaluates change (verification)
 	    promotion_actor_id: "principal"    # approves change (governance)
-	    capability_set_hash: "sha256:..."  # hash of {candidate, oracle, promotion} capability sets
-	    attestations:                      # each principal attests their role
-	      - {actor_id, role, signature, timestamp}
-	    Constraint: capability_set_hash must verify that the three actor_ids
-	    have DISJOINT capability sets across the entire lineage.
+	    capability_set_hash: "sha256:..."  # commits to the three actor capability sets
+	    # Hash binds the manifests together — it does NOT prove disjointness.
+	    # Runtime verifies pairwise ∩ = ∅ from signed capability_manifests:
+	    capability_manifests:               # v6.0: signed, per-actor
+	      - actor_id: candidate-A
+	        revision: 12
+	        capabilities: [modify_candidate]
+	        attestation: "..."
+	      - actor_id: oracle-B
+	        revision: 7
+	        capabilities: [run_holdout, issue_oracle_stamp]
+	        attestation: "..."
+	      - actor_id: promotion-C
+	        revision: 4
+	        capabilities: [promote_stable]
+	        attestation: "..."
+	    validation:
+	      pairwise_intersection_empty: true  # runtime-checked, not assumed
+	      manifests_hash: "sha256:..."       # binds manifests to lineage
 
 	v6 — Execution Envelope:
 	  ExecutionEnvelope pre-approves ONLY MODIFY_CANDIDATE within scope+budget.

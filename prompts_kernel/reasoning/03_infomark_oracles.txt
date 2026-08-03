@@ -142,13 +142,16 @@
 # ```
 # Unmarked => Unknown. Hypothetical in premises_for_plan => plan illegal / MODIFY blocked.
 #
-# After oracle PASS, emit (system applies stamp -> Exact for that id only):
+# After oracle PASS, emit (system expands ref → attested stamp → Exact):
 # ```yaml
-# oracle_stamp:
+# oracle_stamp_ref:
 #   claim_id: C1
 #   result: PASS
 # ```
-# or one-liner: `oracle_stamp: C1 PASS`
+# # v6.0: this is an inline reference — runtime expands to full attested oracle_stamp
+# # with common envelope fields (stamp_id, stamp_type, issuer, attestation, …).
+# # The ref alone is NOT a valid stamp and does NOT enter G.
+# # or one-liner: `oracle_stamp_ref: C1 PASS`
 # Bracket tags in prose are hints only; ledger + stamps win on conflict.
 # After compaction: session-read / tool re-read = Exact handle; summary body = Inferred.
 

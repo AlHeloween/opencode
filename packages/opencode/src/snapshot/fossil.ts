@@ -400,8 +400,13 @@ export const layer = Layer.effect(
               log.info("fossil checkout (opRestore)", { version: targetVersion })
               if (!(yield* ensureInit())) return
               const result = yield* fossil(["checkout", "--force", targetVersion], { cwd: worktree })
-              if (result.code === 0) return
-              log.error("fossil checkout failed", { version: targetVersion, stderr: result.stderr })
+              if (result.code !== 0) {
+                log.error("fossil checkout failed", { version: targetVersion, stderr: result.stderr })
+                return
+              }
+              // Remove stale files from the previous leaf that aren't tracked
+              // in the target version (fossil checkout leaves them as extras).
+              yield* fossil(["clean", "--force"], { cwd: worktree })
             }).pipe(Effect.orDie),
           )
         })
@@ -436,8 +441,13 @@ export const layer = Layer.effect(
               log.info("restore (checkout)", { version: snapshot })
               if (!(yield* ensureInit())) return
               const result = yield* fossil(["checkout", "--force", snapshot], { cwd: worktree })
-              if (result.code === 0) return
-              log.error("fossil checkout failed", { snapshot, stderr: result.stderr })
+              if (result.code !== 0) {
+                log.error("fossil checkout failed", { snapshot, stderr: result.stderr })
+                return
+              }
+              // Remove stale files from the previous leaf that aren't tracked
+              // in the target version (fossil checkout leaves them as extras).
+              yield* fossil(["clean", "--force"], { cwd: worktree })
             }).pipe(Effect.orDie),
           )
         })

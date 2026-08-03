@@ -100,6 +100,7 @@ const FOSSIL_AGENT_MUTATE_PATTERNS: RegExp[] = [
   /\bfossil(\.exe)?\s+push\b/i,
   /\bfossil(\.exe)?\s+pull\b/i,
   /\bfossil(\.exe)?\s+sync\b/i,
+  /\bfossil(\.exe)?\s+clean\b/i,
 ]
 
 /** Filesystem / disk wipe — permission destructive-file. */

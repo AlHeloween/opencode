@@ -9,15 +9,16 @@ PROMPT_ABI = MappingProxyType({
     # (see 21_skills_boundary).
     "identity_tier": "A",
     # Soft budget for the generated kernel (bytes). CI fails if exceeded.
-    # v6: raised from 48_000 → 52_000 → 53_000 to accommodate FAST_PATH, ExecutionEnvelope,
-    # evaluator capture prevention, SELF_MODIFY, intent router, orthogonality_score,
-    # capability principals, and canonical serialization.
-    "kernel_max_bytes": 53_000,
+    # v6: raised from 48_000 → 52_000 → 53_000 → 56_000 to accommodate
+    # ExecutionEnvelope, inference_stamp, intent router, orthogonality_score,
+    # capability principals, canonical serialization, stamped oracle ABI,
+    # task-store transition API, and envelope attestation.
+    "kernel_max_bytes": 56_000,
     # Soft budget for the three-surface stable identity slot (bytes).
     # Algorithm Card + Prompt Kernel + Reasoning Protocol are loaded into
     # one stable identity slot. CI warns if exceeded; kernel_max_bytes is the hard gate.
-    # v6: 96_000 to fit all three v6 surfaces with ~4 KB margin.
-    "stable_identity_slot_max_bytes": 96_000,
+    # v6.0: 108_000 to fit v6.0 surfaces (~100 KB) with ~8 KB operational margin.
+    "stable_identity_slot_max_bytes": 108_000,
 })
 
 RUNTIME_TERMS = MappingProxyType({

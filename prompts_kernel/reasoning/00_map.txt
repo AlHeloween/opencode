@@ -21,12 +21,12 @@
 #   G4 -->|needs approval| G4ask[present + ask]
 #   G4ask -->|explicit yes| G6
 #   G4ask -->|no/concern| G2
-#   G5{G5 concern?} -->|yes| G2
-#   G5 -->|no| G6
 #   G6 --> G7[G7 IMPLEMENT]
 #   G7 --> G8[G8 ORACLE]
-#   G8 -->|FAIL| G7
 #   G8 -->|PASS| G9[G9 CLEAN_STATE]
+#   G8 -->|FAIL| BugLoop{dead-loop?}
+#   BugLoop -->|attempts < max| G7
+#   BugLoop -->|attempts >= max| G2
 # ```
 #
 # Companion schemas: action_class (v6: +MODIFY_CANDIDATE, +MODIFY_PROJECT, +PROMOTE_STABLE, +SELF_MODIFY) |
@@ -41,5 +41,6 @@
 # Notation: LaTeX math; YAML fields; Mermaid process graphs.
 # Pointers: ALGORITHM_CARD, kernel RULES. User = Gate 4 approver for MODIFY.
 # v6: ExecutionEnvelope pre-approves MODIFY_CANDIDATE within scope+budget.
-#   Gate 4 explicit approval required only for PROMOTE_STABLE and SELF_MODIFY.
+#   Gate 4 explicit approval required for: MODIFY_PROJECT, PROMOTE_STABLE,
+#   SELF_MODIFY, protected-surface mutation, candidate work outside valid envelope.
 #

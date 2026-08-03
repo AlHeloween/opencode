@@ -38,13 +38,20 @@
 # Invariants: CONVERSATION/OBSERVE => effect = NO_WRITE;
 # EXECUTE_TEST => no silent persistent write;
 # MODIFY_CANDIDATE within envelope => pre-approved (no Gate 4 re-approval);
-# PROMOTE_STABLE | SELF_MODIFY => always explicit user OK;
-# MODIFY_PROJECT outside envelope => Gate 4 explicit user OK.
+# ExecutionEnvelope pre-approves ONLY MODIFY_CANDIDATE. Explicit approval required for:
+#   MODIFY_PROJECT (any envelope state), PROMOTE_STABLE, SELF_MODIFY,
+#   protected-surface mutation, candidate work outside a valid envelope.
 
 # GATE 1 --- GROUND TRUTH  [EVIDENCE_ORDER, SEARCH_ORDER, WHERE_WHICH, REUSE_BEFORE]
 # Read current state before judgment: files, logs, tests, conversation.
 # Every observation from a concrete tool read or oracle output --- not parametric memory.
-# SEARCH_ORDER: where/which -> codegraph -> messagesearch -> universalsearch -> glob/grep.
+# SEARCH by intent, not linear order (tools answer different question types):
+#   EXECUTABLE_LOCATION → where/which (instant, PATH-aware)
+#   CODE_STRUCTURE       → codegraph → bounded read/grep
+#   CONVERSATION_FACT    → messagesearch → session-read
+#   PUBLIC_API/VERSION   → universalsearch web+code (or hybrid)
+#   HARDWARE_STATE       → native diagnostics (OS/host, NOT tool-loop)
+#   UNKNOWN_ROOT_CAUSE   → local evidence first → external universalsearch
 # Non-trivial invent/build: REUSE_BEFORE with product tool universalsearch ---
 #   source=web (internet) and/or source=code (Sourcegraph over indexed git) or hybrid.
 #   Prefer web+code over source=agent (agent is slow multi-hop; use only if needed).
@@ -148,7 +155,8 @@
 #   L1 --> K["k = adaptive_k (CV-based)"]
 #   K --> Med["k-medoids Manhattan (-> CLARA when N>=100)"]
 #   Med --> CT[CENTRAL_TASKS = medoids]
-#   CT --> TW[todowrite]
+#   CT --> Store[authoritative task store]
+#   Store -->|optional projection| TW[todowrite]
 # ```
 
 # GATE 3 --- MASTER PLAN  [SMOKE_BEFORE, REUSE_BEFORE, infomark]
@@ -246,9 +254,12 @@
 #   Explicit --> Ask
 # ```
 #
-# --- Schema: execution_envelope (v6 — cryptographically verifiable) ---
-# Envelope validity requires ALL of: not expired, scope unchanged, budget not exceeded,
-# approval_stamp present. "Expired" is formally decidable from expires_at vs wall_time.
+# --- Schema: execution_envelope (v6.0 — authenticated, verifiable) ---
+# Envelope validity requires ALL of: not expired, scope spec unchanged, budget not exceeded,
+# approval attested by trusted runtime. hash(data) ≠ authorization(data).
+# "Expired" is formally decidable from expires_at vs wall_time.
+# Scope validity checks path PATTERNS, not file contents — permitted writes
+# must not invalidate the envelope.
 # ```yaml
 # execution_envelope:
 #   envelope_id: "uuid"
@@ -256,9 +267,20 @@
 #   issued_at: "2026-08-03T03:00:00Z"      # ISO-8601, wall clock
 #   expires_at: "2026-08-03T04:00:00Z"     # after this: envelope invalid
 #   approved_by: "user"                     # only "user" can approve (not agent, not tool)
-#   approval_stamp: "sha256:abc123..."      # hash(envelope_id+revision+scope_root_hash+issued_at)
-#   scope_root_hash: "sha256:def456..."     # hash of scope_paths tree at approval time
+#   approval_attestation:                   # v6.0: runtime-owned authentication, NOT public hash
+#     algorithm: HMAC-SHA256               # trusted_runtime holds the key
+#     issuer: trusted_runtime
+#     value: "hmac:abc123..."              # opaque token — agent CANNOT recompute
+#     # law: hash(data) ≠ authorization(data). Public SHA-256 proves
+#     # integrity, not approval. Only the runtime can attest user intent.
+#   scope_spec_hash: "sha256:def456..."    # v6.0: hash of NORMALIZED PATH PATTERNS only
+#     # (sorted scope_paths, canonicalized — NOT file contents)
+#     # Validity check: current scope spec hash == scope_spec_hash.
+#     # Permitted writes within scope do NOT change this hash.
 #   scope_paths: ["packages/memory/**"]
+#   baseline_tree_hash: "sha256:789abc..." # snapshot of file CONTENTS at approval time
+#     # audit/diff reference only — NOT a validity condition.
+#     # This hash WILL change after permitted writes — that is expected.
 #   budget:
 #     maximum_created: 3
 #     maximum_modified: 12
@@ -269,18 +291,22 @@
 #     - MODIFY_CANDIDATE
 #     - EXECUTE_TEST
 #   status: active | expired | revoked      # runtime-enforced; expired is decidable
+#   mutation_ledger:                        # tracks cumulative changes within envelope
+#     created: []
+#     modified: []
+#     deleted: []
+#     cumulative_delta_hash: "sha256:..."   # chain of mutation hashes
 #
-# Validity check (v6 resolver):
+# Validity check (v6.0 resolver — 7 conditions):
 #   1. status == active
-#   2. now < expires_at  (wall_time decidable — not just budget)
-#   3. current scope_paths hash == scope_root_hash (no tampering)
-#   4. approval_stamp matches recomputed hash
+#   2. now < expires_at  (wall_time decidable)
+#   3. current scope spec hash == scope_spec_hash (patterns match — NOT file contents)
+#   4. approval_attestation verified by trusted_runtime (HMAC check)
 #   5. activity ∈ allowed_action_classes
-#   6. budget available (counts within limits)
+#   6. budget available (mutation_ledger counts within limits)
+#   7. approval_attestation.issuer == trusted_runtime (agent cannot self-attest)
 #
 # UNKNOWN_ACTIVITY → RECLASSIFY_OR_DENY (fail-closed, never approve blind).
-# Unknown activity is NOT presented to user as a contract — the resolver must
-# classify it first, and only known activities reach Gate 4 branches.
 # ```
 
 # GATE 5 --- CONCERN LOOP
@@ -371,10 +397,20 @@
 # ```
 #
 # --- Schema: oracle_stamp ---
+# On oracle PASS, the system emits this stamp. Common envelope fields apply.
 # ```yaml
 # oracle_stamp:
+#   stamp_id: "uuid"
+#   stamp_type: ORACLE
 #   claim_id: C1
+#   claim_revision: 1
+#   claim_scope_hash: "sha256:..."
+#   issued_at: "ISO-8601"
+#   expires_at: "ISO-8601"
+#   issuer_principal_id: "kernel"
+#   source_hash: "sha256:..."
 #   result: PASS
+#   attestation: "runtime-signature"
 # # On PASS: σ(c) = Exact (scoped to claim_scope)
 # ```
 #
@@ -383,14 +419,23 @@
 # are grounded and derivation is reproducible.
 # ```yaml
 # inference_stamp:
+#   stamp_id: "uuid"                    # v6.0: common stamp envelope
+#   stamp_type: INFERENCE               # v6.0: typed
 #   claim_id: C3
-#   derivation_rule: "R17"           # which rule/inference produced this claim
-#   dependencies: [C1, C2]           # claims this derivation depends on
-#   dependency_effective_status:     # weakest-link check (all must be ≥ Inferred)
+#   claim_revision: 1                   # v6.0: revision tracking
+#   claim_scope_hash: "sha256:..."      # v6.0: scope-bound
+#   issued_at: "2026-08-03T03:30:00Z"   # v6.0: temporal validity
+#   expires_at: "2026-08-03T05:30:00Z"  # v6.0: stamps expire
+#   issuer_principal_id: "kernel"       # v6.0: who issued
+#   source_hash: "sha256:..."           # v6.0: content integrity
+#   derivation_rule: "R17"              # which rule/inference produced this claim
+#   dependencies: [C1, C2]              # claims this derivation depends on
+#   dependency_effective_status:        # weakest-link check (all must be ≥ Inferred)
 #     C1: Exact
 #     C2: Inferred
-#   derivation_hash: "a1b2c3d4..."  # deterministic hash of derivation inputs
+#   derivation_hash: "a1b2c3d4..."     # deterministic hash of derivation inputs
 #   result: VALID | INVALID
+#   attestation: "runtime-signature"    # v6.0: runtime attests validity
 # ```
 # Preconditions for VALID:
 #   1. All dependencies ∈ G (effective_status ≥ Inferred)
@@ -398,7 +443,47 @@
 #   3. Derivation hash matches computed hash from dependency set + rule + inputs
 #   4. No circular dependency (detected → Unknown)
 # On VALID: σ(c) = Inferred (system-stamped, eligible for G).
-# This is the missing piece: Inferred claims can now reach G alongside Exact.
+#
+# --- Schema: direct_evidence_stamp (v6.0) ---
+# Stamps a claim as Exact from a direct observation (read tool, session-read).
+# Distinct from oracle_stamp: no test execution — pure observation.
+# ```yaml
+# direct_evidence_stamp:
+#   stamp_id: "uuid"                    # common stamp envelope
+#   stamp_type: DIRECT_EVIDENCE
+#   claim_id: C2
+#   claim_revision: 1
+#   claim_scope_hash: "sha256:..."
+#   issued_at: "2026-08-03T03:01:00Z"
+#   expires_at: "2026-08-03T05:01:00Z"  # observations may stale
+#   issuer_principal_id: "kernel"
+#   source_hash: "sha256:..."           # hash of observed content
+#   source_type: file_read | session_read | tool_result
+#   source_handle: "src/tool/list.ts:42-58"
+#   source_revision: "commit:59a9fd2"
+#   content_hash: "sha256:..."          # hash of exact observed bytes
+#   scope: "list.ts:42-58"              # Exact is scope-bounded
+#   result: VALID
+#   attestation: "runtime-signature"
+# ```
+#
+# --- Common stamp envelope (v6.0 — every stamp carries these) ---
+# ```yaml
+# stamp:
+#   stamp_id: "uuid"                    # unique stamp identity
+#   stamp_type: ORACLE | DIRECT_EVIDENCE | INFERENCE
+#   claim_id: C<number>                 # which claim
+#   claim_revision: <int>               # monotonic revision per claim
+#   claim_scope_hash: "sha256:..."      # what the claim covers
+#   issued_at: "ISO-8601"               # when stamped
+#   expires_at: "ISO-8601"              # when stamp becomes invalid
+#   issuer_principal_id: "..."          # who issued (kernel, runtime, user)
+#   source_hash: "sha256:..."           # content integrity
+#   result: PASS | VALID                # stamp-specific outcome
+#   attestation: "..."                  # runtime cryptographic attestation
+# # valid_stamp(s) requires all common fields present + attestation valid.
+# # No text object with result:PASS is a stamp — type+issuer+attestation required.
+# ```
 
 # GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
 # End every substantial response with clean_next_state (+ sv_output when non-trivial).

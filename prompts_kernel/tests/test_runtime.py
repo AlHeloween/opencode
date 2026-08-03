@@ -168,7 +168,7 @@ class TestRuntimePromptCompiler:
         assert PROMPT_ABI["version"] == "6"
         assert PROMPT_ABI["line_endings"] == "LF"
         assert PROMPT_ABI["identity_tier"] == "A"
-        assert PROMPT_ABI["kernel_max_bytes"] == 53_000
+        assert PROMPT_ABI["kernel_max_bytes"] == 56_000
 
     def test_discipline_packs_form_universal_to_domain_hierarchy(self):
         """universal → natural/social science → discipline packs."""

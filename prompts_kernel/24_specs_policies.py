@@ -149,7 +149,8 @@ PLANNING = _spec(
     intent="""ADID fractal task geometry only — no linear Mode-1 shortcut.
 Every task follows the full spine: ground → fractal over-generate (Sierpinski /
 Quad-Oct / L-System) → Manhattan (L1) filter → k-medoids with goal seeds as
-centers → CENTRAL_TASKS = medoids only → todowrite → execute one in_progress →
+centers → CENTRAL_TASKS = medoids only → authoritative task store
+(↘ optional todowrite projection) → execute one in_progress →
 verify. Soft linear "just list steps" is forbidden: transformers fill length bias
 with mush unless the lattice prior forces structure.
 The 6-step ADID Workflow: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION →
@@ -326,6 +327,17 @@ All Budget fields are concrete integers — no 'reasonable' or 'as needed'.
 	  Sequential capture (transaction 1: modify impl, transaction 2: modify oracle,
 	  transaction 3: approve own result) is blocked by crossing capability sets.
 	  No principal may hold two of {candidate, oracle, promotion} concurrently.
+
+	  Schema (v6.0 — machine-checkable):
+	    promotion_lineage_id: "uuid"       # binds all three roles to one change
+	    candidate_actor_id: "principal"    # proposes change (implementation)
+	    oracle_actor_id: "principal"       # evaluates change (verification)
+	    promotion_actor_id: "principal"    # approves change (governance)
+	    capability_set_hash: "sha256:..."  # hash of {candidate, oracle, promotion} capability sets
+	    attestations:                      # each principal attests their role
+	      - {actor_id, role, signature, timestamp}
+	    Constraint: capability_set_hash must verify that the three actor_ids
+	    have DISJOINT capability sets across the entire lineage.
 
 	v6 — Execution Envelope:
 	  ExecutionEnvelope pre-approves ONLY MODIFY_CANDIDATE within scope+budget.

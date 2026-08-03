@@ -167,7 +167,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const sid = getActiveSessionID()
         if (!sid) return
         lastSettingsSessionID = sid
-        const settings = await loadSessionSettings(sid)
+        let settings = await loadSessionSettings(sid)
+        // Seed from global agent configs: new sessions inherit global defaults
+        // but per-session overrides (if already set) are never overwritten.
+        const seeded = seedAgentDefaults(settings)
+        if (seeded) {
+          settings = seeded
+          void saveSessionSettings(sid, settings)
+        }
         if (!settings) {
           setSessionSettings(null)
           return
@@ -188,6 +195,27 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             setModelStore("agentVariant", { ...modelStore.agentVariant, ...settings.agentVariant })
           }
         })
+      }
+
+      /**
+       * Seed session settings with global agent defaults for agents that
+       * have no per-session override yet. Returns a new settings object if
+       * any defaults were added, or undefined if nothing changed.
+       */
+      function seedAgentDefaults(settings: SessionSettings | null): SessionSettings | undefined {
+        const overrides = { ...settings?.agent }
+        let changed = false
+        for (const a of sync.data.agent) {
+          if (overrides[a.name]) continue // already has per-session override
+          if (!a.model) continue // no global default to seed
+          overrides[a.name] = {
+            model: `${a.model.providerID}/${a.model.modelID}`,
+            ...(a.variant ? { variant: a.variant } : {}),
+          }
+          changed = true
+        }
+        if (!changed) return undefined
+        return { ...settings, agent: overrides } as SessionSettings
       }
 
       /** Save settings to both global model.json and session-specific file. */
@@ -443,34 +471,38 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
-            // Persist agent model to opencode.jsonc (global single source of truth)
             if (options?.agent) {
-              void sdk.client.global.config
-                .update({
-                  config: {
-                    agent: {
-                      [agentName]: { model: `${model.providerID}/${model.modelID}` },
+              const sid = getActiveSessionID()
+              // Per-session: write ONLY to session file, not global config.
+              // Without a session: write to global config as the default for new sessions.
+              if (sid) {
+                const ss = sessionSettings()
+                const currentAgent = ss?.agent ?? {}
+                setSessionSettings({
+                  ...ss,
+                  agent: {
+                    ...currentAgent,
+                    [agentName]: {
+                      ...currentAgent[agentName],
+                      model: `${model.providerID}/${model.modelID}`,
                     },
                   },
-                })
-                .catch((e: unknown) =>
-                  Log.Default.warn("bug: failed to persist agent model to config", {
-                    error: e instanceof Error ? e.message : String(e),
-                  }),
-                )
-              // Also capture in session-specific agent overrides
-              const ss = sessionSettings()
-              const currentAgent = ss?.agent ?? {}
-              setSessionSettings({
-                ...ss,
-                agent: {
-                  ...currentAgent,
-                  [agentName]: {
-                    ...currentAgent[agentName],
-                    model: `${model.providerID}/${model.modelID}`,
-                  },
-                },
-              } as SessionSettings)
+                } as SessionSettings)
+              } else {
+                void sdk.client.global.config
+                  .update({
+                    config: {
+                      agent: {
+                        [agentName]: { model: `${model.providerID}/${model.modelID}` },
+                      },
+                    },
+                  })
+                  .catch((e: unknown) =>
+                    Log.Default.warn("bug: failed to persist agent model to config", {
+                      error: e instanceof Error ? e.message : String(e),
+                    }),
+                  )
+              }
             }
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)

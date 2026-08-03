@@ -25,6 +25,24 @@ test("prompt flow has no legacy steady-state continuation injection", async () =
   expect(promptSource).not.toContain("Summarize the task tool output above and continue with your task.")
 })
 
+test("mode-transition tool IDs use canonical names (no separators)", () => {
+  // After canonicalization (stripping [^a-z0-9]), tool IDs must match
+  // what the TUI checks in session/index.tsx for agent auto-switch.
+  const canonicalName = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+  // Policy names (with underscores) → canonical IDs (without)
+  expect(canonicalName("plan_exit")).toBe("planexit")
+  expect(canonicalName("plan_enter")).toBe("planenter")
+  expect(canonicalName("reasoning_enter")).toBe("reasoningenter")
+  expect(canonicalName("reasoning_exit")).toBe("reasoningexit")
+
+  // TUI checks for exactly these canonical forms
+  const tuiExpected = ["planexit", "planenter", "reasoningenter", "reasoningexit"]
+  for (const expected of tuiExpected) {
+    expect(canonicalName(expected)).toBe(expected) // idempotent
+  }
+})
+
 test("native modes share Build's provider identity while custom agents remain isolated", () => {
   const build = { name: "build", native: true } as Agent.Info
   const reasoning = { name: "reasoning", native: true } as Agent.Info

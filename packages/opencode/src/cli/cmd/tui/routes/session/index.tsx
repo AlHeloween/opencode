@@ -340,16 +340,16 @@ export function Session() {
     if (part.state.status !== "completed") return
     if (part.id === lastSwitch) return
 
-    if (part.tool === "plan_exit") {
+    if (part.tool === "planexit") {
       local.agent.set("build")
       lastSwitch = part.id
-    } else if (part.tool === "plan_enter") {
+    } else if (part.tool === "planenter") {
       local.agent.set("plan")
       lastSwitch = part.id
-    } else if (part.tool === "reasoning_enter") {
+    } else if (part.tool === "reasoningenter") {
       local.agent.set("reasoning")
       lastSwitch = part.id
-    } else if (part.tool === "reasoning_exit") {
+    } else if (part.tool === "reasoningexit") {
       local.agent.set("build")
       lastSwitch = part.id
     }

@@ -67,13 +67,75 @@ class AllowedEffect:
 
 @dataclass
 class Classification:
-    """§3 Five-axis activity classification."""
+    """§3 Five-axis activity classification.
+
+    v6: SELF_MODIFY activity separated from MODIFY — different permission
+    boundary. See ExecutionEnvelope for scope/budget pre-approval.
+    """
     activity: Activity = Activity.CONVERSATION
     effect: Effect = Effect.NO_WRITE
     risk: Risk = Risk.LOW
     reversibility: Reversibility = Reversibility.REVERSIBLE
     data_sensitivity: DataSensitivity = DataSensitivity.INTERNAL
     information_mark: Optional[EpistemicStatus] = None
+
+
+@dataclass
+class ExecutionEnvelope:
+    """§9.1 Execution Envelope — pre-approved scope+budget boundary.
+
+    v6: Replaces per-MODIFY approval for MODIFY_CANDIDATE operations.
+    The user approves the envelope ONCE. Within the envelope, the agent
+    can freely experiment (create branches, modify candidates, run tests).
+    Approval is only needed again when:
+      - Expanding scope beyond envelope boundaries
+      - Promoting a candidate to stable (PROMOTE_STABLE)
+      - Any SELF_MODIFY activity (separate permission boundary)
+
+    This resolves the Gate 4 vs action_class contradiction:
+      Gate 4: approval for any MODIFY
+      action_class: approval only for ELEVATED/DESTRUCTIVE MODIFY
+
+    With envelopes: all MODIFY within envelope = pre-approved.
+    MODIFY outside envelope → re-approval. PROMOTE_STABLE → explicit approval.
+    """
+    envelope_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    scope_paths: list[str] = field(default_factory=list)    # allowed file paths
+    budget: Budget = field(default_factory=Budget)           # change budget ceiling
+    wall_time_seconds: int = 1800                            # max experiment duration
+    attempts_max: int = 4                                     # max modify attempts
+    allowed_activities: list[str] = field(default_factory=lambda: [
+        "create_candidate_branch", "modify_candidate",
+        "run_tests", "benchmark",
+    ])
+    forbidden_activities: list[str] = field(default_factory=lambda: [
+        "modify_oracles", "modify_governance", "promote_to_stable",
+    ])
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    consumed: bool = False
+
+    def contains(self, resource_path: str) -> bool:
+        """Check if a resource path is within this envelope's scope."""
+        if not self.scope_paths:
+            return True  # empty scope = allow all (dangerous — should be explicit)
+        import os
+        normalized = os.path.normpath(resource_path)
+        for scope in self.scope_paths:
+            norm_scope = os.path.normpath(scope)
+            if normalized == norm_scope or normalized.startswith(norm_scope + os.sep):
+                return True
+        return False
+
+    def within_budget(self, current_usage: Budget) -> bool:
+        """Check if current usage is within envelope budget."""
+        return (
+            current_usage.maximum_created <= self.budget.maximum_created
+            and current_usage.maximum_modified <= self.budget.maximum_modified
+            and current_usage.maximum_deleted <= self.budget.maximum_deleted
+        )
+
+    def is_valid(self) -> bool:
+        return not self.consumed
 
 
 @dataclass

@@ -30,10 +30,11 @@ def _make_anchor(keywords=None, weights=None, dominant="test goal"):
 
 
 class TestClassifySignal:
-    """classify_signal: NOISE > CONFIRMATION > DIVERGENCE."""
+    """classify_signal: COLLAPSED_DUPLICATES > CONFIRMATION > DIVERGENCE.
+    v6: NOISE renamed to COLLAPSED_DUPLICATES — evidential weight preserved."""
 
     def test_noise_lsp_cascade(self):
-        """Documented example: 60 LSP errors → NOISE (was bug: returned DIVERGENCE)."""
+        """Documented example: 60 LSP errors → COLLAPSED_DUPLICATES (was NOISE in v5)."""
         anchor = _make_anchor()
         signal = Signal(
             source="LSP",
@@ -41,10 +42,10 @@ class TestClassifySignal:
             cardinality=60,
             content="';' expected",
         )
-        assert classify_signal(anchor, signal) == "NOISE"
+        assert classify_signal(anchor, signal) == "COLLAPSED_DUPLICATES"
 
     def test_noise_runtime_cascade(self):
-        """60× KeyError from test-output → NOISE (was undetected)."""
+        """60× KeyError from test-output → COLLAPSED_DUPLICATES."""
         anchor = _make_anchor()
         signal = Signal(
             source="test-output",
@@ -52,10 +53,10 @@ class TestClassifySignal:
             cardinality=60,
             content="KeyError: 'session_id' in test_output.py line 42",
         )
-        assert classify_signal(anchor, signal) == "NOISE"
+        assert classify_signal(anchor, signal) == "COLLAPSED_DUPLICATES"
 
     def test_noise_pure_cardinality(self):
-        """5+ signals from any source → NOISE via cardinality heuristic."""
+        """5+ signals from any source → COLLAPSED_DUPLICATES via cardinality heuristic."""
         anchor = _make_anchor()
         signal = Signal(
             source="unknown-source",
@@ -63,10 +64,10 @@ class TestClassifySignal:
             cardinality=5,
             content="x",
         )
-        assert classify_signal(anchor, signal) == "NOISE"
+        assert classify_signal(anchor, signal) == "COLLAPSED_DUPLICATES"
 
     def test_noise_content_similarity(self):
-        """Content ≥ 30 chars → NOISE via similarity heuristic."""
+        """Content ≥ 30 chars → COLLAPSED_DUPLICATES via similarity heuristic."""
         anchor = _make_anchor()
         signal = Signal(
             source="custom-tool",
@@ -74,7 +75,7 @@ class TestClassifySignal:
             cardinality=2,
             content="A" * 30,  # just long enough
         )
-        assert classify_signal(anchor, signal) == "NOISE"
+        assert classify_signal(anchor, signal) == "COLLAPSED_DUPLICATES"
 
     def test_confirmation_near_identical_sv(self):
         """Signal SV nearly identical to anchor SV → CONFIRMATION (δ < 0.3)."""
@@ -110,7 +111,7 @@ class TestClassifySignal:
         assert classify_signal(anchor, signal) == "DIVERGENCE"
 
     def test_noise_before_confirmation(self):
-        """NOISE check runs FIRST — even close-to-anchor cascades are noise."""
+        """COLLAPSED_DUPLICATES check runs FIRST — even close-to-anchor cascades collapse."""
         anchor = _make_anchor(dominant="Fixing DirectoryBrowser bug")
         signal = Signal(
             source="LSP",
@@ -118,11 +119,11 @@ class TestClassifySignal:
             cardinality=60,
             content="';' expected",
         )
-        # Despite being "close" to anchor (DirectoryBrowser), cascade = NOISE
-        assert classify_signal(anchor, signal) == "NOISE"
+        # Despite being "close" to anchor (DirectoryBrowser), cascade = COLLAPSED_DUPLICATES
+        assert classify_signal(anchor, signal) == "COLLAPSED_DUPLICATES"
 
     def test_single_not_cascade(self):
-        """Cardinality 1, short content, non-cascade source → not NOISE."""
+        """Cardinality 1, short content, non-cascade source → not COLLAPSED_DUPLICATES."""
         anchor = _make_anchor()
         signal = Signal(
             source="custom-tool",
@@ -130,16 +131,17 @@ class TestClassifySignal:
             cardinality=1,
             content="short",
         )
-        # Not noise → falls through to delta check
+        # Not collapsed → falls through to delta check
         result = classify_signal(anchor, signal)
         assert result in ("CONFIRMATION", "DIVERGENCE")
 
 
 class TestFilterSignalStorm:
-    """filter_signal_storm: cluster + NOISE filter."""
+    """filter_signal_storm: cluster + COLLAPSE (v6 — preserve, not filter)."""
 
-    def test_all_noise_empty_result(self):
-        """60 LSP errors + 5 runtime errors → all NOISE → empty result."""
+    def test_all_collapsed_preserved(self):
+        """60 LSP errors + 5 runtime errors → all COLLAPSED_DUPLICATES → PRESERVED.
+        v6: collapsed signals are kept with evidential_weight preserved."""
         anchor = _make_anchor()
         signals = [
             Signal(source="LSP", pattern="JSX-error", cardinality=1, content="';' expected")
@@ -147,11 +149,17 @@ class TestFilterSignalStorm:
             Signal(source="test-output", pattern="KeyError", cardinality=1, content="KeyError: x")
         ] * 5
         result = filter_signal_storm(anchor, signals)
-        # Both clusters have cardinality ≥ 5 → both are NOISE
-        assert len(result) == 0
+        # v6: both clusters COLLAPSED but PRESERVED (not filtered out)
+        assert len(result) == 2
+        # Both have COLLAPSED_DUPLICATES disposition
+        for s in result:
+            assert s.disposition == "COLLAPSED_DUPLICATES"
+        # Cardinality is preserved
+        assert result[0].cardinality == 60
+        assert result[1].cardinality == 5
 
-    def test_mixed_keeps_actionable(self):
-        """One actionable signal among noise."""
+    def test_mixed_keeps_all(self):
+        """v6: All signals preserved — collapsed + actionable both kept."""
         anchor = _make_anchor()
         signals = [
             Signal(source="LSP", pattern="JSX-error", cardinality=1, content="';' expected"),
@@ -160,6 +168,8 @@ class TestFilterSignalStorm:
                    content="Add component to DirectoryBrowser"),
         ]
         result = filter_signal_storm(anchor, signals)
-        # LSP cluster → NOISE (filtered), user-message → kept
-        assert len(result) == 1
-        assert result[0].source == "user-message"
+        # v6: LSP cluster → COLLAPSED_DUPLICATES (preserved), user-message → kept
+        assert len(result) == 2
+        dispositions = {s.disposition for s in result}
+        assert "COLLAPSED_DUPLICATES" in dispositions
+        assert any(s.disposition in ("CONFIRMATION", "DIVERGENCE") for s in result)

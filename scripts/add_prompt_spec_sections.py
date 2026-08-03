@@ -8,23 +8,23 @@ import os
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SKILL_HEADER = """intent:
-Skill definition — see opencode_prompts_kernel.py for canonical typed dict.
+Skill definition — see prompts_kernel/ for canonical typed dict.
 This file is a reference copy; all authoritative definitions live in the kernel.
 
 state:
-source: opencode_prompts_kernel.py (canonical typed dict)
+source: prompts_kernel/ (canonical typed dict)
 
 scope:
 - skill-specific operations
 - tool usage within skill domain
-- All behavior defined in opencode_prompts_kernel.py as typed Python dict
+- All behavior defined in prompts_kernel/ as typed Python dict
 
 constraints:
 - Follow kernel specification for all operations
-- All behavior defined in opencode_prompts_kernel.py
+- All behavior defined in prompts_kernel/
 
 invariants:
-- Canonical definition lives in opencode_prompts_kernel.py
+- Canonical definition lives in prompts_kernel/
 - This file is a reference copy
 
 forbidden_actions:
@@ -39,10 +39,10 @@ acceptance_tests:
 
 AGENTS_HEADER = """intent:
 AGENTS.md — project-specific conventions and instructions.
-Read by the AI for context. See opencode_prompts_kernel.py for canonical governance.
+Read by the AI for context. See prompts_kernel/ for canonical governance.
 
 state:
-source: opencode_prompts_kernel.py (canonical governance)
+source: prompts_kernel/ (canonical governance)
 
 scope:
 - project-specific conventions
@@ -50,7 +50,7 @@ scope:
 - build and test instructions
 
 constraints:
-- All governance rules defined in opencode_prompts_kernel.py
+- All governance rules defined in prompts_kernel/
 - This file supplements, not replaces, the kernel
 
 invariants:
@@ -58,7 +58,7 @@ invariants:
 - This file must not contradict the kernel
 
 forbidden_actions:
-- Contradicting opencode_prompts_kernel.py governance
+- Contradicting prompts_kernel/ governance
 
 acceptance_tests:
 - Contents consistent with kernel governance

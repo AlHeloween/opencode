@@ -899,15 +899,23 @@ def emit_state(
     blockers: list[str] | None = None,
     next_step: str | None = None,
     smoke_baseline: dict[str, dict] | None = None,
+    out_of_scope: list[str] | None = None,
+    terminal: bool = False,
 ) -> dict:
     """Emit a structured state record at the end of an ADID cycle.
 
     Returns a dict with keys: done, pending, blocked, next, goal_sv,
-    smoke_baseline. The caller is responsible for serialisation and
-    InfoMark stamping.
+    smoke_baseline, out_of_scope, terminal. The caller is responsible for
+    serialisation and InfoMark stamping.
 
     smoke_baseline: {label: {exit_code, stdout_hash, stderr_hash, timestamp}, ...}
       — recorded by smoke_before_record() before the first edit.
+
+    v6 additions:
+      out_of_scope: tasks discarded by residual_recluster (didn't pass Goal-SV threshold).
+        Preserved for audit — not silently dropped.
+      terminal: True when pending is empty and no further work remains.
+        The agent transitions to TERMINAL and stops the ADID cycle.
     """
     result: dict = {
         "done": completed_tasks or [],
@@ -918,6 +926,10 @@ def emit_state(
     }
     if smoke_baseline is not None:
         result["smoke_baseline"] = smoke_baseline
+    if out_of_scope:
+        result["out_of_scope"] = out_of_scope
+    if terminal:
+        result["terminal"] = True
     return result
 
 
@@ -939,8 +951,12 @@ def residual_recluster(
     4. Group close tasks (distance < threshold) as the next increment.
     5. Return re-clustered task descriptions.
 
+    v6: Tasks that don't pass the Goal-SV threshold are moved to
+    state['out_of_scope'] (not silently dropped, not forced to survive).
+    If no task passes → return [] → caller sets terminal=True.
+
     This closes the ADID loop: State → Decompose → Execute → Verify →
-    Residual → State (with updated plan).
+    Residual → State (with updated plan) or TERMINAL.
     """
     pending = state.get("pending", [])
     if not pending:
@@ -968,8 +984,21 @@ def residual_recluster(
     indexed = [(i, distances[i]) for i in range(len(pending))]
     indexed.sort(key=lambda x: x[1])
 
-    result = [pending[i] for i, d in indexed if d <= tau]
-    return result if result else [pending[0]]  # at least one
+    in_scope = [(i, d) for i, d in indexed if d <= tau]
+    out_of_scope = [pending[i] for i, d in indexed if d > tau]
+
+    # v6: track discarded tasks in state for audit
+    if out_of_scope:
+        existing_oos = state.get("out_of_scope", [])
+        state["out_of_scope"] = existing_oos + out_of_scope
+
+    result = [pending[i] for i, d in in_scope]
+    # v6: allow empty residual → TERMINAL state.
+    # If no pending task passes the Goal-SV threshold, the cycle ends.
+    # The agent signals TERMINAL and places discarded tasks in out_of_scope.
+    # v5 behaviour (forced at least one) created perpetual motion:
+    #   all residual tasks irrelevant → kernel keeps one → agent can't reach TERMINAL.
+    return result  # may be empty — caller handles TERMINAL via emit_state
 
 
 # =========================================================================

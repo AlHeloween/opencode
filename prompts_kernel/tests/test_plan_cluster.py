@@ -646,17 +646,33 @@ class TestResidualRecluster:
             ],
         }
         result = residual_recluster(state, original_goal_sv=goal)
-        # Should filter at least some tasks (adaptive_tau at 70th percentile)
-        assert len(result) >= 1
-        # The 70th percentile may keep 3 of 4 — acceptable
+        # v6: empty result is valid (TERMINAL) when no task passes threshold.
+        # Distant tasks are moved to out_of_scope.
         assert len(result) <= 4
+        # Distant tasks should end up in out_of_scope
+        oos = state.get("out_of_scope", [])
+        assert len(oos) + len(result) == 4  # all tasks accounted for
 
-    def test_returns_at_least_one(self):
+    def test_empty_when_all_distant(self):
+        """v6: when ALL tasks are distant from goal, can return empty → TERMINAL.
+        The key invariant: out_of_scope is populated with filtered tasks.
+        Result MAY be empty (v5 always forced at least 1)."""
         goal = [0.0] * 512
         goal[0] = 1.0
-        state = {"pending": ["distant task aaa", "distant task bbb"]}
+        state = {"pending": [
+            "distant task aaa",
+            "distant task bbb",
+            "distant task ccc",
+            "distant task ddd",
+            "distant task eee",
+        ]}
         result = residual_recluster(state, original_goal_sv=goal)
-        assert len(result) >= 1
+        # v6: result CAN be empty — no forced minimum
+        # Discarded tasks go to out_of_scope
+        oos = state.get("out_of_scope", [])
+        assert len(oos) + len(result) == len(state["pending"])
+        # With all-distant tasks, out_of_scope should have at least some entries
+        assert len(oos) >= 1
 
     def test_small_pending_returns_all(self):
         goal = [1.0] + [0.0] * 511

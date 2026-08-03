@@ -7,17 +7,31 @@ class Signal:
 
     KEY INSIGHT: Cardinality != signal count. 60 identical LSP errors
     from one JSX-resolution bug = 1 effective signal, not 60.
+
+    Disposition semantics (v6 — COLLAPSE, never FILTER OUT):
+      - COLLAPSED_DUPLICATES: many identical signals from one root cause.
+        Evidential weight is PRESERVED (cardinality recorded, count=1).
+        The agent sees "60 errors, 1 root cause" — not "0 errors."
+      - CONFIRMATION / DIVERGENCE: actionable signals as before.
     """
     source: str = ""           # "LSP", "typecheck", "test-output", "user-message"
     pattern: str = ""          # clustered key (e.g. "JSX-unresolved-reference")
-    cardinality: int = 1       # how many times repeated
+    cardinality: int = 1       # how many times repeated (preserved for evidence)
     content: str = ""
     information_mark: Optional[EpistemicStatus] = None
+    disposition: str = ""      # "" | "COLLAPSED_DUPLICATES" | "CONFIRMATION" | "DIVERGENCE"
 
     @property
     def effective_weight(self) -> float:
         """Weight = 1.0 regardless of cardinality. One bug × N lines = 1 signal."""
         return 1.0
+
+    @property
+    def evidential_weight(self) -> int:
+        """Raw cardinality preserved for evidence — never discarded.
+        60 collapsed duplicates still show cardinality=60 so the agent
+        knows the magnitude, even though effective_weight=1.0."""
+        return self.cardinality
 
 
 @dataclass
@@ -84,22 +98,26 @@ def classify_signal(anchor: SVMAnchor, signal: Signal) -> str:
     """Compare incoming signal against frozen anchor.
 
     Returns:
-      'NOISE'        — same-source repeated cascade → 1 effective signal, not N
-      'CONFIRMATION' — signal aligns with anchor (Δ_L1 < DELTA_STABLE)
-      'DIVERGENCE'   — high delta, genuinely new information → anchor may need revision
+      'COLLAPSED_DUPLICATES' — same-source repeated cascade → 1 effective signal,
+                               evidential weight PRESERVED (cardinality recorded).
+                               v6: NEVER filter out — COLLAPSE instead.
+      'CONFIRMATION'         — signal aligns with anchor (Δ_L1 < DELTA_STABLE)
+      'DIVERGENCE'           — high delta, genuinely new information → anchor may need revision
 
-    Example (LSP noise):
+    Example (LSP cascade — v6 behaviour):
       anchor = SVMAnchor(sv=build_semantic_vector(["DirectoryBrowser","add","component"],
                                       [0.5,0.3,0.2], "Adding DirectoryBrowser"),
                          phase="implementation")
       signal = Signal(source="LSP", pattern="JSX-unresolved-reference",
                       cardinality=60, content="';' expected")
-      classify_signal(anchor, signal)  # → 'NOISE'
+      classify_signal(anchor, signal)  # → 'COLLAPSED_DUPLICATES'
+      # (was 'NOISE' in v5 — v6 preserves evidential_weight=60)
     """
-    # NOISE check FIRST — repeated same-source cascades are noise regardless
-    # of delta to anchor. A storm of 60 identical LSP errors is 1 signal.
+    # COLLAPSE check FIRST — repeated same-source cascades collapse to 1 signal
+    # with preserved cardinality. A storm of 60 identical LSP errors is still
+    # EVIDENCE (of one root cause), not nothing.
     if _same_source_repeated(signal):
-        return "NOISE"
+        return "COLLAPSED_DUPLICATES"
 
     sv_signal = build_semantic_vector(
         keywords=[signal.pattern, signal.source],
@@ -121,13 +139,20 @@ def filter_signal_storm(anchor: SVMAnchor, signals: list[Signal]) -> list[Signal
     """Cluster signals by (source, pattern). Each cluster = 1 effective signal.
 
     A storm of 60 identical LSP errors is 1 signal, not 60.
-    Noise-classified signals are filtered out.
-    Returns only actionable signals (CONFIRMATION + DIVERGENCE).
+    v6: COLLAPSED_DUPLICATES signals are PRESERVED (not filtered out).
+    Their evidential_weight = cardinality is retained so the agent knows
+    the magnitude of the root cause. Only the context window is saved.
+
+    Returns ALL signals with disposition set:
+      - COLLAPSED_DUPLICATES: collapsed but preserved (was: filtered out)
+      - CONFIRMATION + DIVERGENCE: actionable as before
 
     Example:
       signals = [60 LSP errors with same pattern]
       anchor = SVMAnchor(...)  # "Adding DirectoryBrowser"
-      result = filter_signal_storm(anchor, signals)  # → [] (all noise)
+      result = filter_signal_storm(anchor, signals)
+      # → [Signal(disposition="COLLAPSED_DUPLICATES", cardinality=60)]
+      # (was [] in v5 — v6 preserves evidence of the root cause)
     """
     # Cluster by (source, pattern)
     clusters: dict[tuple[str, str], list[Signal]] = {}
@@ -144,9 +169,13 @@ def filter_signal_storm(anchor: SVMAnchor, signals: list[Signal]) -> list[Signal
             content=group[0].content,
             information_mark=group[0].information_mark,
         )
+        # Stamp disposition from classify_signal
+        disposition = classify_signal(anchor, representative)
+        representative.disposition = disposition
         effective.append(representative)
 
-    # Filter: keep only actionable signals
-    return [s for s in effective if classify_signal(anchor, s) != "NOISE"]
+    # v6: COLLAPSED_DUPLICATES signals are PRESERVED — they carry evidence.
+    # Only truly empty/unclassifiable signals are dropped.
+    return [s for s in effective if s.disposition != ""]
 
 

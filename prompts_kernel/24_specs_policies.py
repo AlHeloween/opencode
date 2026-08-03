@@ -145,19 +145,34 @@ Tag claims with evidence labels. Reference outranks inference.""",
 
 PLANNING = _spec(
     intent="""ADID fractal task geometry only — no linear Mode-1 shortcut.
-For complex work (3+ steps): ground → fractal over-generate (Sierpinski / Quad-Oct /
-L-System) → Manhattan (L1) filter → k-medoids with goal seeds as centers → CENTRAL_TASKS =
-medoids only → todowrite → execute one in_progress → verify. Soft linear "just list
-steps" is forbidden: transformers fill length bias with mush unless the lattice
-prior forces structure. The 6-step ADID Workflow: GOAL_SVM_PREP → SVM_INGESTION →
-PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL. PRE_FLIGHT incomplete without
-Smoke Tests (baseline + post-impl oracles) and Prior art (universalsearch) when
-non-trivial. Plan before code. Smoke before implementation. Residual work re-clusters
-against original Goal SV — never re-fractal the whole universe.""",
+Every task follows the full spine: ground → fractal over-generate (Sierpinski /
+Quad-Oct / L-System) → Manhattan (L1) filter → k-medoids with goal seeds as
+centers → CENTRAL_TASKS = medoids only → todowrite → execute one in_progress →
+verify. Soft linear "just list steps" is forbidden: transformers fill length bias
+with mush unless the lattice prior forces structure.
+The 6-step ADID Workflow: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION →
+VERIFICATION → STATE_EVAL. PRE_FLIGHT incomplete without Smoke Tests (baseline +
+post-impl oracles) and Prior art (universalsearch). Plan before code.
+Smoke before implementation. Residual work re-clusters against original Goal SV —
+never re-fractal the whole universe.
+
+GROUNDED PATH (v6): Speed comes from evidence density, not task size.
+  When codegraph is indexed for the target files AND historical context is
+  available via messagesearch (both [Exact]), the ground step reuses existing
+  evidence — symbols, callers, callees, prior decisions — instead of
+  re-discovering them. The spine does NOT compress. The lattice depth adapts
+  via adaptive_depth(peaks, evidence_count=high) because the territory is
+  already mapped, not because the task is "trivial."
+  Counter-example: a one-character typo in an UNINDEXED file with NO history
+  still requires full grounding. A 20-file refactor in a fully-indexed,
+  well-documented codebase with Exact conversation history may generate a
+  shallower lattice — because the evidence is already in hand, not because
+  the work is simple.""",
 
     state={
         "planning_mode": "fractal_only",
         "central_tasks": "k-medoids of fractal candidates (never raw foam)",
+        "grounded_path": "activated by evidence density (codegraph indexed + history Exact), not task size",
     },
 
     scope="task geometry, todowrite, plan.txt workflow, plan/build cycle",
@@ -165,6 +180,7 @@ against original Goal SV — never re-fractal the whole universe.""",
     constraints={
         "fractal_geometry_required": True,
         "linear_mode_1_forbidden": True,
+        "grounded_path_by_evidence": True,
         "medoids_only_central_tasks": True,
         "plan_before_code": True,
         "reuse_search_before_design": True,
@@ -176,6 +192,7 @@ against original Goal SV — never re-fractal the whole universe.""",
         "k_medoids_required": True,
         "k_adaptive": True,
         "k_equals_ceil_n_over_2": False,
+        "terminal_state_allowed": True,
     },
 
     invariants=[
@@ -190,6 +207,12 @@ against original Goal SV — never re-fractal the whole universe.""",
         "Plan before code — no edits before plan approval",
         "No EXECUTION until smoke requirements exist and baseline is recorded [Exact] when runtime surface changes",
         "Residual / next fractal measured against original Goal SV seeds — not a new mission",
+        "The spine (ground→scope→oracle→edit→verify→state) is INVARIANT for all tasks. "
+        "Speed comes from evidence density (codegraph indexed, history Exact), not task size. "
+        "A typo in unknown code = full lattice. A refactor in well-indexed code = shallower lattice "
+        "because the evidence is already Exact — not because the task is 'trivial.'",
+        "TERMINAL (v6): when residual_recluster returns empty (no task passes Goal-SV threshold), "
+        "agent transitions to TERMINAL state; discarded tasks go to out_of_scope (not forced to survive)",
     ],
 
     forbidden_actions=[
@@ -203,6 +226,7 @@ against original Goal SV — never re-fractal the whole universe.""",
         "More than one task in_progress at a time",
         "Verification sections that only say 'test later' without concrete commands and pass criteria",
         "Re-fractaling the entire goal after each medoid instead of residual vs Goal SV",
+        "Forcing at least one residual task when none pass Goal-SV threshold — allow TERMINAL",
     ],
 
     acceptance_tests=[
@@ -271,27 +295,54 @@ same principle as meditative practices in humans.""",
 
 GOVERNANCE = _spec(
     intent="""Agent governance — no unapproved mutations, no implicit repair, provenance mandatory.
-Every MODIFY requires an approved ExecutionContract. Inspection does not authorize repair.
-All Budget fields are concrete integers — no 'reasonable' or 'as needed'.""",
+Every MODIFY requires an approved ExecutionContract OR a valid ExecutionEnvelope.
+Inspection does not authorize repair.
+All Budget fields are concrete integers — no 'reasonable' or 'as needed'.
 
-    state={"operations": ["MODIFY", "OBSERVE", "EXECUTE_TEST", "CONVERSATION"]},
+v6 — Evaluator capture prevention:
+  Mutable: candidate_generator, retrieval_router, clustering_parameters, implementation_code.
+  Protected (immutable without separate permission): invariant_suite, holdout_benchmarks,
+    promotion_oracle, evidence_status_transition_law, governance_kernel.
+  metric_change requires: separate candidate branch, old_metric comparison,
+    sealed holdout, regression oracle, explicit promotion authority.
+  Component cannot simultaneously: (1) modify the system, (2) modify the evaluation
+    criterion, (3) confirm its own success. Triple-separation is a PERMISSION BOUNDARY,
+    not just a logical role separation.
 
-    scope="all agent operations, approval via ExecutionContract with valid binding",
+v6 — Execution Envelope:
+  User approves scope+budget ONCE. Within envelope, agent can freely experiment
+  (MODIFY_CANDIDATE). PROMOTE_STABLE and SELF_MODIFY always require explicit approval.
+  This resolves Gate 4 (approval for any MODIFY) vs action_class (only ELEVATED/DESTRUCTIVE).""",
+
+    state={"operations": ["MODIFY", "OBSERVE", "EXECUTE_TEST", "CONVERSATION", "SELF_MODIFY"],
+           "approval_model": "execution_envelope",
+           "protected_surfaces": [
+               "invariant_suite", "holdout_benchmarks", "promotion_oracle",
+               "evidence_status_transition_law", "governance_kernel",
+           ]},
+
+    scope="all agent operations, approval via ExecutionContract with valid binding or ExecutionEnvelope",
 
     constraints={
         "no_unapproved_mutations": True,
         "no_implicit_repair": True,
         "hard_budgets": True,
         "provenance_mandatory": True,
+        "execution_envelope_supported": True,
+        "evaluator_capture_prevented": True,
+        "self_modify_triple_separation": True,
     },
 
     invariants=[
-        "Every MODIFY operation requires an approved ExecutionContract",
+        "Every MODIFY operation requires an approved ExecutionContract OR a valid ExecutionEnvelope",
         "Inspection does not authorize repair. Testing does not authorize correction",
         "All Budget fields are concrete integers — no 'reasonable' or 'as needed'",
         "Every stateful response carries md5_msg_tag and md5_sv_tag",
         "Claims tagged: Exact > Inferred > Hypothetical > Guess > Unknown",
         "All operations repeatable from contract + state record alone",
+        "SELF_MODIFY: component cannot change itself, its oracle, AND its promotion criteria",
+        "metric_change: requires separate branch + old_metric comparison + sealed holdout + regression oracle",
+        "Protected surfaces (invariants, holdouts, oracles, evidence law, governance) are immutable without separate permission",
     ],
 
     acceptance_tests=[],
@@ -300,6 +351,9 @@ All Budget fields are concrete integers — no 'reasonable' or 'as needed'.""",
         "Acting on out-of-scope findings discovered during inspection",
         "Using string budget values instead of concrete integers",
         "Mutating ADID framework rule receivers (.cursor|/.opencode rules for adid) without ADM or kernel pipeline",
+        "Simultaneously modifying implementation AND its evaluation criterion AND confirming success",
+        "Modifying protected surfaces (invariant_suite, holdout_benchmarks, promotion_oracle, evidence law, governance) without separate branch + explicit promotion authority",
+        "Using SELF_MODIFY without explicit user approval — SELF_MODIFY always requires APPROVED",
     ],
 )
 

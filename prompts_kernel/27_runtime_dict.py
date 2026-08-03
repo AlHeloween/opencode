@@ -9,7 +9,9 @@ PROMPT_ABI = MappingProxyType({
     # (see 21_skills_boundary).
     "identity_tier": "A",
     # Soft budget for model-facing identity (bytes). CI fails if exceeded.
-    "identity_max_bytes": 48_000,
+    # v6: raised from 48_000 → 52_000 to accommodate FAST_PATH, ExecutionEnvelope,
+    # evaluator capture prevention, SELF_MODIFY, and COLLAPSE semantics.
+    "identity_max_bytes": 52_000,
 })
 
 RUNTIME_TERMS = MappingProxyType({

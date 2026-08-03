@@ -195,7 +195,7 @@ def step_kernel() -> None:
         [
             sys.executable,
             "-m",
-            "opencode_prompts_kernel",
+            "prompts_kernel",
             "--render-runtime",
             str(dst),
         ],

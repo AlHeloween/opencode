@@ -16,8 +16,8 @@ import type { Provider } from "../../src/provider/provider"
 /**
  * System prefix digest — update procedure for intentional kernel revisions:
  *
- * 1. Change `prompts_kernel.py` (canonical source).
- * 2. Regenerate: `python prompts_kernel.py --render-runtime packages/opencode/src/session/prompt/prompts_kernel.txt`
+ * 1. Change `prompts_kernel/` (canonical source).
+ * 2. Regenerate: `python -m prompts_kernel --render-runtime packages/opencode/src/session/prompt/prompts_kernel.txt`
  * 3. Run: `cd packages/opencode && bun test test/session/system-compose.test.ts`
  * 4. If only the digest assertion fails, update EXPECTED_KERNEL_DIGEST below to the
  *    printed actual digest after reviewing the kernel diff.

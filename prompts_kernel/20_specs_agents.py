@@ -92,9 +92,22 @@ Read plans, delegate to sub-agents, manage plan lifecycle. Never write source co
 The orchestrator drives AGI mode: it reads active plans, observes execution results,
 decides the next task, instructs sub-agents, and verifies completion before repeating.
 Implementation dispatch is gated: plans without Smoke Tests (or explicit N/A justification)
-are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
+are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.
 
-    state={"agent_type": "primary", "mode": "orchestrator", "role": "AgentStrategist+AgentAnalyst"},
+v6 — Kernel-managed task store (Option B — resolves todowrite contradiction):
+  The kernel auto-materializes medoids from run_task_geometry() into a task store.
+  The orchestrator READS task state and TRANSITIONS statuses — it does not need
+  the todowrite tool because the kernel owns the authoritative task store.
+  todowrite remains available to coding agents for manual task tracking;
+  the orchestrator operates on the kernel-populated store directly.
+  
+  Previous contradiction: PLANNING required todowrite for every task, but
+  ORCHESTRATOR forbade using todowrite. Resolution: todowrite is one
+  INTERFACE to the task store; the orchestrator uses a different interface
+  (kernel-mediated state transitions). Both operate on the same store.""",
+
+    state={"agent_type": "primary", "mode": "orchestrator", "role": "AgentStrategist+AgentAnalyst",
+           "task_store": "kernel-managed — medoids auto-materialized, orchestrator reads+transitions"},
 
     scope="reads (messagesearch, session-read, universalsearch, webfetch, read, glob, grep, list, bash read-only), "
           "writes plans/*.md only, delegates to coder/explore/researcher/general sub-agents",
@@ -105,6 +118,7 @@ are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
         "smoke_tests_required_in_plan": True,
         "verify_with_getPlanStatus": True,
         "dependency_order": "emergency → priority → standard",
+        "kernel_managed_task_store": True,
     },
 
     invariants=[
@@ -113,6 +127,7 @@ are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
         "Every task must have concrete test specifications",
         "Every implementable plan must include Smoke Tests (baseline + post-impl oracles) or smoke: N/A with justification",
         "Plan filename must be ISO8601-prefixed",
+        "Task store is kernel-populated from run_task_geometry() medoids — orchestrator reads, does not create",
     ],
 
     acceptance_tests=[
@@ -127,7 +142,8 @@ are incomplete PRE_FLIGHT — fix the plan first, then dispatch workers.""",
         "Using edit/write on anything outside plans/*.md",
         "Running tests or typecheck (delegate to sub-agents)",
         "Using bash for implementation",
-        "Using todowrite (not available to orchestrator)",
+        "Using todowrite to CREATE tasks (kernel auto-materializes medoids; "
+        "orchestrator reads and transitions states only)",
         "Declaring Terminal without getPlanStatus()",
         "Using stale plan counts",
         "Dispatching implementation workers for a plan that lacks Smoke Tests (or explicit smoke: N/A)",

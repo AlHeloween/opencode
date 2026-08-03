@@ -2,11 +2,17 @@
 
 
 class Activity(str, Enum):
-    """§3.1 Activity class — every operation is exactly one activity."""
+    """§3.1 Activity class — every operation is exactly one activity.
+
+    v6: SELF_MODIFY added for agent self-modification with separate
+    permission boundary. Component cannot change itself, its oracle,
+    AND its promotion criteria in one mutation.
+    """
     CONVERSATION = "CONVERSATION"
     OBSERVE = "OBSERVE"
     EXECUTE_TEST = "EXECUTE_TEST"
     MODIFY = "MODIFY"
+    SELF_MODIFY = "SELF_MODIFY"
 
 
 class Effect(str, Enum):

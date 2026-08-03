@@ -3,7 +3,7 @@ import json
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import opencode_prompts_kernel as k
+import prompts_kernel as k
 
 print("=" * 70)
 print("  COMPLETE IMMUTABLE PROMPT SCHEMA")

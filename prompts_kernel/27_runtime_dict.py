@@ -26,7 +26,6 @@ RUNTIME_TERMS = MappingProxyType({
     "scope": "Inspection and testing do not authorize unrelated repair; use governing surfaces before inference.",
     "verification": "An oracle decides correctness; do not claim fixed without direct evidence. Smoke oracles are part of verification — post-impl pass criteria from the plan Smoke Tests section. ACCEPT only after oracle PASS.",
     "hygiene": "Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.",
-    "metric_adaptation": "System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). No manual intervention required.",
 })
 
 RUNTIME_RULES = MappingProxyType({
@@ -51,7 +50,7 @@ RUNTIME_RULES = MappingProxyType({
     "VCS_ROOT": "VCS detection: git status only — never glob/grep for .git/ (it is gitignored, invisible to search tools). .git/ must be at repo root. Never search inside, read from, or interact with .git/objects or any VCS internals as if they were project content. VCS metadata is NOT source code.",
     "FRACTAL_CANDIDATES": "generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks), Quad/Oct (grid subdivision for 2/4/8 peaks), L-System (grammar walk, fallback for unknown models).",
     "GOAL_SEEDS": "goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.",
-    "RESIDUAL_LOOP": "residual_recluster(state, original_goal_sv) closes the ADID loop: re-clusters pending tasks against original Goal SV using adaptive_tau at 70th percentile. Returns tasks aligned with the original goal; at least one task always survives.",
+    "RESIDUAL_LOOP": "residual_recluster(state, original_goal_sv) closes the ADID loop: re-clusters pending tasks against original Goal SV using adaptive_tau at 70th percentile. Returns tasks aligned with the original goal; may return empty (→ TERMINAL). Discarded tasks tracked in out_of_scope.",
     "EMIT_STATE": "emit_state(goal_sv, completed_tasks, pending_tasks, blockers, next_step) returns a structured state dict {done, pending, blocked, next, goal_sv}. Serialised by the caller; InfoMark-stamped at Gate 9.",
     "GROUND": "ground(goal) generates an evidence-gathering plan from goal keywords: returns structured searches (web/code universalsearch), local probes (codegraph/grep), and expected evidence categories. Does NOT execute tools — agent follows the plan at Gate 1.",
     "GOAL_PEAKS": "goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→Quad-Oct quad, 5-7→Sierpinski, 8→Quad-Oct oct, 9+→Sierpinski clamped.",
@@ -62,6 +61,7 @@ RUNTIME_RULES = MappingProxyType({
     "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
     "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
     "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
+    "METRIC_ADAPTATION": "System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). No manual intervention required.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -103,6 +103,7 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "DOCUMENT_SURFACE": "hygiene",
     "WORKSPACE_LANES": "hygiene",
     "PROGRESS_LOG": "hygiene",
+    "METRIC_ADAPTATION": "plan",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
@@ -166,7 +167,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "SMOKE_SPEC",
         "SMOKE_VALIDATE",
         "GROUND",
-        "metric_adaptation",
+        "METRIC_ADAPTATION",
         "FRACTAL_CANDIDATES",
         "GOAL_SEEDS",
         "GOAL_PEAKS",
@@ -248,6 +249,10 @@ SPEC_CONTRACT_IDS = MappingProxyType({
     "TITLE": "agent.title", "TRANSLATE": "command.translate", "TRIAGE": "command.triage",
 })
 
+# CONTRACTS bundle workflow names (lowercase — expand to multiple rules+terms)
+# with specific rule overrides (UPPER_SNAKE_CASE — single atomic rule).
+# Example: agent.coder → planning workflow + WRITE_SCOPE + VERIFY_OUTCOME rules.
+# Lowercase keys reference WORKFLOWS bundles; UPPER keys reference RULES entries.
 RUNTIME_CONTRACTS = MappingProxyType({
     "agent.coder": ("planning", "scope", "mutation", "verification", "WRITE_SCOPE", "VERIFY_OUTCOME"),
 

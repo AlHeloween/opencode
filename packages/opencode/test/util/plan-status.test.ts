@@ -37,12 +37,12 @@ describe("PlanStatus", () => {
 
   test("getPlanStatus returns correct active and completed counts", () => {
     const status = getPlanStatus(worktree)
-    expect(status.active.length).toBe(4) // plan_a, plan_b, priority/plan_c, emergency/plan_d
+    expect(status.active.length).toBe(2) // plan_a, plan_b only (flat — subdirs ignored)
     expect(status.completed.length).toBe(2) // plan_z, plan_y
-    expect(status.totalPlans).toBe(6)
-    expect(status.totalTasks).toBe(6)
+    expect(status.totalPlans).toBe(4)
+    expect(status.totalTasks).toBe(4)
     expect(status.completedTasks).toBe(2)
-    expect(status.completion).toBe(33) // 2/6 = 33%
+    expect(status.completion).toBe(50) // 2/4 = 50%
   })
 
   test("getPlanStatus with empty directories returns zeros", () => {
@@ -72,9 +72,9 @@ describe("PlanStatus", () => {
   test("formatProgressBar renders correct ASCII bar", () => {
     const status = getPlanStatus(worktree)
     const bar = formatProgressBar(status)
-    expect(bar).toContain("2/6 plans")
-    expect(bar).toContain("2/6 tasks")
-    expect(bar).toContain("33%")
+    expect(bar).toContain("2/4 plans")
+    expect(bar).toContain("2/4 tasks")
+    expect(bar).toContain("50%")
     expect(bar).toContain("█")
     expect(bar).toContain("░")
   })
@@ -104,12 +104,12 @@ describe("PlanStatus", () => {
     expect(bar).toContain("misplaced:1")
   })
 
-  test("subdirectory plans are counted recursively", () => {
+  test("subdirectory plans are NOT collected (flat only)", () => {
     const status = getPlanStatus(worktree)
     const hasPriority = status.active.some((f) => f.includes("priority"))
     const hasEmergency = status.active.some((f) => f.includes("emergency"))
-    expect(hasPriority).toBeTrue()
-    expect(hasEmergency).toBeTrue()
+    expect(hasPriority).toBeFalse()
+    expect(hasEmergency).toBeFalse()
   })
 
   test("isPlanHygieneClean requires zero active and zero misplaced", () => {
@@ -150,7 +150,8 @@ describe("reconcilePlans", () => {
 
     const result = reconcilePlans(worktree)
     expect(result.movedToCompleted).toContain("done.md")
-    expect(result.movedToCompleted.some((p) => p.replace(/\\/g, "/").includes("nested/done2.md") || p.includes("done2.md"))).toBe(true)
+    // nested/done2.md is NOT collected (flat collectPlans ignores subdirectories)
+    expect(result.movedToCompleted.some((p) => p.includes("done2.md"))).toBe(false)
     expect(result.reopenedToActive).toEqual([])
     expect(existsSync(path.join(worktree, "plans", "done.md"))).toBe(false)
     expect(existsSync(path.join(worktree, "plans_completed", "done.md"))).toBe(true)
@@ -158,6 +159,8 @@ describe("reconcilePlans", () => {
     expect(hasOpenItems(path.join(worktree, "plans", "open.md"))).toBe(true)
     expect(result.status.active).toContain("open.md")
     expect(result.status.misplaced.filter((m) => m.startsWith("plans/"))).toEqual([])
+    // nested file untouched — still present
+    expect(existsSync(path.join(worktree, "plans", "nested", "done2.md"))).toBe(true)
   })
 
   test("reopens incomplete plans from plans_completed/ to plans/", () => {

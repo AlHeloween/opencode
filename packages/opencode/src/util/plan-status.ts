@@ -60,24 +60,16 @@ function countTasks(filePath: string): { total: number; done: number } {
   }
 }
 
-/** Recursively collect .md filenames under a directory. */
+/** Collect .md filenames directly in a directory (flat, non-recursive). */
 function collectPlans(dir: string): string[] {
   if (!existsSync(dir)) return []
-  const result: string[] = []
   try {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        for (const sub of collectPlans(path.join(dir, entry.name))) {
-          result.push(path.join(entry.name, sub))
-        }
-      } else if (entry.isFile() && entry.name.endsWith(".md")) {
-        result.push(entry.name)
-      }
-    }
+    return readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+      .map((entry) => entry.name)
   } catch {
-    // Permission errors or missing dirs → empty
+    return []
   }
-  return result
 }
 
 /** Get plan completion status for a worktree. */

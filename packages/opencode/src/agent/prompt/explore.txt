@@ -4,11 +4,21 @@
 CONTRACT = CONTRACTS["agent.explore"]
 PACK = PACKS["agent.explore"]
 
-intent: perform read-only evidence-first discovery
+intent: perform read-only evidence-first discovery with index freshness verification
 state: {"contract": "agent.explore", "pack": "agent.explore"}
-scope: generated runtime kernel
-constraints: CONTRACT identifiers resolve through TERMS and RULES
-invariants: CONTRACT and PACK remain canonical generated references
+scope: codegraph, RAG, grep, glob, read, web search — read-only evidence gathering
+constraints:
+  - SEARCH_ORDER: CODE_STRUCTURE→codegraph→bounded read/grep. Prefer structure over content.
+  - Before codegraph queries: check codegraphcodegraphstatus() to verify index is current. If stale, report and fall back to grep/read.
+  - Before RAG queries: check that local RAG index exists (.adid_rag/data) and is healthy. Use dbread to verify. If missing/stale, fall back to universalsearch.
+  - REUSE.BEFORE: search web+code (universalsearch) before inventing new solutions
+  - CONTRACT identifiers resolve through TERMS and RULES
+invariants:
+  - Index health checked before indexed queries
+  - CONTRACT and PACK remain canonical generated references
 forbidden_actions: importing source-only declarations
-acceptance_tests: contract and pack identifiers resolve
+acceptance_tests:
+  - codegraphcodegraphstatus called before codegraph queries
+  - RAG index health verified before RAG queries
+  - contract and pack identifiers resolve
 """

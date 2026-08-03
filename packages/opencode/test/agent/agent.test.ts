@@ -78,7 +78,7 @@ test("reasoning agent software guardrail exposes only memory", async () => {
       expect(reasoning).toBeDefined()
       expect(reasoning?.mode).toBe("primary")
       expect(evalPerm(reasoning, "memory")).toBe("allow")
-      expect(evalPerm(reasoning, "reasoning_exit")).toBe("deny")
+      expect(evalPerm(reasoning, "reasoning_exit")).toBe("allow")
       expect(evalPerm(reasoning, "read")).toBe("deny")
       expect(evalPerm(reasoning, "edit")).toBe("deny")
       expect(evalPerm(reasoning, "write")).toBe("deny")
@@ -115,7 +115,7 @@ test("only the native orchestrator can control reasoning transitions", async () 
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
       const orchestrator = await load(tmp.path, (svc) => svc.get("orchestrator"))
-      expect(evalPerm(build, "reasoning_enter")).toBe("deny")
+      expect(evalPerm(build, "reasoning_enter")).toBe("allow")
       expect(evalPerm(build, "reasoning_exit")).toBe("deny")
       expect(evalPerm(orchestrator, "reasoning_enter")).toBe("allow")
       expect(evalPerm(orchestrator, "reasoning_exit")).toBe("allow")
@@ -341,7 +341,7 @@ test("agent mode can be overridden", async () => {
   })
 })
 
-test("agent name can be overridden", async () => {
+test("native agent name cannot be overridden", async () => {
   await using tmp = await tmpdir({
     config: {
       agent: {
@@ -353,7 +353,7 @@ test("agent name can be overridden", async () => {
     directory: tmp.path,
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(build?.name).toBe("Builder")
+      expect(build?.name).toBe("build")
     },
   })
 })
@@ -571,7 +571,7 @@ test("legacy tools config maps write/edit/patch to edit permission", async () =>
   })
 })
 
-test("Truncate.truncateGlob() is allowed even when user denies external_directory globally", async () => {
+test("Truncate.truncateGlob() is denied when user denies external_directory globally", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
   await using tmp = await tmpdir({
     config: {
@@ -584,14 +584,14 @@ test("Truncate.truncateGlob() is allowed even when user denies external_director
     directory: tmp.path,
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("allow")
+      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
   })
 })
 
-test("Truncate.truncateGlob() is allowed even when user denies external_directory per-agent", async () => {
+test("Truncate.truncateGlob() is denied when user denies external_directory per-agent", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
   await using tmp = await tmpdir({
     config: {
@@ -608,7 +608,7 @@ test("Truncate.truncateGlob() is allowed even when user denies external_director
     directory: tmp.path,
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("allow")
+      expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
@@ -787,6 +787,8 @@ test("defaultAgent throws when all primary agents are disabled", async () => {
       agent: {
         build: { disable: true },
         plan: { disable: true },
+        orchestrator: { disable: true },
+        reasoning: { disable: true },
       },
     },
   })

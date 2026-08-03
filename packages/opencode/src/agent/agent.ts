@@ -16,7 +16,9 @@ import PROMPT_ORCHESTRATOR from "./prompt/orchestrator.txt"
 import PROMPT_RESEARCHER from "./prompt/researcher.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
+import PROMPT_BUILD from "./prompt/build.txt"
 import { Permission } from "@/permission"
+import { Wildcard } from "@/util/wildcard"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import path from "path"
 import { Plugin } from "@/plugin"
@@ -125,6 +127,7 @@ export const layer = Layer.effect(
             name: "build",
             description: "The default agent. Executes tools based on configured permissions.",
             options: {},
+            prompt: PROMPT_BUILD,
             permission: Permission.merge(
               defaults,
               Permission.fromConfig({
@@ -237,6 +240,9 @@ export const layer = Layer.effect(
                 powershell: "deny",
                 run: "deny",
                 task: "allow",
+                reasoning_enter: "allow",
+                reasoning_exit: "allow",
+                todowrite: "allow",
                 read: "allow",
                 glob: "allow",
                 grep: "allow",
@@ -250,7 +256,7 @@ export const layer = Layer.effect(
             mode: "primary",
             native: true,
             // Only explore — not general/coder (workers implement via AGI main session)
-            subagents: ["explore"],
+            subagents: ["explore", "coder"],
           },
           general: {
             name: "general",
@@ -281,6 +287,7 @@ export const layer = Layer.effect(
                 messagesearch: "allow",
                 "session-read": "allow",
                 read: "allow",
+                todowrite: "allow",
                 external_directory: {
                   "*": "ask",
                   ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
@@ -412,7 +419,7 @@ export const layer = Layer.effect(
           item.mode = value.mode ?? item.mode
           item.color = value.color ?? item.color
           item.hidden = value.hidden ?? item.hidden
-          item.name = value.name ?? item.name
+          if (!item.native) item.name = value.name ?? item.name
           item.steps = value.steps ?? item.steps
           item.options = mergeDeep(item.options, value.options ?? {})
           // Reasoning is a native calibration boundary: permanent memory only.
@@ -422,15 +429,19 @@ export const layer = Layer.effect(
           }
         }
 
-        // Ensure truncation output dir is allowed unless explicitly configured
+        // Ensure truncation output dir is allowed unless user explicitly denied it.
+        // Use Permission.evaluate (Wildcard.match) instead of byte-exact string
+        // comparison so that realistic deny patterns (case diffs, slash variants,
+        // broader globs) are respected.
         for (const name in agents) {
           const agent = agents[name]
-          const explicit = agent.permission.some((r) => {
-            if (r.permission !== "external_directory") return false
-            if (r.action !== "deny") return false
-            return r.pattern === Truncate.truncateGlob()
-          })
-          if (explicit) continue
+          const current = Permission.evaluate(
+            "external_directory",
+            Truncate.truncateGlob(),
+            agent.permission,
+          )
+          // If user already set an explicit deny for this path, respect it.
+          if (current.action === "deny") continue
 
           agents[name].permission = Permission.merge(
             agents[name].permission,

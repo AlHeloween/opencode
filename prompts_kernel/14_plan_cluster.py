@@ -347,26 +347,50 @@ def adaptive_k(
 def adaptive_depth(
     peaks: int,
     evidence_count: int = 0,
+    evidence_coverage: float = 0.5,
 ) -> int:
-    """Choose fractal generation depth by goal complexity.
+    """Choose fractal generation depth by goal complexity and evidence coverage.
 
-    Fixed depth=2 produces ~30 Koch nodes — adequate for 3–5 step tasks
-    but under-generates for complex decompositions and over-generates
-    for trivial single-peak goals.
+    v6 GROUNDED PATH semantics (resolves contradiction with Reasoning Protocol):
+      - peaks (goal complexity): more peaks → deeper decomposition.
+      - evidence_coverage ∈ [0.0, 1.0]: fraction of territory already mapped
+        via codegraph indexing + historical conversation context.
+        High coverage → shallower lattice (ground already solid).
+        Low coverage → deeper lattice (more exploration needed).
 
-    Heuristic:
-      peaks ≥ 4  or  evidence_count > 10  →  depth = 3  (complex)
-      peaks ≥ 2                           →  depth = 2  (default)
-      else                                →  depth = 1  (simple/single-peak)
+    Algorithm:
+      1. base_depth from peaks:
+           peaks ≥ 4  →  3  (complex — many separable aspects)
+           peaks ≥ 2  →  2  (default)
+           else       →  1  (single-peak / simple)
+      2. Adjust by evidence_coverage:
+           coverage ≥ 0.8  →  depth = max(1, base_depth - 1)  (well-mapped)
+           coverage ≤ 0.3  →  depth = min(3, base_depth + 1)  (unexplored)
+           else             →  depth = base_depth               (neutral)
 
     Depth 1 is a single rewrite step; depth 3 produces ~50–80 nodes for
-    rich decomposition.
+    rich decomposition. The evidence_coverage adjustment means:
+      - A 4-peak refactor in a fully-indexed codebase → depth 2, not 3.
+      - A 1-peak typo in unknown code → depth 2, not 1.
+    Both follow the full spine; only lattice depth adapts to evidence density.
     """
-    if peaks >= 4 or evidence_count > 10:
-        return 3
-    if peaks >= 2:
-        return 2
-    return 1
+    # Base depth from goal complexity
+    if peaks >= 4:
+        base = 3
+    elif peaks >= 2:
+        base = 2
+    else:
+        base = 1
+
+    # Adjust by evidence coverage (v6 GROUNDED PATH)
+    if evidence_coverage >= 0.8:
+        depth = max(1, base - 1)   # well-mapped → shallower
+    elif evidence_coverage <= 0.3:
+        depth = min(3, base + 1)   # unexplored → deeper
+    else:
+        depth = base                # neutral
+
+    return depth
 
 
 # =========================================================================
@@ -1182,7 +1206,8 @@ def run_task_geometry(
     peaks = goal_peaks(goal, evidence_texts)
     delta_v = sv_delta()  # neutral 0.5 if no previous SV
     model = select_fractal_model(peaks=peaks, delta_v=delta_v)
-    depth = adaptive_depth(peaks=peaks, evidence_count=len(evidence_texts))
+    depth = adaptive_depth(peaks=peaks, evidence_count=len(evidence_texts),
+                           evidence_coverage=0.5)  # neutral default; agent overrides from codegraph health
 
     # 4. fractal over-generate
     candidates = generate_fractal_candidates(model, seeds, depth=depth, dim=dim)

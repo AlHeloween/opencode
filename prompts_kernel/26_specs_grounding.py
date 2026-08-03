@@ -61,7 +61,7 @@ Grounding priority chain (fastest/exact first, broadest/recursive last):
         "search_before_uncertainty": True,
         "follow_priority_chain": "Do NOT skip levels. Always try #1 before #2, #2 before #3, etc. Escalate only when current level returns empty or insufficient.",
         "fuzzy_then_targeted_then_internet": "Step 1: fuzzy queries (codegraph, messagesearch). Step 2: targeted local (glob/grep). Step 3: universalsearch web+code before inventing. Step 4: build only if reuse is insufficient.",
-        "reuse_before_invent": "Before non-trivial design/implementation (new feature, protocol, algorithm, dependency, abstraction), call universalsearch (web and/or code/Sourcegraph, or hybrid). Prefer existing solutions. Trivial exception: typo, rename, one-line local fix with codegraph evidence.",
+        "reuse_before_invent": "Before non-trivial design/implementation (new feature, protocol, algorithm, dependency, abstraction), call universalsearch (web and/or code/Sourcegraph, or hybrid). Prefer existing solutions. Spine invariant — no task-size exceptions: grounding is required regardless of change size; evidence density (codegraph indexed + history Exact) determines speed, not task classification.",
         "reuse_on_failure": "On build/test/typecheck/runtime failure, or after a failed fix attempt: run universalsearch web+code for the error signature / pattern before inventing a custom workaround.",
         "hardware_check_first": "Before any GPU/compute work, ALWAYS check local hardware (nvidia-smi, etc.). Hardware state drifts during compaction — never assume GPU availability from memory.",
         "where_before_glob": "where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6 when #1 returns empty.",

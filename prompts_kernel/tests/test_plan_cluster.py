@@ -246,10 +246,18 @@ class TestAdaptiveDepth:
         assert adaptive_depth(4, 0) == 3
         assert adaptive_depth(10, 0) == 3
 
-    def test_complex_high_evidence(self):
-        """evidence_count > 10 overrides peak count."""
-        assert adaptive_depth(2, 11) == 3
-        assert adaptive_depth(1, 15) == 3
+    def test_evidence_coverage_adjusts_depth(self):
+        """v6: evidence_coverage (not raw count) adjusts depth.
+        High coverage → shallower (territory mapped).
+        Low coverage → deeper (unexplored)."""
+        # 4 peaks, high coverage → base 3, reduce to 2
+        assert adaptive_depth(4, evidence_coverage=0.9) == 2
+        # 1 peak, low coverage → base 1, increase to 2
+        assert adaptive_depth(1, evidence_coverage=0.2) == 2
+        # 2 peaks, neutral coverage → stays at 2
+        assert adaptive_depth(2, evidence_coverage=0.5) == 2
+        # evidence_count is ignored for depth decisions (v6)
+        assert adaptive_depth(2, evidence_count=11, evidence_coverage=0.5) == 2
 
     def test_edge_zero_peaks(self):
         assert adaptive_depth(0, 0) == 1

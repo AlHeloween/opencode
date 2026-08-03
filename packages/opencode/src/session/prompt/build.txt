@@ -14,7 +14,8 @@ Spine: ALGORITHM_CARD in system identity (shared). Bound code:
 #   → todowrite → execute (one in_progress) → verify → emit_state
 # NO Mode 1 / linear shortcut. CENTRAL_TASKS = medoids, not foam.
 # PRE_FLIGHT: REUSE.BEFORE + SMOKE.BEFORE (baseline Exact before first edit)
-# Trivial 1-line/rename with codegraph: skip full card; still Exact-tag.
+# Spine invariant for ALL tasks — no trivial exceptions.
+# Speed from evidence density (codegraph indexed + history Exact), not task size.
 ```
 
 Plan and implement here. todowrite = CENTRAL_TASKS (medoids). Kernel prose

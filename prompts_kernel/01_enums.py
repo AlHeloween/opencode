@@ -4,15 +4,24 @@
 class Activity(str, Enum):
     """§3.1 Activity class — every operation is exactly one activity.
 
-    v6: SELF_MODIFY added for agent self-modification with separate
-    permission boundary. Component cannot change itself, its oracle,
-    AND its promotion criteria in one mutation.
+    v6 envelope model (resolves Gate 4 vs action_class contradiction):
+      CONVERSATION     — no side effects, always permitted
+      OBSERVE          — read-only investigation, always permitted
+      EXECUTE_TEST     — run declared oracles, always permitted
+      MODIFY_CANDIDATE — write within approved ExecutionEnvelope (pre-approved)
+      MODIFY_PROJECT   — write outside envelope (requires Gate 4 approval)
+      PROMOTE_STABLE   — merge candidate → stable (ALWAYS requires explicit approval)
+      SELF_MODIFY      — change agent/kernel/oracle/governance (ALWAYS explicit approval,
+                          triple-separation: cannot change self + oracle + promotion criteria)
     """
     CONVERSATION = "CONVERSATION"
     OBSERVE = "OBSERVE"
     EXECUTE_TEST = "EXECUTE_TEST"
-    MODIFY = "MODIFY"
-    SELF_MODIFY = "SELF_MODIFY"
+    MODIFY = "MODIFY"                     # legacy — maps to MODIFY_PROJECT when no envelope
+    MODIFY_CANDIDATE = "MODIFY_CANDIDATE"  # within envelope, pre-approved
+    MODIFY_PROJECT = "MODIFY_PROJECT"      # outside envelope, needs Gate 4
+    PROMOTE_STABLE = "PROMOTE_STABLE"      # merge to mainline, always explicit
+    SELF_MODIFY = "SELF_MODIFY"            # change kernel/agent, triple-separation
 
 
 class Effect(str, Enum):

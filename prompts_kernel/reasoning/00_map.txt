@@ -27,11 +27,17 @@
 #   G8 -->|PASS| G9[G9 CLEAN_STATE]
 # ```
 #
-# Companion schemas: action_class | claim_ledger | master_plan | explorer_goal |
-#   oracle | oracle_stamp | bug_fix | clean_next_state | sv_output | blocker
+# Companion schemas: action_class (v6: +MODIFY_CANDIDATE, +MODIFY_PROJECT, +PROMOTE_STABLE, +SELF_MODIFY) |
+#   claim_ledger | master_plan | explorer_goal |
+#   oracle | oracle_stamp | inference_stamp (v6) | bug_fix | clean_next_state | sv_output | blocker
 #
 # InfoMark law (enforced): only system-stamped Exact|Inferred enter G;
 # G alone may drive plans/MODIFY. Hypothetical without promotion = open_question.
+# v6: inference_stamp promotes derived claims → system-stamped Inferred when
+#   all dependencies are grounded (≥Inferred) + derivation rule declared + hash matches.
+#   oracle_stamp promotes verified claims → Exact.
 # Notation: LaTeX math; YAML fields; Mermaid process graphs.
 # Pointers: ALGORITHM_CARD, kernel RULES. User = Gate 4 approver for MODIFY.
+# v6: ExecutionEnvelope pre-approves MODIFY_CANDIDATE within scope+budget.
+#   Gate 4 explicit approval required only for PROMOTE_STABLE and SELF_MODIFY.
 #

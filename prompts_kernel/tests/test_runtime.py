@@ -165,7 +165,7 @@ class TestRuntimePromptCompiler:
     def test_prompt_abi_precedence_is_safety_first(self):
         """Global policy order: safety > governance > task > domain > style."""
         assert PROMPT_ABI["precedence"] == ("safety", "governance", "task", "domain", "style")
-        assert PROMPT_ABI["version"] == "5"
+        assert PROMPT_ABI["version"] == "6"
         assert PROMPT_ABI["line_endings"] == "LF"
         assert PROMPT_ABI["identity_tier"] == "A"
         assert PROMPT_ABI["identity_max_bytes"] == 52_000

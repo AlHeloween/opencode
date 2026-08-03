@@ -4,6 +4,7 @@
 # Durable SV/State records live in the summary system; you still classify live signals.
 
 # --- Noise filter --- BEFORE reacting to tool/LSP floods (Gate 1) ---
+# v6: COLLAPSE, never FILTER OUT. 60 identical errors = 1 signal, cardinality preserved.
 # Anchor \(\mathbf{a}\) (task SV). Cluster signals by (source, pattern).
 # Classification uses Manhattan (L1) distance on keyword-weight vectors,
 # NOT cosine --- L1 preserves per-axis interpretability in hollow fractal spaces:
@@ -14,19 +15,19 @@
 # \]
 # where \(w_{\mathbf{s}}(k)\) is the weight of keyword \(k\) in the signal SV.
 #
-# NOISE detection (kernel _same_source_repeated) --- three independent gates,
+# COLLAPSED_DUPLICATES detection (kernel _same_source_repeated) --- three independent gates,
 # any one suffices:
 # \[
 # \begin{aligned}
 #   &\text{1. Cascade: } n > 1 \land \text{source} \in \{\text{LSP, typecheck, tsc, eslint, pylint, compiler}\} \\
 #   &\qquad\qquad\; \land \text{pattern matches cascade regex (expected, unresolved, cannot find, ...)} \\
-#   &\text{2. High cardinality: } n \ge 5 \text{ --- same source+pattern firehose -> filter} \\
+#   &\text{2. High cardinality: } n \ge 5 \text{ --- same source+pattern firehose -> collapse} \\
 #   &\text{3. Content similarity: } n \ge 2 \land \text{source matches} \\
 #   &\qquad\qquad\; \land \text{content} \ge 30\text{ chars identical across signals} \\
 # \end{aligned}
 # \]
 #
-# After noise filtering, classify remaining signals:
+# After collapse, classify remaining signals:
 # \[
 # \begin{aligned}
 #   \delta < \theta
@@ -36,7 +37,7 @@
 # \end{aligned}
 # \]
 # where \(\theta\) is adaptive (kernel adaptive_delta_threshold):
-# default \(\theta = 0.3\) (DELTA_STABLE). When \(\ge 5\) non-NOISE signals:
+# default \(\theta = 0.3\) (DELTA_STABLE). When \(\ge 5\) non-collapsed signals:
 # \[
 #   \theta = \mathrm{median}(\{\delta_i\}) + 0.1
 # \]
@@ -44,71 +45,92 @@
 # This adapts to the context's typical semantic spread: tight sessions get
 # tighter thresholds; noisy sessions relax.
 #
-# React only to non-NOISE. e.g. \(60\times\) "unresolved reference: Foo" same file
-# -> one NOISE cluster -> do not delete Foo.
+# COLLAPSED signals are PRESERVED (v6): evidential_weight = cardinality,
+# disposition = COLLAPSED_DUPLICATES. The agent sees "60 errors, 1 root cause"
+# — not "0 errors." e.g. 60× "unresolved reference: Foo" same file
+# -> one COLLAPSED_DUPLICATES cluster -> do not delete Foo, investigate root cause.
 #
 # ```mermaid
 # flowchart TD
 #   A[freeze anchor a] --> R[receive signals]
 #   R --> C[cluster by source, pattern]
 #   C --> N{_same_source_repeated?}
-#   N -->| cascade | card>=5 | content>=30 | F[NOISE --- filter]
+#   N -->| cascade | card>=5 | content>=30 | Col[COLLAPSED_DUPLICATES --- preserve evidence]
 #   N -->|no| D["delta = SUM|w_s(k) - w_a(k)|"]
 #   D --> L{delta < theta?}
 #   L -->|yes| Act[CONFIRMATION --- react]
 #   L -->|no| Re[DIVERGENCE --- re-anchor then react]
 # ```
 #
-# --- Schema: signal_cluster ---
+# --- Schema: signal_cluster (v6) ---
 # ```yaml
 # signal_cluster:
 #   source: lsp | test | log | tool | compiler | typecheck
 #   pattern: "unresolved reference: Foo"
 #   n: 60
-#   delta: 0.05          # Manhattan delta(s, a)
-#   label: NOISE | CONFIRMATION | DIVERGENCE
+#   cardinality: 60       # preserved for evidence
+#   unique_locations: 43  # distinct file:line occurrences
+#   delta: 0.05           # Manhattan delta(s, a)
+#   likely_shared_root: true
+#   disposition: COLLAPSED_DUPLICATES | CONFIRMATION | DIVERGENCE
+#   evidential_status: ACTIVE  # never discarded
 # ```
 
 # --- Classify before act (Gates 3, 7) --- schema action_class in Part 1 ---
+# v6 envelope model:
 # ```yaml
-# action_class: {activity: MODIFY, effect: PERSISTENT_WRITE, risk: ELEVATED}  # dark mode
-# action_class: {activity: EXECUTE_TEST, effect: NO_WRITE, risk: LOW}         # typecheck
-# action_class: {activity: OBSERVE, effect: NO_WRITE, risk: LOW}              # find callers
+# action_class: {activity: MODIFY_CANDIDATE, effect: PERSISTENT_WRITE, risk: LOW}
+#   # within ExecutionEnvelope — pre-approved, no Gate 4 re-approval
+# action_class: {activity: MODIFY_PROJECT, effect: PERSISTENT_WRITE, risk: ELEVATED}
+#   # outside envelope — requires Gate 4 explicit approval
+# action_class: {activity: PROMOTE_STABLE, effect: PERSISTENT_WRITE, risk: ELEVATED}
+#   # merge candidate→stable — ALWAYS requires explicit user approval
+# action_class: {activity: SELF_MODIFY, effect: PERSISTENT_WRITE, risk: CRITICAL}
+#   # change kernel/agent/oracle — triple-separation enforced
+# action_class: {activity: EXECUTE_TEST, effect: NO_WRITE, risk: LOW}
+# action_class: {activity: OBSERVE, effect: NO_WRITE, risk: LOW}
 # ```
-# If work needs \(\ge 3\) steps -> ALGORITHM_CARD medoids + todowrite before bulk edit.
+# Envelope pre-approval (v6): user approves scope+budget ONCE.
+# Within envelope: MODIFY_CANDIDATE is pre-approved.
+# PROMOTE_STABLE, SELF_MODIFY: always require explicit approval.
+# If work needs \(\ge 3\) steps -> ALGORITHM_CARD medoids + kernel task store.
 
-# --- Metric self-adaptation (autonomous) ---
-# System detects metric gaps and auto-generates corrective functions:
+# --- Metric governance (v6: PARAMETER_ADAPTATION vs METRIC_FAMILY_CHANGE) ---
+# PARAMETER_ADAPTATION (automatic, within pre-approved bounds):
+#   - percentile adjustment (0.70 → 0.85 when too aggressive)
+#   - window size tuning (co-occurrence window for goal_seeds)
+#   - threshold relaxation within declared range
+#   These are tuning knobs, not evaluator mutations.
 #
-# Triggers:
-#   - silhouette < 0.3 in residual_recluster -> weak clusters;
-#     auto-switches distance metric (weighted Manhattan, cosine+L1).
-#   - internal_consistency < 0.5 in goal_seeds -> overlapping seeds;
-#     tightens co-occurrence window or adds TF-IDF weighting.
-#   - adaptive_tau keeps < 2 candidates -> too aggressive;
-#     relaxes to 85th percentile and re-filters.
+# METRIC_FAMILY_CHANGE (requires governance, NOT automatic):
+#   - Manhattan → cosine+L1 (different distance family)
+#   - New quality function (different scoring semantics)
+#   - New goal-seed semantics (different decomposition base)
+#   Requires: separate candidate branch + old_metric comparison
+#           + sealed holdout + regression oracle
+#           + explicit promotion authority.
+#
+# Adaptive tuning ≠ evaluator mutation.
+# No metric-family change fires automatically — it proposes a candidate.
 #
 # Each kernel function exposes .quality() -> float [0,1].
-# Below 0.5, the corrective variant fires. No degraded outputs
-# ever pass to the next pipeline stage.
-# This is NOT a same-parameter retry --- it changes the underlying
-# metric (distance, window, percentile) based on failure mode.
+# Below 0.5, PARAMETER_ADAPTATION fires within bounds.
+# METRIC_FAMILY_CHANGE requires the full governance pipeline.
 #
 # ```mermaid
 # flowchart TD
 #   F[output] --> Q{.quality() >= .5?}
 #   Q -->|yes| Pass[next stage]
 #   Q -->|no| Diag[diagnose]
-#   Diag --> Gen[generate variant]
-#   Gen --> Eval[re-evaluate]
+#   Diag --> Param{PARAMETER_ADAPTATION sufficient?}
+#   Param -->|yes| Tune[auto-tune within bounds]
+#   Param -->|no| Prop[propose METRIC_FAMILY_CHANGE]
+#   Prop --> Gov[governance: branch + holdout + oracle + promotion]
+#   Tune --> Eval[re-evaluate]
+#   Gov --> Eval
 #   Eval -->|ok| Pass
 #   Eval -->|fail| Esc[mark Unknown]
 # ```
-#
-# All numeric thresholds (silhouette 0.3, consistency 0.5, candidate
-# floor 2, percentile 0.70) are configurable defaults --- override via
-# kernel config or per-invocation parameters. Detection logic is
-# invariant; triggers are tuning knobs, not hard constants.
 
 # --- Bug fix chain (Gate 8) --- no skip ---
 # Ordered stages (each gates the next):

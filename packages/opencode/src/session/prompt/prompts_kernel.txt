@@ -8,7 +8,7 @@ PROMPT_ABI = MappingProxyType({
     'identity_tier': 'A',
     'line_endings': 'LF',
     'precedence': ('safety', 'governance', 'task', 'domain', 'style'),
-    'version': '5',
+    'version': '6',
 })
 
 TERMS = MappingProxyType({
@@ -41,12 +41,12 @@ RULES = MappingProxyType({
     'INFOMARK_SEP': 'Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred; claim_ledger required for non-trivial decisions; premises ⊆ G; system stamps only mint Exact',
     'MEMORY_LINKS': 'every summary and message* must carry message IDs for session-read recovery',
     'MEMORY_RANK': 'session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact',
-    'METRIC_ADAPTATION': 'System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). No manual intervention required.',
-    'NAMING': "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter (PEP 8 convention). Dots '.' and hyphens '-' are forbidden. All 32 rules are fully underscore-unified — no legacy dotted namespace remains. Python dict keys are case-sensitive: references in WORKFLOWS, CONTRACTS, and OWNERS must match rule keys exactly (including case). No aliases, no fuzzy matching.",
+    'METRIC_ADAPTATION': 'System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). PARAMETER_ADAPTATION (percentile, window, thresholds within pre-approved bounds) is automatic. METRIC_FAMILY_CHANGE (Manhattan→cosine+L1, new quality function, new goal-seed semantics) requires: separate candidate branch + old_metric comparison + sealed holdout + regression oracle + explicit promotion authority. Adaptive tuning ≠ evaluator mutation.',
+    'NAMING': "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter (PEP 8 convention). Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Python dict keys are case-sensitive: references in WORKFLOWS, CONTRACTS, and OWNERS must match rule keys exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
     'NO_HARDCODE': 'never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)',
     'PROGRESS_LOG': 'track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.',
     'RESIDUAL_LOOP': 'residual_recluster(state, original_goal_sv) closes the ADID loop: re-clusters pending tasks against original Goal SV using adaptive_tau at 70th percentile. Returns tasks aligned with the original goal; may return empty (→ TERMINAL). Discarded tasks tracked in out_of_scope.',
-    'REUSE_BEFORE': 'research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Unknown (no Done). Prefer reuse over reinvent. Trivial exception: typo/rename/one-line with codegraph. After stuck failure: web+code on error signature before new invent.',
+    'REUSE_BEFORE': 'research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Unknown (no Done). Prefer reuse over reinvent. After stuck failure: web+code on error signature before new invent.',
     'SEARCH_ORDER': 'where/which > codegraph > messagesearch > universalsearch > glob > grep',
     'SMOKE_BEFORE': "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
     'SMOKE_SPEC': 'smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before Gate 4 approval. Blast radius inferred from task keywords.',
@@ -451,7 +451,7 @@ constraints:
   search_before_uncertainty → True
   follow_priority_chain → Do NOT skip levels. Always try #1 before #2, #2 before #3, etc. Escalate only when current level returns empty or insufficient.
   fuzzy_then_targeted_then_internet → Step 1: fuzzy queries (codegraph, messagesearch). Step 2: targeted local (glob/grep). Step 3: universalsearch web+code before inventing. Step 4: build only if reuse is insufficient.
-  reuse_before_invent → Before non-trivial design/implementation (new feature, protocol, algorithm, dependency, abstraction), call universalsearch (web and/or code/Sourcegraph, or hybrid). Prefer existing solutions. Trivial exception: typo, rename, one-line local fix with codegraph evidence.
+  reuse_before_invent → Before non-trivial design/implementation (new feature, protocol, algorithm, dependency, abstraction), call universalsearch (web and/or code/Sourcegraph, or hybrid). Prefer existing solutions. Spine invariant — no task-size exceptions: grounding is required regardless of change size; evidence density (codegraph indexed + history Exact) determines speed, not task classification.
   reuse_on_failure → On build/test/typecheck/runtime failure, or after a failed fix attempt: run universalsearch web+code for the error signature / pattern before inventing a custom workaround.
   hardware_check_first → Before any GPU/compute work, ALWAYS check local hardware (nvidia-smi, etc.). Hardware state drifts during compaction — never assume GPU availability from memory.
   where_before_glob → where.exe/which is #1 — instant, exact OS PATH lookup. Only fall back to #5/#6 when #1 returns empty.

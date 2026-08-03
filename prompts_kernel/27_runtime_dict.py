@@ -1,7 +1,7 @@
 """Kernel fragment: 27_runtime_dict (former monofile L2769-2994)."""
 
 PROMPT_ABI = MappingProxyType({
-    "version": "5",
+    "version": "6",
     "precedence": ("safety", "governance", "task", "domain", "style"),
     "line_endings": "LF",
     # Tier A identity: dictionary + agent/policy SPECS only (host-agnostic).
@@ -34,12 +34,12 @@ RUNTIME_RULES = MappingProxyType({
     "WRITE_SCOPE": "modify only within user-authorized scope",
     "VERIFY_OUTCOME": "declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done",
     "INFOMARK_SEP": "Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred; claim_ledger required for non-trivial decisions; premises ⊆ G; system stamps only mint Exact",
-    "REUSE_BEFORE": "research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Unknown (no Done). Prefer reuse over reinvent. Trivial exception: typo/rename/one-line with codegraph. After stuck failure: web+code on error signature before new invent.",
+    "REUSE_BEFORE": "research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Unknown (no Done). Prefer reuse over reinvent. After stuck failure: web+code on error signature before new invent.",
     "SMOKE_BEFORE": "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
     "SMOKE_SPEC": "smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before Gate 4 approval. Blast radius inferred from task keywords.",
     "SMOKE_VALIDATE": "smoke_before_validate(spec) enforces the SMOKE_BEFORE contract: smoke_na requires justification, baseline must have ≥1 check with label+cmd+expected_exit, tolerance>0 requires tolerance_reason. Returns (is_valid, diagnostic). Gate 4 rejects invalid specs.",
     "SMOKE_VERIFY": "smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. Gate 8: only PASS promotes to Done.",
-    "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter (PEP 8 convention). Dots '.' and hyphens '-' are forbidden. All 32 rules are fully underscore-unified — no legacy dotted namespace remains. Python dict keys are case-sensitive: references in WORKFLOWS, CONTRACTS, and OWNERS must match rule keys exactly (including case). No aliases, no fuzzy matching.",
+    "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter (PEP 8 convention). Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Python dict keys are case-sensitive: references in WORKFLOWS, CONTRACTS, and OWNERS must match rule keys exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
     "CACHE_STABILITY": "keep the system prefix byte-stable for the session",
     "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
     "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
@@ -61,7 +61,7 @@ RUNTIME_RULES = MappingProxyType({
     "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
     "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
     "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
-    "METRIC_ADAPTATION": "System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). No manual intervention required.",
+    "METRIC_ADAPTATION": "System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). PARAMETER_ADAPTATION (percentile, window, thresholds within pre-approved bounds) is automatic. METRIC_FAMILY_CHANGE (Manhattan→cosine+L1, new quality function, new goal-seed semantics) requires: separate candidate branch + old_metric comparison + sealed holdout + regression oracle + explicit promotion authority. Adaptive tuning ≠ evaluator mutation.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat

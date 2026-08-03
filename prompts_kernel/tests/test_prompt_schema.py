@@ -66,8 +66,11 @@ POCKET_PROTOCOL_FILES = {
 # Soft budget for pocket protocol files (bytes). reasoning includes full gates + InfoMark.
 # v6: raised to accommodate ExecutionEnvelope, inference_stamp, COLLAPSED_DUPLICATES,
 # action_class expansion, adaptive_depth evidence_coverage formula.
+# v6.0: raised 36_000→42_000 for envelope schema, classifier rewrite, fractal dispatcher
+# orthogonality_score, CLARA bound, adaptive_k edge cases, Gate 9 expansion,
+# canonical serialization note, UNKNOWN_ACTIVITY fail-closed, capability principals.
 POCKET_PROTOCOL_MAX_BYTES = {
-    "reasoning.txt": 36_000,
+    "reasoning.txt": 42_000,
     "algorithm_card.txt": 14_000,
     "build.txt": 12_000,
 }

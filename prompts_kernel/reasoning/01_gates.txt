@@ -106,16 +106,33 @@
 # territory is already mapped. Ten repeated messages ≠ ten evidence units.
 # Evidence count alone does not drive depth — coverage fraction does.
 #
+# Fractal model dispatch (v6: orthogonality_score resolves ≥3 vs 4/8 overlap):
+#   peaks = 1          → L-System   (F→F+F-F grammar walk)
+#   peaks = 2          → Quad-Oct   (binary subdivision)
+#   peaks ∈ {4,8}      → Quad-Oct   (quad/oct subdivision — orthogonal axes)
+#   peaks ≥ 3, non-2ⁿ  → Sierpinski (triangle subdivision)
+#   peaks = 3          → Sierpinski
+# When peaks ≥ 3 AND peaks ∈ {4,8}: compute orthogonality_score(keywords).
+#   orthogonality_score ≥ 0.7 → Quad-Oct (axes are truly independent).
+#   orthogonality_score < 0.7 → Sierpinski (interdependent, fallback).
+# This resolves the ≥3 vs 4/8 dispatch overlap deterministically.
+#
 # \(k\) for medoids is adaptive (kernel adaptive_k): dispersion-based via coefficient
 # of variation (CV = \(\sigma / \mu\)) of candidate-to-goal distances. Tight cluster
-# -> low CV -> fewer medoids; wide spread -> high CV -> more medoids (up to \(\lceil N/2\rceil\)).
+# → low CV → fewer medoids; wide spread → high CV → more medoids (up to \(\lceil N/2\rceil\)).
+# Edge cases (v6):
+#   N = 0 → k = 0 (no tasks, terminal)
+#   N = 1 → k = 1 (single medoid; CV undefined → fixed k=1)
+#   μ = 0 (all distances zero) → CV undefined → k = k_min (tightest cluster)
 # \[
 #   k = k_{\min} + \big\lfloor (k_{\max} - k_{\min}) \cdot \min(\mathrm{CV}, 1.0) \big\rfloor
 # \]
+# where \(k_{\min}=1\), \(k_{\max}=\lceil N/2\rceil\), CV clamped to [0, 1].
 #
 # For \(|C'| \ge 100\), \(k\)-medoids auto-delegates to CLARA (sampling-based,
-# Kaufman & Rousseeuw 1990) --- sample size \(40 + 2k\), 5 repetitions, keeps best
-# clustering by total L1 cost. Exact \(O(N^2)\) medoids used below threshold.
+# Kaufman & Rousseeuw 1990) — sample size \(\min(N,\;40 + 2k)\), 5 repetitions,
+# keeps best clustering by total L1 cost. Exact \(O(N^2)\) medoids used below threshold.
+# v6: sample size bounded by min(N, 40+2k) — never exceeds population.
 #
 # Manhattan (L1) distance throughout. Seeds as initial centers.
 # CENTRAL_TASKS = medoids only (file-and-function grain).
@@ -207,6 +224,12 @@
 #   the envelope pre-approval is only for MODIFY_CANDIDATE.
 #   Same constraints as BRANCH B.
 #
+# UNKNOWN_ACTIVITY → RECLASSIFY_OR_DENY (fail-closed):
+#   Unknown activity is never silently approved. The resolver must classify
+#   the activity first. If classification fails, DENY — do not present to user
+#   as an approvable contract. Approval of an undefined operation does not
+#   make it defined. This closes a bypass: "unknown → ask → approved."
+#
 # ```mermaid
 # flowchart TD
 #   Start[G4 entry] --> Class{classify activity}
@@ -223,10 +246,18 @@
 #   Explicit --> Ask
 # ```
 #
-# --- Schema: execution_envelope (v6) ---
+# --- Schema: execution_envelope (v6 — cryptographically verifiable) ---
+# Envelope validity requires ALL of: not expired, scope unchanged, budget not exceeded,
+# approval_stamp present. "Expired" is formally decidable from expires_at vs wall_time.
 # ```yaml
 # execution_envelope:
 #   envelope_id: "uuid"
+#   revision: 1
+#   issued_at: "2026-08-03T03:00:00Z"      # ISO-8601, wall clock
+#   expires_at: "2026-08-03T04:00:00Z"     # after this: envelope invalid
+#   approved_by: "user"                     # only "user" can approve (not agent, not tool)
+#   approval_stamp: "sha256:abc123..."      # hash(envelope_id+revision+scope_root_hash+issued_at)
+#   scope_root_hash: "sha256:def456..."     # hash of scope_paths tree at approval time
 #   scope_paths: ["packages/memory/**"]
 #   budget:
 #     maximum_created: 3
@@ -234,15 +265,22 @@
 #     maximum_deleted: 2
 #   wall_time_seconds: 1800
 #   attempts_max: 4
-#   allowed_activities:
-#     - create_candidate_branch
-#     - modify_candidate
-#     - run_tests
-#     - benchmark
-#   forbidden_activities:
-#     - modify_oracles
-#     - modify_governance
-#     - promote_to_stable
+#   allowed_action_classes:                 # uses action_class.activity enum values
+#     - MODIFY_CANDIDATE
+#     - EXECUTE_TEST
+#   status: active | expired | revoked      # runtime-enforced; expired is decidable
+#
+# Validity check (v6 resolver):
+#   1. status == active
+#   2. now < expires_at  (wall_time decidable — not just budget)
+#   3. current scope_paths hash == scope_root_hash (no tampering)
+#   4. approval_stamp matches recomputed hash
+#   5. activity ∈ allowed_action_classes
+#   6. budget available (counts within limits)
+#
+# UNKNOWN_ACTIVITY → RECLASSIFY_OR_DENY (fail-closed, never approve blind).
+# Unknown activity is NOT presented to user as a contract — the resolver must
+# classify it first, and only known activities reach Gate 4 branches.
 # ```
 
 # GATE 5 --- CONCERN LOOP
@@ -364,16 +402,18 @@
 
 # GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
 # End every substantial response with clean_next_state (+ sv_output when non-trivial).
-# emit_state(goal_sv, completed, pending, blockers, next_step) -> structured state dict.
+# emit_state(goal_sv, completed, pending, blockers, next_step, out_of_scope, terminal)
+#   → structured state dict with terminal_mode.
 # After verification, residual_recluster(state, original_goal_sv) re-clusters pending
 #   tasks against the original Goal SV (not the whole universe) — ADID loop closure.
 #   Uses adaptive_tau at 70th percentile to keep only tasks aligned with the goal.
+#   Returns (residual, discarded) — both may be empty.
 #   This closes the ADID cycle: State -> Decompose -> Execute -> Verify -> Residual -> State.
 # Done items require Exact (Gate 8 or equivalent direct check). Else Pending/Blocked.
 # Real Blocked only after search (codegraph / messagesearch / web as fits).
 # Completed plans -> plans_completed/.
 #
-# --- Schema: clean_next_state ---
+# --- Schema: clean_next_state (v6) ---
 # ```yaml
 # clean_next_state:
 #   reason: "why these activities"
@@ -381,6 +421,9 @@
 #     - {item: "T1 directoriesOnly", pct: 100, mark: Exact}
 #   pending: ["T2 docs"]
 #   blocked: []    # or [{item, kind: real|fake, reason}]
+#   out_of_scope: []  # v6: discarded tasks (failed Goal-SV threshold)
+#   terminal: false   # v6: true when pending=[]
+#   terminal_mode: SUCCESS | BLOCKED | OUT_OF_SCOPE  # v6: terminal disposition
 #   next: "one immediate step"
 # ```
 #
@@ -394,6 +437,16 @@
 #   keywords: [{term: list-tool, w: 0.30}, {term: oracle, w: 0.25}, ...]
 #   md5_sv_tag: "8-32 hex from keywords+weights"
 #   dominant: "one-sentence semantic summary"
+# ```
+# md5_msg_tag (v6 Governance): every stateful response carries a content tag.
+# For cache/change detection: MD5 via canonical serialization (sorted keys,
+#   fixed-precision weights, NFC-normalized strings, revision prefix).
+#   NOT for cryptographic authorization — use SHA-256 or BLAKE3 for stamps.
+# Schema:
+# ```yaml
+# msg_tag:
+#   md5_msg_tag: "8-32 hex"          # content fingerprint (cache/change detect)
+#   serialization: "canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev"
 # ```
 #
 # --- Schema: blocker ---

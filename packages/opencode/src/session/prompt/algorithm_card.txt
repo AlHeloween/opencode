@@ -4,10 +4,11 @@
 #   select_fractal_model, generate_fractal_candidates,
 #   adaptive_tau, adaptive_k, adaptive_depth (v6: evidence_coverage),
 #   k_medoids_modifications (→ CLARA when N≥100),
-#   k_medoids_modifications (→ CLARA when N≥100), select_medoids_tasks,
-#   read_task_store, transition_task (v6 planned: authoritative task store API),
-#   lsystem_rewrite, residual_recluster (v6: may return [] → TERMINAL),
-#   execute_medoid, verify_oracles (agent-side contracts),
+#   select_medoids_tasks (v6: reads from authoritative store, not raw foam),
+#   read_task_store, transition_task (v6 planned: task store API contract),
+#   lsystem_rewrite, residual_recluster (v6: returns (residual, discarded)),
+#   execute_medoid (v6: returns MATERIALIZED|BLOCKED|EXECUTION_FAILED),
+#   verify_oracles (v6: immutable result — returns {passed, failed, blocked}),
 #   emit_state (v6: +out_of_scope, +terminal, +terminal_mode),
 #   delta_l1, PLANNING (fractal_only)
 # Spine invariant for ALL tasks — no trivial exceptions. One-character typo
@@ -23,14 +24,16 @@
 from prompts_kernel import (
     run_task_geometry,           # FULL PIPELINE: ground→seeds→fractal→filter→state
                                  #   v6: returns task_store_id, task_store_version
-    select_medoids_tasks,        # clause-level cut: foam→medoid descriptions only
-                                 #   v6 planned: read_task_store / transition_task API
-    execute_medoid,              # agent-side contract: execute one task (REUSE+SMOKE_BEFORE)
-    verify_oracles,              # agent-side contract: post-impl oracle PASS→done, FAIL→pending
-    emit_state,                  # structured state: {done, pending, blocked, next, goal_sv,
-                                 #   out_of_scope, terminal} (v6: +TERMINAL, +out_of_scope)
+    select_medoids_tasks,        # v6: reads medoids from authoritative store
+                                 #   (internal to run_task_geometry; agent reads only)
+    execute_medoid,              # v6: returns MATERIALIZED|BLOCKED|EXECUTION_FAILED
+                                 #   (materialization — NOT Done; only Oracle promotes)
+    verify_oracles,              # v6: returns immutable {passed, failed, blocked}
+                                 #   (no in-place mutation — replayable contract)
+    emit_state,                  # structured state: {done, pending, blocked, next,
+                                 #   goal_sv, out_of_scope, terminal, terminal_mode}
     residual_recluster,          # ADID loop closure: pending vs original Goal SV
-                                 #   v6: may return [] → TERMINAL (no forced minimum)
+                                 #   v6: returns (residual, discarded); may both be []
     PLANNING,                    # policy.planning SPEC — fractal_only
 )
 
@@ -46,29 +49,50 @@ result = run_task_geometry(goal, evidence_texts=[...])
 #   residual_n, evidence_plan_searches, status,     # diagnostics
 # }
 
-# === STEP 6: kernel-managed task store (v6) ===
-# Medoids are auto-materialized — agent reads, does not create.
-# todowrite is an interface to the authoritative store, not the owner.
+# === STEP 6: read from authoritative task store (v6) ===
+# select_medoids_tasks is internal to run_task_geometry — auto-materialized
+# into the kernel's authoritative task store. Agent reads; does NOT re-derive
+# from raw modifications (modifications and seed_mods are internal to the kernel).
+# todowrite is an optional projection interface to the store, not the owner.
 # v6 planned API: read_task_store(store_id, version, status) + transition_task(...)
-central_tasks = select_medoids_tasks(modifications, seeds=seed_mods)
+central_tasks = select_medoids_tasks(
+    store_id=result.task_store_id,
+    version=result.task_store_version,
+    status="pending",
+)
+# Each task: {id, version, sv, description, files, oracle, status}.
 # k_medoids_modifications auto-delegates to CLARA when N ≥ 100.
+# v6 planned: transition_task(store_id, task_id, expected_version, new_status)
 
-# === STEP 7: execute — one medoid at a time ===
+# === STEP 7: execute — materialize, NOT mark done (v6 Oracle boundary) ===
 # REUSE_BEFORE: search prior art before inventing.
 # SMOKE_BEFORE: baseline oracles BEFORE first edit (record [Exact]).
-# v6 planned: transition_task(store_id, task_id, expected_version, new_status)
-completed, pending, blockers = [], [], []
+# v6: Executor returns materialization status — NOT Done/Completed.
+#     Only Oracle can promote to Done (Gate 8).
+materialized, execution_failed, blocked = [], [], []
 for task in central_tasks:  # one in_progress (PLANNING invariant)
     status, output = execute_medoid(task)
-    # returns ('done'|'blocked'|'pending', detail)
-    if status == 'done':      completed.append(task)
-    elif status == 'blocked':  blockers.append({'task': task, 'reason': output})
-    else:                      pending.append(task)
+    # v6 returns: ('MATERIALIZED'|'BLOCKED'|'EXECUTION_FAILED', detail)
+    if status == 'MATERIALIZED':
+        materialized.append(task)
+    elif status == 'BLOCKED':
+        blocked.append({'task': task, 'reason': output})
+    else:
+        execution_failed.append(task)
 
-# === STEP 8: verify — post-impl smoke/oracle [Exact] ===
-# Re-run SMOKE_BEFORE oracles; compare against baseline.
+# === STEP 8: verify — Oracle promotes to Done (v6 immutable result) ===
+# Re-run SMOKE_BEFORE oracles against materialized tasks.
 # Gate 8: only oracle PASS promotes to Done (never self-certify).
-verify_oracles(completed, pending, blockers)  # mutates in-place
+# v6: verify_oracles returns immutable result — no hidden in-place mutation.
+verification = verify_oracles(materialized_tasks=materialized)
+# verification = {
+#   passed:  [...],   # oracle PASS  → DONE (Completed)
+#   failed:  [...],   # oracle FAIL  → back to pending
+#   blocked: [...],   # oracle can't run → blocked
+# }
+completed = verification.passed                       # only oracle PASS → Done
+pending   = verification.failed + execution_failed    # exec fail or oracle fail
+blockers  = blocked + verification.blocked
 
 # === STEP 9: residual first, then final emit_state (v6 correct ordering) ===
 # residual_recluster determines what survives the Goal-SV threshold.

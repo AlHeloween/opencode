@@ -168,7 +168,7 @@ class TestRuntimePromptCompiler:
         assert PROMPT_ABI["version"] == "6"
         assert PROMPT_ABI["line_endings"] == "LF"
         assert PROMPT_ABI["identity_tier"] == "A"
-        assert PROMPT_ABI["identity_max_bytes"] == 52_000
+        assert PROMPT_ABI["kernel_max_bytes"] == 53_000
 
     def test_discipline_packs_form_universal_to_domain_hierarchy(self):
         """universal → natural/social science → discipline packs."""
@@ -195,8 +195,8 @@ class TestRuntimePromptCompiler:
         """Tier A identity stays within budget; dict section stays compact."""
         runtime = render_runtime_kernel(tier="A")
         dict_section = runtime.split("# SPECS")[0]
-        assert len(dict_section) < 16_000
-        assert len(runtime.encode("utf-8")) <= PROMPT_ABI["identity_max_bytes"]
+        assert len(dict_section) < 18_000
+        assert len(runtime.encode("utf-8")) <= PROMPT_ABI["kernel_max_bytes"]
         assert "PROMPT_ABI" in dict_section
         assert "CONTRACTS" in dict_section
         assert "MEMORY_RANK" in runtime

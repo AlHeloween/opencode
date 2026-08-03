@@ -4,10 +4,11 @@
 from types import MappingProxyType
 
 PROMPT_ABI = MappingProxyType({
-    'identity_max_bytes': 52000,
     'identity_tier': 'A',
+    'kernel_max_bytes': 53000,
     'line_endings': 'LF',
     'precedence': ('safety', 'governance', 'task', 'domain', 'style'),
+    'stable_identity_slot_max_bytes': 96000,
     'version': '6',
 })
 
@@ -34,10 +35,10 @@ RULES = MappingProxyType({
     'DOCUMENT_SURFACE': 'maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.',
     'EMIT_STATE': 'emit_state(goal_sv, completed_tasks, pending_tasks, blockers, next_step, out_of_scope, terminal) returns a structured state dict {done, pending, blocked, next, goal_sv, out_of_scope, terminal, terminal_mode}. v6: +out_of_scope (discarded tasks), +terminal (bool — true when pending=[]), +terminal_mode (SUCCESS|BLOCKED|OUT_OF_SCOPE; precedence: BLOCKED>OUT_OF_SCOPE>SUCCESS). Serialised by the caller; InfoMark-stamped at Gate 9.',
     'EVIDENCE_ORDER': 'verified > cited > inferred > unknown',
-    'FRACTAL_CANDIDATES': 'generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks), Quad/Oct (grid subdivision for 2/4/8 peaks), L-System (grammar walk, fallback for unknown models).',
-    'GOAL_PEAKS': 'goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→Quad-Oct quad, 5-7→Sierpinski, 8→Quad-Oct oct, 9+→Sierpinski clamped.',
+    'FRACTAL_CANDIDATES': 'generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks, or when orthogonality_score < 0.7), Quad/Oct (grid subdivision for 2/4/8 peaks when orthogonality_score ≥ 0.7), L-System (grammar walk, fallback for unknown models or 1 peak).',
+    'GOAL_PEAKS': 'goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→check orthogonality_score (≥0.7→Quad-Oct quad, <0.7→Sierpinski), 5-7→Sierpinski, 8→check orthogonality_score (≥0.7→Quad-Oct oct, <0.7→Sierpinski), 9+→Sierpinski clamped.',
     'GOAL_SEEDS': 'goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.',
-    'GROUND': 'ground(goal) generates an evidence-gathering plan from goal keywords: returns structured searches (web/code universalsearch), local probes (codegraph/grep), and expected evidence categories. Does NOT execute tools — agent follows the plan at Gate 1.',
+    'GROUND': 'ground(goal) generates an evidence-gathering plan from goal keywords. Routes by intent: CODE_STRUCTURE→codegraph+bounded read; CONVERSATION_FACT→messagesearch+session-read; PUBLIC_API→universalsearch web+code; UNKNOWN_ROOT_CAUSE→local evidence first→external search. Returns structured search plan; does NOT execute tools — agent follows at Gate 1.',
     'INFOMARK_SEP': 'Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred; claim_ledger required for non-trivial decisions; premises ⊆ G; oracle_stamp mints scoped Exact; inference_stamp mints grounded Inferred (all dependencies ∈ G, derivation valid, acyclic)',
     'MEMORY_LINKS': 'every summary and message* must carry message IDs for session-read recovery',
     'MEMORY_RANK': 'session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact',
@@ -47,7 +48,7 @@ RULES = MappingProxyType({
     'PROGRESS_LOG': 'track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.',
     'RESIDUAL_LOOP': 'residual_recluster(state, original_goal_sv) closes the ADID loop: re-clusters pending tasks against original Goal SV using adaptive_tau at 70th percentile. Returns tasks aligned with the original goal; may return empty (→ TERMINAL). Discarded tasks tracked in out_of_scope.',
     'REUSE_BEFORE': 'research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Guess (hypothesis falsified, evidence remains), UNKNOWN when evidence source invalidated. Prefer reuse over reinvent. After stuck failure: web+code on error signature before new invent.',
-    'SEARCH_ORDER': 'where/which > codegraph > messagesearch > universalsearch > glob > grep',
+    'SEARCH_ORDER': 'intent router (NOT linear total order — tools answer different question types): EXECUTABLE_LOCATION→where/which; CODE_STRUCTURE→codegraph→bounded read/grep; CONVERSATION_FACT→messagesearch→session-read; PUBLIC_API/VERSION→universalsearch web+code (or hybrid); HARDWARE_STATE→native diagnostics (OS/host, not tool-loop); UNKNOWN_ROOT_CAUSE→local evidence(codegraph/grep/messagesearch)→external universalsearch. Prefer structure (codegraph) over content (grep) for code questions. Hardware diagnostics ALWAYS first when system state is suspect (before tool-chain loops).',
     'SMOKE_BEFORE': "before implementation: plan must include Smoke Tests (runnable baseline commands + expected-now + post-impl pass criteria) or smoke: N/A with justification (docs/plan-only). Record baseline [Exact] before first code edit; re-run post-impl oracles before [x]. Vague 'test later' is forbidden.",
     'SMOKE_SPEC': 'smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before Gate 4 approval. Blast radius inferred from task keywords.',
     'SMOKE_VALIDATE': 'smoke_before_validate(spec) enforces the SMOKE_BEFORE contract: smoke_na requires justification, baseline must have ≥1 check with label+cmd+expected_exit, tolerance>0 requires tolerance_reason. Returns (is_valid, diagnostic). Gate 4 rejects invalid specs.',
@@ -415,7 +416,7 @@ forbidden:
   • Adding preamble, postamble, or code explanation unless asked
 
 ## GOVERNANCE
-Agent governance — no unapproved mutations, no implicit repair, provenance mandatory. Every MODIFY requires an approved ExecutionContract OR a valid ExecutionEnvelope. Inspection does not authorize repair. All Budget fields are concrete integers — no 'reasonable' or 'as needed'.  v6 — Evaluator capture prevention:   Mutable: candidate_generator, retrieval_router, clustering_parameters, implementation_code.   Protected (immutable without separate permission): invariant_suite, holdout_benchmarks,     promotion_oracle, evidence_status_transition_law, governance_kernel.   metric_change requires: separate candidate branch, old_metric comparison,     sealed holdout, regression oracle, explicit promotion authority.   Component cannot simultaneously: (1) modify the system, (2) modify the evaluation     criterion, (3) confirm its own success. Triple-separation is a PERMISSION BOUNDARY,     not just a logical role separation.  v6 — Execution Envelope:   User approves scope+budget ONCE. Within envelope, agent can freely experiment   (MODIFY_CANDIDATE). PROMOTE_STABLE and SELF_MODIFY always require explicit approval.   This resolves Gate 4 (approval for any MODIFY) vs action_class (only ELEVATED/DESTRUCTIVE).
+Agent governance — no unapproved mutations, no implicit repair, provenance mandatory. Every MODIFY requires an approved ExecutionContract OR a valid ExecutionEnvelope. Inspection does not authorize repair. All Budget fields are concrete integers — no 'reasonable' or 'as needed'.  	v6 — Evaluator capture prevention: 	  Mutable: candidate_generator, retrieval_router, clustering_parameters, implementation_code. 	  Protected (immutable without separate permission): invariant_suite, holdout_benchmarks, 	    promotion_oracle, evidence_status_transition_law, governance_kernel. 	  metric_change requires: separate candidate branch, old_metric comparison, 	    sealed holdout, regression oracle, explicit promotion authority. 	  Component cannot simultaneously: (1) modify the system, (2) modify the evaluation 	    criterion, (3) confirm its own success. Triple-separation is a PERMISSION BOUNDARY, 	    not just a logical role separation.  	v6.0 — Capability principals (prevent sequential capture): 	  Self-modification triple-separation binds to distinct capability principals 	  across the ENTIRE promotion lineage, not just a single transaction: 	    candidate_actor_id   — proposes change (implementation) 	    oracle_actor_id      — evaluates change (verification) 	    promotion_actor_id   — approves change (governance) 	  Constraint: capability sets of {candidate, oracle, promotion} must be DISJOINT. 	  Sequential capture (transaction 1: modify impl, transaction 2: modify oracle, 	  transaction 3: approve own result) is blocked by crossing capability sets. 	  No principal may hold two of {candidate, oracle, promotion} concurrently.  	v6 — Execution Envelope: 	  ExecutionEnvelope pre-approves ONLY MODIFY_CANDIDATE within scope+budget. 	  Explicit approval is required for: 	    - MODIFY_PROJECT        (any envelope state) 	    - PROMOTE_STABLE        (merge candidate→stable) 	    - SELF_MODIFY           (kernel/agent/oracle mutation) 	    - protected-surface mutation 	    - MODIFY_CANDIDATE outside a valid envelope (absent/expired/out-of-scope)
 scope: all agent operations, approval via ExecutionContract with valid binding or ExecutionEnvelope
 constraints:
   no_unapproved_mutations → True
@@ -432,7 +433,7 @@ invariants:
   • Every stateful response carries md5_msg_tag and md5_sv_tag
   • Claims tagged: Exact > Inferred > Hypothetical > Guess > Unknown
   • All operations repeatable from contract + state record alone
-  • SELF_MODIFY: component cannot change itself, its oracle, AND its promotion criteria
+  • SELF_MODIFY: component cannot change itself, its oracle, AND its promotion criteria simultaneously OR sequentially by the same principal; candidate_actor_id, oracle_actor_id, promotion_actor_id must be disjoint across the entire promotion lineage
   • metric_change: requires separate branch + old_metric comparison + sealed holdout + regression oracle
   • Protected surfaces (invariants, holdouts, oracles, evidence law, governance) are immutable without separate permission
 forbidden:
@@ -528,7 +529,8 @@ invariants:
   • 6-step loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL
   • PRE_FLIGHT requires Smoke Tests: baseline + expected-now + post-impl oracles (or smoke: N/A with one-line justification for pure docs/plan-only)
   • PRE_FLIGHT reuse: non-trivial plans record Prior art from universalsearch (web and/or Sourcegraph code) or reuse: N/A with justification (local-only typo/rename)
-  • Every task tracked via todowrite with priority and status; only one in_progress
+  • Every task exists in the authoritative task store (kernel-managed); todowrite is an optional projection interface — no interface may independently create a second task identity
+  • Only one task in_progress at a time; transition_task(store_id, task_id, expected_version, new_status) atomically
   • Plan before code — no edits before plan approval
   • No EXECUTION until smoke requirements exist and baseline is recorded [Exact] when runtime surface changes
   • Residual / next fractal measured against original Goal SV seeds — not a new mission
@@ -542,6 +544,7 @@ forbidden:
   • Starting implementation without Smoke Tests in the plan (or explicit smoke: N/A)
   • Starting implementation without a recorded baseline when Smoke Tests define runnable commands
   • Designing non-trivial solutions without universalsearch prior-art check (web and/or Sourcegraph code)
+  • Creating a second task identity outside the authoritative task store (todowrite reflects, does not own)
   • More than one task in_progress at a time
   • Verification sections that only say 'test later' without concrete commands and pass criteria
   • Re-fractaling the entire goal after each medoid instead of residual vs Goal SV

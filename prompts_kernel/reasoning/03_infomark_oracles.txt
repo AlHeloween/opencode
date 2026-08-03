@@ -71,30 +71,49 @@
 #   U -.->|FORBIDDEN self-Exact| X[rejected]
 # ```
 
-# Classifier (kernel classify_claim_status; standalone, no deps):
+# Classifier (kernel classify_claim_status; stamp-driven, no undefined symbols):
+# Stamps are the ONLY source of Exact and Inferred. No free variables.
 # \[
-# \sigma =
+# \sigma(c) =
 # \begin{cases}
-#   \mathrm{Unknown} & \text{contradiction or } f\le 0 \\
-#   \mathrm{Exact} & d \land f>0 \\
-#   \mathrm{Inferred} & \text{all premises Exact + derivation} \\
-#   \mathrm{Hypothetical} & \text{falsifier specified} \\
-#   \mathrm{Guess} & \text{weak / }P_\theta\text{ alone} \\
-#   \mathrm{Unknown} & \text{else}
+#   \mathrm{Exact}     & \text{valid oracle_stamp on } c \\
+#   \mathrm{Exact}     & \text{valid direct_evidence_stamp on } c \quad\text{(session-read, read tool)} \\
+#   \mathrm{Inferred}  & \text{valid inference_stamp on } c \;\land\;
+#                          \forall d \in \mathrm{deps}(c): d \in \mathcal{G} \;\land\;
+#                          \text{DAG acyclic} \\
+#   \mathrm{Hypothetical} & \text{falsifier declared} \;\land\; \text{no stamp} \\
+#   \mathrm{Guess}     & \text{weak / } P_\theta \text{ alone / oracle FAIL} \\
+#   \mathrm{Unknown}   & \text{else (empty node, contradiction, circular deps)}
 # \end{cases}
 # \]
-# For dependency-aware classification, use effective_status() with EpistemicDAG.
+# Key properties:
+#   - Stamps are typed: oracle_stamp, direct_evidence_stamp, inference_stamp.
+#   - No undefined d, f symbols — status depends on stamp presence + dependency set.
+#   - inference_stamp requires ALL deps ∈ G (not just Exact; Inferred also qualifies).
+#   - Circular dependencies → Unknown (detected via DAG cycle check).
+#   - The old formula "all premises Exact + derivation" is REPLACED by this one.
+#     inference_stamp already validates: derivation rule declared, hash matches,
+#     all deps ≥ Inferred, no cycles.
+#
+# For dependency-aware classification, use effective_status() with EpistemicDAG:
+#   effective(c) = min(status(c), min_{d∈deps(c)} effective(d))
+#   Circular deps → effective = Unknown.
 #
 # Grounding set (only these may drive plans / MODIFY / Done):
 # \[
 #   \mathcal{G}
 #     = \{\, c \mid \sigma(c)\in\{\mathrm{Exact},\mathrm{Inferred}\}
-#            \land f(c)>0 \land \mathrm{stamped}(c) \,\}
+#            \land \mathrm{stamped}(c)
+#            \land \text{stamp not expired}
+#            \land \text{revision bound valid} \,\}
 # \]
 # \[
 #   \mathrm{legal}(\mathrm{plan})
 #     \iff \forall p\in\mathrm{premises}(\mathrm{plan}):\ p\in\mathcal{G}
 # \]
+# Inferred claims reach G via valid inference_stamp (all deps ∈ G, acyclic).
+# Exact claims reach G via valid oracle_stamp or direct_evidence_stamp.
+# No unknown function f(c) — each stamp type defines its own validity predicate.
 
 # --- Schema: claim_ledger (REQUIRED for Gate 3 / non-trivial decisions) ---
 # ```yaml

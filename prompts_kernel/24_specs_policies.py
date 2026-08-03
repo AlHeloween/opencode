@@ -205,7 +205,10 @@ GROUNDED PATH (v6): Speed comes from evidence density, not task size.
         "(or smoke: N/A with one-line justification for pure docs/plan-only)",
         "PRE_FLIGHT reuse: non-trivial plans record Prior art from universalsearch (web and/or Sourcegraph code) "
         "or reuse: N/A with justification (local-only typo/rename)",
-        "Every task tracked via todowrite with priority and status; only one in_progress",
+        "Every task exists in the authoritative task store (kernel-managed); "
+        "todowrite is an optional projection interface — no interface may independently "
+        "create a second task identity",
+        "Only one task in_progress at a time; transition_task(store_id, task_id, expected_version, new_status) atomically",
         "Plan before code — no edits before plan approval",
         "No EXECUTION until smoke requirements exist and baseline is recorded [Exact] when runtime surface changes",
         "Residual / next fractal measured against original Goal SV seeds — not a new mission",
@@ -225,6 +228,8 @@ GROUNDED PATH (v6): Speed comes from evidence density, not task size.
         "Starting implementation without Smoke Tests in the plan (or explicit smoke: N/A)",
         "Starting implementation without a recorded baseline when Smoke Tests define runnable commands",
         "Designing non-trivial solutions without universalsearch prior-art check (web and/or Sourcegraph code)",
+        "Creating a second task identity outside the authoritative task store "
+        "(todowrite reflects, does not own)",
         "More than one task in_progress at a time",
         "Verification sections that only say 'test later' without concrete commands and pass criteria",
         "Re-fractaling the entire goal after each medoid instead of residual vs Goal SV",
@@ -301,20 +306,35 @@ Every MODIFY requires an approved ExecutionContract OR a valid ExecutionEnvelope
 Inspection does not authorize repair.
 All Budget fields are concrete integers — no 'reasonable' or 'as needed'.
 
-v6 — Evaluator capture prevention:
-  Mutable: candidate_generator, retrieval_router, clustering_parameters, implementation_code.
-  Protected (immutable without separate permission): invariant_suite, holdout_benchmarks,
-    promotion_oracle, evidence_status_transition_law, governance_kernel.
-  metric_change requires: separate candidate branch, old_metric comparison,
-    sealed holdout, regression oracle, explicit promotion authority.
-  Component cannot simultaneously: (1) modify the system, (2) modify the evaluation
-    criterion, (3) confirm its own success. Triple-separation is a PERMISSION BOUNDARY,
-    not just a logical role separation.
+	v6 — Evaluator capture prevention:
+	  Mutable: candidate_generator, retrieval_router, clustering_parameters, implementation_code.
+	  Protected (immutable without separate permission): invariant_suite, holdout_benchmarks,
+	    promotion_oracle, evidence_status_transition_law, governance_kernel.
+	  metric_change requires: separate candidate branch, old_metric comparison,
+	    sealed holdout, regression oracle, explicit promotion authority.
+	  Component cannot simultaneously: (1) modify the system, (2) modify the evaluation
+	    criterion, (3) confirm its own success. Triple-separation is a PERMISSION BOUNDARY,
+	    not just a logical role separation.
 
-v6 — Execution Envelope:
-  User approves scope+budget ONCE. Within envelope, agent can freely experiment
-  (MODIFY_CANDIDATE). PROMOTE_STABLE and SELF_MODIFY always require explicit approval.
-  This resolves Gate 4 (approval for any MODIFY) vs action_class (only ELEVATED/DESTRUCTIVE).""",
+	v6.0 — Capability principals (prevent sequential capture):
+	  Self-modification triple-separation binds to distinct capability principals
+	  across the ENTIRE promotion lineage, not just a single transaction:
+	    candidate_actor_id   — proposes change (implementation)
+	    oracle_actor_id      — evaluates change (verification)
+	    promotion_actor_id   — approves change (governance)
+	  Constraint: capability sets of {candidate, oracle, promotion} must be DISJOINT.
+	  Sequential capture (transaction 1: modify impl, transaction 2: modify oracle,
+	  transaction 3: approve own result) is blocked by crossing capability sets.
+	  No principal may hold two of {candidate, oracle, promotion} concurrently.
+
+	v6 — Execution Envelope:
+	  ExecutionEnvelope pre-approves ONLY MODIFY_CANDIDATE within scope+budget.
+	  Explicit approval is required for:
+	    - MODIFY_PROJECT        (any envelope state)
+	    - PROMOTE_STABLE        (merge candidate→stable)
+	    - SELF_MODIFY           (kernel/agent/oracle mutation)
+	    - protected-surface mutation
+	    - MODIFY_CANDIDATE outside a valid envelope (absent/expired/out-of-scope)""",
 
     state={"operations": ["MODIFY", "OBSERVE", "EXECUTE_TEST", "CONVERSATION", "SELF_MODIFY"],
            "approval_model": "execution_envelope",
@@ -342,7 +362,10 @@ v6 — Execution Envelope:
         "Every stateful response carries md5_msg_tag and md5_sv_tag",
         "Claims tagged: Exact > Inferred > Hypothetical > Guess > Unknown",
         "All operations repeatable from contract + state record alone",
-        "SELF_MODIFY: component cannot change itself, its oracle, AND its promotion criteria",
+        "SELF_MODIFY: component cannot change itself, its oracle, AND its promotion criteria "
+        "simultaneously OR sequentially by the same principal; "
+        "candidate_actor_id, oracle_actor_id, promotion_actor_id must be disjoint "
+        "across the entire promotion lineage",
         "metric_change: requires separate branch + old_metric comparison + sealed holdout + regression oracle",
         "Protected surfaces (invariants, holdouts, oracles, evidence law, governance) are immutable without separate permission",
     ],

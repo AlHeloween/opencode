@@ -8,10 +8,16 @@ PROMPT_ABI = MappingProxyType({
     # Host worktree surfaces are runtime-injected, never SPECS subjects
     # (see 21_skills_boundary).
     "identity_tier": "A",
-    # Soft budget for model-facing identity (bytes). CI fails if exceeded.
-    # v6: raised from 48_000 → 52_000 to accommodate FAST_PATH, ExecutionEnvelope,
-    # evaluator capture prevention, SELF_MODIFY, and COLLAPSE semantics.
-    "identity_max_bytes": 52_000,
+    # Soft budget for the generated kernel (bytes). CI fails if exceeded.
+    # v6: raised from 48_000 → 52_000 → 53_000 to accommodate FAST_PATH, ExecutionEnvelope,
+    # evaluator capture prevention, SELF_MODIFY, intent router, orthogonality_score,
+    # capability principals, and canonical serialization.
+    "kernel_max_bytes": 53_000,
+    # Soft budget for the three-surface stable identity slot (bytes).
+    # Algorithm Card + Prompt Kernel + Reasoning Protocol are loaded into
+    # one stable identity slot. CI warns if exceeded; kernel_max_bytes is the hard gate.
+    # v6: 96_000 to fit all three v6 surfaces with ~4 KB margin.
+    "stable_identity_slot_max_bytes": 96_000,
 })
 
 RUNTIME_TERMS = MappingProxyType({
@@ -30,7 +36,7 @@ RUNTIME_TERMS = MappingProxyType({
 
 RUNTIME_RULES = MappingProxyType({
     "EVIDENCE_ORDER": "verified > cited > inferred > unknown",
-    "SEARCH_ORDER": "where/which > codegraph > messagesearch > universalsearch > glob > grep",
+    "SEARCH_ORDER": "intent router (NOT linear total order — tools answer different question types): EXECUTABLE_LOCATION→where/which; CODE_STRUCTURE→codegraph→bounded read/grep; CONVERSATION_FACT→messagesearch→session-read; PUBLIC_API/VERSION→universalsearch web+code (or hybrid); HARDWARE_STATE→native diagnostics (OS/host, not tool-loop); UNKNOWN_ROOT_CAUSE→local evidence(codegraph/grep/messagesearch)→external universalsearch. Prefer structure (codegraph) over content (grep) for code questions. Hardware diagnostics ALWAYS first when system state is suspect (before tool-chain loops).",
     "WRITE_SCOPE": "modify only within user-authorized scope",
     "VERIFY_OUTCOME": "declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done",
     "INFOMARK_SEP": "Salience≠Evidence; parametric confidence≠Exact; fluency≠truth; mention frequency never promotes Exact/Inferred; claim_ledger required for non-trivial decisions; premises ⊆ G; oracle_stamp mints scoped Exact; inference_stamp mints grounded Inferred (all dependencies ∈ G, derivation valid, acyclic)",
@@ -48,12 +54,12 @@ RUNTIME_RULES = MappingProxyType({
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)",
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
     "VCS_ROOT": "VCS detection: git status only — never glob/grep for .git/ (it is gitignored, invisible to search tools). .git/ must be at repo root. Never search inside, read from, or interact with .git/objects or any VCS internals as if they were project content. VCS metadata is NOT source code.",
-    "FRACTAL_CANDIDATES": "generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks), Quad/Oct (grid subdivision for 2/4/8 peaks), L-System (grammar walk, fallback for unknown models).",
+    "FRACTAL_CANDIDATES": "generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks, or when orthogonality_score < 0.7), Quad/Oct (grid subdivision for 2/4/8 peaks when orthogonality_score ≥ 0.7), L-System (grammar walk, fallback for unknown models or 1 peak).",
     "GOAL_SEEDS": "goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.",
     "RESIDUAL_LOOP": "residual_recluster(state, original_goal_sv) closes the ADID loop: re-clusters pending tasks against original Goal SV using adaptive_tau at 70th percentile. Returns tasks aligned with the original goal; may return empty (→ TERMINAL). Discarded tasks tracked in out_of_scope.",
     "EMIT_STATE": "emit_state(goal_sv, completed_tasks, pending_tasks, blockers, next_step, out_of_scope, terminal) returns a structured state dict {done, pending, blocked, next, goal_sv, out_of_scope, terminal, terminal_mode}. v6: +out_of_scope (discarded tasks), +terminal (bool — true when pending=[]), +terminal_mode (SUCCESS|BLOCKED|OUT_OF_SCOPE; precedence: BLOCKED>OUT_OF_SCOPE>SUCCESS). Serialised by the caller; InfoMark-stamped at Gate 9.",
-    "GROUND": "ground(goal) generates an evidence-gathering plan from goal keywords: returns structured searches (web/code universalsearch), local probes (codegraph/grep), and expected evidence categories. Does NOT execute tools — agent follows the plan at Gate 1.",
-    "GOAL_PEAKS": "goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→Quad-Oct quad, 5-7→Sierpinski, 8→Quad-Oct oct, 9+→Sierpinski clamped.",
+    "GROUND": "ground(goal) generates an evidence-gathering plan from goal keywords. Routes by intent: CODE_STRUCTURE→codegraph+bounded read; CONVERSATION_FACT→messagesearch+session-read; PUBLIC_API→universalsearch web+code; UNKNOWN_ROOT_CAUSE→local evidence first→external search. Returns structured search plan; does NOT execute tools — agent follows at Gate 1.",
+    "GOAL_PEAKS": "goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→check orthogonality_score (≥0.7→Quad-Oct quad, <0.7→Sierpinski), 5-7→Sierpinski, 8→check orthogonality_score (≥0.7→Quad-Oct oct, <0.7→Sierpinski), 9+→Sierpinski clamped.",
     "SV_DELTA": "sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.",
     "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",

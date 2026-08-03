@@ -3,10 +3,13 @@
 # Kernel symbols: ground, goal_seeds, goal_peaks, sv_delta,
 #   select_fractal_model, generate_fractal_candidates,
 #   adaptive_tau, adaptive_k, adaptive_depth (v6: evidence_coverage),
+#   k_medoids_modifications (→ CLARA when N≥100),
 #   k_medoids_modifications (→ CLARA when N≥100), select_medoids_tasks,
+#   read_task_store, transition_task (v6 planned: authoritative task store API),
 #   lsystem_rewrite, residual_recluster (v6: may return [] → TERMINAL),
-#   execute_medoid (agent-side contract), verify_oracles (agent-side contract),
-#   emit_state (v6: +out_of_scope, +terminal), delta_l1, PLANNING (fractal_only)
+#   execute_medoid, verify_oracles (agent-side contracts),
+#   emit_state (v6: +out_of_scope, +terminal, +terminal_mode),
+#   delta_l1, PLANNING (fractal_only)
 # Spine invariant for ALL tasks — no trivial exceptions. One-character typo
 #   still: ground → scope → oracle → edit → verify → state.
 # GROUNDED PATH (v6): speed from evidence density (codegraph indexed + history Exact),
@@ -18,23 +21,26 @@
 ```python
 # Bound symbols — every name resolves to a kernel function (read kernel if unsure)
 from prompts_kernel import (
-    run_task_geometry,           # FULL PIPELINE: ground→seeds→fractal→filter→state (one call)
+    run_task_geometry,           # FULL PIPELINE: ground→seeds→fractal→filter→state
+                                 #   v6: returns task_store_id, task_store_version
+    select_medoids_tasks,        # clause-level cut: foam→medoid descriptions only
+                                 #   v6 planned: read_task_store / transition_task API
     execute_medoid,              # agent-side contract: execute one task (REUSE+SMOKE_BEFORE)
     verify_oracles,              # agent-side contract: post-impl oracle PASS→done, FAIL→pending
     emit_state,                  # structured state: {done, pending, blocked, next, goal_sv,
                                  #   out_of_scope, terminal} (v6: +TERMINAL, +out_of_scope)
     residual_recluster,          # ADID loop closure: pending vs original Goal SV
                                  #   v6: may return [] → TERMINAL (no forced minimum)
-    select_medoids_tasks,        # clause-level cut: foam→medoid descriptions only
     PLANNING,                    # policy.planning SPEC — fractal_only
 )
 
 # === STEP 1–5: KERNEL PIPELINE (one call) ===
-# The kernel computes the fractal geometry; agent does NOT re-derive it.
-# v6: kernel auto-materializes medoids into task store (authoritative).
+# The kernel computes fractal geometry AND auto-materializes medoids
+# into the authoritative task store (v6). Agent does NOT re-derive.
 result = run_task_geometry(goal, evidence_texts=[...])
 # result = {
-#   seeds_n, peaks, model, depth,              # fractal configuration
+#   task_store_id, task_store_version,         # v6: authoritative store handle
+#   seeds_n, peaks, model, depth,               # fractal configuration
 #   candidates_n, filtered_n, tau, k_recommended, # filter + cluster params
 #   distances_min, distances_median, distances_max, # L1 spread
 #   residual_n, evidence_plan_searches, status,     # diagnostics
@@ -43,12 +49,14 @@ result = run_task_geometry(goal, evidence_texts=[...])
 # === STEP 6: kernel-managed task store (v6) ===
 # Medoids are auto-materialized — agent reads, does not create.
 # todowrite is an interface to the authoritative store, not the owner.
+# v6 planned API: read_task_store(store_id, version, status) + transition_task(...)
 central_tasks = select_medoids_tasks(modifications, seeds=seed_mods)
 # k_medoids_modifications auto-delegates to CLARA when N ≥ 100.
 
 # === STEP 7: execute — one medoid at a time ===
 # REUSE_BEFORE: search prior art before inventing.
 # SMOKE_BEFORE: baseline oracles BEFORE first edit (record [Exact]).
+# v6 planned: transition_task(store_id, task_id, expected_version, new_status)
 completed, pending, blockers = [], [], []
 for task in central_tasks:  # one in_progress (PLANNING invariant)
     status, output = execute_medoid(task)
@@ -61,33 +69,39 @@ for task in central_tasks:  # one in_progress (PLANNING invariant)
 # Re-run SMOKE_BEFORE oracles; compare against baseline.
 # Gate 8: only oracle PASS promotes to Done (never self-certify).
 verify_oracles(completed, pending, blockers)  # mutates in-place
-next_task = pending[0] if pending else None
 
 # === STEP 9: residual first, then final emit_state (v6 correct ordering) ===
 # residual_recluster determines what survives the Goal-SV threshold.
 # Only AFTER residual do we know terminal status.
+# build_provisional_state() is internal — no Gate 9 emission yet.
 provisional = emit_state(
     goal_sv=goal_sv,
     completed_tasks=completed,
     pending_tasks=pending,
     blockers=blockers,
+    next_step=None,              # v6: explicit None for provisional
+    out_of_scope=[],              # not yet known
+    terminal=False,               # provisional — not a Gate 9 emission
 )
 residual, discarded = residual_recluster(provisional, original_goal_sv=goal_sv)
 # residual may be [] → TERMINAL. Discarded tasks tracked in out_of_scope.
 
+# Final emit_state — after residual is known (v6):
 state = emit_state(
     goal_sv=goal_sv,
     completed_tasks=completed,
     pending_tasks=residual,
     blockers=blockers,
     next_step=residual[0] if residual else None,
-    out_of_scope=discarded,        # tasks that didn't pass Goal-SV threshold
-    terminal=(not residual and not blockers),  # true terminal only when both empty
+    out_of_scope=discarded,
+    terminal=bool(not residual),  # terminal when nothing left to do
 )
 # Terminal modes (v6):
-#   TERMINAL_SUCCESS  — residual=[], blockers=[]
-#   TERMINAL_BLOCKED  — residual=[], blockers≠[]
-#   TERMINAL_OUT_OF_SCOPE — residual=[], all tasks in out_of_scope
+#   terminal=True, terminal_mode=SUCCESS      — residual=[], blockers=[]
+#   terminal=True, terminal_mode=BLOCKED      — residual=[], blockers≠[]
+#   terminal=True, terminal_mode=OUT_OF_SCOPE — residual=[], discarded≠[]
+#   terminal=False                            — residual non-empty, continue
+# Precedence: BLOCKED > OUT_OF_SCOPE > SUCCESS.
 # Never re-fractal the whole universe; no Mode-1 fallthrough.
 ```
 

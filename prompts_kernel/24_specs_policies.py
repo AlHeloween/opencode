@@ -163,8 +163,8 @@ GROUNDED PATH (v6): Speed comes from evidence density, not task size.
   available via messagesearch (both [Exact]), the ground step reuses existing
   evidence — symbols, callers, callees, prior decisions — instead of
   re-discovering them. The spine does NOT compress. The lattice depth adapts
-  via adaptive_depth(peaks, evidence_count=high) because the territory is
-  already mapped, not because the task is "trivial."
+  via adaptive_depth(complexity=peaks, evidence_coverage=high) because
+  the territory is already mapped, not because the task is "trivial."
   Counter-example: a one-character typo in an UNINDEXED file with NO history
   still requires full grounding. A 20-file refactor in a fully-indexed,
   well-documented codebase with Exact conversation history may generate a

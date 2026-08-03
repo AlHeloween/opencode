@@ -239,15 +239,18 @@
 # BRANCH B — EXPLICIT_USER_APPROVAL (always required):
 #   Condition: activity ∈ {PROMOTE_STABLE, SELF_MODIFY}
 #              OR protected surface affected
-#              OR envelope absent/expired for MODIFY_PROJECT
 #   Action: output full master_plan. End with literal question:
 #     "Do you approve this plan?"
 #   Silence != approval. Ambiguous != approval.
 #   CONSTRAINT: ZERO file-modifying tools this turn.
 #
 # BRANCH C — PRESENT_CONTRACT_AND_ASK (default):
-#   Condition: MODIFY_PROJECT with no envelope, or unknown activity
+#   Condition: MODIFY_PROJECT (any envelope state)
+#              OR MODIFY_CANDIDATE without valid envelope (absent/expired/out-of-scope)
+#              OR unknown activity
 #   Action: present contract, ask for approval.
+#   NOTE: MODIFY_PROJECT always requires explicit approval —
+#   the envelope pre-approval is only for MODIFY_CANDIDATE.
 #   Same constraints as BRANCH B.
 #
 # ```mermaid
@@ -342,7 +345,10 @@
 #   r=\mathrm{PASS} \land \mathrm{stamp}(c)
 #     \Rightarrow \sigma(c)=\mathrm{Exact}\ \text{(scoped)}
 # \]
-# FAIL/timeout => no stamp; no Exact done; demote; fix or halt.
+# FAIL outcome depends on what was tested (v6 three-tier):
+#   failed hypothesis (never Exact)        → Guess  (evidence remains, claim falsified)
+#   regression of previously Exact claim   → Guess  (was Exact, now contradicted)
+#   evidence source invalidated/destroyed  → Unknown (foundation gone)
 # Self-certify = Guess. Bare [Exact] without stamp = rejected.
 # Never "pre-existing" without messagesearch + clean baseline evidence.
 #
@@ -529,13 +535,13 @@
 # ```
 
 # --- Classify before act (Gates 3, 7) --- schema action_class in Part 1 ---
-# v6 envelope model:
+# v6 envelope model (canonical — matches Part 1 schema):
 # ```yaml
-# action_class: {activity: MODIFY_CANDIDATE, effect: PERSISTENT_WRITE, risk: LOW}
+# action_class: {activity: MODIFY_CANDIDATE, effect: CANDIDATE_WRITE, risk: LOW}
 #   # within ExecutionEnvelope — pre-approved, no Gate 4 re-approval
 # action_class: {activity: MODIFY_PROJECT, effect: PERSISTENT_WRITE, risk: ELEVATED}
 #   # outside envelope — requires Gate 4 explicit approval
-# action_class: {activity: PROMOTE_STABLE, effect: PERSISTENT_WRITE, risk: ELEVATED}
+# action_class: {activity: PROMOTE_STABLE, effect: PERSISTENT_WRITE, risk: CRITICAL}
 #   # merge candidate→stable — ALWAYS requires explicit user approval
 # action_class: {activity: SELF_MODIFY, effect: PERSISTENT_WRITE, risk: CRITICAL}
 #   # change kernel/agent/oracle — triple-separation enforced

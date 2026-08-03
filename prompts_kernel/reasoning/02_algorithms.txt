@@ -77,13 +77,13 @@
 # ```
 
 # --- Classify before act (Gates 3, 7) --- schema action_class in Part 1 ---
-# v6 envelope model:
+# v6 envelope model (canonical — matches Part 1 schema):
 # ```yaml
-# action_class: {activity: MODIFY_CANDIDATE, effect: PERSISTENT_WRITE, risk: LOW}
+# action_class: {activity: MODIFY_CANDIDATE, effect: CANDIDATE_WRITE, risk: LOW}
 #   # within ExecutionEnvelope — pre-approved, no Gate 4 re-approval
 # action_class: {activity: MODIFY_PROJECT, effect: PERSISTENT_WRITE, risk: ELEVATED}
 #   # outside envelope — requires Gate 4 explicit approval
-# action_class: {activity: PROMOTE_STABLE, effect: PERSISTENT_WRITE, risk: ELEVATED}
+# action_class: {activity: PROMOTE_STABLE, effect: PERSISTENT_WRITE, risk: CRITICAL}
 #   # merge candidate→stable — ALWAYS requires explicit user approval
 # action_class: {activity: SELF_MODIFY, effect: PERSISTENT_WRITE, risk: CRITICAL}
 #   # change kernel/agent/oracle — triple-separation enforced

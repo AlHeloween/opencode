@@ -209,12 +209,13 @@ class TestRuntimePromptCompiler:
         assert "--- Command Specs" in full
 
     def test_reuse_before_research_ladder(self):
-        """REUSE.BEFORE encodes Guess → web/code → smoke PASS Exact / FAIL Unknown."""
+        """REUSE.BEFORE encodes Guess → web/code → smoke PASS Exact / FAIL Guess (v6: UNKNOWN only when evidence source invalidated)."""
         rule = RUNTIME_RULES["REUSE_BEFORE"]
         assert "web" in rule
         assert "code" in rule or "Sourcegraph" in rule
         assert "Exact" in rule
-        assert "Unknown" in rule
+        assert "Guess" in rule
+        assert "UNKNOWN" in rule  # evidence source invalidated
         assert "agent" in rule  # prefer web/code over agent
 
     def test_adid_ops_has_no_external_cli_cookbook(self):

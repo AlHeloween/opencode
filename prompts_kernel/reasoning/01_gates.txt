@@ -190,6 +190,10 @@
 #             baseline: "pre-edit Actual [Exact] or N/A"
 #             claim_id: C2          # on PASS -> oracle_stamp
 #           status: "[ ]"           # -> "[x]" only after Gate 8 + stamp
+#           attempts: 0             # v6.0: execution retry counter
+#           last_failure: null      # v6.0: last EXECUTION_FAILED detail
+#           worker_id: null         # v6.0: claiming worker identity
+#           lease_expires_at: null  # v6.0: worker lease expiry (UTC)
 #           action_class: {activity: MODIFY_CANDIDATE, effect: CANDIDATE_WRITE, risk: LOW}
 # claim_ledger:
 #   claims:
@@ -311,14 +315,16 @@
 # No outer unsigned duplicate fields exist — runtime must not reference
 #   unauthenticated copies.
 #
-# Validity check (v6.0 resolver — 7 conditions):
+# Validity check (v6.0 resolver — 7 conditions, all through signed payload):
 #   1. status == active
-#   2. now < expires_at  (wall_time decidable)
-#   3. current scope spec hash == approval_payload.scope_spec_hash (patterns only)
-#   4. approval_attestation.payload_hash == approval_payload_hash (binding check)
-#   5. HMAC(approval_payload_hash, runtime_key) == approval_attestation.value
-#   6. activity ∈ approval_payload.allowed_action_classes
-#   7. mutation_ledger counts within approval_payload.budget limits
+#   2. now < approval_payload.expires_at  (signed field — wall_time decidable)
+#   3. approval_payload.expires_at <= approval_payload.issued_at + approval_payload.wall_time_seconds
+#      (expiry bound by signed duration — prevents independent expiry extension)
+#   4. current scope spec hash == approval_payload.scope_spec_hash (patterns only)
+#   5. approval_attestation.payload_hash == approval_payload_hash (binding check)
+#   6. HMAC(approval_payload_hash, runtime_key) == approval_attestation.value
+#   7. activity ∈ approval_payload.allowed_action_classes
+#   8. mutation_ledger counts within approval_payload.budget limits
 #
 # Path authorization (v6.0):
 #   normalize → resolve symlink/junction/reparse-point

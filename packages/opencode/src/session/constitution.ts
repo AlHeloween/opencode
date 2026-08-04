@@ -1,9 +1,8 @@
 /**
- * Thin runtime mirror of reasoning-kernel constitution concepts.
+ * Runtime constitution — aligned with prompts_kernel v6.0.
  *
- * Python (`prompts_kernel.py`) designs the algorithm; this module
- * applies a subset at tool time — risk ranks and InfoMarks — without dragging
- * the full kernel into TypeScript.
+ * Single source of truth for: risk tiers, command classification,
+ * shell browsing guard, destructive guard, mutation grounding.
  *
  * [KV-CACHE SAFE] — pure functions; never mutate system prompts.
  */
@@ -11,11 +10,49 @@ import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "session.constitution" })
 
+// ============================================================================
+// ENUMS — single source, no string-union sub-modalities
+// ============================================================================
+
 /** Epistemic rank — aligned with InfoMarkLevel in the Python kernel. */
 export type InfoMark = "Exact" | "Inferred" | "Hypothetical" | "Guess" | "Unknown"
 
-/** Write / process risk — aligned with kernel Risk enum (subset). */
-export type Risk = "LOW" | "ELEVATED" | "DESTRUCTIVE"
+/** Write / process risk — aligned with kernel Risk enum (v6.0: +CRITICAL). */
+export type Risk = "LOW" | "ELEVATED" | "DESTRUCTIVE" | "CRITICAL"
+
+/** Command family for classification + blocking policy. */
+export const CommandFamily = {
+  /** Allowed — no block, no permission needed. */
+  ALLOWED: "ALLOWED",
+  /** Shell FS enumerator — HARD BLOCK (use list/glob/grep tools). */
+  FILE_ENUMERATOR: "FILE_ENUMERATOR",
+  /** File deletion / disk wipe — permission destructive-file. */
+  FILE_DESTRUCTIVE: "FILE_DESTRUCTIVE",
+  /** Database schema destruction — permission destructive-db. */
+  DB_DESTRUCTIVE: "DB_DESTRUCTIVE",
+  /** Git working-tree rewrite — HARD BLOCK. */
+  GIT_HISTORY_REWRITE: "GIT_HISTORY_REWRITE",
+  /** Git askable destructive (force-push, clean -f) — permission destructive-git. */
+  GIT_ASKABLE_DESTRUCTIVE: "GIT_ASKABLE_DESTRUCTIVE",
+  /** Fossil CLI mutate — HARD BLOCK. */
+  FOSSIL_MUTATE: "FOSSIL_MUTATE",
+  /** Elevated-risk operations (log, don't block). */
+  ELEVATED_GENERAL: "ELEVATED_GENERAL",
+} as const
+export type CommandFamily = (typeof CommandFamily)[keyof typeof CommandFamily]
+
+/** Independent permission buckets (do not share settings). */
+export const PermissionBucket = {
+  FILE: "destructive-file",
+  DB: "destructive-db",
+  GIT: "destructive-git",
+  FOSSIL: "destructive-fossil",
+} as const
+export type PermissionBucket = (typeof PermissionBucket)[keyof typeof PermissionBucket]
+
+// ============================================================================
+// INFO MARK — memory surfaces + ordering
+// ============================================================================
 
 export const INFO_MARK_ORDER: readonly InfoMark[] = [
   "Exact",
@@ -25,194 +62,192 @@ export const INFO_MARK_ORDER: readonly InfoMark[] = [
   "Unknown",
 ] as const
 
-/** Rank of memory surfaces for continuous compaction. */
 export const MEMORY_INFO_MARK = {
-  /** session-read with a concrete message ID */
   sessionRead: "Exact" as InfoMark,
-  /** algorithmic / model summary text */
   summary: "Inferred" as InfoMark,
-  /** message* recent fold without re-read */
   messageStarRecent: "Inferred" as InfoMark,
-  /** unaided model recall */
   unaided: "Guess" as InfoMark,
 } as const
 
-/**
- * Four independent permission buckets (do not share settings):
- *   destructive-file   — filesystem wipe (rm -rf, …)
- *   destructive-db     — drop table/database, …
- *   destructive-git    — git rewrite / force-push / clean -f / stash pop
- *   destructive-fossil — agent fossil CLI mutate (snapshot is runtime-only)
- *
- * Hard-blocked families never use the permission dialog (blocked: true) unless
- * OPENCODE_ALLOW_DESTRUCTIVE / bypass_constitution. Askable ones use the
- * matching permission key so policies never cross-contaminate.
- */
-export type DestructiveKind = "file" | "db" | "git" | "fossil"
+// ============================================================================
+// UNIFIED COMMAND CLASSIFICATION TABLE
+// ============================================================================
 
-export type DestructivePermission =
-  | "destructive-file"
-  | "destructive-db"
-  | "destructive-git"
-  | "destructive-fossil"
-
-export function destructivePermission(kind: DestructiveKind): DestructivePermission {
-  return `destructive-${kind}`
-}
-
-/** Git ops that rewrite working tree / HEAD — HARD BLOCK (not askable). */
-const GIT_HISTORY_REWRITE_PATTERNS: RegExp[] = [
-  /\bgit\s+checkout\b/i,
-  /\bgit\s+switch\b/i,
-  /\bgit\s+restore\b/i,
-  /\bgit\s+reset\s+--hard\b/i,
-  /\bgit\s+stash\s+pop\b/i,
-  /\bgit\s+stash\s+apply\b/i,
-  /\bgit\s+stash\s+drop\b/i,
-  /\bgit\s+stash\s+clear\b/i,
-  /\bgit\s+stash\s+branch\b/i,
-]
-
-/** Git DESTRUCTIVE that still go through permission destructive-git. */
-const GIT_ASKABLE_DESTRUCTIVE_PATTERNS: RegExp[] = [
-  /\bgit\s+push\b[^\n]*--force\b/i,
-  /\bgit\s+push\b[^\n]*-f\b/i,
-  /\bgit\s+clean\s+-[a-zA-Z]*f/i,
-]
-
-/** Agent fossil CLI mutate — HARD BLOCK (snapshot is runtime-only). */
-const FOSSIL_AGENT_MUTATE_PATTERNS: RegExp[] = [
-  /\bfossil(\.exe)?\s+commit\b/i,
-  /\bfossil(\.exe)?\s+ci\b/i,
-  /\bfossil(\.exe)?\s+add\b/i,
-  /\bfossil(\.exe)?\s+rm\b/i,
-  /\bfossil(\.exe)?\s+delete\b/i,
-  /\bfossil(\.exe)?\s+addremove\b/i,
-  /\bfossil(\.exe)?\s+checkout\b/i,
-  /\bfossil(\.exe)?\s+co\b/i,
-  /\bfossil(\.exe)?\s+update\b/i,
-  /\bfossil(\.exe)?\s+up\b/i,
-  /\bfossil(\.exe)?\s+merge\b/i,
-  /\bfossil(\.exe)?\s+undo\b/i,
-  /\bfossil(\.exe)?\s+revert\b/i,
-  /\bfossil(\.exe)?\s+close\b/i,
-  /\bfossil(\.exe)?\s+open\b/i,
-  /\bfossil(\.exe)?\s+push\b/i,
-  /\bfossil(\.exe)?\s+pull\b/i,
-  /\bfossil(\.exe)?\s+sync\b/i,
-  /\bfossil(\.exe)?\s+clean\b/i,
-]
-
-/** Filesystem / disk wipe — permission destructive-file. */
-const FILE_DESTRUCTIVE_PATTERNS: RegExp[] = [
-  /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\s+--force)/i,
-  /\brm\s+-rf\b/i,
-  /\bformat\s+[a-z]:/i,
-  /\bmkfs\b/i,
-  /\bdd\s+if=/i,
-  />\s*\/dev\/sd/i,
-  /\bRemove-Item\b[^\n]*-Recurse[^\n]*-Force/i,
-  /\bRemove-Item\b[^\n]*-Force[^\n]*-Recurse/i,
-]
-
-/** Database schema destruction — permission destructive-db (separate from files). */
-const DB_DESTRUCTIVE_PATTERNS: RegExp[] = [
-  /\bdrop\s+(table|database|schema|index|view)\b/i,
-  /\btruncate\s+table\b/i,
-  /\bdelete\s+from\b/i, // bulk delete; still gated — prefer app-level tools
-]
-
-const DESTRUCTIVE_PATTERNS: RegExp[] = [
-  ...FILE_DESTRUCTIVE_PATTERNS,
-  ...DB_DESTRUCTIVE_PATTERNS,
-  ...GIT_HISTORY_REWRITE_PATTERNS,
-  ...GIT_ASKABLE_DESTRUCTIVE_PATTERNS,
-  ...FOSSIL_AGENT_MUTATE_PATTERNS,
-]
-
-export function isGitHistoryRewrite(command: string): boolean {
-  return GIT_HISTORY_REWRITE_PATTERNS.some((re) => re.test(command.trim()))
-}
-
-export function isFossilAgentMutate(command: string): boolean {
-  return FOSSIL_AGENT_MUTATE_PATTERNS.some((re) => re.test(command.trim()))
-}
-
-export function isFileDestructive(command: string): boolean {
-  return FILE_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
-}
-
-export function isDbDestructive(command: string): boolean {
-  return DB_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
-}
-
-export function isGitAskableDestructive(command: string): boolean {
-  return GIT_ASKABLE_DESTRUCTIVE_PATTERNS.some((re) => re.test(command.trim()))
-}
-
-/** Map command → permission family (null if not DESTRUCTIVE). */
-export function classifyDestructiveKind(command: string): DestructiveKind | null {
-  const text = command.trim()
-  if (!text) return null
-  if (isFossilAgentMutate(text)) return "fossil"
-  if (isGitHistoryRewrite(text) || isGitAskableDestructive(text)) return "git"
-  if (isDbDestructive(text)) return "db"
-  if (isFileDestructive(text)) return "file"
-  if (DESTRUCTIVE_PATTERNS.some((re) => re.test(text))) return "file"
-  return null
-}
-
-const ELEVATED_PATTERNS: RegExp[] = [
-  /\bgit\s+push\b/i,
-  /\bgit\s+commit\b/i,
-  /\bnpm\s+publish\b/i,
-  /\bbun\s+publish\b/i,
-  /\bdocker\s+(rm|rmi|system\s+prune)\b/i,
-  /\b(chmod|chown)\b/i,
-  /\b(kubectl|helm)\s+delete\b/i,
-  /\bRemove-Item\b/i,
-  /\bdel\s+\/[sq]/i,
-  /\brmdir\b/i,
-]
-
-/** Opt-out: OPENCODE_ALLOW_DESTRUCTIVE=1|true|yes permits DESTRUCTIVE shell. */
-export function allowDestructiveCommands(): boolean {
-  const v = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
-  if (v && (v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes")) return true
-  // Config-driven bypass via bypass_constitution in config.json
-  const b = process.env["OPENCODE_BYPASS_CONSTITUTION"]
-  if (b && (b === "1" || b.toLowerCase() === "true" || b.toLowerCase() === "yes")) return true
-  return false
-}
-
-/**
- * Classify a shell command's risk for logging / hard gates.
- * Does not replace the permission system — constitution layer on top.
- */
-export function classifyCommandRisk(command: string): Risk {
-  const text = command.trim()
-  if (!text) return "LOW"
-  if (DESTRUCTIVE_PATTERNS.some((re) => re.test(text))) return "DESTRUCTIVE"
-  if (ELEVATED_PATTERNS.some((re) => re.test(text))) return "ELEVATED"
-  return "LOW"
-}
-
-export type CommandGuardResult = {
+type CommandEntry = {
+  family: CommandFamily
   risk: Risk
-  /** Which independent policy bucket (file | git | fossil). */
-  kind?: DestructiveKind
-  /** Permission key to ask (destructive-file|git|fossil) when needsDestructivePermission. */
-  permission?: DestructivePermission
-  /**
-   * When true, caller must obtain user approval via permission
-   * `destructive-file` | `destructive-git` | `destructive-fossil`
-   * (not bash:*, so shell wildcards cannot auto-pass).
-   */
-  needsDestructivePermission: boolean
-  /** Hard block without permission UI. */
-  blocked: boolean
-  message?: string
+  hardBlock: boolean
+  permission?: PermissionBucket
+  patterns: RegExp[]
 }
+
+/** Single classification table — one entry per command family. */
+const COMMAND_TABLE: CommandEntry[] = [
+  // ── Tier 1: pure FS enumerators — HARD BLOCK (list/glob/grep exist) ──
+  {
+    family: CommandFamily.FILE_ENUMERATOR,
+    risk: "LOW",
+    hardBlock: true,
+    patterns: [
+      // Directory listing (list tool)
+      /^(?:(?:\/usr)?\/bin\/)?(?:ls|dir|tree)(?:\.exe)?(?:\s|$)/i,
+      /^(?:Get-ChildItem|gci)\b/i,
+      /^busybox\s+(?:ls|find)\b/i,
+      // Recursive path discovery (glob tool)
+      /^(?:find|fd|fdfind)(?:\.exe)?(?:\s|$)/i,
+      /^rg(?:\.exe)?\b(?=[^\n]*\s--files\b)/i,
+      /^(?:Get-Item|Resolve-Path)\b[^\n]*\*/i,
+      /^(?:echo|printf)\s+[^\n]*\*/i,
+      /^for\s+\w+\s+in\s+[^\n]*\*/i,
+      /^for\s+\/r\b/i,
+      /^for\s+%%?\w+\s+in\s+\(\*\)/i,
+      /^where(?:\.exe)?\s+\/r\b/i,
+      // git ls-files as list/glob substitute
+      /^git(?:\.exe)?\s+(?:(?:-C\s+\S+|--no-pager|-c\s+\S+|--work-tree=\S+|--git-dir=\S+)\s+)*ls-files\b/i,
+      // Shell redirection for file browsing
+      /^(?:type|cat|more)(?:\.exe)?(?:\s|$)/i,
+      /^(?:findstr)(?:\.exe)?(?:\s|$)/i,
+    ],
+  },
+  // ── File destruction (rm -rf, format, dd, Remove-Item -Recurse -Force) ──
+  {
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
+    permission: PermissionBucket.FILE,
+    patterns: [
+      /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\s+--force)/i,
+      /\brm\s+-rf\b/i,
+      /\bformat\s+[a-z]:/i,
+      /\bmkfs\b/i,
+      /\bdd\s+if=/i,
+      />\s*\/dev\/sd/i,
+      /\bRemove-Item\b[^\n]*-Recurse[^\n]*-Force/i,
+      /\bRemove-Item\b[^\n]*-Force[^\n]*-Recurse/i,
+    ],
+  },
+  // ── Database destruction ──
+  {
+    family: CommandFamily.DB_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
+    permission: PermissionBucket.DB,
+    patterns: [
+      /\bdrop\s+(table|database|schema|index|view)\b/i,
+      /\btruncate\s+table\b/i,
+      /\bdelete\s+from\b/i,
+    ],
+  },
+  // ── Git working-tree rewrite — HARD BLOCK ──
+  {
+    family: CommandFamily.GIT_HISTORY_REWRITE,
+    risk: "DESTRUCTIVE",
+    hardBlock: true,
+    permission: PermissionBucket.GIT,
+    patterns: [
+      /\bgit\s+checkout\b/i,
+      /\bgit\s+switch\b/i,
+      /\bgit\s+restore\b/i,
+      /\bgit\s+reset\s+--hard\b/i,
+      /\bgit\s+stash\s+pop\b/i,
+      /\bgit\s+stash\s+apply\b/i,
+      /\bgit\s+stash\s+drop\b/i,
+      /\bgit\s+stash\s+clear\b/i,
+      /\bgit\s+stash\s+branch\b/i,
+    ],
+  },
+  // ── Git askable destructive (force-push, clean -f) ──
+  {
+    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
+    permission: PermissionBucket.GIT,
+    patterns: [
+      /\bgit\s+push\b[^\n]*--force\b/i,
+      /\bgit\s+push\b[^\n]*-f\b/i,
+      /\bgit\s+clean\s+-[a-zA-Z]*f/i,
+    ],
+  },
+  // ── Fossil CLI mutate — HARD BLOCK (snapshot is runtime-only) ──
+  {
+    family: CommandFamily.FOSSIL_MUTATE,
+    risk: "DESTRUCTIVE",
+    hardBlock: true,
+    permission: PermissionBucket.FOSSIL,
+    patterns: [
+      /\bfossil(?:\.exe)?\s+commit\b/i,
+      /\bfossil(?:\.exe)?\s+ci\b/i,
+      /\bfossil(?:\.exe)?\s+add\b/i,
+      /\bfossil(?:\.exe)?\s+rm\b/i,
+      /\bfossil(?:\.exe)?\s+delete\b/i,
+      /\bfossil(?:\.exe)?\s+addremove\b/i,
+      /\bfossil(?:\.exe)?\s+checkout\b/i,
+      /\bfossil(?:\.exe)?\s+co\b/i,
+      /\bfossil(?:\.exe)?\s+update\b/i,
+      /\bfossil(?:\.exe)?\s+up\b/i,
+      /\bfossil(?:\.exe)?\s+merge\b/i,
+      /\bfossil(?:\.exe)?\s+undo\b/i,
+      /\bfossil(?:\.exe)?\s+revert\b/i,
+      /\bfossil(?:\.exe)?\s+close\b/i,
+      /\bfossil(?:\.exe)?\s+open\b/i,
+      /\bfossil(?:\.exe)?\s+push\b/i,
+      /\bfossil(?:\.exe)?\s+pull\b/i,
+      /\bfossil(?:\.exe)?\s+sync\b/i,
+      /\bfossil(?:\.exe)?\s+clean\b/i,
+    ],
+  },
+  // ── Elevated-risk operations (log, don't block) ──
+  {
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    patterns: [
+      /\bgit\s+push\b/i,
+      /\bgit\s+commit\b/i,
+      /\bnpm\s+publish\b/i,
+      /\bbun\s+publish\b/i,
+      /\bdocker\s+(rm|rmi|system\s+prune)\b/i,
+      /\b(chmod|chown)\b/i,
+      /\b(kubectl|helm)\s+delete\b/i,
+      /\bRemove-Item\b/i,
+      /\bdel\s+\/[sq]/i,
+      /\brmdir\b/i,
+    ],
+  },
+]
+
+// ============================================================================
+// CLASSIFICATION — single entry point
+// ============================================================================
+
+export type ClassificationResult = {
+  family: CommandFamily
+  risk: Risk
+  hardBlock: boolean
+  permission?: PermissionBucket
+}
+
+/** Classify a raw command string → family + risk + block policy (unified). */
+export function classifyCommand(command: string): ClassificationResult {
+  const text = command.trim()
+  if (!text) return { family: CommandFamily.ALLOWED, risk: "LOW", hardBlock: false }
+
+  for (const entry of COMMAND_TABLE) {
+    if (entry.patterns.some((re) => re.test(text))) {
+      return {
+        family: entry.family,
+        risk: entry.risk,
+        hardBlock: entry.hardBlock,
+        permission: entry.permission,
+      }
+    }
+  }
+  return { family: CommandFamily.ALLOWED, risk: "LOW", hardBlock: false }
+}
+
+// ============================================================================
+// SHELL SEGMENTATION — unwrap wrappers + split pipelines
+// ============================================================================
 
 function unquote(command: string) {
   const text = command.trim()
@@ -290,101 +325,76 @@ function shellSegments(command: string) {
   return segments.map(unwrapShellCommand).filter(Boolean)
 }
 
-/**
- * Coverage-first shell browsing gate.
- *
- * Principle: hard-block only when list / glob / grep can answer the same question.
- *   - list  → directory trees (ls, dir, tree, Get-ChildItem, …)
- *   - glob  → path-pattern discovery (find, fd, rg --files, shell globs, …)
- *   - grep  → content search (rg without --files stays allowed)
- * If tools cannot answer (VCS membership, PATH lookup, git status-ish), do NOT block —
- * extend list/glob first if we want that capability later.
- *
- * Tier 1 — pure FS enumerators (the real problem; 1:1 tool coverage): always block.
- * Tier 2 — dual-use (git ls-files): block only list/glob equivalents; allow VCS oracles.
- */
+// ============================================================================
+// GUARDS — shell browsing + destructive + VCS
+// ============================================================================
 
-/** Tier 2: git ls-files as list/glob substitute only. */
-function isGitLsFilesEnumeration(command: string) {
-  const match = command.match(
-    /^git(?:\.exe)?\s+(?:(?:-C\s+\S+|--no-pager|-c\s+\S+|--work-tree=\S+|--git-dir=\S+)\s+)*ls-files\b([\s\S]*)$/i,
-  )
-  if (!match) return false
-
-  const raw = match[1] ?? ""
-  // Flag tokens: do not use \b before `-` (space+`-` is not a word boundary).
-  // Membership / tracked? — list/glob cannot answer. Allow.
-  if (/(?:^|\s)--error-unmatch(?:\s|$)/i.test(raw)) return false
-  // VCS status slices (modified/deleted/unmerged) — not WC browsing; git status sibling. Allow.
-  if (/(?:^|\s)(?:-m|--modified|-d|--deleted|-u|--unmerged)(?:\s|$)/i.test(raw)) return false
-
-  const rest = raw.replace(/(?:^|\s)(?:2>&1|1>&2|&>|[12]?>>?)\s*\S*/g, " ").trim()
-  if (!rest) return true // bare dump ≈ glob **/*
-
-  const pathspecs: string[] = []
-  let endedOptions = false
-  for (const token of rest.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? []) {
-    const bare = token.replace(/^['"]|['"]$/g, "")
-    if (!endedOptions) {
-      if (bare === "--") {
-        endedOptions = true
-        continue
-      }
-      if (bare.startsWith("-")) continue
-    }
-    pathspecs.push(bare)
-  }
-
-  // No pathspecs: full index dump or untracked dump (--others) ≈ list/glob. Block.
-  if (pathspecs.length === 0) return true
-  // Only glob pathspecs → use glob tool. Block.
-  if (pathspecs.every((p) => /[*?\[]/.test(p))) return true
-  // Concrete path(s) → index lookup for known paths. Allow.
-  return false
-}
-
-/** Tier 1: pure filesystem enumerators — always block. */
-function isPureFilesystemEnumerator(command: string) {
-  // Directory listing (list tool)
-  if (/^(?:(?:\/usr)?\/bin\/)?(?:ls|dir|tree)(?:\.exe)?(?:\s|$)/i.test(command)) return true
-  if (/^(?:Get-ChildItem|gci|Microsoft\.PowerShell\.Management\\Get-ChildItem)\b/i.test(command)) return true
-  if (/^busybox\s+(?:ls|find)\b/i.test(command)) return true
-  // Recursive path discovery (glob tool)
-  if (/^(?:find|fd|fdfind)(?:\.exe)?(?:\s|$)/i.test(command)) return true
-  if (/^rg(?:\.exe)?\b(?=[^\n]*\s--files\b)/i.test(command)) return true
-  if (/^(?:Get-Item|Resolve-Path)\b[^\n]*\*/i.test(command)) return true
-  if (/^(?:echo|printf)\s+[^\n]*\*/i.test(command)) return true
-  if (/^for\s+\w+\s+in\s+[^\n]*\*/i.test(command)) return true
-  if (/^for\s+\/r\b/i.test(command)) return true
-  if (/^for\s+%%?\w+\s+in\s+\(\*\)/i.test(command)) return true
-  // Windows recursive where = file enum (bare where.exe PATH lookup is allowed)
-  if (/^where(?:\.exe)?\s+\/r\b/i.test(command)) return true
-  return false
-}
-
-function isDirectoryBrowsingSegment(command: string) {
-  if (isPureFilesystemEnumerator(command)) return true
-  if (isGitLsFilesEnumeration(command)) return true
-  return false
-}
-
-/** True when shell is used for directory/file listing instead of list/glob/grep tools. */
+/** True when any pipeline segment is a file enumerator. */
 export function isShellDirectoryBrowsing(command: string) {
-  return shellSegments(command).some(isDirectoryBrowsingSegment)
+  return shellSegments(command).some((seg) => {
+    const c = classifyCommand(seg)
+    return c.family === CommandFamily.FILE_ENUMERATOR
+  })
+}
+
+export function isGitHistoryRewrite(command: string): boolean {
+  return classifyCommand(command).family === CommandFamily.GIT_HISTORY_REWRITE
+}
+
+export function isFossilAgentMutate(command: string): boolean {
+  return classifyCommand(command).family === CommandFamily.FOSSIL_MUTATE
+}
+
+export function isFileDestructive(command: string): boolean {
+  return classifyCommand(command).family === CommandFamily.FILE_DESTRUCTIVE
+}
+
+export function isDbDestructive(command: string): boolean {
+  return classifyCommand(command).family === CommandFamily.DB_DESTRUCTIVE
+}
+
+export function isGitAskableDestructive(command: string): boolean {
+  return classifyCommand(command).family === CommandFamily.GIT_ASKABLE_DESTRUCTIVE
+}
+
+/** Opt-out: OPENCODE_ALLOW_DESTRUCTIVE=1|true|yes permits DESTRUCTIVE shell. */
+export function allowDestructiveCommands(): boolean {
+  const v = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+  if (v && (v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes")) return true
+  const b = process.env["OPENCODE_BYPASS_CONSTITUTION"]
+  if (b && (b === "1" || b.toLowerCase() === "true" || b.toLowerCase() === "yes")) return true
+  return false
+}
+
+/** Map family → permission bucket. */
+export function familyPermission(family: CommandFamily): PermissionBucket | undefined {
+  for (const entry of COMMAND_TABLE) {
+    if (entry.family === family) return entry.permission
+  }
+  return undefined
 }
 
 /**
  * Constitution preflight for shell.
- * - shell FS enumeration (find/ls/dir/fd/rg --files/…): HARD BLOCK → list/glob/grep
- * - git rewrite / stash pop: HARD BLOCK unless env bypass
- * - fossil mutate CLI: HARD BLOCK unless env bypass
- * - askable: permission destructive-file | destructive-db | destructive-git
- * - ELEVATED: log only
+ * - FILE_ENUMERATOR (ls/dir/find/fd/rg --files/…): HARD BLOCK → use list/glob/grep
+ * - GIT_HISTORY_REWRITE / FOSSIL_MUTATE: HARD BLOCK unless env bypass
+ * - FILE_DESTRUCTIVE / DB_DESTRUCTIVE / GIT_ASKABLE_DESTRUCTIVE: permission required
+ * - ELEVATED_GENERAL: log only
  */
+export type CommandGuardResult = {
+  risk: Risk
+  family: CommandFamily
+  permission?: PermissionBucket
+  needsDestructivePermission: boolean
+  blocked: boolean
+  message?: string
+}
+
 export function guardCommand(
   command: string,
   meta?: { sessionID?: string; agent?: string },
 ): CommandGuardResult {
+  // Check file enumeration first (any segment)
   if (isShellDirectoryBrowsing(command)) {
     log.warn("constitution.directory_browsing_blocked", {
       command: command.slice(0, 200),
@@ -393,6 +403,7 @@ export function guardCommand(
     })
     return {
       risk: "LOW",
+      family: CommandFamily.FILE_ENUMERATOR,
       needsDestructivePermission: false,
       blocked: true,
       message:
@@ -402,38 +413,38 @@ export function guardCommand(
     }
   }
 
-  const risk = classifyCommandRisk(command)
-  if (risk === "LOW") {
-    return { risk, needsDestructivePermission: false, blocked: false }
+  const classification = classifyCommand(command)
+  const allow = allowDestructiveCommands()
+
+  if (classification.risk === "LOW" || classification.family === CommandFamily.ALLOWED) {
+    return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
   }
 
-  const kind = classifyDestructiveKind(command) ?? undefined
-  const allow = allowDestructiveCommands()
   log.warn("constitution.command_risk", {
-    risk,
-    kind,
+    risk: classification.risk,
+    family: classification.family,
     command: command.slice(0, 200),
     sessionID: meta?.sessionID,
     agent: meta?.agent,
     allowDestructive: allow,
-    gitHistoryRewrite: isGitHistoryRewrite(command),
   })
 
-  if (risk === "ELEVATED") {
-    return { risk, kind, needsDestructivePermission: false, blocked: false }
+  // ELEVATED — log, don't block
+  if (classification.risk === "ELEVATED") {
+    return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
   }
 
-  // Hard block: git rewrite family
-  if (isGitHistoryRewrite(command) && !allow) {
+  // Hard block: git rewrite
+  if (classification.family === CommandFamily.GIT_HISTORY_REWRITE && !allow) {
     return {
       risk: "DESTRUCTIVE",
-      kind: "git",
-      permission: "destructive-git",
+      family: classification.family,
+      permission: PermissionBucket.GIT,
       needsDestructivePermission: false,
       blocked: true,
       message:
         "constitution: BLOCKED git checkout/switch/restore/reset --hard/stash pop|apply|drop|clear " +
-        "(permission group: destructive-git). " +
+        "(permission: destructive-git). " +
         "Do NOT use git to undo or re-layer WIP — that can wipe uncommitted work. " +
         "Recover with: edit-tool .bak or Fossil snapshot restore. " +
         "Only set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution if you truly intend VCS rewrite.",
@@ -441,26 +452,26 @@ export function guardCommand(
   }
 
   // Hard block: fossil mutate
-  if (isFossilAgentMutate(command) && !allow) {
+  if (classification.family === CommandFamily.FOSSIL_MUTATE && !allow) {
     return {
       risk: "DESTRUCTIVE",
-      kind: "fossil",
-      permission: "destructive-fossil",
+      family: classification.family,
+      permission: PermissionBucket.FOSSIL,
       needsDestructivePermission: false,
       blocked: true,
       message:
-        "constitution: BLOCKED fossil CLI mutate (permission group: destructive-fossil). " +
+        "constitution: BLOCKED fossil CLI mutate (permission: destructive-fossil). " +
         "Fossil is automatic session undo/snapshot — not project VCS. " +
         "Use git for project history. Override only OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution.",
     }
   }
 
-  if (risk === "DESTRUCTIVE" && !allow) {
-    const k = kind ?? "file"
-    const perm = destructivePermission(k)
+  // Permission-required destructive
+  if (classification.risk === "DESTRUCTIVE" && !allow) {
+    const perm = classification.permission ?? PermissionBucket.FILE
     return {
-      risk,
-      kind: k,
+      risk: classification.risk,
+      family: classification.family,
       permission: perm,
       needsDestructivePermission: true,
       blocked: false,
@@ -470,12 +481,27 @@ export function guardCommand(
         "Or set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution.",
     }
   }
-  return { risk, kind, needsDestructivePermission: false, blocked: false }
+
+  return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
 }
 
-/** @deprecated prefer guardCommand */
-export function noteCommandRisk(command: string, meta?: { sessionID?: string; agent?: string }): Risk {
-  return guardCommand(command, meta).risk
+// ============================================================================
+// MUTATION TOOLS + GROUNDING GATE
+// ============================================================================
+
+/** Tools that mutate filesystem — hard-gated when premises ungrounded. */
+export const MUTATION_TOOLS = new Set([
+  "write",
+  "edit",
+  "multiedit",
+  "apply_patch",
+  "applypatch",
+])
+
+export function isMutationTool(tool: string): boolean {
+  const t = tool.toLowerCase().replace(/[^a-z0-9]/g, "")
+  if (t === "write" || t === "edit" || t === "multiedit" || t === "applypatch") return true
+  return MUTATION_TOOLS.has(tool)
 }
 
 /** File mutation is always at least ELEVATED (persistent write). */
@@ -494,40 +520,9 @@ export function noteMutationRisk(input: {
   return risk
 }
 
-/** Banner for Exact archive retrieval (session-read). */
-export function sessionReadExactBanner(sessionID: string): string {
-  return (
-    `## Session: ${sessionID}\n` +
-    `info_mark: Exact — ground-truth archive (not a summary).\n` +
-    `Prefer these IDs over Inferred compaction text when resolving conflicts.\n`
-  )
-}
-
-/** True if left is at least as certain as right (Exact beats Guess). */
-export function infoMarkAtLeast(left: InfoMark, right: InfoMark): boolean {
-  return INFO_MARK_ORDER.indexOf(left) <= INFO_MARK_ORDER.indexOf(right)
-}
-
-/** Grounding set G: only Exact + Inferred (fresh) may anchor plans / MODIFY. */
-export function isGroundingMark(mark: InfoMark): boolean {
-  return mark === "Exact" || mark === "Inferred"
-}
-
-/** Parse free-form status tokens into InfoMark (unknown → Unknown). */
-export function parseInfoMark(raw: string | undefined | null): InfoMark {
-  if (!raw) return "Unknown"
-  const t = raw.trim().toLowerCase()
-  if (t === "exact") return "Exact"
-  if (t === "inferred") return "Inferred"
-  if (t === "hypothetical") return "Hypothetical"
-  if (t === "guess") return "Guess"
-  if (t === "unknown") return "Unknown"
-  return "Unknown"
-}
-
-// ---------------------------------------------------------------------------
-// Claim ledger — system-owned grounding (model cannot self-mint Exact)
-// ---------------------------------------------------------------------------
+// ============================================================================
+// CLAIM LEDGER — system-owned grounding
+// ============================================================================
 
 export type ClaimRecord = {
   id: string
@@ -536,26 +531,20 @@ export type ClaimRecord = {
   reason?: string
   evidence?: string
   falsifier?: string
-  /** System stamp required for Exact/Inferred promotion. */
   stamped: boolean
 }
 
 export type ClaimLedger = {
   claims: Map<string, ClaimRecord>
-  /** Claim ids that may drive plan/MODIFY — must all be in G. */
   premises: string[]
-  /** Hypothetical / open — must not drive MODIFY. */
   openQuestions: string[]
-  /** True once a claim_ledger block was seen this session. */
   active: boolean
   updatedAt: number
 }
 
 type SessionEpistemic = {
   ledger: ClaimLedger
-  /** claim_id → stamp meta (oracle PASS, session-read, …) */
   stamps: Map<string, { source: string; at: number }>
-  /** Coarse floor for tools that do not use a ledger yet. */
   evidenceFloor: InfoMark
 }
 
@@ -580,7 +569,6 @@ function epistemic(sessionID: string): SessionEpistemic {
   return s
 }
 
-/** Test / session teardown helper. */
 export function resetEpistemicState(sessionID?: string) {
   if (sessionID) sessionEpistemic.delete(sessionID)
   else sessionEpistemic.clear()
@@ -601,16 +589,11 @@ export function getEvidenceFloor(sessionID: string): InfoMark {
   return epistemic(sessionID).evidenceFloor
 }
 
-/**
- * Raise (never lower past Guess→Inferred→Exact) the coarse session floor.
- * Prefer per-claim stamps for decisions; floor is a fallback for nudges.
- */
 export function raiseEvidenceFloor(sessionID: string, mark: InfoMark) {
   const s = epistemic(sessionID)
   if (infoMarkAtLeast(mark, s.evidenceFloor)) s.evidenceFloor = mark
 }
 
-/** System stamp → claim may legally hold Exact/Inferred (scoped). */
 export function stampClaim(
   sessionID: string,
   claimID: string,
@@ -643,7 +626,6 @@ export function hasStamp(sessionID: string, claimID: string): boolean {
   return epistemic(sessionID).stamps.has(claimID.trim())
 }
 
-/** Premises ⊆ G (Exact|Inferred). Missing claim id = ungrounded. */
 export function premisesGrounded(sessionID: string): {
   ok: boolean
   ungrounded: { id: string; status: InfoMark | "missing" }[]
@@ -662,7 +644,6 @@ export function premisesGrounded(sessionID: string): {
   return { ok: ungrounded.length === 0, ungrounded }
 }
 
-/** Floor = worst active premise status, else coarse evidenceFloor. */
 export function decisionFloor(sessionID: string): InfoMark {
   const s = epistemic(sessionID)
   const led = s.ledger
@@ -678,26 +659,6 @@ export function decisionFloor(sessionID: string): InfoMark {
   return s.evidenceFloor
 }
 
-/** Tools that mutate filesystem — hard-gated when premises ungrounded. */
-export const MUTATION_TOOLS = new Set([
-  "write",
-  "edit",
-  "multiedit",
-  "apply_patch",
-  "applypatch",
-])
-
-export function isMutationTool(tool: string): boolean {
-  const t = tool.toLowerCase().replace(/[^a-z0-9]/g, "")
-  if (t === "write" || t === "edit" || t === "multiedit" || t === "applypatch") return true
-  return MUTATION_TOOLS.has(tool)
-}
-
-/**
- * Hard gate: MODIFY denied when an active claim_ledger has premises outside G.
- * Soft path (no ledger): allow, rely on epistemicNudge.
- * Bypass: OPENCODE_BYPASS_GROUNDING=1 or OPENCODE_ALLOW_DESTRUCTIVE=1
- */
 export function guardMutationGrounding(input: {
   sessionID: string
   tool: string
@@ -724,11 +685,6 @@ export function guardMutationGrounding(input: {
   return { blocked: true, message }
 }
 
-/**
- * Ingest claim_ledger + oracle_stamp blocks from assistant prose.
- * Model may set Guess|Hypothetical|Unknown freely.
- * Exact|Inferred only stick when a system stamp exists (or stamp is issued in same text).
- */
 export function ingestAssistantText(sessionID: string, text: string): {
   ledgerUpdated: boolean
   stampsApplied: string[]
@@ -738,7 +694,6 @@ export function ingestAssistantText(sessionID: string, text: string): {
   const demoted: string[] = []
   if (!text || text.length < 8) return { ledgerUpdated: false, stampsApplied, demoted }
 
-  // oracle_stamp: claim_id: C1 / result: PASS  (YAML-ish or inline)
   for (const m of text.matchAll(
     /oracle_stamp\s*:\s*[\s\S]*?claim_id\s*:\s*["']?([A-Za-z0-9_.-]+)["']?[\s\S]*?result\s*:\s*["']?PASS["']?/gi,
   )) {
@@ -746,7 +701,6 @@ export function ingestAssistantText(sessionID: string, text: string): {
     stampClaim(sessionID, id, "oracle_stamp:PASS", "Exact")
     stampsApplied.push(id)
   }
-  // compact: oracle_stamp: C1 PASS
   for (const m of text.matchAll(/oracle_stamp\s*:\s*([A-Za-z0-9_.-]+)\s+PASS\b/gi)) {
     stampClaim(sessionID, m[1], "oracle_stamp:PASS", "Exact")
     stampsApplied.push(m[1])
@@ -767,7 +721,6 @@ export function ingestAssistantText(sessionID: string, text: string): {
   for (const raw of parsed.claims) {
     let status = parseInfoMark(raw.status)
     let stamped = s.stamps.has(raw.id) || hasStamp(sessionID, raw.id)
-    // Self-promotion ban: Exact/Inferred without stamp → Hypothetical
     if (isGroundingMark(status) && !stamped) {
       demoted.push(raw.id)
       status = "Hypothetical"
@@ -775,7 +728,6 @@ export function ingestAssistantText(sessionID: string, text: string): {
       log.debug("constitution.self_exact_rejected", { sessionID, claimID: raw.id })
     }
     if (stamped && s.stamps.has(raw.id)) {
-      // stamp wins: keep at least Exact
       const stampedStatus = s.ledger.claims.get(raw.id)?.status
       if (stampedStatus && isGroundingMark(stampedStatus)) status = stampedStatus
       else if (!isGroundingMark(status)) status = "Exact"
@@ -791,7 +743,6 @@ export function ingestAssistantText(sessionID: string, text: string): {
     })
   }
 
-  // Preserve prior stamped claims not re-listed
   for (const [id, c] of s.ledger.claims) {
     if (!next.claims.has(id) && c.stamped) next.claims.set(id, c)
   }
@@ -809,10 +760,8 @@ export function ingestAssistantText(sessionID: string, text: string): {
 }
 
 function extractClaimLedgerBlock(text: string): string | undefined {
-  // fenced ```yaml ... claim_ledger
   const fence = text.match(/```(?:yaml|yml)?\s*\n([\s\S]*?claim_ledger\s*:[\s\S]*?)```/i)
   if (fence?.[1]) return fence[1]
-  // bare claim_ledger: ... until blank line x2 or next top heading
   const idx = text.search(/claim_ledger\s*:/i)
   if (idx < 0) return undefined
   const slice = text.slice(idx)
@@ -841,7 +790,6 @@ function parseClaimLedgerYaml(block: string): {
     falsifier?: string
   }[] = []
 
-  // Per-claim blocks: - id: C1
   const claimChunks = block.split(/\n\s*-\s+id\s*:/i).slice(1)
   for (const chunk of claimChunks) {
     const idM = chunk.match(/^\s*["']?([A-Za-z0-9_.-]+)["']?/)
@@ -862,7 +810,6 @@ function parseClaimLedgerYaml(block: string): {
   }
 
   const listField = (name: string): string[] => {
-    // premises_for_plan: [C1, C2] or premises: [C1]
     const m = block.match(new RegExp(`${name}\\s*:\\s*\\[([^\\]]*)\\]`, "i"))
     if (!m) return []
     return m[1]
@@ -882,7 +829,37 @@ function parseClaimLedgerYaml(block: string): {
   return { claims, premises, openQuestions }
 }
 
-/** Map tool name → floor upgrade (scoped evidence sources). */
+// ============================================================================
+// UTILITY HELPERS
+// ============================================================================
+
+export function infoMarkAtLeast(left: InfoMark, right: InfoMark): boolean {
+  return INFO_MARK_ORDER.indexOf(left) <= INFO_MARK_ORDER.indexOf(right)
+}
+
+export function isGroundingMark(mark: InfoMark): boolean {
+  return mark === "Exact" || mark === "Inferred"
+}
+
+export function parseInfoMark(raw: string | undefined | null): InfoMark {
+  if (!raw) return "Unknown"
+  const t = raw.trim().toLowerCase()
+  if (t === "exact") return "Exact"
+  if (t === "inferred") return "Inferred"
+  if (t === "hypothetical") return "Hypothetical"
+  if (t === "guess") return "Guess"
+  if (t === "unknown") return "Unknown"
+  return "Unknown"
+}
+
+export function sessionReadExactBanner(sessionID: string): string {
+  return (
+    `## Session: ${sessionID}\n` +
+    `info_mark: Exact — ground-truth archive (not a summary).\n` +
+    `Prefer these IDs over Inferred compaction text when resolving conflicts.\n`
+  )
+}
+
 export function evidenceUpgradeForTool(toolName: string): InfoMark | undefined {
   const t = toolName.toLowerCase().replace(/[^a-z0-9]/g, "")
   if (t === "sessionread") return "Exact"
@@ -891,16 +868,13 @@ export function evidenceUpgradeForTool(toolName: string): InfoMark | undefined {
   return undefined
 }
 
-/** Epistemic nudge: advisory when floor not Exact (mutations / destructive). */
 export function epistemicNudge(input: {
   tool: string
   evidenceFloor: InfoMark
   command?: string
   sessionID?: string
 }): string | undefined {
-  // Use decision floor (worst premise) when session ledger active; else turn floor.
   const effective = input.sessionID ? decisionFloor(input.sessionID) : input.evidenceFloor
-  // If decision floor is Exact but turn floor is worse, still honor turn floor for nudge.
   const floor =
     infoMarkAtLeast(effective, input.evidenceFloor) ? effective : input.evidenceFloor
 
@@ -908,7 +882,7 @@ export function epistemicNudge(input: {
 
   const isMutation = isMutationTool(input.tool)
   const isDestructiveCmd = input.command
-    ? classifyCommandRisk(input.command) === "DESTRUCTIVE"
+    ? classifyCommand(input.command).risk === "DESTRUCTIVE"
     : false
   if (!isMutation && !isDestructiveCmd) return undefined
 
@@ -923,6 +897,41 @@ export function epistemicNudge(input: {
     `Only Exact|Inferred (system-stamped) may anchor MODIFY. ` +
     `session-read / oracle_stamp / direct read for Exact verification.]`
   )
+}
+
+// ============================================================================
+// DEPRECATED — prefer guardCommand
+// ============================================================================
+
+/** @deprecated prefer guardCommand */
+export function classifyCommandRisk(command: string): Risk {
+  return classifyCommand(command).risk
+}
+
+/** @deprecated prefer guardCommand */
+export function classifyDestructiveKind(command: string): "file" | "db" | "git" | "fossil" | null {
+  const c = classifyCommand(command)
+  if (c.family === CommandFamily.FILE_DESTRUCTIVE) return "file"
+  if (c.family === CommandFamily.DB_DESTRUCTIVE) return "db"
+  if (c.family === CommandFamily.GIT_HISTORY_REWRITE || c.family === CommandFamily.GIT_ASKABLE_DESTRUCTIVE) return "git"
+  if (c.family === CommandFamily.FOSSIL_MUTATE) return "fossil"
+  return null
+}
+
+/** @deprecated prefer guardCommand */
+export function destructivePermission(kind: "file" | "db" | "git" | "fossil"): string {
+  const map: Record<string, string> = {
+    file: PermissionBucket.FILE,
+    db: PermissionBucket.DB,
+    git: PermissionBucket.GIT,
+    fossil: PermissionBucket.FOSSIL,
+  }
+  return map[kind] ?? PermissionBucket.FILE
+}
+
+/** @deprecated prefer guardCommand */
+export function noteCommandRisk(command: string, meta?: { sessionID?: string; agent?: string }): Risk {
+  return guardCommand(command, meta).risk
 }
 
 export * as Constitution from "./constitution"

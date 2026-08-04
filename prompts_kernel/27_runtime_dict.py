@@ -13,7 +13,7 @@ PROMPT_ABI = MappingProxyType({
     # ExecutionEnvelope, inference_stamp, intent router, orthogonality_score,
     # capability principals, canonical serialization, stamped oracle ABI,
     # task-store transition API, and envelope attestation.
-    "kernel_max_bytes": 56_000,
+    "kernel_max_bytes": 59_000,
     # Soft budget for the three-surface stable identity slot (bytes).
     # Algorithm Card + Prompt Kernel + Reasoning Protocol are loaded into
     # one stable identity slot. CI warns if exceeded; kernel_max_bytes is the hard gate.
@@ -51,7 +51,8 @@ RUNTIME_RULES = MappingProxyType({
     "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
     "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
     "ADID_FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
-    "ADID_OPS": "prefer product tools (edit/read/codegraph/jobs/oracles); long work via product job runners; never embed external framework CLI cookbooks in SPECS (see policy.adid_ops)",
+    "ADID_OPS": "ALWAYS use product tools for file operations — NEVER shell for file listing, reading, searching, or editing. list/glob/read tools replace dir/ls/tree; edit/write replace shell redirection; grep replaces findstr/rg. Shell (bash/cmd/cmd_runner) is ONLY for: build commands, test runners, package managers, git read-only operations, and other tools with no product equivalent. If a product tool exists for the operation, the shell equivalent is FORBIDDEN. Long work via product job runners (bash background + joboutput); never embed external framework CLI cookbooks in SPECS (see policy.adid_ops). See CONSTITUTION_BLOCKS for the complete list of runtime-enforced shell blocks.",
+    "CONSTITUTION_BLOCKS": "Runtime constitution HARD-BLOCKS these shell operations — do NOT attempt them, they will fail: (1) directory/file enumeration: ls, dir, tree, find, fd, rg --files, Get-ChildItem, busybox ls/find, for loops with globs, where /r — use list/glob/grep tools instead; (2) git history rewrite: checkout, switch, restore, reset --hard, stash pop/apply/drop/clear/branch — use edit-tool .bak or Fossil snapshot; (3) fossil CLI mutate: commit, add, rm, checkout, update, merge, undo, revert, push, pull, sync, clean — Fossil is automatic session undo, not project VCS; (4) destructive filesystem: rm -rf, format, mkfs, dd, Remove-Item -Recurse -Force — permission destructive-file; (5) destructive database: DROP TABLE/SCHEMA/INDEX, TRUNCATE, bulk DELETE FROM — permission destructive-db; (6) force-push: git push --force / git push -f — permission destructive-git. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1.",
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)",
     "WHERE_WHICH": "use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.",
     "VCS_ROOT": "VCS detection: git status only — never glob/grep for .git/ (it is gitignored, invisible to search tools). .git/ must be at repo root. Never search inside, read from, or interact with .git/objects or any VCS internals as if they were project content. VCS metadata is NOT source code.",
@@ -63,12 +64,13 @@ RUNTIME_RULES = MappingProxyType({
     "GOAL_PEAKS": "goal_peaks(goal, evidence) counts distinct keyword clusters (peaks) in goal+evidence. Feeds select_fractal_model: 1 peak→L-System, 2→Quad-Oct binary, 3→Sierpinski, 4→check orthogonality_score (≥0.7→Quad-Oct quad, <0.7→Sierpinski), 5-7→Sierpinski, 8→check orthogonality_score (≥0.7→Quad-Oct oct, <0.7→Sierpinski), 9+→Sierpinski clamped.",
     "SV_DELTA": "sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.",
     "SV_OUTPUT": "after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).",
-    "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",
+    "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",
     "DECOMPOSE": "fractal lattice before work list: over-generate (Sierpinski/Quad/L-System, adaptive_depth 1-3) → Manhattan (L1) to Goal SV → adaptive τ (percentile) → adaptive_k (CV dispersion) → k-medoids (→ CLARA sampling when N≥100, seeds ground centers) → CENTRAL_TASKS=medoids only. Never Mode-1 linear step lists for multi-step work. Same recursive motif every level (F→F+F-F), not ad-hoc essays.",
     "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
     "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
     "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
     "METRIC_ADAPTATION": "System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). PARAMETER_ADAPTATION (percentile, window, thresholds within pre-approved bounds) is automatic. METRIC_FAMILY_CHANGE (Manhattan→cosine+L1, new quality function, new goal-seed semantics) requires: separate candidate branch + old_metric comparison + sealed holdout + regression oracle + explicit promotion authority. Adaptive tuning ≠ evaluator mutation.",
+    "PLANS_COMPLETED": "when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -111,6 +113,8 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "WORKSPACE_LANES": "hygiene",
     "PROGRESS_LOG": "hygiene",
     "METRIC_ADAPTATION": "plan",
+    "PLANS_COMPLETED": "plan",
+    "CONSTITUTION_BLOCKS": "mutation",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
@@ -132,6 +136,9 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "CLEAN_STATE",
         "infomark",
         "MEMORY_RANK",
+        "adid",
+        "ADID_OPS",
+        "CONSTITUTION_BLOCKS",
     ),
     "modify": (
         "plan",
@@ -151,6 +158,9 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "CLEAN_STATE",
         "infomark",
         "MEMORY_RANK",
+        "adid",
+        "ADID_OPS",
+        "CONSTITUTION_BLOCKS",
     ),
     "observe": (
         "scope",
@@ -165,8 +175,10 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "infomark",
         "INFOMARK_SEP",
         "MEMORY_RANK",
+        "adid",
+        "ADID_OPS",
     ),
-    "hygiene_ops": ("hygiene", "NAMING", "DOCUMENT_SURFACE", "WORKSPACE_LANES", "PROGRESS_LOG", "CLEAN_STATE", "EVIDENCE_ORDER"),
+    "hygiene_ops": ("hygiene", "NAMING", "DOCUMENT_SURFACE", "WORKSPACE_LANES", "PROGRESS_LOG", "CLEAN_STATE", "PLANS_COMPLETED", "EVIDENCE_ORDER"),
     "planning": (
         "plan",
         "DECOMPOSE",
@@ -194,6 +206,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "MEMORY_RANK",
         "SV_OUTPUT",
         "CLEAN_STATE",
+        "PLANS_COMPLETED",
     ),
     "research": (
         "evidence",

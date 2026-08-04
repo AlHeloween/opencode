@@ -5,7 +5,7 @@ from types import MappingProxyType
 
 PROMPT_ABI = MappingProxyType({
     'identity_tier': 'A',
-    'kernel_max_bytes': 56000,
+    'kernel_max_bytes': 59000,
     'line_endings': 'LF',
     'precedence': ('safety', 'governance', 'task', 'domain', 'style'),
     'stable_identity_slot_max_bytes': 116000,
@@ -28,9 +28,10 @@ TERMS = MappingProxyType({
 
 RULES = MappingProxyType({
     'ADID_FREEZE': 'never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines',
-    'ADID_OPS': 'prefer product tools (edit/read/codegraph/jobs/oracles); long work via product job runners; never embed external framework CLI cookbooks in SPECS (see policy.adid_ops)',
+    'ADID_OPS': 'ALWAYS use product tools for file operations — NEVER shell for file listing, reading, searching, or editing. list/glob/read tools replace dir/ls/tree; edit/write replace shell redirection; grep replaces findstr/rg. Shell (bash/cmd/cmd_runner) is ONLY for: build commands, test runners, package managers, git read-only operations, and other tools with no product equivalent. If a product tool exists for the operation, the shell equivalent is FORBIDDEN. Long work via product job runners (bash background + joboutput); never embed external framework CLI cookbooks in SPECS (see policy.adid_ops). See CONSTITUTION_BLOCKS for the complete list of runtime-enforced shell blocks.',
     'CACHE_STABILITY': 'keep the system prefix byte-stable for the session',
-    'CLEAN_STATE': 'end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.',
+    'CLEAN_STATE': 'end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.',
+    'CONSTITUTION_BLOCKS': 'Runtime constitution HARD-BLOCKS these shell operations — do NOT attempt them, they will fail: (1) directory/file enumeration: ls, dir, tree, find, fd, rg --files, Get-ChildItem, busybox ls/find, for loops with globs, where /r — use list/glob/grep tools instead; (2) git history rewrite: checkout, switch, restore, reset --hard, stash pop/apply/drop/clear/branch — use edit-tool .bak or Fossil snapshot; (3) fossil CLI mutate: commit, add, rm, checkout, update, merge, undo, revert, push, pull, sync, clean — Fossil is automatic session undo, not project VCS; (4) destructive filesystem: rm -rf, format, mkfs, dd, Remove-Item -Recurse -Force — permission destructive-file; (5) destructive database: DROP TABLE/SCHEMA/INDEX, TRUNCATE, bulk DELETE FROM — permission destructive-db; (6) force-push: git push --force / git push -f — permission destructive-git. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1.',
     'DECOMPOSE': 'fractal lattice before work list: over-generate (Sierpinski/Quad/L-System, adaptive_depth 1-3) → Manhattan (L1) to Goal SV → adaptive τ (percentile) → adaptive_k (CV dispersion) → k-medoids (→ CLARA sampling when N≥100, seeds ground centers) → CENTRAL_TASKS=medoids only. Never Mode-1 linear step lists for multi-step work. Same recursive motif every level (F→F+F-F), not ad-hoc essays.',
     'DOCUMENT_SURFACE': 'maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.',
     'EMIT_STATE': 'emit_state(goal_sv, completed_tasks, pending_tasks, blockers, next_step, out_of_scope, active, terminal) returns a structured state dict {done, pending, blocked, next, goal_sv, out_of_scope, active, terminal, terminal_mode}. v6.0: +active (in_progress + materialized tasks), terminal=True when pending=[] AND active=[] (both must be empty). terminal_mode: SUCCESS|BLOCKED|OUT_OF_SCOPE|CONTINUE|RESUME (precedence: BLOCKED>OUT_OF_SCOPE>SUCCESS; RESUME when materialized non-empty). Serialised by the caller; InfoMark-stamped at Gate 9.',
@@ -45,6 +46,7 @@ RULES = MappingProxyType({
     'METRIC_ADAPTATION': 'System autonomously detects gaps in evaluation metrics and generates corrective functions (e.g., silhouette score for residual_recluster, internal consistency for goal_seeds). PARAMETER_ADAPTATION (percentile, window, thresholds within pre-approved bounds) is automatic. METRIC_FAMILY_CHANGE (Manhattan→cosine+L1, new quality function, new goal-seed semantics) requires: separate candidate branch + old_metric comparison + sealed holdout + regression oracle + explicit promotion authority. Adaptive tuning ≠ evaluator mutation.',
     'NAMING': "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter (PEP 8 convention). Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Python dict keys are case-sensitive: references in WORKFLOWS, CONTRACTS, and OWNERS must match rule keys exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
     'NO_HARDCODE': 'never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)',
+    'PLANS_COMPLETED': "when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.",
     'PROGRESS_LOG': 'track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.',
     'RESIDUAL_LOOP': 'residual_recluster(state, original_goal_sv) closes the ADID loop: re-clusters pending tasks against original Goal SV using adaptive_tau at 70th percentile. Returns tasks aligned with the original goal; may return empty (→ TERMINAL). Discarded tasks tracked in out_of_scope.',
     'REUSE_BEFORE': 'research ladder: Guess → universalsearch web → code (Sourcegraph indexed git) or hybrid (prefer over agent) → declare smoke falsifier (Hypothetical) → smoke/oracle: PASS→Exact scoped stamp, FAIL→Guess (hypothesis falsified, evidence remains), UNKNOWN when evidence source invalidated. Prefer reuse over reinvent. After stuck failure: web+code on error signature before new invent.',
@@ -64,11 +66,11 @@ RULES = MappingProxyType({
 
 WORKFLOWS = MappingProxyType({
     'adid': ('adid', 'ADID_FREEZE', 'ADID_OPS', 'scope', 'mutation', 'verification'),
-    'diagnose': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK'),
-    'hygiene_ops': ('hygiene', 'NAMING', 'DOCUMENT_SURFACE', 'WORKSPACE_LANES', 'PROGRESS_LOG', 'CLEAN_STATE', 'EVIDENCE_ORDER'),
-    'modify': ('plan', 'REUSE_BEFORE', 'SMOKE_BEFORE', 'SMOKE_VERIFY', 'scope', 'cache', 'mutation', 'WRITE_SCOPE', 'CACHE_STABILITY', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK'),
-    'observe': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK'),
-    'planning': ('plan', 'DECOMPOSE', 'SMOKE_BEFORE', 'SMOKE_SPEC', 'SMOKE_VALIDATE', 'GROUND', 'METRIC_ADAPTATION', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'EMIT_STATE', 'REUSE_BEFORE', 'SMOKE_VERIFY', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY_OUTCOME', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'diagnose': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'adid', 'ADID_OPS', 'CONSTITUTION_BLOCKS'),
+    'hygiene_ops': ('hygiene', 'NAMING', 'DOCUMENT_SURFACE', 'WORKSPACE_LANES', 'PROGRESS_LOG', 'CLEAN_STATE', 'PLANS_COMPLETED', 'EVIDENCE_ORDER'),
+    'modify': ('plan', 'REUSE_BEFORE', 'SMOKE_BEFORE', 'SMOKE_VERIFY', 'scope', 'cache', 'mutation', 'WRITE_SCOPE', 'CACHE_STABILITY', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'adid', 'ADID_OPS', 'CONSTITUTION_BLOCKS'),
+    'observe': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'adid', 'ADID_OPS'),
+    'planning': ('plan', 'DECOMPOSE', 'SMOKE_BEFORE', 'SMOKE_SPEC', 'SMOKE_VALIDATE', 'GROUND', 'METRIC_ADAPTATION', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'EMIT_STATE', 'REUSE_BEFORE', 'SMOKE_VERIFY', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY_OUTCOME', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'SV_OUTPUT', 'CLEAN_STATE', 'PLANS_COMPLETED'),
     'research': ('evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'MEMORY_LINKS'),
 })
 
@@ -355,7 +357,11 @@ invariants:
   • External tool manuals stay outside identity SPECS
 forbidden:
   • Embedding external framework CLI cookbooks or host skill-binary manuals into SPECS
-  • Using shell for operations that product tools already cover (read/edit/grep/list)
+  • Using shell for operations that product tools already cover (read/edit/grep/list/glob)
+  • Using dir/ls/tree or any shell listing command instead of list/glob/read product tools
+  • Using shell redirection (> / >>) instead of edit/write product tools
+  • Using findstr/rg/grep/find in shell instead of grep product tool
+  • Using type/cat/more in shell instead of read product tool
 acceptance:
   • ADID_OPS.usage does not embed host-specific external CLI recipes
 
@@ -535,6 +541,7 @@ invariants:
   • Residual / next fractal measured against original Goal SV seeds — not a new mission
   • The spine (ground→scope→oracle→edit→verify→state) is INVARIANT for all tasks. Speed comes from evidence density (codegraph indexed, history Exact), not task size. A typo in unknown code = full lattice. A refactor in well-indexed code = shallower lattice because the evidence is already Exact — not because the task is 'trivial.'
   • TERMINAL (v6): when residual_recluster returns empty (no task passes Goal-SV threshold), agent transitions to TERMINAL state; discarded tasks go to out_of_scope (not forced to survive)
+  • Completed plans MUST be moved to plans_completed/ directory — procedure violation if left in place
 forbidden:
   • Mode 1 / linear-only task lists that skip fractal lattice + k-medoids for complex (3+ step) work
   • Treating over-generated candidate foam as CENTRAL_TASKS without medoid cut
@@ -548,6 +555,7 @@ forbidden:
   • Verification sections that only say 'test later' without concrete commands and pass criteria
   • Re-fractaling the entire goal after each medoid instead of residual vs Goal SV
   • Forcing at least one residual task when none pass Goal-SV threshold — allow TERMINAL
+  • Leaving completed plans in the working directory instead of moving them to plans_completed/
 acceptance:
   • Complex tasks have fractal→medoid→store plan before first edit
   • CENTRAL_TASKS count is medoid-sized (adaptive_k via CV dispersion), not full candidate foam

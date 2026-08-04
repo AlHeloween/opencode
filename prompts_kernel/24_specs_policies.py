@@ -81,7 +81,11 @@ skill manuals are host-runtime only — never pasted into SPECS.""",
 
     forbidden_actions=[
         "Embedding external framework CLI cookbooks or host skill-binary manuals into SPECS",
-        "Using shell for operations that product tools already cover (read/edit/grep/list)",
+        "Using shell for operations that product tools already cover (read/edit/grep/list/glob)",
+        "Using dir/ls/tree or any shell listing command instead of list/glob/read product tools",
+        "Using shell redirection (> / >>) instead of edit/write product tools",
+        "Using findstr/rg/grep/find in shell instead of grep product tool",
+        "Using type/cat/more in shell instead of read product tool",
     ],
 
     usage="""## Product tools (prefer)
@@ -219,6 +223,7 @@ GROUNDED PATH (v6): Speed comes from evidence density, not task size.
         "because the evidence is already Exact — not because the task is 'trivial.'",
         "TERMINAL (v6): when residual_recluster returns empty (no task passes Goal-SV threshold), "
         "agent transitions to TERMINAL state; discarded tasks go to out_of_scope (not forced to survive)",
+        "Completed plans MUST be moved to plans_completed/ directory — procedure violation if left in place",
     ],
 
     forbidden_actions=[
@@ -235,6 +240,7 @@ GROUNDED PATH (v6): Speed comes from evidence density, not task size.
         "Verification sections that only say 'test later' without concrete commands and pass criteria",
         "Re-fractaling the entire goal after each medoid instead of residual vs Goal SV",
         "Forcing at least one residual task when none pass Goal-SV threshold — allow TERMINAL",
+        "Leaving completed plans in the working directory instead of moving them to plans_completed/",
     ],
 
     acceptance_tests=[

@@ -44,3 +44,20 @@ export function enforceDestructiveShell(
     })
   })
 }
+
+const BUN_DIRECT = /(?:^|[;&|]\s*)\bbun(?:\.exe)?\b(?![^\s]*--)/i
+const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
+
+/**
+ * Block direct `bun` execution through bash/cmd/run — bun is crash-prone
+ * and must run through cmd_runner for process isolation.
+ * `cmd_runner start -- bun ...` is allowed.
+ */
+export function enforceBunViaCmdRunner(command: string): void {
+  if (BUN_DIRECT.test(command) && !VIA_CMD_RUNNER.test(command)) {
+    throw new Error(
+      "constitution: bun must run through cmd_runner for process isolation. " +
+      'Use: cmd_runner start -- bun <args...>',
+    )
+  }
+}

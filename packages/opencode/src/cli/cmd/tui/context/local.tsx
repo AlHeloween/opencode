@@ -78,7 +78,15 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return agents()
         },
         current() {
-          return agents().find((x) => x.name === agentStore.current) ?? agents().at(0)
+          if (agentStore.current) {
+            return agents().find((x) => x.name === agentStore.current) ?? agents().at(0)
+          }
+          // Respect config default_agent if set
+          const defaultName = sync.data.config.default_agent
+          if (defaultName) {
+            return agents().find((x) => x.name === defaultName) ?? agents().at(0)
+          }
+          return agents().at(0)
         },
         set(name: string) {
           if (!agents().some((x) => x.name === name))
@@ -340,7 +348,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const a = agent.current()
         return (
           getFirstValidModel(
-            () => a && a.model,  // Config-defined agent model (single source of truth)
+            () => a && forAgent(a.name),  // Session settings → global config
             fallbackModel,
           ) ?? undefined
         )

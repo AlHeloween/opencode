@@ -163,6 +163,9 @@ export function DialogAgent() {
     const variantValue = agentVariant.current()
     const variantLabel = variantValue ? ` · ${variantValue}` : ""
 
+    const isActive = local.agent.current()?.name === agent.name
+    const activeLabel = isActive ? " ← active" : ""
+
     const color: RGBA = local.agent.color(agent.name)
     const off = isDisabled(agent.name)
 
@@ -172,23 +175,22 @@ export function DialogAgent() {
       description: agent.description ?? "",
       category,
       disabled: off,
-      gutter: <text fg={color}>{off ? "○" : "●"}</text>,
-      footer: `${modelLabel}${variantLabel}`,
+      gutter: <text fg={color}>{isActive ? "★" : off ? "○" : "●"}</text>,
+      footer: `${modelLabel}${variantLabel}${activeLabel}`,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
-        dialog.replace(() => (
-          <DialogModel
-            targetAgent={agent.name}
-            onDone={() => dialog.replace(() => <DialogAgent />)}
-          />
-        ))
+        // Enter = switch to this agent
+        local.agent.set(agent.name)
+        dialog.clear()
       },
     }
+  }
   }
 
   return (
     <DialogSelect
       title="Agent Configuration"
+      current={local.agent.current()?.name}
       options={options()}
       keybind={[
         {

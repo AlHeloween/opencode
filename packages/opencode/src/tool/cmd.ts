@@ -21,7 +21,7 @@ import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
-import { enforceBunViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
+import { enforceBinaryViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
@@ -525,7 +525,7 @@ export const CmdTool = Tool.define(
           const scanCommand = stripCmdRunnerSendPayload(params.command)
           // Same constitution gate as bash — cmd must not bypass destructive (e.g. git checkout)
           yield* enforceDestructiveShell(scanCommand, ctx, params.description)
-          enforceBunViaCmdRunner(scanCommand)
+          enforceBinaryViaCmdRunner(scanCommand)
 
           const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
           if (params.timeout !== undefined && params.timeout < 0) {

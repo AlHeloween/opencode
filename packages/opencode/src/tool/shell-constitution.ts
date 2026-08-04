@@ -53,19 +53,50 @@ export function enforceDestructiveShell(
   })
 }
 
-const BUN_DIRECT = /(?:^|[;&|]\s*)\bbun(?:\.exe)?\b(?![^\s]*--)/i
+/**
+ * Crash-prone build toolchains that can corrupt ConPTY / shared console state.
+ * Must run through cmd_runner for process isolation. Sorted longest-first so
+ * regex alternation matches `clang++` before `clang`.
+ */
+const CRASH_PRONE_BINARIES = [
+  "clang\\+\\+",
+  "clang",
+  "rustc",
+  "cargo",
+  "zig",
+  "dotnet",
+  "msbuild",
+  "ninja",
+  "cmake",
+  "make",
+  "g\\+\\+",
+  "gcc",
+  "go",
+  "bun",
+] as const
+
+const CRASH_PRONE_RE = new RegExp(
+  `(?:^|[;&|]\\s*)\\b(?:${CRASH_PRONE_BINARIES.join("|")})(?:\\.exe)?\\b(?![^\\s]*--)`,
+  "i",
+)
+
 const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
 
 /**
- * Block direct `bun` execution through bash/cmd/run — bun is crash-prone
- * and must run through cmd_runner for process isolation.
- * `cmd_runner start -- bun ...` is allowed.
+ * Block direct execution of crash-prone build toolchains through bash/cmd/run.
+ * These tools can produce raw ANSI/binary output or crash, corrupting ConPTY
+ * state and taking down the TUI. They must run through cmd_runner for isolation.
+ * `cmd_runner start -- zig build ...` is allowed.
  */
-export function enforceBunViaCmdRunner(command: string): void {
-  if (BUN_DIRECT.test(command) && !VIA_CMD_RUNNER.test(command)) {
+export function enforceBinaryViaCmdRunner(command: string): void {
+  if (CRASH_PRONE_RE.test(command) && !VIA_CMD_RUNNER.test(command)) {
+    const match = command.match(CRASH_PRONE_RE)?.[0]?.trim() ?? "binary"
     throw new Error(
-      "constitution: bun must run through cmd_runner for process isolation. " +
-      'Use: cmd_runner start -- bun <args...>',
+      `constitution: ${match} must run through cmd_runner for process isolation. ` +
+      `Use: cmd_runner start -- ${match} <args...>`,
     )
   }
 }
+
+/** @deprecated Use {@link enforceBinaryViaCmdRunner} instead. */
+export const enforceBunViaCmdRunner = enforceBinaryViaCmdRunner

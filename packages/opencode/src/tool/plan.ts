@@ -8,6 +8,7 @@ import { Provider } from "@/provider/provider"
 import { Instance } from "../project/instance"
 import { type SessionID, MessageID } from "../session/schema"
 import EXIT_DESCRIPTION from "./planexit.txt"
+import { invalidatePermissionCache } from "./permission-cache"
 
 function getLastModel(sessionID: SessionID) {
   for (const item of MessageV2.stream(sessionID)) {
@@ -61,6 +62,7 @@ export const PlanExitTool = Tool.define(
             model,
           }
           yield* session.updateMessage(msg)
+          invalidatePermissionCache()
 
           return {
             title: "Switching to build agent",

@@ -4,6 +4,7 @@ import { Session } from "@/session/session"
 import { MessageV2 } from "../session/message-v2"
 import { Provider } from "@/provider/provider"
 import { type SessionID, MessageID } from "../session/schema"
+import { invalidatePermissionCache } from "./permission-cache"
 
 function getLastModel(sessionID: SessionID) {
   for (const item of MessageV2.stream(sessionID)) {
@@ -44,6 +45,7 @@ export const ReasoningEnterTool = Tool.define(
             model,
           }
           yield* session.updateMessage(msg)
+          invalidatePermissionCache()
 
           return {
             title: "Switching to reasoning mode",
@@ -78,6 +80,7 @@ export const ReasoningExitTool = Tool.define(
             agent: "build",
             model,
           } satisfies MessageV2.User)
+          invalidatePermissionCache()
 
           return {
             title: "Switching to build mode",

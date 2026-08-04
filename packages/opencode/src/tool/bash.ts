@@ -27,7 +27,7 @@ import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner
 import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
-import { enforceBunViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
+import { enforceBinaryViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
 export { invalidatePermissionCache } from "./permission-cache"
 
 const MAX_METADATA_LENGTH = 30_000
@@ -803,7 +803,7 @@ export const BashTool = Tool.define(
               const scanCommand = stripCmdRunnerSendPayload(params.command)
               // Constitution: destructive-file | destructive-db | destructive-git | destructive-fossil
               yield* enforceDestructiveShell(scanCommand, ctx, params.description)
-              enforceBunViaCmdRunner(scanCommand)
+              enforceBinaryViaCmdRunner(scanCommand)
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)
                 : Instance.directory

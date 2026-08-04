@@ -1159,6 +1159,9 @@ export const layer = Layer.effect(
         /** Cached tool resolution — tool set is stable across loop iterations
           * within a single turn (same agent, model, session, provider). */
         let cachedTools: Record<string, AITool> | undefined
+        /** Agent (mode) whose ACL the cached tool closures were resolved with.
+          * Invalidated when the agent changes mid-runLoop (planexit/reasoning*). */
+        let cachedToolsAgent: string | undefined
         /** In-memory only for the current runLoop; DB-backed
           * {@link SessionCompaction.hasPendingSummaryRequest} survives restarts. */
         let pendingSummaryResponse = false
@@ -1649,7 +1652,7 @@ export const layer = Layer.effect(
             // is set only after validation, so use the persisted request state here.
             if (summaryAttempt) {
               tools = {}
-            } else if (cachedTools) {
+            } else if (cachedTools && cachedToolsAgent === agent.name) {
               tools = cachedTools
             } else {
               tools = yield* SessionTools.resolve({
@@ -1671,6 +1674,7 @@ export const layer = Layer.effect(
                 })
               }
               cachedTools = tools
+              cachedToolsAgent = agent.name
             }
             yield* slog.debug("prepare", {
               step,

@@ -12,7 +12,7 @@ import * as Truncate from "./truncate"
 import { Jobs } from "@/jobs"
 import { which } from "@/util/which"
 import * as Log from "@opencode-ai/core/util/log"
-import { enforceBunViaCmdRunner, enforceDestructiveShell } from "./shell-constitution"
+import { enforceBinaryViaCmdRunner, enforceDestructiveShell } from "./shell-constitution"
 
 const log = Log.create({ service: "run-tool" })
 
@@ -265,7 +265,7 @@ export const RunTool = Tool.define(
           // Constitution on reconstructed argv (e.g. run git checkout → destructive)
           const argvLine = [params.binary, ...params.args].join(" ")
           yield* enforceDestructiveShell(argvLine, ctx, params.description)
-          enforceBunViaCmdRunner(argvLine)
+          enforceBinaryViaCmdRunner(argvLine)
 
           // Permission: dedicated "run" key (binary exec, not a shell).
           if (!Instance.containsPath(cwd)) {

@@ -26,6 +26,7 @@ import { Global } from "@opencode-ai/core/global"
 import { logPath } from "@opencode-ai/core/util/log"
 import * as Log from "@opencode-ai/core/util/log"
 import { errorMessage } from "@/util/error"
+import { OUTPUT_TOKEN_MAX } from "@/provider/transform"
 
 const log = Log.create({ service: "request-diff" })
 
@@ -33,7 +34,7 @@ const MAX_DIFFS_PER_SESSION = 200
 const KEY_DERIVATION_SALT = ":opencode-diff-baseline-v1"
 const MAX_FORMATTED_REQUEST_CHARS = 256 * 1024
 const MAX_FORMATTED_SYSTEM_CHARS = 64 * 1024
-const MAX_FORMATTED_MESSAGE_CHARS = 2 * 1024
+const MAX_FORMATTED_MESSAGE_CHARS = OUTPUT_TOKEN_MAX * 4
 
 /** Metadata attached to each diff entry. */
 export interface DiffMeta {
@@ -261,9 +262,24 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
+function isWordChar(ch: string): boolean {
+  // Letter (any script), number, or underscore — these are continuations, not boundaries.
+  return /[\p{L}\p{N}_]/u.test(ch)
+}
+
 function truncateText(text: string, maxChars: number, label: string): string {
   if (text.length <= maxChars) return text
-  return `${text.slice(0, maxChars)}\n... (${text.length - maxChars} more chars truncated from ${label})`
+  // Find last non-word-character boundary before maxChars
+  // to avoid splitting words or Unicode grapheme clusters mid-character.
+  // Scans back up to 200 chars; falls back to hard cut if no boundary found.
+  let cut = maxChars
+  for (let i = maxChars - 1; i > maxChars - 200 && i > 0; i--) {
+    if (!isWordChar(text[i])) {
+      cut = i + 1 // include the boundary character
+      break
+    }
+  }
+  return `${text.slice(0, cut)}\n... (${text.length - cut} more chars truncated from ${label})`
 }
 
 function stringifyForDiff(value: unknown): string {

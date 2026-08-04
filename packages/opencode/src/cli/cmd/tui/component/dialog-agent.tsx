@@ -175,7 +175,7 @@ export function DialogAgent() {
       description: agent.description ?? "",
       category,
       disabled: off,
-      gutter: <text fg={color}>{isActive ? "★" : off ? "○" : "●"}</text>,
+      gutter: <text fg={color}>{off ? "○" : "●"}</text>,
       footer: `${modelLabel}${variantLabel}${activeLabel}`,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
@@ -189,7 +189,6 @@ export function DialogAgent() {
   return (
     <DialogSelect
       title="Agent Configuration"
-      current={local.agent.current()?.name}
       options={options()}
       keybind={[
         {

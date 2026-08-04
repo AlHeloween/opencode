@@ -309,7 +309,7 @@ export const layer: Layer.Layer<
             tool.pipeline,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             ...(process.platform === "win32" ? [tool.cmd] : []),
-            ...(Flag.OPENCODE_EXPERIMENTAL_PLAN_MODE && Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
+            ...(Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
             tool.reasoningEnter,
             tool.reasoningExit,
             tool.memory,

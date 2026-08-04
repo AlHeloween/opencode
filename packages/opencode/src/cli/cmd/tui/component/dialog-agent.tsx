@@ -179,9 +179,12 @@ export function DialogAgent() {
       footer: `${modelLabel}${variantLabel}${activeLabel}`,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
-        // Enter = switch to this agent
-        local.agent.set(agent.name)
-        dialog.clear()
+        dialog.replace(() => (
+          <DialogModel
+            targetAgent={agent.name}
+            onDone={() => dialog.replace(() => <DialogAgent />)}
+          />
+        ))
       },
     }
   }
@@ -189,6 +192,7 @@ export function DialogAgent() {
   return (
     <DialogSelect
       title="Agent Configuration"
+      current={local.agent.current()?.name}
       options={options()}
       keybind={[
         {

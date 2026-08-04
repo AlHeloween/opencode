@@ -152,6 +152,23 @@ test("explore agent asks for external directories and allows Truncate.truncateGl
   })
 })
 
+test("explore agent allows codegraph via wildcard permission key", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const explore = await load(tmp.path, (svc) => svc.get("explore"))
+      expect(explore).toBeDefined()
+      // Single-ruleset evaluate (tools.ts:denied path)
+      expect(evalPerm(explore, "codegraph")).toBe("allow")
+      // Multi-ruleset evaluate (ctx.ask path with merged session+agent)
+      expect(
+        Permission.evaluate("codegraph", "*", [], explore!.permission).action
+      ).toBe("allow")
+    },
+  })
+})
+
 test("general agent allows todo tools (per-session list)", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({

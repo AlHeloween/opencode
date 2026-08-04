@@ -447,6 +447,28 @@ test("evaluate - merges multiple rulesets", () => {
   expect(result.action).toBe("deny")
 })
 
+test("evaluate - wildcard permission key overrides deny in multi-ruleset", () => {
+  const agentRuleset: Permission.Ruleset = [
+    { permission: "*", pattern: "*", action: "allow" },
+    { permission: "*", pattern: "*", action: "deny" },
+    { permission: "codegraph*", pattern: "*", action: "allow" },
+    { permission: "grep", pattern: "*", action: "allow" },
+  ]
+  const sessionRuleset: Permission.Ruleset = []
+
+  // Multi-ruleset: codegraph should be allowed via wildcard permission key
+  const result = Permission.evaluate("codegraph", "*", sessionRuleset, agentRuleset)
+  expect(result.action).toBe("allow")
+
+  // Exact key should also work (no regression)
+  const grepResult = Permission.evaluate("grep", "*", sessionRuleset, agentRuleset)
+  expect(grepResult.action).toBe("allow")
+
+  // Unmatched permissions should still be denied
+  const editResult = Permission.evaluate("edit", "*", sessionRuleset, agentRuleset)
+  expect(editResult.action).toBe("deny")
+})
+
 // disabled tests
 
 test("disabled - returns empty set when all tools allowed", () => {

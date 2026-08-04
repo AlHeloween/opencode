@@ -24,10 +24,10 @@ export function evaluate(permission: string, pattern: string, ...rulesets: Rule[
       // agent: "*": "deny" + "grep": "allow" → grep wrongly denied).
       const denyIdx = rulesets[0].lastIndexOf(agentDeny)
       const hasSpecificOverride = rulesets[0].slice(denyIdx + 1).some(
-        (rule) => rule.permission === permission,
+        (rule) => Wildcard.match(permission, rule.permission),
       ) || rulesets.slice(1).some(ruleset =>
         ruleset.some(
-          (rule) => rule.permission === permission,
+          (rule) => Wildcard.match(permission, rule.permission),
         ))
       if (!hasSpecificOverride) return agentDeny
     }

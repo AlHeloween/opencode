@@ -27,7 +27,7 @@ import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner
 import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
-import { enforceBunViaCmdRunner, enforceDestructiveShell } from "./shell-constitution"
+import { enforceBunViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
 export { invalidatePermissionCache } from "./permission-cache"
 
 const MAX_METADATA_LENGTH = 30_000
@@ -797,9 +797,13 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
+              // cmd_runner send: strip payload after -- BEFORE constitution/permission scanning.
+              // The payload is arbitrary remote code and must not be scanned by constitution
+              // (it would see os.walk /etc as directory browsing) or parsed by tree-sitter.
+              const scanCommand = stripCmdRunnerSendPayload(params.command)
               // Constitution: destructive-file | destructive-db | destructive-git | destructive-fossil
-              yield* enforceDestructiveShell(params.command, ctx, params.description)
-              enforceBunViaCmdRunner(params.command)
+              yield* enforceDestructiveShell(scanCommand, ctx, params.description)
+              enforceBunViaCmdRunner(scanCommand)
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)
                 : Instance.directory
@@ -816,12 +820,6 @@ export const BashTool = Tool.define(
               // On Windows: detect cmd.exe shell to select batch grammar + cmd SAFE/FILES.
               // Shell.posix(shell) is false for cmd.exe; Shell.ps(shell) is false for cmd.exe.
               const isCmd = process.platform === "win32" && !Shell.posix(shell) && !Shell.ps(shell)
-              // cmd_runner send: strip payload after -- for permission scanning.
-              // The payload is arbitrary remote code and must not be parsed by tree-sitter
-              // (it would see remote paths like /etc or git push targets as local).
-              // The original params.command is used for execution — no change to execution.
-              const cmdRunnerSendMatch = params.command.match(/^(cmd_runner\s+send\s+.*?--\s*)(.*)/s)
-              const scanCommand = cmdRunnerSendMatch ? cmdRunnerSendMatch[1] : params.command
               const root = yield* parse(scanCommand, ps, isCmd)
               const scan = yield* collect(root, cwd, ps, shell, isCmd)
               if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)

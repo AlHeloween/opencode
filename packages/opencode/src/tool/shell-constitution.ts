@@ -11,6 +11,14 @@ import { Effect } from "effect"
 import { Constitution } from "@/session/constitution"
 import type * as Tool from "./tool"
 
+const CMD_RUNNER_SEND_PAYLOAD = /^(cmd_runner(?:\.exe)?\s+send\s+.*?--\s*)(.*)/s
+
+/** Strip cmd_runner send payload — the remote code after `--` must not be scanned by constitution or tree-sitter. */
+export function stripCmdRunnerSendPayload(command: string): string {
+  const m = command.match(CMD_RUNNER_SEND_PAYLOAD)
+  return m ? m[1] : command
+}
+
 /** Hard-block VCS rewrite / fossil mutate; ask for other DESTRUCTIVE by family. */
 export function enforceDestructiveShell(
   command: string,

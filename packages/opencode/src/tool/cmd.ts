@@ -21,7 +21,7 @@ import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
-import { enforceBunViaCmdRunner, enforceDestructiveShell } from "./shell-constitution"
+import { enforceBunViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
@@ -521,9 +521,11 @@ export const CmdTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
+          // cmd_runner send: strip payload after -- BEFORE constitution/permission scanning.
+          const scanCommand = stripCmdRunnerSendPayload(params.command)
           // Same constitution gate as bash — cmd must not bypass destructive (e.g. git checkout)
-          yield* enforceDestructiveShell(params.command, ctx, params.description)
-          enforceBunViaCmdRunner(params.command)
+          yield* enforceDestructiveShell(scanCommand, ctx, params.description)
+          enforceBunViaCmdRunner(scanCommand)
 
           const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
           if (params.timeout !== undefined && params.timeout < 0) {
@@ -537,10 +539,6 @@ export const CmdTool = Tool.define(
           const shell = process.env.COMSPEC || "cmd.exe"
 
           const p = yield* Effect.promise(() => parser())
-          // cmd_runner send: strip payload after -- for permission scanning.
-          // The payload is arbitrary remote code and must not be parsed by tree-sitter.
-          const cmdRunnerSendMatch = params.command.match(/^(cmd_runner\s+send\s+.*?--\s*)(.*)/s)
-          const scanCommand = cmdRunnerSendMatch ? cmdRunnerSendMatch[1] : params.command
           const script = powerShellScript(scanCommand)
           const ps = script !== undefined
           const engine = ps ? p.ps : p.batch

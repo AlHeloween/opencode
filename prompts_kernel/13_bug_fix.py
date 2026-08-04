@@ -1,5 +1,7 @@
 """Kernel fragment: 13_bug_fix (former monofile L1072-1255)."""
 
+# Depends on safe_truncate from 05_svm_anchor (shared kernel namespace).
+
 
 class BugFixProtocol:
     """§XIV Formal verification procedure for bug fixes.
@@ -83,7 +85,7 @@ class BugFixSVMTracker:
             sv=build_semantic_vector(
                 keywords=[w for w in bug_description.lower().split() if len(w) > 2][:5],
                 weights=[0.2] * min(5, len(bug_description.split())),
-                dominant=bug_description[:100],
+                dominant=safe_truncate(bug_description, 100),
             ),
             phase="bug_fix",
             goal=bug_description,
@@ -103,13 +105,13 @@ class BugFixSVMTracker:
             attempt_sv = build_semantic_vector(
                 keywords=sv_keywords,
                 weights=[1.0 / len(sv_keywords)] * len(sv_keywords),
-                dominant=approach[:100],
+                dominant=safe_truncate(approach, 100),
             )
         else:
             attempt_sv = build_semantic_vector(
-                keywords=[approach[:20]],
+                keywords=[safe_truncate(approach, 20)],
                 weights=[1.0],
-                dominant=approach[:100],
+                dominant=safe_truncate(approach, 100),
             )
 
         d = delta_l1(

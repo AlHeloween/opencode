@@ -1,5 +1,26 @@
 """Kernel fragment: 05_svm_anchor (former monofile L339-472)."""
 
+import re
+
+_WORD_CHAR = re.compile(r"[\w]", re.UNICODE)
+
+
+def safe_truncate(text: str, max_len: int) -> str:
+    """Truncate to max_len, stepping back to last non-word-char boundary.
+
+    Avoids mid-word splits (e.g. "заверш|ённых") by scanning back up to
+    200 chars for a character that is NOT a letter, digit, or underscore.
+    Falls back to hard cut at max_len if no boundary found (200+ char word).
+    """
+    if len(text) <= max_len:
+        return text
+    cut = max_len
+    for i in range(max_len - 1, max(0, max_len - 200), -1):
+        if not _WORD_CHAR.match(text[i]):
+            cut = i + 1  # include boundary char
+            break
+    return text[:cut]
+
 
 @dataclass
 class Signal:
@@ -122,7 +143,7 @@ def classify_signal(anchor: SVMAnchor, signal: Signal) -> str:
     sv_signal = build_semantic_vector(
         keywords=[signal.pattern, signal.source],
         weights=[0.7, 0.3],
-        dominant=signal.content[:100] if signal.content else signal.pattern,
+        dominant=safe_truncate(signal.content, 100) if signal.content else signal.pattern,
     )
     d = delta_l1(
         dict(zip(anchor.sv.keywords, anchor.sv.weights)),

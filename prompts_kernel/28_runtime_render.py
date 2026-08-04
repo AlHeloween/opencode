@@ -26,7 +26,7 @@ def render_runtime_kernel(tier: str = "A") -> str:
         lines.append("")
     lines.append(render_all_specs(tier=tier))
     text = "\n".join(lines)
-    max_bytes = int(PROMPT_ABI.get("kernel_max_bytes", 48_000))
+    max_bytes = int(PROMPT_ABI["kernel_max_bytes"])
     if tier == "A" and len(text.encode("utf-8")) > max_bytes:
         raise ValueError(
             f"Tier A identity kernel is {len(text.encode('utf-8'))} bytes "

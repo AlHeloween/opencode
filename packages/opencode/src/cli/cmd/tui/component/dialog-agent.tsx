@@ -185,7 +185,6 @@ export function DialogAgent() {
       },
     }
   }
-  }
 
   return (
     <DialogSelect

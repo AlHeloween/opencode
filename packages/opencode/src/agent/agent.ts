@@ -16,7 +16,6 @@ import PROMPT_ORCHESTRATOR from "./prompt/orchestrator.txt"
 import PROMPT_RESEARCHER from "./prompt/researcher.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
-import PROMPT_BUILD from "./prompt/build.txt"
 import { Permission } from "@/permission"
 import { Wildcard } from "@/util/wildcard"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
@@ -127,7 +126,6 @@ export const layer = Layer.effect(
             name: "build",
             description: "The default agent. Executes tools based on configured permissions.",
             options: {},
-            prompt: PROMPT_BUILD,
             permission: Permission.merge(
               defaults,
               Permission.fromConfig({

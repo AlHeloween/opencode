@@ -374,6 +374,15 @@ export function familyPermission(family: CommandFamily): PermissionBucket | unde
   return undefined
 }
 
+/** Map CommandFamily → destructive kind string for askable destructive commands. */
+function destructiveFamilyKind(family: CommandFamily): "file" | "db" | "git" | "fossil" | undefined {
+  if (family === CommandFamily.FILE_DESTRUCTIVE) return "file"
+  if (family === CommandFamily.DB_DESTRUCTIVE) return "db"
+  if (family === CommandFamily.GIT_HISTORY_REWRITE || family === CommandFamily.GIT_ASKABLE_DESTRUCTIVE) return "git"
+  if (family === CommandFamily.FOSSIL_MUTATE) return "fossil"
+  return undefined
+}
+
 /**
  * Constitution preflight for shell.
  * - FILE_ENUMERATOR (ls/dir/find/fd/rg --files/…): HARD BLOCK → use list/glob/grep
@@ -388,6 +397,7 @@ export type CommandGuardResult = {
   needsDestructivePermission: boolean
   blocked: boolean
   message?: string
+  kind?: "file" | "db" | "git" | "fossil"
 }
 
 export function guardCommand(
@@ -469,10 +479,12 @@ export function guardCommand(
   // Permission-required destructive
   if (classification.risk === "DESTRUCTIVE" && !allow) {
     const perm = classification.permission ?? PermissionBucket.FILE
+    const kind = destructiveFamilyKind(classification.family)
     return {
       risk: classification.risk,
       family: classification.family,
       permission: perm,
+      kind,
       needsDestructivePermission: true,
       blocked: false,
       message:

@@ -15,6 +15,7 @@ import { trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Bom from "@/util/bom"
 import { Constitution } from "@/session/constitution"
+import { validateCodeSyntax } from "@/util/syntax-validator"
 
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
 
@@ -66,6 +67,17 @@ export const WriteTool = Tool.define(
               diff,
             },
           })
+
+          // Pre-write syntax check for code files (.py, .ts, .js, .sh).
+          // Catches hallucinated syntax before it hits disk — model can retry.
+          const syntaxErr = yield* Effect.promise(() => validateCodeSyntax(filepath, contentNew))
+          if (syntaxErr) {
+            return {
+              title: path.relative(Instance.worktree, filepath),
+              metadata: { filepath, exists },
+              output: `REJECTED — ${syntaxErr.message}`,
+            }
+          }
 
           yield* fs.writeWithDirs(filepath, Bom.join(contentNew, desiredBom))
           if (yield* format.file(filepath)) {

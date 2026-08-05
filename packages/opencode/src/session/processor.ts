@@ -26,6 +26,7 @@ import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { isRecord } from "@/util/record"
 import { StringBuilder } from "@/util/string-builder"
+import { normalizeDsmlTokens, detectDisguisedToolCalls } from "@/util/dsml-normalizer"
 import * as Balance from "@/provider/balance"
 import * as BalanceStorage from "@/provider/balance-storage"
 import { SessionTable } from "./session.sql"
@@ -552,6 +553,26 @@ export const layer: Layer.Layer<
               metadata: value.providerMetadata,
             })
             ctx.assistantMessage.finish = value.finishReason
+            // Level 2: DeepSeek V4 Pro bug — inline tool calls in content.
+            // Model emits finish_reason="stop" but text contains tool_name{...}.
+            // Extract disguised tool calls and trigger retry.
+            if (value.finishReason === "stop" && ctx.currentText) {
+              const text = ctx.textBuilder.toString() || ctx.currentText.text || ""
+              const disguised = detectDisguisedToolCalls(value.finishReason, text)
+              if (disguised && disguised.length > 0) {
+                const names = disguised.map((t) => t.name).join(", ")
+                log.warn("detected disguised tool calls in content — triggering retry", {
+                  sessionID: ctx.sessionID,
+                  tools: names,
+                })
+                ctx.assistantMessage.error = {
+                  name: "UnknownError",
+                  message:
+                    `DeepSeek tool-call format error: you wrote tool calls (${names}) as plain text instead of structured tool_calls. ` +
+                    `Regenerate using the proper tool calling mechanism — do NOT write [tool:XXX] or function_name{...} inline in the text.`,
+                } as any
+              }
+            }
             log.info("finish-step", {
               sessionID: ctx.sessionID,
               modelID: ctx.model.id,
@@ -709,7 +730,8 @@ export const layer: Layer.Layer<
 
           case "text-delta":
             if (!ctx.currentText) return
-            ctx.textBuilder.append(value.text)
+            const normalizedDelta = normalizeDsmlTokens(value.text)
+            ctx.textBuilder.append(normalizedDelta)
             if (value.providerMetadata) ctx.currentText.metadata = value.providerMetadata
             yield* session.updatePartDelta({
               sessionID: ctx.currentText.sessionID,

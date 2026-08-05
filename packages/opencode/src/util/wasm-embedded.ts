@@ -4,7 +4,6 @@ import * as Log from "@opencode-ai/core/util/log"
 import pathValidatorWasm from "../../../wasm/core/pkg/path_validator.wasm" with { type: "file" }
 import diffyWasm from "../../../wasm/core/pkg/diffy/diffy_wasm_bg.wasm" with { type: "file" }
 import jsonRepairWasm from "../../../wasm/core/pkg/json_repair/json_repair_bg.wasm" with { type: "file" }
-import anyrepairWasm from "../../../wasm/core/pkg/anyrepair/anyrepair_wasm_bg.wasm" with { type: "file" }
 import rdiffWasm from "../../../wasm/core/pkg/rdiff/rdiff_bg.wasm" with { type: "file" }
 import markdownifyWasm from "../../../wasm/markdownify/pkg/markdownify_wasm_bg.wasm" with { type: "file" }
 import chafaWasm from "../../../wasm/core/pkg/chafa.wasm" with { type: "file" }
@@ -136,7 +135,6 @@ const embeddedWasmAssets = new Map([
   ["path_validator.wasm", pathValidatorWasm as unknown as string],
   ["diffy/diffy_wasm_bg.wasm", diffyWasm as unknown as string],
   ["json_repair/json_repair_bg.wasm", jsonRepairWasm as unknown as string],
-  ["anyrepair/anyrepair_wasm_bg.wasm", anyrepairWasm as unknown as string],
   ["rdiff/rdiff_bg.wasm", rdiffWasm as unknown as string],
   ["markdownify/markdownify_wasm_bg.wasm", markdownifyWasm as unknown as string],
   ["chafa.wasm", chafaWasm as unknown as string],

@@ -26,7 +26,6 @@ import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { isRecord } from "@/util/record"
 import { StringBuilder } from "@/util/string-builder"
-import { repairMarkdown } from "@/util/anyrepair-wasm"
 import * as Balance from "@/provider/balance"
 import * as BalanceStorage from "@/provider/balance-storage"
 import { SessionTable } from "./session.sql"
@@ -733,18 +732,8 @@ export const layer: Layer.Layer<
               },
               { text: ctx.currentText.text },
             )).text
-            // Repair malformed markdown in model-generated text before saving.
-            // Silently no-ops if text is valid; fixes unbalanced **bold**, broken
-            // headings, malformed code fences, etc.
-            {
-              const repaired = yield* Effect.promise(() => repairMarkdown(ctx.currentText!.text))
-              if (repaired && repaired !== ctx.currentText!.text) {
-                ctx.currentText!.text = repaired
-                log.debug("repaired malformed markdown in text part", {
-                  partID: ctx.currentText!.id,
-                })
-              }
-            }
+            // Markdown repair is intentionally skipped for model-generated text.
+            // The model's text is preserved verbatim.
             {
               const end = Date.now()
               ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }

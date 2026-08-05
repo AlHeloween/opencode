@@ -24,14 +24,37 @@ import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
 import * as Option from "effect/Option"
-import { diagnoseParseError } from "@/util/diagnose-parse-error"
-import { repairJsonWasm } from "@/util/json-repair-wasm"
-import { repairJson as repairJsonAny, repairAny } from "@/util/anyrepair-wasm"
 import { canonicalName, TOOL_ALIASES } from "@/tool/tool"
+import { repairJsonWasm } from "@/util/json-repair-wasm"
+import { readWasmAsset } from "@/util/wasm-path"
 import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
+
+// ── Tree-sitter JSON parser (lazy) ───────────────────────────────────────────
+
+let _jsonParserPromise: Promise<import("web-tree-sitter").Parser> | undefined
+
+async function getJsonParser(): Promise<import("web-tree-sitter").Parser> {
+  if (_jsonParserPromise) return _jsonParserPromise
+  _jsonParserPromise = (async () => {
+    const [{ Parser }, { Language }, jsonWasm, runtimeWasm] = await Promise.all([
+      import("web-tree-sitter"),
+      import("web-tree-sitter"),
+      readWasmAsset("grammars/tree-sitter-json.wasm"),
+      readWasmAsset("web-tree-sitter.wasm"),
+    ])
+    if (!jsonWasm.bytes) throw new Error("tree-sitter-json grammar unavailable")
+    if (!runtimeWasm.bytes) throw new Error("tree-sitter runtime unavailable")
+    await (Parser.init as any)({ wasmBinary: runtimeWasm.bytes })
+    const language = await Language.load(new Uint8Array(jsonWasm.bytes))
+    const parser = new Parser()
+    parser.setLanguage(language)
+    return parser
+  })()
+  return _jsonParserPromise
+}
 
 // ── Tool Schema Serialization ────────────────────────────────────────────────
 
@@ -589,64 +612,59 @@ const live: Layer.Layer<
             inputLen: String(failed.toolCall.input).length,
             error: failed.error.message,
           })
+          // Case-insensitive tool name fix (e.g. "Bash" → "bash")
           const lower = failed.toolCall.toolName.toLowerCase()
           if (lower !== failed.toolCall.toolName && tools[lower]) {
-            l.info("repairing tool call", {
-              tool: failed.toolCall.toolName,
-              repaired: lower,
-            })
-            return {
-              ...failed.toolCall,
-              toolName: lower,
-            }
+            l.info("repairing tool call", { tool: failed.toolCall.toolName, repaired: lower })
+            return { ...failed.toolCall, toolName: lower }
           }
-          // Strip null bytes first — they break JSON.parse.
+          // Strip null bytes — they break JSON.parse.
           const rawInput = String(failed.toolCall.input).replace(/\x00/g, "")
 
-          // Tier 1: fast JSON repair via json-repair WASM (proven, lightweight)
-          const repaired1 = await repairJsonWasm(rawInput)
-          if (repaired1 !== null) {
-            l.info("repaired malformed JSON in tool call (json-repair)", {
+          // Step 1: try JSON.parse — the authoritative validity check.
+          try {
+            JSON.parse(rawInput)
+            return { ...failed.toolCall, input: rawInput }
+          } catch (originalError) {
+            const originalMessage = (originalError as Error).message
+
+            // Step 2: lightweight JSON repair (json-repair WASM, not anyrepair).
+            // If repair fixes it — use silently, model doesn't need to know.
+            const repaired = await repairJsonWasm(rawInput)
+            if (repaired !== null) {
+              try {
+                JSON.parse(repaired)
+                l.info("repaired malformed JSON in tool call (json-repair)", {
+                  tool: failed.toolCall.toolName,
+                })
+                return { ...failed.toolCall, input: repaired }
+              } catch {
+                // repaired JSON still invalid — fall through to error
+              }
+            }
+
+            // Step 3: repair failed. Tell model the ORIGINAL error + position.
+            // tree-sitter JSON is a system dependency — always available.
+            const jsonParser = await getJsonParser()
+            const tree = jsonParser.parse(rawInput)
+            let message = `Invalid JSON: ${originalMessage}`
+            if (tree) {
+              const errors = tree.rootNode.descendantsOfType("ERROR")
+              if (errors.length > 0) {
+                const first = errors[0]!
+                const lines = rawInput.slice(0, first.startIndex).split("\n")
+                message = `JSON error at line ${lines.length}, column ${(lines[lines.length - 1]?.length ?? 0) + 1}: ${originalMessage}`
+              }
+            }
+            l.info("tool call JSON parse error", {
               tool: failed.toolCall.toolName,
+              error: message,
             })
             return {
               ...failed.toolCall,
-              input: repaired1,
+              input: JSON.stringify({ tool: failed.toolCall.toolName, error: message }),
+              toolName: "invalid",
             }
-          }
-
-          // Tier 2: JSON repair via anyrepair (handles more edge cases)
-          const repaired2 = await repairJsonAny(rawInput)
-          if (repaired2 !== null) {
-            l.info("repaired malformed JSON in tool call (anyrepair-json)", {
-              tool: failed.toolCall.toolName,
-            })
-            return {
-              ...failed.toolCall,
-              input: repaired2,
-            }
-          }
-
-          // Tier 3: auto-detect repair via anyrepair (JSON, XML, or other format)
-          const repaired3 = await repairAny(rawInput)
-          if (repaired3 !== null && repaired3 !== rawInput) {
-            l.info("repaired malformed tool call input (anyrepair-auto)", {
-              tool: failed.toolCall.toolName,
-            })
-            return {
-              ...failed.toolCall,
-              input: repaired3,
-            }
-          }
-
-          // All repair attempts failed — redirect to invalid tool
-          return {
-            ...failed.toolCall,
-            input: JSON.stringify({
-              tool: failed.toolCall.toolName,
-              error: diagnoseParseError(failed.error.message),
-            }),
-            toolName: "invalid",
           }
         },
         temperature: params.temperature,

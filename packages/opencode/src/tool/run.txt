@@ -1,15 +1,24 @@
 Executes a binary directly with arguments — no shell interpretation, no quoting issues.
 
-IMPORTANT: Use this tool for running binaries with precise argument passing (bun, node, python, go, cargo, etc.). The arguments are passed directly to the binary — no shell expansion, no globbing, no quote interpretation. Each argument is a separate string.
+**Constitution blocks:** Crash-prone binaries (`bun`, `go`, `cargo`, `rustc`) are HARD-BLOCKED via `run` — they must go through `cmd_runner` for process isolation:
+```
+# ✅ Allowed (isolated terminal):
+cmd_runner start -- bun run script.ts
+
+# ❌ Blocked (will crash TUI):
+run({ binary: "bun", args: ["run", "script.ts"] })
+```
+Safe binaries (`node`, `python`, `python3`, `git`, `npm`, `npx`) are allowed. Arguments are passed directly to the binary — no shell expansion, no globbing, no quote interpretation. Each argument is a separate string.
+
+**`cmd_runner send` can run anything inside an existing terminal session** (SSH, interactive shell, etc.) — the constitution does not scan commands sent into an already-isolated TTY.
 
 DO NOT use for file operations — use Read, Write, Edit, Grep, Glob instead.
 
 ## Binary Resolution
 
 The binary is resolved from the system PATH. Common binaries:
-- `bun`, `node`, `python`, `python3`
-- `go`, `cargo`, `rustc`
-- `git`, `npm`, `npx`
+- ✅ Safe: `node`, `python`, `python3`, `git`, `npm`, `npx`
+- ⚠️ Crash-prone: `bun`, `go`, `cargo`, `rustc` — HARD-BLOCKED via `run`; use `cmd_runner start -- <binary> ...`
 - `cmd_runner.exe`, `adm.exe` (Windows)
 
 ## Output Handling
@@ -26,17 +35,17 @@ Runs as a **background job by default** (returns job ID immediately). Use `jobou
 
 ## Examples
 
-Run a TypeScript file:
+Run a Python script:
 ```
-run({ binary: "bun", args: ["run", "script.ts"], workdir: "." })
-```
-
-Run inline JavaScript:
-```
-run({ binary: "bun", args: ["-e", "console.log(1+1)"], timeout: 5000 })
+run({ binary: "python", args: ["script.py"], workdir: "." })
 ```
 
 Check git status:
 ```
 run({ binary: "git", args: ["status", "--short"] })
+```
+
+Run inline Node.js:
+```
+run({ binary: "node", args: ["-e", "console.log(1+1)"], timeout: 5000 })
 ```

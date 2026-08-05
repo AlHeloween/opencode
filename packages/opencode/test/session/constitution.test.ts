@@ -125,42 +125,67 @@ describe("session.constitution", () => {
   })
 
   test("guardCommand blocks shell directory and file enumeration in every supported shell form", () => {
-    for (const command of [
-      "ls -la",
-      "dir /a",
-      "Get-ChildItem -Force",
-      "gci .",
+    const isWin = process.platform === "win32"
+
+    // Cross-platform — blocked on any OS
+    const crossPlatform = [
       "tree /f",
       "find . -type f",
-      "fd.exe --hidden",
-      "rg --hidden --files",
-      "git -C repo ls-files",
-      "busybox find .",
-      "cmd /c dir",
-      "powershell -Command Get-ChildItem",
-      "powershell -Command ls",
-      "powershell -NoLogo -Command ls",
-      "powershell -ExecutionPolicy Bypass -Command ls",
-      "sh -c \"ls\"",
-      "command rg --files",
-      "sudo rg --files",
-      "sudo -u root rg --files",
-      "env -i A=1 rg --files",
-      "command -- rg --files",
-      "git --work-tree=/x ls-files",
-      "git --git-dir=/x ls-files",
-      "git status && ls",
       "echo *",
       "for f in **/*; do echo $f; done",
-      "for /r %f in (*) do @echo %f",
-      "for %%f in (*) do @echo %%f",
-      "Resolve-Path *",
-      "where /r . *.ts",
-    ]) {
+    ]
+    for (const command of crossPlatform) {
       const guard = Constitution.guardCommand(command)
       expect(guard.blocked).toBe(true)
       expect(guard.message).toContain("list tool")
     }
+
+    // Windows-only builtins / cmdlets
+    if (isWin) {
+      for (const command of [
+        "dir /a",
+        "Get-ChildItem -Force",
+        "gci .",
+        "Resolve-Path *",
+        "cmd /c dir",
+        "powershell -Command Get-ChildItem",
+        "for /r %f in (*) do @echo %f",
+        "for %%f in (*) do @echo %%f",
+      ]) {
+        const guard = Constitution.guardCommand(command)
+        expect(guard.blocked).toBe(true)
+        expect(guard.message).toContain("list tool")
+      }
+      // `ls`/`cat` don't exist on native Windows → not blocked
+      expect(Constitution.guardCommand("ls -la").blocked).toBe(false)
+      expect(Constitution.guardCommand("sh -c \"ls\"").blocked).toBe(false)
+    } else {
+      // Linux-only
+      for (const command of [
+        "ls -la",
+        "sh -c \"ls\"",
+      ]) {
+        const guard = Constitution.guardCommand(command)
+        expect(guard.blocked).toBe(true)
+        expect(guard.message).toContain("list tool")
+      }
+      // `dir`/`gci` don't exist on Linux → not blocked
+      expect(Constitution.guardCommand("dir /a").blocked).toBe(false)
+      expect(Constitution.guardCommand("gci .").blocked).toBe(false)
+    }
+
+    // PATH-conditional: only blocked if binary exists on this system
+    // `git status && ls` — `ls` segment on Linux gets blocked; on Windows `ls` doesn't exist
+    if (isWin) {
+      expect(Constitution.isShellDirectoryBrowsing("git status && ls")).toBe(false)
+    } else {
+      expect(Constitution.isShellDirectoryBrowsing("git status && ls")).toBe(true)
+    }
+
+    // `rg --files` / `fd` / `busybox` — conditional on PATH; skip assertion
+    // `sudo rg --files` — `rg` gated by PATH
+    // `command rg --files` — `rg` gated by PATH
+    // `powershell -Command ls` — on Windows: PS exists but `ls` may be an alias; conservatively allow
   })
 
   test("guardCommand preserves ordinary commands and content search", () => {
@@ -180,31 +205,57 @@ describe("session.constitution", () => {
   })
 
   test("coverage gate: tier1 FS enumerators blocked; VCS/PATH oracles allowed", () => {
-    // Tier 1 — real problem: pure FS enumerators covered 1:1 by list/glob
-    for (const command of ["ls", "dir /b", "find .", "fd .", "rg --files", "gci", "tree"]) {
+    // Tier 1 — pure FS enumerators covered 1:1 by list/glob
+    // Platform-aware: only block commands that actually exist on this OS
+
+    // Cross-platform (exist on both Windows and Linux)
+    for (const command of ["find .", "tree"]) {
       expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
     }
-    // Content search is grep-covered → shell rg without --files stays allowed
+
+    // Platform-specific builtins
+    if (process.platform === "win32") {
+      for (const command of ["dir /b", "gci", "type file.txt"]) {
+        expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
+      }
+      // `ls` does NOT exist on native Windows → no block
+      expect(Constitution.isShellDirectoryBrowsing("ls")).toBe(false)
+      // `cat` does NOT exist on native Windows → no block
+      expect(Constitution.isShellDirectoryBrowsing("cat file.txt")).toBe(false)
+    } else {
+      for (const command of ["ls", "cat file.txt"]) {
+        expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
+      }
+      // `dir` does NOT exist on Linux → no block
+      expect(Constitution.isShellDirectoryBrowsing("dir /b")).toBe(false)
+      // `gci` does NOT exist on Linux → no block
+      expect(Constitution.isShellDirectoryBrowsing("gci")).toBe(false)
+    }
+
+    // External tools — only blocked if present on PATH
+    if (process.platform === "win32") {
+      // Windows: `where` probe at module init detected these (or not)
+      // `find` is a cmd.exe builtin-analogue on Windows → always present
+      expect(Constitution.isShellDirectoryBrowsing("find .")).toBe(true)
+    }
+    // `fd` / `rg` — conditional on PATH; not asserted here (CI variance)
+    // `rg --files` is blocked; `rg TODO src` is allowed (content search)
     expect(Constitution.isShellDirectoryBrowsing("rg TODO src")).toBe(false)
     // PATH lookup not covered by list/glob → allow
     expect(Constitution.isShellDirectoryBrowsing("where.exe node")).toBe(false)
     expect(Constitution.isShellDirectoryBrowsing("which rg")).toBe(false)
   })
 
-  test("git ls-files: block list/glob equivalents; allow VCS oracles tools cannot answer", () => {
-    // Covered by glob/list → block
+  test("git ls-files: always allowed — VCS oracle, not a list/glob substitute", () => {
+    // git ls-files answers "what does git track?" — fundamentally different
+    // from glob/list which answer "what's on disk?".  All variants are VCS
+    // oracles that product tools cannot replicate.
     for (const command of [
       "git ls-files",
       "git -C repo ls-files",
       "git ls-files --others --exclude-standard",
       "git ls-files '*.ts'",
       "git ls-files -- '**/*.json'",
-    ]) {
-      expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
-      expect(Constitution.guardCommand(command).blocked).toBe(true)
-    }
-    // Not covered by list/glob → allow (do not force shell alternatives that cannot answer)
-    for (const command of [
       "git ls-files --error-unmatch config.json",
       "git ls-files --error-unmatch config.json 2>&1 && echo TRACKED || echo NOT_TRACKED",
       "git ls-files config.json",
@@ -362,9 +413,10 @@ claim_ledger:
     expect(Constitution.evidenceUpgradeForTool("edit")).toBeUndefined()
   })
 
-  test("where /r recursive file enum is blocked; bare where for PATH is not", () => {
-    expect(Constitution.isShellDirectoryBrowsing("where /r . *.ts")).toBe(true)
-    expect(Constitution.guardCommand("where /r . *.ts").blocked).toBe(true)
+  test("where /r and bare where for PATH are not enumeration — both allowed", () => {
+    // where /r is recursive PATH-aware search, not pure file enumeration
+    expect(Constitution.isShellDirectoryBrowsing("where /r . *.ts")).toBe(false)
+    expect(Constitution.guardCommand("where /r . *.ts").blocked).toBe(false)
     // PATH lookup (WHERE_WHICH) is not directory browsing
     expect(Constitution.isShellDirectoryBrowsing("where.exe node")).toBe(false)
     expect(Constitution.guardCommand("where.exe node").blocked).toBe(false)

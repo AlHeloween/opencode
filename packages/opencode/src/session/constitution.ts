@@ -1,14 +1,67 @@
 /**
- * Runtime constitution — aligned with prompts_kernel v6.0.
+ * Runtime constitution — aligned with prompts_kernel v6.1.
  *
  * Single source of truth for: risk tiers, command classification,
  * shell browsing guard, destructive guard, mutation grounding.
  *
  * [KV-CACHE SAFE] — pure functions; never mutate system prompts.
+ *
+ * v6.1: PATH-aware enumeration blocking — only blocks binaries that
+ * actually exist on the current platform.
  */
 import * as Log from "@opencode-ai/core/util/log"
+import { spawnSync } from "child_process"
 
 const log = Log.create({ service: "session.constitution" })
+
+// ============================================================================
+// PATH-AWARE ENUMERATION BINARY DETECTION
+// ============================================================================
+
+/**
+ * First-token set of known enumeration binaries on THIS platform.
+ * Only commands starting with these tokens are scanned for FILE_ENUMERATOR
+ * patterns. Shell builtins are gated by platform; external binaries are
+ * probed once via where/which at module load.
+ *
+ * Rationale: blocking `dir` on Linux or `ls` on native Windows is a false
+ * positive — the command wouldn't work anyway, and the scary "BLOCKED"
+ * message confuses agents into thinking they did something wrong.
+ */
+const _KNOWN_ENUM_FIRST_TOKENS = new Set<string>()
+
+// Shell builtins / cmdlets — always present on their native platform
+if (process.platform === "win32") {
+  for (const t of ["dir", "type", "tree", "Get-ChildItem", "gci", "Get-Item", "Resolve-Path"]) {
+    _KNOWN_ENUM_FIRST_TOKENS.add(t.toLowerCase())
+  }
+} else {
+  for (const t of ["ls", "cat", "tree"]) {
+    _KNOWN_ENUM_FIRST_TOKENS.add(t)
+  }
+}
+
+// Cross-platform / POSIX — probe lazily: only block if binary exists on PATH
+function _probeBinary(name: string): boolean {
+  try {
+    const cmd = process.platform === "win32" ? "where" : "which"
+    const r = spawnSync(cmd, [name], { stdio: "ignore", timeout: 2000 })
+    return r.status === 0
+  } catch {
+    return false
+  }
+}
+
+for (const t of ["find", "fd", "fdfind", "rg", "more", "busybox"]) {
+  if (_probeBinary(t)) _KNOWN_ENUM_FIRST_TOKENS.add(t)
+}
+
+// Always-scanned: shell grammar constructs (echo/printf/for globs, git ls-files, where /r)
+// These are matched by their full pattern, not just first-token — the first-token
+// gate is an optimistic skip; the full regex still guards correctness.
+for (const t of ["echo", "printf", "for", "git", "where", "busybox"]) {
+  _KNOWN_ENUM_FIRST_TOKENS.add(t)
+}
 
 // ============================================================================
 // ENUMS — single source, no string-union sub-modalities
@@ -83,7 +136,9 @@ type CommandEntry = {
 
 /** Single classification table — one entry per command family. */
 const COMMAND_TABLE: CommandEntry[] = [
-  // ── Tier 1: pure FS enumerators — HARD BLOCK (list/glob/grep exist) ──
+  // ── FS enumerators — HARD BLOCK (list/glob/grep/read tools exist) ──
+  // PATH-aware: only blocked when the binary actually exists on this system.
+  // where/which (PATH lookup) and findstr (content search) are NOT enumeration.
   {
     family: CommandFamily.FILE_ENUMERATOR,
     risk: "LOW",
@@ -93,20 +148,17 @@ const COMMAND_TABLE: CommandEntry[] = [
       /^(?:(?:\/usr)?\/bin\/)?(?:ls|dir|tree)(?:\.exe)?(?:\s|$)/i,
       /^(?:Get-ChildItem|gci)\b/i,
       /^busybox\s+(?:ls|find)\b/i,
-      // Recursive path discovery (glob tool)
+      // Recursive path discovery — SLOW, resource-heavy (glob tool)
       /^(?:find|fd|fdfind)(?:\.exe)?(?:\s|$)/i,
       /^rg(?:\.exe)?\b(?=[^\n]*\s--files\b)/i,
       /^(?:Get-Item|Resolve-Path)\b[^\n]*\*/i,
+      // Shell glob expansion (glob tool)
       /^(?:echo|printf)\s+[^\n]*\*/i,
       /^for\s+\w+\s+in\s+[^\n]*\*/i,
       /^for\s+\/r\b/i,
       /^for\s+%%?\w+\s+in\s+\(\*\)/i,
-      /^where(?:\.exe)?\s+\/r\b/i,
-      // git ls-files as list/glob substitute
-      /^git(?:\.exe)?\s+(?:(?:-C\s+\S+|--no-pager|-c\s+\S+|--work-tree=\S+|--git-dir=\S+)\s+)*ls-files\b/i,
-      // Shell redirection for file browsing
+      // File content viewing (read tool)
       /^(?:type|cat|more)(?:\.exe)?(?:\s|$)/i,
-      /^(?:findstr)(?:\.exe)?(?:\s|$)/i,
     ],
   },
   // ── File destruction (rm -rf, format, dd, Remove-Item -Recurse -Force) ──
@@ -232,7 +284,21 @@ export function classifyCommand(command: string): ClassificationResult {
   const text = command.trim()
   if (!text) return { family: CommandFamily.ALLOWED, risk: "LOW", hardBlock: false }
 
+  // Fast first-token gate: skip FILE_ENUMERATOR scan unless the command
+  // starts with a binary known to exist on this platform.  Avoids false
+  // positives on `dir` (Linux), `ls` (native Windows), or scripts named
+  // `find-config`/`type-check` (^ anchor already guards those, but this
+  // adds defence-in-depth + the PATH existence check the user expects).
+  const firstToken = text.split(/\s+/)[0]?.replace(/^.*[/\\]/, "")?.toLowerCase() ?? ""
+  const scanEnumeration = _KNOWN_ENUM_FIRST_TOKENS.has(firstToken)
+
   for (const entry of COMMAND_TABLE) {
+    if (entry.family === CommandFamily.FILE_ENUMERATOR && !scanEnumeration) {
+      // Skip enumeration patterns when the first token isn't a known
+      // enumeration binary.  Grammar constructs (echo/printf/for, git
+      // ls-files) remain gated by their full ^-anchored regex patterns.
+      continue
+    }
     if (entry.patterns.some((re) => re.test(text))) {
       return {
         family: entry.family,

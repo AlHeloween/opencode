@@ -1,4 +1,8 @@
-Executes a Windows cmd.exe command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `dir`, `echo`), set `run_in_background: false`.
+Executes a Windows cmd.exe command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
+
+**Constitution blocks:** The following shell commands are HARD-BLOCKED and will fail:
+- File enumeration: `ls`, `dir`, `tree`, `find`, `fd`, `rg --files`, `Get-ChildItem` — use `list`/`glob`/`grep` tools instead.
+- Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`): must run through `cmd_runner` for process isolation (e.g., `cmd_runner start -- bun build`). Direct execution can corrupt TUI state.
 
 Be aware: OS: ${os}, Shell: cmd
 
@@ -16,8 +20,9 @@ Commands run as background jobs. The tool returns immediately with a job ID (e.g
 
 For quick commands where you need the result immediately, opt out of background mode:
 ```
-cmd "dir" --run_in_background false
+cmd "echo hello" --run_in_background false
 ```
+**Do NOT use `dir`** — it is HARD-BLOCKED by the constitution; use `glob` or `list` for file browsing.
 
 ## Windows Path Quoting
 
@@ -48,7 +53,7 @@ The default timeout is 60000ms (1 minute). You can specify an optional timeout i
 Before executing:
 
 1. Always quote file paths with spaces in double quotes.
-2. Use Windows syntax: `dir`, `type`, `copy`, `move`, `del`, `mkdir`, `takeown`.
+2. Use Windows syntax: `type`, `copy`, `move`, `del`, `mkdir`, `takeown`. **Do NOT use `dir`** — it is HARD-BLOCKED; use `glob` or `list` for file browsing.
 3. Chain with `&&`. Pipe with `|`. Redirect with `>` and **`2>&1`** (required for TS/compiler error capture into pipes).
 4. Use `nul` for null device. Do **not** remove intentional `2>&1` merge redirects.
 5. DO NOT use `grep`, `rg`, `head`, `tail`, `sed`, `awk` — use dedicated tools.

@@ -40,7 +40,9 @@ Use this skill when a command may be:
 - Default backend uses ConPTY (Windows) or PTY (Linux) for terminal I/O.
 - `--direct-terminal` is a Windows Terminal-only graphics backend: the child inherits the actual WT console, so SIXEL capability negotiation and output are not consumed by ConPTY.
 - Raw pipe capture mode (`--raw`) for image protocol passthrough — converts Kitty/iTerm2/Sixel to `[IMG:PROTO:b64]` in logs.
-- Terminal auto-detection: wezterm > Windows Terminal > conhost > bash (Windows); wezterm > guake > yakuake > xterm > bash (Linux).
+- Terminal auto-detection: conhost > wezterm > Windows Terminal > bash (Windows); wezterm > guake > yakuake > xterm > bash (Linux).
+- conhost is the Windows default because it reliably supports minimized-no-focus-steal (SW_SHOWMINNOACTIVE).
+  Windows Terminal (wt.exe) windows belong to WindowsTerminal.exe, not the launcher PID — use `--terminal wt` explicitly if needed.
 - Logs: `logs/cmd_runner/<run_id>/`
 - Programmatic input bridge: `logs/cmd_runner/<run_id>/inbox.jsonl`
 - Can be launched from any working directory (binary found via PATH or absolute path).

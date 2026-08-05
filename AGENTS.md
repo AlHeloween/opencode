@@ -495,6 +495,36 @@ abstract_futures/   ← DO NOT IMPLEMENT — graveyard of pre-kernel agent hallu
 - The `list` tool does not support `noIgnore` — use `glob` with `noIgnore: true` instead.
 - For logs specifically: use the Grep tool with `noIgnore: true` to search `.opencode/data/log` for patterns like `error|ERROR|bug:`.
 
+## Shell Command Restrictions (Constitution)
+
+The runtime constitution (`constitution.ts` + `shell-constitution.ts`) hard-blocks specific shell commands. Agents and developers must use product tools instead:
+
+| Shell command | Status | Product equivalent |
+|---------------|--------|-------------------|
+| `ls`, `dir`, `tree` | ❌ HARD BLOCK | `list` (tree listing) |
+| `find`, `fd`, `rg --files` | ❌ HARD BLOCK | `glob` (pattern matching) |
+| `Get-ChildItem`, `gci` | ❌ HARD BLOCK | `list`/`glob` |
+| `type`, `cat`, `more` | ❌ HARD BLOCK | `read` (file viewer) |
+| `findstr` | ❌ HARD BLOCK | `grep` (content search) |
+| `echo *`, `printf *`, `for` globs | ❌ HARD BLOCK | `glob` |
+| `where /r` | ❌ HARD BLOCK | `glob` |
+| `git ls-files` | ❌ HARD BLOCK | `glob` |
+| `bun`, `tsc`, `cargo`, `make` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
+| `cmake`, `gcc`, `g++`, `clang` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
+| `rustc`, `dotnet`, `msbuild` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
+| `ninja`, `go` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
+
+**Crash-prone binaries** (`bun`, `tsc`, `cargo`, etc.) crash the TUI when executed directly. They MUST run through `cmd_runner`:
+```
+# ✅ Allowed:
+cmd_runner start -- bun run script/build.ts
+
+# ❌ Blocked (will crash TUI):
+bun run script/build.ts
+```
+
+Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` (env) bypasses all blocks.
+
 ## Type Checking
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.

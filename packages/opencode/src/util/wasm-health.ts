@@ -4,7 +4,6 @@
  */
 import { initDiffy } from "./diff-wasm"
 import { initJsonRepair } from "./json-repair-wasm"
-import { initAnyrepair } from "./anyrepair-wasm"
 import { initPathValidator } from "./path-validator"
 import { getMermaidWasmRenderer } from "./mermaid-wasm"
 import * as Log from "@opencode-ai/core/util/log"
@@ -46,7 +45,6 @@ export async function checkWasmModules(): Promise<WasmHealthReport> {
   const results = await Promise.all([
     check("init:diffy", initDiffy),
     check("init:json_repair", initJsonRepair),
-    check("init:anyrepair", initAnyrepair),
     check("init:path_validator", initPathValidator),
     ...embeddedWasmAssetPaths.map(checkAsset),
     checkMermaidRender(),

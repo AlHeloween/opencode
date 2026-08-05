@@ -227,7 +227,7 @@ The `log.ts` module provides `logError(msg, extra)` for log-internal failures â€
 
 ## Debugging with Logs
 
-When something breaks in the TUI (red brackets, error toasts, session restore failures, prompt not working), **check the logs first**. Log/diff/payload files live in a single flat directory at `{worktree}/.opencode/data/log/` using the naming convention `{time_ms}_{operation}_{model}_{session_id}.{ext}`. `ls log/` is chronologically sorted. Bug reports are written as JSON to `{worktree}/.opencode/data/bugs/messages.json` on clean exit.
+When something breaks in the TUI (red brackets, error toasts, session restore failures, prompt not working), **check the logs first**. Log/diff/payload files live in a single flat directory at `{worktree}/.opencode/data/log/` using the naming convention `{time_ms}_{operation}_{model}_{session_id}.{ext}`. Use `glob` or `list` to browse chronologically (shell `ls` is HARD-BLOCKED). Bug reports are written as JSON to `{worktree}/.opencode/data/bugs/messages.json` on clean exit.
 
 ### Finding errors in logs
 

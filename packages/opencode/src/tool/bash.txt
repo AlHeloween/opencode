@@ -15,6 +15,10 @@ All commands run in the current working directory by default. Use the `workdir` 
 
 IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.
 
+**Constitution blocks:** The following shell commands are HARD-BLOCKED and will fail:
+- File enumeration: `ls`, `dir`, `tree`, `find`, `fd`, `rg --files`, `Get-ChildItem` — use `list`/`glob`/`grep` tools instead.
+- Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`): must run through `cmd_runner` for process isolation (e.g., `cmd_runner start -- bun build`). Direct execution can corrupt TUI state.
+
 ## Background Jobs
 
 Commands run as background jobs. The tool returns immediately with a job ID (e.g., `bash-1`). You then:
@@ -30,7 +34,7 @@ bash "echo hello" --run_in_background false
 
 ## Platform Notes
 
-- **Linux**: Bash is the native shell. Use bash syntax (ls, grep, cat, etc.).
+- **Linux**: Bash is the native shell for build commands, git, npm, docker — operations without a product tool equivalent. **Never use `ls`, `cat`, `grep`, `find`, `fd`** — these are HARD-BLOCKED; use `list`/`glob`/`grep`/`read` tools.
 - **Windows**: Bash tool is NOT available. Use `cmd` / PowerShell tools when present,
   or host-provided interactive runners the runtime surfaces for this session.
 
@@ -53,8 +57,9 @@ The default timeout is 60000ms (1 minute). You can specify an optional timeout i
 Before executing the command, please follow these steps:
 
 1. Directory Verification:
-   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location
-   - For example, before running "mkdir foo/bar", first use `ls foo` to check that "foo" exists and is the intended parent directory
+   - If the command will create new directories or files, first use the `list` tool or `glob` pattern to verify the parent directory exists and is the correct location
+   - For example, before running "mkdir foo/bar", use `list` or `glob` to check that "foo" exists and is the intended parent directory
+   - **Do NOT use `ls`** — it is HARD-BLOCKED by the constitution; use `list`/`glob` instead
 
 2. Command Execution:
    - Always quote file paths that contain spaces with double quotes (e.g., rm "path with spaces/file.txt")

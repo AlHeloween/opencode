@@ -233,7 +233,7 @@ it.live("session.processor effect tests capture llm input cleanly", () =>
         const parts = MessageV2.parts(msg.id)
         const calls = yield* llm.calls
 
-        expect(value).toBe("stop")
+        expect(value).toBe("continue")
         expect(calls).toBe(1)
         expect(parts.some((part) => part.type === "text" && part.text === "hello")).toBe(true)
       }),
@@ -416,7 +416,7 @@ it.live("session.processor effect tests capture reasoning from http mock", () =>
         const reasoning = parts.find((part): part is MessageV2.ReasoningPart => part.type === "reasoning")
         const text = parts.find((part): part is MessageV2.TextPart => part.type === "text")
 
-        expect(value).toBe("stop")
+        expect(value).toBe("continue")
         expect(yield* llm.calls).toBe(1)
         expect(reasoning?.text).toBe("think")
         expect(text?.text).toBe("done")
@@ -464,7 +464,7 @@ it.live("session.processor effect tests reset reasoning state across retries", (
         const parts = MessageV2.parts(msg.id)
         const reasoning = parts.filter((part): part is MessageV2.ReasoningPart => part.type === "reasoning")
 
-        expect(value).toBe("stop")
+        expect(value).toBe("continue")
         expect(yield* llm.calls).toBe(2)
         expect(reasoning.some((part) => part.text === "two")).toBe(true)
         expect(reasoning.some((part) => part.text === "onetwo")).toBe(false)
@@ -564,7 +564,7 @@ it.live("session.processor effect tests retry recognized structured json errors"
 
         const parts = MessageV2.parts(msg.id)
 
-        expect(value).toBe("stop")
+        expect(value).toBe("continue")
         expect(yield* llm.calls).toBe(2)
         expect(parts.some((part) => part.type === "text" && part.text === "after")).toBe(true)
         expect(handle.message.error).toBeUndefined()
@@ -618,7 +618,7 @@ it.live("session.processor effect tests publish retry status updates", () =>
 
         off()
 
-        expect(value).toBe("stop")
+        expect(value).toBe("continue")
         expect(yield* llm.calls).toBe(2)
         expect(states).toStrictEqual([1])
       }),

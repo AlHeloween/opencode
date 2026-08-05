@@ -643,7 +643,10 @@ const live: Layer.Layer<
               }
             }
 
-            // Step 3: repair failed. Tell model the ORIGINAL error + position.
+            // Step 3: repair failed. Tell model the ORIGINAL error + position
+            // so it can correct and retry the tool call.
+            // Throw (don't return "invalid") — the AI SDK surfaces this
+            // error to the model, which then regenerates the tool call.
             // tree-sitter JSON is a system dependency — always available.
             const jsonParser = await getJsonParser()
             const tree = jsonParser.parse(rawInput)
@@ -656,15 +659,11 @@ const live: Layer.Layer<
                 message = `JSON error at line ${lines.length}, column ${(lines[lines.length - 1]?.length ?? 0) + 1}: ${originalMessage}`
               }
             }
-            l.info("tool call JSON parse error", {
+            l.info("tool call JSON parse error — throwing for model retry", {
               tool: failed.toolCall.toolName,
               error: message,
             })
-            return {
-              ...failed.toolCall,
-              input: JSON.stringify({ tool: failed.toolCall.toolName, error: message }),
-              toolName: "invalid",
-            }
+            throw new Error(message)
           }
         },
         temperature: params.temperature,

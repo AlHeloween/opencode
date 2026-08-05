@@ -255,8 +255,6 @@ function powerShellScript(command: string) {
   return script
 }
 
-const parser = getParser
-
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
   // Use cmd /c directly (no shell mode) to avoid Node.js escaping inner
   // quotes with \" — cmd.exe does not understand \" escaping and breaks
@@ -512,7 +510,7 @@ export const CmdTool = Tool.define(
           const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
           const shell = process.env.COMSPEC || "cmd.exe"
 
-          const p = yield* Effect.promise(() => parser())
+          const p = yield* Effect.promise(() => getParser())
           const script = powerShellScript(scanCommand)
           const ps = script !== undefined
           // Shared parser: p.cmd = batch grammar, p.ps = PowerShell grammar

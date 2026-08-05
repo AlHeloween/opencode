@@ -7,9 +7,7 @@ import DESCRIPTION from "./bash.txt"
 import POWERSHELL_DESCRIPTION from "./powershell.txt"
 import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "../project/instance"
-import { lazy } from "@/util/lazy"
-import { readWasmAsset } from "@/util/wasm-path"
-import { Language, type Node } from "web-tree-sitter"
+import { type Node } from "web-tree-sitter"
 
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Config } from "@/config/config"
@@ -27,7 +25,8 @@ import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner
 import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
-import { enforceBinaryViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
+import { enforceBinaryViaCmdRunner, enforceDestructiveShellFromAst, stripCmdRunnerSendPayload } from "./shell-constitution"
+import { commands, getParser, hasRedirection, parts, source, unquote as tsUnquote } from "@/shell/tree-sitter"
 export { invalidatePermissionCache } from "./permission-cache"
 
 const MAX_METADATA_LENGTH = 30_000
@@ -124,15 +123,6 @@ const SAFE = new Set([
   "whoami",
 ])
 
-function hasRedirection(node: Node, isCmd?: boolean): boolean {
-  if (isCmd) {
-    // In batch grammar, redirection is a sibling of the command inside redirect_stmt,
-    // not a descendant. Check the parent node.
-    return node.descendantsOfType("redirection").length > 0 || node.parent?.type === "redirect_stmt"
-  }
-  return node.descendantsOfType("redirection").length > 0
-}
-
 function isKnownSafeCommand(parts: Part[]): boolean {
   const cmd = parts[0]?.text?.toLowerCase()
   const tokens = parts.map((p) => p.text.toLowerCase())
@@ -182,79 +172,6 @@ type Chunk = {
 
 export const log = Log.create({ service: "bash-tool" })
 
-function parts(node: Node, isCmd?: boolean): Part[] {
-  if (isCmd) {
-    const out: Part[] = []
-    for (let i = 0; i < node.childCount; i++) {
-      const child = node.child(i)
-      if (!child) continue
-      if (child.type === "command_name") {
-        out.push({ type: child.type, text: child.text })
-        continue
-      }
-      if (child.type !== "argument_list") continue
-      for (let j = 0; j < child.childCount; j++) {
-        const item = child.child(j)
-        if (!item || item.type === "line_continuation") continue
-        if (item.type === "command_option" || item.type === "argument_value" || item.type === "string") {
-          out.push({ type: item.type, text: item.text })
-          continue
-        }
-        out.push({ type: item.type, text: item.text })
-      }
-    }
-    return out
-  }
-
-  // Bash / PowerShell grammar AST traversal
-  const out: Part[] = []
-  for (let i = 0; i < node.childCount; i++) {
-    const child = node.child(i)
-    if (!child) continue
-    if (child.type === "command_elements") {
-      for (let j = 0; j < child.childCount; j++) {
-        const item = child.child(j)
-        if (!item || item.type === "command_argument_sep" || item.type === "redirection") continue
-        out.push({ type: item.type, text: item.text })
-      }
-      continue
-    }
-    if (
-      child.type !== "command_name" &&
-      child.type !== "command_name_expr" &&
-      child.type !== "word" &&
-      child.type !== "string" &&
-      child.type !== "raw_string" &&
-      child.type !== "concatenation" &&
-      child.type !== "generic_token" &&
-      child.type !== "array_literal_expression"
-    ) {
-      continue
-    }
-    out.push({ type: child.type, text: child.text })
-  }
-  return out
-}
-
-function source(node: Node, isCmd?: boolean) {
-  if (isCmd) {
-    return (node.parent?.type === "redirect_stmt" ? node.parent.text : node.text).trim()
-  }
-  return (node.parent?.type === "redirected_statement" ? node.parent.text : node.text).trim()
-}
-
-function commands(node: Node, isCmd?: boolean) {
-  return node.descendantsOfType(isCmd ? "cmd" : "command").filter((child): child is Node => Boolean(child))
-}
-
-function unquote(text: string) {
-  if (text.length < 2) return text
-  const first = text[0]
-  const last = text[text.length - 1]
-  if ((first === '"' || first === "'") && first === last) return text.slice(1, -1)
-  return text
-}
-
 function home(text: string) {
   if (text === "~") return os.homedir()
   if (text.startsWith("~/") || text.startsWith("~\\")) return path.join(os.homedir(), text.slice(2))
@@ -276,7 +193,7 @@ function auto(key: string, cwd: string, shell: string) {
 }
 
 function expand(text: string, cwd: string, shell: string) {
-  const out = unquote(text)
+  const out = tsUnquote(text)
     .replace(/\$\{env:([^}]+)\}/gi, (_, key: string) => envValue(key) || "")
     .replace(/\$env:([A-Za-z_][A-Za-z0-9_]*)/gi, (_, key: string) => envValue(key) || "")
     .replace(/\$(HOME|PWD|PSHOME)(?=$|[\\/])/gi, (_, key: string) => auto(key, cwd, shell) || "")
@@ -388,7 +305,9 @@ function tail(text: string, maxLines: number, maxBytes: number) {
 }
 
 const parse = Effect.fn("BashTool.parse")(function* (command: string, ps: boolean, isCmd: boolean) {
-  const tree = yield* Effect.promise(() => parser().then((p) => (isCmd ? p.cmd : ps ? p.ps : p.bash).parse(command)))
+  const p = yield* Effect.promise(() => getParser())
+  const engine = isCmd ? p.cmd : ps ? p.ps : p.bash
+  const tree = engine.parse(command)
   if (!tree) throw new Error("Failed to parse command")
   return tree.rootNode
 })
@@ -458,41 +377,6 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
     detached: false,
   })
 }
-const parser = lazy(async () => {
-  const { Parser } = await import("web-tree-sitter")
-  const treeWasm = await readWasmAsset("web-tree-sitter.wasm")
-  if (!treeWasm.bytes) {
-    throw new Error("tree-sitter runtime WASM unavailable; tried: " + JSON.stringify(treeWasm.tried))
-  }
-  // web-tree-sitter types require full EmscriptenModule, but runtime accepts wasmBinary.
-  await (Parser.init as any)({
-    wasmBinary: treeWasm.bytes,
-  })
-  const [bashWasm, cmdWasm, psWasm] = await Promise.all([
-    readWasmAsset("grammars/tree-sitter-bash.wasm"),
-    readWasmAsset("grammars/tree-sitter-batch.wasm"),
-    readWasmAsset("grammars/tree-sitter-powershell.wasm"),
-  ])
-  if (!bashWasm.bytes) throw new Error("bash grammar WASM unavailable; tried: " + JSON.stringify(bashWasm.tried))
-  if (!cmdWasm.bytes) throw new Error("batch grammar WASM unavailable; tried: " + JSON.stringify(cmdWasm.tried))
-  if (!psWasm.bytes) throw new Error("PowerShell grammar WASM unavailable; tried: " + JSON.stringify(psWasm.tried))
-  const bashBytes: ArrayBuffer = bashWasm.bytes
-  const cmdBytes: ArrayBuffer = cmdWasm.bytes
-  const psBytes: ArrayBuffer = psWasm.bytes
-  const [bashLanguage, cmdLanguage, psLanguage] = await Promise.all([
-    Language.load(new Uint8Array(bashBytes)),
-    Language.load(new Uint8Array(cmdBytes)),
-    Language.load(new Uint8Array(psBytes)),
-  ])
-  const bash = new Parser()
-  bash.setLanguage(bashLanguage)
-  const cmd = new Parser()
-  cmd.setLanguage(cmdLanguage)
-  const ps = new Parser()
-  ps.setLanguage(psLanguage)
-  return { bash, cmd, ps }
-})
-
 // TODO: we may wanna rename this tool so it works better on other shells
 export const BashTool = Tool.define(
   "bash",
@@ -528,7 +412,7 @@ export const BashTool = Tool.define(
     })
 
     const argPath = Effect.fn("BashTool.argPath")(function* (arg: string, cwd: string, ps: boolean, shell: string) {
-      const text = ps ? expand(arg, cwd, shell) : home(unquote(arg))
+      const text = ps ? expand(arg, cwd, shell) : home(tsUnquote(arg))
       const file = text && prefix(text)
       if (!file || dynamic(file, ps)) return undefined
       const next = ps ? provider(file) : file
@@ -801,8 +685,8 @@ export const BashTool = Tool.define(
               // The payload is arbitrary remote code and must not be scanned by constitution
               // (it would see os.walk /etc as directory browsing) or parsed by tree-sitter.
               const scanCommand = stripCmdRunnerSendPayload(params.command)
-              // Constitution: destructive-file | destructive-db | destructive-git | destructive-fossil
-              yield* enforceDestructiveShell(scanCommand, ctx, params.description)
+              // Fast regex check: crash-prone binaries (bun, cargo, go, etc.) must go through cmd_runner.
+              // No false-positive risk — only checks binary name at command start.
               enforceBinaryViaCmdRunner(scanCommand)
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, Instance.directory, shell)
@@ -820,7 +704,12 @@ export const BashTool = Tool.define(
               // On Windows: detect cmd.exe shell to select batch grammar + cmd SAFE/FILES.
               // Shell.posix(shell) is false for cmd.exe; Shell.ps(shell) is false for cmd.exe.
               const isCmd = process.platform === "win32" && !Shell.posix(shell) && !Shell.ps(shell)
+
+              // Parse FIRST with TreeSitter — then run constitution on AST nodes.
+              // AST-based classification eliminates false positives from commit messages,
+              // quoted strings, and file paths (e.g. "fossil clean" in a git commit -m "...").
               const root = yield* parse(scanCommand, ps, isCmd)
+              yield* enforceDestructiveShellFromAst(root, isCmd, ctx, params.description)
               const scan = yield* collect(root, cwd, ps, shell, isCmd)
               if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
 

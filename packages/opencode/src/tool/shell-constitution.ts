@@ -1,15 +1,16 @@
 /**
  * Shared constitution preflight for shell/binary tools.
  *
- * Four independent permission groups (never share settings):
- *   destructive-file   — rm -rf, disk wipe
- *   destructive-db     — DROP TABLE/DATABASE, TRUNCATE
- *   destructive-git    — force-push, clean -f; hard-block checkout/stash pop
- *   destructive-fossil — agent fossil mutate (hard-block)
+ * Two enforcement paths:
+ *   enforceDestructiveShell        — legacy regex/token-based (used by run.ts)
+ *   enforceDestructiveShellFromAst — AST-based via Constitution.evaluate() (bash.ts/cmd.ts)
+ *
+ * Constitution is the single authority — this module is a thin Effect wrapper.
  */
 import { Effect } from "effect"
 import { Constitution } from "@/session/constitution"
 import type * as Tool from "./tool"
+import type { Node } from "web-tree-sitter"
 
 const CMD_RUNNER_SEND_PAYLOAD = /^(cmd_runner(?:\.exe)?\s+send\s+.*?--\s*)(.*)/s
 
@@ -19,7 +20,70 @@ export function stripCmdRunnerSendPayload(command: string): string {
   return m ? m[1] : command
 }
 
-/** Hard-block VCS rewrite / fossil mutate; ask for other DESTRUCTIVE by family. */
+/**
+ * AST-based constitution enforcement — primary path for bash.ts / cmd.ts.
+ *
+ * Calls Constitution.evaluate() on the parsed TreeSitter root node,
+ * then throws on hard-blocks and asks for destructive permissions.
+ */
+export function enforceDestructiveShellFromAst(
+  root: Node,
+  isCmd: boolean,
+  ctx: Tool.Context,
+  description?: string,
+): Effect.Effect<void> {
+  return Effect.gen(function* () {
+    const result = Constitution.evaluate(root, isCmd)
+
+    // Hard blocks (FILE_ENUMERATOR, GIT_HISTORY_REWRITE, FOSSIL_MUTATE)
+    for (const finding of result.blocked) {
+      const msg = finding.isFileEnumerator
+        ? "constitution: BLOCKED shell directory/file enumeration (ls/dir/find/fd/rg --files/…). " +
+          "Use the list tool for browsing; glob for path patterns; grep for content. " +
+          "VCS checks (e.g. git ls-files --error-unmatch <path>) and PATH lookup (where/which) stay allowed."
+        : finding.classification.family === "FOSSIL_MUTATE"
+          ? "constitution: BLOCKED fossil CLI mutate (permission: destructive-fossil). " +
+            "Fossil is automatic session undo/snapshot — not project VCS. " +
+            "Use git for project history. Override only OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution."
+          : "constitution: BLOCKED git checkout/switch/restore/reset --hard/stash pop|apply|drop|clear " +
+            "(permission: destructive-git). " +
+            "Do NOT use git to undo or re-layer WIP — that can wipe uncommitted work. " +
+            "Recover with: edit-tool .bak or Fossil snapshot restore. " +
+            "Only set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution if you truly intend VCS rewrite."
+      throw new Error(msg)
+    }
+
+    // Destructive permissions required (rm -rf, force-push, DROP TABLE, etc.)
+    for (const finding of result.needsPermission) {
+      const perm = finding.classification.permission ?? "destructive-file"
+      const kind = finding.classification.family === "FILE_DESTRUCTIVE" ? "file"
+        : finding.classification.family === "DB_DESTRUCTIVE" ? "db"
+        : "git"
+      yield* ctx.ask({
+        permission: perm,
+        patterns: [finding.command.slice(0, 160)],
+        always: [finding.command.slice(0, 160)],
+        metadata: {
+          risk: "DESTRUCTIVE",
+          kind,
+          constitution: true,
+          message: `constitution: DESTRUCTIVE (${perm}) requires explicit approval. ` +
+            "Or set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution.",
+          command: finding.command.slice(0, 400),
+          description,
+        },
+      })
+    }
+  })
+}
+
+/**
+ * Legacy regex/token-based enforcement — for run.ts and non-TreeSitter contexts.
+ *
+ * Calls Constitution.guardCommand() which uses first-token extraction.
+ * Has known false-positive risk with commit messages containing command-like
+ * words.  Prefer {@link enforceDestructiveShellFromAst} when AST is available.
+ */
 export function enforceDestructiveShell(
   command: string,
   ctx: Tool.Context,
@@ -30,7 +94,6 @@ export function enforceDestructiveShell(
       sessionID: ctx.sessionID,
       agent: ctx.extra?.agent as string | undefined,
     })
-    // throw (defect) keeps execute error channel `never` — do not Effect.fail
     if (guard.blocked) {
       throw new Error(guard.message ?? "constitution: command blocked")
     }
@@ -53,26 +116,13 @@ export function enforceDestructiveShell(
   })
 }
 
-/**
- * Crash-prone build toolchains that can corrupt ConPTY / shared console state.
- * Must run through cmd_runner for process isolation. Sorted longest-first so
- * regex alternation matches `clang++` before `clang`.
- */
+// ============================================================================
+// Crash-prone binary enforcement (regex, no false-positive risk)
+// ============================================================================
+
 const CRASH_PRONE_BINARIES = [
-  "clang\\+\\+",
-  "clang",
-  "rustc",
-  "cargo",
-  "zig",
-  "dotnet",
-  "msbuild",
-  "ninja",
-  "cmake",
-  "make",
-  "g\\+\\+",
-  "gcc",
-  "go",
-  "bun",
+  "clang\\+\\+", "clang", "rustc", "cargo", "zig", "dotnet", "msbuild",
+  "ninja", "cmake", "make", "g\\+\\+", "gcc", "go", "bun",
 ] as const
 
 const CRASH_PRONE_RE = new RegExp(
@@ -82,12 +132,6 @@ const CRASH_PRONE_RE = new RegExp(
 
 const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
 
-/**
- * Block direct execution of crash-prone build toolchains through bash/cmd/run.
- * These tools can produce raw ANSI/binary output or crash, corrupting ConPTY
- * state and taking down the TUI. They must run through cmd_runner for isolation.
- * `cmd_runner start -- zig build ...` is allowed.
- */
 export function enforceBinaryViaCmdRunner(command: string): void {
   if (CRASH_PRONE_RE.test(command) && !VIA_CMD_RUNNER.test(command)) {
     const match = command.match(CRASH_PRONE_RE)?.[0]?.trim() ?? "binary"
@@ -97,6 +141,3 @@ export function enforceBinaryViaCmdRunner(command: string): void {
     )
   }
 }
-
-/** @deprecated Use {@link enforceBinaryViaCmdRunner} instead. */
-export const enforceBunViaCmdRunner = enforceBinaryViaCmdRunner

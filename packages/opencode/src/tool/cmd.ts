@@ -6,9 +6,7 @@ import path from "path"
 import DESCRIPTION from "./cmd.txt"
 import * as Log from "@opencode-ai/core/util/log"
 import { Instance } from "../project/instance"
-import { lazy } from "@/util/lazy"
-import { readWasmAsset } from "@/util/wasm-path"
-import { Language, type Node } from "web-tree-sitter"
+import { type Node } from "web-tree-sitter"
 
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Config } from "@/config/config"
@@ -21,7 +19,8 @@ import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
-import { enforceBinaryViaCmdRunner, enforceDestructiveShell, stripCmdRunnerSendPayload } from "./shell-constitution"
+import { enforceBinaryViaCmdRunner, enforceDestructiveShellFromAst, stripCmdRunnerSendPayload } from "./shell-constitution"
+import { getParser } from "@/shell/tree-sitter"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
@@ -256,31 +255,7 @@ function powerShellScript(command: string) {
   return script
 }
 
-const parser = lazy(async () => {
-  const { Parser } = await import("web-tree-sitter")
-  const treeWasm = await readWasmAsset("web-tree-sitter.wasm")
-  if (!treeWasm.bytes) {
-    throw new Error("tree-sitter runtime WASM unavailable; tried: " + JSON.stringify(treeWasm.tried))
-  }
-  await (Parser.init as any)({
-    wasmBinary: treeWasm.bytes,
-  })
-  const [batchWasm, psWasm] = await Promise.all([
-    readWasmAsset("grammars/tree-sitter-batch.wasm"),
-    readWasmAsset("grammars/tree-sitter-powershell.wasm"),
-  ])
-  if (!batchWasm.bytes) throw new Error("batch grammar WASM unavailable; tried: " + JSON.stringify(batchWasm.tried))
-  if (!psWasm.bytes) throw new Error("PowerShell grammar WASM unavailable; tried: " + JSON.stringify(psWasm.tried))
-  const [batchLanguage, psLanguage] = await Promise.all([
-    Language.load(new Uint8Array(batchWasm.bytes)),
-    Language.load(new Uint8Array(psWasm.bytes)),
-  ])
-  const batch = new Parser()
-  batch.setLanguage(batchLanguage)
-  const ps = new Parser()
-  ps.setLanguage(psLanguage)
-  return { batch, ps }
-})
+const parser = getParser
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
   // Use cmd /c directly (no shell mode) to avoid Node.js escaping inner
@@ -523,8 +498,7 @@ export const CmdTool = Tool.define(
         Effect.gen(function* () {
           // cmd_runner send: strip payload after -- BEFORE constitution/permission scanning.
           const scanCommand = stripCmdRunnerSendPayload(params.command)
-          // Same constitution gate as bash — cmd must not bypass destructive (e.g. git checkout)
-          yield* enforceDestructiveShell(scanCommand, ctx, params.description)
+          // Fast regex check: crash-prone binaries must go through cmd_runner.
           enforceBinaryViaCmdRunner(scanCommand)
 
           const cwd = params.workdir ? yield* resolvePath(params.workdir, Instance.directory) : Instance.directory
@@ -541,10 +515,16 @@ export const CmdTool = Tool.define(
           const p = yield* Effect.promise(() => parser())
           const script = powerShellScript(scanCommand)
           const ps = script !== undefined
-          const engine = ps ? p.ps : p.batch
+          // Shared parser: p.cmd = batch grammar, p.ps = PowerShell grammar
+          const engine = ps ? p.ps : p.cmd
           const tree = engine.parse(script ?? scanCommand)
           if (!tree) throw new Error("Failed to parse command")
           const root = tree.rootNode
+
+          // AST-based constitution check (parse first, then classify on AST nodes).
+          // Eliminates regex false positives from commit messages, quoted strings, etc.
+          // isCmd=true for cmd.exe batch grammar, isCmd=false for PowerShell grammar.
+          yield* enforceDestructiveShellFromAst(root, !ps, ctx, params.description)
           const scan = yield* collect(root, cwd, ps)
           if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
 

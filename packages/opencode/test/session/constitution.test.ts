@@ -177,9 +177,9 @@ describe("session.constitution", () => {
     // PATH-conditional: only blocked if binary exists on this system
     // `git status && ls` — `ls` segment on Linux gets blocked; on Windows `ls` doesn't exist
     if (isWin) {
-      expect(Constitution.isShellDirectoryBrowsing("git status && ls")).toBe(false)
+      expect(Constitution.guardCommand("git status && ls").blocked).toBe(false)
     } else {
-      expect(Constitution.isShellDirectoryBrowsing("git status && ls")).toBe(true)
+      expect(Constitution.guardCommand("git status && ls").blocked).toBe(true)
     }
 
     // `rg --files` / `fd` / `busybox` — conditional on PATH; skip assertion
@@ -207,43 +207,70 @@ describe("session.constitution", () => {
   test("coverage gate: tier1 FS enumerators blocked; VCS/PATH oracles allowed", () => {
     // Tier 1 — pure FS enumerators covered 1:1 by list/glob
     // Platform-aware: only block commands that actually exist on this OS
+    // Uses legacy guardCommand (string-based, no TreeSitter needed for these checks)
 
     // Cross-platform (exist on both Windows and Linux)
     for (const command of ["find .", "tree"]) {
-      expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
+      expect(Constitution.guardCommand(command).blocked).toBe(true)
     }
 
     // Platform-specific builtins
     if (process.platform === "win32") {
       for (const command of ["dir /b", "gci", "type file.txt"]) {
-        expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
+        expect(Constitution.guardCommand(command).blocked).toBe(true)
       }
       // `ls` does NOT exist on native Windows → no block
-      expect(Constitution.isShellDirectoryBrowsing("ls")).toBe(false)
+      expect(Constitution.guardCommand("ls").blocked).toBe(false)
       // `cat` does NOT exist on native Windows → no block
-      expect(Constitution.isShellDirectoryBrowsing("cat file.txt")).toBe(false)
+      expect(Constitution.guardCommand("cat file.txt").blocked).toBe(false)
     } else {
       for (const command of ["ls", "cat file.txt"]) {
-        expect(Constitution.isShellDirectoryBrowsing(command)).toBe(true)
+        expect(Constitution.guardCommand(command).blocked).toBe(true)
       }
       // `dir` does NOT exist on Linux → no block
-      expect(Constitution.isShellDirectoryBrowsing("dir /b")).toBe(false)
+      expect(Constitution.guardCommand("dir /b").blocked).toBe(false)
       // `gci` does NOT exist on Linux → no block
-      expect(Constitution.isShellDirectoryBrowsing("gci")).toBe(false)
+      expect(Constitution.guardCommand("gci").blocked).toBe(false)
     }
 
     // External tools — only blocked if present on PATH
     if (process.platform === "win32") {
-      // Windows: `where` probe at module init detected these (or not)
       // `find` is a cmd.exe builtin-analogue on Windows → always present
-      expect(Constitution.isShellDirectoryBrowsing("find .")).toBe(true)
+      expect(Constitution.guardCommand("find .").blocked).toBe(true)
     }
-    // `fd` / `rg` — conditional on PATH; not asserted here (CI variance)
-    // `rg --files` is blocked; `rg TODO src` is allowed (content search)
-    expect(Constitution.isShellDirectoryBrowsing("rg TODO src")).toBe(false)
+    // rg TODO src is content search → allowed
+    expect(Constitution.guardCommand("rg TODO src").blocked).toBe(false)
     // PATH lookup not covered by list/glob → allow
-    expect(Constitution.isShellDirectoryBrowsing("where.exe node")).toBe(false)
-    expect(Constitution.isShellDirectoryBrowsing("which rg")).toBe(false)
+    expect(Constitution.guardCommand("where.exe node").blocked).toBe(false)
+    expect(Constitution.guardCommand("which rg").blocked).toBe(false)
+  })
+
+  test("git ls-files: always allowed — VCS oracle, not a list/glob substitute", () => {
+    for (const command of [
+      "git ls-files",
+      "git -C repo ls-files",
+      "git ls-files --others --exclude-standard",
+      "git ls-files '*.ts'",
+      "git ls-files -- '**/*.json'",
+      "git ls-files --error-unmatch config.json",
+      "git ls-files --error-unmatch config.json 2>&1 && echo TRACKED || echo NOT_TRACKED",
+      "git ls-files config.json",
+      "git ls-files -- config.json",
+      "git -C repo ls-files --error-unmatch packages/opencode/package.json",
+      "git --no-pager ls-files -s -- src/session/constitution.ts",
+      "git ls-files -m",
+      "git ls-files --modified -- src/foo.ts",
+      "git ls-files -d",
+    ]) {
+      expect(Constitution.guardCommand(command).blocked).toBe(false)
+    }
+  })
+
+  test("where /r and bare where for PATH are not enumeration — both allowed", () => {
+    // where /r is recursive PATH-aware search, not pure file enumeration
+    expect(Constitution.guardCommand("where /r . *.ts").blocked).toBe(false)
+    // PATH lookup (WHERE_WHICH) is not directory browsing
+    expect(Constitution.guardCommand("where.exe node").blocked).toBe(false)
   })
 
   test("git ls-files: always allowed — VCS oracle, not a list/glob substitute", () => {
@@ -266,7 +293,6 @@ describe("session.constitution", () => {
       "git ls-files --modified -- src/foo.ts",
       "git ls-files -d",
     ]) {
-      expect(Constitution.isShellDirectoryBrowsing(command)).toBe(false)
       expect(Constitution.guardCommand(command).blocked).toBe(false)
     }
   })
@@ -415,10 +441,8 @@ claim_ledger:
 
   test("where /r and bare where for PATH are not enumeration — both allowed", () => {
     // where /r is recursive PATH-aware search, not pure file enumeration
-    expect(Constitution.isShellDirectoryBrowsing("where /r . *.ts")).toBe(false)
     expect(Constitution.guardCommand("where /r . *.ts").blocked).toBe(false)
     // PATH lookup (WHERE_WHICH) is not directory browsing
-    expect(Constitution.isShellDirectoryBrowsing("where.exe node")).toBe(false)
     expect(Constitution.guardCommand("where.exe node").blocked).toBe(false)
   })
 
@@ -439,5 +463,114 @@ claim_ledger:
     expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.status).toBe("Exact")
     expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.stamped).toBe(true)
     expect(Constitution.premisesGrounded("ses_claim_4").ok).toBe(true)
+  })
+
+  // ── AST-based classification (classifyAstNode / evaluate) ──
+
+  test("classifyAstNode: fossil commands are DESTRUCTIVE", () => {
+    for (const sub of ["commit", "ci", "add", "rm", "delete", "addremove", "checkout", "co", "update", "up", "merge", "undo", "revert", "close", "open", "push", "pull", "sync", "clean"]) {
+      const r = Constitution.classifyAstNode("fossil", sub, ["fossil", sub])
+      expect(r.family).toBe("FOSSIL_MUTATE")
+      expect(r.risk).toBe("DESTRUCTIVE")
+      expect(r.hardBlock).toBe(true)
+    }
+    // Read-only fossil commands are not blocked
+    for (const sub of ["timeline", "status", "diff", "ls", "info"]) {
+      const r = Constitution.classifyAstNode("fossil", sub, ["fossil", sub])
+      expect(r.family).toBe("ALLOWED")
+    }
+  })
+
+  test("classifyAstNode: git commands classified correctly", () => {
+    // Hard-block: checkout/switch/restore
+    for (const sub of ["checkout", "switch", "restore"]) {
+      const r = Constitution.classifyAstNode("git", sub, ["git", sub])
+      expect(r.family).toBe("GIT_HISTORY_REWRITE")
+      expect(r.hardBlock).toBe(true)
+    }
+    // reset without --hard is allowed
+    const softReset = Constitution.classifyAstNode("git", "reset", ["git", "reset"])
+    expect(softReset.family).toBe("ALLOWED")
+    // reset --hard is blocked
+    const hardReset = Constitution.classifyAstNode("git", "reset", ["git", "reset", "--hard"])
+    expect(hardReset.family).toBe("GIT_HISTORY_REWRITE")
+    // stash push is allowed, stash pop is blocked
+    const stashPush = Constitution.classifyAstNode("git", "stash", ["git", "stash", "push"])
+    expect(stashPush.family).toBe("ALLOWED")
+    const stashPop = Constitution.classifyAstNode("git", "stash", ["git", "stash", "pop"])
+    expect(stashPop.family).toBe("GIT_HISTORY_REWRITE")
+    // force-push is askable destructive
+    const forcePush = Constitution.classifyAstNode("git", "push", ["git", "push", "--force"])
+    expect(forcePush.family).toBe("GIT_ASKABLE_DESTRUCTIVE")
+    expect(forcePush.hardBlock).toBe(false)
+    // clean -f is askable destructive
+    const cleanF = Constitution.classifyAstNode("git", "clean", ["git", "clean", "-f"])
+    expect(cleanF.family).toBe("GIT_ASKABLE_DESTRUCTIVE")
+  })
+
+  test("classifyAstNode: FALSE POSITIVE — git commit with 'fossil clean' in message is NOT fossil mutate", () => {
+    // Regression: the old regex matched \bfossil\s+clean\b inside commit messages.
+    // AST-based classification correctly sees cmd=git, sub=commit.
+    // git commit is ELEVATED_GENERAL (not FOSSIL_MUTATE, not blocked).
+    const r = Constitution.classifyAstNode("git", "commit", ["git", "commit", "-m", "fix(fossil): Phase 1"])
+    expect(r.family).not.toBe("FOSSIL_MUTATE")
+    expect(r.family).not.toBe("GIT_HISTORY_REWRITE")
+    expect(r.hardBlock).toBe(false)
+    // git commit is an elevated operation (logged, not blocked)
+    expect(r.risk).toBe("ELEVATED")
+  })
+
+  test("classifyAstNode: git commit with 'git reset --hard' in message is NOT git rewrite", () => {
+    // The commit message contains "git reset --hard" but the actual command is git commit.
+    // Should NOT be classified as GIT_HISTORY_REWRITE.
+    const r = Constitution.classifyAstNode("git", "commit", ["git", "commit", "-m", "fix: git reset --hard edge case"])
+    expect(r.family).not.toBe("GIT_HISTORY_REWRITE")
+  })
+
+  test("classifyAstNode: file destructive commands", () => {
+    const rmrf = Constitution.classifyAstNode("rm", undefined, ["rm", "-rf", "/tmp/x"])
+    expect(rmrf.family).toBe("FILE_DESTRUCTIVE")
+    expect(rmrf.hardBlock).toBe(false)
+    expect(rmrf.permission).toBe("destructive-file")
+
+    const rmSafe = Constitution.classifyAstNode("rm", undefined, ["rm", "file.txt"])
+    expect(rmSafe.family).toBe("ALLOWED") // rm without -rf is not destructive by our rules
+  })
+
+  test("classifyAstNode: elevated commands", () => {
+    const gitPush = Constitution.classifyAstNode("git", "push", ["git", "push"])
+    expect(gitPush.family).toBe("ELEVATED_GENERAL")
+    expect(gitPush.risk).toBe("ELEVATED")
+
+    const npmPublish = Constitution.classifyAstNode("npm", "publish", ["npm", "publish"])
+    expect(npmPublish.family).toBe("ELEVATED_GENERAL")
+  })
+
+  test("guardCommand: blocks fossil, returns correct messages (legacy path)", () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      const g = Constitution.guardCommand("fossil commit -m test")
+      expect(g.blocked).toBe(true)
+      expect(g.message).toMatch(/fossil|auto-snapshot|git/i)
+      expect(g.family).toBe("FOSSIL_MUTATE")
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
+
+  test("guardCommand: FALSE POSITIVE — git commit with fossil in message is NOT blocked", () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      const g = Constitution.guardCommand("git commit -m \"fix(fossil): fossil clean --force replaced\"")
+      expect(g.blocked).toBe(false)
+      // Note: guardCommand uses token extraction (legacy), which correctly
+      // identifies cmd=git sub=commit → not fossil. This was the original bug.
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
   })
 })

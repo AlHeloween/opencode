@@ -4,13 +4,18 @@
  * Single source of truth for: risk tiers, command classification,
  * shell browsing guard, destructive guard, mutation grounding.
  *
- * [KV-CACHE SAFE] — pure functions; never mutate system prompts.
+ * v6.2: TreeSitter-based command classification replaces regex.
+ *   Constitution is a full TreeSitter client — parses shell commands
+ *   with bash/batch/PowerShell grammars and classifies based on AST
+ *   structure, not raw text regex.  Eliminates false positives from
+ *   commit messages, quoted strings, and file paths.
  *
- * v6.1: PATH-aware enumeration blocking — only blocks binaries that
- * actually exist on the current platform.
+ * [KV-CACHE SAFE] — pure functions; never mutate system prompts.
  */
 import * as Log from "@opencode-ai/core/util/log"
 import { spawnSync } from "child_process"
+import type { Node, Parser } from "web-tree-sitter"
+import { getParser, commands as tsCommands, parts as tsParts, source as tsSource } from "@/shell/tree-sitter"
 
 const log = Log.create({ service: "session.constitution" })
 
@@ -123,153 +128,206 @@ export const MEMORY_INFO_MARK = {
 } as const
 
 // ============================================================================
-// UNIFIED COMMAND CLASSIFICATION TABLE
+// AST-BASED COMMAND CLASSIFICATION TABLE
 // ============================================================================
 
-type CommandEntry = {
+type CommandRule = {
   family: CommandFamily
   risk: Risk
   hardBlock: boolean
   permission?: PermissionBucket
-  patterns: RegExp[]
+  /** Command name (lowercased). */
+  cmd: string
+  /** Subcommand or first argument that triggers this rule. `null` = any. */
+  sub: string | null
+  /** Additional token predicates. `null` = no extra check. */
+  extra?: (tokens: string[]) => boolean
 }
 
-/** Single classification table — one entry per command family. */
-const COMMAND_TABLE: CommandEntry[] = [
-  // ── FS enumerators — HARD BLOCK (list/glob/grep/read tools exist) ──
-  // PATH-aware: only blocked when the binary actually exists on this system.
-  // where/which (PATH lookup) and findstr (content search) are NOT enumeration.
-  {
+/**
+ * Structural classification rules — one entry per (cmd, sub) pair.
+ *
+ * Unlike regex patterns which scan the entire raw command string
+ * (including commit messages, quoted strings, file paths), these
+ * rules match against TreeSitter-extracted command tokens ONLY.
+ *
+ * Order matters: first match wins (same as regex table).
+ */
+const COMMAND_RULES: CommandRule[] = [
+  // ── FS enumerators — HARD BLOCK ──
+  ...([
+    ["ls", null],
+    ["dir", null],
+    ["tree", null],
+    ["find", null],
+    ["fd", null],
+    ["fdfind", null],
+    ["get-childitem", null],
+    ["gci", null],
+    ["get-item", null],
+    ["resolve-path", null],
+    ["type", null],
+    ["cat", null],
+    ["more", null],
+    ["busybox", null],
+    ["for", null],
+    // echo/printf with glob patterns
+    ["echo", null],
+    ["printf", null],
+  ] as Array<[string, string | null]>).map(([cmd, sub]) => ({
     family: CommandFamily.FILE_ENUMERATOR,
-    risk: "LOW",
+    risk: "LOW" as Risk,
     hardBlock: true,
-    patterns: [
-      // Directory listing (list tool)
-      /^(?:(?:\/usr)?\/bin\/)?(?:ls|dir|tree)(?:\.exe)?(?:\s|$)/i,
-      /^(?:Get-ChildItem|gci)\b/i,
-      /^busybox\s+(?:ls|find)\b/i,
-      // Recursive path discovery — SLOW, resource-heavy (glob tool)
-      /^(?:find|fd|fdfind)(?:\.exe)?(?:\s|$)/i,
-      /^rg(?:\.exe)?\b(?=[^\n]*\s--files\b)/i,
-      /^(?:Get-Item|Resolve-Path)\b[^\n]*\*/i,
-      // Shell glob expansion (glob tool)
-      /^(?:echo|printf)\s+[^\n]*\*/i,
-      /^for\s+\w+\s+in\s+[^\n]*\*/i,
-      /^for\s+\/r\b/i,
-      /^for\s+%%?\w+\s+in\s+\(\*\)/i,
-      // File content viewing (read tool)
-      /^(?:type|cat|more)(?:\.exe)?(?:\s|$)/i,
-    ],
-  },
-  // ── File destruction (rm -rf, format, dd, Remove-Item -Recurse -Force) ──
+    cmd,
+    sub,
+    extra: (cmd === "echo" || cmd === "printf" || cmd === "for")
+      ? ((tokens: string[]) => tokens.some((t) => t.includes("*")))
+      : (cmd === "rg" || cmd === "rg.exe")
+        ? ((tokens: string[]) => tokens.includes("--files"))
+        : undefined,
+  })),
+
+  // ── File destruction ──
   {
-    family: CommandFamily.FILE_DESTRUCTIVE,
-    risk: "DESTRUCTIVE",
-    hardBlock: false,
+    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
     permission: PermissionBucket.FILE,
-    patterns: [
-      /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\s+--force)/i,
-      /\brm\s+-rf\b/i,
-      /\bformat\s+[a-z]:/i,
-      /\bmkfs\b/i,
-      /\bdd\s+if=/i,
-      />\s*\/dev\/sd/i,
-      /\bRemove-Item\b[^\n]*-Recurse[^\n]*-Force/i,
-      /\bRemove-Item\b[^\n]*-Force[^\n]*-Recurse/i,
-    ],
+    cmd: "rm", sub: null,
+    extra: (tokens) => tokens.some((t) => /^-(-?)[a-zA-Z]*r[a-zA-Z]*f|^-(-?)[a-zA-Z]*f[a-zA-Z]*r/.test(t)),
   },
+  {
+    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.FILE,
+    cmd: "remove-item", sub: null,
+    extra: (tokens) => tokens.includes("-recurse") && tokens.includes("-force"),
+  },
+  {
+    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.FILE,
+    cmd: "format", sub: null,
+  },
+  {
+    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.FILE,
+    cmd: "mkfs", sub: null,
+  },
+  {
+    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.FILE,
+    cmd: "dd", sub: null,
+  },
+
   // ── Database destruction ──
   {
-    family: CommandFamily.DB_DESTRUCTIVE,
-    risk: "DESTRUCTIVE",
-    hardBlock: false,
+    family: CommandFamily.DB_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
     permission: PermissionBucket.DB,
-    patterns: [
-      /\bdrop\s+(table|database|schema|index|view)\b/i,
-      /\btruncate\s+table\b/i,
-      /\bdelete\s+from\b/i,
-    ],
+    cmd: "drop", sub: null,
   },
+  {
+    family: CommandFamily.DB_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.DB,
+    cmd: "truncate", sub: null,
+  },
+  {
+    family: CommandFamily.DB_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.DB,
+    cmd: "delete", sub: null,
+  },
+
   // ── Git working-tree rewrite — HARD BLOCK ──
-  {
-    family: CommandFamily.GIT_HISTORY_REWRITE,
-    risk: "DESTRUCTIVE",
-    hardBlock: true,
+  ...(["checkout", "switch", "restore"] as string[]).map((sub) => ({
+    family: CommandFamily.GIT_HISTORY_REWRITE, risk: "DESTRUCTIVE" as Risk, hardBlock: true,
     permission: PermissionBucket.GIT,
-    patterns: [
-      /\bgit\s+checkout\b/i,
-      /\bgit\s+switch\b/i,
-      /\bgit\s+restore\b/i,
-      /\bgit\s+reset\s+--hard\b/i,
-      /\bgit\s+stash\s+pop\b/i,
-      /\bgit\s+stash\s+apply\b/i,
-      /\bgit\s+stash\s+drop\b/i,
-      /\bgit\s+stash\s+clear\b/i,
-      /\bgit\s+stash\s+branch\b/i,
-    ],
-  },
-  // ── Git askable destructive (force-push, clean -f) ──
+    cmd: "git", sub,
+  })),
   {
-    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE,
-    risk: "DESTRUCTIVE",
-    hardBlock: false,
+    family: CommandFamily.GIT_HISTORY_REWRITE, risk: "DESTRUCTIVE", hardBlock: true,
     permission: PermissionBucket.GIT,
-    patterns: [
-      /\bgit\s+push\b[^\n]*--force\b/i,
-      /\bgit\s+push\b[^\n]*-f\b/i,
-      /\bgit\s+clean\s+-[a-zA-Z]*f/i,
-    ],
+    cmd: "git", sub: "reset",
+    extra: (tokens) => tokens.includes("--hard"),
   },
-  // ── Fossil CLI mutate — HARD BLOCK (snapshot is runtime-only) ──
+  ...(["pop", "apply", "drop", "clear", "branch"] as string[]).map((stashSub) => ({
+    family: CommandFamily.GIT_HISTORY_REWRITE, risk: "DESTRUCTIVE" as Risk, hardBlock: true,
+    permission: PermissionBucket.GIT,
+    cmd: "git", sub: "stash",
+    extra: (tokens: string[]) => tokens[2] === stashSub,
+  })),
+
+  // ── Git askable destructive ──
   {
-    family: CommandFamily.FOSSIL_MUTATE,
-    risk: "DESTRUCTIVE",
-    hardBlock: true,
+    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.GIT,
+    cmd: "git", sub: "push",
+    extra: (tokens) => tokens.includes("--force") || tokens.includes("-f"),
+  },
+  {
+    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    permission: PermissionBucket.GIT,
+    cmd: "git", sub: "clean",
+    extra: (tokens) => tokens.some((t) => /^-[a-zA-Z]*f/.test(t)),
+  },
+
+  // ── Fossil CLI mutate — HARD BLOCK ──
+  ...(["commit", "ci", "add", "rm", "delete", "addremove", "checkout", "co",
+      "update", "up", "merge", "undo", "revert", "close", "open",
+      "push", "pull", "sync", "clean"] as string[]).map((sub) => ({
+    family: CommandFamily.FOSSIL_MUTATE, risk: "DESTRUCTIVE" as Risk, hardBlock: true,
     permission: PermissionBucket.FOSSIL,
-    patterns: [
-      /\bfossil(?:\.exe)?\s+commit\b/i,
-      /\bfossil(?:\.exe)?\s+ci\b/i,
-      /\bfossil(?:\.exe)?\s+add\b/i,
-      /\bfossil(?:\.exe)?\s+rm\b/i,
-      /\bfossil(?:\.exe)?\s+delete\b/i,
-      /\bfossil(?:\.exe)?\s+addremove\b/i,
-      /\bfossil(?:\.exe)?\s+checkout\b/i,
-      /\bfossil(?:\.exe)?\s+co\b/i,
-      /\bfossil(?:\.exe)?\s+update\b/i,
-      /\bfossil(?:\.exe)?\s+up\b/i,
-      /\bfossil(?:\.exe)?\s+merge\b/i,
-      /\bfossil(?:\.exe)?\s+undo\b/i,
-      /\bfossil(?:\.exe)?\s+revert\b/i,
-      /\bfossil(?:\.exe)?\s+close\b/i,
-      /\bfossil(?:\.exe)?\s+open\b/i,
-      /\bfossil(?:\.exe)?\s+push\b/i,
-      /\bfossil(?:\.exe)?\s+pull\b/i,
-      /\bfossil(?:\.exe)?\s+sync\b/i,
-      /\bfossil(?:\.exe)?\s+clean\b/i,
-    ],
-  },
-  // ── Elevated-risk operations (log, don't block) ──
+    cmd: "fossil", sub,
+  })),
+
+  // ── Elevated-risk operations ──
   {
-    family: CommandFamily.ELEVATED_GENERAL,
-    risk: "ELEVATED",
-    hardBlock: false,
-    patterns: [
-      /\bgit\s+push\b/i,
-      /\bgit\s+commit\b/i,
-      /\bnpm\s+publish\b/i,
-      /\bbun\s+publish\b/i,
-      /\bdocker\s+(rm|rmi|system\s+prune)\b/i,
-      /\b(chmod|chown)\b/i,
-      /\b(kubectl|helm)\s+delete\b/i,
-      /\bRemove-Item\b/i,
-      /\bdel\s+\/[sq]/i,
-      /\brmdir\b/i,
-    ],
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "git", sub: "push",
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "git", sub: "commit",
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "npm", sub: "publish",
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "bun", sub: "publish",
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "docker", sub: null,
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "chmod", sub: null,
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "chown", sub: null,
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "kubectl", sub: "delete",
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "helm", sub: "delete",
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "remove-item", sub: null,
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "del", sub: null,
+  },
+  {
+    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
+    cmd: "rmdir", sub: null,
   },
 ]
 
 // ============================================================================
-// CLASSIFICATION — single entry point
+// CLASSIFICATION — unified AST-based entry points
 // ============================================================================
 
 export type ClassificationResult = {
@@ -279,37 +337,136 @@ export type ClassificationResult = {
   permission?: PermissionBucket
 }
 
-/** Classify a raw command string → family + risk + block policy (unified). */
-export function classifyCommand(command: string): ClassificationResult {
-  const text = command.trim()
-  if (!text) return { family: CommandFamily.ALLOWED, risk: "LOW", hardBlock: false }
+/**
+ * Classify a single command node using AST-extracted tokens.
+ *
+ * Only the actual command tokens are checked — not quoted strings,
+ * commit messages, file paths, or other non-command text.
+ */
+export function classifyAstNode(cmd: string, sub: string | undefined, tokens: string[]): ClassificationResult {
+  if (!cmd) return { family: CommandFamily.ALLOWED, risk: "LOW", hardBlock: false }
 
-  // Fast first-token gate: skip FILE_ENUMERATOR scan unless the command
-  // starts with a binary known to exist on this platform.  Avoids false
-  // positives on `dir` (Linux), `ls` (native Windows), or scripts named
-  // `find-config`/`type-check` (^ anchor already guards those, but this
-  // adds defence-in-depth + the PATH existence check the user expects).
-  const firstToken = text.split(/\s+/)[0]?.replace(/^.*[/\\]/, "")?.toLowerCase() ?? ""
-  const scanEnumeration = _KNOWN_ENUM_FIRST_TOKENS.has(firstToken)
+  // PATH-aware gate: only check FILE_ENUMERATOR rules when the binary exists
+  const scanEnumeration = _KNOWN_ENUM_FIRST_TOKENS.has(cmd)
 
-  for (const entry of COMMAND_TABLE) {
-    if (entry.family === CommandFamily.FILE_ENUMERATOR && !scanEnumeration) {
-      // Skip enumeration patterns when the first token isn't a known
-      // enumeration binary.  Grammar constructs (echo/printf/for, git
-      // ls-files) remain gated by their full ^-anchored regex patterns.
-      continue
-    }
-    if (entry.patterns.some((re) => re.test(text))) {
-      return {
-        family: entry.family,
-        risk: entry.risk,
-        hardBlock: entry.hardBlock,
-        permission: entry.permission,
-      }
+  for (const rule of COMMAND_RULES) {
+    if (rule.family === CommandFamily.FILE_ENUMERATOR && !scanEnumeration) continue
+    if (rule.cmd !== cmd) continue
+    if (rule.sub !== null && rule.sub !== sub) continue
+    if (rule.extra && !rule.extra(tokens)) continue
+
+    return {
+      family: rule.family,
+      risk: rule.risk,
+      hardBlock: rule.hardBlock,
+      permission: rule.permission,
     }
   }
+
   return { family: CommandFamily.ALLOWED, risk: "LOW", hardBlock: false }
 }
+
+// ============================================================================
+// CONSTITUTION EVALUATION — main entry point for shell tools
+// ============================================================================
+
+/** Per-command finding from constitution evaluation. */
+export type CommandFinding = {
+  /** The command source text (for display). */
+  command: string
+  /** Classification result. */
+  classification: ClassificationResult
+  /** Whether this command is a file enumerator. */
+  isFileEnumerator: boolean
+}
+
+/** Result of a full constitution evaluation over a parsed shell command. */
+export type ConstitutionEvalResult = {
+  /** All command nodes found in the AST, with their classifications. */
+  findings: CommandFinding[]
+  /** Hard-blocked commands (FILE_ENUMERATOR, GIT_HISTORY_REWRITE, FOSSIL_MUTATE). */
+  blocked: CommandFinding[]
+  /** Commands that require destructive permission before execution. */
+  needsPermission: CommandFinding[]
+  /** Whether any finding is elevated risk (log, don't block). */
+  hasElevated: boolean
+}
+
+/**
+ * Evaluate a parsed shell command AST against the constitution.
+ *
+ * Walks every command node in the tree, classifies each, and returns
+ * structured findings.  The caller (bash.ts / cmd.ts) handles the
+ * results: throw on hard-blocks, ask for destructive permissions,
+ * log elevated operations.
+ *
+ * @param root - Parsed TreeSitter root node
+ * @param isCmd - True for cmd.exe batch grammar, false for bash/PowerShell
+ */
+export function evaluate(root: Node, isCmd: boolean): ConstitutionEvalResult {
+  const findings: CommandFinding[] = []
+  const blocked: CommandFinding[] = []
+  const needsPermission: CommandFinding[] = []
+  let hasElevated = false
+
+  for (const node of tsCommands(root, isCmd)) {
+    const commandParts = tsParts(node, isCmd)
+    const tokens = commandParts.map((p) => p.text)
+    const lower = tokens.map((t) => t.toLowerCase())
+    const cmd = lower[0] ?? ""
+    const sub = lower[1]
+
+    // git ls-files is always allowed — VCS oracle, not FS enumeration
+    if (cmd === "git" && sub === "ls-files") continue
+    // where/which — PATH lookup, not enumeration
+    if (cmd === "where" || cmd === "where.exe" || cmd === "which") continue
+    // rg without --files is content search, not enumeration
+    if ((cmd === "rg" || cmd === "rg.exe") && !lower.includes("--files")) continue
+
+    const classification = classifyAstNode(cmd, sub, lower)
+    const sourceText = tsSource(node, isCmd)
+
+    const finding: CommandFinding = {
+      command: sourceText,
+      classification,
+      isFileEnumerator: classification.family === CommandFamily.FILE_ENUMERATOR,
+    }
+    findings.push(finding)
+
+    if (finding.isFileEnumerator || classification.hardBlock) {
+      blocked.push(finding)
+    }
+    if (classification.risk === "DESTRUCTIVE" && !classification.hardBlock) {
+      needsPermission.push(finding)
+    }
+    if (classification.risk === "ELEVATED") {
+      hasElevated = true
+    }
+  }
+
+  return { findings, blocked, needsPermission, hasElevated }
+}
+
+/**
+ * Convenience: parse + evaluate in one call (for tools that don't already parse).
+ *
+ * Uses the appropriate TreeSitter grammar based on shellType:
+ *   "bash" → bash grammar, "cmd" → batch grammar, "ps" → PowerShell grammar
+ */
+export async function evaluateCommand(
+  command: string,
+  shellType: "bash" | "cmd" | "ps",
+): Promise<ConstitutionEvalResult> {
+  const parser = await getParser()
+  const engine: Parser = shellType === "cmd" ? parser.cmd : shellType === "ps" ? parser.ps : parser.bash
+  const tree = engine.parse(command)
+  if (!tree) throw new Error("Failed to parse command for constitution evaluation")
+  return evaluate(tree.rootNode, shellType === "cmd")
+}
+
+// ============================================================================
+// LEGACY: regex-based classifyCommand (kept for backward compat / run.ts)
+// ============================================================================
 
 // ============================================================================
 // SHELL SEGMENTATION — unwrap wrappers + split pipelines
@@ -392,36 +549,49 @@ function shellSegments(command: string) {
 }
 
 // ============================================================================
-// GUARDS — shell browsing + destructive + VCS
+// GUARDS — AST-based (primary, for bash/cmd) + regex-based (legacy, for run.ts)
 // ============================================================================
 
-/** True when any pipeline segment is a file enumerator. */
-export function isShellDirectoryBrowsing(command: string) {
-  return shellSegments(command).some((seg) => {
-    const c = classifyCommand(seg)
-    return c.family === CommandFamily.FILE_ENUMERATOR
-  })
+// ── AST-based (preferred) ──
+
+/** True when any command node in the parsed AST is a file enumerator. */
+export function isShellDirectoryBrowsing(root: Node, isCmd: boolean): boolean {
+  return evaluate(root, isCmd).blocked.some((f) => f.isFileEnumerator)
 }
 
-export function isGitHistoryRewrite(command: string): boolean {
-  return classifyCommand(command).family === CommandFamily.GIT_HISTORY_REWRITE
+/** True when any command node triggers git history rewrite. */
+export function isGitHistoryRewrite(root: Node, isCmd: boolean): boolean {
+  return evaluate(root, isCmd).blocked.some(
+    (f) => f.classification.family === CommandFamily.GIT_HISTORY_REWRITE,
+  )
 }
 
-export function isFossilAgentMutate(command: string): boolean {
-  return classifyCommand(command).family === CommandFamily.FOSSIL_MUTATE
+/** True when any command node triggers fossil mutate. */
+export function isFossilAgentMutate(root: Node, isCmd: boolean): boolean {
+  return evaluate(root, isCmd).blocked.some(
+    (f) => f.classification.family === CommandFamily.FOSSIL_MUTATE,
+  )
 }
 
-export function isFileDestructive(command: string): boolean {
-  return classifyCommand(command).family === CommandFamily.FILE_DESTRUCTIVE
+export function isFileDestructive(root: Node, isCmd: boolean): boolean {
+  return evaluate(root, isCmd).needsPermission.some(
+    (f) => f.classification.family === CommandFamily.FILE_DESTRUCTIVE,
+  )
 }
 
-export function isDbDestructive(command: string): boolean {
-  return classifyCommand(command).family === CommandFamily.DB_DESTRUCTIVE
+export function isDbDestructive(root: Node, isCmd: boolean): boolean {
+  return evaluate(root, isCmd).needsPermission.some(
+    (f) => f.classification.family === CommandFamily.DB_DESTRUCTIVE,
+  )
 }
 
-export function isGitAskableDestructive(command: string): boolean {
-  return classifyCommand(command).family === CommandFamily.GIT_ASKABLE_DESTRUCTIVE
+export function isGitAskableDestructive(root: Node, isCmd: boolean): boolean {
+  return evaluate(root, isCmd).needsPermission.some(
+    (f) => f.classification.family === CommandFamily.GIT_ASKABLE_DESTRUCTIVE,
+  )
 }
+
+// ── Regex-based (legacy, for run.ts and backward compat) ──
 
 /** Opt-out: OPENCODE_ALLOW_DESTRUCTIVE=1|true|yes permits DESTRUCTIVE shell. */
 export function allowDestructiveCommands(): boolean {
@@ -434,13 +604,13 @@ export function allowDestructiveCommands(): boolean {
 
 /** Map family → permission bucket. */
 export function familyPermission(family: CommandFamily): PermissionBucket | undefined {
-  for (const entry of COMMAND_TABLE) {
-    if (entry.family === family) return entry.permission
+  for (const rule of COMMAND_RULES) {
+    if (rule.family === family) return rule.permission
   }
   return undefined
 }
 
-/** Map CommandFamily → destructive kind string for askable destructive commands. */
+/** Map CommandFamily → destructive kind string. */
 function destructiveFamilyKind(family: CommandFamily): "file" | "db" | "git" | "fossil" | undefined {
   if (family === CommandFamily.FILE_DESTRUCTIVE) return "file"
   if (family === CommandFamily.DB_DESTRUCTIVE) return "db"
@@ -449,13 +619,6 @@ function destructiveFamilyKind(family: CommandFamily): "file" | "db" | "git" | "
   return undefined
 }
 
-/**
- * Constitution preflight for shell.
- * - FILE_ENUMERATOR (ls/dir/find/fd/rg --files/…): HARD BLOCK → use list/glob/grep
- * - GIT_HISTORY_REWRITE / FOSSIL_MUTATE: HARD BLOCK unless env bypass
- * - FILE_DESTRUCTIVE / DB_DESTRUCTIVE / GIT_ASKABLE_DESTRUCTIVE: permission required
- * - ELEVATED_GENERAL: log only
- */
 export type CommandGuardResult = {
   risk: Risk
   family: CommandFamily
@@ -466,12 +629,63 @@ export type CommandGuardResult = {
   kind?: "file" | "db" | "git" | "fossil"
 }
 
+/**
+ * Regex-based guard — for run.ts and non-TreeSitter contexts.
+ *
+ * Uses shellSegments + regex classifyCommand on each segment.
+ * Has known false-positive risk with commit messages containing
+ * command-like words (e.g. "fossil clean" in git commit -m "...").
+ * Prefer guardFromEval() / evaluate() when TreeSitter AST is available.
+ */
 export function guardCommand(
   command: string,
   meta?: { sessionID?: string; agent?: string },
 ): CommandGuardResult {
-  // Check file enumeration first (any segment)
-  if (isShellDirectoryBrowsing(command)) {
+  // Check file enumeration first (any segment) — uses legacy shellSegments + regex
+  const segments = shellSegments(command)
+  for (const seg of segments) {
+    const firstToken = seg.split(/\s+/)[0]?.replace(/^.*[/\\]/, "")?.toLowerCase().replace(/\.exe$/, "") ?? ""
+    if (_KNOWN_ENUM_FIRST_TOKENS.has(firstToken)) {
+      const c = classifyAstNode(firstToken, undefined, seg.split(/\s+/).map((s) => s.toLowerCase().replace(/\.exe$/, "")))
+      if (c.family === CommandFamily.FILE_ENUMERATOR) {
+        // git ls-files, where/which, rg without --files are allowed
+        if (firstToken === "git" || firstToken === "where" || firstToken === "which") continue
+        if ((firstToken === "rg" || firstToken === "rg.exe") && !seg.includes("--files")) continue
+
+        log.warn("constitution.directory_browsing_blocked", {
+          command: command.slice(0, 200),
+          sessionID: meta?.sessionID,
+          agent: meta?.agent,
+        })
+        return {
+          risk: "LOW",
+          family: CommandFamily.FILE_ENUMERATOR,
+          needsDestructivePermission: false,
+          blocked: true,
+          message:
+            "constitution: BLOCKED shell directory/file enumeration (ls/dir/find/fd/rg --files/…). " +
+            "Use the list tool for browsing; glob for path patterns; grep for content. " +
+            "VCS checks (e.g. git ls-files --error-unmatch <path>) and PATH lookup (where/which) stay allowed.",
+        }
+      }
+    }
+  }
+
+  // Classify using first-token extraction from raw string
+  const text = command.trim()
+  if (!text) return { risk: "LOW", family: CommandFamily.ALLOWED, needsDestructivePermission: false, blocked: false }
+
+  const tokens = text.split(/\s+/)
+  const rawCmd = tokens[0]?.replace(/^.*[/\\]/, "")?.toLowerCase() ?? ""
+  // Strip .exe suffix for cross-platform matching (fossil.exe → fossil, git.exe → git)
+  const cmd = rawCmd.replace(/\.exe$/, "")
+  const sub = tokens[1]?.toLowerCase()
+  const lower = tokens.map((t) => t.toLowerCase().replace(/\.exe$/, ""))
+  const classification = classifyAstNode(cmd, sub, lower)
+  const allow = allowDestructiveCommands()
+
+  // FILE_ENUMERATOR is hard-blocked regardless of risk level (risk=LOW but blocked=true)
+  if (classification.family === CommandFamily.FILE_ENUMERATOR) {
     log.warn("constitution.directory_browsing_blocked", {
       command: command.slice(0, 200),
       sessionID: meta?.sessionID,
@@ -489,9 +703,6 @@ export function guardCommand(
     }
   }
 
-  const classification = classifyCommand(command)
-  const allow = allowDestructiveCommands()
-
   if (classification.risk === "LOW" || classification.family === CommandFamily.ALLOWED) {
     return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
   }
@@ -505,19 +716,14 @@ export function guardCommand(
     allowDestructive: allow,
   })
 
-  // ELEVATED — log, don't block
   if (classification.risk === "ELEVATED") {
     return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
   }
 
-  // Hard block: git rewrite
   if (classification.family === CommandFamily.GIT_HISTORY_REWRITE && !allow) {
     return {
-      risk: "DESTRUCTIVE",
-      family: classification.family,
-      permission: PermissionBucket.GIT,
-      needsDestructivePermission: false,
-      blocked: true,
+      risk: "DESTRUCTIVE", family: classification.family, permission: PermissionBucket.GIT,
+      needsDestructivePermission: false, blocked: true,
       message:
         "constitution: BLOCKED git checkout/switch/restore/reset --hard/stash pop|apply|drop|clear " +
         "(permission: destructive-git). " +
@@ -527,14 +733,10 @@ export function guardCommand(
     }
   }
 
-  // Hard block: fossil mutate
   if (classification.family === CommandFamily.FOSSIL_MUTATE && !allow) {
     return {
-      risk: "DESTRUCTIVE",
-      family: classification.family,
-      permission: PermissionBucket.FOSSIL,
-      needsDestructivePermission: false,
-      blocked: true,
+      risk: "DESTRUCTIVE", family: classification.family, permission: PermissionBucket.FOSSIL,
+      needsDestructivePermission: false, blocked: true,
       message:
         "constitution: BLOCKED fossil CLI mutate (permission: destructive-fossil). " +
         "Fossil is automatic session undo/snapshot — not project VCS. " +
@@ -542,17 +744,12 @@ export function guardCommand(
     }
   }
 
-  // Permission-required destructive
   if (classification.risk === "DESTRUCTIVE" && !allow) {
     const perm = classification.permission ?? PermissionBucket.FILE
     const kind = destructiveFamilyKind(classification.family)
     return {
-      risk: classification.risk,
-      family: classification.family,
-      permission: perm,
-      kind,
-      needsDestructivePermission: true,
-      blocked: false,
+      risk: classification.risk, family: classification.family, permission: perm, kind,
+      needsDestructivePermission: true, blocked: false,
       message:
         `constitution: DESTRUCTIVE (${perm}) requires explicit approval ` +
         `(rm -rf → destructive-file; DROP TABLE → destructive-db; force-push → destructive-git). ` +
@@ -978,8 +1175,23 @@ export function epistemicNudge(input: {
 }
 
 // ============================================================================
-// DEPRECATED — prefer guardCommand
+// DEPRECATED — prefer guardCommand / evaluate
 // ============================================================================
+
+/**
+ * Regex-free token classifier — for backward compat.
+ * Extracts first two tokens from raw string and classifies.
+ * @deprecated Prefer {@link evaluate} with parsed AST.
+ */
+export function classifyCommand(command: string): ClassificationResult {
+  const text = command.trim()
+  if (!text) return { family: CommandFamily.ALLOWED, risk: "LOW", hardBlock: false }
+  const tokens = text.split(/\s+/)
+  const cmd = tokens[0]?.replace(/^.*[/\\]/, "")?.toLowerCase() ?? ""
+  const sub = tokens[1]?.toLowerCase()
+  const lower = tokens.map((t) => t.toLowerCase())
+  return classifyAstNode(cmd, sub, lower)
+}
 
 /** @deprecated prefer guardCommand */
 export function classifyCommandRisk(command: string): Risk {

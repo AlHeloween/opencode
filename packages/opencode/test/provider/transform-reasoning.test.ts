@@ -70,7 +70,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const msgs = [
       assistantMsg([{ type: "reasoning", text: "I should search first." }, { type: "text", text: "Let me look." }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
     expect(reasoningParts.length).toBe(1)
@@ -82,7 +82,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const msgs = [
       assistantMsg([{ type: "text", text: "Here is the answer." }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
     expect(reasoningParts.length).toBe(1)
@@ -94,7 +94,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const msgs = [
       { role: "assistant" as const, content: "Plain text content" },
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
     expect(reasoningParts.length).toBe(1)
@@ -117,7 +117,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const msgs = [
       assistantMsg([{ type: "reasoning", text: "thinking" }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
     expect(reasoningParts.length).toBe(1) // not duplicated
@@ -130,7 +130,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
       assistantMsg([{ type: "text", text: "Step 2 output — no reasoning from API." }]),
       assistantMsg([{ type: "reasoning", text: "Step 3 thinking." }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     // All three messages should have a reasoning part
     expect((result[0]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true)
     expect((result[1]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true) // added
@@ -142,7 +142,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const msgs = [
       { role: "user" as const, content: [{ type: "text" as const, text: "Hello" }] },
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     // User messages should not get reasoning parts
     expect((result[0]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(false)
   })
@@ -154,7 +154,7 @@ describe("Interleaved capability — reasoning extraction", () => {
     const msgs = [
       assistantMsg([{ type: "reasoning", text: "deep thinking" }, { type: "text", text: "answer" }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     // Reasoning should be moved to providerOptions
     expect((result[0]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(false)
     const po = (result[0]! as any).providerOptions?.openaiCompatible
@@ -167,7 +167,7 @@ describe("Interleaved capability — reasoning extraction", () => {
     const msgs = [
       assistantMsg([{ type: "reasoning", text: "detailed analysis" }, { type: "text", text: "result" }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     const po = (result[0]! as any).providerOptions?.openaiCompatible
     expect(po).toBeDefined()
     expect(po.reasoning_details).toBe("detailed analysis")
@@ -178,7 +178,7 @@ describe("Interleaved capability — reasoning extraction", () => {
     const msgs = [
       assistantMsg([{ type: "text", text: "No reasoning from model." }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model)
+    const result = ProviderTransform.message(msgs as any, model, {})
     const po = (result[0]! as any).providerOptions?.openaiCompatible
     expect(po).toBeDefined()
     expect(po.reasoning_content).toBe("") // empty but present

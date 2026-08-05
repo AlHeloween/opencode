@@ -105,7 +105,6 @@ describe("DeepSeek bug defences — retry flow", () => {
         user: { id: parent.id, sessionID: chat.id, role: "user", time: parent.time, agent: parent.agent, model: { providerID: ref.providerID, modelID: ref.modelID } } satisfies MessageV2.User,
         sessionID: chat.id, model: mdl, agent: agent(), system: [], messages: [{ role: "user", content: "Fix the auth bug" }],
         tools: { write: { description: "Write a file", parameters: {} as any, execute: async (args: any) => ({ title: `Write ${args.filePath}`, output: "ok", metadata: {} }) } } as any,
-        abort: new AbortController().signal,
         permission: [{ permission: "*", pattern: "*", action: "allow" }],
       })
 
@@ -113,7 +112,7 @@ describe("DeepSeek bug defences — retry flow", () => {
       expect(yield* llm.calls).toBe(1)
       expect(h.message.error).toBeDefined()
       expect(h.message.error!.name).toBe("UnknownError")
-    }), { git: true, config: (url) => providerCfg(url) }, 30_000),
+    }), { git: true, config: (url) => providerCfg(url) }),
   )
 
   it.live("Bug #1: plain text response passes through without retry", () =>
@@ -133,14 +132,14 @@ describe("DeepSeek bug defences — retry flow", () => {
       const value = yield* h.process({
         user: { id: parent.id, sessionID: chat.id, role: "user", time: parent.time, agent: parent.agent, model: { providerID: ref.providerID, modelID: ref.modelID } } satisfies MessageV2.User,
         sessionID: chat.id, model: mdl, agent: agent(), system: [], messages: [{ role: "user", content: "What is 2+2?" }],
-        tools: {}, abort: new AbortController().signal,
+        tools: {},
       })
 
       expect(value).toBe("continue")
       expect(yield* llm.calls).toBe(1)
       expect(h.message.error).toBeUndefined()
       expect(h.message.finish).toBe("stop")
-    }), { git: true, config: (url) => providerCfg(url) }, 30_000),
+    }), { git: true, config: (url) => providerCfg(url) }),
   )
 
   it.live("Bug #1: unparseable inline content — no false positive", () =>
@@ -163,14 +162,14 @@ describe("DeepSeek bug defences — retry flow", () => {
         user: { id: parent.id, sessionID: chat.id, role: "user", time: parent.time, agent: parent.agent, model: { providerID: ref.providerID, modelID: ref.modelID } } satisfies MessageV2.User,
         sessionID: chat.id, model: mdl, agent: agent(), system: [], messages: [{ role: "user", content: "Write bad JSON" }],
         tools: { write: { description: "Write a file", parameters: {} as any, execute: async () => ({ title: "ok", output: "ok", metadata: {} }) } } as any,
-        abort: new AbortController().signal, retries: 1,
+        retries: 1,
         permission: [{ permission: "*", pattern: "*", action: "allow" }],
       })
 
       expect(value).toBe("continue")
       expect(yield* llm.calls).toBe(1)
       expect(h.message.error).toBeUndefined()
-    }), { git: true, config: (url) => providerCfg(url) }, 30_000),
+    }), { git: true, config: (url) => providerCfg(url) }),
   )
 })
 
@@ -196,7 +195,7 @@ describe("DeepSeek bug defences — reasoning_content", () => {
       yield* h.process({
         user: { id: parent.id, sessionID: chat.id, role: "user", time: parent.time, agent: parent.agent, model: { providerID: ref.providerID, modelID: ref.modelID } } satisfies MessageV2.User,
         sessionID: chat.id, model: mdl, agent: agent(), system: [], messages: [{ role: "user", content: "Analyze the code" }],
-        tools: {}, abort: new AbortController().signal,
+        tools: {},
       })
 
       const parts = MessageV2.parts(msg.id)
@@ -206,6 +205,6 @@ describe("DeepSeek bug defences — reasoning_content", () => {
       expect(yield* llm.calls).toBe(1)
       expect(reasoning?.text).toBe("I should check the auth module first.")
       expect(text?.text).toBe("The auth module looks correct.")
-    }), { git: true, config: (url) => providerCfg(url) }, 30_000),
+    }), { git: true, config: (url) => providerCfg(url) }),
   )
 })

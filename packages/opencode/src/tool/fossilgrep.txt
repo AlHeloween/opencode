@@ -1,19 +1,31 @@
-Search through historical versions of tracked files using Fossil's regex engine.
+Fossil in this project is an AUTOMATIC AGENT SNAPSHOT SYSTEM — NOT the project VCS.
+It records every file change the agent makes so you can undo/redo/review agent work.
+For source control, use GIT — Fossil is a sidecar, not the repository.
 
-This tool searches ALL committed versions of files (not just the current working copy), moving backwards in time from the most recent commit. It uses Fossil's built-in NFA regex engine which is safe from ReDoS attacks.
+Useful Fossil commands for development workflow (faster than git for agent review):
 
-Use this tool when you need to:
-- Find when a function or variable was introduced or changed
-- Search for code that existed in previous versions but was removed
-- Trace the history of a specific pattern across commits
-- Find which commit introduced a bug or change
+  fossil diff                  # What did the agent change? (unified diff)
+  fossil diff --brief          # File list: ADDED/MISSING/EDITED
+  fossil timeline -n 20        # Last 20 agent snapshots
+  fossil undo                  # Undo last agent action (files + tree)
+  fossil revert <file>         # Revert a single file to last snapshot
+  fossil revert -r <hash> <f>  # Revert file to specific snapshot
+  fossil update <hash>         # Jump whole tree to a specific snapshot
+  fossil status                # Current state vs last snapshot
+  fossil info                  # Current snapshot hash + metadata
 
-Unlike the regular grep tool (which only searches the current working copy), this tool searches through the entire version history of tracked files.
+These are READ-ONLY or UNDO operations — safe for development review.
+Destructive fossil commands (commit, push, merge, etc.) are hard-blocked by the constitution.
+
+Search functionality:
+- fossil grep — search ALL committed versions (current + history)
+  Use the pattern parameter to search across the entire file history.
+  Fossil's NFA regex engine is safe from ReDoS attacks.
+  Results are in reverse chronological order (newest first).
 
 Regex dialect: POSIX extended regular expressions (no backreferences, no lookaround, no backtracking — guaranteed O(nm) complexity).
 
 Limitations:
 - Only searches files tracked by Fossil (use 'fossil ls' to see tracked files)
-- Searches in reverse chronological order (newest first)
 - No recursive directory flag (-R is reserved by Fossil for --repository)
 - Always includes line numbers in output

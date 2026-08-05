@@ -17,9 +17,14 @@
 /** Inline tool-call pattern: name followed by JSON object/array. */
 const INLINE_TOOL_RE = /(?:^|\s)([a-z_][\w]*)\s*(\{(?:[^{}]|\{[^{}]*\})*\})/gi
 
-/** Degraded DSML token: <||DSML||tag> or <｜｜DSML｜｜tag> → canonical <｜DSML｜tag> */
-const DEGRADED_DSML_RE = /<\s*(\/?)\s*(?:\|\s*\||｜\s*｜)\s*DSML\s*(?:\|\s*\||｜\s*｜)\s*([A-Za-z_][\w]*)\s*>/g
-const CANONICAL_DSML = "｜DSML｜"
+/** Degraded DSML double-pipe pattern: || or ｜｜ (with optional spaces) */
+const _DOUBLE_PIPE = "(?:\\|\\s*\\||\uff5c\\s*\uff5c)"
+
+/**
+ * Canonical DSML token — full-width vertical bar U+FF5C.
+ * The reference parser ONLY accepts this form.
+ */
+const CANONICAL_DSML = "\uff5cDSML\uff5c" // ｜DSML｜
 
 export interface ExtractedToolCall {
   name: string
@@ -28,12 +33,40 @@ export interface ExtractedToolCall {
 
 /**
  * Normalize degraded DSML tokens in a stream chunk.
- * Converts <||DSML||tag> → <｜DSML｜tag>
+ * Converts ASCII/degraded pipe variants back to canonical full-width form.
+ *
+ * Handles:
+ *   - Self-closing:  <||DSML||tagname/>
+ *   - Opening:       <||DSML||tagname>
+ *   - With attrs:    <||DSML||invoke name="x">
+ *   - Closing:       </||DSML||tagname>
  */
 export function normalizeDsmlTokens(chunk: string): string {
-  return chunk.replace(DEGRADED_DSML_RE, (_match, slash, tag) => {
-    return `<${slash}${CANONICAL_DSML}${tag}>`
-  })
+  // Pass 1: self-closing tags <||DSML||tagname/>
+  chunk = chunk.replace(
+    new RegExp(
+      `<\\s*(/?)\\s*${_DOUBLE_PIPE}\\s*DSML\\s*${_DOUBLE_PIPE}\\s*([A-Za-z_][\\w]*)\\s*/\\s*>`,
+      "g",
+    ),
+    (_match, slash, tag) => `<${slash}${CANONICAL_DSML}${tag}/>`,
+  )
+  // Pass 2: opening tags WITH attributes <||DSML||invoke name="x">
+  chunk = chunk.replace(
+    new RegExp(
+      `<\\s*${_DOUBLE_PIPE}\\s*DSML\\s*${_DOUBLE_PIPE}\\s*([A-Za-z_][\\w]*)\\s+`,
+      "g",
+    ),
+    (_match, tag) => `<${CANONICAL_DSML}${tag} `,
+  )
+  // Pass 3: opening/closing tags WITHOUT attributes
+  chunk = chunk.replace(
+    new RegExp(
+      `<\\s*(/?)\\s*${_DOUBLE_PIPE}\\s*DSML\\s*${_DOUBLE_PIPE}\\s*([A-Za-z_][\\w]*)\\s*>`,
+      "g",
+    ),
+    (_match, slash, tag) => `<${slash}${CANONICAL_DSML}${tag}>`,
+  )
+  return chunk
 }
 
 /**
@@ -77,7 +110,10 @@ export function detectDisguisedToolCalls(
   finishReason: string,
   contentText: string,
 ): ExtractedToolCall[] | null {
-  if (finishReason !== "stop") return null
+  // Both "stop" and "length" can contain inline tool calls.
+  // "stop" → model serialised tool call as text instead of structured.
+  // "length" → truncated response may have partial inline tool call.
+  if (finishReason !== "stop" && finishReason !== "length") return null
   if (!contentText || contentText.length < 10) return null
   return extractInlineToolCalls(contentText)
 }

@@ -5,7 +5,6 @@ export interface CircuitBreaker {
   openedAt: number
   failCount: number
   probeCount: number
-  lastProbeAt: number
 }
 
 export interface CircuitBreakerConfig {
@@ -26,7 +25,6 @@ export function make(): CircuitBreaker {
     openedAt: 0,
     failCount: 0,
     probeCount: 0,
-    lastProbeAt: 0,
   }
 }
 

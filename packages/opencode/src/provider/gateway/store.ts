@@ -20,7 +20,6 @@ import { Effect } from "effect"
 import type { AsyncLogger } from "./async-logger"
 import { make as makeAsyncLogger } from "./async-logger"
 import * as CircuitBreaker from "./circuit-breaker"
-import * as RetryBudget from "./retry-budget"
 
 const STORE_FILE = "gateway-adjustments.json"
 const POLICY_LOG_FILE = "gateway-policy.log"
@@ -28,7 +27,6 @@ const PERSIST_INTERVAL_MS = 30000
 const MAX_ROUTES = 500
 const MAX_HEALTH_WINDOWS = 500
 const MAX_CIRCUIT_BREAKERS = 500
-const MAX_RETRY_BUDGETS = 500
 const STALE_THRESHOLD_MS = 3600000
 
 let policyLogger: AsyncLogger | undefined
@@ -111,21 +109,6 @@ function evictStaleEntries(s: StoreState): void {
     }
   }
 
-  if (s.retryBudgets.size > MAX_RETRY_BUDGETS) {
-    const entries: Array<[string, number]> = []
-    for (const [key, budget] of s.retryBudgets) {
-      if (budget.totalRequests > 0) {
-        entries.push([key, budget.totalRequests])
-      }
-    }
-    entries.sort((a, b) => a[1] - b[1])
-    const toEvict = entries.length - MAX_RETRY_BUDGETS
-    for (let i = 0; i < toEvict && i < entries.length; i++) {
-      s.retryBudgets.delete(entries[i][0])
-      evicted++
-    }
-  }
-
   if (evicted > 0) {
     s.dirty = true
     log.debug("evicted stale gateway entries", { count: evicted })
@@ -138,7 +121,6 @@ interface StoreState {
   lastPersisted: number
   healthWindows: Map<string, HealthWindow.HealthWindow>
   circuitBreakers: Map<string, CircuitBreaker.CircuitBreaker>
-  retryBudgets: Map<string, RetryBudget.RetryBudget>
   routeLastAccessed: Map<string, number>
 }
 
@@ -158,7 +140,6 @@ async function load(): Promise<StoreState> {
         lastPersisted: Date.now(),
         healthWindows: new Map(),
         circuitBreakers: new Map(),
-        retryBudgets: new Map(),
         routeLastAccessed: new Map(),
       }
     }
@@ -178,7 +159,6 @@ async function load(): Promise<StoreState> {
       lastPersisted: Date.now(),
       healthWindows: new Map(),
       circuitBreakers: new Map(),
-      retryBudgets: new Map(),
       routeLastAccessed: new Map(),
     }
   } catch {
@@ -188,7 +168,6 @@ async function load(): Promise<StoreState> {
       lastPersisted: Date.now(),
       healthWindows: new Map(),
       circuitBreakers: new Map(),
-      retryBudgets: new Map(),
       routeLastAccessed: new Map(),
     }
   }
@@ -425,13 +404,6 @@ function getOrCreateCircuitBreaker(state: StoreState, keyStr: string): CircuitBr
   return state.circuitBreakers.get(keyStr)!
 }
 
-function getOrCreateRetryBudget(state: StoreState, keyStr: string): RetryBudget.RetryBudget {
-  if (!state.retryBudgets.has(keyStr)) {
-    state.retryBudgets.set(keyStr, RetryBudget.make())
-  }
-  return state.retryBudgets.get(keyStr)!
-}
-
 export function getCircuitBreakerState(key: RouteKey): CircuitBreaker.CircuitBreaker {
   const s = ensureLoaded()
   const keyStr = toRouteKeyString(key)
@@ -457,30 +429,6 @@ export function recordCircuitBreakerFailure(key: RouteKey): void {
 export function isCircuitBreakerOpen(key: RouteKey): boolean {
   const cb = getCircuitBreakerState(key)
   return !CircuitBreaker.shouldAllowRequest(cb)
-}
-
-export function getRetryBudget(key: RouteKey): RetryBudget.RetryBudget {
-  const s = ensureLoaded()
-  const keyStr = toRouteKeyString(key)
-  return getOrCreateRetryBudget(s, keyStr)
-}
-
-export function recordRetryRequest(key: RouteKey): boolean {
-  const s = ensureLoaded()
-  const keyStr = toRouteKeyString(key)
-  const budget = getOrCreateRetryBudget(s, keyStr)
-  if (RetryBudget.canRetry(budget)) {
-    s.retryBudgets.set(keyStr, RetryBudget.recordRetry(budget))
-    return true
-  }
-  return false
-}
-
-export function recordTotalRequest(key: RouteKey): void {
-  const s = ensureLoaded()
-  const keyStr = toRouteKeyString(key)
-  const budget = getOrCreateRetryBudget(s, keyStr)
-  s.retryBudgets.set(keyStr, RetryBudget.recordRequest(budget))
 }
 
 export function adaptRoutePolicy(key: RouteKey, success: boolean, score: number): void {

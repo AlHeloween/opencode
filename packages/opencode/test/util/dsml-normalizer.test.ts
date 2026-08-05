@@ -6,7 +6,10 @@ import {
 } from "../../src/util/dsml-normalizer"
 
 describe("dsml-normalizer", () => {
-  // ── Level 1: DSML token normalization ───────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // Level 1: DSML token normalization
+  // ═══════════════════════════════════════════════════════════════════════
+
   test("normalizes degraded || pipes to full-width ｜", () => {
     const input = "<||DSML||tool_calls>"
     const result = normalizeDsmlTokens(input)
@@ -37,7 +40,63 @@ describe("dsml-normalizer", () => {
     expect(result).toBe(input)
   })
 
-  // ── Level 2: Inline tool-call extraction ─────────────────────────────
+  // ── V4-specific: compact DSML without newlines ─────────────────────────
+  test("normalizes compact DSML — invoke with attributes", () => {
+    const input = '<||DSML||invoke name="web_search">'
+    const result = normalizeDsmlTokens(input)
+    expect(result).toBe('<｜DSML｜invoke name="web_search">')
+  })
+
+  test("normalizes compact DSML — parameter with string=true", () => {
+    const input = '<||DSML||parameter name="query" string="true">capital of France</||DSML||parameter>'
+    const result = normalizeDsmlTokens(input)
+    expect(result).toBe('<｜DSML｜parameter name="query" string="true">capital of France</｜DSML｜parameter>')
+  })
+
+  test("normalizes full DSML block — multi-tool real-world example from HF#209", () => {
+    const input = [
+      'I will search several relevant directions first.',
+      '<||DSML||tool_calls>',
+      '<||DSML||invoke name="doc_knowlegebase">',
+      '<||DSML||parameter name="query" string="true">bond detail fields display</||DSML||parameter>',
+      '</||DSML||invoke>',
+      '<||DSML||invoke name="web_search">',
+      '<||DSML||parameter name="query" string="true">latest AI news</||DSML||parameter>',
+      '</||DSML||invoke>',
+      '</||DSML||tool_calls>',
+    ].join("")
+    const result = normalizeDsmlTokens(input)
+    expect(result).toContain("｜DSML｜tool_calls")
+    expect(result).toContain("｜DSML｜invoke")
+    expect(result).toContain("｜DSML｜parameter")
+    expect(result).not.toContain("||DSML||")
+  })
+
+  test("normalizes self-closing DSML tag", () => {
+    const input = '<||DSML||web_search/>'
+    const result = normalizeDsmlTokens(input)
+    expect(result).toBe('<｜DSML｜web_search/>')
+  })
+
+  test("normalizes mixed full-width || in degraded tokens", () => {
+    // DeepSeek sometimes emits ｜｜ (full-width double pipes) instead of ||
+    const input = "<｜｜DSML｜｜tool_calls>"
+    const result = normalizeDsmlTokens(input)
+    expect(result).toBe("<｜DSML｜tool_calls>")
+  })
+
+  test("normalizes DSML with Chinese text prefix — exact DeepSeek V4 pattern", () => {
+    const input = '我先并行搜索几个关键方向：<||DSML||tool_calls><||DSML||invoke name="search"><||DSML||parameter name="q" string="true">test</||DSML||parameter></||DSML||invoke></||DSML||tool_calls>'
+    const result = normalizeDsmlTokens(input)
+    expect(result).toContain("我先并行搜索几个关键方向：")
+    expect(result).toContain("｜DSML｜tool_calls")
+    expect(result).not.toContain("||DSML||")
+  })
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Level 2: Inline tool-call extraction
+  // ═══════════════════════════════════════════════════════════════════════
+
   test("extracts single inline tool call", () => {
     const input = 'write{"filePath": "/tmp/test.txt", "content": "hello"}'
     const result = extractInlineToolCalls(input)
@@ -65,11 +124,67 @@ Then: write{"filePath": "/b.txt", "content": "ok"}`
   test("skips non-JSON patterns that look like tool calls", () => {
     const input = "user{this is not json}"
     const result = extractInlineToolCalls(input)
-    // The braces contain non-JSON — should not be extracted
     expect(result).toBeNull()
   })
 
-  // ── Level 3: Disguised tool call detection ───────────────────────────
+  // ── V4-specific: real production patterns ──────────────────────────────
+  test("extracts DeepSeek bug #1244 pattern — Chinese text + inline tool", () => {
+    const input = '数据还不够完整，让我继续获取更详细的指标。\nbatch_crawl_url_and_answer{"jobs": [{"url": "https://example.com", "questions_to_answer": ["All benchmark scores"]}]}'
+    const result = extractInlineToolCalls(input)
+    expect(result).not.toBeNull()
+    expect(result![0]!.name).toBe("batch_crawl_url_and_answer")
+    expect(result![0]!.input).toContain('"url"')
+  })
+
+  test("extracts tool call with nested JSON object", () => {
+    const input = 'edit{"filePath": "/src/foo.ts", "oldString": "const x = 1;", "newString": "const x = 2;"}'
+    const result = extractInlineToolCalls(input)
+    expect(result).not.toBeNull()
+    expect(result![0]!.name).toBe("edit")
+    const args = JSON.parse(result![0]!.input)
+    expect(args.filePath).toBe("/src/foo.ts")
+    expect(args.oldString).toBe("const x = 1;")
+    expect(args.newString).toBe("const x = 2;")
+  })
+
+  test("extracts tool call with array argument", () => {
+    const input = 'multiedit{"filePath": "/x.ts", "edits": [{"old": "a", "new": "b"}, {"old": "c", "new": "d"}]}'
+    const result = extractInlineToolCalls(input)
+    expect(result).not.toBeNull()
+    expect(result![0]!.name).toBe("multiedit")
+    const args = JSON.parse(result![0]!.input)
+    expect(args.edits).toHaveLength(2)
+  })
+
+  test("extracts tool call preceded by reasoning text", () => {
+    const input = 'I should write a file now.\nwrite{"filePath": "out.txt", "content": "done"}'
+    const result = extractInlineToolCalls(input)
+    expect(result).not.toBeNull()
+    expect(result![0]!.name).toBe("write")
+  })
+
+  test("duplicate tool calls are deduplicated", () => {
+    const input = 'write{"filePath": "a.txt", "content": "x"}\nwrite{"filePath": "a.txt", "content": "x"}'
+    const result = extractInlineToolCalls(input)
+    expect(result).not.toBeNull()
+    expect(result!.length).toBe(1) // deduplicated
+  })
+
+  test("extracts tool calls mixed with unknown function names", () => {
+    // Without a whitelist, ALL JSON-like calls are extracted.
+    // The caller (processor) validates against known tools later.
+    const input = 'unknown_tool{"arg": 1}\nwrite{"filePath": "f.txt", "content": "hi"}'
+    const result = extractInlineToolCalls(input)
+    expect(result).not.toBeNull()
+    expect(result!.length).toBe(2)
+    expect(result!.map((t) => t.name)).toContain("write")
+    expect(result!.map((t) => t.name)).toContain("unknown_tool")
+  })
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Level 3: Disguised tool call detection
+  // ═══════════════════════════════════════════════════════════════════════
+
   test("detects disguised tool calls with finish_reason=stop", () => {
     const result = detectDisguisedToolCalls(
       "stop",
@@ -84,7 +199,7 @@ Then: write{"filePath": "/b.txt", "content": "ok"}`
       "tool-calls",
       'write{"filePath": "/f.py", "content": "x"}',
     )
-    expect(result).toBeNull() // only triggers on "stop"
+    expect(result).toBeNull()
   })
 
   test("ignores empty content", () => {
@@ -98,5 +213,35 @@ write{"filePath": "/tmp/test.py", "content": "print('hello')"}`
     const result = detectDisguisedToolCalls("stop", input)
     expect(result).not.toBeNull()
     expect(result![0]!.name).toBe("write")
+  })
+
+  test("detects disguised tool calls with finish_reason=length (truncation)", () => {
+    const input = 'bash{"command": "npm install", "description": "Install deps"}'
+    const result = detectDisguisedToolCalls("length", input)
+    // "length" also triggers detection — truncated responses may contain inline calls
+    expect(result).not.toBeNull()
+    expect(result![0]!.name).toBe("bash")
+  })
+
+  test("ignores very short content (<10 chars)", () => {
+    const result = detectDisguisedToolCalls("stop", "short")
+    expect(result).toBeNull()
+  })
+
+  test("detects non-English inline tool calls (Russian)", () => {
+    const input = 'Понял, пробую:\nwrite{"filePath": "D:\\\\test.txt", "content": "hello"}'
+    const result = detectDisguisedToolCalls("stop", input)
+    expect(result).not.toBeNull()
+    expect(result![0]!.name).toBe("write")
+  })
+
+  test("detects multi-line content with inline tool call at end", () => {
+    const input = `Let me analyze the code first.
+The issue is in the auth module.
+I'll fix it now.
+edit{"filePath": "/src/auth.ts", "oldString": "return null", "newString": "return user"}`
+    const result = detectDisguisedToolCalls("stop", input)
+    expect(result).not.toBeNull()
+    expect(result![0]!.name).toBe("edit")
   })
 })

@@ -1,5 +1,4 @@
 const WINDOW_SIZE = 100
-const DELAY_BUFFER_SIZE = 100
 const ERROR_DECAY_INTERVAL_MS = 600000
 const ERROR_DECAY_FACTOR = 0.5
 
@@ -46,54 +45,6 @@ class CircularBuffer {
 
   get length(): number {
     return this.count
-  }
-}
-
-export class DelayBuffer {
-  private buffer: number[]
-  private head: number
-  private count: number
-  private readonly capacity: number
-
-  constructor(capacity: number = DELAY_BUFFER_SIZE) {
-    this.capacity = capacity
-    this.buffer = new Array(capacity)
-    this.head = 0
-    this.count = 0
-  }
-
-  push(value: number): void {
-    this.buffer[this.head] = value
-    this.head = (this.head + 1) % this.capacity
-    if (this.count < this.capacity) this.count++
-  }
-
-  median(): number {
-    if (this.count === 0) return 0
-    const sorted = this.toArray().sort((a, b) => a - b)
-    const mid = Math.floor(sorted.length / 2)
-    if (sorted.length % 2 === 0) {
-      return Math.round((sorted[mid - 1] + sorted[mid]) / 2)
-    }
-    return sorted[mid]
-  }
-
-  toArray(): number[] {
-    const result = new Array(this.count)
-    for (let i = 0; i < this.count; i++) {
-      result[i] = this.buffer[(this.head - this.count + i + this.capacity) % this.capacity]
-    }
-    return result
-  }
-
-  get length(): number {
-    return this.count
-  }
-
-  clear(): void {
-    this.head = 0
-    this.count = 0
-    this.buffer.fill(0)
   }
 }
 

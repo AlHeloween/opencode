@@ -3,6 +3,7 @@ import {
   normalizeDsmlTokens,
   extractInlineToolCalls,
   detectDisguisedToolCalls,
+  DEFAULT_KNOWN_TOOL_IDS,
 } from "../../src/util/dsml-normalizer"
 
 describe("dsml-normalizer", () => {
@@ -130,7 +131,8 @@ Then: write{"filePath": "/b.txt", "content": "ok"}`
   // ── V4-specific: real production patterns ──────────────────────────────
   test("extracts DeepSeek bug #1244 pattern — Chinese text + inline tool", () => {
     const input = '数据还不够完整，让我继续获取更详细的指标。\nbatch_crawl_url_and_answer{"jobs": [{"url": "https://example.com", "questions_to_answer": ["All benchmark scores"]}]}'
-    const result = extractInlineToolCalls(input)
+    // Custom tool not in default allowlist — pass null to accept any name
+    const result = extractInlineToolCalls(input, null)
     expect(result).not.toBeNull()
     expect(result![0]!.name).toBe("batch_crawl_url_and_answer")
     expect(result![0]!.input).toContain('"url"')
@@ -171,14 +173,35 @@ Then: write{"filePath": "/b.txt", "content": "ok"}`
   })
 
   test("extracts tool calls mixed with unknown function names", () => {
-    // Without a whitelist, ALL JSON-like calls are extracted.
-    // The caller (processor) validates against known tools later.
+    // Default allowlist: only known wire tools (processor uses this).
     const input = 'unknown_tool{"arg": 1}\nwrite{"filePath": "f.txt", "content": "hi"}'
     const result = extractInlineToolCalls(input)
     expect(result).not.toBeNull()
+    expect(result!.length).toBe(1)
+    expect(result![0]!.name).toBe("write")
+  })
+
+  test("allowlist rejects prose config{...} false positive", () => {
+    const input = 'Use config{ "a": 1 } in the file and call write{"filePath":"x","content":"y"}'
+    const result = extractInlineToolCalls(input, DEFAULT_KNOWN_TOOL_IDS)
+    expect(result).not.toBeNull()
+    expect(result!.map((t) => t.name)).toEqual(["write"])
+  })
+
+  test("null allowlist keeps unknown tool names (legacy)", () => {
+    const input = 'unknown_tool{"arg": 1}\nwrite{"filePath": "f.txt", "content": "hi"}'
+    const result = extractInlineToolCalls(input, null)
+    expect(result).not.toBeNull()
     expect(result!.length).toBe(2)
-    expect(result!.map((t) => t.name)).toContain("write")
-    expect(result!.map((t) => t.name)).toContain("unknown_tool")
+  })
+
+  test("detectDisguised ignores non-tool prose JSON with allowlist", () => {
+    const result = detectDisguisedToolCalls(
+      "stop",
+      'Here is config{"timeout": 30} for the server settings.',
+      DEFAULT_KNOWN_TOOL_IDS,
+    )
+    expect(result).toBeNull()
   })
 
   // ═══════════════════════════════════════════════════════════════════════

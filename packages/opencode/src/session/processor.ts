@@ -26,7 +26,11 @@ import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { isRecord } from "@/util/record"
 import { StringBuilder } from "@/util/string-builder"
-import { normalizeDsmlTokens, detectDisguisedToolCalls } from "@/util/dsml-normalizer"
+import {
+  normalizeDsmlTokens,
+  detectDisguisedToolCalls,
+  DEFAULT_KNOWN_TOOL_IDS,
+} from "@/util/dsml-normalizer"
 import * as Balance from "@/provider/balance"
 import * as BalanceStorage from "@/provider/balance-storage"
 import { SessionTable } from "./session.sql"
@@ -560,7 +564,12 @@ export const layer: Layer.Layer<
             // so we check ctx.textBuilder instead (accumulated across all text deltas).
             if (value.finishReason === "stop" && ctx.textBuilder.length >= 10) {
               const text = ctx.textBuilder.toString()
-              const disguised = detectDisguisedToolCalls(value.finishReason, text)
+              // Allowlist known wire tool ids so prose like config{"a":1} does not force a retry.
+              const disguised = detectDisguisedToolCalls(
+                value.finishReason,
+                text,
+                DEFAULT_KNOWN_TOOL_IDS,
+              )
               if (disguised && disguised.length > 0) {
                 const names = disguised.map((t) => t.name).join(", ")
                 log.warn("detected disguised tool calls in content — triggering retry", {

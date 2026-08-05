@@ -8,6 +8,10 @@
  * Validate BEFORE writing — model gets a clear error with line:col and can retry.
  */
 import { readWasmAsset } from "./wasm-path"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "syntax-validator" })
+const grammarLoadFailed = new Set<string>()
 
 const extToGrammar: Record<string, string> = {
   ".py": "grammars/tree-sitter-python.wasm",
@@ -65,8 +69,17 @@ export async function validateCodeSyntax(
   let parser: import("web-tree-sitter").Parser
   try {
     parser = await getParser(grammar)
-  } catch {
-    return null // grammar unavailable — skip gracefully
+  } catch (err) {
+    // Soft-fail once per grammar — do not block write
+    if (!grammarLoadFailed.has(grammar)) {
+      grammarLoadFailed.add(grammar)
+      log.debug("syntax grammar unavailable — skipping pre-write validation", {
+        grammar,
+        filePath,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+    return null
   }
 
   const tree = parser.parse(content)

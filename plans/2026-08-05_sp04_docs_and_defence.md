@@ -2,7 +2,7 @@
 
 **Parent:** `plans/2026-08-05_master_critical_remediation.md`  
 **Date:** 2026-08-05  
-**Status:** Ready (can parallel SP-01; land after or with SP-01)  
+**Status:** Implemented 2026-08-05 — allowlist + docs + syntax soft-log
 **Severity:** MEDIUM  
 **Risk:** Low  
 **Depends on:** none hard; prefer after SP-01  
@@ -143,11 +143,13 @@ bun test test/jobs/jobs.test.ts
 
 ## 6. Checklist
 
-- [ ] background-jobs.md paths + pattern  
-- [ ] fossil SMOKE stamp if needed  
-- [ ] allowlist wired from processor  
-- [ ] unit tests for allowlist  
-- [ ] Master G4  
+- [x] background-jobs.md paths + pattern  
+- [x] fossil SMOKE stamp (Phase 2 section)  
+- [x] allowlist wired from processor (`DEFAULT_KNOWN_TOOL_IDS`)  
+- [x] unit tests for allowlist (32 pass dsml-normalizer)  
+- [x] AGENTS.md Fossil = agent snapshot vs Git VCS  
+- [x] syntax-validator soft log once per grammar  
+- [x] Master G4
 
 ---
 

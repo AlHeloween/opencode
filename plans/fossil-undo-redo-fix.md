@@ -745,6 +745,17 @@ try {
 
 **Rollback test fix:** The `opRestore (checkout) preserves version history` test now passes — replacing `fossil clean --force` with scoped `fossil extras` cleanup eliminated the file-state corruption across checkout cycles.
 
+### SMOKE.AFTER Phase 2 / SP-01–03 (2026-08-05, commit `1116967541`)
+
+| Test Suite | Result | Detail |
+|-----------|--------|--------|
+| `bun typecheck` | ✅ **0 errors** | write metadata fixed (SP-01); deepseek/transform fixed earlier |
+| `session-undo-fossil.test.ts` | ✅ **6 pass** | structure h1/h2→h2'/h3→h4 both directions; multi-level redo_stack |
+| `snapshot.test.ts -t revert` | ✅ **11 pass** | full-leaf + track() semantics |
+| Full-leaf undo | ✅ | `revertTo` + preLs extras; user-only files kept |
+
+**Phase 2 status:** BUG-3/4/9 residual addressed via full-leaf navigation + hard-fail checkout. Phase 3 (atomic, HISTORY_INVALID) still open — see `plans/2026-08-05_sp05_phase3_atomic_integration.md`.
+
 ### POST_FIX (after each phase)
 
 ```bash

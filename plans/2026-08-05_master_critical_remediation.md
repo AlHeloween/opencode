@@ -1,7 +1,7 @@
 # Master Plan: Critical Remediation (Write Types + Fossil Undo/Redo + Docs/Defence)
 
 **Date:** 2026-08-05  
-**Status:** Active — planning complete; implementation not started  
+**Status:** Active — SP-01..04 implemented; SP-05 remaining
 **Severity:** CRITICAL (data loss / silent corruption on undo-redo) + HIGH (typecheck break)  
 **Branch:** `Local_Development`  
 **Audit source:** `plans/2026-08-05_commit_audit_remediation.md`  
@@ -28,11 +28,11 @@ Make agent undo/redo **correct, fail-loud, and non-destructive** for user files;
 | Failure mode | User impact | Current state |
 |--------------|-------------|-----------------|
 | Invalid hash → earliest commit (pre Phase 1) | Silent wipe to empty tree | Fixed Phase 1 (BUG-1) |
-| Second-level undo stale snapshot (BUG-3) | Wrong tree / redo broken | **Open** |
-| Per-file multi-hash revert (BUG-4) | Mixed states that never existed | **Open** |
-| Extras cleanup deletes user files (BUG-2 residual) | Lost untracked user work on unrevert | **Partial** |
-| Missing checkout hash silent return (BUG-9) | Unrevert “succeeds”, tree unchanged | **Open** |
-| `write.ts` metadata inference | `bun typecheck` fails on HEAD | **Open** (WIP `as any` only) |
+| Second-level undo stale snapshot (BUG-3) | Wrong tree / redo broken | Fixed SP-03 (fresh anchor + redo_stack) |
+| Per-file multi-hash revert (BUG-4) | Mixed states that never existed | Fixed SP-03 (full-leaf `revertTo`) |
+| Extras cleanup deletes user files (BUG-2 residual) | Lost untracked user work on unrevert | Fixed SP-02 (preLs ∩ extras) |
+| Missing checkout hash silent return (BUG-9) | Unrevert “succeeds”, tree unchanged | Fixed SP-02 (hard-fail) |
+| `write.ts` metadata inference | `bun typecheck` fails on HEAD | Fixed SP-01 |
 
 Ship rule: **no `[x]` on a sub-plan until its POST_IMPL smoke table is green.**
 
@@ -270,8 +270,8 @@ REUSE.BEFORE: no new WASM/deps; extend existing Fossil + Effect layers.
 - [x] SMOKE.BASELINE stamped (Exact)  
 - [x] SP-01 complete + G1 (typecheck 0; write syntax reject test pass; no metadata `as any`)  
 - [x] SP-02 complete + G2 (preLs extras; hard-fail invalid restore; snapshot restore tests pass)  
-- [x] SP-03 complete + G3 (`revertTo`; fresh anchors; session-undo-fossil 5/5 pass)  
-- [ ] SP-04 complete + G4  
+- [x] SP-03 complete + G3 (`revertTo`; fresh anchors; session-undo-fossil 6/6 pass)  
+- [x] SP-04 complete + G4 (allowlist + docs + AGENTS fossil note)  
 - [ ] SP-05 complete + G5  
 - [ ] Update `fossil-undo-redo-fix.md` Phase 2/3 status  
 - [ ] Move finished plans → `plans_completed/`  

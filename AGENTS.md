@@ -399,17 +399,18 @@ const table = sqliteTable("session", {
 Real-time working copy tracking with undo/redo and session-level rollback. See `plans/fossil-snapshot-system.md` for full documentation. Startup/bootstrap context: `docs/startup-bootstrap.md`.
 
 **Key points:**
-- **Backend**: Fossil SCM **only** (single `.fsl` file). There is no git/jj snapshot backend in this fork.
+- **Role**: agent snapshot / undo-redo timeline only (single `.fsl` file under data). **Git** is project version control — do not conflate them.
 - **Repo location**: `{data}/fossil/{projectID}/snapshot.fsl` (sidecar under `.opencode/data`, not a colocated project checkout)
 - **Binary**: `external/fossil/fossil.exe` (v2.28) or `tools/fossil.exe` next to the executable
 - **No colocated mode** — snapshot Fossil must NOT share `.git` with the project
-- **Self-healing initialization** — if `.fsl` or data deleted, auto-recreate
+- **Self-healing initialization** — if `.fsl` or data deleted, auto-recreate (old repo backed up; missing hashes fail loud — no silent revert to empty)
 - **`.gitignore` respected** — translated to Fossil `ignore-glob` patterns (also ignores `.git` / `.jj`)
 - **Performance safe** — no scanning 5000+ files per operation
+- **Undo/redo**: full **leaf** checkout (whole tree at a checkin), not per-file hash mix; multi-level redo via `session.revert.redo_stack`. See `plans/fossil-undo-redo-fix.md` and `plans/2026-08-05_sp03_session_undo_semantics.md`.
 
 **Not the same as project VCS or TUI indicator:**
 - **Git** (`project/vcs.ts`) — real project source control (branch, agent-facing git status) when the worktree is a git repo
-- **jj** — TUI footer detection only (`.jj`); no snapshot service
+- **jj** — TUI footer detection only (`.jj`)
 - **TUI indicator** — fossil (green) / jj (blue) / git (red) from checkout markers; a git monorepo still uses Fossil for agent undo
 
 **Key functions:**

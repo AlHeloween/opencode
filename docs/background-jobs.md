@@ -85,7 +85,7 @@ Synchronous execution is opt-in: `run_in_background: false` for quick commands l
 | Tool | Purpose | Parameters |
 |------|---------|------------|
 | `bash` / `cmd` | Execute command (background by default) | `command`, `description`, `timeout`, `workdir`, `run_in_background` |
-| `job_output` | Read incremental output + status of a job | `job_id` |
+| `job_output` | Read incremental output + status of a job. Optional `pattern` (regex) filters the **full** accumulated output and does **not** advance the read offset (multi-grep). | `job_id`, optional `pattern` |
 | `job_wait` | Poll until job(s) reach terminal state | `job_ids?`, `timeout?` (default 30s) |
 | `job_kill` | Kill a running or stalled job | `job_id` |
 

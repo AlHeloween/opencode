@@ -25,7 +25,12 @@ import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner
 import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
-import { enforceBinaryViaCmdRunner, enforceDestructiveShellFromAst, stripCmdRunnerSendPayload } from "./shell-constitution"
+import {
+  enforceBinaryViaCmdRunner,
+  enforceBrutalDestructiveOnly,
+  enforceDestructiveShellFromAst,
+  splitCmdRunnerSend,
+} from "./shell-constitution"
 import { commands, getParser, hasRedirection, parts, source, unquote as tsUnquote } from "@/shell/tree-sitter"
 export { invalidatePermissionCache } from "./permission-cache"
 
@@ -681,10 +686,10 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
-              // cmd_runner send: strip payload after -- BEFORE constitution/permission scanning.
-              // The payload is arbitrary remote code and must not be scanned by constitution
-              // (it would see os.walk /etc as directory browsing) or parsed by tree-sitter.
-              const scanCommand = stripCmdRunnerSendPayload(params.command)
+              // cmd_runner send … -- <payload>:
+              // - structure/AST scan = wrapper only (payload must not hard-block ls/dir/find)
+              // - payload = brutal DESTRUCTIVE permission only (rm -rf etc., same as bare shell)
+              const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(params.command)
               // Fast regex check: crash-prone binaries (bun, cargo, go, etc.) must go through cmd_runner.
               // No false-positive risk — only checks binary name at command start.
               enforceBinaryViaCmdRunner(scanCommand)
@@ -710,6 +715,9 @@ export const BashTool = Tool.define(
               // quoted strings, and file paths (e.g. "fossil clean" in a git commit -m "...").
               const root = yield* parse(scanCommand, ps, isCmd)
               yield* enforceDestructiveShellFromAst(root, isCmd, ctx, params.description)
+              if (cmdRunnerPayload) {
+                yield* enforceBrutalDestructiveOnly(cmdRunnerPayload, ctx, params.description)
+              }
               const scan = yield* collect(root, cwd, ps, shell, isCmd)
               if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
 

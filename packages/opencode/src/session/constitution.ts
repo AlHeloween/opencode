@@ -760,6 +760,68 @@ export function guardCommand(
   return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
 }
 
+/**
+ * Scan for *brutal* DESTRUCTIVE actions only (rm -rf, DROP, force-push, git rewrite, fossil mutate…).
+ * Does **not** hard-block FILE_ENUMERATOR (ls/dir/find) or ELEVATED noise.
+ *
+ * Used for:
+ * - payload after `cmd_runner send … --` (remote/arbitrary code must not trip browsing blocks)
+ * - same DESTRUCTIVE permission policy as bare shell ("without difference where")
+ */
+export function guardBrutalDestructive(
+  command: string,
+  meta?: { sessionID?: string; agent?: string },
+): CommandGuardResult {
+  const allow = allowDestructiveCommands()
+  if (allow || !command.trim()) {
+    return { risk: "LOW", family: CommandFamily.ALLOWED, needsDestructivePermission: false, blocked: false }
+  }
+
+  const segments = shellSegments(command)
+  for (const seg of segments) {
+    const tokens = seg.split(/\s+/).map((s) => s.toLowerCase().replace(/\.exe$/, ""))
+    const firstToken = tokens[0]?.replace(/^.*[/\\]/, "") ?? ""
+    if (!firstToken) continue
+    // Prefer subcommand when present (git checkout, fossil commit, …)
+    const sub = tokens[1]
+    const classification = classifyAstNode(firstToken, sub, tokens)
+
+    if (classification.family === CommandFamily.FILE_ENUMERATOR) continue
+    if (classification.family === CommandFamily.ALLOWED) continue
+    if (classification.risk === "LOW" || classification.risk === "ELEVATED") continue
+
+    // DESTRUCTIVE / CRITICAL — always permission, never silent hard-block in this path
+    const perm =
+      classification.permission ??
+      familyPermission(classification.family) ??
+      PermissionBucket.FILE
+    const kind = destructiveFamilyKind(classification.family)
+
+    log.warn("constitution.brutal_destructive", {
+      command: command.slice(0, 200),
+      family: classification.family,
+      sessionID: meta?.sessionID,
+      agent: meta?.agent,
+    })
+
+    return {
+      risk: classification.risk === "CRITICAL" ? "CRITICAL" : "DESTRUCTIVE",
+      family: classification.family,
+      permission: perm,
+      kind: kind ?? "file",
+      needsDestructivePermission: true,
+      blocked: false,
+      message:
+        `constitution: DESTRUCTIVE (${perm}) requires explicit approval ` +
+        `(rm -rf, DROP TABLE, force-push, git checkout/reset --hard, fossil mutate, …). ` +
+        "Same gate inside cmd_runner send -- payload and bare shell. " +
+        "Or set OPENCODE_ALLOW_DESTRUCTIVE=1 / bypass_constitution.",
+    }
+  }
+
+  return { risk: "LOW", family: CommandFamily.ALLOWED, needsDestructivePermission: false, blocked: false }
+}
+
 // ============================================================================
 // MUTATION TOOLS + GROUNDING GATE
 // ============================================================================

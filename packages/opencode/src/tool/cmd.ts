@@ -19,7 +19,12 @@ import { forkDrainStdoutStderr } from "./shell-output"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
-import { enforceBinaryViaCmdRunner, enforceDestructiveShellFromAst, stripCmdRunnerSendPayload } from "./shell-constitution"
+import {
+  enforceBinaryViaCmdRunner,
+  enforceBrutalDestructiveOnly,
+  enforceDestructiveShellFromAst,
+  splitCmdRunnerSend,
+} from "./shell-constitution"
 import { getParser } from "@/shell/tree-sitter"
 
 const MAX_METADATA_LENGTH = 30_000
@@ -494,8 +499,8 @@ export const CmdTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          // cmd_runner send: strip payload after -- BEFORE constitution/permission scanning.
-          const scanCommand = stripCmdRunnerSendPayload(params.command)
+          // cmd_runner send … -- <payload>: wrapper AST only; payload = brutal DESTRUCTIVE ask.
+          const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(params.command)
           // Fast regex check: crash-prone binaries must go through cmd_runner.
           enforceBinaryViaCmdRunner(scanCommand)
 
@@ -523,6 +528,9 @@ export const CmdTool = Tool.define(
           // Eliminates regex false positives from commit messages, quoted strings, etc.
           // isCmd=true for cmd.exe batch grammar, isCmd=false for PowerShell grammar.
           yield* enforceDestructiveShellFromAst(root, !ps, ctx, params.description)
+          if (cmdRunnerPayload) {
+            yield* enforceBrutalDestructiveOnly(cmdRunnerPayload, ctx, params.description)
+          }
           const scan = yield* collect(root, cwd, ps)
           if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
 

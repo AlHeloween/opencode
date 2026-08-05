@@ -580,4 +580,29 @@ claim_ledger:
       else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
     }
   })
+
+  test("guardBrutalDestructive: ls/dir not gated; rm -rf needs permission", () => {
+    const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+    try {
+      expect(Constitution.guardBrutalDestructive("ls -la /tmp").needsDestructivePermission).toBe(false)
+      expect(Constitution.guardBrutalDestructive("ls -la /tmp").blocked).toBe(false)
+      expect(Constitution.guardBrutalDestructive("dir /s").needsDestructivePermission).toBe(false)
+      expect(Constitution.guardBrutalDestructive("find . -type f").needsDestructivePermission).toBe(false)
+
+      const rm = Constitution.guardBrutalDestructive("rm -rf /tmp/x")
+      expect(rm.needsDestructivePermission).toBe(true)
+      expect(rm.blocked).toBe(false)
+      expect(rm.permission).toBeDefined()
+
+      const checkout = Constitution.guardBrutalDestructive("git checkout main")
+      expect(checkout.needsDestructivePermission).toBe(true)
+
+      const fossil = Constitution.guardBrutalDestructive("fossil commit -m x")
+      expect(fossil.needsDestructivePermission).toBe(true)
+    } finally {
+      if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
+      else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
+    }
+  })
 })

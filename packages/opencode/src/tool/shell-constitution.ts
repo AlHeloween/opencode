@@ -12,12 +12,28 @@ import { Constitution } from "@/session/constitution"
 import type * as Tool from "./tool"
 import type { Node } from "web-tree-sitter"
 
+// `cmd_runner send <id> -- <payload>` — payload is remote/arbitrary; structure scan
+// must not see it (would hard-block ls/dir/find on the remote side).
 const CMD_RUNNER_SEND_PAYLOAD = /^(cmd_runner(?:\.exe)?\s+send\s+.*?--\s*)(.*)/s
 
-/** Strip cmd_runner send payload — the remote code after `--` must not be scanned by constitution or tree-sitter. */
-export function stripCmdRunnerSendPayload(command: string): string {
+export type CmdRunnerSendSplit = {
+  /** Prefix including `… --` — used for TreeSitter + full constitution (wrapper only). */
+  shellScan: string
+  /** Text after `--`, if any. Brutal DESTRUCTIVE only (permission ask). */
+  payload: string | undefined
+}
+
+/** Split cmd_runner send so payload can be treated under a different constitution policy. */
+export function splitCmdRunnerSend(command: string): CmdRunnerSendSplit {
   const m = command.match(CMD_RUNNER_SEND_PAYLOAD)
-  return m ? m[1] : command
+  if (!m) return { shellScan: command, payload: undefined }
+  const payload = (m[2] ?? "").trim()
+  return { shellScan: m[1] ?? command, payload: payload.length ? payload : undefined }
+}
+
+/** Strip cmd_runner send payload for structure/path scans (wrapper only). */
+export function stripCmdRunnerSendPayload(command: string): string {
+  return splitCmdRunnerSend(command).shellScan
 }
 
 /**
@@ -83,6 +99,9 @@ export function enforceDestructiveShellFromAst(
  * Calls Constitution.guardCommand() which uses first-token extraction.
  * Has known false-positive risk with commit messages containing command-like
  * words.  Prefer {@link enforceDestructiveShellFromAst} when AST is available.
+ *
+ * For `cmd_runner send … -- payload`: full guard on wrapper only; payload is
+ * brutal-DESTRUCTIVE permission only (no ls/dir hard-blocks).
  */
 export function enforceDestructiveShell(
   command: string,
@@ -90,16 +109,54 @@ export function enforceDestructiveShell(
   description?: string,
 ): Effect.Effect<void> {
   return Effect.gen(function* () {
-    const guard = Constitution.guardCommand(command, {
+    const split = splitCmdRunnerSend(command)
+    const guard = Constitution.guardCommand(split.shellScan, {
       sessionID: ctx.sessionID,
       agent: ctx.extra?.agent as string | undefined,
     })
     if (guard.blocked) {
       throw new Error(guard.message ?? "constitution: command blocked")
     }
+    if (guard.needsDestructivePermission) {
+      const permission = guard.permission ?? "destructive-file"
+      const pattern = split.shellScan.slice(0, 160)
+      yield* ctx.ask({
+        permission,
+        patterns: [pattern],
+        always: [pattern],
+        metadata: {
+          risk: "DESTRUCTIVE",
+          kind: guard.kind,
+          constitution: true,
+          message: guard.message,
+          command: command.slice(0, 400),
+          description,
+        },
+      })
+    }
+    if (split.payload) {
+      yield* enforceBrutalDestructiveOnly(split.payload, ctx, description)
+    }
+  })
+}
+
+/**
+ * After `cmd_runner send … --`: no browsing/git-rewrite hard-blocks on payload.
+ * Only brutal DESTRUCTIVE actions require permission (same as bare shell for those).
+ */
+export function enforceBrutalDestructiveOnly(
+  payload: string,
+  ctx: Tool.Context,
+  description?: string,
+): Effect.Effect<void> {
+  return Effect.gen(function* () {
+    const guard = Constitution.guardBrutalDestructive(payload, {
+      sessionID: ctx.sessionID,
+      agent: ctx.extra?.agent as string | undefined,
+    })
     if (!guard.needsDestructivePermission) return
     const permission = guard.permission ?? "destructive-file"
-    const pattern = command.slice(0, 160)
+    const pattern = payload.slice(0, 160)
     yield* ctx.ask({
       permission,
       patterns: [pattern],
@@ -108,8 +165,9 @@ export function enforceDestructiveShell(
         risk: "DESTRUCTIVE",
         kind: guard.kind,
         constitution: true,
+        cmd_runner_send_payload: true,
         message: guard.message,
-        command: command.slice(0, 400),
+        command: payload.slice(0, 400),
         description,
       },
     })

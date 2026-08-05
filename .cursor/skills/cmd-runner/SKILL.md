@@ -218,7 +218,9 @@ logs/cmd_runner/<run_id>/
   payload.cmd     — generated wrapper script (when applicable)
 ```
 
-## SSH session example
+## Interactive session examples
+
+### SSH / remote shell
 
 ```
 cmd_runner start -- ssh root@host                       # start interactive SSH
@@ -228,7 +230,16 @@ cmd_runner send <run_id> --keys ctrl+c                  # interrupt
 cmd_runner send <run_id> --keys ctrl+d                  # end session
 ```
 
-**Constitution (opencode bash/cmd tools):** text after `cmd_runner send … --` is **session input** (SSH or local TUI). Remote `ls`/`dir`/`find` are **not** hard-blocked. **Brutal** DESTRUCTIVE (`rm -rf`, DROP, force-push, git checkout/reset --hard, …) still **permission-ask** — same as bare local shell.
+### Interactive TUI debugging (e.g. opencode)
+
+```
+cmd_runner start --cwd dist/bin -- opencode.exe
+cmd_runner tail <run_id>
+cmd_runner send <run_id> --text "/new" --crlf
+cmd_runner send <run_id> --keys "ctrl+x,n"               # leader chords
+```
+
+**Constitution (opencode bash/cmd tools):** text after `cmd_runner send … --` is **session input** into that run — **SSH/remote shell** *or* **interactive TUI debugging**. Session-side `ls`/`dir`/`find` are **not** hard-blocked. **Brutal** DESTRUCTIVE still **permission-ask** — same as bare local shell.
 
 ## Notes
 

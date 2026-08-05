@@ -499,8 +499,8 @@ export const CmdTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          // cmd_runner send … -- <payload>: live session input (often SSH). Wrapper AST only;
-          // payload = brutal DESTRUCTIVE permission ask (not enumeration hard-blocks).
+          // cmd_runner send … -- <payload>: live session (SSH or interactive TUI debug).
+          // Wrapper AST only; payload = brutal DESTRUCTIVE ask (not enumeration hard-blocks).
           const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(params.command)
           // Fast regex check: crash-prone binaries must go through cmd_runner.
           enforceBinaryViaCmdRunner(scanCommand)

@@ -15,10 +15,13 @@ import type { Node } from "web-tree-sitter"
 /**
  * `cmd_runner send <run_id> … -- <payload>`
  *
- * Payload is **stdin/keys into an existing run** — often an SSH session on a remote
- * host, not a local worktree browse. Structure scan must not hard-block remote
- * `ls`/`dir`/`find`. Brutal DESTRUCTIVE in the payload still permission-asks
- * (same as bare local shell).
+ * Payload is **stdin/keys into an existing run**, e.g.:
+ * - SSH / remote interactive shell
+ * - Interactive TUI debugging (opencode, installers, ncurses)
+ *
+ * Not a local worktree “agent browse” command. Structure scan must not
+ * hard-block session-side `ls`/`dir`/`find`. Brutal DESTRUCTIVE in the
+ * payload still permission-asks (same as bare local shell).
  */
 const CMD_RUNNER_SEND_PAYLOAD = /^(cmd_runner(?:\.exe)?\s+send\s+.*?--\s*)(.*)/s
 
@@ -147,7 +150,7 @@ export function enforceDestructiveShell(
 }
 
 /**
- * Session input after `cmd_runner send … --` (local TUI or SSH remote).
+ * Session input after `cmd_runner send … --` (SSH remote **or** interactive TUI debug).
  * No browsing hard-blocks; only brutal DESTRUCTIVE → permission ask (same as bare shell).
  */
 export function enforceBrutalDestructiveOnly(

@@ -686,8 +686,8 @@ export const BashTool = Tool.define(
           parameters: Parameters,
           execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
             Effect.gen(function* () {
-              // cmd_runner send … -- <payload>: keys into live run (often SSH remote).
-              // - AST/full constitution = local wrapper only (do not hard-block remote ls/dir)
+              // cmd_runner send … -- <payload>: keys into live run (SSH remote or TUI debug).
+              // - AST/full constitution = local wrapper only (no hard-block of session ls/dir)
               // - payload = brutal DESTRUCTIVE permission only (rm -rf etc., same as bare shell)
               const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(params.command)
               // Fast regex check: crash-prone binaries (bun, cargo, go, etc.) must go through cmd_runner.

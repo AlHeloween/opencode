@@ -516,13 +516,18 @@ cmd_runner start -- bun run script/build.ts
 bun run script/build.ts
 ```
 
-**`cmd_runner send <run_id> … -- <text>`** — keys/text into an **already-running interactive session** (local TUI **or SSH/remote shell** via that run). Whatever is after `--` is **session input**, not a local agent “browse the worktree” command:
+**`cmd_runner send <run_id> … -- <text>`** — keys/text into an **already-running interactive session**. Typical uses:
 
-- **After `--`:** no hard-blocks for `ls`/`dir`/`find`/etc. (on a remote box you *must* be able to look around).
-- **After `--` and bare local shell alike:** **brutal DESTRUCTIVE** still needs permission (`rm -rf`, `DROP`, force-push, `git checkout`/`reset --hard`, fossil mutate, …).
-- **Outside** that payload (normal `bash`/`cmd` tool): full constitution — enumeration hard-block, product tools for local tree.
+1. **SSH / remote shell** — explore the remote host  
+2. **Interactive TUI debugging** — drive opencode/other TUI via inbox (prompts, keys, `/slash`, dialogs)
 
-So: remote SSH exploration is free; destroying data always asks, whether local or over the wire.
+Whatever is after `--` is **session input** for that run, **not** a local agent “browse the project worktree” command:
+
+- **After `--`:** no hard-blocks for `ls`/`dir`/`find`/etc. (remote host *or* in-session shell may need them).  
+- **After `--` and bare local shell alike:** **brutal DESTRUCTIVE** still needs permission (`rm -rf`, `DROP`, force-push, `git checkout`/`reset --hard`, fossil mutate, …).  
+- **Outside** that payload (normal `bash`/`cmd` tool on the worktree): full constitution — enumeration hard-block, product tools for local tree.
+
+Exploration inside the session (SSH or TUI-attached shell) is free of browsing hard-blocks; destroying data always asks.
 
 Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` (env) or `bypass_constitution` bypasses hard-blocks / destructive gates (not a substitute for product tools).
 

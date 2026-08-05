@@ -61,10 +61,9 @@ for (const t of ["find", "fd", "fdfind", "rg", "more", "busybox"]) {
   if (_probeBinary(t)) _KNOWN_ENUM_FIRST_TOKENS.add(t)
 }
 
-// Always-scanned: shell grammar constructs (echo/printf/for globs, git ls-files, where /r)
-// These are matched by their full pattern, not just first-token — the first-token
-// gate is an optimistic skip; the full regex still guards correctness.
-for (const t of ["echo", "printf", "for", "git", "where", "busybox"]) {
+// Always-scanned: for-globs + wrappers. echo/printf are NOT enumerators (allowed).
+// git/where stay for allow-list early exits in evaluate/guardCommand paths.
+for (const t of ["for", "git", "where", "busybox"]) {
   _KNOWN_ENUM_FIRST_TOKENS.add(t)
 }
 
@@ -171,16 +170,17 @@ const COMMAND_RULES: CommandRule[] = [
     ["more", null],
     ["busybox", null],
     ["for", null],
-    // echo/printf with glob patterns
-    ["echo", null],
-    ["printf", null],
+    // findstr / echo / printf are NOT hard-blocked:
+    // - findstr = Windows content search (grep-like; product grep preferred, not exclusive)
+    // - echo/printf = stdout print, not directory enumeration (even with *)
   ] as Array<[string, string | null]>).map(([cmd, sub]) => ({
     family: CommandFamily.FILE_ENUMERATOR,
     risk: "LOW" as Risk,
     hardBlock: true,
     cmd,
     sub,
-    extra: (cmd === "echo" || cmd === "printf" || cmd === "for")
+    // `for` with * is still used as a poor-man's tree walk — keep that gate
+    extra: cmd === "for"
       ? ((tokens: string[]) => tokens.some((t) => t.includes("*")))
       : (cmd === "rg" || cmd === "rg.exe")
         ? ((tokens: string[]) => tokens.includes("--files"))

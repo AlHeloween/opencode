@@ -496,10 +496,11 @@ The runtime constitution (`constitution.ts` + `shell-constitution.ts`) hard-bloc
 | `find`, `fd`, `rg --files` | ❌ HARD BLOCK | `glob` (path patterns) |
 | `Get-ChildItem`, `gci` | ❌ HARD BLOCK | `list` / `glob` |
 | `type`, `cat`, `more` | ❌ HARD BLOCK | `read` (file viewer) |
-| `findstr` | ❌ HARD BLOCK | `grep` (content search) |
-| `echo *`, `printf *`, `for` globs | ❌ HARD BLOCK | `glob` |
-| `git ls-files` (all variants) | ✅ **ALLOWED** | VCS oracle — what git tracks / `--error-unmatch`; **not** covered by `list`/`glob`/`grep` (those answer “on disk / in content”, not index) |
-| `where`, `where /r`, `which` | ✅ **ALLOWED** | PATH lookup (resolve binary on PATH); **not** FS tree walk — `glob`/`list` do not replace this |
+| `for … *` globs (tree walk) | ❌ HARD BLOCK | `glob` / `list` |
+| `findstr` | ✅ **ALLOWED** | Windows content search (like `findstr /s`); product `grep` preferred when convenient, but shell `findstr` is not blocked — not a `list`/`glob` substitute |
+| `echo`, `printf` (incl. with `*`) | ✅ **ALLOWED** | print to stdout, not directory enumeration |
+| `git ls-files` (all variants) | ✅ **ALLOWED** | VCS oracle — what git tracks / `--error-unmatch`; **not** covered by `list`/`glob`/`grep` |
+| `where`, `where /r`, `which` | ✅ **ALLOWED** | PATH lookup; **not** FS tree walk |
 | `rg` without `--files` | ✅ ALLOWED | content search (prefer product `grep` when possible) |
 | `bun`, `tsc`, `cargo`, `make` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
 | `cmake`, `gcc`, `g++`, `clang` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |

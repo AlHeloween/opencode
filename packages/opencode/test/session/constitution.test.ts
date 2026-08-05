@@ -131,7 +131,6 @@ describe("session.constitution", () => {
     const crossPlatform = [
       "tree /f",
       "find . -type f",
-      "echo *",
       "for f in **/*; do echo $f; done",
     ]
     for (const command of crossPlatform) {
@@ -139,6 +138,11 @@ describe("session.constitution", () => {
       expect(guard.blocked).toBe(true)
       expect(guard.message).toContain("list tool")
     }
+    // echo / findstr are not enumerators — always allowed
+    expect(Constitution.guardCommand("echo *").blocked).toBe(false)
+    expect(Constitution.guardCommand("echo hello").blocked).toBe(false)
+    expect(Constitution.guardCommand("printf '%s\\n' *").blocked).toBe(false)
+    expect(Constitution.guardCommand("findstr /s /i TODO *.ts").blocked).toBe(false)
 
     // Windows-only builtins / cmdlets
     if (isWin) {
@@ -198,6 +202,9 @@ describe("session.constitution", () => {
       "rg \"foo; Get-ChildItem\" src",
       "rg \"foo|git ls-files\" src",
       "echo ls",
+      "echo *",
+      "findstr /n /i error log.txt",
+      "printf hello",
       "node -e \"console.log('ls')\"",
     ]) {
       expect(Constitution.guardCommand(command).blocked).toBe(false)

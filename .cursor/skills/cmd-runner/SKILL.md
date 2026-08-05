@@ -23,7 +23,7 @@ Use this skill when a command may be:
 - Commands that produce thousands of lines of output
 
 **Do NOT use cmd_runner for:**
-- Quick checks: `ls`, `dir`, `git status`, `echo`, `cat`
+- Quick checks: `list`, `glob`, `git status`, `echo`, `cat` (use product tools, not shell)
 - Simple file operations: `cp`, `mv`, `rm`
 - Commands that complete in <1 second
 - Commands you need to see output from immediately

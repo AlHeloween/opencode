@@ -233,7 +233,19 @@ export const layer = Layer.effect(
             // Corrupted or out-of-sync repository — recovery is scoped to
             // this checkout/repository pair and continues into reinit below.
             // Never touches project .git (including index.lock).
+            //
+            // CRITICAL: preserve the old repo as a backup BEFORE deleting.
+            // Silent deletion destroys all snapshot history and makes every
+            // stored hash in the session DB invalid (resolveHash would then
+            // fall back to the empty opencode-init baseline → data loss).
             yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+            const backupPath = repoPath + ".bak." + Date.now()
+            yield* fs.copy(repoPath, backupPath).pipe(Effect.catch(() => Effect.void))
+            log.warn("bug: fossil repo corrupted — creating backup before reinit", {
+              repoPath,
+              backupPath,
+              recovery: "All stored snapshot hashes are now invalid. Session undo/revert will fail with clear errors instead of silently reverting to empty state.",
+            })
             yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
             yield* clearCheckoutMarkers(fs, worktree)
             yield* fs.remove(path.join(worktree, ".fossil-settings", "ignore-glob")).pipe(Effect.catch(() => Effect.void))
@@ -399,6 +411,19 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               log.info("fossil checkout (opRestore)", { version: targetVersion })
               if (!(yield* ensureInit())) return
+
+              // Validate hash exists before attempting checkout (BUG-9 fix).
+              // fossil checkout --force on a non-existent hash fails silently
+              // (non-zero exit swallowed), leaving the working tree unchanged.
+              const validate = yield* fossil(["info", targetVersion], { cwd: worktree })
+              if (validate.code !== 0) {
+                log.error("bug: checkout hash not found — unrevert cannot proceed", {
+                  version: targetVersion,
+                  stderr: validate.stderr,
+                })
+                return
+              }
+
               const result = yield* fossil(["checkout", "--force", targetVersion], { cwd: worktree })
               if (result.code !== 0) {
                 log.error("fossil checkout failed", { version: targetVersion, stderr: result.stderr })
@@ -406,7 +431,19 @@ export const layer = Layer.effect(
               }
               // Remove stale files from the previous leaf that aren't tracked
               // in the target version (fossil checkout leaves them as extras).
-              yield* fossil(["clean", "--force"], { cwd: worktree })
+              // BUG-2 fix: use fossil extras to scope cleanup to only
+              // stale-leaf files, not ALL untracked user files.
+              const extras = yield* fossil(["extras"], { cwd: worktree })
+              if (extras.code === 0 && extras.text.trim()) {
+                for (const line of extras.text.trim().split("\n")) {
+                  const file = line.trim()
+                  if (!file) continue
+                  // Only remove stale-leaf extras — never touch dotfiles
+                  // or files already in .gitignore (protected by ignore-glob).
+                  if (file.startsWith(".")) continue
+                  yield* fs.remove(path.join(worktree, file)).pipe(Effect.catch(() => Effect.void))
+                }
+              }
             }).pipe(Effect.orDie),
           )
         })
@@ -440,14 +477,31 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               log.info("restore (checkout)", { version: snapshot })
               if (!(yield* ensureInit())) return
+
+              // Validate hash exists before attempting checkout (BUG-9 fix).
+              const validate = yield* fossil(["info", snapshot], { cwd: worktree })
+              if (validate.code !== 0) {
+                log.error("bug: restore hash not found", {
+                  snapshot,
+                  stderr: validate.stderr,
+                })
+                return
+              }
+
               const result = yield* fossil(["checkout", "--force", snapshot], { cwd: worktree })
               if (result.code !== 0) {
                 log.error("fossil checkout failed", { snapshot, stderr: result.stderr })
                 return
               }
-              // Remove stale files from the previous leaf that aren't tracked
-              // in the target version (fossil checkout leaves them as extras).
-              yield* fossil(["clean", "--force"], { cwd: worktree })
+              // BUG-2 fix: scoped cleanup via fossil extras instead of clean --force.
+              const extras = yield* fossil(["extras"], { cwd: worktree })
+              if (extras.code === 0 && extras.text.trim()) {
+                for (const line of extras.text.trim().split("\n")) {
+                  const file = line.trim()
+                  if (!file || file.startsWith(".")) continue
+                  yield* fs.remove(path.join(worktree, file)).pipe(Effect.catch(() => Effect.void))
+                }
+              }
             }).pipe(Effect.orDie),
           )
         })
@@ -473,10 +527,17 @@ export const layer = Layer.effect(
                 }
               }
 
-              // Seal the revert
-              yield* fossil(["commit", "-m", "revert", "--no-warnings", "--allow-fork"], { cwd: worktree }).pipe(
-                Effect.catch(() => Effect.void),
-              )
+              // Seal the revert (BUG-6 fix: inspect result instead of silently swallowing failure).
+              const commitResult = yield* fossil(
+                ["commit", "-m", "revert", "--no-warnings", "--allow-fork"],
+                { cwd: worktree },
+              ).pipe(Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })))
+              if (commitResult.code !== 0) {
+                log.warn("bug: revert commit failed — working tree is in modified state", {
+                  stderr: commitResult.stderr,
+                  hint: "Per-file reverts were applied but the commit failed. Next track() will pick up the changes.",
+                })
+              }
             }).pipe(Effect.orDie),
           )
         })
@@ -485,22 +546,34 @@ export const layer = Layer.effect(
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* ensureInit())) return ""
-              const resolved = yield* resolveHash(hash)
+              // BUG-1 follow-up: resolveHash now throws on missing hash.
+              // Gracefully return empty diff so undo flow doesn't crash
+              // when the hash is invalid (rev.diff is informational).
+              const resolved = yield* resolveHash(hash).pipe(
+                Effect.catch((err) => {
+                  log.warn("bug: diff hash not found, returning empty diff", {
+                    hash,
+                    error: err instanceof Error ? err.message : String(err),
+                  })
+                  return Effect.succeed(undefined)
+                }),
+              )
+              if (!resolved) return ""
               const result = yield* fossil(["diff", "--from", resolved], { cwd: worktree })
               return result.code === 0 ? result.text.trim() : ""
             }).pipe(Effect.orDie),
           )
         })
 
+        // retained: getEarliestCommit is no longer used by resolveHash (BUG-1 fix)
+        // but may still be referenced by external consumers or future recovery paths.
         const getEarliestCommit = Effect.fnUntraced(function* () {
-          // fossil uses "timeline" not "log"; --reverse with limit 1 gives earliest commit
           const result = yield* fossil(
             ["timeline", "--limit", "1", "--format", "%H", "--reverse"],
             { cwd: worktree },
           )
           if (result.code !== 0) return undefined
           const hash = result.text.trim().split("\n")[0]?.trim()
-          // fossil may return 64-char SHA3-256 or 40-char; either works with fossil commands
           return hash?.slice(0, 40) || undefined
         })
 
@@ -508,10 +581,22 @@ export const layer = Layer.effect(
           // Check if hash exists in fossil repo
           const check = yield* fossil(["info", hash], { cwd: worktree })
           if (check.code === 0) return hash
-          // Hash not found (e.g. old git hash) — fallback to earliest fossil commit
-          const earliest = yield* getEarliestCommit()
-          log.warn("hash not found in fossil, using earliest", { hash, fallback: earliest })
-          return earliest ?? hash
+          // Hash not found — fail HARD. Falling back to the earliest commit
+          // (opencode-init baseline, which has ZERO user files) destroys all
+          // user/agent work silently. The caller must handle the missing-hash
+          // case explicitly (e.g. skip the file, abort the revert).
+          log.error("bug: fossil hash not found — undo/revert cannot proceed safely", {
+            hash,
+            stderr: check.stderr,
+            hint: "Fossil repository may have been recreated or corrupted. See fossil repo backup at .opencode/data/fossil/<id>/snapshot.fsl.bak.*",
+          })
+          return yield* Effect.fail(
+            new Error(
+              `Snapshot hash ${hash.slice(0, 8)} not found in Fossil repository. ` +
+              `Undo cannot proceed safely — the repository may have been recreated. ` +
+              `A backup of the old repository (if any) is preserved as snapshot.fsl.bak.*`,
+            ),
+          )
         })
 
         const diffFull = Effect.fnUntraced(function* (from: string, to: string, paths?: readonly string[]) {

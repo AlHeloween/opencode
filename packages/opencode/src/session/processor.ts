@@ -556,8 +556,10 @@ export const layer: Layer.Layer<
             // Level 2: DeepSeek V4 Pro bug — inline tool calls in content.
             // Model emits finish_reason="stop" but text contains tool_name{...}.
             // Extract disguised tool calls and trigger retry.
-            if (value.finishReason === "stop" && ctx.currentText) {
-              const text = ctx.textBuilder.toString() || ctx.currentText.text || ""
+            // NOTE: ctx.currentText is cleared by text-end before finish-step fires,
+            // so we check ctx.textBuilder instead (accumulated across all text deltas).
+            if (value.finishReason === "stop" && ctx.textBuilder.length >= 10) {
+              const text = ctx.textBuilder.toString()
               const disguised = detectDisguisedToolCalls(value.finishReason, text)
               if (disguised && disguised.length > 0) {
                 const names = disguised.map((t) => t.name).join(", ")
@@ -789,6 +791,13 @@ export const layer: Layer.Layer<
 
       const cleanup = Effect.fn("SessionProcessor.cleanup")(function* () {
         if (ctx.snapshot) {
+          // BUG-5 fix: commit any pending write-tool changes before computing
+          // the patch. Without this, snapshot.patch() diffs against the
+          // uncommitted working tree, mixing committed and uncommitted changes
+          // into a single aggregate patch that loses per-step granularity.
+          if (ctx.hasWriteToolCall && ctx.changedFiles.size > 0) {
+            yield* snapshot.track([...ctx.changedFiles]).pipe(Effect.catch(() => Effect.void))
+          }
           const patch = yield* snapshot.patch(ctx.snapshot)
           if (patch.files.length) {
             yield* session.updatePart({

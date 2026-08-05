@@ -3,7 +3,7 @@
 **Critical contract** for Layer-1 `s` rows (`project_checkpoint` / enrichRange).  
 Code: `session/summary.ts` (`collectToolFileDiffs`, `enrichRange`).
 
-**Fossil is not used for summary Exact.** Fossil exists only for **WC snapshot rollback** (`track` / `restore` / undo). Memory Exact is tool-parts + CodeGraph.
+**Fossil is not used for summary Exact.** Fossil exists only for **WC snapshot rollback** (`track` / full-leaf `revertTo` / undo-redo). See [fossil-snapshot.md](fossil-snapshot.md). Memory Exact is tool-parts + CodeGraph.
 
 ---
 

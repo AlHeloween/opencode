@@ -82,7 +82,7 @@ Typical contents of repo-root `tools/` and stable portable copies (`bin_tst/…-
 | **`adm.exe`**, **`adm-rag.exe`** | ADID update manager / RAG | Skills (`adm-exe`, `rag`, `patch-tool`) | Linux ADM or `python -m adm` |
 | **`ambr.exe`**, **`ambs.exe`** | ADID-related helpers | Skills / ADID workflows | Optional product layer |
 | **`rclone.exe`** | Remote sync | Ad-hoc agent shell | Optional system package |
-| **`jj.exe`** | Jujutsu VCS CLI | TUI footer if `.jj` exists; **not** snapshot backend | Optional system `jj` |
+| **`jj.exe`** | Jujutsu VCS CLI | TUI footer if `.jj` exists only | Optional system `jj` |
 | **`init_msvc.*`**, **`init_delphi.*`**, **`build_delphi_*`** | MSVC/Delphi env | Delphi builder skill | Windows only |
 | **`install_rag.cmd`**, **`install_rag.sh`** | RAG installers | ADID RAG setup | Keep `.sh` on Linux if using RAG |
 | **`adm.json`** | ADID config sample | ADID | Portable JSON if used |
@@ -131,6 +131,16 @@ cd external/fossil/fossil-src-2.28
 ```
 
 **If missing:** snapshot service cannot open/init `.opencode/data/fossil/{projectID}/snapshot.fsl`; agent undo / Modified Files degrade. Logs: service `snapshot-fossil`.
+
+**Data layout (under worktree):**
+
+```
+.opencode/data/fossil/{projectID}/snapshot.fsl
+.opencode/data/fossil/{projectID}/snapshot.fsl.bak.<ts>   # after corrupt reinit
+.opencode/data/fossil/{projectID}/HISTORY_INVALID.json    # blocks undo until recovery
+```
+
+**Product semantics** (full-leaf undo/redo, extras cleanup, fail-loud hashes): [fossil-snapshot.md](fossil-snapshot.md).
 
 **Not Fossil:** project git (`project/vcs.ts`) and TUI footer markers are separate systems. See [startup-bootstrap.md](startup-bootstrap.md).
 

@@ -105,8 +105,8 @@
 │    capability, pipeline, task, bash, edit, write, read,      │
 │    glob, grep, list, multiedit, apply_patch, webfetch,       │
 │    universalsearch, messagesearch, session-read,             │
-│    job_output, job_wait, todowrite, question, skill,         │
-│    lsp, plan, invalid                                         │
+│    joboutput, jobwait, jobkill, todowrite, question, skill,  │
+│    lsp, planexit, fossilgrep, codegraph, invalid             │
 └─────────────────────────────────────────────────────────────┘
 ```
 

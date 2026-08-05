@@ -145,13 +145,15 @@ Three different systems — easy to confuse:
 
 | System | Backend | Role |
 |--------|---------|------|
-| **Snapshot (agent undo / “Modified Files”)** | **Fossil only** (`snapshot/fossil.ts`) | Sidecar repo `{data}/fossil/{projectID}/snapshot.fsl`; track/diff/restore. Honors `.gitignore` via Fossil ignore-glob. Binary resolution: [tools-and-sidecars.md](tools-and-sidecars.md) §4.1. |
-| **Project VCS** (`project/vcs.ts`) | **Git** (when `project.vcs === "git"`) | Branch name, agent git-facing diffs — **source control**, not undo DB. |
+| **Snapshot (agent undo / “Modified Files”)** | **Fossil only** (`snapshot/fossil.ts`) | Sidecar `{data}/fossil/{projectID}/snapshot.fsl`; track / full-leaf undo-redo / diffs. Honors `.gitignore` via ignore-glob. Binary: [tools-and-sidecars.md](tools-and-sidecars.md) §4.1. **Full semantics:** [fossil-snapshot.md](fossil-snapshot.md). |
+| **Project VCS** (`project/vcs.ts`) | **Git** (when `project.vcs === "git"`) | Branch name, agent git-facing diffs — **source control**, not the undo timeline. |
 | **TUI footer indicator** | `vcs-indicator.ts`: `.jj` → fossil sidecar/`_FOSSIL_`/`_fossil` → `.git` | Display only (jj blue, fossil green, git red). Fossil wins when the **sidecar** exists even without an open marker — a git monorepo still shows green fossil for agent undo. |
 
-There is **no** git/jj snapshot layer in this fork. `Snapshot.Service` dies unless `SnapshotFossil.defaultLayer` is provided.
+`Snapshot.Service` is provided only via `SnapshotFossil.defaultLayer`. Fossil deliberately does not pack `.git`, `.jj`, or Fossil checkout markers into the sidecar.
 
-Fossil snapshot deliberately ignores packing `.git`, `.jj`, and Fossil checkout markers into the sidecar.
+### Undo/redo (leaf navigation)
+
+Session undo materializes one **checkin leaf** (`revertTo`), not a mix of per-file hashes. After checkout, only agent-owned extras (paths that were in pre-checkout `fossil ls`) are removed so tree structure matches the leaf; user-only untracked files stay. Multi-level redo uses `session.revert.redo_stack`. Corrupt reinit writes `HISTORY_INVALID.json` and fails loud on old hashes. Details: [fossil-snapshot.md](fossil-snapshot.md).
 
 ### Git vs Fossil must stay decoupled
 

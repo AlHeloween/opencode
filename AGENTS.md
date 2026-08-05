@@ -396,36 +396,26 @@ const table = sqliteTable("session", {
 
 ## Fossil Snapshot System
 
-Real-time working copy tracking with undo/redo and session-level rollback. See `plans/fossil-snapshot-system.md` for full documentation. Startup/bootstrap context: `docs/startup-bootstrap.md`.
+Real-time working-copy tracking with session undo/redo. **Canonical doc:** [`docs/fossil-snapshot.md`](docs/fossil-snapshot.md). Bootstrap: [`docs/startup-bootstrap.md`](docs/startup-bootstrap.md). Bug history: `plans_completed/fossil-undo-redo-fix.md`.
 
 **Key points:**
-- **Role**: agent snapshot / undo-redo timeline only (single `.fsl` file under data). **Git** is project version control — do not conflate them.
-- **Repo location**: `{data}/fossil/{projectID}/snapshot.fsl` (sidecar under `.opencode/data`, not a colocated project checkout)
-- **Binary**: `external/fossil/fossil.exe` (v2.28) or `tools/fossil.exe` next to the executable
-- **No colocated mode** — snapshot Fossil must NOT share `.git` with the project
-- **Self-healing initialization** — if `.fsl` or data deleted, auto-recreate (old repo backed up; missing hashes fail loud — no silent revert to empty)
-- **`.gitignore` respected** — translated to Fossil `ignore-glob` patterns (also ignores `.git` / `.jj`)
-- **Performance safe** — no scanning 5000+ files per operation
-- **Undo/redo**: full **leaf** checkout (whole tree at a checkin), not per-file hash mix; multi-level redo via `session.revert.redo_stack`. See `plans/fossil-undo-redo-fix.md` and `plans/2026-08-05_sp03_session_undo_semantics.md`.
+- **Role**: agent snapshot / undo-redo timeline only (`snapshot.fsl` under data). **Git** is project VCS — do not conflate them.
+- **Repo**: `{data}/fossil/{projectID}/snapshot.fsl` (sidecar; never colocated with project `.git`)
+- **Binary**: `external/fossil/fossil.exe` (v2.28) or `tools/fossil.exe` next to the executable ([tools-and-sidecars.md](docs/tools-and-sidecars.md) §4.1)
+- **Self-healing**: corrupt open → backup `*.bak.*` + `HISTORY_INVALID.json` + reinit; old session hashes fail loud (no silent empty-tree undo)
+- **`.gitignore`** → Fossil `ignore-glob` (also ignores `.git` / `.jj`)
+- **Undo/redo**: full **leaf** checkout (`revertTo`), not per-file hash mix; structure cleanup = extras ∩ pre-checkout `ls` only; multi-level redo via `session.revert.redo_stack`
 
 **Not the same as project VCS or TUI indicator:**
-- **Git** (`project/vcs.ts`) — real project source control (branch, agent-facing git status) when the worktree is a git repo
+- **Git** (`project/vcs.ts`) — source control when the worktree is a git repo
 - **jj** — TUI footer detection only (`.jj`)
-- **TUI indicator** — fossil (green) / jj (blue) / git (red) from checkout markers; a git monorepo still uses Fossil for agent undo
+- **TUI indicator** — fossil (green) / jj (blue) / git (red); git monorepo still uses Fossil for agent undo
 
-**Key functions:**
-- `track(files?)` — Creates snapshot of current working copy
-- `diffFull(from, to)` — Returns file-level diffs between two commits
-- `restore(hash)` — Restores working copy to specific commit
+**Key APIs:** `track`, `checkpoint`, `patch`, `diff` / `diffFull`, `restore` / `checkout`, `revertTo` / `revert`, `impact`
 
-**Integration:**
-- Session processor tracks changed files from tool results
-- Summary system computes diffs for "Modified Files" display
+**Integration:** processor tracks write tools + emits patch parts; summary Exact uses tool filediffs + CodeGraph (not Fossil span) — see `docs/summary-exact-handles.md`
 
-**Troubleshooting:**
-- If "Modified Files" shows 0 diffs, check logs for `resolveHash` fallback warnings
-- Ensure `fossil info <hash>` works for stored hashes
-- Verify `fossil timeline` returns commits
+**Troubleshooting:** see `docs/fossil-snapshot.md` §8
 
 ## opencode paths
 

@@ -1,8 +1,9 @@
 # Fossil Snapshot System: Undo/Redo Architecture Audit & Fix Plan
 
 **Date:** 2026-08-05
-**Status:** Plan — awaiting approval
+**Status:** Phase 1 complete ✅ | Phase 2 pending | Phase 3 pending
 **Severity:** CRITICAL — data loss, silent corruption, broken undo/redo
+**Commit:** `eb3b6a3` — fix(snapshot): Phase 1 — stop silent data loss in undo/redo
 
 ---
 
@@ -134,6 +135,98 @@ ensureInit() called
 │                                                      │
 │ All stored hashes now INVALID → resolveHash          │
 │ falls back to earliest (opencode-init) → data loss   │
+└──────────────────────────────────────────────────────┘
+```
+
+### 2.5 Phase 1 Post-Fix Flows (2026-08-05)
+
+#### Undo (Revert) — AFTER Phase 1
+
+```
+User triggers undo
+       │
+       ▼
+┌──────────────────────────────────────────────────────┐
+│ SessionRevert.revert(input)                          │
+│                                                      │
+│ 1. Walk all messages, find revert point              │
+│ 2. Collect all patch parts AFTER revert point        │
+│ 3. rev.snapshot = prev_revert?.snapshot              │
+│    ?? snap.checkpoint()    ◀── BUG-3: still stale    │
+│ 4. rev.op_id = prev_revert?.op_id ?? rev.snapshot    │
+│ 5. if prev_revert?.snapshot:                         │
+│      snap.restore(prev_revert.snapshot) ◀── BUG-3    │
+│ 6. snap.revert(patches)                              │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+       │
+       ▼
+┌──────────────────────────────────────────────────────┐
+│ fossil.ts: revert(patches) — AFTER Phase 1           │
+│                                                      │
+│ For each patch (chronological order):                │
+│   For each file in patch.files:                      │
+│     if file NOT in seen set:                         │
+│       seen.add(file)                                 │
+│       resolvedHash = resolveHash(patch.hash)         │
+│         ├─ fossil info <hash> → exists?              │
+│         └─ NO → Effect.fail(Error) ✅ HARD ERROR     │
+│       fossil revert <file> -r <resolvedHash>         │
+│         ├─ OK → file restored                        │
+│         └─ FAIL → fs.remove(file)                    │
+│                                                      │
+│ fossil commit -m "revert"                            │
+│   ├─ OK → done                                       │
+│   └─ FAIL → log.warn("bug: revert commit failed") ✅ │
+└──────────────────────────────────────────────────────┘
+```
+
+#### Redo (Unrevert) — AFTER Phase 1
+
+```
+User triggers unrevert
+       │
+       ▼
+┌──────────────────────────────────────────────────────┐
+│ SessionRevert.unrevert(input)                        │
+│                                                      │
+│ if session.revert.op_id:                             │
+│   snap.checkout(session.revert.op_id)                │
+│   ┌─ fossil info <op_id> → validate ✅ NEW           │
+│   └─ fossil checkout --force <op_id>                 │
+│   └─ fossil extras → scoped remove ✅ NOT clean -f   │
+│                                                      │
+│ sessions.clearRevert(sessionID)                      │
+└──────────────────────────────────────────────────────┘
+```
+
+#### Self-Healing Init — AFTER Phase 1
+
+```
+ensureInit() called
+       │
+       ▼
+┌──────────────────────────────────────────────────────┐
+│ repo exists? ──YES──▶ probe fossil info              │
+│   │                    ├─ OK, same repo → return true │
+│   │                    └─ FAIL → fossil open --force  │
+│   │                         ├─ OK → verify → return   │
+│   │                         └─ FAIL ↓                 │
+│   │                                                  │
+│   NO                                                 │
+│   ↓                                                  │
+│ fossil init → open → baseline commit                 │
+│                                                      │
+│ ═══════════ RECOVERY (NON-DESTRUCTIVE) ═══════════   │
+│ fossil close --force                                 │
+│ fs.copy(repoPath, backupPath) ✅ BACKUP FIRST         │
+│ log.warn("bug: fossil repo corrupted...") ✅          │
+│ fs.remove(repoPath)                                  │
+│ clearCheckoutMarkers()                               │
+│ → re-init, re-open, baseline commit                  │
+│                                                      │
+│ Stored hashes invalid → resolveHash throws Error ✅   │
+│ (no silent fallback to empty state)                  │
 └──────────────────────────────────────────────────────┘
 ```
 

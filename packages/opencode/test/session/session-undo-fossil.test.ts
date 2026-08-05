@@ -14,6 +14,7 @@ import { SnapshotFossil } from "../../src/snapshot/fossil"
 import * as Log from "@opencode-ai/core/util/log"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+import { Instance } from "../../src/project/instance"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
@@ -327,6 +328,33 @@ describe("session undo + fossil (SP-03)", () => {
         yield* write(path.join(dir, "t.txt"), "x")
         yield* snap.track([path.join(dir, "t.txt")])
         const exit = yield* snap.revertTo("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef").pipe(Effect.exit)
+        expect(exit._tag).toBe("Failure")
+      }),
+    ),
+  )
+
+  it.live(
+    "SP-05 HISTORY_INVALID marker blocks restore",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const snap = yield* Snapshot.Service
+        const file = path.join(dir, "marked.txt")
+        yield* write(file, "v1")
+        const h = yield* snap.track([file])
+        expect(h).toBeTruthy()
+
+        const projectId = Instance.project.id
+        const marker = path.join(dir, ".opencode", "data", "fossil", projectId, "HISTORY_INVALID.json")
+        yield* Effect.promise(async () => {
+          await fs.mkdir(path.dirname(marker), { recursive: true })
+          await fs.writeFile(
+            marker,
+            JSON.stringify({ at: new Date().toISOString(), backupPath: "snapshot.fsl.bak.test", reason: "test" }),
+            "utf-8",
+          )
+        })
+
+        const exit = yield* snap.restore(h!).pipe(Effect.exit)
         expect(exit._tag).toBe("Failure")
       }),
     ),

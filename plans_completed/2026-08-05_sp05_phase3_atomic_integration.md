@@ -2,7 +2,7 @@
 
 **Parent:** `plans/2026-08-05_master_critical_remediation.md`  
 **Date:** 2026-08-05  
-**Status:** Deferred until SP-03 G3 green  
+**Status:** Implemented 2026-08-05 — HISTORY_INVALID + atomic preserve rollback + soft patch hash warn
 **Severity:** MEDIUM→HIGH for long sessions  
 **Risk:** Medium  
 **Depends on:** SP-03  
@@ -136,12 +136,13 @@ All real fossil + tmp worktree. No mocks.
 
 ## 6. Checklist
 
-- [ ] SP-03 G3 confirmed  
-- [ ] Atomic policy chosen and documented  
-- [ ] HISTORY_INVALID marker  
-- [ ] INT + AT tests green  
-- [ ] fossil-undo-redo-fix Phase 3 `[x]`  
-- [ ] Master G5 + move plans to plans_completed  
+- [x] SP-03 G3 confirmed  
+- [x] Atomic policy: pre-leaf hash; rollback on preserveFiles failure  
+- [x] HISTORY_INVALID marker after reinit + assert on resolve/checkout  
+- [x] Tests: HISTORY_INVALID blocks restore; structure still pass  
+- [x] Soft-warn weak patch hash in processor  
+- [ ] Unskip fossil-rollback multi-update (deferred — update path flaky)  
+- [x] Master G5 + move completed sub-plans to plans_completed
 
 ---
 

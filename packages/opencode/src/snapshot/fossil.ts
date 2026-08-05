@@ -84,8 +84,54 @@ export const layer = Layer.effect(
       Effect.fn("SnapshotFossil.state")(function* (ctx) {
         const fossilDir = path.join(ctx.worktree, ".opencode", "data", "fossil", ctx.project.id)
         const repoPath = path.join(fossilDir, "snapshot.fsl")
+        /** Written after destructive reinit — session hashes from the old era are invalid. */
+        const historyInvalidPath = path.join(fossilDir, "HISTORY_INVALID.json")
         const worktree = ctx.worktree
         const locked = <A, E, R>(fx: Effect.Effect<A, E, R>) => lock(fossilDir).withPermits(1)(fx)
+
+        const writeHistoryInvalid = Effect.fnUntraced(function* (backupPath: string, reason: string) {
+          const body = JSON.stringify({
+            at: new Date().toISOString(),
+            backupPath,
+            reason,
+          })
+          yield* fs.writeWithDirs(historyInvalidPath, body).pipe(
+            Effect.catch((err) => {
+              log.warn("bug: failed to write HISTORY_INVALID marker", {
+                path: historyInvalidPath,
+                error: err instanceof Error ? err.message : String(err),
+              })
+              return Effect.void
+            }),
+          )
+          log.warn("bug: fossil HISTORY_INVALID marker written — undo will fail until recovery", {
+            path: historyInvalidPath,
+            backupPath,
+            reason,
+          })
+        })
+
+        /** Fail if repo was recreated and old session hashes cannot be trusted. */
+        const assertHistoryValid = Effect.fnUntraced(function* () {
+          const exists = yield* fs.existsSafe(historyInvalidPath)
+          if (!exists) return
+          const raw = yield* fs.readFileString(historyInvalidPath).pipe(
+            Effect.catch(() => Effect.succeed("")),
+          )
+          let backupPath = "(unknown backup)"
+          try {
+            const parsed = JSON.parse(raw) as { backupPath?: string }
+            if (parsed.backupPath) backupPath = parsed.backupPath
+          } catch {
+            // marker present but unreadable — still block
+          }
+          return yield* Effect.fail(
+            new Error(
+              `Fossil snapshot history was recreated after corruption. ` +
+                `Stored undo hashes are invalid. Old repository backup: ${backupPath}`,
+            ),
+          )
+        })
 
         const enabled = Effect.fnUntraced(function* () {
           return (yield* config.get()).snapshot !== false
@@ -249,6 +295,8 @@ export const layer = Layer.effect(
             yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
             yield* clearCheckoutMarkers(fs, worktree)
             yield* fs.remove(path.join(worktree, ".fossil-settings", "ignore-glob")).pipe(Effect.catch(() => Effect.void))
+            // Mark history lost before reinit so resolveHash/checkout fail loud (SP-05)
+            yield* writeHistoryInvalid(backupPath, "reinit_after_corruption")
           }
 
           log.info("initializing fossil repo", { repoPath, worktree })
@@ -445,6 +493,7 @@ export const layer = Layer.effect(
 
         /** Validate checkin exists or fail loud (BUG-9). */
         const validateCheckoutHash = Effect.fnUntraced(function* (hash: string, label: string) {
+          yield* assertHistoryValid()
           const validate = yield* fossil(["info", hash], { cwd: worktree })
           if (validate.code === 0) return
           log.error(`bug: ${label} hash not found — cannot proceed`, {
@@ -519,6 +568,9 @@ export const layer = Layer.effect(
          * Move working tree to one Fossil leaf (full structure: adds/modifies/deletes
          * as that checkin defines). Does NOT invent a new history commit unless
          * preserveFiles dirties the tree — undo/redo is leaf navigation, not rewrite.
+         *
+         * Atomicity (SP-05): capture pre-leaf hash; if post-checkout preserve fails,
+         * restore pre-leaf so the tree is not left half-applied.
          */
         const revertTo = Effect.fnUntraced(function* (
           targetHash: string,
@@ -530,6 +582,9 @@ export const layer = Layer.effect(
                 return yield* Effect.fail(new Error("Cannot revertTo: Fossil snapshot not initialized"))
               }
 
+              const infoBefore = yield* fossil(["info"], { cwd: worktree })
+              const preHash = currentHash(infoBefore.text)
+
               const preserved = new Map<string, string>()
               for (const abs of opts?.preserveFiles ?? []) {
                 const exists = yield* fs.existsSafe(abs)
@@ -539,14 +594,47 @@ export const layer = Layer.effect(
               }
 
               // Full leaf: checkout + structure cleanup (extras ∩ preTracked)
+              // validateCheckoutHash runs first — invalid target leaves tree unchanged.
               yield* checkoutTo(targetHash, "revertTo")
 
               if (preserved.size === 0) return
 
               // User-edit conflicts only — restore content after leaf materialization
-              for (const [abs, text] of preserved) {
-                yield* fs.writeWithDirs(abs, text).pipe(Effect.catch(() => Effect.void))
+              const preserveFailed = yield* Effect.gen(function* () {
+                for (const [abs, text] of preserved) {
+                  const wrote = yield* fs.writeWithDirs(abs, text).pipe(
+                    Effect.map(() => true),
+                    Effect.catch((err) => {
+                      log.error("bug: revertTo preserveFiles write failed", {
+                        file: abs,
+                        error: err instanceof Error ? err.message : String(err),
+                      })
+                      return Effect.succeed(false)
+                    }),
+                  )
+                  if (!wrote) return true
+                }
+                return false
+              })
+
+              if (preserveFailed) {
+                if (preHash) {
+                  log.warn("bug: revertTo rolling back to pre-leaf after preserve failure", { preHash })
+                  yield* checkoutTo(preHash, "revertTo-rollback").pipe(
+                    Effect.catch((err) => {
+                      log.error("bug: revertTo rollback to pre-leaf also failed", {
+                        preHash,
+                        error: err instanceof Error ? err.message : String(err),
+                      })
+                      return Effect.void
+                    }),
+                  )
+                }
+                return yield* Effect.fail(
+                  new Error("revertTo failed while restoring user-edited files; tree rolled back when possible"),
+                )
               }
+
               const commitResult = yield* fossil(
                 ["commit", "-m", "session-revert-preserve", "--no-warnings", "--allow-fork"],
                 { cwd: worktree },
@@ -590,6 +678,7 @@ export const layer = Layer.effect(
         })
 
         const resolveHash = Effect.fnUntraced(function* (hash: string) {
+          yield* assertHistoryValid()
           // Check if hash exists in fossil repo
           const check = yield* fossil(["info", hash], { cwd: worktree })
           if (check.code === 0) return hash

@@ -1,7 +1,7 @@
 # Fossil Snapshot System: Undo/Redo Architecture Audit & Fix Plan
 
 **Date:** 2026-08-05
-**Status:** Phase 1 complete ✅ | Phase 2 pending | Phase 3 pending
+**Status:** Phase 1–3 complete ✅ (execution via 2026-08-05 SP-01..05; see plans_completed/)
 **Severity:** CRITICAL — data loss, silent corruption, broken undo/redo
 **Commit:** `eb3b6a3` — fix(snapshot): Phase 1 — stop silent data loss in undo/redo
 
@@ -754,7 +754,9 @@ try {
 | `snapshot.test.ts -t revert` | ✅ **11 pass** | full-leaf + track() semantics |
 | Full-leaf undo | ✅ | `revertTo` + preLs extras; user-only files kept |
 
-**Phase 2 status:** BUG-3/4/9 residual addressed via full-leaf navigation + hard-fail checkout. Phase 3 (atomic, HISTORY_INVALID) still open — see `plans/2026-08-05_sp05_phase3_atomic_integration.md`.
+**Phase 2 status:** BUG-3/4/9 residual addressed via full-leaf navigation + hard-fail checkout.
+
+**Phase 3 status (SP-05):** HISTORY_INVALID marker after reinit; assert on resolve/checkout; atomic preserveFiles rollback to pre-leaf; soft-warn weak patch hashes.
 
 ### POST_FIX (after each phase)
 

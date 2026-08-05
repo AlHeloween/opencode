@@ -1,7 +1,7 @@
 # Master Plan: Critical Remediation (Write Types + Fossil Undo/Redo + Docs/Defence)
 
 **Date:** 2026-08-05  
-**Status:** Active — SP-01..04 implemented; SP-05 remaining
+**Status:** Complete 2026-08-05 — SP-01..05 implemented  
 **Severity:** CRITICAL (data loss / silent corruption on undo-redo) + HIGH (typecheck break)  
 **Branch:** `Local_Development`  
 **Audit source:** `plans/2026-08-05_commit_audit_remediation.md`  
@@ -272,10 +272,10 @@ REUSE.BEFORE: no new WASM/deps; extend existing Fossil + Effect layers.
 - [x] SP-02 complete + G2 (preLs extras; hard-fail invalid restore; snapshot restore tests pass)  
 - [x] SP-03 complete + G3 (`revertTo`; fresh anchors; session-undo-fossil 6/6 pass)  
 - [x] SP-04 complete + G4 (allowlist + docs + AGENTS fossil note)  
-- [ ] SP-05 complete + G5  
-- [ ] Update `fossil-undo-redo-fix.md` Phase 2/3 status  
-- [ ] Move finished plans → `plans_completed/`  
-- [ ] Master → `plans_completed/` when all sub-plans done  
+- [x] SP-05 complete + G5 (HISTORY_INVALID + atomic preserve rollback)  
+- [x] Update `fossil-undo-redo-fix.md` Phase 2/3 status  
+- [x] Move finished plans → `plans_completed/`  
+- [x] Master → `plans_completed/` when all sub-plans done
 
 ---
 

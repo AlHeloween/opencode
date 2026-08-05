@@ -688,6 +688,14 @@ export const layer: Layer.Layer<
             if (snapshotBeforeTrack) {
               const patch = yield* snapshot.patch(snapshotBeforeTrack)
               if (patch.files.length) {
+                // Soft-warn: empty/missing hash would make future undo fail-loud (SP-05)
+                if (!patch.hash || patch.hash.length < 8) {
+                  log.warn("bug: patch part has weak snapshot hash", {
+                    sessionID: ctx.sessionID,
+                    hash: patch.hash,
+                    files: patch.files.length,
+                  })
+                }
                 yield* session.updatePart({
                   id: PartID.ascending(),
                   messageID: ctx.assistantMessage.id,

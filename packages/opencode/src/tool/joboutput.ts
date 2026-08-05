@@ -4,6 +4,10 @@ import { Jobs } from "../jobs"
 
 export const JobOutputParameters = Schema.Struct({
   job_id: Schema.String.annotate({ description: "The job ID (e.g. bash-1, task-2)" }),
+  pattern: Schema.optional(Schema.String).annotate({
+    description:
+      "Optional regex pattern to filter output lines. When set, searches ALL accumulated output (not just new since last read) and does NOT advance the read offset — so you can call joboutput multiple times with different patterns on the same output. Omit to get incremental output (new text since last read, advances offset).",
+  }),
 })
 
 export const JobOutputTool = Tool.define(
@@ -11,22 +15,32 @@ export const JobOutputTool = Tool.define(
   Effect.gen(function* () {
     const jobs = yield* Jobs.Service
     return {
-      description: "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — the agent should consider killing it with jobkill.",
+      description:
+        "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — the agent should consider killing it with jobkill.\n\n" +
+        "Use the optional `pattern` parameter to grep/filter the full accumulated output without advancing the read offset. This lets you call joboutput multiple times with different patterns on the same output — unlike incremental reads which consume the output.\n\n" +
+        "Example: after `jobwait` returns a large test output, call `joboutput` with pattern=\"FAIL\" to see failures, then pattern=\"Error\" to see errors — both see the same full output.",
       parameters: JobOutputParameters,
-      execute: (params: { job_id: string }, ctx: Tool.Context) =>
+      execute: (params: { job_id: string; pattern?: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          const result = yield* jobs.output({ sessionID: ctx.sessionID, jobID: Jobs.JobID.make(params.job_id) })
+          const result = yield* jobs.output({
+            sessionID: ctx.sessionID,
+            jobID: Jobs.JobID.make(params.job_id),
+            pattern: params.pattern,
+          })
+          const patternLabel = params.pattern ? ` (grep: ${params.pattern})` : ""
           if (result.text === "" && result.status !== "running") {
             return {
-              title: `Job ${params.job_id} (${result.status})`,
-              output: `Job ${params.job_id} is ${result.status}. No new output.`,
-              metadata: { jobID: params.job_id, status: result.status },
+              title: `Job ${params.job_id} (${result.status})${patternLabel}`,
+              output: params.pattern
+                ? `No matches for "${params.pattern}" in job ${params.job_id} output.`
+                : `Job ${params.job_id} is ${result.status}. No new output.`,
+              metadata: { jobID: params.job_id, status: result.status, pattern: params.pattern },
             }
           }
           return {
-            title: `Job ${params.job_id} output`,
+            title: `Job ${params.job_id} output${patternLabel}`,
             output: result.text || `(no output, status: ${result.status})`,
-            metadata: { jobID: params.job_id, status: result.status },
+            metadata: { jobID: params.job_id, status: result.status, pattern: params.pattern },
           }
         }).pipe(Effect.orDie),
     }

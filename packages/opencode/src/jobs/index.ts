@@ -91,7 +91,7 @@ export interface Interface {
   /** Write incremental output to a running job. Used for streaming progress from within the job's effect. */
   readonly write: (input: { sessionID: SessionID; jobID: JobID; chunk: string }) => Effect.Effect<void>
 
-  readonly output: (input: { sessionID: SessionID; jobID: JobID }) => Effect.Effect<{ text: string; status: JobStatus }>
+  readonly output: (input: { sessionID: SessionID; jobID: JobID; pattern?: string }) => Effect.Effect<{ text: string; status: JobStatus }>
 
   readonly kill: (input: { sessionID: SessionID; jobID: JobID }) => Effect.Effect<boolean>
 
@@ -385,12 +385,44 @@ export const layer = Layer.effect(
       return id
     })
 
-    const output = Effect.fn("Jobs.output")(function* (input: { sessionID: SessionID; jobID: JobID }) {
+    const output = Effect.fn("Jobs.output")(function* (input: { sessionID: SessionID; jobID: JobID; pattern?: string }) {
       const j = jobs.get(key(input.sessionID, input.jobID))
       if (!j) {
         log.debug("job_output called for unknown job", { sessionID: input.sessionID, jobID: input.jobID })
         return { text: "", status: "failed" as JobStatus }
       }
+
+      // Pattern mode: search FULL accumulated output, don't advance offset.
+      // Agents can call joboutput multiple times with different patterns on the same output.
+      if (input.pattern) {
+        const fullText = j.output
+        if (!fullText) return { text: "", status: j.status }
+        try {
+          const regex = new RegExp(input.pattern, "g")
+          const matches = fullText.match(regex)
+          if (!matches || matches.length === 0) return { text: "", status: j.status }
+          // Return matching lines with context (1 line before and after each match)
+          const lines = fullText.split("\n")
+          const matchedLines = new Set<number>()
+          for (let i = 0; i < lines.length; i++) {
+            if (regex.test(lines[i]!)) {
+              matchedLines.add(i)
+              if (i > 0) matchedLines.add(i - 1)
+              if (i < lines.length - 1) matchedLines.add(i + 1)
+            }
+          }
+          // Reset regex lastIndex after test() loop
+          regex.lastIndex = 0
+          const result = [...matchedLines].sort((a, b) => a - b).map((i) => `${i + 1}: ${lines[i]}`).join("\n")
+          const capped = result.length > 51200 ? result.slice(0, 51200) + "\n... (truncated)" : result
+          return { text: capped, status: j.status }
+        } catch {
+          // Invalid regex — return empty, don't crash
+          return { text: "", status: j.status }
+        }
+      }
+
+      // Normal mode: incremental read with offset tracking
       const offsetKey = key(input.sessionID, input.jobID) + ":offset"
       const offset = readOffsets.get(offsetKey) ?? 0
       const text = j.output.slice(offset)

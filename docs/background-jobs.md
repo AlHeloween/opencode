@@ -210,7 +210,8 @@ bash "long-command" --timeout 30000
 |---------|------|
 | `packages/opencode/src/jobs/` | Job state machine, SQLite persistence, Bus events |
 | `packages/opencode/src/tool/job_kill.ts` | LLM-callable kill tool |
-| `packages/opencode/src/tool/job_output.ts` | LLM-callable output + wait tools |
+| `packages/opencode/src/tool/joboutput.ts` | LLM-callable output tool (`job_output`); optional `pattern` regex filters full buffer without advancing read offset |
+| `packages/opencode/src/tool/jobkill.ts` | LLM-callable kill tool |
 | `packages/opencode/src/tool/bash.ts` | Background execution via `Jobs.startEffect` |
 | `packages/opencode/src/tool/cmd.ts` | Same for cmd.exe |
 | `packages/opencode/src/tool/external-directory.ts` | Shared external_directory permission check |

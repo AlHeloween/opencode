@@ -3,6 +3,7 @@ import * as path from "path"
 import { Effect } from "effect"
 import * as Tool from "./tool"
 import { LSP } from "@/lsp/lsp"
+import type { Diagnostic } from "@/lsp/client"
 import { createPatch, diffStats } from "@/util/diff-wasm"
 import DESCRIPTION from "./write.txt"
 import { Bus } from "../bus"
@@ -11,6 +12,7 @@ import { FileWatcher } from "../file/watcher"
 import { Format } from "../format"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Instance } from "../project/instance"
+import { Snapshot } from "@/snapshot"
 import { trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Bom from "@/util/bom"
@@ -25,6 +27,14 @@ export const Parameters = Schema.Struct({
     description: "The absolute path to the file to write (must be absolute, not relative)",
   }),
 })
+
+/** Both reject and success paths must share this shape (Tool.define infers a single M). */
+type WriteMetadata = {
+  filepath: string
+  exists: boolean
+  diagnostics: Record<string, Diagnostic[]>
+  filediff: Snapshot.FileDiff
+}
 
 export const WriteTool = Tool.define(
   "write",
@@ -72,9 +82,15 @@ export const WriteTool = Tool.define(
           // Catches hallucinated syntax before it hits disk — model can retry.
           const syntaxErr = yield* Effect.promise(() => validateCodeSyntax(filepath, contentNew))
           if (syntaxErr) {
+            const metadata: WriteMetadata = {
+              filepath,
+              exists,
+              diagnostics: {},
+              filediff: { file: filepath, patch: diff, additions: 0, deletions: 0 },
+            }
             return {
               title: path.relative(Instance.worktree, filepath),
-              metadata: { filepath, exists },
+              metadata,
               output: `REJECTED — ${syntaxErr.message}`,
             }
           }
@@ -108,21 +124,21 @@ export const WriteTool = Tool.define(
           }
 
           const stats = yield* Effect.promise(() => diffStats(contentOld, contentNew))
-          const filediff = {
-            file: filepath,
-            patch: diff,
-            additions: stats?.additions ?? 0,
-            deletions: stats?.deletions ?? 0,
+          const metadata: WriteMetadata = {
+            filepath,
+            exists,
+            diagnostics,
+            filediff: {
+              file: filepath,
+              patch: diff,
+              additions: stats?.additions ?? 0,
+              deletions: stats?.deletions ?? 0,
+            },
           }
 
           return {
             title: path.relative(Instance.worktree, filepath),
-            metadata: {
-              diagnostics,
-              filepath,
-              exists: exists,
-              filediff,
-            },
+            metadata,
             output,
           }
         }).pipe(Effect.orDie),

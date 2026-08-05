@@ -275,6 +275,45 @@ describe("tool.write", () => {
     )
   })
 
+  describe("pre-write syntax validation", () => {
+    it.live("rejects broken python without creating the file", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "broken.py")
+          // Unclosed string / fused junk that tree-sitter marks as ERROR
+          const bad = 'def foo(\n    print("unterminated\n'
+          const result = yield* run({ filePath: filepath, content: bad })
+
+          expect(result.output.startsWith("REJECTED —")).toBe(true)
+          expect(result.metadata.diagnostics).toEqual({})
+          expect(result.metadata.filediff.file).toBe(filepath)
+
+          const existed = yield* Effect.promise(() =>
+            fs.access(filepath).then(
+              () => true,
+              () => false,
+            ),
+          )
+          expect(existed).toBe(false)
+        }),
+      ),
+    )
+
+    it.live("writes valid python content", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "ok.py")
+          const content = "def foo():\n    return 1\n"
+          const result = yield* run({ filePath: filepath, content })
+
+          expect(result.output).toContain("Wrote file successfully")
+          const onDisk = yield* Effect.promise(() => fs.readFile(filepath, "utf-8"))
+          expect(onDisk).toBe(content)
+        }),
+      ),
+    )
+  })
+
   describe("title generation", () => {
     it.live("returns relative path as title", () =>
       provideTmpdirInstance((dir) =>

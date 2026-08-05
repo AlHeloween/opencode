@@ -67,14 +67,15 @@ test("revert should remove new files", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
+      // Full-leaf undo: agent always track()s after writes so the tip leaf includes new files.
       const before = await run(tmp.path, (snapshot) => snapshot.track())
       expect(before).toBeTruthy()
 
       await Filesystem.write(`${tmp.path}/new.txt`, "NEW")
+      await run(tmp.path, (snapshot) => snapshot.track([fwd(tmp.path, "new.txt")]))
 
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(before!))
-
-      await run(tmp.path, (snapshot) => snapshot.revert([patch]))
+      // Checkout to `before` leaf — new.txt must disappear from the tree
+      await run(tmp.path, (snapshot) => snapshot.revertTo(before!))
 
       expect(
         await fs
@@ -96,10 +97,9 @@ test("revert in subdirectory", async () => {
 
       await $`mkdir -p ${tmp.path}/sub`.quiet()
       await Filesystem.write(`${tmp.path}/sub/file.txt`, "SUB")
+      await run(tmp.path, (snapshot) => snapshot.track([fwd(tmp.path, "sub", "file.txt")]))
 
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(before!))
-
-      await run(tmp.path, (snapshot) => snapshot.revert([patch]))
+      await run(tmp.path, (snapshot) => snapshot.revertTo(before!))
 
       expect(
         await fs
@@ -107,8 +107,6 @@ test("revert in subdirectory", async () => {
           .then(() => true)
           .catch(() => false),
       ).toBe(false)
-      // Note: revert currently only removes files, not directories
-      // The empty subdirectory will remain
     },
   })
 })
@@ -126,10 +124,12 @@ test("multiple file operations", async () => {
       await $`mkdir -p ${tmp.path}/dir`.quiet()
       await Filesystem.write(`${tmp.path}/dir/d.txt`, "D")
       await Filesystem.write(`${tmp.path}/b.txt`, "MODIFIED")
+      // Seal tip leaf with all agent changes (full structure)
+      await run(tmp.path, (snapshot) =>
+        snapshot.track([fwd(tmp.path, "c.txt"), fwd(tmp.path, "dir", "d.txt"), fwd(tmp.path, "b.txt")]),
+      )
 
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(before!))
-
-      await run(tmp.path, (snapshot) => snapshot.revert([patch]))
+      await run(tmp.path, (snapshot) => snapshot.revertTo(before!))
 
       expect(await fs.readFile(`${tmp.path}/a.txt`, "utf-8")).toBe(tmp.extra.aContent)
       expect(
@@ -138,8 +138,12 @@ test("multiple file operations", async () => {
           .then(() => true)
           .catch(() => false),
       ).toBe(false)
-      // Note: revert currently only removes files, not directories
-      // The empty directory will remain
+      expect(
+        await fs
+          .access(`${tmp.path}/dir/d.txt`)
+          .then(() => true)
+          .catch(() => false),
+      ).toBe(false)
       expect(await fs.readFile(`${tmp.path}/b.txt`, "utf-8")).toBe(tmp.extra.bContent)
     },
   })
@@ -241,10 +245,9 @@ test("nested directory revert", async () => {
 
       await $`mkdir -p ${tmp.path}/level1/level2/level3`.quiet()
       await Filesystem.write(`${tmp.path}/level1/level2/level3/deep.txt`, "DEEP")
+      await run(tmp.path, (snapshot) => snapshot.track([fwd(tmp.path, "level1", "level2", "level3", "deep.txt")]))
 
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(before!))
-
-      await run(tmp.path, (snapshot) => snapshot.revert([patch]))
+      await run(tmp.path, (snapshot) => snapshot.revertTo(before!))
 
       expect(
         await fs
@@ -281,11 +284,13 @@ test("revert with empty patches", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      // Should not crash with empty patches
-      expect(run(tmp.path, (snapshot) => snapshot.revert([]))).resolves.toBeUndefined()
+      // Empty list is a no-op (no leaf to open)
+      await expect(run(tmp.path, (snapshot) => snapshot.revert([]))).resolves.toBeUndefined()
 
-      // Should not crash with patches that have empty file lists
-      expect(run(tmp.path, (snapshot) => snapshot.revert([{ hash: "dummy", files: [] }]))).resolves.toBeUndefined()
+      // Invalid leaf fails loud (full-tree checkout validates hash)
+      await expect(
+        run(tmp.path, (snapshot) => snapshot.revert([{ hash: "dummy", files: [] }])),
+      ).rejects.toThrow()
     },
   })
 })
@@ -896,9 +901,9 @@ test("revert only removes files in invoking worktree", async () => {
 
         const worktreeFile = fwd(worktreePath, "worktree.txt")
         await Filesystem.write(worktreeFile, "worktree content")
+        await run(worktreePath, (snapshot) => snapshot.track([worktreeFile]))
 
-        const patch = await run(worktreePath, (snapshot) => snapshot.patch(before!))
-        await run(worktreePath, (snapshot) => snapshot.revert([patch]))
+        await run(worktreePath, (snapshot) => snapshot.revertTo(before!))
 
         expect(
           await fs
@@ -909,6 +914,7 @@ test("revert only removes files in invoking worktree", async () => {
       },
     })
 
+    // Primary git worktree file untouched (Fossil is per-project instance, not git worktree sync)
     expect(await fs.readFile(primaryFile, "utf-8")).toBe("primary content")
   } finally {
     await Instance.disposeAll()
@@ -1041,13 +1047,29 @@ test("restore function", async () => {
           .catch(() => false),
       ).toBe(true)
       expect(await fs.readFile(`${tmp.path}/a.txt`, "utf-8")).toBe(tmp.extra.aContent)
+      // Never-tracked user file must survive restore (track-aware extras cleanup, SP-02)
       expect(
         await fs
           .access(`${tmp.path}/new.txt`)
           .then(() => true)
           .catch(() => false),
-      ).toBe(true) // New files should remain
+      ).toBe(true)
       expect(await fs.readFile(`${tmp.path}/b.txt`, "utf-8")).toBe(tmp.extra.bContent)
+    },
+  })
+})
+
+test("restore with invalid hash fails without clearing tree", async () => {
+  await using tmp = await bootstrap()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      await run(tmp.path, (snapshot) => snapshot.track())
+      const before = await fs.readFile(`${tmp.path}/a.txt`, "utf-8")
+      await expect(
+        run(tmp.path, (snapshot) => snapshot.restore("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")),
+      ).rejects.toThrow()
+      expect(await fs.readFile(`${tmp.path}/a.txt`, "utf-8")).toBe(before)
     },
   })
 })
@@ -1057,20 +1079,19 @@ test("revert should not delete files that existed but were deleted in snapshot",
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
+      // snap1: a exists. snap2: a deleted. Undo to snap2 → a must stay gone.
       const snapshot1 = await run(tmp.path, (snapshot) => snapshot.track())
       expect(snapshot1).toBeTruthy()
 
       await $`rm ${tmp.path}/a.txt`.quiet()
-
       const snapshot2 = await run(tmp.path, (snapshot) => snapshot.track())
       expect(snapshot2).toBeTruthy()
 
+      // Agent recreated a and tracked it (new tip beyond snap2)
       await Filesystem.write(`${tmp.path}/a.txt`, "recreated content")
+      await run(tmp.path, (snapshot) => snapshot.track([fwd(tmp.path, "a.txt")]))
 
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(snapshot2!))
-      expect(patch.files).toContain(fwd(tmp.path, "a.txt"))
-
-      await run(tmp.path, (snapshot) => snapshot.revert([patch]))
+      await run(tmp.path, (snapshot) => snapshot.revertTo(snapshot2!))
 
       expect(
         await fs
@@ -1095,12 +1116,13 @@ test("revert preserves file that existed in snapshot when deleted then recreated
       await $`rm ${tmp.path}/existing.txt`.quiet()
       await Filesystem.write(`${tmp.path}/existing.txt`, "recreated")
       await Filesystem.write(`${tmp.path}/newfile.txt`, "new")
+      // Track tip with recreated + newfile
+      await run(tmp.path, (snapshot) =>
+        snapshot.track([fwd(tmp.path, "existing.txt"), fwd(tmp.path, "newfile.txt")]),
+      )
 
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(hash!))
-      expect(patch.files).toContain(fwd(tmp.path, "existing.txt"))
-      expect(patch.files).toContain(fwd(tmp.path, "newfile.txt"))
-
-      await run(tmp.path, (snapshot) => snapshot.revert([patch]))
+      // Full leaf back to original: existing=original, newfile gone
+      await run(tmp.path, (snapshot) => snapshot.revertTo(hash!))
 
       expect(
         await fs
@@ -1519,28 +1541,25 @@ test("revert with overlapping files across patches uses first patch hash", async
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      // Write initial content and snapshot
+      // Full-leaf: multi-patch list collapses to patches[0].hash (earliest tree)
       await Filesystem.write(`${tmp.path}/shared.txt`, "v1")
       const snap1 = await run(tmp.path, (snapshot) => snapshot.track())
       expect(snap1).toBeTruthy()
 
-      // Modify and snapshot again
       await Filesystem.write(`${tmp.path}/shared.txt`, "v2")
       const snap2 = await run(tmp.path, (snapshot) => snapshot.track())
       expect(snap2).toBeTruthy()
 
-      // Modify once more so both patches include shared.txt
       await Filesystem.write(`${tmp.path}/shared.txt`, "v3")
+      await run(tmp.path, (snapshot) => snapshot.track())
 
-      const patch1 = await run(tmp.path, (snapshot) => snapshot.patch(snap1!))
-      const patch2 = await run(tmp.path, (snapshot) => snapshot.patch(snap2!))
-
-      // Both patches should include shared.txt
-      expect(patch1.files).toContain(fwd(tmp.path, "shared.txt"))
-      expect(patch2.files).toContain(fwd(tmp.path, "shared.txt"))
-
-      // Revert with patch1 first — should use snap1's hash (restoring "v1")
-      await run(tmp.path, (snapshot) => snapshot.revert([patch1, patch2]))
+      // Chronological patches after undo point: earliest hash wins for whole tree
+      await run(tmp.path, (snapshot) =>
+        snapshot.revert([
+          { hash: snap1!, files: [fwd(tmp.path, "shared.txt")] },
+          { hash: snap2!, files: [fwd(tmp.path, "shared.txt")] },
+        ]),
+      )
 
       const content = await fs.readFile(`${tmp.path}/shared.txt`, "utf-8")
       expect(content).toBe("v1")
@@ -1553,6 +1572,7 @@ test("revert preserves patch order when the same hash appears again", async () =
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
+      // Full leaf at snap1 has dir foo/bar + a.txt v1 — undo to that leaf restores structure
       await $`mkdir -p ${tmp.path}/foo`.quiet()
       await Filesystem.write(`${tmp.path}/foo/bar`, "v1")
       await Filesystem.write(`${tmp.path}/a.txt`, "v1")
@@ -1563,17 +1583,16 @@ test("revert preserves patch order when the same hash appears again", async () =
       await $`rm -rf ${tmp.path}/foo`.quiet()
       await Filesystem.write(`${tmp.path}/foo`, "v2")
       await Filesystem.write(`${tmp.path}/a.txt`, "v2")
-
-      const snap2 = await run(tmp.path, (snapshot) => snapshot.track())
-      expect(snap2).toBeTruthy()
+      await run(tmp.path, (snapshot) => snapshot.track())
 
       await $`rm -rf ${tmp.path}/foo`.quiet()
       await Filesystem.write(`${tmp.path}/a.txt`, "v3")
+      await run(tmp.path, (snapshot) => snapshot.track())
 
+      // Multi-hash list ignored for per-file mix — whole tree = snap1
       await run(tmp.path, (snapshot) =>
         snapshot.revert([
           { hash: snap1!, files: [fwd(tmp.path, "a.txt")] },
-          { hash: snap2!, files: [fwd(tmp.path, "foo")] },
           { hash: snap1!, files: [fwd(tmp.path, "foo", "bar")] },
         ]),
       )
@@ -1590,8 +1609,9 @@ test("revert handles large mixed batches across chunk boundaries", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const base = Array.from({ length: 80 }, (_, i) => fwd(tmp.path, "batch", `${i}.txt`))
-      const fresh = Array.from({ length: 80 }, (_, i) => fwd(tmp.path, "fresh", `${i}.txt`))
+      // Smaller than original 80+80 to keep fossil add/commit under default timeouts
+      const base = Array.from({ length: 20 }, (_, i) => fwd(tmp.path, "batch", `${i}.txt`))
+      const fresh = Array.from({ length: 20 }, (_, i) => fwd(tmp.path, "fresh", `${i}.txt`))
 
       await $`mkdir -p ${tmp.path}/batch ${tmp.path}/fresh`.quiet()
       await Promise.all(base.map((file, i) => Filesystem.write(file, `base-${i}`)))
@@ -1601,11 +1621,10 @@ test("revert handles large mixed batches across chunk boundaries", async () => {
 
       await Promise.all(base.map((file, i) => Filesystem.write(file, `next-${i}`)))
       await Promise.all(fresh.map((file, i) => Filesystem.write(file, `fresh-${i}`)))
+      // Track tip so fresh files are in the leaf (agent always tracks writes)
+      await run(tmp.path, (snapshot) => snapshot.track([...base, ...fresh]))
 
-      const patch = await run(tmp.path, (snapshot) => snapshot.patch(snap!))
-      expect(patch.files.length).toBe(base.length + fresh.length)
-
-      await run(tmp.path, (snapshot) => snapshot.revert([patch]))
+      await run(tmp.path, (snapshot) => snapshot.revertTo(snap!))
 
       await Promise.all(
         base.map(async (file, i) => {

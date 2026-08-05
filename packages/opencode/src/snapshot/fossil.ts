@@ -406,46 +406,85 @@ export const layer = Layer.effect(
           )
         })
 
-        const opRestore = Effect.fnUntraced(function* (targetVersion: string) {
-          return yield* locked(
-            Effect.gen(function* () {
-              log.info("fossil checkout (opRestore)", { version: targetVersion })
-              if (!(yield* ensureInit())) return
-
-              // Validate hash exists before attempting checkout (BUG-9 fix).
-              // fossil checkout --force on a non-existent hash fails silently
-              // (non-zero exit swallowed), leaving the working tree unchanged.
-              const validate = yield* fossil(["info", targetVersion], { cwd: worktree })
-              if (validate.code !== 0) {
-                log.error("bug: checkout hash not found — unrevert cannot proceed", {
-                  version: targetVersion,
-                  stderr: validate.stderr,
-                })
-                return
-              }
-
-              const result = yield* fossil(["checkout", "--force", targetVersion], { cwd: worktree })
-              if (result.code !== 0) {
-                log.error("fossil checkout failed", { version: targetVersion, stderr: result.stderr })
-                return
-              }
-              // Remove stale files from the previous leaf that aren't tracked
-              // in the target version (fossil checkout leaves them as extras).
-              // BUG-2 fix: use fossil extras to scope cleanup to only
-              // stale-leaf files, not ALL untracked user files.
-              const extras = yield* fossil(["extras"], { cwd: worktree })
-              if (extras.code === 0 && extras.text.trim()) {
-                for (const line of extras.text.trim().split("\n")) {
-                  const file = line.trim()
-                  if (!file) continue
-                  // Only remove stale-leaf extras — never touch dotfiles
-                  // or files already in .gitignore (protected by ignore-glob).
-                  if (file.startsWith(".")) continue
-                  yield* fs.remove(path.join(worktree, file)).pipe(Effect.catch(() => Effect.void))
-                }
-              }
-            }).pipe(Effect.orDie),
+        /** Paths currently in the open checkout (worktree-relative, / separators). */
+        const listTrackedRel = Effect.fnUntraced(function* () {
+          const ls = yield* fossil(["ls"], { cwd: worktree })
+          if (ls.code !== 0 || !ls.text.trim()) return new Set<string>()
+          return new Set(
+            ls.text
+              .trim()
+              .split("\n")
+              .map((l) => l.trim().replaceAll("\\", "/"))
+              .filter(Boolean),
           )
+        })
+
+        /**
+         * Fossil keeps full history (deleted paths stay in older leaves; nothing
+         * is erased from the .fsl). But `checkout --force` leaves former tracked
+         * paths that are absent from the *target* leaf as disk "extras" — so the
+         * working tree would be a soup (h4 still there after undo to a leaf without
+         * h4; renames leave both old and new names). Remove only extras that were
+         * in the pre-checkout `fossil ls` set (agent-tracked at previous leaf).
+         * Never-tracked user files are not in preLs → kept.
+         */
+        const cleanupExtrasAfterCheckout = Effect.fnUntraced(function* (preTracked: Set<string>) {
+          const extras = yield* fossil(["extras"], { cwd: worktree })
+          if (extras.code !== 0 || !extras.text.trim()) return
+          for (const line of extras.text.trim().split("\n")) {
+            const file = line.trim().replaceAll("\\", "/")
+            if (!file || file.startsWith(".")) continue
+            if (file.endsWith(".fsl")) continue
+            if (!preTracked.has(file)) {
+              log.debug("extras cleanup skipped never-tracked file", { file })
+              continue
+            }
+            yield* fs.remove(path.join(worktree, file)).pipe(Effect.catch(() => Effect.void))
+          }
+        })
+
+        /** Validate checkin exists or fail loud (BUG-9). */
+        const validateCheckoutHash = Effect.fnUntraced(function* (hash: string, label: string) {
+          const validate = yield* fossil(["info", hash], { cwd: worktree })
+          if (validate.code === 0) return
+          log.error(`bug: ${label} hash not found — cannot proceed`, {
+            hash,
+            stderr: validate.stderr,
+          })
+          return yield* Effect.fail(
+            new Error(
+              `Cannot ${label} to ${hash.slice(0, 8)}: hash not found in Fossil repository. ` +
+                `Working tree left unchanged.`,
+            ),
+          )
+        })
+
+        const checkoutTo = Effect.fnUntraced(function* (targetVersion: string, label: string) {
+          log.info(`fossil checkout (${label})`, { version: targetVersion })
+          if (!(yield* ensureInit())) {
+            return yield* Effect.fail(new Error(`Cannot ${label}: Fossil snapshot not initialized`))
+          }
+          yield* validateCheckoutHash(targetVersion, label)
+          // Capture tracked set BEFORE checkout so post-checkout extras can be
+          // classified as "was agent-tracked" vs "user-only untracked".
+          const preTracked = yield* listTrackedRel()
+          const result = yield* fossil(["checkout", "--force", targetVersion], { cwd: worktree })
+          if (result.code !== 0) {
+            log.error(`bug: fossil ${label} checkout failed`, {
+              version: targetVersion,
+              stderr: result.stderr,
+            })
+            return yield* Effect.fail(
+              new Error(
+                `Fossil ${label} failed for ${targetVersion.slice(0, 8)}: ${result.stderr || result.text || "unknown error"}`,
+              ),
+            )
+          }
+          yield* cleanupExtrasAfterCheckout(preTracked)
+        })
+
+        const opRestore = Effect.fnUntraced(function* (targetVersion: string) {
+          return yield* locked(checkoutTo(targetVersion, "checkout").pipe(Effect.orDie))
         })
 
         const patch = Effect.fnUntraced(function* (hash: string) {
@@ -473,73 +512,58 @@ export const layer = Layer.effect(
         })
 
         const restore = Effect.fnUntraced(function* (snapshot: string) {
+          return yield* locked(checkoutTo(snapshot, "restore").pipe(Effect.orDie))
+        })
+
+        /**
+         * Move working tree to one Fossil leaf (full structure: adds/modifies/deletes
+         * as that checkin defines). Does NOT invent a new history commit unless
+         * preserveFiles dirties the tree — undo/redo is leaf navigation, not rewrite.
+         */
+        const revertTo = Effect.fnUntraced(function* (
+          targetHash: string,
+          opts?: { preserveFiles?: readonly string[] },
+        ) {
           return yield* locked(
             Effect.gen(function* () {
-              log.info("restore (checkout)", { version: snapshot })
-              if (!(yield* ensureInit())) return
+              if (!(yield* ensureInit())) {
+                return yield* Effect.fail(new Error("Cannot revertTo: Fossil snapshot not initialized"))
+              }
 
-              // Validate hash exists before attempting checkout (BUG-9 fix).
-              const validate = yield* fossil(["info", snapshot], { cwd: worktree })
-              if (validate.code !== 0) {
-                log.error("bug: restore hash not found", {
-                  snapshot,
-                  stderr: validate.stderr,
+              const preserved = new Map<string, string>()
+              for (const abs of opts?.preserveFiles ?? []) {
+                const exists = yield* fs.existsSafe(abs)
+                if (!exists) continue
+                const text = yield* fs.readFileString(abs).pipe(Effect.catch(() => Effect.succeed(null as string | null)))
+                if (text !== null) preserved.set(abs, text)
+              }
+
+              // Full leaf: checkout + structure cleanup (extras ∩ preTracked)
+              yield* checkoutTo(targetHash, "revertTo")
+
+              if (preserved.size === 0) return
+
+              // User-edit conflicts only — restore content after leaf materialization
+              for (const [abs, text] of preserved) {
+                yield* fs.writeWithDirs(abs, text).pipe(Effect.catch(() => Effect.void))
+              }
+              const commitResult = yield* fossil(
+                ["commit", "-m", "session-revert-preserve", "--no-warnings", "--allow-fork"],
+                { cwd: worktree },
+              ).pipe(Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })))
+              if (commitResult.code !== 0) {
+                log.warn("bug: revertTo preserve commit failed — working tree may be modified", {
+                  stderr: commitResult.stderr,
                 })
-                return
-              }
-
-              const result = yield* fossil(["checkout", "--force", snapshot], { cwd: worktree })
-              if (result.code !== 0) {
-                log.error("fossil checkout failed", { snapshot, stderr: result.stderr })
-                return
-              }
-              // BUG-2 fix: scoped cleanup via fossil extras instead of clean --force.
-              const extras = yield* fossil(["extras"], { cwd: worktree })
-              if (extras.code === 0 && extras.text.trim()) {
-                for (const line of extras.text.trim().split("\n")) {
-                  const file = line.trim()
-                  if (!file || file.startsWith(".")) continue
-                  yield* fs.remove(path.join(worktree, file)).pipe(Effect.catch(() => Effect.void))
-                }
               }
             }).pipe(Effect.orDie),
           )
         })
 
+        /** Full-tree undo to earliest patch hash (single tree, not per-file mix). */
         const revert = Effect.fnUntraced(function* (patches: Patch[]) {
-          return yield* locked(
-            Effect.gen(function* () {
-              if (!(yield* ensureInit())) return
-
-              const seen = new Set<string>()
-              for (const item of patches) {
-                for (const file of item.files) {
-                  if (seen.has(file)) continue
-                  seen.add(file)
-                  const rel = path.relative(worktree, file).replaceAll("\\", "/")
-                  const resolvedHash = yield* resolveHash(item.hash)
-                  log.info("reverting", { file: rel, from: resolvedHash })
-                  const result = yield* fossil(["revert", rel, "-r", resolvedHash], { cwd: worktree })
-                  if (result.code !== 0) {
-                    log.info("file not in snapshot, attempting delete", { file: rel })
-                    yield* fs.remove(file).pipe(Effect.catch(() => Effect.void))
-                  }
-                }
-              }
-
-              // Seal the revert (BUG-6 fix: inspect result instead of silently swallowing failure).
-              const commitResult = yield* fossil(
-                ["commit", "-m", "revert", "--no-warnings", "--allow-fork"],
-                { cwd: worktree },
-              ).pipe(Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })))
-              if (commitResult.code !== 0) {
-                log.warn("bug: revert commit failed — working tree is in modified state", {
-                  stderr: commitResult.stderr,
-                  hint: "Per-file reverts were applied but the commit failed. Next track() will pick up the changes.",
-                })
-              }
-            }).pipe(Effect.orDie),
-          )
+          if (!patches.length) return
+          return yield* revertTo(patches[0]!.hash)
         })
 
         const diff = Effect.fnUntraced(function* (hash: string) {
@@ -563,18 +587,6 @@ export const layer = Layer.effect(
               return result.code === 0 ? result.text.trim() : ""
             }).pipe(Effect.orDie),
           )
-        })
-
-        // retained: getEarliestCommit is no longer used by resolveHash (BUG-1 fix)
-        // but may still be referenced by external consumers or future recovery paths.
-        const getEarliestCommit = Effect.fnUntraced(function* () {
-          const result = yield* fossil(
-            ["timeline", "--limit", "1", "--format", "%H", "--reverse"],
-            { cwd: worktree },
-          )
-          if (result.code !== 0) return undefined
-          const hash = result.text.trim().split("\n")[0]?.trim()
-          return hash?.slice(0, 40) || undefined
         })
 
         const resolveHash = Effect.fnUntraced(function* (hash: string) {
@@ -828,7 +840,22 @@ export const layer = Layer.effect(
           else log.warn("fossil snapshot not ready after bootstrap ensureInit", { repoPath })
         }
 
-        return { cleanup: () => Effect.void, track, opId, opRestore, checkpoint: opId, checkout: opRestore, patch, restore, revert, diff, diffFull, impact, lastImpact }
+        return {
+          cleanup: () => Effect.void,
+          track,
+          opId,
+          opRestore,
+          checkpoint: opId,
+          checkout: opRestore,
+          patch,
+          restore,
+          revertTo,
+          revert,
+          diff,
+          diffFull,
+          impact,
+          lastImpact,
+        }
       }),
     )
 
@@ -862,6 +889,12 @@ export const layer = Layer.effect(
       }),
       restore: Effect.fn("SnapshotFossil.restore")(function* (snapshot: string) {
         return yield* InstanceState.useEffect(state, (s) => s.restore(snapshot))
+      }),
+      revertTo: Effect.fn("SnapshotFossil.revertTo")(function* (
+        targetHash: string,
+        opts?: { preserveFiles?: readonly string[] },
+      ) {
+        return yield* InstanceState.useEffect(state, (s) => s.revertTo(targetHash, opts))
       }),
       revert: Effect.fn("SnapshotFossil.revert")(function* (patches: Patch[]) {
         return yield* InstanceState.useEffect(state, (s) => s.revert(patches))

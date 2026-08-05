@@ -263,11 +263,24 @@ const Time = Schema.Struct({
   archived: optionalOmitUndefined(Schema.Number),
 })
 
+/** One step of multi-level redo (fossil leaf to restore + message cursor). */
+const RevertRedoFrame = Schema.Struct({
+  op_id: Schema.String,
+  messageID: MessageID,
+  partID: optionalOmitUndefined(PartID),
+})
+
 const Revert = Schema.Struct({
   messageID: MessageID,
   partID: optionalOmitUndefined(PartID),
   snapshot: optionalOmitUndefined(Schema.String),
+  /** Immediate redo target: fossil checkin leaf before this undo. */
   op_id: optionalOmitUndefined(Schema.String),
+  /**
+   * Deeper redo frames (further forward tips). Multi-undo builds a stack;
+   * each unrevert pops one frame. Git remains project VCS; this is Fossil leaves only.
+   */
+  redo_stack: optionalOmitUndefined(Schema.Array(RevertRedoFrame)),
   diff: optionalOmitUndefined(Schema.String),
   conflicts: optionalOmitUndefined(Schema.Array(Schema.Struct({
     file: Schema.String,

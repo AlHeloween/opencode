@@ -53,6 +53,16 @@ export interface Interface {
   readonly opRestore: (opId: string) => Effect.Effect<void>
   readonly patch: (hash: string) => Effect.Effect<Patch>
   readonly restore: (snapshot: string) => Effect.Effect<void>
+  /**
+   * Full-tree undo to a single Fossil checkin (session undo).
+   * `preserveFiles` absolute paths: capture content before checkout, write back after
+   * (user-edited conflict files).
+   */
+  readonly revertTo: (
+    targetHash: string,
+    opts?: { preserveFiles?: readonly string[] },
+  ) => Effect.Effect<void>
+  /** @deprecated Prefer revertTo — implemented as full-tree checkout to patches[0].hash */
   readonly revert: (patches: Patch[]) => Effect.Effect<void>
   readonly diff: (hash: string) => Effect.Effect<string>
   /** Optional `paths` scopes the fossil range to selected files (absolute or worktree-relative). */

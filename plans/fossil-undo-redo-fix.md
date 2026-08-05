@@ -5,6 +5,15 @@
 **Severity:** CRITICAL — data loss, silent corruption, broken undo/redo
 **Commit:** `eb3b6a3` — fix(snapshot): Phase 1 — stop silent data loss in undo/redo
 
+**Execution (2026-08-05):** Phase 2/3 implementation is tracked by the critical remediation master and sub-plans — do not implement ad-hoc outside them:
+
+| Phase | Plan |
+|-------|------|
+| Phase 2 residual (extras, hard-fail checkout) | `plans/2026-08-05_sp02_fossil_layer_safety.md` |
+| Phase 2 semantics (BUG-3, BUG-4) | `plans/2026-08-05_sp03_session_undo_semantics.md` |
+| Phase 3 atomic + integration | `plans/2026-08-05_sp05_phase3_atomic_integration.md` |
+| Master DAG / gates | `plans/2026-08-05_master_critical_remediation.md` |
+
 ---
 
 ## 1. Executive Summary

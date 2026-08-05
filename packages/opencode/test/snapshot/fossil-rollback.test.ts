@@ -173,4 +173,72 @@ describe("Fossil Rollback & Undo", () => {
     const timeline = fossil(["timeline"])
     expect(timeline.stdout).toContain("snapshot")
   })
+
+  // SP-02: pre-checkout `fossil ls` distinguishes agent-tracked vs user-only extras.
+  test("fossil ls lists tracked files; user-only is extras not ls", () => {
+    writeFileSync(path.join(TMP, "agent.txt"), "agent")
+    track([path.join(TMP, "agent.txt")])
+    writeFileSync(path.join(TMP, "user-only.txt"), "user")
+
+    const ls = fossil(["ls"]).stdout
+    expect(ls).toContain("agent.txt")
+    expect(ls).not.toContain("user-only.txt")
+
+    const extras = fossil(["extras"]).stdout
+    expect(extras).toContain("user-only.txt")
+  })
+
+  /**
+   * Mirrors snapshot/fossil.ts cleanupExtrasAfterCheckout:
+   * preTracked = fossil ls before checkout; after checkout, delete extras ∩ preTracked.
+   */
+  test("track-aware extras cleanup keeps user-only file after checkout", () => {
+    writeFileSync(path.join(TMP, "leaf.txt"), "v1")
+    const h1 = track([path.join(TMP, "leaf.txt")])
+
+    writeFileSync(path.join(TMP, "leaf.txt"), "v2")
+    writeFileSync(path.join(TMP, "stale-tracked.txt"), "stale")
+    track([path.join(TMP, "leaf.txt"), path.join(TMP, "stale-tracked.txt")])
+
+    writeFileSync(path.join(TMP, "user-only.txt"), "keep me")
+
+    const preTracked = new Set(
+      fossil(["ls"])
+        .stdout.trim()
+        .split("\n")
+        .map((l) => l.trim().replaceAll("\\", "/"))
+        .filter(Boolean),
+    )
+    expect(preTracked.has("stale-tracked.txt")).toBe(true)
+    expect(preTracked.has("user-only.txt")).toBe(false)
+
+    const co = fossil(["checkout", "--force", h1])
+    expect(co.code).toBe(0)
+
+    const extras = fossil(["extras"])
+    const extraLines = extras.stdout
+      .trim()
+      .split("\n")
+      .map((l) => l.trim().replaceAll("\\", "/"))
+      .filter(Boolean)
+
+    for (const file of extraLines) {
+      if (file.startsWith(".") || file.endsWith(".fsl")) continue
+      if (!preTracked.has(file)) continue
+      rmSync(path.join(TMP, file), { force: true })
+    }
+
+    expect(existsSync(path.join(TMP, "user-only.txt"))).toBe(true)
+    expect(readFileSync(path.join(TMP, "user-only.txt"), "utf-8")).toBe("keep me")
+    expect(readFileSync(path.join(TMP, "leaf.txt"), "utf-8")).toBe("v1")
+    // was in pre-checkout ls, not in h1 → removed as stale agent extra
+    expect(existsSync(path.join(TMP, "stale-tracked.txt"))).toBe(false)
+  })
+
+  test("info on invalid hash is non-zero (hard-fail signal)", () => {
+    writeFileSync(path.join(TMP, "e2.txt"), "e")
+    track([path.join(TMP, "e2.txt")])
+    const r = fossil(["info", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"])
+    expect(r.code).not.toBe(0)
+  })
 })

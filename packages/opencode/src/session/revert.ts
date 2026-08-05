@@ -124,15 +124,38 @@ export const layer = Layer.effect(
         }
       }
 
-      // capture current state as the revert snapshot anchor.
-      // use checkpoint() (fast) instead of track() — track() with no
-      // files triggers fossil addremove on the entire worktree and can
-      // hang on large repos. we only need the current hash, not a commit.
-      rev.snapshot = session.revert?.snapshot ?? (yield* snap.checkpoint())
-      rev.op_id = session.revert?.op_id ?? rev.snapshot
-      if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
-      yield* snap.revert(patches)
-      if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot as string)
+      // I-2: FRESH redo anchor = current fossil leaf BEFORE this undo.
+      // Multi-undo: push previous op_id frame onto redo_stack so redo walks
+      // forward through leaves (T0 ← T1 ← T2 undo, then T0 → T1 → T2 redo).
+      const anchor = yield* snap.checkpoint()
+      if (!anchor) {
+        log.error("bug: cannot undo — fossil checkpoint unavailable")
+        return session
+      }
+      const prior = session.revert
+      const redo_stack = [...(prior?.redo_stack ?? [])]
+      if (prior?.op_id) {
+        redo_stack.unshift({
+          op_id: prior.op_id,
+          messageID: prior.messageID,
+          partID: prior.partID,
+        })
+      }
+      rev.snapshot = anchor
+      rev.op_id = anchor
+      rev.redo_stack = redo_stack.length ? redo_stack : undefined
+
+      if (patches.length > 0) {
+        // I-1: one full Fossil leaf = earliest patch hash (structure of that checkin).
+        // Not per-file mix — renames/moves/deletes must match the leaf exactly.
+        const targetHash = patches[0]!.hash
+        const preserveFiles = conflicts.map((c) => c.file)
+        yield* snap.revertTo(targetHash, {
+          preserveFiles: preserveFiles.length ? preserveFiles : undefined,
+        })
+      }
+
+      rev.diff = yield* snap.diff(anchor)
       if (conflicts.length > 0) rev.conflicts = conflicts
       const range = all.filter((msg) => msg.info.id >= rev!.messageID)
       const diffs = yield* summary.computeDiff({ messages: range })
@@ -160,13 +183,35 @@ export const layer = Layer.effect(
       yield* state.assertNotBusy(input.sessionID)
       const session = yield* sessions.get(input.sessionID)
       if (!session.revert) return session
-      // Prefer snapshot checkout (full session rollback) when op_id is available
+      // Move forward one leaf (op_id). On failure leave revert intact (SP-02).
       if (session.revert.op_id) {
         yield* snap.checkout(session.revert.op_id)
       } else if (session.revert.snapshot) {
         yield* snap.restore(session.revert.snapshot)
       }
-      yield* sessions.clearRevert(input.sessionID)
+      const stack = session.revert.redo_stack ?? []
+      if (stack.length === 0) {
+        yield* sessions.clearRevert(input.sessionID)
+        return yield* sessions.get(input.sessionID)
+      }
+      // More forward leaves remain — pop one frame as the next redo target.
+      const [next, ...rest] = stack
+      const nextRevert: Session.Info["revert"] = {
+        messageID: next!.messageID,
+        snapshot: next!.op_id,
+        op_id: next!.op_id,
+      }
+      if (next!.partID) nextRevert!.partID = next!.partID
+      if (rest.length) nextRevert!.redo_stack = rest
+      yield* sessions.setRevert({
+        sessionID: input.sessionID,
+        revert: nextRevert,
+        summary: {
+          additions: session.summary?.additions ?? 0,
+          deletions: session.summary?.deletions ?? 0,
+          files: session.summary?.files ?? 0,
+        },
+      })
       return yield* sessions.get(input.sessionID)
     })
 

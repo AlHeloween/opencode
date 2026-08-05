@@ -14,6 +14,12 @@ Useful Fossil commands for development workflow (faster than git for agent revie
   fossil status                # Current state vs last snapshot
   fossil info                  # Current snapshot hash + metadata
 
+Global index of ALL OpenCode projects (cross-project view):
+  fossil all list              # Every project with agent snapshots
+  fossil all changes           # Projects with uncommitted agent changes
+  fossil all ls --ckout        # All local checkouts across projects
+  fossil all info              # Snapshot info for every project
+
 These are READ-ONLY or UNDO operations — safe for development review.
 Destructive fossil commands (commit, push, merge, etc.) are hard-blocked by the constitution.
 

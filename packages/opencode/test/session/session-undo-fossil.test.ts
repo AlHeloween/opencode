@@ -487,4 +487,78 @@ describe("session undo + fossil (SP-03)", () => {
       }),
     ),
   )
+
+  /**
+   * P3: Rename/move full-leaf oracle.
+   * T0: a.txt = "A"
+   * T1: a → b (fs rename), b = "B-edited"
+   * Undo T0 → only a="A", no b
+   * Redo T1 → only b="B-edited", no a
+   */
+  it.live(
+    "P3 rename/move: undo leaves only a.txt; redo only b.txt",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const session = yield* Session.Service
+        const revert = yield* SessionRevert.Service
+        const snap = yield* Snapshot.Service
+        const info = yield* session.create({})
+        const sessionID = info.id
+
+        const a = path.join(dir, "a.txt")
+        const b = path.join(dir, "b.txt")
+
+        yield* write(a, "A")
+        const t0 = yield* snap.track([a])
+        expect(t0).toBeTruthy()
+
+        const u1 = yield* userWithText(session, sessionID, "rename")
+        const a1 = yield* session.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID,
+          mode: "build",
+          agent: "build",
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          modelID: ModelID.make("gpt-4"),
+          providerID: ProviderID.make("openai"),
+          parentID: u1.id,
+          time: { created: Date.now() },
+          finish: "end_turn",
+        })
+        yield* session.updatePart({
+          id: PartID.ascending(),
+          messageID: a1.id,
+          sessionID,
+          type: "patch",
+          hash: t0!,
+          files: [a.replaceAll("\\", "/"), b.replaceAll("\\", "/")],
+        })
+
+        // Rename + edit (fs move; track both paths so leaf records new name)
+        yield* Effect.promise(() => fs.rename(a, b))
+        yield* write(b, "B-edited")
+        const t1 = yield* snap.track([a, b])
+        expect(t1).toBeTruthy()
+
+        expect(yield* exists(a)).toBe(false)
+        expect(yield* exists(b)).toBe(true)
+        expect(yield* read(b)).toBe("B-edited")
+
+        // Undo → T0
+        yield* revert.revert({ sessionID, messageID: u1.id })
+        expect(yield* exists(a)).toBe(true)
+        expect(yield* read(a)).toBe("A")
+        expect(yield* exists(b)).toBe(false)
+
+        // Redo → T1
+        yield* revert.unrevert({ sessionID })
+        expect(yield* exists(a)).toBe(false)
+        expect(yield* exists(b)).toBe(true)
+        expect(yield* read(b)).toBe("B-edited")
+      }),
+    ),
+  )
 })

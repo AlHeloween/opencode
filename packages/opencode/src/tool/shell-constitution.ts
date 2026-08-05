@@ -5,6 +5,10 @@
  *   enforceDestructiveShell        — legacy regex/token-based (used by run.ts)
  *   enforceDestructiveShellFromAst — AST-based via Constitution.evaluate() (bash.ts/cmd.ts)
  *
+ * `run` stays on the legacy path on purpose: it is binary+argv, not a shell.
+ * Prefer AST for bash/cmd only. Do not force AST on pure argv (false-positive risk low;
+ * compound shell belongs in bash/cmd tools).
+ *
  * Constitution is the single authority — this module is a thin Effect wrapper.
  */
 import { Effect } from "effect"

@@ -136,7 +136,7 @@ Run from `packages/opencode` (not repo root).
 |---------|--------|
 | Undo empties wrong tree / keeps deleted files | Logs `snapshot-fossil`; extras cleanup; ensure agent **tracked** new files |
 | Undo fails “hash not found” | `fossil info <hash>`; repo recreated? `HISTORY_INVALID.json` + `*.bak.*` |
-| Undo fails after corruption recovery | Expected until recovery UX; restore from `snapshot.fsl.bak.*` manually if needed |
+| Undo fails after corruption recovery | **Manual recovery (no auto UX yet):** (1) stop opencode for that worktree; (2) copy `snapshot.fsl.bak.<ts>` over `snapshot.fsl` under `.opencode/data/fossil/{projectID}/`; (3) delete `HISTORY_INVALID.json`; (4) restart. Do not invent hashes. |
 | “Modified Files” empty | Patch parts present? `resolveHash` errors in log (should fail, not silent empty baseline) |
 | User untracked file deleted on undo | Should not happen for never-tracked paths; file report + preLs logic |
 | Snapshot disabled | Config `snapshot: false` |

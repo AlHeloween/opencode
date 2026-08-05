@@ -30,6 +30,7 @@ import {
   normalizeDsmlTokens,
   detectDisguisedToolCalls,
   DEFAULT_KNOWN_TOOL_IDS,
+  knownToolIdsForTurn,
 } from "@/util/dsml-normalizer"
 import * as Balance from "@/provider/balance"
 import * as BalanceStorage from "@/provider/balance-storage"
@@ -107,6 +108,8 @@ interface ProcessorContext extends Input {
   contentTokenEstimate?: number
   /** Epistemic floor — always resolved by create() from optional Input. */
   evidenceFloor: import("../session/constitution").InfoMark
+  /** Wire tool ids for this turn (default + live tools). Set in process(). */
+  knownToolIds: ReadonlySet<string>
 }
 
 type StreamEvent = Event
@@ -221,6 +224,7 @@ export const layer: Layer.Layer<
         reasoningMap: {},
         reasoningBuilders: {},
         recentToolCalls: [],
+        knownToolIds: DEFAULT_KNOWN_TOOL_IDS,
         streamStartTime: undefined,
         firstTokenLogged: false,
         hasWriteToolCall: false,
@@ -564,11 +568,11 @@ export const layer: Layer.Layer<
             // so we check ctx.textBuilder instead (accumulated across all text deltas).
             if (value.finishReason === "stop" && ctx.textBuilder.length >= 10) {
               const text = ctx.textBuilder.toString()
-              // Allowlist known wire tool ids so prose like config{"a":1} does not force a retry.
+              // Allowlist: defaults + live tools for this turn (plugin/MCP included).
               const disguised = detectDisguisedToolCalls(
                 value.finishReason,
                 text,
-                DEFAULT_KNOWN_TOOL_IDS,
+                ctx.knownToolIds,
               )
               if (disguised && disguised.length > 0) {
                 const names = disguised.map((t) => t.name).join(", ")
@@ -915,6 +919,8 @@ export const layer: Layer.Layer<
       const process = Effect.fn("SessionProcessor.process")(function* (streamInput: LLM.StreamInput) {
         slog.info("process")
         ctx.needsCompaction = false
+        // Live tools this turn (plugin/MCP) + built-in defaults for disguised-call allowlist.
+        ctx.knownToolIds = knownToolIdsForTurn(streamInput.tools as Record<string, unknown>)
         // Sub-agents: don't stop on a single denied tool — let the LLM retry with
         // a different tool. Primary agents respect continue_loop_on_deny config.
         const parentSession = yield* session.get(ctx.sessionID).pipe(

@@ -122,6 +122,17 @@ export const DEFAULT_KNOWN_TOOL_IDS: ReadonlySet<string> = new Set(
 )
 
 /**
+ * Union DEFAULT_KNOWN_TOOL_IDS with live wire names from this turn's tools record
+ * (built-ins + plugin/MCP). Empty/missing tools → default only.
+ */
+export function knownToolIdsForTurn(tools?: Record<string, unknown> | null): ReadonlySet<string> {
+  if (!tools || Object.keys(tools).length === 0) return DEFAULT_KNOWN_TOOL_IDS
+  const set = new Set(DEFAULT_KNOWN_TOOL_IDS)
+  for (const name of Object.keys(tools)) set.add(toolKey(name))
+  return set
+}
+
+/**
  * Scan text for inline tool calls (name{...} patterns that look like
  * tool invocations embedded in plain text instead of structured tool_calls).
  * Returns null if no tool calls found.

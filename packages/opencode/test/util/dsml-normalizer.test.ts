@@ -4,6 +4,7 @@ import {
   extractInlineToolCalls,
   detectDisguisedToolCalls,
   DEFAULT_KNOWN_TOOL_IDS,
+  knownToolIdsForTurn,
 } from "../../src/util/dsml-normalizer"
 
 describe("dsml-normalizer", () => {
@@ -266,5 +267,19 @@ edit{"filePath": "/src/auth.ts", "oldString": "return null", "newString": "retur
     const result = detectDisguisedToolCalls("stop", input)
     expect(result).not.toBeNull()
     expect(result![0]!.name).toBe("edit")
+  })
+
+  test("knownToolIdsForTurn: empty → default; custom id accepted only when live", () => {
+    expect(knownToolIdsForTurn(undefined)).toBe(DEFAULT_KNOWN_TOOL_IDS)
+    expect(knownToolIdsForTurn({})).toBe(DEFAULT_KNOWN_TOOL_IDS)
+
+    const live = knownToolIdsForTurn({ my_plugin_tool: {} as any, Write: {} as any })
+    expect(live.has("myplugintool")).toBe(true)
+    expect(live.has("write")).toBe(true)
+
+    const customOnly = 'my_plugin_tool{"x": 1}'
+    expect(detectDisguisedToolCalls("stop", customOnly, DEFAULT_KNOWN_TOOL_IDS)).toBeNull()
+    expect(detectDisguisedToolCalls("stop", customOnly, live)).not.toBeNull()
+    expect(detectDisguisedToolCalls("stop", customOnly, live)![0]!.name).toBe("my_plugin_tool")
   })
 })

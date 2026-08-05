@@ -1,5 +1,7 @@
 Executes a binary directly with arguments — no shell interpretation, no quoting issues.
 
+**Constitution:** `run` is **not** a shell. Argv is scanned with the **legacy** first-token guard (`enforceDestructiveShell` / `guardCommand`), not TreeSitter AST. That is intentional: pipelines, globs, and compound commands must use `bash`/`cmd`. Commit messages and args that merely mention words like `fossil` are not treated as fossil mutate.
+
 **Constitution blocks:** Crash-prone binaries (`bun`, `go`, `cargo`, `rustc`) are HARD-BLOCKED via `run` — they must go through `cmd_runner` for process isolation:
 ```
 # ✅ Allowed (isolated terminal):

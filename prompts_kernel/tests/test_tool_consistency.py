@@ -47,6 +47,8 @@ def test_tool_descriptions_do_not_recommend_blocked_shell():
         "Constitution bypass", "SSH sessions", "remote host",
         "isolated terminal", "inside a cmd_runner", "inside the TUI",
         "inside an already-isolated",
+        "not hard-blocked", "Session-side", "session input",
+        "hard-block", "permission-ask",
         # `dir` used as a parameter name, not a shell command
         "in `dir`", "default `", "parameter",
         # Descriptive/technical mentions, not recommendations

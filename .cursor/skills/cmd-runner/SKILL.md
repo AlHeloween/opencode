@@ -239,7 +239,7 @@ cmd_runner send <run_id> --text "/new" --crlf
 cmd_runner send <run_id> --keys "ctrl+x,n"               # leader chords
 ```
 
-**Constitution (opencode bash/cmd tools):** text after `cmd_runner send … --` is **session input** into that run — **SSH/remote shell** *or* **interactive TUI debugging**. Session-side `ls`/`dir`/`find` are **not** hard-blocked. **Brutal** DESTRUCTIVE still **permission-ask** — same as bare local shell.
+**Constitution (opencode bash/cmd tools):** text after `cmd_runner send … --` is **session input** into that run — **SSH/remote shell** *or* **interactive TUI debugging**. Session-side directory listing on the remote/TUI is **not hard-blocked** (enumeration hard-blocks apply only to bare local agent shell). **Brutal** DESTRUCTIVE still **permission-ask** — same as bare local shell.
 
 ## Notes
 

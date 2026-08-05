@@ -488,18 +488,19 @@ abstract_futures/   ← DO NOT IMPLEMENT — graveyard of pre-kernel agent hallu
 
 ## Shell Command Restrictions (Constitution)
 
-The runtime constitution (`constitution.ts` + `shell-constitution.ts`) hard-blocks specific shell commands. Agents and developers must use product tools instead:
+The runtime constitution (`constitution.ts` + `shell-constitution.ts`) hard-blocks shell **directory/file enumeration** and routes agents to product tools. VCS/PATH oracles that those tools cannot replace stay **allowed**.
 
-| Shell command | Status | Product equivalent |
-|---------------|--------|-------------------|
+| Shell command | Status | Product equivalent / note |
+|---------------|--------|---------------------------|
 | `ls`, `dir`, `tree` | ❌ HARD BLOCK | `list` (tree listing) |
-| `find`, `fd`, `rg --files` | ❌ HARD BLOCK | `glob` (pattern matching) |
-| `Get-ChildItem`, `gci` | ❌ HARD BLOCK | `list`/`glob` |
+| `find`, `fd`, `rg --files` | ❌ HARD BLOCK | `glob` (path patterns) |
+| `Get-ChildItem`, `gci` | ❌ HARD BLOCK | `list` / `glob` |
 | `type`, `cat`, `more` | ❌ HARD BLOCK | `read` (file viewer) |
 | `findstr` | ❌ HARD BLOCK | `grep` (content search) |
 | `echo *`, `printf *`, `for` globs | ❌ HARD BLOCK | `glob` |
-| `where /r` | ❌ HARD BLOCK | `glob` |
-| `git ls-files` | ❌ HARD BLOCK | `glob` |
+| `git ls-files` (all variants) | ✅ **ALLOWED** | VCS oracle — what git tracks / `--error-unmatch`; **not** covered by `list`/`glob`/`grep` (those answer “on disk / in content”, not index) |
+| `where`, `where /r`, `which` | ✅ **ALLOWED** | PATH lookup (resolve binary on PATH); **not** FS tree walk — `glob`/`list` do not replace this |
+| `rg` without `--files` | ✅ ALLOWED | content search (prefer product `grep` when possible) |
 | `bun`, `tsc`, `cargo`, `make` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
 | `cmake`, `gcc`, `g++`, `clang` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
 | `rustc`, `dotnet`, `msbuild` | ⚠️ `cmd_runner` only | `cmd_runner start -- <binary> <args>` |
@@ -514,7 +515,7 @@ cmd_runner start -- bun run script/build.ts
 bun run script/build.ts
 ```
 
-Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` (env) bypasses all blocks.
+Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` (env) or `bypass_constitution` bypasses hard-blocks / destructive gates (not a substitute for product tools).
 
 ## Type Checking
 

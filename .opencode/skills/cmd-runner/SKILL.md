@@ -23,7 +23,7 @@ Use this skill when a command may be:
 - Commands that produce thousands of lines of output
 
 **Do NOT use cmd_runner for:**
-- Quick checks: `ls`, `dir`, `git status`, `echo`, `cat`
+- Quick checks: `list`, `glob`, `git status`, `echo`, `cat` (use product tools, not shell)
 - Simple file operations: `cp`, `mv`, `rm`
 - Commands that complete in <1 second
 - Commands you need to see output from immediately
@@ -223,9 +223,12 @@ logs/cmd_runner/<run_id>/
 ```
 cmd_runner start -- ssh root@host                       # start interactive SSH
 cmd_runner send <run_id> --text "uptime; df -h" --crlf  # send command
+cmd_runner send <run_id> --crlf -- "ls -la /var/log"     # remote explore (not hard-blocked)
 cmd_runner send <run_id> --keys ctrl+c                  # interrupt
 cmd_runner send <run_id> --keys ctrl+d                  # end session
 ```
+
+**Constitution (opencode bash/cmd tools):** text after `cmd_runner send … --` is **session input** (SSH or local TUI). Remote `ls`/`dir`/`find` are **not** hard-blocked. **Brutal** DESTRUCTIVE (`rm -rf`, DROP, force-push, git checkout/reset --hard, …) still **permission-ask** — same as bare local shell.
 
 ## Notes
 

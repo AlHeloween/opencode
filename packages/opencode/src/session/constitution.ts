@@ -764,9 +764,9 @@ export function guardCommand(
  * Scan for *brutal* DESTRUCTIVE actions only (rm -rf, DROP, force-push, git rewrite, fossil mutate…).
  * Does **not** hard-block FILE_ENUMERATOR (ls/dir/find) or ELEVATED noise.
  *
- * Used for:
- * - payload after `cmd_runner send … --` (remote/arbitrary code must not trip browsing blocks)
- * - same DESTRUCTIVE permission policy as bare shell ("without difference where")
+ * Used for payload after `cmd_runner send … --` (often **SSH remote** session input —
+ * operator must be free to explore the remote FS; only data-destroying ops still ask).
+ * Permission policy for those ops matches bare local shell.
  */
 export function guardBrutalDestructive(
   command: string,

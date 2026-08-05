@@ -516,8 +516,13 @@ cmd_runner start -- bun run script/build.ts
 bun run script/build.ts
 ```
 
-**`cmd_runner send … -- <payload>`:** everything **after** `--` is **not** hard-blocked for browsing/enumeration (remote/session code may use `ls`/`dir`/etc.).  
-Only **brutal DESTRUCTIVE** actions in that payload still require permission (`rm -rf`, `DROP`, force-push, git checkout/reset --hard, fossil mutate, …) — **same as bare shell**. Outside `cmd_runner send`, full constitution still applies (ls hard-block, etc.).
+**`cmd_runner send <run_id> … -- <text>`** — keys/text into an **already-running interactive session** (local TUI **or SSH/remote shell** via that run). Whatever is after `--` is **session input**, not a local agent “browse the worktree” command:
+
+- **After `--`:** no hard-blocks for `ls`/`dir`/`find`/etc. (on a remote box you *must* be able to look around).
+- **After `--` and bare local shell alike:** **brutal DESTRUCTIVE** still needs permission (`rm -rf`, `DROP`, force-push, `git checkout`/`reset --hard`, fossil mutate, …).
+- **Outside** that payload (normal `bash`/`cmd` tool): full constitution — enumeration hard-block, product tools for local tree.
+
+So: remote SSH exploration is free; destroying data always asks, whether local or over the wire.
 
 Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` (env) or `bypass_constitution` bypasses hard-blocks / destructive gates (not a substitute for product tools).
 

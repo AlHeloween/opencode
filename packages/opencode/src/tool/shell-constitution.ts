@@ -12,18 +12,24 @@ import { Constitution } from "@/session/constitution"
 import type * as Tool from "./tool"
 import type { Node } from "web-tree-sitter"
 
-// `cmd_runner send <id> -- <payload>` — payload is remote/arbitrary; structure scan
-// must not see it (would hard-block ls/dir/find on the remote side).
+/**
+ * `cmd_runner send <run_id> … -- <payload>`
+ *
+ * Payload is **stdin/keys into an existing run** — often an SSH session on a remote
+ * host, not a local worktree browse. Structure scan must not hard-block remote
+ * `ls`/`dir`/`find`. Brutal DESTRUCTIVE in the payload still permission-asks
+ * (same as bare local shell).
+ */
 const CMD_RUNNER_SEND_PAYLOAD = /^(cmd_runner(?:\.exe)?\s+send\s+.*?--\s*)(.*)/s
 
 export type CmdRunnerSendSplit = {
-  /** Prefix including `… --` — used for TreeSitter + full constitution (wrapper only). */
+  /** Prefix including `… --` — TreeSitter + full constitution (local wrapper only). */
   shellScan: string
-  /** Text after `--`, if any. Brutal DESTRUCTIVE only (permission ask). */
+  /** Text after `--` (session input). Brutal DESTRUCTIVE permission only. */
   payload: string | undefined
 }
 
-/** Split cmd_runner send so payload can be treated under a different constitution policy. */
+/** Split cmd_runner send so SSH/session payload uses a different constitution policy. */
 export function splitCmdRunnerSend(command: string): CmdRunnerSendSplit {
   const m = command.match(CMD_RUNNER_SEND_PAYLOAD)
   if (!m) return { shellScan: command, payload: undefined }
@@ -31,7 +37,7 @@ export function splitCmdRunnerSend(command: string): CmdRunnerSendSplit {
   return { shellScan: m[1] ?? command, payload: payload.length ? payload : undefined }
 }
 
-/** Strip cmd_runner send payload for structure/path scans (wrapper only). */
+/** Strip send payload for local structure/path scans (wrapper only). */
 export function stripCmdRunnerSendPayload(command: string): string {
   return splitCmdRunnerSend(command).shellScan
 }
@@ -141,8 +147,8 @@ export function enforceDestructiveShell(
 }
 
 /**
- * After `cmd_runner send … --`: no browsing/git-rewrite hard-blocks on payload.
- * Only brutal DESTRUCTIVE actions require permission (same as bare shell for those).
+ * Session input after `cmd_runner send … --` (local TUI or SSH remote).
+ * No browsing hard-blocks; only brutal DESTRUCTIVE → permission ask (same as bare shell).
  */
 export function enforceBrutalDestructiveOnly(
   payload: string,

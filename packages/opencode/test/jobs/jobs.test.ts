@@ -258,4 +258,207 @@ describe("JobManager", () => {
     )
     expect(result).toBeUndefined()
   })
+
+  // ── output pattern/grep ───────────────────────────────────────────────
+
+  test("output with pattern filters lines by regex", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.start({
+          sessionID: "grep-test" as any,
+          kind: "bash",
+          label: "test-grep",
+          run: async (_signal, write) => {
+            write("PASS: first test passed\n")
+            write("FAIL: second test failed\n")
+            write("PASS: third test passed\n")
+            write("INFO: some info line\n")
+            return ""
+          },
+        })
+        yield* Effect.sleep(100)
+
+        // Filter for PASS lines — context ±1 includes neighboring lines
+        const out = yield* svc.output({ sessionID: "grep-test" as any, jobID: id, pattern: "PASS" })
+        expect(out.text).toContain("PASS: first test passed")
+        expect(out.text).toContain("PASS: third test passed")
+        // Context includes adjacent lines (FAIL and INFO as ±1 neighbors)
+        expect(out.text).toContain("FAIL")
+        expect(out.text).toContain("INFO")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("output with pattern includes context ±1 line", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.start({
+          sessionID: "ctx-test" as any,
+          kind: "bash",
+          label: "test-ctx",
+          run: async (_signal, write) => {
+            write("line 1: setup\n")
+            write("line 2: ERROR something broke\n")
+            write("line 3: cleanup\n")
+            write("line 4: ok\n")
+            write("line 5: ERROR another issue\n")
+            write("line 6: done\n")
+            return ""
+          },
+        })
+        yield* Effect.sleep(100)
+
+        const out = yield* svc.output({ sessionID: "ctx-test" as any, jobID: id, pattern: "ERROR" })
+        // Should include context lines around each ERROR match
+        expect(out.text).toContain("line 1: setup")     // context before first ERROR
+        expect(out.text).toContain("line 2: ERROR")      // first match
+        expect(out.text).toContain("line 3: cleanup")    // context after first ERROR
+        expect(out.text).toContain("line 4: ok")          // context before second ERROR
+        expect(out.text).toContain("line 5: ERROR")       // second match
+        expect(out.text).toContain("line 6: done")        // context after second ERROR
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("output with pattern: no matches returns empty", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.start({
+          sessionID: "nomatch-test" as any,
+          kind: "bash",
+          label: "test-nomatch",
+          run: async (_signal, write) => {
+            write("all good here\n")
+            return ""
+          },
+        })
+        yield* Effect.sleep(100)
+
+        const out = yield* svc.output({ sessionID: "nomatch-test" as any, jobID: id, pattern: "NONEXISTENT" })
+        expect(out.text).toBe("")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("output with pattern: invalid regex returns empty (no crash)", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.start({
+          sessionID: "badre-test" as any,
+          kind: "bash",
+          label: "test-badre",
+          run: async (_signal, write) => {
+            write("some output\n")
+            return ""
+          },
+        })
+        yield* Effect.sleep(100)
+
+        // Invalid regex should NOT throw — it should return empty text gracefully
+        const out = yield* svc.output({ sessionID: "badre-test" as any, jobID: id, pattern: "[invalid" })
+        expect(out.text).toBe("")
+        expect(out.status).toBe("done")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("output with pattern does NOT advance read offset", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.start({
+          sessionID: "offset-test" as any,
+          kind: "bash",
+          label: "test-offset",
+          run: async (_signal, write) => {
+            write("PASS: test A\n")
+            write("FAIL: test B\n")
+            write("PASS: test C\n")
+            return ""
+          },
+        })
+        yield* Effect.sleep(100)
+
+        // First pattern read — searches full output
+        const out1 = yield* svc.output({ sessionID: "offset-test" as any, jobID: id, pattern: "PASS" })
+        expect(out1.text).toContain("test A")
+        expect(out1.text).toContain("test C")
+
+        // Second pattern read — SAME full output (offset not advanced)
+        const out2 = yield* svc.output({ sessionID: "offset-test" as any, jobID: id, pattern: "FAIL" })
+        expect(out2.text).toContain("test B")
+
+        // Normal read (no pattern) — should still get ALL output (offset was never advanced)
+        const out3 = yield* svc.output({ sessionID: "offset-test" as any, jobID: id })
+        expect(out3.text).toContain("PASS: test A")
+        expect(out3.text).toContain("FAIL: test B")
+        expect(out3.text).toContain("PASS: test C")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("output: incremental read advances offset, pattern reads full output independently", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.start({
+          sessionID: "hybrid-test" as any,
+          kind: "bash",
+          label: "test-hybrid",
+          run: async (_signal, write) => {
+            write("line-1: first\n")
+            return ""
+          },
+        })
+        yield* Effect.sleep(100)
+
+        // Incremental read consumes "line-1: first"
+        const inc1 = yield* svc.output({ sessionID: "hybrid-test" as any, jobID: id })
+        expect(inc1.text).toContain("first")
+
+        // Write more output via the public write API
+        yield* svc.write({ sessionID: "hybrid-test" as any, jobID: id, chunk: "line-2: second\n" })
+
+        // Pattern read — sees EVERYTHING including already-consumed incremental output
+        const pat = yield* svc.output({ sessionID: "hybrid-test" as any, jobID: id, pattern: "first" })
+        expect(pat.text).toContain("first")
+        expect(pat.text).toContain("second")
+
+        // Second incremental read — only gets the NEW output since last incremental read
+        const inc2 = yield* svc.output({ sessionID: "hybrid-test" as any, jobID: id })
+        expect(inc2.text).toContain("second")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("output with pattern handles multiline output with line numbers", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.start({
+          sessionID: "lineno-test" as any,
+          kind: "bash",
+          label: "test-lineno",
+          run: async (_signal, write) => {
+            write("alpha\n")
+            write("beta\n")
+            write("gamma\n")
+            write("delta\n")
+            return ""
+          },
+        })
+        yield* Effect.sleep(100)
+
+        const out = yield* svc.output({ sessionID: "lineno-test" as any, jobID: id, pattern: "gamma" })
+        // Should show line 3 (gamma) with context: line 2 (beta) and line 4 (delta)
+        expect(out.text).toMatch(/2:.*beta/)
+        expect(out.text).toMatch(/3:.*gamma/)
+        expect(out.text).toMatch(/4:.*delta/)
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
 })

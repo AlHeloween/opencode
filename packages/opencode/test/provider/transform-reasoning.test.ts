@@ -106,7 +106,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const msgs = [
       assistantMsg([{ type: "text", text: "Answer." }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model as any)
+    const result = ProviderTransform.message(msgs as any, model as any, {})
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
     expect(reasoningParts.length).toBe(0)
@@ -192,7 +192,7 @@ describe("Interleaved capability — reasoning extraction", () => {
     const msgs = [
       assistantMsg([{ type: "reasoning", text: "thinking" }, { type: "text", text: "output" }]),
     ]
-    const result = ProviderTransform.message(msgs as any, model as any)
+    const result = ProviderTransform.message(msgs as any, model as any, {})
     // OpenRouter is excluded — reasoning stays in content
     expect((result[0]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true)
   })

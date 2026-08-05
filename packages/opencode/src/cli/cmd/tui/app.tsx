@@ -17,6 +17,7 @@ import {
 } from "solid-js"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { existsSync, readFileSync } from "fs"
 import semver from "semver"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
 import { DialogProvider as DialogProviderList } from "@tui/component/dialog-provider"
@@ -276,6 +277,8 @@ export function tui(input: {
 }
 
 function App(props: { onSnapshot?: () => Promise<string[]> }) {
+  // eslint-disable-next-line solid/reactivity
+  if (existsSync("_WE_USE_GIT_IDIOT_")) console.log(readFileSync("_WE_USE_GIT_IDIOT_", "utf-8"))
   const tuiConfig = useTuiConfig()
   const route = useRoute()
   const dimensions = useTerminalDimensions()

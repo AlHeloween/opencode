@@ -20,6 +20,9 @@ FSL_*.db
 FSL_*.db-journal
 .fossil-settings/
 
+# ── reminder ──
+_WE_USE_GIT_IDIOT_
+
 # ── Environment & Config ──
 .env
 .direnv/

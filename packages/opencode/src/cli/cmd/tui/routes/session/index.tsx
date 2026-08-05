@@ -771,8 +771,9 @@ export function Session() {
             toBottom()
           })
           .catch((error) => {
-            Log.Default.warn("bug: session revert failed", { error: String(error) })
-            toast.show({ message: `Undo failed: ${error instanceof Error ? error.message : String(error)}`, variant: "error" })
+            const msg = errorMessage(error)
+            Log.Default.warn("bug: session revert failed", { error: msg })
+            toast.show({ message: `Undo failed: ${msg}`, variant: "error" })
           })
         const parts = sync.data.part[message.id]
         if (!parts) return
@@ -815,8 +816,9 @@ export function Session() {
               prompt?.set({ input: "", parts: [] })
             })
             .catch((error) => {
-              Log.Default.warn("bug: session unrevert failed", { error: String(error) })
-              toast.show({ message: `Redo failed: ${error instanceof Error ? error.message : String(error)}`, variant: "error" })
+              const msg = errorMessage(error)
+              Log.Default.warn("bug: session unrevert failed", { error: msg })
+              toast.show({ message: `Redo failed: ${msg}`, variant: "error" })
             })
           return
         }
@@ -829,8 +831,9 @@ export function Session() {
             { throwOnError: true },
           )
           .catch((error) => {
-            Log.Default.warn("bug: session revert (redo) failed", { error: String(error) })
-            toast.show({ message: `Redo failed: ${error instanceof Error ? error.message : String(error)}`, variant: "error" })
+            const msg = errorMessage(error)
+            Log.Default.warn("bug: session revert (redo) failed", { error: msg })
+            toast.show({ message: `Redo failed: ${msg}`, variant: "error" })
           })
       },
     },

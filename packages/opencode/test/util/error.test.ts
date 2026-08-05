@@ -35,4 +35,16 @@ describe("util.error", () => {
     expect(data.message).toBe("ResolveMessage: Cannot resolve module")
     expect(String(data.formatted)).toContain("ResolveMessage")
   })
+
+  test("SDK/HTTP-shaped objects do not become [object Object]", () => {
+    expect(errorMessage({ data: { message: "Fossil snapshot history was recreated" } })).toBe(
+      "Fossil snapshot history was recreated",
+    )
+    expect(errorMessage({ error: { message: "hash not found" } })).toBe("hash not found")
+    expect(errorMessage({ error: "plain string error" })).toBe("plain string error")
+    // bare empty throw from throwOnError must not toast as [object Object]
+    const bare = errorMessage({})
+    expect(bare).not.toBe("[object Object]")
+    expect(bare.length).toBeGreaterThan(0)
+  })
 })

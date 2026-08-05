@@ -22,19 +22,26 @@ export function errorMessage(error: unknown): string {
     if (error.name) return error.name
   }
 
-  if (isRecord(error) && typeof error.message === "string" && error.message) {
-    return error.message
-  }
-
-  if (isRecord(error) && isRecord(error.data) && typeof error.data.message === "string" && error.data.message) {
-    return error.data.message
+  if (isRecord(error)) {
+    if (typeof error.message === "string" && error.message) return error.message
+    // SDK / HTTP API: { data: { message } } or { error: { message } }
+    if (isRecord(error.data) && typeof error.data.message === "string" && error.data.message) {
+      return error.data.message
+    }
+    if (isRecord(error.error) && typeof error.error.message === "string" && error.error.message) {
+      return error.error.message
+    }
+    if (typeof error.error === "string" && error.error) return error.error
+    // Effect / SDK sometimes put the useful text on `name` or `detail`
+    if (typeof error.detail === "string" && error.detail) return error.detail
+    if (typeof error.name === "string" && error.name && error.name !== "Object") return error.name
   }
 
   const text = String(error)
   if (text && text !== "[object Object]") return text
 
   const formatted = errorFormat(error)
-  if (formatted && formatted !== "{}") return formatted
+  if (formatted && formatted !== "{}" && formatted !== "Unexpected error (unserializable)") return formatted
   return "unknown error"
 }
 

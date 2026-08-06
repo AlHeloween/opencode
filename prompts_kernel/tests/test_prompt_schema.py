@@ -69,8 +69,11 @@ POCKET_PROTOCOL_FILES = {
 # v6.0: raised 42_000→48_000 for common stamp ABI, envelope attestation,
 # scope_spec/baseline split, direct_evidence_stamp, intent router sync,
 # capability principal schema, and G5/G8 graph fix.
+# v7: raised 48_000→50_000 for mandatory sv_output (required:true),
+# md5_sv_tag_parent hash chain, per-agent SV semantics, SV_EVERY_TURN rule,
+# SV/InfoMark separation, and SV-based compaction.
 POCKET_PROTOCOL_MAX_BYTES = {
-    "reasoning.txt": 48_000,
+    "reasoning.txt": 50_000,
     "algorithm_card.txt": 14_000,
     "build.txt": 12_000,
 }

@@ -56,7 +56,8 @@ RULES = MappingProxyType({
     'SMOKE_VALIDATE': 'smoke_before_validate(spec) enforces the SMOKE_BEFORE contract: smoke_na requires justification, baseline must have ≥1 check with label+cmd+expected_exit, tolerance>0 requires tolerance_reason. Returns (is_valid, diagnostic). Gate 4 rejects invalid specs.',
     'SMOKE_VERIFY': 'smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. Gate 8: only PASS promotes to Done.',
     'SV_DELTA': 'sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.',
-    'SV_OUTPUT': 'after every non-trivial response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. Omit for trivial answers (yes/no, single-line facts, tool output relay).',
+    'SV_EVERY_TURN': "model MUST emit sv_output after every turn. For yes/no or single-line facts use minimal SV with one keyword w=1.0. For delegated sub-agent responses include parent_goal_sv_hash to link back to Architect's SV. This block is used for: (1) detecting semantic drift via SV_DELTA between turns, (2) computing compact summaries as SV-sequence aggregation, (3) enabling recursive history navigation by comparing stored SV sequences against current goal_sv, (4) forming a verifiable hash chain via md5_sv_tag_parent for sequence integrity — each SV proves it follows the previous one. Omission breaks the semantic trace.",
+    'SV_OUTPUT': "after EVERY response output sv=[k1..kn],[w1..wn sum=1.0], md5_sv_tag (consistent 8-32 hex derived from sv), md5_sv_tag_parent (hash of previous turn's md5_sv_tag — forms verifiable chain; genesis = md5(goal_sv) or '00000000'), Semantic dominant (one-sentence summary). Keywords 3-9, weights ordered. Change tag when keywords or weights change. For trivial answers use minimal SV: {term: 'no_change'|'acknowledged', w:1.0}. For sub-agent responses include parent_goal_sv_hash. The field MUST be present — omission is a protocol violation. SV is a semantic fingerprint, NOT a claim status.",
     'VCS_ROOT': 'VCS detection: git status only — never glob/grep for .git/ (it is gitignored, invisible to search tools). .git/ must be at repo root. Never search inside, read from, or interact with .git/objects or any VCS internals as if they were project content. VCS metadata is NOT source code.',
     'VERIFY_OUTCOME': 'declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done',
     'WHERE_WHICH': 'use where.exe (Windows) / which (Linux/macOS) for any executable lookup — instant, exact, PATH-aware. To discover files in a known directory, prepend the directory to PATH and re-run where/which. Never glob/grep for executables that where/which resolves in one call.',
@@ -66,12 +67,12 @@ RULES = MappingProxyType({
 
 WORKFLOWS = MappingProxyType({
     'adid': ('adid', 'ADID_FREEZE', 'ADID_OPS', 'scope', 'mutation', 'verification'),
-    'diagnose': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'adid', 'ADID_OPS', 'CONSTITUTION_BLOCKS'),
+    'diagnose': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'SV_EVERY_TURN', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'adid', 'ADID_OPS', 'CONSTITUTION_BLOCKS'),
     'hygiene_ops': ('hygiene', 'NAMING', 'DOCUMENT_SURFACE', 'WORKSPACE_LANES', 'PROGRESS_LOG', 'CLEAN_STATE', 'PLANS_COMPLETED', 'EVIDENCE_ORDER'),
-    'modify': ('plan', 'REUSE_BEFORE', 'SMOKE_BEFORE', 'SMOKE_VERIFY', 'scope', 'cache', 'mutation', 'WRITE_SCOPE', 'CACHE_STABILITY', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'adid', 'ADID_OPS', 'CONSTITUTION_BLOCKS'),
-    'observe': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'adid', 'ADID_OPS'),
-    'planning': ('plan', 'DECOMPOSE', 'SMOKE_BEFORE', 'SMOKE_SPEC', 'SMOKE_VALIDATE', 'GROUND', 'METRIC_ADAPTATION', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'EMIT_STATE', 'REUSE_BEFORE', 'SMOKE_VERIFY', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY_OUTCOME', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'SV_OUTPUT', 'CLEAN_STATE', 'PLANS_COMPLETED'),
-    'research': ('evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'INFOMARK_SEP', 'SV_OUTPUT', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'MEMORY_LINKS'),
+    'modify': ('plan', 'REUSE_BEFORE', 'SMOKE_BEFORE', 'SMOKE_VERIFY', 'scope', 'cache', 'mutation', 'WRITE_SCOPE', 'CACHE_STABILITY', 'verification', 'oracle', 'VERIFY_OUTCOME', 'INFOMARK_SEP', 'SV_OUTPUT', 'SV_EVERY_TURN', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'adid', 'ADID_OPS', 'CONSTITUTION_BLOCKS'),
+    'observe': ('scope', 'evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'SV_OUTPUT', 'SV_EVERY_TURN', 'CLEAN_STATE', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'adid', 'ADID_OPS'),
+    'planning': ('plan', 'DECOMPOSE', 'SMOKE_BEFORE', 'SMOKE_SPEC', 'SMOKE_VALIDATE', 'GROUND', 'METRIC_ADAPTATION', 'FRACTAL_CANDIDATES', 'GOAL_SEEDS', 'GOAL_PEAKS', 'SV_DELTA', 'RESIDUAL_LOOP', 'EMIT_STATE', 'REUSE_BEFORE', 'SMOKE_VERIFY', 'evidence', 'scope', 'mutation', 'verification', 'oracle', 'VERIFY_OUTCOME', 'infomark', 'INFOMARK_SEP', 'MEMORY_RANK', 'SV_OUTPUT', 'SV_EVERY_TURN', 'CLEAN_STATE', 'PLANS_COMPLETED'),
+    'research': ('evidence', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'REUSE_BEFORE', 'WHERE_WHICH', 'VCS_ROOT', 'NO_HARDCODE', 'verification', 'oracle', 'INFOMARK_SEP', 'SV_OUTPUT', 'SV_EVERY_TURN', 'CLEAN_STATE', 'infomark', 'MEMORY_RANK', 'MEMORY_LINKS'),
 })
 
 PACKS = MappingProxyType({
@@ -120,7 +121,7 @@ CONTRACTS = MappingProxyType({
     'command.triage': ('scope', 'evidence', 'verification'),
     'policy.adid': ('scope', 'evidence', 'verification', 'SEARCH_ORDER'),
     'policy.adid_ops': ('scope', 'mutation', 'verification', 'WRITE_SCOPE'),
-    'policy.coding': ('planning', 'evidence', 'verification', 'EVIDENCE_ORDER', 'VERIFY_OUTCOME', 'SV_OUTPUT', 'CLEAN_STATE'),
+    'policy.coding': ('planning', 'evidence', 'verification', 'EVIDENCE_ORDER', 'VERIFY_OUTCOME', 'SV_OUTPUT', 'SV_EVERY_TURN', 'CLEAN_STATE'),
     'policy.default': ('scope',),
     'policy.governance': ('scope', 'mutation', 'verification', 'WRITE_SCOPE'),
     'policy.grounding': ('evidence', 'verification', 'EVIDENCE_ORDER', 'SEARCH_ORDER', 'NO_HARDCODE'),

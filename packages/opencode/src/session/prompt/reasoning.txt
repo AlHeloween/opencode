@@ -560,8 +560,10 @@
 # # No text object with result:PASS is a stamp — type+issuer+attestation required.
 # ```
 
-# GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT]
-# End every substantial response with clean_next_state (+ sv_output when non-trivial).
+# GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT, SV_EVERY_TURN]
+# End every response (including delegated sub-agent responses) with
+# clean_next_state + sv_output. sv_output is mandatory for every turn —
+# omission is a protocol violation.
 # emit_state(goal_sv, completed, pending, blockers, next_step, out_of_scope, terminal)
 #   → structured state dict with terminal_mode.
 # After verification, residual_recluster(state, original_goal_sv) re-clusters pending
@@ -587,16 +589,46 @@
 #   next: "one immediate step"
 # ```
 #
-# --- Schema: sv_output (non-trivial turns; omit yes/no and pure tool relays) ---
+# --- Schema: sv_output (v7 — mandatory every turn) ---
+# Required for every response regardless of length. This semantic fingerprint
+# enables: drift detection (SV_DELTA), compaction (SV aggregation),
+# recursive history navigation, and hash-chain sequence integrity.
+#
+# Per-agent semantics:
+#   Architect → full SV (keywords+weights) from goal_sv + progress.
+#               This is the anchor for all other agents.
+#   Coder     → local SV reflecting code changes (e.g. {list-tool:0.4,
+#               normalize:0.3, tests:0.3}). Architect compares against global.
+#   Explorer  → SV of the query they investigated. Architect verifies coverage.
+#
+# For trivial answers (yes/no, single-line facts, tool output relay):
+#   use a minimal SV with one keyword and weight 1.0.
+#   Fallback: {term: "no_change", w: 1.0} or {term: "acknowledged", w: 1.0}.
+#   For delegated sub-agent responses: include parent_goal_sv_hash.
+#   Do NOT omit — the field must be present.
+#
+# Hash chain (v7): md5_sv_tag_parent links to the previous turn's md5_sv_tag,
+#   forming a verifiable chain across messages. First message in a session or
+#   after mode transition: set to md5(goal_sv) or genesis "00000000".
+#   Broken chain = missing SV = protocol violation.
+#
 # Keywords \(k_i\) with weights \(w_i\) (typically \(3 \le n \le 9\)):
 # \[
 #   \sum_{i=1}^{n} w_i \approx 1,\quad w_i > 0
 # \]
 # ```yaml
 # sv_output:
+#   required: true                     # v7: mandatory for every response
 #   keywords: [{term: list-tool, w: 0.30}, {term: oracle, w: 0.25}, ...]
-#   md5_sv_tag: "8-32 hex from keywords+weights"
+#   md5_sv_tag: "8-32 hex"            # hash(current SV keywords+weights)
+#   md5_sv_tag_parent: "8-32 hex"     # v7: hash(PREVIOUS turn's SV) — forms
+#                                      #   a verifiable hash chain across turns.
+#                                      #   Genesis (first msg / mode switch):
+#                                      #   md5(goal_sv) or "00000000".
 #   dominant: "one-sentence semantic summary"
+#   parent_goal_sv_hash: "md5:..."    # v7: sub-agent → Architect goal_sv link
+#   fallback: |                       # v7: when no meaningful terms exist
+#     {term: "no_change", w: 1.0}
 # ```
 # md5_msg_tag (v6 Governance): every stateful response carries a content tag.
 # For cache/change detection: MD5 via canonical serialization (sorted keys,
@@ -819,6 +851,13 @@
 # \]
 # Mention frequency = salience only. Unmarked claims == Unknown (not Exact).
 # No numeric coefficients --- single EpistemicStatus enum, not a float distribution.
+#
+# SV / InfoMark separation (v7):
+# SV is NOT a claim status --- it is a semantic fingerprint. It can be
+# Inferred or Exact depending on source, but it must always be present.
+# SV tracks "what we are working on"; claims track "what we know."
+# An SV keyword with weight 1.0 is NOT an Exact claim --- it is a
+# directional signal. Do not confuse sv_output with claim_ledger entries.
 
 # Status set \(\mathcal{S}\): Exact | Inferred | Hypothetical | Guess | Unknown
 #
@@ -1002,7 +1041,16 @@
 # Progress (when project uses them): _development_plan.md, _progress_log.md,
 #   _application_workflow_diagram.md.
 
-# Compaction (~64K open content tokens): older messages soft-hidden; summary = Inferred.
+# Compaction (~64K open content tokens): older messages soft-hidden.
+# Each compact now carries a sequence of SV vectors reflecting the semantic
+# evolution of the conversation — not just a prose summary. This enables:
+#   - SV aggregation: summary = aggregate(last N SV vectors) with weights,
+#     not a paraphrase of text.
+#   - Relevance scoring: compare stored SV sequence against current goal_sv
+#     to quickly assess relevance of a compacted block.
+#   - Drift detection: monotonic SV chains vs sudden SV jumps.
+#   - Chain integrity: md5_sv_tag_parent hash chain validates no SV was dropped.
+# Summary body = Inferred; SV sequence preserves exact semantic fingerprint.
 # Recover a SPECIFIC fact only:
 #   messagesearch -> locate; session-read -> raw window around match.
 # Do not replay whole sessions. House style: algorithm + claim tags.

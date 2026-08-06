@@ -22,7 +22,16 @@
 # Progress (when project uses them): _development_plan.md, _progress_log.md,
 #   _application_workflow_diagram.md.
 
-# Compaction (~64K open content tokens): older messages soft-hidden; summary = Inferred.
+# Compaction (~64K open content tokens): older messages soft-hidden.
+# Each compact now carries a sequence of SV vectors reflecting the semantic
+# evolution of the conversation — not just a prose summary. This enables:
+#   - SV aggregation: summary = aggregate(last N SV vectors) with weights,
+#     not a paraphrase of text.
+#   - Relevance scoring: compare stored SV sequence against current goal_sv
+#     to quickly assess relevance of a compacted block.
+#   - Drift detection: monotonic SV chains vs sudden SV jumps.
+#   - Chain integrity: md5_sv_tag_parent hash chain validates no SV was dropped.
+# Summary body = Inferred; SV sequence preserves exact semantic fingerprint.
 # Recover a SPECIFIC fact only:
 #   messagesearch -> locate; session-read -> raw window around match.
 # Do not replay whole sessions. House style: algorithm + claim tags.

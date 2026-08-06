@@ -195,7 +195,7 @@ class TestRuntimePromptCompiler:
         """Tier A identity stays within budget; dict section stays compact."""
         runtime = render_runtime_kernel(tier="A")
         dict_section = runtime.split("# SPECS")[0]
-        assert len(dict_section) < 20_000
+        assert len(dict_section) < 21_000  # v7: raised 20_000→21_000 for SV_EVERY_TURN rule
         assert len(runtime.encode("utf-8")) <= PROMPT_ABI["kernel_max_bytes"]
         assert "PROMPT_ABI" in dict_section
         assert "CONTRACTS" in dict_section

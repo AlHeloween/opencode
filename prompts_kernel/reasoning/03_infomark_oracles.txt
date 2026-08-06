@@ -18,6 +18,13 @@
 # \]
 # Mention frequency = salience only. Unmarked claims == Unknown (not Exact).
 # No numeric coefficients --- single EpistemicStatus enum, not a float distribution.
+#
+# SV / InfoMark separation (v7):
+# SV is NOT a claim status --- it is a semantic fingerprint. It can be
+# Inferred or Exact depending on source, but it must always be present.
+# SV tracks "what we are working on"; claims track "what we know."
+# An SV keyword with weight 1.0 is NOT an Exact claim --- it is a
+# directional signal. Do not confuse sv_output with claim_ledger entries.
 
 # Status set \(\mathcal{S}\): Exact | Inferred | Hypothetical | Guess | Unknown
 #

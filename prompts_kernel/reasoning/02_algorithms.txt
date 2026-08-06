@@ -62,19 +62,7 @@
 #   L -->|no| Re[DIVERGENCE --- re-anchor then react]
 # ```
 #
-# --- Schema: signal_cluster (v6) ---
-# ```yaml
-# signal_cluster:
-#   source: lsp | test | log | tool | compiler | typecheck
-#   pattern: "unresolved reference: Foo"
-#   n: 60
-#   cardinality: 60       # preserved for evidence
-#   unique_locations: 43  # distinct file:line occurrences
-#   delta: 0.05           # Manhattan delta(s, a)
-#   likely_shared_root: true
-#   disposition: COLLAPSED_DUPLICATES | CONFIRMATION | DIVERGENCE
-#   evidential_status: ACTIVE  # never discarded
-# ```
+# @schema: signal_cluster
 
 # --- Classify before act (Gates 3, 7) --- schema action_class in Part 1 ---
 # v6 envelope model (canonical — matches Part 1 schema):
@@ -163,13 +151,4 @@
 #   Loop -->|yes| Stop[STOP + re-plan]
 # ```
 #
-# --- Schema: bug_fix ---
-# ```yaml
-# bug_fix:
-#   symptom: "list tool empty on Windows"
-#   error_test: {cmd: "...", expect: FAIL, actual: "got []"}
-#   trial_fix: {change: "normalize paths", oracle: PASS}
-#   real_fix: {change: "proper path join", oracle: PASS}
-#   targeted_tests: {cmds: ["bun typecheck", "bun test list"], result: PASS}
-#   status: open | fixed
-# ```
+# @schema: bug_fix

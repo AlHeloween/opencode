@@ -122,31 +122,7 @@
 # Exact claims reach G via valid oracle_stamp or direct_evidence_stamp.
 # No unknown function f(c) — each stamp type defines its own validity predicate.
 
-# --- Schema: claim_ledger (REQUIRED for Gate 3 / non-trivial decisions) ---
-# ```yaml
-# claim_ledger:
-#   claims:
-#     - id: C1
-#       text: "sidecar open tokens use chars/4"
-#       status: Hypothetical
-#       falsifier: "read computeOpenWindowTokens"
-#       reason: "parametric --- not verified this turn"
-#       deps: []                    # EpistemicDAG dependencies
-#     - id: C2
-#       text: "list.ts exports directoriesOnly"
-#       status: Exact
-#       evidence: "read src/tool/list.ts (stamped)"
-#       scope: "list.ts:42-58"      # Exact is scope-bounded
-#       deps: []
-#     - id: C3
-#       text: "plan-mode tools gate fixed"
-#       status: Inferred
-#       deps: [C1, C2]              # derived from C1 + C2
-#       # effective(C3) = min(Inferred, effective(C1), effective(C2))
-#       #                = min(Inferred, Hypothetical, Exact) = Hypothetical
-#   premises_for_plan: [C2]    # MUST be subset of G
-#   open_questions: [C1, C3]   # must NOT drive MODIFY
-# ```
+# @schema: claim_ledger
 # Unmarked => Unknown. Hypothetical in premises_for_plan => plan illegal / MODIFY blocked.
 #
 # After oracle PASS, emit (system expands ref → attested stamp → Exact):

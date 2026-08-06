@@ -299,6 +299,73 @@ def test_pocket_protocol_files_exist_and_markers():
             assert marker in content, f"{name} missing marker {marker!r}"
 
 
+def test_schema_refs_resolve():
+    """Every @schema: ref in source fragments resolves in core_schemas.yaml,
+    and the assembled reasoning.txt contains zero unresolved markers."""
+    import re
+    try:
+        import yaml
+    except ImportError:
+        pytest.skip("PyYAML not installed")
+
+    schemas_path = os.path.join(PROJECT_ROOT, "prompts_kernel", "core_schemas.yaml")
+    schemas_path = os.path.normpath(schemas_path)
+    assert os.path.isfile(schemas_path), f"core_schemas.yaml missing: {schemas_path}"
+    with open(schemas_path, "r", encoding="utf-8") as f:
+        schemas = yaml.safe_load(f) or {}
+
+    # 1. All @schema: refs in source fragments must resolve
+    fragments_dir = os.path.join(PROJECT_ROOT, "prompts_kernel", "reasoning")
+    fragments_dir = os.path.normpath(fragments_dir)
+    unresolved = []
+    all_refs = set()
+    for fname in sorted(os.listdir(fragments_dir)):
+        if not fname.endswith(".txt"):
+            continue
+        fpath = os.path.join(fragments_dir, fname)
+        with open(fpath, "r", encoding="utf-8") as f:
+            for line in f:
+                m = re.match(r"^# @schema:\s*(\S+)\s*$", line)
+                if m:
+                    path = m.group(1)
+                    all_refs.add(path)
+                    parts = path.split(".")
+                    current = schemas
+                    for part in parts:
+                        if isinstance(current, dict) and part in current:
+                            current = current[part]
+                        else:
+                            unresolved.append(f"{fname}: @schema:{path} — '{part}' not found")
+                            break
+
+    assert not unresolved, (
+        f"Unresolved @schema: refs:\n  " + "\n  ".join(unresolved)
+    )
+
+    # 2. Assembled reasoning.txt must contain ZERO raw @schema: markers
+    reasoning_path = os.path.join(SESSION_PROMPT_DIR, "reasoning.txt")
+    with open(reasoning_path, "r", encoding="utf-8") as f:
+        assembled = f.read()
+    orphan_markers = re.findall(r"^# @schema:\s*\S+\s*$", assembled, re.MULTILINE)
+    assert not orphan_markers, (
+        f"reasoning.txt has {len(orphan_markers)} unresolved @schema: marker(s): {orphan_markers}"
+    )
+
+    # 3. All resolved schemas carry the 'from core_schemas.yaml' provenance marker
+    resolved = re.findall(r"# --- Schema: (\S+) \(from core_schemas\.yaml\) ---", assembled)
+    assert len(resolved) >= len(all_refs), (
+        f"Expected >= {len(all_refs)} resolved schemas, found {len(resolved)}"
+    )
+
+    # 4. Report (don't assert) top-level schemas not yet @schema:-referenced
+    #    Some schemas (fractal_geometry, smoke_contract) are human reference
+    #    only — they complement inline prose, not replace it.
+    top_keys = {k for k in schemas if not k.startswith("_")}
+    unreferenced = top_keys - all_refs - {"version", "description"}
+    if unreferenced:
+        print(f"  [info] core_schemas.yaml keys without @schema: refs: {sorted(unreferenced)}")
+
+
 def test_algorithm_card_binds_to_kernel_symbols():
     """ALGORITHM_CARD names must resolve on prompts_kernel (hybrid bind)."""
     import prompts_kernel as kernel

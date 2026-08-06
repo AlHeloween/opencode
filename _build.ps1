@@ -223,11 +223,17 @@ function Invoke-Check {
 # ═══════════════════════════════════════════════════════════
 
 function Sync-KernelPrompt {
-    # 1) Assemble reasoning protocol + algorithm_card from kernel (self-contained)
     $reasoningDst = Join-Path $Root "packages\opencode\src\session\prompt\reasoning.txt"
     $cardDst = Join-Path $Root "packages\opencode\src\session\prompt\algorithm_card.txt"
     $cardDstUnix = $cardDst -replace '\\', '/'
-    & python -c "from prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; write_precompiled_kernel(); write_reasoning(); write_algorithm_card('$cardDstUnix')"
+    # 1a) Precompile kernel (separate process — fresh import needed for step 1b)
+    & python -c "from prompts_kernel import write_precompiled_kernel; write_precompiled_kernel()"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error- "Kernel precompilation failed"
+        return $false
+    }
+    # 1b) Assemble reasoning protocol + algorithm_card (fresh import picks up precompiled)
+    & python -c "from prompts_kernel import write_reasoning, write_algorithm_card; write_reasoning(); write_algorithm_card('$cardDstUnix')"
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel reasoning/algorithm_card assembly failed"
         return $false

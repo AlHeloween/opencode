@@ -52,42 +52,57 @@
 # bug_fix->G8; claim/oracle->G8/G9. Full graph in 00_map.
 # ===================================================================
 
-# --- Schema: action_class (classify BEFORE act; required for MODIFY) ---
-# v6 envelope model:
-# ```yaml
-# action_class:
+# --- Schema: action_class (from core_schemas.yaml) ---
+# description: Classification of every action BEFORE execution (v6 envelope model)
+# fields:
 #   activity:
-#     CONVERSATION |          # no side effects
-#     OBSERVE |               # read-only investigation
-#     EXECUTE_TEST |          # run declared oracles
-#     MODIFY_CANDIDATE |      # write within ExecutionEnvelope (pre-approved)
-#     MODIFY_PROJECT |        # write outside envelope (requires Gate 4 approval)
-#     PROMOTE_STABLE |        # merge candidate→stable (ALWAYS explicit approval)
-#     SELF_MODIFY             # change kernel/agent/oracle (triple-separation)
-#
+#     enum:
+#       - CONVERSATION
+#       - OBSERVE
+#       - EXECUTE_TEST
+#       - MODIFY_CANDIDATE
+#       - MODIFY_PROJECT
+#       - PROMOTE_STABLE
+#       - SELF_MODIFY
+#     descriptions:
+#       CONVERSATION: no side effects
+#       OBSERVE: read-only investigation
+#       EXECUTE_TEST: run declared oracles
+#       MODIFY_CANDIDATE: write within ExecutionEnvelope (pre-approved)
+#       MODIFY_PROJECT: write outside envelope (requires Gate 4 approval)
+#       PROMOTE_STABLE: merge candidate→stable (ALWAYS explicit approval)
+#       SELF_MODIFY: change kernel/agent/oracle (triple-separation)
 #   effect:
-#     NO_WRITE |
-#     DECLARED_TEMP_WRITE |
-#     CANDIDATE_WRITE |       # v6: write to candidate branch
-#     PERSISTENT_WRITE
-#
+#     enum:
+#       - NO_WRITE
+#       - DECLARED_TEMP_WRITE
+#       - CANDIDATE_WRITE
+#       - PERSISTENT_WRITE
 #   risk:
-#     LOW |
-#     ELEVATED |
-#     DESTRUCTIVE |
-#     CRITICAL                # v6: SELF_MODIFY, PROMOTE_STABLE
-# ```
-# Map: fix/edit in candidate branch -> MODIFY_CANDIDATE+CANDIDATE_WRITE;
-#      fix/edit in mainline         -> MODIFY_PROJECT+PERSISTENT_WRITE;
-#      merge candidate->stable      -> PROMOTE_STABLE+PERSISTENT_WRITE;
-#      change kernel/oracle/metric  -> SELF_MODIFY+PERSISTENT_WRITE;
-#      test/build/typecheck         -> EXECUTE_TEST; show/read/search -> OBSERVE.
-# Invariants: CONVERSATION/OBSERVE => effect = NO_WRITE;
-# EXECUTE_TEST => no silent persistent write;
-# MODIFY_CANDIDATE within envelope => pre-approved (no Gate 4 re-approval);
-# ExecutionEnvelope pre-approves ONLY MODIFY_CANDIDATE. Explicit approval required for:
-#   MODIFY_PROJECT (any envelope state), PROMOTE_STABLE, SELF_MODIFY,
-#   protected-surface mutation, candidate work outside a valid envelope.
+#     enum:
+#       - LOW
+#       - ELEVATED
+#       - DESTRUCTIVE
+#       - CRITICAL
+# mapping:
+#   - fix/edit in candidate branch → MODIFY_CANDIDATE + CANDIDATE_WRITE
+#   - fix/edit in mainline → MODIFY_PROJECT + PERSISTENT_WRITE
+#   - merge candidate→stable → PROMOTE_STABLE + PERSISTENT_WRITE
+#   - change kernel/oracle/metric → SELF_MODIFY + PERSISTENT_WRITE
+#   - test/build/typecheck → EXECUTE_TEST
+#   - show/read/search → OBSERVE
+# invariants:
+#   - CONVERSATION/OBSERVE ⇒ effect = NO_WRITE
+#   - EXECUTE_TEST ⇒ no silent persistent write
+#   - MODIFY_CANDIDATE within envelope ⇒ pre-approved (no Gate 4 re-approval)
+# envelope_pre_approval:
+#   applies_to: MODIFY_CANDIDATE only
+#   explicit_required_for:
+#     - MODIFY_PROJECT (any envelope state)
+#     - PROMOTE_STABLE
+#     - SELF_MODIFY
+#     - protected-surface mutation
+#     - candidate work outside valid envelope
 
 # GATE 1 --- GROUND TRUTH  [EVIDENCE_ORDER, SEARCH_ORDER, WHERE_WHICH, REUSE_BEFORE]
 # Read current state before judgment: files, logs, tests, conversation.
@@ -214,47 +229,40 @@
 # Self-[Exact] without stamp is rejected by runtime.
 # Prior art (non-trivial): note universalsearch web and/or code results (or reuse: N/A).
 #
-# --- Schema: master_plan ---
-# ```yaml
-# master_plan:
-#   description: "one-line goal"
-#   premises: [C2]              # claim ids in G only
-#   open_questions: [C1]         # promotion tasks / oracles
-#   goals:
-#     - id: G1
-#       sv: [keyword_a, keyword_b, keyword_c]   # 3-9 terms
-#       document: "abstract + I/O + brief impl sketch"
-#       done_pct: 0
-#       tasks:
-#         - id: T1
-#           sv: [task_terms...]
-#           what: "file-and-function level change"
-#           files: ["path/a.ts", "path/b.ts"]
-#           depends_on_claims: [C2]
-#           oracle:
-#             cmd: "cwd + command"
-#             pass: "exact pass criteria"
-#             baseline: "pre-edit Actual [Exact] or N/A"
-#             claim_id: C2          # on PASS -> oracle_stamp
-#           status: "[ ]"           # -> "[x]" only after Gate 8 + stamp
-#           attempts: 0             # v6.0: execution retry counter
-#           last_failure: null      # v6.0: last EXECUTION_FAILED detail
-#           worker_id: null         # v6.0: claiming worker identity
-#           lease_expires_at: null  # v6.0: worker lease expiry (UTC)
-#           action_class: {activity: MODIFY_CANDIDATE, effect: CANDIDATE_WRITE, risk: LOW}
-# claim_ledger:
-#   claims:
-#     - id: C1
-#       text: "..."
-#       status: Hypothetical
-#       falsifier: "..."
-#     - id: C2
-#       text: "..."
-#       status: Exact
-#       evidence: "read ..."
-#   premises_for_plan: [C2]
-#   open_questions: [C1]
-# ```
+# --- Schema: master_plan (from core_schemas.yaml) ---
+# description: Plan structure for GATE 3
+# fields:
+#   - name: description
+#     type: string
+#     description: one-line goal
+#   - name: premises
+#     type: list of claim_ids (subset of G only)
+#   - name: open_questions
+#     type: list of claim_ids (promotion tasks / oracles)
+#   - name: goals
+#     type: list
+#     items:
+#     - id: string (e.g. G1)
+#     - sv: list of keywords (3-9 terms)
+#     - document: string (abstract + I/O + brief impl sketch)
+#     - done_pct: int
+#     - tasks:
+#       type: list
+#       items:
+#         - id: string (e.g. T1)
+#         - sv: list of keywords
+#         - what: string (file-and-function level change)
+#         - files: list of paths
+#         - depends_on_claims: list of claim_ids
+#         - oracle: oracle (see stamps.oracle)
+#         - status: [ ] or [x]
+#         - attempts: int (default 0)
+#         - last_failure: string or null
+#         - worker_id: string or null
+#         - lease_expires_at: ISO-8601 or null
+#         - action_class: action_class (see action_class schema)
+#   - name: claim_ledger
+#     type: claim_ledger (see claim_ledger schema)
 
 # GATE 4 --- AUTHORIZATION RESOLVER (v6)  [WRITE_SCOPE | mutation]
 # v6: Gate 4 is an authorization resolver, not an unconditional approval gate.
@@ -306,80 +314,57 @@
 #   Explicit --> Ask
 # ```
 #
-# --- Schema: execution_envelope (v6.0 — authenticated, verifiable) ---
-# Envelope validity requires ALL of: not expired, scope spec unchanged, budget not exceeded,
-# approval attested by trusted runtime. hash(data) ≠ authorization(data).
-# "Expired" is formally decidable from expires_at vs wall_time.
-# Scope validity checks path PATTERNS, not file contents — permitted writes
-# must not invalidate the envelope.
-#
-# Path authorization (v6.0): normalize → resolve symlink/junction/reparse-point
-# → case-normalize per filesystem → verify resolved target inside approved root.
-# ```yaml
-# execution_envelope:
-#   # Immutable signed payload (v6.0 — all fields user-approved, no outer duplicates):
-#   approval_payload:
-#     envelope_id: "uuid"
-#     revision: 1
-#     issued_at: "2026-08-03T03:00:00Z"
-#     expires_at: "2026-08-03T04:00:00Z"
-#     approved_by: "user"
-#     scope_paths:                         # v6.0: concrete patterns in payload
-#       - "packages/memory/**"
-#     scope_spec_hash: "sha256:def456..."   # hash(canonical(sorted scope_paths))
-#     baseline_tree_hash: "sha256:789abc..."
-#     budget:
-#       maximum_created: 3
-#       maximum_modified: 12
-#       maximum_deleted: 2
-#     wall_time_seconds: 1800
-#     attempts_max: 4
-#     allowed_action_classes:
-#       - MODIFY_CANDIDATE
-#       - EXECUTE_TEST
-#   # Canonical serialization (v6.0): RFC 8785 JCS, UTF-8, sorted keys,
-#   #   fixed-precision integers (no floats), NFC-normalized strings.
-#   #   approval_payload_hash = SHA-256(canonical(approval_payload))
-#   approval_payload_hash: "sha256:..."
-#
-#   approval_attestation:
-#     algorithm: HMAC-SHA256
-#     key_id: "runtime-key-2026-08"
-#     payload_hash: "sha256:..."           # must == approval_payload_hash
-#     approval_event_id: "uuid"
-#     value: "hmac:abc123..."
-#
-#   # Mutable fields (trusted runtime only — NOT in approval_payload):
-#   status: active | expired | revoked
-#   mutation_ledger:
-#     created: []
-#     modified: []
-#     deleted: []
-#     cumulative_delta_hash: "sha256:..."
-#
-# ALWAYS resolve through approval_payload: approval_payload.expires_at,
-#   approval_payload.revision, approval_payload.envelope_id.
-# No outer unsigned duplicate fields exist — runtime must not reference
-#   unauthenticated copies.
-#
-# Validity check (v6.0 resolver — 7 conditions, all through signed payload):
-#   1. status == active
-#   2. now < approval_payload.expires_at  (signed field — wall_time decidable)
-#   3. approval_payload.expires_at <= approval_payload.issued_at + approval_payload.wall_time_seconds
-#      (expiry bound by signed duration — prevents independent expiry extension)
-#   4. current scope spec hash == approval_payload.scope_spec_hash (patterns only)
-#   5. approval_attestation.payload_hash == approval_payload_hash (binding check)
-#   6. HMAC(approval_payload_hash, runtime_key) == approval_attestation.value
-#   7. activity ∈ approval_payload.allowed_action_classes
-#   8. mutation_ledger counts within approval_payload.budget limits
-#
-# Path authorization (v6.0):
-#   normalize → resolve symlink/junction/reparse-point
-#   → case-normalize per filesystem → verify resolved target inside approved root.
-#   Windows: junction/reparse-point must be resolved before scope check.
-#
-# UNKNOWN_ACTIVITY → RECLASSIFY_OR_DENY (fail-closed, never approve blind).
-# ```
+# --- Schema: execution_envelope (from core_schemas.yaml) ---
+# description: Pre-approved authorization for MODIFY_CANDIDATE (v6.0 — authenticated, verifiable)
+# approval_payload:
+#   description: Immutable signed payload — all fields user-approved
+#   fields:
+#     - envelope_id: uuid
+#     - revision: int
+#     - issued_at: ISO-8601
+#     - expires_at: ISO-8601
+#     - approved_by: user
+#     - scope_paths: list of glob patterns (concrete, in payload)
+#     - scope_spec_hash: sha256:... — hash(canonical(sorted scope_paths))
+#     - baseline_tree_hash: sha256:...
+#     - budget:
+#       maximum_created: int
+#       maximum_modified: int
+#       maximum_deleted: int
+#     - wall_time_seconds: int
+#     - attempts_max: int
+#     - allowed_action_classes: list of activity enum values
+# approval_payload_hash: sha256:... — RFC 8785 JCS canonical serialization
+# approval_attestation:
+#   fields:
+#     - algorithm: HMAC-SHA256
+#     - key_id: string
+#     - payload_hash: sha256:... (must == approval_payload_hash)
+#     - approval_event_id: uuid
+#     - value: hmac:...
+# mutable:
+#   description: Trusted runtime only — NOT in approval_payload
+#   fields:
+#     - status: active | expired | revoked
+#     - mutation_ledger:
+#       created: list of paths
+#       modified: list of paths
+#       deleted: list of paths
+#       cumulative_delta_hash: sha256:...
+# validation:
+#   description: All conditions through signed payload; 8 checks
+#   conditions:
+#     - 1. status == active
+#     - 2. now < approval_payload.expires_at
+#     - 3. expires_at <= issued_at + wall_time_seconds
+#     - 4. current scope spec hash == approval_payload.scope_spec_hash
+#     - 5. approval_attestation.payload_hash == approval_payload_hash
+#     - 6. HMAC(approval_payload_hash, runtime_key) == attestation.value
+#     - 7. activity ∈ allowed_action_classes
+#     - 8. mutation_ledger counts within budget limits
+# path_authorization: normalize → resolve symlink/junction/reparse-point → case-normalize per filesystem → verify inside approved root
+# unknown_activity: RECLASSIFY_OR_DENY (fail-closed, never approve blind)
+
 #
 # GATE 5 --- CONCERN LOOP
 # User objects -> return to Gate 2. Refine. Re-present. Re-ask Gate 4.
@@ -404,15 +389,15 @@
 #   Plan --> G7[Gate 7]
 # ```
 #
-# --- Schema: explorer_goal ---
-# ```yaml
-# explorer_goal:
-#   question: "specific question"
-#   scope: {paths: ["src/tool/"], symbols: ["path.dirname"]}
-#   return: [file_paths, line_numbers, signatures]
-# ```
-# CORRECT: "Find callers of path.dirname in src/tool/; paths, lines, signatures."
-# WRONG:   "Search for path-related things."
+# --- Schema: explorer_goal (from core_schemas.yaml) ---
+# description: Delegated exploration task (Gate 6)
+# fields:
+#   - question: string (specific question)
+#   - scope: {paths: list, symbols: list}
+#   - return: [file_paths, line_numbers, signatures]
+# correct_example: Find callers of path.dirname in src/tool/; paths, lines, signatures.
+# wrong_example: Search for path-related things.
+
 # Exceptions (primary may act): cmd_runner session control; user forbids delegate.
 # Even then: still read state before mutate.
 
@@ -461,104 +446,64 @@
 #   end
 # ```
 #
-# --- Schema: oracle ---
-# ```yaml
-# oracle:
-#   claim_id: C1
-#   claim_scope: "what fact becomes Exact on PASS"
-#   cmd: "cwd + command"
-#   pass: "criteria"
-#   result: PASS | FAIL | TIMEOUT | CRASH
-# ```
-#
-# --- Schema: oracle_stamp ---
-# On oracle PASS, the system emits this stamp. Common envelope fields apply.
-# ```yaml
+# --- Schema: stamps (from core_schemas.yaml) ---
+# common_envelope:
+#   description: Every stamp carries these fields
+#   fields:
+#     - stamp_id: uuid
+#     - stamp_type: ORACLE | DIRECT_EVIDENCE | INFERENCE
+#     - claim_id: C<number>
+#     - claim_revision: int (monotonic per claim)
+#     - claim_scope_hash: sha256:...
+#     - issued_at: ISO-8601
+#     - expires_at: ISO-8601
+#     - issuer_principal_id: string
+#     - source_hash: sha256:...
+#     - result: PASS | VALID
+#     - attestation: runtime cryptographic attestation
+#   rule: No text object with result:PASS is a stamp — type+issuer+attestation required
 # oracle_stamp:
-#   stamp_id: "uuid"
-#   stamp_type: ORACLE
-#   claim_id: C1
-#   claim_revision: 1
-#   claim_scope_hash: "sha256:..."
-#   issued_at: "ISO-8601"
-#   expires_at: "ISO-8601"
-#   issuer_principal_id: "kernel"
-#   source_hash: "sha256:..."
-#   result: PASS
-#   attestation: "runtime-signature"
-# # On PASS: σ(c) = Exact (scoped to claim_scope)
-# ```
-#
-# --- Schema: inference_stamp (v6) ---
-# Promotes derived claim to system-stamped Inferred when all dependencies
-# are grounded and derivation is reproducible.
-# ```yaml
+#   description: System-stamped Exact claim from oracle PASS
+#   inherits: common_envelope
+#   specific_fields:
+#     stamp_type: ORACLE
+#     result: PASS
+#   effect: σ(c) = Exact (scoped to claim_scope)
 # inference_stamp:
-#   stamp_id: "uuid"                    # v6.0: common stamp envelope
-#   stamp_type: INFERENCE               # v6.0: typed
-#   claim_id: C3
-#   claim_revision: 1                   # v6.0: revision tracking
-#   claim_scope_hash: "sha256:..."      # v6.0: scope-bound
-#   issued_at: "2026-08-03T03:30:00Z"   # v6.0: temporal validity
-#   expires_at: "2026-08-03T05:30:00Z"  # v6.0: stamps expire
-#   issuer_principal_id: "kernel"       # v6.0: who issued
-#   source_hash: "sha256:..."           # v6.0: content integrity
-#   derivation_rule: "R17"              # which rule/inference produced this claim
-#   dependencies: [C1, C2]              # claims this derivation depends on
-#   dependency_effective_status:        # weakest-link check (all must be ≥ Inferred)
-#     C1: Exact
-#     C2: Inferred
-#   derivation_hash: "a1b2c3d4..."     # deterministic hash of derivation inputs
-#   result: VALID | INVALID
-#   attestation: "runtime-signature"    # v6.0: runtime attests validity
-# ```
-# Preconditions for VALID:
-#   1. All dependencies ∈ G (effective_status ≥ Inferred)
-#   2. A derivation rule is declared
-#   3. Derivation hash matches computed hash from dependency set + rule + inputs
-#   4. No circular dependency (detected → Unknown)
-# On VALID: σ(c) = Inferred (system-stamped, eligible for G).
-#
-# --- Schema: direct_evidence_stamp (v6.0) ---
-# Stamps a claim as Exact from a direct observation (read tool, session-read).
-# Distinct from oracle_stamp: no test execution — pure observation.
-# ```yaml
+#   description: System-stamped Inferred claim from valid derivation
+#   inherits: common_envelope
+#   specific_fields:
+#     stamp_type: INFERENCE
+#     derivation_rule: string (which rule produced this claim)
+#     dependencies: list of claim_ids
+#     dependency_effective_status: dict(claim_id → status)
+#     derivation_hash: sha256:... (deterministic hash of inputs)
+#     result: VALID | INVALID
+#   preconditions:
+#     - All dependencies ∈ G (effective_status ≥ Inferred)
+#     - Derivation rule is declared
+#     - Derivation hash matches computed hash
+#     - No circular dependency (detected → Unknown)
+#   effect: On VALID: σ(c) = Inferred (system-stamped, eligible for G)
 # direct_evidence_stamp:
-#   stamp_id: "uuid"                    # common stamp envelope
-#   stamp_type: DIRECT_EVIDENCE
-#   claim_id: C2
-#   claim_revision: 1
-#   claim_scope_hash: "sha256:..."
-#   issued_at: "2026-08-03T03:01:00Z"
-#   expires_at: "2026-08-03T05:01:00Z"  # observations may stale
-#   issuer_principal_id: "kernel"
-#   source_hash: "sha256:..."           # hash of observed content
-#   source_type: file_read | session_read | tool_result
-#   source_handle: "src/tool/list.ts:42-58"
-#   source_revision: "commit:59a9fd2"
-#   content_hash: "sha256:..."          # hash of exact observed bytes
-#   scope: "list.ts:42-58"              # Exact is scope-bounded
-#   result: VALID
-#   attestation: "runtime-signature"
-# ```
-#
-# --- Common stamp envelope (v6.0 — every stamp carries these) ---
-# ```yaml
-# stamp:
-#   stamp_id: "uuid"                    # unique stamp identity
-#   stamp_type: ORACLE | DIRECT_EVIDENCE | INFERENCE
-#   claim_id: C<number>                 # which claim
-#   claim_revision: <int>               # monotonic revision per claim
-#   claim_scope_hash: "sha256:..."      # what the claim covers
-#   issued_at: "ISO-8601"               # when stamped
-#   expires_at: "ISO-8601"              # when stamp becomes invalid
-#   issuer_principal_id: "..."          # who issued (kernel, runtime, user)
-#   source_hash: "sha256:..."           # content integrity
-#   result: PASS | VALID                # stamp-specific outcome
-#   attestation: "..."                  # runtime cryptographic attestation
-# # valid_stamp(s) requires all common fields present + attestation valid.
-# # No text object with result:PASS is a stamp — type+issuer+attestation required.
-# ```
+#   description: Exact claim from direct observation (read tool, session-read)
+#   inherits: common_envelope
+#   specific_fields:
+#     stamp_type: DIRECT_EVIDENCE
+#     source_type: file_read | session_read | tool_result
+#     source_handle: string (path or session id)
+#     source_revision: string (commit hash)
+#     content_hash: sha256:...
+#     scope: string (line range or specific context)
+#     result: VALID
+# oracle:
+#   description: Oracle declaration (NOT a stamp — used in master_plan tasks)
+#   fields:
+#     - claim_id: string
+#     - claim_scope: string (what fact becomes Exact on PASS)
+#     - cmd: string (cwd + command)
+#     - pass: string (criteria)
+#     - result: PASS | FAIL | TIMEOUT | CRASH
 
 # GATE 9 --- CLEAN NEXT STATE  [CLEAN_STATE, SV_OUTPUT, SV_EVERY_TURN]
 # End every response (including delegated sub-agent responses) with
@@ -575,80 +520,106 @@
 # Real Blocked only after search (codegraph / messagesearch / web as fits).
 # Completed plans -> plans_completed/.
 #
-# --- Schema: clean_next_state (v6) ---
-# ```yaml
-# clean_next_state:
-#   reason: "why these activities"
-#   done:
-#     - {item: "T1 directoriesOnly", pct: 100, mark: Exact}
-#   pending: ["T2 docs"]
-#   blocked: []    # or [{item, kind: real|fake, reason}]
-#   out_of_scope: []  # v6: discarded tasks (failed Goal-SV threshold)
-#   terminal: false   # v6: true when pending=[]
-#   terminal_mode: SUCCESS | BLOCKED | OUT_OF_SCOPE  # v6: terminal disposition
-#   next: "one immediate step"
-# ```
+# --- Schema: clean_next_state (from core_schemas.yaml) ---
+# description: Structured state summary after each substantial turn
+# fields:
+#   - name: reason
+#     type: string
+#     description: Why these activities were performed
+#   - name: done
+#     type: list of {item: string, pct: int (0-100), mark: EpistemicStatus}
+#   - name: pending
+#     type: list of string
+#   - name: blocked
+#     type: list of {item: string, kind: real|fake, reason: string}
+#   - name: out_of_scope
+#     type: list of string
+#     description: Tasks discarded by residual_recluster (failed Goal-SV threshold)
+#   - name: terminal
+#     type: boolean
+#     description: true when pending=[] AND active=[]
+#   - name: terminal_mode
+#     type: string
+#     enum:
+#     - SUCCESS
+#     - BLOCKED
+#     - OUT_OF_SCOPE
+#     - CONTINUE
+#     - RESUME
+#     description: Precedence: BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty
+#   - name: next
+#     type: string or null
+#     description: One immediate next step
+
 #
-# --- Schema: sv_output (v7 — mandatory every turn) ---
-# Required for every response regardless of length. This semantic fingerprint
-# enables: drift detection (SV_DELTA), compaction (SV aggregation),
-# recursive history navigation, and hash-chain sequence integrity.
+# --- Schema: sv_output (from core_schemas.yaml) ---
+# description: Semantic fingerprint of the current turn — mandatory every response (v7)
+# required: true
+# fields:
+#   - name: keywords
+#     type: list of {term: string, w: float}
+#     constraints:
+#     - 3 ≤ len(keywords) ≤ 9
+#     - sum(weights) ≈ 1.0 (within 0.01 tolerance)
+#     - weights ordered descending
+#   - name: md5_sv_tag
+#     type: string
+#     format: 8-32 hex chars
+#     description: MD5 of canonical serialization of keywords+weights (sorted keys, fixed-precision weights, NFC strings)
+#   - name: md5_sv_tag_parent
+#     type: string
+#     format: 8-32 hex chars
+#     description: Hash of PREVIOUS turn's md5_sv_tag — forms a verifiable chain. Genesis (first message / mode switch): md5(goal_sv) or "00000000". Broken chain = missing SV = protocol violation.
+
+#   - name: dominant
+#     type: string
+#     description: One-sentence semantic summary
+#   - name: parent_goal_sv_hash
+#     type: string
+#     format: md5:...
+#     description: Sub-agent → Architect goal_sv link (for delegated responses)
+#   - name: fallback
+#     type: string
+#     description: When no meaningful terms exist: {term: no_change, w: 1.0} or {term: acknowledged, w: 1.0}
+# serialization: canonical: sorted keys, NFC-normalized strings, fixed-precision weights (3dp), revision prefix
+# per_agent:
+#   Architect: full SV from goal_sv + progress — anchor for all agents
+#   Coder: local SV reflecting code changes — Architect compares against global
+#   Explorer: SV of the query investigated — Architect verifies coverage
+
+# --- Schema: msg_tag (from core_schemas.yaml) ---
+# description: Content fingerprint for cache/change detection (v6 Governance)
+# fields:
+#   - name: md5_msg_tag
+#     type: string
+#     format: 8-32 hex
+#     description: Content fingerprint via canonical serialization
+#   - name: serialization
+#     type: string
+#     format: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev
+# note: NOT for cryptographic authorization — use SHA-256 or BLAKE3 for stamps
+
 #
-# Per-agent semantics:
-#   Architect → full SV (keywords+weights) from goal_sv + progress.
-#               This is the anchor for all other agents.
-#   Coder     → local SV reflecting code changes (e.g. {list-tool:0.4,
-#               normalize:0.3, tests:0.3}). Architect compares against global.
-#   Explorer  → SV of the query they investigated. Architect verifies coverage.
-#
-# For trivial answers (yes/no, single-line facts, tool output relay):
-#   use a minimal SV with one keyword and weight 1.0.
-#   Fallback: {term: "no_change", w: 1.0} or {term: "acknowledged", w: 1.0}.
-#   For delegated sub-agent responses: include parent_goal_sv_hash.
-#   Do NOT omit — the field must be present.
-#
-# Hash chain (v7): md5_sv_tag_parent links to the previous turn's md5_sv_tag,
-#   forming a verifiable chain across messages. First message in a session or
-#   after mode transition: set to md5(goal_sv) or genesis "00000000".
-#   Broken chain = missing SV = protocol violation.
-#
-# Keywords \(k_i\) with weights \(w_i\) (typically \(3 \le n \le 9\)):
-# \[
-#   \sum_{i=1}^{n} w_i \approx 1,\quad w_i > 0
-# \]
-# ```yaml
-# sv_output:
-#   required: true                     # v7: mandatory for every response
-#   keywords: [{term: list-tool, w: 0.30}, {term: oracle, w: 0.25}, ...]
-#   md5_sv_tag: "8-32 hex"            # hash(current SV keywords+weights)
-#   md5_sv_tag_parent: "8-32 hex"     # v7: hash(PREVIOUS turn's SV) — forms
-#                                      #   a verifiable hash chain across turns.
-#                                      #   Genesis (first msg / mode switch):
-#                                      #   md5(goal_sv) or "00000000".
-#   dominant: "one-sentence semantic summary"
-#   parent_goal_sv_hash: "md5:..."    # v7: sub-agent → Architect goal_sv link
-#   fallback: |                       # v7: when no meaningful terms exist
-#     {term: "no_change", w: 1.0}
-# ```
-# md5_msg_tag (v6 Governance): every stateful response carries a content tag.
-# For cache/change detection: MD5 via canonical serialization (sorted keys,
-#   fixed-precision weights, NFC-normalized strings, revision prefix).
-#   NOT for cryptographic authorization — use SHA-256 or BLAKE3 for stamps.
-# Schema:
-# ```yaml
-# msg_tag:
-#   md5_msg_tag: "8-32 hex"          # content fingerprint (cache/change detect)
-#   serialization: "canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev"
-# ```
-#
-# --- Schema: blocker ---
-# ```yaml
-# blocker:
-#   kind: real | fake
-#   claim: "..."
-#   # real -> capability/dependency/knowledge gap; investigate or smoke-plan
-#   # fake -> unfinished prior task / sequencing; finish the task, do not halt
-# ```
+# --- Schema: blocker (from core_schemas.yaml) ---
+# description: Blocker classification for clean_next_state.blocked entries
+# fields:
+#   - name: kind
+#     type: string
+#     enum:
+#     - real
+#     - fake
+#   - name: claim
+#     type: string
+# rules:
+#   real: capability/dependency/knowledge gap — investigate or smoke-plan
+#   fake: unfinished prior task / sequencing — finish the task, do not halt
+# real_examples:
+#   - missing auth mechanism
+#   - hardware feature absent after exhaustive search
+# fake_examples:
+#   - need step 3 first
+#   - waiting for user to glance at logs
+
 # real examples: missing auth mechanism; hardware feature absent after exhaustive search.
 # fake examples: "need step 3 first"; "waiting for user to glance at logs".
 # Real blocker path: verify absence exhaustively -> smoke plan in plans/ if needed ->
@@ -719,19 +690,46 @@
 #   L -->|no| Re[DIVERGENCE --- re-anchor then react]
 # ```
 #
-# --- Schema: signal_cluster (v6) ---
-# ```yaml
-# signal_cluster:
-#   source: lsp | test | log | tool | compiler | typecheck
-#   pattern: "unresolved reference: Foo"
-#   n: 60
-#   cardinality: 60       # preserved for evidence
-#   unique_locations: 43  # distinct file:line occurrences
-#   delta: 0.05           # Manhattan delta(s, a)
-#   likely_shared_root: true
-#   disposition: COLLAPSED_DUPLICATES | CONFIRMATION | DIVERGENCE
-#   evidential_status: ACTIVE  # never discarded
-# ```
+# --- Schema: signal_cluster (from core_schemas.yaml) ---
+# description: Noise-filtered signal cluster (Gate 1 — COLLAPSED_DUPLICATES)
+# fields:
+#   - name: source
+#     type: string
+#     enum:
+#     - lsp
+#     - test
+#     - log
+#     - tool
+#     - compiler
+#     - typecheck
+#   - name: pattern
+#     type: string
+#     example: unresolved reference: Foo
+#   - name: n
+#     type: int
+#     description: raw count
+#   - name: cardinality
+#     type: int
+#     description: preserved for evidence — never discarded
+#   - name: unique_locations
+#     type: int
+#     description: distinct file:line occurrences
+#   - name: delta
+#     type: float
+#     description: Manhattan delta(signal, anchor)
+#   - name: likely_shared_root
+#     type: boolean
+#   - name: disposition
+#     type: string
+#     enum:
+#     - COLLAPSED_DUPLICATES
+#     - CONFIRMATION
+#     - DIVERGENCE
+#   - name: evidential_status
+#     type: string
+#     enum:
+#     - ACTIVE
+#     description: never discarded
 
 # --- Classify before act (Gates 3, 7) --- schema action_class in Part 1 ---
 # v6 envelope model (canonical — matches Part 1 schema):
@@ -820,16 +818,15 @@
 #   Loop -->|yes| Stop[STOP + re-plan]
 # ```
 #
-# --- Schema: bug_fix ---
-# ```yaml
-# bug_fix:
-#   symptom: "list tool empty on Windows"
-#   error_test: {cmd: "...", expect: FAIL, actual: "got []"}
-#   trial_fix: {change: "normalize paths", oracle: PASS}
-#   real_fix: {change: "proper path join", oracle: PASS}
-#   targeted_tests: {cmds: ["bun typecheck", "bun test list"], result: PASS}
-#   status: open | fixed
-# ```
+# --- Schema: bug_fix (from core_schemas.yaml) ---
+# description: Bug fix chain state (Gate 8)
+# fields:
+#   - symptom: string
+#   - error_test: {cmd: string, expect: FAIL, actual: string}
+#   - trial_fix: {change: string, oracle: PASS}
+#   - real_fix: {change: string, oracle: PASS}
+#   - targeted_tests: {cmds: list, result: PASS}
+#   - status: open | fixed
 
 # ===================================================================
 # PART 3 --- Epistemic Status & Oracle (claim law) --- ENFORCED
@@ -955,31 +952,27 @@
 # Exact claims reach G via valid oracle_stamp or direct_evidence_stamp.
 # No unknown function f(c) — each stamp type defines its own validity predicate.
 
-# --- Schema: claim_ledger (REQUIRED for Gate 3 / non-trivial decisions) ---
-# ```yaml
-# claim_ledger:
+# --- Schema: claim_ledger (from core_schemas.yaml) ---
+# description: All claims and their epistemic status (REQUIRED for Gate 3)
+# fields:
 #   claims:
-#     - id: C1
-#       text: "sidecar open tokens use chars/4"
-#       status: Hypothetical
-#       falsifier: "read computeOpenWindowTokens"
-#       reason: "parametric --- not verified this turn"
-#       deps: []                    # EpistemicDAG dependencies
-#     - id: C2
-#       text: "list.ts exports directoriesOnly"
-#       status: Exact
-#       evidence: "read src/tool/list.ts (stamped)"
-#       scope: "list.ts:42-58"      # Exact is scope-bounded
-#       deps: []
-#     - id: C3
-#       text: "plan-mode tools gate fixed"
-#       status: Inferred
-#       deps: [C1, C2]              # derived from C1 + C2
-#       # effective(C3) = min(Inferred, effective(C1), effective(C2))
-#       #                = min(Inferred, Hypothetical, Exact) = Hypothetical
-#   premises_for_plan: [C2]    # MUST be subset of G
-#   open_questions: [C1, C3]   # must NOT drive MODIFY
-# ```
+#     type: list
+#     items:
+#       - id: string (e.g. C1)
+#       - text: string
+#       - status: Exact | Inferred | Hypothetical | Guess | Unknown
+#       - falsifier: string (optional, for Hypothetical)
+#       - reason: string
+#       - deps: list of claim_ids (for Inferred/Exact — EpistemicDAG)
+#       - evidence: string (for Exact)
+#       - scope: string (for Exact — e.g. file:lines)
+#   premises_for_plan: list of claim_ids (MUST be subset of G = Exact|Inferred)
+#   open_questions: list of claim_ids (must NOT drive MODIFY)
+# rules:
+#   - Unmarked ⇒ Unknown
+#   - Hypothetical in premises_for_plan ⇒ plan illegal / MODIFY blocked
+#   - effective(C3) = min(status(C3), effective(deps...)) — weakest-link ceiling
+
 # Unmarked => Unknown. Hypothetical in premises_for_plan => plan illegal / MODIFY blocked.
 #
 # After oracle PASS, emit (system expands ref → attested stamp → Exact):

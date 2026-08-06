@@ -1,14 +1,30 @@
 """Kernel fragment: 29_reasoning_render — assemble reasoning.txt from fragments.
 
 Source fragments live in:
-  packages/opencode/src/session/prompt/reasoning/*.txt
+  prompts_kernel/reasoning/*.txt
 
 Fragments are concatenated in sorted filename order (00_, 01_, …).
 Single blank line between fragment bodies; final newline.
+
+@schema: injection (v1.0):
+  Fragments may contain placeholder markers:
+      # @schema: section_name
+      # @schema: section.subsection
+
+  At build time, resolve_schema_refs() reads core_schemas.yaml and replaces
+  each marker with the corresponding YAML section rendered as comment lines.
+  The model always sees full inline schemas; the developer edits only the
+  canonical YAML file.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    yaml = None  # type: ignore[assignment]
 
 
 def _default_fragment_dir() -> Path:
@@ -23,14 +39,141 @@ def _default_output() -> Path:
     return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning.txt"
 
 
+def _schemas_path() -> Path:
+    """Path to core_schemas.yaml — canonical schema source."""
+    return Path(__file__).resolve().parent / "core_schemas.yaml"
+
+
+def _load_core_schemas() -> dict:
+    """Load core_schemas.yaml. Raises if YAML unavailable or file missing."""
+    if yaml is None:
+        raise RuntimeError("PyYAML required for @schema: resolution — pip install pyyaml")
+    path = _schemas_path()
+    if not path.is_file():
+        raise FileNotFoundError(f"core_schemas.yaml not found at {path}")
+    with open(path, "r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh) or {}
+
+
+def _resolve_yaml_path(schemas: dict, path: str) -> dict | list | str | None:
+    """Resolve a dot-path like 'stamps.oracle_stamp' in a nested dict."""
+    parts = path.strip().split(".")
+    current = schemas
+    for part in parts:
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        else:
+            return None
+    return current
+
+
+def _yaml_to_comment_lines(data: object, indent: int = 0) -> list[str]:
+    """Render a Python object as YAML comment lines with '# ' prefix.
+
+    Simple scalars are rendered as '# key: value'.
+    Lists become '#   - item'.
+    Nested dicts are recursively rendered.
+    """
+    prefix = "# " + "  " * indent
+    lines: list[str] = []
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if isinstance(value, (dict, list)):
+                lines.append(f"{prefix}{key}:")
+                lines.extend(_yaml_to_comment_lines(value, indent + 1))
+            elif value is None:
+                lines.append(f"{prefix}{key}: ~")
+            elif isinstance(value, bool):
+                lines.append(f"{prefix}{key}: {'true' if value else 'false'}")
+            elif isinstance(value, str) and "\n" in value:
+                # Multiline string — use |
+                lines.append(f"{prefix}{key}: |")
+                for subline in value.strip().split("\n"):
+                    lines.append(f"{prefix}  {subline}")
+            else:
+                lines.append(f"{prefix}{key}: {value}")
+    elif isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                # First key-value on same line as bullet
+                items_list = list(item.items())
+                if items_list:
+                    first_k, first_v = items_list[0]
+                    if isinstance(first_v, (dict, list)):
+                        lines.append(f"{prefix}- {first_k}:")
+                        lines.extend(_yaml_to_comment_lines(first_v, indent + 1))
+                    else:
+                        lines.append(f"{prefix}- {first_k}: {first_v}")
+                    for k, v in items_list[1:]:
+                        if isinstance(v, (dict, list)):
+                            lines.append(f"{prefix}  {k}:")
+                            lines.extend(_yaml_to_comment_lines(v, indent + 1))
+                        else:
+                            lines.append(f"{prefix}  {k}: {v}")
+                else:
+                    lines.append(f"{prefix}- {{}}")
+            elif isinstance(item, str):
+                lines.append(f"{prefix}- {item}")
+            else:
+                lines.append(f"{prefix}- {item!r}")
+    elif isinstance(data, str):
+        for subline in data.strip().split("\n"):
+            lines.append(f"{prefix}{subline}")
+    else:
+        lines.append(f"{prefix}{data!r}")
+
+    return lines
+
+
+def resolve_schema_refs(text: str, schemas: dict | None = None) -> str:
+    """Replace @schema: markers with inline YAML from core_schemas.yaml.
+
+    Marker format:  # @schema: section_name
+                    # @schema: section.subsection
+
+    Each marker line is replaced with a rendered schema block:
+        # --- Schema: section_name (from core_schemas.yaml) ---
+        # key: value
+        # ...
+
+    Returns text with all markers resolved.  Unresolvable markers raise
+    KeyError with the marker path and fragment context.
+    """
+    if schemas is None:
+        schemas = _load_core_schemas()
+
+    marker_re = re.compile(r"^# @schema:\s*(\S+)\s*$", re.MULTILINE)
+
+    def _replace(match: re.Match) -> str:
+        path = match.group(1)
+        section = _resolve_yaml_path(schemas, path)
+        if section is None:
+            available = sorted(schemas.keys())
+            raise KeyError(
+                f"@schema:{path} not found in core_schemas.yaml. "
+                f"Available top-level keys: {available}"
+            )
+        rendered = _yaml_to_comment_lines(section)
+        header = f"# --- Schema: {path} (from core_schemas.yaml) ---"
+        return "\n".join([header] + rendered) + "\n"
+
+    return marker_re.sub(_replace, text)
+
+
 def assemble_reasoning(fragment_dir: Path | None = None) -> str:
-    """Assemble reasoning.txt from topic fragments.
+    """Assemble reasoning.txt from topic fragments with @schema: resolution.
 
     Fragments are sorted by filename and joined with double-newline separators.
+    Before joining, each fragment is scanned for @schema: markers — these are
+    resolved against core_schemas.yaml and replaced with inline YAML.
+
     Returns the assembled text (UTF-8, LF endings).
     """
     if fragment_dir is None:
         fragment_dir = _default_fragment_dir()
+
+    schemas = _load_core_schemas()
 
     files = sorted(fragment_dir.glob("*.txt"))
     if not files:
@@ -41,6 +184,10 @@ def assemble_reasoning(fragment_dir: Path | None = None) -> str:
         text = path.read_text(encoding="utf-8")
         if not text.endswith("\n"):
             text += "\n"
+        try:
+            text = resolve_schema_refs(text, schemas)
+        except KeyError as e:
+            raise KeyError(f"{path.name}: {e}") from e
         parts.append(text.rstrip("\n"))
 
     return "\n\n".join(parts) + "\n"

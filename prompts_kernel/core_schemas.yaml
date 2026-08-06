@@ -1,0 +1,459 @@
+# core_schemas.yaml — Single source of truth for all data structures.
+# Version: 1.0
+# All schema changes go HERE.  Fragments reference via @schema:section_name.
+# Build pipeline (assemble_reasoning) resolves refs and injects YAML inline.
+# The model sees full schemas; the developer edits only this file.
+
+version: "1.0"
+description: >
+  Canonical schemas for the reasoning protocol.  Each top-level key is a
+  resolvable @schema: target.  Nested sections use dot-path notation
+  (e.g. @schema:stamps.oracle_stamp).
+
+# ═══════════════════════════════════════════════════════════════════════
+# SEMANTIC VECTOR (SV)
+# ═══════════════════════════════════════════════════════════════════════
+sv_output:
+  description: "Semantic fingerprint of the current turn — mandatory every response (v7)"
+  required: true
+  fields:
+    - name: keywords
+      type: "list of {term: string, w: float}"
+      constraints:
+        - "3 ≤ len(keywords) ≤ 9"
+        - "sum(weights) ≈ 1.0 (within 0.01 tolerance)"
+        - "weights ordered descending"
+    - name: md5_sv_tag
+      type: string
+      format: "8-32 hex chars"
+      description: "MD5 of canonical serialization of keywords+weights (sorted keys, fixed-precision weights, NFC strings)"
+    - name: md5_sv_tag_parent
+      type: string
+      format: "8-32 hex chars"
+      description: >
+        Hash of PREVIOUS turn's md5_sv_tag — forms a verifiable chain.
+        Genesis (first message / mode switch): md5(goal_sv) or "00000000".
+        Broken chain = missing SV = protocol violation.
+    - name: dominant
+      type: string
+      description: "One-sentence semantic summary"
+    - name: parent_goal_sv_hash
+      type: string
+      format: "md5:..."
+      description: "Sub-agent → Architect goal_sv link (for delegated responses)"
+    - name: fallback
+      type: string
+      description: "When no meaningful terms exist: {term: no_change, w: 1.0} or {term: acknowledged, w: 1.0}"
+  serialization: "canonical: sorted keys, NFC-normalized strings, fixed-precision weights (3dp), revision prefix"
+  per_agent:
+    Architect: "full SV from goal_sv + progress — anchor for all agents"
+    Coder: "local SV reflecting code changes — Architect compares against global"
+    Explorer: "SV of the query investigated — Architect verifies coverage"
+
+# ═══════════════════════════════════════════════════════════════════════
+# CLEAN NEXT STATE
+# ═══════════════════════════════════════════════════════════════════════
+clean_next_state:
+  description: "Structured state summary after each substantial turn"
+  fields:
+    - name: reason
+      type: string
+      description: "Why these activities were performed"
+    - name: done
+      type: "list of {item: string, pct: int (0-100), mark: EpistemicStatus}"
+    - name: pending
+      type: "list of string"
+    - name: blocked
+      type: "list of {item: string, kind: real|fake, reason: string}"
+    - name: out_of_scope
+      type: "list of string"
+      description: "Tasks discarded by residual_recluster (failed Goal-SV threshold)"
+    - name: terminal
+      type: boolean
+      description: "true when pending=[] AND active=[]"
+    - name: terminal_mode
+      type: string
+      enum: ["SUCCESS", "BLOCKED", "OUT_OF_SCOPE", "CONTINUE", "RESUME"]
+      description: "Precedence: BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty"
+    - name: next
+      type: "string or null"
+      description: "One immediate next step"
+
+blocker:
+  description: "Blocker classification for clean_next_state.blocked entries"
+  fields:
+    - name: kind
+      type: string
+      enum: ["real", "fake"]
+    - name: claim
+      type: string
+  rules:
+    real: "capability/dependency/knowledge gap — investigate or smoke-plan"
+    fake: "unfinished prior task / sequencing — finish the task, do not halt"
+  real_examples:
+    - "missing auth mechanism"
+    - "hardware feature absent after exhaustive search"
+  fake_examples:
+    - "need step 3 first"
+    - "waiting for user to glance at logs"
+
+# ═══════════════════════════════════════════════════════════════════════
+# ACTION CLASS
+# ═══════════════════════════════════════════════════════════════════════
+action_class:
+  description: "Classification of every action BEFORE execution (v6 envelope model)"
+  fields:
+    activity:
+      enum: ["CONVERSATION", "OBSERVE", "EXECUTE_TEST", "MODIFY_CANDIDATE", "MODIFY_PROJECT", "PROMOTE_STABLE", "SELF_MODIFY"]
+      descriptions:
+        CONVERSATION: "no side effects"
+        OBSERVE: "read-only investigation"
+        EXECUTE_TEST: "run declared oracles"
+        MODIFY_CANDIDATE: "write within ExecutionEnvelope (pre-approved)"
+        MODIFY_PROJECT: "write outside envelope (requires Gate 4 approval)"
+        PROMOTE_STABLE: "merge candidate→stable (ALWAYS explicit approval)"
+        SELF_MODIFY: "change kernel/agent/oracle (triple-separation)"
+    effect:
+      enum: ["NO_WRITE", "DECLARED_TEMP_WRITE", "CANDIDATE_WRITE", "PERSISTENT_WRITE"]
+    risk:
+      enum: ["LOW", "ELEVATED", "DESTRUCTIVE", "CRITICAL"]
+  mapping:
+    - "fix/edit in candidate branch → MODIFY_CANDIDATE + CANDIDATE_WRITE"
+    - "fix/edit in mainline → MODIFY_PROJECT + PERSISTENT_WRITE"
+    - "merge candidate→stable → PROMOTE_STABLE + PERSISTENT_WRITE"
+    - "change kernel/oracle/metric → SELF_MODIFY + PERSISTENT_WRITE"
+    - "test/build/typecheck → EXECUTE_TEST"
+    - "show/read/search → OBSERVE"
+  invariants:
+    - "CONVERSATION/OBSERVE ⇒ effect = NO_WRITE"
+    - "EXECUTE_TEST ⇒ no silent persistent write"
+    - "MODIFY_CANDIDATE within envelope ⇒ pre-approved (no Gate 4 re-approval)"
+  envelope_pre_approval:
+    applies_to: "MODIFY_CANDIDATE only"
+    explicit_required_for:
+      - "MODIFY_PROJECT (any envelope state)"
+      - "PROMOTE_STABLE"
+      - "SELF_MODIFY"
+      - "protected-surface mutation"
+      - "candidate work outside valid envelope"
+
+# ═══════════════════════════════════════════════════════════════════════
+# EXECUTION ENVELOPE
+# ═══════════════════════════════════════════════════════════════════════
+execution_envelope:
+  description: "Pre-approved authorization for MODIFY_CANDIDATE (v6.0 — authenticated, verifiable)"
+  approval_payload:
+    description: "Immutable signed payload — all fields user-approved"
+    fields:
+      - envelope_id: "uuid"
+      - revision: "int"
+      - issued_at: "ISO-8601"
+      - expires_at: "ISO-8601"
+      - approved_by: "user"
+      - scope_paths: "list of glob patterns (concrete, in payload)"
+      - scope_spec_hash: "sha256:... — hash(canonical(sorted scope_paths))"
+      - baseline_tree_hash: "sha256:..."
+      - budget:
+          maximum_created: "int"
+          maximum_modified: "int"
+          maximum_deleted: "int"
+      - wall_time_seconds: "int"
+      - attempts_max: "int"
+      - allowed_action_classes: "list of activity enum values"
+  approval_payload_hash: "sha256:... — RFC 8785 JCS canonical serialization"
+  approval_attestation:
+    fields:
+      - algorithm: "HMAC-SHA256"
+      - key_id: "string"
+      - payload_hash: "sha256:... (must == approval_payload_hash)"
+      - approval_event_id: "uuid"
+      - value: "hmac:..."
+  mutable:
+    description: "Trusted runtime only — NOT in approval_payload"
+    fields:
+      - status: "active | expired | revoked"
+      - mutation_ledger:
+          created: "list of paths"
+          modified: "list of paths"
+          deleted: "list of paths"
+          cumulative_delta_hash: "sha256:..."
+  validation:
+    description: "All conditions through signed payload; 8 checks"
+    conditions:
+      - "1. status == active"
+      - "2. now < approval_payload.expires_at"
+      - "3. expires_at <= issued_at + wall_time_seconds"
+      - "4. current scope spec hash == approval_payload.scope_spec_hash"
+      - "5. approval_attestation.payload_hash == approval_payload_hash"
+      - "6. HMAC(approval_payload_hash, runtime_key) == attestation.value"
+      - "7. activity ∈ allowed_action_classes"
+      - "8. mutation_ledger counts within budget limits"
+  path_authorization: "normalize → resolve symlink/junction/reparse-point → case-normalize per filesystem → verify inside approved root"
+  unknown_activity: "RECLASSIFY_OR_DENY (fail-closed, never approve blind)"
+
+# ═══════════════════════════════════════════════════════════════════════
+# STAMPS (oracle + inference + direct_evidence + common envelope)
+# ═══════════════════════════════════════════════════════════════════════
+stamps:
+  common_envelope:
+    description: "Every stamp carries these fields"
+    fields:
+      - stamp_id: "uuid"
+      - stamp_type: "ORACLE | DIRECT_EVIDENCE | INFERENCE"
+      - claim_id: "C<number>"
+      - claim_revision: "int (monotonic per claim)"
+      - claim_scope_hash: "sha256:..."
+      - issued_at: "ISO-8601"
+      - expires_at: "ISO-8601"
+      - issuer_principal_id: "string"
+      - source_hash: "sha256:..."
+      - result: "PASS | VALID"
+      - attestation: "runtime cryptographic attestation"
+    rule: "No text object with result:PASS is a stamp — type+issuer+attestation required"
+
+  oracle_stamp:
+    description: "System-stamped Exact claim from oracle PASS"
+    inherits: "common_envelope"
+    specific_fields:
+      stamp_type: "ORACLE"
+      result: "PASS"
+    effect: "σ(c) = Exact (scoped to claim_scope)"
+
+  inference_stamp:
+    description: "System-stamped Inferred claim from valid derivation"
+    inherits: "common_envelope"
+    specific_fields:
+      stamp_type: "INFERENCE"
+      derivation_rule: "string (which rule produced this claim)"
+      dependencies: "list of claim_ids"
+      dependency_effective_status: "dict(claim_id → status)"
+      derivation_hash: "sha256:... (deterministic hash of inputs)"
+      result: "VALID | INVALID"
+    preconditions:
+      - "All dependencies ∈ G (effective_status ≥ Inferred)"
+      - "Derivation rule is declared"
+      - "Derivation hash matches computed hash"
+      - "No circular dependency (detected → Unknown)"
+    effect: "On VALID: σ(c) = Inferred (system-stamped, eligible for G)"
+
+  direct_evidence_stamp:
+    description: "Exact claim from direct observation (read tool, session-read)"
+    inherits: "common_envelope"
+    specific_fields:
+      stamp_type: "DIRECT_EVIDENCE"
+      source_type: "file_read | session_read | tool_result"
+      source_handle: "string (path or session id)"
+      source_revision: "string (commit hash)"
+      content_hash: "sha256:..."
+      scope: "string (line range or specific context)"
+      result: "VALID"
+
+  oracle:
+    description: "Oracle declaration (NOT a stamp — used in master_plan tasks)"
+    fields:
+      - claim_id: "string"
+      - claim_scope: "string (what fact becomes Exact on PASS)"
+      - cmd: "string (cwd + command)"
+      - pass: "string (criteria)"
+      - result: "PASS | FAIL | TIMEOUT | CRASH"
+
+# ═══════════════════════════════════════════════════════════════════════
+# CLAIM LEDGER
+# ═══════════════════════════════════════════════════════════════════════
+claim_ledger:
+  description: "All claims and their epistemic status (REQUIRED for Gate 3)"
+  fields:
+    claims:
+      type: list
+      items:
+        - id: "string (e.g. C1)"
+        - text: "string"
+        - status: "Exact | Inferred | Hypothetical | Guess | Unknown"
+        - falsifier: "string (optional, for Hypothetical)"
+        - reason: "string"
+        - deps: "list of claim_ids (for Inferred/Exact — EpistemicDAG)"
+        - evidence: "string (for Exact)"
+        - scope: "string (for Exact — e.g. file:lines)"
+    premises_for_plan: "list of claim_ids (MUST be subset of G = Exact|Inferred)"
+    open_questions: "list of claim_ids (must NOT drive MODIFY)"
+  rules:
+    - "Unmarked ⇒ Unknown"
+    - "Hypothetical in premises_for_plan ⇒ plan illegal / MODIFY blocked"
+    - "effective(C3) = min(status(C3), effective(deps...)) — weakest-link ceiling"
+
+# ═══════════════════════════════════════════════════════════════════════
+# MASTER PLAN
+# ═══════════════════════════════════════════════════════════════════════
+master_plan:
+  description: "Plan structure for GATE 3"
+  fields:
+    - name: description
+      type: string
+      description: "one-line goal"
+    - name: premises
+      type: "list of claim_ids (subset of G only)"
+    - name: open_questions
+      type: "list of claim_ids (promotion tasks / oracles)"
+    - name: goals
+      type: list
+      items:
+        - id: "string (e.g. G1)"
+        - sv: "list of keywords (3-9 terms)"
+        - document: "string (abstract + I/O + brief impl sketch)"
+        - done_pct: "int"
+        - tasks:
+            type: list
+            items:
+              - id: "string (e.g. T1)"
+              - sv: "list of keywords"
+              - what: "string (file-and-function level change)"
+              - files: "list of paths"
+              - depends_on_claims: "list of claim_ids"
+              - oracle: "oracle (see stamps.oracle)"
+              - status: "[ ] or [x]"
+              - attempts: "int (default 0)"
+              - last_failure: "string or null"
+              - worker_id: "string or null"
+              - lease_expires_at: "ISO-8601 or null"
+              - action_class: "action_class (see action_class schema)"
+    - name: claim_ledger
+      type: "claim_ledger (see claim_ledger schema)"
+
+# ═══════════════════════════════════════════════════════════════════════
+# FRACTAL GEOMETRY
+# ═══════════════════════════════════════════════════════════════════════
+fractal_geometry:
+  models:
+    Sierpinski:
+      condition: "peaks >= 3, or orthogonality_score < 0.7 for peaks ∈ {4,8}"
+      description: "Triangle subdivision"
+    QuadOct:
+      condition: "peaks ∈ {2,4,8} and orthogonality_score >= 0.7 (if applicable)"
+      description: "Binary (2), quad (4), or oct (8) subdivision"
+    LSystem:
+      condition: "peaks == 1 or fallback"
+      description: "F→F+F−F grammar walk"
+  adaptive_tau:
+    description: "L1 distance threshold for candidate filtering"
+    formula: |
+      if N < 20: τ = 0.5 (fixed fallback — reliable on small sets)
+      else: τ = P_70({d1(c, g)}) — 70th percentile of L1 distances
+      clamped to [0.1, 0.9]
+  adaptive_k:
+    description: "Number of medoids — dispersion-based via CV"
+    formula: |
+      k = k_min + floor((k_max - k_min) * min(CV, 1.0))
+      where k_min = 1, k_max = ceil(N/2), CV = σ/μ
+      Edge: N=0 → k=0; N=1 → k=1 (CV undefined → fixed); μ=0 → k=k_min
+  adaptive_depth:
+    description: "Fractal generation depth"
+    formula: |
+      base_depth = 3 if peaks >= 4 else 2 if peaks >= 2 else 1
+      depth = base_depth - 1 if coverage >= 0.80
+              else base_depth + 1 if coverage <= 0.35
+              else base_depth
+      clamped to [1, 3]
+  Manhattan_L1:
+    definition: "d1(c, g) = Σ_k |w_c(k) − w_g(k)|"
+    usage: "candidate filter, k-medoids clustering, signal classification, delta computation"
+  k_medoids:
+    algorithm: "PAM (exact O(N²)) for N < 100; CLARA (sampling) for N ≥ 100"
+    clara_params: "sample_size = min(N, 40 + 2*k), 5 repetitions, best by total L1 cost"
+  orthogonality_score:
+    description: "Resolves ≥3 vs 4/8 dispatch overlap"
+    threshold: "≥ 0.7 → Quad-Oct (independent axes); < 0.7 → Sierpinski (interdependent)"
+
+# ═══════════════════════════════════════════════════════════════════════
+# SMOKE CONTRACT
+# ═══════════════════════════════════════════════════════════════════════
+smoke_contract:
+  description: "Pre-implementation smoke test specification (SMOKE_BEFORE)"
+  fields:
+    smoke_na: "boolean or string (if N/A, must justify — e.g. docs/plan-only)"
+    baseline:
+      type: list
+      items:
+        - label: "string"
+        - cmd: "string (runnable command)"
+        - expected_exit: "int (0 for success)"
+        - tolerance: "int (optional, default 0)"
+        - tolerance_reason: "string (required if tolerance > 0)"
+    post_checks:
+      type: list
+      items:
+        - label: "string"
+        - cmd: "string"
+        - expected_exit: "int"
+    blast_radius: "string (description of affected files/systems)"
+  validation:
+    - "if not smoke_na: baseline must have ≥1 check with label+cmd+expected_exit"
+    - "tolerance > 0 ⇒ tolerance_reason required"
+    - "Gate 4 rejects invalid specs"
+
+# ═══════════════════════════════════════════════════════════════════════
+# MESSAGE TAG
+# ═══════════════════════════════════════════════════════════════════════
+msg_tag:
+  description: "Content fingerprint for cache/change detection (v6 Governance)"
+  fields:
+    - name: md5_msg_tag
+      type: string
+      format: "8-32 hex"
+      description: "Content fingerprint via canonical serialization"
+    - name: serialization
+      type: string
+      format: "canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev"
+  note: "NOT for cryptographic authorization — use SHA-256 or BLAKE3 for stamps"
+
+# ═══════════════════════════════════════════════════════════════════════
+# MINOR SCHEMAS (signal_cluster, bug_fix, explorer_goal)
+# ═══════════════════════════════════════════════════════════════════════
+signal_cluster:
+  description: "Noise-filtered signal cluster (Gate 1 — COLLAPSED_DUPLICATES)"
+  fields:
+    - name: source
+      type: string
+      enum: ["lsp", "test", "log", "tool", "compiler", "typecheck"]
+    - name: pattern
+      type: string
+      example: "unresolved reference: Foo"
+    - name: n
+      type: int
+      description: "raw count"
+    - name: cardinality
+      type: int
+      description: "preserved for evidence — never discarded"
+    - name: unique_locations
+      type: int
+      description: "distinct file:line occurrences"
+    - name: delta
+      type: float
+      description: "Manhattan delta(signal, anchor)"
+    - name: likely_shared_root
+      type: boolean
+    - name: disposition
+      type: string
+      enum: ["COLLAPSED_DUPLICATES", "CONFIRMATION", "DIVERGENCE"]
+    - name: evidential_status
+      type: string
+      enum: ["ACTIVE"]
+      description: "never discarded"
+
+bug_fix:
+  description: "Bug fix chain state (Gate 8)"
+  fields:
+    - symptom: "string"
+    - error_test: "{cmd: string, expect: FAIL, actual: string}"
+    - trial_fix: "{change: string, oracle: PASS}"
+    - real_fix: "{change: string, oracle: PASS}"
+    - targeted_tests: "{cmds: list, result: PASS}"
+    - status: "open | fixed"
+
+explorer_goal:
+  description: "Delegated exploration task (Gate 6)"
+  fields:
+    - question: "string (specific question)"
+    - scope: "{paths: list, symbols: list}"
+    - return: "[file_paths, line_numbers, signatures]"
+  correct_example: "Find callers of path.dirname in src/tool/; paths, lines, signatures."
+  wrong_example: "Search for path-related things."

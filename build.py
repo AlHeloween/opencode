@@ -186,10 +186,14 @@ def step_kernel() -> None:
     pkg = ROOT / "prompts_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
-    # Assemble reasoning.txt + algorithm_card.txt + precompiled kernel from kernel
+    # Step 1: Precompile kernel (must finish before step 2 — Python import cache)
     _run([sys.executable, "-c",
-          "from prompts_kernel import write_reasoning, write_algorithm_card, write_precompiled_kernel; "
-          f"write_precompiled_kernel(); write_reasoning(); write_algorithm_card({card_dst.as_posix()!r})"])
+          "from prompts_kernel import write_precompiled_kernel; "
+          "write_precompiled_kernel()"])
+    # Step 2: Assemble reasoning.txt + algorithm_card.txt (fresh import picks up precompiled)
+    _run([sys.executable, "-c",
+          "from prompts_kernel import write_reasoning, write_algorithm_card; "
+          f"write_reasoning(); write_algorithm_card({card_dst.as_posix()!r})"])
     # Render runtime kernel txt
     _run(
         [

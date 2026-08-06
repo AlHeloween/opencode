@@ -13,6 +13,8 @@ oracles (Gate 8) before Done / `[x]`. Prefer edit over write for partial updates
 
 Each edit automatically creates a backup of the file's pre-edit content before applying changes. Backups are stored under the worktree data backups directory for the session. Each session keeps up to 50 backups; oldest are deleted first.
 
+**Undo without git/Fossil:** use the `restore` tool — `restore({ filePath })` for latest bak, `restore({ list: true })` to list, `restore({ filename })` for a specific bak. Works for paths outside the worktree too (session `.bak` + originalPath).
+
 ---
 
 Performs exact string replacements in files.

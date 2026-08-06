@@ -1,4 +1,6 @@
 import { Cause, Effect, Layer, Context, Schema } from "effect"
+import * as path from "path"
+import { existsSync } from "fs"
 import { Bus } from "@/bus"
 import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
 import { packToImpactFields } from "@/codegraph/sqlite-pack"
@@ -17,6 +19,63 @@ const log = Log.create({ service: "session.summary" })
 
 /** Tools that mutate WC and store filediff metadata on completed parts. */
 const MUTATION_TOOLS = new Set(["write", "edit", "multiedit"])
+
+/**
+ * Resolve a session_diff path for existence checks.
+ * Tool filediffs are often absolute; relative paths resolve under project directory.
+ */
+export function resolveDiffPath(file: string): string {
+  if (path.isAbsolute(file)) return file
+  try {
+    return path.join(Instance.directory, file)
+  } catch {
+    return file
+  }
+}
+
+export function isUnderWorktree(file: string): boolean {
+  try {
+    const abs = resolveDiffPath(file).replaceAll("\\", "/")
+    const wt = Instance.worktree.replaceAll("\\", "/")
+    const dir = Instance.directory.replaceAll("\\", "/")
+    if (abs === wt || abs.startsWith(wt + "/")) return true
+    if (abs === dir || abs.startsWith(dir + "/")) return true
+    return false
+  } catch {
+    return true
+  }
+}
+
+/**
+ * Drop ghost entries from Modified Files:
+ * - path missing on disk (deleted after write — list used to keep them forever)
+ * - path outside worktree/cwd and missing (foreign C:\Users\... after cleanup)
+ *
+ * Ledger Exact for memory remains in tool parts; session_diff is UX "still real files".
+ */
+export function pruneGhostFileDiffs(diffs: Snapshot.FileDiff[]): Snapshot.FileDiff[] {
+  const kept: Snapshot.FileDiff[] = []
+  let dropped = 0
+  for (const item of diffs) {
+    const abs = resolveDiffPath(item.file)
+    let exists = false
+    try {
+      exists = existsSync(abs)
+    } catch {
+      kept.push(item)
+      continue
+    }
+    if (exists) {
+      kept.push(item)
+      continue
+    }
+    // Missing: drop (no delete tool event → otherwise forever "modified")
+    dropped++
+    log.debug("session_diff prune missing path", { file: item.file, abs })
+  }
+  if (dropped > 0) log.info("session_diff pruned ghosts", { dropped, kept: kept.length })
+  return kept
+}
 
 /** Parse Layer-1 synthetic summary-range user text (`<!-- summary-range from_id="…" to_id="…" -->`). */
 export function parseSummaryRange(text: string): { fromId: string; toId: string } | undefined {
@@ -295,10 +354,12 @@ export const layer = Layer.effect(
       const current = yield* storage
         .read<Snapshot.FileDiff[]>(["session_diff", input.sessionID])
         .pipe(Effect.catch(() => Effect.succeed([] as Snapshot.FileDiff[])))
-      const diffs = [
+      const merged = [
         ...current.filter((item) => !changed.has(normalizePath(item.file))),
         ...input.diffs,
       ]
+      // Drop paths already gone from disk (manual delete / cleanup of foreign absolutes)
+      const diffs = pruneGhostFileDiffs(merged)
       log.debug("session summary tool filediffs merged", {
         sessionID: input.sessionID,
         files: input.diffs.length,
@@ -390,7 +451,7 @@ export const layer = Layer.effect(
         return
       }
 
-      const diffs = yield* computeDiff({ messages: all })
+      const diffs = pruneGhostFileDiffs(yield* computeDiff({ messages: all }))
       log.info("summarize", {
         sessionID: input.sessionID,
         msgCount: all.length,
@@ -453,13 +514,27 @@ export const layer = Layer.effect(
       const diffs = yield* storage
         .read<Snapshot.FileDiff[]>(["session_diff", input.sessionID])
         .pipe(Effect.catch(() => Effect.succeed([] as Snapshot.FileDiff[])))
-      const next = diffs.map((item) => {
+      const unquoted = diffs.map((item) => {
         const file = unquoteGitPath(item.file)
         if (file === item.file) return item
         return { ...item, file }
       })
-      const changed = next.some((item, i) => item.file !== diffs[i]?.file)
-      if (changed) yield* storage.write(["session_diff", input.sessionID], next).pipe(Effect.ignore)
+      // Reconcile UX list with disk: ghosts (deleted / cleaned foreign paths) leave the list
+      const next = pruneGhostFileDiffs(unquoted)
+      const changed =
+        next.length !== diffs.length || next.some((item, i) => item.file !== diffs[i]?.file)
+      if (changed) {
+        yield* storage.write(["session_diff", input.sessionID], next).pipe(Effect.ignore)
+        yield* bus.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: next })
+        yield* sessions.setSummary({
+          sessionID: input.sessionID,
+          summary: {
+            additions: next.reduce((sum, item) => sum + item.additions, 0),
+            deletions: next.reduce((sum, item) => sum + item.deletions, 0),
+            files: next.length,
+          },
+        }).pipe(Effect.ignore)
+      }
       return next
     })
 

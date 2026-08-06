@@ -7,6 +7,7 @@ import { Ripgrep } from "../file/ripgrep"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import DESCRIPTION from "./ls.txt"
 import * as Tool from "./tool"
+import { directoryPathDescription } from "./path-hint"
 
 const IGNORE_PATTERNS = [
   "node_modules/",
@@ -38,7 +39,9 @@ const LIMIT = 100
 
 export const Parameters = Schema.Struct({
   path: Schema.optional(Schema.String).annotate({
-    description: "The absolute path to the directory to list (must be absolute, not relative)",
+    description: directoryPathDescription(
+      "Optional path to the directory to list (default: project working directory)",
+    ),
   }),
   ignore: Schema.optional(Schema.Array(Schema.String)).annotate({
     description: "List of glob patterns to ignore",

@@ -21,6 +21,7 @@ import { Global } from "@opencode-ai/core/global"
 import * as Bom from "@/util/bom"
 import { execFile } from "child_process"
 import { Constitution } from "@/session/constitution"
+import { filePathDescription } from "./path-hint"
 
 const MAX_BACKUPS_PER_SESSION = 50
 
@@ -105,7 +106,9 @@ function lock(filePath: string) {
 }
 
 export const Parameters = Schema.Struct({
-  filePath: Schema.String.annotate({ description: "The absolute path to the file to modify" }),
+  filePath: Schema.String.annotate({
+    description: filePathDescription("Path to the file to modify"),
+  }),
   oldString: Schema.String.annotate({ description: "The text to replace" }),
   newString: Schema.String.annotate({
     description: "The text to replace it with (must be different from oldString)",

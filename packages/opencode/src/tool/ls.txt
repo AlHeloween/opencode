@@ -1,4 +1,4 @@
-Lists files and directories in a tree format. Must use an absolute path parameter.
+Lists files and directories in a tree format. Prefer a path relative to the project working directory (absolute only if under worktree).
 
 Use `directoriesOnly: true` to show directory structure only (like `tree -d`).
 
@@ -33,6 +33,6 @@ Set `directoriesOnly: true` to show only directory structure (no files).
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `path` | string | workspace root | Absolute path to directory to list |
+| `path` | string | workspace root | Directory to list (prefer relative under project; absolute only under worktree) |
 | `ignore` | string[] | — | Additional glob patterns to ignore |
 | `directoriesOnly` | boolean | false | Show only directories (no files). Like `tree -d`. |

@@ -6,6 +6,7 @@ import DESCRIPTION from "./multiedit.txt"
 import * as Tool from "./tool"
 import { Constitution } from "@/session/constitution"
 import { Instance } from "../project/instance"
+import { filePathDescription } from "./path-hint"
 
 const Edit = Schema.Struct({
   oldString: Schema.String.annotate({ description: "The text to replace" }),
@@ -16,7 +17,9 @@ const Edit = Schema.Struct({
 })
 
 export const Parameters = Schema.Struct({
-  filePath: Schema.String.annotate({ description: "The absolute path to the file to modify" }),
+  filePath: Schema.String.annotate({
+    description: filePathDescription("Path to the file to modify"),
+  }),
   edits: Schema.Array(Edit).annotate({
     description: "Array of edit operations to perform sequentially on the file",
   }),

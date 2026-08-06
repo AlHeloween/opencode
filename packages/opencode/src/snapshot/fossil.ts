@@ -213,25 +213,46 @@ export const layer = Layer.effect(
           yield* fs.writeFileString(ignorePath, content).pipe(Effect.orDie)
         })
 
-        // Self-healing bootstrap — if fossil open fails (corrupted DB), remove and reinit
+        const sameRepoPath = (repository: string | undefined) =>
+          !!repository &&
+          path.resolve(repository).replaceAll("\\", "/").toLowerCase() ===
+            path.resolve(repoPath).replaceAll("\\", "/").toLowerCase()
+
+        /** open --force --keep --nested; clear stale markers once if needed. */
+        const openSnapshotRepo = Effect.fnUntraced(function* () {
+          const openResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
+            Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "fossil process error" })),
+          )
+          if (openResult.code === 0) return { ok: true as const, stderr: openResult.stderr }
+          // Stale _FOSSIL_ after data wipe / wrong repo — soft recover without HISTORY_INVALID
+          yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+          yield* clearCheckoutMarkers(fs, worktree)
+          const retry = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
+            Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+          )
+          return { ok: retry.code === 0, stderr: retry.stderr || openResult.stderr }
+        })
+
+        // Self-healing bootstrap:
+        // - missing folder/repo → clean init (user wipe / first boot) — no HISTORY_INVALID
+        // - existing .fsl open fails after soft marker clear → bak + HISTORY_INVALID + reinit
         const ensureInit = Effect.fnUntraced(function* () {
           yield* ensureIgnoreGlob()
 
-          if (yield* fs.exists(repoPath)) {
-            // Fast path: if the checkout is already open and pointing to the
-            // correct repository, skip `fossil open --force`. Calling open on
-            // an already-open checkout in Fossil v2.28+ can trigger internal
-            // branch operations that fail/hang.
+          const repoExists = yield* fs.exists(repoPath)
+
+          if (!repoExists) {
+            // Absent data/fossil or snapshot.fsl → clean slate. Not corruption.
+            log.info("fossil repo missing — clean init (no HISTORY_INVALID)", { repoPath, worktree })
+            yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+            yield* clearCheckoutMarkers(fs, worktree)
+          } else {
+            // Fast path: checkout already open on the correct repository.
             const probe = yield* fossil(["info"], { cwd: worktree }).pipe(
               Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
             )
             const probeRepo = probe.text.match(/^repository:\s+(.+)$/m)?.[1]?.trim()
-            if (
-              probe.code === 0 &&
-              probeRepo &&
-              path.resolve(probeRepo).replaceAll("\\", "/").toLowerCase() ===
-                path.resolve(repoPath).replaceAll("\\", "/").toLowerCase()
-            ) {
+            if (probe.code === 0 && sameRepoPath(probeRepo)) {
               return true
             }
 
@@ -240,20 +261,12 @@ export const layer = Layer.effect(
             )
             const alreadyOpen = /already an open tree/i.test(openResult.stderr)
             if (openResult.code === 0 || alreadyOpen) {
-              // `fossil open --force` is required for a non-empty worktree,
-              // but it is not idempotent. Several snapshot consumers may
-              // share this checkout, so verify and reuse the existing one.
               const currentResult = yield* fossil(["info"], { cwd: worktree })
               const repository = currentResult.text.match(/^repository:\s+(.+)$/m)?.[1]?.trim()
-              const sameRepository =
-                repository &&
-                path.resolve(repository).replaceAll("\\", "/").toLowerCase() ===
-                  path.resolve(repoPath).replaceAll("\\", "/").toLowerCase()
-              if (currentResult.code === 0 && sameRepository) return true
+              if (currentResult.code === 0 && sameRepoPath(repository)) return true
 
-              // Never close or recover an existing checkout until its
-              // identity is known. It may belong to a parent worktree.
-              if (alreadyOpen) {
+              // Another checkout already open for a different repo — do not steal it.
+              if (alreadyOpen && repository && !sameRepoPath(repository)) {
                 log.error("bug: fossil checkout conflicts with snapshot repository", {
                   repoPath,
                   repository,
@@ -262,40 +275,35 @@ export const layer = Layer.effect(
                 return false
               }
 
-              // A stale checkout marker can make `open --force` succeed while later
-              // commands fail with "Unresolved RID values". Do not recreate
-              // a healthy checkout: other services may be using it.
+              // Soft recover: close + clear markers + reopen (stale open after data recreate)
               yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
               yield* clearCheckoutMarkers(fs, worktree)
-              const reopenResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree }).pipe(
-                Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
-              )
-              if (reopenResult.code === 0) return true
-              log.warn("fossil reopen failed, performing atomic recovery", { stderr: reopenResult.stderr })
+              const soft = yield* openSnapshotRepo()
+              if (soft.ok) return true
+              log.warn("fossil reopen failed after clearing markers", { stderr: soft.stderr })
             } else {
-              log.warn("fossil open failed, performing atomic recovery", { stderr: openResult.stderr })
+              // open failed hard — try soft recover once before labeling corruption
+              log.warn("fossil open failed — soft recover then maybe reinit", { stderr: openResult.stderr })
+              yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+              yield* clearCheckoutMarkers(fs, worktree)
+              const soft = yield* openSnapshotRepo()
+              if (soft.ok) return true
             }
 
-            // Corrupted or out-of-sync repository — recovery is scoped to
-            // this checkout/repository pair and continues into reinit below.
-            // Never touches project .git (including index.lock).
-            //
-            // CRITICAL: preserve the old repo as a backup BEFORE deleting.
-            // Silent deletion destroys all snapshot history and makes every
-            // stored hash in the session DB invalid (resolveHash would then
-            // fall back to the empty opencode-init baseline → data loss).
+            // True corruption / unusable .fsl — backup, mark invalid, reinit.
+            // Never touches project .git.
             yield* fossil(["close", "--force"], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
             const backupPath = repoPath + ".bak." + Date.now()
             yield* fs.copy(repoPath, backupPath).pipe(Effect.catch(() => Effect.void))
             log.warn("bug: fossil repo corrupted — creating backup before reinit", {
               repoPath,
               backupPath,
-              recovery: "All stored snapshot hashes are now invalid. Session undo/revert will fail with clear errors instead of silently reverting to empty state.",
+              recovery:
+                "All stored snapshot hashes are now invalid. Session undo/revert will fail with clear errors instead of silently reverting to empty state.",
             })
             yield* fs.remove(repoPath).pipe(Effect.catch(() => Effect.void))
             yield* clearCheckoutMarkers(fs, worktree)
             yield* fs.remove(path.join(worktree, ".fossil-settings", "ignore-glob")).pipe(Effect.catch(() => Effect.void))
-            // Mark history lost before reinit so resolveHash/checkout fail loud (SP-05)
             yield* writeHistoryInvalid(backupPath, "reinit_after_corruption")
           }
 
@@ -308,9 +316,9 @@ export const layer = Layer.effect(
             return false
           }
 
-          const openResult = yield* fossil(["open", repoPath, "--force", "--keep", "--nested"], { cwd: worktree })
-          if (openResult.code !== 0) {
-            log.warn("fossil open failed", { stderr: openResult.stderr })
+          const opened = yield* openSnapshotRepo()
+          if (!opened.ok) {
+            log.warn("fossil open failed after init", { stderr: opened.stderr })
             return false
           }
 

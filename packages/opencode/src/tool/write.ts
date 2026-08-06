@@ -18,13 +18,14 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Bom from "@/util/bom"
 import { Constitution } from "@/session/constitution"
 import { validateCodeSyntax } from "@/util/syntax-validator"
+import { filePathDescription } from "./path-hint"
 
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
 
 export const Parameters = Schema.Struct({
   content: Schema.String.annotate({ description: "The content to write to the file" }),
   filePath: Schema.String.annotate({
-    description: "The absolute path to the file to write (must be absolute, not relative)",
+    description: filePathDescription("Path to the file to write"),
   }),
 })
 

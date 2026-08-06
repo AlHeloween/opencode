@@ -66,7 +66,11 @@ describe("tool parameters", () => {
 
   describe("bash", () => {
     test("accepts minimum: command + description", () => {
-      expect(parse(Bash, { command: "ls", description: "list" })).toEqual({ command: "ls", description: "list" })
+      expect(parse(Bash, { command: "ls", description: "list" })).toEqual({
+        command: "ls",
+        description: "list",
+        run_in_background: true,
+      })
     })
     test("accepts optional timeout + workdir", () => {
       const parsed = parse(Bash, { command: "ls", description: "list", timeout: 5000, workdir: "/tmp" })

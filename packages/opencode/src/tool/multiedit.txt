@@ -32,7 +32,7 @@ Each edit in the `edits` array:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `filePath` | string | — | Absolute path to the file |
+| `filePath` | string | — | Prefer relative under project cwd; absolute only if under worktree |
 | `edits[].oldString` | string | — | Text to replace |
 | `edits[].newString` | string | — | Replacement text (must differ) |
 | `edits[].replaceAll` | boolean | false | Replace all occurrences |

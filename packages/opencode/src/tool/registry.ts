@@ -21,6 +21,7 @@ import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { ListTool } from "./ls"
 import { MultiEditTool } from "./multiedit"
+import { RestoreTool } from "./restore"
 import { UniversalSearchTool } from "./universalsearch"
 import { CodeGraphTool } from "./codegraph"
 import { MessageSearchTool } from "./messagesearch"
@@ -151,6 +152,7 @@ export const layer: Layer.Layer<
     const skilltool = yield* SkillTool
     const listtool = yield* ListTool
     const multiedit = yield* MultiEditTool
+    const restore = yield* RestoreTool
     const universalsearch = yield* UniversalSearchTool
     const codegraph = yield* CodeGraphTool
     const messagesearch = yield* MessageSearchTool
@@ -261,6 +263,7 @@ export const layer: Layer.Layer<
           memory: Tool.init(memory),
           list: Tool.init(listtool),
           multiedit: Tool.init(multiedit),
+          restore: Tool.init(restore),
           universalsearch: Tool.init(universalsearch),
           codegraph: Tool.init(codegraph),
           messagesearch: Tool.init(messagesearch),
@@ -296,6 +299,7 @@ export const layer: Layer.Layer<
             tool.patch,
             tool.list,
             tool.multiedit,
+            tool.restore,
             tool.universalsearch,
             tool.codegraph,
             tool.messagesearch,

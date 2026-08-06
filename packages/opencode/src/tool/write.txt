@@ -30,5 +30,5 @@ Writes a file to the local filesystem. Overwrites if the file already exists.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `filePath` | string | Absolute path to the file to write |
+| `filePath` | string | Prefer relative under project cwd (e.g. `src/foo.ts`); absolute only if under worktree — do not invent foreign `C:\Users\...` paths |
 | `content` | string | The full file content |

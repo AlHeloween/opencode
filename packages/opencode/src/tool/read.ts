@@ -11,6 +11,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
 import { isImageAttachment, sniffAttachmentMime } from "@/util/media"
 import { convertDocument, isSupportedDocumentFormat } from "../util/markdownify"
+import { filePathDescription } from "./path-hint"
 
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
@@ -28,7 +29,9 @@ const HEX_DUMP_DEFAULT_BYTE_LIMIT = 512
 // Schema output is identical (`type: "number"`), so the LLM view is
 // unchanged; purely CLI-facing uses must now send numbers rather than strings.
 export const Parameters = Schema.Struct({
-  filePath: Schema.String.annotate({ description: "The absolute path to the file or directory to read" }),
+  filePath: Schema.String.annotate({
+    description: filePathDescription("Path to the file or directory to read"),
+  }),
   offset: Schema.optional(Schema.Number).annotate({
     description: "The line number (or byte offset in hex mode) to start reading from (1-indexed)",
   }),

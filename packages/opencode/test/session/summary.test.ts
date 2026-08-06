@@ -194,6 +194,27 @@ describe("SessionSummary.computeDiff", () => {
   })
 })
 
+describe("SessionSummary.pruneGhostFileDiffs", () => {
+  test("drops missing paths (deleted after write / cleaned foreign absolutes)", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const alive = path.join(tmp.path, "alive.ts")
+        await Bun.write(alive, "ok\n")
+        const ghost = path.join(tmp.path, "gone.ts")
+        const foreign = "C:\\Users\\ghost\\Documents\\opencode\\x.txt"
+        const kept = SessionSummary.pruneGhostFileDiffs([
+          { file: alive, patch: "", additions: 1, deletions: 0 },
+          { file: ghost, patch: "", additions: 2, deletions: 0 },
+          { file: foreign, patch: "", additions: 3, deletions: 0 },
+        ])
+        expect(kept.map((d) => d.file)).toEqual([alive])
+      },
+    })
+  })
+})
+
 describe("SessionSummary.parseSummaryRange / sliceMessagesForSummaryRange", () => {
   test("parses from_id and to_id from synthetic summary-range text", () => {
     const text = `<!-- summary-range from_id="msg_aaa" to_id="msg_zzz" session_id="ses_1" -->
@@ -467,6 +488,9 @@ describe("SessionSummary.update / updateFallback (tool filediffs only)", () => {
             const summary = yield* SessionSummary.Service
             const a = path.join(dir, "a.ts")
             const b = path.join(dir, "b.ts")
+            // session_diff list is reconciled to disk — ghosts (missing files) are pruned
+            yield* Effect.promise(() => Bun.write(a, "a\n"))
+            yield* Effect.promise(() => Bun.write(b, "b\n"))
             yield* summary.updateFallback({
               sessionID: info.id,
               messageID: user.id,
@@ -522,6 +546,7 @@ describe("SessionSummary.update / updateFallback (tool filediffs only)", () => {
               time: { created: 2 },
             })
             const a = path.join(dir, "a.ts")
+            yield* Effect.promise(() => Bun.write(a, "x\n"))
             yield* sessions.updatePart({
               id: PartID.ascending(),
               sessionID: info.id,

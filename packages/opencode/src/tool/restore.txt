@@ -1,0 +1,39 @@
+## Purpose
+
+Restore a file from an **edit pre-change backup** (`.bak`). No git, no Fossil —
+session-local content snapshots written automatically by the `edit` / `multiedit` tools.
+
+Use this when you need to undo a bad edit (including paths outside the worktree)
+or recover a previous version of a file you changed in this session.
+
+## When to use
+
+- You overwrote the wrong region and need the pre-edit content back.
+- User asks to undo the last edit to a file.
+- File is outside the project tree (Fossil session undo does not cover it) — **bak restore still works**.
+
+## When not to use
+
+- File was only created with `write` and never `edit` — there is no pre-content bak.
+- You need whole-worktree timeline undo → session Fossil / user TUI undo (not this tool).
+- Git history / other branch → not this tool.
+
+## Modes
+
+1. **list** (`list: true`) — list session backups (filename, timestamp, originalPath).
+2. **restore by filePath** — restore the **latest** bak whose `originalPath` matches.
+3. **restore by filename** — restore a specific `.bak` from the list (when several exist).
+
+## Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `list` | If true, only list backups |
+| `filePath` | File to restore (latest matching bak) |
+| `filename` | Exact bak filename from list |
+
+Provide `list: true`, or `filePath`, or `filename`.
+
+## Safety
+
+Restore **overwrites** the current file at `originalPath`. Prefer listing first when unsure which bak to use.

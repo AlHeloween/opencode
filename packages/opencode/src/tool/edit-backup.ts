@@ -109,7 +109,7 @@ export const restoreBackup = Effect.fn("EditBackup.restore")(
     const bakPath = path.join(dir, filename)
 
     const metaPath = bakPath + ".meta.json"
-    let originalPath = yield* afs
+    const originalPath = yield* afs
       .readFileString(metaPath)
       .pipe(
         Effect.map((text) => (JSON.parse(text) as { originalPath: string }).originalPath),
@@ -124,3 +124,41 @@ export const restoreBackup = Effect.fn("EditBackup.restore")(
     return originalPath
   },
 )
+
+/** Normalize paths for matching originalPath (Windows drive + separators). */
+export function pathsMatch(a: string, b: string): boolean {
+  const norm = (p: string) => {
+    try {
+      return path.resolve(p).replaceAll("\\", "/").toLowerCase()
+    } catch {
+      return p.replaceAll("\\", "/").toLowerCase()
+    }
+  }
+  return norm(a) === norm(b)
+}
+
+/**
+ * Latest session .bak for a file path (by filename timestamp order).
+ * Matches meta.originalPath against absolute or relative filePath.
+ */
+export const findLatestBackup = Effect.fn("EditBackup.findLatest")(function* (
+  sessionID: string,
+  filePath: string,
+  resolveRelative?: (p: string) => string,
+) {
+  const entries = yield* listBackups(sessionID)
+  const candidates = entries
+    .filter((e) => e.originalPath && pathsMatch(e.originalPath, filePath))
+    .toSorted((a, b) => b.timestamp.localeCompare(a.timestamp) || b.filename.localeCompare(a.filename))
+  if (candidates.length > 0) return candidates[0]
+
+  // Retry with resolved absolute (agent may pass relative under cwd)
+  if (resolveRelative && !path.isAbsolute(filePath)) {
+    const abs = resolveRelative(filePath)
+    const again = entries
+      .filter((e) => e.originalPath && pathsMatch(e.originalPath, abs))
+      .toSorted((a, b) => b.timestamp.localeCompare(a.timestamp) || b.filename.localeCompare(a.filename))
+    if (again.length > 0) return again[0]
+  }
+  return undefined
+})

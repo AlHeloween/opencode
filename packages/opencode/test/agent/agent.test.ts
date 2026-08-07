@@ -256,6 +256,30 @@ test("custom agent config overrides native agent properties", async () => {
   })
 })
 
+test("config subagents merge into Agent.Info (canonical ids)", async () => {
+  await using tmp = await tmpdir({
+    config: {
+      agent: {
+        build: {
+          subagents: ["explorer_agent", "coder"],
+        },
+        orchestrator: {
+          subagents: ["explore"],
+        },
+      },
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
+      expect(build?.subagents).toEqual(["explorer_agent", "coder_agent"])
+      const orch = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
+      expect(orch?.subagents).toEqual(["explorer_agent"])
+    },
+  })
+})
+
 test("agent disable removes agent from list", async () => {
   await using tmp = await tmpdir({
     config: {

@@ -13,7 +13,12 @@ import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
 import { Filesystem } from "@/util/filesystem"
-import { loadSessionSettings, saveSessionSettings, type SessionSettings } from "@/session/session-settings"
+import {
+  loadSessionSettings,
+  saveSessionSettings,
+  effectiveSubagents,
+  type SessionSettings,
+} from "@/session/session-settings"
 
 export function parseModel(model: string) {
   const [providerID, ...rest] = model.split("/")
@@ -367,6 +372,48 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         return a?.model ?? undefined
       }
 
+      /** Session task() allow-list (worktree-local) then global Agent.Info.subagents. */
+      function subagentsFor(name: string): string[] | undefined {
+        const global = sync.data.agent.find((x) => x.name === name)?.subagents
+        return effectiveSubagents(name, global, sessionSettings())
+      }
+
+      /** Persist session-only subagents — never writes global config. */
+      function setSubagents(name: string, subagents: string[] | undefined) {
+        const sid = getActiveSessionID()
+        if (!sid) {
+          toast.show({
+            variant: "warning",
+            message: "No active session — cannot save per-session subagents",
+            duration: 3000,
+          })
+          return
+        }
+        const ss = sessionSettings()
+        const currentAgent = { ...(ss?.agent ?? {}) }
+        const prev = currentAgent[name] ?? {}
+        if (subagents === undefined) {
+          const { subagents: _drop, ...rest } = prev
+          if (rest.model || rest.variant) currentAgent[name] = rest
+          else delete currentAgent[name]
+        } else {
+          currentAgent[name] = { ...prev, subagents }
+        }
+        const next: SessionSettings = { ...ss, agent: currentAgent }
+        setSessionSettings(next)
+        void saveSessionSettings(sid, {
+          agent: next.agent,
+          recent: modelStore.recent,
+          favorite: modelStore.favorite,
+          variant: Object.fromEntries(
+            Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
+          ),
+          agentVariant: Object.fromEntries(
+            Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
+          ),
+        })
+      }
+
       function taskModel() {
         const m = modelStore.taskModel
         if (!m) return undefined
@@ -395,6 +442,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       return {
         forAgent,
+        subagentsFor,
+        setSubagents,
         taskModel,
         taskSet,
         current: currentModel,

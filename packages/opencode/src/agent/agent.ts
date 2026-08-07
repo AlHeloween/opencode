@@ -426,6 +426,11 @@ export const layer = Layer.effect(
           if (!item.native) item.name = value.name ?? item.name
           item.steps = value.steps ?? item.steps
           item.options = mergeDeep(item.options, value.options ?? {})
+          // Config / agent.md subagents → runtime allow-list (canonical ids).
+          // Omitted keeps native default or undefined (= all allowed).
+          if (value.subagents !== undefined) {
+            item.subagents = value.subagents.map((id) => resolveIdentity(id))
+          }
           // Reasoning is a native calibration boundary: permanent memory only.
           // Project config must not reopen dbread/messagesearch/shell/etc.
           if (!(key === "reasoning_mode" && item.native)) {

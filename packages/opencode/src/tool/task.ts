@@ -18,6 +18,8 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Provider } from "@/provider/provider"
 import { ProviderID } from "@/provider/schema"
 import { Jobs } from "../jobs"
+import { loadSessionSettings, effectiveSubagents } from "../session/session-settings"
+import { canonicalIdentity } from "../session/mode-identity"
 
 const log = Log.create({ service: "task" })
 
@@ -146,16 +148,32 @@ export const TaskTool = Tool.define(
         })
       }
 
-      const next = yield* agent.get(params.subagent_type)
+      const targetType = canonicalIdentity(params.subagent_type)
+      const next = yield* agent.get(targetType)
       if (!next) {
         return yield* Effect.fail(new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`))
       }
 
-      // Enforce subagent delegation restrictions: calling agent's subagents list limits which types it can spawn
+      // Global Agent.Info.subagents, then session override (worktree-local — multi-project safe).
       const caller = yield* agent.get(ctx.agent)
-      if (caller?.subagents && !caller.subagents.includes(params.subagent_type)) {
+      const sessionSettings = yield* Effect.tryPromise({
+        try: () => loadSessionSettings(ctx.sessionID),
+        catch: (e) => e,
+      }).pipe(
+        Effect.catch((e) => {
+          log.warn("bug: loadSessionSettings for task gate failed", {
+            sessionID: ctx.sessionID,
+            error: e instanceof Error ? e.message : String(e),
+          })
+          return Effect.succeed(null)
+        }),
+      )
+      const allowed = effectiveSubagents(ctx.agent, caller?.subagents, sessionSettings)?.map(canonicalIdentity)
+      if (allowed && !allowed.includes(targetType)) {
         return yield* Effect.fail(
-          new Error(`Agent "${ctx.agent}" cannot delegate to "${params.subagent_type}". Allowed: ${caller.subagents.join(", ")}`),
+          new Error(
+            `Agent "${ctx.agent}" cannot delegate to "${params.subagent_type}". Allowed: ${allowed.join(", ") || "(none)"}`,
+          ),
         )
       }
 

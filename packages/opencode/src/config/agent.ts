@@ -47,6 +47,10 @@ const AgentSchema = Schema.StructWithRest(
     }),
     maxSteps: Schema.optional(PositiveInt).annotate({ description: "@deprecated Use 'steps' field instead." }),
     permission: Schema.optional(ConfigPermission.Info),
+    subagents: Schema.optional(Schema.Array(Schema.String)).annotate({
+      description:
+        "Allowed sub-agent types for task() delegation (canonical ids: explorer_agent, coder_agent, …). Omitted = all allowed.",
+    }),
   }),
   [Schema.Record(Schema.String, Schema.Any)],
 )
@@ -68,6 +72,7 @@ const KNOWN_KEYS = new Set([
   "permission",
   "disable",
   "tools",
+  "subagents",
 ])
 
 // Post-parse normalisation:

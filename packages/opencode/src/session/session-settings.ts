@@ -5,13 +5,14 @@ import * as Log from "@opencode-ai/core/util/log"
 
 /**
  * Session-specific settings — per-session overrides for agent models,
- * recently used models, favorites, and variants.
+ * variants, and task() subagent allow-lists.
  *
  * File location: {worktree}/.opencode/data/sessions/{sessionID}.jsonc
+ * (worktree-local — multi-project installs do not share these overrides.)
  *
  * Loading priority:
- *   1. Session file (if present) → overrides global
- *   2. Global config (opencode.jsonc) / state (model.json)
+ *   1. Session file (if present) → overrides global agent definition for that field
+ *   2. Global config (opencode.jsonc) / state (model.json) / native Agent.Info
  */
 
 // ── Types ──
@@ -21,6 +22,12 @@ export interface SessionAgentOverride {
   model?: string
   /** Variant name (e.g. "high", "fast", "reasoning") */
   variant?: string
+  /**
+   * Allowed task() subagent ids for this agent in this session only.
+   * Canonical ids (explorer_agent, coder_agent, …). Omitted = use global Agent.Info.subagents.
+   * Empty array = deny all task delegation.
+   */
+  subagents?: string[]
 }
 
 export interface SessionSettings {
@@ -82,7 +89,10 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
         const v = value as Record<string, unknown>
         if (typeof v.model === "string") override.model = v.model
         if (typeof v.variant === "string") override.variant = v.variant
-        if (override.model || override.variant) agent[name] = override
+        if (Array.isArray(v.subagents) && v.subagents.every((x) => typeof x === "string")) {
+          override.subagents = v.subagents as string[]
+        }
+        if (override.model || override.variant || override.subagents) agent[name] = override
       }
     }
     if (Object.keys(agent).length > 0) settings.agent = agent
@@ -169,6 +179,20 @@ export async function removeSessionSettings(sessionID: string): Promise<void> {
       error: e instanceof Error ? e.message : String(e),
     })
   }
+}
+
+/**
+ * Effective task() allow-list for an agent in a session.
+ * Session override wins when set; else global Agent.Info.subagents; else undefined (all allowed).
+ */
+export function effectiveSubagents(
+  agentName: string,
+  globalSubagents: string[] | undefined,
+  settings: SessionSettings | null | undefined,
+): string[] | undefined {
+  const override = settings?.agent?.[agentName]?.subagents
+  if (override !== undefined) return override
+  return globalSubagents
 }
 
 export * as SessionSettings from "./session-settings"

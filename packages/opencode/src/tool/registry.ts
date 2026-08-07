@@ -359,9 +359,12 @@ export const layer: Layer.Layer<
 
     const describeTask = Effect.fn("ToolRegistry.describeTask")(function* (agent: Agent.Info) {
       const items = (yield* agents.list()).filter((item) => item.mode !== "primary")
-      const filtered = items.filter(
-        (item) => Permission.evaluate("task", item.name, agent.permission).action !== "deny",
-      )
+      const filtered = items.filter((item) => {
+        if (Permission.evaluate("task", item.name, agent.permission).action === "deny") return false
+        // Global/native allow-list (session overlay applied at task execute time).
+        if (agent.subagents && !agent.subagents.includes(item.name)) return false
+        return true
+      })
       const list = filtered.toSorted((a, b) => a.name.localeCompare(b.name))
       const description = list
         .map(

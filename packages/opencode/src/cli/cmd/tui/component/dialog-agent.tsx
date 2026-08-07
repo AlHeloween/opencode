@@ -163,6 +163,15 @@ export function DialogAgent() {
     const variantValue = agentVariant.current()
     const variantLabel = variantValue ? ` · ${variantValue}` : ""
 
+    // Session subagents override (worktree-local) else global Agent.Info
+    const sub = local.model.subagentsFor(agent.name)
+    const subLabel =
+      sub === undefined
+        ? ""
+        : sub.length === 0
+          ? " · task: none"
+          : ` · task: ${sub.length}`
+
     const isActive = local.agent.current()?.name === agent.name
     const activeLabel = isActive ? " ← active" : ""
 
@@ -176,7 +185,7 @@ export function DialogAgent() {
       category,
       disabled: off,
       gutter: <text fg={color}>{off ? "○" : "●"}</text>,
-      footer: `${modelLabel}${variantLabel}${activeLabel}`,
+      footer: `${modelLabel}${variantLabel}${subLabel}${activeLabel}`,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
         dialog.replace(() => (

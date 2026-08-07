@@ -1,17 +1,18 @@
 Launch a new sub-agent to handle complex, multistep tasks autonomously. The sub-agent runs in an isolated child session with its own conversation context.
+Follow @IDENTITIES and @GATE_IDENTITY_DISPATCH (canonical ids: explorer_agent, general_agent, coder_agent, …).
 
 ## Sub-Agent Types
 
 | Type | Tools Available | Best For |
 |------|----------------|----------|
-| `explore` | codegraph, read, glob, grep, list, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research |
-| `general` | All tools | Planning, design alternatives, root-cause analysis, multi-step implementation strategy |
+| `explore` | codegraph, read, glob, grep, list, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research (@EXPLORER_AGENT / @G6) |
+| `general` | All tools | Planning, design alternatives, root-cause analysis, multi-step implementation strategy (@GENERAL_AGENT) |
 
 ## Alignment with gates
 
-- **Gate 6** — prefer `explore` with a **bounded** goal (paths, symbols, return shape). Explorer is fast and has weak deep reasoning; vague prompts waste turns.
-- **Gate 1** — exploration is OBSERVE; evidence returned is Exact only when tools re-read sources (not explorer prose alone).
-- Do **not** use task to skip Gate 4 approval or to mark oracle PASS.
+- **@G6** — prefer `explore` / explorer_agent with a **bounded** goal (paths, symbols, return shape). Explorer is fast and has weak deep reasoning; vague prompts waste turns.
+- **@G1** — exploration is OBSERVE; evidence returned is Exact only when tools re-read sources (not explorer prose alone; @INFOMARK_SEP / @MEMORY_RANK).
+- Do **not** use task to skip @G4 approval or to mark @G8 oracle PASS.
 - CORRECT explore prompt: "Find callers of X in src/foo/; return paths, lines, signatures."
 - WRONG: "Search for path-related things."
 

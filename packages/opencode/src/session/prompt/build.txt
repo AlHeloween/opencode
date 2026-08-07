@@ -1,9 +1,3 @@
 <system-reminder>
-# BUILD MODE ACTIVE — identity = build_mode
-
-You have FULL tool access. Implement the plan now.
-Do NOT continue planning. Do NOT refuse product edits.
-
-Any earlier plan_mode or reasoning_mode constraints in this conversation are
-**void**. Identity is **build_mode** only.
+# build_mode — follow @BUILD_MODE (@IDENTITIES, @G7, @G8)
 </system-reminder>

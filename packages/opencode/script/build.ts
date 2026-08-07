@@ -184,6 +184,8 @@ for (const item of targets) {
   const bunfsRoot = item.os === "win32" ? "B:/~BUN/root/" : "/$bunfs/root/"
   const workerRelativePath = path.relative(dir, parserWorker).replaceAll("\\", "/")
 
+  // compile.autoloadBunfig is false. Identity prompt is reasoning_prompt.txt
+  // (Bun built-in text loader — same as default.txt / plan.txt). No custom loaders.
   await Bun.build({
     conditions: ["import"],
     tsconfig: "./tsconfig.json",
@@ -215,11 +217,30 @@ for (const item of targets) {
 
   // Smoke test: only run if binary is for current platform
   if (item.os === process.platform && item.arch === process.arch && !item.abi) {
-    const binaryPath = `dist/${name}/bin/opencode`
+    // Windows compile emits opencode.exe; shell may resolve bare "opencode", Bun.file does not.
+    const binaryBase = `dist/${name}/bin/opencode`
+    const binaryPath =
+      item.os === "win32" && fs.existsSync(`${binaryBase}.exe`)
+        ? `${binaryBase}.exe`
+        : binaryBase
     console.log(`Running smoke test: ${binaryPath} --version`)
     try {
       const versionOutput = await $`${binaryPath} --version`.text()
       console.log(`Smoke test passed: ${versionOutput.trim()}`)
+      // reasoning_prompt.txt must be inlined as text, not a BunFS path stub.
+      const binBytes = await Bun.file(binaryPath).arrayBuffer()
+      const binText = new TextDecoder("latin1").decode(binBytes)
+      if (!binText.includes("GATED_WORKFLOW")) {
+        throw new Error(
+          "binary missing inlined reasoning kernel (GATED_WORKFLOW) — .txt text embed failed",
+        )
+      }
+      if (binText.includes("~BUN/root/reasoning_prompt") && !binText.includes("IDENTITIES")) {
+        throw new Error(
+          "binary looks like path-only reasoning_prompt embed — import must be reasoning_prompt.txt content",
+        )
+      }
+      console.log(`Smoke test passed: reasoning_prompt.txt inlined (GATED_WORKFLOW present)`)
     } catch (e) {
       console.error(`Smoke test failed for ${name}:`, e)
       process.exit(1)

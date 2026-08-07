@@ -1,7 +1,8 @@
 ## Mutation class
 
-`multiedit` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (same grounding rules as
-`edit`). After apply: declared oracles before Done.
+`multiedit` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (same grounding as `edit`:
+@G7, @WRITE_SCOPE, @SMOKE_BEFORE, @READ_ENTIRE_FILE, @NO_SCRIPT_EDITING, @ACTION_CLASS).
+After apply: declared oracles (@G8 / @VERIFY_OUTCOME) before Done.
 
 Perform multiple edits to a single file in one operation. Each edit is applied sequentially, and all edits inherit the full capabilities of the Edit tool.
 

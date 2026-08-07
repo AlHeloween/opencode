@@ -1,4 +1,5 @@
 Fast content search tool that works with any codebase size. Searches file contents using regular expressions.
+Follow @G1.search_intent / @SEARCH_ORDER: prefer codegraph for structure; use grep for content patterns.
 
 This tool uses extended regex syntax (ERE) with a Rust regex engine. `|` is OR, `\|` is a literal pipe character. No backtracking surprises, no ReDoS vulnerabilities, consistent behavior across platforms.
 

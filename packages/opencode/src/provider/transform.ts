@@ -6,7 +6,7 @@ import type { JSONSchema } from "zod/v4/core"
 import type * as Provider from "./provider"
 import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import PROMPT_REASONING from "@/session/prompt/reasoning_prompt.mdc"
+import PROMPT_REASONING from "@/session/prompt/reasoning_prompt.txt"
 
 const tlog = Log.create({ service: "provider.transform" })
 
@@ -429,8 +429,30 @@ export function topK(model: Provider.Model) {
   return undefined
 }
 
+/**
+ * Runtime identity is reasoning_prompt.txt (Bun built-in text loader — same as default.txt).
+ * Assembler still writes reasoning_prompt.mdc; keep the .txt sibling in sync for the model.
+ * Guard against path-only embeds (content never reaches the model).
+ */
+function assertReasoningPromptInlined(prompt: string): string {
+  if (typeof prompt !== "string" || prompt.length < 1000) {
+    throw new Error(
+      `bug: reasoning_prompt.txt not inlined as text (type=${typeof prompt}, len=${typeof prompt === "string" ? prompt.length : "?"})`,
+    )
+  }
+  if (prompt.includes("~BUN/") || (prompt.includes("reasoning_prompt-") && prompt.length < 500)) {
+    throw new Error(
+      `bug: reasoning_prompt.txt resolved to BunFS path instead of content: ${prompt.slice(0, 120)}`,
+    )
+  }
+  if (!prompt.includes("GATED_WORKFLOW") && !prompt.includes("IDENTITIES")) {
+    throw new Error("bug: reasoning_prompt.txt missing GATED_WORKFLOW / IDENTITIES markers")
+  }
+  return prompt
+}
+
 export function systemPromptParts(_model: Provider.Model) {
-  const prompt = PROMPT_REASONING
+  const prompt = assertReasoningPromptInlined(PROMPT_REASONING)
   return { reasoning: prompt, kernel: "" }
 }
 

@@ -1,4 +1,5 @@
 Fetches content from a specified URL and converts it to the requested format.
+Follow @G1 invent rule / @REUSE_BEFORE: never invent URLs; discover first (e.g. universalsearch).
 
 ## Two-Stage Fetch Strategy
 

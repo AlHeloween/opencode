@@ -1,5 +1,11 @@
 Search the web, indexed git (Sourcegraph), or a heavy research agent via the
-Universal Search Service. Product-integrated tool for **REUSE.BEFORE**.
+Universal Search Service. Product-integrated tool for **@REUSE_BEFORE**
+(also @G1.search_intent PUBLIC_API_VERSION / UNKNOWN_ROOT_CAUSE, @EPISTEMIC_LADDER).
+
+**Authoritative sources (do not restate — resolve in kernel):**
+Before scientific / domain research, check **@DOMAIN_SOURCES** and
+**@INSTITUTIONAL_SOURCES** for the discipline. Domain databases are primary;
+generic web search supplements.
 
 ## Efficiency (prefer these first)
 
@@ -10,26 +16,31 @@ Universal Search Service. Product-integrated tool for **REUSE.BEFORE**.
 | Both local-ish + global code patterns in one shot | `source: "hybrid"` |
 | Multi-step scrape/synthesize (slow, costly) | `source: "agent"` only if web+code insufficient |
 
+**`source: "code"` (Sourcegraph):** searches **indexed git codebases** — not the live
+worktree alone. It walks **code-graph structure** over remote/indexed repos
+(symbols, refs, cross-repo patterns) for OSS prior art and API usage. Prefer for
+“how is this done in the wild?” after local codegraph.
+
 **Default for non-trivial invent/build:** run **web and/or code** (often both, or
 `hybrid`). Do **not** open with `agent` for ordinary prior-art checks — it is
 slower and less precise than targeted web/code.
 
-## When to use (REUSE.BEFORE)
+## When to use (@REUSE_BEFORE)
 
 1. **Before design/implementation** — new feature, protocol, algorithm, dependency,
    abstraction: `web` and/or `code` (Sourcegraph over indexed git), or `hybrid`.
    Prefer existing solutions over reinvention.
 2. **On failure** — build/test/typecheck/runtime or failed fix: search the error
    signature with `web` + `code` before inventing a custom workaround.
-3. **Before "nothing exists"** — escalate SEARCH.ORDER; this tool is the external
+3. **Before "nothing exists"** — escalate @SEARCH_ORDER; this tool is the external
    prior-art step after local codegraph/messagesearch.
 
 Skip only for trivial local work (typo, rename, one-line) already grounded in
-codegraph. Kernel rule: `REUSE.BEFORE`.
+codegraph.
 
-**InfoMark / research ladder:**
+**InfoMark / research ladder** — follow @EPISTEMIC_LADDER / @REUSE_BEFORE:
   Guess → web → code (Sourcegraph git) → still Inferred/Hypothetical
-  → smoke/oracle PASS → Exact (scoped stamp) | FAIL → **Unknown** (no Done).
+  → smoke/@G8 PASS → Exact (scoped stamp) | FAIL → **Unknown** (no Done).
 Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-proved.
 
 ## Modes
@@ -37,8 +48,8 @@ Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-prov
 | Mode | Backend | Use for |
 |------|---------|---------|
 | `web` | Firecrawl web search | Docs, known fixes, APIs, current events |
-| `code` | Sourcegraph over indexed git | OSS patterns, API usage, prior implementations |
-| `hybrid` | Local + Sourcegraph (labeled) | Local + global code prior art |
+| `code` | Sourcegraph over **indexed git codebases / code graphs** | OSS patterns, API usage, prior implementations across repos |
+| `hybrid` | Local + Sourcegraph (labeled) | Local worktree + global git-graph prior art |
 | `agent` | Autonomous multi-turn research job | Complex multi-hop only after web/code |
 
 ## Agent mode (when needed)
@@ -58,7 +69,7 @@ Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-prov
 | `job_id` | string | — | Poll existing agent job |
 
 \*Schema default remains `agent` for backward compatibility; **agents should pass
-`source: "web"`, `"code"`, or `"hybrid"` explicitly for REUSE.BEFORE.**
+`source: "web"`, `"code"`, or `"hybrid"` explicitly for @REUSE_BEFORE.**
 
 ## Configuration
 

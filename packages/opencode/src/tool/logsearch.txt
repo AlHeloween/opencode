@@ -1,4 +1,5 @@
 Search log files under .opencode/data/log/ for fast bug finding.
+Follow @G1 evidence grounding (prefer product logsearch over shell).
 
 Use this for quickly finding errors, warnings, and bug markers in runtime logs.
 

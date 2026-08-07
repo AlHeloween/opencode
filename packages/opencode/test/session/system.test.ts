@@ -11,7 +11,7 @@ import PROMPT_ANTHROPIC from "../../src/session/prompt/anthropic.txt"
 import PROMPT_DEFAULT from "../../src/session/prompt/default.txt"
 import PROMPT_GPT from "../../src/session/prompt/gpt.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
-import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.mdc"
+import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.txt"
 import TASK_DESCRIPTION from "../../src/tool/task.txt"
 
 function mockModel(apiId: string, providerId = "test"): Provider.Model {
@@ -44,7 +44,7 @@ describe("session.system", () => {
     expect(PROMPT_REASONING).toContain("PROMPT_ABI")
   })
 
-  test("reasoning_prompt.mdc contains compact runtime dictionary roots", () => {
+  test("reasoning_prompt.txt contains compact runtime dictionary roots", () => {
     const prompt = PROMPT_REASONING
 
     for (const root of ["PROMPT_ABI", "TERMS", "RULES"]) {

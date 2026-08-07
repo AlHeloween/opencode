@@ -108,7 +108,7 @@ export function reasoningModeInstruction() {
 
 /**
  * Provider-visible identity = real agent (build_mode, plan_mode, coder_agent, …).
- * Protocol (GATED_WORKFLOW in reasoning_prompt.mdc) is shared; identity switches.
+ * Protocol (GATED_WORKFLOW in reasoning_prompt.txt) is shared; identity switches.
  * Role text is a synthetic user notify on switch; ACL is execute-time on the same agent.
  * Identity switch intentionally changes agent-scoped checkpoint/tool set — do not
  * force build_mode for other identities.

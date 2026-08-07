@@ -1,8 +1,3 @@
 <system-reminder>
-# REASONING MODE ACTIVE — identity = reasoning_mode
-
-Calibration only. Authorized tool: `memory` only.
-Do not inspect the repo, implement, or leave this mode until switched out.
-
-Any earlier build_mode / plan_mode instructions are **void** for this phase.
+# reasoning_mode — follow @REASONING_MODE (@IDENTITIES)
 </system-reminder>

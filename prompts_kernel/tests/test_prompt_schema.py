@@ -35,9 +35,11 @@ RULE_DIRS: list[str] = []
 # Files to exclude from validation
 # Pocket protocols / mode synthetics use algorithm-with-comments density, not PromptSpec YAML.
 EXCLUDED_FILES = {
-    "reasoning_prompt.mdc",         # Unified .mdc kernel — not a PromptSpec file
-    "build.txt",                    # Build mode conversation-tail synthetic (KV-safe)
-    "reasoning-mode.txt",           # Reasoning mode conversation-tail synthetic (KV-safe)
+    "reasoning_prompt.mdc",         # Assembler output — not a PromptSpec file
+    "reasoning_prompt.txt",         # Runtime identity (native .txt load) — pocket protocol, not PromptSpec
+    "build.txt",                    # Mode tail: identity + @SPEC ref only (KV-safe)
+    "plan.txt",                     # Mode tail: identity + @SPEC ref only (KV-safe)
+    "reasoning-mode.txt",           # Mode tail: identity + @SPEC ref only (KV-safe)
     "max-steps.txt",                # Trivial mode switch
     "build-switch.txt",             # Plan→build conversation-tail synthetic
     "test_agent.txt",               # Test fixture
@@ -46,23 +48,27 @@ EXCLUDED_FILES = {
 }
 
 # Session pocket protocols that must exist and bind to kernel / each other
+_REASONING_POCKET_MARKERS = (
+    "GATED_WORKFLOW",
+    "IDENTITIES",
+    "GATE_IDENTITY_DISPATCH",
+    "build_mode",
+    "coder_agent",
+    "explorer_agent",
+    "claim_ledger",
+    "REUSE_BEFORE",
+    "universalsearch",
+    "G4",
+    "oracle_stamp",
+)
 POCKET_PROTOCOL_FILES = {
-    # Agentic pocket grew with gates + claim_ledger + research ladder (still algorithm density).
-    "reasoning_prompt.mdc": (
-        "GATED_WORKFLOW",
-        "IDENTITIES",
-        "GATE_IDENTITY_DISPATCH",
-        "build_mode",
-        "coder_agent",
-        "explorer_agent",
-        "claim_ledger",
-        "REUSE_BEFORE",
-        "universalsearch",
-        "G4",
-        "oracle_stamp",
-    ),
-    # Mode-switch synthetic only (identity catalog lives in reasoning_prompt.mdc).
-    "build.txt": ("build_mode", "FULL tool access", "void"),
+    # Assembler writes .mdc; runtime imports .txt (must stay in sync).
+    "reasoning_prompt.mdc": _REASONING_POCKET_MARKERS,
+    "reasoning_prompt.txt": _REASONING_POCKET_MARKERS,
+    # Mode-switch tails: identity stamp + @SPEC ref only (law lives in reasoning_prompt).
+    "build.txt": ("build_mode", "@BUILD_MODE", "@IDENTITIES"),
+    "plan.txt": ("plan_mode", "@PLAN_MODE", "@IDENTITIES"),
+    "reasoning-mode.txt": ("reasoning_mode", "@REASONING_MODE", "@IDENTITIES"),
 }
 
 # Soft budget for pocket protocol files (bytes). reasoning includes full gates + InfoMark.
@@ -78,7 +84,11 @@ POCKET_PROTOCOL_MAX_BYTES = {
     # v8: raised 55_000→60_000 for IDENTITIES + GATE_IDENTITY_DISPATCH +
     # BUILD_MODE/PLAN_MODE SPECS and *_agent renames.
     "reasoning_prompt.mdc": 60_000,
-    "build.txt": 12_000,
+    "reasoning_prompt.txt": 60_000,
+    # Mode tails are one-line identity + @SPEC pointers (not prose law).
+    "build.txt": 512,
+    "plan.txt": 512,
+    "reasoning-mode.txt": 512,
 }
 
 # Rule files are external package docs (ADID framework) synced from upstream —
@@ -282,15 +292,19 @@ def test_build_has_no_agent_prompt_system_bind():
     with open(agent_def_path, "r", encoding="utf-8") as f:
         src = f.read()
     assert "PROMPT_BUILD" not in src
-    # build agent block must not set prompt: (mode text is session/prompt/build.txt synthetic)
-    # Match the build: { ... } object without pulling later agents
-    m = re.search(r"build:\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}", src, re.DOTALL)
-    assert m, "build agent definition not found"
+    # build_mode block must not set prompt: (mode text is session/prompt/build.txt synthetic)
+    m = re.search(r"build_mode:\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}", src, re.DOTALL)
+    assert m, "build_mode agent definition not found"
     assert "prompt:" not in m.group(1)
+    # plan_mode / reasoning_mode likewise: conversation-tail only
+    for name in ("plan_mode", "reasoning_mode"):
+        mm = re.search(rf"{name}:\s*\{{([^}}]*(?:\{{[^}}]*\}}[^}}]*)*)\}}", src, re.DOTALL)
+        assert mm, f"{name} agent definition not found"
+        assert "prompt:" not in mm.group(1), f"{name} must not set agent.prompt"
 
 
 def test_pocket_protocol_files_exist_and_markers():
-    """reasoning_prompt.mdc + mode-tail synthetics are pocket density, not PromptSpec."""
+    """reasoning_prompt (.mdc assemble / .txt runtime) + mode tails are pocket density, not PromptSpec."""
     for name, markers in POCKET_PROTOCOL_FILES.items():
         fp = os.path.join(SESSION_PROMPT_DIR, name)
         assert os.path.isfile(fp), f"missing pocket protocol: {name}"

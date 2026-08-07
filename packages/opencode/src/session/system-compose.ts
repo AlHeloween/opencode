@@ -5,7 +5,7 @@
  *
  * Layout (stable prefix first, mutable last):
  *   [0] UNIVERSAL_ENV            — immutable forever
- *   [1] stable identity prefix   — reasoning_prompt.mdc (+ optional kernel) (MOST STABLE)
+ *   [1] stable identity prefix   — reasoning_prompt.txt (+ optional kernel) (MOST STABLE)
  *   [2] tool schemas             — stable per app version
  *   [3] path system              — rules → skills → env → instructions (NO agent role)
  *   [4] mutable tail             — session banner, user system (optional)
@@ -23,10 +23,10 @@ export type SystemComposeInput = {
   universalEnv: string
   /** Empty string skips the tool-schemas slot. */
   toolSchemas: string
-  /** Reasoning prefix (reasoning_prompt.mdc). MOST STABLE — slot [1], before tool schemas. */
+  /** Reasoning prefix (reasoning_prompt.txt). MOST STABLE — slot [1], before tool schemas. */
   reasoningPrefix: string
 
-  /** Optional kernel tail. Currently empty at runtime (merged into reasoning_prompt.mdc). */
+  /** Optional kernel tail. Currently empty at runtime (merged into reasoning_prompt.txt). */
   kernel: string
   /**
    * @deprecated Prefer conversation role notify. Kept optional for callers;
@@ -151,7 +151,7 @@ export function validateSystemOrder(system: string[]): boolean {
 
   const fullText = system.join("\n")
 
-  // Markers from reasoning_prompt.mdc (GATED spine + embedded dictionary)
+  // Markers from reasoning_prompt.txt (GATED spine + embedded dictionary)
   const gatedIdx = fullText.indexOf("GATED_WORKFLOW")
   const legacyIdx = fullText.indexOf("REASONING PROTOCOL")
   const reasoningIdx = gatedIdx >= 0 ? gatedIdx : legacyIdx

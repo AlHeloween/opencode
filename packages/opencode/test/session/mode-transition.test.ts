@@ -9,7 +9,7 @@ test("mode instructions appear only on entry or explicit mode change", () => {
   expect(modeInstructionForTransition("plan_mode", "build_mode")).toContain("build_mode")
   expect(modeInstructionForTransition("plan_mode", "build_mode")).toContain("void")
   expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("or other")
-  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("reasoning_prompt.mdc")
+  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("reasoning_prompt.txt")
   expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("Previous identity")
   expect(modeInstructionForTransition("build_mode", "reasoning_mode")).toContain("reasoning_mode")
   expect(modeInstructionForTransition("reasoning_mode", "build_mode")).toContain("build_mode")

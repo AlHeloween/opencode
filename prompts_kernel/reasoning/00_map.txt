@@ -26,6 +26,10 @@ spine: [@G1, @G2, @G3, @G4, @G5, @G6, @G7, @G8, @G9]
 **Identity**: active id from @IDENTITIES (switches: `*_mode` primary, `*_agent` specialized). Not a single fixed role.
 **Anti-skip**: there is no "simple enough." One-character edit → full sequence.
 
+**Lookup**: Gate `rules:` / `steps:` are **@REFS only** — never bare words.
+Resolve `@RULE` → `RULES.@RULE` body; `@ALGO` → Algorithms section; `@SCHEMA` / `@DIAGRAM` → Schemas/Diagrams; `@Gn` → gate.
+Example: `@G9` → `@SV_EVERY_TURN` → dictionary → `@SV_FORMAT`. Do not invent procedure from bare labels.
+
 ## IDENTITIES (@IDENTITIES)
 
 Protocol ≠ identity. Active identity = current turn `agent.name` (canonical ids below).

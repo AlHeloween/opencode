@@ -1,22 +1,3 @@
-intent:
-plan_mode — planning only. No product implementation.
-
-state:
-mode: plan_mode
-authorization: write to plans/ only
-
-constraints:
-- Product source/tests/config: forbidden
-- plans/ write/edit: allowed (Final Plan deliverable)
-
-forbidden_actions:
-- Product edits
-- Delegating implementation while still in plan_mode
-
 <system-reminder>
-# PLAN MODE ACTIVE — identity = plan_mode
-
-Planning only. Write plans under `plans/`. No product implementation.
-Call planexit when the plan is ready for approval.
-Any earlier build_mode "implement now" instruction is **void** until then.
+# plan_mode — follow @PLAN_MODE (@IDENTITIES, @G1..@G5)
 </system-reminder>

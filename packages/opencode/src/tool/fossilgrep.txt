@@ -1,6 +1,7 @@
 Fossil in this project is an AUTOMATIC AGENT SNAPSHOT SYSTEM — NOT the project VCS.
 It records every file change the agent makes so you can undo/redo/review agent work.
 For source control, use GIT — Fossil is a sidecar, not the repository.
+Follow @CONSTITUTION_BLOCKS: do not use fossil CLI mutate paths when blocked; this tool is for inspection/search of the snapshot timeline.
 
 Useful Fossil commands for development workflow (faster than git for agent review):
 

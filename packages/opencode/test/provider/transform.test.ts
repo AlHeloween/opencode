@@ -131,7 +131,7 @@ describe("ProviderTransform.systemPromptPrefix", () => {
     ]) {
       const prefix = ProviderTransform.systemPromptPrefix(createModel(modelId))
       expect(prefix).toBeString()
-      // Unified reasoning_prompt.mdc — GATED spine + dictionary in one file
+      // Unified reasoning_prompt.txt — GATED spine + dictionary in one file
       expect(prefix).toContain("GATED_WORKFLOW")
       expect(prefix).toContain("claim_ledger")
       expect(prefix).toContain("PROMPT_ABI")

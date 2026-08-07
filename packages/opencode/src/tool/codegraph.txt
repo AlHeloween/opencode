@@ -1,8 +1,8 @@
 Pre-indexed code knowledge graph — **hybrid: MCP touch → SQLite pack** (low noise for agents).
 
-**SEARCH.ORDER:** prefer this for structure (symbols, callers, impact) before
-grep/glob/read loops on indexed code. Use at Gate 1 grounding and Gate 6 Phase 0.
-Packed structure is **Exact-ish at index time** (verify with read when editing).
+**@SEARCH_ORDER / @G1 (CODE_STRUCTURE):** prefer this for structure (symbols, callers, impact) before
+grep/glob/read loops on indexed code. Use at @G1 grounding and @G6 Phase 0.
+Packed structure is **Exact-ish at index time** (verify with read when editing; @READ_ENTIRE_FILE before modify).
 
 **Pipeline:**
 1. **MCP** (`codegraph serve --mcp`) refreshes / owns the live graph for your query.

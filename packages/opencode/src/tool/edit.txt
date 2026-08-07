@@ -1,13 +1,14 @@
 ## Mutation class
 
-`edit` is **MODIFY / PERSISTENT_WRITE / ELEVATED**. Prefer after plan approval
-when a multi-step plan exists. Runtime may **block** mutation if an active
-claim_ledger has premises outside G (Exact|Inferred, system-stamped).
+`edit` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (@ACTION_CLASS). Follow @G7,
+@WRITE_SCOPE, @SMOKE_BEFORE, @READ_ENTIRE_FILE, @NO_SCRIPT_EDITING.
+Prefer after plan approval when a multi-step plan exists. Runtime may **block**
+mutation if an active @CLAIM_LEDGER has premises outside G (Exact|Inferred, system-stamped).
 
 Before edit: inspect the target (read/codegraph). State the semantic delta, not
 only the path. Preserve unrelated user changes. After edit: run **declared**
-oracles (Gate 8) before Done / `[x]`. Prefer edit over write for partial updates
-(rollback-friendly backups).
+oracles (@G8 / @VERIFY_OUTCOME) before Done / `[x]`. Prefer edit over write for
+partial updates (rollback-friendly backups).
 
 ## File Backups
 

@@ -6,7 +6,7 @@ import {
   collapseSystemMessages,
   validateSystemOrder,
 } from "../../src/session/system-compose"
-import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.mdc"
+import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.txt"
 import { ProviderTransform } from "../../src/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
 import type { Provider } from "../../src/provider/provider"
@@ -16,12 +16,13 @@ import type { Provider } from "../../src/provider/provider"
  *
  * 1. Change `prompts_kernel/` (canonical SPECS source) and re-assemble into
  *    `packages/opencode/src/session/prompt/reasoning_prompt.mdc`.
- * 2. Run: `cd packages/opencode && bun test test/session/system-compose.test.ts`
- * 3. If only the digest assertion fails, update EXPECTED_REASONING_DIGEST below
- *    after reviewing the mdc diff.
- * 4. Commit reasoning_prompt.mdc + digest update together.
+ * 2. Sync runtime sibling: copy mdc → reasoning_prompt.txt (runtime loads .txt).
+ * 3. Run: `cd packages/opencode && bun test test/session/system-compose.test.ts`
+ * 4. If only the digest assertion fails, update EXPECTED_REASONING_DIGEST below
+ *    after reviewing the txt/mdc diff.
+ * 5. Commit reasoning_prompt.mdc + reasoning_prompt.txt + digest update together.
  *
- * Runtime loads a single file via ProviderTransform (kernel slot is empty).
+ * Runtime loads reasoning_prompt.txt via ProviderTransform (kernel slot is empty).
  */
 const EXPECTED_REASONING_DIGEST = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
 
@@ -172,8 +173,8 @@ describe("system-compose provider assembly", () => {
   })
 })
 
-describe("system prefix digest (reasoning_prompt.mdc)", () => {
-  test("reasoning_prompt.mdc artifact has stable documented digest", () => {
+describe("system prefix digest (reasoning_prompt.txt)", () => {
+  test("reasoning_prompt.txt artifact has stable documented digest", () => {
     const digest = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
     expect(digest).toBe(EXPECTED_REASONING_DIGEST)
     expect(PROMPT_REASONING).toContain("PROMPT_ABI")
@@ -181,7 +182,7 @@ describe("system prefix digest (reasoning_prompt.mdc)", () => {
     expect(PROMPT_REASONING).not.toContain("_ALL_SPECS")
   })
 
-  test("systemPromptPrefix is unified reasoning_prompt.mdc, byte-stable", () => {
+  test("systemPromptPrefix is unified reasoning_prompt.txt, byte-stable", () => {
     const model = mockModel("anthropic/claude-sonnet-4")
     const a = ProviderTransform.systemPromptPrefix(model)
     const b = ProviderTransform.systemPromptPrefix(model)
@@ -192,7 +193,7 @@ describe("system prefix digest (reasoning_prompt.mdc)", () => {
     expect(a).toContain(PROMPT_REASONING.slice(0, 40))
   })
 
-  test("systemPromptParts loads full mdc as reasoning; kernel slot empty", () => {
+  test("systemPromptParts loads full txt as reasoning; kernel slot empty", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
     // Unified identity: gates + claim_ledger + PROMPT_ABI dictionary live in one file.
     expect(parts.reasoning.length).toBeGreaterThan(10_000)
@@ -205,7 +206,7 @@ describe("system prefix digest (reasoning_prompt.mdc)", () => {
     expect(parts.kernel).toBe("")
   })
 
-  test("reports prefix byte sizes for unified reasoning mdc", () => {
+  test("reports prefix byte sizes for unified reasoning txt", () => {
     const reasoningBytes = Buffer.byteLength(PROMPT_REASONING, "utf8")
     const combined = Buffer.byteLength(
       ProviderTransform.systemPromptPrefix(mockModel("openai/gpt-4")),

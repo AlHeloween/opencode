@@ -1,4 +1,5 @@
 Recursively compare two directories and report differences: files only in A, only in B, or different (by size/timestamp).
+Follow @G1 observe (read-only evidence).
 
 Use this tool to see what changed between two directory trees — e.g. before/after a build, between branches, or after a refactor.
 

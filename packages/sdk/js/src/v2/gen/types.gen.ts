@@ -1344,6 +1344,10 @@ export type AgentConfig = {
    */
   maxSteps?: number
   permission?: PermissionConfig
+  /**
+   * Allowed task() subagent ids. Omitted = all allowed.
+   */
+  subagents?: Array<string>
   [key: string]:
     | unknown
     | string
@@ -1368,6 +1372,7 @@ export type AgentConfig = {
     | "info"
     | number
     | PermissionConfig
+    | Array<string>
     | undefined
 }
 
@@ -2320,6 +2325,8 @@ export type Agent = {
     [key: string]: unknown
   }
   steps?: number
+  /** Allowed task() subagent ids. Omitted = all allowed. */
+  subagents?: Array<string>
 }
 
 export type LspStatus = {

@@ -47,7 +47,8 @@ const AgentSchema = Schema.StructWithRest(
     }),
     maxSteps: Schema.optional(PositiveInt).annotate({ description: "@deprecated Use 'steps' field instead." }),
     permission: Schema.optional(ConfigPermission.Info),
-    subagents: Schema.optional(Schema.Array(Schema.String)).annotate({
+    // mutable: Config merge assigns into non-readonly AgentConfig maps
+    subagents: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
       description:
         "Allowed sub-agent types for task() delegation (canonical ids: explorer_agent, coder_agent, …). Omitted = all allowed.",
     }),

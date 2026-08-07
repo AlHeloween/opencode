@@ -2,7 +2,7 @@
 DEFAULT_PROMPT = _spec(
     intent="Merged into @AGENT_DIRECTIVES. See: @AGENT_DIRECTIVES.",
     state={},
-    scope="deprecated — use AGENT_DIRECTIVES",
+    scope="deprecated — use @AGENT_DIRECTIVES",
     constraints={},
     invariants=[],
     forbidden_actions=[],

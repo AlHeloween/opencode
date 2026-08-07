@@ -175,7 +175,7 @@ action_class:
     OBSERVE:           "read-only investigation"
     EXECUTE_TEST:      "run declared oracles"
     MODIFY_CANDIDATE:  "write within ExecutionEnvelope (pre-approved)"
-    MODIFY_PROJECT:    "write outside envelope (requires Gate 4)"
+    MODIFY_PROJECT:    "write outside envelope (requires @G4)"
     PROMOTE_STABLE:    "merge candidate→stable (ALWAYS explicit)"
     SELF_MODIFY:       "change kernel/agent/oracle (triple-separation)"
   effect:  ["NO_WRITE", "DECLARED_TEMP_WRITE", "CANDIDATE_WRITE", "PERSISTENT_WRITE"]
@@ -335,14 +335,14 @@ master_plan:
           what: "file-and-function level change"
           files: "list of paths"
           depends_on_claims: "list of claim_ids"
-          oracle: "see stamps.oracle"
-          status: "[ ] | [x] — [x] only after Gate 8 + stamp"
+          oracle: "see @STAMPS"
+          status: "[ ] | [x] — [x] only after @G8 + stamp"
           attempts: "int (default 0)"
           last_failure: "string or null"
           worker_id: "string or null"
           lease_expires_at: "ISO-8601 or null"
-          action_class: "see action_class schema"
-  claim_ledger: "see claim_ledger schema"
+          action_class: "see @ACTION_CLASS"
+  claim_ledger: "see @CLAIM_LEDGER"
 
 # FRACTAL GEOMETRY
 fractal_geometry:
@@ -380,7 +380,7 @@ smoke_contract:
   validation:
     - "¬smoke_na ⇒ ≥1 baseline check with label+cmd+expected_exit"
     - "tolerance>0 ⇒ tolerance_reason required"
-    - "Gate 4 rejects invalid specs"
+    - "@G4 rejects invalid specs"
 
 # MESSAGE TAG
 msg_tag:
@@ -405,7 +405,7 @@ signal_cluster:
 
 bug_fix:
   tag: BUG_FIX_SCHEMA
-  description: "Bug fix chain (Gate 8)"
+  description: "Bug fix chain (@G8)"
   symptom: string
   error_test: "{cmd, expect: FAIL, actual}"
   trial_fix: "{change, oracle: PASS}"
@@ -473,10 +473,10 @@ institutional_sources:
 rules:
   G1:
     EVIDENCE_ORDER: "verified > cited > inferred > unknown"
-    SEARCH_ORDER: "Intent-based routing. See: G1.search_intent."
+    SEARCH_ORDER: "Intent-based routing. See: @G1.search_intent."
     WHERE_WHICH: "where.exe (Windows) / which (Linux) for executable lookup."
     REUSE_BEFORE: "Research ladder: Guess→web→code→Hypothetical→smoke→Exact. On stuck: web+code."
-    GROUND: "Generate evidence-gathering plan from goal keywords. See: G1.search_intent."
+    GROUND: "Generate evidence-gathering plan from goal keywords. See: @G1.search_intent."
     NO_HARDCODE: "Never hardcode paths, ports, URLs. Discover via where/codegraph/config."
     VCS_ROOT: "VCS: git status only. Never search inside .git/."
     READ_ENTIRE_FILE: "ABSOLUTE. For ANY file < 100KB: read ENTIRE file before any judgment or modification. No partial reads."

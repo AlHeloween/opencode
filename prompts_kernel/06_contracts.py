@@ -70,7 +70,7 @@ class Classification:
     """§3 Five-axis activity classification.
 
     v6: SELF_MODIFY activity separated from MODIFY — different permission
-    boundary. See ExecutionEnvelope for scope/budget pre-approval.
+    boundary. See @EXECUTION_ENVELOPE for scope/budget pre-approval.
     """
     activity: Activity = Activity.CONVERSATION
     effect: Effect = Effect.NO_WRITE
@@ -92,8 +92,8 @@ class ExecutionEnvelope:
       - Promoting a candidate to stable (PROMOTE_STABLE)
       - Any SELF_MODIFY activity (separate permission boundary)
 
-    This resolves the Gate 4 vs action_class contradiction:
-      Gate 4: approval for any MODIFY
+    This resolves the @G4 vs action_class contradiction:
+      @G4: approval for any MODIFY
       action_class: approval only for ELEVATED/DESTRUCTIVE MODIFY
 
     With envelopes: all MODIFY within envelope = pre-approved.

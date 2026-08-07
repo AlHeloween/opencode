@@ -42,10 +42,10 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
 RUNTIME_RULES = MappingProxyType({
     # G1: GROUND
     "EVIDENCE_ORDER": "verified > cited > inferred > unknown",
-    "SEARCH_ORDER": "Intent-based routing — tools answer different question types. No single linear order. See: G1.search_intent.",
+    "SEARCH_ORDER": "Intent-based routing — tools answer different question types. No single linear order. See: @G1.search_intent.",
     "WHERE_WHICH": "where.exe (Windows) / which (Linux) for executable lookup. Never glob/grep for executables.",
     "REUSE_BEFORE": "Research ladder: Guess→web→code→Hypothetical→smoke→Exact. Prefer reuse over reinvent. On stuck: web+code on error. See: @G1, @G6, @EPISTEMIC_LADDER.",
-    "GROUND": "Generate evidence-gathering plan from goal keywords. Routes by intent. See: G1.search_intent.",
+    "GROUND": "Generate evidence-gathering plan from goal keywords. Routes by intent. See: @G1.search_intent.",
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)",
     "VCS_ROOT": "VCS: git status only. Never search inside .git/ — it is gitignored, invisible.",
     "READ_ENTIRE_FILE": "ABSOLUTE RULE. For ANY file < 100KB: read ENTIRE file before judgment or modification. No partial reads. For files ≥ 100KB: read with offset/limit, but at minimum the first 2000 lines to understand structure and imports before any edit. Partial reads on small files are the root cause of wrong edits.",
@@ -54,13 +54,13 @@ RUNTIME_RULES = MappingProxyType({
     "DECOMPOSE": "Fractal lattice before work list. Over-generate→Manhattan(L1)→adaptive τ→adaptive_k→k-medoids→CENTRAL_TASKS=medoids. See: @G2, @FRACTAL_GEOMETRY.",
     "FRACTAL_CANDIDATES": "generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks, or when orthogonality_score < 0.7), Quad/Oct (grid subdivision for 2/4/8 peaks when orthogonality_score ≥ 0.7), L-System (grammar walk, fallback for unknown models or 1 peak).",
     "GOAL_SEEDS": "goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.",
-    "GOAL_PEAKS": "Count keyword clusters → select_fractal_model. See: G2.fractal_dispatch.",
+    "GOAL_PEAKS": "Count keyword clusters → select_fractal_model. See: @G2.fractal_dispatch.",
     "SV_DELTA": "sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.",
     "METRIC_ADAPTATION": "PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.",
 
     # G3: MASTER_PLAN
     "SMOKE_BEFORE": "Plan must include Smoke Tests or smoke:N/A with justification. Record baseline [Exact] before first edit. Vague 'test later' forbidden. See: @G3, @G8, @SMOKE_CONTRACT.",
-    "SMOKE_SPEC": "smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before Gate 4 approval. Blast radius inferred from task keywords.",
+    "SMOKE_SPEC": "smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before @G4 approval. Blast radius inferred from task keywords.",
     "SMOKE_VALIDATE": "smoke_before_validate(spec) enforces the @SMOKE_CONTRACT: smoke_na requires justification, baseline must have ≥1 check with label+cmd+expected_exit, tolerance>0 requires tolerance_reason. Returns (is_valid, diagnostic). @G4 rejects invalid specs.",
     "INFOMARK_SEP": "Salience≠Evidence; confidence≠Exact; fluency≠truth. Only stamped Exact|Inferred enter G. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.",
 
@@ -75,7 +75,7 @@ RUNTIME_RULES = MappingProxyType({
 
     # G8: ORACLE
     "VERIFY_OUTCOME": "declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done",
-    "SMOKE_VERIFY": "smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. Gate 8: only PASS promotes to Done.",
+    "SMOKE_VERIFY": "smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. @G8: only PASS promotes to Done.",
 
     # G9: CLEAN_STATE
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",

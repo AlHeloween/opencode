@@ -433,7 +433,7 @@ activity:
   OBSERVE: read-only investigation
   EXECUTE_TEST: run declared oracles
   MODIFY_CANDIDATE: write within ExecutionEnvelope (pre-approved)
-  MODIFY_PROJECT: write outside envelope (requires Gate 4)
+  MODIFY_PROJECT: write outside envelope (requires @G4)
   PROMOTE_STABLE: merge candidate→stable (ALWAYS explicit)
   SELF_MODIFY: change kernel/agent/oracle (triple-separation)
 effect:
@@ -479,14 +479,14 @@ goals:
     what: file-and-function level change
     files: list of paths
     depends_on_claims: list of claim_ids
-    oracle: see stamps.oracle
-    status: '[ ] | [x] — [x] only after Gate 8 + stamp'
+    oracle: see @STAMPS
+    status: '[ ] | [x] — [x] only after @G8 + stamp'
     attempts: int (default 0)
     last_failure: string or null
     worker_id: string or null
     lease_expires_at: ISO-8601 or null
-    action_class: see action_class schema
-claim_ledger: see claim_ledger schema
+    action_class: see @ACTION_CLASS
+claim_ledger: see @CLAIM_LEDGER
 
 ## EXECUTION_ENVELOPE (@EXECUTION_ENVELOPE)
 description: Pre-approved authorization for MODIFY_CANDIDATE (authenticated, verifiable)
@@ -652,7 +652,7 @@ disposition: COLLAPSED_DUPLICATES | CONFIRMATION | DIVERGENCE
 evidential_status: ACTIVE (never discarded)
 
 ## BUG_FIX_SCHEMA (@BUG_FIX_SCHEMA)
-description: Bug fix chain (Gate 8)
+description: Bug fix chain (@G8)
 symptom: string
 error_test: '{cmd, expect: FAIL, actual}'
 trial_fix: '{change, oracle: PASS}'
@@ -717,7 +717,7 @@ blast_radius: description of affected files/systems
 validation:
 - ¬smoke_na ⇒ ≥1 baseline check with label+cmd+expected_exit
 - tolerance>0 ⇒ tolerance_reason required
-- Gate 4 rejects invalid specs
+- '@G4 rejects invalid specs'
 
 # Algorithms
 
@@ -836,10 +836,10 @@ TERMS:
 RULES:
   # ── G1 ──
   EVIDENCE_ORDER: verified > cited > inferred > unknown
-  SEARCH_ORDER: Intent-based routing — tools answer different question types. No single linear order. See: G1.search_intent.
+  SEARCH_ORDER: Intent-based routing — tools answer different question types. No single linear order. See: @G1.search_intent.
   WHERE_WHICH: where.exe (Windows) / which (Linux) for executable lookup. Never glob/grep for executables.
   REUSE_BEFORE: Research ladder: Guess→web→code→Hypothetical→smoke→Exact. Prefer reuse over reinvent. On stuck: web+code on error. See: @G1, @G6, @EPISTEMIC_LADDER.
-  GROUND: Generate evidence-gathering plan from goal keywords. Routes by intent. See: G1.search_intent.
+  GROUND: Generate evidence-gathering plan from goal keywords. Routes by intent. See: @G1.search_intent.
   NO_HARDCODE: never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)
   VCS_ROOT: VCS: git status only. Never search inside .git/ — it is gitignored, invisible.
   READ_ENTIRE_FILE: ABSOLUTE RULE. For ANY file < 100KB: read ENTIRE file before judgment or modification. No partial reads. For files ≥ 100KB: read with offset/limit, but at minimum the first 2000 lines to understand structure and imports before any edit. Partial reads on small files are the root cause of wrong edits.
@@ -847,12 +847,12 @@ RULES:
   DECOMPOSE: Fractal lattice before work list. Over-generate→Manhattan(L1)→adaptive τ→adaptive_k→k-medoids→CENTRAL_TASKS=medoids. See: @G2, @FRACTAL_GEOMETRY.
   FRACTAL_CANDIDATES: generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks, or when orthogonality_score < 0.7), Quad/Oct (grid subdivision for 2/4/8 peaks when orthogonality_score ≥ 0.7), L-System (grammar walk, fallback for unknown models or 1 peak).
   GOAL_SEEDS: goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.
-  GOAL_PEAKS: Count keyword clusters → select_fractal_model. See: G2.fractal_dispatch.
+  GOAL_PEAKS: Count keyword clusters → select_fractal_model. See: @G2.fractal_dispatch.
   SV_DELTA: sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.
   METRIC_ADAPTATION: PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.
   # ── G3 ──
   SMOKE_BEFORE: Plan must include Smoke Tests or smoke:N/A with justification. Record baseline [Exact] before first edit. Vague 'test later' forbidden. See: @G3, @G8, @SMOKE_CONTRACT.
-  SMOKE_SPEC: smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before Gate 4 approval. Blast radius inferred from task keywords.
+  SMOKE_SPEC: smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before @G4 approval. Blast radius inferred from task keywords.
   SMOKE_VALIDATE: smoke_before_validate(spec) enforces the @SMOKE_CONTRACT: smoke_na requires justification, baseline must have ≥1 check with label+cmd+expected_exit, tolerance>0 requires tolerance_reason. Returns (is_valid, diagnostic). @G4 rejects invalid specs.
   INFOMARK_SEP: Salience≠Evidence; confidence≠Exact; fluency≠truth. Only stamped Exact|Inferred enter G. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.
   # ── G4 ──
@@ -864,7 +864,7 @@ RULES:
   NO_SCRIPT_EDITING: ABSOLUTE RULE. Scripting file editions are FORBIDDEN. Do NOT use grep/sed/awk/find-replace or any bulk text processing on source files. Do NOT use shell redirection, heredoc, or piping to modify source files. Use the edit/write product tools exclusively for ALL file modifications. Shell-based text mutation on source code is prohibited — no exceptions. Edit/write tools provide backups, rollback, and LSP diagnostics; shell scripting bypasses all of these.
   # ── G8 ──
   VERIFY_OUTCOME: declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done
-  SMOKE_VERIFY: smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. Gate 8: only PASS promotes to Done.
+  SMOKE_VERIFY: smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. @G8: only PASS promotes to Done.
   # ── G9 ──
   CLEAN_STATE: end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.
   SV_OUTPUT: YOU must emit semantic vector after EVERY response. Keywords Semantic-dominant md5 prev-md5. See: @SV_FORMAT.
@@ -1101,7 +1101,7 @@ forbidden:
 
 ## DEFAULT_PROMPT
 Merged into @AGENT_DIRECTIVES. See: @AGENT_DIRECTIVES.
-scope: deprecated — use AGENT_DIRECTIVES
+scope: deprecated — use @AGENT_DIRECTIVES
 
 ## GOVERNANCE
 No unapproved mutations. Inspection≠repair. See: @G4, @EXECUTION_ENVELOPE, @ACTION_CLASS.
@@ -1124,16 +1124,16 @@ forbidden:
 Evidence grounding and intent-based tool routing. See: @G1 for complete search_intent routing table.
 scope: all agent operations — grounding before judgment
 constraints:
-  see → G1.search_intent
-  see_also → SEARCH_ORDER, EVIDENCE_ORDER, REUSE_BEFORE, WHERE_WHICH, NO_HARDCODE
+  see → @G1.search_intent
+  see_also → @SEARCH_ORDER, @EVIDENCE_ORDER, @REUSE_BEFORE, @WHERE_WHICH, @NO_HARDCODE
 invariants:
-  • Before claiming 'not found', check intent-appropriate tool per G1.search_intent
+  • Before claiming 'not found', check intent-appropriate tool per @G1.search_intent
   • Internal knowledge alone insufficient for Inferred confidence
 forbidden:
   • Applying single linear tool order without intent routing
   • Claiming 'not found' without checking intent-appropriate tool
 acceptance:
-  • Agent routes by intent per G1.search_intent
+  • Agent routes by intent per @G1.search_intent
 
 ## PLANNING
 ADID fractal task geometry. See: @G2, @G3, @G7, @G9.
@@ -1141,7 +1141,7 @@ scope: task geometry — see gates
 constraints:
   fractal_geometry_required → True
   linear_mode_1_forbidden → True
-  see → G2, G3, G7, G9
+  see → @G2, @G3, @G7, @G9
 invariants:
   • 6-step ADID loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL
   • One task in_progress at a time. transition_task atomically with version guard.

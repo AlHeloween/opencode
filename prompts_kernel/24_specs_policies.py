@@ -77,7 +77,7 @@ PLANNING = _spec(
     constraints={
         "fractal_geometry_required": True,
         "linear_mode_1_forbidden": True,
-        "see": "G2, G3, G7, G9",
+        "see": "@G2, @G3, @G7, @G9",
     },
     invariants=[
         "6-step ADID loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL",

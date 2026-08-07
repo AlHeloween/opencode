@@ -135,37 +135,30 @@ build_opentui() {
 
 # ─── Kernel prompt sync ──────────────────────────────────────────────
 sync_kernel_prompt() {
-  local assemble="$ROOT/packages/opencode/script/assemble_reasoning.py"
-  local reasoning_dir="$OPENCODE_PKG/src/session/prompt/reasoning"
   local kernel_pkg="$ROOT/prompts_kernel"
-  local kernel_dst="$OPENCODE_PKG/src/session/prompt/prompts_kernel.txt"
-
-  if [ -f "$assemble" ]; then
-    if [ ! -d "$reasoning_dir" ]; then
-      fail "Reasoning fragments missing: $reasoning_dir"
-      return 1
-    fi
-    python3 "$assemble" || {
-      fail "assemble_reasoning.py failed"
-      return 1
-    }
-    local rsize
-    rsize=$(wc -c < "$OPENCODE_PKG/src/session/prompt/reasoning.txt" | tr -d ' ')
-    ok "Reasoning protocol assembled ($rsize bytes)"
-  fi
+  local kernel_dst="$OPENCODE_PKG/src/session/prompt/reasoning_prompt.mdc"
 
   if [ ! -d "$kernel_pkg" ]; then
     fail "Kernel package not found: $kernel_pkg"
     return 1
   fi
 
-  ( cd "$ROOT" && python3 -m prompts_kernel --render-runtime "$kernel_dst" ) || {
-    fail "Kernel runtime compilation failed (python -m prompts_kernel)"
+  # Precompile then assemble unified reasoning_prompt.mdc (matches _build.ps1)
+  ( cd "$ROOT" && python3 -c "from prompts_kernel import write_precompiled_kernel; write_precompiled_kernel()" ) || {
+    fail "Kernel precompilation failed"
     return 1
   }
+  ( cd "$ROOT" && python3 -c "from prompts_kernel import write_reasoning; write_reasoning()" ) || {
+    fail "write_reasoning → reasoning_prompt.mdc failed"
+    return 1
+  }
+  if [ ! -f "$kernel_dst" ]; then
+    fail "Kernel assembly missing output: $kernel_dst"
+    return 1
+  fi
   local size
   size=$(wc -c < "$kernel_dst" | tr -d ' ')
-  ok "Kernel prompt compiled ($size bytes)"
+  ok "Reasoning prompt assembled ($size bytes)"
   return 0
 }
 

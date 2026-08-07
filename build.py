@@ -180,8 +180,8 @@ def save_manifest(manifest: dict) -> None:
 
 
 def step_kernel() -> None:
-    """Assemble reasoning fragments + render runtime kernel txt from package."""
-    dst = ROOT / "packages/opencode/src/session/prompt/prompts_kernel.txt"
+    """Precompile kernel + assemble unified reasoning_prompt.mdc."""
+    dst = ROOT / "packages/opencode/src/session/prompt/reasoning_prompt.mdc"
     pkg = ROOT / "prompts_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
@@ -189,21 +189,12 @@ def step_kernel() -> None:
     _run([sys.executable, "-c",
           "from prompts_kernel import write_precompiled_kernel; "
           "write_precompiled_kernel()"])
-    # Step 2: Assemble reasoning.txt (fresh import picks up precompiled)
+    # Step 2: Assemble reasoning_prompt.mdc (reasoning + runtime kernel, one file)
     _run([sys.executable, "-c",
           "from prompts_kernel import write_reasoning; "
-          f"write_reasoning()"])
-    # Render runtime kernel txt
-    _run(
-        [
-            sys.executable,
-            "-m",
-            "prompts_kernel",
-            "--render-runtime",
-            str(dst),
-        ],
-        cwd=ROOT,
-    )
+          "write_reasoning()"])
+    if not dst.is_file():
+        raise RuntimeError(f"kernel assembly missing output: {dst}")
     # Coverage audit: gate ↔ rule sync
     _run(
         [sys.executable, str(ROOT / "prompts_kernel/_coverage.py")],
@@ -278,14 +269,13 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
     steps = [
         Step(
             name="kernel",
-            description="Assemble reasoning/*.txt + render prompts_kernel.txt",
+            description="Assemble prompts_kernel/reasoning → reasoning_prompt.mdc",
             inputs=[
                 "prompts_kernel",
                 "prompts_kernel/reasoning",
             ],
             outputs=[
-                "packages/opencode/src/session/prompt/prompts_kernel.txt",
-                "packages/opencode/src/session/prompt/reasoning.txt",
+                "packages/opencode/src/session/prompt/reasoning_prompt.mdc",
             ],
             run=step_kernel,
         ),

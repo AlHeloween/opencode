@@ -334,6 +334,7 @@ export const layer = Layer.effect(
         modeInstructionForTransition(previousMode, input.agent.name) ??
         (previousMode !== input.agent.name ? roleInstructionForAgent(input.agent) : undefined)
       if (!instruction || hasSynthetic(instruction)) return input.messages
+      yield* elog.debug("mode transition", { previousMode, nextMode: input.agent.name, hasSynthetic: false })
       const part = yield* sessions.updatePart({
         id: PartID.ascending(),
         messageID: userMessage.info.id,

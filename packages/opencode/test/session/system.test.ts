@@ -11,8 +11,7 @@ import PROMPT_ANTHROPIC from "../../src/session/prompt/anthropic.txt"
 import PROMPT_DEFAULT from "../../src/session/prompt/default.txt"
 import PROMPT_GPT from "../../src/session/prompt/gpt.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
-import PROMPT_KERNEL from "../../src/session/prompt/prompts_kernel.txt"
-import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
+import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.mdc"
 import TASK_DESCRIPTION from "../../src/tool/task.txt"
 
 function mockModel(apiId: string, providerId = "test"): Provider.Model {
@@ -41,20 +40,20 @@ describe("session.system", () => {
       expect(prompt).toContain("explore")
       expect(prompt).toContain("general")
     }
-    expect(PROMPT_REASONING).toContain("REASONING PROTOCOL")
-    expect(PROMPT_REASONING).toContain("ALGORITHM_CARD")
+    expect(PROMPT_REASONING).toContain("GATED_WORKFLOW")
+    expect(PROMPT_REASONING).toContain("PROMPT_ABI")
   })
 
-  test("prompts kernel contains compact runtime dictionary roots", () => {
-    const kernel = PROMPT_KERNEL
+  test("reasoning_prompt.mdc contains compact runtime dictionary roots", () => {
+    const prompt = PROMPT_REASONING
 
-    for (const root of ["PROMPT_ABI", "TERMS", "RULES", "WORKFLOWS", "PACKS"]) {
-      expect(kernel).toContain(root)
+    for (const root of ["PROMPT_ABI", "TERMS", "RULES"]) {
+      expect(prompt).toContain(root)
     }
-    expect(kernel).toContain("EVIDENCE.ORDER")
-    expect(kernel).toContain("agent.build")
-    expect(kernel).not.toContain("_ALL_SPECS")
-    expect(kernel).not.toContain("run_conformance")
+    expect(prompt).toMatch(/EVIDENCE_ORDER|EVIDENCE\.ORDER/)
+    expect(prompt).toContain("claim_ledger")
+    expect(prompt).not.toContain("_ALL_SPECS")
+    expect(prompt).not.toContain("run_conformance")
   })
 
   test("plan reminders preserve the compact read-only planning contract", async () => {

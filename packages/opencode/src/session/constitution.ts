@@ -833,6 +833,7 @@ export const MUTATION_TOOLS = new Set([
   "multiedit",
   "apply_patch",
   "applypatch",
+  "restore",
 ])
 
 export function isMutationTool(tool: string): boolean {
@@ -843,7 +844,7 @@ export function isMutationTool(tool: string): boolean {
 
 /** File mutation is always at least ELEVATED (persistent write). */
 export function noteMutationRisk(input: {
-  tool: "edit" | "write" | "multiedit" | "apply_patch" | "applypatch"
+  tool: "edit" | "write" | "multiedit" | "apply_patch" | "applypatch" | "restore"
   path: string
   sessionID?: string
 }): Risk {

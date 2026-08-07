@@ -14,6 +14,14 @@ import { findLatestBackup, listBackups, restoreBackup } from "./edit-backup"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { Constitution } from "@/session/constitution"
 
+type RestoreMetadata = {
+  count?: number
+  filepath?: string
+  filename?: string
+  found?: boolean
+  error?: string
+}
+
 export const Parameters = Schema.Struct({
   list: Schema.optional(Schema.Boolean).annotate({
     description: "If true, list session edit backups instead of restoring. Default false.",
@@ -37,7 +45,9 @@ export const RestoreTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
+      // Cast: listBackups/restoreBackup re-yield AppFileSystem; runtime provides it via tool layer.
+      // Tool.Def requires Effect<..., never, never> for execute.
+      execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context): Effect.Effect<Tool.ExecuteResult<RestoreMetadata>> =>
         Effect.gen(function* () {
           const sessionID = ctx.sessionID
 
@@ -46,7 +56,7 @@ export const RestoreTool = Tool.define(
             if (entries.length === 0) {
               return {
                 title: "edit backups",
-                metadata: { count: 0 },
+                metadata: { count: 0 } as RestoreMetadata,
                 output: "No edit backups for this session yet. Backups are created automatically when the edit tool modifies an existing file.",
               }
             }
@@ -58,7 +68,7 @@ export const RestoreTool = Tool.define(
             )
             return {
               title: "edit backups",
-              metadata: { count: sorted.length },
+              metadata: { count: sorted.length } as RestoreMetadata,
               output: `Session edit backups (${sorted.length}, newest first):\n\n${lines.join("\n")}\n\nRestore with restore({ filename: "…" }) or restore({ filePath: "…" }) for latest match.`,
             }
           }
@@ -90,7 +100,7 @@ export const RestoreTool = Tool.define(
             yield* bus.publish(File.Event.Edited, { file: restored })
             return {
               title: path.basename(restored),
-              metadata: { filepath: restored, filename: hit?.filename ?? name },
+              metadata: { filepath: restored, filename: hit?.filename ?? name } as RestoreMetadata,
               output: `Restored ${restored} from backup ${hit?.filename ?? name} (pre-edit content). No git/Fossil required.`,
             }
           }
@@ -109,7 +119,7 @@ export const RestoreTool = Tool.define(
                 .join("\n")
               return {
                 title: "restore",
-                metadata: { filepath: abs, found: false },
+                metadata: { filepath: abs, found: false } as RestoreMetadata,
                 output:
                   `No edit backup found for ${abs}.\n` +
                   `Backups exist only after the edit tool changes an existing file (not bare write create).\n` +
@@ -132,7 +142,7 @@ export const RestoreTool = Tool.define(
             yield* bus.publish(File.Event.Edited, { file: restored })
             return {
               title: path.basename(restored),
-              metadata: { filepath: restored, filename: entry.filename },
+              metadata: { filepath: restored, filename: entry.filename } as RestoreMetadata,
               output: `Restored ${restored} from latest backup ${entry.filename} (${entry.timestamp}). No git/Fossil required.`,
             }
           }
@@ -142,7 +152,7 @@ export const RestoreTool = Tool.define(
           if (entries.length === 0) {
             return {
               title: "restore",
-              metadata: { count: 0 },
+              metadata: { count: 0 } as RestoreMetadata,
               output:
                 "Usage: restore({ filePath: \"…\" }) | restore({ filename: \"….bak\" }) | restore({ list: true }).\nNo edit backups in this session yet.",
             }
@@ -156,10 +166,10 @@ export const RestoreTool = Tool.define(
             .join("\n")
           return {
             title: "restore",
-            metadata: { count: sorted.length },
+            metadata: { count: sorted.length } as RestoreMetadata,
             output: `Provide filePath or filename to restore. Recent backups:\n${lines}`,
           }
-        }),
+        }).pipe(Effect.orDie) as Effect.Effect<Tool.ExecuteResult<RestoreMetadata>>,
     }
   }),
 )

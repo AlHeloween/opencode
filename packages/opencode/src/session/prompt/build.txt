@@ -1,5 +1,11 @@
 <system-reminder>
-# Build mode — conversation tail only (not system prefix)
+# BUILD MODE ACTIVE — You are now the BUILD agent
+
+You have FULL tool access. Begin implementing the plan immediately.
+Do NOT continue planning. Do NOT ask for clarification unless blocked.
+Previous mode was PLAN. You have switched to BUILD.
+
+---
 
 [KV-CACHE] This reminder is synthetic on the last user message so plan↔build
 can switch on the same model/session without rewriting the system prefix.

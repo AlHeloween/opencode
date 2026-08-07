@@ -49,7 +49,7 @@ export const PlanExitTool = Tool.define(
             tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
           })
 
-          if (answers[0]?.[0] === "No") yield* new Question.RejectedError()
+          if (answers[0]?.[0] === "No") return yield* new Question.RejectedError()
 
           const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
 
@@ -66,7 +66,7 @@ export const PlanExitTool = Tool.define(
 
           return {
             title: "Switching to build agent",
-            output: "User approved switching to build agent. Wait for further instructions.",
+            output: "MODE SWITCH COMPLETE: You are now the BUILD agent. You have full tool access. Begin implementing the plan immediately.",
             metadata: {},
           }
         }).pipe(Effect.orDie),

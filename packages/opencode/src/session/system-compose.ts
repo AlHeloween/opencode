@@ -5,7 +5,7 @@
  *
  * Layout (stable prefix first, mutable last):
  *   [0] UNIVERSAL_ENV            — immutable forever
- *   [1] stable identity prefix   — reasoning → ALGORITHM_CARD → kernel (MOST STABLE)
+ *   [1] stable identity prefix   — reasoning_prompt.mdc (+ optional kernel) (MOST STABLE)
  *   [2] tool schemas             — stable per app version
  *   [3] path system              — rules → skills → env → instructions (NO agent role)
  *   [4] mutable tail             — session banner, user system (optional)
@@ -23,14 +23,10 @@ export type SystemComposeInput = {
   universalEnv: string
   /** Empty string skips the tool-schemas slot. */
   toolSchemas: string
-  /** Reasoning prefix (reasoning.txt). MOST STABLE — slot [1], before tool schemas. */
+  /** Reasoning prefix (reasoning_prompt.mdc). MOST STABLE — slot [1], before tool schemas. */
   reasoningPrefix: string
-  /**
-   * ALGORITHM_CARD — removed. Workflow now covered by gates YAML + kernel rules.
-   * Field kept for backward compatibility; always undefined.
-   */
-  algorithmCard?: string
-  /** Kernel file (prompts_kernel.txt). Stable per app version. */
+
+  /** Optional kernel tail. Currently empty at runtime (merged into reasoning_prompt.mdc). */
   kernel: string
   /**
    * @deprecated Prefer conversation role notify. Kept optional for callers;
@@ -62,12 +58,10 @@ export type SystemComposeInput = {
 export function assembleSystemMessages(input: SystemComposeInput): string[] {
   const system: string[] = [input.universalEnv]
 
-  // system[1]: Stable identity prefix — reasoning → ALGORITHM_CARD → kernel
+  // system[1]: Stable identity prefix — reasoning → kernel
   // Goes BEFORE tool schemas: model sees how to think, then what tools exist.
-  // Required order: reasoning → ALGORITHM_CARD → kernel (MOST STABLE first)
   const stablePrefix = [
     input.reasoningPrefix,
-    input.algorithmCard ?? "",
     input.kernel,
   ].filter((s) => s.length > 0)
   if (stablePrefix.length > 0) system.push(stablePrefix.join("\n"))
@@ -147,7 +141,7 @@ export function assemblePathSystem(input: {
 /**
  * Validate system message ordering invariants for KV cache continuity.
  * Checks that the assembled system messages follow the required mutability order:
- *   reasoning → ALGORITHM_CARD → kernel → rules → skills → env → agentPrompt → instructions
+ *   reasoning (GATED / PROMPT_ABI) → rules → skills → env → agentPrompt → instructions
  *
  * Logs a warning if invariants are violated (development/debugging aid).
  * Returns true if order is valid, false otherwise.
@@ -157,37 +151,25 @@ export function validateSystemOrder(system: string[]): boolean {
 
   const fullText = system.join("\n")
 
-  // Check key ordering invariants
-  // Marker must match reasoning.txt header (lean protocol, not v3 essay)
-  const reasoningIdx = fullText.indexOf("REASONING PROTOCOL")
-  const algorithmIdx = fullText.indexOf("ALGORITHM_CARD")
-  const kernelIdx = fullText.indexOf("PROMPT_ABI")
+  // Markers from reasoning_prompt.mdc (GATED spine + embedded dictionary)
+  const gatedIdx = fullText.indexOf("GATED_WORKFLOW")
+  const legacyIdx = fullText.indexOf("REASONING PROTOCOL")
+  const reasoningIdx = gatedIdx >= 0 ? gatedIdx : legacyIdx
+  const dictIdx = fullText.indexOf("PROMPT_ABI")
   const agentIdx = fullText.indexOf("You are a coding assistant")
 
-  // Reasoning must come before kernel
-  if (reasoningIdx >= 0 && kernelIdx >= 0 && reasoningIdx > kernelIdx) {
-    console.warn("bug: system order violation — reasoning after kernel")
+  // GATED / reasoning header must appear before the dictionary block when both present
+  if (reasoningIdx >= 0 && dictIdx >= 0 && reasoningIdx > dictIdx) {
+    console.warn("bug: system order violation — reasoning after PROMPT_ABI dictionary")
     return false
   }
 
-  // ALGORITHM_CARD must sit between reasoning and kernel when present
-  if (algorithmIdx >= 0) {
-    if (reasoningIdx >= 0 && algorithmIdx < reasoningIdx) {
-      console.warn("bug: system order violation — ALGORITHM_CARD before reasoning")
-      return false
-    }
-    if (kernelIdx >= 0 && algorithmIdx > kernelIdx) {
-      console.warn("bug: system order violation — ALGORITHM_CARD after kernel")
-      return false
-    }
-  }
-
-  // Kernel must come before agent prompt (if agent prompt exists in stable body)
-  if (kernelIdx >= 0 && agentIdx >= 0 && kernelIdx > agentIdx) {
+  // Dictionary must come before agent prompt (if agent prompt exists in stable body)
+  if (dictIdx >= 0 && agentIdx >= 0 && dictIdx > agentIdx) {
     // Only warn if agentIdx is in the stable body (system[2]), not in mutable tail
     const stableBody = system.slice(0, 3).join("\n")
     if (stableBody.indexOf("You are a coding assistant") >= 0) {
-      console.warn("bug: system order violation — kernel after agent prompt in stable body")
+      console.warn("bug: system order violation — PROMPT_ABI after agent prompt in stable body")
       return false
     }
   }

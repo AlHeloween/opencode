@@ -1,6 +1,6 @@
 preload = ["@opentui/solid/preload"]
 
-[loaders]
+[loader]
 ".mdc" = "text"
 
 [test]

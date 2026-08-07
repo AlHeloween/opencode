@@ -295,7 +295,6 @@ const live: Layer.Layer<
 
       const parts = ProviderTransform.systemPromptParts(input.model)
       const reasoningPrefix = parts.reasoning
-      const algorithmCard = parts.algorithm
       const kernel = parts.kernel
       const promptFile = input.agent.prompt ? `agent:${input.agent.name}` : "reasoning-only"
 
@@ -321,7 +320,6 @@ const live: Layer.Layer<
         universalEnv: UNIVERSAL_ENV,
         toolSchemas: toolSchemaText,
         reasoningPrefix,
-        algorithmCard,
         kernel,
         agentPrompt: "",
         pathSystem: input.system,

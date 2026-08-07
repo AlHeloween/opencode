@@ -6,24 +6,24 @@ import {
   collapseSystemMessages,
   validateSystemOrder,
 } from "../../src/session/system-compose"
-import PROMPT_KERNEL from "../../src/session/prompt/prompts_kernel.txt"
-import PROMPT_REASONING from "../../src/session/prompt/reasoning.txt"
-import PROMPT_ALGORITHM from "../../src/session/prompt/algorithm_card.txt"
+import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.mdc"
 import { ProviderTransform } from "../../src/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
 import type { Provider } from "../../src/provider/provider"
 
 /**
- * System prefix digest — update procedure for intentional kernel revisions:
+ * System prefix digest — update procedure for intentional prompt revisions:
  *
- * 1. Change `prompts_kernel/` (canonical source).
- * 2. Regenerate: `python -m prompts_kernel --render-runtime packages/opencode/src/session/prompt/prompts_kernel.txt`
- * 3. Run: `cd packages/opencode && bun test test/session/system-compose.test.ts`
- * 4. If only the digest assertion fails, update EXPECTED_KERNEL_DIGEST below to the
- *    printed actual digest after reviewing the kernel diff.
- * 5. Commit kernel .txt + digest update together.
+ * 1. Change `prompts_kernel/` (canonical SPECS source) and re-assemble into
+ *    `packages/opencode/src/session/prompt/reasoning_prompt.mdc`.
+ * 2. Run: `cd packages/opencode && bun test test/session/system-compose.test.ts`
+ * 3. If only the digest assertion fails, update EXPECTED_REASONING_DIGEST below
+ *    after reviewing the mdc diff.
+ * 4. Commit reasoning_prompt.mdc + digest update together.
+ *
+ * Runtime loads a single file via ProviderTransform (kernel slot is empty).
  */
-const EXPECTED_KERNEL_DIGEST = createHash("sha256").update(PROMPT_KERNEL, "utf8").digest("hex")
+const EXPECTED_REASONING_DIGEST = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
 
 function mockModel(id: string): Provider.Model {
   return {
@@ -68,7 +68,6 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
-      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
@@ -77,11 +76,11 @@ describe("system-compose provider assembly", () => {
       userSystem: "USER",
       checkpoint: false,
     })
-    // Order: [0] UE, [1] reasoning+card+kernel, [2] tools, [3] path (no agent role), [4] mutable
+    // Order: [0] UE, [1] reasoning+kernel, [2] tools, [3] path (no agent role), [4] mutable
     // Agent prompt + active tools line only in mutable tail (not stable path).
     expect(parts).toEqual([
       "UE",
-      "REASONING\nALGORITHM_CARD\nKERNEL",
+      "REASONING\nKERNEL",
       "TOOLS",
       "RULES\nSKILLS\nENV\nINSTRUCTIONS",
       "Active tools: a\nAGENT_PROMPT\n[session: ses_1]\nUSER",
@@ -93,7 +92,6 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
-      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["OLD_IDENTITY", "RULES", "SKILLS", "ENV"],
@@ -113,7 +111,6 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
-      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
@@ -127,7 +124,7 @@ describe("system-compose provider assembly", () => {
     // Agent role is mutable tail only — stable path has no AGENT_PROMPT.
     expect(collapsed).toEqual([
       "UE",
-      "REASONING\nALGORITHM_CARD\nKERNEL",
+      "REASONING\nKERNEL",
       "TOOLS",
       "RULES\nSKILLS\nENV\nINSTRUCTIONS",
       "Active tools: a\nAGENT_PROMPT\n[session: ses_1]",
@@ -142,7 +139,6 @@ describe("system-compose provider assembly", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: "REASONING",
-      algorithmCard: "ALGORITHM_CARD",
       kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV"],
@@ -176,64 +172,48 @@ describe("system-compose provider assembly", () => {
   })
 })
 
-describe("system prefix digest (kernel + reasoning)", () => {
-  test("kernel artifact has stable documented digest", () => {
-    const digest = createHash("sha256").update(PROMPT_KERNEL, "utf8").digest("hex")
-    expect(digest).toBe(EXPECTED_KERNEL_DIGEST)
-    expect(PROMPT_KERNEL).toContain("PROMPT_ABI")
-    expect(PROMPT_KERNEL).toContain("CONTRACTS")
-    expect(PROMPT_KERNEL).not.toContain("_ALL_SPECS")
+describe("system prefix digest (reasoning_prompt.mdc)", () => {
+  test("reasoning_prompt.mdc artifact has stable documented digest", () => {
+    const digest = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
+    expect(digest).toBe(EXPECTED_REASONING_DIGEST)
+    expect(PROMPT_REASONING).toContain("PROMPT_ABI")
+    expect(PROMPT_REASONING).toContain("GATED_WORKFLOW")
+    expect(PROMPT_REASONING).not.toContain("_ALL_SPECS")
   })
 
-  test("systemPromptPrefix is reasoning then algorithm then kernel, byte-stable", () => {
+  test("systemPromptPrefix is unified reasoning_prompt.mdc, byte-stable", () => {
     const model = mockModel("anthropic/claude-sonnet-4")
     const a = ProviderTransform.systemPromptPrefix(model)
     const b = ProviderTransform.systemPromptPrefix(model)
     expect(a).toBe(b)
-    expect(a.indexOf("REASONING PROTOCOL")).toBeLessThan(a.indexOf("ALGORITHM_CARD"))
-    expect(a.indexOf("ALGORITHM_CARD")).toBeLessThan(a.indexOf("PROMPT_ABI"))
+    expect(a).toContain("GATED_WORKFLOW")
+    expect(a).toContain("PROMPT_ABI")
+    expect(a.indexOf("GATED_WORKFLOW")).toBeLessThan(a.indexOf("PROMPT_ABI"))
     expect(a).toContain(PROMPT_REASONING.slice(0, 40))
-    expect(a).toContain(PROMPT_ALGORITHM.slice(0, 40))
-    expect(a.endsWith(PROMPT_KERNEL) || a.includes(PROMPT_KERNEL.slice(0, 80))).toBe(true)
   })
 
-  test("systemPromptParts keeps full reasoning, algorithm card, and kernel separate", () => {
+  test("systemPromptParts loads full mdc as reasoning; kernel slot empty", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
-    // Agentic pocket: gates + claim_ledger + research ladder (not PromptSpec essay).
-    // Regression: split("\\n\\n") on the join must not truncate/mis-slot files.
-    expect(parts.reasoning.length).toBeGreaterThan(1_500)
-    expect(parts.reasoning.length).toBeLessThan(28_000)
-    expect(parts.reasoning).toContain("REASONING PROTOCOL")
-    expect(parts.reasoning).toMatch(/Noise filter|SVM noise filter/)
-    expect(parts.reasoning).toContain("ALGORITHM_CARD")
+    // Unified identity: gates + claim_ledger + PROMPT_ABI dictionary live in one file.
+    expect(parts.reasoning.length).toBeGreaterThan(10_000)
+    expect(parts.reasoning.length).toBeLessThan(80_000)
+    expect(parts.reasoning).toContain("GATED_WORKFLOW")
     expect(parts.reasoning).toContain("claim_ledger")
-    expect(parts.reasoning).toContain("REUSE.BEFORE")
-    expect(parts.reasoning).not.toContain("PROMPT_ABI")
-    expect(parts.algorithm).toContain("ALGORITHM_CARD")
-    expect(parts.algorithm).toContain("run_task_geometry")
-    expect(parts.algorithm).not.toContain("PROMPT_ABI")
-    expect(parts.kernel.length).toBeGreaterThan(5_000)
-    expect(parts.kernel).toContain("PROMPT_ABI")
-    expect(parts.kernel).toContain("MappingProxyType")
-    expect(parts.kernel.startsWith("# Generated from prompts_kernel.py") || parts.kernel.includes("PROMPT_ABI")).toBe(
-      true,
-    )
+    expect(parts.reasoning).toMatch(/REUSE_BEFORE|REUSE\.BEFORE/)
+    expect(parts.reasoning).toContain("PROMPT_ABI")
+    expect(parts.reasoning).toContain("TERMS")
+    expect(parts.kernel).toBe("")
   })
 
-  test("reports prefix byte sizes for reasoning, algorithm, and kernel", () => {
+  test("reports prefix byte sizes for unified reasoning mdc", () => {
     const reasoningBytes = Buffer.byteLength(PROMPT_REASONING, "utf8")
-    const algorithmBytes = Buffer.byteLength(PROMPT_ALGORITHM, "utf8")
-    const kernelBytes = Buffer.byteLength(PROMPT_KERNEL, "utf8")
     const combined = Buffer.byteLength(
       ProviderTransform.systemPromptPrefix(mockModel("openai/gpt-4")),
       "utf8",
     )
-    expect(kernelBytes).toBeGreaterThan(5_000)
-    expect(kernelBytes).toBeLessThan(80_000)
-    expect(reasoningBytes).toBeGreaterThan(1_500)
-    expect(reasoningBytes).toBeLessThan(28_000)
-    expect(algorithmBytes).toBeGreaterThan(500)
-    expect(combined).toBeGreaterThanOrEqual(reasoningBytes + algorithmBytes + kernelBytes)
+    expect(reasoningBytes).toBeGreaterThan(10_000)
+    expect(reasoningBytes).toBeLessThan(80_000)
+    expect(combined).toBe(reasoningBytes)
   })
 })
 
@@ -243,8 +223,7 @@ describe("validateSystemOrder", () => {
       universalEnv: "UE",
       toolSchemas: "TOOLS",
       reasoningPrefix: PROMPT_REASONING,
-      algorithmCard: PROMPT_ALGORITHM,
-      kernel: PROMPT_KERNEL,
+      kernel: "",
       agentPrompt: "AGENT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
       activeToolsLine: "Active tools: a",

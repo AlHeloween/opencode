@@ -6,9 +6,7 @@ import type { JSONSchema } from "zod/v4/core"
 import type * as Provider from "./provider"
 import { iife } from "@/util/iife"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import PROMPT_REASONING from "@/session/prompt/reasoning.txt"
-import PROMPT_ALGORITHM from "@/session/prompt/algorithm_card.txt"
-import PROMPT_KERNEL from "@/session/prompt/prompts_kernel.txt"
+import PROMPT_REASONING from "@/session/prompt/reasoning_prompt.mdc"
 
 const tlog = Log.create({ service: "provider.transform" })
 
@@ -432,15 +430,13 @@ export function topK(model: Provider.Model) {
 }
 
 export function systemPromptParts(_model: Provider.Model) {
-  const reasoning = PROMPT_REASONING
-  const algorithm = PROMPT_ALGORITHM
-  const kernel = PROMPT_KERNEL
-  return { reasoning, algorithm, kernel }
+  const prompt = PROMPT_REASONING
+  return { reasoning: prompt, kernel: "" }
 }
 
 export function systemPromptPrefix(model: Provider.Model) {
   const parts = systemPromptParts(model)
-  return [parts.reasoning, parts.algorithm, parts.kernel].filter((x) => x.length > 0).join("\n\n")
+  return [parts.reasoning, parts.kernel].filter((x) => x.length > 0).join("\n\n")
 }
 
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]

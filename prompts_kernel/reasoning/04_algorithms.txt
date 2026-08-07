@@ -1,0 +1,36 @@
+## Algorithms
+
+### NOISE_FILTER (@NOISE_FILTER)
+rule: COLLAPSE, never FILTER OUT. 60 identical errors = 1 signal, cardinality preserved.
+distance: Manhattan L1 — preserves per-axis interpretability.
+formula: δ(s,a) = Σ|w_s(k) - w_a(k)| over k ∈ keys(s) ∪ keys(a).
+collapse_gates:
+  cascade: n>1 ∧ source∈{LSP,typecheck,tsc,eslint,pylint,compiler} ∧ pattern matches cascade regex.
+  high_cardinality: n≥5 — same source+pattern firehose.
+  content_similarity: n≥2 ∧ ≥30 chars identical across signals.
+classification: CONFIRMATION (δ < θ), DIVERGENCE (δ ≥ θ — re-anchor first).
+theta: default 0.3; adaptive median({δ_i}) + 0.1 when ≥5 non-collapsed signals; spikes >2× median excluded.
+evidence: COLLAPSED signals with cardinality. Agent sees '60 errors, 1 root cause' — not '0 errors'.
+Diagram: @NOISE_FILTER_DIAGRAM.
+
+### CLASSIFICATION (@CLASSIFICATION)
+@ACTION_CLASS mapping:
+  {activity: MODIFY_CANDIDATE, effect: CANDIDATE_WRITE, risk: LOW} → within @EXECUTION_ENVELOPE — pre-approved.
+  {activity: MODIFY_PROJECT, effect: PERSISTENT_WRITE, risk: ELEVATED} → requires @G4 explicit approval.
+  {activity: PROMOTE_STABLE, effect: PERSISTENT_WRITE, risk: CRITICAL} → ALWAYS explicit user approval.
+  {activity: SELF_MODIFY, effect: PERSISTENT_WRITE, risk: CRITICAL} → triple-separation enforced.
+  {activity: EXECUTE_TEST, effect: NO_WRITE, risk: LOW}
+  {activity: OBSERVE, effect: NO_WRITE, risk: LOW}
+
+### METRIC_GOVERNANCE (@METRIC_GOVERNANCE)
+PARAMETER_ADAPTATION: auto within bounds (percentile, window). METRIC_FAMILY_CHANGE: governance required — NOT automatic.
+Requires: branch + holdout + oracle + promotion. quality_threshold: 0.5.
+invariant: Adaptive tuning ≠ evaluator mutation.
+Diagram: @METRIC_GOVERNANCE_DIAGRAM.
+
+### BUG_FIX_CHAIN (@BUG_FIX_CHAIN)
+stages: ERROR_TEST → TRIAL_FIX → REAL_FIX → TARGETED_TESTS → DONE.
+rule: ERROR_TEST must FAIL first. TARGETED = changed module + related only.
+deadloop: ≥2 STUCK in last 3 attempts → STOP + universalsearch web+code; re-plan.
+STUCK: δ < 0.3 | REFINING: 0.3 ≤ δ < 0.5 | DIVERGING: δ ≥ 0.5.
+Diagram: @BUG_FIX_CHAIN_DIAGRAM.

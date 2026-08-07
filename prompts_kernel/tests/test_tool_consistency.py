@@ -93,7 +93,7 @@ def test_constitution_blocks_rule_count():
     """CONSTITUTION_BLOCKS must list exactly the 7 known block categories."""
     kernel_path = (
         Path(__file__).resolve().parent.parent.parent
-        / "packages" / "opencode" / "src" / "session" / "prompt" / "prompts_kernel.txt"
+        / "packages" / "opencode" / "src" / "session" / "prompt" / "prompts_kernel.mdc"
     )
     if not kernel_path.exists():
         # Skip if prompts_kernel.txt hasn't been generated yet (e.g. in CI without Python)

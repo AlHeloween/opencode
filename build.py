@@ -182,7 +182,6 @@ def save_manifest(manifest: dict) -> None:
 def step_kernel() -> None:
     """Assemble reasoning fragments + render runtime kernel txt from package."""
     dst = ROOT / "packages/opencode/src/session/prompt/prompts_kernel.txt"
-    card_dst = ROOT / "packages/opencode/src/session/prompt/algorithm_card.txt"
     pkg = ROOT / "prompts_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
@@ -190,10 +189,10 @@ def step_kernel() -> None:
     _run([sys.executable, "-c",
           "from prompts_kernel import write_precompiled_kernel; "
           "write_precompiled_kernel()"])
-    # Step 2: Assemble reasoning.txt + algorithm_card.txt (fresh import picks up precompiled)
+    # Step 2: Assemble reasoning.txt (fresh import picks up precompiled)
     _run([sys.executable, "-c",
-          "from prompts_kernel import write_reasoning, write_algorithm_card; "
-          f"write_reasoning(); write_algorithm_card({card_dst.as_posix()!r})"])
+          "from prompts_kernel import write_reasoning; "
+          f"write_reasoning()"])
     # Render runtime kernel txt
     _run(
         [
@@ -203,6 +202,11 @@ def step_kernel() -> None:
             "--render-runtime",
             str(dst),
         ],
+        cwd=ROOT,
+    )
+    # Coverage audit: gate ↔ rule sync
+    _run(
+        [sys.executable, str(ROOT / "prompts_kernel/_coverage.py")],
         cwd=ROOT,
     )
 
@@ -274,7 +278,7 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
     steps = [
         Step(
             name="kernel",
-            description="Assemble reasoning/*.txt + render prompts_kernel.txt + algorithm_card.txt",
+            description="Assemble reasoning/*.txt + render prompts_kernel.txt",
             inputs=[
                 "prompts_kernel",
                 "prompts_kernel/reasoning",
@@ -282,7 +286,6 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
             outputs=[
                 "packages/opencode/src/session/prompt/prompts_kernel.txt",
                 "packages/opencode/src/session/prompt/reasoning.txt",
-                "packages/opencode/src/session/prompt/algorithm_card.txt",
             ],
             run=step_kernel,
         ),

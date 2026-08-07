@@ -1,0 +1,148 @@
+## Diagrams
+
+### SPINE_OVERVIEW (@SPINE_OVERVIEW)
+```mermaid
+flowchart LR
+  G1[G1 GROUND] --> G2[G2 DECOMPOSE]
+  G2 --> G3[G3 MASTER_PLAN]
+  G3 --> G4{G4 AUTHORIZE}
+  G4 -->|envelope OK| G6[G6 GROUND_PLAN]
+  G4 -->|needs approval| G4ask[present + ask]
+  G4ask -->|explicit yes| G6
+  G4ask -->|no/concern| G2
+  G6 --> G7[G7 IMPLEMENT]
+  G7 --> G8[G8 ORACLE]
+  G8 -->|PASS| G9[G9 CLEAN_STATE]
+  G8 -->|FAIL| BugLoop{dead-loop?}
+  BugLoop -->|attempts < max| G7
+  BugLoop -->|attempts >= max| G2
+```
+
+### FRACTAL_PIPELINE (@FRACTAL_PIPELINE)
+```mermaid
+flowchart TD
+  Goal[Goal + evidence] --> Seeds["goal_seeds()"]
+  Seeds --> Lat["generate_fractal_candidates(model, seeds, depth)"]
+  Lat --> L1["L1 filter (d1 <= tau)"]
+  L1 --> K["k = adaptive_k"]
+  K --> Med["k-medoids Manhattan"]
+  Med --> CT[CENTRAL_TASKS = medoids]
+```
+
+### AUTH_RESOLVER (@AUTH_RESOLVER)
+```mermaid
+flowchart TD
+  Start[G4 entry] --> Class{classify activity}
+  Class -->|MODIFY_CANDIDATE| Env{valid envelope?}
+  Env -->|yes| G6A[→ G6]
+  Env -->|no| Present[PRESENT + ASK]
+  Class -->|PROMOTE_STABLE| Explicit[EXPLICIT APPROVAL]
+  Class -->|SELF_MODIFY| Explicit
+  Class -->|MODIFY_PROJECT| Present
+  Explicit --> Ask["Do you approve?"]
+  Present --> Ask
+  Ask -->|yes| G6B[→ G6]
+  Ask -->|no| G2[→ G2 refine]
+```
+
+### GROUND_PHASES (@GROUND_PHASES)
+```mermaid
+flowchart LR
+  A[approved plan] --> P0[Phase 0: codegraph map]
+  P0 --> P1[Phase 1: bounded explore]
+  P1 --> Gap{gaps?}
+  Gap -->|yes| P2[Phase 2: universalsearch web+code]
+  Gap -->|no| Plan[update plan]
+  P2 --> Plan
+  Plan --> G7
+```
+
+### ORACLE_SEQUENCE (@ORACLE_SEQUENCE)
+```mermaid
+sequenceDiagram
+  participant E as Executor
+  participant O as Oracle
+  participant A as Analyst
+  E->>E: materialize change
+  E->>O: run oracle
+  O-->>A: PASS or FAIL
+  alt PASS
+    A->>A: oracle_stamp → Exact
+  else FAIL
+    A->>E: correct or halt
+  end
+```
+
+### NOISE_FILTER_DIAGRAM (@NOISE_FILTER_DIAGRAM)
+```mermaid
+flowchart TD
+  A[freeze anchor a] --> R[receive signals]
+  R --> C[cluster by source, pattern]
+  C --> N{_same_source_repeated?}
+  N -->|cascade|card>=5|content>=30| Col[COLLAPSED_DUPLICATES — preserve evidence]
+  N -->|no| D["delta = SUM|w_s(k) - w_a(k)|"]
+  D --> L{delta < theta?}
+  L -->|yes| Act[CONFIRMATION — react]
+  L -->|no| Re[DIVERGENCE — re-anchor then react]
+```
+
+### METRIC_GOVERNANCE_DIAGRAM (@METRIC_GOVERNANCE_DIAGRAM)
+```mermaid
+flowchart TD
+  F[output] --> Q{.quality() >= .5?}
+  Q -->|yes| Pass[next stage]
+  Q -->|no| Diag[diagnose]
+  Diag --> Param{PARAMETER_ADAPTATION sufficient?}
+  Param -->|yes| Tune[auto-tune within bounds]
+  Param -->|no| Prop[propose METRIC_FAMILY_CHANGE]
+  Prop --> Gov[governance: branch + holdout + oracle + promotion]
+  Tune --> Eval[re-evaluate]
+  Gov --> Eval
+  Eval -->|ok| Pass
+  Eval -->|fail| Esc[mark Unknown]
+```
+
+### BUG_FIX_CHAIN_DIAGRAM (@BUG_FIX_CHAIN_DIAGRAM)
+```mermaid
+flowchart LR
+  ET[ERROR_TEST must FAIL] --> TF[TRIAL_FIX]
+  TF --> RF[REAL_FIX]
+  RF --> TT[TARGETED_TESTS]
+  TT -->|PASS| Done[fixed]
+  TT -->|FAIL| Loop{>=2 STUCK in last 3?}
+  Loop -->|no| TF
+  Loop -->|yes| Stop[STOP + re-plan]
+```
+
+### EPISTEMIC_LADDER (@EPISTEMIC_LADDER)
+```mermaid
+flowchart LR
+  U[Unknown] -->|web search| G[Guess]
+  G -->|code search| H[Hypothetical]
+  H -->|deps Inferred| I[Inferred]
+  I -->|oracle PASS| E[Exact scoped]
+  E -->|oracle FAIL| G
+  U -.->|FORBIDDEN self-Exact| X[rejected]
+```
+
+### ORACLE_FLOW (@ORACLE_FLOW)
+```mermaid
+flowchart LR
+  Decl[declare oracle] --> Mat[materialize]
+  Mat --> Run[run oracle]
+  Run --> R{r}
+  R -->|PASS| St["oracle_stamp claim_id"]
+  St --> Ex["system: sigma=Exact"]
+  R -->|FAIL| Dem["demote Exact->Guess; no stamp"]
+```
+
+### CLAIM_PROMOTION_DIAGRAM (@CLAIM_PROMOTION_DIAGRAM)
+```mermaid
+flowchart LR
+  U[Unknown] -->|web/code search| G[Guess]
+  G -->|falsifier declared + code/web confirm| H[Hypothetical]
+  H -->|all deps in G + acyclic| I[Inferred]
+  I -->|oracle PASS| E[Exact]
+  E -->|oracle FAIL| G
+  U -.->|FORBIDDEN self-tag| X[REJECTED]
+```

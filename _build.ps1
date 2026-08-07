@@ -223,42 +223,20 @@ function Invoke-Check {
 # ═══════════════════════════════════════════════════════════
 
 function Sync-KernelPrompt {
-    $reasoningDst = Join-Path $Root "packages\opencode\src\session\prompt\reasoning.txt"
-    $cardDst = Join-Path $Root "packages\opencode\src\session\prompt\algorithm_card.txt"
-    $cardDstUnix = $cardDst -replace '\\', '/'
+    $reasoningDst = Join-Path $Root "packages\opencode\src\session\prompt\reasoning_prompt.mdc"
     # 1a) Precompile kernel (separate process — fresh import needed for step 1b)
     & python -c "from prompts_kernel import write_precompiled_kernel; write_precompiled_kernel()"
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel precompilation failed"
         return $false
     }
-    # 1b) Assemble reasoning protocol + algorithm_card (fresh import picks up precompiled)
-    & python -c "from prompts_kernel import write_reasoning, write_algorithm_card; write_reasoning(); write_algorithm_card('$cardDstUnix')"
+    # 1b) Assemble reasoning protocol (fresh import picks up precompiled)
+    & python -c "from prompts_kernel import write_reasoning; write_reasoning()"
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel reasoning/algorithm_card assembly failed"
         return $false
     }
-    Write-Success "Reasoning + algorithm_card assembled ($(Get-Item $reasoningDst).Length bytes)"
-
-    # 2) Render model-facing kernel from package (not monofile SPECS dump)
-    $kernelPkg = Join-Path $Root "prompts_kernel"
-    $kernelDst = Join-Path $Root "packages\opencode\src\session\prompt\prompts_kernel.txt"
-    if (-not (Test-Path $kernelPkg)) {
-        Write-Error- "Kernel package not found: $kernelPkg"
-        return $false
-    }
-
-    Push-Location $Root
-    try {
-        & python -m prompts_kernel --render-runtime $kernelDst
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error- "Kernel runtime compilation failed (python -m prompts_kernel)"
-            return $false
-        }
-    } finally {
-        Pop-Location
-    }
-    Write-Success "Kernel prompt compiled ($(Get-Item $kernelDst).Length bytes)"
+    Write-Success "Reasoning prompt assembled ($(Get-Item $reasoningDst).Length bytes)"
     return $true
 }
 

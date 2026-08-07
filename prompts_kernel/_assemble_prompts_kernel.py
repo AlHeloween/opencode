@@ -33,10 +33,10 @@ def _default_fragment_dir() -> Path:
 
 
 def _default_output() -> Path:
-    """Default output path for reasoning.txt (packages/opencode/src/session/prompt/)."""
-    kernel_dir = Path(__file__).resolve().parent  # prompts_kernel/
+    """Default output path for reasoning_prompt.mdc."""
+    kernel_dir = Path(__file__).resolve().parent
     repo_root = kernel_dir.parent
-    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning.txt"
+    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
 
 
 def _schemas_path() -> Path:
@@ -67,62 +67,49 @@ def _resolve_yaml_path(schemas: dict, path: str) -> dict | list | str | None:
     return current
 
 
-def _yaml_to_comment_lines(data: object, indent: int = 0) -> list[str]:
-    """Render a Python object as YAML comment lines with '# ' prefix.
+def _section_to_comment_lines(data: object) -> list[str]:
+    """Dump a resolved YAML section. Emit '### name (@tag)' for tagged sub-sections."""
+    if yaml is None:
+        raise RuntimeError("PyYAML required — pip install pyyaml")
+    if isinstance(data, dict):
+        data = {k: v for k, v in data.items() if not (isinstance(k, str) and k.startswith("_"))}
+    if data is None or data == {} or data == []:
+        return ["# (empty)"]
 
-    Simple scalars are rendered as '# key: value'.
-    Lists become '#   - item'.
-    Nested dicts are recursively rendered.
-    """
-    prefix = "# " + "  " * indent
     lines: list[str] = []
 
+    # Handle nested tagged sections (e.g., gates: {G1: {tag:G1, name:GROUND, ...}})
     if isinstance(data, dict):
-        for key, value in data.items():
-            if isinstance(value, (dict, list)):
-                lines.append(f"{prefix}{key}:")
-                lines.extend(_yaml_to_comment_lines(value, indent + 1))
-            elif value is None:
-                lines.append(f"{prefix}{key}: ~")
-            elif isinstance(value, bool):
-                lines.append(f"{prefix}{key}: {'true' if value else 'false'}")
-            elif isinstance(value, str) and "\n" in value:
-                # Multiline string — use |
-                lines.append(f"{prefix}{key}: |")
-                for subline in value.strip().split("\n"):
-                    lines.append(f"{prefix}  {subline}")
+        nested_headers = []
+        remaining = {}
+        for key, val in data.items():
+            if isinstance(val, dict) and "tag" in val:
+                tag = val.pop("tag")
+                name = val.pop("name", tag)
+                nested_headers.append(f"## {name} (@{tag})")
+                remaining[key] = val
             else:
-                lines.append(f"{prefix}{key}: {value}")
-    elif isinstance(data, list):
-        for item in data:
-            if isinstance(item, dict):
-                # First key-value on same line as bullet
-                items_list = list(item.items())
-                if items_list:
-                    first_k, first_v = items_list[0]
-                    if isinstance(first_v, (dict, list)):
-                        lines.append(f"{prefix}- {first_k}:")
-                        lines.extend(_yaml_to_comment_lines(first_v, indent + 1))
-                    else:
-                        lines.append(f"{prefix}- {first_k}: {first_v}")
-                    for k, v in items_list[1:]:
-                        if isinstance(v, (dict, list)):
-                            lines.append(f"{prefix}  {k}:")
-                            lines.extend(_yaml_to_comment_lines(v, indent + 1))
-                        else:
-                            lines.append(f"{prefix}  {k}: {v}")
-                else:
-                    lines.append(f"{prefix}- {{}}")
-            elif isinstance(item, str):
-                lines.append(f"{prefix}- {item}")
-            else:
-                lines.append(f"{prefix}- {item!r}")
-    elif isinstance(data, str):
-        for subline in data.strip().split("\n"):
-            lines.append(f"{prefix}{subline}")
-    else:
-        lines.append(f"{prefix}{data!r}")
+                remaining[key] = val
+        if nested_headers:
+            data = remaining
+            # Dump each tagged entry separately with its header
+            for i, (h, (k, v)) in enumerate(zip(nested_headers, data.items())):
+                lines.append(h)
+                if v:
+                    raw = yaml.dump(v, default_flow_style=False, allow_unicode=True, sort_keys=False)
+                    for line in raw.rstrip("\n").split("\n"):
+                        lines.append("  " + line)  # indent under header
+            return lines
 
+    # Top-level tag
+    if isinstance(data, dict) and "tag" in data:
+        tag = data.pop("tag")
+        name = data.pop("name", tag)
+        lines.append(f"### {name} (@{tag})")
+
+    raw = yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    for line in raw.rstrip("\n").split("\n"):
+        lines.append(line)
     return lines
 
 
@@ -132,18 +119,13 @@ def resolve_schema_refs(text: str, schemas: dict | None = None) -> str:
     Marker format:  # @schema: section_name
                     # @schema: section.subsection
 
-    Each marker line is replaced with a rendered schema block:
-        # --- Schema: section_name (from core_schemas.yaml) ---
-        # key: value
-        # ...
-
-    Returns text with all markers resolved.  Unresolvable markers raise
-    KeyError with the marker path and fragment context.
+    Each marker line is replaced with the resolved YAML section as
+    '# '-prefixed comment lines.  The model sees clean YAML.
     """
     if schemas is None:
         schemas = _load_core_schemas()
 
-    marker_re = re.compile(r"^# @schema:\s*(\S+)\s*$", re.MULTILINE)
+    marker_re = re.compile(r"^#? ?@schema:\s*(\S+)\s*$", re.MULTILINE)
 
     def _replace(match: re.Match) -> str:
         path = match.group(1)
@@ -154,11 +136,48 @@ def resolve_schema_refs(text: str, schemas: dict | None = None) -> str:
                 f"@schema:{path} not found in core_schemas.yaml. "
                 f"Available top-level keys: {available}"
             )
-        rendered = _yaml_to_comment_lines(section)
-        header = f"# --- Schema: {path} (from core_schemas.yaml) ---"
-        return "\n".join([header] + rendered) + "\n"
+        rendered = _section_to_comment_lines(section)
+        return "\n".join(rendered) + "\n"
 
     return marker_re.sub(_replace, text)
+
+
+def resolve_def_refs(text: str, schemas: dict | None = None) -> str:
+    """Replace @def: NAME markers with definitions from core_schemas.yaml.
+
+    Marker format:  @def: NAME
+
+    Each marker is replaced with the definition text from
+    core_schemas.yaml → definitions → NAME (as a YAML block scalar).
+    """
+    if schemas is None:
+        schemas = _load_core_schemas()
+
+    definitions = schemas.get("definitions", {})
+    if not definitions:
+        return text
+
+    def_re = re.compile(r"^@def:\s*(\S+)\s*$", re.MULTILINE)
+
+    def _replace(match: re.Match) -> str:
+        name = match.group(1)
+        if name not in definitions:
+            available = sorted(definitions.keys())
+            raise KeyError(
+                f"@def:{name} not found in core_schemas.yaml definitions. "
+                f"Available: {available}"
+            )
+        return f"### {name} (@{name})\n{definitions[name].rstrip(chr(10))}\n"
+
+    return def_re.sub(_replace, text)
+
+
+_MDC_FRONTMATTER_UNIFIED = """---
+description: "GATED agent — 9-gate spine, semantic vector, rules, contracts"
+alwaysApply: true
+---
+
+"""
 
 
 def assemble_reasoning(fragment_dir: Path | None = None) -> str:
@@ -190,12 +209,45 @@ def assemble_reasoning(fragment_dir: Path | None = None) -> str:
             raise KeyError(f"{path.name}: {e}") from e
         parts.append(text.rstrip("\n"))
 
-    return "\n\n".join(parts) + "\n"
+    body = "\n\n".join(parts) + "\n"
+    body = _strip_comment_prefix(body)
+    return body
+
+
+def _strip_comment_prefix(text: str) -> str:
+    """Strip leading '# ' or '#' from every line. Blank comment lines become empty."""
+    result: list[str] = []
+    for line in text.split("\n"):
+        if line.startswith("# "):
+            result.append(line[2:])
+        elif line.startswith("#"):
+            result.append(line[1:])
+        else:
+            result.append(line)
+    return "\n".join(result)
+
+
+_MDC_FRONTMATTER_UNIFIED = """---
+description: "GATED agent — 9-gate spine, semantic vector, rules, contracts"
+alwaysApply: true
+---
+
+"""
+
+
+def _default_output() -> Path:
+    """Default output path for reasoning_prompt.mdc."""
+    kernel_dir = Path(__file__).resolve().parent
+    repo_root = kernel_dir.parent
+    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
 
 
 def write_reasoning(output: Path | None = None, fragment_dir: Path | None = None) -> int:
-    """Write reasoning.txt from fragments. Returns byte count written."""
-    body = assemble_reasoning(fragment_dir)
+    """Write unified reasoning_prompt.mdc — reasoning + runtime kernel with YAML frontmatter."""
+    from prompts_kernel import render_runtime_kernel
+    reasoning = assemble_reasoning(fragment_dir)
+    runtime = render_runtime_kernel()
+    body = _MDC_FRONTMATTER_UNIFIED + reasoning + "\n\n" + runtime
     if output is None:
         output = _default_output()
     output.write_text(body, encoding="utf-8", newline="\n")

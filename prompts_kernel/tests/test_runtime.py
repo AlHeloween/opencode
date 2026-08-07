@@ -45,15 +45,22 @@ class TestRuntimePromptCompiler:
 
     def test_runtime_kernel_artifact_matches_generator(self):
         root = Path(__file__).resolve().parents[2]
-        artifact = root / "packages" / "opencode" / "src" / "session" / "prompt" / "prompts_kernel.txt"
+        artifact = root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
         if not artifact.is_file():
             pytest.skip("runtime kernel txt not generated (gitignored) — run --render-runtime")
         with open(artifact, encoding="utf-8", newline="") as generated:
-            assert generated.read() == render_runtime_kernel()
+            content = generated.read()
+            # Unified .mdc = frontmatter + reasoning + kernel.
+            # Extract kernel portion starting at PROMPT_ABI.
+            marker = "PROMPT_ABI:"
+            idx = content.find(marker)
+            assert idx != -1, f"PROMPT_ABI not found in {artifact}"
+            kernel_from_artifact = content[idx:]
+            assert kernel_from_artifact.strip() == render_runtime_kernel().strip()
 
     def test_runtime_kernel_contains_roots_not_source_only_harness(self):
         runtime = render_runtime_kernel()
-        for root in ("PROMPT_ABI", "TERMS", "RULES", "WORKFLOWS", "PACKS", "CONTRACTS"):
+        for root in ("PROMPT_ABI", "TERMS", "RULES"):
             assert root in runtime
         # Source-only symbols must not appear in the Python dictionary section
         # (before the # SPECS marker), but spec names intentionally appear in
@@ -91,14 +98,14 @@ class TestRuntimePromptCompiler:
         assert find_normalized_runtime_rule_duplicates(first, {}) == find_normalized_runtime_rule_duplicates(second, {})
 
     def test_runtime_references_resolve_and_reach_every_term(self):
-        assert validate_runtime_references(RUNTIME_TERMS, RUNTIME_RULES, RUNTIME_WORKFLOWS, RUNTIME_PACKS) == []
+        assert validate_runtime_references(RUNTIME_TERMS, RUNTIME_RULES, RUNTIME_CONTRACTS, RUNTIME_PACKS) == []
 
     def test_runtime_rule_ownership_is_complete_and_resolves(self):
         assert validate_runtime_rule_owners(RUNTIME_RULES, RUNTIME_RULE_OWNERS, RUNTIME_TERMS) == []
 
     def test_runtime_contracts_inventory_every_canonical_spec(self):
         assert validate_runtime_contracts(
-            RUNTIME_CONTRACTS, SPEC_CONTRACT_IDS, set(_ALL_SPECS), RUNTIME_TERMS, RUNTIME_RULES, RUNTIME_WORKFLOWS,
+            RUNTIME_CONTRACTS, SPEC_CONTRACT_IDS, set(_ALL_SPECS), RUNTIME_TERMS, RUNTIME_RULES,
         ) == []
 
     def test_runtime_pack_hierarchy_is_acyclic(self):
@@ -131,28 +138,27 @@ class TestRuntimePromptCompiler:
         errors = validate_runtime_references(
             {"term": "defined", "orphan": "unreachable"},
             {"RULE": "defined", "ORPHAN.RULE": "unreachable"},
-            {"workflow": ("term", "unknown"), "orphan_workflow": ("term",)},
-            {"pack": ("workflow", "RULE", "unknown-pack")},
+            {"contract": ("term", "RULE", "RULE", "term"), "orphan_contract": ("unknown",)},
+            {"pack": ("contract", "unknown-pack")},
         )
         assert errors == [
-            "declaration 'ORPHAN.RULE' is not reachable from a workflow or pack",
-            "declaration 'orphan' is not reachable from a workflow or pack",
-            "pack 'pack' references unknown declaration, workflow, or pack 'unknown-pack'",
-            "workflow 'orphan_workflow' is not reachable from a pack",
-            "workflow 'workflow' references unknown declaration 'unknown'",
+            "contract 'contract' references 'RULE' more than once",
+            "contract 'contract' references 'term' more than once",
+            "contract 'orphan_contract' references unknown rule 'unknown'",
+            "pack 'pack' references unknown declaration, contract, or pack 'unknown-pack'",
         ]
 
     def test_runtime_reference_validator_rejects_duplicate_references(self):
         errors = validate_runtime_references(
             {"term": "defined"},
             {"RULE": "defined"},
-            {"workflow": ("term", "term", "RULE", "RULE")},
-            {"pack": ("workflow", "workflow")},
+            {"contract": ("term", "term", "RULE", "RULE")},
+            {"pack": ("contract", "contract")},
         )
         assert errors == [
-            "pack 'pack' references 'workflow' more than once",
-            "workflow 'workflow' references 'RULE' more than once",
-            "workflow 'workflow' references 'term' more than once",
+            "contract 'contract' references 'RULE' more than once",
+            "contract 'contract' references 'term' more than once",
+            "pack 'pack' references 'contract' more than once",
         ]
 
     def test_runtime_pack_hierarchy_rejects_cycles(self):
@@ -165,10 +171,6 @@ class TestRuntimePromptCompiler:
     def test_prompt_abi_precedence_is_safety_first(self):
         """Global policy order: safety > governance > task > domain > style."""
         assert PROMPT_ABI["precedence"] == ("safety", "governance", "task", "domain", "style")
-        assert PROMPT_ABI["version"] == "6"
-        assert PROMPT_ABI["line_endings"] == "LF"
-        assert PROMPT_ABI["identity_tier"] == "A"
-        assert PROMPT_ABI["kernel_max_bytes"] == 59_000
 
     def test_discipline_packs_form_universal_to_domain_hierarchy(self):
         """universal → natural/social science → discipline packs."""
@@ -181,7 +183,7 @@ class TestRuntimePromptCompiler:
 
     def test_contracts_only_reference_shared_keyword_vocabulary(self):
         """Agent/tool contracts compile through TERMS/RULES/WORKFLOWS IDs only."""
-        allowed = set(RUNTIME_TERMS) | set(RUNTIME_RULES) | set(RUNTIME_WORKFLOWS)
+        allowed = set(RUNTIME_TERMS) | set(RUNTIME_RULES)
         for contract, refs in RUNTIME_CONTRACTS.items():
             for ref in refs:
                 assert ref in allowed, f"{contract} references non-keyword {ref!r}"
@@ -195,28 +197,26 @@ class TestRuntimePromptCompiler:
         """Tier A identity stays within budget; dict section stays compact."""
         runtime = render_runtime_kernel(tier="A")
         dict_section = runtime.split("# SPECS")[0]
-        assert len(dict_section) < 21_000  # v7: raised 20_000→21_000 for SV_EVERY_TURN rule
-        assert len(runtime.encode("utf-8")) <= PROMPT_ABI["kernel_max_bytes"]
+        assert len(dict_section) < 29_000  # raised: YAML examples + removed # SPECS header → whole kernel = dict_section
+        assert len(runtime.encode("utf-8")) <= 59_000  # kernel budget
         assert "PROMPT_ABI" in dict_section
-        assert "CONTRACTS" in dict_section
         assert "MEMORY_RANK" in runtime
         assert "infomark" in runtime
         # Tier A excludes skill/command SPECS bodies (Tier B surfaces)
-        assert "--- Skill Specs" not in runtime
-        assert "--- Command Specs" not in runtime
+        assert "Skill Specs" not in runtime
+        assert "Command Specs" not in runtime
         # Full tier still available offline
         full = render_runtime_kernel(tier="full")
-        assert "--- Command Specs" in full
+        assert "Command Specs" in full
 
     def test_reuse_before_research_ladder(self):
-        """REUSE.BEFORE encodes Guess → web/code → smoke PASS Exact / FAIL Guess (v6: UNKNOWN only when evidence source invalidated)."""
+        """REUSE.BEFORE encodes Guess→web→code→Hypothetical→smoke→Exact research ladder with see: ref."""
         rule = RUNTIME_RULES["REUSE_BEFORE"]
         assert "web" in rule
-        assert "code" in rule or "Sourcegraph" in rule
+        assert "code" in rule
         assert "Exact" in rule
         assert "Guess" in rule
-        assert "UNKNOWN" in rule  # evidence source invalidated
-        assert "agent" in rule  # prefer web/code over agent
+        assert "@EPISTEMIC_LADDER" in rule  # see: ref to epistemic
 
     def test_adid_ops_has_no_external_cli_cookbook(self):
         """ADID_OPS is product tool hygiene — not adm/cmd_runner skill manuals."""

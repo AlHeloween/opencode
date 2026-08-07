@@ -35,9 +35,7 @@ RULE_DIRS: list[str] = []
 # Files to exclude from validation
 # Pocket protocols / mode synthetics use algorithm-with-comments density, not PromptSpec YAML.
 EXCLUDED_FILES = {
-    "prompts_kernel.txt",  # Generated Pythonic SPECS — not a prompt file
-    "reasoning.txt",                # Lean REASONING PROTOCOL (algorithm + comments)
-    "algorithm_card.txt",           # ALGORITHM_CARD task geometry (algorithm + comments)
+    "reasoning_prompt.mdc",         # Unified .mdc kernel — not a PromptSpec file
     "build.txt",                    # Build mode conversation-tail synthetic (KV-safe)
     "reasoning-mode.txt",           # Reasoning mode conversation-tail synthetic (KV-safe)
     "max-steps.txt",                # Trivial mode switch
@@ -50,16 +48,15 @@ EXCLUDED_FILES = {
 # Session pocket protocols that must exist and bind to kernel / each other
 POCKET_PROTOCOL_FILES = {
     # Agentic pocket grew with gates + claim_ledger + research ladder (still algorithm density).
-    "reasoning.txt": (
-        "REASONING PROTOCOL",
-        "ALGORITHM_CARD",
+    "reasoning_prompt.mdc": (
+        "GATED_WORKFLOW",
+        "GATED agent",
         "claim_ledger",
         "REUSE_BEFORE",
         "universalsearch",
-        "GATE 4",
+        "G4",
         "oracle_stamp",
     ),
-    "algorithm_card.txt": ("ALGORITHM_CARD", "run_task_geometry", "select_fractal_model"),
     "build.txt": ("Build mode", "ALGORITHM_CARD", "conversation tail"),
 }
 
@@ -73,8 +70,7 @@ POCKET_PROTOCOL_FILES = {
 # md5_sv_tag_parent hash chain, per-agent SV semantics, SV_EVERY_TURN rule,
 # SV/InfoMark separation, and SV-based compaction.
 POCKET_PROTOCOL_MAX_BYTES = {
-    "reasoning.txt": 50_000,
-    "algorithm_card.txt": 14_000,
+    "reasoning_prompt.mdc": 55_000,
     "build.txt": 12_000,
 }
 
@@ -343,16 +339,16 @@ def test_schema_refs_resolve():
     )
 
     # 2. Assembled reasoning.txt must contain ZERO raw @schema: markers
-    reasoning_path = os.path.join(SESSION_PROMPT_DIR, "reasoning.txt")
+    reasoning_path = os.path.join(SESSION_PROMPT_DIR, "reasoning_prompt.mdc")
     with open(reasoning_path, "r", encoding="utf-8") as f:
         assembled = f.read()
     orphan_markers = re.findall(r"^# @schema:\s*\S+\s*$", assembled, re.MULTILINE)
     assert not orphan_markers, (
-        f"reasoning.txt has {len(orphan_markers)} unresolved @schema: marker(s): {orphan_markers}"
+        f"reasoning.mdc has {len(orphan_markers)} unresolved @schema: marker(s): {orphan_markers}"
     )
 
-    # 3. All resolved schemas carry the 'from core_schemas.yaml' provenance marker
-    resolved = re.findall(r"# --- Schema: (\S+) \(from core_schemas\.yaml\) ---", assembled)
+    # 3. All resolved schemas use XML tags: <schema_name>...</schema_name>
+    resolved = re.findall(r"<(\w+)>", assembled)
     assert len(resolved) >= len(all_refs), (
         f"Expected >= {len(all_refs)} resolved schemas, found {len(resolved)}"
     )
@@ -364,56 +360,6 @@ def test_schema_refs_resolve():
     unreferenced = top_keys - all_refs - {"version", "description"}
     if unreferenced:
         print(f"  [info] core_schemas.yaml keys without @schema: refs: {sorted(unreferenced)}")
-
-
-def test_algorithm_card_binds_to_kernel_symbols():
-    """ALGORITHM_CARD names must resolve on prompts_kernel (hybrid bind)."""
-    import prompts_kernel as kernel
-
-    card_path = os.path.join(SESSION_PROMPT_DIR, "algorithm_card.txt")
-    with open(card_path, "r", encoding="utf-8") as f:
-        card = f.read()
-
-    # Symbols the card must name; no Mode-1 / select_planning_mode
-    implemented = [
-        "k_medoids_modifications",
-        "select_fractal_model",
-        "select_medoids_tasks",
-        "lsystem_rewrite",
-    ]
-    planned = [
-        "run_task_geometry",
-    ]
-    for name in implemented:
-        assert name in card, f"algorithm_card.txt should name {name}"
-        assert hasattr(kernel, name) and callable(getattr(kernel, name)), (
-            f"kernel missing callable {name}"
-        )
-    for name in planned:
-        assert name in card, f"algorithm_card.txt should name {name}"
-    assert "select_planning_mode" not in card
-    assert "linear_seeds" not in card
-    assert 'mode == "mode_1"' not in card
-    assert "PLANNING" in card and "PLANNING" in kernel._ALL_SPECS
-    assert kernel._ALL_SPECS["PLANNING"]["constraints"].get("linear_mode_1_forbidden") is True
-    assert kernel._ALL_SPECS["PLANNING"]["constraints"].get("fractal_geometry_required") is True
-
-
-def test_algorithm_card_matches_renderer():
-    """On-disk algorithm_card.txt must match render_algorithm_card() output."""
-    import prompts_kernel as kernel
-
-    card_path = os.path.join(SESSION_PROMPT_DIR, "algorithm_card.txt")
-    with open(card_path, "r", encoding="utf-8") as f:
-        on_disk = f.read()
-
-    generated = kernel.render_algorithm_card()
-    assert on_disk == generated, (
-        "algorithm_card.txt is stale. Run:\n"
-        "  python -c \"from prompts_kernel import write_algorithm_card; "
-        'write_algorithm_card(\'packages/opencode/src/session/prompt/algorithm_card.txt\')\"'
-    )
-
 
 
 def test_kernel_conformance_suite():

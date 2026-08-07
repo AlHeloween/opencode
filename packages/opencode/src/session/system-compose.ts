@@ -26,8 +26,8 @@ export type SystemComposeInput = {
   /** Reasoning prefix (reasoning.txt). MOST STABLE — slot [1], before tool schemas. */
   reasoningPrefix: string
   /**
-   * ALGORITHM_CARD (algorithm_card.txt) — commented Python routes bound to kernel symbols.
-   * Immediately after reasoning inside the identity block. Empty string skips.
+   * ALGORITHM_CARD — removed. Workflow now covered by gates YAML + kernel rules.
+   * Field kept for backward compatibility; always undefined.
    */
   algorithmCard?: string
   /** Kernel file (prompts_kernel.txt). Stable per app version. */

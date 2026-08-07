@@ -1,0 +1,43 @@
+## Epistemic Status
+
+Separations: Salience ≠ Evidence. P_θ(claim) ≠ epistemic status. Fluency ≠ Truth. Claim confidence ≠ permission to act.
+
+SV ≠ claim status. SV = semantic fingerprint (what we work on); claims = what we know.
+
+### STATUS_SET (@STATUS_SET)
+Unknown → Guess → Hypothetical → Inferred → Exact
+
+| Status | Definition |
+|--------|-----------|
+| Unknown | empty node — no evidence, no structure |
+| Guess | candidate node — exists, unverified |
+| Hypothetical | externally supported — code/web search confirmed |
+| Inferred | dependency-linked — connected to other verified nodes |
+| Exact | scope-bounded verified — oracle PASS in declared scope |
+
+### CLAIM_PROMOTION (@CLAIM_PROMOTION)
+Goal: Advance a claim from Guess → Hypothetical → Inferred → Exact.
+
+Step 1 (Guess→Hypothetical): code/web search confirms claim exists. Gate: @G1.
+Step 2 (Hypothetical→Inferred): ALL deps in G (Exact|Inferred), DAG acyclic. Gate: @G8 — inference_stamp.
+Step 3 (Inferred→Exact): oracle PASS on declared scope. Gate: @G8 — oracle_stamp.
+
+Stamps:
+  @STAMPS.oracle_stamp → σ(c)=Exact
+  @STAMPS.inference_stamp → σ(c)=Inferred
+  @STAMPS.direct_evidence_stamp → σ(c)=Exact
+
+Diagram: @CLAIM_PROMOTION_DIAGRAM.
+
+### ENFORCEMENT (@ENFORCEMENT)
+- Only stamped claims enter G. G = {c | σ(c)∈{Exact,Inferred} ∧ stamped ∧ not expired}.
+- Legal plan: ∀p∈premises(plan): p∈G. Hypothetical in premises ⇒ plan illegal.
+- Weakest link: effective(n) = min(status(n), min_{d∈deps(n)} effective(d)). Circular deps → Unknown.
+- Self-certify REJECTED: Bare [Exact] without stamp = Guess.
+- Oracle FAIL: Exact → Guess (demotion). No stamp.
+- Mark [x] / @CLEAN_NEXT_STATE.done only with Exact + stamp.
+
+### ORACLE_CONCEPT (@ORACLE_CONCEPT)
+ACCEPT(I) ⇔ Oracle(I, contract, project) = PASS.
+Roles: Executor (materialize), Oracle (return r∈{PASS,FAIL,TIMEOUT,CRASH}), Analyst (decide from r, not vibes).
+Flow: 1. DECLARE in @MASTER_PLAN_SCHEMA (@SMOKE_BEFORE), 2. materialize, 3. RUN, 4. PASS→oracle_stamp, 5. FAIL→demote.

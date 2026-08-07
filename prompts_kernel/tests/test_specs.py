@@ -39,9 +39,9 @@ class TestProjectSpecs:
     def test_spec_field_counts(self):
         """Verify known field counts to catch regression."""
         counts = {
-            "CODER": {"constraints": 8, "invariants": 5, "acceptance_tests": 4, "forbidden_actions": 7},
-            "ORCHESTRATOR": {"constraints": 6, "invariants": 6, "acceptance_tests": 4, "forbidden_actions": 8},
-            "GOVERNANCE": {"constraints": 7, "invariants": 9, "forbidden_actions": 6},
+            "CODER": {"constraints": 4, "invariants": 3, "forbidden_actions": 4},
+            "ORCHESTRATOR": {"constraints": 3, "invariants": 4, "forbidden_actions": 5},
+            "GOVERNANCE": {"constraints": 5, "invariants": 3, "forbidden_actions": 2},
         }
         for name, expected in counts.items():
             spec = _ALL_SPECS[name]

@@ -3,9 +3,8 @@ Universal Search Service. Product-integrated tool for **@REUSE_BEFORE**
 (also @G1.search_intent PUBLIC_API_VERSION / UNKNOWN_ROOT_CAUSE, @EPISTEMIC_LADDER).
 
 **Authoritative sources (do not restate — resolve in kernel):**
-Before scientific / domain research, check **@DOMAIN_SOURCES** and
-**@INSTITUTIONAL_SOURCES** for the discipline. Domain databases are primary;
-generic web search supplements.
+Before scientific / domain research, check **@DOMAIN_SOURCES** for the
+discipline. Domain databases are primary; generic web search supplements.
 
 ## Efficiency (prefer these first)
 

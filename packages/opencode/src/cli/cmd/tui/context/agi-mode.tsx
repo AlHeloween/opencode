@@ -380,7 +380,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
       const result = await sdk.client.session.promptAsync({
         sessionID: oid,
         messageID: MessageID.ascending(),
-        agent: "orchestrator",
+        agent: "orchestrator_agent",
         parts: [{ type: "text" as const, text: context }],
       })
       if ("error" in result && result.error) {
@@ -771,7 +771,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         await sdk.client.session.promptAsync({
           sessionID: oid,
           messageID,
-          agent: "orchestrator",
+          agent: "orchestrator_agent",
           parts: [{
             type: "text" as const,
             text: [
@@ -803,7 +803,7 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
         await sdk.client.session.promptAsync({
           sessionID: oid,
           messageID: MessageID.ascending(),
-          agent: "orchestrator",
+          agent: "orchestrator_agent",
           parts: [{
             type: "text" as const,
             text: [

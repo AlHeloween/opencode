@@ -24,10 +24,12 @@ class TestProjectSpecs:
 
     def test_all_specs_loaded(self):
         # Skills (ADM_EXE, RAG, …) are a separate package — not kernel SPECS.
-        assert len(_ALL_SPECS) == 26
-        assert "CODER" in _ALL_SPECS
-        assert "EXPLORER" in _ALL_SPECS
-        assert "ORCHESTRATOR" in _ALL_SPECS
+        assert len(_ALL_SPECS) == 28
+        assert "BUILD_MODE" in _ALL_SPECS
+        assert "PLAN_MODE" in _ALL_SPECS
+        assert "CODER_AGENT" in _ALL_SPECS
+        assert "EXPLORER_AGENT" in _ALL_SPECS
+        assert "ORCHESTRATOR_AGENT" in _ALL_SPECS
         assert "ADM_EXE" not in _ALL_SPECS
         assert "ADID_OPS" in _ALL_SPECS
         assert "GOVERNANCE" in _ALL_SPECS
@@ -39,8 +41,9 @@ class TestProjectSpecs:
     def test_spec_field_counts(self):
         """Verify known field counts to catch regression."""
         counts = {
-            "CODER": {"constraints": 4, "invariants": 3, "forbidden_actions": 4},
-            "ORCHESTRATOR": {"constraints": 3, "invariants": 4, "forbidden_actions": 5},
+            "CODER_AGENT": {"constraints": 4, "invariants": 4, "forbidden_actions": 4},
+            "ORCHESTRATOR_AGENT": {"constraints": 3, "invariants": 5, "forbidden_actions": 5},
+            "BUILD_MODE": {"constraints": 5, "invariants": 4, "forbidden_actions": 4},
             "GOVERNANCE": {"constraints": 5, "invariants": 3, "forbidden_actions": 2},
         }
         for name, expected in counts.items():

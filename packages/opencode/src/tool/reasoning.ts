@@ -3,8 +3,13 @@ import * as Tool from "./tool"
 import { Session } from "@/session/session"
 import { MessageV2 } from "../session/message-v2"
 import { Provider } from "@/provider/provider"
-import { type SessionID, MessageID } from "../session/schema"
+import { type SessionID, MessageID, PartID } from "../session/schema"
 import { invalidatePermissionCache } from "./permission-cache"
+import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
+import PROMPT_REASONING_RAW from "../session/prompt/reasoning-mode.txt"
+
+const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
+const PROMPT_REASONING = PROMPT_REASONING_RAW.replace(/\r\n/g, "\n")
 
 function getLastModel(sessionID: SessionID) {
   for (const item of MessageV2.stream(sessionID)) {
@@ -14,7 +19,11 @@ function getLastModel(sessionID: SessionID) {
 }
 
 function requireNativeOrchestrator(ctx: Tool.Context) {
-  if (ctx.agentInfo?.native && ctx.agentInfo.name === "orchestrator") return Effect.void
+  if (
+    ctx.agentInfo?.native &&
+    (ctx.agentInfo.name === "orchestrator_agent" || ctx.agentInfo.name === "orchestrator")
+  )
+    return Effect.void
   return Effect.die(new Error("reasoning transitions require the native orchestrator"))
 }
 
@@ -41,16 +50,26 @@ export const ReasoningEnterTool = Tool.define(
             sessionID: ctx.sessionID,
             role: "user",
             time: { created: Date.now() },
-            agent: "reasoning",
+            agent: "reasoning_mode",
             model,
           }
           yield* session.updateMessage(msg)
+          yield* session.updatePart({
+            id: PartID.ascending(),
+            messageID: msg.id,
+            sessionID: ctx.sessionID,
+            type: "text",
+            text: PROMPT_REASONING,
+            synthetic: true,
+          } satisfies MessageV2.TextPart)
           invalidatePermissionCache()
 
           return {
-            title: "Switching to reasoning mode",
-            output: "Entered reasoning mode. Wait for user question.",
-            metadata: {},
+            title: "Switched to reasoning_mode",
+            output:
+              "IDENTITY SWITCH COMPLETE: You are now reasoning_mode. " +
+              "Only permanent memory is authorized. Wait for the user calibration question.",
+            metadata: { identity: "reasoning_mode" },
           }
         }).pipe(Effect.orDie),
     }
@@ -66,26 +85,37 @@ export const ReasoningExitTool = Tool.define(
 
     return {
       description:
-        "Return a controlled session from protected reasoning mode to build mode. Only the native Orchestrator may use this transition.",
+        "Return a controlled session from protected reasoning mode to build_mode. Only the native Orchestrator may use this transition.",
       parameters: ReasoningExitParameters,
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* requireNativeOrchestrator(ctx)
           const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
-          yield* session.updateMessage({
+          const msg: MessageV2.User = {
             id: MessageID.ascending(),
             sessionID: ctx.sessionID,
             role: "user",
             time: { created: Date.now() },
-            agent: "build",
+            agent: "build_mode",
             model,
-          } satisfies MessageV2.User)
+          }
+          yield* session.updateMessage(msg)
+          yield* session.updatePart({
+            id: PartID.ascending(),
+            messageID: msg.id,
+            sessionID: ctx.sessionID,
+            type: "text",
+            text: PROMPT_BUILD,
+            synthetic: true,
+          } satisfies MessageV2.TextPart)
           invalidatePermissionCache()
 
           return {
-            title: "Switching to build mode",
-            output: "Exited reasoning mode. Full tool access restored.",
-            metadata: {},
+            title: "Switched to build_mode",
+            output:
+              "IDENTITY SWITCH COMPLETE: You are now build_mode (not reasoning_mode). " +
+              "Full tool access restored. Earlier reasoning_mode limits are VOID.",
+            metadata: { identity: "build_mode", previous: "reasoning_mode" },
           }
         }).pipe(Effect.orDie),
     }

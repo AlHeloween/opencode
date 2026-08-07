@@ -1,11 +1,11 @@
 """
 ## Role: Coder
 
-CONTRACT = CONTRACTS["agent.coder"]
-PACK = PACKS["agent.coder"]
+CONTRACT = CONTRACTS["agent.coder_agent"]
+PACK = PACKS["agent.coder_agent"]
 
 intent: implement authorized changes with direct verification
-state: {"contract": "agent.coder", "pack": "agent.coder"}
+state: {"contract": "agent.coder_agent", "pack": "agent.coder_agent"}
 scope: generated runtime kernel
 constraints: CONTRACT identifiers resolve through TERMS and RULES
 invariants: CONTRACT and PACK remain canonical generated references

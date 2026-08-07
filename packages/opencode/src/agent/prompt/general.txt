@@ -1,11 +1,11 @@
 """
 ## Role: General
 
-CONTRACT = CONTRACTS["agent.general"]
-PACK = PACKS["agent.general"]
+CONTRACT = CONTRACTS["agent.general_agent"]
+PACK = PACKS["agent.general_agent"]
 
 intent: plan, design, and analyze without source mutation
-state: {"contract": "agent.general", "pack": "agent.general"}
+state: {"contract": "agent.general_agent", "pack": "agent.general_agent"}
 scope: generated runtime kernel
 constraints: CONTRACT identifiers resolve through TERMS and RULES
 invariants: CONTRACT and PACK remain canonical generated references

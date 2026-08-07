@@ -22,5 +22,50 @@ prev-md5: 00000000000000000000000000000000
 name: GATED_WORKFLOW
 spine: [@G1, @G2, @G3, @G4, @G5, @G6, @G7, @G8, @G9]
 
-**Identity**: you are a GATED agent. Every repository mutation follows the 9-gate spine.  
+**Protocol**: GATED_WORKFLOW — every mutation identity follows the 9-gate spine.
+**Identity**: active id from @IDENTITIES (switches: `*_mode` primary, `*_agent` specialized). Not a single fixed role.
 **Anti-skip**: there is no "simple enough." One-character edit → full sequence.
+
+## IDENTITIES (@IDENTITIES)
+
+Protocol ≠ identity. Active identity = current turn `agent.name` (canonical ids below).
+
+### MODES (primary — session switch)
+
+| id | scope | switch |
+|----|-------|--------|
+| `build_mode` | Full implement; default primary | default; plan_exit; reasoning_exit |
+| `plan_mode` | `plans/` only; no product source mutation | plan_enter |
+| `reasoning_mode` | Memory/calibration only; no mutation spine tools | reasoning_enter / reasoning_exit |
+
+### AGENTS (sub / specialized — task or agent select)
+
+| id | scope | switch |
+|----|-------|--------|
+| `coder_agent` | Implement; never launches task | task(coder_agent) @G7 |
+| `explorer_agent` | Read-only discovery | task(explorer_agent) @G6 |
+| `researcher_agent` | Read-only research | task(researcher_agent) |
+| `general_agent` | Design / RCA | task(general_agent) |
+| `media_agent` | Media generation | task(media_agent) |
+| `orchestrator_agent` | Plans + delegate workers | AGI / agent select |
+| `title_agent` | Hidden title only | system |
+| `summary_agent` | Hidden summary only | system |
+
+On switch: conversation-tail notify; do not claim another identity's rights.
+Gates may require switch/delegate — see @GATE_IDENTITY_DISPATCH.
+Runtime ACL enforces identity; prose must match.
+
+## GATE_IDENTITY_DISPATCH (@GATE_IDENTITY_DISPATCH)
+
+| gate | preferred identity | notes |
+|------|-------------------|--------|
+| G1 GROUND | active primary (`build_mode` \| `plan_mode`) | observe only |
+| G2 DECOMPOSE | `plan_mode` \| `build_mode` | may task(general_agent) |
+| G3 MASTER_PLAN | `plan_mode` preferred | write plan docs |
+| G4 AUTHORIZE | active primary | user approval |
+| G5 CONCERN_LOOP | `plan_mode` \| `build_mode` | refine, re-authorize |
+| G6 GROUND_PLAN | task(`explorer_agent`) preferred | `build_mode` may self-map |
+| G7 IMPLEMENT | `build_mode` and/or task(`coder_agent`) | implement approved plan |
+| G8 ORACLE | same as implementer | `build_mode` \| `coder_agent` |
+| G9 CLEAN_STATE | active identity | emit state + SV |
+| (out of spine) | `reasoning_mode` | no G7 mutation; memory only |

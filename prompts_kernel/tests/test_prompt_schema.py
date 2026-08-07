@@ -50,14 +50,19 @@ POCKET_PROTOCOL_FILES = {
     # Agentic pocket grew with gates + claim_ledger + research ladder (still algorithm density).
     "reasoning_prompt.mdc": (
         "GATED_WORKFLOW",
-        "GATED agent",
+        "IDENTITIES",
+        "GATE_IDENTITY_DISPATCH",
+        "build_mode",
+        "coder_agent",
+        "explorer_agent",
         "claim_ledger",
         "REUSE_BEFORE",
         "universalsearch",
         "G4",
         "oracle_stamp",
     ),
-    "build.txt": ("Build mode", "ALGORITHM_CARD", "conversation tail"),
+    # Mode-switch synthetic only (identity catalog lives in reasoning_prompt.mdc).
+    "build.txt": ("build_mode", "FULL tool access", "void"),
 }
 
 # Soft budget for pocket protocol files (bytes). reasoning includes full gates + InfoMark.
@@ -70,7 +75,9 @@ POCKET_PROTOCOL_FILES = {
 # md5_sv_tag_parent hash chain, per-agent SV semantics, SV_EVERY_TURN rule,
 # SV/InfoMark separation, and SV-based compaction.
 POCKET_PROTOCOL_MAX_BYTES = {
-    "reasoning_prompt.mdc": 55_000,
+    # v8: raised 55_000→60_000 for IDENTITIES + GATE_IDENTITY_DISPATCH +
+    # BUILD_MODE/PLAN_MODE SPECS and *_agent renames.
+    "reasoning_prompt.mdc": 60_000,
     "build.txt": 12_000,
 }
 
@@ -283,7 +290,7 @@ def test_build_has_no_agent_prompt_system_bind():
 
 
 def test_pocket_protocol_files_exist_and_markers():
-    """REASONING / ALGORITHM_CARD / build synthetic are pocket density, not PromptSpec."""
+    """reasoning_prompt.mdc + mode-tail synthetics are pocket density, not PromptSpec."""
     for name, markers in POCKET_PROTOCOL_FILES.items():
         fp = os.path.join(SESSION_PROMPT_DIR, name)
         assert os.path.isfile(fp), f"missing pocket protocol: {name}"

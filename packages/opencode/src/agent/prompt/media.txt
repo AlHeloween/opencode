@@ -1,11 +1,11 @@
 """
 ## Role: Media
 
-CONTRACT = CONTRACTS["agent.media"]
-PACK = PACKS["agent.media"]
+CONTRACT = CONTRACTS["agent.media_agent"]
+PACK = PACKS["agent.media_agent"]
 
 intent: generate or transform requested media as real attachments
-state: {"contract": "agent.media", "pack": "agent.media"}
+state: {"contract": "agent.media_agent", "pack": "agent.media_agent"}
 scope: generated runtime kernel
 constraints: CONTRACT identifiers resolve through TERMS and RULES
 invariants: CONTRACT and PACK remain canonical generated references

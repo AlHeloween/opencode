@@ -5,15 +5,24 @@ import type { Agent } from "../../src/agent/agent"
 import { modeInstructionForTransition, providerIdentityForMode } from "../../src/session/prompt"
 
 test("mode instructions appear only on entry or explicit mode change", () => {
-  expect(modeInstructionForTransition(undefined, "plan")).toContain("Plan mode")
-  expect(modeInstructionForTransition("plan", "build")).toContain("Build mode")
-  expect(modeInstructionForTransition("build", "reasoning")).toContain("Reasoning mode")
-  expect(modeInstructionForTransition("reasoning", "build")).toContain("Build mode")
+  expect(modeInstructionForTransition(undefined, "plan_mode")).toContain("plan_mode")
+  expect(modeInstructionForTransition("plan_mode", "build_mode")).toContain("build_mode")
+  expect(modeInstructionForTransition("plan_mode", "build_mode")).toContain("void")
+  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("or other")
+  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("reasoning_prompt.mdc")
+  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("Previous identity")
+  expect(modeInstructionForTransition("build_mode", "reasoning_mode")).toContain("reasoning_mode")
+  expect(modeInstructionForTransition("reasoning_mode", "build_mode")).toContain("build_mode")
+  expect(modeInstructionForTransition("build_mode", "plan_mode")).toContain("plan_mode")
+  // Legacy short aliases still resolve during migration
+  expect(modeInstructionForTransition("plan", "build")).toContain("build_mode")
+  // plan vs plan_mode is same identity — no re-inject
+  expect(modeInstructionForTransition("plan", "plan_mode")).toBeUndefined()
 
-  expect(modeInstructionForTransition("plan", "plan")).toBeUndefined()
-  expect(modeInstructionForTransition("build", "build")).toBeUndefined()
-  expect(modeInstructionForTransition("reasoning", "reasoning")).toBeUndefined()
-  expect(modeInstructionForTransition("build", "custom")).toBeUndefined()
+  expect(modeInstructionForTransition("plan_mode", "plan_mode")).toBeUndefined()
+  expect(modeInstructionForTransition("build_mode", "build_mode")).toBeUndefined()
+  expect(modeInstructionForTransition("reasoning_mode", "reasoning_mode")).toBeUndefined()
+  expect(modeInstructionForTransition("build_mode", "custom")).toBeUndefined()
 })
 
 test("prompt flow has no legacy steady-state continuation injection", async () => {
@@ -43,13 +52,19 @@ test("mode-transition tool IDs use canonical names (no separators)", () => {
   }
 })
 
-test("native modes share Build's provider identity while custom agents remain isolated", () => {
-  const build = { name: "build", native: true } as Agent.Info
-  const reasoning = { name: "reasoning", native: true } as Agent.Info
-  const plan = { name: "plan", native: true } as Agent.Info
+test("provider identity is the real agent (build_mode / coder_agent / …)", () => {
+  // Protocol is shared; identity switches — never force build_mode for others.
+  const build = { name: "build_mode", native: true } as Agent.Info
+  const reasoning = { name: "reasoning_mode", native: true } as Agent.Info
+  const plan = { name: "plan_mode", native: true } as Agent.Info
   const custom = { name: "custom", native: false } as Agent.Info
+  const coder = { name: "coder_agent", native: true } as Agent.Info
+  const explorer = { name: "explorer_agent", native: true } as Agent.Info
 
-  expect(providerIdentityForMode(reasoning, build)).toBe(build)
-  expect(providerIdentityForMode(plan, build)).toBe(build)
+  expect(providerIdentityForMode(reasoning, build)).toBe(reasoning)
+  expect(providerIdentityForMode(plan, build)).toBe(plan)
+  expect(providerIdentityForMode(build, build)).toBe(build)
   expect(providerIdentityForMode(custom, build)).toBe(custom)
+  expect(providerIdentityForMode(coder, build)).toBe(coder)
+  expect(providerIdentityForMode(explorer, build)).toBe(explorer)
 })

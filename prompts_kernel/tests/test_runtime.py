@@ -120,9 +120,11 @@ class TestRuntimePromptCompiler:
 
     def test_agent_prompt_files_reference_generated_contract_ids(self):
         prompts = {
-            "coder.txt": "agent.coder", "explore.txt": "agent.explore",
-            "general.txt": "agent.general", "media.txt": "agent.media", "orchestrator.txt": "agent.orchestrator",
-            "researcher.txt": "agent.researcher", "summary.txt": "agent.summary", "title.txt": "agent.title",
+            "coder.txt": "agent.coder_agent", "explore.txt": "agent.explorer_agent",
+            "general.txt": "agent.general_agent", "media.txt": "agent.media_agent",
+            "orchestrator.txt": "agent.orchestrator_agent",
+            "researcher.txt": "agent.researcher_agent", "summary.txt": "agent.summary_agent",
+            "title.txt": "agent.title_agent",
         }
         prompt_dir = (
             Path(__file__).resolve().parents[2] / "packages" / "opencode" / "src" / "agent" / "prompt"

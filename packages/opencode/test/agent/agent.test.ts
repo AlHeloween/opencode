@@ -27,12 +27,12 @@ test("returns default native agents when no config", async () => {
     fn: async () => {
       const agents = await load(tmp.path, (svc) => svc.list())
       const names = agents.map((a) => a.name)
-      expect(names).toContain("build")
-      expect(names).toContain("plan")
-      expect(names).toContain("general")
-      expect(names).toContain("explore")
-      expect(names).toContain("title")
-      expect(names).toContain("summary")
+      expect(names).toContain("build_mode")
+      expect(names).toContain("plan_mode")
+      expect(names).toContain("general_agent")
+      expect(names).toContain("explorer_agent")
+      expect(names).toContain("title_agent")
+      expect(names).toContain("summary_agent")
     },
   })
 })
@@ -42,7 +42,7 @@ test("build agent has correct default properties", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(build).toBeDefined()
       expect(build?.mode).toBe("primary")
       expect(build?.native).toBe(true)
@@ -57,7 +57,7 @@ test("plan agent denies edits except plans/*", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const plan = await load(tmp.path, (svc) => svc.get("plan"))
+      const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
       expect(plan).toBeDefined()
       expect(plan?.mode).toBe("primary")
       // Wildcard is denied
@@ -74,7 +74,7 @@ test("reasoning agent software guardrail exposes only memory", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const reasoning = await load(tmp.path, (svc) => svc.get("reasoning"))
+      const reasoning = await load(tmp.path, (svc) => svc.get("reasoning_mode"))
       expect(reasoning).toBeDefined()
       expect(reasoning?.mode).toBe("primary")
       expect(evalPerm(reasoning, "memory")).toBe("allow")
@@ -92,14 +92,14 @@ test("project configuration cannot reopen reasoning capabilities", async () => {
   await Bun.write(
     path.join(tmp.path, "opencode.json"),
     JSON.stringify({
-      agent: { reasoning: { name: "build", permission: { bash: "allow", read: "allow", edit: "allow" } } },
+      agent: { reasoning: { name: "build_mode", permission: { bash: "allow", read: "allow", edit: "allow" } } },
     }),
   )
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const reasoning = await load(tmp.path, (svc) => svc.get("reasoning"))
-      expect(reasoning?.name).toBe("reasoning")
+      const reasoning = await load(tmp.path, (svc) => svc.get("reasoning_mode"))
+      expect(reasoning?.name).toBe("reasoning_mode")
       expect(evalPerm(reasoning, "memory")).toBe("allow")
       expect(evalPerm(reasoning, "bash")).toBe("deny")
       expect(evalPerm(reasoning, "read")).toBe("deny")
@@ -113,8 +113,8 @@ test("only the native orchestrator can control reasoning transitions", async () 
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
-      const orchestrator = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
+      const orchestrator = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       expect(evalPerm(build, "reasoning_enter")).toBe("allow")
       expect(evalPerm(build, "reasoning_exit")).toBe("deny")
       expect(evalPerm(orchestrator, "reasoning_enter")).toBe("allow")
@@ -128,7 +128,7 @@ test("explore agent denies edit and write", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const explore = await load(tmp.path, (svc) => svc.get("explore"))
+      const explore = await load(tmp.path, (svc) => svc.get("explorer_agent"))
       expect(explore).toBeDefined()
       expect(explore?.mode).toBe("subagent")
       expect(evalPerm(explore, "edit")).toBe("deny")
@@ -144,7 +144,7 @@ test("explore agent asks for external directories and allows Truncate.truncateGl
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const explore = await load(tmp.path, (svc) => svc.get("explore"))
+      const explore = await load(tmp.path, (svc) => svc.get("explorer_agent"))
       expect(explore).toBeDefined()
       expect(Permission.evaluate("external_directory", "/some/other/path", explore!.permission).action).toBe("ask")
       expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), explore!.permission).action).toBe("allow")
@@ -157,7 +157,7 @@ test("explore agent allows codegraph via wildcard permission key", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const explore = await load(tmp.path, (svc) => svc.get("explore"))
+      const explore = await load(tmp.path, (svc) => svc.get("explorer_agent"))
       expect(explore).toBeDefined()
       // Single-ruleset evaluate (tools.ts:denied path)
       expect(evalPerm(explore, "codegraph")).toBe("allow")
@@ -174,7 +174,7 @@ test("general agent allows todo tools (per-session list)", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const general = await load(tmp.path, (svc) => svc.get("general"))
+      const general = await load(tmp.path, (svc) => svc.get("general_agent"))
       expect(general).toBeDefined()
       expect(general?.mode).toBe("subagent")
       expect(general?.hidden).toBeUndefined()
@@ -189,7 +189,7 @@ test("title agent denies all permissions", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const title = await load(tmp.path, (svc) => svc.get("title"))
+      const title = await load(tmp.path, (svc) => svc.get("title_agent"))
       expect(title).toBeDefined()
       expect(title?.hidden).toBe(true)
       expect(evalPerm(title, "bash")).toBe("deny")
@@ -244,7 +244,7 @@ test("custom agent config overrides native agent properties", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(build).toBeDefined()
       expect(String(build?.model?.providerID)).toBe("anthropic")
       expect(String(build?.model?.modelID)).toBe("claude-3")
@@ -267,11 +267,11 @@ test("agent disable removes agent from list", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const explore = await load(tmp.path, (svc) => svc.get("explore"))
+      const explore = await load(tmp.path, (svc) => svc.get("explorer_agent"))
       expect(explore).toBeUndefined()
       const agents = await load(tmp.path, (svc) => svc.list())
       const names = agents.map((a) => a.name)
-      expect(names).not.toContain("explore")
+      expect(names).not.toContain("explorer_agent")
     },
   })
 })
@@ -293,7 +293,7 @@ test("agent permission config merges with defaults", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(build).toBeDefined()
       // Specific pattern is denied
       expect(Permission.evaluate("bash", "rm -rf *", build!.permission).action).toBe("deny")
@@ -314,7 +314,7 @@ test("global permission config applies to all agents", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(build).toBeDefined()
       expect(evalPerm(build, "bash")).toBe("deny")
     },
@@ -333,8 +333,8 @@ test("agent steps/maxSteps config sets steps property", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
-      const plan = await load(tmp.path, (svc) => svc.get("plan"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
+      const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
       expect(build?.steps).toBe(50)
       expect(plan?.steps).toBe(100)
     },
@@ -352,7 +352,7 @@ test("agent mode can be overridden", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const explore = await load(tmp.path, (svc) => svc.get("explore"))
+      const explore = await load(tmp.path, (svc) => svc.get("explorer_agent"))
       expect(explore?.mode).toBe("primary")
     },
   })
@@ -369,8 +369,8 @@ test("native agent name cannot be overridden", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(build?.name).toBe("build")
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
+      expect(build?.name).toBe("build_mode")
     },
   })
 })
@@ -386,7 +386,7 @@ test("agent prompt can be set from config", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(build?.prompt).toBe("Custom system prompt")
     },
   })
@@ -406,7 +406,7 @@ test("unknown agent properties are placed into options", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(build?.options.random_property).toBe("hello")
       expect(build?.options.another_random).toBe(123)
     },
@@ -429,7 +429,7 @@ test("agent options merge correctly", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(build?.options.custom_option).toBe(true)
       expect(build?.options.another_option).toBe("value")
     },
@@ -467,7 +467,7 @@ test("multiple custom agents can be defined", async () => {
 test("Agent.list keeps the default agent first and sorts the rest by name", async () => {
   await using tmp = await tmpdir({
     config: {
-      default_agent: "plan",
+      default_agent: "plan_mode",
       agent: {
         zebra: {
           description: "Zebra",
@@ -484,7 +484,7 @@ test("Agent.list keeps the default agent first and sorts the rest by name", asyn
     directory: tmp.path,
     fn: async () => {
       const names = (await load(tmp.path, (svc) => svc.list())).map((a) => a.name)
-      expect(names[0]).toBe("plan")
+      expect(names[0]).toBe("plan_mode")
       expect(names.slice(1)).toEqual(names.slice(1).toSorted((a, b) => a.localeCompare(b)))
     },
   })
@@ -506,7 +506,7 @@ test("default permission includes doom_loop and external_directory as ask", asyn
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(evalPerm(build, "doom_loop")).toBe("ask")
       expect(evalPerm(build, "external_directory")).toBe("ask")
     },
@@ -518,7 +518,7 @@ test("destructive-file/db/git/fossil are denied by default; normal tools allowed
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(evalPerm(build, "destructive-file")).toBe("deny")
       expect(evalPerm(build, "destructive-db")).toBe("deny")
       expect(evalPerm(build, "destructive-git")).toBe("deny")
@@ -538,7 +538,7 @@ test("webfetch is allowed by default", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(evalPerm(build, "webfetch")).toBe("allow")
     },
   })
@@ -560,7 +560,7 @@ test("legacy tools config converts to permissions", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(evalPerm(build, "bash")).toBe("deny")
       expect(evalPerm(build, "read")).toBe("deny")
     },
@@ -582,7 +582,7 @@ test("legacy tools config maps write/edit/patch to edit permission", async () =>
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(evalPerm(build, "edit")).toBe("deny")
     },
   })
@@ -600,7 +600,7 @@ test("Truncate.truncateGlob() is denied when user denies external_directory glob
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
@@ -624,7 +624,7 @@ test("Truncate.truncateGlob() is denied when user denies external_directory per-
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
@@ -647,7 +647,7 @@ test("explicit Truncate.truncateGlob() deny is respected", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), build!.permission).action).toBe("deny")
       expect(Permission.evaluate("external_directory", Truncate.truncateDir(), build!.permission).action).toBe("deny")
     },
@@ -679,7 +679,7 @@ description: Permission skill.
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const build = await load(tmp.path, (svc) => svc.get("build"))
+        const build = await load(tmp.path, (svc) => svc.get("build_mode"))
         const skillDir = path.join(tmp.path, ".opencode", "skill", "perm-skill")
         const target = path.join(skillDir, "reference", "notes.md")
         expect(Permission.evaluate("external_directory", target, build!.permission).action).toBe("allow")
@@ -696,7 +696,7 @@ test("defaultAgent returns build when no default_agent config", async () => {
     directory: tmp.path,
     fn: async () => {
       const agent = await load(tmp.path, (svc) => svc.defaultAgent())
-      expect(agent).toBe("build")
+      expect(agent).toBe("build_mode")
     },
   })
 })
@@ -704,14 +704,14 @@ test("defaultAgent returns build when no default_agent config", async () => {
 test("defaultAgent respects default_agent config set to plan", async () => {
   await using tmp = await tmpdir({
     config: {
-      default_agent: "plan",
+      default_agent: "plan_mode",
     },
   })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const agent = await load(tmp.path, (svc) => svc.defaultAgent())
-      expect(agent).toBe("plan")
+      expect(agent).toBe("plan_mode")
     },
   })
 })
@@ -739,13 +739,13 @@ test("defaultAgent respects default_agent config set to custom agent with mode a
 test("defaultAgent throws when default_agent points to subagent", async () => {
   await using tmp = await tmpdir({
     config: {
-      default_agent: "explore",
+      default_agent: "explorer_agent",
     },
   })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      await expect(load(tmp.path, (svc) => svc.defaultAgent())).rejects.toThrow('default agent "explore" is a subagent')
+      await expect(load(tmp.path, (svc) => svc.defaultAgent())).rejects.toThrow('default agent "explorer_agent" is a subagent')
     },
   })
 })
@@ -753,13 +753,13 @@ test("defaultAgent throws when default_agent points to subagent", async () => {
 test("defaultAgent throws when default_agent points to hidden agent", async () => {
   await using tmp = await tmpdir({
     config: {
-      default_agent: "title",
+      default_agent: "title_agent",
     },
   })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      await expect(load(tmp.path, (svc) => svc.defaultAgent())).rejects.toThrow('default agent "title" is hidden')
+      await expect(load(tmp.path, (svc) => svc.defaultAgent())).rejects.toThrow('default agent "title_agent" is hidden')
     },
   })
 })
@@ -793,7 +793,7 @@ test("defaultAgent returns plan when build is disabled and default_agent not set
     fn: async () => {
       const agent = await load(tmp.path, (svc) => svc.defaultAgent())
       // build is disabled, so it should return plan (next primary agent)
-      expect(agent).toBe("plan")
+      expect(agent).toBe("plan_mode")
     },
   })
 })

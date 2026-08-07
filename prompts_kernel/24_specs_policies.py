@@ -44,7 +44,7 @@ ADID_OPS = _spec(
 )
 
 AGENT_DIRECTIVES = _spec(
-    intent="All agents: State→Plan→Reuse→Smoke→Implement→Verify. Be concise, direct. No preamble, postamble, URL guessing. See: @CODER, @G1..@G9.",
+    intent="All identities: State→Plan→Reuse→Smoke→Implement→Verify. Be concise, direct. No preamble, postamble, URL guessing. See: @CODER_AGENT, @IDENTITIES, @G1..@G9.",
     state={},
     scope="universal agent behavior",
     constraints={

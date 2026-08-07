@@ -1,4 +1,4 @@
-import { PlanExitTool } from "./plan"
+import { PlanEnterTool, PlanExitTool } from "./plan"
 import { ReasoningEnterTool, ReasoningExitTool } from "./reasoning"
 import { MemoryTool } from "./memory"
 import { Session } from "@/session/session"
@@ -135,7 +135,8 @@ export const layer: Layer.Layer<
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
     const lsptool = yield* LspTool
-    const plan = yield* PlanExitTool
+    const planEnter = yield* PlanEnterTool
+    const planExit = yield* PlanExitTool
     const reasoningEnter = yield* ReasoningEnterTool
     const reasoningExit = yield* ReasoningExitTool
     const memory = yield* MemoryTool
@@ -257,7 +258,8 @@ export const layer: Layer.Layer<
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
-          plan: Tool.init(plan),
+          planEnter: Tool.init(planEnter),
+          planExit: Tool.init(planExit),
           reasoningEnter: Tool.init(reasoningEnter),
           reasoningExit: Tool.init(reasoningExit),
           memory: Tool.init(memory),
@@ -313,7 +315,7 @@ export const layer: Layer.Layer<
             tool.pipeline,
             ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             ...(process.platform === "win32" ? [tool.cmd] : []),
-            ...(Flag.OPENCODE_CLIENT === "cli" ? [tool.plan] : []),
+            ...(Flag.OPENCODE_CLIENT === "cli" ? [tool.planEnter, tool.planExit] : []),
             tool.reasoningEnter,
             tool.reasoningExit,
             tool.memory,
@@ -374,7 +376,9 @@ export const layer: Layer.Layer<
       const s = yield* InstanceState.get(state)
       // Provider tool *schemas* are mode-stable (KV): never shrink the list by role.
       // Reasoning/plan ACL is runtime-only in SessionTools (deny execute + mode message).
-      const isOrchestrator = input.agent.native && input.agent.name === "orchestrator"
+      const isOrchestrator =
+        input.agent.native &&
+        (input.agent.name === "orchestrator_agent" || input.agent.name === "orchestrator")
       const candidates = yield* all()
       const filtered = candidates.filter((tool) => {
         // Enter/exit mode tools are orchestrator-facing controls, not general work tools.

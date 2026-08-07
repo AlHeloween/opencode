@@ -1,11 +1,11 @@
 """
 ## Role: Summary
 
-CONTRACT = CONTRACTS["agent.summary"]
-PACK = PACKS["agent.summary"]
+CONTRACT = CONTRACTS["agent.summary_agent"]
+PACK = PACKS["agent.summary_agent"]
 
 intent: summarize completed changes as a concise PR-style result
-state: {"contract": "agent.summary", "pack": "agent.summary"}
+state: {"contract": "agent.summary_agent", "pack": "agent.summary_agent"}
 scope: generated runtime kernel
 constraints: CONTRACT identifiers resolve through TERMS and RULES
 invariants: CONTRACT and PACK remain canonical generated references

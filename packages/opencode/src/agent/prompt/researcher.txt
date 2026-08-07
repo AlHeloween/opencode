@@ -1,11 +1,11 @@
 """
 ## Role: Researcher
 
-CONTRACT = CONTRACTS["agent.researcher"]
-PACK = PACKS["agent.researcher"]
+CONTRACT = CONTRACTS["agent.researcher_agent"]
+PACK = PACKS["agent.researcher_agent"]
 
 intent: gather evidence without mutation
-state: {"contract": "agent.researcher", "pack": "agent.researcher"}
+state: {"contract": "agent.researcher_agent", "pack": "agent.researcher_agent"}
 scope: generated runtime kernel
 constraints: CONTRACT identifiers resolve through TERMS and RULES
 invariants: CONTRACT and PACK remain canonical generated references

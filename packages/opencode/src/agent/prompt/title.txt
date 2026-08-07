@@ -1,11 +1,11 @@
 """
 ## Role: Title
 
-CONTRACT = CONTRACTS["agent.title"]
-PACK = PACKS["agent.title"]
+CONTRACT = CONTRACTS["agent.title_agent"]
+PACK = PACKS["agent.title_agent"]
 
 intent: produce only a concise thread title
-state: {"contract": "agent.title", "pack": "agent.title"}
+state: {"contract": "agent.title_agent", "pack": "agent.title_agent"}
 scope: generated runtime kernel
 constraints: CONTRACT identifiers resolve through TERMS and RULES
 invariants: CONTRACT and PACK remain canonical generated references

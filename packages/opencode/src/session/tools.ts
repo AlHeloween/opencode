@@ -111,13 +111,13 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     Effect.gen(function* () {
       const mode = input.agent.name
       const hint =
-        mode === "reasoning"
-          ? ` In reasoning mode only the permanent memory tool is authorized (file .opencode/data/memory/reasoning.md). Do not call dbread, messagesearch, session-read, or other inspection tools.`
+        mode === "reasoning_mode" || mode === "reasoning"
+          ? ` In reasoning_mode only the permanent memory tool is authorized (file .opencode/data/memory/reasoning.md). Do not call dbread, messagesearch, session-read, or other inspection tools.`
           : ""
       const output = {
         title: "Tool denied",
         metadata: { mode, tool: toolID, denied: true },
-        output: `Permission denied: tool \"${toolID}\" is not authorized in ${mode} mode.${hint}`,
+        output: `Permission denied: tool \"${toolID}\" is not authorized for identity ${mode}.${hint}`,
       }
       yield* input.processor.completeToolCall(callID, output)
       return output
@@ -173,8 +173,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     throw new Error(`Provider tool name collision for "${name}" from "${policy}"`)
   }
 
-  // Provider-visible tool set: stable identity (providerAgent = Build for native modes).
-  // Do not pass the mode agent here — that would shrink schemas and break KV.
+  // Provider-visible tool set follows real identity (build_mode, coder_agent, …).
+  // Do not force build_mode for other agents — schemas must match identity rights.
   for (const item of yield* registry.tools({
     modelID: ModelID.make(input.model.api.id),
     providerID: input.model.providerID,

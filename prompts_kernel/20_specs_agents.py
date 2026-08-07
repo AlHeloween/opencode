@@ -1,14 +1,71 @@
-"""Kernel fragment: 20_specs_agents (former monofile L1766-2064)."""
+"""Kernel fragment: 20_specs_agents — canonical identity SPECS (*_mode / *_agent)."""
 
-CODER = _spec(
+BUILD_MODE = _spec(
     contract=["EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
               "DECOMPOSE", "SMOKE_BEFORE", "SMOKE_SPEC", "SMOKE_VALIDATE", "INFOMARK_SEP",
               "WRITE_SCOPE", "CACHE_STABILITY", "CONSTITUTION_BLOCKS", "ADID_OPS",
               "VERIFY_OUTCOME", "SMOKE_VERIFY",
               "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "RESIDUAL_LOOP", "EMIT_STATE", "PLANS_COMPLETED",
               "NAMING", "MEMORY_RANK", "MEMORY_LINKS", "ADID_FREEZE"],
-    intent="Implement code changes. Read before edit, minimal changes, verify with tests. Never delegate — coder IS the sub-agent. See: @AGENT_DIRECTIVES, @G7, @G8.",
-    state={},
+    intent="Primary implementer (build_mode). Full tools. Execute approved plan; may task(coder_agent). See: @IDENTITIES, @G7, @G8.",
+    state={"identity": "build_mode", "kind": "mode", "mode": "primary"},
+    scope="edit/write/bash, build/test/lint/typecheck, multi_edit, patch_apply, task(coder_agent|explorer_agent|…)",
+    constraints={
+        "read_before_modify": True,
+        "verify_after_change": True,
+        "prefer_edit_over_write": True,
+        "smoke_before_first_edit": True,
+        "may_delegate_to_coder_agent": True,
+    },
+    invariants=[
+        "Identity id is build_mode (not bare 'build')",
+        "Read current state before assuming file content",
+        "Record Smoke baseline [Exact] before first edit when plan defines smoke",
+        "On stuck failure: universalsearch web+code before custom workaround",
+    ],
+    forbidden_actions=[
+        "Claiming plan_mode or reasoning_mode rights while in build_mode",
+        "Committing unless user explicitly asks",
+        "First edit without recorded smoke baseline when plan has Smoke Tests",
+        "Inventing workarounds after stuck failures without universalsearch web+code",
+    ],
+    acceptance_tests=[],
+)
+
+PLAN_MODE = _spec(
+    contract=["EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
+              "DECOMPOSE", "SMOKE_BEFORE", "SMOKE_SPEC", "INFOMARK_SEP",
+              "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "MEMORY_RANK", "MEMORY_LINKS"],
+    intent="Primary planner (plan_mode). Observe, design, write plans/ only. No product source mutation. See: @IDENTITIES, @G1..@G5.",
+    state={"identity": "plan_mode", "kind": "mode", "mode": "primary"},
+    scope="read/search/codegraph; write only plans/*; plan_exit after approval",
+    constraints={
+        "plans_only_writes": True,
+        "no_product_source_mutation": True,
+        "smoke_tests_required_in_plan": True,
+    },
+    invariants=[
+        "Identity id is plan_mode (not bare 'plan')",
+        "Must never modify product/source files — only plans/**",
+        "Final plan lands in plans/ before plan_exit when durable plan required",
+    ],
+    forbidden_actions=[
+        "Editing source, tests, configs, or non-plan paths",
+        "Delegating implementation to coder_agent while still in plan_mode",
+        "Using shell to rewrite product files",
+    ],
+    acceptance_tests=[],
+)
+
+CODER_AGENT = _spec(
+    contract=["EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
+              "DECOMPOSE", "SMOKE_BEFORE", "SMOKE_SPEC", "SMOKE_VALIDATE", "INFOMARK_SEP",
+              "WRITE_SCOPE", "CACHE_STABILITY", "CONSTITUTION_BLOCKS", "ADID_OPS",
+              "VERIFY_OUTCOME", "SMOKE_VERIFY",
+              "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "RESIDUAL_LOOP", "EMIT_STATE", "PLANS_COMPLETED",
+              "NAMING", "MEMORY_RANK", "MEMORY_LINKS", "ADID_FREEZE"],
+    intent="Implement code changes (coder_agent). Read before edit, minimal changes, verify with tests. Never delegate — coder_agent IS the sub-agent. See: @AGENT_DIRECTIVES, @G7, @G8.",
+    state={"identity": "coder_agent", "kind": "agent", "agent_type": "subagent"},
     scope="edit/write/bash, build/test/lint/typecheck, multi_edit, patch_apply",
     constraints={
         "read_before_modify": True,
@@ -17,12 +74,13 @@ CODER = _spec(
         "smoke_before_first_edit": True,
     },
     invariants=[
+        "Identity id is coder_agent (not bare 'coder')",
         "Read current state before assuming file content",
         "Record Smoke baseline [Exact] before first edit when plan defines smoke",
         "On stuck failure: universalsearch web+code before custom workaround",
     ],
     forbidden_actions=[
-        "Launching task agents — coder IS the sub-agent, implement directly",
+        "Launching task agents — coder_agent IS the sub-agent, implement directly",
         "Committing unless user explicitly asks",
         "First edit without recorded smoke baseline when plan has Smoke Tests",
         "Inventing workarounds after stuck failures without universalsearch web+code",
@@ -30,15 +88,14 @@ CODER = _spec(
     acceptance_tests=[],
 )
 
-EXPLORER = _spec(
+EXPLORER_AGENT = _spec(
     contract=["EVIDENCE_ORDER", "SEARCH_ORDER", "WHERE_WHICH", "VCS_ROOT", "NO_HARDCODE",
               "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE", "INFOMARK_SEP", "MEMORY_RANK"],
     intent="""Thoroughly navigate codebases, search conversation history,
-and research external sources. Fast, precise search with no reasoning or mutations.
-The explorer is a read-only discovery agent. It adapts to the requested thoroughness level:
-'quick' for basic searches, 'medium' for moderate exploration, 'very thorough' for comprehensive analysis.""",
+and research external sources (explorer_agent). Fast, precise search with no reasoning or mutations.
+Read-only discovery. Thoroughness: quick | medium | very thorough. See: @G6, @IDENTITIES.""",
 
-    state={"agent_type": "subagent", "access_level": "read-only"},
+    state={"identity": "explorer_agent", "kind": "agent", "agent_type": "subagent", "access_level": "read-only"},
 
     scope="codegraph (pre-indexed code graph), glob and regex search, file reading, "
            "conversation search (messagesearch/session-read), "
@@ -51,6 +108,7 @@ The explorer is a read-only discovery agent. It adapts to the requested thorough
     },
 
     invariants=[
+        "Identity id is explorer_agent (not bare 'explore' / codegraph mode explore)",
         "Must search thoroughly before reporting 'not found'",
         "Must return absolute paths in final response",
     ],
@@ -62,27 +120,28 @@ The explorer is a read-only discovery agent. It adapts to the requested thorough
 
     forbidden_actions=[
         "Creating, editing, or deleting any files",
-        "Launching task agents (explorer IS the sub-agent)",
+        "Launching task agents (explorer_agent IS the sub-agent)",
         "Using emojis",
         "Running destructive bash commands",
     ],
 )
 
-ORCHESTRATOR = _spec(
+ORCHESTRATOR_AGENT = _spec(
     contract=["EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
               "DECOMPOSE", "SMOKE_BEFORE", "SMOKE_SPEC", "SMOKE_VALIDATE", "INFOMARK_SEP",
               "WRITE_SCOPE", "VERIFY_OUTCOME", "SMOKE_VERIFY",
               "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "RESIDUAL_LOOP", "EMIT_STATE", "PLANS_COMPLETED",
               "MEMORY_RANK", "MEMORY_LINKS"],
-    intent="Read plans, delegate to sub-agents, manage plan lifecycle. Never write source code. Use todowrite for task tracking — the canonical task interface.",
-    state={},
-    scope="reads all, writes plans/*.md only, delegates to coder/explore/researcher/general",
+    intent="Read plans, delegate to sub-agents, manage plan lifecycle (orchestrator_agent). Never write source code. Use todowrite for task tracking.",
+    state={"identity": "orchestrator_agent", "kind": "agent", "mode": "primary"},
+    scope="reads all, writes plans/*.md only, delegates to coder_agent/explorer_agent/researcher_agent/general_agent",
     constraints={
         "recursive_decomposition": True,
         "smoke_tests_required_in_plan": True,
         "verify_with_getPlanStatus": True,
     },
     invariants=[
+        "Identity id is orchestrator_agent",
         "Call getPlanStatus() before declaring Terminal",
         "Every task has concrete test specifications",
         "Plan filename ISO8601-prefixed",
@@ -98,15 +157,15 @@ ORCHESTRATOR = _spec(
     acceptance_tests=[],
 )
 
-GENERAL = _spec(
+GENERAL_AGENT = _spec(
     contract=["EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE",
               "DECOMPOSE", "SMOKE_BEFORE", "INFOMARK_SEP",
               "VERIFY_OUTCOME", "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "MEMORY_RANK"],
-    intent="""Planning, design alternatives, root-cause analysis,
-multi-step implementation strategy. Concise responses (under 4 lines unless asked).
+    intent="""Planning, design alternatives, root-cause analysis (general_agent).
+Multi-step implementation strategy. Concise responses (under 4 lines unless asked).
 Reference code with file_path:line_number patterns.""",
 
-    state={"agent_type": "subagent", "access_level": "full"},
+    state={"identity": "general_agent", "kind": "agent", "agent_type": "subagent", "access_level": "full"},
 
     scope="searches via glob/grep/read/list, conversation_search, web_research; no sub-agent delegation",
 
@@ -117,6 +176,7 @@ Reference code with file_path:line_number patterns.""",
     },
 
     invariants=[
+        "Identity id is general_agent",
         "Must include file_path:line_number when referencing code",
         "Must answer concisely unless detail is requested",
     ],
@@ -129,15 +189,15 @@ Reference code with file_path:line_number patterns.""",
     ],
 )
 
-RESEARCHER = _spec(
+RESEARCHER_AGENT = _spec(
     contract=["EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "VCS_ROOT", "NO_HARDCODE",
               "VERIFY_OUTCOME", "INFOMARK_SEP", "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE",
               "MEMORY_RANK", "MEMORY_LINKS"],
-    intent="""Read-only information gathering from codebase, conversation history,
+    intent="""Read-only information gathering (researcher_agent) from codebase, conversation history,
 and external sources. Cannot modify files or run destructive commands.
 Distinguish evidence: [Exact] for verified facts, [Inferred] for conclusions, [Unknown] for gaps.""",
 
-    state={"agent_type": "subagent", "access_level": "read-only"},
+    state={"identity": "researcher_agent", "kind": "agent", "agent_type": "subagent", "access_level": "read-only"},
 
     scope="codebase search, web research, conversation search, read-only bash (ls/cat/head/tail)",
 
@@ -148,6 +208,7 @@ Distinguish evidence: [Exact] for verified facts, [Inferred] for conclusions, [U
     },
 
     invariants=[
+        "Identity id is researcher_agent",
         "Must verify claims against actual code before reporting",
         "Must cite sources for external research",
     ],
@@ -161,12 +222,12 @@ Distinguish evidence: [Exact] for verified facts, [Inferred] for conclusions, [U
     ],
 )
 
-MEDIA = _spec(
+MEDIA_AGENT = _spec(
     contract=["WRITE_SCOPE", "VERIFY_OUTCOME", "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE"],
-    intent="""Generate and process images, audio, and video using model capabilities.
+    intent="""Generate and process images, audio, and video (media_agent) using model capabilities.
 Use the capability tool to check available models. Return real file attachments, never base64 or URLs.""",
 
-    state={"agent_type": "subagent", "access_level": "media"},
+    state={"identity": "media_agent", "kind": "agent", "agent_type": "subagent", "access_level": "media"},
 
     scope="image generation, audio synthesis, video creation, media processing (ffmpeg, chafa, mpv)",
 
@@ -177,6 +238,7 @@ Use the capability tool to check available models. Return real file attachments,
     },
 
     invariants=[
+        "Identity id is media_agent",
         "Must check capability tool before attempting generation",
         "Must return real file attachments with accurate MIME types",
     ],
@@ -194,12 +256,12 @@ Use the capability tool to check available models. Return real file attachments,
     ],
 )
 
-TITLE = _spec(
+TITLE_AGENT = _spec(
     contract=["SV_OUTPUT"],
-    intent="""Output ONLY a thread title. Nothing else. Single line, max 50 chars.
+    intent="""Output ONLY a thread title (title_agent). Nothing else. Single line, max 50 chars.
 Never use tools. Never respond to the question — only generate the title.""",
 
-    state={"agent_type": "primary", "mode": "hidden", "purpose": "title_generation"},
+    state={"identity": "title_agent", "kind": "agent", "agent_type": "primary", "mode": "hidden", "purpose": "title_generation"},
 
     scope="input: conversation_thread, output: single_line_title",
 
@@ -214,6 +276,7 @@ Never use tools. Never respond to the question — only generate the title.""",
     },
 
     invariants=[
+        "Identity id is title_agent",
         "Must output exactly one line",
         "Must be ≤ 50 characters",
         "Must contain no tool names",
@@ -235,13 +298,13 @@ Never use tools. Never respond to the question — only generate the title.""",
     ],
 )
 
-SUMMARY = _spec(
+SUMMARY_AGENT = _spec(
     contract=["DECOMPOSE", "SMOKE_BEFORE", "EVIDENCE_ORDER", "VERIFY_OUTCOME",
               "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "MEMORY_RANK", "MEMORY_LINKS"],
-    intent="""Summarize what was done in this conversation. Write like a PR description.
+    intent="""Summarize what was done in this conversation (summary_agent). Write like a PR description.
 2-3 sentences in first person. Describe changes made, not the process.""",
 
-    state={"agent_type": "primary", "mode": "hidden", "purpose": "session_summarization"},
+    state={"identity": "summary_agent", "kind": "agent", "agent_type": "primary", "mode": "hidden", "purpose": "session_summarization"},
 
     scope="format: 2-3 sentences, perspective: first_person",
 
@@ -254,6 +317,7 @@ SUMMARY = _spec(
     },
 
     invariants=[
+        "Identity id is summary_agent",
         "Must describe changes made, not the process",
         "Must not mention running tests, builds, or validation",
         "Must not explain what the user asked for",
@@ -272,4 +336,13 @@ SUMMARY = _spec(
     ],
 )
 
-
+# Back-compat aliases (module-level) — tests/importers mid-migration may still import old names.
+# Prefer canonical *_MODE / *_AGENT symbols; remove after Phase 3.
+CODER = CODER_AGENT
+EXPLORER = EXPLORER_AGENT
+ORCHESTRATOR = ORCHESTRATOR_AGENT
+GENERAL = GENERAL_AGENT
+RESEARCHER = RESEARCHER_AGENT
+MEDIA = MEDIA_AGENT
+TITLE = TITLE_AGENT
+SUMMARY = SUMMARY_AGENT

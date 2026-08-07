@@ -25,7 +25,7 @@ test("orchestrator exists in agent list", async () => {
     fn: async () => {
       const agents = await load(tmp.path, (svc) => svc.list())
       const names = agents.map((a) => a.name)
-      expect(names).toContain("orchestrator")
+      expect(names).toContain("orchestrator_agent")
     },
   })
 })
@@ -35,7 +35,7 @@ test("orchestrator is primary mode, native, not hidden", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const orch = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      const orch = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       expect(orch).toBeDefined()
       expect(orch!.mode).toBe("primary")
       expect(orch!.native).toBe(true)
@@ -49,7 +49,7 @@ test("orchestrator has light green color", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const orch = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      const orch = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       expect(orch!.color).toBe("#90EE50")
     },
   })
@@ -60,9 +60,9 @@ test("orchestrator prompt is coordinator contract (plans, no source edits)", asy
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const orch = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      const orch = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       expect(orch!.prompt).toBeDefined()
-      expect(orch!.prompt!).toContain("agent.orchestrator")
+      expect(orch!.prompt!).toContain("agent.orchestrator_agent")
       expect(orch!.prompt!).toMatch(/plans|delegate/i)
     },
   })
@@ -73,7 +73,7 @@ test("orchestrator is coordinator: no shell; plan dirs only; task + explore only
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const orch = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      const orch = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       // No implementer shell — workers (build) execute
       expect(evalPerm(orch, "bash")).toBe("deny")
       expect(evalPerm(orch, "cmd")).toBe("deny")
@@ -85,11 +85,10 @@ test("orchestrator is coordinator: no shell; plan dirs only; task + explore only
       expect(Permission.evaluate("edit", "plans/foo.md", orch!.permission).action).toBe("allow")
       expect(Permission.evaluate("edit", "plans_completed/foo.md", orch!.permission).action).toBe("allow")
       expect(Permission.evaluate("edit", "packages/opencode/src/x.ts", orch!.permission).action).toBe("deny")
-      // Delegate only via task; subagents list is explore-only
+      // Delegate via task; subagents: explorer_agent + coder_agent (canonical ids)
       expect(evalPerm(orch, "task")).toBe("allow")
-      expect(orch!.subagents).toEqual(["explore"])
-      expect(orch!.subagents).not.toContain("general")
-      expect(orch!.subagents).not.toContain("coder")
+      expect(orch!.subagents).toEqual(["explorer_agent", "coder_agent"])
+      expect(orch!.subagents).not.toContain("general_agent")
     },
   })
 })
@@ -99,7 +98,7 @@ test("orchestrator allows read, glob, grep, list, webfetch, universalsearch, mes
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const orch = await load(tmp.path, (svc) => svc.get("orchestrator"))
+      const orch = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       expect(evalPerm(orch, "read")).toBe("allow")
       expect(evalPerm(orch, "glob")).toBe("allow")
       expect(evalPerm(orch, "grep")).toBe("allow")
@@ -119,7 +118,7 @@ test("orchestrator is selectable as primary (not subagent only)", async () => {
     fn: async () => {
       const agents = await load(tmp.path, (svc) => svc.list())
       const primaryNames = agents.filter((a) => a.mode !== "subagent" && !a.hidden).map((a) => a.name)
-      expect(primaryNames).toContain("orchestrator")
+      expect(primaryNames).toContain("orchestrator_agent")
     },
   })
 })

@@ -1,11 +1,11 @@
 """
 ## Role: Explorer
 
-CONTRACT = CONTRACTS["agent.explore"]
-PACK = PACKS["agent.explore"]
+CONTRACT = CONTRACTS["agent.explorer_agent"]
+PACK = PACKS["agent.explorer_agent"]
 
 intent: perform read-only evidence-first discovery with index freshness verification
-state: {"contract": "agent.explore", "pack": "agent.explore"}
+state: {"contract": "agent.explorer_agent", "pack": "agent.explorer_agent"}
 scope: codegraph, RAG, grep, glob, read, web search — read-only evidence gathering
 constraints:
   - SEARCH_ORDER: CODE_STRUCTURE→codegraph→bounded read/grep. Prefer structure over content.

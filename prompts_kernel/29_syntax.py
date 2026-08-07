@@ -4,7 +4,7 @@ SYNTAX_PROJECTION: dict[str, dict[str, str]] = {
     # Each entry: kernel field → {format: syntax template snippet}
     # Templates use {value} for scalar, {items} for bullet list, {dict_items} for key:value pairs
     "intent": {
-        "kernel": 'CODER["intent"]  # Python dict string value',
+        "kernel": 'CODER_AGENT["intent"]  # Python dict string value',
         ".agent.txt": "# intent: <str>  # comment line at top",
         ".session.txt": "intent:\\n<str>  # YAML-style after frontmatter",
         ".mdc": "intent:\\n<str>  # YAML-style after frontmatter",
@@ -12,42 +12,42 @@ SYNTAX_PROJECTION: dict[str, dict[str, str]] = {
         ".txt.plan": "intent:\\n<str>  # first section (no frontmatter)",
     },
     "state": {
-        "kernel": 'CODER["state"]  # Python dict',
+        "kernel": 'CODER_AGENT["state"]  # Python dict',
         ".agent.txt": "# state: (not used — kernel dict is authoritative)",
         ".session.txt": "state:\\nkey: value\\n  # YAML-style key:value pairs",
         ".mdc": "state:\\nkey: value  # YAML-style key:value pairs",
         "AGENTS.md": "state:\\nkey: value  # YAML-style key:value pairs",
     },
     "scope": {
-        "kernel": 'CODER["scope"]  # Python dict',
+        "kernel": 'CODER_AGENT["scope"]  # Python dict',
         ".agent.txt": '# === SCOPE ===\\nfor k, v in SPEC["scope"].items():\\n    # {k}: {v}',
         ".session.txt": "scope:\\n- item  # dash-prefixed list",
         ".mdc": "scope:\\n- item  # dash-prefixed list",
         "AGENTS.md": "scope:\\n- item  # dash-prefixed list",
     },
     "constraints": {
-        "kernel": 'CODER["constraints"]  # Python dict of bools',
+        "kernel": 'CODER_AGENT["constraints"]  # Python dict of bools',
         ".agent.txt": '# === CONSTRAINTS ===\\nfor k, v in SPEC["constraints"].items():\\n    # {k}: {v}  # bool values',
         ".session.txt": "constraints:\\n- text rule  # dash-prefixed list",
         ".mdc": "constraints:\\n- text rule  # dash-prefixed list",
         "AGENTS.md": "constraints:\\n- text rule  # dash-prefixed list",
     },
     "invariants": {
-        "kernel": 'CODER["invariants"]  # Python list of strings',
+        "kernel": 'CODER_AGENT["invariants"]  # Python list of strings',
         ".agent.txt": '# === INVARIANTS ===\\nfor inv in SPEC["invariants"]:\\n    # invariant: {inv}',
         ".session.txt": "invariants:\\n- Must ...  # dash-prefixed list",
         ".mdc": "invariants:\\n- Must ...  # dash-prefixed list",
         "AGENTS.md": "invariants:\\n- Must ...  # dash-prefixed list",
     },
     "forbidden_actions": {
-        "kernel": 'CODER["forbidden_actions"]  # Python list of strings',
+        "kernel": 'CODER_AGENT["forbidden_actions"]  # Python list of strings',
         ".agent.txt": '# === FORBIDDEN ===\\nfor f in SPEC["forbidden_actions"]:\\n    # DO NOT: {f}',
         ".session.txt": "forbidden_actions:\\n{items}  # dash-prefixed list",
         ".mdc": "forbidden_actions:\\n{items}  # dash-prefixed list",
         "AGENTS.md": "forbidden_actions:\\n{items}  # dash-prefixed list",
     },
     "acceptance_tests": {
-        "kernel": 'CODER["acceptance_tests"]  # Python list of strings',
+        "kernel": 'CODER_AGENT["acceptance_tests"]  # Python list of strings',
         ".agent.txt": '# === ACCEPTANCE TESTS ===\\nfor t in SPEC["acceptance_tests"]:\\n    # test: {t}',
         ".session.txt": "acceptance_tests:\\n{items}  # dash-prefixed list",
         ".mdc": "acceptance_tests:\\n{items}  # dash-prefixed list",

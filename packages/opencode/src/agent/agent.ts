@@ -27,6 +27,7 @@ import { InstanceState } from "@/effect/instance-state"
 import * as Option from "effect/Option"
 import { zod } from "@/util/effect-zod"
 import { withStatics, type DeepMutable } from "@/util/schema"
+import { canonicalIdentity } from "@/session/mode-identity"
 
 export const Info = Schema.Struct({
   name: Schema.String,
@@ -121,10 +122,11 @@ export const layer = Layer.effect(
 
         const user = Permission.fromConfig(cfg.permission ?? {})
 
+        // Canonical identity ids: *_mode (primary) / *_agent (specialized). See @IDENTITIES.
         const agents: Record<string, Info> = {
-          build: {
-            name: "build",
-            description: "The default agent. Executes tools based on configured permissions.",
+          build_mode: {
+            name: "build_mode",
+            description: "Primary implementer (build_mode). Full tools; executes plans.",
             options: {},
             permission: Permission.merge(
               defaults,
@@ -139,9 +141,9 @@ export const layer = Layer.effect(
             mode: "primary",
             native: true,
           },
-          plan: {
-            name: "plan",
-            description: "Plan mode. Read-only except writing plan files under plans/.",
+          plan_mode: {
+            name: "plan_mode",
+            description: "Plan mode (plan_mode). Read-only except writing plan files under plans/.",
             options: {},
             permission: Permission.merge(
               defaults,
@@ -170,12 +172,12 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
-            subagents: ["explore"],
+            subagents: ["explorer_agent"],
           },
-          reasoning: {
-            name: "reasoning",
+          reasoning_mode: {
+            name: "reasoning_mode",
             description:
-              "Reasoning mode. Full tool schemas (stable KV); runtime allows only permanent memory.",
+              "Reasoning mode (reasoning_mode). Runtime allows only permanent memory.",
             options: {},
             permission: Permission.merge(
               defaults,
@@ -209,10 +211,10 @@ export const layer = Layer.effect(
             mode: "primary",
             native: true,
           },
-          orchestrator: {
-            name: "orchestrator",
+          orchestrator_agent: {
+            name: "orchestrator_agent",
             color: "#90EE50",
-            description: `Autonomous development orchestrator — plans + directives only; workers implement`,
+            description: `Autonomous development orchestrator (orchestrator_agent) — plans + directives only; workers implement`,
             options: {},
             prompt: PROMPT_ORCHESTRATOR,
             // AGI loop: orch writes plan hygiene + XML worker directives; build workers execute.
@@ -253,20 +255,20 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
-            // Only explore — not general/coder (workers implement via AGI main session)
-            subagents: ["explore", "coder"],
+            // Only explorer — not general/coder (workers implement via AGI main session)
+            subagents: ["explorer_agent", "coder_agent"],
           },
-          general: {
-            name: "general",
-            description: `General-purpose subagent for planning, design alternatives, root-cause analysis, and multi-step implementation strategy. Use this after explore has gathered scope evidence, or when a focused non-explore subtask should run in parallel.`,
+          general_agent: {
+            name: "general_agent",
+            description: `General-purpose subagent (general_agent) for planning, design alternatives, root-cause analysis, and multi-step implementation strategy. Use after explorer_agent has gathered scope evidence, or when a focused non-explore subtask should run in parallel.`,
             permission: Permission.merge(defaults, user),
             prompt: PROMPT_GENERAL,
             options: {},
             mode: "subagent",
             native: true,
           },
-          explore: {
-            name: "explore",
+          explorer_agent: {
+            name: "explorer_agent",
             permission: Permission.merge(
               defaults,
               user,
@@ -292,15 +294,15 @@ export const layer = Layer.effect(
                 },
               }),
             ),
-            description: `Fast agent specialized for exploring codebases and researching conversation history. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase (eg. "how do API endpoints work?"), or search past conversations for decisions, patterns, and context. When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
+            description: `Fast agent (explorer_agent) specialized for exploring codebases and researching conversation history. Use when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase, or search past conversations. Thoroughness: "quick" | "medium" | "very thorough". Not codegraph mode "explore".`,
             prompt: PROMPT_EXPLORE,
             options: {},
             mode: "subagent",
             native: true,
           },
-          coder: {
-            name: "coder",
-            description: `Specialized agent for implementing code changes. Has full edit, write, bash, and search access. Use for targeted implementation tasks after a plan or research phase.`,
+          coder_agent: {
+            name: "coder_agent",
+            description: `Specialized agent (coder_agent) for implementing code changes. Full edit, write, bash, and search. Targeted implementation after plan or research. Never launches task.`,
             permission: Permission.merge(
               defaults,
               user,
@@ -313,9 +315,9 @@ export const layer = Layer.effect(
             mode: "subagent",
             native: true,
           },
-          researcher: {
-            name: "researcher",
-            description: `Specialized agent for information gathering. Read-only access to codebase search, web research, and conversation history. Use before planning or implementing to gather evidence.`,
+          researcher_agent: {
+            name: "researcher_agent",
+            description: `Specialized agent (researcher_agent) for information gathering. Read-only codebase, web, and conversation history.`,
             permission: Permission.merge(
               defaults,
               user,
@@ -346,9 +348,9 @@ export const layer = Layer.effect(
             mode: "subagent",
             native: true,
           },
-          media: {
-            name: "media",
-            description: `Specialized agent for media generation and processing. Uses the capability tool to find models for image, audio, and video generation. Has write access for saving generated media.`,
+          media_agent: {
+            name: "media_agent",
+            description: `Specialized agent (media_agent) for media generation and processing. Uses capability tool for image/audio/video.`,
             permission: Permission.merge(
               defaults,
               user,
@@ -361,8 +363,8 @@ export const layer = Layer.effect(
             mode: "subagent",
             native: true,
           },
-          title: {
-            name: "title",
+          title_agent: {
+            name: "title_agent",
             mode: "primary",
             options: {},
             native: true,
@@ -377,8 +379,8 @@ export const layer = Layer.effect(
             ),
             prompt: PROMPT_TITLE,
           },
-          summary: {
-            name: "summary",
+          summary_agent: {
+            name: "summary_agent",
             mode: "primary",
             options: {},
             native: true,
@@ -394,7 +396,11 @@ export const layer = Layer.effect(
           },
         }
 
-        for (const [key, value] of Object.entries(cfg.agent ?? {})) {
+        // Legacy short names → canonical *_mode / *_agent (see mode-identity.ts).
+        const resolveIdentity = canonicalIdentity
+
+        for (const [rawKey, value] of Object.entries(cfg.agent ?? {})) {
+          const key = resolveIdentity(rawKey)
           if (value.disable) {
             delete agents[key]
             continue
@@ -422,7 +428,7 @@ export const layer = Layer.effect(
           item.options = mergeDeep(item.options, value.options ?? {})
           // Reasoning is a native calibration boundary: permanent memory only.
           // Project config must not reopen dbread/messagesearch/shell/etc.
-          if (!(key === "reasoning" && item.native)) {
+          if (!(key === "reasoning_mode" && item.native)) {
             item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
           }
         }
@@ -448,16 +454,19 @@ export const layer = Layer.effect(
         }
 
         const get = Effect.fnUntraced(function* (agent: string) {
-          return agents[agent]
+          return agents[resolveIdentity(agent)]
         })
 
         const list = Effect.fnUntraced(function* () {
           const cfg = yield* config.get()
+          const preferred = cfg.default_agent
+            ? resolveIdentity(cfg.default_agent)
+            : "build_mode"
           return pipe(
             agents,
             values(),
             sortBy(
-              [(x) => (cfg.default_agent ? x.name === cfg.default_agent : x.name === "build"), "desc"],
+              [(x) => x.name === preferred, "desc"],
               [(x) => x.name, "asc"],
             ),
           )
@@ -466,12 +475,15 @@ export const layer = Layer.effect(
         const defaultAgent = Effect.fnUntraced(function* () {
           const c = yield* config.get()
           if (c.default_agent) {
-            const agent = agents[c.default_agent]
+            const id = resolveIdentity(c.default_agent)
+            const agent = agents[id]
             if (!agent) throw new Error(`default agent "${c.default_agent}" not found`)
             if (agent.mode === "subagent") throw new Error(`default agent "${c.default_agent}" is a subagent`)
             if (agent.hidden === true) throw new Error(`default agent "${c.default_agent}" is hidden`)
             return agent.name
           }
+          const preferred = agents["build_mode"]
+          if (preferred && preferred.mode !== "subagent" && preferred.hidden !== true) return preferred.name
           const visible = Object.values(agents).find((a) => a.mode !== "subagent" && a.hidden !== true)
           if (!visible) throw new Error("no primary visible agent found")
           return visible.name

@@ -341,16 +341,16 @@ export function Session() {
     if (part.id === lastSwitch) return
 
     if (part.tool === "planexit") {
-      local.agent.set("build")
+      local.agent.set("build_mode")
       lastSwitch = part.id
     } else if (part.tool === "planenter") {
-      local.agent.set("plan")
+      local.agent.set("plan_mode")
       lastSwitch = part.id
     } else if (part.tool === "reasoningenter") {
-      local.agent.set("reasoning")
+      local.agent.set("reasoning_mode")
       lastSwitch = part.id
     } else if (part.tool === "reasoningexit") {
-      local.agent.set("build")
+      local.agent.set("build_mode")
       lastSwitch = part.id
     }
   })

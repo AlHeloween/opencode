@@ -76,32 +76,51 @@ import { SessionRunState } from "./run-state"
 import { EffectBridge } from "@/effect/bridge"
 import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 
+import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
+
 /**
  * Mode text is a one-shot conversation transition record. It must never be
  * re-injected while an agent remains in the same mode: steady-state mode
  * boundaries are enforced by software permissions, not fresh prompt prose.
+ * Compares canonical ids (plan → plan_mode) so legacy short names still transition.
  */
 export function modeInstructionForTransition(previousMode: string | undefined, nextMode: string) {
-  if (previousMode === nextMode) return
-  if (nextMode === "plan") return PROMPT_PLAN
-  if (nextMode === "build") return PROMPT_BUILD
-  if (nextMode === "reasoning") return PROMPT_REASONING
+  const prev = previousMode ? canonicalIdentity(previousMode) : undefined
+  const next = canonicalIdentity(nextMode)
+  if (prev === next) return
+  if (next === "plan_mode") return PROMPT_PLAN
+  if (next === "build_mode") return PROMPT_BUILD
+  if (next === "reasoning_mode") return PROMPT_REASONING
+}
+
+/** Full build_mode transition text (also attached eagerly by planexit). */
+export function buildModeInstruction() {
+  return PROMPT_BUILD
+}
+
+export function planModeInstruction() {
+  return PROMPT_PLAN
+}
+
+export function reasoningModeInstruction() {
+  return PROMPT_REASONING
 }
 
 /**
- * Provider-visible identity is always Build (when available): same tool schemas,
- * skills, and stable system path for every agent — primary modes and subagents.
- * Role text is a synthetic user notify; ACL is execute-time on the real agent.
- * [KV-CACHE] Do not put agent-specific tool lists or agent.prompt into the stable prefix.
+ * Provider-visible identity = real agent (build_mode, plan_mode, coder_agent, …).
+ * Protocol (GATED_WORKFLOW in reasoning_prompt.mdc) is shared; identity switches.
+ * Role text is a synthetic user notify on switch; ACL is execute-time on the same agent.
+ * Identity switch intentionally changes agent-scoped checkpoint/tool set — do not
+ * force build_mode for other identities.
  */
-export function providerIdentityForMode(_agent: Agent.Info, build: Agent.Info) {
-  return build
+export function providerIdentityForMode(agent: Agent.Info, _fallback: Agent.Info) {
+  return agent
 }
 
 /** Subagent / specialized role as conversation notify (not system-prefix mutation). */
 export function roleInstructionForAgent(agent: Agent.Info): string | undefined {
   if (!agent.prompt?.trim()) return
-  if (["build", "plan", "reasoning"].includes(agent.name)) return
+  if (isPrimaryModeIdentity(agent.name)) return
   return (
     `<system-reminder>\n# Role: ${agent.name}\n\n${agent.prompt.trim()}\n</system-reminder>`
   )
@@ -328,13 +347,22 @@ export const layer = Layer.effect(
 
       const userIndex = input.messages.findLastIndex((msg) => msg.info.id === userMessage.info.id)
       const previousMode = input.messages.slice(0, userIndex).findLast((msg) => msg.info.agent)?.info.agent
-      // Mode transition (build/plan/reasoning) or subagent role notify on agent switch.
-      // Steady-state same agent: no re-inject (permissions enforce; keep KV message prefix).
+      // Mode transition (build_mode/plan_mode/reasoning_mode) or subagent role notify.
+      // Canonical compare so plan↔plan_mode does not double-fire or miss switches.
+      // Steady-state same identity: no re-inject (permissions enforce; keep KV prefix).
+      const prevCanon = previousMode ? canonicalIdentity(previousMode) : undefined
+      const nextCanon = canonicalIdentity(input.agent.name)
       const instruction =
         modeInstructionForTransition(previousMode, input.agent.name) ??
-        (previousMode !== input.agent.name ? roleInstructionForAgent(input.agent) : undefined)
+        (prevCanon !== nextCanon ? roleInstructionForAgent(input.agent) : undefined)
       if (!instruction || hasSynthetic(instruction)) return input.messages
-      yield* elog.debug("mode transition", { previousMode, nextMode: input.agent.name, hasSynthetic: false })
+      yield* elog.debug("mode transition", {
+        previousMode,
+        nextMode: input.agent.name,
+        prevCanon,
+        nextCanon,
+        hasSynthetic: false,
+      })
       const part = yield* sessions.updatePart({
         id: PartID.ascending(),
         messageID: userMessage.info.id,
@@ -1597,9 +1625,9 @@ export const layer = Layer.effect(
             yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
             throw error
           }
-          // All agents share Build provider identity (tools/skills/stable path).
-          // Role = synthetic notify; ACL = execute on real `agent`.
-          const cacheAgent = providerIdentityForMode(agent, (yield* agents.get("build")) ?? agent)
+          // Real identity (build_mode / coder_agent / …). Protocol is shared mdc.
+          // Role = synthetic notify on switch; ACL = execute on real `agent`.
+          const cacheAgent = providerIdentityForMode(agent, (yield* agents.get("build_mode")) ?? agent)
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
           msgs = yield* insertReminders({ messages: msgs, agent, session })

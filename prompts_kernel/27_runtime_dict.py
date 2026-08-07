@@ -271,14 +271,16 @@ RUNTIME_WORKFLOWS = MappingProxyType({
 })
 
 RUNTIME_PACKS = MappingProxyType({
-    "agent.coder": ("universal",),
-    "agent.explore": ("universal",),
-    "agent.general": ("universal",),
-    "agent.media": ("universal",),
-    "agent.orchestrator": ("universal",),
-    "agent.researcher": ("universal",),
-    "agent.summary": ("universal",),
-    "agent.title": ("universal",),
+    "agent.build_mode": ("universal",),
+    "agent.plan_mode": ("universal",),
+    "agent.coder_agent": ("universal",),
+    "agent.explorer_agent": ("universal",),
+    "agent.general_agent": ("universal",),
+    "agent.media_agent": ("universal",),
+    "agent.orchestrator_agent": ("universal",),
+    "agent.researcher_agent": ("universal",),
+    "agent.summary_agent": ("universal",),
+    "agent.title_agent": ("universal",),
     "domain.biology": ("domain.natural_science",),
     "domain.chemistry": ("domain.natural_science",),
     "domain.economics": ("domain.social_science",),
@@ -301,21 +303,32 @@ RUNTIME_PACKS = MappingProxyType({
 SPEC_CONTRACT_IDS = MappingProxyType({
     "ADID_FRAMEWORK_RULES": "policy.adid", "ADID_OPS": "policy.adid_ops",
     "AI_DEPS": "command.ai_deps",
-    "CHANGELOG": "command.changelog", "CODER": "agent.coder",
+    "BUILD_MODE": "agent.build_mode",
+    "CHANGELOG": "command.changelog",
+    "CODER_AGENT": "agent.coder_agent",
     "AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit",
     "DEFAULT_PROMPT": "policy.default",
-    "DUPLICATE_PR": "command.duplicate_pr", "EXPLORER": "agent.explore", "GENERAL": "agent.general",
+    "DUPLICATE_PR": "command.duplicate_pr",
+    "EXPLORER_AGENT": "agent.explorer_agent",
+    "GENERAL_AGENT": "agent.general_agent",
     "GOVERNANCE": "policy.governance", "GROUNDING_RULES": "policy.grounding", "ISSUES": "command.issues",
-    "LEARN": "command.learn", "MEDIA": "agent.media", "ORCHESTRATOR": "agent.orchestrator",     "PLANNING": "policy.planning",
-    "REASONING_MODE": "policy.reasoning", "RESEARCHER": "agent.researcher",
-    "RMSLOP": "command.rmslop", "SPELLCHECK": "command.spellcheck", "SUMMARY": "agent.summary",
-    "TITLE": "agent.title", "TRANSLATE": "command.translate", "TRIAGE": "command.triage",
+    "LEARN": "command.learn",
+    "MEDIA_AGENT": "agent.media_agent",
+    "ORCHESTRATOR_AGENT": "agent.orchestrator_agent",
+    "PLAN_MODE": "agent.plan_mode",
+    "PLANNING": "policy.planning",
+    "REASONING_MODE": "policy.reasoning",
+    "RESEARCHER_AGENT": "agent.researcher_agent",
+    "RMSLOP": "command.rmslop", "SPELLCHECK": "command.spellcheck",
+    "SUMMARY_AGENT": "agent.summary_agent",
+    "TITLE_AGENT": "agent.title_agent",
+    "TRANSLATE": "command.translate", "TRIAGE": "command.triage",
 })
 
 # CONTRACTS: flat rule lists — no WORKFLOWS indirection.
 # Agent reads its contract → looks up rules in RULES section → cross-references gates in reasoning.txt.
 RUNTIME_CONTRACTS = MappingProxyType({
-    "agent.coder": (
+    "agent.build_mode": (
         "EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
         "READ_ENTIRE_FILE",
         "DECOMPOSE",
@@ -326,12 +339,31 @@ RUNTIME_CONTRACTS = MappingProxyType({
         "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "RESIDUAL_LOOP", "EMIT_STATE", "PLANS_COMPLETED",
         "NAMING", "MEMORY_RANK", "MEMORY_LINKS", "ADID_FREEZE",
     ),
-    "agent.explore": (
+    "agent.plan_mode": (
+        "EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
+        "READ_ENTIRE_FILE",
+        "DECOMPOSE",
+        "SMOKE_BEFORE", "SMOKE_SPEC", "INFOMARK_SEP",
+        "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN",
+        "MEMORY_RANK", "MEMORY_LINKS",
+    ),
+    "agent.coder_agent": (
+        "EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
+        "READ_ENTIRE_FILE",
+        "DECOMPOSE",
+        "SMOKE_BEFORE", "SMOKE_SPEC", "SMOKE_VALIDATE", "INFOMARK_SEP",
+        "WRITE_SCOPE",
+        "CACHE_STABILITY", "CONSTITUTION_BLOCKS", "ADID_OPS", "NO_SCRIPT_EDITING",
+        "VERIFY_OUTCOME", "SMOKE_VERIFY",
+        "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "RESIDUAL_LOOP", "EMIT_STATE", "PLANS_COMPLETED",
+        "NAMING", "MEMORY_RANK", "MEMORY_LINKS", "ADID_FREEZE",
+    ),
+    "agent.explorer_agent": (
         "EVIDENCE_ORDER", "SEARCH_ORDER", "WHERE_WHICH", "VCS_ROOT", "NO_HARDCODE",
         "READ_ENTIRE_FILE",
         "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE", "INFOMARK_SEP", "MEMORY_RANK",
     ),
-    "agent.general": (
+    "agent.general_agent": (
         "EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE",
         "READ_ENTIRE_FILE",
         "DECOMPOSE",
@@ -340,12 +372,12 @@ RUNTIME_CONTRACTS = MappingProxyType({
         "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN",
         "MEMORY_RANK",
     ),
-    "agent.media": (
+    "agent.media_agent": (
         "WRITE_SCOPE",
         "VERIFY_OUTCOME",
         "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE",
     ),
-    "agent.orchestrator": (
+    "agent.orchestrator_agent": (
         "EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
         "READ_ENTIRE_FILE",
         "DECOMPOSE",
@@ -355,7 +387,7 @@ RUNTIME_CONTRACTS = MappingProxyType({
         "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "RESIDUAL_LOOP", "EMIT_STATE", "PLANS_COMPLETED",
         "MEMORY_RANK", "MEMORY_LINKS",
     ),
-    "agent.researcher": (
+    "agent.researcher_agent": (
         "EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "VCS_ROOT", "NO_HARDCODE",
         "READ_ENTIRE_FILE",
         "VERIFY_OUTCOME",
@@ -363,14 +395,14 @@ RUNTIME_CONTRACTS = MappingProxyType({
         "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE",
         "MEMORY_RANK", "MEMORY_LINKS",
     ),
-    "agent.summary": (
+    "agent.summary_agent": (
         "DECOMPOSE",
         "SMOKE_BEFORE",
         "EVIDENCE_ORDER", "VERIFY_OUTCOME",
         "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN",
         "MEMORY_RANK", "MEMORY_LINKS",
     ),
-    "agent.title": ("SV_OUTPUT",),
+    "agent.title_agent": ("SV_OUTPUT",),
     "command.ai_deps": ("EVIDENCE_ORDER", "SEARCH_ORDER", "VERIFY_OUTCOME", "SV_OUTPUT"),
     "command.changelog": ("EVIDENCE_ORDER", "SEARCH_ORDER", "VERIFY_OUTCOME", "SV_OUTPUT"),
     "command.commit": ("WRITE_SCOPE", "VERIFY_OUTCOME", "SV_OUTPUT"),
@@ -487,8 +519,9 @@ def _render_runtime_mapping(name: str, values: MappingProxyType,
 # SPECS sections in the identity prefix (Tier A). Commands are Tier B
 # (command surfaces) — not permanent identity weight.
 _TIER_A_AGENTS = frozenset({
-    "CODER", "EXPLORER", "ORCHESTRATOR", "GENERAL", "RESEARCHER",
-    "MEDIA", "TITLE", "SUMMARY",
+    "BUILD_MODE", "PLAN_MODE",
+    "CODER_AGENT", "EXPLORER_AGENT", "ORCHESTRATOR_AGENT", "GENERAL_AGENT",
+    "RESEARCHER_AGENT", "MEDIA_AGENT", "TITLE_AGENT", "SUMMARY_AGENT",
 })
 _TIER_A_POLICIES = frozenset({
     "ADID_FRAMEWORK_RULES", "ADID_OPS", "AGENT_DIRECTIVES", "GOVERNANCE",

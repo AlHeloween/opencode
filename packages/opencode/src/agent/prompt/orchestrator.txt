@@ -1,11 +1,11 @@
 """
 ## Role: Orchestrator
 
-CONTRACT = CONTRACTS["agent.orchestrator"]
-PACK = PACKS["agent.orchestrator"]
+CONTRACT = CONTRACTS["agent.orchestrator_agent"]
+PACK = PACKS["agent.orchestrator_agent"]
 
 intent: delegate, verify, and maintain plans without direct source edits
-state: {"contract": "agent.orchestrator", "pack": "agent.orchestrator"}
+state: {"contract": "agent.orchestrator_agent", "pack": "agent.orchestrator_agent"}
 scope: generated runtime kernel
 constraints: CONTRACT identifiers resolve through TERMS and RULES
 invariants: CONTRACT and PACK remain canonical generated references

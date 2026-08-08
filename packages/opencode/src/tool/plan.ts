@@ -5,6 +5,8 @@ import { Question } from "../question"
 import { Session } from "@/session/session"
 import { MessageV2 } from "../session/message-v2"
 import { Provider } from "@/provider/provider"
+import { ModelID, ProviderID } from "@/provider/schema"
+import { Agent } from "@/agent/agent"
 import { Instance } from "../project/instance"
 import { type SessionID, MessageID, PartID } from "../session/schema"
 import EXIT_DESCRIPTION from "./planexit.txt"
@@ -12,6 +14,13 @@ import ENTER_DESCRIPTION from "./plan-enter.txt"
 import { invalidatePermissionCache } from "./permission-cache"
 import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
 import PROMPT_PLAN_RAW from "../session/prompt/plan.txt"
+import {
+  loadSessionSettings,
+  sessionAgentModel,
+  sessionAgentVariant,
+  type ModelRef,
+  type SessionSettings,
+} from "../session/session-settings"
 
 // Same CRLF normalize as prompt.ts — hasSynthetic must match byte-for-byte.
 const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
@@ -22,6 +31,25 @@ function getLastModel(sessionID: SessionID) {
     if (item.info.role === "user" && item.info.model) return item.info.model
   }
   return undefined
+}
+
+function transitionModel(
+  agentName: string,
+  target: Agent.Info | undefined,
+  settings: SessionSettings | null,
+  fallback: ModelRef & { variant?: string },
+) {
+  const model = sessionAgentModel(agentName, settings) ?? target?.model ?? fallback
+  const sameAsAgentModel = target?.model?.providerID === model.providerID && target?.model?.modelID === model.modelID
+  const variant =
+    sessionAgentVariant(agentName, model, settings) ??
+    (sameAsAgentModel ? target?.variant : undefined) ??
+    fallback.variant
+  return {
+    providerID: ProviderID.make(model.providerID),
+    modelID: ModelID.make(model.modelID),
+    ...(variant ? { variant } : {}),
+  }
 }
 
 export const Parameters = Schema.Struct({})
@@ -45,6 +73,7 @@ export const PlanEnterTool = Tool.define(
     const session = yield* Session.Service
     const question = yield* Question.Service
     const provider = yield* Provider.Service
+    const agents = yield* Agent.Service
 
     return {
       description: ENTER_DESCRIPTION,
@@ -55,8 +84,7 @@ export const PlanEnterTool = Tool.define(
             sessionID: ctx.sessionID,
             questions: [
               {
-                question:
-                  "This looks like it would benefit from planning first. Switch to plan_mode?",
+                question: "This looks like it would benefit from planning first. Switch to plan_mode?",
                 header: "plan_mode",
                 custom: false,
                 options: [
@@ -70,7 +98,16 @@ export const PlanEnterTool = Tool.define(
 
           if (answers[0]?.[0] === "No") return yield* new Question.RejectedError()
 
-          const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const settings = yield* Effect.tryPromise({
+            try: () => loadSessionSettings(ctx.sessionID),
+            catch: (cause) => cause,
+          }).pipe(Effect.catch(() => Effect.succeed(null)))
+          const model = transitionModel(
+            "plan_mode",
+            yield* agents.get("plan_mode"),
+            settings,
+            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
+          )
           const msg: MessageV2.User = {
             id: MessageID.ascending(),
             sessionID: ctx.sessionID,
@@ -104,6 +141,7 @@ export const PlanExitTool = Tool.define(
     const session = yield* Session.Service
     const question = yield* Question.Service
     const provider = yield* Provider.Service
+    const agents = yield* Agent.Service
 
     return {
       description: EXIT_DESCRIPTION,
@@ -130,7 +168,16 @@ export const PlanExitTool = Tool.define(
 
           if (answers[0]?.[0] === "No") return yield* new Question.RejectedError()
 
-          const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const settings = yield* Effect.tryPromise({
+            try: () => loadSessionSettings(ctx.sessionID),
+            catch: (cause) => cause,
+          }).pipe(Effect.catch(() => Effect.succeed(null)))
+          const model = transitionModel(
+            "build_mode",
+            yield* agents.get("build_mode"),
+            settings,
+            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
+          )
 
           const msg: MessageV2.User = {
             id: MessageID.ascending(),

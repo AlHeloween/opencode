@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { effectiveSubagents } from "../../src/session/session-settings"
+import { effectiveSubagents, sessionAgentModel, sessionAgentVariant } from "../../src/session/session-settings"
 
 test("effectiveSubagents: session override wins over global", () => {
   expect(
@@ -28,4 +28,29 @@ test("effectiveSubagents: session model-only override does not clear global suba
       agent: { build_mode: { model: "openai/gpt-4" } },
     }),
   ).toEqual(["explorer_agent"])
+})
+
+test("sessionAgentModel parses only valid per-agent session overrides", () => {
+  expect(sessionAgentModel("plan_mode", { agent: { plan_mode: { model: "openai/gpt-5.6" } } })).toEqual({
+    providerID: "openai",
+    modelID: "gpt-5.6",
+  })
+  expect(sessionAgentModel("plan_mode", { agent: { plan_mode: { model: "invalid" } } })).toBeUndefined()
+})
+
+test("sessionAgentVariant prioritizes explicit agent selection", () => {
+  const model = { providerID: "openai", modelID: "gpt-5.6" }
+  expect(
+    sessionAgentVariant("plan_mode", model, {
+      agent: { plan_mode: { variant: "seeded" } },
+      variant: { "openai/gpt-5.6": "model" },
+      agentVariant: { "plan_mode/openai/gpt-5.6": "explicit" },
+    }),
+  ).toBe("explicit")
+  expect(
+    sessionAgentVariant("plan_mode", model, {
+      agent: { plan_mode: { variant: "seeded" } },
+      variant: { "openai/gpt-5.6": "model" },
+    }),
+  ).toBe("seeded")
 })

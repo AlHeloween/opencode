@@ -3,10 +3,19 @@ import * as Tool from "./tool"
 import { Session } from "@/session/session"
 import { MessageV2 } from "../session/message-v2"
 import { Provider } from "@/provider/provider"
+import { ModelID, ProviderID } from "@/provider/schema"
+import { Agent } from "@/agent/agent"
 import { type SessionID, MessageID, PartID } from "../session/schema"
 import { invalidatePermissionCache } from "./permission-cache"
 import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
 import PROMPT_REASONING_RAW from "../session/prompt/reasoning-mode.txt"
+import {
+  loadSessionSettings,
+  sessionAgentModel,
+  sessionAgentVariant,
+  type ModelRef,
+  type SessionSettings,
+} from "../session/session-settings"
 
 const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
 const PROMPT_REASONING = PROMPT_REASONING_RAW.replace(/\r\n/g, "\n")
@@ -18,11 +27,27 @@ function getLastModel(sessionID: SessionID) {
   return undefined
 }
 
+function transitionModel(
+  agentName: string,
+  target: Agent.Info | undefined,
+  settings: SessionSettings | null,
+  fallback: ModelRef & { variant?: string },
+) {
+  const model = sessionAgentModel(agentName, settings) ?? target?.model ?? fallback
+  const sameAsAgentModel = target?.model?.providerID === model.providerID && target?.model?.modelID === model.modelID
+  const variant =
+    sessionAgentVariant(agentName, model, settings) ??
+    (sameAsAgentModel ? target?.variant : undefined) ??
+    fallback.variant
+  return {
+    providerID: ProviderID.make(model.providerID),
+    modelID: ModelID.make(model.modelID),
+    ...(variant ? { variant } : {}),
+  }
+}
+
 function requireNativeOrchestrator(ctx: Tool.Context) {
-  if (
-    ctx.agentInfo?.native &&
-    (ctx.agentInfo.name === "orchestrator_agent" || ctx.agentInfo.name === "orchestrator")
-  )
+  if (ctx.agentInfo?.native && (ctx.agentInfo.name === "orchestrator_agent" || ctx.agentInfo.name === "orchestrator"))
     return Effect.void
   return Effect.die(new Error("reasoning transitions require the native orchestrator"))
 }
@@ -35,6 +60,7 @@ export const ReasoningEnterTool = Tool.define(
   Effect.gen(function* () {
     const session = yield* Session.Service
     const provider = yield* Provider.Service
+    const agents = yield* Agent.Service
 
     return {
       description:
@@ -43,7 +69,16 @@ export const ReasoningEnterTool = Tool.define(
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* requireNativeOrchestrator(ctx)
-          const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const settings = yield* Effect.tryPromise({
+            try: () => loadSessionSettings(ctx.sessionID),
+            catch: (cause) => cause,
+          }).pipe(Effect.catch(() => Effect.succeed(null)))
+          const model = transitionModel(
+            "reasoning_mode",
+            yield* agents.get("reasoning_mode"),
+            settings,
+            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
+          )
 
           const msg: MessageV2.User = {
             id: MessageID.ascending(),
@@ -82,6 +117,7 @@ export const ReasoningExitTool = Tool.define(
   Effect.gen(function* () {
     const session = yield* Session.Service
     const provider = yield* Provider.Service
+    const agents = yield* Agent.Service
 
     return {
       description:
@@ -90,7 +126,16 @@ export const ReasoningExitTool = Tool.define(
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* requireNativeOrchestrator(ctx)
-          const model = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const settings = yield* Effect.tryPromise({
+            try: () => loadSessionSettings(ctx.sessionID),
+            catch: (cause) => cause,
+          }).pipe(Effect.catch(() => Effect.succeed(null)))
+          const model = transitionModel(
+            "build_mode",
+            yield* agents.get("build_mode"),
+            settings,
+            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
+          )
           const msg: MessageV2.User = {
             id: MessageID.ascending(),
             sessionID: ctx.sessionID,

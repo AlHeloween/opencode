@@ -16,9 +16,14 @@ import * as Log from "@opencode-ai/core/util/log"
 import path from "path"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Provider } from "@/provider/provider"
-import { ProviderID } from "@/provider/schema"
+import { ModelID, ProviderID } from "@/provider/schema"
 import { Jobs } from "../jobs"
-import { loadSessionSettings, effectiveSubagents } from "../session/session-settings"
+import {
+  loadSessionSettings,
+  effectiveSubagents,
+  sessionAgentModel,
+  sessionAgentVariant,
+} from "../session/session-settings"
 import { canonicalIdentity } from "../session/mode-identity"
 
 const log = Log.create({ service: "task" })
@@ -31,10 +36,7 @@ function finalizeOrphanAssistant(
   error: unknown,
 ) {
   return Effect.gen(function* () {
-    const match = yield* sessions.findMessage(
-      sessionID,
-      (m) => m.info.role === "assistant" && !m.info.finish,
-    )
+    const match = yield* sessions.findMessage(sessionID, (m) => m.info.role === "assistant" && !m.info.finish)
     if (Option.isNone(match)) return
     const msg = match.value
     if (msg.info.role !== "assistant") return
@@ -64,7 +66,9 @@ function finalizeOrphanAssistant(
       messageID: assistant.id,
       error: error instanceof Error ? error.message : String(error),
     })
-  }).pipe(Effect.catch((e) => Effect.sync(() => log.warn("bug: finalize orphan assistant failed", { error: String(e) }))))
+  }).pipe(
+    Effect.catch((e) => Effect.sync(() => log.warn("bug: finalize orphan assistant failed", { error: String(e) }))),
+  )
 }
 
 export interface TaskPromptOps {
@@ -117,7 +121,8 @@ export const Parameters = Schema.Struct({
   }),
   command: Schema.optional(Schema.String).annotate({ description: "The command that triggered this task" }),
   run_in_background: Schema.optional(Schema.Boolean).annotate({
-    description: "If true, run the sub-agent as a background job and return immediately with a job ID. Use joboutput to read the result.",
+    description:
+      "If true, run the sub-agent as a background job and return immediately with a job ID. Use joboutput to read the result.",
   }),
 })
 
@@ -232,10 +237,17 @@ export const TaskTool = Tool.define(
         }),
         Effect.catch(() => Effect.succeed(undefined)),
       )
-      const model = taskModelOverride ?? next.model ?? {
-        modelID: msg.info.modelID,
-        providerID: msg.info.providerID,
-      }
+      const sessionModel = sessionAgentModel(next.name, sessionSettings)
+      const model = sessionModel
+        ? {
+            providerID: ProviderID.make(sessionModel.providerID),
+            modelID: ModelID.make(sessionModel.modelID),
+          }
+        : (taskModelOverride ??
+          next.model ?? {
+            modelID: msg.info.modelID,
+            providerID: msg.info.providerID,
+          })
 
       // Now read agent-specific variant for this model
       const taskVariant = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
@@ -243,10 +255,13 @@ export const TaskTool = Tool.define(
           if (!next?.name) return undefined
           const modelKey = `${model.providerID}/${model.modelID}`
           const agentKey = `${next.name}/${modelKey}`
+          const sessionVariant = sessionAgentVariant(next.name, model, sessionSettings)
+          if (sessionVariant) return sessionVariant
           // Check agent-specific variant first, then fall back to model-level variant
           if (x?.agentVariant?.[agentKey]) return x.agentVariant[agentKey]
           if (x?.variant?.[modelKey]) return x.variant[modelKey]
-          return undefined
+          const sameAsAgentModel = next.model?.providerID === model.providerID && next.model?.modelID === model.modelID
+          return sameAsAgentModel ? next.variant : undefined
         }),
         Effect.catch(() => Effect.succeed(undefined)),
       )
@@ -254,8 +269,12 @@ export const TaskTool = Tool.define(
       const parentModel = { modelID: msg.info.modelID, providerID: msg.info.providerID }
       if (parentModel.modelID !== model.modelID || parentModel.providerID !== model.providerID) {
         const logCtx = Log.create({ service: "task" })
-        const taskResolved = yield* provider.getModel(model.providerID, model.modelID).pipe(Effect.catch(() => Effect.succeed(undefined)))
-        const parentResolved = yield* provider.getModel(parentModel.providerID, parentModel.modelID).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        const taskResolved = yield* provider
+          .getModel(model.providerID, model.modelID)
+          .pipe(Effect.catch(() => Effect.succeed(undefined)))
+        const parentResolved = yield* provider
+          .getModel(parentModel.providerID, parentModel.modelID)
+          .pipe(Effect.catch(() => Effect.succeed(undefined)))
         if (taskResolved && parentResolved) {
           logCtx.info("task agent model differs from parent", {
             parentModel: `${parentModel.providerID}/${parentModel.modelID}`,
@@ -314,50 +333,52 @@ export const TaskTool = Tool.define(
         if (jobSvc._tag === "None") {
           // Fallback to synchronous if Jobs not available
         } else {
-          const jobID = yield* jobSvc.value.startEffect({
-            sessionID: ctx.sessionID,
-            kind: "task",
-            label: params.description,
-            run: (_writeOutput) => {
-              return Effect.gen(function* () {
-                const messageID = MessageID.ascending()
-                const parts = yield* ops.resolvePromptParts(params.prompt)
-                const result = yield* ops
-                  .prompt({
-                    messageID,
-                    sessionID: nextSession.id,
-                    providerCacheKey: cacheLease?.cacheKey,
-                    model: {
-                      modelID: model.modelID,
-                      providerID: model.providerID,
-                    },
-                    agent: next.name,
-                    variant: taskVariant,
-                    // Full tool schemas (shared KV). Nested task/todo blocked via
-                    // session.permission on nextSession, not by stripping tools.
-                    parts,
-                  })
-                  .pipe(
-                    Effect.timeout(300_000),
-                    Effect.catch((error) =>
-                      Effect.gen(function* () {
-                        yield* ops.cancel(nextSession.id)
-                        yield* finalizeOrphanAssistant(sessions, nextSession.id, model.providerID, error)
-                        return {
-                          parts: [
-                            {
-                              type: "text" as const,
-                              text: `Sub-agent '${next.name}' failed: ${error instanceof Error ? error.message : String(error)}`,
-                            },
-                          ],
-                        } satisfies { parts: { type: "text"; text: string }[] }
-                      }),
-                    ),
-                  )
-                return result.parts.findLast((item) => item.type === "text")?.text ?? ""
-              }).pipe(Effect.ensuring(cacheLease?.release ?? Effect.void))
-            },
-          }).pipe(Effect.tapError(() => cacheLease?.release ?? Effect.void))
+          const jobID = yield* jobSvc.value
+            .startEffect({
+              sessionID: ctx.sessionID,
+              kind: "task",
+              label: params.description,
+              run: (_writeOutput) => {
+                return Effect.gen(function* () {
+                  const messageID = MessageID.ascending()
+                  const parts = yield* ops.resolvePromptParts(params.prompt)
+                  const result = yield* ops
+                    .prompt({
+                      messageID,
+                      sessionID: nextSession.id,
+                      providerCacheKey: cacheLease?.cacheKey,
+                      model: {
+                        modelID: model.modelID,
+                        providerID: model.providerID,
+                      },
+                      agent: next.name,
+                      variant: taskVariant,
+                      // Full tool schemas (shared KV). Nested task/todo blocked via
+                      // session.permission on nextSession, not by stripping tools.
+                      parts,
+                    })
+                    .pipe(
+                      Effect.timeout(300_000),
+                      Effect.catch((error) =>
+                        Effect.gen(function* () {
+                          yield* ops.cancel(nextSession.id)
+                          yield* finalizeOrphanAssistant(sessions, nextSession.id, model.providerID, error)
+                          return {
+                            parts: [
+                              {
+                                type: "text" as const,
+                                text: `Sub-agent '${next.name}' failed: ${error instanceof Error ? error.message : String(error)}`,
+                              },
+                            ],
+                          } satisfies { parts: { type: "text"; text: string }[] }
+                        }),
+                      ),
+                    )
+                  return result.parts.findLast((item) => item.type === "text")?.text ?? ""
+                }).pipe(Effect.ensuring(cacheLease?.release ?? Effect.void))
+              },
+            })
+            .pipe(Effect.tapError(() => cacheLease?.release ?? Effect.void))
           return {
             title: params.description,
             metadata: {

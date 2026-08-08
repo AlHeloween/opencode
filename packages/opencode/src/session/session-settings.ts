@@ -43,6 +43,46 @@ export interface SessionSettings {
   agentVariant?: Record<string, string>
 }
 
+export interface ModelRef {
+  providerID: string
+  modelID: string
+}
+
+/** Read a per-session model selection for one agent. Invalid persisted values are ignored. */
+export function sessionAgentModel(
+  agentName: string,
+  settings: SessionSettings | null | undefined,
+): ModelRef | undefined {
+  const value = settings?.agent?.[agentName]?.model
+  if (!value) return undefined
+  const slash = value.indexOf("/")
+  if (slash <= 0 || slash === value.length - 1) return undefined
+  return {
+    providerID: value.slice(0, slash),
+    modelID: value.slice(slash + 1),
+  }
+}
+
+/**
+ * Resolve a session-scoped variant for an agent/model pair.
+ *
+ * `agentVariant` is the explicit TUI selection. `agent[].variant` is retained
+ * for seeded native-agent defaults and older session files. Model-level variant
+ * is the final session fallback.
+ */
+export function sessionAgentVariant(
+  agentName: string,
+  model: ModelRef,
+  settings: SessionSettings | null | undefined,
+): string | undefined {
+  const modelKey = `${model.providerID}/${model.modelID}`
+  return (
+    settings?.agentVariant?.[`${agentName}/${modelKey}`] ??
+    settings?.agent?.[agentName]?.variant ??
+    settings?.variant?.[modelKey]
+  )
+}
+
 // ── File path ──
 
 const SESSIONS_DIR = path.join(Global.Path.data, "sessions")
@@ -101,7 +141,8 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
   if (Array.isArray(raw.recent)) {
     const items = raw.recent.filter(
       (x: unknown): x is { providerID: string; modelID: string } =>
-        typeof x === "object" && x !== null &&
+        typeof x === "object" &&
+        x !== null &&
         typeof (x as Record<string, unknown>).providerID === "string" &&
         typeof (x as Record<string, unknown>).modelID === "string",
     )
@@ -111,7 +152,8 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
   if (Array.isArray(raw.favorite)) {
     const items = raw.favorite.filter(
       (x: unknown): x is { providerID: string; modelID: string } =>
-        typeof x === "object" && x !== null &&
+        typeof x === "object" &&
+        x !== null &&
         typeof (x as Record<string, unknown>).providerID === "string" &&
         typeof (x as Record<string, unknown>).modelID === "string",
     )
@@ -135,10 +177,7 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
  * Save session settings for a given session ID.
  * Creates the file atomically (write to temp then rename).
  */
-export async function saveSessionSettings(
-  sessionID: string,
-  settings: SessionSettings,
-): Promise<void> {
+export async function saveSessionSettings(sessionID: string, settings: SessionSettings): Promise<void> {
   const filePath = getSessionSettingsPath(sessionID)
   const previous = pendingWrites.get(filePath) ?? Promise.resolve()
   const write = previous

@@ -17,6 +17,7 @@ import {
   loadSessionSettings,
   saveSessionSettings,
   effectiveSubagents,
+  sessionAgentVariant,
   type SessionSettings,
 } from "@/session/session-settings"
 
@@ -283,7 +284,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
-          if (typeof x.agentVariant === "object" && x.agentVariant !== null) setModelStore("agentVariant", x.agentVariant)
+          if (typeof x.agentVariant === "object" && x.agentVariant !== null)
+            setModelStore("agentVariant", x.agentVariant)
           if (
             typeof x.taskModel === "object" &&
             x.taskModel !== null &&
@@ -292,7 +294,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           )
             setModelStore("taskModel", x.taskModel)
         })
-        .catch((e: unknown) => Log.Default.warn("bug: model config load failed", { error: e instanceof Error ? e.message : String(e) }))
+        .catch((e: unknown) =>
+          Log.Default.warn("bug: model config load failed", { error: e instanceof Error ? e.message : String(e) }),
+        )
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()
@@ -337,7 +341,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           }
         }
 
-        const provider = sync.data.provider.find((p) => !sync.data.config.provider || Object.keys(sync.data.config.provider).includes(p.id)) ?? sync.data.provider[0]
+        const provider =
+          sync.data.provider.find(
+            (p) => !sync.data.config.provider || Object.keys(sync.data.config.provider).includes(p.id),
+          ) ?? sync.data.provider[0]
         if (!provider) return undefined
         const defaultModel = sync.data.provider_default[provider.id]
         const firstModel = Object.values(provider.models)[0]
@@ -353,7 +360,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const a = agent.current()
         return (
           getFirstValidModel(
-            () => a && forAgent(a.name),  // Session settings → global config
+            () => a && forAgent(a.name), // Session settings → global config
             fallbackModel,
           ) ?? undefined
         )
@@ -604,6 +611,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               const key = `${agentKey}/${m.providerID}/${m.modelID}`
               const agentVar = modelStore.agentVariant[key]
               if (agentVar) return agentVar
+              const sessionVariant = sessionAgentVariant(agentKey, m, sessionSettings())
+              if (sessionVariant) return sessionVariant
             }
             const key = `${m.providerID}/${m.modelID}`
             return modelStore.variant[key]
@@ -678,8 +687,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
       },
     }
-
-
 
     const result = {
       model,

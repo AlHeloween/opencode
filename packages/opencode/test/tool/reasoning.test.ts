@@ -75,11 +75,11 @@ describe("tool.reasoning", () => {
         expect(Exit.isFailure(deniedEnter)).toBe(true)
         expect(Exit.isFailure(deniedExit)).toBe(true)
         expect(Exit.isFailure(spoofedEnter)).toBe(true)
-        expect((yield* sessions.messages({ sessionID: chat.id }))).toHaveLength(1)
+        expect(yield* sessions.messages({ sessionID: chat.id })).toHaveLength(1)
         yield* enter.execute({}, context(chat.id, user.id, orchestrator))
-        expect((yield* sessions.messages({ sessionID: chat.id })).at(-1)?.info.agent).toBe("reasoning")
+        expect((yield* sessions.messages({ sessionID: chat.id })).at(-1)?.info.agent).toBe("reasoning_mode")
         yield* exit.execute({}, context(chat.id, user.id, orchestrator))
-        expect((yield* sessions.messages({ sessionID: chat.id })).at(-1)?.info.agent).toBe("build")
+        expect((yield* sessions.messages({ sessionID: chat.id })).at(-1)?.info.agent).toBe("build_mode")
       }),
     ),
   )

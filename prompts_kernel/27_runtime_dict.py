@@ -4,23 +4,7 @@ PROMPT_ABI = MappingProxyType({
     "precedence": ("safety", "governance", "task", "domain", "style"),
 })
 
-RUNTIME_TERMS = MappingProxyType({})  # Terms moved to @CC_TAIL — cross-cutting concerns
-
-# Cross-cutting rules extracted from main RULES for semantic clarity.
-# They remain in the kernel via @CC_TAIL section but are not part of the
-# primary gate-organized dictionary.
-RUNTIME_CC_RULES = MappingProxyType({
-    "TONE_AND_STYLE": "Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.",
-    "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
-    "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
-    "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
-    "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
-    "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
-    "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
-    "ADID_FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
-})
-
-RUNTIME_CC_TERMS = MappingProxyType({
+RUNTIME_TERMS = MappingProxyType({
     "hygiene": "Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.",
     "memory": "Active set = recent messages; full history soft-hidden; recover via session-read.",
     "evidence": "Verified reference outranks inference. See: @G1.",
@@ -37,19 +21,35 @@ RUNTIME_CC_TERMS = MappingProxyType({
 
 # Gate category for each rule — used by renderer to group rules under gate headers.
 RUNTIME_RULE_CATEGORIES = MappingProxyType({
+    # G1: GROUND
     "EVIDENCE_ORDER": "G1", "SEARCH_ORDER": "G1", "WHERE_WHICH": "G1",
     "REUSE_BEFORE": "G1", "GROUND": "G1", "NO_HARDCODE": "G1",
     "VCS_ROOT": "G1", "READ_ENTIRE_FILE": "G1",
+    "TONE_AND_STYLE": "G1", "NAMING": "G1",
+    "MEMORY_RANK": "G1", "MEMORY_LINKS": "G1",
+    # G2: DECOMPOSE
     "DECOMPOSE": "G2", "FRACTAL_CANDIDATES": "G2", "GOAL_SEEDS": "G2",
     "GOAL_PEAKS": "G2", "SV_DELTA": "G2",
+    # G3: MASTER_PLAN
     "SMOKE_BEFORE": "G3", "SMOKE_SPEC": "G3", "SMOKE_VALIDATE": "G3",
     "INFOMARK_SEP": "G3",
+    # G4: AUTHORIZE
     "WRITE_SCOPE": "G4",
+    # G6: GROUND_PLAN
+    "DOCUMENT_SURFACE": "G6", "CODE_STANDARDS": "G6",
+    # G7: IMPLEMENT
     "CACHE_STABILITY": "G7", "CONSTITUTION_BLOCKS": "G7",
     "ADID_OPS": "G7", "NO_SCRIPT_EDITING": "G7",
+    "WORKSPACE_LANES": "G7", "ADID_FREEZE": "G7",
+    "FRAMEWORK_INHERITANCE": "G7",
+    # G8: ORACLE
     "VERIFY_OUTCOME": "G8", "SMOKE_VERIFY": "G8",
+    "OBSOLETE_CLEANUP": "G8",
+    # G9: CLEAN_STATE
     "CLEAN_STATE": "G9", "SV_OUTPUT": "G9", "SV_EVERY_TURN": "G9",
     "RESIDUAL_LOOP": "G9", "EMIT_STATE": "G9", "PLANS_COMPLETED": "G9",
+    "METRIC_ADAPTATION": "G9",
+    "PROGRESS_LOG": "G9",
 })
 
 RUNTIME_RULES = MappingProxyType({
@@ -62,6 +62,10 @@ RUNTIME_RULES = MappingProxyType({
     "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)",
     "VCS_ROOT": "VCS: git status only. Never search inside .git/ — it is gitignored, invisible.",
     "READ_ENTIRE_FILE": "ABSOLUTE RULE. For ANY file < 100KB: read ENTIRE file before judgment or modification. No partial reads. For files ≥ 100KB: read with offset/limit, but at minimum the first 2000 lines to understand structure and imports before any edit. Partial reads on small files are the root cause of wrong edits.",
+    "TONE_AND_STYLE": "Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.",
+    "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
+    "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
+    "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
 
     # G2: DECOMPOSE
     "DECOMPOSE": "Fractal lattice before work list. Over-generate→Manhattan(L1)→adaptive τ→adaptive_k→k-medoids→CENTRAL_TASKS=medoids. See: @G2, @FRACTAL_GEOMETRY.",
@@ -79,15 +83,23 @@ RUNTIME_RULES = MappingProxyType({
     # G4: AUTHORIZE
     "WRITE_SCOPE": "modify only within user-authorized scope",
 
+    # G6: GROUND_PLAN
+    "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
+    "CODE_STANDARDS": "Follow language-specific coding standards: PEP 8 for Python, StandardJS/ESLint for TypeScript, gofmt for Go. Use project-configured linters and formatters. Consistency with existing codebase style takes precedence over personal preference. Never bypass project lint rules without explicit approval.",
+
     # G7: IMPLEMENT
     "CACHE_STABILITY": "keep the system prefix byte-stable for the session",
     "CONSTITUTION_BLOCKS": "Runtime constitution HARD-BLOCKS these shell operations — do NOT attempt them, they will fail: (1) directory/file enumeration: ls, dir, tree, find, fd, rg --files, Get-ChildItem, busybox ls/find, for loops with globs, where /r — use list/glob/grep tools instead; (2) git history rewrite: checkout, switch, restore, reset --hard, stash pop/apply/drop/clear/branch — use edit-tool .bak or Fossil snapshot; (3) fossil CLI mutate: commit, add, rm, checkout, update, merge, undo, revert, push, pull, sync, clean — Fossil is automatic session undo, not project VCS; (4) destructive filesystem: rm -rf, format, mkfs, dd, Remove-Item -Recurse -Force — permission destructive-file; (5) destructive database: DROP TABLE/SCHEMA/INDEX, TRUNCATE, bulk DELETE FROM — permission destructive-db; (6) force-push: git push --force / git push -f — permission destructive-git; (7) crash-prone build toolchains: bun, tsc, cargo, make, cmake, gcc, g++, clang, rustc, dotnet, msbuild, ninja, go — must run through cmd_runner for process isolation (cmd_runner start -- <binary> <args>); direct execution corrupts TUI state. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1.",
     "ADID_OPS": "ALWAYS use product tools for file operations — NEVER shell for file listing, reading, searching, or editing. list/glob/read tools replace dir/ls/tree; edit/write replace shell redirection; grep replaces findstr/rg. Shell (bash/cmd/cmd_runner) is ONLY for: build commands, test runners, package managers, git read-only operations, and other tools with no product equivalent. If a product tool exists for the operation, the shell equivalent is FORBIDDEN. Long work via product job runners (bash background + joboutput); never embed external framework CLI cookbooks in SPECS. See @CONSTITUTION_BLOCKS for the complete list of runtime-enforced shell blocks.",
     "NO_SCRIPT_EDITING": "ABSOLUTE RULE. Scripting file editions are FORBIDDEN. Do NOT use grep/sed/awk/find-replace or any bulk text processing on source files. Do NOT use shell redirection, heredoc, or piping to modify source files. Use the edit/write product tools exclusively for ALL file modifications. Shell-based text mutation on source code is prohibited — no exceptions. Edit/write tools provide backups, rollback, and LSP diagnostics; shell scripting bypasses all of these.",
+    "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
+    "ADID_FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
+    "FRAMEWORK_INHERITANCE": "Build framework-oriented code: inherit and extend existing abstractions rather than rewriting. Use polymorphism and dependency injection. Do not duplicate working patterns. Breaking changes to established interfaces require explicit approval.",
 
     # G8: ORACLE
     "VERIFY_OUTCOME": "declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done",
     "SMOKE_VERIFY": "smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. @G8: only PASS promotes to Done.",
+    "OBSOLETE_CLEANUP": "Clean up obsolete code: smoke-test the removal, then delete dead code, update documentation, and verify no broken references. Do not leave dead code commented out. Do not keep deprecated wrappers indefinitely.",
 
     # G9: CLEAN_STATE
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",
@@ -96,17 +108,8 @@ RUNTIME_RULES = MappingProxyType({
     "RESIDUAL_LOOP": "residual_recluster(state, original_goal_sv) closes ADID loop. Re-clusters pending vs Goal SV. Empty→TERMINAL. Discarded→out_of_scope. See: @G9.",
     "EMIT_STATE": "Returns structured state dict. terminal=True when pending=[] AND active=[]. terminal_mode: BLOCKED>OUT_OF_SCOPE>SUCCESS; RESUME when materialized non-empty. See: @CLEAN_NEXT_STATE.",
     "PLANS_COMPLETED": "when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.",
-
-    # Cross-cutting (also in @CC_TAIL section for semantic separation)
-    "TONE_AND_STYLE": "Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.",
-    "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
-    "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
-    "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
-    "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
-    "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
-    "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
-    "ADID_FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
     "METRIC_ADAPTATION": "PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.",
+    "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -146,7 +149,7 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "CONSTITUTION_BLOCKS": "mutation",
     "READ_ENTIRE_FILE": "evidence",
     "NO_SCRIPT_EDITING": "mutation",
-    # CC rules — owners retained for cross-reference integrity
+    # CC rules integrated into gates
     "TONE_AND_STYLE": "style",
     "NAMING": "hygiene",
     "MEMORY_RANK": "infomark",
@@ -155,6 +158,10 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "DOCUMENT_SURFACE": "hygiene",
     "WORKSPACE_LANES": "hygiene",
     "PROGRESS_LOG": "hygiene",
+    "CODE_STANDARDS": "hygiene",
+    "FRAMEWORK_INHERITANCE": "mutation",
+    "OBSOLETE_CLEANUP": "verification",
+    "METRIC_ADAPTATION": "plan",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
@@ -208,6 +215,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "NO_SCRIPT_EDITING",
         "TONE_AND_STYLE",
         "CONSTITUTION_BLOCKS",
+        "FRAMEWORK_INHERITANCE",
     ),
     "observe": (
         "scope",
@@ -228,7 +236,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "ADID_OPS",
         "NO_SCRIPT_EDITING",
     ),
-    "hygiene_ops": ("hygiene", "NAMING", "DOCUMENT_SURFACE", "WORKSPACE_LANES", "PROGRESS_LOG", "CLEAN_STATE", "PLANS_COMPLETED", "EVIDENCE_ORDER"),
+    "hygiene_ops": ("hygiene", "NAMING", "DOCUMENT_SURFACE", "WORKSPACE_LANES", "PROGRESS_LOG", "CLEAN_STATE", "PLANS_COMPLETED", "EVIDENCE_ORDER", "CODE_STANDARDS", "OBSOLETE_CLEANUP"),
     "planning": (
         "plan",
         "DECOMPOSE",
@@ -236,11 +244,11 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "SMOKE_SPEC",
         "SMOKE_VALIDATE",
         "GROUND",
-        "METRIC_ADAPTATION",
         "FRACTAL_CANDIDATES",
         "GOAL_SEEDS",
         "GOAL_PEAKS",
         "SV_DELTA",
+        "METRIC_ADAPTATION",
         "RESIDUAL_LOOP",
         "EMIT_STATE",
         "REUSE_BEFORE",
@@ -307,7 +315,7 @@ RUNTIME_PACKS = MappingProxyType({
     "lang.typescript": ("universal",),
     "universal": ("EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WRITE_SCOPE",
                   "VERIFY_OUTCOME", "INFOMARK_SEP", "MEMORY_RANK", "MEMORY_LINKS",
-                  "READ_ENTIRE_FILE", "NO_SCRIPT_EDITING", "TONE_AND_STYLE"),
+                  "READ_ENTIRE_FILE", "NO_SCRIPT_EDITING", "TONE_AND_STYLE", "CODE_STANDARDS"),
 })
 
 # Source spec names are stable development identifiers. Runtime contract IDs are
@@ -543,5 +551,3 @@ _TIER_B_COMMANDS = frozenset({
     "COMMIT", "LEARN", "CHANGELOG", "ISSUES", "TRANSLATE", "RMSLOP",
     "AI_DEPS", "SPELLCHECK", "DUPLICATE_PR", "TRIAGE",
 })
-
-

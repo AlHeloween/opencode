@@ -146,10 +146,9 @@ _NON_RULE_TAGS = frozenset({
 
 
 def test_gate_rule_refs_exist_in_runtime_rules():
-    from prompts_kernel import RUNTIME_RULES, RUNTIME_CC_RULES
+    from prompts_kernel import RUNTIME_RULES
 
     all_rules = dict(RUNTIME_RULES)
-    all_rules.update(RUNTIME_CC_RULES)
 
     gates = _load_gates()
     missing = []
@@ -164,5 +163,5 @@ def test_gate_rule_refs_exist_in_runtime_rules():
                 continue
             if name not in all_rules:
                 missing.append(f"{gkey}: {item}")
-    assert not missing, f"@RULE not in RUNTIME_RULES or RUNTIME_CC_RULES: {missing}"
+    assert not missing, f"@RULE not in RUNTIME_RULES: {missing}"
 

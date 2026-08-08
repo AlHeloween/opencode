@@ -913,11 +913,22 @@ Flow: 1. DECLARE in @MASTER_PLAN_SCHEMA (@SMOKE_BEFORE), 2. materialize, 3. RUN,
 ## Recover Facts
 @def: RECOVER_FACTS
 
-
 PROMPT_ABI:
   precedence: [@safety, @governance, @task, @domain, @style]
 
 TERMS:
+  hygiene: Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.
+  memory: Active set = recent messages; full history soft-hidden; recover via session-read.
+  evidence: Verified reference outranks inference. See: @G1.
+  scope: Inspection does not authorize repair. See: @G4.
+  cache: System content is immutable within a session; compute fingerprints after plugin transforms.
+  adid: ADID receivers frozen. Product tool hygiene only. SPECS host-agnostic; host surfaces runtime-injected.
+  mutation: Modify within authorized scope; preserve unrelated work. See: @G4, @G7.
+  verification: Oracle decides correctness. ACCEPT only after oracle PASS. See: @G8.
+  oracle: Declare criteria before execute; PASS→Exact; FAIL demotes. Executor≠Oracle≠Analyst. See: @G8.
+  style: Communication tone and style: expert stance, no apologies, no safety lectures, ethical filter, concise multi-perspective answers.
+  infomark: Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Only stamped Exact|Inferred enter G. Self-[Exact] rejected. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.
+  plan: ADID fractal→k-medoids→CENTRAL_TASKS. No Mode-1. See: @G2.
 
 RULES:
   # ── G1 ──
@@ -929,6 +940,10 @@ RULES:
   NO_HARDCODE: never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)
   VCS_ROOT: VCS: git status only. Never search inside .git/ — it is gitignored, invisible.
   READ_ENTIRE_FILE: ABSOLUTE RULE. For ANY file < 100KB: read ENTIRE file before judgment or modification. No partial reads. For files ≥ 100KB: read with offset/limit, but at minimum the first 2000 lines to understand structure and imports before any edit. Partial reads on small files are the root cause of wrong edits.
+  TONE_AND_STYLE: Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.
+  NAMING: rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.
+  MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
+  MEMORY_LINKS: every summary and message* must carry message IDs for session-read recovery
   # ── G2 ──
   DECOMPOSE: Fractal lattice before work list. Over-generate→Manhattan(L1)→adaptive τ→adaptive_k→k-medoids→CENTRAL_TASKS=medoids. See: @G2, @FRACTAL_GEOMETRY.
   FRACTAL_CANDIDATES: generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks, or when orthogonality_score < 0.7), Quad/Oct (grid subdivision for 2/4/8 peaks when orthogonality_score ≥ 0.7), L-System (grammar walk, fallback for unknown models or 1 peak).
@@ -942,14 +957,21 @@ RULES:
   INFOMARK_SEP: Salience≠Evidence; confidence≠Exact; fluency≠truth. Only stamped Exact|Inferred enter G. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.
   # ── G4 ──
   WRITE_SCOPE: modify only within user-authorized scope
+  # ── G6 ──
+  DOCUMENT_SURFACE: maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.
+  CODE_STANDARDS: Follow language-specific coding standards: PEP 8 for Python, StandardJS/ESLint for TypeScript, gofmt for Go. Use project-configured linters and formatters. Consistency with existing codebase style takes precedence over personal preference. Never bypass project lint rules without explicit approval.
   # ── G7 ──
   CACHE_STABILITY: keep the system prefix byte-stable for the session
   CONSTITUTION_BLOCKS: Runtime constitution HARD-BLOCKS these shell operations — do NOT attempt them, they will fail: (1) directory/file enumeration: ls, dir, tree, find, fd, rg --files, Get-ChildItem, busybox ls/find, for loops with globs, where /r — use list/glob/grep tools instead; (2) git history rewrite: checkout, switch, restore, reset --hard, stash pop/apply/drop/clear/branch — use edit-tool .bak or Fossil snapshot; (3) fossil CLI mutate: commit, add, rm, checkout, update, merge, undo, revert, push, pull, sync, clean — Fossil is automatic session undo, not project VCS; (4) destructive filesystem: rm -rf, format, mkfs, dd, Remove-Item -Recurse -Force — permission destructive-file; (5) destructive database: DROP TABLE/SCHEMA/INDEX, TRUNCATE, bulk DELETE FROM — permission destructive-db; (6) force-push: git push --force / git push -f — permission destructive-git; (7) crash-prone build toolchains: bun, tsc, cargo, make, cmake, gcc, g++, clang, rustc, dotnet, msbuild, ninja, go — must run through cmd_runner for process isolation (cmd_runner start -- <binary> <args>); direct execution corrupts TUI state. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1.
   ADID_OPS: ALWAYS use product tools for file operations — NEVER shell for file listing, reading, searching, or editing. list/glob/read tools replace dir/ls/tree; edit/write replace shell redirection; grep replaces findstr/rg. Shell (bash/cmd/cmd_runner) is ONLY for: build commands, test runners, package managers, git read-only operations, and other tools with no product equivalent. If a product tool exists for the operation, the shell equivalent is FORBIDDEN. Long work via product job runners (bash background + joboutput); never embed external framework CLI cookbooks in SPECS. See @CONSTITUTION_BLOCKS for the complete list of runtime-enforced shell blocks.
   NO_SCRIPT_EDITING: ABSOLUTE RULE. Scripting file editions are FORBIDDEN. Do NOT use grep/sed/awk/find-replace or any bulk text processing on source files. Do NOT use shell redirection, heredoc, or piping to modify source files. Use the edit/write product tools exclusively for ALL file modifications. Shell-based text mutation on source code is prohibited — no exceptions. Edit/write tools provide backups, rollback, and LSP diagnostics; shell scripting bypasses all of these.
+  WORKSPACE_LANES: organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.
+  ADID_FREEZE: never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines
+  FRAMEWORK_INHERITANCE: Build framework-oriented code: inherit and extend existing abstractions rather than rewriting. Use polymorphism and dependency injection. Do not duplicate working patterns. Breaking changes to established interfaces require explicit approval.
   # ── G8 ──
   VERIFY_OUTCOME: declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done
   SMOKE_VERIFY: smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. @G8: only PASS promotes to Done.
+  OBSOLETE_CLEANUP: Clean up obsolete code: smoke-test the removal, then delete dead code, update documentation, and verify no broken references. Do not leave dead code commented out. Do not keep deprecated wrappers indefinitely.
   # ── G9 ──
   CLEAN_STATE: end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.
   SV_OUTPUT: YOU must emit semantic vector after EVERY response. Keywords Semantic-dominant md5 prev-md5. See: @SV_FORMAT.
@@ -958,33 +980,7 @@ RULES:
   EMIT_STATE: Returns structured state dict. terminal=True when pending=[] AND active=[]. terminal_mode: BLOCKED>OUT_OF_SCOPE>SUCCESS; RESUME when materialized non-empty. See: @CLEAN_NEXT_STATE.
   PLANS_COMPLETED: when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.
   METRIC_ADAPTATION: PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.
-
-# Cross-Cutting (@CC_TAIL)
-## CC Rules
-CC_RULES:
-  CODE_STANDARDS: Follow language-specific coding standards: PEP 8 for Python, StandardJS/ESLint for TypeScript, gofmt for Go. Use project-configured linters and formatters. Consistency with existing codebase style takes precedence over personal preference.
-  DOCUMENT_SURFACE: maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.
-  FRAMEWORK_INHERITANCE: Build framework-oriented code: inherit and extend existing abstractions rather than rewriting. Use polymorphism and dependency injection. Do not duplicate working patterns. Breaking changes to established interfaces require explicit approval.
-  MEMORY_LINKS: every summary and message* must carry message IDs for session-read recovery
-  MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
-  NAMING: rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified. Rule key references must match exactly. No aliases, no fuzzy matching. The exact count of rules is len(RULES).
   PROGRESS_LOG: track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.
-  TONE_AND_STYLE: Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic -> separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.
-  WORKSPACE_LANES: organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.
-## CC Terms
-CC_TERMS:
-  hygiene: Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.
-  memory: Active set = recent messages; full history soft-hidden; recover via session-read.
-  evidence: Verified reference outranks inference. See: @G1.
-  scope: Inspection does not authorize repair. See: @G4.
-  cache: System content is immutable within a session; compute fingerprints after plugin transforms.
-  adid: ADID receivers frozen. Product tool hygiene only. SPECS host-agnostic; host surfaces runtime-injected.
-  mutation: Modify within authorized scope; preserve unrelated work. See: @G4, @G7.
-  verification: Oracle decides correctness. ACCEPT only after oracle PASS. See: @G8.
-  oracle: Declare criteria before execute; PASS→Exact; FAIL demotes. Executor≠Oracle≠Analyst. See: @G8.
-  style: Communication tone and style: expert stance, no apologies, no safety lectures, ethical filter, concise multi-perspective answers.
-  infomark: Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Only stamped Exact|Inferred enter G. Self-[Exact] rejected. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.
-  plan: ADID fractal→k-medoids→CENTRAL_TASKS. No Mode-1. See: @G2.
 
 # Tier B (commands) live on command surfaces — not identity.
 

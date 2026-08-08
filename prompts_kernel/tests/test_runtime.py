@@ -14,8 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from prompts_kernel import (  # noqa: E402
     DisciplineProjection,
     PROMPT_ABI,
-    RUNTIME_CC_RULES,
-    RUNTIME_CC_TERMS,
     RUNTIME_CONTRACTS,
     RUNTIME_PACKS,
     RUNTIME_RULES,
@@ -105,7 +103,6 @@ class TestRuntimePromptCompiler:
     def test_runtime_rule_ownership_is_complete_and_resolves(self):
         assert validate_runtime_rule_owners(
             RUNTIME_RULES, RUNTIME_RULE_OWNERS, RUNTIME_TERMS,
-            RUNTIME_CC_RULES, RUNTIME_CC_TERMS,
         ) == []
 
     def test_runtime_contracts_inventory_every_canonical_spec(self):

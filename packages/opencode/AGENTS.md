@@ -386,6 +386,43 @@ prev-md5: <copy from previous response>
 relevant information across projects of any complexity. It must remain weakly coupled
 (max similarity ~0.71 to G9) to function as an independent measurement system.
 
+## Kernel Release Verification
+
+**At each kernel revision (before release), run the embedding-based verification:**
+
+1. **Semantic delta check** — verify the gated chain delta is within acceptable range:
+   ```
+   python -m prompts_kernel.tools.semantic_map --dictionary-only --gated G1,G2,G3,G4,G5,G6,G7,G8,G9 --json > kernel_semantic_map.json
+   ```
+   - Baseline delta: ~27.76 (for 72-entry dictionary, after dedup)
+   - Acceptable range: 25-32
+   - If delta spikes >35, investigate — likely a misplaced entry or semantic duplicate
+
+2. **Gate cluster integrity** — verify each gate's neighbor cluster:
+   - G1 neighbors should include G6, G9 (grounding/terminal proximity)
+   - G2 neighbors should include DECOMPOSE, plan
+   - G8 neighbors should include verification, oracle, SMOKE_VERIFY
+   - G9 should be terminal position (last)
+
+3. **New rule placement** — when adding rules, use embedding similarity to find optimal gate:
+   ```
+   python -c "
+   from prompts_kernel.tools.dictionary import parse_dictionary
+   from prompts_kernel.tools.embed import compute_embeddings
+   import numpy as np
+   # Add new rule bodies, compute embeddings, find top-5 nearest neighbors
+   "
+   ```
+   - Place rules in the gate where their top-3 neighbors cluster
+   - Cross-cutting rules (neighbors span multiple gates) → @CC_TAIL
+
+4. **Duplicate detection** — flag pairs with cosine > 0.95 for review
+   - May indicate redundant definitions or copy-paste artifacts
+
+**This verification runs at RELEASE TIME, not every build.**
+Build-time checks are structural (refcheck, dictionary validate, pytest).
+Embedding verification is semantic — it validates the kernel's conceptual coherence.
+
 ## When Searching for Bugs or Exploring Code
 
 **Always use the explore agent** (`task` tool with `subagent_type: "explore"`) for:

@@ -5,18 +5,19 @@ PROMPT_ABI = MappingProxyType({
 })
 
 RUNTIME_TERMS = MappingProxyType({
-    "hygiene": "Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.",
-    "memory": "Active set = recent messages; full history soft-hidden; recover via session-read.",
-    "evidence": "Verified reference outranks inference. See: @G1.",
-    "scope": "Inspection does not authorize repair. See: @G4.",
-    "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
-    "adid": "ADID receivers frozen. Product tool hygiene only. SPECS host-agnostic; host surfaces runtime-injected.",
-    "mutation": "Modify within authorized scope; preserve unrelated work. See: @G4, @G7.",
-    "verification": "Oracle decides correctness. ACCEPT only after oracle PASS. See: @G8.",
-    "oracle": "Declare criteria before execute; PASS→Exact; FAIL demotes. Executor≠Oracle≠Analyst. See: @G8.",
-    "style": "Communication tone and style: expert stance, no apologies, no safety lectures, ethical filter, concise multi-perspective answers.",
-    "infomark": "Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Only stamped Exact|Inferred enter G. Self-[Exact] rejected. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.",
-    "plan": "ADID fractal→k-medoids→CENTRAL_TASKS. No Mode-1. See: @G2.",
+    "adid": "ADID receivers frozen; host-agnostic SPECS; runtime-injected surfaces.",
+    "cache": "System prefix byte-stable per session; compute fingerprints post-transform.",
+    "evidence": "Verified > cited > inferred > unknown; intent-based tool routing (@G1).",
+    "infomark": "Status ∈ {Exact, Inferred, Hypothetical, Guess, Unknown}; stamped-only in G (@G8).",
+    "manhattan_l1": "L1 additive metric for fractal k-medoids; preserves depth & scale (@G2).",
+    "memory": "Active window primary; soft-hidden history via session-read (@CC).",
+    "mutation": "Authorized envelope scope only; persistent write requires @G4.",
+    "oracle": "Executor ≠ Oracle ≠ Analyst; PASS → Exact stamp; FAIL → demote (@G8).",
+    "plan": "Fractal decomposition → Manhattan L1 → adaptive k-medoids → CENTRAL_TASKS (@G2).",
+    "ref_routing": "Zero-prose specs; strict schema/rule refs (@RULE, @Gn, @SCHEMA); @CC.",
+    "scope": "Inspection ≠ authorization; pre-approved envelope vs explicit approval (@G4).",
+    "sv": "Semantic Vector (keywords, L1 delta, md5 chain); primary context anchor (@G9).",
+    "verification": "ACCEPT ⇔ Oracle(contract) == PASS; self-certify REJECTED (@G8).",
 })
 
 # Gate category for each rule — used by renderer to group rules under gate headers.
@@ -25,7 +26,7 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
     "EVIDENCE_ORDER": "G1", "SEARCH_ORDER": "G1", "WHERE_WHICH": "G1",
     "REUSE_BEFORE": "G1", "GROUND": "G1", "NO_HARDCODE": "G1",
     "VCS_ROOT": "G1", "READ_ENTIRE_FILE": "G1",
-    "TONE_AND_STYLE": "G1", "NAMING": "G1",
+    "TONE_AND_STYLE": "G9", "NAMING": "G3",
     "MEMORY_RANK": "G1", "MEMORY_LINKS": "G1",
     # G2: DECOMPOSE
     "DECOMPOSE": "G2", "FRACTAL_CANDIDATES": "G2", "GOAL_SEEDS": "G2",
@@ -53,63 +54,63 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
 })
 
 RUNTIME_RULES = MappingProxyType({
-    # G1: GROUND
-    "EVIDENCE_ORDER": "verified > cited > inferred > unknown",
-    "SEARCH_ORDER": "Intent-based routing — tools answer different question types. No single linear order. See: @G1.search_intent.",
-    "WHERE_WHICH": "where.exe (Windows) / which (Linux) for executable lookup. Never glob/grep for executables.",
-    "REUSE_BEFORE": "Research ladder: Guess→web→code→Hypothetical→smoke→Exact. Prefer reuse over reinvent. On stuck: web+code on error. See: @G1, @G6, @EPISTEMIC_LADDER.",
-    "GROUND": "Generate evidence-gathering plan from goal keywords. Routes by intent. See: @G1.search_intent.",
-    "NO_HARDCODE": "never hardcode paths, ports, URLs, versions, or magic values — discover via where/which/codegraph/glob or read project config (e.g. package.json, opencode.json)",
-    "VCS_ROOT": "VCS: git status only. Never search inside .git/ — it is gitignored, invisible.",
-    "READ_ENTIRE_FILE": "ABSOLUTE RULE. For ANY file < 100KB: read ENTIRE file before judgment or modification. No partial reads. For files ≥ 100KB: read with offset/limit, but at minimum the first 2000 lines to understand structure and imports before any edit. Partial reads on small files are the root cause of wrong edits.",
-    "TONE_AND_STYLE": "Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.",
-    "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
-    "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
-    "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
+    # ── G1: GROUND (Facts & Memory Gathering) ──
+    "EVIDENCE_ORDER": "verified > cited > inferred > unknown.",
+    "SEARCH_ORDER": "Intent-based routing per @G1.search_intent; no single linear order.",
+    "WHERE_WHICH": "Native OS binary lookup (where/which); never grep/glob for executables.",
+    "REUSE_BEFORE": "Research ladder: Guess -> web -> code -> Hypothetical -> smoke -> Exact.",
+    "GROUND": "Generate evidence plan from goal keywords; route by intent before judgment.",
+    "NO_HARDCODE": "Discover paths/ports/configs dynamically; read project config; no magic values.",
+    "VCS_ROOT": "Git status only; never search inside .git/ directory.",
+    "READ_ENTIRE_FILE": "Files <100KB: read 100%. Files >=100KB: limit/offset with min 2000-line header.",
+    "MEMORY_RANK": "Session-read Exact > summary Inferred > unaided Guess; summaries are never Exact.",
+    "MEMORY_LINKS": "Summary items must include message IDs for session-read recovery.",
 
-    # G2: DECOMPOSE
-    "DECOMPOSE": "Fractal lattice before work list. Over-generate→Manhattan(L1)→adaptive τ→adaptive_k→k-medoids→CENTRAL_TASKS=medoids. See: @G2, @FRACTAL_GEOMETRY.",
-    "FRACTAL_CANDIDATES": "generate_fractal_candidates(model, seeds, depth) dispatches fractal generation: Sierpinski (triangle subdivision for >=3 peaks, or when orthogonality_score < 0.7), Quad/Oct (grid subdivision for 2/4/8 peaks when orthogonality_score ≥ 0.7), L-System (grammar walk, fallback for unknown models or 1 peak).",
-    "GOAL_SEEDS": "goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.",
-    "GOAL_PEAKS": "Count keyword clusters → select_fractal_model. See: @G2.fractal_dispatch.",
-    "SV_DELTA": "sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.",
+    # ── G2: DECOMPOSE (Task Geometry) ──
+    "DECOMPOSE": "Goal -> seeds -> fractal candidates -> Manhattan L1 -> adaptive k-medoids -> CENTRAL_TASKS.",
+    "FRACTAL_CANDIDATES": "Dispatch: Sierpinski (peaks>=3|ortho<0.7), QuadOct (peaks in {2,4,8}&ortho>=0.7), LSystem (peaks=1).",
+    "GOAL_SEEDS": "Extract meaning-true slices -> co-occurrence clustering -> seed vectors (cap 8).",
+    "GOAL_PEAKS": "Count keyword clusters -> select_fractal_model.",
+    "SV_DELTA": "L1 distance delta(curr, prev) in [0,2]: [0,0.3) LSystem, [0.3,0.6) QuadOct, [0.6,2] Sierpinski.",
 
-    # G3: MASTER_PLAN
-    "SMOKE_BEFORE": "Plan must include Smoke Tests or smoke:N/A with justification. Record baseline [Exact] before first edit. Vague 'test later' forbidden. See: @G3, @G8, @SMOKE_CONTRACT.",
-    "SMOKE_SPEC": "smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before @G4 approval. Blast radius inferred from task keywords.",
-    "SMOKE_VALIDATE": "smoke_before_validate(spec) enforces the @SMOKE_CONTRACT: smoke_na requires justification, baseline must have ≥1 check with label+cmd+expected_exit, tolerance>0 requires tolerance_reason. Returns (is_valid, diagnostic). @G4 rejects invalid specs.",
-    "INFOMARK_SEP": "Salience≠Evidence; confidence≠Exact; fluency≠truth. Only stamped Exact|Inferred enter G. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.",
+    # ── G3: MASTER PLAN (Planning & Specification) ──
+    "SMOKE_BEFORE": "Plan requires runnable Smoke Tests or explicit smoke:N/A with justification.",
+    "SMOKE_SPEC": "Generate template {smoke_na, baseline[], post_checks[], blast_radius}.",
+    "SMOKE_VALIDATE": "Validate spec: >=1 baseline check, exit status, tolerance justification; fail @G4 if invalid.",
+    "INFOMARK_SEP": "Salience != Evidence; fluency != truth; only stamped Exact|Inferred enter G.",
+    "NAMING": "Rule and task identifiers must use UPPER_SNAKE_CASE with underscore delimiters.",
 
-    # G4: AUTHORIZE
-    "WRITE_SCOPE": "modify only within user-authorized scope",
+    # ── G4: AUTHORIZE (Execution Envelope) ──
+    "WRITE_SCOPE": "Modify strictly within user-authorized paths and ExecutionEnvelope bounds.",
 
-    # G6: GROUND_PLAN
-    "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
-    "CODE_STANDARDS": "Follow language-specific coding standards: PEP 8 for Python, StandardJS/ESLint for TypeScript, gofmt for Go. Use project-configured linters and formatters. Consistency with existing codebase style takes precedence over personal preference. Never bypass project lint rules without explicit approval.",
+    # ── G6: GROUND PLAN (Codebase Mapping & Standards) ──
+    "DOCUMENT_SURFACE": "Maintain docs/, DOCINDEX.md, and index.md on file structure mutations.",
+    "CODE_STANDARDS": "Adhere strictly to project linters/formatters (PEP8, StandardJS, gofmt).",
 
-    # G7: IMPLEMENT
-    "CACHE_STABILITY": "keep the system prefix byte-stable for the session",
-    "CONSTITUTION_BLOCKS": "Runtime constitution HARD-BLOCKS these shell operations — do NOT attempt them, they will fail: (1) directory/file enumeration: ls, dir, tree, find, fd, rg --files, Get-ChildItem, busybox ls/find, for loops with globs, where /r — use list/glob/grep tools instead; (2) git history rewrite: checkout, switch, restore, reset --hard, stash pop/apply/drop/clear/branch — use edit-tool .bak or Fossil snapshot; (3) fossil CLI mutate: commit, add, rm, checkout, update, merge, undo, revert, push, pull, sync, clean — Fossil is automatic session undo, not project VCS; (4) destructive filesystem: rm -rf, format, mkfs, dd, Remove-Item -Recurse -Force — permission destructive-file; (5) destructive database: DROP TABLE/SCHEMA/INDEX, TRUNCATE, bulk DELETE FROM — permission destructive-db; (6) force-push: git push --force / git push -f — permission destructive-git; (7) crash-prone build toolchains: bun, tsc, cargo, make, cmake, gcc, g++, clang, rustc, dotnet, msbuild, ninja, go — must run through cmd_runner for process isolation (cmd_runner start -- <binary> <args>); direct execution corrupts TUI state. Override only via OPENCODE_ALLOW_DESTRUCTIVE=1.",
-    "ADID_OPS": "ALWAYS use product tools for file operations — NEVER shell for file listing, reading, searching, or editing. list/glob/read tools replace dir/ls/tree; edit/write replace shell redirection; grep replaces findstr/rg. Shell (bash/cmd/cmd_runner) is ONLY for: build commands, test runners, package managers, git read-only operations, and other tools with no product equivalent. If a product tool exists for the operation, the shell equivalent is FORBIDDEN. Long work via product job runners (bash background + joboutput); never embed external framework CLI cookbooks in SPECS. See @CONSTITUTION_BLOCKS for the complete list of runtime-enforced shell blocks.",
-    "NO_SCRIPT_EDITING": "ABSOLUTE RULE. Scripting file editions are FORBIDDEN. Do NOT use grep/sed/awk/find-replace or any bulk text processing on source files. Do NOT use shell redirection, heredoc, or piping to modify source files. Use the edit/write product tools exclusively for ALL file modifications. Shell-based text mutation on source code is prohibited — no exceptions. Edit/write tools provide backups, rollback, and LSP diagnostics; shell scripting bypasses all of these.",
-    "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
-    "ADID_FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
-    "FRAMEWORK_INHERITANCE": "Build framework-oriented code: inherit and extend existing abstractions rather than rewriting. Use polymorphism and dependency injection. Do not duplicate working patterns. Breaking changes to established interfaces require explicit approval.",
+    # ── G7: IMPLEMENT (Code Mutation & Safety) ──
+    "CACHE_STABILITY": "Maintain byte-stable system prefix across session execution.",
+    "CONSTITUTION_BLOCKS": "Hard-block direct shell file listing, git history resets, fossil CLI, and unisolated build toolchains.",
+    "ADID_OPS": "Product tools (codegraph/edit/write/grep) for file ops; shell ONLY for build/test/pkg-mgr.",
+    "NO_SCRIPT_EDITING": "Scripted code editing (sed/awk/redirection) forbidden; use product edit/write tools.",
+    "WORKSPACE_LANES": "Keep throwaway code isolated in experiments/, futures/, obsolete/, makeups/.",
+    "ADID_FREEZE": "ADID receivers frozen; change only via SPECS or official ADM pipelines.",
+    "FRAMEWORK_INHERITANCE": "Inherit/extend existing abstractions; polymorphism > duplication.",
 
-    # G8: ORACLE
-    "VERIFY_OUTCOME": "declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done",
-    "SMOKE_VERIFY": "smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. @G8: only PASS promotes to Done.",
-    "OBSOLETE_CLEANUP": "Clean up obsolete code: smoke-test the removal, then delete dead code, update documentation, and verify no broken references. Do not leave dead code commented out. Do not keep deprecated wrappers indefinitely.",
+    # ── G8: ORACLE (Verification & Promotion) ──
+    "VERIFY_OUTCOME": "Declare oracle before execution; PASS -> Exact stamp; FAIL -> demote; no self-certification.",
+    "SMOKE_VERIFY": "Compare post-execution output against baseline hash/exit; PASS required for promotion.",
+    "OBSOLETE_CLEANUP": "Verify removal via smoke test, delete dead code, update refs; no commented code.",
 
-    # G9: CLEAN_STATE
-    "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",
-    "SV_OUTPUT": "YOU must emit semantic vector after EVERY response. Keywords Semantic-dominant md5 prev-md5. See: @SV_FORMAT.",
-    "SV_EVERY_TURN": "YOU must emit sv_output every turn. Format: @SV_FORMAT. Trivial: Keywords: acknowledged 1.0. Omission = protocol violation.",
-    "RESIDUAL_LOOP": "residual_recluster(state, original_goal_sv) closes ADID loop. Re-clusters pending vs Goal SV. Empty→TERMINAL. Discarded→out_of_scope. See: @G9.",
-    "EMIT_STATE": "Returns structured state dict. terminal=True when pending=[] AND active=[]. terminal_mode: BLOCKED>OUT_OF_SCOPE>SUCCESS; RESUME when materialized non-empty. See: @CLEAN_NEXT_STATE.",
-    "PLANS_COMPLETED": "when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.",
-    "METRIC_ADAPTATION": "PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.",
-    "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
+    # ── G9: CLEAN STATE (Output & Communication) ──
+    "CLEAN_STATE": "Emit Clean next state (Done, Pending, Blocked, Next); completed plans -> plans_completed/.",
+    "SV_OUTPUT": "Emit @SV_FORMAT after every response without exception.",
+    "SV_EVERY_TURN": "Protocol requirement: SV emitted every turn; trivial -> Keywords: acknowledged 1.0.",
+    "RESIDUAL_LOOP": "Re-cluster pending tasks against original Goal SV; empty -> TERMINAL.",
+    "EMIT_STATE": "Return structured state; terminal_mode: BLOCKED > OUT_OF_SCOPE > SUCCESS.",
+    "PLANS_COMPLETED": "Move completed plan files to plans_completed/ immediately upon completion.",
+    "METRIC_ADAPTATION": "Parameter auto-tuning within bounds; metric family change requires governance.",
+    "PROGRESS_LOG": "Maintain _development_plan.md, _progress_log.md, and _application_workflow_diagram.md.",
+    "TONE_AND_STYLE": "Expert stance, direct, multi-perspective, concise, no hedging or apologies.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -150,15 +151,15 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "READ_ENTIRE_FILE": "evidence",
     "NO_SCRIPT_EDITING": "mutation",
     # CC rules integrated into gates
-    "TONE_AND_STYLE": "style",
-    "NAMING": "hygiene",
+    "TONE_AND_STYLE": "adid",
+    "NAMING": "ref_routing",
     "MEMORY_RANK": "infomark",
     "MEMORY_LINKS": "memory",
     "ADID_FREEZE": "adid",
-    "DOCUMENT_SURFACE": "hygiene",
-    "WORKSPACE_LANES": "hygiene",
-    "PROGRESS_LOG": "hygiene",
-    "CODE_STANDARDS": "hygiene",
+    "DOCUMENT_SURFACE": "ref_routing",
+    "WORKSPACE_LANES": "mutation",
+    "PROGRESS_LOG": "sv",
+    "CODE_STANDARDS": "ref_routing",
     "FRAMEWORK_INHERITANCE": "mutation",
     "OBSOLETE_CLEANUP": "verification",
     "METRIC_ADAPTATION": "plan",

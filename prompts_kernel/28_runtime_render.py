@@ -214,41 +214,104 @@ _ALL_SPECS = {
     "REASONING_MODE": REASONING_MODE,
 }
 
+def _render_compact_spec(name: str, spec: dict) -> list[str]:
+    """Render a single agent/policy spec in compact REF-ONLY format."""
+    lines: list[str] = [f"## {name}"]
+    intent = spec.get("intent", "")
+    if intent:
+        lines.append(intent.strip())
+    if spec.get("inherits"):
+        lines.append(f"inherits: {spec['inherits']}")
+    if spec.get("gates"):
+        lines.append(f"gates: [{', '.join(spec['gates'])}]")
+    if spec.get("contract"):
+        refs = [f"@{c}" if not c.startswith("@") else c for c in spec["contract"]]
+        lines.append(f"contract: [{', '.join(refs)}]")
+    scope = spec.get("scope", "")
+    if scope:
+        if isinstance(scope, list):
+            lines.append(f"scope: [{', '.join(scope)}]")
+        else:
+            lines.append(f"scope: {scope}")
+    constraints = spec.get("constraints", {})
+    if constraints:
+        lines.append("constraints:")
+        for k, v in constraints.items():
+            lines.append(f"  {k}: {str(v).lower()}")
+    invariants = spec.get("invariants", [])
+    if invariants:
+        lines.append("invariants:")
+        for inv in invariants:
+            lines.append(f"  • {inv}")
+    forbidden = spec.get("forbidden_actions", spec.get("forbidden", []))
+    if forbidden:
+        lines.append("forbidden:")
+        for f in forbidden:
+            lines.append(f"  • {f}")
+    tests = spec.get("acceptance_tests", [])
+    if tests:
+        lines.append("acceptance:")
+        for t in tests:
+            lines.append(f"  • {t}")
+    lines.append("")
+    return lines
+
+
 def render_all_specs(tier: str = "A") -> str:
-    """    Render _spec() blocks as compact text.
+    """Render SPECS blocks in compact REF-ONLY format.
 
     Tier A (identity): agents + policies only.
-    Tier full: also commands (available as command surfaces; not default identity).
+    Tier full: also commands.
     """
     lines: list[str] = []
 
     agents = {k: v for k, v in _ALL_SPECS.items() if k in _TIER_A_AGENTS}
     commands = {k: v for k, v in _ALL_SPECS.items() if k in _TIER_B_COMMANDS}
     policies = {k: v for k, v in _ALL_SPECS.items() if k in _TIER_A_POLICIES}
-    # Any leftover specs still render under policies in full tier
     known = _TIER_A_AGENTS | _TIER_B_COMMANDS | _TIER_A_POLICIES
     extras = {k: v for k, v in _ALL_SPECS.items() if k not in known}
     if extras and tier == "full":
         policies = {**policies, **extras}
 
-    sections: list[tuple[str, dict]] = [
-        ("Agent Specs", agents),
-        ("Policy Specs", policies),
-    ]
+    # Agent Specs in compact REF-ONLY format
+    if agents:
+        lines.append("# AGENT SPECIFICATIONS (REF-ONLY)")
+        lines.append("")
+        primary = {k: v for k, v in agents.items() if v.get("state", {}).get("mode") == "primary"}
+        secondary = {k: v for k, v in agents.items() if v.get("state", {}).get("kind") == "agent"}
+        anchors = {k: v for k, v in agents.items() if v.get("state", {}).get("kind") == "anchor"}
+
+        if anchors:
+            for name in sorted(anchors):
+                lines.extend(_render_compact_spec(name, anchors[name]))
+            lines.append("")
+
+        if primary:
+            lines.append("# PRIMARY MODES")
+            lines.append("")
+            for name in sorted(primary):
+                lines.extend(_render_compact_spec(name, primary[name]))
+
+        if secondary:
+            lines.append("# SPECIALIZED SUB-AGENTS")
+            lines.append("")
+            for name in sorted(secondary):
+                lines.extend(_render_compact_spec(name, secondary[name]))
+
+    # Policy Specs
+    if policies:
+        lines.append("# POLICY SPECIFICATIONS")
+        lines.append("")
+        for name in sorted(policies):
+            lines.extend(_render_compact_spec(name, policies[name]))
+
     if tier == "full":
-        sections.extend([
-            ("Command Specs (Tier B)", commands),
-        ])
+        lines.append("## Command Specs (Tier B)")
+        lines.append("")
+        for name in sorted(commands):
+            lines.extend(_render_compact_spec(name, commands[name]))
     else:
         lines.append("# Tier B (commands) live on command surfaces — not identity.")
         lines.append("")
-
-    for section, group in sections:
-        if not group:
-            continue
-        lines.append(f"## {section}")
-        lines.append("")
-        for name in sorted(group):
-            lines.extend(_render_spec_block(name, group[name]))
 
     return "\n".join(lines)

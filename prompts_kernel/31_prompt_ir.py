@@ -222,6 +222,7 @@ def validate_ir_equivalence(readable: dict, ir: dict) -> list[str]:
 #   acceptance_tests (list): Pass/fail gates — oracle-ready verification
 
 _SPEC_FIELDS = {"intent", "state", "scope", "constraints", "invariants", "forbidden_actions", "acceptance_tests"}
+_SPEC_OPTIONAL = {"gates", "contract", "inherits"}
 
 # Marker patterns that the AI recognizes as structured spec sections
 _STRUCTURED_SECTION_MARKERS = {
@@ -311,7 +312,7 @@ def assert_prompt_files_conform(*, package_root: str = ".") -> dict[str, list[st
 
 
 def _validate_spec(name: str, spec: dict) -> None:
-    """Validate that a project spec has all required fields."""
+    """Validate that a project spec has all required fields. Optional fields allowed."""
     missing = _SPEC_FIELDS - set(spec.keys())
     if missing:
         raise ValueError(f"{name}: missing spec fields: {missing}")

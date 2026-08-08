@@ -1,0 +1,334 @@
+{
+  "threshold": 0.85,
+  "total": 216,
+  "replace": 6,
+  "keep": 210,
+  "matches": [
+    {
+      "spec": "BUILD_MODE",
+      "field": "invariants",
+      "text": "Record Smoke baseline [Exact] before first edit when plan defines smoke",
+      "pos": 2,
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.8611,
+      "action": "REPLACE"
+    },
+    {
+      "spec": "CODER_AGENT",
+      "field": "invariants",
+      "text": "Record Smoke baseline [Exact] before first edit when plan defines smoke",
+      "pos": 2,
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.8611,
+      "action": "REPLACE"
+    },
+    {
+      "spec": "ADID_FRAMEWORK_RULES",
+      "field": "forbidden_actions",
+      "text": "Hand-editing ADID framework rule receivers",
+      "pos": 0,
+      "best_match": "ADID_FREEZE",
+      "sim": 0.8548,
+      "action": "REPLACE"
+    },
+    {
+      "spec": "ADID_FRAMEWORK_RULES",
+      "field": "constraints",
+      "text": "adid_receivers_frozen: True",
+      "pos": "adid_receivers_frozen",
+      "best_match": "adid",
+      "sim": 0.8526,
+      "action": "REPLACE"
+    },
+    {
+      "spec": "BUILD_MODE",
+      "field": "forbidden_actions",
+      "text": "First edit without recorded smoke baseline when plan has Smoke Tests",
+      "pos": 2,
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.8502,
+      "action": "REPLACE"
+    },
+    {
+      "spec": "CODER_AGENT",
+      "field": "forbidden_actions",
+      "text": "First edit without recorded smoke baseline when plan has Smoke Tests",
+      "pos": 2,
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.8502,
+      "action": "REPLACE"
+    }
+  ],
+  "kept": [
+    {
+      "spec": "GOVERNANCE",
+      "field": "forbidden_actions",
+      "text": "SELF_MODIFY without explicit user approval",
+      "pos": 1,
+      "best_match": "WRITE_SCOPE",
+      "sim": 0.8437,
+      "action": "KEEP"
+    },
+    {
+      "spec": "AGENT_DIRECTIVES",
+      "field": "constraints",
+      "text": "oracle_decides_correctness: True",
+      "pos": "oracle_decides_correctness",
+      "best_match": "verification",
+      "sim": 0.8186,
+      "action": "KEEP"
+    },
+    {
+      "spec": "GOVERNANCE",
+      "field": "invariants",
+      "text": "Inspection does not authorize repair. Testing does not authorize correction.",
+      "pos": 0,
+      "best_match": "scope",
+      "sim": 0.8103,
+      "action": "KEEP"
+    },
+    {
+      "spec": "PLAN_MODE",
+      "field": "constraints",
+      "text": "smoke_tests_required_in_plan: True",
+      "pos": "smoke_tests_required_in_plan",
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.8047,
+      "action": "KEEP"
+    },
+    {
+      "spec": "ORCHESTRATOR_AGENT",
+      "field": "constraints",
+      "text": "smoke_tests_required_in_plan: True",
+      "pos": "smoke_tests_required_in_plan",
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.8047,
+      "action": "KEEP"
+    },
+    {
+      "spec": "ADID_FRAMEWORK_RULES",
+      "field": "invariants",
+      "text": "ADID receivers must not be hand-edited by coding agents",
+      "pos": 0,
+      "best_match": "ADID_FREEZE",
+      "sim": 0.784,
+      "action": "KEEP"
+    },
+    {
+      "spec": "AGENT_DIRECTIVES",
+      "field": "constraints",
+      "text": "smoke_before_implementation: True",
+      "pos": "smoke_before_implementation",
+      "best_match": "SMOKE_SPEC",
+      "sim": 0.7609,
+      "action": "KEEP"
+    },
+    {
+      "spec": "ADID_OPS",
+      "field": "forbidden_actions",
+      "text": "Shell for file ops (ls, cat, grep, redirection) when product tools exist",
+      "pos": 0,
+      "best_match": "ADID_OPS",
+      "sim": 0.7529,
+      "action": "KEEP"
+    },
+    {
+      "spec": "AGENT_DIRECTIVES",
+      "field": "invariants",
+      "text": "Tag claims: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]",
+      "pos": 1,
+      "best_match": "infomark",
+      "sim": 0.75,
+      "action": "KEEP"
+    },
+    {
+      "spec": "BUILD_MODE",
+      "field": "constraints",
+      "text": "smoke_before_first_edit: True",
+      "pos": "smoke_before_first_edit",
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.7474,
+      "action": "KEEP"
+    },
+    {
+      "spec": "CODER_AGENT",
+      "field": "constraints",
+      "text": "smoke_before_first_edit: True",
+      "pos": "smoke_before_first_edit",
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.7474,
+      "action": "KEEP"
+    },
+    {
+      "spec": "GROUNDING_RULES",
+      "field": "forbidden_actions",
+      "text": "Applying single linear tool order without intent routing",
+      "pos": 0,
+      "best_match": "SEARCH_ORDER",
+      "sim": 0.7443,
+      "action": "KEEP"
+    },
+    {
+      "spec": "ORCHESTRATOR_AGENT",
+      "field": "forbidden_actions",
+      "text": "Dispatching for plans without Smoke Tests (or smoke:N/A)",
+      "pos": 4,
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.7423,
+      "action": "KEEP"
+    },
+    {
+      "spec": "PLAN_MODE",
+      "field": "forbidden_actions",
+      "text": "Using shell to rewrite product files",
+      "pos": 2,
+      "best_match": "ADID_OPS",
+      "sim": 0.742,
+      "action": "KEEP"
+    },
+    {
+      "spec": "AGENT_DIRECTIVES",
+      "field": "invariants",
+      "text": "Output: State → SV → Plan (with Smoke) → Implement → Verify → Clean state",
+      "pos": 0,
+      "best_match": "SMOKE_VERIFY",
+      "sim": 0.7419,
+      "action": "KEEP"
+    },
+    {
+      "spec": "ADID_OPS",
+      "field": "invariants",
+      "text": "codegraph before grep/glob for structure",
+      "pos": 0,
+      "best_match": "NO_HARDCODE",
+      "sim": 0.7262,
+      "action": "KEEP"
+    },
+    {
+      "spec": "PLANNING",
+      "field": "constraints",
+      "text": "fractal_geometry_required: True",
+      "pos": "fractal_geometry_required",
+      "best_match": "FRACTAL_CANDIDATES",
+      "sim": 0.7228,
+      "action": "KEEP"
+    },
+    {
+      "spec": "AGENT_DIRECTIVES",
+      "field": "forbidden_actions",
+      "text": "Claiming fixed without oracle evidence",
+      "pos": 1,
+      "best_match": "VERIFY_OUTCOME",
+      "sim": 0.7225,
+      "action": "KEEP"
+    },
+    {
+      "spec": "GROUNDING_RULES",
+      "field": "constraints",
+      "text": "see: @G1.search_intent",
+      "pos": "see",
+      "best_match": "GROUND",
+      "sim": 0.7198,
+      "action": "KEEP"
+    },
+    {
+      "spec": "BUILD_MODE",
+      "field": "constraints",
+      "text": "read_before_modify: True",
+      "pos": "read_before_modify",
+      "best_match": "READ_ENTIRE_FILE",
+      "sim": 0.716,
+      "action": "KEEP"
+    },
+    {
+      "spec": "CODER_AGENT",
+      "field": "constraints",
+      "text": "read_before_modify: True",
+      "pos": "read_before_modify",
+      "best_match": "READ_ENTIRE_FILE",
+      "sim": 0.716,
+      "action": "KEEP"
+    },
+    {
+      "spec": "REASONING_MODE",
+      "field": "forbidden_actions",
+      "text": "Searching message history beyond the current conversation window",
+      "pos": 2,
+      "best_match": "memory",
+      "sim": 0.7147,
+      "action": "KEEP"
+    },
+    {
+      "spec": "LEARN",
+      "field": "forbidden_actions",
+      "text": "Including standard language/framework behavior",
+      "pos": 1,
+      "best_match": "FRAMEWORK_INHERITANCE",
+      "sim": 0.7111,
+      "action": "KEEP"
+    },
+    {
+      "spec": "REASONING_MODE",
+      "field": "invariants",
+      "text": "May conduct self-assessment: reflect on accumulated tool-use errors, documentation misinterpretations, and cross-project pattern drift — things invisible during active execution",
+      "pos": 5,
+      "best_match": "hygiene",
+      "sim": 0.7099,
+      "action": "KEEP"
+    },
+    {
+      "spec": "ORCHESTRATOR_AGENT",
+      "field": "invariants",
+      "text": "Smoke Tests required before dispatching implementation workers",
+      "pos": 4,
+      "best_match": "SMOKE_BEFORE",
+      "sim": 0.7069,
+      "action": "KEEP"
+    },
+    {
+      "spec": "REASONING_MODE",
+      "field": "invariants",
+      "text": "Must not access database, file system, codegraph, or any external data source",
+      "pos": 1,
+      "best_match": "NO_HARDCODE",
+      "sim": 0.7061,
+      "action": "KEEP"
+    },
+    {
+      "spec": "LEARN",
+      "field": "forbidden_actions",
+      "text": "Writing verbose explanations or session-specific details",
+      "pos": 3,
+      "best_match": "MEMORY_RANK",
+      "sim": 0.7045,
+      "action": "KEEP"
+    },
+    {
+      "spec": "PLAN_MODE",
+      "field": "invariants",
+      "text": "Must never modify product/source files — only plans/**",
+      "pos": 1,
+      "best_match": "NO_SCRIPT_EDITING",
+      "sim": 0.701,
+      "action": "KEEP"
+    },
+    {
+      "spec": "GOVERNANCE",
+      "field": "invariants",
+      "text": "Protected surfaces immutable without separate branch + explicit promotion authority.",
+      "pos": 2,
+      "best_match": "WRITE_SCOPE",
+      "sim": 0.6979,
+      "action": "KEEP"
+    },
+    {
+      "spec": "ADID_OPS",
+      "field": "invariants",
+      "text": "messagesearch → session-read for conversation",
+      "pos": 1,
+      "best_match": "MEMORY_LINKS",
+      "sim": 0.6974,
+      "action": "KEEP"
+    }
+  ]
+}

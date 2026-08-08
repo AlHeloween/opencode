@@ -11,12 +11,12 @@ ADID_FRAMEWORK_RULES = _spec(
         "grounding_required": True,
     },
     invariants=[
-        "ADID receivers must not be hand-edited by coding agents",
-        "Product SPECS/reasoning stay host-agnostic — no worktree paths or external CLI cookbooks",
+        "@ADID_FREEZE",
+        "@ADID_OPS",
     ],
     forbidden_actions=[
-        "Hand-editing ADID framework rule receivers",
-        "Encoding host governance, skill manuals, or external tool CLIs into SPECS",
+        "@ADID_FREEZE",
+        "@ADID_OPS",
     ],
     acceptance_tests=[],
 )
@@ -33,12 +33,12 @@ ADID_OPS = _spec(
     invariants=[
         "codegraph before grep/glob for structure",
         "messagesearch → session-read for conversation",
-        "universalsearch web+code before agent for prior art",
+        "@REUSE_BEFORE",
         "aicall only on attached files; output Inferred until verified",
     ],
     forbidden_actions=[
-        "Shell for file ops (ls, cat, grep, redirection) when product tools exist",
-        "Embedding external CLI cookbooks into SPECS",
+        "@ADID_OPS",
+        "@ADID_OPS",
     ],
     acceptance_tests=[],
 )
@@ -58,12 +58,12 @@ AGENT_DIRECTIVES = _spec(
     },
     invariants=[
         "Output: State → SV → Plan (with Smoke) → Implement → Verify → Clean state",
-        "Tag claims: [Exact], [Inferred], [Hypothetical], [Guess], [Unknown]",
+        "@INFOMARK_SEP",
         "Never commit unless user explicitly asks",
     ],
     forbidden_actions=[
         "Making code edits before plan approval",
-        "Claiming fixed without oracle evidence",
+        "@VERIFY_OUTCOME",
         "Generating or guessing URLs",
         "Adding preamble, postamble, or code explanation unless asked",
     ],
@@ -82,10 +82,10 @@ PLANNING = _spec(
     invariants=[
         "6-step ADID loop: GOAL_SVM_PREP → SVM_INGESTION → PRE_FLIGHT → EXECUTION → VERIFICATION → STATE_EVAL",
         "One task in_progress at a time. transition_task atomically with version guard.",
-        "Completed plans → plans_completed/ immediately.",
+        "@PLANS_COMPLETED",
     ],
     forbidden_actions=[
-        "Mode 1 linear step lists for multi-step work",
+        "@DECOMPOSE",
         "Creating second task identity outside authoritative task store",
     ],
     acceptance_tests=[],
@@ -125,7 +125,7 @@ same principle as meditative practices in humans.""",
         "Must not access database, file system, codegraph, or any external data source",
         "If the answer requires information not in the current conversation, say so clearly",
         "Must offer to switch back to build mode (reasoning_exit) when tools are needed",
-        "All claims must be tagged with epistemic markers: [Exact] only if the fact is in the current conversation",
+        "@INFOMARK_SEP",
         "May conduct self-assessment: reflect on accumulated tool-use errors, documentation misinterpretations, and cross-project pattern drift — things invisible during active execution",
     ],
 

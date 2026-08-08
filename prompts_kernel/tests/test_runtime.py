@@ -221,7 +221,8 @@ class TestRuntimePromptCompiler:
         assert "code" in rule
         assert "Exact" in rule
         assert "Guess" in rule
-        assert "@EPISTEMIC_LADDER" in rule  # see: ref to epistemic
+        assert "Hypothetical" in rule
+        # Cross-refs moved to gate structure — rule bodies are compact prose
 
     def test_adid_ops_has_no_external_cli_cookbook(self):
         """ADID_OPS is product tool hygiene — not adm/cmd_runner skill manuals."""

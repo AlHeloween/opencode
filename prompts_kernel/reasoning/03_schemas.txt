@@ -19,16 +19,32 @@ education: [ERIC, EdSource, LearnTechLib, OECD_Ed]
 anthropology: [AIO, AnthroSource, eHRAF]
 agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
 
-@schema: action_class
-@schema: master_plan
-@schema: execution_envelope
-@schema: explorer_goal
-@schema: stamps
-@schema: clean_next_state
-@schema: msg_tag
-@schema: blocker
-@schema: signal_cluster
-@schema: bug_fix
-@schema: claim_ledger
-@schema: fractal_geometry
-@schema: smoke_contract
+## CLAIM_LEDGER (@CLAIM_LEDGER)
+claims: [{id: C_num, text: str, status: enum[Unknown,Guess,Hypothetical,Inferred,Exact], deps: [C_num], evidence: str}]
+premises_for_plan: list of claim_ids subset of G (Exact|Inferred)
+rules: [Unmarked -> Unknown, Hypothetical_in_premises -> plan_illegal, weakest_link_ceiling]
+claim_ledger: see @CLAIM_LEDGER
+
+## STAMPS (@STAMPS)
+oracle_decl: {claim: C_num, scope: str, cmd: str, criteria: str, res: enum[PASS,FAIL,TIMEOUT,CRASH]}
+oracle_stamp: {id: uuid, claim: C_num, scope_hash: sha256, attestation: hmac} -> Exact
+inference_stamp: {id: uuid, claim: C_num, deps: [C_num], rule: str, derivation_hash: sha256} -> Inferred
+invariant: unverified_exact_rejected; require_type_and_attestation; oracle_fail_demotes_to_guess
+
+## FRACTAL_GEOMETRY (@FRACTAL_GEOMETRY)
+model: enum[Sierpinski,QuadOct,LSystem]
+metric: Manhattan_L1; tau adaptive; k adaptive; depth clamped [1,3]
+
+## SMOKE_CONTRACT (@SMOKE_CONTRACT)
+smoke_na: bool|str; baseline: [{label, cmd, expected_exit}]; post_checks: [{cmd}]; blast_radius: str
+
+## BUG_FIX_SCHEMA (@BUG_FIX_SCHEMA)
+stages: ERROR_TEST(must FAIL) -> TRIAL_FIX -> REAL_FIX -> TARGETED_TESTS -> DONE
+deadloop: 2+ STUCK in last 3 -> STOP + re-plan
+
+## SIGNAL_CLUSTER (@SIGNAL_CLUSTER)
+source: lsp|test|log|tool; collapse_gates: cascade|high_cardinality|content_similarity
+disposition: COLLAPSED_DUPLICATES|CONFIRMATION|DIVERGENCE; evidence: ACTIVE never discarded
+
+## EXPLORER_GOAL (@EXPLORER_GOAL)
+question: specific; scope: {paths, symbols}; return: [file_paths, line_numbers, signatures]

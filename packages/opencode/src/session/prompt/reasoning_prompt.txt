@@ -173,250 +173,35 @@ education: [ERIC, EdSource, LearnTechLib, OECD_Ed]
 anthropology: [AIO, AnthroSource, eHRAF]
 agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
 
-## ACTION_CLASS (@ACTION_CLASS)
-description: Classification BEFORE execution (envelope model)
-activity:
-  enum:
-  - CONVERSATION
-  - OBSERVE
-  - EXECUTE_TEST
-  - MODIFY_CANDIDATE
-  - MODIFY_PROJECT
-  - PROMOTE_STABLE
-  - SELF_MODIFY
-  CONVERSATION: no side effects
-  OBSERVE: read-only investigation
-  EXECUTE_TEST: run declared oracles
-  MODIFY_CANDIDATE: write within ExecutionEnvelope (pre-approved)
-  MODIFY_PROJECT: write outside envelope (requires @G4)
-  PROMOTE_STABLE: merge candidate→stable (ALWAYS explicit)
-  SELF_MODIFY: change kernel/agent/oracle (triple-separation)
-effect:
-- NO_WRITE
-- DECLARED_TEMP_WRITE
-- CANDIDATE_WRITE
-- PERSISTENT_WRITE
-risk:
-- LOW
-- ELEVATED
-- DESTRUCTIVE
-- CRITICAL
-mapping:
-- candidate branch → MODIFY_CANDIDATE + CANDIDATE_WRITE
-- mainline → MODIFY_PROJECT + PERSISTENT_WRITE
-- candidate→stable → PROMOTE_STABLE + PERSISTENT_WRITE
-- kernel/oracle/metric → SELF_MODIFY + PERSISTENT_WRITE
-- test/build/typecheck → EXECUTE_TEST
-- show/read/search → OBSERVE
-invariants:
-- CONVERSATION/OBSERVE ⇒ NO_WRITE
-- EXECUTE_TEST ⇒ no silent persistent write
-- MODIFY_CANDIDATE within envelope ⇒ pre-approved
-explicit_approval_required:
-- MODIFY_PROJECT (any envelope state)
-- PROMOTE_STABLE
-- SELF_MODIFY
-- protected-surface mutation
-- candidate work outside valid envelope
-
-## MASTER_PLAN_SCHEMA (@MASTER_PLAN_SCHEMA)
-description: one-line goal
-premises: list of claim_ids (⊆ G only)
-open_questions: list of claim_ids
-goals:
-- id: G1
-  sv: list of keywords (3-9 terms)
-  document: abstract + I/O + brief impl sketch
-  done_pct: int
-  tasks:
-  - id: T1
-    sv: list of keywords
-    what: file-and-function level change
-    files: list of paths
-    depends_on_claims: list of claim_ids
-    oracle: see @STAMPS
-    status: '[ ] | [x] — [x] only after @G8 + stamp'
-    attempts: int (default 0)
-    last_failure: string or null
-    worker_id: string or null
-    lease_expires_at: ISO-8601 or null
-    action_class: see @ACTION_CLASS
+# CLAIM_LEDGER (@CLAIM_LEDGER)
+claims: [{id: C_num, text: str, status: enum[Unknown,Guess,Hypothetical,Inferred,Exact], deps: [C_num], evidence: str}]
+premises_for_plan: list of claim_ids subset of G (Exact|Inferred)
+rules: [Unmarked -> Unknown, Hypothetical_in_premises -> plan_illegal, weakest_link_ceiling]
 claim_ledger: see @CLAIM_LEDGER
 
-## EXECUTION_ENVELOPE (@EXECUTION_ENVELOPE)
-description: Pre-approved authorization for MODIFY_CANDIDATE (authenticated, verifiable)
-approval_payload:
-  envelope_id: uuid
-  revision: int
-  issued_at: ISO-8601
-  expires_at: ISO-8601
-  approved_by: user
-  scope_paths: list of glob patterns
-  scope_spec_hash: sha256(canonical(sorted scope_paths))
-  baseline_tree_hash: sha256
-  budget:
-    maximum_created: int
-    maximum_modified: int
-    maximum_deleted: int
-  wall_time_seconds: int
-  attempts_max: int
-  allowed_action_classes: list of activity values
-approval_payload_hash: sha256 (RFC 8785 JCS canonical serialization)
-approval_attestation:
-  algorithm: HMAC-SHA256
-  key_id: string
-  payload_hash: sha256 (must == approval_payload_hash)
-  approval_event_id: uuid
-  value: hmac:...
-mutable:
-  status: active | expired | revoked
-  mutation_ledger:
-    created: list of paths
-    modified: list of paths
-    deleted: list of paths
-    cumulative_delta_hash: sha256
-validation:
-- 1. status == active
-- 2. now < expires_at
-- 3. expires_at <= issued_at + wall_time_seconds
-- 4. scope_spec_hash matches current
-- 5. attestation.payload_hash == approval_payload_hash
-- 6. HMAC(payload_hash, runtime_key) == attestation.value
-- 7. activity ∈ allowed_action_classes
-- 8. mutation_ledger counts within budget
-path_auth: normalize → resolve symlink/junction → case-normalize → verify inside approved
-  root
-unknown_activity: RECLASSIFY_OR_DENY (fail-closed)
-
-## EXPLORER_GOAL (@EXPLORER_GOAL)
-description: Delegated exploration (Gate 6)
-question: specific question
-scope: '{paths, symbols}'
-return: '[file_paths, line_numbers, signatures]'
-correct: Find callers of X in src/tool/; paths, lines, signatures.
-wrong: Search for path-related things.
-
-## STAMPS (@STAMPS)
-oracle_decl: '{claim: C_num, scope: str, cmd: str, criteria: str, res: enum[PASS,
-  FAIL, TIMEOUT, CRASH]}'
-oracle_stamp: '{id: uuid, claim: C_num, scope_hash: sha256, attestation: hmac} ->
-  sigma(c)=Exact'
-inference_stamp: '{id: uuid, claim: C_num, deps: [C_num], rule: str, derivation_hash:
-  sha256} -> sigma(c)=Inferred'
-evidence_stamp: '{id: uuid, claim: C_num, source: handle, content_hash: sha256} ->
-  sigma(c)=Exact'
+# STAMPS (@STAMPS)
+oracle_decl: {claim: C_num, scope: str, cmd: str, criteria: str, res: enum[PASS,FAIL,TIMEOUT,CRASH]}
+oracle_stamp: {id: uuid, claim: C_num, scope_hash: sha256, attestation: hmac} -> Exact
+inference_stamp: {id: uuid, claim: C_num, deps: [C_num], rule: str, derivation_hash: sha256} -> Inferred
 invariant: unverified_exact_rejected; require_type_and_attestation; oracle_fail_demotes_to_guess
 
-## CLEAN_NEXT_STATE (@CLEAN_NEXT_STATE)
-description: Structured state summary after each substantial turn
-reason: string
-done: 'list of {item: string, pct: int 0-100, mark: EpistemicStatus}'
-pending: list of string
-blocked: 'list of {item: string, kind: real|fake, reason: string}'
-out_of_scope: list of string — tasks discarded by residual_recluster
-terminal: bool — true when pending=[] AND active=[]
-terminal_mode:
-  enum:
-  - SUCCESS
-  - BLOCKED
-  - OUT_OF_SCOPE
-  - CONTINUE
-  - RESUME
-  precedence: BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty
-next: 'DERIVED, not invented: Blocked[0] if blocked, else Pending[0] if pending, else
-  ''none''. ''none'' = TERMINAL hard stop.'
+# FRACTAL_GEOMETRY (@FRACTAL_GEOMETRY)
+model: enum[Sierpinski,QuadOct,LSystem]
+metric: Manhattan_L1; tau adaptive; k adaptive; depth clamped [1,3]
 
-## MSG_TAG (@MSG_TAG)
-md5_msg_tag: 8-32 hex — content fingerprint via canonical serialization
-serialization: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev
-note: NOT for cryptographic authorization — use SHA-256/BLAKE3 for stamps
+# SMOKE_CONTRACT (@SMOKE_CONTRACT)
+smoke_na: bool|str; baseline: [{label, cmd, expected_exit}]; post_checks: [{cmd}]; blast_radius: str
 
-## BLOCKER (@BLOCKER)
-description: Blocker classification
-kind: real | fake
-claim: string
-real: capability/dependency/knowledge gap — investigate or smoke-plan
-fake: unfinished prior task / sequencing — finish the task, do not halt
+# BUG_FIX_SCHEMA (@BUG_FIX_SCHEMA)
+stages: ERROR_TEST(must FAIL) -> TRIAL_FIX -> REAL_FIX -> TARGETED_TESTS -> DONE
+deadloop: 2+ STUCK in last 3 -> STOP + re-plan
 
-## SIGNAL_CLUSTER (@SIGNAL_CLUSTER)
-description: Noise-filtered signal (Gate 1)
-source: lsp | test | log | tool | compiler | typecheck
-pattern: 'unresolved reference: Foo'
-n: raw count
-cardinality: preserved for evidence — never discarded
-unique_locations: distinct file:line occurrences
-delta: Manhattan delta(signal, anchor)
-likely_shared_root: bool
-disposition: COLLAPSED_DUPLICATES | CONFIRMATION | DIVERGENCE
-evidential_status: ACTIVE (never discarded)
+# SIGNAL_CLUSTER (@SIGNAL_CLUSTER)
+source: lsp|test|log|tool; collapse_gates: cascade|high_cardinality|content_similarity
+disposition: COLLAPSED_DUPLICATES|CONFIRMATION|DIVERGENCE; evidence: ACTIVE never discarded
 
-## BUG_FIX_SCHEMA (@BUG_FIX_SCHEMA)
-description: Bug fix chain (@G8)
-symptom: string
-error_test: '{cmd, expect: FAIL, actual}'
-trial_fix: '{change, oracle: PASS}'
-real_fix: '{change, oracle: PASS}'
-targeted_tests: '{cmds: list, result: PASS}'
-status: open | fixed
-
-## CLAIM_LEDGER (@CLAIM_LEDGER)
-description: All claims and epistemic status (REQUIRED for Gate 3)
-claims:
-- id: C1
-  text: string
-  status: Exact | Inferred | Hypothetical | Guess | Unknown
-  falsifier: string (optional, for Hypothetical)
-  reason: string
-  deps: list of claim_ids (EpistemicDAG)
-  evidence: string (for Exact)
-  scope: file:lines (for Exact)
-premises_for_plan: list of claim_ids — MUST ⊆ G (Exact|Inferred)
-open_questions: list of claim_ids — must NOT drive MODIFY
-rules:
-- Unmarked ⇒ Unknown
-- Hypothetical in premises ⇒ plan illegal
-- effective(c) = min(status(c), min(effective(deps))) — weakest-link ceiling
-
-## FRACTAL_GEOMETRY (@FRACTAL_GEOMETRY)
-models:
-  Sierpinski:
-    condition: peaks ≥ 3, or peaks∈{4,8} ∧ orthogonality<0.7
-    desc: triangle subdivision
-  QuadOct:
-    condition: peaks∈{2,4,8} ∧ (4,8 ⇒ orthogonality≥0.7)
-    desc: binary/quad/oct subdivision
-  LSystem:
-    condition: peaks=1 or fallback
-    desc: F→F+F−F grammar walk
-adaptive_tau:
-  formula: N<20 → τ=0.5; else τ=P₇₀({d₁(c,g)}); clamped [0.1, 0.9]
-adaptive_k:
-  formula: k = 1 + ⌊(⌈N/2⌉−1)·min(CV,1.0)⌋; N=0→0, N=1→1, μ=0→k_min
-adaptive_depth:
-  formula: base = 3 if peaks≥4 else 2 if peaks≥2 else 1; depth±1 by coverage≥0.80/≤0.35;
-    clamped [1,3]
-Manhattan_L1: d₁(c,g) = Σₖ|w_c(k)−w_g(k)| — used throughout
-k_medoids: PAM O(N²) for N<100; CLARA sampling min(N,40+2k)×5 reps for N≥100
-orthogonality: ≥0.7→Quad-Oct (independent); <0.7→Sierpinski (interdependent)
-
-## SMOKE_CONTRACT (@SMOKE_CONTRACT)
-description: Pre-implementation smoke test (SMOKE_BEFORE)
-smoke_na: bool|string — if N/A, must justify (e.g. docs/plan-only)
-baseline:
-- label: string
-  cmd: runnable command
-  expected_exit: int (0=success)
-  tolerance: int (optional, default 0)
-  tolerance_reason: required if tolerance>0
-post_checks:
-- label: string
-  cmd: string
-  expected_exit: int
-blast_radius: description of affected files/systems
-validation:
-- ¬smoke_na ⇒ ≥1 baseline check with label+cmd+expected_exit
-- tolerance>0 ⇒ tolerance_reason required
-- '@G4 rejects invalid specs'
+# EXPLORER_GOAL (@EXPLORER_GOAL)
+question: specific; scope: {paths, symbols}; return: [file_paths, line_numbers, signatures]
 
 # Algorithms
 

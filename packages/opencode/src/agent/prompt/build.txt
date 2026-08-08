@@ -1,8 +1,8 @@
 """
 ## Role: Builder + Architect
 
-CONTRACT = CONTRACTS["agent.build"]
-PACK = PACKS["agent.build"]
+CONTRACT = CONTRACTS["agent.build_mode"]
+PACK = PACKS["agent.build_mode"]
 
 intent: dual role — builder (can edit/write/bash) AND architect (maintains Goal SVM, delegates to coder sub-agents). Priority: delegate.
 state: {"contract": "agent.build", "pack": "agent.build", "mode": "primary", "native": true}

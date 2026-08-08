@@ -598,6 +598,66 @@ Product kernel + `reasoning/*` are **host-agnostic**: they must not prescribe or
 
 **Python test suite sync:** Kernel tests live under `prompts_kernel/tests/` (27 files, 481 tests). After SPECS/contract ID changes, update the matching file and run `python -m pytest prompts_kernel/tests/ -q`. The test `test_runtime_contracts_inventory_every_canonical_spec` in `test_runtime.py` validates agent prompt contract IDs.
 
+
+## Kernel Development Workflow
+
+Any kernel modification MUST follow this ordered pipeline:
+
+### 1. Gates Dictionary First
+
+Define rules in `prompts_kernel/27_runtime_dict.py`:
+- Add rule bodies to `RUNTIME_RULES` under the correct gate section (`# G1: GROUND`, `# G7: IMPLEMENT`, etc.)
+- Add gate category to `RUNTIME_RULE_CATEGORIES`
+- Add semantic owner to `RUNTIME_RULE_OWNERS`
+- Add to at least one `RUNTIME_WORKFLOW` (or the precompiled module will reject it)
+
+Rule placement: use embedding similarity (`python -m prompts_kernel.tools.embed`) against existing gate entries to determine optimal gate — NOT intuition.
+
+### 2. Protocol Wires Automatically
+
+The renderer (`28_runtime_render.py`) generates the protocol from the dictionary — no manual protocol editing needed. CC (cross-cutting) rules live in gates, not in a separate @CC_TAIL section. There is ONE protocol.
+
+### 3. Regenerate
+
+```bash
+cd prompts_kernel
+python -c "from _assemble_prompts_kernel import write_precompiled_kernel; write_precompiled_kernel()"
+```
+
+Then assemble the full kernel:
+```bash
+python plans/.../_assemble_full.py   # → reasoning_prompt.txt + .mdc
+```
+
+### 4. Update Tests
+
+- `prompts_kernel/tests/test_runtime.py` — ownership, references, contracts
+- `prompts_kernel/tests/test_gate_dictionary_refs.py` — gate @REF resolution
+- `prompts_kernel/tests/test_prompt_schema.py` — pocket size limits
+
+Run: `python -m pytest prompts_kernel/tests/ -q`
+
+### 5. Diff Against Reference
+
+```bash
+python plans/.../_diff_runtime.py
+```
+
+Verify: same rule count trend, no unexpected removals, gate distribution makes semantic sense.
+
+### 6. Embedding Chain Verification (release gate)
+
+```bash
+python -m prompts_kernel.tools.dictionary --json > semantic_map.json
+python -m prompts_kernel.tools.embed semantic_map.json
+python -m prompts_kernel.tools.flow semantic_map.json
+```
+
+Check: delta < threshold, MAS flow respects gate order, no semantic collisions (cos > 0.95).
+
+### 7. Commit
+
+Single commit with generator sources + generated kernel + test fixes.
 ## Dependency Catalog (MANDATORY)
 
 All shared dependencies MUST be declared in the root `catalog` (`package.json` → `workspaces.catalog`) and referenced as `"catalog:"` in sub-packages. Hardcoded versions in sub-package `package.json` files cause version drift, duplicate installs, and subtle runtime conflicts.

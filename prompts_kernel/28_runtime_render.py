@@ -17,6 +17,16 @@ def render_runtime_kernel(tier: str = "A") -> str:
         cats = RUNTIME_RULE_CATEGORIES if name == "RULES" else None
         lines.extend(_render_runtime_mapping(name, values, cats))
         lines.append("")
+    # Cross-cutting section
+    if RUNTIME_CC_RULES or RUNTIME_CC_TERMS:
+        lines.append("# Cross-Cutting (@CC_TAIL)")
+        if RUNTIME_CC_RULES:
+            lines.append("## CC Rules")
+            lines.extend(_render_runtime_mapping("CC_RULES", RUNTIME_CC_RULES, None))
+        if RUNTIME_CC_TERMS:
+            lines.append("## CC Terms")
+            lines.extend(_render_runtime_mapping("CC_TERMS", RUNTIME_CC_TERMS, None))
+        lines.append("")
     lines.append(render_all_specs(tier=tier))
     text = "\n".join(lines)
     max_bytes = 59_000  # kernel budget — CI gate
@@ -132,13 +142,23 @@ def validate_runtime_contracts(
 
 def validate_runtime_rule_owners(
     rules: Mapping[str, str], owners: Mapping[str, str], terms: Mapping[str, str],
+    cc_rules: Mapping[str, str] | None = None, cc_terms: Mapping[str, str] | None = None,
 ) -> list[str]:
-    """Return deterministic errors when rule ownership is incomplete or invalid."""
+    """Return deterministic errors when rule ownership is incomplete or invalid.
+    
+    Checks both main RULES and CC_RULES, and both TERMS and CC_TERMS.
+    """
     errors: list[str] = []
-    if set(owners) != set(rules):
+    all_rules = dict(rules)
+    all_terms = dict(terms)
+    if cc_rules:
+        all_rules.update(cc_rules)
+    if cc_terms:
+        all_terms.update(cc_terms)
+    if set(owners) != set(all_rules):
         errors.append("every runtime rule must have exactly one owner")
     for rule, owner in owners.items():
-        if owner not in terms:
+        if owner not in all_terms:
             errors.append(f"rule {rule!r} has unknown term owner {owner!r}")
     return sorted(errors)
 

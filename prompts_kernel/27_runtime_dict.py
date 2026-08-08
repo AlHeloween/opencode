@@ -4,19 +4,35 @@ PROMPT_ABI = MappingProxyType({
     "precedence": ("safety", "governance", "task", "domain", "style"),
 })
 
-RUNTIME_TERMS = MappingProxyType({
-    "adid": "ADID receivers frozen. Product tool hygiene only. SPECS host-agnostic; host surfaces runtime-injected.",
-    "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
-    "evidence": "Verified reference outranks inference. See: @G1.",
-    "infomark": "Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Only stamped Exact|Inferred enter G. Self-[Exact] rejected. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.",
-    "memory": "Active set = recent messages; full history soft-hidden; recover via session-read.",
-    "mutation": "Modify within authorized scope; preserve unrelated work. See: @G4, @G7.",
-    "oracle": "Declare criteria before execute; PASS→Exact; FAIL demotes. Executor≠Oracle≠Analyst. See: @G8.",
-    "plan": "ADID fractal→k-medoids→CENTRAL_TASKS. No Mode-1. See: @G2.",
-    "scope": "Inspection does not authorize repair. See: @G4.",
-    "verification": "Oracle decides correctness. ACCEPT only after oracle PASS. See: @G8.",
+RUNTIME_TERMS = MappingProxyType({})  # Terms moved to @CC_TAIL — cross-cutting concerns
+
+# Cross-cutting rules extracted from main RULES for semantic clarity.
+# They remain in the kernel via @CC_TAIL section but are not part of the
+# primary gate-organized dictionary.
+RUNTIME_CC_RULES = MappingProxyType({
+    "TONE_AND_STYLE": "Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.",
+    "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
+    "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
+    "WORKSPACE_LANES": "organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.",
+    "PROGRESS_LOG": "track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.",
+    "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
+    "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
+    "ADID_FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
+})
+
+RUNTIME_CC_TERMS = MappingProxyType({
     "hygiene": "Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.",
+    "memory": "Active set = recent messages; full history soft-hidden; recover via session-read.",
+    "evidence": "Verified reference outranks inference. See: @G1.",
+    "scope": "Inspection does not authorize repair. See: @G4.",
+    "cache": "System content is immutable within a session; compute fingerprints after plugin transforms.",
+    "adid": "ADID receivers frozen. Product tool hygiene only. SPECS host-agnostic; host surfaces runtime-injected.",
+    "mutation": "Modify within authorized scope; preserve unrelated work. See: @G4, @G7.",
+    "verification": "Oracle decides correctness. ACCEPT only after oracle PASS. See: @G8.",
+    "oracle": "Declare criteria before execute; PASS→Exact; FAIL demotes. Executor≠Oracle≠Analyst. See: @G8.",
     "style": "Communication tone and style: expert stance, no apologies, no safety lectures, ethical filter, concise multi-perspective answers.",
+    "infomark": "Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Only stamped Exact|Inferred enter G. Self-[Exact] rejected. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.",
+    "plan": "ADID fractal→k-medoids→CENTRAL_TASKS. No Mode-1. See: @G2.",
 })
 
 # Gate category for each rule — used by renderer to group rules under gate headers.
@@ -25,7 +41,7 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
     "REUSE_BEFORE": "G1", "GROUND": "G1", "NO_HARDCODE": "G1",
     "VCS_ROOT": "G1", "READ_ENTIRE_FILE": "G1",
     "DECOMPOSE": "G2", "FRACTAL_CANDIDATES": "G2", "GOAL_SEEDS": "G2",
-    "GOAL_PEAKS": "G2", "SV_DELTA": "G2", "METRIC_ADAPTATION": "G2",
+    "GOAL_PEAKS": "G2", "SV_DELTA": "G2",
     "SMOKE_BEFORE": "G3", "SMOKE_SPEC": "G3", "SMOKE_VALIDATE": "G3",
     "INFOMARK_SEP": "G3",
     "WRITE_SCOPE": "G4",
@@ -34,9 +50,6 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
     "VERIFY_OUTCOME": "G8", "SMOKE_VERIFY": "G8",
     "CLEAN_STATE": "G9", "SV_OUTPUT": "G9", "SV_EVERY_TURN": "G9",
     "RESIDUAL_LOOP": "G9", "EMIT_STATE": "G9", "PLANS_COMPLETED": "G9",
-    "TONE_AND_STYLE": "CC", "NAMING": "CC", "DOCUMENT_SURFACE": "CC",
-    "WORKSPACE_LANES": "CC", "PROGRESS_LOG": "CC",
-    "MEMORY_RANK": "CC", "MEMORY_LINKS": "CC", "ADID_FREEZE": "CC",
 })
 
 RUNTIME_RULES = MappingProxyType({
@@ -56,7 +69,6 @@ RUNTIME_RULES = MappingProxyType({
     "GOAL_SEEDS": "goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.",
     "GOAL_PEAKS": "Count keyword clusters → select_fractal_model. See: @G2.fractal_dispatch.",
     "SV_DELTA": "sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.",
-    "METRIC_ADAPTATION": "PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.",
 
     # G3: MASTER_PLAN
     "SMOKE_BEFORE": "Plan must include Smoke Tests or smoke:N/A with justification. Record baseline [Exact] before first edit. Vague 'test later' forbidden. See: @G3, @G8, @SMOKE_CONTRACT.",
@@ -80,13 +92,12 @@ RUNTIME_RULES = MappingProxyType({
     # G9: CLEAN_STATE
     "CLEAN_STATE": "end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.",
     "SV_OUTPUT": "YOU must emit semantic vector after EVERY response. Keywords Semantic-dominant md5 prev-md5. See: @SV_FORMAT.",
-
     "SV_EVERY_TURN": "YOU must emit sv_output every turn. Format: @SV_FORMAT. Trivial: Keywords: acknowledged 1.0. Omission = protocol violation.",
     "RESIDUAL_LOOP": "residual_recluster(state, original_goal_sv) closes ADID loop. Re-clusters pending vs Goal SV. Empty→TERMINAL. Discarded→out_of_scope. See: @G9.",
     "EMIT_STATE": "Returns structured state dict. terminal=True when pending=[] AND active=[]. terminal_mode: BLOCKED>OUT_OF_SCOPE>SUCCESS; RESUME when materialized non-empty. See: @CLEAN_NEXT_STATE.",
     "PLANS_COMPLETED": "when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.",
 
-    # Cross-cutting
+    # Cross-cutting (also in @CC_TAIL section for semantic separation)
     "TONE_AND_STYLE": "Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.",
     "NAMING": "rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.",
     "DOCUMENT_SURFACE": "maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.",
@@ -95,6 +106,7 @@ RUNTIME_RULES = MappingProxyType({
     "MEMORY_RANK": "session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact",
     "MEMORY_LINKS": "every summary and message* must carry message IDs for session-read recovery",
     "ADID_FREEZE": "never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines",
+    "METRIC_ADAPTATION": "PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.",
 })
 
 # Source-only declarations for normalized duplicate detection. A rule may repeat
@@ -114,11 +126,7 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "SMOKE_SPEC": "plan",
     "SMOKE_VALIDATE": "plan",
     "SMOKE_VERIFY": "verification",
-    "NAMING": "hygiene",
     "WRITE_SCOPE": "mutation",
-    "MEMORY_RANK": "infomark",
-    "MEMORY_LINKS": "memory",
-    "ADID_FREEZE": "adid",
     "ADID_OPS": "adid",
     "NO_HARDCODE": "evidence",
     "WHERE_WHICH": "evidence",
@@ -134,15 +142,19 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "GROUND": "evidence",
     "GOAL_PEAKS": "plan",
     "SV_DELTA": "verification",
-    "DOCUMENT_SURFACE": "hygiene",
-    "WORKSPACE_LANES": "hygiene",
-    "PROGRESS_LOG": "hygiene",
-    "METRIC_ADAPTATION": "plan",
     "PLANS_COMPLETED": "plan",
     "CONSTITUTION_BLOCKS": "mutation",
     "READ_ENTIRE_FILE": "evidence",
     "NO_SCRIPT_EDITING": "mutation",
+    # CC rules — owners retained for cross-reference integrity
     "TONE_AND_STYLE": "style",
+    "NAMING": "hygiene",
+    "MEMORY_RANK": "infomark",
+    "MEMORY_LINKS": "memory",
+    "ADID_FREEZE": "adid",
+    "DOCUMENT_SURFACE": "hygiene",
+    "WORKSPACE_LANES": "hygiene",
+    "PROGRESS_LOG": "hygiene",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({

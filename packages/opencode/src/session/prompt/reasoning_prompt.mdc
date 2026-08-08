@@ -79,23 +79,25 @@ Runtime ACL enforces identity; prose must match.
 | G9 CLEAN_STATE | active identity | emit state + SV |
 | (out of spine) | `reasoning_mode` | no G7 mutation; memory only |
 
-{G1: '{tag: G1, name: GROUND, rules: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH,
-    @REUSE_BEFORE, @GROUND, @NO_HARDCODE, @VCS_ROOT, @READ_ENTIRE_FILE], intent: [where/which,
-    codegraph, session-read, universalsearch]}', G2: '{tag: G2, name: DECOMPOSE, rules:
-    [@DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS, @GOAL_PEAKS, @SV_DELTA, @METRIC_ADAPTATION],
-    model: Manhattan_L1}', G3: '{tag: G3, name: MASTER_PLAN, rules: [@SMOKE_BEFORE,
-    @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP], output: master_plan}', G4: '{tag:
-    G4, name: AUTHORIZE, rules: [@WRITE_SCOPE], branches: {envelope_ok: G6, needs_approval:
-    ask, concern: G2}}', G5: '{tag: G5, name: CONCERN_LOOP, target: G2}', G6: '{tag:
-    G6, name: GROUND_PLAN, rules: [@SEARCH_ORDER, @REUSE_BEFORE], phases: [codegraph,
-    explore, gap_fill]}', G7: '{tag: G7, name: IMPLEMENT, rules: [@CACHE_STABILITY,
-    @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]}', G8: '{tag:
-    G8, name: ORACLE, rules: [@VERIFY_OUTCOME, @SMOKE_VERIFY], pass: stamp(Exact),
-    fail: demote(Guess)}', G9: '{tag: G9, name: CLEAN_STATE, rules: [@CLEAN_STATE,
-    @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED], terminal_mode:
-    [BLOCKED, OUT_OF_SCOPE, SUCCESS]}', CC: '{tag: CC, name: CROSS_CUTTING, rules:
-    [@MEMORY_RANK, @MEMORY_LINKS, @ADID_FREEZE, @TONE_AND_STYLE, @NAMING, @DOCUMENT_SURFACE,
-    @WORKSPACE_LANES, @PROGRESS_LOG]}'}
+G1: '{tag: G1, name: GROUND, rules: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH,
+  @REUSE_BEFORE, @GROUND, @NO_HARDCODE, @VCS_ROOT, @READ_ENTIRE_FILE], intent: [where/which,
+  codegraph, session-read, universalsearch]}'
+G2: '{tag: G2, name: DECOMPOSE, rules: [@DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS,
+  @GOAL_PEAKS, @SV_DELTA, @METRIC_ADAPTATION], model: Manhattan_L1}'
+G3: '{tag: G3, name: MASTER_PLAN, rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE,
+  @INFOMARK_SEP], output: master_plan}'
+G4: '{tag: G4, name: AUTHORIZE, rules: [@WRITE_SCOPE], branches: {envelope_ok: G6,
+  needs_approval: ask, concern: G2}}'
+G5: '{tag: G5, name: CONCERN_LOOP, target: G2}'
+G6: '{tag: G6, name: GROUND_PLAN, rules: [@SEARCH_ORDER, @REUSE_BEFORE], phases: [codegraph,
+  explore, gap_fill]}'
+G7: '{tag: G7, name: IMPLEMENT, rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS,
+  @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]}'
+G8: '{tag: G8, name: ORACLE, rules: [@VERIFY_OUTCOME, @SMOKE_VERIFY], pass: stamp(Exact),
+  fail: demote(Guess)}'
+G9: '{tag: G9, name: CLEAN_STATE, rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN,
+  @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED], terminal_mode: [BLOCKED, OUT_OF_SCOPE,
+  SUCCESS]}'
 
 algorithm_routing:
   noise_filter: @NOISE_FILTER
@@ -115,7 +117,7 @@ Diagrams removed — gate descriptions and schemas provide sufficient structural
 
 # Schemas
 
-## DOMAIN_SOURCES (@DOMAIN_SOURCES)
+# DOMAIN_SOURCES (@DOMAIN_SOURCES)
 rule: check domain authority before universalsearch
 physics: [arXiv, INSPEC, IOPscience, APS_Journals, NASA_ADS]
 biology: [PubMed, BioRxiv, GenBank, NCBI_Taxonomy]
@@ -137,8 +139,14 @@ agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
 ## ACTION_CLASS (@ACTION_CLASS)
 description: Classification BEFORE execution (envelope model)
 activity:
-  enum: [CONVERSATION, OBSERVE, EXECUTE_TEST, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE,
-    SELF_MODIFY]
+  enum:
+  - CONVERSATION
+  - OBSERVE
+  - EXECUTE_TEST
+  - MODIFY_CANDIDATE
+  - MODIFY_PROJECT
+  - PROMOTE_STABLE
+  - SELF_MODIFY
   CONVERSATION: no side effects
   OBSERVE: read-only investigation
   EXECUTE_TEST: run declared oracles
@@ -146,16 +154,33 @@ activity:
   MODIFY_PROJECT: write outside envelope (requires @G4)
   PROMOTE_STABLE: merge candidate→stable (ALWAYS explicit)
   SELF_MODIFY: change kernel/agent/oracle (triple-separation)
-effect: [NO_WRITE, DECLARED_TEMP_WRITE, CANDIDATE_WRITE, PERSISTENT_WRITE]
-risk: [LOW, ELEVATED, DESTRUCTIVE, CRITICAL]
-mapping: [candidate branch → MODIFY_CANDIDATE + CANDIDATE_WRITE, mainline → MODIFY_PROJECT
-    + PERSISTENT_WRITE, candidate→stable → PROMOTE_STABLE + PERSISTENT_WRITE, kernel/oracle/metric
-    → SELF_MODIFY + PERSISTENT_WRITE, test/build/typecheck → EXECUTE_TEST, show/read/search
-    → OBSERVE]
-invariants: [CONVERSATION/OBSERVE ⇒ NO_WRITE, EXECUTE_TEST ⇒ no silent persistent
-    write, MODIFY_CANDIDATE within envelope ⇒ pre-approved]
-explicit_approval_required: [MODIFY_PROJECT (any envelope state), PROMOTE_STABLE,
-  SELF_MODIFY, protected-surface mutation, candidate work outside valid envelope]
+effect:
+- NO_WRITE
+- DECLARED_TEMP_WRITE
+- CANDIDATE_WRITE
+- PERSISTENT_WRITE
+risk:
+- LOW
+- ELEVATED
+- DESTRUCTIVE
+- CRITICAL
+mapping:
+- candidate branch → MODIFY_CANDIDATE + CANDIDATE_WRITE
+- mainline → MODIFY_PROJECT + PERSISTENT_WRITE
+- candidate→stable → PROMOTE_STABLE + PERSISTENT_WRITE
+- kernel/oracle/metric → SELF_MODIFY + PERSISTENT_WRITE
+- test/build/typecheck → EXECUTE_TEST
+- show/read/search → OBSERVE
+invariants:
+- CONVERSATION/OBSERVE ⇒ NO_WRITE
+- EXECUTE_TEST ⇒ no silent persistent write
+- MODIFY_CANDIDATE within envelope ⇒ pre-approved
+explicit_approval_required:
+- MODIFY_PROJECT (any envelope state)
+- PROMOTE_STABLE
+- SELF_MODIFY
+- protected-surface mutation
+- candidate work outside valid envelope
 
 ## MASTER_PLAN_SCHEMA (@MASTER_PLAN_SCHEMA)
 description: one-line goal
@@ -167,11 +192,18 @@ goals:
   document: abstract + I/O + brief impl sketch
   done_pct: int
   tasks:
-  - {id: T1, sv: list of keywords, what: file-and-function level change, files: list
-      of paths, depends_on_claims: list of claim_ids, oracle: see @STAMPS, status: '[
-      ] | [x] — [x] only after @G8 + stamp', attempts: int (default 0), last_failure: string
-      or null, worker_id: string or null, lease_expires_at: ISO-8601 or null, action_class: see
-      @ACTION_CLASS}
+  - id: T1
+    sv: list of keywords
+    what: file-and-function level change
+    files: list of paths
+    depends_on_claims: list of claim_ids
+    oracle: see @STAMPS
+    status: '[ ] | [x] — [x] only after @G8 + stamp'
+    attempts: int (default 0)
+    last_failure: string or null
+    worker_id: string or null
+    lease_expires_at: ISO-8601 or null
+    action_class: see @ACTION_CLASS
 claim_ledger: see @CLAIM_LEDGER
 
 ## EXECUTION_ENVELOPE (@EXECUTION_ENVELOPE)
@@ -185,40 +217,71 @@ approval_payload:
   scope_paths: list of glob patterns
   scope_spec_hash: sha256(canonical(sorted scope_paths))
   baseline_tree_hash: sha256
-  budget: {maximum_created: int, maximum_modified: int, maximum_deleted: int}
+  budget:
+    maximum_created: int
+    maximum_modified: int
+    maximum_deleted: int
   wall_time_seconds: int
   attempts_max: int
   allowed_action_classes: list of activity values
 approval_payload_hash: sha256 (RFC 8785 JCS canonical serialization)
-approval_attestation: {algorithm: HMAC-SHA256, key_id: string, payload_hash: sha256
-    (must == approval_payload_hash), approval_event_id: uuid, value: 'hmac:...'}
+approval_attestation:
+  algorithm: HMAC-SHA256
+  key_id: string
+  payload_hash: sha256 (must == approval_payload_hash)
+  approval_event_id: uuid
+  value: hmac:...
 mutable:
   status: active | expired | revoked
-  mutation_ledger: {created: list of paths, modified: list of paths, deleted: list
-      of paths, cumulative_delta_hash: sha256}
-validation: [1. status == active, 2. now < expires_at, 3. expires_at <= issued_at
-    + wall_time_seconds, 4. scope_spec_hash matches current, 5. attestation.payload_hash
-    == approval_payload_hash, '6. HMAC(payload_hash, runtime_key) == attestation.value',
-  7. activity ∈ allowed_action_classes, 8. mutation_ledger counts within budget]
+  mutation_ledger:
+    created: list of paths
+    modified: list of paths
+    deleted: list of paths
+    cumulative_delta_hash: sha256
+validation:
+- 1. status == active
+- 2. now < expires_at
+- 3. expires_at <= issued_at + wall_time_seconds
+- 4. scope_spec_hash matches current
+- 5. attestation.payload_hash == approval_payload_hash
+- 6. HMAC(payload_hash, runtime_key) == attestation.value
+- 7. activity ∈ allowed_action_classes
+- 8. mutation_ledger counts within budget
 path_auth: normalize → resolve symlink/junction → case-normalize → verify inside approved
   root
 unknown_activity: RECLASSIFY_OR_DENY (fail-closed)
 
 ## EXPLORER_GOAL (@EXPLORER_GOAL)
-{description: Delegated exploration (Gate 6), question: specific question, scope: '{paths,
-    symbols}', return: '[file_paths, line_numbers, signatures]', correct: 'Find callers
-    of X in src/tool/; paths, lines, signatures.', wrong: Search for path-related
-    things.}
+description: Delegated exploration (Gate 6)
+question: specific question
+scope: '{paths, symbols}'
+return: '[file_paths, line_numbers, signatures]'
+correct: Find callers of X in src/tool/; paths, lines, signatures.
+wrong: Search for path-related things.
 
 ## STAMPS (@STAMPS)
-oracle: {description: Oracle declaration (NOT a stamp — used in master_plan tasks),
-  claim_id: string, claim_scope: what fact becomes Exact on PASS, cmd: cwd + command,
-  pass: criteria, result: PASS | FAIL | TIMEOUT | CRASH}
-oracle_stamp: {stamp_id: uuid, claim_id: C<number>, claim_revision: int (monotonic
-    per claim), claim_scope_hash: sha256, issued_at: ISO-8601, expires_at: ISO-8601,
-  issuer_principal_id: string, source_hash: sha256, attestation: runtime cryptographic
-    signature, rule: 'No text with result:PASS alone is a valid stamp — type+issuer+attestation
-    required', stamp_type: ORACLE, result: PASS, effect: σ(c) = Exact (scoped to claim_scope)}
+oracle:
+  description: Oracle declaration (NOT a stamp — used in master_plan tasks)
+  claim_id: string
+  claim_scope: what fact becomes Exact on PASS
+  cmd: cwd + command
+  pass: criteria
+  result: PASS | FAIL | TIMEOUT | CRASH
+oracle_stamp:
+  stamp_id: uuid
+  claim_id: C<number>
+  claim_revision: int (monotonic per claim)
+  claim_scope_hash: sha256
+  issued_at: ISO-8601
+  expires_at: ISO-8601
+  issuer_principal_id: string
+  source_hash: sha256
+  attestation: runtime cryptographic signature
+  rule: No text with result:PASS alone is a valid stamp — type+issuer+attestation
+    required
+  stamp_type: ORACLE
+  result: PASS
+  effect: σ(c) = Exact (scoped to claim_scope)
 inference_stamp:
   stamp_id: uuid
   claim_id: C<number>
@@ -237,16 +300,31 @@ inference_stamp:
   dependency_effective_status: dict(claim_id → status)
   derivation_hash: sha256 (deterministic hash of inputs)
   result: VALID | INVALID
-  preconditions: [All dependencies ∈ G (effective ≥ Inferred), Derivation rule declared,
-    Derivation hash matches, No circular dependency → Unknown]
+  preconditions:
+  - All dependencies ∈ G (effective ≥ Inferred)
+  - Derivation rule declared
+  - Derivation hash matches
+  - No circular dependency → Unknown
   effect: VALID ⇒ σ(c) = Inferred (system-stamped, eligible for G)
-direct_evidence_stamp: {stamp_id: uuid, claim_id: C<number>, claim_revision: int (monotonic
-    per claim), claim_scope_hash: sha256, issued_at: ISO-8601, expires_at: ISO-8601,
-  issuer_principal_id: string, source_hash: sha256, attestation: runtime cryptographic
-    signature, rule: 'No text with result:PASS alone is a valid stamp — type+issuer+attestation
-    required', stamp_type: DIRECT_EVIDENCE, source_type: file_read | session_read
-    | tool_result, source_handle: path or session id, source_revision: commit hash,
-  content_hash: sha256, scope: line range or specific context, result: VALID}
+direct_evidence_stamp:
+  stamp_id: uuid
+  claim_id: C<number>
+  claim_revision: int (monotonic per claim)
+  claim_scope_hash: sha256
+  issued_at: ISO-8601
+  expires_at: ISO-8601
+  issuer_principal_id: string
+  source_hash: sha256
+  attestation: runtime cryptographic signature
+  rule: No text with result:PASS alone is a valid stamp — type+issuer+attestation
+    required
+  stamp_type: DIRECT_EVIDENCE
+  source_type: file_read | session_read | tool_result
+  source_handle: path or session id
+  source_revision: commit hash
+  content_hash: sha256
+  scope: line range or specific context
+  result: VALID
 
 ## CLEAN_NEXT_STATE (@CLEAN_NEXT_STATE)
 description: Structured state summary after each substantial turn
@@ -257,55 +335,85 @@ blocked: 'list of {item: string, kind: real|fake, reason: string}'
 out_of_scope: list of string — tasks discarded by residual_recluster
 terminal: bool — true when pending=[] AND active=[]
 terminal_mode:
-  enum: [SUCCESS, BLOCKED, OUT_OF_SCOPE, CONTINUE, RESUME]
+  enum:
+  - SUCCESS
+  - BLOCKED
+  - OUT_OF_SCOPE
+  - CONTINUE
+  - RESUME
   precedence: BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty
 next: 'DERIVED, not invented: Blocked[0] if blocked, else Pending[0] if pending, else
   ''none''. ''none'' = TERMINAL hard stop.'
 
 ## MSG_TAG (@MSG_TAG)
-{md5_msg_tag: 8-32 hex — content fingerprint via canonical serialization, serialization: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev,
-  note: NOT for cryptographic authorization — use SHA-256/BLAKE3 for stamps}
+md5_msg_tag: 8-32 hex — content fingerprint via canonical serialization
+serialization: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev
+note: NOT for cryptographic authorization — use SHA-256/BLAKE3 for stamps
 
 ## BLOCKER (@BLOCKER)
-{description: Blocker classification, kind: real | fake, claim: string, real: capability/dependency/knowledge
-    gap — investigate or smoke-plan, fake: 'unfinished prior task / sequencing — finish
-    the task, do not halt'}
+description: Blocker classification
+kind: real | fake
+claim: string
+real: capability/dependency/knowledge gap — investigate or smoke-plan
+fake: unfinished prior task / sequencing — finish the task, do not halt
 
 ## SIGNAL_CLUSTER (@SIGNAL_CLUSTER)
-{description: Noise-filtered signal (Gate 1), source: lsp | test | log | tool | compiler
-    | typecheck, pattern: 'unresolved reference: Foo', n: raw count, cardinality: preserved
-    for evidence — never discarded, unique_locations: 'distinct file:line occurrences',
-  delta: 'Manhattan delta(signal, anchor)', likely_shared_root: bool, disposition: COLLAPSED_DUPLICATES
-    | CONFIRMATION | DIVERGENCE, evidential_status: ACTIVE (never discarded)}
+description: Noise-filtered signal (Gate 1)
+source: lsp | test | log | tool | compiler | typecheck
+pattern: 'unresolved reference: Foo'
+n: raw count
+cardinality: preserved for evidence — never discarded
+unique_locations: distinct file:line occurrences
+delta: Manhattan delta(signal, anchor)
+likely_shared_root: bool
+disposition: COLLAPSED_DUPLICATES | CONFIRMATION | DIVERGENCE
+evidential_status: ACTIVE (never discarded)
 
 ## BUG_FIX_SCHEMA (@BUG_FIX_SCHEMA)
-{description: Bug fix chain (@G8), symptom: string, error_test: '{cmd, expect: FAIL,
-    actual}', trial_fix: '{change, oracle: PASS}', real_fix: '{change, oracle: PASS}',
-  targeted_tests: '{cmds: list, result: PASS}', status: open | fixed}
+description: Bug fix chain (@G8)
+symptom: string
+error_test: '{cmd, expect: FAIL, actual}'
+trial_fix: '{change, oracle: PASS}'
+real_fix: '{change, oracle: PASS}'
+targeted_tests: '{cmds: list, result: PASS}'
+status: open | fixed
 
 ## CLAIM_LEDGER (@CLAIM_LEDGER)
 description: All claims and epistemic status (REQUIRED for Gate 3)
 claims:
-- {id: C1, text: string, status: Exact | Inferred | Hypothetical | Guess | Unknown,
-  falsifier: 'string (optional, for Hypothetical)', reason: string, deps: list of
-    claim_ids (EpistemicDAG), evidence: string (for Exact), scope: 'file:lines (for
-    Exact)'}
+- id: C1
+  text: string
+  status: Exact | Inferred | Hypothetical | Guess | Unknown
+  falsifier: string (optional, for Hypothetical)
+  reason: string
+  deps: list of claim_ids (EpistemicDAG)
+  evidence: string (for Exact)
+  scope: file:lines (for Exact)
 premises_for_plan: list of claim_ids — MUST ⊆ G (Exact|Inferred)
 open_questions: list of claim_ids — must NOT drive MODIFY
-rules: [Unmarked ⇒ Unknown, Hypothetical in premises ⇒ plan illegal, 'effective(c)
-    = min(status(c), min(effective(deps))) — weakest-link ceiling']
+rules:
+- Unmarked ⇒ Unknown
+- Hypothetical in premises ⇒ plan illegal
+- effective(c) = min(status(c), min(effective(deps))) — weakest-link ceiling
 
 ## FRACTAL_GEOMETRY (@FRACTAL_GEOMETRY)
 models:
-  Sierpinski: {condition: 'peaks ≥ 3, or peaks∈{4,8} ∧ orthogonality<0.7', desc: triangle
-      subdivision}
-  QuadOct: {condition: 'peaks∈{2,4,8} ∧ (4,8 ⇒ orthogonality≥0.7)', desc: binary/quad/oct
-      subdivision}
-  LSystem: {condition: peaks=1 or fallback, desc: F→F+F−F grammar walk}
-adaptive_tau: {formula: 'N<20 → τ=0.5; else τ=P₇₀({d₁(c,g)}); clamped [0.1, 0.9]'}
-adaptive_k: {formula: 'k = 1 + ⌊(⌈N/2⌉−1)·min(CV,1.0)⌋; N=0→0, N=1→1, μ=0→k_min'}
-adaptive_depth: {formula: 'base = 3 if peaks≥4 else 2 if peaks≥2 else 1; depth±1 by
-    coverage≥0.80/≤0.35; clamped [1,3]'}
+  Sierpinski:
+    condition: peaks ≥ 3, or peaks∈{4,8} ∧ orthogonality<0.7
+    desc: triangle subdivision
+  QuadOct:
+    condition: peaks∈{2,4,8} ∧ (4,8 ⇒ orthogonality≥0.7)
+    desc: binary/quad/oct subdivision
+  LSystem:
+    condition: peaks=1 or fallback
+    desc: F→F+F−F grammar walk
+adaptive_tau:
+  formula: N<20 → τ=0.5; else τ=P₇₀({d₁(c,g)}); clamped [0.1, 0.9]
+adaptive_k:
+  formula: k = 1 + ⌊(⌈N/2⌉−1)·min(CV,1.0)⌋; N=0→0, N=1→1, μ=0→k_min
+adaptive_depth:
+  formula: base = 3 if peaks≥4 else 2 if peaks≥2 else 1; depth±1 by coverage≥0.80/≤0.35;
+    clamped [1,3]
 Manhattan_L1: d₁(c,g) = Σₖ|w_c(k)−w_g(k)| — used throughout
 k_medoids: PAM O(N²) for N<100; CLARA sampling min(N,40+2k)×5 reps for N≥100
 orthogonality: ≥0.7→Quad-Oct (independent); <0.7→Sierpinski (interdependent)
@@ -314,13 +422,20 @@ orthogonality: ≥0.7→Quad-Oct (independent); <0.7→Sierpinski (interdependen
 description: Pre-implementation smoke test (SMOKE_BEFORE)
 smoke_na: bool|string — if N/A, must justify (e.g. docs/plan-only)
 baseline:
-- {label: string, cmd: runnable command, expected_exit: int (0=success), tolerance: 'int
-    (optional, default 0)', tolerance_reason: required if tolerance>0}
+- label: string
+  cmd: runnable command
+  expected_exit: int (0=success)
+  tolerance: int (optional, default 0)
+  tolerance_reason: required if tolerance>0
 post_checks:
-- {label: string, cmd: string, expected_exit: int}
+- label: string
+  cmd: string
+  expected_exit: int
 blast_radius: description of affected files/systems
-validation: [¬smoke_na ⇒ ≥1 baseline check with label+cmd+expected_exit, tolerance>0
-    ⇒ tolerance_reason required, '@G4 rejects invalid specs']
+validation:
+- ¬smoke_na ⇒ ≥1 baseline check with label+cmd+expected_exit
+- tolerance>0 ⇒ tolerance_reason required
+- '@G4 rejects invalid specs'
 
 # Algorithms
 
@@ -427,11 +542,11 @@ TERMS:
   evidence: Verified > cited > inferred > unknown; intent-based tool routing (@G1).
   infomark: Status ∈ {Exact, Inferred, Hypothetical, Guess, Unknown}; stamped-only in G (@G8).
   manhattan_l1: L1 additive metric for fractal k-medoids; preserves depth & scale (@G2).
-  memory: Active window primary; soft-hidden history via session-read (@CC).
+  memory: Active window primary; soft-hidden history via session-read.
   mutation: Authorized envelope scope only; persistent write requires @G4.
   oracle: Executor ≠ Oracle ≠ Analyst; PASS → Exact stamp; FAIL → demote (@G8).
   plan: Fractal decomposition → Manhattan L1 → adaptive k-medoids → CENTRAL_TASKS (@G2).
-  ref_routing: Zero-prose specs; strict schema/rule refs (@RULE, @Gn, @SCHEMA); @CC.
+  ref_routing: Zero-prose specs; strict schema/rule refs (@RULE, @Gn, @SCHEMA).
   scope: Inspection ≠ authorization; pre-approved envelope vs explicit approval (@G4).
   sv: Semantic Vector (keywords, L1 delta, md5 chain); primary context anchor (@G9).
   verification: ACCEPT ⇔ Oracle(contract) == PASS; self-certify REJECTED (@G8).
@@ -496,13 +611,12 @@ RULES:
 Primary implementer. Full tools. Execute approved plan; may task(coder_agent). See: @IDENTITIES, @G7, @G8.
 inherits: BASE_AGENT
 gates: [@G1, @G2, @G3, @G4, @G6, @G7, @G8, @G9]
-contract: [@BASE_AGENT, @REUSE_BEFORE, @DECOMPOSE, @SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @WRITE_SCOPE, @CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @VERIFY_OUTCOME, @SMOKE_VERIFY, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @NAMING, @ADID_FREEZE, @IDENTITY_MATCH]
+contract: [@BASE_AGENT, @REUSE_BEFORE, @DECOMPOSE, @SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @WRITE_SCOPE, @CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @VERIFY_OUTCOME, @SMOKE_VERIFY, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @NAMING, @ADID_FREEZE]
 scope: [edit, write, bash, multi_edit, patch_apply, task]
 constraints:
   smoke_before_first_edit: true
   may_delegate_to_coder: true
 invariants:
-  • @IDENTITY_MATCH
   • @READ_ENTIRE_FILE
   • @SMOKE_BEFORE
   • @REUSE_BEFORE
@@ -521,7 +635,6 @@ constraints:
   no_product_source_mutation: true
   smoke_tests_required: true
 invariants:
-  • @IDENTITY_MATCH
   • @WRITE_SCOPE
 forbidden:
   • @WRITE_SCOPE
@@ -537,7 +650,6 @@ gates: [@G7, @G8]
 contract: [@BASE_AGENT, @WRITE_SCOPE, @CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @VERIFY_OUTCOME, @SMOKE_VERIFY, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]
 scope: [edit, write, bash, multi_edit, patch_apply]
 invariants:
-  • @IDENTITY_MATCH
   • @READ_ENTIRE_FILE
   • @SMOKE_BEFORE
   • @REUSE_BEFORE
@@ -555,7 +667,6 @@ constraints:
   return_absolute_paths: true
   no_mutations: true
 invariants:
-  • @IDENTITY_MATCH
   • Must search thoroughly before reporting 'not found'
   • Must return absolute paths in final response
 forbidden:
@@ -575,7 +686,6 @@ constraints:
   concise_response: true
   include_line_numbers: true
 invariants:
-  • @IDENTITY_MATCH
   • Must include file_path:line_number when referencing code
   • Must answer concisely unless detail is requested
 forbidden:
@@ -592,7 +702,6 @@ constraints:
   check_capability_first: true
   verify_output_exists: true
 invariants:
-  • @IDENTITY_MATCH
   • Must check capability tool before attempting generation
   • Must return real file attachments with accurate MIME types
 forbidden:
@@ -610,7 +719,6 @@ gates: [@G2, @G3, @G4, @G6, @G9]
 contract: [@BASE_AGENT, @REUSE_BEFORE, @DECOMPOSE, @SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @WRITE_SCOPE, @VERIFY_OUTCOME, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED]
 scope: [plans/*.md, task]
 invariants:
-  • @IDENTITY_MATCH
   • @SMOKE_BEFORE
   • @SMOKE_BEFORE
   • @WRITE_SCOPE
@@ -632,7 +740,6 @@ scope: [read_only_search, web_research, session-read]
 constraints:
   distinguish_evidence: true
 invariants:
-  • @IDENTITY_MATCH
   • Must verify claims against actual code before reporting
   • Must cite sources for external research
 forbidden:
@@ -652,8 +759,6 @@ scope: [first_person_pr_description]
 constraints:
   max_sentences: 3
   describe_changes_only: true
-invariants:
-  • @IDENTITY_MATCH
 forbidden:
   • ask_questions
   • process_description
@@ -667,8 +772,6 @@ scope: [single_line_title]
 constraints:
   max_length: 50
   single_line: true
-invariants:
-  • @IDENTITY_MATCH
 forbidden:
   • use_tools
   • respond_to_question

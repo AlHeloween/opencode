@@ -280,7 +280,6 @@ algorithm_routing:
   invariants: [@G4, @G7]
   bug_fix: @BUG_FIX_CHAIN
   claim: [@G8, @G9]
-  oracle: [@G8, @G9]
 
 # Diagrams
 
@@ -408,6 +407,7 @@ flowchart LR
   E -->|oracle FAIL| G
   U -.->|FORBIDDEN self-Exact| X[rejected]
 ```
+(includes former CLAIM_PROMOTION_DIAGRAM — merged, semantic duplicate cos=0.956)
 
 ## ORACLE_FLOW (@ORACLE_FLOW)
 ```mermaid
@@ -418,17 +418,6 @@ flowchart LR
   R -->|PASS| St["oracle_stamp claim_id"]
   St --> Ex["system: sigma=Exact"]
   R -->|FAIL| Dem["demote Exact->Guess; no stamp"]
-```
-
-## CLAIM_PROMOTION_DIAGRAM (@CLAIM_PROMOTION_DIAGRAM)
-```mermaid
-flowchart LR
-  U[Unknown] -->|web/code search| G[Guess]
-  G -->|falsifier declared + code/web confirm| H[Hypothetical]
-  H -->|all deps in G + acyclic| I[Inferred]
-  I -->|oracle PASS| E[Exact]
-  E -->|oracle FAIL| G
-  U -.->|FORBIDDEN self-tag| X[REJECTED]
 ```
 
 # Schemas
@@ -703,7 +692,6 @@ direct_evidence_stamp:
   source_handle: path or session id
   source_revision: commit hash
   content_hash: sha256
-  scope: line range or specific context
   result: VALID
 
 ## CLEAN_NEXT_STATE (@CLEAN_NEXT_STATE)
@@ -767,8 +755,6 @@ claims:
   falsifier: string (optional, for Hypothetical)
   reason: string
   deps: list of claim_ids (EpistemicDAG)
-  evidence: string (for Exact)
-  scope: file:lines (for Exact)
 premises_for_plan: list of claim_ids — MUST ⊆ G (Exact|Inferred)
 open_questions: list of claim_ids — must NOT drive MODIFY
 rules:
@@ -846,6 +832,7 @@ PARAMETER_ADAPTATION: auto within bounds (percentile, window). METRIC_FAMILY_CHA
 Requires: branch + holdout + oracle + promotion. quality_threshold: 0.5.
 invariant: Adaptive tuning ≠ evaluator mutation.
 Diagram: @METRIC_GOVERNANCE_DIAGRAM.
+Also covers: METRIC_ADAPTATION — PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. (merged, semantic duplicate cos=0.930)
 
 ## BUG_FIX_CHAIN (@BUG_FIX_CHAIN)
 stages: ERROR_TEST → TRIAL_FIX → REAL_FIX → TARGETED_TESTS → DONE.
@@ -913,23 +900,10 @@ Flow: 1. DECLARE in @MASTER_PLAN_SCHEMA (@SMOKE_BEFORE), 2. materialize, 3. RUN,
 ## Recover Facts
 @def: RECOVER_FACTS
 
-
 PROMPT_ABI:
   precedence: [@safety, @governance, @task, @domain, @style]
 
 TERMS:
-  adid: ADID receivers frozen. Product tool hygiene only. SPECS host-agnostic; host surfaces runtime-injected.
-  cache: System content is immutable within a session; compute fingerprints after plugin transforms.
-  evidence: Verified reference outranks inference. See: @G1.
-  infomark: Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Only stamped Exact|Inferred enter G. Self-[Exact] rejected. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.
-  memory: Active set = recent messages; full history soft-hidden; recover via session-read.
-  mutation: Modify within authorized scope; preserve unrelated work. See: @G4, @G7.
-  oracle: Declare criteria before execute; PASS→Exact; FAIL demotes. Executor≠Oracle≠Analyst. See: @G8.
-  plan: ADID fractal→k-medoids→CENTRAL_TASKS. No Mode-1. See: @G2.
-  scope: Inspection does not authorize repair. See: @G4.
-  verification: Oracle decides correctness. ACCEPT only after oracle PASS. See: @G8.
-  hygiene: Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.
-  style: Communication tone and style: expert stance, no apologies, no safety lectures, ethical filter, concise multi-perspective answers.
 
 RULES:
   # ── G1 ──
@@ -947,7 +921,6 @@ RULES:
   GOAL_SEEDS: goal_seeds(goal, evidence) extracts meaning-true goal slices: keyword extraction -> co-occurrence clustering -> seed vectors (capped at 8). Replaces manual seed selection.
   GOAL_PEAKS: Count keyword clusters → select_fractal_model. See: @G2.fractal_dispatch.
   SV_DELTA: sv_delta(current_sv, previous_sv) computes L1 semantic distance between two SV states (keyword→weight dicts). Returns float in [0,2]: [0.0,0.3)→L-System (stable), [0.3,0.6)→Quad-Oct (moderate shift), [0.6,2.0]→Sierpinski (large shift). Neutral 0.5 if SV missing.
-  METRIC_ADAPTATION: PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.
   # ── G3 ──
   SMOKE_BEFORE: Plan must include Smoke Tests or smoke:N/A with justification. Record baseline [Exact] before first edit. Vague 'test later' forbidden. See: @G3, @G8, @SMOKE_CONTRACT.
   SMOKE_SPEC: smoke_before_spec(task) generates a SMOKE_BEFORE template: {smoke_na, baseline[], post_checks[], blast_radius}. Agent fills in concrete runnable commands before @G4 approval. Blast radius inferred from task keywords.
@@ -971,14 +944,6 @@ RULES:
   EMIT_STATE: Returns structured state dict. terminal=True when pending=[] AND active=[]. terminal_mode: BLOCKED>OUT_OF_SCOPE>SUCCESS; RESUME when materialized non-empty. See: @CLEAN_NEXT_STATE.
   PLANS_COMPLETED: when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.
   # ── CC ──
-  TONE_AND_STYLE: Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.
-  NAMING: rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.
-  DOCUMENT_SURFACE: maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.
-  WORKSPACE_LANES: organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.
-  PROGRESS_LOG: track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.
-  MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
-  MEMORY_LINKS: every summary and message* must carry message IDs for session-read recovery
-  ADID_FREEZE: never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines
 
 # Tier B (commands) live on command surfaces — not identity.
 
@@ -1322,3 +1287,31 @@ acceptance:
   • Agent answers from current conversation without invoking any tools
   • Agent declines to answer when information is not in current window
   • Agent offers reasoning_exit when tools would be needed
+
+# Cross-Cutting (@CC_TAIL)
+
+## CC Rules
+
+  TONE_AND_STYLE: Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.
+  NAMING: rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.
+  DOCUMENT_SURFACE: maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.
+  WORKSPACE_LANES: organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.
+  PROGRESS_LOG: track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.
+  MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
+  MEMORY_LINKS: every summary and message* must carry message IDs for session-read recovery
+  ADID_FREEZE: never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines
+
+## CC Terms
+
+  hygiene: Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.
+  memory: Active set = recent messages; full history soft-hidden; recover via session-read.
+  evidence: Verified reference outranks inference. See: @G1.
+  scope: Inspection does not authorize repair. See: @G4.
+  cache: System content is immutable within a session; compute fingerprints after plugin transforms.
+  adid: ADID receivers frozen. Product tool hygiene only. SPECS host-agnostic; host surfaces runtime-injected.
+  mutation: Modify within authorized scope; preserve unrelated work. See: @G4, @G7.
+  verification: Oracle decides correctness. ACCEPT only after oracle PASS. See: @G8.
+  oracle: Declare criteria before execute; PASS→Exact; FAIL demotes. Executor≠Oracle≠Analyst. See: @G8.
+  style: Communication tone and style: expert stance, no apologies, no safety lectures, ethical filter, concise multi-perspective answers.
+  infomark: Claim-local status Exact|Inferred|Hypothetical|Guess|Unknown. Only stamped Exact|Inferred enter G. Self-[Exact] rejected. See: @EPISTEMIC_LADDER, @CLAIM_LEDGER.
+  plan: ADID fractal→k-medoids→CENTRAL_TASKS. No Mode-1. See: @G2.

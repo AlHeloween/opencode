@@ -84,7 +84,7 @@ POCKET_PROTOCOL_MAX_BYTES = {
     # v8: raised 55_000→60_000 for IDENTITIES + GATE_IDENTITY_DISPATCH +
     # BUILD_MODE/PLAN_MODE SPECS and *_agent renames.
     "reasoning_prompt.mdc": 60_000,
-    "reasoning_prompt.txt": 60_000,
+    "reasoning_prompt.txt": 65_000,  # +@CC_TAIL +3 new rules
     # Mode tails are one-line identity + @SPEC pointers (not prose law).
     "build.txt": 512,
     "plan.txt": 512,

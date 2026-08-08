@@ -950,7 +950,6 @@ RULES:
   # ── G8 ──
   VERIFY_OUTCOME: declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done
   SMOKE_VERIFY: smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. @G8: only PASS promotes to Done.
-  OBSOLETE_CLEANUP: When removing obsolete code: first verify with smoke tests that the code path is truly unused, then remove it, update all documentation references, and commit atomically with clear commit message. Never leave dead code annotated with TODO or FIXME — either schedule it for active work or remove it immediately.
   # ── G9 ──
   CLEAN_STATE: end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.
   SV_OUTPUT: YOU must emit semantic vector after EVERY response. Keywords Semantic-dominant md5 prev-md5. See: @SV_FORMAT.
@@ -958,29 +957,20 @@ RULES:
   RESIDUAL_LOOP: residual_recluster(state, original_goal_sv) closes ADID loop. Re-clusters pending vs Goal SV. Empty→TERMINAL. Discarded→out_of_scope. See: @G9.
   EMIT_STATE: Returns structured state dict. terminal=True when pending=[] AND active=[]. terminal_mode: BLOCKED>OUT_OF_SCOPE>SUCCESS; RESUME when materialized non-empty. See: @CLEAN_NEXT_STATE.
   PLANS_COMPLETED: when all tasks in a plan reach Done (or terminal with no pending/active), the plan file MUST be moved from the working directory to plans_completed/ immediately. This is a hard procedure gate — leaving completed plans in the working directory after state emission is a violation. A plan is 'completed' when emit_state reports terminal=True and terminal_mode ∈ {SUCCESS, BLOCKED, OUT_OF_SCOPE}.
-  TONE_AND_STYLE: Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.
-  NAMING: rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.
-  DOCUMENT_SURFACE: maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.
-  WORKSPACE_LANES: organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.
-  PROGRESS_LOG: track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.
-  MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
-  MEMORY_LINKS: every summary and message* must carry message IDs for session-read recovery
-  ADID_FREEZE: never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines
   METRIC_ADAPTATION: PARAMETER_ADAPTATION auto-tunes within bounds. METRIC_FAMILY_CHANGE requires governance: branch+holdout+oracle+promotion. Adaptive tuning ≠ evaluator mutation. See: @METRIC_GOVERNANCE.
 
 # Cross-Cutting (@CC_TAIL)
 ## CC Rules
 CC_RULES:
-  TONE_AND_STYLE: Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic → separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.
-  NAMING: rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified — no legacy dotted namespace remains. Rule key references in WORKFLOWS, CONTRACTS, and OWNERS must match exactly (including case). No aliases, no fuzzy matching. The exact count of rules is len(RULES) — never hardcoded in prose.
+  CODE_STANDARDS: Follow language-specific coding standards: PEP 8 for Python, StandardJS/ESLint for TypeScript, gofmt for Go. Use project-configured linters and formatters. Consistency with existing codebase style takes precedence over personal preference.
   DOCUMENT_SURFACE: maintain doc surface: docs/ (detailed), DOCINDEX.md (owners/entrypoints/last_verified), index.md (folder-based repo map). Update when adding or moving files.
-  WORKSPACE_LANES: organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.
-  PROGRESS_LOG: track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.
-  MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
+  FRAMEWORK_INHERITANCE: Build framework-oriented code: inherit and extend existing abstractions rather than rewriting. Use polymorphism and dependency injection. Do not duplicate working patterns. Breaking changes to established interfaces require explicit approval.
   MEMORY_LINKS: every summary and message* must carry message IDs for session-read recovery
-  ADID_FREEZE: never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines
-  CODE_STANDARDS: Follow language-specific coding standards: PEP 8 for Python, StandardJS/ESLint for TypeScript, gofmt for Go. Use project-configured linters and formatters. Consistency with existing codebase style takes precedence over personal preference. Never bypass project lint rules without explicit approval.
-  FRAMEWORK_INHERITANCE: Build framework-oriented code: inherit and extend existing abstractions rather than rewriting. Use polymorphism and dependency injection. Do not duplicate working patterns — extract shared logic into base classes or utility functions. Breaking changes to established interfaces require explicit approval and migration plans.
+  MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
+  NAMING: rule identifiers use UPPER_SNAKE_CASE with underscore '_' delimiter. Dots '.' and hyphens '-' are forbidden. All rules are fully underscore-unified. Rule key references must match exactly. No aliases, no fuzzy matching. The exact count of rules is len(RULES).
+  PROGRESS_LOG: track progress: _development_plan.md (goals+tasks with [x] checks), _progress_log.md ([TIMESTAMP] activity -> script -> output), _application_workflow_diagram.md (modules->functions->I/O map). Update after each non-trivial change.
+  TONE_AND_STYLE: Act as expert, no hedging. No apologies or disclaimers. No safety lectures unless asked. Ethical filter: omit non-compliant content, label (Filtered). Understand question intent before answering. Multi-topic -> separate per topic. Accurate, unique, multi-perspective, concise. Verified sources with links. Fractal perspectives when applicable. No time-ambiguous claims.
+  WORKSPACE_LANES: organize by purpose: experiments/ (ad-hoc scratch), futures/ (drafts not ready), obsolete/ (deprecated refs), makeups/ (explicit stubs). Never mix throwaway with mainline.
 ## CC Terms
 CC_TERMS:
   hygiene: Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.

@@ -1,4 +1,80 @@
-"""Kernel fragment: 24_specs_policies — compact policy specifications."""
+#!/usr/bin/env python3
+"""Apply compact DSL to schemas and policy specs."""
+import os, re
+
+PROJECT = r'D:\zPython\opencode'
+
+# === 1. Update core_schemas.yaml schemas ===
+path = os.path.join(PROJECT, 'prompts_kernel', 'core_schemas.yaml')
+with open(path) as f: c = f.read()
+
+# Replace from # SEMANTIC VECTOR through end of bug_fix
+old_start = c.find('\n# SEMANTIC VECTOR (SV)')
+old_end = c.find('\nexplorer_goal:')
+if old_end == -1: old_end = c.find('\n# DOMAIN SOURCES')
+
+compact_schemas = '''
+# SCHEMAS — compact DSL
+
+sv_output:
+  tag: SV_OUTPUT_SCHEMA
+  see: "@SV_FORMAT"
+
+clean_next_state:
+  tag: CLEAN_NEXT_STATE
+  done: [{item: str, mark: EpistemicStatus}]
+  pending: [str]
+  blocked: [{item: str, kind: real|fake, reason: str}]
+  terminal: bool
+  terminal_mode: enum[SUCCESS, BLOCKED, OUT_OF_SCOPE, CONTINUE, RESUME]
+  next: DERIVED from Blocked[0] else Pending[0] else 'none'
+
+blocker:
+  tag: BLOCKER
+  kind: real|fake
+  real: capability/dependency/knowledge gap
+  fake: unfinished prior task — finish, do not halt
+
+task_statuses:
+  tag: TASK_STATUSES
+  enum: [pending, in_progress, materialized, blocked, done, out_of_scope]
+  transitions: {pending:[in_progress,out_of_scope], in_progress:[materialized,blocked,pending], materialized:[done,blocked,pending], blocked:[pending]}
+
+ACTION_CLASS: {activity: enum[CONVERSATION,OBSERVE,EXECUTE_TEST,MODIFY_CANDIDATE,MODIFY_PROJECT,PROMOTE_STABLE,SELF_MODIFY], effect: enum[NO_WRITE,DECLARED_TEMP_WRITE,CANDIDATE_WRITE,PERSISTENT_WRITE], risk: enum[LOW,ELEVATED,DESTRUCTIVE,CRITICAL]}
+
+EXECUTION_ENVELOPE: {id: uuid, scope: [glob], budget: {created: int, modified: int, deleted: int}, expires_at: ISO8601, hmac: str, auth: @G4}
+
+MASTER_PLAN_SCHEMA: {goal: str, premises: [claim_id], tasks: [{id: T_num, what: str, oracle: @STAMPS, status: enum['[ ]','[x]']}], ledger: @CLAIM_LEDGER}
+
+CLAIM_LEDGER: {claims: [{id: C_num, text: str, status: enum[Unknown,Guess,Hypothetical,Inferred,Exact], deps: [C_num], evidence: str}], premises: [C_num]}
+
+STAMPS: {oracle_stamp: {claim: C_num, scope_hash: sha256, attestation: hmac, result: PASS -> Exact}, inference_stamp: {claim: C_num, deps: [C_num], result: VALID -> Inferred}}
+
+SMOKE_CONTRACT: {smoke_na: bool|str, baseline: [{label: str, cmd: str, expected_exit: int}], post_checks: [{cmd: str}], blast_radius: str}
+
+CLEAN_NEXT_STATE: {done: [{item: str, mark: EpistemicStatus}], pending: [str], blocked: [{item: str, reason: str}], terminal: bool, next: str}
+
+SIGNAL_CLUSTER: {source: str, pattern: str, n: int, delta: float, disposition: enum[COLLAPSED_DUPLICATES,CONFIRMATION,DIVERGENCE]}
+
+BUG_FIX_SCHEMA: {symptom: str, error_test: {cmd: str, expect: FAIL}, real_fix: {change: str, oracle: PASS}, status: enum[open,fixed]}
+
+FRACTAL_GEOMETRY: {model: enum[Sierpinski,QuadOct,LSystem], tau: float, k: int, depth: int, metric: Manhattan_L1}
+
+MSG_TAG: {md5_msg_tag: 8-32 hex, serialization: canonical}
+
+EXPLORER_GOAL: {question: str, scope: {paths: [str], symbols: [str]}, return: [file_paths, line_numbers, signatures]}
+'''
+
+c = c[:old_start] + compact_schemas
+with open(path, 'w') as f: f.write(c)
+print('Updated core_schemas.yaml schemas')
+
+# === 2. Update 24_specs_policies.py ===
+path = os.path.join(PROJECT, 'prompts_kernel', '24_specs_policies.py')
+with open(path) as f: c = f.read()
+
+# Replace policy specs with compact versions
+compact_policies = '''"""Kernel fragment: 24_specs_policies — compact policy specifications."""
 
 ADID_FRAMEWORK_RULES = _spec(
     state={"kind": "policy"},
@@ -69,3 +145,7 @@ REASONING_MODE = _spec(
     forbidden_actions=["Using any tool", "Accessing database or file system", "Searching message history beyond current window", "Making claims about facts not present in current conversation", "Guessing or inventing information not in current memory"],
     acceptance_tests=["Agent answers from current conversation without invoking any tools", "Agent declines to answer when information is not in current window", "Agent offers reasoning_exit when tools would be needed"],
 )
+'''
+
+with open(path, 'w') as f: f.write(compact_policies)
+print('Updated 24_specs_policies.py')

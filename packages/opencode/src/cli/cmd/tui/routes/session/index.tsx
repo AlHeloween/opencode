@@ -803,36 +803,14 @@ export function Session() {
       },
       onSelect: async (dialog) => {
         dialog.clear()
-        const messageID = session()?.revert?.messageID
-        if (!messageID) return
-        const message = messages().find((x) => x.role === "user" && x.id > messageID)
-        if (!message) {
-          await sdk.client.session
-            .unrevert(
-              { sessionID: route.sessionID },
-              { throwOnError: true },
-            )
-            .then(() => {
-              prompt?.set({ input: "", parts: [] })
-            })
-            .catch((error) => {
-              const msg = errorMessage(error)
-              Log.Default.warn("bug: session unrevert failed", { error: msg })
-              toast.show({ message: `Redo failed: ${msg}`, variant: "error" })
-            })
-          return
-        }
         await sdk.client.session
-          .revert(
-            {
-              sessionID: route.sessionID,
-              messageID: message.id,
-            },
-            { throwOnError: true },
-          )
+          .unrevert({ sessionID: route.sessionID }, { throwOnError: true })
+          .then(() => {
+            prompt?.set({ input: "", parts: [] })
+          })
           .catch((error) => {
             const msg = errorMessage(error)
-            Log.Default.warn("bug: session revert (redo) failed", { error: msg })
+            Log.Default.warn("bug: session unrevert failed", { error: msg })
             toast.show({ message: `Redo failed: ${msg}`, variant: "error" })
           })
       },

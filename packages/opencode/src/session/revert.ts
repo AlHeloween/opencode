@@ -1,5 +1,4 @@
 import { Effect, Layer, Context, Schema } from "effect"
-import path from "path"
 import { Bus } from "../bus"
 import { Snapshot } from "../snapshot"
 import * as SnapshotFossil from "../snapshot/fossil"
@@ -13,8 +12,6 @@ import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID, PartID } from "./schema"
 import { SessionRunState } from "./run-state"
 import { SessionSummary } from "./summary"
-import { AppFileSystem } from "@opencode-ai/core/filesystem"
-import { Global } from "@opencode-ai/core/global"
 
 const log = Log.create({ service: "session.revert" })
 
@@ -42,7 +39,6 @@ export const layer = Layer.effect(
     const bus = yield* Bus.Service
     const summary = yield* SessionSummary.Service
     const state = yield* SessionRunState.Service
-    const afs = yield* AppFileSystem.Service
 
     const revert = Effect.fn("SessionRevert.revert")(function* (input: RevertInput) {
       yield* state.assertNotBusy(input.sessionID)
@@ -76,54 +72,6 @@ export const layer = Layer.effect(
 
       if (!rev) return session
 
-      // Collect affected files from patches for conflict detection
-      const affectedFiles = patches.flatMap((p) => p.files)
-
-      // Check for manual edits via .bak file comparison
-      const conflicts: { file: string; bakFile: string }[] = []
-      const bakDir = path.join(Global.Path.data, "backups", input.sessionID)
-      const bakDirExists = yield* afs.existsSafe(bakDir).pipe(Effect.catch(() => Effect.succeed(false)))
-      if (bakDirExists && affectedFiles.length > 0) {
-        const entries = yield* afs.readDirectory(bakDir).pipe(Effect.catch(() => Effect.succeed([] as string[])))
-        const bakFiles = entries.filter((e) => e.endsWith(".bak"))
-
-        // Build map: originalPath -> latest .bak file
-        const bakMap = new Map<string, string>()
-        for (const filename of bakFiles.sort()) {
-          const metaPath = path.join(bakDir, filename + ".meta.json")
-          yield* afs
-            .readFileString(metaPath)
-            .pipe(
-              Effect.map((text) => {
-                const meta = JSON.parse(text) as { originalPath: string }
-                if (meta.originalPath) bakMap.set(meta.originalPath, filename)
-              }),
-              Effect.catch(() => Effect.void),
-            )
-        }
-
-        for (const file of affectedFiles) {
-          const bakFile = bakMap.get(file)
-          if (!bakFile) continue
-          const currentContent = yield* afs.readFileString(file).pipe(Effect.catch(() => Effect.succeed(null)))
-          if (currentContent === null) continue
-          const bakContent = yield* afs
-            .readFileString(path.join(bakDir, bakFile))
-            .pipe(Effect.catch(() => Effect.succeed(null)))
-          if (bakContent === null) continue
-          if (currentContent.replaceAll("\r\n", "\n") !== bakContent.replaceAll("\r\n", "\n")) {
-            conflicts.push({ file, bakFile })
-          }
-        }
-
-        if (conflicts.length > 0) {
-          log.warn("files modified since assistant changes", {
-            count: conflicts.length,
-            files: conflicts.map((c) => c.file),
-          })
-        }
-      }
-
       // I-2: FRESH redo anchor = current fossil leaf BEFORE this undo.
       // Multi-undo: push previous op_id frame onto redo_stack so redo walks
       // forward through leaves (T0 ← T1 ← T2 undo, then T0 → T1 → T2 redo).
@@ -149,14 +97,10 @@ export const layer = Layer.effect(
         // I-1: one full Fossil leaf = earliest patch hash (structure of that checkin).
         // Not per-file mix — renames/moves/deletes must match the leaf exactly.
         const targetHash = patches[0]!.hash
-        const preserveFiles = conflicts.map((c) => c.file)
-        yield* snap.revertTo(targetHash, {
-          preserveFiles: preserveFiles.length ? preserveFiles : undefined,
-        })
+        yield* snap.revertTo(targetHash)
       }
 
       rev.diff = yield* snap.diff(anchor)
-      if (conflicts.length > 0) rev.conflicts = conflicts
       const range = all.filter((msg) => msg.info.id >= rev!.messageID)
       const diffs = yield* summary.computeDiff({ messages: range })
       yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
@@ -270,7 +214,6 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Storage.defaultLayer),
     Layer.provide(Bus.layer),
     Layer.provide(SessionSummary.defaultLayer),
-    Layer.provide(AppFileSystem.defaultLayer),
   ),
 )
 

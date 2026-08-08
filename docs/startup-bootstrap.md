@@ -141,12 +141,13 @@ External plugins from config can dominate startup if install is required. Intern
 
 ## Snapshot vs project VCS vs TUI indicator
 
-Three different systems — easy to confuse:
+Three control systems — easy to confuse; the TUI footer is display-only:
 
 | System | Backend | Role |
 |--------|---------|------|
 | **Snapshot (agent undo / “Modified Files”)** | **Fossil only** (`snapshot/fossil.ts`) | Sidecar `{data}/fossil/{projectID}/snapshot.fsl`; track / full-leaf undo-redo / diffs. Honors `.gitignore` via ignore-glob. Binary: [tools-and-sidecars.md](tools-and-sidecars.md) §4.1. **Full semantics:** [fossil-snapshot.md](fossil-snapshot.md). |
 | **Project VCS** (`project/vcs.ts`) | **Git** (when `project.vcs === "git"`) | Branch name, agent git-facing diffs — **source control**, not the undo timeline. |
+| **Point edit recovery** (`restore`) | **`.bak`** under `{data}/backups/{sessionID}/` | Restores the pre-edit content of one file. It does not read or modify Git, Fossil, `/undo`, or `/redo`. |
 | **TUI footer indicator** | `vcs-indicator.ts`: `.jj` → fossil sidecar/`_FOSSIL_`/`_fossil` → `.git` | Display only (jj blue, fossil green, git red). Fossil wins when the **sidecar** exists even without an open marker — a git monorepo still shows green fossil for agent undo. |
 
 `Snapshot.Service` is provided only via `SnapshotFossil.defaultLayer`. Fossil deliberately does not pack `.git`, `.jj`, or Fossil checkout markers into the sidecar.
@@ -154,6 +155,8 @@ Three different systems — easy to confuse:
 ### Undo/redo (leaf navigation)
 
 Session undo materializes one **checkin leaf** (`revertTo`), not a mix of per-file hashes. After checkout, only agent-owned extras (paths that were in pre-checkout `fossil ls`) are removed so tree structure matches the leaf; user-only untracked files stay. Multi-level redo uses `session.revert.redo_stack`. Corrupt reinit writes `HISTORY_INVALID.json` and fails loud on old hashes. Details: [fossil-snapshot.md](fossil-snapshot.md).
+
+`.bak` is intentionally outside this flow: it is read only by `restore` for a one-file pre-edit recovery.
 
 ### Git vs Fossil must stay decoupled
 

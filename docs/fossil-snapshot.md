@@ -63,7 +63,7 @@ Session undo uses **`revertTo(targetHash)`** = full leaf only.
 | **Undo** to message `M` | Collect `patch` parts after `M`. Target leaf = `patches[0].hash` (tree **before** earliest undone agent step). Fresh `checkpoint()` → `op_id` / `snapshot` (redo anchor). |
 | **Multi-level undo** | Previous `op_id` frames push onto `session.revert.redo_stack`. |
 | **Redo (unrevert)** | `checkout(op_id)`; if `redo_stack` non-empty, pop next frame; else clear revert. |
-| **Conflicts** | User edits vs `.bak` → `preserveFiles` after checkout; on write failure, roll back to pre-leaf. |
+| **Isolation** | Does not read or write edit `.bak` files. The `restore` tool owns point recovery from pre-edit backups. |
 
 Patch parts (written by processor after track) store:
 

@@ -142,56 +142,11 @@ execution_envelope:
 # STAMPS
 stamps:
   tag: STAMPS
-  _base: &stamp_base
-    stamp_id: uuid
-    claim_id: "C<number>"
-    claim_revision: "int (monotonic per claim)"
-    claim_scope_hash: sha256
-    issued_at: ISO-8601
-    expires_at: ISO-8601
-    issuer_principal_id: string
-    source_hash: sha256
-    attestation: "runtime cryptographic signature"
-    rule: "No text with result:PASS alone is a valid stamp — type+issuer+attestation required"
-
-  oracle:
-    description: "Oracle declaration (NOT a stamp — used in master_plan tasks)"
-    claim_id: string
-    claim_scope: "what fact becomes Exact on PASS"
-    cmd: "cwd + command"
-    pass: "criteria"
-    result: "PASS | FAIL | TIMEOUT | CRASH"
-
-  oracle_stamp:
-    <<: *stamp_base
-    stamp_type: ORACLE
-    result: PASS
-    effect: "σ(c) = Exact (scoped to claim_scope)"
-
-  inference_stamp:
-    <<: *stamp_base
-    stamp_type: INFERENCE
-    derivation_rule: "which rule produced this claim"
-    dependencies: "list of claim_ids"
-    dependency_effective_status: "dict(claim_id → status)"
-    derivation_hash: "sha256 (deterministic hash of inputs)"
-    result: "VALID | INVALID"
-    preconditions:
-      - "All dependencies ∈ G (effective ≥ Inferred)"
-      - "Derivation rule declared"
-      - "Derivation hash matches"
-      - "No circular dependency → Unknown"
-    effect: "VALID ⇒ σ(c) = Inferred (system-stamped, eligible for G)"
-
-  direct_evidence_stamp:
-    <<: *stamp_base
-    stamp_type: DIRECT_EVIDENCE
-    source_type: "file_read | session_read | tool_result"
-    source_handle: "path or session id"
-    source_revision: "commit hash"
-    content_hash: sha256
-    scope: "line range or specific context"
-    result: VALID
+  oracle_decl: "{claim: C_num, scope: str, cmd: str, criteria: str, res: enum[PASS, FAIL, TIMEOUT, CRASH]}"
+  oracle_stamp: "{id: uuid, claim: C_num, scope_hash: sha256, attestation: hmac} -> sigma(c)=Exact"
+  inference_stamp: "{id: uuid, claim: C_num, deps: [C_num], rule: str, derivation_hash: sha256} -> sigma(c)=Inferred"
+  evidence_stamp: "{id: uuid, claim: C_num, source: handle, content_hash: sha256} -> sigma(c)=Exact"
+  invariant: "unverified_exact_rejected; require_type_and_attestation; oracle_fail_demotes_to_guess"
 
 # CLAIM LEDGER
 claim_ledger:

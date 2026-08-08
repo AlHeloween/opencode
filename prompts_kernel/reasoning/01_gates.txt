@@ -1,4 +1,64 @@
-@schema: gates
+# GATED WORKFLOW
+
+spine: [@G1, @G2, @G3, @G4, @G5, @G6, @G7, @G8, @G9]
+rules: anti_skip_mandatory; resolve_refs_only; sha256_stamps_required
+
+## Gates
+
+G1_GROUND:
+  identity: [build_mode, plan_mode]
+  rules: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH, @REUSE_BEFORE, @GROUND, @NO_HARDCODE, @VCS_ROOT, @READ_ENTIRE_FILE, @MEMORY_RANK, @MEMORY_LINKS]
+  schemas: [@ACTION_CLASS, @SIGNAL_CLUSTER]
+  intent: {exec: where/which, struct: codegraph, conv: session-read, api: universalsearch}
+
+G2_DECOMPOSE:
+  identity: [plan_mode, build_mode]
+  rules: [@DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS, @GOAL_PEAKS, @SV_DELTA, @METRIC_ADAPTATION]
+  geometry: @FRACTAL_GEOMETRY
+  invariant: CENTRAL_TASKS=medoids_only
+
+G3_MASTER_PLAN:
+  identity: [plan_mode]
+  rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP, @NAMING]
+  schemas: [@MASTER_PLAN_SCHEMA, @CLAIM_LEDGER]
+  output: master_plan (premises subset of G Exact|Inferred)
+
+G4_AUTHORIZE:
+  identity: [build_mode, plan_mode]
+  rules: [@WRITE_SCOPE]
+  schemas: [@EXECUTION_ENVELOPE, @ACTION_CLASS]
+  branches:
+    A: MODIFY_CANDIDATE and valid_envelope -> G6
+    B: PROMOTE_STABLE or SELF_MODIFY -> ask_approval
+    C: MODIFY_PROJECT -> present_contract_ask
+
+G5_CONCERN_LOOP:
+  identity: [plan_mode, build_mode]
+  action: user_objection -> return_to_G2 -> re_ask_G4
+
+G6_GROUND_PLAN:
+  identity: task(explorer_agent) | build_mode
+  rules: [@SEARCH_ORDER, @REUSE_BEFORE, @DOCUMENT_SURFACE, @CODE_STANDARDS]
+  phases: [Phase0:codegraph_map, Phase1:bounded_explore, Phase2:gap_fill]
+
+G7_IMPLEMENT:
+  identity: build_mode | task(coder_agent)
+  rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE, @WORKSPACE_LANES, @ADID_FREEZE, @FRAMEWORK_INHERITANCE]
+  schemas: [@EXECUTION_ENVELOPE]
+  hard_gate: premises not subset of G -> block_write
+
+G8_ORACLE:
+  identity: same_as_implementer
+  rules: [@VERIFY_OUTCOME, @SMOKE_VERIFY, @OBSOLETE_CLEANUP]
+  schemas: [@STAMPS, @BUG_FIX_SCHEMA]
+  on_pass: mint_oracle_stamp(sha256) -> sigma(c)=Exact
+  on_fail: demote -> Guess (no_stamp)
+
+G9_CLEAN_STATE:
+  identity: active_identity
+  rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @METRIC_ADAPTATION, @PROGRESS_LOG, @TONE_AND_STYLE]
+  schemas: [@CLEAN_NEXT_STATE, @MSG_TAG, @BLOCKER]
+  terminal_modes: [BLOCKED, OUT_OF_SCOPE, SUCCESS]
 
 algorithm_routing:
   noise_filter: @NOISE_FILTER

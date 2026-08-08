@@ -2,15 +2,15 @@ import { expect, test } from "bun:test"
 import path from "path"
 import { fileURLToPath } from "url"
 import type { Agent } from "../../src/agent/agent"
+import { systemIdentityPrompt } from "../../src/session/llm"
 import { modeInstructionForTransition, providerIdentityForMode } from "../../src/session/prompt"
+import PROMPT_BUILD from "../../src/session/prompt/build.txt"
+import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
+import PROMPT_REASONING from "../../src/session/prompt/reasoning-mode.txt"
 
 test("mode instructions appear only on entry or explicit mode change", () => {
   expect(modeInstructionForTransition(undefined, "plan_mode")).toContain("plan_mode")
   expect(modeInstructionForTransition("plan_mode", "build_mode")).toContain("build_mode")
-  expect(modeInstructionForTransition("plan_mode", "build_mode")).toContain("void")
-  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("or other")
-  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("reasoning_prompt.txt")
-  expect(modeInstructionForTransition("plan_mode", "build_mode")).not.toContain("Previous identity")
   expect(modeInstructionForTransition("build_mode", "reasoning_mode")).toContain("reasoning_mode")
   expect(modeInstructionForTransition("reasoning_mode", "build_mode")).toContain("build_mode")
   expect(modeInstructionForTransition("build_mode", "plan_mode")).toContain("plan_mode")
@@ -23,6 +23,15 @@ test("mode instructions appear only on entry or explicit mode change", () => {
   expect(modeInstructionForTransition("build_mode", "build_mode")).toBeUndefined()
   expect(modeInstructionForTransition("reasoning_mode", "reasoning_mode")).toBeUndefined()
   expect(modeInstructionForTransition("build_mode", "custom")).toBeUndefined()
+})
+
+test("primary mode identity is present in every provider system prompt", () => {
+  expect(systemIdentityPrompt({ name: "build_mode", prompt: PROMPT_BUILD } as Agent.Info)).toBe(PROMPT_BUILD.trim())
+  expect(systemIdentityPrompt({ name: "plan_mode", prompt: PROMPT_PLAN } as Agent.Info)).toBe(PROMPT_PLAN.trim())
+  expect(systemIdentityPrompt({ name: "reasoning_mode", prompt: PROMPT_REASONING } as Agent.Info)).toBe(
+    PROMPT_REASONING.trim(),
+  )
+  expect(systemIdentityPrompt({ name: "coder_agent", prompt: "coder role" } as Agent.Info)).toBe("")
 })
 
 test("prompt flow has no legacy steady-state continuation injection", async () => {

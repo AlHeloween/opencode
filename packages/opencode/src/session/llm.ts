@@ -6,6 +6,7 @@ import { streamText, wrapLanguageModel, type ModelMessage, type Tool, tool, json
 import { mergeDeep, pipe } from "remeda"
 import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 import { ProviderTransform } from "@/provider/transform"
+import { isPrimaryModeIdentity } from "./mode-identity"
 import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
@@ -241,6 +242,16 @@ export type StreamInput = {
   checkpoint?: boolean
 }
 
+/**
+ * Stable identity capsule for primary modes. This reaches every provider request,
+ * including the first turn after compaction, instead of relying on a compactable
+ * conversation-tail reminder.
+ */
+export function systemIdentityPrompt(agent: Pick<Agent.Info, "name" | "prompt">) {
+  if (!isPrimaryModeIdentity(agent.name)) return ""
+  return agent.prompt?.trim() ?? ""
+}
+
 export type StreamRequest = StreamInput & {
   abort: AbortSignal
 }
@@ -314,14 +325,14 @@ const live: Layer.Layer<
 
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
 
-      // agentPrompt empty here — role is synthetic conversation notify (insertReminders).
-      // Do not put per-agent prompt or Active/Inactive tool lines in system (KV break).
+      // The mode capsule is static for a mode era and is part of the checkpoint
+      // identity fingerprint. It is deliberately separate from tool availability.
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
         toolSchemas: toolSchemaText,
         reasoningPrefix,
         kernel,
-        agentPrompt: "",
+        agentPrompt: systemIdentityPrompt(input.agent),
         pathSystem: input.system,
         activeToolsLine: "",
         banner,

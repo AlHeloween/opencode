@@ -28,10 +28,7 @@ export type SystemComposeInput = {
 
   /** Optional kernel tail. Currently empty at runtime (merged into reasoning_prompt.txt). */
   kernel: string
-  /**
-   * @deprecated Prefer conversation role notify. Kept optional for callers;
-   * if set, lands in the **mutable tail only** (never stable path body).
-   */
+  /** Static mode identity capsule in the mutable tail (never the stable path body). */
   agentPrompt: string
   /**
    * Path-level system entries from prompt.ts.
@@ -70,7 +67,7 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
   if (input.toolSchemas) system.push(input.toolSchemas)
 
   // system[3]: Path system only (rules → skills → env → instructions).
-  // Agent role is NOT here — conversation notify keeps path body shared.
+  // Mode identity belongs in the mutable tail so the path body stays shared.
   const path =
     input.checkpoint && input.pathSystem.length > 0
       ? input.pathSystem.slice(1) // drop stored identity prefix
@@ -80,7 +77,7 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
   if (stableBody) system.push(stableBody)
 
   // Mutable tail — never agent tool lists that differ by role.
-  // Optional agentPrompt (legacy) only in tail if callers still pass it.
+  // A static primary-mode identity capsule is safe here for a whole mode era.
   const mutable: string[] = []
   if (input.activeToolsLine) mutable.push(input.activeToolsLine)
   if (input.agentPrompt) mutable.push(input.agentPrompt)

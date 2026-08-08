@@ -16,6 +16,9 @@ import PROMPT_ORCHESTRATOR from "./prompt/orchestrator.txt"
 import PROMPT_RESEARCHER from "./prompt/researcher.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
+import PROMPT_BUILD_MODE from "../session/prompt/build.txt"
+import PROMPT_PLAN_MODE from "../session/prompt/plan.txt"
+import PROMPT_REASONING_MODE from "../session/prompt/reasoning-mode.txt"
 import { Permission } from "@/permission"
 import { Wildcard } from "@/util/wildcard"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
@@ -127,6 +130,7 @@ export const layer = Layer.effect(
           build_mode: {
             name: "build_mode",
             description: "Primary implementer (build_mode). Full tools; executes plans.",
+            prompt: PROMPT_BUILD_MODE,
             options: {},
             permission: Permission.merge(
               defaults,
@@ -144,13 +148,31 @@ export const layer = Layer.effect(
           plan_mode: {
             name: "plan_mode",
             description: "Plan mode (plan_mode). Read-only except writing plan files under plans/.",
+            prompt: PROMPT_PLAN_MODE,
             options: {},
             permission: Permission.merge(
               defaults,
               user,
               Permission.fromConfig({
+                // Default deny is the runtime boundary. Prompt guidance is not an ACL.
+                "*": "deny",
                 question: "allow",
                 plan_exit: "allow",
+                read: "allow",
+                glob: "allow",
+                grep: "allow",
+                list: "allow",
+                "codegraph*": "allow",
+                messagesearch: "allow",
+                "session-read": "allow",
+                universalsearch: "allow",
+                webfetch: "allow",
+                todowrite: "allow",
+                bash: "deny",
+                cmd: "deny",
+                powershell: "deny",
+                run: "deny",
+                task: "deny",
                 "destructive-file": "deny",
                 "destructive-db": "deny",
                 "destructive-git": "deny",
@@ -172,12 +194,13 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
-            subagents: ["explorer_agent"],
+            subagents: [],
           },
           reasoning_mode: {
             name: "reasoning_mode",
             description:
               "Reasoning mode (reasoning_mode). Runtime allows only permanent memory.",
+            prompt: PROMPT_REASONING_MODE,
             options: {},
             permission: Permission.merge(
               defaults,
@@ -278,10 +301,10 @@ export const layer = Layer.effect(
                 grep: "allow",
                 glob: "allow",
                 list: "allow",
-                bash: "allow",
-                cmd: "allow",
-                powershell: "allow",
-                run: "allow",
+                bash: "deny",
+                cmd: "deny",
+                powershell: "deny",
+                run: "deny",
                 webfetch: "allow",
                 universalsearch: "allow",
                 messagesearch: "allow",
@@ -328,10 +351,10 @@ export const layer = Layer.effect(
                 glob: "allow",
                 grep: "allow",
                 list: "allow",
-                bash: "allow",
-                cmd: "allow",
-                powershell: "allow",
-                run: "allow",
+                bash: "deny",
+                cmd: "deny",
+                powershell: "deny",
+                run: "deny",
                 webfetch: "allow",
                 universalsearch: "allow",
                 messagesearch: "allow",

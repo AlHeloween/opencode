@@ -52,7 +52,7 @@ test("build agent has correct default properties", async () => {
   })
 })
 
-test("plan agent denies edits except plans/*", async () => {
+test("plan agent is read-only except for plans/*", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
@@ -60,11 +60,18 @@ test("plan agent denies edits except plans/*", async () => {
       const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
       expect(plan).toBeDefined()
       expect(plan?.mode).toBe("primary")
+      expect(plan?.prompt).toContain("# plan_mode")
       // Wildcard is denied
       expect(evalPerm(plan, "edit")).toBe("deny")
       // But specific path is allowed
       expect(Permission.evaluate("edit", "plans/foo.md", plan!.permission).action).toBe("allow")
       expect(Permission.evaluate("edit", ".opencode/plans/foo.md", plan!.permission).action).toBe("deny")
+      expect(evalPerm(plan, "bash")).toBe("deny")
+      expect(evalPerm(plan, "cmd")).toBe("deny")
+      expect(evalPerm(plan, "powershell")).toBe("deny")
+      expect(evalPerm(plan, "run")).toBe("deny")
+      expect(evalPerm(plan, "task")).toBe("deny")
+      expect(plan?.subagents).toEqual([])
     },
   })
 })
@@ -133,6 +140,10 @@ test("explore agent denies edit and write", async () => {
       expect(explore?.mode).toBe("subagent")
       expect(evalPerm(explore, "edit")).toBe("deny")
       expect(evalPerm(explore, "write")).toBe("deny")
+      expect(evalPerm(explore, "bash")).toBe("deny")
+      expect(evalPerm(explore, "cmd")).toBe("deny")
+      expect(evalPerm(explore, "powershell")).toBe("deny")
+      expect(evalPerm(explore, "run")).toBe("deny")
       expect(evalPerm(explore, "todowrite")).toBe("allow")
     },
   })

@@ -96,7 +96,7 @@ def _section_to_comment_lines(data: object) -> list[str]:
             for i, (h, (k, v)) in enumerate(zip(nested_headers, data.items())):
                 lines.append(h)
                 if v:
-                    raw = yaml.dump(v, default_flow_style=False, allow_unicode=True, sort_keys=False)
+                    raw = yaml.dump(v, default_flow_style=None, allow_unicode=True, sort_keys=False)
                     for line in raw.rstrip("\n").split("\n"):
                         lines.append("  " + line)  # indent under header
             return lines
@@ -107,7 +107,7 @@ def _section_to_comment_lines(data: object) -> list[str]:
         name = data.pop("name", tag)
         lines.append(f"### {name} (@{tag})")
 
-    raw = yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    raw = yaml.dump(data, default_flow_style=None, allow_unicode=True, sort_keys=False)
     for line in raw.rstrip("\n").split("\n"):
         lines.append(line)
     return lines

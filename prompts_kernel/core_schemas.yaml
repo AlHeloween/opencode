@@ -322,19 +322,82 @@ explorer_goal:
 domain_sources:
   tag: DOMAIN_SOURCES
   rule: check domain authority before universalsearch
-  physics: [arXiv, INSPEC, IOPscience, APS_Journals, NASA_ADS]
-  biology: [PubMed, BioRxiv, GenBank, NCBI_Taxonomy]
-  chemistry: [PubChem, ChemRxiv, Reaxys, NIST_WebBook]
-  materials: [mdx, MaterialsProject, SpringerMaterials, MatWeb]
-  medicine: [PubMed, MEDLINE, CINAHL, CochraneLibrary]
-  engineering: [IEEEXplore, Compendex, INSPEC, EngineeringVillage]
-  cs: [ACM_DL, IEEEXplore, CiteSeerX, arXiv_CS]
-  geology: [GeoRef, GeoScienceWorld, USGS_Pubs]
-  sociology: [SocINDEX, SocAbstracts, ICPSR, AgeLine]
-  law: [HeinOnline, Westlaw, LexisNexis, ScholarCaseLaw]
-  economics: [RePEc, FRED, WorldBankData, NBER]
-  history: [JSTOR, HathiTrust, InternetArchive, ProjectMUSE]
-  psychology: [PsycINFO, PubMed, OSF_Preprints, PsycArticles]
-  education: [ERIC, EdSource, LearnTechLib, OECD_Ed]
-  anthropology: [AIO, AnthroSource, eHRAF]
-  agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
+  physics:
+    - arXiv
+    - INSPEC
+    - IOPscience
+    - APS_Journals
+    - NASA_ADS
+  biology:
+    - PubMed
+    - BioRxiv
+    - GenBank
+    - NCBI_Taxonomy
+  chemistry:
+    - PubChem
+    - ChemRxiv
+    - Reaxys
+    - NIST_WebBook
+  materials:
+    - mdx
+    - MaterialsProject
+    - SpringerMaterials
+    - MatWeb
+  medicine:
+    - PubMed
+    - MEDLINE
+    - CINAHL
+    - CochraneLibrary
+  engineering:
+    - IEEEXplore
+    - Compendex
+    - INSPEC
+    - EngineeringVillage
+  cs:
+    - ACM_DL
+    - IEEEXplore
+    - CiteSeerX
+    - arXiv_CS
+  geology:
+    - GeoRef
+    - GeoScienceWorld
+    - USGS_Pubs
+  sociology:
+    - SocINDEX
+    - SocAbstracts
+    - ICPSR
+    - AgeLine
+  law:
+    - HeinOnline
+    - Westlaw
+    - LexisNexis
+    - ScholarCaseLaw
+  economics:
+    - RePEc
+    - FRED
+    - WorldBankData
+    - NBER
+  history:
+    - JSTOR
+    - HathiTrust
+    - InternetArchive
+    - ProjectMUSE
+  psychology:
+    - PsycINFO
+    - PubMed
+    - OSF_Preprints
+    - PsycArticles
+  education:
+    - ERIC
+    - EdSource
+    - LearnTechLib
+    - OECD_Ed
+  anthropology:
+    - AIO
+    - AnthroSource
+    - eHRAF
+  agriculture:
+    - AGRICOLA
+    - AGRIS
+    - CAB_Abstracts
+    - FAO

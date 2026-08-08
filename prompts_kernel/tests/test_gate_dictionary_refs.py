@@ -84,9 +84,13 @@ def test_gate_diagram_fields_are_at_refs():
 def test_g9_sv_every_turn_is_at_ref():
     gates = _load_gates()
     g9 = gates.get("G9") or {}
-    rules = g9.get("rules") or []
-    assert "@SV_EVERY_TURN" in rules, f"G9 must list @SV_EVERY_TURN, got {rules}"
-    assert "SV_EVERY_TURN" not in rules, "bare SV_EVERY_TURN is not a dictionary ref"
+    # Compact format: gate values are strings, not dicts
+    if isinstance(g9, str):
+        assert "@SV_EVERY_TURN" in g9, f"G9 must list @SV_EVERY_TURN, got {g9}"
+    else:
+        rules = g9.get("rules") or []
+        assert "@SV_EVERY_TURN" in rules, f"G9 must list @SV_EVERY_TURN, got {rules}"
+        assert "SV_EVERY_TURN" not in rules, "bare SV_EVERY_TURN is not a dictionary ref"
 
 
 def test_assembled_mdc_has_no_bare_gate_rule_lines():
@@ -153,15 +157,17 @@ def test_gate_rule_refs_exist_in_runtime_rules():
     gates = _load_gates()
     missing = []
     for gkey, gate in gates.items():
-        for item in gate.get("rules") or []:
-            if not _is_at_ref(item):
-                continue
-            name = item[1:]
+        # Compact format: gate values are strings containing the rule list
+        if isinstance(gate, str):
+            items = re.findall(r'@([A-Z][A-Z_0-9]*)', gate)
+        else:
+            items = [item[1:] for item in (gate.get("rules") or []) if _is_at_ref(item)]
+        for name in items:
             if re.fullmatch(r"G\d+", name) or name == "CC":
                 continue
             if name in _NON_RULE_TAGS:
                 continue
             if name not in all_rules:
-                missing.append(f"{gkey}: {item}")
+                missing.append(f"{gkey}: @{name}")
     assert not missing, f"@RULE not in RUNTIME_RULES: {missing}"
 

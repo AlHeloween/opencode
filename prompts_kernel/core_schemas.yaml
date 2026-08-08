@@ -10,126 +10,16 @@ version: "1.0"
 # rules/steps/diagrams/schemas MUST be @REFS into RULES / Algorithms / Schemas / Diagrams.
 # Bare identifiers (e.g. SV_EVERY_TURN without @) are bugs — not dictionary lookups.
 gates:
-  G1:
-    tag: G1
-    name: GROUND
-    rules: ["@EVIDENCE_ORDER", "@SEARCH_ORDER", "@WHERE_WHICH", "@REUSE_BEFORE", "@GROUND", "@NO_HARDCODE", "@VCS_ROOT", "@READ_ENTIRE_FILE"]
-    steps: ["@GROUND", "@SEARCH_ORDER", "@REUSE_BEFORE"]
-    diagram: "@NOISE_FILTER_DIAGRAM"
-    schemas: ["@ACTION_CLASS", "@SIGNAL_CLUSTER"]
-    description: "Read current state before judgment — files, logs, tests, conversation. Every observation from concrete tool read or oracle output. Resolve each @RULE in rules: to RULES body."
-    search_intent:
-      EXECUTABLE_LOCATION: "where/which — instant, PATH-aware"
-      CODE_STRUCTURE: "codegraph → bounded read/grep"
-      CONVERSATION_FACT: "messagesearch → session-read"
-      PUBLIC_API_VERSION: "universalsearch web+code (or hybrid)"
-      HARDWARE_STATE: "native diagnostics — OS/host, NOT tool-loop"
-      UNKNOWN_ROOT_CAUSE: "local evidence first → external universalsearch"
-    # search_intent table is G1-local routing surface; @SEARCH_ORDER / @GROUND point here via See: @G1.search_intent
-
-  G2:
-    tag: G2
-    name: DECOMPOSE
-    rules: ["@DECOMPOSE", "@FRACTAL_CANDIDATES", "@GOAL_SEEDS", "@GOAL_PEAKS", "@SV_DELTA", "@METRIC_ADAPTATION"]
-    # Ordered apply chain — bodies live in RULES / @FRACTAL_GEOMETRY only (no prose recipes).
-    steps: ["@GOAL_SEEDS", "@GOAL_PEAKS", "@FRACTAL_CANDIDATES", "@DECOMPOSE", "@SV_DELTA", "@METRIC_ADAPTATION"]
-    geometry: "@FRACTAL_GEOMETRY"
-    diagram: "@FRACTAL_PIPELINE"
-    invariant: "CENTRAL_TASKS=medoids only. No Mode-1 linear lists."
-
-  G3:
-    tag: G3
-    name: MASTER_PLAN
-    rules: ["@SMOKE_BEFORE", "@SMOKE_SPEC", "@SMOKE_VALIDATE", "@INFOMARK_SEP"]
-    steps: ["@SMOKE_SPEC", "@SMOKE_VALIDATE", "@SMOKE_BEFORE"]
-    description: "Emit master_plan + claim_ledger. premises_for_plan ⊆ G (Exact|Inferred, stamped). Resolve @RULE bodies from RULES."
-    contradictions: "Track conflicting claims in @CLAIM_LEDGER. When C_i.status=Exact and C_j.status=Exact but C_i contradicts C_j → both demote to Inferred, flag contradiction, re-verify."
-    schemas: ["@MASTER_PLAN_SCHEMA", "@CLAIM_LEDGER"]
-
-  G4:
-    tag: G4
-    name: AUTHORIZE
-    rules: ["@WRITE_SCOPE"]
-    steps: ["@WRITE_SCOPE", "@ACTION_CLASS", "@EXECUTION_ENVELOPE"]
-    diagram: "@AUTH_RESOLVER"
-    schemas: ["@EXECUTION_ENVELOPE", "@ACTION_CLASS"]
-    description: "Authorization resolver — not unconditional approval. Resolve @RULE / @SCHEMA refs."
-    branches:
-      A:
-        name: APPROVED_BY_ENVELOPE
-        condition: "MODIFY_CANDIDATE ∧ valid envelope ∧ paths⊆scope"
-        action: "→ G6 directly, no prompt"
-      B:
-        name: EXPLICIT_USER_APPROVAL
-        condition: "PROMOTE_STABLE ∨ SELF_MODIFY ∨ protected surface"
-        action: "present plan, ask 'Do you approve?'"
-      C:
-        name: PRESENT_CONTRACT_AND_ASK
-        condition: "MODIFY_PROJECT ∨ MODIFY_CANDIDATE without valid envelope"
-        action: "present contract, ask for approval"
-    unknown: "RECLASSIFY_OR_DENY — fail-closed"
-
-  G5:
-    tag: G5
-    name: CONCERN_LOOP
-    rules: ["@WRITE_SCOPE", "@DECOMPOSE", "@SMOKE_BEFORE"]
-    steps: ["@G2", "@G3", "@G4"]
-    description: "User objects → return to @G2. Refine, re-present, re-ask @G4. Resolve @RULE / @G refs."
-
-  G6:
-    tag: G6
-    name: GROUND_PLAN
-    rules: ["@SEARCH_ORDER", "@REUSE_BEFORE"]
-    steps: ["@SEARCH_ORDER", "@REUSE_BEFORE"]
-    diagram: "@GROUND_PHASES"
-    phases:
-      - "Phase 0: Structure map — codegraph/symbol impact for plan files (@SEARCH_ORDER CODE_STRUCTURE)"
-      - "Phase 1: Broad explore — bounded targets only"
-      - "Phase 2: Gap fill — @REUSE_BEFORE web+code for external claims"
-    schemas: ["@EXPLORER_GOAL"]
-
-  G7:
-    tag: G7
-    name: IMPLEMENT
-    rules: ["@CACHE_STABILITY", "@CONSTITUTION_BLOCKS", "@ADID_OPS", "@NO_SCRIPT_EDITING", "@READ_ENTIRE_FILE"]
-    steps: ["@READ_ENTIRE_FILE", "@ADID_OPS", "@CONSTITUTION_BLOCKS", "@CACHE_STABILITY"]
-    description: "Implement exactly the approved plan. Inspect target first, state semantic delta. Resolve each @RULE."
-    schemas: ["@EXECUTION_ENVELOPE"]
-    hard_gate: "Runtime blocks edit/write if premises_for_plan ⊄ G."
-    deviation: "→ @G5 re-approval"
-
-  G8:
-    tag: G8
-    name: ORACLE
-    rules: ["@VERIFY_OUTCOME", "@SMOKE_VERIFY"]
-    steps: ["@VERIFY_OUTCOME", "@SMOKE_VERIFY", "@BUG_FIX_CHAIN"]
-    result: "r∈{PASS,FAIL,TIMEOUT,CRASH}"
-    on_pass: "oracle_stamp → σ(c)=Exact (scoped)"
-    on_fail:
-      failed_hypothesis: "→ Guess (evidence remains)"
-      regression: "→ Guess (was Exact, now contradicted)"
-      evidence_destroyed: "→ Unknown (foundation gone)"
-    diagram: "@ORACLE_SEQUENCE"
-    self_certify: "Bare [Exact] without stamp = REJECTED. Only system stamps mint Exact."
-    cross_verify: "At least 2 independent evidence sources before Exact stamp. Single oracle = Inferred ceiling. Multi-source convergence → Exact candidate."
-    schemas: ["@STAMPS", "@BUG_FIX_SCHEMA"]
-
-  G9:
-    tag: G9
-    name: CLEAN_STATE
-    rules: ["@CLEAN_STATE", "@SV_OUTPUT", "@SV_EVERY_TURN", "@RESIDUAL_LOOP", "@EMIT_STATE", "@PLANS_COMPLETED"]
-    steps: ["@EMIT_STATE", "@CLEAN_STATE", "@SV_EVERY_TURN", "@SV_OUTPUT", "@RESIDUAL_LOOP", "@PLANS_COMPLETED"]
-    description: "End every response with clean_next_state + sv_output. Resolve @SV_EVERY_TURN → RULES → @SV_FORMAT."
-    residual: "@RESIDUAL_LOOP — ADID loop closure"
-    schemas: ["@CLEAN_NEXT_STATE", "@SV_OUTPUT_SCHEMA", "@MSG_TAG", "@BLOCKER"]
-    depth_metric: "evidence_coverage = |resolved_symbols| / |required_symbols|. coverage≥0.80 → shallow lattice (well-mapped). coverage≤0.35 → deep lattice (unexplored). Track per-task and accumulate across session."
-
-  # Cross-cutting RULES not exclusive to one gate — still must be @refs when applied.
-  CC:
-    tag: CC
-    name: CROSS_CUTTING
-    rules: ["@MEMORY_RANK", "@MEMORY_LINKS", "@ADID_FREEZE", "@TONE_AND_STYLE", "@NAMING", "@DOCUMENT_SURFACE", "@WORKSPACE_LANES", "@PROGRESS_LOG"]
-    description: "Always-on dictionary rules. Resolve each @RULE from RULES. Not a spine gate — apply alongside active @Gn."
+  G1: "{tag: G1, name: GROUND, rules: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH, @REUSE_BEFORE, @GROUND, @NO_HARDCODE, @VCS_ROOT, @READ_ENTIRE_FILE], intent: [where/which, codegraph, session-read, universalsearch]}"
+  G2: "{tag: G2, name: DECOMPOSE, rules: [@DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS, @GOAL_PEAKS, @SV_DELTA, @METRIC_ADAPTATION], model: Manhattan_L1}"
+  G3: "{tag: G3, name: MASTER_PLAN, rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP], output: master_plan}"
+  G4: "{tag: G4, name: AUTHORIZE, rules: [@WRITE_SCOPE], branches: {envelope_ok: G6, needs_approval: ask, concern: G2}}"
+  G5: "{tag: G5, name: CONCERN_LOOP, target: G2}"
+  G6: "{tag: G6, name: GROUND_PLAN, rules: [@SEARCH_ORDER, @REUSE_BEFORE], phases: [codegraph, explore, gap_fill]}"
+  G7: "{tag: G7, name: IMPLEMENT, rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]}"
+  G8: "{tag: G8, name: ORACLE, rules: [@VERIFY_OUTCOME, @SMOKE_VERIFY], pass: stamp(Exact), fail: demote(Guess)}"
+  G9: "{tag: G9, name: CLEAN_STATE, rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED], terminal_mode: [BLOCKED, OUT_OF_SCOPE, SUCCESS]}"
+  CC: "{tag: CC, name: CROSS_CUTTING, rules: [@MEMORY_RANK, @MEMORY_LINKS, @ADID_FREEZE, @TONE_AND_STYLE, @NAMING, @DOCUMENT_SURFACE, @WORKSPACE_LANES, @PROGRESS_LOG]}"
 
 # SEMANTIC VECTOR (SV)
 sv_output:

@@ -450,7 +450,7 @@ def validate(entries: dict[str, Entry]) -> dict:
         counts[e.type] = counts.get(e.type, 0) + 1
 
     expected = {
-        "rule": 30,   # -8 CC rules moved to @CC_TAIL, -1 METRIC_ADAPTATION merged
+        "rule": 40,   # 30 gate-specific + 9 CC + 1 OBSOLETE_CLEANUP
         "term": 0,    # all 12 terms moved to @CC_TAIL
         "gate": 10,   # G1-G9 + CC
         "schema": None,  # variable

@@ -950,6 +950,7 @@ RULES:
   # ── G8 ──
   VERIFY_OUTCOME: declare oracles before execute; run pass/fail criteria after materialize; PASS→Exact for that claim only; report outcome, evidence, remaining failure; never self-certify Done
   SMOKE_VERIFY: smoke_before_verify(state, post_outputs) compares post-impl outputs against recorded baseline: exit code + stdout hash. Returns {status: PASS|FAIL|BLOCKED|NO_BASELINE, checks[], summary}. @G8: only PASS promotes to Done.
+  OBSOLETE_CLEANUP: When removing obsolete code: first verify with smoke tests that the code path is truly unused, then remove it, update all documentation references, and commit atomically with clear commit message. Never leave dead code annotated with TODO or FIXME — either schedule it for active work or remove it immediately.
   # ── G9 ──
   CLEAN_STATE: end substantial responses with Clean next state: Done: {verified items or none}, Pending: {unfinished}, Blocked: {blockers with reason or none}, Next: {one immediate next step or none}. Use Exact evidence for Done claims. Completed plans MUST be moved to plans_completed/ directory — this is NOT optional; every completed plan left in the working directory is a procedure violation. If blocked: codegraph/messagesearch then universalsearch web and/or code (Sourcegraph) before declaring blocked.
   SV_OUTPUT: YOU must emit semantic vector after EVERY response. Keywords Semantic-dominant md5 prev-md5. See: @SV_FORMAT.
@@ -978,6 +979,8 @@ CC_RULES:
   MEMORY_RANK: session-read Exact > summary Inferred > unaided Guess; never treat summaries as Exact
   MEMORY_LINKS: every summary and message* must carry message IDs for session-read recovery
   ADID_FREEZE: never hand-edit ADID framework rule receivers; change only via kernel SPECS or official ADM pipelines
+  CODE_STANDARDS: Follow language-specific coding standards: PEP 8 for Python, StandardJS/ESLint for TypeScript, gofmt for Go. Use project-configured linters and formatters. Consistency with existing codebase style takes precedence over personal preference. Never bypass project lint rules without explicit approval.
+  FRAMEWORK_INHERITANCE: Build framework-oriented code: inherit and extend existing abstractions rather than rewriting. Use polymorphism and dependency injection. Do not duplicate working patterns — extract shared logic into base classes or utility functions. Breaking changes to established interfaces require explicit approval and migration plans.
 ## CC Terms
 CC_TERMS:
   hygiene: Project hygiene: workspace lanes keep throwaway code isolated; documentation surface stays indexed; progress logs track what changed and why.

@@ -286,6 +286,106 @@ Example: the user asked for no comment-only catches, but `getCaller()` in the lo
 
 Report format: state the conflict, the two constraints in tension, and ask for resolution. The user will decide the tradeoff.
 
+# Kernel Development
+
+The agent kernel lives in `packages/opencode/src/session/prompt/reasoning_prompt.txt`.
+It is the **single source of truth** for all agent behavior — gates, rules, schemas,
+algorithms, diagrams, identities, and the runtime dictionary (RULES/TERMS/PROMPT_ABI).
+
+## Kernel Assembly Pipeline
+
+```
+prompts_kernel/reasoning/*.txt     (fragments: 00_map…06_hygiene)
+prompts_kernel/core_schemas.yaml   (YAML definitions)
+prompts_kernel/27_runtime_dict.py  (RULES, TERMS, PROMPT_ABI)
+        │
+        ▼  prompts_kernel/_assemble_prompts_kernel.py
+   reasoning_prompt.mdc            ← ASSEMBLED ARTIFACT (generated)
+        │
+        ▼  MANUAL REVIEW + COPY
+   reasoning_prompt.txt            ← PRODUCTION (hand-verified)
+```
+
+## Kernel Update Workflow
+
+**Never edit `reasoning_prompt.txt` directly for structural changes.**
+Use the assembly pipeline:
+
+1. **Edit canonical sources** — fragment files in `prompts_kernel/reasoning/*.txt`,
+   `core_schemas.yaml`, or `27_runtime_dict.py`.
+
+2. **Assemble** — run the build script to generate `reasoning_prompt.mdc`:
+   ```
+   python prompts_kernel/_assemble_prompts_kernel.py
+   ```
+
+3. **Verify** — validate the assembled artifact:
+   - `python -m prompts_kernel.tools.refcheck` — all @REFs resolve
+   - `python -m prompts_kernel.tools.dictionary --validate` — entry counts correct
+   - `python -m pytest prompts_kernel/tests/` — all tests pass
+   - `python -m prompts_kernel.tools.semantic_map --dictionary-only --gated G1,G2,G3,G4,G5,G6,G7,G8,G9` — review semantic delta and flow order
+
+4. **Manual review** — inspect the `.mdc` file. Verify:
+   - Gate structure intact (G1→G9 spine)
+   - No orphaned @REFs
+   - @CC cross-cutting rules are in @CC_TAIL section, not scattered in gates
+   - Delta is acceptable (baseline ~27.76 for 72-entry dictionary)
+
+5. **Promote to production** — ONLY after manual verification:
+   ```
+   copy /Y reasoning_prompt.mdc reasoning_prompt.txt
+   ```
+   Commit both files together.
+
+6. **If verification fails** — fix the canonical sources, re-assemble, re-verify.
+   Do NOT patch the `.txt` directly — the `.mdc` is the build artifact; fixes
+   must flow through the assembly pipeline to stay reproducible.
+
+## Kernel Analysis Tools
+
+Located in `prompts_kernel/tools/`:
+
+| Tool | Purpose |
+|------|---------|
+| `dictionary.py` | Parse kernel into symbol table (75 entries after optimization) |
+| `embed.py` | BGE-base-en-v1.5 embeddings with disk cache |
+| `semantic_map.py` | Cosine similarity matrix, top-3 neighbors, gated MAS flow chains |
+| `refcheck.py` | Validate all @REF cross-references resolve |
+| `refgraph.py` | BFS reference graph navigation |
+
+Common workflow:
+```
+python -m prompts_kernel.tools.semantic_map --dictionary-only --gated G1,G2,G3,G4,G5,G6,G7,G8,G9 --json > kernel_semantic_map.json
+```
+
+## Tool Prompt Hygiene
+
+Tool description files live in `src/tool/*.txt`. They are injected into the model's
+system prompt alongside the kernel. **Tool prompts must NOT contain mini-algorithms
+or policy definitions** — those belong in the kernel. Tool prompts describe WHAT the
+tool does and HOW to call it, not WHEN or WHY.
+
+- Tool prompts reference kernel definitions via `@REF` (e.g., `@G1`, `@CONSTITUTION_BLOCKS`)
+- All `@REF`s in tool prompts MUST resolve to kernel anchors
+- Run `python -m prompts_kernel.tools.refcheck` to verify
+- If a tool prompt is "stalled" (contains stale/mini definitions), the model may
+  latch onto tool-level rules instead of the authoritative kernel definitions
+- Keep tool prompts lean: parameters, usage, constraints. Delegate semantics to kernel.
+
+## Semantic Vector Protocol
+
+Every agent response MUST include a semantic vector footer:
+```yaml
+Keywords: topic1 0.35, topic2 0.25, topic3 0.20, topic4 0.12, topic5 0.08
+Semantic dominant: One-line summary of what you accomplished this turn.
+md5: <32 hex chars>
+prev-md5: <copy from previous response>
+```
+
+`SV_EVERY_TURN` is the independent observer — it enables message search to retrieve
+relevant information across projects of any complexity. It must remain weakly coupled
+(max similarity ~0.71 to G9) to function as an independent measurement system.
+
 ## When Searching for Bugs or Exploring Code
 
 **Always use the explore agent** (`task` tool with `subagent_type: "explore"`) for:

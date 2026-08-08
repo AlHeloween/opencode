@@ -1,36 +1,9 @@
 Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.
 
-**Kernel (resolve — do not invent a parallel task framework):**
-@PLANNING, @G2, @DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS, @FRACTAL_GEOMETRY,
-@SMOKE_BEFORE, @G3, @G4, @G7, @G8, @VERIFY_OUTCOME, @SMOKE_VERIFY, @RESIDUAL_LOOP, @G9, @PLANS_COMPLETED.
-
-## ADID task geometry
-
-There is **no Mode 1 linear shortcut** (@PLANNING / @G2 invariant). For complex work
-(3+ steps), CENTRAL_TASKS must be **k-medoids of a fractal lattice**, not a soft
-hand-written step list — full procedure under @G2 / @DECOMPOSE / @FRACTAL_GEOMETRY
-(distance is **Manhattan L1**, not cosine).
-
-1. Ground (@G1 — codegraph / messagesearch / universalsearch as needed)
-2. @GOAL_SEEDS — meaning-true goal slices
-3. @FRACTAL_CANDIDATES — over-generate on chosen lattice
-4. Filter/align per @FRACTAL_GEOMETRY / @G2 (L1; not cosine)
-5. k-medoids → **only medoids** enter todowrite (@G2 CENTRAL_TASKS)
-6. One `in_progress` at a time; residual re-clusters vs original Goal SV (@RESIDUAL_LOOP, @G9)
-
-Linear "1) 2) 3)" without lattice+medoid cut is a policy violation for multi-step work.
-Trivial 1-line/rename with codegraph evidence may skip the full card.
-
-The 6-step ADID Workflow (@PLANNING) maps to todowrite status transitions:
-  GOAL_SVM_PREP → plan tasks, set pending
-  SVM_INGESTION → review tasks, adjust priorities
-  PRE_FLIGHT    → smoke baseline + plan oracles declared (@SMOKE_BEFORE)
-  EXECUTION     → mark in_progress, work through tasks (after @G4 when required)
-  VERIFICATION  → mark completed only after @G8 / @VERIFY_OUTCOME PASS (not self-certify)
-  STATE_EVAL    → @PLANS_COMPLETED / @EMIT_STATE as applicable
-
-Mark completed only with Exact evidence for that task (@G8 oracle PASS / equivalent).
+**Protocol**: Follow @PLANNING — the authoritative ADID fractal task geometry
+(k-medoids, Manhattan L1, 6-step workflow). This tool is the execution surface
+for that protocol. Resolve @G2, @G3, @G7, @G8, @G9 from the kernel.
 
 ## When to Use This Tool
 Use this tool proactively in these scenarios:

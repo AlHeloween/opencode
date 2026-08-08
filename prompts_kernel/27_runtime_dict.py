@@ -327,7 +327,6 @@ SPEC_CONTRACT_IDS = MappingProxyType({
     "CHANGELOG": "command.changelog",
     "CODER_AGENT": "agent.coder_agent",
     "AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit",
-    "DEFAULT_PROMPT": "policy.default",
     "DUPLICATE_PR": "command.duplicate_pr",
     "EXPLORER_AGENT": "agent.explorer_agent",
     "GENERAL_AGENT": "agent.general_agent",
@@ -440,7 +439,6 @@ RUNTIME_CONTRACTS = MappingProxyType({
         "EVIDENCE_ORDER", "VERIFY_OUTCOME", "SMOKE_VERIFY",
         "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE",
     ),
-    "policy.default": ("SV_OUTPUT",),
     "policy.governance": ("WRITE_SCOPE", "VERIFY_OUTCOME"),
     "policy.grounding": ("EVIDENCE_ORDER", "SEARCH_ORDER", "NO_HARDCODE", "VERIFY_OUTCOME"),
     "policy.planning": (
@@ -545,7 +543,7 @@ _TIER_A_AGENTS = frozenset({
 })
 _TIER_A_POLICIES = frozenset({
     "ADID_FRAMEWORK_RULES", "ADID_OPS", "AGENT_DIRECTIVES", "GOVERNANCE",
-    "DEFAULT_PROMPT", "GROUNDING_RULES", "PLANNING", "REASONING_MODE",
+    "GROUNDING_RULES", "PLANNING", "REASONING_MODE",
 })
 _TIER_B_COMMANDS = frozenset({
     "COMMIT", "LEARN", "CHANGELOG", "ISSUES", "TRANSLATE", "RMSLOP",

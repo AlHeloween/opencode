@@ -4418,16 +4418,7 @@ GOVERNANCE = _spec(
 )
 
 # === Fragment: 25_specs_default.py ===
-"""Merged into AGENT_DIRECTIVES (24_specs_policies.py). Stub for backward compat."""
-DEFAULT_PROMPT = _spec(
-    intent="Merged into @AGENT_DIRECTIVES. See: @AGENT_DIRECTIVES.",
-    state={},
-    scope="deprecated — use @AGENT_DIRECTIVES",
-    constraints={},
-    invariants=[],
-    forbidden_actions=[],
-    acceptance_tests=[],
-)
+"""Removed — DEFAULT_PROMPT deprecated, merged into @AGENT_DIRECTIVES."""
 
 # === Fragment: 26_specs_grounding.py ===
 """Kernel fragment: @G1 grounding reference — full routing in reasoning_prompt.mdc <gates>."""
@@ -4782,7 +4773,6 @@ SPEC_CONTRACT_IDS = MappingProxyType({
     "CHANGELOG": "command.changelog",
     "CODER_AGENT": "agent.coder_agent",
     "AGENT_DIRECTIVES": "policy.coding", "COMMIT": "command.commit",
-    "DEFAULT_PROMPT": "policy.default",
     "DUPLICATE_PR": "command.duplicate_pr",
     "EXPLORER_AGENT": "agent.explorer_agent",
     "GENERAL_AGENT": "agent.general_agent",
@@ -4895,7 +4885,6 @@ RUNTIME_CONTRACTS = MappingProxyType({
         "EVIDENCE_ORDER", "VERIFY_OUTCOME", "SMOKE_VERIFY",
         "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE",
     ),
-    "policy.default": ("SV_OUTPUT",),
     "policy.governance": ("WRITE_SCOPE", "VERIFY_OUTCOME"),
     "policy.grounding": ("EVIDENCE_ORDER", "SEARCH_ORDER", "NO_HARDCODE", "VERIFY_OUTCOME"),
     "policy.planning": (
@@ -5000,7 +4989,7 @@ _TIER_A_AGENTS = frozenset({
 })
 _TIER_A_POLICIES = frozenset({
     "ADID_FRAMEWORK_RULES", "ADID_OPS", "AGENT_DIRECTIVES", "GOVERNANCE",
-    "DEFAULT_PROMPT", "GROUNDING_RULES", "PLANNING", "REASONING_MODE",
+    "GROUNDING_RULES", "PLANNING", "REASONING_MODE",
 })
 _TIER_B_COMMANDS = frozenset({
     "COMMIT", "LEARN", "CHANGELOG", "ISSUES", "TRANSLATE", "RMSLOP",
@@ -5219,7 +5208,6 @@ _ALL_SPECS = {
     "ADID_OPS": ADID_OPS,
     "AGENT_DIRECTIVES": AGENT_DIRECTIVES,
     "GOVERNANCE": GOVERNANCE,
-    "DEFAULT_PROMPT": DEFAULT_PROMPT,
     "GROUNDING_RULES": GROUNDING_RULES,
     "PLANNING": PLANNING,
     "REASONING_MODE": REASONING_MODE,

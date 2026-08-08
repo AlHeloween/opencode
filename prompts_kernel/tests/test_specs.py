@@ -24,7 +24,7 @@ class TestProjectSpecs:
 
     def test_all_specs_loaded(self):
         # Skills (ADM_EXE, RAG, …) are a separate package — not kernel SPECS.
-        assert len(_ALL_SPECS) == 28
+        assert len(_ALL_SPECS) == 27
         assert "BUILD_MODE" in _ALL_SPECS
         assert "PLAN_MODE" in _ALL_SPECS
         assert "CODER_AGENT" in _ALL_SPECS
@@ -33,7 +33,6 @@ class TestProjectSpecs:
         assert "ADM_EXE" not in _ALL_SPECS
         assert "ADID_OPS" in _ALL_SPECS
         assert "GOVERNANCE" in _ALL_SPECS
-        assert "DEFAULT_PROMPT" in _ALL_SPECS
         assert "GROUNDING_RULES" in _ALL_SPECS
         assert "PLANNING" in _ALL_SPECS
         assert "COMMIT" in _ALL_SPECS

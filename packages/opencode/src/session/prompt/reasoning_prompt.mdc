@@ -434,87 +434,12 @@ flowchart LR
 # Schemas
 
 ## DOMAIN_SOURCES (@DOMAIN_SOURCES)
-rule: Each domain defines authoritative evidence sources. Before universalsearch,
-  check domain_sources for the relevant discipline.
-physics:
-- arXiv
-- INSPEC
-- IOPscience
-- APS Journals
-- NASA ADS
-biology:
-- PubMed
-- BioRxiv
-- GenBank
-- NCBI Taxonomy
-chemistry:
-- PubChem
-- ChemRxiv
-- Reaxys
-- NIST Chemistry WebBook
-materials:
-- mdx
-- Materials Project
-- SpringerMaterials
-- MatWeb
-medicine:
-- PubMed
-- MEDLINE
-- CINAHL
-- Cochrane Library
-engineering:
-- IEEE Xplore
-- Compendex
-- INSPEC
-- Engineering Village
-computer_science:
-- ACM Digital Library
-- IEEE Xplore
-- CiteSeerX
-- ArXiv CS
-geology:
-- GeoRef
-- GeoScienceWorld
-- USGS Publications
-sociology:
-- SocINDEX
-- Sociological Abstracts
-- ICPSR
-- AgeLine
-law:
-- HeinOnline
-- Westlaw
-- LexisNexis
-- Google Scholar Case Law
-economics:
-- RePEc
-- FRED
-- World Bank Data
-- NBER
-history:
-- JSTOR
-- HathiTrust
-- Internet Archive
-- Project MUSE
-psychology:
-- PsycINFO
-- PubMed
-- OSF Preprints
-- PsycArticles
-education:
-- ERIC
-- Education Source
-- LearnTechLib
-- OECD Education
-anthropology:
-- Anthropological Index Online
-- AnthroSource
-- eHRAF
-agriculture:
-- AGRICOLA
-- AGRIS
-- CAB Abstracts
-- FAO
+rule: Each domain defines authoritative evidence sources (e.g. physics→arXiv,INSPEC;
+  biology→PubMed,BioRxiv; chemistry→PubChem,ChemRxiv; medicine→PubMed,MEDLINE; cs→ACM,IEEE,arXiv;
+  law→HeinOnline,Westlaw; economics→RePEc,FRED; psychology→PsycINFO,PubMed; education→ERIC,OECD;
+  history→JSTOR,HathiTrust; geology→GeoRef,USGS; sociology→SocINDEX,ICPSR; materials→MaterialsProject,SpringerMaterials;
+  engineering→IEEE,Compendex; anthropology→AnthroSource,eHRAF; agriculture→AGRICOLA,FAO).
+  Before universalsearch, check domain source for the relevant discipline.
 
 ## ACTION_CLASS (@ACTION_CLASS)
 description: Classification BEFORE execution (envelope model)
@@ -1244,10 +1169,6 @@ forbidden:
   • Claiming fixed without oracle evidence
   • Generating or guessing URLs
   • Adding preamble, postamble, or code explanation unless asked
-
-## DEFAULT_PROMPT
-Merged into @AGENT_DIRECTIVES. See: @AGENT_DIRECTIVES.
-scope: deprecated — use @AGENT_DIRECTIVES
 
 ## GOVERNANCE
 No unapproved mutations. Inspection≠repair. See: @G4, @EXECUTION_ENVELOPE, @ACTION_CLASS.

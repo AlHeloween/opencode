@@ -67,7 +67,7 @@ function Get-Version {
 #   core:  build:native (Zig → opentui.dll) + build:lib (TS → dist/)
 #   solid / three: bun scripts/build.ts
 #
-# _build.ps1 previously only *copied* a prebuilt DLL — that left sixel/Image
+# _build.ps1 previously only *copied* a prebuilt DLL - that left sixel/Image
 # TS+Zig fixes out of dist. Always rebuild OpenTUI before opencode compile.
 # ───────────────────────────────────────────────────────────
 function Invoke-OpenTuiBuild {
@@ -106,7 +106,7 @@ function Invoke-OpenTuiBuild {
         # build = build:native && build:lib  (packages/core/package.json)
         bun run build
         if ($LASTEXITCODE -ne 0) {
-            throw "OpenTUI core build failed (exit $LASTEXITCODE) — zig and/or TS lib"
+            throw "OpenTUI core build failed (exit $LASTEXITCODE) - zig and/or TS lib"
         }
     } finally {
         Pop-Location
@@ -166,6 +166,13 @@ function Invoke-Check {
         $allPassed = $false
     }
 
+    # Check 0b2: Kernel stability guardrails (assembly point, schema density, refcheck, …)
+    $kernelStable = Test-KernelStability
+    if (-not $kernelStable) {
+        Write-Error- "Kernel stability guardrails FAILED - refusing to proceed with broken kernel"
+        exit 1
+    }
+
     # Check 0c: Reasoning framework self-test (290 pytest tests)
     $reasoningPassed = Test-ReasoningFramework
     if (-not $reasoningPassed) {
@@ -223,21 +230,188 @@ function Invoke-Check {
 # ═══════════════════════════════════════════════════════════
 
 function Sync-KernelPrompt {
-    $reasoningDst = Join-Path $Root "packages\opencode\src\session\prompt\reasoning_prompt.mdc"
-    # 1a) Precompile kernel (separate process — fresh import needed for step 1b)
+    $reasoningMdc = Join-Path $Root "packages\opencode\src\session\prompt\reasoning_prompt.mdc"
+    $reasoningTxt = Join-Path $Root "packages\opencode\src\session\prompt\reasoning_prompt.txt"
+    # 1a) Precompile kernel (separate process - fresh import needed for step 1b)
     & python -c "from prompts_kernel import write_precompiled_kernel; write_precompiled_kernel()"
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel precompilation failed"
         return $false
     }
     # 1b) Assemble reasoning protocol (fresh import picks up precompiled)
-    & python -c "from prompts_kernel import write_reasoning; write_reasoning()"
+    & python -c "from prompts_kernel import write_reasoning, validate_reasoning_artifacts; write_reasoning(); errors = validate_reasoning_artifacts(); assert not errors, '; '.join(errors)"
     if ($LASTEXITCODE -ne 0) {
         Write-Error- "Kernel reasoning/algorithm_card assembly failed"
         return $false
     }
-    Write-Success "Reasoning prompt assembled ($(Get-Item $reasoningDst).Length bytes)"
+    Write-Success "Reasoning prompts assembled (.mdc $((Get-Item $reasoningMdc).Length) bytes; runtime .txt $((Get-Item $reasoningTxt).Length) bytes)"
     return $true
+}
+
+# ═══════════════════════════════════════════════════════════
+# KERNEL STABILITY GUARDRAILS
+# ═══════════════════════════════════════════════════════════
+# See: docs/kernel-stability-principles.md (7 principles, 12-point checklist)
+# These checks prevent the assembly point from being destroyed by optimization.
+# DO NOT DISABLE without explicit approval - the kernel geometry is Sierpinski,
+# meaning all parts are interdependent. A "small" change to one schema
+# cascades to affect the entire kernel's structural integrity.
+
+function Test-KernelStability {
+    param([string] $KernelPath)
+
+    if (-not $KernelPath) {
+        $KernelPath = Join-Path $Root "packages\opencode\src\session\prompt\reasoning_prompt.txt"
+    }
+
+    if (-not (Test-Path $KernelPath)) {
+        Write-Error- "Kernel not found: $KernelPath"
+        return $false
+    }
+
+    $content = Get-Content $KernelPath -Raw
+    $lines = Get-Content $KernelPath
+    $allPassed = $true
+
+    Write-Host "  Kernel stability guardrails (docs/kernel-stability-principles.md):" -ForegroundColor Yellow
+
+    # ── Guard 1: Assembly Point - first H1 must be "Semantic Vector" ──
+    $firstH1 = ($lines | Where-Object { $_ -match '^# [^#]' } | Select-Object -First 1)
+    if ($firstH1 -ne "# Semantic Vector") {
+        Write-Error- "ASSEMBLY POINT: First H1 is '$firstH1', expected '# Semantic Vector'. The assembly point must be the first structural element. See Principle 1."
+        $allPassed = $false
+    } else {
+        Write-Success "Assembly point: # Semantic Vector (first H1)"
+    }
+
+    # ── Guard 2: SV_FORMAT - first @tag must be @SV_FORMAT as H2 ──
+    $svFormatLine = ($lines | Where-Object { $_ -match '@SV_FORMAT' } | Select-Object -First 1)
+    if ($svFormatLine -notmatch '^## SV_FORMAT') {
+        Write-Error- "SV_FORMAT: Expected H2 heading '## SV_FORMAT (@SV_FORMAT)', found '$svFormatLine'. @tag must have dedicated heading. See Principle 1."
+        $allPassed = $false
+    } else {
+        Write-Success "SV_FORMAT: ## SV_FORMAT (@SV_FORMAT) (first @tag, H2)"
+    }
+
+    # ── Guard 3: Bold imperative ──
+    if ($content -notmatch '\*\*YOU must emit this after EVERY response\.\*\*') {
+        Write-Error- "IMPERATIVE: Missing bold imperative. Must contain '**YOU must emit this after EVERY response.**'. See Principle 6."
+        $allPassed = $false
+    } else {
+        Write-Success "Imperative: bold 'YOU must emit' present"
+    }
+
+    # ── Guard 4: Protocol violation closing anchor ──
+    if ($content -notmatch 'Omission = protocol violation\. SV is a semantic fingerprint, NOT a claim status\.') {
+        Write-Error- "ANCHOR: Missing closing 'Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.' See Principle 6."
+        $allPassed = $false
+    } else {
+        Write-Success "Closing anchor: protocol violation + fingerprint distinction"
+    }
+
+    # ── Guard 5: Root-of-Truth - no postscript after it ──
+    $rootTruthIdx = $lines.IndexOf(($lines | Where-Object { $_ -match 'THIS KERNEL IS THE ROOT OF TRUTH' } | Select-Object -First 1))
+    if ($rootTruthIdx -ge 0) {
+        $linesAfter = $lines[($rootTruthIdx + 1)..($lines.Count - 1)] | Where-Object { $_.Trim() -ne '' }
+        # The root-of-truth block is 4 lines: "---", declaration, 2 prose lines. After that, nothing.
+        # The last substantive line should be "No exception, no override, no grandfathering."
+        $lastLine = ($lines | Where-Object { $_.Trim() -ne '' } | Select-Object -Last 1)
+        if ($lastLine -notmatch 'No exception, no override, no grandfathering\.') {
+            Write-Error- "ROOT-OF-TRUTH: Postscript detected after root-of-truth declaration. Last substantive line: '$lastLine'. Must end with 'No exception, no override, no grandfathering.' See Principle 5."
+            $allPassed = $false
+        } else {
+            Write-Success "Root-of-truth: clean close, no postscript"
+        }
+    }
+
+    # ── Guard 6: Schema density - critical schemas must not be compressed ──
+    $schemaChecks = @{
+        "ACTION_CLASS" = 35
+        "EXECUTION_ENVELOPE" = 35
+        "FRACTAL_GEOMETRY" = 15
+        "MASTER_PLAN_SCHEMA" = 15
+        "CLEAN_NEXT_STATE" = 12
+        "SMOKE_CONTRACT" = 12
+        "CLAIM_LEDGER" = 12
+    }
+
+    foreach ($schema in $schemaChecks.Keys) {
+        $startIdx = $lines.IndexOf(($lines | Where-Object { $_ -match "^## $schema" } | Select-Object -First 1))
+        if ($startIdx -lt 0) {
+            Write-Error- "SCHEMA: '$schema' not found in kernel"
+            $allPassed = $false
+            continue
+        }
+        # Count lines until next H2 or blank+next section
+        $schemaLines = 0
+        for ($i = $startIdx + 1; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match '^## [A-Z]' -or $lines[$i] -match '^# [A-Z]') { break }
+            $schemaLines++
+        }
+        $min = $schemaChecks[$schema]
+        if ($schemaLines -lt $min) {
+            Write-Error- "SCHEMA DENSITY: '$schema' has $schemaLines lines (minimum $min). Schema compression breaks the density gradient. See Principle 2."
+            $allPassed = $false
+        }
+    }
+    Write-Success "Schema density: all critical schemas meet minimum line counts"
+
+    # ── Guard 7: Schema heading level - must be H2 under # Schemas ──
+    $schemasSectionIdx = $lines.IndexOf(($lines | Where-Object { $_ -match '^# Schemas' } | Select-Object -First 1))
+    $badH1Schemas = @()
+    if ($schemasSectionIdx -ge 0) {
+        for ($i = $schemasSectionIdx + 1; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match '^# (CLAIM_LEDGER|STAMPS|FRACTAL_GEOMETRY|SMOKE_CONTRACT|BUG_FIX_SCHEMA|SIGNAL_CLUSTER|ACTION_CLASS|EXECUTION_ENVELOPE|MASTER_PLAN_SCHEMA|CLEAN_NEXT_STATE|BLOCKER|MSG_TAG|EXPLORER_GOAL)') {
+                $badH1Schemas += $lines[$i].Trim()
+            }
+            if ($lines[$i] -match '^# (Algorithms|Epistemic|Hygiene|Diagrams)') { break }
+        }
+    }
+    if ($badH1Schemas.Count -gt 0) {
+        Write-Error- "HEADING FLATTENING: ${badH1Schemas.Count} schema(s) at H1 level under # Schemas: $($badH1Schemas -join ', '). Schemas must be H2 (##). See Principle 3."
+        $allPassed = $false
+    } else {
+        Write-Success "Heading hierarchy: schemas are H2 under # Schemas (tree, not flat list)"
+    }
+
+    # ── Guard 8: Refcheck - no NEW unresolved refs ──
+    $KNOWN_UNRESOLVED = @(
+        "AUTH_RESOLVER", "BUG_FIX_CHAIN_DIAGRAM", "CLAIM_PROMOTION_DIAGRAM",
+        "EPISTEMIC_LADDER", "FRACTAL_PIPELINE", "GROUND_PHASES",
+        "METRIC_GOVERNANCE_DIAGRAM", "NOISE_FILTER_DIAGRAM", "ORACLE_FLOW",
+        "ORACLE_SEQUENCE", "SPINE_OVERVIEW",  # retired diagrams
+        "BASE_AGENT", "RULE", "G", "NOISE_FILTER"  # pre-existing soft/FP refs
+    )
+    $refcheckOutput = & python -m prompts_kernel.tools.refcheck 2>&1
+    $unresolvedBlock = ($refcheckOutput -join "`n" | Select-String -Pattern "UNRESOLVED @refs:" -Context 0,30).Context.PostContext
+    $newUnresolved = @()
+    foreach ($line in $unresolvedBlock) {
+        $ref = ($line -replace '^\s+', '').Trim()
+        if ($ref -and $ref -notin $KNOWN_UNRESOLVED) {
+            $newUnresolved += $ref
+        }
+    }
+    if ($newUnresolved.Count -gt 0) {
+        Write-Error- "REFCHECK: $($newUnresolved.Count) NEW unresolved @ref(s): $($newUnresolved -join ', '). These were not in the baseline. Fix before proceeding."
+        $allPassed = $false
+    } else {
+        Write-Success "Refcheck: no new unresolved @refs (baseline: $($KNOWN_UNRESOLVED.Count) known)"
+    }
+
+    if (-not $allPassed) {
+        Write-Host ""
+        Write-Host "  ╔══════════════════════════════════════════════════════╗" -ForegroundColor Red
+        Write-Host "  ║  KERNEL STABILITY CHECK FAILED                       ║" -ForegroundColor Red
+        Write-Host "  ║  See: docs/kernel-stability-principles.md            ║" -ForegroundColor Red
+        Write-Host "  ║  The assembly point may have been destroyed by       ║" -ForegroundColor Red
+        Write-Host "  ║  optimization. Geometry is Sierpinski - all parts     ║" -ForegroundColor Red
+        Write-Host "  ║  are interdependent. Fix canonical sources and       ║" -ForegroundColor Red
+        Write-Host "  ║  re-assemble via the pipeline.                       ║" -ForegroundColor Red
+        Write-Host "  ╚══════════════════════════════════════════════════════╝" -ForegroundColor Red
+        Write-Host ""
+    }
+
+    return $allPassed
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -347,6 +521,12 @@ function Invoke-Build {
         throw "Kernel prompt sync failed"
     }
 
+    # Step 0a: Kernel stability guardrails - refuse to build with broken kernel
+    $kernelStable = Test-KernelStability
+    if (-not $kernelStable) {
+        throw "Kernel stability guardrails FAILED - assembly point integrity check. See docs/kernel-stability-principles.md"
+    }
+
     # Step 0b: Reasoning framework self-test (290 pytest tests)
     $reasoningPassed = Test-ReasoningFramework
     if (-not $reasoningPassed) {
@@ -359,7 +539,7 @@ function Invoke-Build {
 
     # OpenTUI: Zig + TS lib *before* opencode compile (so dist ships current sixel/Image)
     if ($SkipOpenTui) {
-        Write-Host "  Skipping OpenTUI rebuild (-SkipOpenTui) — using existing DLL/dist" -ForegroundColor Yellow
+        Write-Host "  Skipping OpenTUI rebuild (-SkipOpenTui) - using existing DLL/dist" -ForegroundColor Yellow
     } else {
         Invoke-OpenTuiBuild -Full:$OpenTuiFull
     }
@@ -438,7 +618,7 @@ function Invoke-Build {
         Write-Success "Markdownify binary copied"
     }
 
-    # Native opentui DLL — required by @opentui/core for rendering (built above unless -SkipOpenTui)
+    # Native opentui DLL - required by @opentui/core for rendering (built above unless -SkipOpenTui)
     $opentuiDllSrc = [IO.Path]::Combine($Root, "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")
     if (Test-Path $opentuiDllSrc) {
         # Copy to platform dist (where bun build places the exe)
@@ -454,7 +634,7 @@ function Invoke-Build {
         Copy-Item $opentuiDllSrc ([IO.Path]::Combine($DistDir, "bin", "opentui.dll")) -Force
         Write-Success "opentui native DLL copied (from rebuilt core-win32-x64)"
     } else {
-        throw "opentui.dll not found at $opentuiDllSrc — run without -SkipOpenTui or build packages/opentui/packages/core first"
+        throw "opentui.dll not found at $opentuiDllSrc - run without -SkipOpenTui or build packages/opentui/packages/core first"
     }
 
     # WASM sidecars: mirror packages/wasm/core/pkg as-is (no hardcoded asset list).
@@ -469,7 +649,7 @@ function Invoke-Build {
         New-Item -ItemType Directory -Path (Split-Path $WasmDistDir -Parent) -Force | Out-Null
         Copy-Item -Recurse -Force $WasmPkgDir $WasmDistDir
 
-        # Tree-sitter runtime lives in node_modules, not pkg/ — stage if present.
+        # Tree-sitter runtime lives in node_modules, not pkg/ - stage if present.
         $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "web-tree-sitter.wasm" -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } |
             Select-Object -First 1
@@ -483,7 +663,7 @@ function Invoke-Build {
         }
         Write-Success "WASM modules mirrored to dist ($wasmCount .wasm files under wasm/core/pkg)"
     } else {
-        Write-Warn "packages/wasm/core/pkg missing — skipping WASM sidecar copy (embedded assets still used at runtime)"
+        Write-Warn "packages/wasm/core/pkg missing - skipping WASM sidecar copy (embedded assets still used at runtime)"
     }
 
     # SDK (from sdk/js package)

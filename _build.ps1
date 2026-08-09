@@ -417,7 +417,6 @@ function Test-KernelStability {
         $count = if ($firstLine) { [int]$firstLine } else { "?" }
         Write-Host "  [!] ~$count forward reference(s) — review if new refs were added before definitions" -ForegroundColor Yellow
     }
-    }
 
     # ── Guard 10: Forward references (look-ahead detection) ──
     $fwdRefs = & python prompts_kernel/tools/ref_lookahead.py 2>&1

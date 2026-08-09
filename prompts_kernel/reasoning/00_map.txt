@@ -17,6 +17,24 @@ prev-md5: 00000000000000000000000000000000
 - Sub-agents: add parent-goal-md5 field after prev-md5
 - Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.
 
+## How to Read This Document
+
+This kernel is a self-referential protocol. Every `Name` pattern is a concrete reference to a named entry elsewhere in this document. There are no abstract templates. Here is where each kind of reference lives:
+
+| Reference kind | Example | Where to find it |
+|---------------|---------|------------------|
+| **Gate** | `@G4` | Gates section — gate definitions with rules and schemas |
+| **Rule** | `@EVIDENCE_ORDER` | RULES dictionary at the end of this document |
+| **Schema** | `@ACTION_CLASS` | Schemas section — data structure definitions |
+| **Algorithm** | `@NOISE_FILTER` | Algorithms section — procedures with formulas |
+| **Section** | `@ALGO`, `@SCHEMA`, `@DIAGRAM` | Named sections — jump to section header |
+| **Identity** | `@IDENTITIES` | Identity tables — agent roles and modes |
+| **Term** | `sv`, `infomark`, `cache` | TERMS dictionary at the end — concept definitions |
+
+**Resolution rule**: find the matching `(Name)` anchor anywhere in the document.
+Example: `@G9` → gate G9 lists `@SV_EVERY_TURN` → RULES dictionary → `@SV_OUTPUT` → `@SV_FORMAT`.
+Never invent a rule name. Every `Name` either exists with a `(Name)` anchor, or it is not a reference.
+
 ## Protocol
 
 name: GATED_WORKFLOW
@@ -25,10 +43,6 @@ spine: [@G1, @G2, @G3, @G4, @G5, @G6, @G7, @G8, @G9]
 **Protocol**: GATED_WORKFLOW — every mutation identity follows the 9-gate spine.
 **Identity**: active id from @IDENTITIES (switches: `*_mode` primary, `*_agent` specialized). Not a single fixed role.
 **Anti-skip**: there is no "simple enough." One-character edit → full sequence.
-
-**Lookup**: Gate `rules:` / `steps:` are **@REFS only** — never bare words.
-Resolve `@RULE` → `RULES.@RULE` body; `@ALGO` → Algorithms section; `@SCHEMA` / `@DIAGRAM` → Schemas/Diagrams; `@Gn` → gate.
-Example: `@G9` → `@SV_EVERY_TURN` → dictionary → `@SV_FORMAT`. Do not invent procedure from bare labels.
 
 ## IDENTITIES (@IDENTITIES)
 

@@ -14,7 +14,7 @@ RUNTIME_TERMS = MappingProxyType({
     "mutation": "Authorized envelope scope only; persistent write requires @G4.",
     "oracle": "Executor ≠ Oracle ≠ Analyst; PASS → Exact stamp; FAIL → demote (@G8).",
     "plan": "Fractal decomposition → Manhattan L1 → adaptive k-medoids → CENTRAL_TASKS (@G2).",
-    "ref_routing": "Zero-prose specs; strict schema/rule refs (@RULE, @Gn, @SCHEMA).",
+    "ref_routing": "Zero-prose specs; strict schema/rule refs (by rule name, gate number, or section name — see How to Read).",
     "scope": "Inspection ≠ authorization; pre-approved envelope vs explicit approval (@G4).",
     "sv": "Semantic Vector (keywords, L1 delta, md5 chain); primary context anchor (@G9).",
     "verification": "ACCEPT ⇔ Oracle(contract) == PASS; self-certify REJECTED (@G8).",
@@ -506,6 +506,16 @@ def _render_spec_block(name: str, spec: dict) -> list[str]:
 def _render_runtime_mapping(name: str, values: MappingProxyType,
                            categories: MappingProxyType | None = None) -> list[str]:
     lines = [f"{name}:"]
+    # PROMPT_ABI precedence lists categories, not @refs — never prefix
+    _no_prefix_keys = {"precedence"}
+    def _fmt_items(v: tuple) -> str:
+        parts = []
+        for x in v:
+            if isinstance(x, str) and x.isidentifier():
+                parts.append(x)  # no @ prefix — these are category labels, not refs
+            else:
+                parts.append(repr(x))
+        return ", ".join(parts)
     if categories is not None:
         # Group by category with gate headers
         current_cat = None
@@ -515,21 +525,13 @@ def _render_runtime_mapping(name: str, values: MappingProxyType,
                 current_cat = cat
                 lines.append(f"  # ── {cat} ──")
             if isinstance(v, tuple):
-                items = ", ".join(
-                    f"@{x}" if (isinstance(x, str) and x.isidentifier()) else repr(x)
-                    for x in v
-                )
-                lines.append(f"  {key}: [{items}]")
+                lines.append(f"  {key}: [{_fmt_items(v)}]")
             else:
                 lines.append(f"  {key}: {v}")
     else:
         for key, v in values.items():
             if isinstance(v, tuple):
-                items = ", ".join(
-                    f"@{x}" if (isinstance(x, str) and x.isidentifier()) else repr(x)
-                    for x in v
-                )
-                lines.append(f"  {key}: [{items}]")
+                lines.append(f"  {key}: [{_fmt_items(v)}]")
             else:
                 lines.append(f"  {key}: {v}")
     return lines
@@ -538,6 +540,7 @@ def _render_runtime_mapping(name: str, values: MappingProxyType,
 # SPECS sections in the identity prefix (Tier A). Commands are Tier B
 # (command surfaces) — not permanent identity weight.
 _TIER_A_AGENTS = frozenset({
+    "BASE_AGENT",
     "BUILD_MODE", "PLAN_MODE",
     "CODER_AGENT", "EXPLORER_AGENT", "ORCHESTRATOR_AGENT", "GENERAL_AGENT",
     "RESEARCHER_AGENT", "MEDIA_AGENT", "TITLE_AGENT", "SUMMARY_AGENT",

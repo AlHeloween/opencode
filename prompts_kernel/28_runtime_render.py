@@ -191,6 +191,7 @@ def write_runtime_kernel(destination: str | Path, tier: str = "A") -> None:
 # ======================================================================
 
 _ALL_SPECS = {
+    "BASE_AGENT": BASE_AGENT,
     "BUILD_MODE": BUILD_MODE,
     "PLAN_MODE": PLAN_MODE,
     "CODER_AGENT": CODER_AGENT,
@@ -216,7 +217,7 @@ _ALL_SPECS = {
 
 def _render_compact_spec(name: str, spec: dict) -> list[str]:
     """Render a single agent/policy spec in compact REF-ONLY format."""
-    lines: list[str] = [f"## {name}"]
+    lines: list[str] = [f"## {name} (@{name})"]
     intent = spec.get("intent", "")
     if intent:
         lines.append(intent.strip())

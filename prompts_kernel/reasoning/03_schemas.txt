@@ -1,50 +1,29 @@
 ## Schemas
 
-## DOMAIN_SOURCES (@DOMAIN_SOURCES)
-rule: check domain authority before universalsearch
-physics: [arXiv, INSPEC, IOPscience, APS_Journals, NASA_ADS]
-biology: [PubMed, BioRxiv, GenBank, NCBI_Taxonomy]
-chemistry: [PubChem, ChemRxiv, Reaxys, NIST_WebBook]
-materials: [mdx, MaterialsProject, SpringerMaterials, MatWeb]
-medicine: [PubMed, MEDLINE, CINAHL, CochraneLibrary]
-engineering: [IEEEXplore, Compendex, INSPEC, EngineeringVillage]
-cs: [ACM_DL, IEEEXplore, CiteSeerX, arXiv_CS]
-geology: [GeoRef, GeoScienceWorld, USGS_Pubs]
-sociology: [SocINDEX, SocAbstracts, ICPSR, AgeLine]
-law: [HeinOnline, Westlaw, LexisNexis, ScholarCaseLaw]
-economics: [RePEc, FRED, WorldBankData, NBER]
-history: [JSTOR, HathiTrust, InternetArchive, ProjectMUSE]
-psychology: [PsycINFO, PubMed, OSF_Preprints, PsycArticles]
-education: [ERIC, EdSource, LearnTechLib, OECD_Ed]
-anthropology: [AIO, AnthroSource, eHRAF]
-agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
+# @schema: domain_sources
 
-## CLAIM_LEDGER (@CLAIM_LEDGER)
-claims: [{id: C_num, text: str, status: enum[Unknown,Guess,Hypothetical,Inferred,Exact], deps: [C_num], evidence: str}]
-premises_for_plan: list of claim_ids subset of G (Exact|Inferred)
-rules: [Unmarked -> Unknown, Hypothetical_in_premises -> plan_illegal, weakest_link_ceiling]
-claim_ledger: see @CLAIM_LEDGER
+# @schema: action_class
 
-## STAMPS (@STAMPS)
-oracle_decl: {claim: C_num, scope: str, cmd: str, criteria: str, res: enum[PASS,FAIL,TIMEOUT,CRASH]}
-oracle_stamp: {id: uuid, claim: C_num, scope_hash: sha256, attestation: hmac} -> Exact
-inference_stamp: {id: uuid, claim: C_num, deps: [C_num], rule: str, derivation_hash: sha256} -> Inferred
-invariant: unverified_exact_rejected; require_type_and_attestation; oracle_fail_demotes_to_guess
+# @schema: master_plan
 
-## FRACTAL_GEOMETRY (@FRACTAL_GEOMETRY)
-model: enum[Sierpinski,QuadOct,LSystem]
-metric: Manhattan_L1; tau adaptive; k adaptive; depth clamped [1,3]
+# @schema: execution_envelope
 
-## SMOKE_CONTRACT (@SMOKE_CONTRACT)
-smoke_na: bool|str; baseline: [{label, cmd, expected_exit}]; post_checks: [{cmd}]; blast_radius: str
+# @schema: explorer_goal
 
-## BUG_FIX_SCHEMA (@BUG_FIX_SCHEMA)
-stages: ERROR_TEST(must FAIL) -> TRIAL_FIX -> REAL_FIX -> TARGETED_TESTS -> DONE
-deadloop: 2+ STUCK in last 3 -> STOP + re-plan
+# @schema: stamps
 
-## SIGNAL_CLUSTER (@SIGNAL_CLUSTER)
-source: lsp|test|log|tool; collapse_gates: cascade|high_cardinality|content_similarity
-disposition: COLLAPSED_DUPLICATES|CONFIRMATION|DIVERGENCE; evidence: ACTIVE never discarded
+# @schema: clean_next_state
 
-## EXPLORER_GOAL (@EXPLORER_GOAL)
-question: specific; scope: {paths, symbols}; return: [file_paths, line_numbers, signatures]
+# @schema: msg_tag
+
+# @schema: blocker
+
+# @schema: signal_cluster
+
+# @schema: bug_fix
+
+# @schema: claim_ledger
+
+# @schema: fractal_geometry
+
+# @schema: smoke_contract

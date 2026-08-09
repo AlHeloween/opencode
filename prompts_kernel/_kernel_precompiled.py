@@ -6321,7 +6321,9 @@ Single blank line between fragment bodies; final newline.
   canonical YAML file.
 """
 
+import os
 import re
+import tempfile
 from pathlib import Path
 
 try:
@@ -6387,10 +6389,13 @@ def _section_to_comment_lines(data: object) -> list[str]:
         remaining = {}
         for key, val in data.items():
             if isinstance(val, dict) and "tag" in val:
-                tag = val.pop("tag")
-                name = val.pop("name", tag)
+                # Schema sections are reused while resolving multiple markers.
+                # Never consume their metadata during presentation.
+                rendered = dict(val)
+                tag = rendered.pop("tag")
+                name = rendered.pop("name", tag)
                 nested_headers.append(f"## {name} (@{tag})")
-                remaining[key] = val
+                remaining[key] = rendered
             else:
                 remaining[key] = val
         if nested_headers:
@@ -6545,16 +6550,79 @@ def _default_output() -> Path:
     return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
 
 
-def write_reasoning(output: Path | None = None, fragment_dir: Path | None = None) -> int:
-    """Write unified reasoning_prompt.mdc — reasoning + runtime kernel with YAML frontmatter."""
+def _runtime_output(output: Path) -> Path:
+    """Return the runtime .txt sibling for a generated .mdc review artifact."""
+    return output.with_suffix(".txt")
+
+
+def render_reasoning_artifacts(fragment_dir: Path | None = None) -> tuple[str, str]:
+    """Render review (.mdc) and runtime (.txt) kernel artifacts from one source."""
     from prompts_kernel import render_runtime_kernel
+
     reasoning = assemble_reasoning(fragment_dir)
     runtime = render_runtime_kernel()
-    body = _MDC_FRONTMATTER_UNIFIED + reasoning + "\n\n" + runtime
+    runtime_body = reasoning + "\n\n" + runtime + "\n\n### Remember FOLLOWING these rules ensures the quality of your responses"
+    return _MDC_FRONTMATTER_UNIFIED + runtime_body, runtime_body
+
+
+def _stage_text(output: Path, body: str) -> Path:
+    """Stage UTF-8/LF content beside its target so replace stays atomic."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fd, staged = tempfile.mkstemp(prefix=f".{output.name}.", suffix=".tmp", dir=output.parent, text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(body)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        Path(staged).unlink(missing_ok=True)
+        raise
+    return Path(staged)
+
+
+def _publish_staged(staged: list[tuple[Path, Path]]) -> None:
+    """Publish staged artifacts; runtime target goes first if publication is interrupted."""
+    try:
+        for output, temporary in staged:
+            temporary.replace(output)
+    finally:
+        for _, temporary in staged:
+            temporary.unlink(missing_ok=True)
+
+
+def validate_reasoning_artifacts(
+    output: Path | None = None,
+    fragment_dir: Path | None = None,
+) -> list[str]:
+    """Return drift errors for the generated review and runtime kernel artifacts."""
     if output is None:
         output = _default_output()
-    output.write_text(body, encoding="utf-8", newline="\n")
-    return len(body)
+    expected_mdc, expected_runtime = render_reasoning_artifacts(fragment_dir)
+    expected = ((_runtime_output(output), expected_runtime), (output, expected_mdc))
+    errors: list[str] = []
+    for path, content in expected:
+        if not path.is_file():
+            errors.append(f"missing generated kernel artifact: {path}")
+            continue
+        if path.read_text(encoding="utf-8") != content:
+            errors.append(f"generated kernel artifact drifted: {path}")
+    return errors
+
+
+def write_reasoning(output: Path | None = None, fragment_dir: Path | None = None) -> int:
+    """Atomically publish unified review and runtime artifacts from one render."""
+    if output is None:
+        output = _default_output()
+    mdc, runtime = render_reasoning_artifacts(fragment_dir)
+    # The provider imports .txt, so publish it before the non-runtime .mdc review copy.
+    _publish_staged([
+        (_runtime_output(output), _stage_text(_runtime_output(output), runtime)),
+        (output, _stage_text(output, mdc)),
+    ])
+    errors = validate_reasoning_artifacts(output, fragment_dir)
+    if errors:
+        raise RuntimeError("; ".join(errors))
+    return len(mdc)
 
 
 # =========================================================================
@@ -6717,12 +6785,11 @@ def assemble_precompiled_kernel(kernel_dir: Path | None = None) -> str:
 
 
 def write_precompiled_kernel(kernel_dir: Path | None = None) -> int:
-    """Write _kernel_precompiled.py. Returns byte count written."""
+    """Validate then atomically publish _kernel_precompiled.py."""
     body = assemble_precompiled_kernel(kernel_dir)
     output = _precompiled_output_path(kernel_dir)
-    output.write_text(body, encoding="utf-8", newline="\n")
-    # Verify it compiles
     compile(body, str(output), "exec")
+    _publish_staged([(output, _stage_text(output, body))])
     return len(body)
 
 # === __all__ computation (mirrors __init__._bootstrap) ===

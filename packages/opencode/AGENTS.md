@@ -386,6 +386,17 @@ prev-md5: <copy from previous response>
 relevant information across projects of any complexity. It must remain weakly coupled
 (max similarity ~0.71 to G9) to function as an independent measurement system.
 
+## Kernel Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/kernel-assembly-point.md`](../../docs/kernel-assembly-point.md) | **Assembly point analysis** — why stable kernel works vs generated kernel fails. Covers SV identity structure, schema density gradient, heading hierarchy, narrative ordering, and the "quality postscript" self-undermining pattern. **Read before any kernel fragment change.** |
+| `stable_kernel.txt` (repo root) | Canonical hand-verified kernel specification (880 lines). Tested across DeepSeek, Gemini, GPT, Grok. Reference for structural integrity. |
+| `prompts_kernel/core_schemas.yaml` | Single source of truth for all schema definitions. `@schema:` markers in fragments resolve against this file. |
+| `prompts_kernel/reasoning/README.md` | Fragment role descriptions and assembly instructions. |
+
+**Critical invariant**: The assembly point (`# Semantic Vector` H1 → bold imperative → `## SV_FORMAT (@SV_FORMAT)` H2) must remain the **first structural element** in the kernel. Schema density must be preserved — compressed schemas break the density gradient that makes the protocol actionable. The root-of-truth declaration must be the final word with no "quality" postscript appended.
+
 ## Kernel Release Verification
 
 **At each kernel revision (before release), run the embedding-based verification:**

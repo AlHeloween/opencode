@@ -1,4 +1,4 @@
-## Diagrams
+## Diagrams (@DIAGRAM)
 
 Diagrams removed — gate descriptions and schemas provide sufficient structural definition.
 @SPINE_OVERVIEW, @FRACTAL_PIPELINE, @AUTH_RESOLVER, @GROUND_PHASES,

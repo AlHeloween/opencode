@@ -149,7 +149,7 @@ algorithm_routing:
   claim: [@G8, @G9]
   oracle: [@G8, @G9]
 
-# Diagrams
+# Diagrams (@DIAGRAM)
 
 Diagrams removed — gate descriptions and schemas provide sufficient structural definition.
 @SPINE_OVERVIEW, @FRACTAL_PIPELINE, @AUTH_RESOLVER, @GROUND_PHASES,
@@ -157,7 +157,7 @@ Diagrams removed — gate descriptions and schemas provide sufficient structural
 @BUG_FIX_CHAIN_DIAGRAM, @EPISTEMIC_LADDER, @ORACLE_FLOW,
 @CLAIM_PROMOTION_DIAGRAM — all retired.
 
-# Schemas
+# Schemas (@SCHEMA)
 
 ## DOMAIN_SOURCES (@DOMAIN_SOURCES)
 rule: check domain authority before universalsearch
@@ -486,7 +486,7 @@ validation:
 - tolerance>0 ⇒ tolerance_reason required
 - '@G4 rejects invalid specs'
 
-# Algorithms
+# Algorithms (@ALGO)
 
 ## NOISE_FILTER (@NOISE_FILTER)
 rule: COLLAPSE, never FILTER OUT. 60 identical errors = 1 signal, cardinality preserved.

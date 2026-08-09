@@ -1,4 +1,4 @@
-## Algorithms
+## Algorithms (@ALGO)
 
 ### NOISE_FILTER (@NOISE_FILTER)
 rule: COLLAPSE, never FILTER OUT. 60 identical errors = 1 signal, cardinality preserved.

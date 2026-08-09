@@ -391,7 +391,9 @@ relevant information across projects of any complexity. It must remain weakly co
 | Document | Purpose |
 |----------|---------|
 | [`docs/kernel-assembly-point.md`](../../docs/kernel-assembly-point.md) | **Assembly point analysis** — why stable kernel works vs generated kernel fails. Covers SV identity structure, schema density gradient, heading hierarchy, narrative ordering, and the "quality postscript" self-undermining pattern. **Read before any kernel fragment change.** |
-| `stable_kernel.txt` (repo root) | Canonical hand-verified kernel specification (880 lines). Tested across DeepSeek, Gemini, GPT, Grok. Reference for structural integrity. |
+| [`docs/kernel-validation/validation-report-20260809.md`](../../docs/kernel-validation/validation-report-20260809.md) | **Validation report** — 5-phase validation: build finalization, embedding analysis, nemotron context-feed (6/6), system-prompt stress test (10/10 SV compliance), SV as cyclic graph anti-hallucination mechanism. |
+| [`plans/2026-08-09-kernel-validation.md`](../../plans/2026-08-09-kernel-validation.md) | **Validation plan** — master plan with full task breakdown, claim ledger, risk assessment. |
+| [`prompts_kernel/stable_kernel.txt`](../../prompts_kernel/stable_kernel.txt) | **Historical artefact** — canonical hand-verified kernel specification (880 lines). Tested across DeepSeek, Gemini, GPT, Grok. Preserved in kernel folder as structural reference. |
 | `prompts_kernel/core_schemas.yaml` | Single source of truth for all schema definitions. `@schema:` markers in fragments resolve against this file. |
 | `prompts_kernel/reasoning/README.md` | Fragment role descriptions and assembly instructions. |
 

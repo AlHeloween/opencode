@@ -51,14 +51,15 @@ EXCLUDED_FILES = {
 _REASONING_POCKET_MARKERS = (
     "GATED_WORKFLOW",
     "IDENTITIES",
-    "GATE_IDENTITY_DISPATCH",
+    "Gate Dispatch",       # merged into IDENTITIES (was GATE_IDENTITY_DISPATCH)
     "build_mode",
     "coder_agent",
     "explorer_agent",
     "claim_ledger",
     "REUSE_BEFORE",
     "universalsearch",
-    "G4",
+    "GATE_4_AUTHORIZE",    # renamed from G4
+    "GATE_8_ORACLE",       # renamed from G8
     "oracle_stamp",
 )
 POCKET_PROTOCOL_FILES = {

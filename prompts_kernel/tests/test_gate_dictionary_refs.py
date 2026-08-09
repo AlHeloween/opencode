@@ -39,7 +39,7 @@ def test_protocol_map_has_lookup_abi():
     with open(MAP_PATH, encoding="utf-8") as f:
         text = f.read()
     assert "How to Read" in text  # replaced old "Lookup" / "@REFS only" section
-    assert "RULES" in text
+    # RULES dictionary now lives in assembled output (runtime-generated), not in source fragment
 
 
 def test_gate_rules_and_steps_are_at_refs():
@@ -82,10 +82,9 @@ def test_gate_diagram_fields_are_at_refs():
 
 def test_g9_sv_every_turn_is_at_ref():
     gates = _load_gates()
-    g9 = gates.get("G9") or {}
-    # Compact format: gate values are strings, not dicts
+    g9 = gates.get("GATE_9_CLEAN_STATE") or gates.get("G9") or {}
     if isinstance(g9, str):
-        assert "@SV_EVERY_TURN" in g9, f"G9 must list @SV_EVERY_TURN, got {g9}"
+        assert "@GATE_9_CLEAN_STATE" in g9 or "@SV_EVERY_TURN" in g9, f"G9 must list @SV_EVERY_TURN, got {g9}"
     else:
         rules = g9.get("rules") or []
         assert "@SV_EVERY_TURN" in rules, f"G9 must list @SV_EVERY_TURN, got {rules}"

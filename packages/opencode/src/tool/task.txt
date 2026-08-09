@@ -5,14 +5,14 @@ Follow @IDENTITIES and @GATE_IDENTITY_DISPATCH (canonical ids: explorer_agent, g
 
 | Type | Tools Available | Best For |
 |------|----------------|----------|
-| `explore` | codegraph, read, glob, grep, list, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research (@EXPLORER_AGENT / @G6) |
+| `explore` | codegraph, read, glob, grep, list, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research (@EXPLORER_AGENT / @GATE_6_GROUND_PLAN) |
 | `general` | All tools | Planning, design alternatives, root-cause analysis, multi-step implementation strategy (@GENERAL_AGENT) |
 
 ## Alignment with gates
 
-- **@G6** — prefer `explore` / explorer_agent with a **bounded** goal (paths, symbols, return shape). Explorer is fast and has weak deep reasoning; vague prompts waste turns.
-- **@G1** — exploration is OBSERVE; evidence returned is Exact only when tools re-read sources (not explorer prose alone; @INFOMARK_SEP / @MEMORY_RANK).
-- Do **not** use task to skip @G4 approval or to mark @G8 oracle PASS.
+- **@GATE_6_GROUND_PLAN** — prefer `explore` / explorer_agent with a **bounded** goal (paths, symbols, return shape). Explorer is fast and has weak deep reasoning; vague prompts waste turns.
+- **@GATE_1_GROUND** — exploration is OBSERVE; evidence returned is Exact only when tools re-read sources (not explorer prose alone; @INFOMARK_SEP / @MEMORY_RANK).
+- Do **not** use task to skip @GATE_4_AUTHORIZE approval or to mark @GATE_8_ORACLE oracle PASS.
 - CORRECT explore prompt: "Find callers of X in src/foo/; return paths, lines, signatures."
 - WRONG: "Search for path-related things."
 

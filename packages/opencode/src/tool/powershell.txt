@@ -1,6 +1,6 @@
 Executes a PowerShell command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands, set `run_in_background: false`.
 
-Follow @CONSTITUTION_BLOCKS / @ADID_OPS (product tools for file ops; @G8 when used as test/build oracle).
+Follow @CONSTITUTION_BLOCKS / @ADID_OPS (product tools for file ops; @GATE_8_ORACLE when used as test/build oracle).
 
 **Constitution blocks** (@CONSTITUTION_BLOCKS): The following shell commands are HARD-BLOCKED and will fail:
 - File enumeration: `ls`, `dir`, `tree`, `find`, `fd`, `rg --files`, `Get-ChildItem` — use `list`/`glob`/`grep` tools instead.

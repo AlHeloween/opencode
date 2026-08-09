@@ -92,8 +92,8 @@ class ExecutionEnvelope:
       - Promoting a candidate to stable (PROMOTE_STABLE)
       - Any SELF_MODIFY activity (separate permission boundary)
 
-    This resolves the @G4 vs action_class contradiction:
-      @G4: approval for any MODIFY
+    This resolves the @GATE_4_AUTHORIZE vs action_class contradiction:
+      @GATE_4_AUTHORIZE: approval for any MODIFY
       action_class: approval only for ELEVATED/DESTRUCTIVE MODIFY
 
     With envelopes: all MODIFY within envelope = pre-approved.

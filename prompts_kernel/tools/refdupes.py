@@ -33,7 +33,7 @@ def parse_sections(text: str) -> dict[str, str]:
     # Build tag → target body (resolve @references to actual definitions)
     tagged = {k: v for k, v in sec.items() if REF.findall(k) and len(v) > 20}
     
-    # For gate tags (@G1..@G9), extract the gate definition from the gates schema
+    # For gate tags (@GATE_1_GROUND..@GATE_9_CLEAN_STATE), extract the gate definition from the gates schema
     # The gates section has keys like "G1:", "G2:" with name/description/rules
     gates_text = sec.get("Gates", "")
     gate_defs: dict[str, str] = {}

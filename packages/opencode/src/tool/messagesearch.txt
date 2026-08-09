@@ -1,5 +1,5 @@
 Search or browse conversation history across all sessions in the current project.
-Follow @G1 CONVERSATION_FACT; @MEMORY_RANK / @INFOMARK_SEP for ranking (Exact > Inferred > …).
+Follow @GATE_1_GROUND CONVERSATION_FACT; @MEMORY_RANK / @INFOMARK_SEP for ranking (Exact > Inferred > …).
 
 ## Modes
 

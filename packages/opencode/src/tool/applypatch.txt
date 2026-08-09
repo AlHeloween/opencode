@@ -1,8 +1,8 @@
 ## Mutation class
 
-`apply_patch` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (multi-file atomic; @ACTION_CLASS).
-Same grounding as edit/write: @G7, @WRITE_SCOPE, @SMOKE_BEFORE; premises ⊆ G when a
-@CLAIM_LEDGER is active. After apply: run declared oracles (@G8 / @VERIFY_OUTCOME) before Done.
+`apply_patch` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (multi-file atomic; @CLASSIFICATION).
+Same grounding as edit/write: @GATE_7_IMPLEMENT, @WRITE_SCOPE, @SMOKE_BEFORE; premises ⊆ G when a
+@CLAIM_LEDGER is active. After apply: run declared oracles (@GATE_8_ORACLE / @VERIFY_OUTCOME) before Done.
 Prefer when coordinated multi-file changes must succeed or fail together.
 
 Apply multiple file changes in a single atomic operation using a structured patch format.

@@ -38,8 +38,7 @@ def _is_at_ref(item: object) -> bool:
 def test_protocol_map_has_lookup_abi():
     with open(MAP_PATH, encoding="utf-8") as f:
         text = f.read()
-    assert "Lookup" in text or "lookup" in text
-    assert "@REFS only" in text or "rules:" in text and "@RULE" in text
+    assert "How to Read" in text  # replaced old "Lookup" / "@REFS only" section
     assert "RULES" in text
 
 
@@ -125,7 +124,7 @@ def test_assembled_mdc_has_lookup_and_g9_at_sv():
     with open(MDC_PATH, encoding="utf-8") as f:
         mdc = f.read()
     assert "@SV_EVERY_TURN" in mdc
-    assert "Lookup" in mdc or "@REFS only" in mdc
+    assert "How to Read" in mdc  # replaced old "Lookup" / "@REFS only" section
     # classic bug shape
     assert not re.search(r"^\s+-\s+SV_EVERY_TURN\s*$", mdc, re.M)
 

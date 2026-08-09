@@ -135,7 +135,7 @@ def resolve_transitive(
     refs.sort(key=len, reverse=True)
 
     for ref in refs:
-        ref_key = ref.split(".")[0]  # @G1.search_intent → G1
+        ref_key = ref.split(".")[0]  # @GATE_1_GROUND.search_intent → G1
         if ref_key == entry_id:
             # Self-reference: replace with name tag
             body = _replace_ref(body, ref, f"{{{ref_key}}}")
@@ -205,7 +205,7 @@ def parse_dictionary(path: Path | None = None) -> dict[str, Entry]:
 
         # ═══ GATE / IDENTITY DETECTION (before H1 — gates are H1 lines with @Gn tags) ═══
         if line.startswith("# ") and not line.startswith("## "):
-            # Gate: # GROUND (@G1), # DECOMPOSE (@G2), ..., # CROSS_CUTTING (@CC)
+            # Gate: # GROUND (@GATE_1_GROUND), # DECOMPOSE (@GATE_2_DECOMPOSE), ..., # CROSS_CUTTING (@CC)
             gate_match = re.search(r"\(@(G\d\d?|CC)\)", line)
             if gate_match:
                 gate_id = gate_match.group(1)

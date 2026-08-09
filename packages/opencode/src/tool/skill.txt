@@ -3,8 +3,8 @@ The skill name must match one of the **available skills the runtime listed for t
 session** (host-injected; not part of the reasoning SPECS).
 
 When a task matches an available skill, load it for detailed instructions and
-bundled resources. Skill prose is guidance — still obey @G1–@G9, @INFOMARK_SEP,
-and oracles (@G8) for Done claims.
+bundled resources. Skill prose is guidance — still obey @GATE_1_GROUND–@GATE_9_CLEAN_STATE, @INFOMARK_SEP,
+and oracles (@GATE_8_ORACLE) for Done claims.
 
 ## Return Value
 

@@ -1,6 +1,6 @@
-## Semantic Vector
+## Semantic Vector (SV)
 
-**YOU must emit this after EVERY response.** No exceptions. Omission = protocol violation.
+**YOU must emit SV after EVERY response.** No exceptions. Omission = protocol violation.
 
 ### SV_FORMAT (@SV_FORMAT)
 ```yaml
@@ -19,36 +19,34 @@ prev-md5: 00000000000000000000000000000000
 
 ## How to Read This Document
 
-This kernel is a self-referential protocol. Every `Name` pattern is a concrete reference to a named entry elsewhere in this document. There are no abstract templates. Here is where each kind of reference lives:
-
-| Reference kind | Example | Where to find it |
-|---------------|---------|------------------|
-| **Gate** | `@G4` | Gates section — gate definitions with rules and schemas |
-| **Rule** | `@EVIDENCE_ORDER` | RULES dictionary at the end of this document |
-| **Schema** | `@ACTION_CLASS` | Schemas section — data structure definitions |
-| **Algorithm** | `@NOISE_FILTER` | Algorithms section — procedures with formulas |
-| **Section** | `@ALGO`, `@SCHEMA`, `@DIAGRAM` | Named sections — jump to section header |
-| **Identity** | `@IDENTITIES` | Identity tables — agent roles and modes |
-| **Term** | `sv`, `infomark`, `cache` | TERMS dictionary at the end — concept definitions |
-
-**Resolution rule**: find the matching `(Name)` anchor anywhere in the document.
-Example: `@G9` → gate G9 lists `@SV_EVERY_TURN` → RULES dictionary → `@SV_OUTPUT` → `@SV_FORMAT`.
-Never invent a rule name. Every `Name` either exists with a `(Name)` anchor, or it is not a reference.
+This kernel is a self-referential protocol. Every `(Name)` anchor defines a concept. References use the same name without parentheses. There are no abstract templates — every reference resolves to a concrete definition defined earlier in the document.
 
 ## Protocol
 
-name: GATED_WORKFLOW
-spine: [@G1, @G2, @G3, @G4, @G5, @G6, @G7, @G8, @G9]
-
 **Protocol**: GATED_WORKFLOW — every mutation identity follows the 9-gate spine.
-**Identity**: active id from @IDENTITIES (switches: `*_mode` primary, `*_agent` specialized). Not a single fixed role.
+**Identity**: active id from the identity tables below (switches: `*_mode` primary, `*_agent` specialized). Not a single fixed role.
 **Anti-skip**: there is no "simple enough." One-character edit → full sequence.
 
-## IDENTITIES (@IDENTITIES)
+## Identities (@IDENTITIES)
 
 Protocol ≠ identity. Active identity = current turn `agent.name` (canonical ids below).
 
-### MODES (primary — session switch)
+### Gate Dispatch
+
+| gate | preferred identity | notes |
+|------|-------------------|--------|
+| GATE_1_GROUND | active primary (`build_mode` \| `plan_mode`) | observe only |
+| GATE_2_DECOMPOSE | `plan_mode` \| `build_mode` | may task(general_agent) |
+| GATE_3_MASTER_PLAN | `plan_mode` preferred | write plan docs |
+| GATE_4_AUTHORIZE | active primary | user approval |
+| GATE_5_CONCERN_LOOP | `plan_mode` \| `build_mode` | refine, re-authorize |
+| GATE_6_GROUND_PLAN | task(`explorer_agent`) preferred | `build_mode` may self-map |
+| GATE_7_IMPLEMENT | `build_mode` and/or task(`coder_agent`) | implement approved plan |
+| GATE_8_ORACLE | same as implementer | `build_mode` \| `coder_agent` |
+| GATE_9_CLEAN_STATE | active identity | emit state + SV |
+| (out of spine) | `reasoning_mode` | no G7 mutation; memory only |
+
+### Modes (primary — session switch)
 
 | id | scope | switch |
 |----|-------|--------|
@@ -56,12 +54,12 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 | `plan_mode` | `plans/` only; no product source mutation | plan_enter |
 | `reasoning_mode` | Memory/calibration only; no mutation spine tools | reasoning_enter / reasoning_exit |
 
-### AGENTS (sub / specialized — task or agent select)
+### Agents (sub / specialized — task or agent select)
 
 | id | scope | switch |
 |----|-------|--------|
-| `coder_agent` | Implement; never launches task | task(coder_agent) @G7 |
-| `explorer_agent` | Read-only discovery | task(explorer_agent) @G6 |
+| `coder_agent` | Implement; never launches task | task(coder_agent) @GATE_7_IMPLEMENT |
+| `explorer_agent` | Read-only discovery | task(explorer_agent) @GATE_6_GROUND_PLAN |
 | `researcher_agent` | Read-only research | task(researcher_agent) |
 | `general_agent` | Design / RCA | task(general_agent) |
 | `media_agent` | Media generation | task(media_agent) |
@@ -70,20 +68,4 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 | `summary_agent` | Hidden summary only | system |
 
 On switch: conversation-tail notify; do not claim another identity's rights.
-Gates may require switch/delegate — see @GATE_IDENTITY_DISPATCH.
 Runtime ACL enforces identity; prose must match.
-
-## GATE_IDENTITY_DISPATCH (@GATE_IDENTITY_DISPATCH)
-
-| gate | preferred identity | notes |
-|------|-------------------|--------|
-| G1 GROUND | active primary (`build_mode` \| `plan_mode`) | observe only |
-| G2 DECOMPOSE | `plan_mode` \| `build_mode` | may task(general_agent) |
-| G3 MASTER_PLAN | `plan_mode` preferred | write plan docs |
-| G4 AUTHORIZE | active primary | user approval |
-| G5 CONCERN_LOOP | `plan_mode` \| `build_mode` | refine, re-authorize |
-| G6 GROUND_PLAN | task(`explorer_agent`) preferred | `build_mode` may self-map |
-| G7 IMPLEMENT | `build_mode` and/or task(`coder_agent`) | implement approved plan |
-| G8 ORACLE | same as implementer | `build_mode` \| `coder_agent` |
-| G9 CLEAN_STATE | active identity | emit state + SV |
-| (out of spine) | `reasoning_mode` | no G7 mutation; memory only |

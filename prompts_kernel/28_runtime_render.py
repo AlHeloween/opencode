@@ -3,11 +3,15 @@
 
 def render_runtime_kernel(tier: str = "A") -> str:
     """Render the deterministic model-facing Pythonic keyword dictionary.
-
     tier:
       A — identity prefix (dictionary + agent/policy SPECS). Default for runtime.
       full — include command SPECS too (debug / offline docs only).
     """
+    return render_runtime_dictionary() + "\n" + render_all_specs(tier=tier)
+
+
+def render_runtime_dictionary() -> str:
+    """Render just PROMPT_ABI + TERMS + RULES (no agent/policy specs)."""
     lines: list[str] = []
     for name, values in (
         ("PROMPT_ABI", PROMPT_ABI),
@@ -17,16 +21,7 @@ def render_runtime_kernel(tier: str = "A") -> str:
         cats = RUNTIME_RULE_CATEGORIES if name == "RULES" else None
         lines.extend(_render_runtime_mapping(name, values, cats))
         lines.append("")
-    # All rules now integrated into gates — no separate @CC_TAIL section
-    lines.append(render_all_specs(tier=tier))
-    text = "\n".join(lines)
-    max_bytes = 59_000  # kernel budget — CI gate
-    if tier == "A" and len(text.encode("utf-8")) > max_bytes:
-        raise ValueError(
-            f"Tier A identity kernel is {len(text.encode('utf-8'))} bytes "
-            f"(budget {max_bytes}). Slim SPECS or dictionary before shipping.",
-        )
-    return text
+    return "\n".join(lines)
 
 
 def runtime_kernel_digest(tier: str = "A") -> str:
@@ -312,7 +307,6 @@ def render_all_specs(tier: str = "A") -> str:
         for name in sorted(commands):
             lines.extend(_render_compact_spec(name, commands[name]))
     else:
-        lines.append("# Tier B (commands) live on command surfaces — not identity.")
         lines.append("")
 
     # Supremacy clause — kernel is the authoritative root

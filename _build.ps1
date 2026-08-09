@@ -277,11 +277,11 @@ function Test-KernelStability {
 
     # ── Guard 1: Assembly Point - first H1 must be "Semantic Vector" ──
     $firstH1 = ($lines | Where-Object { $_ -match '^# [^#]' } | Select-Object -First 1)
-    if ($firstH1 -ne "# Semantic Vector") {
-        Write-Error- "ASSEMBLY POINT: First H1 is '$firstH1', expected '# Semantic Vector'. The assembly point must be the first structural element. See Principle 1."
+    if ($firstH1 -notmatch '^# Semantic Vector( \(SV\))?$') {
+        Write-Error- "ASSEMBLY POINT: First H1 is '$firstH1', expected '# Semantic Vector' or '# Semantic Vector (SV)'. The assembly point must be the first structural element. See Principle 1."
         $allPassed = $false
     } else {
-        Write-Success "Assembly point: # Semantic Vector (first H1)"
+        Write-Success "Assembly point: $firstH1 (first H1)"
     }
 
     # ── Guard 2: SV_FORMAT - first @tag must be @SV_FORMAT as H2 ──
@@ -294,8 +294,8 @@ function Test-KernelStability {
     }
 
     # ── Guard 3: Bold imperative ──
-    if ($content -notmatch '\*\*YOU must emit this after EVERY response\.\*\*') {
-        Write-Error- "IMPERATIVE: Missing bold imperative. Must contain '**YOU must emit this after EVERY response.**'. See Principle 6."
+    if ($content -notmatch '\*\*YOU must emit (this|SV) after EVERY response\.\*\*') {
+        Write-Error- "IMPERATIVE: Missing bold imperative. Must contain '**YOU must emit SV after EVERY response.**'. See Principle 6."
         $allPassed = $false
     } else {
         Write-Success "Imperative: bold 'YOU must emit' present"
@@ -326,7 +326,6 @@ function Test-KernelStability {
 
     # ── Guard 6: Schema density - critical schemas must not be compressed ──
     $schemaChecks = @{
-        "ACTION_CLASS" = 35
         "EXECUTION_ENVELOPE" = 35
         "FRACTAL_GEOMETRY" = 15
         "MASTER_PLAN_SCHEMA" = 15
@@ -361,7 +360,7 @@ function Test-KernelStability {
     $badH1Schemas = @()
     if ($schemasSectionIdx -ge 0) {
         for ($i = $schemasSectionIdx + 1; $i -lt $lines.Count; $i++) {
-            if ($lines[$i] -match '^# (CLAIM_LEDGER|STAMPS|FRACTAL_GEOMETRY|SMOKE_CONTRACT|BUG_FIX_SCHEMA|SIGNAL_CLUSTER|ACTION_CLASS|EXECUTION_ENVELOPE|MASTER_PLAN_SCHEMA|CLEAN_NEXT_STATE|BLOCKER|MSG_TAG|EXPLORER_GOAL)') {
+            if ($lines[$i] -match '^# (CLAIM_LEDGER|STAMPS|FRACTAL_GEOMETRY|SMOKE_CONTRACT|BUG_FIX_SCHEMA|SIGNAL_CLUSTER|EXECUTION_ENVELOPE|MASTER_PLAN_SCHEMA|CLEAN_NEXT_STATE|BLOCKER|MSG_TAG|EXPLORER_GOAL)') {
                 $badH1Schemas += $lines[$i].Trim()
             }
             if ($lines[$i] -match '^# (Algorithms|Epistemic|Hygiene|Diagrams)') { break }
@@ -377,6 +376,7 @@ function Test-KernelStability {
     # ── Guard 8: Refcheck - no NEW unresolved refs ──
     $KNOWN_UNRESOLVED = @(
         "BASE_AGENT", "RULE", "G", "NOISE_FILTER"  # pre-existing soft/FP refs
+        # Note: refcount baseline = 91. Update when adding/removing refs.
     )
     $refcheckOutput = & python -m prompts_kernel.tools.refcheck 2>&1
     $unresolvedBlock = ($refcheckOutput -join "`n" | Select-String -Pattern "UNRESOLVED @refs:" -Context 0,30).Context.PostContext
@@ -400,13 +400,27 @@ function Test-KernelStability {
         Write-Host "  ║  KERNEL STABILITY CHECK FAILED                       ║" -ForegroundColor Red
         Write-Host "  ║  See: docs/kernel-stability-principles.md            ║" -ForegroundColor Red
         Write-Host "  ║  The assembly point may have been destroyed by       ║" -ForegroundColor Red
-        Write-Host "  ║  optimization. Geometry is Sierpinski - all parts     ║" -ForegroundColor Red
+        Write-Host "  ║  optimization. Geometry is Sierpinski — all parts     ║" -ForegroundColor Red
         Write-Host "  ║  are interdependent. Fix canonical sources and       ║" -ForegroundColor Red
         Write-Host "  ║  re-assemble via the pipeline.                       ║" -ForegroundColor Red
         Write-Host "  ╚══════════════════════════════════════════════════════╝" -ForegroundColor Red
         Write-Host ""
     }
 
+    # ── Guard 9: Ref usage stats (info only — kernel scope, not full prompt) ──
+    $refUsage = & python prompts_kernel/tools/ref_usage.py 2>&1
+    $singleCount = if ($refUsage -match "Single-use refs:\s+Count:\s+(\d+)") { $matches[1] } else { "?" }
+    Write-Host "  Ref usage (kernel only): $singleCount single-use refs. Full analysis: python prompts_kernel/tools/ref_usage.py" -ForegroundColor Gray
+
+    # ── Guard 10: Forward references (look-ahead detection) ──
+    $fwdRefs = & python prompts_kernel/tools/ref_lookahead.py 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $fwdCount = ($fwdRefs | Select-String "forward reference" | Out-String).Trim()
+        Write-Host "  [WARN] $fwdCount — forward refs hurt LLM comprehension. Consider reordering." -ForegroundColor Yellow
+    } else {
+        Write-Host "  [OK] Zero forward references — all @refs defined before first use" -ForegroundColor Green
+    }
+    
     return $allPassed
 }
 

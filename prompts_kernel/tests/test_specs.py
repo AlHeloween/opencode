@@ -24,7 +24,7 @@ class TestProjectSpecs:
 
     def test_all_specs_loaded(self):
         # Skills (ADM_EXE, RAG, …) are a separate package — not kernel SPECS.
-        assert len(_ALL_SPECS) == 27
+        assert len(_ALL_SPECS) == 28  # +1 for BASE_AGENT anchor
         assert "BUILD_MODE" in _ALL_SPECS
         assert "PLAN_MODE" in _ALL_SPECS
         assert "CODER_AGENT" in _ALL_SPECS

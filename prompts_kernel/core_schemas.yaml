@@ -10,15 +10,15 @@ version: "1.0"
 # rules/steps/diagrams/schemas MUST be @REFS into RULES / Algorithms / Schemas / Diagrams.
 # Bare identifiers (e.g. SV_EVERY_TURN without @) are bugs — not dictionary lookups.
 gates:
-  G1: "{tag: G1, name: GROUND, rules: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH, @REUSE_BEFORE, @GROUND, @NO_HARDCODE, @VCS_ROOT, @READ_ENTIRE_FILE], intent: [where/which, codegraph, session-read, universalsearch]}"
-  G2: "{tag: G2, name: DECOMPOSE, rules: [@DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS, @GOAL_PEAKS, @SV_DELTA, @METRIC_ADAPTATION], model: Manhattan_L1}"
-  G3: "{tag: G3, name: MASTER_PLAN, rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP], output: master_plan}"
-  G4: "{tag: G4, name: AUTHORIZE, rules: [@WRITE_SCOPE], branches: {envelope_ok: G6, needs_approval: ask, concern: G2}}"
-  G5: "{tag: G5, name: CONCERN_LOOP, target: G2}"
-  G6: "{tag: G6, name: GROUND_PLAN, rules: [@SEARCH_ORDER, @REUSE_BEFORE], phases: [codegraph, explore, gap_fill]}"
-  G7: "{tag: G7, name: IMPLEMENT, rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]}"
-  G8: "{tag: G8, name: ORACLE, rules: [@VERIFY_OUTCOME, @SMOKE_VERIFY], pass: stamp(Exact), fail: demote(Guess)}"
-  G9: "{tag: G9, name: CLEAN_STATE, rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED], terminal_mode: [BLOCKED, OUT_OF_SCOPE, SUCCESS]}"
+  GATE_1_GROUND: "{tag: GATE_1_GROUND, name: GROUND, rules: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH, @REUSE_BEFORE, @GROUND, @NO_HARDCODE, @VCS_ROOT, @READ_ENTIRE_FILE], intent: [where/which, codegraph, session-read, universalsearch]}"
+  GATE_2_DECOMPOSE: "{tag: GATE_2_DECOMPOSE, name: DECOMPOSE, rules: [@DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS, @GOAL_PEAKS, @SV_DELTA, @METRIC_ADAPTATION], model: Manhattan_L1}"
+  GATE_3_MASTER_PLAN: "{tag: GATE_3_MASTER_PLAN, name: MASTER_PLAN, rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP], output: master_plan}"
+  GATE_4_AUTHORIZE: "{tag: GATE_4_AUTHORIZE, name: AUTHORIZE, rules: [@WRITE_SCOPE], branches: {envelope_ok: GATE_6_GROUND_PLAN, needs_approval: ask, concern: GATE_2_DECOMPOSE}}"
+  GATE_5_CONCERN_LOOP: "{tag: GATE_5_CONCERN_LOOP, name: CONCERN_LOOP, target: GATE_2_DECOMPOSE}"
+  GATE_6_GROUND_PLAN: "{tag: GATE_6_GROUND_PLAN, name: GROUND_PLAN, rules: [@SEARCH_ORDER, @REUSE_BEFORE], phases: [codegraph, explore, gap_fill]}"
+  GATE_7_IMPLEMENT: "{tag: GATE_7_IMPLEMENT, name: IMPLEMENT, rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]}"
+  GATE_8_ORACLE: "{tag: GATE_8_ORACLE, name: ORACLE, rules: [@VERIFY_OUTCOME, @SMOKE_VERIFY], pass: stamp(Exact), fail: demote(Guess)}"
+  GATE_9_CLEAN_STATE: "{tag: GATE_9_CLEAN_STATE, name: CLEAN_STATE, rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED], terminal_mode: [BLOCKED, OUT_OF_SCOPE, SUCCESS]}"
 
 # SEMANTIC VECTOR (SV)
 sv_output:
@@ -70,7 +70,7 @@ action_class:
     OBSERVE:           "read-only investigation"
     EXECUTE_TEST:      "run declared oracles"
     MODIFY_CANDIDATE:  "write within ExecutionEnvelope (pre-approved)"
-    MODIFY_PROJECT:    "write outside envelope (requires @G4)"
+    MODIFY_PROJECT:    "write outside envelope (requires @GATE_4_AUTHORIZE)"
     PROMOTE_STABLE:    "merge candidate→stable (ALWAYS explicit)"
     SELF_MODIFY:       "change kernel/agent/oracle (triple-separation)"
   effect:  ["NO_WRITE", "DECLARED_TEMP_WRITE", "CANDIDATE_WRITE", "PERSISTENT_WRITE"]
@@ -175,7 +175,7 @@ master_plan:
   premises: "list of claim_ids (⊆ G only)"
   open_questions: "list of claim_ids"
   goals:
-    - id: G1
+    - id: GATE_1_GROUND
       sv: "list of keywords (3-9 terms)"
       document: "abstract + I/O + brief impl sketch"
       done_pct: int
@@ -186,12 +186,12 @@ master_plan:
           files: "list of paths"
           depends_on_claims: "list of claim_ids"
           oracle: "see @STAMPS"
-          status: "[ ] | [x] — [x] only after @G8 + stamp"
+          status: "[ ] = not done, [x] = done after @GATE_8_ORACLE oracle stamp"
           attempts: "int (default 0)"
           last_failure: "string or null"
           worker_id: "string or null"
           lease_expires_at: "ISO-8601 or null"
-          action_class: "see @ACTION_CLASS"
+          action_class: "see @CLASSIFICATION"
   claim_ledger: "see @CLAIM_LEDGER"
 
 # FRACTAL GEOMETRY
@@ -230,7 +230,7 @@ smoke_contract:
   validation:
     - "¬smoke_na ⇒ ≥1 baseline check with label+cmd+expected_exit"
     - "tolerance>0 ⇒ tolerance_reason required"
-    - "@G4 rejects invalid specs"
+    - "@GATE_4_AUTHORIZE rejects invalid specs"
 
 # MESSAGE TAG
 msg_tag:
@@ -255,7 +255,7 @@ signal_cluster:
 
 bug_fix:
   tag: BUG_FIX_SCHEMA
-  description: "Bug fix chain (@G8)"
+  description: "Bug fix chain (@GATE_8_ORACLE)"
   symptom: string
   error_test: "{cmd, expect: FAIL, actual}"
   trial_fix: "{change, oracle: PASS}"

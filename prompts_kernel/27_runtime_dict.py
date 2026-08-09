@@ -7,56 +7,56 @@ PROMPT_ABI = MappingProxyType({
 RUNTIME_TERMS = MappingProxyType({
     "adid": "ADID receivers frozen; host-agnostic SPECS; runtime-injected surfaces.",
     "cache": "System prefix byte-stable per session; compute fingerprints post-transform.",
-    "evidence": "Verified > cited > inferred > unknown; intent-based tool routing (@G1).",
-    "infomark": "Status ∈ {Exact, Inferred, Hypothetical, Guess, Unknown}; stamped-only in G (@G8).",
-    "manhattan_l1": "L1 additive metric for fractal k-medoids; preserves depth & scale (@G2).",
+    "evidence": "Verified > cited > inferred > unknown; intent-based tool routing (@GATE_1_GROUND).",
+    "infomark": "Status ∈ {Exact, Inferred, Hypothetical, Guess, Unknown}; stamped-only in G (@GATE_8_ORACLE).",
+    "manhattan_l1": "L1 additive metric for fractal k-medoids; preserves depth & scale (@GATE_2_DECOMPOSE).",
     "memory": "Active window primary; soft-hidden history via session-read.",
-    "mutation": "Authorized envelope scope only; persistent write requires @G4.",
-    "oracle": "Executor ≠ Oracle ≠ Analyst; PASS → Exact stamp; FAIL → demote (@G8).",
-    "plan": "Fractal decomposition → Manhattan L1 → adaptive k-medoids → CENTRAL_TASKS (@G2).",
+    "mutation": "Authorized envelope scope only; persistent write requires @GATE_4_AUTHORIZE.",
+    "oracle": "Executor ≠ Oracle ≠ Analyst; PASS → Exact stamp; FAIL → demote (@GATE_8_ORACLE).",
+    "plan": "Fractal decomposition → Manhattan L1 → adaptive k-medoids → CENTRAL_TASKS (@GATE_2_DECOMPOSE).",
     "ref_routing": "Zero-prose specs; strict schema/rule refs (by rule name, gate number, or section name — see How to Read).",
-    "scope": "Inspection ≠ authorization; pre-approved envelope vs explicit approval (@G4).",
-    "sv": "Semantic Vector (keywords, L1 delta, md5 chain); primary context anchor (@G9).",
-    "verification": "ACCEPT ⇔ Oracle(contract) == PASS; self-certify REJECTED (@G8).",
+    "scope": "Inspection ≠ authorization; pre-approved envelope vs explicit approval (@GATE_4_AUTHORIZE).",
+    "sv": "Semantic Vector (keywords, L1 delta, md5 chain); primary context anchor (@GATE_9_CLEAN_STATE).",
+    "verification": "ACCEPT ⇔ Oracle(contract) == PASS; self-certify REJECTED (@GATE_8_ORACLE).",
 })
 
 # Gate category for each rule — used by renderer to group rules under gate headers.
 RUNTIME_RULE_CATEGORIES = MappingProxyType({
-    # G1: GROUND
-    "EVIDENCE_ORDER": "G1", "SEARCH_ORDER": "G1", "WHERE_WHICH": "G1",
-    "REUSE_BEFORE": "G1", "GROUND": "G1", "NO_HARDCODE": "G1",
-    "VCS_ROOT": "G1", "READ_ENTIRE_FILE": "G1",
-    "TONE_AND_STYLE": "G9", "NAMING": "G3",
-    "MEMORY_RANK": "G1", "MEMORY_LINKS": "G1",
-    # G2: DECOMPOSE
-    "DECOMPOSE": "G2", "FRACTAL_CANDIDATES": "G2", "GOAL_SEEDS": "G2",
-    "GOAL_PEAKS": "G2", "SV_DELTA": "G2",
-    # G3: MASTER_PLAN
-    "SMOKE_BEFORE": "G3", "SMOKE_SPEC": "G3", "SMOKE_VALIDATE": "G3",
-    "INFOMARK_SEP": "G3",
-    # G4: AUTHORIZE
-    "WRITE_SCOPE": "G4",
-    # G6: GROUND_PLAN
-    "DOCUMENT_SURFACE": "G6", "CODE_STANDARDS": "G6",
-    # G7: IMPLEMENT
-    "CACHE_STABILITY": "G7", "CONSTITUTION_BLOCKS": "G7",
-    "ADID_OPS": "G7", "NO_SCRIPT_EDITING": "G7",
-    "WORKSPACE_LANES": "G7", "ADID_FREEZE": "G7",
-    "FRAMEWORK_INHERITANCE": "G7",
-    # G8: ORACLE
-    "VERIFY_OUTCOME": "G8", "SMOKE_VERIFY": "G8",
-    "OBSOLETE_CLEANUP": "G8",
-    # G9: CLEAN_STATE
-    "CLEAN_STATE": "G9", "SV_OUTPUT": "G9", "SV_EVERY_TURN": "G9",
-    "RESIDUAL_LOOP": "G9", "EMIT_STATE": "G9", "PLANS_COMPLETED": "G9",
-    "METRIC_ADAPTATION": "G9",
-    "PROGRESS_LOG": "G9",
+    # GATE_1_GROUND
+    "EVIDENCE_ORDER": "GATE_1_GROUND", "SEARCH_ORDER": "GATE_1_GROUND", "WHERE_WHICH": "GATE_1_GROUND",
+    "REUSE_BEFORE": "GATE_1_GROUND", "GROUND": "GATE_1_GROUND", "NO_HARDCODE": "GATE_1_GROUND",
+    "VCS_ROOT": "GATE_1_GROUND", "READ_ENTIRE_FILE": "GATE_1_GROUND",
+    "TONE_AND_STYLE": "GATE_9_CLEAN_STATE", "NAMING": "GATE_3_MASTER_PLAN",
+    "MEMORY_RANK": "GATE_1_GROUND", "MEMORY_LINKS": "GATE_1_GROUND",
+    # GATE_2_DECOMPOSE
+    "DECOMPOSE": "GATE_2_DECOMPOSE", "FRACTAL_CANDIDATES": "GATE_2_DECOMPOSE", "GOAL_SEEDS": "GATE_2_DECOMPOSE",
+    "GOAL_PEAKS": "GATE_2_DECOMPOSE", "SV_DELTA": "GATE_2_DECOMPOSE",
+    # GATE_3_MASTER_PLAN
+    "SMOKE_BEFORE": "GATE_3_MASTER_PLAN", "SMOKE_SPEC": "GATE_3_MASTER_PLAN", "SMOKE_VALIDATE": "GATE_3_MASTER_PLAN",
+    "INFOMARK_SEP": "GATE_3_MASTER_PLAN",
+    # GATE_4_AUTHORIZE
+    "WRITE_SCOPE": "GATE_4_AUTHORIZE",
+    # GATE_6_GROUND_PLAN
+    "DOCUMENT_SURFACE": "GATE_6_GROUND_PLAN", "CODE_STANDARDS": "GATE_6_GROUND_PLAN",
+    # GATE_7_IMPLEMENT
+    "CACHE_STABILITY": "GATE_7_IMPLEMENT", "CONSTITUTION_BLOCKS": "GATE_7_IMPLEMENT",
+    "ADID_OPS": "GATE_7_IMPLEMENT", "NO_SCRIPT_EDITING": "GATE_7_IMPLEMENT",
+    "WORKSPACE_LANES": "GATE_7_IMPLEMENT", "ADID_FREEZE": "GATE_7_IMPLEMENT",
+    "FRAMEWORK_INHERITANCE": "GATE_7_IMPLEMENT",
+    # GATE_8_ORACLE
+    "VERIFY_OUTCOME": "GATE_8_ORACLE", "SMOKE_VERIFY": "GATE_8_ORACLE",
+    "OBSOLETE_CLEANUP": "GATE_8_ORACLE",
+    # GATE_9_CLEAN_STATE
+    "CLEAN_STATE": "GATE_9_CLEAN_STATE", "SV_OUTPUT": "GATE_9_CLEAN_STATE", "SV_EVERY_TURN": "GATE_9_CLEAN_STATE",
+    "RESIDUAL_LOOP": "GATE_9_CLEAN_STATE", "EMIT_STATE": "GATE_9_CLEAN_STATE", "PLANS_COMPLETED": "GATE_9_CLEAN_STATE",
+    "METRIC_ADAPTATION": "GATE_9_CLEAN_STATE",
+    "PROGRESS_LOG": "GATE_9_CLEAN_STATE",
 })
 
 RUNTIME_RULES = MappingProxyType({
     # ── G1: GROUND (Facts & Memory Gathering) ──
     "EVIDENCE_ORDER": "verified > cited > inferred > unknown.",
-    "SEARCH_ORDER": "Intent-based routing per @G1.search_intent; no single linear order.",
+    "SEARCH_ORDER": "Intent-based routing per @GATE_1_GROUND.search_intent; no single linear order.",
     "WHERE_WHICH": "Native OS binary lookup (where/which); never grep/glob for executables.",
     "REUSE_BEFORE": "Research ladder: Guess -> web -> code -> Hypothetical -> smoke -> Exact.",
     "GROUND": "Generate evidence plan from goal keywords; route by intent before judgment.",
@@ -76,7 +76,7 @@ RUNTIME_RULES = MappingProxyType({
     # ── G3: MASTER PLAN (Planning & Specification) ──
     "SMOKE_BEFORE": "Plan requires runnable Smoke Tests or explicit smoke:N/A with justification.",
     "SMOKE_SPEC": "Generate template {smoke_na, baseline[], post_checks[], blast_radius}.",
-    "SMOKE_VALIDATE": "Validate spec: >=1 baseline check, exit status, tolerance justification; fail @G4 if invalid.",
+    "SMOKE_VALIDATE": "Validate spec: >=1 baseline check, exit status, tolerance justification; fail @GATE_4_AUTHORIZE if invalid.",
     "INFOMARK_SEP": "Salience != Evidence; fluency != truth; only stamped Exact|Inferred enter G.",
     "NAMING": "Rule and task identifiers must use UPPER_SNAKE_CASE with underscore delimiters.",
 
@@ -324,6 +324,7 @@ RUNTIME_PACKS = MappingProxyType({
 SPEC_CONTRACT_IDS = MappingProxyType({
     "ADID_FRAMEWORK_RULES": "policy.adid", "ADID_OPS": "policy.adid_ops",
     "AI_DEPS": "command.ai_deps",
+    "BASE_AGENT": "agent.base_agent",
     "BUILD_MODE": "agent.build_mode",
     "CHANGELOG": "command.changelog",
     "CODER_AGENT": "agent.coder_agent",
@@ -348,6 +349,10 @@ SPEC_CONTRACT_IDS = MappingProxyType({
 # CONTRACTS: flat rule lists — no WORKFLOWS indirection.
 # Agent reads its contract → looks up rules in RULES section → cross-references gates in reasoning.txt.
 RUNTIME_CONTRACTS = MappingProxyType({
+    "agent.base_agent": (
+        "EVIDENCE_ORDER", "SEARCH_ORDER", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
+        "INFOMARK_SEP", "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN", "MEMORY_RANK",
+    ),
     "agent.build_mode": (
         "EVIDENCE_ORDER", "SEARCH_ORDER", "REUSE_BEFORE", "WHERE_WHICH", "NO_HARDCODE", "VCS_ROOT",
         "READ_ENTIRE_FILE",

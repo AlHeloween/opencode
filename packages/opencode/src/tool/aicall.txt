@@ -1,17 +1,17 @@
 Use `aicall` as a **bounded cognition accelerator**: one isolated LLM call on the
 exact files and constraints you supply. It is **not** a subagent (no tools, no
-repo discovery, no working-tree authority). Spine: @G1–@G9 / @IDENTITIES.
+repo discovery, no working-tree authority). Spine: @GATE_1_GROUND–@GATE_9_CLEAN_STATE / @IDENTITIES.
 
 ## Role in the gated spine
 
 | Gate | `aicall` OK? | Role |
 |------|--------------|------|
-| @G1–@G2 ground / decompose | rarely | Only if files already known; never for discovery |
-| @G3 plan / @G4 approve | yes | Draft plan text, alternatives, risk lists — **no** file writes |
-| @G6 ground plan | yes | Analyse a **bounded** file set after codegraph/read selected them |
-| @G7 implement | yes | Propose unified diff / replacement for **attached** files only |
-| @G8 oracle | no | Oracles are real tests/typecheck/logs — not another LLM opinion |
-| @G9 done claims | no | Never mark Done from `aicall` output alone |
+| @GATE_1_GROUND–@GATE_2_DECOMPOSE ground / decompose | rarely | Only if files already known; never for discovery |
+| @GATE_3_MASTER_PLAN plan / @GATE_4_AUTHORIZE approve | yes | Draft plan text, alternatives, risk lists — **no** file writes |
+| @GATE_6_GROUND_PLAN ground plan | yes | Analyse a **bounded** file set after codegraph/read selected them |
+| @GATE_7_IMPLEMENT implement | yes | Propose unified diff / replacement for **attached** files only |
+| @GATE_8_ORACLE oracle | no | Oracles are real tests/typecheck/logs — not another LLM opinion |
+| @GATE_9_CLEAN_STATE done claims | no | Never mark Done from `aicall` output alone |
 
 Prefer `aicall` when a strong long-context model can reason about a **closed object**
 in one pass more cheaply than a long `glob → grep → read → partial edit` chain.
@@ -21,12 +21,12 @@ in one pass more cheaply than a long `glob → grep → read → partial edit` c
 - `aicall` output is **Inferred** at best (parametric model over supplied text).
 - It is **never Exact** and never a system stamp.
 - Do **not** put `aicall` conclusions into `premises_for_plan` until promoted:
-  inspect → apply with edit/apply_patch → @G8 oracle PASS → `oracle_stamp`.
+  inspect → apply with edit/apply_patch → @GATE_8_ORACLE oracle PASS → `oracle_stamp`.
 - Self-labeling the reply `[Exact]` is invalid.
 
 ## Call contract
 
-1. **Ground first** (@G1) — select paths with codegraph / read / prior Exact handles.
+1. **Ground first** (@GATE_1_GROUND) — select paths with codegraph / read / prior Exact handles.
    Attach **every** file needed for correctness in `files`. Unattached files do
    not exist for the callee.
 2. **Prompt** — goal, preserved behavior, forbidden changes, output format.

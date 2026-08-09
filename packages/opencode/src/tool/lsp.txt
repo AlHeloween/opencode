@@ -1,5 +1,5 @@
 Interact with Language Server Protocol (LSP) servers to get code intelligence features.
-Follow @G1 CODE_STRUCTURE; complements codegraph — not a substitute for @G8 oracles.
+Follow @GATE_1_GROUND CODE_STRUCTURE; complements codegraph — not a substitute for @GATE_8_ORACLE oracles.
 
 Supported operations:
 - goToDefinition: Find where a symbol is defined

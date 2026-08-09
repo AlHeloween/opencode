@@ -18,9 +18,9 @@ Unknown → Guess → Hypothetical → Inferred → Exact
 ### CLAIM_PROMOTION (@CLAIM_PROMOTION)
 Goal: Advance a claim from Guess → Hypothetical → Inferred → Exact.
 
-Step 1 (Guess→Hypothetical): code/web search confirms claim exists. Gate: @G1.
-Step 2 (Hypothetical→Inferred): ALL deps in G (Exact|Inferred), DAG acyclic. Gate: @G8 — inference_stamp.
-Step 3 (Inferred→Exact): oracle PASS on declared scope. Gate: @G8 — oracle_stamp.
+Step 1 (Guess→Hypothetical): code/web search confirms claim exists. Gate: @GATE_1_GROUND.
+Step 2 (Hypothetical→Inferred): ALL deps in G (Exact|Inferred), DAG acyclic. Gate: @GATE_8_ORACLE — inference_stamp.
+Step 3 (Inferred→Exact): oracle PASS on declared scope. Gate: @GATE_8_ORACLE — oracle_stamp.
 
 Stamps:
   @STAMPS.oracle_stamp → σ(c)=Exact

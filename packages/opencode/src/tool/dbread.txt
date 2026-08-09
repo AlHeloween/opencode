@@ -1,5 +1,5 @@
 Query any SQLite database under the project's .opencode/data/ directory with read-only SQL.
-Follow @G1; never destructive DDL (@CONSTITUTION_BLOCKS).
+Follow @GATE_1_GROUND; never destructive DDL (@CONSTITUTION_BLOCKS).
 
 Use this for diagnostics, inspecting internal state, and debugging.
 

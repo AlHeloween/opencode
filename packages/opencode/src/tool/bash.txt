@@ -4,10 +4,10 @@ Follow @CONSTITUTION_BLOCKS and @ADID_OPS: product tools for file list/read/sear
 
 ## Classification & oracles
 
-- **EXECUTE_TEST** (typecheck, tests, linters, builds) → @G8 / @VERIFY_OUTCOME oracles. PASS on a
+- **EXECUTE_TEST** (typecheck, tests, linters, builds) → @GATE_8_ORACLE / @VERIFY_OUTCOME oracles. PASS on a
   declared claim may support Exact only for that scoped claim (then `oracle_stamp`
   when promoting ledger claims). FAIL/timeout → no Exact Done.
-- **Shell that mutates the tree** → treat as MODIFY (@ACTION_CLASS); prefer edit/write tools for
+- **Shell that mutates the tree** → treat as MODIFY (@CLASSIFICATION); prefer edit/write tools for
   source files. Destructive commands are constitution-gated (@CONSTITUTION_BLOCKS).
 - Self-certify ("seems fine") is Guess — not an oracle (@INFOMARK_SEP).
 

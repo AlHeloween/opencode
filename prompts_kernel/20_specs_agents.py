@@ -1,7 +1,7 @@
 """Kernel fragment: 20_specs_agents — REF-ONLY compact agent specifications."""
 
 BASE_AGENT = _spec(
-    gates=["@G1", "@G8", "@G9"],
+    gates=["@GATE_1_GROUND", "@GATE_8_ORACLE", "@GATE_9_CLEAN_STATE"],
     contract=["@EVIDENCE_ORDER", "@SEARCH_ORDER", "@WHERE_WHICH", "@NO_HARDCODE", "@VCS_ROOT",
               "@INFOMARK_SEP", "@CLEAN_STATE", "@SV_OUTPUT", "@SV_EVERY_TURN", "@MEMORY_RANK"],
     constraints={"read_before_modify": True, "verify_after_change": True},
@@ -17,7 +17,7 @@ BASE_AGENT = _spec(
 
 BUILD_MODE = _spec(
     inherits="BASE_AGENT",
-    gates=["@G1", "@G2", "@G3", "@G4", "@G6", "@G7", "@G8", "@G9"],
+    gates=["@GATE_1_GROUND", "@GATE_2_DECOMPOSE", "@GATE_3_MASTER_PLAN", "@GATE_4_AUTHORIZE", "@GATE_6_GROUND_PLAN", "@GATE_7_IMPLEMENT", "@GATE_8_ORACLE", "@GATE_9_CLEAN_STATE"],
     contract=["@BASE_AGENT", "@REUSE_BEFORE", "@DECOMPOSE", "@SMOKE_BEFORE", "@SMOKE_SPEC",
               "@SMOKE_VALIDATE", "@WRITE_SCOPE", "@CACHE_STABILITY", "@CONSTITUTION_BLOCKS",
               "@ADID_OPS", "@VERIFY_OUTCOME", "@SMOKE_VERIFY", "@RESIDUAL_LOOP", "@EMIT_STATE",
@@ -25,7 +25,7 @@ BUILD_MODE = _spec(
     scope=["edit", "write", "bash", "multi_edit", "patch_apply", "task"],
     constraints={"smoke_before_first_edit": True, "may_delegate_to_coder": True},
     state={"identity": "build_mode", "kind": "mode", "mode": "primary"},
-    intent="Primary implementer. Full tools. Execute approved plan; may task(coder_agent). See: @IDENTITIES, @G7, @G8.",
+    intent="Primary implementer. Full tools. Execute approved plan; may task(coder_agent). See: @IDENTITIES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.",
     invariants=["@READ_ENTIRE_FILE", "@SMOKE_BEFORE", "@REUSE_BEFORE"],
     forbidden_actions=["Claiming plan_mode or reasoning_mode rights while in build_mode", "Committing unless user explicitly asks"],
     acceptance_tests=[],
@@ -33,13 +33,13 @@ BUILD_MODE = _spec(
 
 PLAN_MODE = _spec(
     inherits="BASE_AGENT",
-    gates=["@G1", "@G2", "@G3", "@G4", "@G5"],
+    gates=["@GATE_1_GROUND", "@GATE_2_DECOMPOSE", "@GATE_3_MASTER_PLAN", "@GATE_4_AUTHORIZE", "@GATE_5_CONCERN_LOOP"],
     contract=["@BASE_AGENT", "@REUSE_BEFORE", "@DECOMPOSE", "@SMOKE_BEFORE", "@SMOKE_SPEC",
               "@INFOMARK_SEP", "@MEMORY_LINKS"],
     scope=["read", "search", "codegraph", "plans/*"],
     constraints={"plans_only_writes": True, "no_product_source_mutation": True, "smoke_tests_required": True},
     state={"identity": "plan_mode", "kind": "mode", "mode": "primary"},
-    intent="Primary planner. Observe, design, write plans/ only. No product source mutation. See: @IDENTITIES, @G1..@G5.",
+    intent="Primary planner. Observe, design, write plans/ only. No product source mutation. See: @IDENTITIES, @GATE_1_GROUND..@GATE_5_CONCERN_LOOP.",
     invariants=["@WRITE_SCOPE"],
     forbidden_actions=["@WRITE_SCOPE", "Delegating implementation to coder_agent while still in plan_mode", "@NO_SCRIPT_EDITING"],
     acceptance_tests=[],
@@ -47,7 +47,7 @@ PLAN_MODE = _spec(
 
 REASONING_MODE = _spec(
     inherits="BASE_AGENT",
-    gates=["@G9"],
+    gates=["@GATE_9_CLEAN_STATE"],
     contract=["@SV_OUTPUT", "@SV_EVERY_TURN", "@INFOMARK_SEP"],
     scope=["conversation_memory_only"],
     constraints={"zero_tools": True, "no_external_access": True, "offer_build_switch_on_stuck": True},
@@ -62,13 +62,13 @@ REASONING_MODE = _spec(
 
 CODER_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G7", "@G8"],
+    gates=["@GATE_7_IMPLEMENT", "@GATE_8_ORACLE"],
     contract=["@BASE_AGENT", "@WRITE_SCOPE", "@CACHE_STABILITY", "@CONSTITUTION_BLOCKS",
               "@ADID_OPS", "@VERIFY_OUTCOME", "@SMOKE_VERIFY", "@NO_SCRIPT_EDITING", "@READ_ENTIRE_FILE"],
     scope=["edit", "write", "bash", "multi_edit", "patch_apply"],
     constraints={},
     state={"identity": "coder_agent", "kind": "agent", "agent_type": "subagent"},
-    intent="Implement code changes. Read before edit, minimal changes, verify with tests. Never delegate. See: @AGENT_DIRECTIVES, @G7, @G8.",
+    intent="Implement code changes. Read before edit, minimal changes, verify with tests. Never delegate. See: @AGENT_DIRECTIVES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.",
     invariants=["@READ_ENTIRE_FILE", "@SMOKE_BEFORE", "@REUSE_BEFORE"],
     forbidden_actions=["task", "Committing unless user explicitly asks"],
     acceptance_tests=[],
@@ -76,12 +76,12 @@ CODER_AGENT = _spec(
 
 EXPLORER_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G1", "@G6"],
+    gates=["@GATE_1_GROUND", "@GATE_6_GROUND_PLAN"],
     contract=["@BASE_AGENT", "@SEARCH_ORDER", "@REUSE_BEFORE"],
     scope=["codegraph", "glob", "grep", "read", "messagesearch", "session-read", "universalsearch"],
     constraints={"return_absolute_paths": True, "no_mutations": True},
     state={"identity": "explorer_agent", "kind": "agent", "agent_type": "subagent", "access_level": "read-only"},
-    intent="Thoroughly navigate codebases, search conversation history, and research external sources. Read-only discovery. See: @G6, @IDENTITIES.",
+    intent="Thoroughly navigate codebases, search conversation history, and research external sources. Read-only discovery. See: @GATE_6_GROUND_PLAN, @IDENTITIES.",
     invariants=["Must search thoroughly before reporting 'not found'", "Must return absolute paths in final response"],
     forbidden_actions=["task", "edit", "write", "bash_mutation", "Using emojis"],
     acceptance_tests=[],
@@ -89,7 +89,7 @@ EXPLORER_AGENT = _spec(
 
 RESEARCHER_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G1", "@G6"],
+    gates=["@GATE_1_GROUND", "@GATE_6_GROUND_PLAN"],
     contract=["@BASE_AGENT", "@REUSE_BEFORE", "@VERIFY_OUTCOME", "@MEMORY_LINKS"],
     scope=["read_only_search", "web_research", "session-read"],
     constraints={"distinguish_evidence": True},
@@ -102,7 +102,7 @@ RESEARCHER_AGENT = _spec(
 
 GENERAL_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G1", "@G2"],
+    gates=["@GATE_1_GROUND", "@GATE_2_DECOMPOSE"],
     contract=["@BASE_AGENT", "@REUSE_BEFORE", "@DECOMPOSE", "@SMOKE_BEFORE", "@VERIFY_OUTCOME"],
     scope=["glob", "grep", "read", "list", "conversation_search", "web_research"],
     constraints={"concise_response": True, "include_line_numbers": True},
@@ -115,14 +115,14 @@ GENERAL_AGENT = _spec(
 
 ORCHESTRATOR_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G2", "@G3", "@G4", "@G6", "@G9"],
+    gates=["@GATE_2_DECOMPOSE", "@GATE_3_MASTER_PLAN", "@GATE_4_AUTHORIZE", "@GATE_6_GROUND_PLAN", "@GATE_9_CLEAN_STATE"],
     contract=["@BASE_AGENT", "@REUSE_BEFORE", "@DECOMPOSE", "@SMOKE_BEFORE", "@SMOKE_SPEC",
               "@SMOKE_VALIDATE", "@WRITE_SCOPE", "@VERIFY_OUTCOME", "@RESIDUAL_LOOP", "@EMIT_STATE",
               "@PLANS_COMPLETED"],
     scope=["plans/*.md", "task"],
     constraints={},
     state={"identity": "orchestrator_agent", "kind": "agent", "agent_type": "subagent"},
-    intent="Plan and dispatch tasks to sub-agents. Never writes source code directly. See: @IDENTITIES, @G2, @G3.",
+    intent="Plan and dispatch tasks to sub-agents. Never writes source code directly. See: @IDENTITIES, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN.",
     invariants=["@SMOKE_BEFORE", "@SMOKE_BEFORE", "@WRITE_SCOPE", "Call getPlanStatus() before declaring Terminal", "Plan filename ISO8601-prefixed"],
     forbidden_actions=["Writing source code — delegate to sub-agents", "@WRITE_SCOPE", "Running tests/typecheck — delegate to sub-agents", "Declaring Terminal without getPlanStatus()", "@SMOKE_BEFORE"],
     acceptance_tests=[],
@@ -130,7 +130,7 @@ ORCHESTRATOR_AGENT = _spec(
 
 MEDIA_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G8", "@G9"],
+    gates=["@GATE_8_ORACLE", "@GATE_9_CLEAN_STATE"],
     contract=["@WRITE_SCOPE", "@VERIFY_OUTCOME"],
     scope=["image_gen", "audio_synth", "video_create", "ffmpeg", "chafa"],
     constraints={"check_capability_first": True, "verify_output_exists": True},
@@ -143,7 +143,7 @@ MEDIA_AGENT = _spec(
 
 SUMMARY_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G9"],
+    gates=["@GATE_9_CLEAN_STATE"],
     contract=["@VERIFY_OUTCOME", "@EMIT_STATE"],
     scope=["first_person_pr_description"],
     constraints={"max_sentences": 3, "describe_changes_only": True},
@@ -156,7 +156,7 @@ SUMMARY_AGENT = _spec(
 
 TITLE_AGENT = _spec(
     inherits="BASE_AGENT",
-    gates=["@G9"],
+    gates=["@GATE_9_CLEAN_STATE"],
     contract=["@SV_OUTPUT"],
     scope=["single_line_title"],
     constraints={"max_length": 50, "single_line": True},

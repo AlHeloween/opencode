@@ -1,6 +1,6 @@
 Use this tool to suggest switching to **plan_mode** when the user's request would
 benefit from planning before implementation. Follow @PLAN_MODE, @IDENTITIES,
-@G2–@G4 (decompose → master_plan → authorize).
+@GATE_2_DECOMPOSE–@GATE_4_AUTHORIZE (decompose → master_plan → authorize).
 
 If they explicitly mention wanting to create a plan ALWAYS call this tool first.
 

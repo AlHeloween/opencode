@@ -1,9 +1,9 @@
 ## Mutation class
 
-`write` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (@ACTION_CLASS; full-file create or replace).
-Follow @G7, @WRITE_SCOPE, @SMOKE_BEFORE, @READ_ENTIRE_FILE.
+`write` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (@CLASSIFICATION; full-file create or replace).
+Follow @GATE_7_IMPLEMENT, @WRITE_SCOPE, @SMOKE_BEFORE, @READ_ENTIRE_FILE.
 Prefer `edit` for partial changes to existing files. Runtime may **block** if an
-active @CLAIM_LEDGER has premises outside G. After write: declared oracles (@G8 / @VERIFY_OUTCOME) before Done.
+active @CLAIM_LEDGER has premises outside G. After write: declared oracles (@GATE_8_ORACLE / @VERIFY_OUTCOME) before Done.
 
 Writes a file to the local filesystem. Overwrites if the file already exists.
 

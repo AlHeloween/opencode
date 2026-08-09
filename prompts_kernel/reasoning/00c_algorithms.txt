@@ -13,13 +13,45 @@ theta: default 0.3; adaptive median({δ_i}) + 0.1 when ≥5 non-collapsed signal
 evidence: COLLAPSED signals with cardinality. Agent sees '60 errors, 1 root cause' — not '0 errors'.
 
 ### CLASSIFICATION (@CLASSIFICATION)
-@ACTION_CLASS mapping:
-  {activity: MODIFY_CANDIDATE, effect: CANDIDATE_WRITE, risk: LOW} → within @EXECUTION_ENVELOPE — pre-approved.
-  {activity: MODIFY_PROJECT, effect: PERSISTENT_WRITE, risk: ELEVATED} → requires @G4 explicit approval.
-  {activity: PROMOTE_STABLE, effect: PERSISTENT_WRITE, risk: CRITICAL} → ALWAYS explicit user approval.
-  {activity: SELF_MODIFY, effect: PERSISTENT_WRITE, risk: CRITICAL} → triple-separation enforced.
-  {activity: EXECUTE_TEST, effect: NO_WRITE, risk: LOW}
-  {activity: OBSERVE, effect: NO_WRITE, risk: LOW}
+
+Classification maps every activity to its effect, risk, and authorization level. Execute BEFORE any action.
+
+activity:
+  enum:
+  - CONVERSATION — no side effects
+  - OBSERVE — read-only investigation
+  - EXECUTE_TEST — run declared oracles
+  - MODIFY_CANDIDATE — write within ExecutionEnvelope (pre-approved)
+  - MODIFY_PROJECT — write outside envelope (requires @GATE_4_AUTHORIZE)
+  - PROMOTE_STABLE — merge candidate→stable (ALWAYS explicit)
+  - SELF_MODIFY — change kernel/agent/oracle (triple-separation)
+effect:
+- NO_WRITE
+- DECLARED_TEMP_WRITE
+- CANDIDATE_WRITE
+- PERSISTENT_WRITE
+risk:
+- LOW
+- ELEVATED
+- DESTRUCTIVE
+- CRITICAL
+mapping:
+- candidate branch → MODIFY_CANDIDATE + CANDIDATE_WRITE
+- mainline → MODIFY_PROJECT + PERSISTENT_WRITE
+- candidate→stable → PROMOTE_STABLE + PERSISTENT_WRITE
+- kernel/oracle/metric → SELF_MODIFY + PERSISTENT_WRITE
+- test/build/typecheck → EXECUTE_TEST
+- show/read/search → OBSERVE
+invariants:
+- CONVERSATION/OBSERVE ⇒ NO_WRITE
+- EXECUTE_TEST ⇒ no silent persistent write
+- MODIFY_CANDIDATE within envelope ⇒ pre-approved
+explicit_approval_required:
+- MODIFY_PROJECT (any envelope state)
+- PROMOTE_STABLE
+- SELF_MODIFY
+- protected-surface mutation
+- candidate work outside valid envelope
 
 ### METRIC_GOVERNANCE (@METRIC_GOVERNANCE)
 PARAMETER_ADAPTATION: auto within bounds (percentile, window). METRIC_FAMILY_CHANGE: governance required — NOT automatic.

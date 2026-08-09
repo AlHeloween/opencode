@@ -1,6 +1,6 @@
 Search the web, indexed git (Sourcegraph), or a heavy research agent via the
 Universal Search Service. Product-integrated tool for **@REUSE_BEFORE**
-(also @G1.search_intent PUBLIC_API_VERSION / UNKNOWN_ROOT_CAUSE, @EPISTEMIC_LADDER).
+(also @GATE_1_GROUND.search_intent PUBLIC_API_VERSION / UNKNOWN_ROOT_CAUSE, @EPISTEMIC_LADDER).
 
 **Authoritative sources (do not restate — resolve in kernel):**
 Before scientific / domain research, check **@DOMAIN_SOURCES** for the
@@ -39,7 +39,7 @@ codegraph.
 
 **InfoMark / research ladder** — follow @EPISTEMIC_LADDER / @REUSE_BEFORE:
   Guess → web → code (Sourcegraph git) → still Inferred/Hypothetical
-  → smoke/@G8 PASS → Exact (scoped stamp) | FAIL → **Unknown** (no Done).
+  → smoke/@GATE_8_ORACLE PASS → Exact (scoped stamp) | FAIL → **Unknown** (no Done).
 Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-proved.
 
 ## Modes

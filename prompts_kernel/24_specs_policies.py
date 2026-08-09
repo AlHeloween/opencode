@@ -32,17 +32,17 @@ AGENT_DIRECTIVES = _spec(
 
 GOVERNANCE = _spec(
     state={"kind": "policy"},
-    intent="Security governance: inspection≠repair, triple separation, explicit @G4 for persistent write.",
+    intent="Security governance: inspection≠repair, triple separation, explicit @GATE_4_AUTHORIZE for persistent write.",
     scope="security",
     constraints={"inspection_is_not_repair": True, "triple_separation": True, "enforce_action_class": True, "protected_surfaces": True, "explicit_g4_for_persistent_write": True},
-    invariants=["Inspection does not authorize repair (@G4)", "Executor ≠ Oracle ≠ Analyst (@G8)", "@G4 explicit approval for persistent write"],
+    invariants=["Inspection does not authorize repair (@GATE_4_AUTHORIZE)", "Executor ≠ Oracle ≠ Analyst (@GATE_8_ORACLE)", "@GATE_4_AUTHORIZE explicit approval for persistent write"],
     forbidden_actions=["Shell for file ops when product tools exist", "Embedding external CLI cookbooks into SPECS"],
     acceptance_tests=[],
 )
 
 GROUNDING_RULES = _spec(
     state={"kind": "policy"},
-    intent="Evidence grounding: intent-based routing per @G1.search_intent.",
+    intent="Evidence grounding: intent-based routing per @GATE_1_GROUND.search_intent.",
     scope="evidence",
     constraints={},
     invariants=["@GROUND"],

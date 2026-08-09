@@ -408,14 +408,15 @@ function Test-KernelStability {
     }
 
     # ── Guard 9: Forward references (warn, never blocks) ──
-    $lookahead = & python prompts_kernel/tools/ref_lookahead.py 2>&1
-    if ($lookahead -match "(\d+) forward reference") {
-        $count = $matches[1]
-        if ([int]$count -gt 0) {
-            Write-Host "  [!] $count forward reference(s) found — review if new refs were added before definitions" -ForegroundColor Yellow
-        } else {
-            Write-Success "Forward refs: 0 (all definitions before use)"
-        }
+    $lookaheadOut = & python prompts_kernel/tools/ref_lookahead.py 2>&1
+    $lookaheadExit = $LASTEXITCODE
+    if ($lookaheadExit -eq 0) {
+        Write-Success "Forward refs: 0 (all definitions before use)"
+    } else {
+        $firstLine = ($lookaheadOut | Select-Object -First 1) -replace '[^\d]', ''
+        $count = if ($firstLine) { [int]$firstLine } else { "?" }
+        Write-Host "  [!] ~$count forward reference(s) — review if new refs were added before definitions" -ForegroundColor Yellow
+    }
     }
 
     # ── Guard 10: Forward references (look-ahead detection) ──

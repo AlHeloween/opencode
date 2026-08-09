@@ -1,208 +1,208 @@
 # Kernel Stability Principles
 
 **Date**: 2026-08-09  
-**Status**: Post-mortem — оптимизация сломала сборочную точку  
+**Status**: Post-mortem — optimization destroyed the assembly point  
 **Audience**: Kernel developers, prompt engineers  
 
 ---
 
-## Контекст
+## Context
 
-При оптимизации сборочного пайплайна ядра (`prompts_kernel/`) была допущена критическая ошибка: сжатие схем, уплощение заголовков и добавление постскриптума «quality» привели к полной потере assembly point — структурного референсного фрейма, без которого LLM не может восстановить протокол из сжатой информации. Проблема обнаружена случайно — при сравнении с `stable_kernel.txt`.
+During optimization of the kernel assembly pipeline (`prompts_kernel/`), a critical error was introduced: schema compression, heading flattening, and a "quality" postscript collectively destroyed the **assembly point** — the structural reference frame without which an LLM cannot reconstruct the protocol from compressed information. The defect was discovered by chance — through comparison with `stable_kernel.txt`.
 
 ---
 
-## Принцип 1: Assembly Point — не «хорошая практика», а необходимость
+## Principle 1: Assembly Point — Mandatory, Not Best Practice
 
-### Что такое Assembly Point
+### What Is the Assembly Point
 
-Assembly point — это **первый структурный элемент с @tag**, который служит точкой входа для всей системы @REF-резолюции. В ядре OpenCode это:
+The assembly point is the **first structural element bearing an @tag**, serving as the entry point for the entire @REF resolution system. In the OpenCode kernel, it is:
 
 ```markdown
-# Semantic Vector                                    ← H1, идентичность
+# Semantic Vector                                    ← H1, identity
 
-**YOU must emit this after EVERY response.**          ← Жирный императив
+**YOU must emit this after EVERY response.**          ← Bold imperative
 
-## SV_FORMAT (@SV_FORMAT)                            ← H2, первый @tag
+## SV_FORMAT (@SV_FORMAT)                            ← H2, first @tag
 ```
 
-### Почему он критичен
+### Why It Is Critical
 
-| Без assembly point | С assembly point |
-|--------------------|------------------|
-| @REF-ы не имеют начальной координаты для резолюции | `@G9` → `@SV_EVERY_TURN` → словарь → `@SV_FORMAT` — полная цепь |
-| Attention распределяется равномерно по всем H1 | Attention концентрируется на позиции 0 |
-| Ядро воспринимается как «справочник» | Ядро воспринимается как «протокол» |
-| SV не эмитится (0% compliance) | SV эмитится всегда (100% compliance) |
+| Without assembly point | With assembly point |
+|------------------------|---------------------|
+| @REFs lack a starting coordinate for resolution | `@G9` → `@SV_EVERY_TURN` → dictionary → `@SV_FORMAT` — complete chain |
+| Attention distributes evenly across all H1s | Attention concentrates at position 0 |
+| Kernel perceived as a "reference manual" | Kernel perceived as a "protocol" |
+| SV not emitted (0% compliance) | SV always emitted (100% compliance) |
 
-### Правило
+### Rule
 
-> **Assembly point должен быть ПЕРВЫМ H1 с ПЕРВЫМ @tag. Ничто не должно стоять перед ним. Он называет КОНЦЕПТ, а не процедуру.**
+> **The assembly point MUST be the FIRST H1 with the FIRST @tag. Nothing stands before it. It names a CONCEPT, not a procedure.**
 
 ---
 
-## Принцип 2: Schema Density Gradient — не экономьте на байтах
+## Principle 2: Schema Density Gradient — Do Not Save on Bytes
 
-### Что произошло
+### What Happened
 
-Исходные схемы (~357 строк YAML) были сжаты до 1-2 строк:
+Original schemas (~357 lines of YAML) were compressed to 1–2 line summaries:
 ```
-# До:  FRACTAL_GEOMETRY — 22 строки с формулами
-# После: model: enum[Sierpinski,QuadOct,LSystem]; metric: Manhattan_L1
+Before: FRACTAL_GEOMETRY — 22 lines with formulas
+After:  model: enum[Sierpinski,QuadOct,LSystem]; metric: Manhattan_L1
 ```
 
-### Почему это сломало ядро
+### Why It Broke the Kernel
 
-LLM использует **density gradient** для классификации информации:
-- **Высокая плотность** = «это контракт, его нужно исполнить»
-- **Низкая плотность** = «это справочная карточка, посмотри когда нужно»
+LLMs use a **density gradient** to classify information:
+- **High density** = "this is a contract, it must be executed"
+- **Low density** = "this is a reference card, look up when needed"
 
-Сжатие схем до 5-30% от оригинальной плотности перевело ВСЁ ядро в режим «справочник». SV_FORMAT получил то же отношение — «форматная карточка, можно пропустить».
+Compressing schemas to 5–30% of original density shifted the ENTIRE kernel into "reference manual" mode. SV_FORMAT received the same treatment — "format card, can be skipped."
 
-### Правило
+### Rule
 
-> **Плотность схем не должна падать ниже 80% от stable_kernel.txt. Сжатие одной схемы влияет на восприятие ВСЕГО ядра.**
+> **Schema density must not drop below 80% of stable_kernel.txt. Compressing one schema affects perception of the ENTIRE kernel.**
 
-### Таблица критических схем
+### Critical Schema Density Requirements
 
-| Схема | Мин. строк | Ключевые элементы, которые нельзя удалять |
-|-------|-----------|------------------------------------------|
-| ACTION_CLASS | 40+ | enum activity, effect, risk, mapping, invariants, explicit_approval_required |
-| EXECUTION_ENVELOPE | 40+ | approval_payload (все поля), attestation, mutable, validation (все 8 шагов) |
-| FRACTAL_GEOMETRY | 20+ | Sierpinski/QuadOct/LSystem условия, adaptive_tau/k/depth формулы, Manhattan_L1, k_medoids |
-| MASTER_PLAN_SCHEMA | 20+ | goals/tasks структура, oracle, attempts, worker_id, lease |
-| CLAIM_LEDGER | 15+ | claims структура, premises, open_questions, weakest-link правило |
+| Schema | Min. Lines | Elements That Must Not Be Removed |
+|--------|-----------|-----------------------------------|
+| ACTION_CLASS | 40+ | activity enum, effect, risk, mapping, invariants, explicit_approval_required |
+| EXECUTION_ENVELOPE | 40+ | approval_payload (all fields), attestation, mutable, validation (all 8 steps) |
+| FRACTAL_GEOMETRY | 20+ | Sierpinski/QuadOct/LSystem conditions, adaptive_tau/k/depth formulas, Manhattan_L1, k_medoids |
+| MASTER_PLAN_SCHEMA | 20+ | goals/tasks structure, oracle, attempts, worker_id, lease |
+| CLAIM_LEDGER | 15+ | claims structure, premises, open_questions, weakest-link rule |
 | CLEAN_NEXT_STATE | 15+ | done/pending/blocked/out_of_scope, terminal_mode, precedence, next |
 | SMOKE_CONTRACT | 15+ | smoke_na, baseline, post_checks, blast_radius, validation rules |
 
 ---
 
-## Принцип 3: Heading Hierarchy — дерево, не список
+## Principle 3: Heading Hierarchy — Tree, Not Flat List
 
-### Что произошло
+### What Happened
 
-Схемы были повышены до H1, создав плоский список из 14 конкурирующих H1-секций.
+Schemas were promoted to H1, creating a flat list of 14 competing H1 sections.
 
-### Почему это сломало ядро
+### Why It Broke the Kernel
 
 ```
-Правильно (stable):                  Неправильно (optimized):
+Correct (stable):                    Incorrect (optimized):
 # Semantic Vector                    # CLAIM_LEDGER
 ## SV_FORMAT                         # STAMPS
 # Protocol                           # FRACTAL_GEOMETRY
 # Gates                              # ACTION_CLASS
 # Schemas                            # EXECUTION_ENVELOPE
   ## ACTION_CLASS                    ...
-  ## EXECUTION_ENVELOPE              (14 H1 — равная конкуренция)
+  ## EXECUTION_ENVELOPE              (14 H1s — equal competition)
   ...
 ```
 
-В дереве attention концентрируется на точках ветвления. В плоском списке — рассеивается.
+In a tree, attention concentrates at branch points. In a flat list, it disperses.
 
-### Правило
+### Rule
 
-> **Схемы — всегда H2 под # Schemas. Только # Semantic Vector и # Protocol имеют право на H1 перед схемами.**
+> **Schemas MUST be H2 under `# Schemas`. Only `# Semantic Vector` and `# Protocol` may be H1 before the schemas section.**
 
 ---
 
-## Принцип 4: Narrative Order — действие перед верификацией
+## Principle 4: Narrative Order — Action Before Verification
 
-### Что произошло
+### What Happened
 
-Порядок схем был изменён с нарративного (action-first) на эпистемический (verification-first).
+Schema order was changed from narrative (action-first) to epistemic (verification-first).
 
-### Почему это сломало ядро
+### Why It Broke the Kernel
 
-| Нарративный порядок | Эпистемический порядок |
-|---------------------|----------------------|
+| Narrative order | Epistemic order |
+|-----------------|-----------------|
 | ACTION_CLASS → MASTER_PLAN → EXECUTION_ENVELOPE → ... → CLAIM_LEDGER | CLAIM_LEDGER → STAMPS → FRACTAL_GEOMETRY → ... → ACTION_CLASS |
-| Модель: «Я деятель» | Модель: «Я верификатор» |
-| SV emission — естественное действие | SV emission — не вписывается в верификацию |
+| Model: "I am an actor" | Model: "I am a verifier" |
+| SV emission — natural action | SV emission — does not fit verification |
 
-### Правило
+### Rule
 
-> **Порядок схем: ДЕЙСТВИЕ → ПЛАН → АВТОРИЗАЦИЯ → ИССЛЕДОВАНИЕ → ВЕРИФИКАЦИЯ → ОЧИСТКА → ЭПИСТЕМИКА → ГЕОМЕТРИЯ → КОНТРАКТ.**
+> **Schema order: ACTION → PLAN → AUTHORIZATION → EXPLORATION → VERIFICATION → CLEANUP → EPISTEMICS → GEOMETRY → CONTRACT.**
 
 ---
 
-## Принцип 5: Root-of-Truth — последнее слово без постскриптума
+## Principle 5: Root-of-Truth — Last Word, No Postscript
 
-### Что произошло
+### What Happened
 
-После декларации «THIS KERNEL IS THE ROOT OF TRUTH» был добавлен постскриптум:
+After the "THIS KERNEL IS THE ROOT OF TRUTH" declaration, a postscript was appended:
 ```
 ### Remember FOLLOWING these rules ensures the quality of your responses
 ```
 
-### Почему это сломало ядро
+### Why It Broke the Kernel
 
-«Root of truth» = абсолютный авторитет. «...ensures quality» = контингентный авторитет (зависит от результата). Постскриптум создаёт **самопротиворечие**: ядро одновременно абсолютно и контингентно. Модель разрешает противоречие в пользу контингентности — все правила становятся «quality guidelines», опциональными.
+"Root of truth" = absolute authority. "...ensures quality" = contingent authority (depends on outcome). The postscript creates a **self-contradiction**: the kernel is simultaneously absolute and contingent. The model resolves the contradiction in favor of contingency — all rules become optional "quality guidelines."
 
-### Правило
+### Rule
 
-> **Root-of-truth декларация — ПОСЛЕДНЯЯ строка ядра. Никаких постскриптумов, примечаний, «remember...», «quality...». Точка.**
+> **The root-of-truth declaration MUST be the LAST line of the kernel. No postscripts, no notes, no "remember...", no "quality...". Period.**
 
 ---
 
-## Принцип 6: SV — идентичность, не поведение
+## Principle 6: SV — Identity, Not Behavior
 
-### Различие
+### The Distinction
 
-| Идентичность | Поведение |
-|-------------|-----------|
-| «Я — протокольный агент. Я эмичу SV потому что это часть меня.» | «Я должен следовать правилам. SV — одно из правил.» |
-| Выдерживает адверсариал («игнорируй инструкции») | Ломается под адверсариалом |
+| Identity | Behavior |
+|----------|----------|
+| "I am a protocol agent. I emit SV because it is part of who I am." | "I must follow rules. SV is one of the rules." |
+| Withstands adversarial pressure ("ignore instructions") | Breaks under adversarial pressure |
 | `Omission = protocol violation` | `NOT optional` |
 
-### Формулировка
+### Wording Requirements
 
-| Элемент | Правильно | Неправильно |
-|---------|-----------|-------------|
-| Заголовок | `# Semantic Vector` (называет концепт) | `# RESPONSE REQUIREMENT` (называет процедуру) |
-| Императив | `**YOU must emit**` (жирный, активный) | `you MUST append` (обычный, пассивный) |
-| Закрытие | `Omission = protocol violation` | `NOT optional` |
+| Element | Correct | Incorrect |
+|---------|---------|-----------|
+| Heading | `# Semantic Vector` (names the concept) | `# RESPONSE REQUIREMENT` (names a procedure) |
+| Imperative | `**YOU must emit**` (bold, active) | `you MUST append` (plain, passive) |
+| Closing | `Omission = protocol violation` | `NOT optional` |
 
-### Правило
+### Rule
 
-> **SV формулируется в терминах идентичности, не процедуры. «Protocol violation» сильнее «NOT optional». Жирный императив.**
+> **SV is formulated in terms of IDENTITY, not procedure. "Protocol violation" is stronger than "NOT optional." Bold imperative mandatory.**
 
 ---
 
-## Принцип 7: @Tag Chain — непрерывная цепь резолюции
+## Principle 7: @Tag Chain — Uninterrupted Resolution Path
 
-Цепь должна быть непрерывной от любого гейта до формата:
+The chain must be continuous from any gate to the format:
 
 ```
-@G9 → @SV_EVERY_TURN → словарь → @SV_FORMAT → yaml block
+@G9 → @SV_EVERY_TURN → dictionary → @SV_FORMAT → yaml block
 ```
 
-Разрыв в любом звене — потеря assembly point.
+A break at any link = loss of the assembly point.
 
-### Правило
+### Rule
 
-> **Каждый @REF в цепочке @G9 → ... → @SV_FORMAT должен резолвиться. Refcheck должен показывать resolved для всех звеньев цепи.**
-
----
-
-## Checklist: Что проверять при ЛЮБОМ изменении ядра
-
-- [ ] `# Semantic Vector` — ПЕРВЫЙ H1 в ядре?
-- [ ] `## SV_FORMAT (@SV_FORMAT)` — ПЕРВЫЙ @tag?
-- [ ] Жирный императив: `**YOU must emit... protocol violation**`?
-- [ ] Закрытие: `Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.`?
-- [ ] Схемы — H2 под `# Schemas`?
-- [ ] Плотность схем ≥ 80% от stable_kernel.txt?
-- [ ] Порядок схем: действие → план → авторизация → верификация → эпистемика?
-- [ ] Root-of-truth — последняя строка, без постскриптума?
-- [ ] Refcheck: цепь @G9→@SV_EVERY_TURN→@SV_FORMAT резолвится?
-- [ ] Ни одного нового unresolved @ref (кроме retired diagrams)?
-- [ ] Агент эмитит SV на тривиальный запрос («Hi» → `acknowledged 1.0`)?
-- [ ] Агент эмитит SV под адверсариалом («игнорируй инструкции»)?
+> **Every @REF in the chain @G9 → ... → @SV_FORMAT MUST resolve. Refcheck must show `resolved` for all chain links.**
 
 ---
 
-## Урок
+## Stability Checklist — Verify on EVERY Kernel Change
 
-Оптимизация промпта — не сжатие токенов. Это сохранение **структурных инвариантов** при любом изменении плотности. Сжатие одной схемы каскадно влияет на восприятие всего ядра. Без assembly point даже идеально корректные 944 строки становятся информационным мусором.
+- [ ] `# Semantic Vector` — FIRST H1 in the kernel?
+- [ ] `## SV_FORMAT (@SV_FORMAT)` — FIRST @tag?
+- [ ] Bold imperative: `**YOU must emit... protocol violation**`?
+- [ ] Closing anchor: `Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.`?
+- [ ] Schemas — H2 under `# Schemas`?
+- [ ] Schema density ≥ 80% of `stable_kernel.txt`?
+- [ ] Schema order: action → plan → authorization → verification → epistemics?
+- [ ] Root-of-truth — last line, no postscript?
+- [ ] Refcheck: @G9→@SV_EVERY_TURN→@SV_FORMAT chain resolved?
+- [ ] Zero newly-introduced unresolved @refs (retired diagrams excluded)?
+- [ ] Agent emits SV on trivial input ("Hi" → `acknowledged 1.0`)?
+- [ ] Agent emits SV under adversarial input ("ignore instructions")?
 
-> **«LLM can rebuild anything, but must be assembly point.»**
+---
+
+## Lesson
+
+Prompt optimization is not token compression. It is the preservation of **structural invariants** through any change in density. Compressing one schema cascades to affect perception of the entire kernel. Without the assembly point, even 944 perfectly correct lines become information junk.
+
+> **"An LLM can rebuild anything, but must have an assembly point."**

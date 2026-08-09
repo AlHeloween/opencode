@@ -376,10 +376,6 @@ function Test-KernelStability {
 
     # ── Guard 8: Refcheck - no NEW unresolved refs ──
     $KNOWN_UNRESOLVED = @(
-        "AUTH_RESOLVER", "BUG_FIX_CHAIN_DIAGRAM", "CLAIM_PROMOTION_DIAGRAM",
-        "EPISTEMIC_LADDER", "FRACTAL_PIPELINE", "GROUND_PHASES",
-        "METRIC_GOVERNANCE_DIAGRAM", "NOISE_FILTER_DIAGRAM", "ORACLE_FLOW",
-        "ORACLE_SEQUENCE", "SPINE_OVERVIEW",  # retired diagrams
         "BASE_AGENT", "RULE", "G", "NOISE_FILTER"  # pre-existing soft/FP refs
     )
     $refcheckOutput = & python -m prompts_kernel.tools.refcheck 2>&1

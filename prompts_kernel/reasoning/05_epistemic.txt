@@ -27,8 +27,6 @@ Stamps:
   @STAMPS.inference_stamp → σ(c)=Inferred
   @STAMPS.direct_evidence_stamp → σ(c)=Exact
 
-Diagram: @CLAIM_PROMOTION_DIAGRAM.
-
 ### ENFORCEMENT (@ENFORCEMENT)
 - Only stamped claims enter G. G = {c | σ(c)∈{Exact,Inferred} ∧ stamped ∧ not expired}.
 - Legal plan: ∀p∈premises(plan): p∈G. Hypothetical in premises ⇒ plan illegal.

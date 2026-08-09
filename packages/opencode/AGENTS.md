@@ -390,7 +390,7 @@ relevant information across projects of any complexity. It must remain weakly co
 
 | Document | Purpose |
 |----------|---------|
-| [`docs/kernel-stability-principles.md`](../../docs/kernel-stability-principles.md) | **Stability principles** — 7 принципов сохранения assembly point при оптимизации. Post-mortem анализ: почему сжатие схем, уплощение заголовков и постскриптум «quality» ломают ядро. **Checklist для ЛЮБОГО изменения ядра.** |
+| [`docs/kernel-stability-principles.md`](../../docs/kernel-stability-principles.md) | **Stability principles** — 7 rules for preserving the assembly point during optimization. Post-mortem: why schema compression, heading flattening, and the "quality" postscript destroy the kernel. **Checklist for ANY kernel change.** |
 | [`docs/kernel-assembly-point.md`](../../docs/kernel-assembly-point.md) | **Assembly point analysis** — why stable kernel works vs generated kernel fails. Covers SV identity structure, schema density gradient, heading hierarchy, narrative ordering, and the "quality postscript" self-undermining pattern. **Read before any kernel fragment change.** |
 | [`docs/kernel-validation/validation-report-20260809.md`](../../docs/kernel-validation/validation-report-20260809.md) | **Validation report** — 5-phase validation: build finalization, embedding analysis, nemotron context-feed (6/6), system-prompt stress test (10/10 SV compliance), SV as cyclic graph anti-hallucination mechanism. |
 | [`plans/2026-08-09-kernel-validation.md`](../../plans/2026-08-09-kernel-validation.md) | **Validation plan** — master plan with full task breakdown, claim ledger, risk assessment. |

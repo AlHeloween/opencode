@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from copy import deepcopy
 
 import pytest
 
@@ -33,6 +34,11 @@ from prompts_kernel import (  # noqa: E402
     validate_runtime_references,
     validate_runtime_rule_owners,
 )
+from prompts_kernel._assemble_prompts_kernel import (  # noqa: E402
+    _section_to_comment_lines,
+    render_reasoning_artifacts,
+    write_reasoning,
+)
 
 class TestRuntimePromptCompiler:
     """Validate the compact Pythonic runtime dictionary."""
@@ -43,20 +49,25 @@ class TestRuntimePromptCompiler:
         assert runtime_kernel_digest()
         assert "\r" not in first
 
-    def test_runtime_kernel_artifact_matches_generator(self):
+    def test_reasoning_artifacts_match_generator(self):
         root = Path(__file__).resolve().parents[2]
-        artifact = root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
-        if not artifact.is_file():
-            pytest.skip("runtime kernel txt not generated (gitignored) — run --render-runtime")
-        with open(artifact, encoding="utf-8", newline="") as generated:
-            content = generated.read()
-            # Unified .mdc = frontmatter + reasoning + kernel.
-            # Extract kernel portion starting at PROMPT_ABI.
-            marker = "PROMPT_ABI:"
-            idx = content.find(marker)
-            assert idx != -1, f"PROMPT_ABI not found in {artifact}"
-            kernel_from_artifact = content[idx:]
-            assert kernel_from_artifact.strip() == render_runtime_kernel().strip()
+        prompt_dir = root / "packages" / "opencode" / "src" / "session" / "prompt"
+        expected_mdc, expected_runtime = render_reasoning_artifacts()
+        assert (prompt_dir / "reasoning_prompt.mdc").read_text(encoding="utf-8") == expected_mdc
+        assert (prompt_dir / "reasoning_prompt.txt").read_text(encoding="utf-8") == expected_runtime
+
+    def test_reasoning_writer_publishes_matching_siblings(self, tmp_path: Path):
+        output = tmp_path / "reasoning_prompt.mdc"
+        expected_mdc, expected_runtime = render_reasoning_artifacts()
+        assert write_reasoning(output) == len(expected_mdc)
+        assert output.read_text(encoding="utf-8") == expected_mdc
+        assert output.with_suffix(".txt").read_text(encoding="utf-8") == expected_runtime
+
+    def test_schema_rendering_does_not_mutate_sections(self):
+        schema = {"gates": {"G1": {"tag": "G1", "name": "GROUND", "rules": ["A"]}}}
+        expected = deepcopy(schema)
+        _section_to_comment_lines(schema)
+        assert schema == expected
 
     def test_runtime_kernel_contains_roots_not_source_only_harness(self):
         runtime = render_runtime_kernel()

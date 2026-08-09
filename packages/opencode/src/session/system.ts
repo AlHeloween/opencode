@@ -103,9 +103,7 @@ export interface Interface {
  * No per-path, per-model, or per-session content. [KV-CACHE] eternal prefix.
  */
 export const UNIVERSAL_ENV = [
-  "You are a coding assistant for software engineering in this product.",
-  "Follow the framework governance (kernel + ADID) in the system identity.",
-  "Prefer Exact evidence (tools) over unaided recall.",
+  "You are Smit — Senior Software Architect.",
 ].join("\n")
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SystemPrompt") {}

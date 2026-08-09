@@ -289,7 +289,6 @@ function writePayloadAsText(extra: Record<string, any>): string {
   const lines: string[] = []
   for (const [key, value] of Object.entries(extra)) {
     if (typeof value === "string") {
-      lines.push(`--- FIELD: ${key} ---`)
       lines.push(value.replace(/\r\n/g, "\n").replace(/\n/g, EOL))
     } else if (typeof value === "object" && value !== null) {
       lines.push(`--- FIELD: ${key} (object) ---`)

@@ -284,23 +284,23 @@ def test_no_orphaned_agent_prompts():
         pytest.skip("agent.ts not found, skipping import test")
 
 
-def test_build_has_no_agent_prompt_system_bind():
-    """plan/build mode text must not live in agent.prompt (KV: conversation tail only)."""
+def test_modes_bind_generated_session_tails():
+    """Primary modes bind only their compact generated session-tail prompts."""
     agent_def_path = os.path.join(PROJECT_ROOT, "packages/opencode/src/agent/agent.ts")
     if not os.path.isfile(agent_def_path):
         pytest.skip("agent.ts not found")
     with open(agent_def_path, "r", encoding="utf-8") as f:
         src = f.read()
-    assert "PROMPT_BUILD" not in src
-    # build_mode block must not set prompt: (mode text is session/prompt/build.txt synthetic)
-    m = re.search(r"build_mode:\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}", src, re.DOTALL)
-    assert m, "build_mode agent definition not found"
-    assert "prompt:" not in m.group(1)
-    # plan_mode / reasoning_mode likewise: conversation-tail only
-    for name in ("plan_mode", "reasoning_mode"):
-        mm = re.search(rf"{name}:\s*\{{([^}}]*(?:\{{[^}}]*\}}[^}}]*)*)\}}", src, re.DOTALL)
-        assert mm, f"{name} agent definition not found"
-        assert "prompt:" not in mm.group(1), f"{name} must not set agent.prompt"
+    expected = {
+        "build_mode": ("PROMPT_BUILD_MODE", "../session/prompt/build.txt"),
+        "plan_mode": ("PROMPT_PLAN_MODE", "../session/prompt/plan.txt"),
+        "reasoning_mode": ("PROMPT_REASONING_MODE", "../session/prompt/reasoning-mode.txt"),
+    }
+    for mode, (symbol, path) in expected.items():
+        assert f'import {symbol} from "{path}"' in src
+        assert re.search(rf"{mode}:\s*\{{.*?prompt:\s*{symbol},", src, re.DOTALL), (
+            f"{mode} must bind its generated session-tail prompt"
+        )
 
 
 def test_pocket_protocol_files_exist_and_markers():
@@ -368,10 +368,32 @@ def test_schema_refs_resolve():
         f"reasoning.mdc has {len(orphan_markers)} unresolved @schema: marker(s): {orphan_markers}"
     )
 
-    # 3. All resolved schemas use XML tags: <schema_name>...</schema_name>
-    resolved = re.findall(r"<(\w+)>", assembled)
-    assert len(resolved) >= len(all_refs), (
-        f"Expected >= {len(all_refs)} resolved schemas, found {len(resolved)}"
+    # 3. All @schema: refs produce a corresponding tagged heading in the assembled output.
+    #    The assembly pipeline injects full YAML from core_schemas.yaml via _section_to_comment_lines,
+    #    which produces "## {name} (@{tag})" headings. Resolve expected tags from the YAML itself.
+    resolved_tags = set()
+    for m in re.finditer(r"^## (\w+(?:\s+\w+)*)\s+\(@(\w+)\)", assembled, re.MULTILINE):
+        resolved_tags.add(m.group(2))  # group(2) = tag name, e.g. ACTION_CLASS
+    # Derive expected tags from YAML: for each @schema: ref, look up the tag field
+    expected_tags = set()
+    for ref in all_refs:
+        section = schemas
+        for part in ref.split("."):
+            if isinstance(section, dict) and part in section:
+                section = section[part]
+            else:
+                section = None
+                break
+        if isinstance(section, dict) and "tag" in section:
+            expected_tags.add(section["tag"])
+        elif isinstance(section, str):
+            # string values (like domain_sources list) - use ref.upper()
+            expected_tags.add(ref.upper())
+    missing = expected_tags - resolved_tags
+    assert not missing, (
+        f"Missing @schema: resolutions in assembled output: {sorted(missing)}"
+        f"\n  Expected tags: {sorted(expected_tags)}"
+        f"\n  Found tags:    {sorted(resolved_tags)}"
     )
 
     # 4. Report (don't assert) top-level schemas not yet @schema:-referenced

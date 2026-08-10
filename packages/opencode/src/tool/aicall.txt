@@ -25,6 +25,11 @@ repo discovery, no working-tree authority).
 3. Output — prefer unified diff or full replacement + risks + focused tests.
 4. After — treat as draft; apply with edit tools; run declared oracles before Done.
 
+Every result begins with the direct-call envelope: selected provider/model, API
+model, SDK and endpoint, plus the fact that this isolated request sends no
+system prompt or tools. The envelope reports request shape, not secrets or the
+full user/file content.
+
 ## Parameters
 
 | Parameter | Type | Required | Description |

@@ -14,6 +14,20 @@ const log = Log.create({ service: "tool.aicall" })
 const id = "aicall"
 const policy = "ai-call"
 
+export function requestEnvelope(model: Pick<Provider.Model, "providerID" | "id" | "api">, userText: string) {
+  return [
+    "Direct AI call request:",
+    `provider: ${model.providerID}`,
+    `model: ${model.id}`,
+    `api model: ${model.api.id}`,
+    `sdk: ${model.api.npm ?? "built-in"}`,
+    `endpoint: ${model.api.url ?? "provider default"}`,
+    "system: none (isolated aicall)",
+    "tools: none (isolated aicall)",
+    `user context: ${userText.length} chars`,
+  ].join("\n")
+}
+
 const codeExts = new Set([
   ".py", ".ts", ".tsx", ".js", ".jsx", ".rs", ".go", ".java",
   ".c", ".cpp", ".h", ".hpp", ".cs", ".swift", ".kt", ".scala",
@@ -116,6 +130,7 @@ export const AiCallTool = Tool.define(
           )
 
           const output = result.text
+          const envelope = requestEnvelope(model, userText)
 
           // Optionally save to file
           if (params.output_file) {
@@ -145,7 +160,7 @@ export const AiCallTool = Tool.define(
                   metadata: {
                     model: { providerID: model.providerID, modelID: model.id },
                   },
-                  output: `REJECTED: output_file "${params.output_file}" has a code extension but the model returned markdown/prose instead of source code. The file was NOT overwritten. First 200 chars of rejected output:\n${output.slice(0, 200)}`,
+                  output: `${envelope}\n\nREJECTED: output_file "${params.output_file}" has a code extension but the model returned markdown/prose instead of source code. The file was NOT overwritten. First 200 chars of rejected output:\n${output.slice(0, 200)}`,
                 }
               }
               if (fenceMatch) {
@@ -155,7 +170,7 @@ export const AiCallTool = Tool.define(
                   metadata: {
                     model: { providerID: model.providerID, modelID: model.id },
                   },
-                  output: `Response saved to ${params.output_file} (${content.length} chars, code fence stripped)`,
+                  output: `${envelope}\n\nResponse saved to ${params.output_file} (${content.length} chars, code fence stripped)`,
                 }
               }
             }
@@ -166,7 +181,7 @@ export const AiCallTool = Tool.define(
               metadata: {
                 model: { providerID: model.providerID, modelID: model.id },
               },
-              output: `Response saved to ${params.output_file} (${output.length} chars)`,
+              output: `${envelope}\n\nResponse saved to ${params.output_file} (${output.length} chars)`,
             }
           }
 
@@ -175,7 +190,7 @@ export const AiCallTool = Tool.define(
             metadata: {
               model: { providerID: model.providerID, modelID: model.id },
             },
-            output,
+            output: `${envelope}\n\n${output}`,
           }
         }).pipe(Effect.orDie),
     }

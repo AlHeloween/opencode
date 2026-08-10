@@ -134,20 +134,24 @@ function writeErrorLog(entry: Record<string, unknown>): void {
   errorLogger.log(entry)
 }
 
-function bodyRequestsStream(body: RequestInit["body"] | undefined): boolean {
-  if (typeof body !== "string") return false
-  if (!body.trimStart().startsWith("{")) return false
-  try {
-    const parsed = JSON.parse(body) as unknown
-    if (!parsed || typeof parsed !== "object") return false
-    return (parsed as { stream?: unknown }).stream === true
-  } catch (error) {
-    log.debug("gateway.stream.detect_failed", {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return false
+  export function requestMetadata(body: RequestInit["body"] | undefined): { model?: string; streaming: boolean } {
+    if (typeof body !== "string") return { streaming: false }
+    if (!body.trimStart().startsWith("{")) return { streaming: false }
+    try {
+      const parsed = JSON.parse(body) as unknown
+      if (!parsed || typeof parsed !== "object") return { streaming: false }
+      const value = parsed as { model?: unknown; stream?: unknown }
+      return {
+        ...(typeof value.model === "string" && { model: value.model }),
+        streaming: value.stream === true,
+      }
+    } catch (error) {
+      log.debug("gateway.stream.detect_failed", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return { streaming: false }
+    }
   }
-}
 
 function getCallerStack(): string | undefined {
   try {
@@ -221,7 +225,8 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const startTime = Date.now()
     const requestId = crypto.randomUUID()
     const timeoutMs = init?.gatewayTimeoutMs || 600000
-    const isStream = init?.gatewayStream ?? bodyRequestsStream(init?.body)
+      const metadata = requestMetadata(init?.body)
+      const isStream = init?.gatewayStream ?? metadata.streaming
 
     const headers = Object.fromEntries(new Headers(init?.headers ?? {}).entries())
 
@@ -248,7 +253,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
     const urlObj = new URL(url)
     const provider = init?.gatewayProvider || headers["x-opencode-provider"] || "unknown"
-    const model = init?.gatewayModel || headers["x-opencode-model"] || "unknown"
+      const model = metadata.model || init?.gatewayModel || headers["x-opencode-model"] || "unknown"
     const endpointKind = (headers["x-opencode-endpoint-kind"] || "chat") as RouteKey["endpointKind"]
 
     const classifyInput: Classifier.ClassifyInput = {

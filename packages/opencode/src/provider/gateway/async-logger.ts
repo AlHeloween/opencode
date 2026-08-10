@@ -16,6 +16,30 @@ export interface PerRequestLogger {
   dispose: () => Promise<void>
 }
 
+function readableBody(body: unknown) {
+  if (typeof body !== "string") return body
+  if (!body.trimStart().startsWith("{")) return body
+  try {
+    return JSON.parse(body) as unknown
+  } catch (error) {
+    log.debug("failed to format gateway request body", {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return body
+  }
+}
+
+export function formatPerRequestEntry(entry: Record<string, unknown>) {
+  return JSON.stringify(
+    {
+      ...entry,
+      ...(entry.body !== undefined && { body: readableBody(entry.body) }),
+    },
+    null,
+    2,
+  ) + EOL
+}
+
 export function make(input: {
   path: string
   maxBuffer?: number
@@ -129,7 +153,7 @@ export function makePerRequest(input: { dir: string }): PerRequestLogger {
       const filePath = path.join(dir, fileName)
 
       const write = ensureDir.then(() =>
-        fs.writeFile(filePath, JSON.stringify(entry) + EOL).catch((e) => {
+        fs.writeFile(filePath, formatPerRequestEntry(entry)).catch((e) => {
           log.debug("failed to write per-request log", {
             error: e instanceof Error ? e.message : String(e),
             filePath,

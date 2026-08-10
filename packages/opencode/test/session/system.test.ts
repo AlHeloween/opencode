@@ -195,11 +195,10 @@ describe("prompt matching (specificity-based)", () => {
     expect(promptFamily(m)).toBe("Claude")
   })
 
-  test("deepseek models match the intentional no-override prompt", () => {
+  test("deepseek models fall back to default.txt", () => {
     const m = mockModel("deepseek-v4-pro")
-    expect(providerName(m)).toBe("deepseek.txt")
-    expect(promptFamily(m)).toBe("DeepSeek 4 Pro")
-    expect(provider(m)).toEqual([""])
+    expect(providerName(m)).toBe("default.txt")
+    expect(promptFamily(m)).toBe("General")
   })
 
   test("gpt-4 models match beast.txt (specificity: gpt-4 > gpt)", () => {

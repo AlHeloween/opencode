@@ -1,10 +1,19 @@
 ---
-description: Extract non-obvious learnings from session to AGENTS.md files to build codebase understanding
+description: "Extract non-obvious learnings from session to AGENTS.md files"
 ---
-"""
-Learning extraction command — defined in opencode_prompts_kernel.py as typed dict.
-"""
-from opencode_prompts_kernel import LEARN
-# {LEARN["objective"]}
-# Steps: {len(LEARN["steps"])}
-# Forbidden: {len(LEARN["forbidden_actions"])}
+
+Extract non-obvious learnings from this session and write them to the appropriate AGENTS.md files.
+
+## Rules
+- Only capture discoveries, errors, and unexpected connections — NOT obvious facts from documentation.
+- NOT standard language/framework behavior.
+- NOT things already documented in an existing AGENTS.md.
+- One to three lines per insight. Concise and specific.
+- No verbose explanations or session-specific details.
+
+## Placement
+| Scope | File |
+|-------|------|
+| Project-wide insight | root AGENTS.md |
+| Package/module insight | packages/foo/AGENTS.md |
+| Feature-specific insight | src/auth/AGENTS.md |

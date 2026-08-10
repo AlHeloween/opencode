@@ -53,7 +53,7 @@
         "DEEPSEEK_API_KEY"
       ],
       "api": "https://api.deepseek.com",
-      "npm": "@ai-sdk/deepseek",
+      "npm": "@ai-sdk/openai-compatible",
       "models": {
         "deepseek-v4-pro": {
           "id": "deepseek-v4-pro",
@@ -62,11 +62,13 @@
           "gateway": {
             "logging": {
               "enabled": false,
-              "format": "json"
+              "format": "json",
+              "logBodies": false,
+              "perRequest": false
             }
           },
           "provider": {
-            "npm": "@ai-sdk/deepseek",
+            "npm": "@ai-sdk/openai-compatible",
             "api": "https://api.deepseek.com"
           },
           "limit": {
@@ -106,7 +108,9 @@
           "gateway": {
             "logging": {
               "enabled": false,
-              "format": "json"
+              "format": "json",
+              "logBodies": false,
+              "perRequest": false
             }
           },
           "provider": {
@@ -137,7 +141,9 @@
           "gateway": {
             "logging": {
               "enabled": false,
-              "format": "json"
+              "format": "json",
+              "logBodies": false,
+              "perRequest": false
             }
           },
           "provider": {
@@ -169,12 +175,11 @@
   },
   "gateway": {
     "enabled": true,
-    "debug": true,
     "logging": {
-      "enabled": true,
+      "enabled": false,
       "format": "json",
-      "logBodies": true,
-      "perRequest": true
+      "logBodies": false,
+      "perRequest": false
     }
   }
 }

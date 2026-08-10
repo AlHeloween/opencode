@@ -6,9 +6,10 @@ export interface ResolvedDebugConfig {
   perRequest: boolean
 }
 
+/** Runtime defaults when no gateway config exists. debug=true gives full diagnostics even before config is written. */
 const DEFAULT_DEBUG_CONFIG: ResolvedDebugConfig = {
   debug: true,
-  logBodies: true,
+  logBodies: false,
   perRequest: false,
 }
 

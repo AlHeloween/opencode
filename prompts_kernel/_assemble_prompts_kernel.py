@@ -35,10 +35,16 @@ def _default_fragment_dir() -> Path:
 
 
 def _default_output() -> Path:
-    """Default output path for reasoning_prompt.mdc."""
+    """Default output path for reasoning_prompt.mdc — staging under dist/ with date prefix.
+
+    The .mdc review artifact and .txt runtime sibling are both written here.
+    Manual promotion to packages/opencode/src/session/prompt/reasoning_prompt.txt
+    happens only after deep assessment.
+    """
+    from datetime import datetime, timezone
     kernel_dir = Path(__file__).resolve().parent
-    repo_root = kernel_dir.parent
-    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return kernel_dir / "dist" / f"{today}_reasoning_prompt.mdc"
 
 
 def _schemas_path() -> Path:
@@ -232,21 +238,6 @@ def _strip_comment_prefix(text: str) -> str:
     return "\n".join(result)
 
 
-_MDC_FRONTMATTER_UNIFIED = """---
-description: "GATED agent — 9-gate spine, semantic vector, rules, contracts"
-alwaysApply: true
----
-
-"""
-
-
-def _default_output() -> Path:
-    """Default output path for reasoning_prompt.mdc."""
-    kernel_dir = Path(__file__).resolve().parent
-    repo_root = kernel_dir.parent
-    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
-
-
 def _runtime_output(output: Path) -> Path:
     """Return the runtime .txt sibling for a generated .mdc review artifact."""
     return output.with_suffix(".txt")
@@ -328,6 +319,7 @@ def write_reasoning(output: Path | None = None, fragment_dir: Path | None = None
     if errors:
         raise RuntimeError("; ".join(errors))
     return len(mdc)
+
 
 
 # =========================================================================

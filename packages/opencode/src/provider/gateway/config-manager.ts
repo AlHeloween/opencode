@@ -93,6 +93,8 @@ function defaultModelConfig(provider: ModelsDev.Provider, model: ModelsDev.Model
       logging: {
         enabled: false,
         format: "json",
+        logBodies: false,
+        perRequest: false,
       },
     },
     provider: {
@@ -340,6 +342,8 @@ async function buildDefaultConfig(): Promise<GatewayConfig> {
       logging: {
         enabled: false,
         format: "json",
+        logBodies: false,
+        perRequest: false,
       },
     },
   }
@@ -391,7 +395,7 @@ export async function ensureModelConfig(providerID: ProviderID, modelID: string)
       providers: {},
       gateway: {
         enabled: true,
-        logging: { enabled: false, format: "json" },
+        logging: { enabled: false, format: "json", logBodies: false, perRequest: false },
       },
     }),
     providers: {

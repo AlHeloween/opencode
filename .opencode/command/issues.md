@@ -1,11 +1,15 @@
 ---
-description: "find issue(s) on github"
+description: "Search GitHub issues in anomalyco/opencode"
 model: opencode/claude-haiku-4-5
 ---
-"""
-GitHub issues search — defined in opencode_prompts_kernel.py as typed dict.
-Search anomalyco/opencode for matching issues.
-"""
-from opencode_prompts_kernel import ISSUES
-# {ISSUES["objective"]}
-# Search aspects: ISSUES["constraints"]["search_aspects"]
+
+Search GitHub issues in the anomalyco/opencode repository matching the query.
+
+## Search aspects
+- Similar titles or descriptions
+- Same error messages or symptoms
+- Related functionality or components
+- Similar feature requests
+
+## Output
+List matching issues with: number, title, state (open/closed), labels, relevance summary.

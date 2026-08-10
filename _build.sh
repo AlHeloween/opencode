@@ -16,12 +16,12 @@ Options:
   --skip-tests        Skip test execution
   --skip-typecheck    Skip typecheck
 Prerequisites (run before build):
-  ./_reasoning_kernel.sh          — kernel assembly + self-test
+  python prompts_kernel/_assemble_prompts_kernel.py  — kernel assembly
   ./_opentui.sh                   — OpenTUI Zig+TS rebuild
   ./_opentui.sh true              — full OpenTUI monorepo
 
 Typical workflow:
-  ./_reasoning_kernel.sh           # assemble + validate kernel
+  python prompts_kernel/_assemble_prompts_kernel.py  # assemble + validate kernel
   ./_opentui.sh                    # build OpenTUI native + TS
   ./_build.sh                      # compile opencode + collect dist/
 
@@ -101,7 +101,7 @@ OPENCODE_PKG="$ROOT/packages/opencode"
 OPENTUI_ROOT="$ROOT/packages/opentui"
 
 # ── Prerequisites (run separately before build) ──
-#   ./_reasoning_kernel.sh          — kernel assembly + self-test
+#   python prompts_kernel/_assemble_prompts_kernel.py  — kernel assembly
 #   ./_opentui.sh                   — OpenTUI Zig+TS rebuild
 #   ./_opentui.sh true              — full OpenTUI monorepo
 

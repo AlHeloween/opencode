@@ -1,9 +1,13 @@
 ---
-description: "Bump AI sdk dependencies minor / patch versions only"
+description: "Bump AI SDK dependencies — minor/patch only"
 ---
-"""
-AI SDK dependency update — defined in opencode_prompts_kernel.py as typed dict.
-"""
-from opencode_prompts_kernel import AI_DEPS
-# {AI_DEPS["objective"]}
-# Constraints: {len(AI_DEPS["constraints"])}
+
+Audit AI SDK dependencies in package.json and packages/opencode/package.json for available minor/patch upgrades.
+
+## Rules
+- Report only — do NOT upgrade. Include changelog links.
+- No major version upgrades.
+- Scan both root package.json and packages/opencode/package.json.
+
+## Output
+List each dependency with: current version → latest compatible version, changelog URL, breaking changes (if any in minor).

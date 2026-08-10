@@ -4,7 +4,6 @@ import { Instance } from "../project/instance"
 import { Ripgrep } from "../file/ripgrep"
 
 import PROMPT_ANTHROPIC from "./prompt/anthropic.txt"
-import PROMPT_DEEPSEEK from "./prompt/deepseek.txt"
 import PROMPT_DEFAULT from "./prompt/default.txt"
 import PROMPT_BEAST from "./prompt/beast.txt"
 import PROMPT_GEMINI from "./prompt/gemini.txt"
@@ -47,7 +46,6 @@ export function parseFrontmatter(raw: string): { models: string[]; family: strin
 
 const PROMPT_REGISTRY: PromptEntry[] = [
   { ...parseFrontmatter(PROMPT_ANTHROPIC), filename: "anthropic.txt" },
-  { ...parseFrontmatter(PROMPT_DEEPSEEK), filename: "deepseek.txt" },
   { ...parseFrontmatter(PROMPT_BEAST), filename: "beast.txt" },
   { ...parseFrontmatter(PROMPT_CODEX), filename: "codex.txt" },
   { ...parseFrontmatter(PROMPT_GEMINI), filename: "gemini.txt" },

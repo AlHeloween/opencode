@@ -1,9 +1,13 @@
 ---
-description: spellcheck all markdown file changes
+description: "Spellcheck all unstaged markdown file changes"
 ---
-"""
-Spellcheck command — defined in opencode_prompts_kernel.py as typed dict.
-"""
-from opencode_prompts_kernel import SPELLCHECK
-# {SPELLCHECK["objective"]}
-# Scope: {SPELLCHECK["scope"]}
+
+Spellcheck all unstaged .md and .mdx file changes.
+
+## Scope
+- Only unstaged changes (not committed files).
+- Both .md and .mdx extensions.
+- Check spelling and basic grammar.
+
+## Output
+List each file with: misspelled word, line number, suggested correction.

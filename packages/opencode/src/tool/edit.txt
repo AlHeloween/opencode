@@ -1,66 +1,43 @@
 ## Mutation class
 
-`edit` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (@CLASSIFICATION). Follow @GATE_7_IMPLEMENT,
-@WRITE_SCOPE, @SMOKE_BEFORE, @READ_ENTIRE_FILE, @NO_SCRIPT_EDITING.
-Prefer after plan approval when a multi-step plan exists. Runtime may **block**
-mutation if an active @CLAIM_LEDGER has premises outside G (Exact|Inferred, system-stamped).
+`edit` is **MODIFY / PERSISTENT_WRITE / ELEVATED**. Follow kernel G7 (IMPLEMENT) rules: read-before-edit, use product tools, preserve unrelated changes, run oracle after change, mark [x] only on PASS.
 
-Before edit: inspect the target (read/codegraph). State the semantic delta, not
-only the path. Preserve unrelated user changes. After edit: run **declared**
-oracles (@GATE_8_ORACLE / @VERIFY_OUTCOME) before Done / `[x]`. Prefer edit over write for
-partial updates (rollback-friendly backups).
+Before edit: inspect the target (read/codegraph). State the semantic delta, not only the path. After edit: run **declared** oracle before Done / `[x]`. Prefer edit over write for partial updates (rollback-friendly backups).
 
 ## File Backups
 
-Each edit automatically creates a backup of the file's pre-edit content before applying changes. Backups are stored under the worktree data backups directory for the session. Each session keeps up to 50 backups; oldest are deleted first.
+Each edit automatically creates a backup of the file's pre-edit content. Backups stored under worktree data backups directory. Max 50 per session; oldest deleted first.
 
-**Undo without git/Fossil:** use the `restore` tool — `restore({ filePath })` for latest bak, `restore({ list: true })` to list, `restore({ filename })` for a specific bak. Works for paths outside the worktree too (session `.bak` + originalPath).
-
----
-
-Performs exact string replacements in files.
+**Undo without git:** use `restore` tool — `restore({ filePath })` for latest bak, `restore({ list: true })` to list.
 
 ## Matching: 9-Stage Fuzzy Cascade
 
-The tool tries progressively more flexible matching strategies before failing. It does NOT require a perfect character-for-character match — the following strategies are tried in order:
+1. **SimpleReplacer** — Exact match.
+2. **LineTrimmedReplacer** — Line-by-line after trimming whitespace.
+3. **BlockAnchorReplacer** — Anchor on first/last lines, Levenshtein middle.
+4. **WhitespaceNormalizedReplacer** — Normalize whitespace runs.
+5. **IndentationFlexibleReplacer** — Strip minimum common indentation.
+6. **EscapeNormalizedReplacer** — Unescape `\n`, `\t`, etc.
+7. **TrimmedBoundaryReplacer** — Try trimmed version of search block.
+8. **ContextAwareReplacer** — Anchor-based with 50% middle-line threshold.
+9. **MultiOccurrenceReplacer** — Find all exact matches for `replaceAll`.
 
-1. **SimpleReplacer** — Exact `indexOf` match.
-2. **LineTrimmedReplacer** — Match line-by-line after trimming whitespace from each line.
-3. **BlockAnchorReplacer** — Anchor on first and last lines, uses Levenshtein distance to score middle-line candidates. Falls back to sliding Hamming distance (max dist 1) if no anchor match.
-4. **WhitespaceNormalizedReplacer** — Normalize all whitespace runs to single spaces before matching.
-5. **IndentationFlexibleReplacer** — Strip minimum common indentation before matching.
-6. **EscapeNormalizedReplacer** — Unescape `\n`, `\t`, etc. before matching.
-7. **TrimmedBoundaryReplacer** — Try trimmed version of the search block.
-8. **ContextAwareReplacer** — Anchor-based with 50% middle-line match threshold.
-9. **MultiOccurrenceReplacer** — Find all exact matches for `replaceAll` mode.
-
-If all 9 strategies fail, the edit throws an error. If a strategy finds multiple matches when `replaceAll` is not set, it also fails — provide more surrounding context to disambiguate.
+If all 9 fail, edit throws error. Multiple matches without `replaceAll` also fails — provide more context.
 
 ## Line Endings & Unicode
-
-- Line endings are auto-detected (`\r\n` vs `\n`) and preserved.
-- Unicode normalization handles various dash characters, quote characters, and non-breaking spaces — LLM formatting quirks are transparently handled.
-
-## File Locking
-
-Per-file semaphore ensures only one edit operates on a given file at a time.
+- Line endings auto-detected (`\r\n` vs `\n`) and preserved.
+- Unicode normalization handles dash/quote/space variants.
 
 ## Post-Edit Processing
-
-- **LSP diagnostics** run on the modified file after editing. Errors are reported in the output.
-- **File formatting** is applied respecting the project's configured formatter.
-- **Backups** are written with `.bak` extension and a `.meta.json` sidecar tracking the original path. Maximum 50 backups per session.
-- **BOM** (Byte Order Mark) is preserved/detected on UTF-8 files.
-
-## Creating New Files
-
-Set `oldString: ""` and `newString` to the full file content. The tool creates the file if it doesn't exist.
+- LSP diagnostics run on modified file after editing.
+- File formatting respects project's configured formatter.
+- BOM preserved/detected on UTF-8 files.
 
 ## Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `filePath` | string | Absolute path to the file to modify |
-| `oldString` | string | The text to replace (must match file content after fuzzy cascade) |
-| `newString` | string | The text to replace it with (must differ from oldString) |
-| `replaceAll` | boolean (default: false) | Replace all occurrences of oldString |
+| `oldString` | string | The text to replace |
+| `newString` | string | Replacement text (must differ from oldString) |
+| `replaceAll` | boolean (default: false) | Replace all occurrences |

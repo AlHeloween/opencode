@@ -1,8 +1,8 @@
 Executes a Windows cmd.exe command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
 
-Follow @CONSTITUTION_BLOCKS / @ADID_OPS (product tools for file ops; crash binaries via cmd_runner).
+Follow constitution blocks: product tools for file ops; crash binaries via cmd_runner.
 
-**Constitution blocks** (@CONSTITUTION_BLOCKS): The following shell commands are HARD-BLOCKED and will fail:
+**Constitution blocks**: The following shell commands are HARD-BLOCKED and will fail:
 - File enumeration: `ls`, `dir`, `tree`, `find`, `fd`, `rg --files`, `Get-ChildItem` — use `list`/`glob`/`grep` tools instead.
 - Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`): must run through `cmd_runner` for process isolation (e.g., `cmd_runner start -- bun build`). Direct execution can corrupt TUI state.
 

@@ -1,5 +1,5 @@
 Lists files and directories in a tree format. Prefer a path relative to the project working directory (absolute only if under worktree).
-Follow @CONSTITUTION_BLOCKS / @ADID_OPS: product `list` replaces shell ls/dir/tree.
+Lists files and directories. Product `list` replaces shell ls/dir/tree.
 
 Use `directoriesOnly: true` to show directory structure only (like `tree -d`).
 

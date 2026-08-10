@@ -1,6 +1,6 @@
 Compare two arbitrary files or directory trees with Git's text-native
 `diff --no-index`. Neither path needs to be a Git repository. This is a
-read-only evidence tool (@GATE_1_GROUND observe): exit code 1 means differences were found, not failure.
+read-only evidence tool (G1 observe): exit code 1 means differences were found, not failure.
 
 Use `treediff` before reading many individual files when you need a complete,
 machine-readable map of divergence between two worktrees, generated outputs,

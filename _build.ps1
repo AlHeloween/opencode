@@ -6,14 +6,7 @@ param(
 
     [switch] $SkipTests = $false,
 
-    [switch] $SkipTypecheck = $false,
-
-    # Skip OpenTUI Zig+TS rebuild (faster when only opencode TS changed and DLL is already current)
-    [switch] $SkipOpenTui = $false,
-
-    # Rebuild full OpenTUI monorepo (core, qrcode, three, solid, react, keymap, ssh)
-    # Default builds only packages opencode needs: core (native+lib), solid, three.
-    [switch] $OpenTuiFull = $false
+    [switch] $SkipTypecheck = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,9 +14,11 @@ $Root = $PSScriptRoot
 $DistDir = Join-Path $Root "dist"
 $OpencodePkg = Join-Path (Join-Path $Root "packages") "opencode"
 
-# Dot-source sub-scripts (self-contained, also runnable standalone)
-. (Join-Path $PSScriptRoot "_reasoning_kernel.ps1")
-. (Join-Path $PSScriptRoot "_opentui.ps1")
+# ── Prerequisites (run separately before build) ──
+#   .\_reasoning_kernel.ps1          — kernel assembly + stability + self-test
+#   .\_opentui.ps1                   — OpenTUI Zig+TS rebuild
+#   .\_opentui.ps1 -Full             — full OpenTUI monorepo
+#   .\_build_rust.ps1                — Rust WASM modules (also called by build task)
 
 function Write-Step {
     param([string] $Message)
@@ -62,41 +57,21 @@ function Get-Version {
     return $pkgJson.version
 }
 
-# OpenTUI build → dot-sourced from _opentui.ps1 (Invoke-OpenTuiBuild)
-
 # ═══════════════════════════════════════════════════════════
-# CHECK TASK
+# CHECK TASK — typecheck, tests, prettier only.
+# Kernel assembly + stability → _reasoning_kernel.ps1
 # ═══════════════════════════════════════════════════════════
 function Invoke-Check {
     Write-Step "Running Checks"
 
     $allPassed = $true
 
-    # Check 0: Clean up .temp/test/ directory (grows significantly from test runs)
+    # Clean up .temp/test/ directory
     $tempTestDir = Join-Path $Root ".temp\test"
     if (Test-Path $tempTestDir) {
         Write-Host "  Cleaning .temp/test/..." -ForegroundColor Yellow
         Remove-Item $tempTestDir -Recurse -Force -ErrorAction SilentlyContinue
         Write-Success ".temp/test/ cleaned"
-    }
-
-    # Check 0b: Sync kernel prompt first so tests verify the latest content
-    $kernelSynced = Sync-KernelPrompt
-    if (-not $kernelSynced) {
-        $allPassed = $false
-    }
-
-    # Check 0b2: Kernel stability guardrails (assembly point, schema density, refcheck, …)
-    $kernelStable = Test-KernelStability
-    if (-not $kernelStable) {
-        Write-Error- "Kernel stability guardrails FAILED - refusing to proceed with broken kernel"
-        exit 1
-    }
-
-    # Check 0c: Reasoning framework self-test (290 pytest tests)
-    $reasoningPassed = Test-ReasoningFramework
-    if (-not $reasoningPassed) {
-        $allPassed = $false
     }
 
     # Check 1: Typecheck
@@ -146,16 +121,14 @@ function Invoke-Check {
 }
 
 # ═══════════════════════════════════════════════════════════
-# BUILD TASK
+# BUILD TASK — compile opencode + collect artifacts.
+# OpenTUI must be pre-built via _opentui.ps1.
+# Kernel must be pre-assembled via _reasoning_kernel.ps1.
 # ═══════════════════════════════════════════════════════════
-
-# Kernel assembly + stability + self-test → dot-sourced from _reasoning_kernel.ps1
-# (Sync-KernelPrompt, Test-KernelStability, Test-ReasoningFramework)
-
 function Invoke-Build {
     Write-Step "Building"
 
-    # Step -1: Clean up .temp/test/ (grows significantly from test/build runs)
+    # Clean up .temp/test/
     $tempTestDirBuild = Join-Path $Root ".temp\test"
     if (Test-Path $tempTestDirBuild) {
         Write-Host "  Cleaning .temp/test/..." -ForegroundColor Yellow
@@ -163,50 +136,9 @@ function Invoke-Build {
         Write-Success ".temp/test/ cleaned"
     }
 
-    # Step 0: Sync prompts_kernel.py → .txt (canonical prompt source)
-    $kernelSynced = Sync-KernelPrompt
-    if (-not $kernelSynced) {
-        throw "Kernel prompt sync failed"
-    }
-
-    # Step 0a: Kernel stability guardrails - refuse to build with broken kernel
-    $kernelStable = Test-KernelStability
-    if (-not $kernelStable) {
-        throw "Kernel stability guardrails FAILED - assembly point integrity check. See docs/kernel-stability-principles.md"
-    }
-
-    # Step 0b: Reasoning framework self-test (290 pytest tests)
-    $reasoningPassed = Test-ReasoningFramework
-    if (-not $reasoningPassed) {
-        throw "Reasoning framework self-test failed - kernel integrity broken"
-    }
-
-    # Build Rust WASM modules next
+    # Build Rust WASM modules
     Write-Host "  Building Rust WASM modules..." -ForegroundColor Yellow
     & "$PSScriptRoot\_build_rust.ps1"
-
-    # OpenTUI: Zig + TS lib *before* opencode compile (so dist ships current sixel/Image)
-    if ($SkipOpenTui) {
-        Write-Host "  Skipping OpenTUI rebuild (-SkipOpenTui) - using existing DLL/dist" -ForegroundColor Yellow
-    } else {
-        Invoke-OpenTuiBuild -Full:$OpenTuiFull
-    }
-
-    # opentui-spinner: build before opencode (required by opencode imports)
-    $SpinnerDir = Join-Path $Root "packages\opentui-spinner"
-    if (-not ($SkipOpenTui)) {
-        Write-Host "  Building opentui-spinner..." -ForegroundColor Yellow
-        Push-Location $SpinnerDir
-        try {
-            bun run build
-            if ($LASTEXITCODE -ne 0) {
-                throw "opentui-spinner build failed (exit $LASTEXITCODE)"
-            }
-        } finally {
-            Pop-Location
-        }
-        Write-Success "opentui-spinner built"
-    }
 
     # Clean dist directory
     if (Test-Path $DistDir) {
@@ -214,7 +146,7 @@ function Invoke-Build {
     }
     New-Item -ItemType Directory -Path $DistDir | Out-Null
 
-    # Build opencode package (single-platform for faster builds)
+    # Build opencode package (single-platform)
     # script/build.ts copies core-win32-x64/opentui.dll into node_modules for bun --compile
     Write-Host "  Building packages..." -ForegroundColor Yellow
     Push-Location $OpencodePkg
@@ -227,10 +159,10 @@ function Invoke-Build {
         Pop-Location
     }
 
-    # Copy release artifacts to dist root
+    # ── Collect artifacts ─────────────────────────────────────────────
     Write-Host "  Collecting release artifacts..." -ForegroundColor Yellow
 
-    # CLI binary (from opencode package)
+    # CLI binary
     $cliBin = [IO.Path]::Combine($OpencodePkg, "dist", "cli.js")
     if (Test-Path $cliBin) {
         Copy-Item $cliBin (Join-Path $DistDir "cli.js")
@@ -247,7 +179,7 @@ function Invoke-Build {
         Write-Success "Native binary copied"
     }
 
-    # Native markdownify binary (built by _build_rust.ps1, stage to platform dist)
+    # Native markdownify binary
     $markdownifySrc = [IO.Path]::Combine($Root, "packages", "native", "markdownify", "target", "release", "opencode-markdownify.exe")
     $markdownifyDest = [IO.Path]::Combine($OpencodePkg, "dist", "opencode-windows-x64", "bin", "opencode-markdownify.exe")
     if (Test-Path $markdownifySrc) {
@@ -259,35 +191,30 @@ function Invoke-Build {
         Write-Success "Markdownify binary staged to platform dist"
     }
 
-    # Native markdownify binary (Windows x64)
     $markdownifyBin = [IO.Path]::Combine($OpencodePkg, "dist", "opencode-windows-x64", "bin", "opencode-markdownify.exe")
     if (Test-Path $markdownifyBin) {
         Copy-Item $markdownifyBin ([IO.Path]::Combine($DistDir, "bin", "opencode-markdownify.exe"))
         Write-Success "Markdownify binary copied"
     }
 
-    # Native opentui DLL - required by @opentui/core for rendering (built above unless -SkipOpenTui)
+    # Native opentui DLL — must be pre-built via _opentui.ps1
     $opentuiDllSrc = [IO.Path]::Combine($Root, "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")
     if (Test-Path $opentuiDllSrc) {
-        # Copy to platform dist (where bun build places the exe)
         $opentuiPlatformDestDir = [IO.Path]::Combine($OpencodePkg, "dist", "opencode-windows-x64", "bin")
         if (-not (Test-Path $opentuiPlatformDestDir)) {
             New-Item -ItemType Directory -Path $opentuiPlatformDestDir -Force | Out-Null
         }
         Copy-Item $opentuiDllSrc ([IO.Path]::Combine($opentuiPlatformDestDir, "opentui.dll")) -Force
-        # Copy to final dist/bin (alongside opencode.exe)
         if (-not (Test-Path (Join-Path $DistDir "bin"))) {
             New-Item -ItemType Directory -Path (Join-Path $DistDir "bin") -Force | Out-Null
         }
         Copy-Item $opentuiDllSrc ([IO.Path]::Combine($DistDir, "bin", "opentui.dll")) -Force
-        Write-Success "opentui native DLL copied (from rebuilt core-win32-x64)"
+        Write-Success "opentui native DLL copied"
     } else {
-        throw "opentui.dll not found at $opentuiDllSrc - run without -SkipOpenTui or build packages/opentui/packages/core first"
+        throw "opentui.dll not found at $opentuiDllSrc — build OpenTUI first: .\_opentui.ps1"
     }
 
-    # WASM sidecars: mirror packages/wasm/core/pkg as-is (no hardcoded asset list).
-    # Runtime prefers embedded assets; dist/wasm is offline fallback only.
-    # Missing optional files (e.g. retired tokenizer.wasm) are simply absent.
+    # WASM sidecars
     $WasmPkgDir = Join-Path $Root "packages\wasm\core\pkg"
     $WasmDistDir = Join-Path $DistDir "wasm\core\pkg"
     if (Test-Path $WasmPkgDir) {
@@ -297,7 +224,6 @@ function Invoke-Build {
         New-Item -ItemType Directory -Path (Split-Path $WasmDistDir -Parent) -Force | Out-Null
         Copy-Item -Recurse -Force $WasmPkgDir $WasmDistDir
 
-        # Tree-sitter runtime lives in node_modules, not pkg/ - stage if present.
         $TreeSitterRuntimeWasm = Get-ChildItem (Join-Path $Root "node_modules") -Recurse -Filter "web-tree-sitter.wasm" -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -match "web-tree-sitter" -and $_.FullName -notmatch "\\debug\\" } |
             Select-Object -First 1
@@ -314,21 +240,21 @@ function Invoke-Build {
         Write-Warn "packages/wasm/core/pkg missing - skipping WASM sidecar copy (embedded assets still used at runtime)"
     }
 
-    # SDK (from sdk/js package)
+    # SDK
     $sdkDir = [IO.Path]::Combine($Root, "packages", "sdk", "js", "dist")
     if (Test-Path $sdkDir) {
         Copy-Item -Recurse $sdkDir (Join-Path $DistDir "sdk")
         Write-Success "SDK copied"
     }
 
-    # App build (from app package)
+    # App build
     $appDist = [IO.Path]::Combine($Root, "packages", "app", "dist")
     if (Test-Path $appDist) {
         Copy-Item -Recurse $appDist (Join-Path $DistDir "app")
         Write-Success "App build copied"
     }
 
-    # Local services (from artifacts_dist/)
+    # Local services (artifacts_dist/)
     $artifactsDist = Join-Path $Root "artifacts_dist"
     if (Test-Path $artifactsDist) {
         if (-not (Test-Path (Join-Path $DistDir "bin"))) {
@@ -340,7 +266,7 @@ function Invoke-Build {
         }
     }
 
-    # Copy package.json files for each workspace
+    # Package.json files
     Get-ChildItem (Join-Path $Root "packages") -Directory | ForEach-Object {
         $pkgJson = Join-Path $_.FullName "package.json"
         if (Test-Path $pkgJson) {
@@ -368,7 +294,7 @@ function Invoke-Release {
         Invoke-Check
     }
 
-    # Run build
+    # Build
     Invoke-Build
 
     # Get version if not provided
@@ -378,16 +304,15 @@ function Invoke-Release {
 
     # Create release manifest
     $manifest = @{
-        version = $ReleaseVersion
-        buildTime = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-        gitSha = (git rev-parse HEAD)
-        gitBranch = (git rev-parse --abbrev-ref HEAD)
+        version     = $ReleaseVersion
+        buildTime   = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+        gitSha      = (git rev-parse HEAD)
+        gitBranch   = (git rev-parse --abbrev-ref HEAD)
         nodeVersion = (node --version)
-        bunVersion = (bun --version)
-        artifacts = @()
+        bunVersion  = (bun --version)
+        artifacts   = @()
     }
 
-    # List all artifacts
     Get-ChildItem $DistDir -File -Recurse | ForEach-Object {
         $relPath = $_.FullName.Replace($DistDir, "").TrimStart("\")
         $manifest.artifacts += @{
@@ -396,7 +321,6 @@ function Invoke-Release {
         }
     }
 
-    # Write manifest
     $manifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $DistDir "release-manifest.json")
     Write-Success "Release manifest created"
 
@@ -427,25 +351,27 @@ switch ($Task) {
         Invoke-Release -ReleaseVersion $Version
     }
     default {
-        Write-Host "Usage: .\_build.ps1 [-Task check|build|release] [-Version <version>] [-SkipTests] [-SkipTypecheck] [-SkipOpenTui] [-OpenTuiFull]"
+        Write-Host "Usage: .\_build.ps1 [-Task check|build|release] [-Version <version>] [-SkipTests] [-SkipTypecheck]"
         Write-Host ""
         Write-Host "Tasks:" -ForegroundColor Yellow
         Write-Host "  check   - Run typecheck, tests, and prettier"
-        Write-Host "  build   - Rebuild OpenTUI (Zig+TS) then opencode; collect artifacts to dist/"
+        Write-Host "  build   - Compile opencode package; collect artifacts to dist/"
         Write-Host "  release - Run checks, build, and create release manifest"
         Write-Host ""
         Write-Host "Options:" -ForegroundColor Yellow
         Write-Host "  -Version <version>  Override version for release (default: from package.json)"
         Write-Host "  -SkipTests          Skip test execution"
         Write-Host "  -SkipTypecheck      Skip typecheck"
-        Write-Host "  -SkipOpenTui        Skip OpenTUI Zig+TS rebuild (use existing opentui.dll/dist)"
-        Write-Host "  -OpenTuiFull        Full OpenTUI monorepo build (default: core+solid+three only)"
         Write-Host ""
-        Write-Host "OpenTUI build chain:" -ForegroundColor Yellow
-        Write-Host "  packages/opentui/packages/core  → bun run build  (build:native + build:lib)"
-        Write-Host "  packages/opentui/packages/solid → bun run build"
-        Write-Host "  packages/opentui/packages/three → bun run build"
-        Write-Host "  then packages/opencode script/build.ts --single (copies DLL into compile)"
+        Write-Host "Prerequisites (run before build):" -ForegroundColor Yellow
+        Write-Host "  .\_reasoning_kernel.ps1          — kernel assembly + stability + self-test"
+        Write-Host "  .\_opentui.ps1                   — OpenTUI Zig+TS rebuild"
+        Write-Host "  .\_opentui.ps1 -Full             — full OpenTUI monorepo"
+        Write-Host ""
+        Write-Host "Typical workflow:" -ForegroundColor Yellow
+        Write-Host "  .\_reasoning_kernel.ps1           # assemble + validate kernel"
+        Write-Host "  .\_opentui.ps1                    # build OpenTUI native + TS"
+        Write-Host "  .\_build.ps1                      # compile opencode + collect dist/"
         exit 1
     }
 }

@@ -1,5 +1,5 @@
 Read a file or directory from the local filesystem. Supports text files, images, binary documents, archives, media files, and hex dumps.
-Follow @READ_ENTIRE_FILE before judgment or modification (entire file when <100KB).
+Read entire file before judgment or modification (entire file when under 100KB; use offset/limit for larger files).
 
 ## Document Conversion
 

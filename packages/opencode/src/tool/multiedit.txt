@@ -1,8 +1,8 @@
 ## Mutation class
 
 `multiedit` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (same grounding as `edit`:
-@GATE_7_IMPLEMENT, @WRITE_SCOPE, @SMOKE_BEFORE, @READ_ENTIRE_FILE, @NO_SCRIPT_EDITING, @CLASSIFICATION).
-After apply: declared oracles (@GATE_8_ORACLE / @VERIFY_OUTCOME) before Done.
+follow kernel G7 IMPLEMENT rules: read-before-edit, use product tools, preserve unrelated changes, run oracle after change).
+After apply: run declared oracles before Done.
 
 Perform multiple edits to a single file in one operation. Each edit is applied sequentially, and all edits inherit the full capabilities of the Edit tool.
 

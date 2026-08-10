@@ -15,8 +15,15 @@ Options:
   --version <ver>     Override version for release (default: from package.json)
   --skip-tests        Skip test execution
   --skip-typecheck    Skip typecheck
-  --skip-opentui      Skip OpenTUI Zig+TS rebuild (use existing binaries)
-  --opentui-full      Full OpenTUI monorepo build (default: core+solid+three only)
+Prerequisites (run before build):
+  ./_reasoning_kernel.sh          — kernel assembly + self-test
+  ./_opentui.sh                   — OpenTUI Zig+TS rebuild
+  ./_opentui.sh true              — full OpenTUI monorepo
+
+Typical workflow:
+  ./_reasoning_kernel.sh           # assemble + validate kernel
+  ./_opentui.sh                    # build OpenTUI native + TS
+  ./_build.sh                      # compile opencode + collect dist/
 
 OpenTUI build chain:
   packages/opentui/packages/core  → bun run build  (build:native + build:lib)
@@ -93,14 +100,10 @@ DIST_DIR="$ROOT/dist"
 OPENCODE_PKG="$ROOT/packages/opencode"
 OPENTUI_ROOT="$ROOT/packages/opentui"
 
-# Source sub-scripts (self-contained, also runnable standalone)
-source "$ROOT/_reasoning_kernel.sh"
-source "$ROOT/_opentui.sh"
-
-# OpenTUI build → sourced from _opentui.sh (build_opentui)
-
-# Kernel assembly + self-test → sourced from _reasoning_kernel.sh
-# (sync_kernel_prompt, test_reasoning_framework)
+# ── Prerequisites (run separately before build) ──
+#   ./_reasoning_kernel.sh          — kernel assembly + self-test
+#   ./_opentui.sh                   — OpenTUI Zig+TS rebuild
+#   ./_opentui.sh true              — full OpenTUI monorepo
 
 # ─── CHECK TASK ──────────────────────────────────────────────────────
 task_check() {
@@ -113,12 +116,6 @@ task_check() {
     rm -rf "$ROOT/.temp/test"
     ok ".temp/test/ cleaned"
   fi
-
-  # Sync kernel prompt
-  sync_kernel_prompt || all_passed=false
-
-  # Reasoning framework test
-  test_reasoning_framework || all_passed=false
 
   # Typecheck
   if [ "$SKIP_TYPECHECK" = "false" ]; then
@@ -160,12 +157,6 @@ task_build() {
     ok ".temp/test/ cleaned"
   fi
 
-  # Sync kernel prompt
-  sync_kernel_prompt || { fail "Kernel prompt sync failed"; exit 1; }
-
-  # Reasoning framework self-test
-  test_reasoning_framework || { fail "Reasoning framework self-test failed - kernel integrity broken"; exit 1; }
-
   # Build Rust WASM modules
   echo -e "  ${YELLOW}Building Rust WASM modules...${NC}"
   if [ -f "$ROOT/_build_rust.sh" ]; then
@@ -174,21 +165,6 @@ task_build() {
     warn "_build_rust.sh not found — skipping Rust WASM (PowerShell-only _build_rust.ps1 present)"
   else
     warn "No Rust build script found — skipping WASM modules"
-  fi
-
-  # OpenTUI
-  if [ "$SKIP_OPENTUI" = "true" ]; then
-    warn "Skipping OpenTUI rebuild (--skip-opentui) — using existing binaries"
-  else
-    build_opentui "$OPENTUI_FULL"
-  fi
-
-  # opentui-spinner
-  if [ "$SKIP_OPENTUI" != "true" ]; then
-    local spinner_dir="$ROOT/packages/opentui-spinner"
-    echo -e "  ${YELLOW}Building opentui-spinner...${NC}"
-    (cd "$spinner_dir" && bun run build) || { fail "opentui-spinner build failed"; exit 1; }
-    ok "opentui-spinner built"
   fi
 
   # Clean dist
@@ -247,8 +223,7 @@ task_build() {
     cp "$opentui_lib" "$DIST_DIR/bin/${NATIVE_PREFIX}opentui.${NATIVE_EXT}"
     ok "opentui native lib copied (from rebuilt ${OPENTUI_PLATFORM})"
   else
-    fail "opentui native lib not found at $opentui_lib"
-    fail "Run without --skip-opentui or build packages/opentui/packages/core first"
+    fail "opentui native lib not found at $opentui_lib — build OpenTUI first: ./_opentui.sh"
     exit 1
   fi
 
@@ -384,16 +359,12 @@ shift 2>/dev/null || true
 
 SKIP_TESTS="false"
 SKIP_TYPECHECK="false"
-SKIP_OPENTUI="false"
-OPENTUI_FULL="false"
 VERSION=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --skip-tests)     SKIP_TESTS="true"; shift ;;
     --skip-typecheck) SKIP_TYPECHECK="true"; shift ;;
-    --skip-opentui)   SKIP_OPENTUI="true"; shift ;;
-    --opentui-full)   OPENTUI_FULL="true"; shift ;;
     --version)        VERSION="$2"; shift 2 ;;
     -h|--help)        usage ;;
     *) echo "Unknown option: $1"; usage ;;

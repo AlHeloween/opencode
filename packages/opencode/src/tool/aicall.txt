@@ -1,77 +1,36 @@
 Use `aicall` as a **bounded cognition accelerator**: one isolated LLM call on the
 exact files and constraints you supply. It is **not** a subagent (no tools, no
-repo discovery, no working-tree authority). Spine: @GATE_1_GROUND–@GATE_9_CLEAN_STATE / @IDENTITIES.
+repo discovery, no working-tree authority).
 
-## Role in the gated spine
+## When to use
+- Refactor a large module while preserving named APIs.
+- Analyse a bounded file set already identified by codegraph/read.
+- Draft plan text, alternatives, risk lists (G3/G4 — no file writes).
+- Propose unified diff for attached files (G7 — implementation proposal).
 
-| Gate | `aicall` OK? | Role |
-|------|--------------|------|
-| @GATE_1_GROUND–@GATE_2_DECOMPOSE ground / decompose | rarely | Only if files already known; never for discovery |
-| @GATE_3_MASTER_PLAN plan / @GATE_4_AUTHORIZE approve | yes | Draft plan text, alternatives, risk lists — **no** file writes |
-| @GATE_6_GROUND_PLAN ground plan | yes | Analyse a **bounded** file set after codegraph/read selected them |
-| @GATE_7_IMPLEMENT implement | yes | Propose unified diff / replacement for **attached** files only |
-| @GATE_8_ORACLE oracle | no | Oracles are real tests/typecheck/logs — not another LLM opinion |
-| @GATE_9_CLEAN_STATE done claims | no | Never mark Done from `aicall` output alone |
+## When NOT to use
+- Repository discovery, unknown deps, or shell operations.
+- Multi-step work needing tool results between reasoning steps.
+- Replacing real oracles (tests, typecheck, logs) — G8 requires actual verification.
+- "Is it done?" / "does this pass?" — run real oracles.
 
-Prefer `aicall` when a strong long-context model can reason about a **closed object**
-in one pass more cheaply than a long `glob → grep → read → partial edit` chain.
-
-## InfoMark (mandatory) — @INFOMARK_SEP / @EPISTEMIC_LADDER
-
-- `aicall` output is **Inferred** at best (parametric model over supplied text).
-- It is **never Exact** and never a system stamp.
-- Do **not** put `aicall` conclusions into `premises_for_plan` until promoted:
-  inspect → apply with edit/apply_patch → @GATE_8_ORACLE oracle PASS → `oracle_stamp`.
+## InfoMark
+- `aicall` output is **Inferred** at best — never Exact, never a system stamp.
+- Do not put `aicall` conclusions into `premises_for_plan` until verified by real oracle (G8).
 - Self-labeling the reply `[Exact]` is invalid.
 
 ## Call contract
-
-1. **Ground first** (@GATE_1_GROUND) — select paths with codegraph / read / prior Exact handles.
-   Attach **every** file needed for correctness in `files`. Unattached files do
-   not exist for the callee.
-2. **Prompt** — goal, preserved behavior, forbidden changes, output format.
-3. **Model** — set `model` / `provider` when a faster or larger-context model
-   helps; else the tool uses its configured default.
-4. **Output** — prefer unified diff or full replacement + risks + focused tests.
-5. **After** — treat as draft: apply selectively with normal mutation tools;
-   run declared oracles before Done.
-
-Example prompt:
-
-    Refactor the attached module only. Preserve public API and listed
-    invariants. Return a unified diff only, then concise compatibility risks
-    and focused tests. Do not assume files not supplied.
-
-## High-value uses
-
-- Refactor a large self-contained module while preserving named APIs.
-- Unified diff, replacement file, compatibility audit, test matrix, migration
-  draft, extraction, translation, structured review of **attached** files.
-- Analyse a set already bounded by codegraph / treediff / proven local search.
-
-## Do not use it for
-
-- Repository discovery, unknown deps, shell, or applying edits itself.
-- Multi-step work that needs tool results between reasoning steps.
-- Tasks that depend on unsupplied files or live conversation state.
-- Replacing review, patch application, tests, or Gate 8 oracles.
-- “Is it done?” / “does this pass?” — run real oracles.
-- Cheap stand-in for codegraph when structure/impact is the question.
+1. Ground first — select paths with codegraph/read, attach every needed file.
+2. Prompt — goal, preserved behavior, forbidden changes, output format.
+3. Output — prefer unified diff or full replacement + risks + focused tests.
+4. After — treat as draft; apply with edit tools; run declared oracles before Done.
 
 ## Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `prompt` | string | yes | Objective, constraints, output contract. |
-| `files` | string[] | no | Paths read and embedded before the prompt. |
-| `output_file` | string | no | Save prose to this path instead of inline. |
-| `model` | string | no | Explicit model override. |
-| `provider` | string | no | Explicit provider override. |
-
-## Behavior
-
-- Direct LLM call — no session tools, no agent loop. The model sees **only**
-  attached files + your prompt. Pure transformation.
-- Returns inline output unless `output_file` is set; large results may truncate
-  under normal tool-output limits.
-- Raw prose — no agent chatter. Ask for code → get code; ask for analysis → get analysis.
+| `prompt` | string | yes | Objective, constraints, output contract |
+| `files` | string[] | no | Paths read and embedded before the prompt |
+| `output_file` | string | no | Save prose to this path instead of inline |
+| `model` | string | no | Explicit model override |
+| `provider` | string | no | Explicit provider override |

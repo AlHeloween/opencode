@@ -2,7 +2,7 @@
 
 Restore a file from an **edit pre-change backup** (`.bak`). No git, no Fossil —
 session-local content snapshots written automatically by the `edit` / `multiedit` tools.
-Not fossil CLI mutate (@CONSTITUTION_BLOCKS). Complementary to @GATE_7_IMPLEMENT edit/write recovery.
+Not fossil CLI mutate (constitution). Complementary to G7 IMPLEMENT edit/write recovery.
 
 Use this when you need to undo a bad edit (including paths outside the worktree)
 or recover a previous version of a file you changed in this session.

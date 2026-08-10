@@ -1,25 +1,22 @@
 ## Mutation class
 
-`write` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (@CLASSIFICATION; full-file create or replace).
-Follow @GATE_7_IMPLEMENT, @WRITE_SCOPE, @SMOKE_BEFORE, @READ_ENTIRE_FILE.
-Prefer `edit` for partial changes to existing files. Runtime may **block** if an
-active @CLAIM_LEDGER has premises outside G. After write: declared oracles (@GATE_8_ORACLE / @VERIFY_OUTCOME) before Done.
+`write` is **MODIFY / PERSISTENT_WRITE / ELEVATED**. Follow kernel G7 (IMPLEMENT). Prefer `edit` for partial changes to existing files. Runtime may block if active claim ledger has premises outside G.
+
+After write: run declared oracles before Done. Prefer edit over write for partial updates (rollback-friendly).
 
 Writes a file to the local filesystem. Overwrites if the file already exists.
 
 ## Behavior
 
 - **Creates parent directories** automatically — no need to `mkdir` first.
-- **LSP diagnostics** run on the written file (and project) after writing. Errors are reported.
-- **File formatting** respects the project's configured formatter.
+- **LSP diagnostics** run on the written file after writing.
 - **UTF-8 BOM** preserved/detected.
 - **Diff** is generated and stored for tracking/undo.
-- **File events** published to the file watcher so other tools see the change immediately.
 
 ## When to Use vs Edit
 
 - **Write**: Creating NEW files or completely replacing existing files.
-- **Edit**: Modifying specific sections of existing files (prefer Edit over Write for changes to existing files — it preserves surrounding context and only modifies the target section).
+- **Edit**: Modifying specific sections of existing files.
 
 ## Do NOT
 
@@ -31,5 +28,5 @@ Writes a file to the local filesystem. Overwrites if the file already exists.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `filePath` | string | Prefer relative under project cwd (e.g. `src/foo.ts`); absolute only if under worktree — do not invent foreign `C:\Users\...` paths |
+| `filePath` | string | Path to the file to write |
 | `content` | string | The full file content |

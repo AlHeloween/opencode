@@ -1,14 +1,11 @@
 Load a specialized skill that provides domain-specific instructions and workflows.
-The skill name must match one of the **available skills the runtime listed for this
-session** (host-injected; not part of the reasoning SPECS).
+The skill name must match one of the **available skills the runtime listed for this session** (host-injected; not part of the kernel).
 
-When a task matches an available skill, load it for detailed instructions and
-bundled resources. Skill prose is guidance — still obey @GATE_1_GROUND–@GATE_9_CLEAN_STATE, @INFOMARK_SEP,
-and oracles (@GATE_8_ORACLE) for Done claims.
+When a task matches an available skill, load it for detailed instructions and bundled resources. Skill prose is guidance — still obey kernel gates and oracles for Done claims.
 
 ## Return Value
 
-- **Skill directory listing** — up to 10 files from the skill's directory (excluding SKILL.md itself), so you know what resources are available.
+- **Skill directory listing** — up to 10 files from the skill's directory (excluding SKILL.md itself).
 - **Base directory URL** — for resolving relative paths in the skill's instructions.
 
 ## Error Handling

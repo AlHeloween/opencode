@@ -1,5 +1,6 @@
 Search log files under .opencode/data/log/ for fast bug finding.
-Follow @GATE_1_GROUND evidence grounding (prefer product logsearch over shell).
+Search log files under .opencode/data/log/ for fast bug finding.
+Ground evidence before judgment — prefer logsearch over shell.
 
 Use this for quickly finding errors, warnings, and bug markers in runtime logs.
 

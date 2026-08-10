@@ -1,10 +1,8 @@
 Search the web, indexed git (Sourcegraph), or a heavy research agent via the
-Universal Search Service. Product-integrated tool for **@REUSE_BEFORE**
-(also @GATE_1_GROUND.search_intent PUBLIC_API_VERSION / UNKNOWN_ROOT_CAUSE, @EPISTEMIC_LADDER).
+Universal Search Service. Follow kernel REUSE_BEFORE: search before invent.
+Ground in G1 — external prior art step after local codegraph/messagesearch.
 
-**Authoritative sources (do not restate — resolve in kernel):**
-Before scientific / domain research, check **@DOMAIN_SOURCES** for the
-discipline. Domain databases are primary; generic web search supplements.
+**Authoritative sources:** Before scientific/domain research, check domain-specific databases first. Generic web search supplements.
 
 ## Efficiency (prefer these first)
 
@@ -24,22 +22,20 @@ worktree alone. It walks **code-graph structure** over remote/indexed repos
 `hybrid`). Do **not** open with `agent` for ordinary prior-art checks — it is
 slower and less precise than targeted web/code.
 
-## When to use (@REUSE_BEFORE)
+## When to use (follow kernel REUSE_BEFORE)
 
 1. **Before design/implementation** — new feature, protocol, algorithm, dependency,
-   abstraction: `web` and/or `code` (Sourcegraph over indexed git), or `hybrid`.
-   Prefer existing solutions over reinvention.
+   abstraction: `web` and/or `code`, or `hybrid`. Prefer existing solutions over reinvention.
 2. **On failure** — build/test/typecheck/runtime or failed fix: search the error
    signature with `web` + `code` before inventing a custom workaround.
-3. **Before "nothing exists"** — escalate @SEARCH_ORDER; this tool is the external
-   prior-art step after local codegraph/messagesearch.
+3. **Before "nothing exists"** — this tool is the external prior-art step after local codegraph/messagesearch.
 
 Skip only for trivial local work (typo, rename, one-line) already grounded in
 codegraph.
 
-**InfoMark / research ladder** — follow @EPISTEMIC_LADDER / @REUSE_BEFORE:
-  Guess → web → code (Sourcegraph git) → still Inferred/Hypothetical
-  → smoke/@GATE_8_ORACLE PASS → Exact (scoped stamp) | FAIL → **Unknown** (no Done).
+**Research ladder** — follow the kernel's epistemic ladder:
+  Guess → web → code → still Inferred/Hypothetical
+  → smoke/G8 oracle PASS → Exact | FAIL → Unknown (no Done).
 Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-proved.
 
 ## Modes
@@ -68,7 +64,7 @@ Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-prov
 | `job_id` | string | — | Poll existing agent job |
 
 \*Schema default remains `agent` for backward compatibility; **agents should pass
-`source: "web"`, `"code"`, or `"hybrid"` explicitly for @REUSE_BEFORE.**
+  `source: "web"`, `"code"`, or `"hybrid"` explicitly for REUSE_BEFORE.
 
 ## Configuration
 

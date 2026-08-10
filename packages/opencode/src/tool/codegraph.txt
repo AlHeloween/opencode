@@ -1,8 +1,6 @@
 Pre-indexed code knowledge graph — **hybrid: MCP touch → SQLite pack** (low noise for agents).
 
-**@SEARCH_ORDER / @GATE_1_GROUND (CODE_STRUCTURE):** prefer this for structure (symbols, callers, impact) before
-grep/glob/read loops on indexed code. Use at @GATE_1_GROUND grounding and @GATE_6_GROUND_PLAN Phase 0.
-Packed structure is **Exact-ish at index time** (verify with read when editing; @READ_ENTIRE_FILE before modify).
+Prefer this for structure (symbols, callers, impact) before grep/glob/read loops on indexed code. Use at G1 grounding and G6 Phase 0.
 
 **Pipeline:**
 1. **MCP** (`codegraph serve --mcp`) refreshes / owns the live graph for your query.
@@ -18,13 +16,6 @@ Packed structure is **Exact-ish at index time** (verify with read when editing; 
 - Include **file paths** in `query` when known for a tighter pack
 - Before `aicall`: bound the file set here, then attach those paths to aicall
 
-**Parameters:**
-- `query` (required): question, symbol, or path(s)
-- `mode` (optional): explore|search|trace|impact|path — MCP touch only; output is always the pack
-- `path` / `depth` (optional)
-
 **Output:** Packed markdown (files, kinds, symbols, cross-file edges, external impact).
-
-**Limits:** Field *access* edges may be missing from the index. Class/function/import deps are reliable.
 
 **Config:** `mcp.codegraph` local `["codegraph","serve","--mcp"]`. `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default 500).

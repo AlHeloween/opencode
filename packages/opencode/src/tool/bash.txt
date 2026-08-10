@@ -1,15 +1,10 @@
 Executes a bash command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
 
-Follow @CONSTITUTION_BLOCKS and @ADID_OPS: product tools for file list/read/search/edit; shell only when no product equivalent.
-
 ## Classification & oracles
 
-- **EXECUTE_TEST** (typecheck, tests, linters, builds) → @GATE_8_ORACLE / @VERIFY_OUTCOME oracles. PASS on a
-  declared claim may support Exact only for that scoped claim (then `oracle_stamp`
-  when promoting ledger claims). FAIL/timeout → no Exact Done.
-- **Shell that mutates the tree** → treat as MODIFY (@CLASSIFICATION); prefer edit/write tools for
-  source files. Destructive commands are constitution-gated (@CONSTITUTION_BLOCKS).
-- Self-certify ("seems fine") is Guess — not an oracle (@INFOMARK_SEP).
+- **EXECUTE_TEST** (typecheck, tests, linters, builds) → G8 oracle. PASS on declared claim supports Exact for that scoped claim. FAIL/timeout → no Exact Done.
+- **Shell that mutates the tree** → treat as MODIFY; prefer edit/write tools for source files. Destructive commands are constitution-gated.
+- Self-certify ("seems fine") is Guess — not an oracle.
 
 Be aware: OS: ${os}, Shell: ${shell}
 
@@ -17,67 +12,41 @@ All commands run in the current working directory by default. Use the `workdir` 
 
 IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.
 
-**Constitution blocks** (@CONSTITUTION_BLOCKS): The following shell commands are HARD-BLOCKED and will fail:
+**Constitution blocks**: The following shell commands are HARD-BLOCKED and will fail:
 - File enumeration: `ls`, `dir`, `tree`, `find`, `fd`, `rg --files`, `Get-ChildItem` — use `list`/`glob`/`grep` tools instead.
-- Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`): must run through `cmd_runner` for process isolation (e.g., `cmd_runner start -- bun build`). Direct execution can corrupt TUI state.
+- Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`): must run through `cmd_runner` for process isolation.
 
 ## Background Jobs
 
-Commands run as background jobs. The tool returns immediately with a job ID (e.g., `bash-1`). You then:
+Commands run as background jobs. The tool returns immediately with a job ID. You then:
 
-1. **Read output incrementally:** `joboutput { job_id: "bash-1" }` — returns new text + status (`running`, `stalled`, `done`, `failed`, `killed`)
-2. **Wait for completion:** `jobwait { job_ids: ["bash-1"] }` — blocks until done
-3. **Kill a stuck job:** `jobkill { job_id: "bash-1" }` — use when status is `stalled` (no output for 15s)
-
-For quick commands where you need the result immediately, opt out of background mode:
-```
-bash "echo hello" --run_in_background false
-```
+1. **Read output incrementally:** `joboutput { job_id }` — returns new text + status
+2. **Wait for completion:** `jobwait { job_ids: [...] }` — blocks until done
+3. **Kill a stuck job:** `jobkill { job_id }` — use when status is `stalled` (no output for 15s)
 
 ## Platform Notes
 
-- **Linux**: Bash is the native shell for build commands, git, npm, docker — operations without a product tool equivalent. **Never use `ls`, `cat`, `grep`, `find`, `fd`** — these are HARD-BLOCKED; use `list`/`glob`/`grep`/`read` tools.
-- **Windows**: Bash tool is NOT available. Use `cmd` / PowerShell tools when present,
-  or host-provided interactive runners the runtime surfaces for this session.
-
-## Permission Scanning
-
-Commands are parsed with tree-sitter (bash grammar) to detect filesystem-affecting operations (rm, cp, mv, mkdir, write redirections, etc.). The permission system prompts for approval before executing dangerous commands.
+- **Linux**: Bash is the native shell. Never use `ls`, `cat`, `grep`, `find`, `fd` — HARD-BLOCKED; use product tools.
+- **Windows**: Bash tool is NOT available. Use `cmd` / PowerShell tools.
 
 ## Output Handling
 
-Stdout and stderr are both captured into the tool result. If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output will be written to a file. You can use Read with offset/limit to read specific sections or Grep to search the full content. Do NOT use `head`, `tail`, or other truncation commands to limit output; the full output will already be captured to a file for more precise searching.
+Stdout and stderr are both captured. If output exceeds 2000 lines or 51200 bytes, truncated and full output written to file.
 
-**TypeScript / compilers:** prefer `2>&1` so diagnostics are on the same stream as stdout when piping or when a later step parses the text (missing merge can leave errors only on stderr and crash parsers that only consume stdout). Never strip intentional `2>&1`.
+**TypeScript / compilers:** prefer `2>&1` so diagnostics are on same stream as stdout.
 
 ## Timeout
 
-The default timeout is 60000ms (1 minute). You can specify an optional timeout in milliseconds. The timeout can also be overridden via the `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` environment variable.
+Default: 60000ms (1 minute). Optional timeout in milliseconds.
 
-**Timeout behavior:** When the timeout is exceeded, the job is killed (tree kill — all child processes). Its status becomes `killed` and any output produced before termination is preserved. Stalled jobs (no output for 15s) are NOT auto-killed — you must explicitly call `jobkill` if you want to stop a stalled job.
+Before executing: verify parent directory exists, quote paths with spaces, use `workdir` instead of `cd`.
 
-Before executing the command, please follow these steps:
+## Parameters
 
-1. Directory Verification:
-   - If the command will create new directories or files, first use the `list` tool or `glob` pattern to verify the parent directory exists and is the correct location
-   - For example, before running "mkdir foo/bar", use `list` or `glob` to check that "foo" exists and is the intended parent directory
-   - **Do NOT use `ls`** — it is HARD-BLOCKED by the constitution; use `list`/`glob` instead
-
-2. Command Execution:
-   - Always quote file paths that contain spaces with double quotes (e.g., rm "path with spaces/file.txt")
-   - Examples of proper quoting:
-     - mkdir "/Users/name/My Documents" (correct)
-     - mkdir /Users/name/My Documents (incorrect - will fail)
-     - python "/path/with spaces/script.py" (correct)
-     - python /path/with spaces/script.py (incorrect - will fail)
-   - After ensuring proper quoting, execute the command.
-   - Capture the output of the command.
-
-Usage notes:
-  - The command argument is required.
-  - You can specify an optional timeout in milliseconds.
-  - It is very helpful if you write a clear, concise description of what this command does in 5-10 words.
-  - Avoid using this tool with `find`, `grep`, `rg`, `fd`, `cat`, `head`, `tail`, `sed`, or `awk` — use the dedicated tools instead.
-  - Chain dependent commands with `&&`.
-  - Use `workdir` parameter instead of `cd <directory> && <command>`.
-  - DO NOT use newlines to separate commands (newlines are ok in quoted strings).
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `command` | string | — | The command to execute |
+| `timeout` | number | — | Optional timeout in milliseconds |
+| `workdir` | string | — | Working directory |
+| `description` | string | — | Clear, concise description (5-10 words) |
+| `run_in_background` | boolean | true | Run as background job |

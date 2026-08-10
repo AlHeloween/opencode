@@ -1,8 +1,6 @@
-Use this tool to suggest switching to **plan_mode** when the user's request would
-benefit from planning before implementation. Follow @PLAN_MODE, @IDENTITIES,
-@GATE_2_DECOMPOSE–@GATE_4_AUTHORIZE (decompose → master_plan → authorize).
+Use this tool to suggest switching to **plan_mode** when the user's request would benefit from planning before implementation. Follow kernel plan_mode rules (G1–G5).
 
-If they explicitly mention wanting to create a plan ALWAYS call this tool first.
+If they explicitly mention wanting to create a plan, ALWAYS call this tool first.
 
 This tool will ask the user if they want to switch to plan_mode.
 
@@ -10,7 +8,7 @@ Call this tool when:
 - The user's request is complex and would benefit from planning first
 - You want to research and design before making changes
 - The task involves multiple files or significant architectural decisions
-- Multi-step work needs @CLAIM_LEDGER + @SMOKE_BEFORE / oracles before MODIFY
+- Multi-step work needs claim ledger + smoke tests before MODIFY
 
 Do NOT call this tool:
 - For simple, straightforward tasks

@@ -1,5 +1,5 @@
-Use this tool when you need to ask the user questions during execution. Follow @GATE_4_AUTHORIZE
-(explicit approval / clarify before unauthorized MODIFY). This allows you to:
+Use this tool when you need to ask the user questions during execution. Follow G4 (AUTHORIZE):
+explicit approval / clarify before unauthorized MODIFY. This allows you to:
 1. Gather user preferences or requirements
 2. Clarify ambiguous instructions
 3. Get decisions on implementation choices as you work

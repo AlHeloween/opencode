@@ -62,9 +62,7 @@
           "gateway": {
             "logging": {
               "enabled": false,
-              "format": "json",
-              "logBodies": false,
-              "perRequest": false
+              "format": "json"
             }
           },
           "provider": {
@@ -108,9 +106,7 @@
           "gateway": {
             "logging": {
               "enabled": false,
-              "format": "json",
-              "logBodies": false,
-              "perRequest": false
+              "format": "json"
             }
           },
           "provider": {
@@ -141,9 +137,7 @@
           "gateway": {
             "logging": {
               "enabled": false,
-              "format": "json",
-              "logBodies": false,
-              "perRequest": false
+              "format": "json"
             }
           },
           "provider": {
@@ -177,9 +171,7 @@
     "enabled": true,
     "logging": {
       "enabled": false,
-      "format": "json",
-      "logBodies": false,
-      "perRequest": false
+      "format": "json"
     }
   }
 }

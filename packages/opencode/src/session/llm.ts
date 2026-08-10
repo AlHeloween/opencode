@@ -32,6 +32,7 @@ import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
+let lastAgentName = ""
 
 // ── Tree-sitter JSON parser (lazy) ───────────────────────────────────────────
 
@@ -317,22 +318,23 @@ const live: Layer.Layer<
         model: input.model.id,
       })
 
-      // Tool schemas — full shared set in the cached prefix (byte-stable across agents).
-      // AI SDK `tools` also uses the full set; execute ACL is SessionTools + real agent.
-      const providerTools = resolveTools(input)
-      const toolSchemaText = serializeToolSchemas(providerTools)
+      // Tool definitions are delivered via AI SDK `tools` JSON parameter
+      // (function-calling schemas) — no prose duplicate in system messages.
       const isCheckpoint = input.checkpoint === true
 
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
 
-      // The mode capsule is static for a mode era and is part of the checkpoint
-      // identity fingerprint. It is deliberately separate from tool availability.
+      // Mode capsule only on first turn or identity switch — same agent re-sending
+      // the same prompt every turn wastes tokens and breaks reading flow.
+      const agentPrompt =
+        input.agent.name !== lastAgentName ? systemIdentityPrompt(input.agent) : ""
+      lastAgentName = input.agent.name
+
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
-        toolSchemas: toolSchemaText,
         reasoningPrefix,
         kernel,
-        agentPrompt: systemIdentityPrompt(input.agent),
+        agentPrompt,
         pathSystem: input.system,
         activeToolsLine: "",
         banner,

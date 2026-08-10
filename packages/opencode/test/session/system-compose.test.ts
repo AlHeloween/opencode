@@ -12,19 +12,6 @@ import { ProviderTransform } from "../../src/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
 import type { Provider } from "../../src/provider/provider"
 
-/**
- * System prefix digest — update procedure for intentional prompt revisions:
- *
- * 1. Change `prompts_kernel/` (canonical SPECS source) and re-assemble into
- *    `packages/opencode/src/session/prompt/reasoning_prompt.mdc`.
- * 2. Sync runtime sibling: copy mdc → reasoning_prompt.txt (runtime loads .txt).
- * 3. Run: `cd packages/opencode && bun test test/session/system-compose.test.ts`
- * 4. If only the digest assertion fails, update EXPECTED_REASONING_DIGEST below
- *    after reviewing the txt/mdc diff.
- * 5. Commit reasoning_prompt.mdc + reasoning_prompt.txt + digest update together.
- *
- * Runtime loads reasoning_prompt.txt via ProviderTransform (kernel slot is empty).
- */
 const EXPECTED_REASONING_DIGEST = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
 
 function mockModel(id: string): Provider.Model {
@@ -34,20 +21,14 @@ function mockModel(id: string): Provider.Model {
     api: { id: id.split("/").pop()!, url: "https://example.com", npm: "@ai-sdk/openai-compatible" },
     name: id,
     capabilities: {
-      temperature: true,
-      reasoning: false,
-      attachment: false,
-      toolcall: true,
+      temperature: true, reasoning: false, attachment: false, toolcall: true,
       input: { text: true, audio: false, image: false, video: false, pdf: false },
       output: { text: true, audio: false, image: false, video: false, pdf: false },
       interleaved: false,
     },
     cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
     limit: { context: 128_000, output: 8_192 },
-    status: "active",
-    options: {},
-    headers: {},
-    release_date: "2026-01-01",
+    status: "active", options: {}, headers: {}, release_date: "2026-01-01",
   }
 }
 
@@ -55,22 +36,17 @@ describe("system-compose path assembly", () => {
   test("stable-first: rules → skills → env → instructions", () => {
     expect(
       assemblePathSystem({
-        skills: "SKILLS",
-        env: ["ENV"],
-        rules: ["RULES"],
-        instructions: ["AGENTS.md"],
+        skills: "SKILLS", env: ["ENV"], rules: ["RULES"], instructions: ["AGENTS.md"],
       }),
     ).toEqual(["RULES", "SKILLS", "ENV", "AGENTS.md"])
   })
 })
 
 describe("system-compose provider assembly", () => {
-  test("orders stable prefix then mutable session tail", () => {
+  test("path tiers are separate slots, banner before agentPrompt in mutable tail", () => {
     const parts = assembleSystemMessages({
       universalEnv: "UE",
-      toolSchemas: "TOOLS",
-      reasoningPrefix: "REASONING",
-      kernel: "KERNEL",
+      reasoningPrefix: "REASONING", kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
       activeToolsLine: "Active tools: a",
@@ -78,42 +54,38 @@ describe("system-compose provider assembly", () => {
       userSystem: "USER",
       checkpoint: false,
     })
-    // Order: [0] UE, [1] reasoning+kernel, [2] tools, [3] path (no agent role), [4] mutable
-    // Agent prompt + active tools line only in mutable tail (not stable path).
+    // Slots: [0] UE, [1] kernel, [2] RULES, [3] SKILLS, [4] ENV, [5] INSTRUCTIONS, [6] mutable
     expect(parts).toEqual([
       "UE",
       "REASONING\nKERNEL",
-      "TOOLS",
-      "RULES\nSKILLS\nENV\nINSTRUCTIONS",
-      "Active tools: a\nAGENT_PROMPT\n[session: ses_1]\nUSER",
+      "RULES",
+      "SKILLS",
+      "ENV",
+      "INSTRUCTIONS",
+      "[session: ses_1]\nActive tools: a\nAGENT_PROMPT\nUSER",
     ])
   })
 
-  test("checkpoint path strips stored identity at pathSystem[0]", () => {
+  test("checkpoint drops stored identity prefix from pathSystem[0]", () => {
     const parts = assembleSystemMessages({
       universalEnv: "UE",
-      toolSchemas: "TOOLS",
-      reasoningPrefix: "REASONING",
-      kernel: "KERNEL",
+      reasoningPrefix: "REASONING", kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["OLD_IDENTITY", "RULES", "SKILLS", "ENV"],
-      activeToolsLine: "Active tools: a",
+      activeToolsLine: "",
       banner: "[session: ses_1]",
       checkpoint: true,
     })
-    // Path body has no agent role; agentPrompt is mutable tail only.
-    expect(parts[3]).toBe("RULES\nSKILLS\nENV")
-    expect(parts[4]).toContain("AGENT_PROMPT")
+    expect(parts.slice(2, -1)).toEqual(["RULES", "SKILLS", "ENV"])  // path tiers
     expect(parts.join("\n")).not.toContain("OLD_IDENTITY")
-    expect(parts.some((p) => p === "USER")).toBe(false)
+    expect(parts[parts.length - 1]).toContain("AGENT_PROMPT")
+    expect(parts[parts.length - 1]).toContain("[session: ses_1]")
   })
 
-  test("collapse keeps stable body separate from session/mutable tail", () => {
+  test("collapse keeps path tiers and mutable tail separate", () => {
     const raw = assembleSystemMessages({
       universalEnv: "UE",
-      toolSchemas: "TOOLS",
-      reasoningPrefix: "REASONING",
-      kernel: "KERNEL",
+      reasoningPrefix: "REASONING", kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV", "INSTRUCTIONS"],
       activeToolsLine: "Active tools: a",
@@ -121,27 +93,20 @@ describe("system-compose provider assembly", () => {
       checkpoint: false,
     })
     const collapsed = collapseSystemMessages(raw, "UE")
-    // Critical: session banner must NOT be joined into identity/path — that
-    // forced a full path/skills recompute on every new session.
-    // Agent role is mutable tail only — stable path has no AGENT_PROMPT.
-    expect(collapsed).toEqual([
-      "UE",
-      "REASONING\nKERNEL",
-      "TOOLS",
-      "RULES\nSKILLS\nENV\nINSTRUCTIONS",
-      "Active tools: a\nAGENT_PROMPT\n[session: ses_1]",
-    ])
-    expect(collapsed[3]).not.toContain("[session:")
-    expect(collapsed[3]).not.toContain("AGENT_PROMPT")
-    expect(collapsed[4]).toContain("[session: ses_1]")
+    // 7 slots (≤8) → no collapse, identical to raw
+    expect(collapsed).toEqual(raw)
+    // Session only in mutable tail, never in path tiers
+    const mutable = collapsed[collapsed.length - 1]
+    expect(mutable).toContain("[session: ses_1]")
+    for (let i = 2; i < collapsed.length - 1; i++) {
+      expect(collapsed[i]).not.toContain("[session:")
+    }
   })
 
-  test("two sessions share identical stable prefix bytes", () => {
+  test("two sessions share identical prefix across path tiers", () => {
     const base = {
       universalEnv: "UE",
-      toolSchemas: "TOOLS",
-      reasoningPrefix: "REASONING",
-      kernel: "KERNEL",
+      reasoningPrefix: "REASONING", kernel: "KERNEL",
       agentPrompt: "AGENT_PROMPT",
       pathSystem: ["RULES", "SKILLS", "ENV"],
       activeToolsLine: "Active tools: a,b",
@@ -155,17 +120,14 @@ describe("system-compose provider assembly", () => {
       assembleSystemMessages({ ...base, banner: "[session: ses_BBB]" }),
       "UE",
     )
-    // Prefix slots 0..2 must be byte-identical across sessions
-    expect(a[0]).toBe(b[0])
-    expect(a[1]).toBe(b[1])
-    expect(a[2]).toBe(b[2])
-    expect(a[3]).toContain("SKILLS")
-    expect(a[2]).not.toContain("ses_")
-    // Only the mutable tail differs
-    expect(a[3]).toEqual(b[3])
-    expect(a[4]).not.toBe(b[4])
-    expect(a[4]).toContain("ses_AAA")
-    expect(b[4]).toContain("ses_BBB")
+    // All slots except the last (mutable tail) must be byte-identical
+    for (let i = 0; i < a.length - 1; i++) {
+      expect(a[i]).toBe(b[i])
+    }
+    // Only mutable tail differs
+    expect(a[a.length - 1]).not.toBe(b[b.length - 1])
+    expect(a[a.length - 1]).toContain("ses_AAA")
+    expect(b[b.length - 1]).toContain("ses_BBB")
   })
 
   test("collapse is a no-op when header was mutated by a plugin", () => {
@@ -173,10 +135,10 @@ describe("system-compose provider assembly", () => {
     expect(collapseSystemMessages(raw, "UE")).toEqual(raw)
   })
 
-  test("in-place collapse preserves ordinary assembled system messages", () => {
-    const system = ["UE", "REASONING", "TOOLS", "PATH", "TAIL"]
+  test("in-place collapse preserves 4-slot system", () => {
+    const system = ["UE", "REASONING", "PATH", "TAIL"]
     collapseSystemMessagesInPlace(system, "UE")
-    expect(system).toEqual(["UE", "REASONING", "TOOLS", "PATH", "TAIL"])
+    expect(system).toEqual(["UE", "REASONING", "PATH", "TAIL"])
   })
 })
 
@@ -202,7 +164,6 @@ describe("system prefix digest (reasoning_prompt.txt)", () => {
 
   test("systemPromptParts loads full txt as reasoning; kernel slot empty", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
-    // Unified identity: gates + claim_ledger + PROMPT_ABI dictionary live in one file.
     expect(parts.reasoning.length).toBeGreaterThan(10_000)
     expect(parts.reasoning.length).toBeLessThan(80_000)
     expect(parts.reasoning).toContain("GATED_WORKFLOW")
@@ -229,7 +190,6 @@ describe("validateSystemOrder", () => {
   test("returns true for correctly ordered system", () => {
     const system = assembleSystemMessages({
       universalEnv: "UE",
-      toolSchemas: "TOOLS",
       reasoningPrefix: PROMPT_REASONING,
       kernel: "",
       agentPrompt: "AGENT",
@@ -242,6 +202,6 @@ describe("validateSystemOrder", () => {
   })
 
   test("returns true for short system (no validation needed)", () => {
-    expect(validateSystemOrder(["UE", "TOOLS"])).toBe(true)
+    expect(validateSystemOrder(["UE", "PATH"])).toBe(true)
   })
 })

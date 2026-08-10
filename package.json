@@ -143,6 +143,7 @@
     "open": "11.0.0",
     "opencode-gitlab-auth": "2.1.0",
     "opencode-poe-auth": "0.0.4",
+    "patch-package": "8.0.1",
     "powershell-utils": "0.2.0",
     "react": "19.2.7",
     "remeda": "2.39.0",

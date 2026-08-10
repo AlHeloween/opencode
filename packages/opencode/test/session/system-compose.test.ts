@@ -4,6 +4,7 @@ import {
   assemblePathSystem,
   assembleSystemMessages,
   collapseSystemMessages,
+  collapseSystemMessagesInPlace,
   validateSystemOrder,
 } from "../../src/session/system-compose"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.txt"
@@ -170,6 +171,12 @@ describe("system-compose provider assembly", () => {
   test("collapse is a no-op when header was mutated by a plugin", () => {
     const raw = ["MUTATED", "TOOLS", "TAIL"]
     expect(collapseSystemMessages(raw, "UE")).toEqual(raw)
+  })
+
+  test("in-place collapse preserves ordinary assembled system messages", () => {
+    const system = ["UE", "REASONING", "TOOLS", "PATH", "TAIL"]
+    collapseSystemMessagesInPlace(system, "UE")
+    expect(system).toEqual(["UE", "REASONING", "TOOLS", "PATH", "TAIL"])
   })
 })
 

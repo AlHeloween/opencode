@@ -376,6 +376,7 @@
         "@ai-sdk/cerebras": "3.0.5",
         "@ai-sdk/cohere": "4.0.5",
         "@ai-sdk/deepinfra": "3.0.5",
+        "@ai-sdk/deepseek": "3.0.26",
         "@ai-sdk/gateway": "4.0.11",
         "@ai-sdk/google": "4.0.8",
         "@ai-sdk/google-vertex": "5.0.10",
@@ -999,7 +1000,7 @@
 
     "@ai-sdk/deepinfra": ["@ai-sdk/deepinfra@3.0.5", "", { "dependencies": { "@ai-sdk/openai-compatible": "3.0.5", "@ai-sdk/provider": "4.0.2", "@ai-sdk/provider-utils": "5.0.5" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-zmKNm5OiycwlhHwNTLJA/zj2x2QRutuJFoVuNAF410VyJllA48cyqTM7UJnzPh+E2e1RCo9ZpxWK/NAi3tOneQ=="],
 
-    "@ai-sdk/deepseek": ["@ai-sdk/deepseek@3.0.5", "", { "dependencies": { "@ai-sdk/provider": "4.0.2", "@ai-sdk/provider-utils": "5.0.5" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-wV0JH4KG8YzIRHt9791+jEi+MhSoiUdRs/jeJYPcxVVw0841c4Ma2PS/iw79jVdoLaOC2M+92jWZ2qUz5LIHFg=="],
+    "@ai-sdk/deepseek": ["@ai-sdk/deepseek@3.0.26", "", { "dependencies": { "@ai-sdk/provider": "4.0.7", "@ai-sdk/provider-utils": "5.0.25" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-NLX7ExuHko38aBKM4x2BxC11fjqFz4lAxAH3v6IRdpUjn3nUunlUXk2Ma4qeDp2bczXs9pHzdHUaMpvXUJZRRw=="],
 
     "@ai-sdk/elevenlabs": ["@ai-sdk/elevenlabs@2.0.46", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@ai-sdk/provider-utils": "4.0.40" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-HUStTC6DsjsgdRAYb0kJSFvAElHkYIiyAraRqgHPeLGCyec4FJnI9j2BgjK6HVntMv/1M6qXkzJmLOryCGfAzA=="],
 
@@ -5641,9 +5642,15 @@
 
     "@ai-sdk/amazon-bedrock/@smithy/util-utf8": ["@smithy/util-utf8@4.4.10", "", { "dependencies": { "@smithy/core": "^3.29.5", "tslib": "^2.6.2" } }, "sha512-4pWFv2sxrykZqaTixXhkgAsG6+k/VxgAiyZ6M0iLEmsOqcJaR0eidlTCmuKKtMJMIEw8lYwDTvEyR4NyC+V0cw=="],
 
+    "@ai-sdk/azure/@ai-sdk/deepseek": ["@ai-sdk/deepseek@3.0.5", "", { "dependencies": { "@ai-sdk/provider": "4.0.2", "@ai-sdk/provider-utils": "5.0.5" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-wV0JH4KG8YzIRHt9791+jEi+MhSoiUdRs/jeJYPcxVVw0841c4Ma2PS/iw79jVdoLaOC2M+92jWZ2qUz5LIHFg=="],
+
     "@ai-sdk/deepgram/@ai-sdk/provider": ["@ai-sdk/provider@3.0.14", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA=="],
 
     "@ai-sdk/deepgram/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.40", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-OL5IrpUm9Y8Dwy+w/vvFwPotS6m52O9W0op2oXgXdCROMJIBalBI0oro6OIBYkPxvm5Xg02GSkoQN25RlR0bnw=="],
+
+    "@ai-sdk/deepseek/@ai-sdk/provider": ["@ai-sdk/provider@4.0.7", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-6or44XprPzKbr8zkmzosowSE0pxkvJcoojBL+mCZvPUt3kvXp3XSNqeVun9golb1acEfSo6yaEBRT18h2VU+1Q=="],
+
+    "@ai-sdk/deepseek/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@5.0.25", "", { "dependencies": { "@ai-sdk/provider": "4.0.7", "@standard-schema/spec": "^1.1.0", "@workflow/serde": "4.1.0", "eventsource-parser": "^3.0.8", "undici": "^7.28.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-xscPPHCSjCHWrdhai25sbHCJeKNLW/3D1uSpUZa4cEtTKXA8OnPQ3+Rfu1SmM5Ea/Mf8Dfn3cllw9zeMzo/zFA=="],
 
     "@ai-sdk/elevenlabs/@ai-sdk/provider": ["@ai-sdk/provider@3.0.14", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA=="],
 
@@ -6758,6 +6765,8 @@
     "@actions/github/@octokit/plugin-paginate-rest/@octokit/types": ["@octokit/types@12.6.0", "", { "dependencies": { "@octokit/openapi-types": "^20.0.0" } }, "sha512-1rhSOfRa6H9w4YwK0yrf5faDaDTb+yLyBUKOCV4xtCDB5VmIPqd/v9yr9o6SAzOAlRxMiRiCic6JVM1/kunVkw=="],
 
     "@actions/github/@octokit/plugin-rest-endpoint-methods/@octokit/types": ["@octokit/types@12.6.0", "", { "dependencies": { "@octokit/openapi-types": "^20.0.0" } }, "sha512-1rhSOfRa6H9w4YwK0yrf5faDaDTb+yLyBUKOCV4xtCDB5VmIPqd/v9yr9o6SAzOAlRxMiRiCic6JVM1/kunVkw=="],
+
+    "@ai-sdk/deepseek/@ai-sdk/provider-utils/undici": ["undici@7.29.0", "", {}, "sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw=="],
 
     "@ai-sdk/google-vertex/google-auth-library/gcp-metadata": ["gcp-metadata@8.1.2", "", { "dependencies": { "gaxios": "^7.0.0", "google-logging-utils": "^1.0.0", "json-bigint": "^1.0.0" } }, "sha512-zV/5HKTfCeKWnxG0Dmrw51hEWFGfcF2xiXqcA3+J90WDuP0SvoiSO5ORvcBsifmx/FoIjgQN3oNOGaQ5PhLFkg=="],
 

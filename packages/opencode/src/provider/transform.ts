@@ -212,6 +212,7 @@ function normalizeMessages(
     typeof model.capabilities.interleaved === "object" &&
     model.capabilities.interleaved.field &&
     model.api.npm !== "@openrouter/ai-sdk-provider" &&
+    model.api.npm !== "@ai-sdk/deepseek" &&
     model.api.npm !== "@ai-sdk/anthropic" &&
     model.api.npm !== "@ai-sdk/google-vertex/anthropic"
   ) {
@@ -349,6 +350,7 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
       model.api.npm === "@ai-sdk/anthropic" ||
       model.api.npm === "@ai-sdk/alibaba" ||
       model.api.npm === "@ai-sdk/openai-compatible" ||
+      model.api.npm === "@ai-sdk/deepseek" ||
       model.api.npm === "@ai-sdk/openai" ||
       model.api.npm === "@ai-sdk/azure" ||
       model.api.npm === "@ai-sdk/github-copilot") &&
@@ -509,6 +511,15 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
   if (id.includes("grok")) return {}
 
   switch (model.api.npm) {
+    case "@ai-sdk/deepseek":
+      if (!model.api.id.includes("deepseek-v4")) return {}
+      return {
+        off: { thinking: { type: "disabled" } },
+        adaptive: { thinking: { type: "adaptive" } },
+        high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
+        max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+      }
+
     case "@openrouter/ai-sdk-provider":
       if (!model.id.includes("gpt") && !model.id.includes("gemini-3") && !model.id.includes("claude")) return {}
       return Object.fromEntries(OPENAI_EFFORTS.map((effort) => [effort, { reasoning: { effort } }]))
@@ -940,7 +951,10 @@ export function options(input: {
     }
   }
 
-  if (input.model.api.id.includes("deepseek-v4") && input.model.api.npm === "@ai-sdk/openai-compatible") {
+  if (
+    input.model.api.id.includes("deepseek-v4") &&
+    ["@ai-sdk/deepseek", "@ai-sdk/openai-compatible"].includes(input.model.api.npm)
+  ) {
     result["thinking"] = { type: "enabled" }
   }
 
@@ -954,6 +968,7 @@ export function options(input: {
   if (
     input.model.providerID === "openai" ||
     input.model.api.npm === "@ai-sdk/openai-compatible" ||
+    input.model.api.npm === "@ai-sdk/deepseek" ||
     input.model.api.npm === "@ai-sdk/azure" ||
     input.model.providerID === "deepseek" ||
     input.providerOptions?.setCacheKey

@@ -120,6 +120,13 @@ export function collapseSystemMessages(system: string[], header: string): string
     : [header, second, third!, middle.join("\n"), last]
 }
 
+/** Collapse provider-facing system messages without replacing the plugin-owned array. */
+export function collapseSystemMessagesInPlace(system: string[], header: string) {
+  const collapsed = collapseSystemMessages(system, header)
+  if (collapsed === system) return
+  system.splice(0, system.length, ...collapsed)
+}
+
 /** Stable-first path assembly used by prompt.ts (non-checkpoint). */
 export function assemblePathSystem(input: {
   skills?: string

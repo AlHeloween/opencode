@@ -13,7 +13,7 @@ import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
 import { Plugin } from "@/plugin"
 import { SystemPrompt, UNIVERSAL_ENV } from "./system"
-import { assembleSystemMessages, collapseSystemMessages } from "./system-compose"
+import { assembleSystemMessages, collapseSystemMessagesInPlace } from "./system-compose"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
@@ -340,10 +340,6 @@ const live: Layer.Layer<
         checkpoint: isCheckpoint,
       })
 
-      if (!loggedSystemPrompt) {
-        loggedSystemPrompt = true
-        l.info("system prompt dump (once)", { content: system.join("\n") })
-      }
       const header = system[0]!
       yield* plugin.trigger(
         "experimental.chat.system.transform",
@@ -353,9 +349,11 @@ const live: Layer.Layer<
       // Collapse: keep stable prefix (UE, tools, identity+path) separate from
       // the mutable session/tools tail. Do NOT join session banner into path —
       // that forced full path/skills recompute on every new session (~20–40k miss).
-      const collapsed = collapseSystemMessages(system, header)
-      system.length = 0
-      system.push(...collapsed)
+      collapseSystemMessagesInPlace(system, header)
+      if (!loggedSystemPrompt) {
+        loggedSystemPrompt = true
+        l.info("system prompt ready (once)", { content: system.join("\n") })
+      }
 
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.

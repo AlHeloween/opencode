@@ -13,7 +13,9 @@
 // gateway.logging.enabled: Enable gateway request logging. Default: false.
 // gateway.logging.format: Log format - "json" or "text". Default: "json".
 // gateway.logging.logBodies: Include request/response bodies in logs. Default: false.
-// gateway.logging.maxBodySize: Max body size in bytes to include in logs. Default: 10000.
+// gateway.logging.perRequest: Write each request to a separate JSON file under
+//   the per-request/ log subdirectory. Filename: {datetime-ms}-{requestId}.json.
+//   Full body included when logBodies is also enabled. Default: false.
 //
 // PROVIDER SETTINGS
 // -----------------
@@ -44,12 +46,135 @@
 
 {
   "$schema": "https://opencode.ai/config.json",
-  "providers": {},
+  "providers": {
+    "deepseek": {
+      "name": "DeepSeek",
+      "env": [
+        "DEEPSEEK_API_KEY"
+      ],
+      "api": "https://api.deepseek.com",
+      "npm": "@ai-sdk/deepseek",
+      "models": {
+        "deepseek-v4-pro": {
+          "id": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "baseURL": "https://api.deepseek.com",
+          "gateway": {
+            "logging": {
+              "enabled": false,
+              "format": "json"
+            }
+          },
+          "provider": {
+            "npm": "@ai-sdk/deepseek",
+            "api": "https://api.deepseek.com"
+          },
+          "limit": {
+            "context": 1000000,
+            "output": 384000
+          },
+          "metadata": {
+            "context_window": 1000000,
+            "max_output": 384000,
+            "supports_reasoning": true,
+            "supports_attachments": false,
+            "cost_per_million": {
+              "input": 0.435,
+              "output": 0.87,
+              "cache_read": 0.003625
+            }
+          }
+        }
+      },
+      "options": {
+        "timeout": 1800000,
+        "chunkTimeout": 600000
+      }
+    },
+    "opencode": {
+      "name": "OpenCode Zen",
+      "env": [
+        "OPENCODE_API_KEY"
+      ],
+      "api": "https://opencode.ai/zen/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "models": {
+        "big-pickle": {
+          "id": "big-pickle",
+          "name": "Big Pickle",
+          "baseURL": "https://opencode.ai/zen/v1",
+          "gateway": {
+            "logging": {
+              "enabled": false,
+              "format": "json"
+            }
+          },
+          "provider": {
+            "npm": "@ai-sdk/openai-compatible",
+            "api": "https://opencode.ai/zen/v1"
+          },
+          "limit": {
+            "context": 200000,
+            "output": 32000
+          },
+          "metadata": {
+            "context_window": 200000,
+            "max_output": 32000,
+            "supports_reasoning": true,
+            "supports_attachments": false,
+            "cost_per_million": {
+              "input": 0,
+              "output": 0,
+              "cache_read": 0,
+              "cache_write": 0
+            }
+          }
+        },
+        "nemotron-3-ultra-free": {
+          "id": "nemotron-3-ultra-free",
+          "name": "Nemotron 3 Ultra Free",
+          "baseURL": "https://opencode.ai/zen/v1",
+          "gateway": {
+            "logging": {
+              "enabled": false,
+              "format": "json"
+            }
+          },
+          "provider": {
+            "npm": "@ai-sdk/openai-compatible",
+            "api": "https://opencode.ai/zen/v1"
+          },
+          "limit": {
+            "context": 1000000,
+            "output": 128000
+          },
+          "metadata": {
+            "context_window": 1000000,
+            "max_output": 128000,
+            "supports_reasoning": true,
+            "supports_attachments": false,
+            "cost_per_million": {
+              "input": 0,
+              "output": 0,
+              "cache_read": 0
+            }
+          }
+        }
+      },
+      "options": {
+        "timeout": 1800000,
+        "chunkTimeout": 600000
+      }
+    }
+  },
   "gateway": {
     "enabled": true,
+    "debug": true,
     "logging": {
-      "enabled": false,
-      "format": "json"
+      "enabled": true,
+      "format": "json",
+      "logBodies": true,
+      "perRequest": true
     }
   }
 }

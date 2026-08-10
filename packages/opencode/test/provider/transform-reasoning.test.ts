@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { generateText } from "ai"
+import { createDeepSeek } from "@ai-sdk/deepseek"
+import { mergeDeep } from "remeda"
 import { ProviderTransform } from "../../src/provider/transform"
 import type { Provider } from "../../src/provider/provider"
 
@@ -195,5 +198,67 @@ describe("Interleaved capability — reasoning extraction", () => {
     const result = ProviderTransform.message(msgs as any, model as any, {})
     // OpenRouter is excluded — reasoning stays in content
     expect((result[0]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true)
+  })
+
+  test("keeps reasoning content for the dedicated DeepSeek provider", () => {
+    const model = {
+      ...mkInterleavedModel("reasoning_content"),
+      api: { ...mkInterleavedModel("reasoning_content").api, id: "deepseek-v4-pro", npm: "@ai-sdk/deepseek" },
+    }
+    const result = ProviderTransform.message(
+      [assistantMsg([{ type: "reasoning", text: "deep thinking" }, { type: "text", text: "answer" }])] as any,
+      model as any,
+      {},
+    )
+    expect((result[0]!.content as any[]).some((part: any) => part.type === "reasoning")).toBe(true)
+    expect((result[0]! as any).providerOptions?.openaiCompatible?.reasoning_content).toBeUndefined()
+  })
+})
+
+describe("Dedicated DeepSeek V4 thinking", () => {
+  const model = {
+    ...mkDeepseekModel(),
+    id: "deepseek/deepseek-v4-pro",
+    api: { ...mkDeepseekModel().api, id: "deepseek-v4-pro", npm: "@ai-sdk/deepseek" },
+  } as any
+
+  test("exposes off, adaptive, high, and max variants for TUI selection", () => {
+    expect(ProviderTransform.variants(model)).toEqual({
+      off: { thinking: { type: "disabled" } },
+      adaptive: { thinking: { type: "adaptive" } },
+      high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
+      max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+    })
+  })
+
+  test("serializes every TUI variant through the dedicated provider", async () => {
+    const bodies: Record<string, any>[] = []
+    const deepseek = createDeepSeek({
+      apiKey: "test",
+      fetch: (async (_url, init) => {
+        bodies.push(JSON.parse(String(init?.body)))
+        return Response.json({
+          id: "test",
+          choices: [{ index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        })
+      }) as typeof fetch,
+    })
+    for (const variant of Object.values(ProviderTransform.variants(model))) {
+      await generateText({
+        model: deepseek("deepseek-v4-pro"),
+        prompt: "ping",
+        providerOptions: ProviderTransform.providerOptions(
+          model,
+          mergeDeep(ProviderTransform.options({ model, sessionID: "test-session" }), variant),
+        ),
+      })
+    }
+    expect(bodies.map((body) => ({ thinking: body.thinking, reasoningEffort: body.reasoning_effort }))).toEqual([
+      { thinking: { type: "disabled" }, reasoningEffort: undefined },
+      { thinking: { type: "adaptive" }, reasoningEffort: undefined },
+      { thinking: { type: "enabled" }, reasoningEffort: "high" },
+      { thinking: { type: "enabled" }, reasoningEffort: "max" },
+    ])
   })
 })

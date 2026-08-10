@@ -100,6 +100,7 @@ const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>
     import("@ai-sdk/google-vertex/anthropic").then((m) => m.createVertexAnthropic),
   "@ai-sdk/openai": () => import("@ai-sdk/openai").then((m) => m.createOpenAI),
   "@ai-sdk/openai-compatible": () => import("@ai-sdk/openai-compatible").then((m) => m.createOpenAICompatible),
+  "@ai-sdk/deepseek": () => import("@ai-sdk/deepseek").then((m) => m.createDeepSeek),
   "@openrouter/ai-sdk-provider": () => import("@openrouter/ai-sdk-provider").then((m) => m.createOpenRouter),
   "@ai-sdk/xai": () => import("@ai-sdk/xai").then((m) => m.createXai),
   "@ai-sdk/mistral": () => import("@ai-sdk/mistral").then((m) => m.createMistral),
@@ -1439,10 +1440,24 @@ const layer: Layer.Layer<
             ...model.headers,
           }
 
+        // Redirect DeepSeek models from generic openai-compatible to dedicated @ai-sdk/deepseek
+        // which properly supports system messages (openai-compatible strips them).
+        let resolvedNpm = model.api.npm
+        if (
+          resolvedNpm === "@ai-sdk/openai-compatible" &&
+          (model.providerID === "deepseek" || model.api.id.toLowerCase().includes("deepseek"))
+        ) {
+          resolvedNpm = "@ai-sdk/deepseek"
+          log.info("redirecting deepseek model to @ai-sdk/deepseek", {
+            modelID: model.id,
+            from: model.api.npm,
+          })
+        }
+
         const key = Hash.fast(
           JSON.stringify({
             providerID: model.providerID,
-            npm: model.api.npm,
+            npm: resolvedNpm,
             options,
           }),
         )
@@ -1498,7 +1513,7 @@ const layer: Layer.Layer<
           return wrapSSE(res, chunkTimeout, chunkAbortCtl)
         }
 
-        const bundledLoader = BUNDLED_PROVIDERS[model.api.npm]
+        const bundledLoader = BUNDLED_PROVIDERS[resolvedNpm]
         if (bundledLoader) {
           log.info("using bundled provider", {
             providerID: model.providerID,
@@ -1567,7 +1582,23 @@ const layer: Layer.Layer<
     const getLanguage = Effect.fn("Provider.getLanguage")(function* (model: Model) {
       const s = yield* InstanceState.get(state)
       const envs = yield* env.all()
-      const key = `${model.providerID}/${model.id}`
+
+      // Redirect DeepSeek models from generic openai-compatible to dedicated @ai-sdk/deepseek
+      // Must happen BEFORE cache lookup, otherwise cached model from old SDK is returned.
+      log.info("getLanguage npm check", {
+        providerID: model.providerID,
+        apiId: model.api.id,
+        apiNpm: model.api.npm,
+        modelId: model.id,
+      })
+      const resolvedNpm =
+        model.api.npm === "@ai-sdk/openai-compatible" &&
+        (model.providerID === "deepseek" || model.api.id.toLowerCase().includes("deepseek"))
+          ? "@ai-sdk/deepseek"
+          : model.api.npm
+
+      // Include npm in key so old openai-compatible cache entries are invalidated.
+      const key = `${model.providerID}/${model.id}/${resolvedNpm}`
       if (s.models.has(key)) return s.models.get(key)!
 
       return yield* Effect.promise(async () => {

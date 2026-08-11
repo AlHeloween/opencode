@@ -1637,6 +1637,10 @@ export const layer = Layer.effect(
           // Real identity (build_mode / coder_agent / …). Protocol is shared mdc.
           // Role = synthetic notify on switch; ACL = execute on real `agent`.
           const cacheAgent = providerIdentityForMode(agent, (yield* agents.get("build_mode")) ?? agent)
+          // Primary modes share the same system prefix — no agentName in
+          // checkpoint key so mode switches reuse the cached prompt. Subagents
+          // (coder, explorer, …) keep separate checkpoints (different tools).
+          const checkpointAgentName = isPrimaryModeIdentity(cacheAgent.name) ? undefined : cacheAgent.name
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
           msgs = yield* insertReminders({ messages: msgs, agent, session })
@@ -1784,7 +1788,7 @@ export const layer = Layer.effect(
               providerID: model.providerID,
               modelID: model.id,
               projectID: ctx.project.id,
-              agentName: cacheAgent.name,
+              agentName: checkpointAgentName,
             }).pipe(Effect.catch(() => Effect.succeed(null)))
             const checkpointHasStructuredPrompt = checkpoint?.systemPrompt.at(-1) === STRUCTURED_OUTPUT_SYSTEM_PROMPT
             const checkpointIdentityOk = checkpoint
@@ -1841,7 +1845,7 @@ export const layer = Layer.effect(
               modelId: model.id,
               providerId: model.providerID,
             }, CacheControl.toolSchemasFromRecord(tools))
-            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, cacheAgent.name)
+            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, checkpointAgentName)
             const audit = CacheControl.auditCache(prevFP, currentFP, cacheAgent.name)
             // Only real prefix invalidation is a bug. Appends are normal (cache:extend).
             if (audit.kind === "broken") {
@@ -2251,7 +2255,7 @@ export const layer = Layer.effect(
                     messageFingerprints: checkpointMsgs.map((m) => CacheControl.messageFingerprint(m).hash),
                     modelMessageCounts,
                     model: { providerID: model.providerID, modelID: model.id },
-                    agent: cacheAgent.name,
+                agent: checkpointAgentName,
                     turn: step + 1,
                     timestamp: Date.now(),
                   },

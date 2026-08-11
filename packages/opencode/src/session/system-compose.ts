@@ -92,13 +92,12 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
 export function collapseSystemMessages(system: string[], header: string): string[] {
   if (system.length <= 2 || system[0] !== header) return system
 
-  // assembleSystemMessages produces 3–7 slots:
+  // assembleSystemMessages produces 3+ slots:
   //   [UE, stablePrefix?, …path tiers…, mutable?]
-  // Keep them separate. Only join accidental middle fragments if a plugin
-  // inserted extras between path tiers and the final mutable segment.
-  if (system.length <= 8) {
-    return system
-  }
+  // Collapse middle fragments into one joined entry while keeping
+  // the header, first path tiers, and last mutable segment separate.
+  // No slot-count threshold — same result regardless of how many
+  // rules/skills/instructions tiers exist (KV cache stability).
 
   // Plugin added parts: [UE, stablePrefix?, tools?, ...middle, lastMutable]
   const second = system[1]!

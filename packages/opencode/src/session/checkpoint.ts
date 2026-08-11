@@ -78,7 +78,7 @@ export interface CheckpointData {
    */
   modelMessageCounts?: number[]
   model: { providerID: string; modelID: string }
-  agent: string
+  agent?: string
   turn: number
   timestamp: number
 }

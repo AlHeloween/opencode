@@ -1,12 +1,11 @@
 import { expect, test } from "bun:test"
 import path from "path"
 import { fileURLToPath } from "url"
-import type { Agent } from "../../src/agent/agent"
-import { systemIdentityPrompt } from "../../src/session/llm"
-import { modeInstructionForTransition, providerIdentityForMode } from "../../src/session/prompt"
+import { modeInstructionForTransition, providerIdentityForMode, roleInstructionForAgent } from "../../src/session/prompt"
 import PROMPT_BUILD from "../../src/session/prompt/build.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning-mode.txt"
+import type { Agent } from "../../src/agent/agent"
 
 test("mode instructions appear only on entry or explicit mode change", () => {
   expect(modeInstructionForTransition(undefined, "plan_mode")).toContain("plan_mode")
@@ -25,13 +24,19 @@ test("mode instructions appear only on entry or explicit mode change", () => {
   expect(modeInstructionForTransition("build_mode", "custom")).toBeUndefined()
 })
 
-test("primary mode identity is in system prompt — survives compaction, isolated per mode", () => {
-  expect(systemIdentityPrompt({ name: "build_mode", prompt: PROMPT_BUILD } as Agent.Info)).toBe(PROMPT_BUILD.trim())
-  expect(systemIdentityPrompt({ name: "plan_mode", prompt: PROMPT_PLAN } as Agent.Info)).toBe(PROMPT_PLAN.trim())
-  expect(systemIdentityPrompt({ name: "reasoning_mode", prompt: PROMPT_REASONING } as Agent.Info)).toBe(
-    PROMPT_REASONING.trim(),
-  )
-  expect(systemIdentityPrompt({ name: "coder_agent", prompt: "coder role" } as Agent.Info)).toBe("")
+test("primary mode identity handled via modeInstructionForTransition, not system prompt", () => {
+  // Primary modes: roleInstructionForAgent returns undefined — identity delivered
+  // as one-shot conversation notify via modeInstructionForTransition (prompt.ts).
+  expect(roleInstructionForAgent({ name: "build_mode", prompt: PROMPT_BUILD } as Agent.Info)).toBeUndefined()
+  expect(roleInstructionForAgent({ name: "plan_mode", prompt: PROMPT_PLAN } as Agent.Info)).toBeUndefined()
+  // Subagent roles ARE injected
+  expect(roleInstructionForAgent({ name: "coder_agent", prompt: "coder role" } as Agent.Info)).toContain("coder role")
+
+  // Mode transition injects correct prompt text on switch
+  expect(modeInstructionForTransition(undefined, "build_mode")).toContain("build_mode")
+  expect(modeInstructionForTransition("plan_mode", "build_mode")).toContain("build_mode")
+  // Same mode: no inject
+  expect(modeInstructionForTransition("build_mode", "build_mode")).toBeUndefined()
 })
 
 test("prompt flow has no legacy steady-state continuation injection", async () => {

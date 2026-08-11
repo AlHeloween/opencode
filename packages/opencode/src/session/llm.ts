@@ -6,7 +6,6 @@ import { streamText, wrapLanguageModel, type ModelMessage, type Tool, tool, json
 import { mergeDeep, pipe } from "remeda"
 import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 import { ProviderTransform } from "@/provider/transform"
-import { isPrimaryModeIdentity } from "./mode-identity"
 import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
@@ -189,9 +188,7 @@ export function buildProviderCacheKey(input: {
   identity?: string
 }) {
   if (input.providerCacheKey) return input.providerCacheKey
-  return [input.sessionID, input.identity, input.modelID]
-    .filter(Boolean)
-    .join(":")
+  return [input.sessionID, input.modelID].join(":")
 }
 
 /** Resolve a tool-call alias (separators/case + short-name aliases) to the provider-canonical name when present. */
@@ -248,16 +245,6 @@ export type StreamInput = {
   outputTokenMax?: number
   toolChoice?: "auto" | "required" | "none"
   checkpoint?: boolean
-}
-
-/**
- * Stable identity capsule for primary modes. Lives in system prompt (not
- * conversation) so it survives compaction and never depends on visible-message
- * window. Each mode gets its own providerCacheKey — no cross-mode KV pollution.
- */
-export function systemIdentityPrompt(agent: Pick<Agent.Info, "name" | "prompt">) {
-  if (!isPrimaryModeIdentity(agent.name)) return ""
-  return agent.prompt?.trim() ?? ""
 }
 
 export type StreamRequest = StreamInput & {
@@ -331,16 +318,15 @@ const live: Layer.Layer<
 
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
 
-      // Identity capsule in system prompt — survives compaction, never depends
-      // on visible-message window. Each mode has its own providerCacheKey so
-      // switching modes does not invalidate another mode's cached prefix.
-      const agentPrompt = systemIdentityPrompt(input.agent)
+      // Identity is delivered via modeInstructionForTransition as a one-shot
+      // conversation notify (synthetic user part) — NOT in system prompt.
+      // System prompt stays byte-stable across mode switches for KV cache.
 
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
         reasoningPrefix,
         kernel,
-        agentPrompt,
+        agentPrompt: "",
         pathSystem: input.system,
         activeToolsLine: "",
         banner,

@@ -143,6 +143,11 @@ const log = Log.create({ service: "session.prompt" })
 const elog = EffectLogger.create({ service: "session.prompt" })
 const sidecarInFlight = new Set<string>()
 
+/** Track the last injected mode — survives compaction so identity is never
+ *  re-injected when the visible-message window no longer contains the previous
+ *  agent (e.g. after a compaction fold). */
+let lastInjectedMode = ""
+
 /** Reusable: filter thenmap visible agent names from a list. */
 const visibleNames = (agents: Agent.Info[]) => agents.filter((a) => !a.hidden).map((a) => a.name)
 
@@ -352,10 +357,14 @@ export const layer = Layer.effect(
       // Steady-state same identity: no re-inject (permissions enforce; keep KV prefix).
       const prevCanon = previousMode ? canonicalIdentity(previousMode) : undefined
       const nextCanon = canonicalIdentity(input.agent.name)
+      // Module-level tracker survives compaction — visible-message window may not
+      // contain the previous agent after a fold, but lastInjectedMode does.
+      const prevTracked = lastInjectedMode || (previousMode ?? "")
       const instruction =
-        modeInstructionForTransition(previousMode, input.agent.name) ??
+        modeInstructionForTransition(prevTracked, input.agent.name) ??
         (prevCanon !== nextCanon ? roleInstructionForAgent(input.agent) : undefined)
       if (!instruction || hasSynthetic(instruction)) return input.messages
+      lastInjectedMode = nextCanon
       yield* elog.debug("mode transition", {
         previousMode,
         nextMode: input.agent.name,

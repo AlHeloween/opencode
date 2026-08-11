@@ -293,7 +293,8 @@ regressions.
 - [x] **T1**: Run full test suite baseline (`bun test` from `packages/opencode/`) — ~120 pre-existing failures (95% timeouts on Windows, 4 prompt-format), **zero regressions from catch fixes**, all session/* tests pass
 - [ ] **T2**: Audit all 108 `bug:` log markers — classify by severity, frequency, impact
 - [x] **T3**: Fix 14 silent `catch {}` blocks in session layer (add `log.debug` or `log.warn("bug:...")`)
-- [ ] **T4**: Add test coverage for `overflow.ts` (isOverflow, usable, summaryWindowLimit, needsContentCompaction)
+- [x] **T4**: Session settings persistence tests (global↔session config) — 21 tests covering save/load/remove round-trip, normalization, concurrency, session isolation. Fixed `SESSIONS_DIR` static-path bug → dynamic `Global.Path.data`.
+- [ ] **T5**: Add test coverage for `overflow.ts` untested exports (`summaryWindowLimit`, `needsContentCompaction`)
 - [ ] **T5**: Run SMOKE_1 — checkpoint benchmark
 - [ ] **T6**: Run SMOKE_2 — catch block audit report
 - [ ] **T7**: Run SMOKE_3 — system prompt hash stability

@@ -107,6 +107,10 @@ export interface MarkdownOptions extends RenderableOptions<MarkdownRenderable> {
    */
   streaming?: boolean
   /**
+   * Wrap mode for fenced code blocks. Defaults to "none" — code must not reflow.
+   */
+  codeWrapMode?: "none" | "char" | "word"
+  /**
    * Options for internally rendered markdown tables.
    */
   tableOptions?: MarkdownTableOptions
@@ -267,6 +271,7 @@ export class MarkdownRenderable extends Renderable {
   private _concealCode: boolean
   private _treeSitterClient?: TreeSitterClient
   private _tableOptions?: MarkdownTableOptions
+  private _codeWrapMode: "none" | "char" | "word"
   private _renderNode?: MarkdownOptions["renderNode"]
   private _internalBlockMode: "coalesced" | "top-level"
 
@@ -304,6 +309,7 @@ export class MarkdownRenderable extends Renderable {
     this._content = options.content ?? this._contentDefaultOptions.content
     this._treeSitterClient = options.treeSitterClient
     this._tableOptions = options.tableOptions
+    this._codeWrapMode = options.codeWrapMode ?? "none"
     this._renderNode = options.renderNode
     this._streaming = options.streaming ?? this._contentDefaultOptions.streaming
     this._internalBlockMode = options.internalBlockMode ?? this._contentDefaultOptions.internalBlockMode
@@ -966,6 +972,7 @@ export class MarkdownRenderable extends Renderable {
       streaming: this._streaming,
       treeSitterClient: this._treeSitterClient,
       width: "100%",
+      wrapMode: this._codeWrapMode ?? "none",
       marginBottom,
     })
   }

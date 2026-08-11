@@ -6,7 +6,6 @@ import { streamText, wrapLanguageModel, type ModelMessage, type Tool, tool, json
 import { mergeDeep, pipe } from "remeda"
 import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 import { ProviderTransform } from "@/provider/transform"
-import { isPrimaryModeIdentity } from "./mode-identity"
 import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
@@ -32,7 +31,6 @@ import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
 let loggedSystemPrompt = false
-let lastAgentName = ""
 
 // ── Tree-sitter JSON parser (lazy) ───────────────────────────────────────────
 
@@ -249,16 +247,6 @@ export type StreamInput = {
   checkpoint?: boolean
 }
 
-/**
- * Stable identity capsule for primary modes. This reaches every provider request,
- * including the first turn after compaction, instead of relying on a compactable
- * conversation-tail reminder.
- */
-export function systemIdentityPrompt(agent: Pick<Agent.Info, "name" | "prompt">) {
-  if (!isPrimaryModeIdentity(agent.name)) return ""
-  return agent.prompt?.trim() ?? ""
-}
-
 export type StreamRequest = StreamInput & {
   abort: AbortSignal
 }
@@ -330,17 +318,15 @@ const live: Layer.Layer<
 
       const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
 
-      // Mode capsule only on first turn or identity switch — same agent re-sending
-      // the same prompt every turn wastes tokens and breaks reading flow.
-      const agentPrompt =
-        input.agent.name !== lastAgentName ? systemIdentityPrompt(input.agent) : ""
-      lastAgentName = input.agent.name
+      // Mode identity is delivered as a conversation notify (synthetic user part)
+      // via prompt.ts → roleInstructionForAgent(). Do NOT inject it into system prompt —
+      // that would change system content on every mode switch, breaking provider KV cache.
 
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
         reasoningPrefix,
         kernel,
-        agentPrompt,
+        agentPrompt: "",
         pathSystem: input.system,
         activeToolsLine: "",
         banner,

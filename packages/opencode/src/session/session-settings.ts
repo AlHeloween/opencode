@@ -85,12 +85,13 @@ export function sessionAgentVariant(
 
 // ── File path ──
 
-const SESSIONS_DIR = path.join(Global.Path.data, "sessions")
+// ── Save concurrency ──
+
 const pendingWrites = new Map<string, Promise<void>>()
 
 /** Get the session settings file path for a given session ID. */
 export function getSessionSettingsPath(sessionID: string): string {
-  return path.join(SESSIONS_DIR, `${sessionID}.jsonc`)
+  return path.join(Global.Path.data, "sessions", `${sessionID}.jsonc`)
 }
 
 // ── Load ──

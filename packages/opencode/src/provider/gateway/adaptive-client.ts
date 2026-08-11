@@ -100,6 +100,18 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
   return sanitized
 }
 
+/**
+ * Attempt to pretty-print a JSON string so line-based diffs are meaningful.
+ * Falls back to the original string if parsing fails.
+ */
+function tryFormatJSON(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2)
+  } catch {
+    return raw
+  }
+}
+
 function initLogger() {
   if (!asyncLogger && loggingEnabled) {
     const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
@@ -363,7 +375,9 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
           `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
         const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
         const diffPath = path.join(diffDir, `${iso}-${sanitizedId}.diff`)
-        const diffContent = await createPatch(prevRequestBody.body, rawBody)
+        const prevBody = tryFormatJSON(prevRequestBody.body)
+        const currBody = tryFormatJSON(rawBody)
+        const diffContent = await createPatch(prevBody, currBody)
         if (diffContent) {
           fs.writeFileSync(diffPath, diffContent + EOL)
         } else {

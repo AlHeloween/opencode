@@ -487,7 +487,7 @@ it.live("static loop uses provider cache key for cache-visible session banner", 
       yield* prompt.loop({ sessionID: session.id })
 
       const request = (yield* llm.inputs)[0] as { prompt_cache_key?: string }
-      expect(request.prompt_cache_key).toBe(buildProviderCacheKey({ sessionID: session.id, providerCacheKey, modelID: "test-model", identity: "build" }))
+      expect(request.prompt_cache_key).toBe(buildProviderCacheKey({ sessionID: session.id, providerCacheKey, modelID: "test-model" }))
       expect(request.prompt_cache_key).not.toBe(session.id)
     }),
     { git: true, config: providerCfg },

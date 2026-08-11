@@ -129,9 +129,9 @@ describe("session.llm.estimateContentTokens", () => {
 })
 
 test("provider cache key is stable across agent identities (shared system prefix)", () => {
-  const build = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "build" })
-  const reasoning = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "reasoning" })
-  const otherSession = LLM.buildProviderCacheKey({ sessionID: "s2", modelID: "m1", identity: "build" })
+  const build = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1" })
+  const reasoning = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1" })
+  const otherSession = LLM.buildProviderCacheKey({ sessionID: "s2", modelID: "m1" })
   expect(reasoning).toBe(build)
   expect(otherSession).not.toBe(build)
   expect(LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", providerCacheKey: "lease" })).toBe("lease")

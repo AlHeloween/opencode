@@ -177,15 +177,13 @@ export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
 
 /**
- * Stable provider prompt-cache key. Shared across agents for the same session+model
- * (system prefix is identity-stable; do not suffix agent name).
- * `identity` is accepted for call-site compatibility and ignored.
+ * Stable provider prompt-cache key. Shared across all agents for the same
+ * session+model — system prefix is byte-stable regardless of mode/identity.
  */
 export function buildProviderCacheKey(input: {
   sessionID: string
   providerCacheKey?: string
   modelID: string
-  identity?: string
 }) {
   if (input.providerCacheKey) return input.providerCacheKey
   return [input.sessionID, input.modelID].join(":")
@@ -349,14 +347,12 @@ const live: Layer.Layer<
         l.info("system prompt ready (once)", { content: system.join("\n") })
       }
 
-      // Detect cache-poisoning: if one agent/model's system prompt content changes
-      // while its provider cache key is stable, the provider cache is invalidated.
-      // Shared identity: do not suffix agent name — all roles use the same system prefix.
+      // System prompt is byte-stable (no identity capsule). Cache key is
+      // shared across all agents for the same session+model.
       const providerCacheKey = buildProviderCacheKey({
         sessionID: input.sessionID,
         providerCacheKey: input.providerCacheKey,
         modelID: input.model.id,
-        identity: input.agent.name,
       })
       checkSystemStability({
         sessionID: input.sessionID,

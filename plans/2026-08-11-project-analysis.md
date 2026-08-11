@@ -290,9 +290,9 @@ regressions.
 
 ### Task Plan
 
-- [ ] **T1**: Run full test suite baseline (`bun test` from `packages/opencode/`)
+- [x] **T1**: Run full test suite baseline (`bun test` from `packages/opencode/`) — ~120 pre-existing failures (95% timeouts on Windows, 4 prompt-format), **zero regressions from catch fixes**, all session/* tests pass
 - [ ] **T2**: Audit all 108 `bug:` log markers — classify by severity, frequency, impact
-- [ ] **T3**: Fix 14 silent `catch {}` blocks in session layer (add `log.debug` or `log.warn("bug:...")`)
+- [x] **T3**: Fix 14 silent `catch {}` blocks in session layer (add `log.debug` or `log.warn("bug:...")`)
 - [ ] **T4**: Add test coverage for `overflow.ts` (isOverflow, usable, summaryWindowLimit, needsContentCompaction)
 - [ ] **T5**: Run SMOKE_1 — checkpoint benchmark
 - [ ] **T6**: Run SMOKE_2 — catch block audit report

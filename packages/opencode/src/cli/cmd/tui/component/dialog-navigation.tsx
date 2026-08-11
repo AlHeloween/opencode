@@ -994,7 +994,7 @@ export function DialogPermissions() {
                     {row.kind === "agent-permission" ? `${row.agentName} · ${row.label}` : row.kind === "directory" ? row.displayPath : row.label}
                   </text>
                   <text fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.textMuted}>
-                    {row.kind === "action" || row.kind === "directory" || row.kind === "agent-header" ? "" : row.hint}
+                    {row.kind === "directory" ? "" : row.hint}
                   </text>
                 </box>
               </box>

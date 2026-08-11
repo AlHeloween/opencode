@@ -1,6 +1,7 @@
 import { PlanEnterTool, PlanExitTool } from "./plan"
 import { ReasoningEnterTool, ReasoningExitTool } from "./reasoning"
 import { MemoryTool } from "./memory"
+import { GetModeTool } from "./getmode"
 import { Session } from "@/session/session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
@@ -74,6 +75,7 @@ const log = Log.create({ service: "tool.registry" })
 type TaskDef = Tool.InferDef<typeof TaskTool>
 type ReadDef = Tool.InferDef<typeof ReadTool>
 type MemoryDef = Tool.InferDef<typeof MemoryTool>
+type GetModeDef = Tool.InferDef<typeof GetModeTool>
 type ReasoningEnterDef = Tool.InferDef<typeof ReasoningEnterTool>
 type ReasoningExitDef = Tool.InferDef<typeof ReasoningExitTool>
 
@@ -82,6 +84,7 @@ type State = {
   task: TaskDef
   read: ReadDef
   memory: MemoryDef
+  getmode: GetModeDef
   reasoningEnter: ReasoningEnterDef
   reasoningExit: ReasoningExitDef
 }
@@ -140,6 +143,7 @@ export const layer: Layer.Layer<
     const reasoningEnter = yield* ReasoningEnterTool
     const reasoningExit = yield* ReasoningExitTool
     const memory = yield* MemoryTool
+    const getmode = yield* GetModeTool
     const webfetch = yield* WebFetchTool
     const bash = yield* BashTool
     const cmd = yield* CmdTool
@@ -263,6 +267,7 @@ export const layer: Layer.Layer<
           reasoningEnter: Tool.init(reasoningEnter),
           reasoningExit: Tool.init(reasoningExit),
           memory: Tool.init(memory),
+          getmode: Tool.init(getmode),
           list: Tool.init(listtool),
           multiedit: Tool.init(multiedit),
           restore: Tool.init(restore),
@@ -319,10 +324,12 @@ export const layer: Layer.Layer<
             tool.reasoningEnter,
             tool.reasoningExit,
             tool.memory,
+            tool.getmode,
           ],
           task: tool.task,
           read: tool.read,
           memory: tool.memory,
+          getmode: tool.getmode,
           reasoningEnter: tool.reasoningEnter,
           reasoningExit: tool.reasoningExit,
         }
@@ -357,15 +364,11 @@ export const layer: Layer.Layer<
       ].join("\n")
     })
 
-    const describeTask = Effect.fn("ToolRegistry.describeTask")(function* (agent: Agent.Info) {
+    const describeTask = Effect.fn("ToolRegistry.describeTask")(function* (_agent: Agent.Info) {
       const items = (yield* agents.list()).filter((item) => item.mode !== "primary")
-      const filtered = items.filter((item) => {
-        if (Permission.evaluate("task", item.name, agent.permission).action === "deny") return false
-        // Global/native allow-list (session overlay applied at task execute time).
-        if (agent.subagents && !agent.subagents.includes(item.name)) return false
-        return true
-      })
-      const list = filtered.toSorted((a, b) => a.name.localeCompare(b.name))
+      // Subagent descriptions are mode-stable — ACL filtering is runtime at execute time.
+      // Do NOT shrink the list per agent.subagents (KV cache stability).
+      const list = items.toSorted((a, b) => a.name.localeCompare(b.name))
       const description = list
         .map(
           (item) =>
@@ -379,13 +382,10 @@ export const layer: Layer.Layer<
       const s = yield* InstanceState.get(state)
       // Provider tool *schemas* are mode-stable (KV): never shrink the list by role.
       // Reasoning/plan ACL is runtime-only in SessionTools (deny execute + mode message).
-      const isOrchestrator =
-        input.agent.native &&
-        (input.agent.name === "orchestrator_agent" || input.agent.name === "orchestrator")
+      // reasoningEnter/reasoningExit are always present in the schema — execute is
+      // gated by SessionTools, not by removing the tool definition (KV cache stable).
       const candidates = yield* all()
       const filtered = candidates.filter((tool) => {
-        // Enter/exit mode tools are orchestrator-facing controls, not general work tools.
-        if ((tool === s.reasoningEnter || tool === s.reasoningExit) && !isOrchestrator) return false
         const usePatch =
           input.modelID.includes("gpt-") && !input.modelID.includes("oss") && !input.modelID.includes("gpt-4")
         if (tool.id === ApplyPatchTool.id) return usePatch

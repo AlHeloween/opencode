@@ -1775,10 +1775,10 @@ export const layer = Layer.effect(
             // Kernel / agent-prompt migrations invalidate checkpoints so we never
             // pair a new identity prefix with path system assembled under an old one.
             const reasoningPrefixForIdentity = ProviderTransform.systemPromptPrefix(model)
-            const cleanIdentity = [reasoningPrefixForIdentity, cacheAgent.prompt ?? ""]
-              .filter((x) => x)
-              .join("\n")
-              .replace(/\n+$/, "")
+            // Kernel identity (reasoning_prompt.txt) is the only byte-stable anchor.
+            // Agent prompt is mode-specific and delivered via <system-reminder> notify —
+            // never part of the identity fingerprint (would break KV-cache on mode switch).
+            const cleanIdentity = reasoningPrefixForIdentity
 
             // Attempt to load encrypted checkpoint for this session+model.
             // Invalidated on compaction, new session, structured-output flip,
@@ -1813,7 +1813,10 @@ export const layer = Layer.effect(
             const [skills, env, instructions, rules] = checkpointUsable
               ? [undefined, [] as string[], [] as string[], [] as string[]] as const
               : yield* Effect.all([
-                  sys.skills(cacheAgent),
+                  // Skills are agent-independent in system prompt — always compute
+                  // against build_mode (most permissive) for byte-stable path body.
+                  // Runtime ACL gates the skill tool per agent; system prompt just lists.
+                  sys.skills(yield* agents.get("build_mode")),
                   Effect.sync(() => sys.environment(model)),
                   instruction.system().pipe(Effect.orDie),
                   instruction.rules().pipe(Effect.orDie),

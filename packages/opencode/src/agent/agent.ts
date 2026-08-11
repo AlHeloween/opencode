@@ -95,6 +95,7 @@ export const layer = Layer.effect(
 
         const defaults = Permission.fromConfig({
           "*": "allow",
+          getmode: "allow",
           "ai-call": "deny",
           doom_loop: "ask",
           // Four independent constitution buckets — deny after "*" so bash:* cannot skip.
@@ -156,6 +157,7 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 // Default deny is the runtime boundary. Prompt guidance is not an ACL.
                 "*": "deny",
+                getmode: "allow",
                 question: "allow",
                 plan_exit: "allow",
                 read: "allow",
@@ -209,6 +211,7 @@ export const layer = Layer.effect(
                 // Runtime ACL only — tool *schemas* stay the full shared set.
                 // Only permanent memory file is authorized to execute.
                 "*": "deny",
+                getmode: "allow",
                 memory: "allow",
                 reasoning_exit: "allow",
                 dbread: "deny",

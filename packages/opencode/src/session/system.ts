@@ -15,7 +15,6 @@ import PROMPT_TRINITY from "./prompt/trinity.txt"
 import PROMPT_COPILOT_GPT_5 from "./prompt/copilot-gpt-5.txt"
 import type { Provider } from "@/provider/provider"
 import type { Agent } from "@/agent/agent"
-import { Permission } from "@/permission"
 import { Skill } from "@/skill"
 
 interface PromptEntry {
@@ -137,10 +136,10 @@ export const layer = Layer.effect(
         ]
       },
 
-      skills: Effect.fn("SystemPrompt.skills")(function* (agent: Agent.Info) {
-        if (Permission.disabled(["skill"], agent.permission).has("skill")) return
-
-        const list = yield* skill.available(agent)
+      // Skills are listed in system prompt for ALL agents — byte-stable path body.
+      // Runtime ACL (agent.permission) gates the skill tool, not the prompt listing.
+      skills: Effect.fn("SystemPrompt.skills")(function* (_agent: Agent.Info) {
+        const list = yield* skill.available(_agent)
 
         return [
           "Skills provide specialized instructions and workflows for specific tasks.",

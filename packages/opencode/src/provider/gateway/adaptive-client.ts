@@ -40,7 +40,7 @@ export function setDebugConfig(config: ResolvedDebugConfig): void {
 }
 
 export function getDebugConfig(): ResolvedDebugConfig {
-  return debugConfig ?? { debug: true, logBodies: true, perRequest: false }
+  return debugConfig ?? { debug: true, logBodies: true, logResponseBodies: false, perRequest: false }
 }
 
 export function configureLogging(enabled: boolean, _format: "json" | "text" = "json"): void {
@@ -673,6 +673,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
         throw err
       }
 
+      const responseBodyChunks: Uint8Array[] = []
       if (response.body) {
         let firstChunk = true
         const coalescer = new CoalescingTransform()
@@ -703,12 +704,16 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 }
                 sample.lastChunkAt = Date.now()
                 sample.chunks++
+                // Accumulate response body when logResponseBodies is enabled
+                if (debugCfg.logResponseBodies) {
+                  responseBodyChunks.push(chunk)
+                }
                 controller.enqueue(chunk)
               },
               flush() {
                 sample.endedAt = Date.now()
                 const metrics = Metrics.computeMetrics(sample)
-                writeLog({
+                const endEntry: Record<string, unknown> = {
                   level: "INFO",
                   event: "gateway.request.end",
                   timestamp: Date.now(),
@@ -724,7 +729,18 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                     avgChunkGapMs: metrics.avgChunkGapMs,
                   },
                   healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
-                })
+                }
+                if (debugCfg.logResponseBodies && responseBodyChunks.length > 0) {
+                  const decoder = new TextDecoder()
+                  let raw = responseBodyChunks.map((c) => decoder.decode(c)).join("")
+                  // Truncate very large responses to keep logs manageable
+                  if (raw.length > 65536) {
+                    raw = raw.slice(0, 65536) + `\n... (response body truncated at 64KB, total ${raw.length} bytes)`
+                  }
+                  endEntry.body = raw
+                  endEntry.bodySize = raw.length
+                }
+                writeLog(endEntry)
                 Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)
                 Store.recordCircuitBreakerSuccess(routeKey)
                 Store.adaptRoutePolicy(routeKey, true, healthScore(Store.getRoute(routeKey).health))
@@ -741,6 +757,25 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       sample.endedAt = Date.now()
       const success = response.status >= 200 && response.status < 300
       const metrics = Metrics.computeMetrics(sample)
+
+      const endEntry: Record<string, unknown> = {
+        level: "INFO",
+        event: "gateway.request.end",
+        timestamp: Date.now(),
+        requestId,
+        status: response.status,
+        noBody: true,
+        metrics: {
+          totalMs: metrics.totalMs,
+          ttftMs: metrics.ttftMs,
+          ttfbMs: metrics.ttfbMs,
+          queuedMs: metrics.queuedMs,
+          chunks: metrics.chunks,
+          avgChunkGapMs: metrics.avgChunkGapMs,
+        },
+        healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
+      }
+      writeLog(endEntry)
 
       if (success) {
         Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)

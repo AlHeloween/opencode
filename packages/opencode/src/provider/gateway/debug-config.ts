@@ -3,6 +3,7 @@ import type { GatewayConfig, GatewayModelConfig } from "./config-manager"
 export interface ResolvedDebugConfig {
   debug: boolean
   logBodies: boolean
+  logResponseBodies: boolean
   perRequest: boolean
 }
 
@@ -10,6 +11,7 @@ export interface ResolvedDebugConfig {
 const DEFAULT_DEBUG_CONFIG: ResolvedDebugConfig = {
   debug: true,
   logBodies: false,
+  logResponseBodies: false,
   perRequest: false,
 }
 
@@ -23,6 +25,10 @@ export function resolveDebugConfig(
   return {
     debug: modelGateway?.debug ?? globalGateway?.debug ?? DEFAULT_DEBUG_CONFIG.debug,
     logBodies: modelGateway?.logging?.logBodies ?? globalGateway?.logging?.logBodies ?? DEFAULT_DEBUG_CONFIG.logBodies,
+    logResponseBodies:
+      modelGateway?.logging?.logResponseBodies ??
+      globalGateway?.logging?.logResponseBodies ??
+      DEFAULT_DEBUG_CONFIG.logResponseBodies,
     perRequest:
       modelGateway?.logging?.perRequest ?? globalGateway?.logging?.perRequest ?? DEFAULT_DEBUG_CONFIG.perRequest,
   }

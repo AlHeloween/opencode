@@ -117,11 +117,18 @@ export function convertToOpenAICompatibleChatMessages(prompt: LanguageModelV3Pro
         }
 
         const { reasoning_content, ...messageMetadata } = metadata
+        // DeepSeek requires reasoning_content passed back on all assistant messages
+        // when tools are present. The AI SDK stores it in content[type=reasoning] parts,
+        // not in providerOptions metadata — fall back to parts when metadata is empty.
+        const resolvedReasoningContent =
+          typeof reasoning_content === "string" && reasoning_content.length > 0
+            ? reasoning_content
+            : reasoningText || undefined
         messages.push({
           role: "assistant",
           content: text || null,
           tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-          ...(typeof reasoning_content === "string" ? { reasoning_content } : {}),
+          ...(resolvedReasoningContent ? { reasoning_content: resolvedReasoningContent } : {}),
           reasoning_text: reasoningOpaque ? reasoningText : undefined,
           reasoning_opaque: reasoningOpaque,
           ...messageMetadata,

@@ -4,6 +4,7 @@ import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogModel } from "./dialog-model"
+import { DialogSubagentSettings } from "./dialog-subagent-settings"
 import { getModelStatus } from "@/provider/balance"
 import { Keybind } from "@/util/keybind"
 import type { RGBA } from "@opentui/core"
@@ -222,6 +223,12 @@ export function DialogAgent() {
             local.model.variant.cycle(option.value)
             // Force re-render by replacing dialog
             dialog.replace(() => <DialogAgent />)
+          },
+        },
+        {
+          title: "Edit allow-list",
+          onTrigger: (option: any) => {
+            dialog.replace(() => <DialogSubagentSettings targetAgent={option.value} />)
           },
         },
         {

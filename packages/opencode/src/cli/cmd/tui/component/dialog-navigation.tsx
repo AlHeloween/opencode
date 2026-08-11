@@ -167,6 +167,8 @@ const TOOL_POLICIES: {
 type NavRow =
   | { kind: "tool"; key: string; label: string; hint: string; danger?: boolean; section?: string }
   | { kind: "external"; label: string; hint: string; section?: string }
+  | { kind: "agent-permission"; agentName: string; toolKey: string; label: string; hint: string; section?: string; displayLabel: string }
+  | { kind: "agent-header"; agentName: string }
   | { kind: "directory"; displayPath: string; action: "allow" | "deny"; source: string; exists: boolean }
   | { kind: "action"; id: "save" | "reload" | "close"; label: string }
 
@@ -294,7 +296,7 @@ export function DialogPermissions() {
   const [busy, setBusy] = createSignal(false)
   const [cursor, setCursor] = createSignal(0)
   const [pathFocused, setPathFocused] = createSignal(false)
-  let pathInput: { focus: () => void; blur?: () => void; value: string; isDestroyed?: boolean } | undefined
+  let pathInput: { focus: () => void; blur?: () => void; value: string; isDestroyed?: boolean; plainText?: string } | undefined
 
   /**
    * Resolve config.permission[key] to ask|allow|deny.
@@ -321,12 +323,32 @@ export function DialogPermissions() {
   // Draft values — edits stay local until Save.
   const [draftTools, setDraftTools] = createStore<Record<string, PolicyAction>>({})
   const [draftExternal, setDraftExternal] = createSignal<ExternalDirMode>("ask")
+  // agentName → toolKey → PolicyAction | undefined (undefined = inherit global)
+  const [draftAgentPerms, setDraftAgentPerms] = createStore<Record<string, Record<string, PolicyAction | undefined>>>({})
 
   const loadDraftFromConfig = () => {
     const next: Record<string, PolicyAction> = {}
     for (const p of TOOL_POLICIES) next[p.key] = toolPolicyFromConfig(p.key)
     setDraftTools(next)
     setDraftExternal(extModeFromConfig())
+    // Load per-agent permission overrides
+    const agentPerms: Record<string, Record<string, PolicyAction | undefined>> = {}
+    const cfg = sync.data.config as any
+    const agents = cfg?.agent as Record<string, any> | undefined
+    if (agents && typeof agents === "object") {
+      for (const [agentName, agentCfg] of Object.entries(agents)) {
+        if (!agentCfg || typeof agentCfg !== "object") continue
+        const perm = agentCfg.permission as Record<string, string> | undefined
+        if (perm && typeof perm === "object") {
+          agentPerms[agentName] = {}
+          for (const p of TOOL_POLICIES) {
+            const v = perm[p.key]
+            if (v === "allow" || v === "deny" || v === "ask") agentPerms[agentName]![p.key] = v
+          }
+        }
+      }
+    }
+    setDraftAgentPerms(agentPerms)
   }
 
   onMount(() => {
@@ -340,6 +362,13 @@ export function DialogPermissions() {
       if ((draftTools[p.key] ?? fallback) !== toolPolicyFromConfig(p.key)) return true
     }
     if (draftExternal() !== extModeFromConfig()) return true
+    // Check agent-permission drafts
+    for (const [agentName, perms] of Object.entries(draftAgentPerms)) {
+      for (const [key, val] of Object.entries(perms)) {
+        const cfgVal = (sync.data.config as any)?.agent?.[agentName]?.permission?.[key]
+        if (val !== (cfgVal as PolicyAction | undefined)) return true
+      }
+    }
     return false
   })
 
@@ -369,7 +398,37 @@ export function DialogPermissions() {
       source: r.source,
       exists: r.exists,
     }))
-    return [...POLICY_ROWS, ...dirRows, ...FOOTER_ROWS]
+    // Build agent-permission rows: one per (primary-agent × tool) where override exists
+    const agentPermRows: NavRow[] = []
+    const cfg = sync.data.config as any
+    const agents = cfg?.agent as Record<string, any> | undefined
+    if (agents && typeof agents === "object") {
+      for (const agentName of Object.keys(agents).sort()) {
+        const agentCfg = agents[agentName]
+        if (!agentCfg || typeof agentCfg !== "object") continue
+        // Only show primary agents (skip subagents)
+        if (agentCfg.mode === "subagent") continue
+        let headerAdded = false
+        for (const p of TOOL_POLICIES) {
+          const override = draftAgentPerms[agentName]?.[p.key]
+          if (override === undefined) continue
+          if (!headerAdded) {
+            agentPermRows.push({ kind: "agent-header", agentName })
+            headerAdded = true
+          }
+          agentPermRows.push({
+            kind: "agent-permission",
+            agentName,
+            toolKey: p.key,
+            label: p.label,
+            hint: p.hint,
+            section: p.section,
+            displayLabel: `${p.label}`,
+          })
+        }
+      }
+    }
+    return [...POLICY_ROWS, ...agentPermRows, ...dirRows, ...FOOTER_ROWS]
   })
 
   /** Index of the directory entry currently being "edited" via browse (Enter on dir row). */
@@ -411,6 +470,12 @@ export function DialogPermissions() {
   const draftValue = (row: NavRow): string => {
     if (row.kind === "tool") return modeLabel(draftTools[row.key] ?? "ask")
     if (row.kind === "external") return extModeLabel(draftExternal())
+    if (row.kind === "agent-permission") {
+      const val = draftAgentPerms[row.agentName]?.[row.toolKey]
+      if (val === undefined) return "——"
+      return modeLabel(val)
+    }
+    if (row.kind === "agent-header") return row.agentName
     if (row.kind === "directory") return row.action === "allow" ? "Allow" : "Deny"
     return row.label
   }
@@ -418,6 +483,12 @@ export function DialogPermissions() {
   const draftColor = (row: NavRow) => {
     if (row.kind === "tool") return modeColor(draftTools[row.key] ?? "ask")
     if (row.kind === "external") return modeColor(draftExternal())
+    if (row.kind === "agent-permission") {
+      const val = draftAgentPerms[row.agentName]?.[row.toolKey]
+      if (val === undefined) return theme.textMuted
+      return modeColor(val)
+    }
+    if (row.kind === "agent-header") return theme.accent
     if (row.kind === "directory") return modeColor(row.action)
     return theme.text
   }
@@ -425,10 +496,30 @@ export function DialogPermissions() {
   const cycleDraft = (dir: 1 | -1, rowIndex?: number) => {
     const idx = rowIndex ?? cursor()
     const row = allRows()[idx]
-    if (!row || row.kind === "action") return
+    if (!row || row.kind === "action" || row.kind === "agent-header") return
     if (row.kind === "tool") {
       const cur = draftTools[row.key] ?? TOOL_DEFAULTS[row.key] ?? "ask"
       setDraftTools(row.key, cycleIn(POLICY_ACTIONS, cur, dir))
+      return
+    }
+    if (row.kind === "agent-permission") {
+      const cur = draftAgentPerms[row.agentName]?.[row.toolKey]
+      // —— → ask → allow → deny → ——  (right=1)
+      // —— → deny → allow → ask → ——  (left=-1)
+      const seq: (PolicyAction | undefined)[] = [undefined, "ask", "allow", "deny"]
+      const idx = seq.indexOf(cur)
+      let nidx = idx < 0 ? 0 : idx + dir
+      if (nidx < 0) nidx = seq.length - 1
+      if (nidx >= seq.length) nidx = 0
+      const next = seq[nidx]
+      setDraftAgentPerms(row.agentName, row.toolKey, next as any)
+      // Auto-remove empty agent entry when all perms deleted
+      if (next === undefined) {
+        const remaining = Object.values(draftAgentPerms[row.agentName] ?? {}).filter((v) => v !== undefined)
+        if (remaining.length === 1 && remaining[0] === draftAgentPerms[row.agentName]?.[row.toolKey]) {
+          // This was the last override — nothing left after removal
+        }
+      }
       return
     }
     if (row.kind === "external") {
@@ -528,10 +619,44 @@ export function DialogPermissions() {
       const fallback = TOOL_DEFAULTS[p.key] ?? "allow"
       permission[p.key] = draftTools[p.key] ?? fallback
     }
+    // Write per-agent permission overrides to config.agent[name].permission
+    const existingCfg = (sync.data.config as any)
+    const existingAgent = (existingCfg?.agent ?? {}) as Record<string, any>
+    const agentPatch: Record<string, any> = {}
+    for (const [agentName, perms] of Object.entries(draftAgentPerms)) {
+      const agentPermObj: Record<string, PolicyAction> = {}
+      for (const [key, val] of Object.entries(perms)) {
+        if (val !== undefined) agentPermObj[key] = val
+      }
+      if (Object.keys(agentPermObj).length > 0) {
+        agentPatch[agentName] = {
+          ...(existingAgent[agentName] ?? {}),
+          permission: agentPermObj,
+        }
+      } else {
+        // Remove permission key if all overrides cleared
+        const existing = existingAgent[agentName]
+        if (existing && typeof existing === "object" && "permission" in existing) {
+          const { permission: _drop, ...rest } = existing
+          agentPatch[agentName] = Object.keys(rest).length > 0 ? rest : undefined
+        }
+      }
+    }
+    // Also clear agents that had permission removed entirely
+    for (const [agentName, agentCfg] of Object.entries(existingAgent)) {
+      if (agentName in draftAgentPerms) continue // handled above
+      if (!agentCfg || typeof agentCfg !== "object") continue
+      if ("permission" in agentCfg) {
+        const { permission: _drop, ...rest } = agentCfg as Record<string, unknown>
+        agentPatch[agentName] = Object.keys(rest).length > 0 ? rest : undefined
+      }
+    }
+
     const ok = await applyConfigPatch(
       {
         permission,
         external_directory_mode: draftExternal(),
+        ...(Object.keys(agentPatch).length > 0 ? { agent: agentPatch } : {}),
       },
       "Wrote settings",
     )
@@ -561,6 +686,7 @@ export function DialogPermissions() {
       else dialog.clear()
       return
     }
+    if (row.kind === "agent-header") return
     if (row.kind === "directory") {
       // Enter on a directory row: open browser starting from that path (or project root)
       const startPath = row.displayPath || sdk.directory || ""
@@ -568,6 +694,9 @@ export function DialogPermissions() {
       setEditingDirPath(row.displayPath)
       setPathFocused(true)
       pathInput?.focus?.()
+      if (pathInput && !pathInput.isDestroyed) {
+        try { pathInput.value = startPath } catch { /* ignore */ }
+      }
       return
     }
     // Enter on a policy cycles forward (draft only)
@@ -580,14 +709,7 @@ export function DialogPermissions() {
     setCursor((c) => (c + delta + n * 10) % n)
   }
 
-  const addDirectory = async () => {
-    const raw = addPath().trim()
-    if (!raw) {
-      toast.show({ title: "Permissions", message: "Enter a directory path first", variant: "warning" })
-      pathInput?.focus()
-      setPathFocused(true)
-      return
-    }
+  const addDirectoryFor = async (raw: string) => {
     const resolved = path.resolve(EffectiveNavigation.expandPath(raw))
     const action = addMode()
     const prev = (sync.data.config as any).navigation ?? {}
@@ -612,7 +734,24 @@ export function DialogPermissions() {
     if (ok) {
       setAddPath("")
       setEditingDirPath(null)
+      // Clear the input imperatively
+      if (pathInput && !pathInput.isDestroyed && pathInput.value !== undefined) {
+        try { pathInput.value = "" } catch { /* ref stale */ }
+      }
     }
+  }
+
+  const addDirectory = async () => {
+    // Deprecated: use addDirectoryFor(raw) via onSubmit instead.
+    // Kept for mouse-click on '+ Add' button path.
+    const raw = (pathInput?.plainText ?? pathInput?.value ?? "").trim()
+    if (!raw) {
+      toast.show({ title: "Permissions", message: "Enter a directory path first", variant: "warning" })
+      pathInput?.focus()
+      setPathFocused(true)
+      return
+    }
+    await addDirectoryFor(raw)
   }
 
   const removeDirectory = async (displayPath: string, action: "allow" | "deny") => {
@@ -716,7 +855,7 @@ export function DialogPermissions() {
       activateRow(cursor())
       return
     }
-    // Backspace / Delete: remove a directory row
+    // Backspace / Delete: remove a directory row or agent-permission
     if ((evt.name === "backspace" || evt.name === "delete") && !evt.ctrl && !evt.meta) {
       const row = allRows()[cursor()]
       if (row?.kind === "directory" && !busy()) {
@@ -725,6 +864,19 @@ export function DialogPermissions() {
         void removeDirectory(row.displayPath, row.action)
         return
       }
+      if (row?.kind === "agent-permission" && !busy()) {
+        evt.preventDefault()
+        evt.stopPropagation()
+        setDraftAgentPerms(row.agentName, row.toolKey, undefined as any)
+        return
+      }
+    }
+    if (evt.name === "a" && !evt.ctrl && !evt.meta && !pathFocused()) {
+      evt.preventDefault()
+      evt.stopPropagation()
+      setPathFocused(true)
+      pathInput?.focus?.()
+      return
     }
     if (evt.name === "s" && !evt.ctrl && !evt.meta) {
       evt.preventDefault()
@@ -754,25 +906,42 @@ export function DialogPermissions() {
       </box>
 
       <text fg={theme.textMuted}>
-        ↑↓ move · ←→ change · Enter on dir browse · Del remove dir · s save · r reload · Esc close.
+        ↑↓ move · ←→ change · a add dir · Enter browse · Del remove · s save · r reload · Esc close.
         Changes are written to config.json and persist across restarts.
       </text>
 
-      {/* Tool + external policies (keyboard-navigable draft) */}
+      {/* Tool + external + agent-permission + directory rows (keyboard-navigable draft) */}
       <box gap={0}>
-        <For each={POLICY_ROWS}>
+        <For each={allRows()}>
           {(row, i) => {
             const idx = () => i()
             const selected = () => isSelected(idx())
             const prevSection = () => {
-              const prev = POLICY_ROWS[idx() - 1]
-              if (!prev || prev.kind === "action" || prev.kind === "directory") return undefined
-              return prev.section
+              const prev = allRows()[idx() - 1]
+              if (!prev || prev.kind === "action" || prev.kind === "directory" || prev.kind === "agent-header") return undefined
+              return (prev as any).section
             }
-            const section = () => (row.kind === "action" || row.kind === "directory" ? undefined : row.section)
+            const section = () => (row.kind === "action" || row.kind === "directory" || row.kind === "agent-header" || row.kind === "agent-permission" ? undefined : row.section)
             const showSection = () => {
+              if (row.kind === "agent-header") return true
               const s = section()
               return s && s !== prevSection()
+            }
+            // agent-header: render as section label
+            if (row.kind === "agent-header") {
+              return (
+                <box gap={0}>
+                  <Show when={showSection()}>
+                    <text fg={theme.accent} attributes={TextAttributes.BOLD} paddingTop={1}>
+                      {row.agentName} — per-agent overrides
+                    </text>
+                  </Show>
+                </box>
+              )
+            }
+            // action row: render in footer only
+            if (row.kind === "action") {
+              return null
             }
             return (
               <box gap={0}>
@@ -822,10 +991,10 @@ export function DialogPermissions() {
                           : theme.text
                     }
                   >
-                    {row.kind === "directory" ? row.displayPath : row.label}
+                    {row.kind === "agent-permission" ? `${row.agentName} · ${row.label}` : row.kind === "directory" ? row.displayPath : row.label}
                   </text>
                   <text fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.textMuted}>
-                    {row.kind === "action" || row.kind === "directory" ? "" : row.hint}
+                    {row.kind === "action" || row.kind === "directory" || row.kind === "agent-header" ? "" : row.hint}
                   </text>
                 </box>
               </box>
@@ -855,23 +1024,26 @@ export function DialogPermissions() {
               }}
           >
             <input
-              value={addPath()}
-              onInput={(v) => {
-                if (!pathFocused()) setPathFocused(true)
-                setAddPath(v)
-              }}
+              placeholder="path (e.g. ~/projects)"
+              placeholderColor={theme.textMuted}
               focusedBackgroundColor={theme.backgroundElement}
               cursorColor={theme.primary}
               focusedTextColor={theme.text}
               textColor={theme.text}
-              placeholder="path (e.g. ~/projects)"
-              placeholderColor={theme.textMuted}
               ref={(r) => {
                 pathInput = r
               }}
+              onInput={() => {
+                if (!pathFocused()) setPathFocused(true)
+              }}
               onSubmit={() => {
                 setPathFocused(false)
-                void addDirectory()
+                // Read value imperatively from the native InputRenderable —
+                // uncontrolled to avoid Solid reactive value→cursorOffset reset loop.
+                const v = (pathInput?.plainText ?? pathInput?.value ?? "").trim()
+                if (!v) return
+                setAddPath(v)
+                void addDirectoryFor(v)
               }}
             />
           </box>
@@ -887,7 +1059,7 @@ export function DialogPermissions() {
 
         <DirectoryBrowser
           basePath={addPath()}
-          onSelect={(p) => { setAddPath(p); setPathFocused(true); pathInput?.focus?.() }}
+          onSelect={(p) => { setAddPath(p); setPathFocused(true); if (pathInput && !pathInput.isDestroyed) { try { pathInput.value = p } catch { /* ignore */ } pathInput.focus() } }}
           theme={theme}
         />
       </box>

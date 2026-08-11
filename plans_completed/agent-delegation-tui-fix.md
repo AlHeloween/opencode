@@ -1,6 +1,6 @@
 # Fix: Agent Delegation — global config + per-session subagents
 
-## Status: Phase 1–2 DONE (2026-08-07); TUI display minimal
+## Status: COMPLETE (2026-08-11)
 
 ## Problem (clarified)
 
@@ -24,7 +24,7 @@ Session already overrode **model/variant** only. Full agent (incl. `subagents`) 
 - [x] TUI: footer shows `task: N` via `local.model.subagentsFor`; `setSubagents` persists session-only
 
 ### Phase 3 — TUI edit UX
-- [ ] Dialog to edit allow-list (optional)
+- [x] Dialog to edit allow-list — `DialogSubagentSettings` via `/agents` keybind
 
 ## Priority for multi-project
 

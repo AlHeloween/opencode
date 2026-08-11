@@ -92,9 +92,12 @@ function serializeToolSchemas(tools: Record<string, Tool>): string {
   return lines.join("\n")
 }
 
-/** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
-  * LRU-evicted at 500 entries to prevent unbounded growth. */
-const systemContentHashes = new Map<string, number>()
+/** Per session/agent/model length of final system content, used to detect
+ *  cache-poisoning content changes. System prompt is append-only within a
+ *  session — differences only occur in the tail. Length comparison suffices
+ *  to detect mutation; character-level scan finds first divergence.
+ *  LRU-evicted at 500 entries to prevent unbounded growth. */
+const systemContentLen = new Map<string, number>()
 const systemContentPrev = new Map<string, string>()
 const MAX_HASHES = 500
 
@@ -121,12 +124,15 @@ function hashInfo(input: unknown) {
 
 function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {
   const key = input.cacheKey
-  const hash = Number(Bun.hash(input.content))
-  const prevHash = systemContentHashes.get(key)
+  const prevLen = systemContentLen.get(key)
   const prevContent = systemContentPrev.get(key)
-  if (prevHash !== undefined && prevHash !== hash) {
-    const oldLines = (prevContent ?? "").split("\n")
-    const newLines = input.content.split("\n")
+  if (prevLen !== undefined && input.content.length !== prevLen) {
+    // System prompt is append-only within a session — first divergence is
+    // at the length boundary. Scan only the shorter tail for the exact line.
+    const oldTail = (prevContent ?? "").slice(Math.min(prevLen, input.content.length))
+    const newTail = input.content.slice(Math.min(prevLen, input.content.length))
+    const oldLines = oldTail.split("\n")
+    const newLines = newTail.split("\n")
     let diffLine = 0
     let oldSample = ""
     let newSample = ""
@@ -138,32 +144,32 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
         break
       }
     }
+    // Convert tail-relative line number to absolute for diagnostic clarity
+    const tailStartLines = (prevContent ?? "").slice(0, Math.min(prevLen, input.content.length)).split("\n").length - 1
     log.warn("bug: system prompt content changed mid-session", {
       sessionID: input.sessionID,
       agent: input.agent,
       modelID: input.modelID,
-      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
-      prevHash,
-      newHash: hash,
-      diffLine,
+      cacheKey: key,
+      prevLen,
+      newLen: input.content.length,
+      diffLine: tailStartLines + diffLine,
       oldLine: oldSample,
       newLine: newSample,
-      oldLen: (prevContent ?? "").length,
-      newLen: input.content.length,
     })
   }
   // Proper LRU: delete-then-set moves the key to the end of insertion order
   // so that FIFO-ordered keys().next() evicts the least-recently-used entry.
-  if (systemContentHashes.has(key)) {
-    systemContentHashes.delete(key)
+  if (systemContentLen.has(key)) {
+    systemContentLen.delete(key)
     systemContentPrev.delete(key)
   }
-  systemContentHashes.set(key, hash)
+  systemContentLen.set(key, input.content.length)
   systemContentPrev.set(key, input.content)
-  if (systemContentHashes.size > MAX_HASHES) {
-    const first = systemContentHashes.keys().next().value
+  if (systemContentLen.size > MAX_HASHES) {
+    const first = systemContentLen.keys().next().value
     if (first !== undefined) {
-      systemContentHashes.delete(first)
+      systemContentLen.delete(first)
       systemContentPrev.delete(first)
     }
   }

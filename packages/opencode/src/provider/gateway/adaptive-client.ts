@@ -11,7 +11,7 @@ import * as H1 from "./h1-transport"
 import { healthScore } from "./health-window"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import { unifiedDiff } from "@/util/unified-diff"
+import { createPatch } from "@/util/diff-wasm"
 import path from "path"
 import { EOL } from "os"
 import fs from "fs"
@@ -363,14 +363,15 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
           `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
         const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
         const diffPath = path.join(diffDir, `${iso}-${sanitizedId}.diff`)
-        const diffLabel = (id: string, ts: number) => `${id} ${new Date(ts).toISOString()}`
-        const diffContent = unifiedDiff(
-          prevRequestBody.body,
-          rawBody,
-          diffLabel(prevRequestBody.requestId, prevRequestBody.timestamp),
-          diffLabel(requestId, startTime),
-        )
-        fs.writeFileSync(diffPath, diffContent + EOL)
+        const diffContent = await createPatch(prevRequestBody.body, rawBody)
+        if (diffContent) {
+          fs.writeFileSync(diffPath, diffContent + EOL)
+        } else {
+          log.warn("gateway per-request diff failed: createPatch returned null", {
+            requestId,
+            prevRequestId: prevRequestBody.requestId,
+          })
+        }
       }
       prevRequestBody = { requestId, timestamp: startTime, body: rawBody ?? "" }
     }

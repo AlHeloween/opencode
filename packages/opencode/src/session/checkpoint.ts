@@ -144,9 +144,7 @@ async function olderSlot(slots: string[]): Promise<string> {
       try {
         const s = await fs.stat(p)
         return { path: p, mtime: s.mtimeMs }
-      } catch {
-        return { path: p, mtime: 0 }
-      }
+      } catch { log.debug("olderSlot stat failed", { path: p }); return { path: p, mtime: 0 } }
     }),
   )
   return stats.reduce((oldest, curr) => (curr.mtime <= oldest.mtime ? curr : oldest), stats[0]).path
@@ -345,9 +343,7 @@ export function load(input: {
         try {
           const s = await fs.stat(p)
           return { path: p, mtime: s.mtimeMs }
-        } catch {
-          return null
-        }
+        } catch { log.debug("load stat failed", { path: p }); return null }
       }),
     )
     const existing = results.filter((r): r is { path: string; mtime: number } => r !== null)
@@ -386,9 +382,7 @@ export function loadPrevious(input: {
         try {
           const s = await fs.stat(p)
           return { path: p, mtime: s.mtimeMs }
-        } catch {
-          return null
-        }
+        } catch { log.debug("loadPrevious stat failed", { path: p }); return null }
       }),
     )
     const existing = results.filter((r): r is { path: string; mtime: number } => r !== null)
@@ -411,7 +405,7 @@ export function remove(sessionID: string): Effect.Effect<void> {
   return Effect.promise(async () => {
     clearMemorySession(sessionID)
     const dir = checkpointDir(sessionID)
-    try { await fs.access(dir) } catch { return }
+    try { await fs.access(dir) } catch { log.debug("checkpoint remove dir not found", { dir }); return }
 
     const safeSid = sanitize(sessionID)
     const entries = await fs.readdir(dir)
@@ -436,7 +430,7 @@ export function findLatest(input: {
 }): Effect.Effect<string | null> {
   return Effect.promise(async () => {
     const dir = checkpointDir("")
-    try { await fs.access(dir) } catch { return null }
+    try { await fs.access(dir) } catch { log.debug("checkpoint findLatest dir not found", { dir }); return null }
 
     const prefix = `${sanitize(input.providerID)}_${sanitize(input.modelID)}_${sanitize(input.agentName)}_`
     const exclude = input.excludeSessionID ? sanitize(input.excludeSessionID) : null

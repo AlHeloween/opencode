@@ -1173,9 +1173,8 @@ export function* listGlobal(input?: {
           allRows.push(row)
         }
       }
-    } catch {
+    } catch { log.debug("multi-project DB query failed", { projectID: proj.id }) }
       // project DB may not exist or be inaccessible
-    }
   }
 
   // Sort merged results and cap at requested limit

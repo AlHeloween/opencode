@@ -12,7 +12,7 @@ regressions.
 ## Prior Art / Grounding
 
 - CodeGraph index: 4,631 files, 64,551 nodes, 317,446 edges (active, live)
-- 84 `bug:` log markers across codebase (real error paths, not guesses)
+- 108 `bug:` log markers across codebase (84 in .ts + 1 template literal + 23 in .tsx, real error paths)
 - 14 silent `catch {}` blocks in `src/session/` alone (violates AGENTS.md bug policy)
 - ~100+ test files in `packages/opencode/test/`
 - 30 files in `packages/opencode/src/session/` — core session pipeline
@@ -26,7 +26,7 @@ regressions.
 
 | ID | Claim | Status |
 |----|-------|--------|
-| C1 | 84 `warn("bug:...")` sites exist in production code | Exact (grep evidence) |
+| C1 | 108 `warn("bug:...")` sites exist in production code (84 .ts single/double-quote + 1 backtick + 23 .tsx) | Exact (explorer verified) |
 | C2 | 14 silent `catch {}` blocks in session layer | Exact (grep evidence) |
 | C3 | Checkpoint save/load uses AES-256-GCM with rotating slots | Exact (codegraph + source) |
 | C4 | KV cache continuity depends on byte-stable system prompt | Exact (AGENTS.md + codegraph) |
@@ -34,7 +34,7 @@ regressions.
 | C6 | Fossil snapshot system uses fossil.exe sidecar, NOT project git | Exact (AGENTS.md + source) |
 | C7 | Constitution hard-blocks enumeration, enforces destructive gates | Exact (codegraph + source) |
 | C8 | ~4,631 files indexed, symbol coverage likely 85%+ | Inferred (codegraph status) |
-| C9 | Test coverage for overflow.ts: 0 tests found | Exact (codegraph blast radius) |
+| C9 | overflow.ts partially covered: 3/11 exports tested (18+ tests), 8 exports untested | Exact (explorer verified) |
 | C10 | Test coverage for checkpoint.ts: checkpoint.test.ts exists | Exact (codegraph blast radius) |
 
 ### Module Decomposition (k-medoids)
@@ -55,7 +55,7 @@ regressions.
 - **What**: Core LLM conversation loop — system prompt assembly → checkpoint load → stream → tool calls → compaction → summary
 - **Key concerns**:
   - **14 silent `catch {}`** in session layer — violates `AGENTS.md` bug policy (every catch must log)
-  - `overflow.ts` has **zero test coverage** per codegraph blast radius
+  - `overflow.ts` has **partial** test coverage — 3/11 exports tested (18+ tests), but `summaryWindowLimit`/`needsContentCompaction` genuinely untested
   - `isOverflow` used in both compaction.ts and processor.ts — central overflow gate
   - `checkpoint.ts` v4 with identity fingerprinting — AES-256-GCM rotating 2-slot
   - `cache-control.ts` computes `RequestFingerprint` with xxh3 + prefix shape for KV cache diagnosis
@@ -78,7 +78,7 @@ regressions.
 - **Files**: `transform.ts`, `provider.ts`, `error.ts`, `models.ts`, `gateway/`
 - **What**: Multi-provider LLM abstraction — model resolution, variant dispatch, error parsing, gateway transport (H1/H2)
 - **Key concerns**:
-  - `transform.ts`: massive `variants()` function (424 lines) — per-provider reasoning effort dispatch
+  - `transform.ts`: massive `variants()` function (421 lines) — per-provider reasoning effort dispatch
   - `maxOutputTokens()`: pathological `output >= context` capping (resolved)
   - `error.ts`: 17 overflow detection patterns across providers
   - `gateway/h2-transport.ts`: 2 `bug:` markers (session creation, stream write)
@@ -91,7 +91,7 @@ regressions.
 - **What**: Agent undo/redo timeline via fossil.exe sidecar
 - **Key concerns**:
   - Self-healing: corrupt open → backup + `HISTORY_INVALID.json` + reinit
-  - 6 `bug:` markers in fossil.ts (corruption recovery, hash unavailability)
+  - 16 `bug:` markers in fossil.ts (5 HIGH / 9 MEDIUM / 2 LOW severity)
   - `revertTo` uses full leaf checkout, not per-file hash mix
   - Separated from project git VCS
 
@@ -190,18 +190,19 @@ regressions.
 
 ### Preliminary Findings (Evidence-Based)
 
-#### 1. Real Bugs (documented `bug:` markers — 84 total)
+#### 1. Real Bugs (documented `bug:` markers — 108 total)
 
 | Area | Count | Severity | Example |
 |------|-------|----------|---------|
-| `fossil.ts` | 6 | HIGH | Corrupt repo recovery, hash unavailability during undo |
-| `checkpoint.ts` | 4 | MEDIUM | Slot load failures, corrupt slots, save failures |
-| `h2-transport.ts` | 2 | MEDIUM | Session creation failure, stream write failure |
-| `jobs/index.ts` | 3 | LOW | Zombie job eviction, stalled job auto-kill |
-| `session/prompt.ts` | 2 | MEDIUM | base64 read failure, background job drain failure |
-| `session/session.ts` | 1 | MEDIUM | Message count > limit, response truncated |
+| `fossil.ts` | 16 | 5 HIGH / 9 MEDIUM / 2 LOW | Corrupt repo recovery, revertTo preserve/rollback chain, hash unavailability |
+| `lsp/server.ts` | 9 | LOW | chmod/symlink failures for LSP binaries |
+| `cli/cmd/github.ts` | 6 | MEDIUM | OIDC token, image download, agent errors |
+| `session/llm.ts` | 4 | MEDIUM | System prompt mutation, tool execution, workflow approval |
+| `session/session-settings.ts` | 4 | MEDIUM | Load/save/remove failures |
+| `session/checkpoint.ts` | 4 | MEDIUM | Slot load failures, corrupt slots, save failures |
+| `jobs/index.ts` | 4 | LOW | Zombie eviction, stalled auto-kill, non-running job kill |
 | `util/mermaid.ts` | 4 | LOW | WASM/PNG/SVG render failures |
-| `lsp/server.ts` | 6 | LOW | chmod failures for LSP binaries |
+| `session/prompt.ts` | 3 | MEDIUM | base64 read, background drain, cache audit write |
 
 #### 2. Silent Catch Blocks (AGENTS.md Violation — 14 in session/ alone)
 
@@ -221,7 +222,7 @@ regressions.
 
 | Module | Status |
 |--------|--------|
-| `overflow.ts` | **ZERO tests** — critical gap (context overflow gate) |
+| `overflow.ts` | **Partial** — 3/11 exports tested (18+ tests in compaction.test.ts), `summaryWindowLimit`/`needsContentCompaction` untested |
 | `summaryWindowLimit` | **ZERO tests** |
 | `needsContentCompaction` | **ZERO tests** |
 | `Spinner` (TUI) | **ZERO tests** |
@@ -241,7 +242,7 @@ regressions.
 | Checkpoint serialization | AES-256-GCM encrypt + JSON serialize full message array | Rotating 2-slot, atomic write |
 | Compaction | Layer-1: inject summary request. Layer-2: fold to m* | 0 LLM tokens (mechanistic), but I/O bound |
 | Overflow check | `isOverflow()` called on every turn | chars/4 heuristic, no tokenizer |
-| Provider variant dispatch | `variants()` — 424 lines, ~25 provider cases | Called on model resolution |
+| Provider variant dispatch | `variants()` — 421 lines, 22 provider cases | Called on model resolution |
 | TUI render | `render()` dispatches to 38 implementations | Polymorphism overhead, no profiling |
 | Fossil snapshot | `fossil.exe` subprocess per checkpoint | External binary cost |
 
@@ -290,7 +291,7 @@ regressions.
 ### Task Plan
 
 - [ ] **T1**: Run full test suite baseline (`bun test` from `packages/opencode/`)
-- [ ] **T2**: Audit all 84 `bug:` log markers — classify by severity, frequency, impact
+- [ ] **T2**: Audit all 108 `bug:` log markers — classify by severity, frequency, impact
 - [ ] **T3**: Fix 14 silent `catch {}` blocks in session layer (add `log.debug` or `log.warn("bug:...")`)
 - [ ] **T4**: Add test coverage for `overflow.ts` (isOverflow, usable, summaryWindowLimit, needsContentCompaction)
 - [ ] **T5**: Run SMOKE_1 — checkpoint benchmark
@@ -298,7 +299,7 @@ regressions.
 - [ ] **T7**: Run SMOKE_3 — system prompt hash stability
 - [ ] **T8**: Run SMOKE_4 — test coverage map
 - [ ] **T9**: Run SMOKE_5 — fossil integrity
-- [ ] **T10**: Analyze `variants()` function for deduplication opportunities (424 lines, 25 cases)
+- [ ] **T10**: Analyze `variants()` function for deduplication opportunities (421 lines, 22 cases)
 - [ ] **T11**: Verify kernel precompiled matches source (`_assemble_prompts_kernel.py` diff)
 
 ## Smoke Tests
@@ -316,8 +317,8 @@ cd prompts_kernel && python -m pytest tests/ -q
 # Expected: 488 passed
 
 # T3: Count silent catches before fix
-rg "catch\s*\{\s*\}" packages/opencode/src/session/ --count
-# Expected: 14 matches (baseline)
+rg "catch\s*\{" packages/opencode/src/session/ --count
+# Expected: 14 matches (baseline, explorer verified 14/14 silent)
 
 # SMOKE_1: Typecheck baseline
 cd packages/opencode && bun typecheck 2>&1
@@ -328,8 +329,8 @@ cd packages/opencode && bun typecheck 2>&1
 
 ```bash
 # Verify 0 silent catches in session/
-rg "catch\s*\{\s*\}" packages/opencode/src/session/ --count
-# Expected: 0 (after fix)
+rg "catch\s*\{" packages/opencode/src/session/ -l
+# Expected: empty (after fix — all catch blocks must contain log.*)
 
 # Verify overflow tests exist
 ls packages/opencode/test/session/overflow*.test.ts

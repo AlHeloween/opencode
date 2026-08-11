@@ -68,7 +68,7 @@ function getToolSchema(t: Tool): Record<string, any> {
     if (typeof params.jsonSchema === "function") return params.jsonSchema()
     if (typeof params.jsonSchema === "object") return params.jsonSchema
     return params
-  } catch { return {} }
+  } catch { log.debug("getToolSchema failed", { tool: (t as any).id }); return {} }
 }
 
 /** Serialize all tool schemas into a text block for the system prompt.
@@ -647,9 +647,8 @@ const live: Layer.Layer<
                   tool: failed.toolCall.toolName,
                 })
                 return { ...failed.toolCall, input: repaired }
-              } catch {
-                // repaired JSON still invalid — fall through to error
-              }
+              } catch { log.debug("json-repair parse still invalid, falling through to error", { tool: failed.toolCall.toolName }) }
+              // repaired JSON still invalid — fall through to error
             }
 
             // Step 3: repair failed. Tell model the ORIGINAL error + position

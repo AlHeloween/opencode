@@ -28,9 +28,7 @@ export function resolveDiffPath(file: string): string {
   if (path.isAbsolute(file)) return file
   try {
     return path.join(Instance.directory, file)
-  } catch {
-    return file
-  }
+  } catch { log.debug("resolveDiffPath failed", { file }); return file }
 }
 
 export function isUnderWorktree(file: string): boolean {
@@ -41,9 +39,7 @@ export function isUnderWorktree(file: string): boolean {
     if (abs === wt || abs.startsWith(wt + "/")) return true
     if (abs === dir || abs.startsWith(dir + "/")) return true
     return false
-  } catch {
-    return true
-  }
+  } catch { log.debug("isUnderWorktree path normalization failed"); return true }
 }
 
 /**
@@ -61,10 +57,7 @@ export function pruneGhostFileDiffs(diffs: Snapshot.FileDiff[]): Snapshot.FileDi
     let exists = false
     try {
       exists = existsSync(abs)
-    } catch {
-      kept.push(item)
-      continue
-    }
+    } catch { log.debug("pruneGhostFileDiffs existsSync failed", { file: item.file }); kept.push(item); continue }
     if (exists) {
       kept.push(item)
       continue

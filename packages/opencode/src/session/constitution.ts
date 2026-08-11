@@ -52,9 +52,7 @@ function _probeBinary(name: string): boolean {
     const cmd = process.platform === "win32" ? "where" : "which"
     const r = spawnSync(cmd, [name], { stdio: "ignore", timeout: 2000 })
     return r.status === 0
-  } catch {
-    return false
-  }
+  } catch { log.debug("_probeBinary spawnSync failed", { name }); return false }
 }
 
 for (const t of ["find", "fd", "fdfind", "rg", "more", "busybox"]) {

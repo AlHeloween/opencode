@@ -23,6 +23,9 @@ import type { MessageV2 } from "./message-v2"
 import { Database as BunDatabase } from "bun:sqlite"
 import path from "path"
 import { Path as GlobalPath } from "@opencode-ai/core/global"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "cache-control" })
 
 // Separate SQLite DB for fingerprint persistence — avoids locking conflicts
 // with the main drizzle DB and requires no migrations.
@@ -317,9 +320,8 @@ export function storePrevFingerprint(
         "INSERT OR REPLACE INTO fingerprints (session_id, agent_name, model_id, system_md5, full_md5, data, time_updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
       .run(sessionId, agentName ?? "", modelId, fp.systemHash, fp.fullHash, data, now)
-  } catch {
+  } catch { log.debug("fingerprint DB write failed — in-memory cache still works") }
     // Non-critical: in-memory cache still works for the current turn
-  }
 }
 
 export function getPrevFingerprint(
@@ -353,9 +355,8 @@ export function getPrevFingerprint(
       }
       return raw as RequestFingerprint
     }
-  } catch {
+  } catch { log.debug("fingerprint DB read failed") }
     // DB miss or parse error — return null
-  }
   return null
 }
 

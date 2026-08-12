@@ -1,5 +1,7 @@
 # Reasoning protocol fragments
 
+**Version**: v1.0 freeze candidate (2026-08-12). Baseline at `baseline/reasoning_prompt_v1.0.txt`.
+
 **Lineage**: These fragments assemble into the thinking kernel — the **canonical runtime successor**
 to the ADID Framework. The assembled kernel takes **highest priority** over any ADID-derived
 artifacts (host rules, skill trees, receiver files). Conflict → kernel wins.

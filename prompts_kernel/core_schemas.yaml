@@ -87,8 +87,10 @@ clean_next_state:
   reason: string
   done: "list of {item: string, pct: int 0-100, mark: EpistemicStatus}"
   pending: "list of string"
+  active: "list of string — currently executing tasks (derived from MASTER_PLAN.execution.current_task)"
   blocked: "list of {item: string, kind: real|fake, reason: string}"
   out_of_scope: "list of string — tasks discarded by residual_recluster"
+  closure_gaps: "list of string — unresolved closure criteria when execution_exhausted but closure pending (derived from @OUTCOME_CONTRACT minus oracle stamps)"
   execution_exhausted: "bool — pending=[] AND active=[]; no more tasks to run"
   terminal: "enum: SUCCESS | BLOCKED | OUT_OF_SCOPE | CONTINUE — outcome decision, NOT task-exhaustion"
   closure_proof:
@@ -264,9 +266,11 @@ quality_metric_spec:
     unit: "ms | count | ratio | bytes | boolean | score"
     direction: "MAXIMIZE | MINIMIZE | TARGET"
     baseline: "current measured value"
+    bad_reference: "worst-acceptable value — beyond this, metric is at floor (q=0)"
     target: "desired value"
     hard_limit: "value beyond which candidate is HARD DENIED"
-    normalize: "function: q = clamp((bad − actual) / (bad − target), 0, 1) for MINIMIZE; mirror for MAXIMIZE"
+    normalize: "function: q = clamp((bad_reference − actual) / (bad_reference − target), 0, 1) for MINIMIZE; mirror for MAXIMIZE"
+    axis_weight: "float — relative weight within this axis (default: equal across all metrics in axis)"
     sample_window: "number of runs for stable measurement"
     repetitions: "minimum repetitions before accepting measurement"
     oracle: "command or test that produces the measurement"
@@ -279,7 +283,7 @@ quality_guardrails:
   description: "Single source of hard-deny rules — referenced by both QUALITY_VECTOR and EVOLUTION_CANDIDATES"
   hard_deny:
     - "correctness regression > 0"
-    - "stability regression > tolerance"
+    - "stability regression > tolerance (adaptive/config parameter, default 0.05)"
     - "security regression > 0"
     - "architecture invariant violation"
     - "public contract broken without explicit ARCHITECTURE_EVOLUTION"
@@ -305,7 +309,7 @@ migration_protocol:
     compatibility_surface: "public APIs that must remain stable"
     geometry_preservation: "1 − NGED(G_before, G_after)"
     rollback_cost: "estimated effort to revert"
-  rule: "MIGRATION requires explicit authorization and cannot be bundled with NORMAL_EVOLUTION improvements."
+  rule: "MIGRATION requires explicit authorization and cannot be bundled with NORMAL_EVOLUTION improvements. Migration threshold is adaptive/config (default: architecture_displacement > 0.3)."
 
 # CAPABILITY GRAPH
 capability_graph:
@@ -403,7 +407,7 @@ evolution_cycle:
     - "quality_history: append current vector to generation log"
   candidate_generation: "see @EVOLUTION_CANDIDATES"
   selection: "best candidate by fitness; selected → NEW_GOAL (not MASTER_PLAN directly). GOAL then passes through G1→INTENT_PROJECTION→G2→G3→MASTER_PLAN. parent_goal_id preserved for lineage."
-  saturation: "stop when max(F(C_i)) < F_min OR all delta_Q < epsilon — no improvement worth cost"
+  saturation: "stop when max(F(C_i)) < F_min OR all delta_Q < epsilon — no improvement worth cost. F_min and epsilon are adaptive/config parameters (default: F_min=0.05, epsilon=0.02)."
   invariant: "Evolution candidate runs FULL GATED_WORKFLOW (G1..G9) — no shortcuts. parent_goal_id preserved for lineage."
 
 # MASTER PLAN (updated)

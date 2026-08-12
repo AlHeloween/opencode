@@ -1,5 +1,7 @@
 # prompts_kernel — TUI-agnostic prompt construction kernel
 
+**Version**: v1.0 freeze candidate (2026-08-12). Baseline: `baseline/reasoning_prompt_v1.0.txt` (56KB, 490 tests).
+
 **Lineage**: The thinking kernel (`prompts_kernel`) is the **canonical runtime successor**
 to the ADID Framework. ADID (v15.4.3) defines the specification and formal contract;
 the kernel is its operational implementation — and takes **highest priority** over

@@ -269,6 +269,23 @@ Per-model encrypted checkpoints (`src/session/checkpoint.ts`) eliminate per-turn
 
 **Rollback safety:** Atomic write via temp file + rename — no partial state ever touches disk.
 
+### Checkpoint Invalidation on Kernel Change
+
+The checkpoint `identityFingerprint` is a SHA-256 of `reasoningPromptForIdentity`
+(=`reasoning_prompt.txt` + optional kernel tail). **Any change to the kernel** — even a
+whitespace fix — changes the fingerprint and **invalidates ALL encrypted checkpoints
+for ALL sessions**. This is by design:
+
+- The identity fingerprint ensures a new kernel is never paired with a system prompt
+  assembled under an old kernel → KV-cache prefix would be silently wrong otherwise.
+- On kernel update: cold start — system prompt reassembled, messages reconverted.
+- Path system (AGENTS.md, rules, skills, env) is NOT in the fingerprint — it freezes
+  until compaction, preserving KV continuity across project file edits mid-session.
+
+**To minimize disruption**, batch kernel changes into a single commit when possible.
+After a kernel change, users experience one "cold" turn per session — subsequent
+turns resume normal checkpoint reuse.
+
 ## Discovery Rule
 
 ```python

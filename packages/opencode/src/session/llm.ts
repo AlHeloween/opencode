@@ -12,7 +12,7 @@ import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
 import { Plugin } from "@/plugin"
 import { SystemPrompt, UNIVERSAL_ENV } from "./system"
-import { assembleSystemMessages, collapseSystemMessagesInPlace } from "./system-compose"
+import { assembleSystemMessages, collapseSystemMessagesInPlace, validateSystemOrder } from "./system-compose"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
@@ -30,7 +30,10 @@ import { readWasmAsset } from "@/util/wasm-path"
 import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
-let loggedSystemPrompt = false
+/** Per-session system prompt logging — reset for each new provider cache key.
+ *  Module-level `let` only captured the very first system prompt across all
+ *  sessions in the process lifetime, losing observability for later sessions. */
+const loggedSystemPromptForCacheKey = new Map<string, boolean>()
 
 // ── Tree-sitter JSON parser (lazy) ───────────────────────────────────────────
 
@@ -94,7 +97,11 @@ function serializeToolSchemas(tools: Record<string, Tool>): string {
  *  cache-poisoning content changes. System prompt is append-only within a
  *  session — differences only occur in the tail. Length comparison suffices
  *  to detect mutation; character-level scan finds first divergence.
- *  LRU-evicted at 500 entries to prevent unbounded growth. */
+ *  LRU-evicted at 500 entries to prevent unbounded growth.
+ *
+ *  Effect fibers are cooperative (no preemptive yield in synchronous code);
+ *  the two-Map update in checkSystemStability is atomic within one
+ *  Effect.gen block — no lock needed. */
 const systemContentLen = new Map<string, number>()
 const systemContentPrev = new Map<string, string>()
 const MAX_HASHES = 500
@@ -342,9 +349,17 @@ const live: Layer.Layer<
       // the mutable session/tools tail. Do NOT join session banner into path —
       // that forced full path/skills recompute on every new session (~20–40k miss).
       collapseSystemMessagesInPlace(system, header)
-      if (!loggedSystemPrompt) {
-        loggedSystemPrompt = true
-        l.info("system prompt ready (once)", { content: system.join("\n") })
+
+      // Development guard: system message ordering affects KV cache stability.
+      // Rules → skills → env → instructions → banner. Validate in debug builds.
+      if (!validateSystemOrder(system)) {
+        l.warn("bug: system message ordering violation — KV cache may be unstable", {
+          providerCacheKey: buildProviderCacheKey({
+            sessionID: input.sessionID,
+            providerCacheKey: input.providerCacheKey,
+            modelID: input.model.id,
+          }),
+        })
       }
 
       // System prompt is byte-stable (no identity capsule). Cache key is
@@ -354,12 +369,16 @@ const live: Layer.Layer<
         providerCacheKey: input.providerCacheKey,
         modelID: input.model.id,
       })
+      if (!loggedSystemPromptForCacheKey.has(providerCacheKey)) {
+        loggedSystemPromptForCacheKey.set(providerCacheKey, true)
+        l.info("system prompt ready (once per session)", { content: system.join("\n") })
+      }
       checkSystemStability({
         sessionID: input.sessionID,
         agent: input.agent.name,
         modelID: input.model.id,
         cacheKey: providerCacheKey,
-        content: system.join(""),
+        content: system.join("\n"),
       })
 
       const variant =

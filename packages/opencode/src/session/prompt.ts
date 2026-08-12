@@ -142,6 +142,12 @@ const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested struc
 const log = Log.create({ service: "session.prompt" })
 const elog = EffectLogger.create({ service: "session.prompt" })
 const sidecarInFlight = new Set<string>()
+/** Minimum interval between sidecar checkpoint captures per session (ms).
+ *  Prevents excessive LLM calls when the model completes many short turns
+ *  in rapid succession. 30s balances freshness vs cost. */
+const SIDECAR_COOLDOWN_MS = 30_000
+/** Track last successful sidecar capture time per session. */
+const lastSidecarCapture = new Map<string, number>()
 
 /** Track the last injected mode — survives compaction so identity is never
  *  re-injected when the visible-message window no longer contains the previous
@@ -1226,6 +1232,10 @@ export const layer = Layer.effect(
           Effect.gen(function* () {
             if (input.afterAssistant && !SessionCompaction.isAssistantTurnComplete(input.afterAssistant)) return false
             if (sidecarInFlight.has(sessionID)) return false
+            // Rate-limit: cooldown between sequential captures to avoid
+            // excessive LLM calls during rapid-fire short turns.
+            const lastCapture = lastSidecarCapture.get(sessionID)
+            if (lastCapture !== undefined && Date.now() - lastCapture < SIDECAR_COOLDOWN_MS) return false
             const threshold = summaryWindowLimit({
               cfg: yield* config.get(),
               model: input.model,
@@ -1424,6 +1434,7 @@ export const layer = Layer.effect(
                 hasCodeGraph: !!enrichment.impact,
                 displayMessageID: displayMsg.id,
               })
+              lastSidecarCapture.set(sessionID, Date.now())
               return true
             }).pipe(Effect.ensuring(Effect.sync(() => sidecarInFlight.delete(sessionID))))
           })
@@ -1489,6 +1500,9 @@ export const layer = Layer.effect(
               }),
             })
             yield* Checkpoint.remove(sessionID)
+            // Reset sidecar cooldown: compaction opens a fresh message window,
+            // so a new sidecar summary is appropriate on the next turn.
+            lastSidecarCapture.delete(sessionID)
             cachedMsgs = undefined
             lastKnownId = undefined
             return true
@@ -1802,25 +1816,30 @@ export const layer = Layer.effect(
                 modelID: model.id,
               })
             }
+            // Use checkpoint for everything EXCEPT structured output prompt mismatch.
+            // Structured prompt is a one-line append/remove — no reason to drop the
+            // entire checkpoint and reassemble skills/env/rules/instructions.
             const checkpointUsable =
-              checkpoint &&
-              checkpointIdentityOk &&
-              checkpointHasStructuredPrompt === (format.type === "json_schema")
-                ? checkpoint
-                : undefined
+              checkpoint && checkpointIdentityOk ? checkpoint : undefined
+            // Track whether only the structured prompt differs (incremental fix below).
+            const structuredPromptMismatch =
+              checkpointUsable &&
+              checkpointHasStructuredPrompt !== (format.type === "json_schema")
             yield* slog.debug("prepare", { step, stage: "checkpoint-ready", reused: !!checkpointUsable })
 
-            const [skills, env, instructions, rules] = checkpointUsable
+            const [skills, env, instructions, rules] = checkpointUsable && !structuredPromptMismatch
               ? [undefined, [] as string[], [] as string[], [] as string[]] as const
-              : yield* Effect.all([
-                  // Skills are agent-independent in system prompt — always compute
-                  // against build_mode (most permissive) for byte-stable path body.
-                  // Runtime ACL gates the skill tool per agent; system prompt just lists.
-                  sys.skills(yield* agents.get("build_mode")),
-                  Effect.sync(() => sys.environment(model)),
-                  instruction.system().pipe(Effect.orDie),
-                  instruction.rules().pipe(Effect.orDie),
-                ])
+              : checkpointUsable && structuredPromptMismatch
+                ? [undefined, [] as string[], [] as string[], [] as string[]] as const  // also skip: only prompt differs
+                : yield* Effect.all([
+                    // Skills are agent-independent in system prompt — always compute
+                    // against build_mode (most permissive) for byte-stable path body.
+                    // Runtime ACL gates the skill tool per agent; system prompt just lists.
+                    sys.skills(yield* agents.get("build_mode")),
+                    Effect.sync(() => sys.environment(model)),
+                    instruction.system().pipe(Effect.orDie),
+                    instruction.rules().pipe(Effect.orDie),
+                  ])
             // Stable-first path: rules → skills → env → AGENTS (instructions last).
             // ADID rules/skills early; env paths + project AGENTS last (multi-project KV).
             // Must match assemblePathSystem — do not reintroduce skills→env→rules drift.
@@ -1833,37 +1852,29 @@ export const layer = Layer.effect(
                   instructions,
                 })
             if (!checkpointUsable && format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
-
-            // Snapshot system before handle.process() may mutate it via plugin hook.
-            // llm.ts:176-186 passes system by reference to experimental.chat.system.transform
-            // and collapses it in-place. Use the snapshot for diff logging so the formatted
-            // output matches what was actually sent to the provider.
-            const systemForDiff = [...system]
-
-            // NOTE: Fingerprint is NOT stored here — the experimental.chat.system.transform
-            // plugin in llm.ts can modify `system` by reference during handle.process().
-            // The accurate fingerprint is stored AFTER handle.process() returns.
-            const currentFP = CacheControl.requestFingerprint(system, msgs, {
-              sessionId: sessionID,
-              modelId: model.id,
-              providerId: model.providerID,
-            }, CacheControl.toolSchemasFromRecord(tools))
-            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, checkpointAgentName)
-            const audit = CacheControl.auditCache(prevFP, currentFP, cacheAgent.name)
-            // Only real prefix invalidation is a bug. Appends are normal (cache:extend).
-            if (audit.kind === "broken") {
-              Log.Default.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`, {
-                bannerLen: system[0]?.length ?? 0,
-                rulesCount: rules.length,
-                instructionsCount: instructions.length,
-                skillsLen: skills?.length ?? 0,
-                systemTotalLen: system.join("\n").length,
-              })
-            } else if (audit.kind === "extend") {
-              Log.Default.debug(CacheControl.formatAuditEntry(audit), {
-                hit_ratio: audit.estimatedHitRatio,
-              })
+            // Incremental structured output fix: adjust prompt without full path rebuild.
+            if (structuredPromptMismatch) {
+              if (format.type === "json_schema") {
+                // Need prompt → add it (not present in checkpoint)
+                system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+              } else {
+                // Don't need prompt → remove it (remnant from checkpoint)
+                const last = system.pop()
+                if (last !== STRUCTURED_OUTPUT_SYSTEM_PROMPT) {
+                  // Safety: if pop removed the wrong thing, restore it
+                  if (last !== undefined) system.push(last)
+                  Log.Default.warn("bug: structured output prompt mismatch — expected prompt at end of system", {
+                    sessionID,
+                    agent: cacheAgent.name,
+                  })
+                }
+              }
             }
+
+            // Load previous fingerprint now so it's available for post-process audit.
+            // The actual fingerprint + audit runs AFTER handle.process() because
+            // llm.ts:chat.system.transform can modify `system` by reference.
+            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, checkpointAgentName)
 
             // Checkpoint message reuse: longest ordered prefix with matching IDs
             // and content fingerprints (detects in-place edits). Suffix re-converted.
@@ -1883,6 +1894,15 @@ export const layer = Layer.effect(
               const prefixModel = Checkpoint.takeModelPrefix(checkpointUsable, prefixLen)
               if (prefixModel === null) {
                 // Legacy checkpoint without modelMessageCounts — full reconvert.
+                // modelMessageCounts parallel to messageIDs maps DB messages to ModelMessage
+                // entries. Without it, slicing by DB prefix length drops tool results →
+                // AI_MissingToolResultsError. Full reconversion is correct but wasteful.
+                Log.Default.warn("bug: legacy checkpoint without modelMessageCounts — full reconvert needed", {
+                  sessionID,
+                  agent: cacheAgent.name,
+                  modelID: model.id,
+                  providerID: model.providerID,
+                })
                 modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
               } else {
                 const suffix = msgs.slice(prefixLen)
@@ -1916,18 +1936,34 @@ export const layer = Layer.effect(
               checkpoint: !!checkpointUsable,
             })
 
-            // Store accurate fingerprint AFTER handle.process() completes.
-            // The experimental.chat.system.transform plugin in llm.ts may have
-            // modified `system` by reference — check first before recomputing.
-            const systemChanged = system.join("\n") !== systemForDiff.join("\n")
-            const finalFP = systemChanged
-              ? CacheControl.requestFingerprint(system, msgs, {
-                  sessionId: sessionID,
-                  modelId: model.id,
-                  providerId: model.providerID,
-                }, CacheControl.toolSchemasFromRecord(tools))
-              : currentFP
+            // ── Post-process fingerprint + audit ───────────────────────────
+            // Capture system after handle.process(): llm.ts:chat.system.transform
+            // may have modified `system` by reference. This snapshot is the real
+            // provider-facing state for both diff logging and fingerprint storage.
+            const systemForDiff = [...system]
+            const finalFP = CacheControl.requestFingerprint(system, msgs, {
+              sessionId: sessionID,
+              modelId: model.id,
+              providerId: model.providerID,
+            }, CacheControl.toolSchemasFromRecord(tools))
             CacheControl.storePrevFingerprint(sessionID, model.id, finalFP, cacheAgent.name)
+
+            // Audit cache chain: compare previous vs post-transform fingerprints.
+            // Only real prefix invalidation (broken) is a bug; appends (extend) are normal.
+            const audit = CacheControl.auditCache(prevFP, finalFP, cacheAgent.name)
+            if (audit.kind === "broken") {
+              Log.Default.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`, {
+                bannerLen: system[0]?.length ?? 0,
+                rulesCount: rules.length,
+                instructionsCount: instructions.length,
+                skillsLen: skills?.length ?? 0,
+                systemTotalLen: system.join("\n").length,
+              })
+            } else if (audit.kind === "extend") {
+              Log.Default.debug(CacheControl.formatAuditEntry(audit), {
+                hit_ratio: audit.estimatedHitRatio,
+              })
+            }
 
             // Diff logging — suffix-only format (O(new messages), not full history).
             // Cold restore with checkpoint: skip prev re-format of entire checkpoint;
@@ -2193,6 +2229,8 @@ export const layer = Layer.effect(
               // Invalidate checkpoint — the old checkpoint contains pre-compaction
               // message IDs that won't match the new compacted state.
               yield* Checkpoint.remove(sessionID)
+              // Reset sidecar cooldown: fresh message window after compaction.
+              lastSidecarCapture.delete(sessionID)
               cachedMsgs = undefined
               lastKnownId = undefined
               return "continue" as const

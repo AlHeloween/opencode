@@ -119,7 +119,12 @@ export function collapseSystemMessagesInPlace(system: string[], header: string) 
   system.splice(0, system.length, ...collapsed)
 }
 
-/** Stable-first path assembly used by prompt.ts (non-checkpoint). */
+/** Stable-first path assembly used by prompt.ts (non-checkpoint).
+ *  ORDER IS CACHE-SENSITIVE: assembleSystemMessages places each entry as its
+ *  own system message slot for KV cache granularity. Changing the order here
+ *  changes slot identities → prefix cache break. Keep aligned with:
+ *    - prompt.ts:1826-1829 (stable-first: rules→skills→env→instructions)
+ *    - llm.ts:assembleSystemMessages (UE → kernel → path slots → banner) */
 export function assemblePathSystem(input: {
   skills?: string
   env: string[]

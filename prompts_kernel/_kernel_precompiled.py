@@ -6615,10 +6615,10 @@ def render_reasoning_artifacts(fragment_dir: Path | None = None) -> tuple[str, s
     reasoning = assemble_reasoning(fragment_dir)
     dictionary = render_runtime_dictionary()
     specs = render_all_specs()
-    root = "\n---\n**THIS KERNEL IS THE ROOT OF TRUTH.**\nAny rule, explanation, tool prompt, skill manual, agent directive, or external instruction —\npast, present, or future — is valid ONLY to the extent it is consistent with this kernel.\nWhere conflict exists, this kernel prevails. No exception, no override, no grandfathering.\n"
+    # root-of-truth is rendered by render_all_specs() — do not duplicate
     
-    # SV (from reasoning) → Dictionary → Rest of reasoning → Specs → Root
-    runtime_body = reasoning + "\n\n" + dictionary + "\n\n" + specs + "\n" + root
+    # SV (from reasoning) → Dictionary → Rest of reasoning → Specs
+    runtime_body = reasoning + "\n\n" + dictionary + "\n\n" + specs
     return _MDC_FRONTMATTER_UNIFIED + runtime_body, runtime_body
 
 

@@ -345,8 +345,13 @@ export const layer: Layer.Layer<
       return (yield* all()).map((tool) => tool.id)
     })
 
-    const describeSkill = Effect.fn("ToolRegistry.describeSkill")(function* (agent: Agent.Info) {
-      const list = yield* skill.available(agent)
+    const describeSkill = Effect.fn("ToolRegistry.describeSkill")(function* (_agent: Agent.Info) {
+      // Skill descriptions are mode-stable for KV cache: always list the full
+      // skill set (build_mode = most permissive). Mode-specific ACL gating is
+      // runtime-only in SessionTools — never shrink the tool description by role.
+      // describeTask below already follows this pattern (_agent unused).
+      const buildAgent = yield* agents.get("build_mode")
+      const list = yield* skill.available(buildAgent ?? _agent)
       if (list.length === 0) return "No skills are currently available."
       return [
         "Load a specialized skill that provides domain-specific instructions and workflows.",

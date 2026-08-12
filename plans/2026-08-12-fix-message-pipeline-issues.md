@@ -1,7 +1,7 @@
 # Fix Message Sending Pipeline Issues
 
 **plan_id:** `pl_20260812_msg_pipeline_fix`
-**revision:** 1
+**revision:** 2
 **created_by:** plan_mode (Smit)
 **state:** DRAFT
 **lineage:**
@@ -266,6 +266,32 @@ sidecar checkpoint, избыточную инвалидацию чекпоинт
   - **files:** [`packages/opencode/src/session/llm.ts`]
   - **depends_on_claims:** []
   - **oracle:** review — комментарий присутствует
+  - **status:** [ ]
+  - **attempts:** 0
+  - **last_failure:** null
+  - **worker_id:** null
+  - **lease_expires_at:** null
+  - **action_class:** MODIFY_CANDIDATE
+
+### G9: Fix agent-dependent Skill tool description (KV-cache break root cause)
+
+**sv:** describeSkill, tool-description, agent-independent, kv-cache, mode-switch
+**document:** `describeSkill(agent)` в `registry.ts:348` вызывает `skill.available(agent)` —
+возвращает agent-зависимый список skills. При plan↔build переключении tool JSON (описание
+инструмента Skill) меняется → провайдер видит другой tools блок → KV-cache miss.
+Исправить: всегда использовать самого permissive агента (build_mode), как уже
+сделано в `describeTask(_agent)` где параметр agent игнорируется.
+**done_pct:** 0
+
+**Tasks:**
+
+- **T9.1 — Make describeSkill agent-independent**
+  - **what:** В `registry.ts:348-365`: заменить `skill.available(agent)` на
+    `skill.available(buildModeAgent)` — всегда полный список skills, независимо
+    от режима. ACL гейтит выполнение в SessionTools, а не в описании.
+  - **files:** [`packages/opencode/src/tool/registry.ts`]
+  - **depends_on_claims:** []
+  - **oracle:** `bun typecheck` → PASS; переключение plan→build → tool JSON идентичен
   - **status:** [ ]
   - **attempts:** 0
   - **last_failure:** null

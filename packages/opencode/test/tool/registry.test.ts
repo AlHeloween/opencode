@@ -104,6 +104,53 @@ describe("tool.registry", () => {
     ),
   )
 
+  it.live("tool descriptions are agent-independent — plan_mode ≡ build_mode", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const registry = yield* ToolRegistry.Service
+        const agents = yield* Agent.Service
+        const build = yield* agents.get("build")
+        const plan = yield* agents.get("plan")
+        expect(build).toBeDefined()
+        expect(plan).toBeDefined()
+
+        const buildTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: build!,
+        })
+        const planTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: plan!,
+        })
+
+        // All shared tools MUST have identical descriptions for KV-cache stability.
+        // If descriptions differ, the provider sees different tool JSON → cache miss.
+        const buildById = new Map(buildTools.map((t) => [t.id, t]))
+        const planById = new Map(planTools.map((t) => [t.id, t]))
+
+        for (const [id, buildTool] of buildById) {
+          const planTool = planById.get(id)
+          if (!planTool) continue // tool only in build (e.g. edit/write vs apply_patch)
+          expect(planTool.description).toBe(buildTool.description)
+          expect(JSON.stringify(planTool.parameters)).toBe(JSON.stringify(buildTool.parameters))
+        }
+
+        // Regression guard: Skill tool description MUST be identical.
+        // describeSkill(agent) previously returned agent-dependent skill lists,
+        // changing the tool JSON per mode → KV-cache break on plan↔build switch.
+        const buildSkill = buildById.get("skill")
+        const planSkill = planById.get("skill")
+        expect(buildSkill).toBeDefined()
+        expect(planSkill).toBeDefined()
+        expect(planSkill!.description).toBe(buildSkill!.description)
+        // Byte-level verify: full tool JSON equality for the Skill tool.
+        expect(JSON.stringify(planSkill)).toBe(JSON.stringify(buildSkill))
+      }),
+    ),
+  )
+
   it.live("does not let a custom memory tool shadow protected reasoning memory", () =>
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {

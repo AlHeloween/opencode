@@ -89,16 +89,17 @@ clean_next_state:
   pending: "list of string"
   blocked: "list of {item: string, kind: real|fake, reason: string}"
   out_of_scope: "list of string — tasks discarded by residual_recluster"
-  terminal: "bool — true when pending=[] AND active=[]"
+  execution_exhausted: "bool — pending=[] AND active=[]; no more tasks to run"
+  terminal: "enum: SUCCESS | BLOCKED | OUT_OF_SCOPE | CONTINUE — outcome decision, NOT task-exhaustion"
   closure_proof:
-    acceptance_coverage: "float 0-1 — fraction of outcome contract proven satisfied via oracle stamps"
-    critical_open_risks: "int — count of unverified Hypothetical/Unknown premises still driving MODIFY"
-    outcome_oracle: "PASS | FAIL | PENDING — aggregate oracle over all outcome acceptance criteria"
-    rule: "SUCCESS requires terminal=true AND acceptance_coverage=1.0 AND critical_open_risks=0 AND outcome_oracle=PASS"
+    acceptance_coverage: "float 0-1 — fraction of @OUTCOME_CONTRACT criteria proven via oracle stamps"
+    critical_open_risks: "int — unresolved risks from @RISK_LEDGER blocking outcome acceptance"
+    outcome_oracle: "PASS | FAIL | PENDING — aggregate oracle over all outcome acceptance criteria per @OUTCOME_CONTRACT"
+    rule: "SUCCESS requires execution_exhausted=true AND acceptance_coverage=1.0 AND critical_open_risks=0 AND outcome_oracle=PASS. CONTINUE when exhausted but closure pending."
   terminal_mode:
     enum: ["SUCCESS", "BLOCKED", "OUT_OF_SCOPE", "CONTINUE", "RESUME"]
     precedence: "BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty"
-  next: "DERIVED, not invented: Blocked[0] if blocked, else Pending[0] if pending, else 'none'. 'none' = TERMINAL hard stop."
+  next: "DERIVED: Blocked[0] if blocked, else Pending[0] if pending, else closure_gaps[0] if exhausted AND closure pending, else 'none'. 'none' = TERMINAL."
 
 blocker:
   tag: BLOCKER
@@ -231,7 +232,99 @@ claim_ledger:
     - "Every claim MUST declare provenance; UNKNOWN provenance ⇒ non-actionable"
     - "MODEL_PRIOR claims must be verified externally before advancing beyond Hypothetical"
 
-# MASTER PLAN
+# OUTCOME CONTRACT
+outcome_contract:
+  tag: OUTCOME_CONTRACT
+  description: "WHY layer — what must be true for the goal to be satisfied. Source of truth for @CLOSURE_PROOF acceptance criteria."
+  acceptance_criteria: "list of oracle specs — each with {id, description, oracle_cmd, expected_result}"
+  coverage_threshold: "float 0-1 — fraction of criteria that must PASS (default 1.0)"
+  critical_risks: "list of risk_ids from @RISK_LEDGER that block outcome acceptance"
+  invariant: "CLOSURE_PROOF.acceptance_coverage measured against THIS contract's criteria"
+
+# RISK LEDGER
+risk_ledger:
+  tag: RISK_LEDGER
+  description: "Real residual risks — not blocked by enforcement but relevant to outcome quality"
+  risk_types:
+    unresolved_external_dependency: "external system/service not verified"
+    unverified_acceptance_criterion: "outcome criterion not yet oracle-tested"
+    unresolved_safety_risk: "safety/security concern without mitigation"
+    failed_nonblocking_oracle: "non-critical oracle failed but does not block MODIFY"
+    architecture_concern: "design decision with unknown long-term impact"
+  rules:
+    - "Every open risk blocks CLOSURE_PROOF.outcome_oracle=PASS if listed in OUTCOME_CONTRACT.critical_risks"
+    - "Risks are NOT premises — they do not block MODIFY, only outcome acceptance"
+
+# PROJECT GEOMETRY
+project_geometry:
+  tag: PROJECT_GEOMETRY
+  description: "Stable structural boundaries — evolution must happen INSIDE geometry, not by replacing it"
+  components: "list of architectural components with responsibilities"
+  dependency_graph: "allowed dependency edges between components"
+  public_interfaces: "stable APIs that must not break without architecture evolution"
+  stable_boundaries: "module boundaries that isolate change"
+  stable_lanes: "directories where code is production-quality"
+  experimental_lanes: "directories for experiments, futures, makeups"
+  invariants:
+    allowed_dependencies: "whitelist of permitted cross-component dependencies"
+    forbidden_dependencies: "blacklist — e.g. no circular deps, no core→experimental"
+    protected_interfaces: "interfaces that require architecture evolution candidate to modify"
+    architectural_constraints: "global invariants e.g. no SQL in GUI layer"
+  rule: "Improvement candidates that violate geometry → DENY or require explicit ARCHITECTURE_EVOLUTION"
+
+# QUALITY VECTOR
+quality_vector:
+  tag: QUALITY_VECTOR
+  description: "10-axis measurable project quality profile. Baseline → Target → Delta drives evolution candidates."
+  axes:
+    correctness:       {weight: 0.16, metrics: [requirement_coverage, oracle_pass_ratio, regression_count, invariant_violation_count]}
+    stability:         {weight: 0.14, metrics: [crash_free_runs, timeout_rate, recovery_success_rate, resource_leak_slope]}
+    performance:       {weight: 0.12, metrics: [startup_latency, p50_latency, p95_latency, peak_memory, throughput]}
+    usability:         {weight: 0.12, metrics: [time_to_first_success, steps_to_primary_action, error_recovery_steps, interface_consistency]}
+    automation:        {weight: 0.10, metrics: [manual_step_ratio, unattended_success_rate, api_coverage, determinism]}
+    maintainability:   {weight: 0.12, metrics: [cognitive_complexity, change_amplification, duplication, testability]}
+    architecture:      {weight: 0.10, metrics: [dependency_cycles, layer_violations, coupling, cohesion, geometry_preservation]}
+    documentation:     {weight: 0.06, metrics: [example_pass_rate, stale_reference_rate, doc_code_divergence, onboarding_completeness]}
+    observability:     {weight: 0.04, metrics: [failure_telemetry_coverage, actionable_error_ratio, diagnostic_latency]}
+    security:          {weight: 0.04, metrics: [unsafe_default_count, secret_exposure, input_validation_coverage, privilege_surface]}
+  invariant: "Correctness and security regressions HARD-DENY any candidate regardless of weighted score"
+
+# EVOLUTION CANDIDATES
+evolution_candidates:
+  tag: EVOLUTION_CANDIDATES
+  description: "After SUCCESS + quality analysis, generate 5 diverse improvement candidates via fractal geometry"
+  generation:
+    input: "@QUALITY_VECTOR deficit vector D_i = w_i * (1 - Q_i)"
+    method: "4 largest semantic peaks → 4 focused candidates + 1 cross-axis candidate using @FRACTAL_GEOMETRY"
+    clustering: "Manhattan L1 + k-medoids → 5 CENTRAL diverse candidates"
+  validation:
+    correctness_regression: "HARD DENY"
+    stability_regression: "HARD DENY"
+    security_regression: "HARD DENY"
+    geometry_violation: "DENY unless explicit ARCHITECTURE_EVOLUTION candidate"
+  fitness: "F(C) = (delta_Q * P_success * geometry_preservation * reversibility) / (1 + risk + cost)"
+  pareto: "non-dominated candidates only"
+  one_step_ahead: "forecast likely future problems; penalize candidates with high expected future regret"
+
+# EVOLUTION CYCLE
+evolution_cycle:
+  tag: EVOLUTION_CYCLE
+  description: "Outer loop: SUCCESS → quality analysis → candidate generation → selection → NEW_GOAL → full G1..G9"
+  trigger: "@CLOSURE_PROOF = PASS AND @OUTCOME_CONTRACT outcome_oracle = PASS"
+  baseline:
+    - "snapshot_project: hash of project state at SUCCESS"
+    - "build_project_geometry: extract current @PROJECT_GEOMETRY"
+    - "calculate_quality_vector: measure all 10 axes"
+  analysis:
+    - "residual_quality_vector: D_i = w_i * (1 - Q_i)"
+    - "regression_debt: accumulated regressions from prior evolution steps"
+    - "quality_history: append current vector to generation log"
+  candidate_generation: "see @EVOLUTION_CANDIDATES"
+  selection: "best candidate by fitness; selected → NEW @MASTER_PLAN with parent_goal_id"
+  saturation: "stop when max(F(C_i)) < F_min OR all delta_Q < epsilon — no improvement worth cost"
+  invariant: "Evolution candidate runs FULL GATED_WORKFLOW (G1..G9) — no shortcuts. parent_goal_id preserved for lineage."
+
+# MASTER PLAN (updated)
 master_plan:
   tag: MASTER_PLAN_SCHEMA
   description: "one-line goal"
@@ -240,14 +333,15 @@ master_plan:
   plan_id: "uuid — immutable; assigned at creation"
   revision: "int — starts at 1; increments on invalidation"
   created_by: "string — agent identity that authored the plan"
-  state: "enum: DRAFT | ACTIVE | EXECUTING | VERIFYING | COMPLETED | INVALIDATED"
+  state: "enum: DRAFT | ACTIVE | EXECUTING | VERIFYING | IMPLEMENTED | COMPLETED | INVALIDATED"
   lifecycle:
     DRAFT: "plan written, not yet authorized"
     ACTIVE: "authorized via @GATE_4_AUTHORIZE, ready for implementation"
     EXECUTING: "at least one task started via @GATE_7_IMPLEMENT"
     VERIFYING: "all tasks materialized; oracles running via @GATE_8_ORACLE"
-    COMPLETED: "all tasks done, all oracles PASS; plan → plans_completed/"
-    INVALIDATED: "premise failed or scope changed; requires revision+1 + re-authorization"
+    IMPLEMENTED: "all tasks done + all oracles PASS; awaiting outcome proof via @CLOSURE_PROOF"
+    COMPLETED: "outcome proven: acceptance_coverage=1.0 AND outcome_oracle=PASS per @OUTCOME_CONTRACT"
+    INVALIDATED: "premise failed or scope changed; plan_reauthorization ALWAYS required; envelope_reissue only if scope/budget changed"
   goals:
     - id: GATE_1_GROUND
       sv: "list of keywords (3-9 terms)"

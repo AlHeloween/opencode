@@ -84,7 +84,7 @@ RUNTIME_RULES = MappingProxyType({
     "INFOMARK_SEP": "Salience != Evidence; fluency != truth; only stamped Exact|Inferred enter G.",
     "NAMING": "Rule and task identifiers must use UPPER_SNAKE_CASE with underscore delimiters.",
     "PLAN_LIFECYCLE": "Plan follows state machine per @MASTER_PLAN_SCHEMA.lifecycle: DRAFT → ACTIVE → EXECUTING → VERIFYING → COMPLETED. Only ACTIVE and EXECUTING plans may drive @GATE_7_IMPLEMENT mutations.",
-    "PLAN_REVISION": "On material change (scope_change | architecture_change | new_requirement | failed_core_assumption | oracle_invalidates_premise): ACTIVE → INVALIDATED, create revision+1, rerun @GATE_2_DECOMPOSE, rerun @GATE_3_MASTER_PLAN, re-authorize via @GATE_4_AUTHORIZE if scope changed.",
+    "PLAN_REVISION": "On material change (scope_change | architecture_change | new_requirement | failed_core_assumption | oracle_invalidates_premise): ACTIVE → INVALIDATED, create revision+1, rerun @GATE_2_DECOMPOSE, rerun @GATE_3_MASTER_PLAN. Plan reauthorization ALWAYS required after INVALIDATED. Execution envelope reissue only if scope/budget/baseline changed.",
 
     # ── G4: AUTHORIZE (Execution Envelope) ──
     "WRITE_SCOPE": "Modify strictly within user-authorized paths and ExecutionEnvelope bounds.",

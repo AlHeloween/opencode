@@ -27,6 +27,7 @@ GATE_3_MASTER_PLAN:
 
 GATE_4_AUTHORIZE:
   identity: [build_mode, plan_mode]
+  note: orchestrator_agent delegates authorization to active primary (build_mode or plan_mode) — not self-authorizing
   rules: [@WRITE_SCOPE]
   schemas: [@EXECUTION_ENVELOPE, @CLASSIFICATION]
   branches:
@@ -63,6 +64,7 @@ GATE_8_ORACLE:
 GATE_9_CLEAN_STATE:
   identity: active_identity
   rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @METRIC_ADAPTATION, @PROGRESS_LOG, @TONE_AND_STYLE, @CLOSURE_PROOF]
+  continuation: execution_exhausted AND closure pending → generate closure residual vector → next from gaps; do NOT hard-stop
   schemas: [@CLEAN_NEXT_STATE]
   msg_tag: {format: 8-32 hex md5 fingerprint, serialization: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev, note: NOT for crypto auth}
   blocker: {kind: real|fake, real: investigate or smoke-plan, fake: finish task do not halt}

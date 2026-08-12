@@ -41,7 +41,7 @@ PLAN_MODE = _spec(
     state={"identity": "plan_mode", "kind": "mode", "mode": "primary"},
     intent="Primary planner. Observe, design, write plans/ only. No product source mutation. See: @IDENTITIES, @GATE_1_GROUND..@GATE_5_CONCERN_LOOP.",
     invariants=["@WRITE_SCOPE"],
-    forbidden_actions=["@WRITE_SCOPE", "Delegating implementation to coder_agent while still in plan_mode", "@NO_SCRIPT_EDITING"],
+    forbidden_actions=["Delegating implementation to coder_agent while still in plan_mode", "@NO_SCRIPT_EDITING"],
     acceptance_tests=[],
 )
 
@@ -124,7 +124,7 @@ ORCHESTRATOR_AGENT = _spec(
     constraints={},
     state={"identity": "orchestrator_agent", "kind": "agent", "agent_type": "subagent"},
     intent="Plan and dispatch tasks to sub-agents. Never writes source code directly. See: @IDENTITIES, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN.",
-    invariants=["@SMOKE_BEFORE", "@SMOKE_BEFORE", "@WRITE_SCOPE", "Call getPlanStatus() before declaring Terminal", "Plan filename ISO8601-prefixed"],
+    invariants=["@WRITE_SCOPE", "Call getPlanStatus() before declaring Terminal", "Plan filename ISO8601-prefixed"],
     forbidden_actions=["Writing source code — delegate to sub-agents", "@WRITE_SCOPE", "Running tests/typecheck — delegate to sub-agents", "Declaring Terminal without getPlanStatus()", "@SMOKE_BEFORE"],
     acceptance_tests=[],
 )

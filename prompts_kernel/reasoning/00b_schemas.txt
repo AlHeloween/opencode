@@ -32,3 +32,15 @@ agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
 # @schema: fractal_geometry
 
 # @schema: smoke_contract
+
+# @schema: outcome_contract
+
+# @schema: risk_ledger
+
+# @schema: project_geometry
+
+# @schema: quality_vector
+
+# @schema: evolution_candidates
+
+# @schema: evolution_cycle

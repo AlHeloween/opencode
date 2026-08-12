@@ -697,7 +697,7 @@ function hashString(s: string): number {
 /**
  * Write a diff under `{data}/log/` via logPath("diff", …).
  * FIFO rotation per session when exceeding MAX_DIFFS_PER_SESSION.
- * Returns the absolute file path (write is deferred).
+ * Returns the absolute file path after the content is durable for the caller.
  */
 export function writeDiff(diffContent: string, meta: DiffMeta): string {
   const count = (countMap.get(meta.sessionID) ?? 0) + 1
@@ -720,13 +720,12 @@ export function writeDiff(diffContent: string, meta: DiffMeta): string {
   }
 
   const filepath = logPath("diff", meta.modelID, meta.sessionID, "diff")
-  setImmediate(() => {
-    try {
-      fs.writeFileSync(filepath, diffContent + EOL)
-    } catch (e) {
-      log.debug("diff write failed", { filepath, error: errorMessage(e) })
-    }
-  })
+  try {
+    fs.mkdirSync(path.dirname(filepath), { recursive: true })
+    fs.writeFileSync(filepath, diffContent + EOL)
+  } catch (e) {
+    log.debug("diff write failed", { filepath, error: errorMessage(e) })
+  }
   return filepath
 }
 

@@ -156,7 +156,7 @@ export function make(input: {
 
 /**
  * Per-request logger that writes each gateway request to its own file.
- * Files are named `{time_ms}_req_{requestId}.json` under the configured directory.
+ * Files are named `{time_ms}_req_{id}.json` under the configured directory.
  * Best-effort: write failures are logged to debug and silently ignored.
  */
 export function makePerRequest(input: { dir: string }): PerRequestLogger {
@@ -179,7 +179,7 @@ export function makePerRequest(input: { dir: string }): PerRequestLogger {
     log: (entry) => {
       if (disposed) return
       const ts = (entry.timestamp as number) ?? Date.now()
-      const reqId = (entry.requestId as string) ?? "unknown"
+      const reqId = (entry.id as string) ?? (entry.requestId as string) ?? "unknown"
       const sanitized = String(reqId).replace(/[^a-zA-Z0-9_-]/g, "-")
       const fileName = `${ts}_req_${sanitized}.json`
       const filePath = path.join(dir, fileName)

@@ -318,8 +318,10 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const score = healthScore(adjustment.health)
 
     const debugCfg = getDebugConfig()
+    const captureRequestBody = debugCfg.logBodies || debugCfg.perRequest
+    const captureResponseBody = debugCfg.logResponseBodies || debugCfg.perRequest
     const rawBody =
-      debugCfg.logBodies && init?.body
+      captureRequestBody && init?.body
         ? typeof init.body === "string"
           ? init.body
           : JSON.stringify(init.body)
@@ -734,13 +736,12 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 }
                 sample.lastChunkAt = Date.now()
                 sample.chunks++
-                // Accumulate response body when logResponseBodies is enabled
-                if (debugCfg.logResponseBodies) {
+                if (captureResponseBody) {
                   responseBodyChunks.push(chunk)
                 }
                 controller.enqueue(chunk)
               },
-              flush() {
+              async flush() {
                 sample.endedAt = Date.now()
                 const metrics = Metrics.computeMetrics(sample)
                 const endEntry: Record<string, unknown> = {
@@ -760,12 +761,16 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   },
                   healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
                 }
-                if (debugCfg.logResponseBodies && responseBodyChunks.length > 0) {
+                if (captureResponseBody && responseBodyChunks.length > 0) {
                   const decoder = new TextDecoder()
-                  let raw = responseBodyChunks.map((c) => decoder.decode(c)).join("")
-                  // Truncate very large responses to keep logs manageable
-                  if (raw.length > 65536) {
-                    raw = raw.slice(0, 65536) + `\n... (response body truncated at 64KB, total ${raw.length} bytes)`
+                  const fullRaw = responseBodyChunks.map((chunk) => decoder.decode(chunk, { stream: true })).join("") + decoder.decode()
+                  const raw = debugCfg.perRequest
+                    ? fullRaw
+                    : fullRaw.length > 65536
+                      ? `${fullRaw.slice(0, 65536)}\n... (response body truncated at 64KB, total ${fullRaw.length} bytes)`
+                      : fullRaw
+                  if (raw !== fullRaw) {
+                    endEntry.bodyTruncated = true
                   }
                   endEntry.body = raw
                   endEntry.bodySize = raw.length
@@ -789,20 +794,15 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                       status: response.status,
                       headers: wireHeaders(resHeaders),
                       body: readableResponseBody(raw, isStream),
-                      body_raw: raw,
+                      body_raw: fullRaw,
                     }, null, 2).replace(/\n/g, EOL))
-                    // Write response-to-response diff (fire-and-forget, flush is sync)
                     if (prevResponseBody) {
                       const prevBody = tryFormatJSON(prevResponseBody.body)
-                      const currBody = tryFormatJSON(raw)
-                      void createPatch(prevBody, currBody).then((diffContent) => {
-                        if (diffContent) {
-                          const diffPath = path.join(responseDir, `${iso}-${sanitizedId}.diff`)
-                          fs.writeFileSync(diffPath, diffContent + EOL)
-                        }
-                      })
+                      const currBody = tryFormatJSON(fullRaw)
+                      const diffContent = await createPatch(prevBody, currBody)
+                      if (diffContent) fs.writeFileSync(path.join(responseDir, `${iso}-${sanitizedId}.diff`), diffContent + EOL)
                     }
-                    prevResponseBody = { requestId: String(requestId), timestamp: d.getTime(), body: raw }
+                    prevResponseBody = { requestId: String(requestId), timestamp: d.getTime(), body: fullRaw }
                   }
                 }
                 writeLog(endEntry)

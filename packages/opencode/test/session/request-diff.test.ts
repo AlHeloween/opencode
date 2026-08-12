@@ -132,7 +132,7 @@ describe("formatRequest", () => {
     ]
     const result = RequestDiff.formatRequest(makeSystem(), msgs, baseMeta())
     expect(result.length).toBeLessThan(longContent.length + 1000)
-    expect(result).toContain("more chars")
+    expect(result).toContain(longContent)
   })
 
   test("bounds request-diff formatted size across many large messages", () => {
@@ -335,16 +335,16 @@ describe("writeDiff", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  test("creates file with ISO8601-ms_provider_model.diff naming", () => {
-    // Verify the naming convention logic through the sanitize function
-    const result = RequestDiff.formatRequest(
-      makeSystem(),
-      makeMessages(),
-      baseMeta({ timestamp: Date.now() }),
-    )
-    expect(result).toBeTypeOf("string")
-    // The naming convention uses ISO8601 with milliseconds and sanitized identifiers
-    // Full path test requires effect infrastructure to mock Global.Path.home
+  test("writes the returned diff path before returning", () => {
+    const worktree = Global.Path.worktree
+    Global.initFromWorktree(tmpDir)
+    try {
+      const file = RequestDiff.writeDiff("diff content", baseMeta({ sessionID: "ses_write_now" }))
+      expect(fs.existsSync(file)).toBe(true)
+      expect(fs.readFileSync(file, "utf8")).toContain("diff content")
+    } finally {
+      Global.initFromWorktree(worktree)
+    }
   })
 
   test("FIFO rotation removes oldest diff when exceeding MAX_DIFFS_PER_SESSION", () => {
@@ -372,38 +372,38 @@ describe("encryption", () => {
     expect(decrypted).toEqual(plaintext)
   })
 
-  test("deriveKey is deterministic — same inputs → same key material", async () => {
-    const a = await RequestDiff.deriveKey("proj-A", "ses-A")
-    const b = await RequestDiff.deriveKey("proj-A", "ses-A")
-    const c = await RequestDiff.deriveKey("proj-B", "ses-A")
+  test("deriveKey is deterministic — same inputs → same key material", () => {
+    const a = RequestDiff.deriveKey("proj-A", "ses-A")
+    const b = RequestDiff.deriveKey("proj-A", "ses-A")
+    const c = RequestDiff.deriveKey("proj-B", "ses-A")
 
     // Same inputs → same key (encrypt with one, decrypt with other)
     const plaintext = "test determinism"
-    const encrypted = await RequestDiff.encryptBaseline(plaintext, a)
-    const decrypted = await RequestDiff.decryptBaseline(encrypted, b)
+    const encrypted = RequestDiff.encryptBaseline(plaintext, a)
+    const decrypted = RequestDiff.decryptBaseline(encrypted, b)
     expect(decrypted).toEqual(plaintext)
 
     // Different project → different key (decrypt should fail)
-    await expect(RequestDiff.decryptBaseline(encrypted, c)).rejects.toThrow()
+    expect(() => RequestDiff.decryptBaseline(encrypted, c)).toThrow()
   })
 
-  test("different sessions produce different keys", async () => {
-    const k1 = await RequestDiff.deriveKey("p", "ses-1")
-    const k2 = await RequestDiff.deriveKey("p", "ses-2")
+  test("different sessions produce different keys", () => {
+    const k1 = RequestDiff.deriveKey("p", "ses-1")
+    const k2 = RequestDiff.deriveKey("p", "ses-2")
 
     const plaintext = "session isolation"
-    const enc = await RequestDiff.encryptBaseline(plaintext, k1)
-    await expect(RequestDiff.decryptBaseline(enc, k2)).rejects.toThrow()
+    const enc = RequestDiff.encryptBaseline(plaintext, k1)
+    expect(() => RequestDiff.decryptBaseline(enc, k2)).toThrow()
   })
 
-  test("tampered ciphertext fails decryption", async () => {
-    const key = await RequestDiff.deriveKey("p", "s")
-    const encrypted = await RequestDiff.encryptBaseline("test", key)
+  test("tampered ciphertext fails decryption", () => {
+    const key = RequestDiff.deriveKey("p", "s")
+    const encrypted = RequestDiff.encryptBaseline("test", key)
 
     // Flip a byte in the ciphertext
     const tampered = Buffer.from(encrypted)
     tampered[tampered.length - 5] ^= 0xFF
-    await expect(RequestDiff.decryptBaseline(tampered, key)).rejects.toThrow()
+    expect(() => RequestDiff.decryptBaseline(tampered, key)).toThrow()
   })
 })
 

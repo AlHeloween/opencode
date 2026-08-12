@@ -1,7 +1,27 @@
 import { describe, expect, test } from "bun:test"
-import { formatPerRequestEntry, readableBody, readableResponseBody } from "@/provider/gateway/async-logger"
+import { formatPerRequestEntry, makePerRequest, readableBody, readableResponseBody } from "@/provider/gateway/async-logger"
+import fs from "fs"
+import os from "os"
+import path from "path"
 
 describe("gateway per-request logger", () => {
+  test("uses the wire request id in the filename and formats the stored body", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-gateway-request-"))
+    const logger = makePerRequest({ dir })
+    logger.log({
+      id: "req_live_123",
+      timestamp: 123,
+      body: '{"model":"deepseek-v4-pro","messages":[]}',
+    })
+    await logger.dispose()
+
+    const file = path.join(dir, "123_req_req_live_123.json")
+    const entry = JSON.parse(fs.readFileSync(file, "utf8")) as { body: { model: string }; body_raw: string }
+    expect(entry.body.model).toBe("deepseek-v4-pro")
+    expect(entry.body_raw).toContain('"messages":[]')
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
   test("formats JSON body as readable object + raw field preserves \\uXXXX", () => {
     const output = formatPerRequestEntry({
       type: "request",

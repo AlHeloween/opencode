@@ -25,7 +25,7 @@ Step 3 (Inferred→Exact): oracle PASS on declared scope. Gate: @GATE_8_ORACLE �
 Stamps:
   @STAMPS.oracle_stamp → σ(c)=Exact
   @STAMPS.inference_stamp → σ(c)=Inferred
-  @STAMPS.direct_evidence_stamp → σ(c)=Exact
+  @STAMPS.evidence_stamp → σ(c)=Exact
 
 ### PROVENANCE (@PROVENANCE)
 Track the ORIGIN of every claim. Paired with SV for dual-axis state: SV = "what am I thinking about", PROVENANCE = "where did it come from".

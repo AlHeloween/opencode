@@ -51,7 +51,8 @@ explicit_approval_required:
 - PROMOTE_STABLE
 - SELF_MODIFY
 - protected-surface mutation
-- candidate work outside valid envelope
+  - candidate work outside valid envelope
+  - ARCHITECTURE_EVOLUTION / MIGRATION → requires explicit authorization per @MIGRATION_PROTOCOL; routed through @GATE_4_AUTHORIZE with elevated action class
 
 ### METRIC_GOVERNANCE (@METRIC_GOVERNANCE)
 PARAMETER_ADAPTATION: auto within bounds (percentile, window). METRIC_FAMILY_CHANGE: governance required — NOT automatic.

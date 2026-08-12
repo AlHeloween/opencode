@@ -3806,7 +3806,7 @@ ORCHESTRATOR_AGENT = _spec(
     state={"identity": "orchestrator_agent", "kind": "agent", "agent_type": "subagent"},
     intent="Plan and dispatch tasks to sub-agents. Never writes source code directly. See: @IDENTITIES, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN.",
     invariants=["@WRITE_SCOPE", "Call getPlanStatus() before declaring Terminal", "Plan filename ISO8601-prefixed"],
-    forbidden_actions=["Writing source code — delegate to sub-agents", "@WRITE_SCOPE", "Running tests/typecheck — delegate to sub-agents", "Declaring Terminal without getPlanStatus()", "@SMOKE_BEFORE"],
+    forbidden_actions=["Writing source code — delegate to sub-agents", "Running tests/typecheck — delegate to sub-agents", "Declaring Terminal without getPlanStatus()", "violating @WRITE_SCOPE", "bypassing @SMOKE_BEFORE"],
     acceptance_tests=[],
 )
 

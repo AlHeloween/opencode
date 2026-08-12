@@ -369,7 +369,7 @@ quality_vector:
     documentation:     {weight: 0.06, metrics: [example_pass_rate, stale_reference_rate, doc_code_divergence, onboarding_completeness]}
     observability:     {weight: 0.04, metrics: [failure_telemetry_coverage, actionable_error_ratio, diagnostic_latency]}
     security:          {weight: 0.04, metrics: [unsafe_default_count, secret_exposure, input_validation_coverage, privilege_surface]}
-  invariant: "Correctness and security regressions HARD-DENY any candidate regardless of weighted score"
+  invariant: "see @QUALITY_GUARDRAILS — single source for all hard-deny rules"
 
 # EVOLUTION CANDIDATES
 evolution_candidates:
@@ -427,7 +427,7 @@ master_plan:
     EXECUTING: "at least one task started via @GATE_7_IMPLEMENT"
     VERIFYING: "all tasks materialized; oracles running via @GATE_8_ORACLE"
     IMPLEMENTED: "all tasks done + all oracles PASS; awaiting outcome proof via @CLOSURE_PROOF"
-    COMPLETED: "outcome proven: acceptance_coverage=1.0 AND outcome_oracle=PASS per @OUTCOME_CONTRACT"
+    COMPLETED: "outcome proven: acceptance_coverage >= outcome_contract.coverage_threshold AND outcome_oracle=PASS per @OUTCOME_CONTRACT"
     INVALIDATED: "premise failed or scope changed; plan_reauthorization ALWAYS required; envelope_reissue only if scope/budget changed"
   goals:
     - id: GATE_1_GROUND

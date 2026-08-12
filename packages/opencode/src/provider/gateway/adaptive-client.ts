@@ -31,6 +31,8 @@ let debugConfig: ResolvedDebugConfig | null = null
 
 /** Previous request body for per-request diff comparison. */
 let prevRequestBody: { requestId: string; timestamp: number; body: string } | undefined
+/** Previous response body for per-response diff comparison. */
+let prevResponseBody: { requestId: string; timestamp: number; body: string } | undefined
 
 export function setDebugConfig(config: ResolvedDebugConfig): void {
   debugConfig = config
@@ -739,6 +741,38 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   }
                   endEntry.body = raw
                   endEntry.bodySize = raw.length
+                  // Write per-response JSON file (mirrors per-request)
+                  if (debugCfg.perRequest) {
+                    const responseLogDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
+                    const d = new Date()
+                    const pad = (n: number, len = 2) => String(n).padStart(len, "0")
+                    const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
+                      `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
+                    const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
+                    const responseDir = path.join(responseLogDir, "per-response")
+                    fs.mkdirSync(responseDir, { recursive: true })
+                    const responsePath = path.join(responseDir, `${iso}-${sanitizedId}.json`)
+                    fs.writeFileSync(responsePath, JSON.stringify({
+                      level: "INFO",
+                      event: "gateway.response.per_response",
+                      timestamp: d.getTime(),
+                      requestId,
+                      status: response.status,
+                      body: raw,
+                    }, null, 2) + EOL)
+                    // Write response-to-response diff (fire-and-forget, flush is sync)
+                    if (prevResponseBody) {
+                      const prevBody = tryFormatJSON(prevResponseBody.body)
+                      const currBody = tryFormatJSON(raw)
+                      void createPatch(prevBody, currBody).then((diffContent) => {
+                        if (diffContent) {
+                          const diffPath = path.join(responseDir, `${iso}-${sanitizedId}.diff`)
+                          fs.writeFileSync(diffPath, diffContent + EOL)
+                        }
+                      })
+                    }
+                    prevResponseBody = { requestId: String(requestId), timestamp: d.getTime(), body: raw }
+                  }
                 }
                 writeLog(endEntry)
                 Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)

@@ -32,6 +32,15 @@ import { ModelID, ProviderID } from "./schema"
 
 const log = Log.create({ service: "provider" })
 
+/** Maps (provider, modelId) → npm package, overriding catalog defaults. */
+function resolveNpm(providerID: string, modelID: string, fallback: string): string {
+  const id = modelID.toLowerCase()
+  if (providerID === "deepseek" && id.includes("v4")) {
+    return "@ai-sdk/deepseek"
+  }
+  return fallback
+}
+
 function shouldUseCopilotResponsesApi(modelID: string): boolean {
   const match = /^gpt-(\d+)/.exec(modelID)
   if (!match) return false
@@ -978,7 +987,11 @@ function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model
     api: {
       id: model.id,
       url: model.provider?.api ?? provider.api ?? "",
-      npm: model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible",
+      npm: resolveNpm(
+        provider.id,
+        model.id,
+        model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible",
+      ),
     },
     status: model.status ?? "active",
     headers: {},
@@ -1138,12 +1151,15 @@ const layer: Layer.Layer<
           for (const [modelID, model] of Object.entries(provider.models ?? {})) {
             const existingModel = parsed.models[model.id ?? modelID]
             const apiID = model.id ?? existingModel?.api.id ?? modelID
-            const apiNpm =
+            const apiNpm = resolveNpm(
+              providerID,
+              modelID,
               model.provider?.npm ??
-              provider.npm ??
-              existingModel?.api.npm ??
-              modelsDev[providerID]?.npm ??
-              "@ai-sdk/openai-compatible"
+                provider.npm ??
+                existingModel?.api.npm ??
+                modelsDev[providerID]?.npm ??
+                "@ai-sdk/openai-compatible",
+            )
             const apiUrl = model.provider?.api ?? provider?.api ?? existingModel?.api.url ?? modelsDev[providerID]?.api ?? ""
             const name = iife(() => {
               if (model.name) return model.name
@@ -1440,19 +1456,7 @@ const layer: Layer.Layer<
             ...model.headers,
           }
 
-        // Redirect DeepSeek models from generic openai-compatible to dedicated @ai-sdk/deepseek
-        // which properly supports system messages (openai-compatible strips them).
-        let resolvedNpm = model.api.npm
-        if (
-          resolvedNpm === "@ai-sdk/openai-compatible" &&
-          (model.providerID === "deepseek" || model.api.id.toLowerCase().includes("deepseek"))
-        ) {
-          resolvedNpm = "@ai-sdk/deepseek"
-          log.info("redirecting deepseek model to @ai-sdk/deepseek", {
-            modelID: model.id,
-            from: model.api.npm,
-          })
-        }
+        const resolvedNpm = model.api.npm
 
         const key = Hash.fast(
           JSON.stringify({
@@ -1583,21 +1587,8 @@ const layer: Layer.Layer<
       const s = yield* InstanceState.get(state)
       const envs = yield* env.all()
 
-      // Redirect DeepSeek models from generic openai-compatible to dedicated @ai-sdk/deepseek
-      // Must happen BEFORE cache lookup, otherwise cached model from old SDK is returned.
-      log.info("getLanguage npm check", {
-        providerID: model.providerID,
-        apiId: model.api.id,
-        apiNpm: model.api.npm,
-        modelId: model.id,
-      })
-      const resolvedNpm =
-        model.api.npm === "@ai-sdk/openai-compatible" &&
-        (model.providerID === "deepseek" || model.api.id.toLowerCase().includes("deepseek"))
-          ? "@ai-sdk/deepseek"
-          : model.api.npm
+      const resolvedNpm = model.api.npm
 
-      // Include npm in key so old openai-compatible cache entries are invalidated.
       const key = `${model.providerID}/${model.id}/${resolvedNpm}`
       if (s.models.has(key)) return s.models.get(key)!
 

@@ -2,7 +2,7 @@ import { Provider } from "@/provider/provider"
 import * as Log from "@opencode-ai/core/util/log"
 import { Context, Effect, Layer, Record } from "effect"
 import * as Stream from "effect/Stream"
-import { streamText, wrapLanguageModel, type ModelMessage, type Tool, tool, jsonSchema } from "ai"
+import { streamText, type ModelMessage, type Tool, tool, jsonSchema } from "ai"
 import { mergeDeep, pipe } from "remeda"
 import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 import { ProviderTransform } from "@/provider/transform"
@@ -692,34 +692,8 @@ const live: Layer.Layer<
           ...headers,
         },
         maxRetries: input.retries ?? 0,
-        messages,
-        model: wrapLanguageModel({
-          model: language,
-          middleware: [
-            {
-              specificationVersion: "v3" as const,
-              async transformParams(args) {
-                if (args.type === "stream") {
-                  // @ts-expect-error
-                  args.params.prompt = ProviderTransform.message(args.params.prompt, input.model, options)
-                  // Diagnostic: check cache markers on first system message
-                  const sysMsg: any = args.params.prompt.find((m: any) => m.role === "system")
-                  const lastContent: any = sysMsg?.content?.[sysMsg.content?.length - 1]
-                  const hasCacheControl: any = sysMsg?.providerOptions?.openaiCompatible?.cache_control
-                    ?? lastContent?.providerOptions?.openaiCompatible?.cache_control
-                  log.info("cache marker check", {
-                    providerID: input.model.providerID,
-                    modelID: input.model.id,
-                    hasCacheControl: !!hasCacheControl,
-                    cacheControlValue: hasCacheControl ?? null,
-                    systemMsgCount: args.params.prompt.filter((m: any) => m.role === "system").length,
-                  })
-                }
-                return args.params
-              },
-            },
-          ],
-        }),
+        messages: ProviderTransform.message(messages, input.model, options),
+        model: language,
       })
     })
 

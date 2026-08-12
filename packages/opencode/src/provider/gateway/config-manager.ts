@@ -101,7 +101,10 @@ function defaultModelConfig(provider: ModelsDev.Provider, model: ModelsDev.Model
       },
     },
     provider: {
-      npm: model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible",
+      npm:
+        (provider.id === "deepseek" && model.id?.toLowerCase().includes("v4")
+          ? "@ai-sdk/deepseek"
+          : model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible"),
       api: model.provider?.api ?? provider.api,
     },
     limit: {

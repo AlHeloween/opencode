@@ -17,6 +17,23 @@ prev-md5: 00000000000000000000000000000000
 - Sub-agents: add parent-goal-md5 field after prev-md5
 - Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.
 
+## SV_TARGET (@SV_TARGET)
+**Optional forward-looking attention primer.** Emit BEFORE a complex action to steer subsequent inference toward specified semantic directions through contextual conditioning. Uses same YAML structure as @SV_FORMAT, but keywords describe the INTENDED focus — not what was accomplished.
+
+```yaml
+Keywords: target1 0.35, target2 0.25, target3 0.20, target4 0.12, target5 0.08
+Semantic dominant: What I intend to focus on in the next action.
+```
+
+- SV_TARGET ≠ SV_FORMAT: TARGET primes attention forward (intent), FORMAT records backward (accomplishment)
+- Use strategically: before decomposition (@GATE_2_DECOMPOSE), before implementation (@GATE_7_IMPLEMENT), before oracle verification (@GATE_8_ORACLE)
+- After action, δ = d₁(SV_TARGET, SV_FORMAT) = attention accuracy — did attention go where intended?
+- Sub-agents: orchestrator may assign per-agent SV_TARGET for diversity (orthogonal weight vectors)
+- @SV_TARGET is NOT a claim status — purely an attention steering mechanism, no epistemic weight
+
+## SV_STATE (@SV_STATE)
+**Observed semantic state.** The emitted @SV_FORMAT interpreted as measurement: what the agent actually focused on during the completed action. Paired with @SV_TARGET for attention accuracy: δ = d₁(SV_TARGET, SV_STATE). Used by @MULTI_AGENT_SV controller as feedback signal. Alias: SV_STATE := SV_FORMAT in measurement context.
+
 # How to Read This Document
 
 This kernel is a self-referential protocol. Every `(Name)` anchor defines a concept. References use the same name without parentheses. There are no abstract templates — every reference resolves to a concrete definition defined earlier in the document.
@@ -106,6 +123,25 @@ invariant: unverified_exact_rejected; require_type_and_attestation; oracle_fail_
 description: one-line goal
 premises: list of claim_ids (⊆ G only)
 open_questions: list of claim_ids
+plan_id: uuid — immutable; assigned at creation
+revision: int — starts at 1; increments on invalidation
+created_by: string — agent identity that authored the plan
+lineage:
+  parent_goal_id: uuid|null — previous goal this plan continues
+  generation_id: int — evolution generation number (0 for user-initiated)
+  evolution_candidate_id: uuid|null — which @EVOLUTION_CANDIDATES entry spawned this
+  parent_project_snapshot: sha256|null — project state hash at parent SUCCESS
+state: 'enum: DRAFT | ACTIVE | EXECUTING | VERIFYING | IMPLEMENTED | COMPLETED | INVALIDATED'
+lifecycle:
+  DRAFT: plan written, not yet authorized
+  ACTIVE: authorized via @GATE_4_AUTHORIZE, ready for implementation
+  EXECUTING: at least one task started via @GATE_7_IMPLEMENT
+  VERIFYING: all tasks materialized; oracles running via @GATE_8_ORACLE
+  IMPLEMENTED: all tasks done + all oracles PASS; awaiting outcome proof via @CLOSURE_PROOF
+  COMPLETED: 'outcome proven: acceptance_coverage >= outcome_contract.coverage_threshold
+    AND outcome_oracle=PASS per @OUTCOME_CONTRACT'
+  INVALIDATED: premise failed or scope changed; plan_reauthorization ALWAYS required;
+    envelope_reissue only if scope/budget changed
 goals:
 - id: GATE_1_GROUND
   sv: list of keywords (3-9 terms)
@@ -178,7 +214,18 @@ done: 'list of {item: string, pct: int 0-100, mark: EpistemicStatus}'
 pending: list of string
 blocked: 'list of {item: string, kind: real|fake, reason: string}'
 out_of_scope: list of string — tasks discarded by residual_recluster
-terminal: bool — true when pending=[] AND active=[]
+execution_exhausted: bool — pending=[] AND active=[]; no more tasks to run
+terminal: 'enum: SUCCESS | BLOCKED | OUT_OF_SCOPE | CONTINUE — outcome decision, NOT
+  task-exhaustion'
+closure_proof:
+  acceptance_coverage: float 0-1 — fraction of @OUTCOME_CONTRACT criteria proven via
+    oracle stamps
+  critical_open_risks: int — unresolved risks from @RISK_LEDGER blocking outcome acceptance
+  outcome_oracle: PASS | FAIL | PENDING — aggregate oracle over all outcome acceptance
+    criteria per @OUTCOME_CONTRACT
+  rule: SUCCESS requires execution_exhausted=true AND acceptance_coverage >= outcome_contract.coverage_threshold
+    AND critical_open_risks=0 AND outcome_oracle=PASS. CONTINUE when exhausted but
+    closure pending.
 terminal_mode:
   enum:
   - SUCCESS
@@ -187,8 +234,8 @@ terminal_mode:
   - CONTINUE
   - RESUME
   precedence: BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty
-next: 'DERIVED, not invented: Blocked[0] if blocked, else Pending[0] if pending, else
-  ''none''. ''none'' = TERMINAL hard stop.'
+next: 'DERIVED: Blocked[0] if blocked, else Pending[0] if pending, else closure_gaps[0]
+  if exhausted AND closure pending, else ''none''. ''none'' = TERMINAL.'
 
 ## CLAIM_LEDGER (@CLAIM_LEDGER)
 description: All claims and epistemic status (REQUIRED for Gate 3)
@@ -196,6 +243,8 @@ claims:
 - id: C1
   text: string
   status: Exact | Inferred | Hypothetical | Guess | Unknown
+  provenance: CONTEXT | RETRIEVED | MODEL_PRIOR | INFERENCE | SYNTHESIS | UNKNOWN
+    — origin of the claim
   falsifier: string (optional, for Hypothetical)
   reason: string
   deps: list of claim_ids (EpistemicDAG)
@@ -207,6 +256,8 @@ rules:
 - Unmarked ⇒ Unknown
 - Hypothetical in premises ⇒ plan illegal
 - effective(c) = min(status(c), min(effective(deps))) — weakest-link ceiling
+- Every claim MUST declare provenance; UNKNOWN provenance ⇒ non-actionable
+- MODEL_PRIOR claims must be verified externally before advancing beyond Hypothetical
 
 ## FRACTAL_GEOMETRY (@FRACTAL_GEOMETRY)
 models:
@@ -248,6 +299,246 @@ validation:
 - ¬smoke_na ⇒ ≥1 baseline check with label+cmd+expected_exit
 - tolerance>0 ⇒ tolerance_reason required
 - '@GATE_4_AUTHORIZE rejects invalid specs'
+
+## OUTCOME_CONTRACT (@OUTCOME_CONTRACT)
+description: WHY layer — what must be true for the goal to be satisfied. Source of
+  truth for @CLOSURE_PROOF acceptance criteria.
+acceptance_criteria: list of oracle specs — each with {id, description, oracle_cmd,
+  expected_result}
+coverage_threshold: float 0-1 — fraction of criteria that must PASS (default 1.0)
+critical_risks: list of risk_ids from @RISK_LEDGER that block outcome acceptance
+invariant: CLOSURE_PROOF.acceptance_coverage measured against THIS contract's criteria
+
+## RISK_LEDGER (@RISK_LEDGER)
+description: Real residual risks — not blocked by enforcement but relevant to outcome
+  quality
+risk_types:
+  unresolved_external_dependency: external system/service not verified
+  unverified_acceptance_criterion: outcome criterion not yet oracle-tested
+  unresolved_safety_risk: safety/security concern without mitigation
+  failed_nonblocking_oracle: non-critical oracle failed but does not block MODIFY
+  architecture_concern: design decision with unknown long-term impact
+rules:
+- Every open risk blocks CLOSURE_PROOF.outcome_oracle=PASS if listed in OUTCOME_CONTRACT.critical_risks
+- Risks are NOT premises — they do not block MODIFY, only outcome acceptance
+
+## PROJECT_GEOMETRY (@PROJECT_GEOMETRY)
+description: Stable structural boundaries — evolution must happen INSIDE geometry,
+  not by replacing it
+components: list of architectural components with responsibilities
+dependency_graph: allowed dependency edges between components
+public_interfaces: stable APIs that must not break without architecture evolution
+stable_boundaries: module boundaries that isolate change
+stable_lanes: directories where code is production-quality
+experimental_lanes: directories for experiments, futures, makeups
+invariants:
+  allowed_dependencies: whitelist of permitted cross-component dependencies
+  forbidden_dependencies: blacklist — e.g. no circular deps, no core→experimental
+  protected_interfaces: interfaces that require architecture evolution candidate to
+    modify
+  architectural_constraints: global invariants e.g. no SQL in GUI layer
+rule: Improvement candidates that violate geometry → DENY or require explicit ARCHITECTURE_EVOLUTION
+
+## QUALITY_VECTOR (@QUALITY_VECTOR)
+description: 10-axis measurable project quality profile. Baseline → Target → Delta
+  drives evolution candidates.
+axes:
+  correctness:
+    weight: 0.16
+    metrics:
+    - requirement_coverage
+    - oracle_pass_ratio
+    - regression_count
+    - invariant_violation_count
+  stability:
+    weight: 0.14
+    metrics:
+    - crash_free_runs
+    - timeout_rate
+    - recovery_success_rate
+    - resource_leak_slope
+  performance:
+    weight: 0.12
+    metrics:
+    - startup_latency
+    - p50_latency
+    - p95_latency
+    - peak_memory
+    - throughput
+  usability:
+    weight: 0.12
+    metrics:
+    - time_to_first_success
+    - steps_to_primary_action
+    - error_recovery_steps
+    - interface_consistency
+  automation:
+    weight: 0.1
+    metrics:
+    - manual_step_ratio
+    - unattended_success_rate
+    - api_coverage
+    - determinism
+  maintainability:
+    weight: 0.12
+    metrics:
+    - cognitive_complexity
+    - change_amplification
+    - duplication
+    - testability
+  architecture:
+    weight: 0.1
+    metrics:
+    - dependency_cycles
+    - layer_violations
+    - coupling
+    - cohesion
+    - geometry_preservation
+  documentation:
+    weight: 0.06
+    metrics:
+    - example_pass_rate
+    - stale_reference_rate
+    - doc_code_divergence
+    - onboarding_completeness
+  observability:
+    weight: 0.04
+    metrics:
+    - failure_telemetry_coverage
+    - actionable_error_ratio
+    - diagnostic_latency
+  security:
+    weight: 0.04
+    metrics:
+    - unsafe_default_count
+    - secret_exposure
+    - input_validation_coverage
+    - privilege_surface
+invariant: see @QUALITY_GUARDRAILS — single source for all hard-deny rules
+
+## EVOLUTION_CANDIDATES (@EVOLUTION_CANDIDATES)
+description: After SUCCESS + quality analysis, generate 5 diverse improvement candidates
+  via fractal geometry
+generation:
+  input: '@QUALITY_VECTOR deficit vector D_i = w_i * (1 - Q_i)'
+  method: 4 largest semantic peaks → 4 focused candidates + 1 cross-axis candidate
+    using @FRACTAL_GEOMETRY
+  clustering: Manhattan L1 + k-medoids → 5 CENTRAL diverse candidates
+validation:
+  correctness_regression: HARD DENY
+  stability_regression: HARD DENY
+  security_regression: HARD DENY
+  geometry_violation: DENY unless explicit ARCHITECTURE_EVOLUTION candidate
+fitness: F(C) = (delta_Q * P_success * geometry_preservation * reversibility) / (1
+  + risk + cost)
+pareto: non-dominated candidates only
+one_step_ahead: forecast likely future problems; penalize candidates with high expected
+  future regret
+
+## EVOLUTION_CYCLE (@EVOLUTION_CYCLE)
+description: 'Outer loop: SUCCESS → quality analysis → candidate generation → selection
+  → NEW_GOAL → full G1..G9'
+trigger: '@CLOSURE_PROOF = PASS AND @OUTCOME_CONTRACT outcome_oracle = PASS'
+baseline:
+- 'snapshot_project: hash of project state at SUCCESS'
+- 'build_project_geometry: extract current @PROJECT_GEOMETRY'
+- 'calculate_quality_vector: measure all 10 axes'
+analysis:
+- 'residual_quality_vector: D_i = w_i * (1 - Q_i)'
+- 'regression_debt: accumulated regressions from prior evolution steps'
+- 'quality_history: append current vector to generation log'
+candidate_generation: see @EVOLUTION_CANDIDATES
+selection: best candidate by fitness; selected → NEW_GOAL (not MASTER_PLAN directly).
+  GOAL then passes through G1→INTENT_PROJECTION→G2→G3→MASTER_PLAN. parent_goal_id
+  preserved for lineage.
+saturation: stop when max(F(C_i)) < F_min OR all delta_Q < epsilon — no improvement
+  worth cost
+invariant: Evolution candidate runs FULL GATED_WORKFLOW (G1..G9) — no shortcuts. parent_goal_id
+  preserved for lineage.
+
+## CAPABILITY_GRAPH (@CAPABILITY_GRAPH)
+description: What the project CAN do — nodes, edges, outcomes, evidence. Source for
+  ΔG computation.
+nodes: existing project capabilities
+edges: executable / semantic relations between capabilities
+outcomes: user-visible behaviors each capability provides
+evidence: code/tests/docs/oracles proving each node exists
+rule: USER_REQUEST is projected onto this graph; only UNCOVERED residual becomes EXECUTION_GOAL
+
+## INTENT_PROJECTION (@INTENT_PROJECTION)
+description: Maps USER_REQUEST onto PROJECT_GEOMETRY + CAPABILITY_GRAPH. EXECUTION_GOAL
+  = only unresolved ΔG.
+observation: what user reports / requests
+desired_outcome: what should become true
+suggested_solution: optional user hypothesis — NOT automatically the Goal
+constraints: explicit user constraints
+projection:
+  matching_geometry_nodes: geometry components relevant to request
+  existing_capabilities: capability graph nodes covering parts of request
+  node_coverage: 0..1 — fraction of desired outcomes already covered
+  edge_coverage: 0..1 — fraction of capability relations already present
+  outcome_coverage: 0..1 — fraction of user-visible outcomes already satisfied
+residual:
+  delta_graph: desired_graph − current_graph
+  execution_goal: only unresolved verified residual becomes @GATE_2_DECOMPOSE input
+invariant: USER_REQUEST ≠ EXECUTION_GOAL. If ΔG=∅, implementation is SKIPPED — Oracle
+  verifies existing capability.
+gate: Feeds @GATE_1_GROUND → @GATE_2_DECOMPOSE. Replaces raw Goal→seeds with projected
+  residual.
+
+## QUALITY_METRIC_SPEC (@QUALITY_METRIC_SPEC)
+description: Normalization contract for each QUALITY_VECTOR metric — makes D_i = w_i(1-Q_i)
+  computable
+metric:
+  id: unique metric identifier
+  unit: ms | count | ratio | bytes | boolean | score
+  direction: MAXIMIZE | MINIMIZE | TARGET
+  baseline: current measured value
+  target: desired value
+  hard_limit: value beyond which candidate is HARD DENIED
+  normalize: 'function: q = clamp((bad − actual) / (bad − target), 0, 1) for MINIMIZE;
+    mirror for MAXIMIZE'
+  sample_window: number of runs for stable measurement
+  repetitions: minimum repetitions before accepting measurement
+  oracle: command or test that produces the measurement
+  confidence: 0..1 — statistical confidence in current measurement
+rule: Axis score Q_i = Σ(w_ij * q_ij). Deficit D_i = w_i * (1 − Q_i).
+
+## QUALITY_GUARDRAILS (@QUALITY_GUARDRAILS)
+description: Single source of hard-deny rules — referenced by both QUALITY_VECTOR
+  and EVOLUTION_CANDIDATES
+hard_deny:
+- correctness regression > 0
+- stability regression > tolerance
+- security regression > 0
+- architecture invariant violation
+- public contract broken without explicit ARCHITECTURE_EVOLUTION
+rule: No weighted utility score can override hard-deny. Referenced from @QUALITY_VECTOR.invariant
+  and @EVOLUTION_CANDIDATES.validation.
+
+## MIGRATION_PROTOCOL (@MIGRATION_PROTOCOL)
+description: 'State machine for architecture-displacing changes: NORMAL_EVOLUTION
+  vs ARCHITECTURE_EVOLUTION vs MIGRATION'
+states:
+  NORMAL_EVOLUTION: improvement inside existing geometry — standard G1..G9
+  ARCHITECTURE_EVOLUTION: geometry change without toolchain/language/platform change
+    — requires architecture review
+  MIGRATION: toolchain/runtime/language/framework/version change OR architecture_displacement
+    > threshold
+migration_requirements:
+- explicit user authorization
+- isolated branch
+- full-project smoke/oracle baseline + verify
+- compatibility oracle
+- rollback proof
+metrics:
+  architecture_displacement: normalized graph edit distance between old and new geometry
+  migration_amplification: files touched / logical change size
+  compatibility_surface: public APIs that must remain stable
+  geometry_preservation: 1 − NGED(G_before, G_after)
+  rollback_cost: estimated effort to revert
+rule: MIGRATION requires explicit authorization and cannot be bundled with NORMAL_EVOLUTION
+  improvements.
 
 # Algorithms (@ALGO)
 
@@ -302,7 +593,8 @@ explicit_approval_required:
 - PROMOTE_STABLE
 - SELF_MODIFY
 - protected-surface mutation
-- candidate work outside valid envelope
+  - candidate work outside valid envelope
+  - ARCHITECTURE_EVOLUTION / MIGRATION → requires explicit authorization per @MIGRATION_PROTOCOL; routed through @GATE_4_AUTHORIZE with elevated action class
 
 ## METRIC_GOVERNANCE (@METRIC_GOVERNANCE)
 PARAMETER_ADAPTATION: auto within bounds (percentile, window). METRIC_FAMILY_CHANGE: governance required — NOT automatic.
@@ -315,6 +607,73 @@ rule: ERROR_TEST must FAIL first. TARGETED = changed module + related only.
 deadloop: ≥2 STUCK in last 3 attempts → STOP + universalsearch web+code; re-plan.
 STUCK: δ < 0.3 | REFINING: 0.3 ≤ δ < 0.5 | DIVERGING: δ ≥ 0.5.
 
+## SV_TRAJECTORY (@SV_TRAJECTORY)
+**Extends @SV_DELTA with multi-step trajectory analysis.** Tracks semantic position over time to detect drift before it becomes visible in output quality.
+
+metrics:
+  goal_distance: D_g = d₁(S_t, G) — Manhattan L1 from current SV to original Goal SV. Rising → semantic drift.
+  step_distance: D_p = d₁(S_t, S_{t-1}) — per-step change magnitude.
+  velocity: v_t = D_p per turn — sustained high velocity = unstable exploration.
+  coverage: C_g = fraction of Goal SV keyword dimensions with cumulative weight ≥ 0.5 across trajectory {S_0…S_t}.
+
+drift classification (from D_g, D_p):
+  stable_convergence: D_g < 0.3 ∧ D_p < 0.3 — on target, small refinements. Continue.
+  exploration:        D_g < 0.3 ∧ D_p ≥ 0.3 — exploring around goal. Acceptable, monitor D_g.
+  stable_drift:       D_g ≥ 0.6 ∧ D_p < 0.3 — DANGEROUS: confidently solving wrong problem. HALT + re-anchor to Goal SV.
+  divergence:         D_g ≥ 0.6 ∧ D_p ≥ 0.3 — uncontrolled. HALT + universalsearch + re-plan.
+  transitional:       otherwise — accumulating evidence, re-evaluate next turn.
+
+rule: stable_drift ≥ 2 consecutive turns → mandatory re-anchor via @GATE_1_GROUND + emit SV_TARGET realigned to Goal.
+rule: step_distance spike ≥ 0.5 above running median → possible context switch; verify against plan.
+invariant: trajectory analysis uses the same Manhattan L1 metric as @SV_DELTA and @FRACTAL_GEOMETRY.
+
+## MULTI_AGENT_SV (@MULTI_AGENT_SV)
+**Orchestrator-level SV feedback controller for sub-agent teams.** Extends @SV_TARGET with diversity-driven dispatch and semantic coverage tracking.
+
+controller loop:
+  1. GOAL_SV → allocate per-agent SV_TARGET with orthogonal weight vectors for diversity
+  2. dispatch agents: Agent_1→correctness, Agent_2→architecture, Agent_3→adversarial, Agent_4→simplicity, Agent_5→usability
+  3. collect RESULT + SV_STATE from each agent
+  4. measure: alignment d₁(SV_TARGET, SV_STATE), inter-agent diversity d₁(S_i, S_j), coverage vs Goal
+  5. compute semantic residual: R = G − ⋃Coverage(S_i) — dimensions with cumulative weight < 0.5
+  6. redistribute: next SV_TARGET weights toward uncovered dimensions
+  7. redispatch only to uncovered regions
+  8. stop when ||R||₁ < threshold
+
+PID feedback interpretation:
+  P (proportional): current uncovered dimensions → immediate correction
+  I (integral): dimensions systematically ignored across cycles → escalating priority
+  D (derivative): dimensions where attention is growing too fast → dampening
+
+objective function: J = α·Alignment + β·Coverage + γ·Novelty − δ·Drift
+  maximize alignment to Goal while preserving inter-agent diversity
+
+invariant: diversity > 0 — homogeneous agents (all d₁(S_i, S_j) → 0) produce tunnel vision; enforce d₁(S_i, S_j) ≥ 0.15 for at least one pair
+
+## SEMANTIC_CONTROL (@SEMANTIC_CONTROL)
+description: Orchestrator-level SV feedback loop — extends @MULTI_AGENT_SV
+goal_sv: original Goal SV — reference point for all measurements
+target_sv: per-agent SV_TARGET — assigned by orchestrator for diversity
+observed_sv: per-agent SV_STATE — what the agent actually focused on
+trajectory:
+  previous: SV from prior turn
+  velocity: v_t = d₁(S_t, S_{t-1})
+  acceleration: a_t = v_t − v_{t-1}
+metrics:
+  goal_distance: d₁(S_t, G) — drift from Goal
+  step_distance: d₁(S_t, S_{t-1}) — per-step change
+  coverage: fraction of Goal dimensions covered by team
+  redundancy: overlap between agents — lower is better for exploration
+  diversity: minimum pairwise d₁ across agent team
+controller:
+  proportional_error: d₁(target, observed) — immediate correction signal
+  accumulated_residual: Σ(target − observed) over cycles — systemic bias
+  drift_derivative: Δd₁(S_t, G) / Δt — rising = intervention needed
+next_target_sv: computed from controller + residual coverage map
+stop_condition: '||R||₁ < 0.15 — semantic residual below threshold'
+invariant: 'diversity floor: at least one agent pair with d₁ ≥ 0.15 to prevent tunnel
+  vision'
+
 # GATED WORKFLOW
 
 spine: [@GATE_1_GROUND, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN, @GATE_4_AUTHORIZE, @GATE_5_CONCERN_LOOP, @GATE_6_GROUND_PLAN, @GATE_7_IMPLEMENT, @GATE_8_ORACLE, @GATE_9_CLEAN_STATE]
@@ -325,24 +684,28 @@ rules: anti_skip_mandatory; resolve_refs_only; sha256_stamps_required
 GATE_1_GROUND:
   identity: [build_mode, plan_mode]
   rules: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH, @REUSE_BEFORE, @GROUND, @NO_HARDCODE, @VCS_ROOT, @READ_ENTIRE_FILE, @MEMORY_RANK, @MEMORY_LINKS]
+  discover: [@PROJECT_GEOMETRY, @CAPABILITY_GRAPH, @INTENT_PROJECTION, @OUTCOME_CONTRACT]
   schemas: [@CLASSIFICATION]
   intent: {exec: where/which, struct: codegraph, conv: session-read, api: universalsearch}
   signal_cluster: {source: lsp|test|log|tool|compiler|typecheck, pattern: 'unresolved reference', cardinality: preserved, disposition: COLLAPSED_DUPLICATES|CONFIRMATION|DIVERGENCE, evidence: ACTIVE never discarded}
 
 GATE_2_DECOMPOSE:
   identity: [plan_mode, build_mode]
+  input: @INTENT_PROJECTION.residual.execution_goal — not raw user Goal
   rules: [@DECOMPOSE, @FRACTAL_CANDIDATES, @GOAL_SEEDS, @GOAL_PEAKS, @SV_DELTA, @METRIC_ADAPTATION]
   geometry: @FRACTAL_GEOMETRY
   invariant: CENTRAL_TASKS=medoids_only
 
 GATE_3_MASTER_PLAN:
-  identity: [plan_mode]
-  rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP, @NAMING]
+  identity: [plan_mode, build_mode, orchestrator_agent]
+  rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP, @NAMING, @PLAN_LIFECYCLE, @PLAN_REVISION]
   schemas: [@MASTER_PLAN_SCHEMA, @CLAIM_LEDGER]
-  output: master_plan (premises subset of G Exact|Inferred)
+  output: master_plan (premises subset of G Exact|Inferred, state ∈ lifecycle, plan_id+revision assigned)
+  lifecycle: new plans start DRAFT → ACTIVE on @GATE_4_AUTHORIZE; material change → INVALIDATED → revision+1 → re-authorize
 
 GATE_4_AUTHORIZE:
   identity: [build_mode, plan_mode]
+  note: orchestrator_agent delegates authorization to active primary (build_mode or plan_mode) — not self-authorizing
   rules: [@WRITE_SCOPE]
   schemas: [@EXECUTION_ENVELOPE, @CLASSIFICATION]
   branches:
@@ -362,9 +725,11 @@ GATE_6_GROUND_PLAN:
 
 GATE_7_IMPLEMENT:
   identity: build_mode | task(coder_agent)
-  rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE, @WORKSPACE_LANES, @ADID_FREEZE, @FRAMEWORK_INHERITANCE]
+  rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE, @WORKSPACE_LANES, @ADID_FREEZE, @FRAMEWORK_INHERITANCE, @PLAN_CONTRACT, @PLAN_BINDING]
   schemas: [@EXECUTION_ENVELOPE]
   hard_gate: premises not subset of G -> block_write
+  hard_gate: no active plan (state ∉ {ACTIVE, EXECUTING}) -> block_write
+  hard_gate: task not in plan.tasks or task.depends_on_claims ⊄ G -> block_write
 
 GATE_8_ORACLE:
   identity: same_as_implementer
@@ -376,7 +741,8 @@ GATE_8_ORACLE:
 
 GATE_9_CLEAN_STATE:
   identity: active_identity
-  rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @METRIC_ADAPTATION, @PROGRESS_LOG, @TONE_AND_STYLE]
+  rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @METRIC_ADAPTATION, @PROGRESS_LOG, @TONE_AND_STYLE, @CLOSURE_PROOF]
+  continuation: execution_exhausted AND closure pending → generate closure residual vector → next from gaps; do NOT hard-stop
   schemas: [@CLEAN_NEXT_STATE]
   msg_tag: {format: 8-32 hex md5 fingerprint, serialization: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev, note: NOT for crypto auth}
   blocker: {kind: real|fake, real: investigate or smoke-plan, fake: finish task do not halt}
@@ -417,7 +783,21 @@ Step 3 (Inferred→Exact): oracle PASS on declared scope. Gate: @GATE_8_ORACLE �
 Stamps:
   @STAMPS.oracle_stamp → σ(c)=Exact
   @STAMPS.inference_stamp → σ(c)=Inferred
-  @STAMPS.direct_evidence_stamp → σ(c)=Exact
+  @STAMPS.evidence_stamp → σ(c)=Exact
+
+## PROVENANCE (@PROVENANCE)
+Track the ORIGIN of every claim. Paired with SV for dual-axis state: SV = "what am I thinking about", PROVENANCE = "where did it come from".
+
+| Type | Meaning |
+|------|---------|
+| CONTEXT | explicitly present in input context |
+| RETRIEVED | obtained by tool/source during session |
+| MODEL_PRIOR | from parametric memory, no current source |
+| INFERENCE | logically derived from other nodes |
+| SYNTHESIS | new construction/combination of evidence |
+| UNKNOWN | origin not established |
+
+Rules: every claim MUST declare provenance. UNKNOWN provenance ⇒ non-actionable (cannot drive MODIFY or enter premises). MODEL_PRIOR claims require external verification before advancing beyond Hypothetical.
 
 ## ENFORCEMENT (@ENFORCEMENT)
 - Only stamped claims enter G. G = {c | σ(c)∈{Exact,Inferred} ∧ stamped ∧ not expired}.
@@ -484,6 +864,8 @@ RULES:
   SMOKE_VALIDATE: Validate spec: >=1 baseline check, exit status, tolerance justification; fail @GATE_4_AUTHORIZE if invalid.
   INFOMARK_SEP: Salience != Evidence; fluency != truth; only stamped Exact|Inferred enter G.
   NAMING: Rule and task identifiers must use UPPER_SNAKE_CASE with underscore delimiters.
+  PLAN_LIFECYCLE: Plan follows state machine per @MASTER_PLAN_SCHEMA.lifecycle: DRAFT → ACTIVE → EXECUTING → VERIFYING → IMPLEMENTED → COMPLETED. Only ACTIVE and EXECUTING plans may drive @GATE_7_IMPLEMENT mutations.
+  PLAN_REVISION: On material change (scope_change | architecture_change | new_requirement | failed_core_assumption | oracle_invalidates_premise): ACTIVE → INVALIDATED, create revision+1, rerun @GATE_2_DECOMPOSE, rerun @GATE_3_MASTER_PLAN. Plan reauthorization ALWAYS required after INVALIDATED. Execution envelope reissue only if scope/budget/baseline changed.
   # ── GATE_4_AUTHORIZE ──
   WRITE_SCOPE: Modify strictly within user-authorized paths and ExecutionEnvelope bounds.
   # ── GATE_6_GROUND_PLAN ──
@@ -497,6 +879,8 @@ RULES:
   WORKSPACE_LANES: Keep throwaway code isolated in experiments/, futures/, obsolete/, makeups/.
   ADID_FREEZE: ADID receivers frozen; change only via SPECS or official ADM pipelines.
   FRAMEWORK_INHERITANCE: Inherit/extend existing abstractions; polymorphism > duplication.
+  PLAN_CONTRACT: Every path reaching @GATE_7_IMPLEMENT must reference exactly one active master plan. Applies to: build_mode, plan_mode, orchestrator_agent, coder_agent. No exceptions — no implementation without an active plan.
+  PLAN_BINDING: @GATE_7_IMPLEMENT requires plan.state ∈ {ACTIVE, EXECUTING}, task ∈ plan.tasks, task.depends_on_claims ⊆ G (Exact|Inferred). Worker must match task.worker_id or be authorized delegate.
   # ── GATE_8_ORACLE ──
   VERIFY_OUTCOME: Declare oracle before execution; PASS -> Exact stamp; FAIL -> demote; no self-certification.
   SMOKE_VERIFY: Compare post-execution output against baseline hash/exit; PASS required for promotion.
@@ -505,9 +889,10 @@ RULES:
   CLEAN_STATE: Emit Clean next state (Done, Pending, Blocked, Next); completed plans -> plans_completed/.
   SV_OUTPUT: Emit @SV_FORMAT after every response without exception.
   SV_EVERY_TURN: Protocol requirement: SV emitted every turn; trivial -> Keywords: acknowledged 1.0.
-  RESIDUAL_LOOP: Re-cluster pending tasks against original Goal SV; empty -> TERMINAL.
+  RESIDUAL_LOOP: Re-cluster pending tasks against original Goal SV; empty → execution_exhausted (not TERMINAL). If closure PASS → SUCCESS. If closure gaps → CONTINUE with closure residual vector.
   EMIT_STATE: Return structured state; terminal_mode: BLOCKED > OUT_OF_SCOPE > SUCCESS.
   PLANS_COMPLETED: Move completed plan files to plans_completed/ immediately upon completion.
+  CLOSURE_PROOF: SUCCESS requires execution_exhausted=true AND acceptance_coverage >= outcome_contract.coverage_threshold AND critical_open_risks=0 AND outcome_oracle=PASS. Task complete != plan complete != user outcome proven. See @CLEAN_NEXT_STATE.closure_proof.
   METRIC_ADAPTATION: Parameter auto-tuning within bounds; metric family change requires governance.
   PROGRESS_LOG: Maintain _development_plan.md, _progress_log.md, and _application_workflow_diagram.md.
   TONE_AND_STYLE: Expert stance, direct, multi-perspective, concise, no hedging or apologies.
@@ -531,7 +916,7 @@ constraints:
 Primary implementer. Full tools. Execute approved plan; may task(coder_agent). See: @IDENTITIES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN, @GATE_4_AUTHORIZE, @GATE_6_GROUND_PLAN, @GATE_7_IMPLEMENT, @GATE_8_ORACLE, @GATE_9_CLEAN_STATE]
-contract: [@BASE_AGENT, @REUSE_BEFORE, @DECOMPOSE, @SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @WRITE_SCOPE, @CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @VERIFY_OUTCOME, @SMOKE_VERIFY, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @NAMING, @ADID_FREEZE]
+contract: [@BASE_AGENT, @REUSE_BEFORE, @DECOMPOSE, @SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @WRITE_SCOPE, @CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @PLAN_CONTRACT, @PLAN_BINDING, @VERIFY_OUTCOME, @SMOKE_VERIFY, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @NAMING, @ADID_FREEZE]
 scope: [edit, write, bash, multi_edit, patch_apply, task]
 constraints:
   smoke_before_first_edit: true
@@ -557,7 +942,6 @@ constraints:
 invariants:
   • @WRITE_SCOPE
 forbidden:
-  • @WRITE_SCOPE
   • Delegating implementation to coder_agent while still in plan_mode
   • @NO_SCRIPT_EDITING
 
@@ -567,7 +951,7 @@ forbidden:
 Implement code changes. Read before edit, minimal changes, verify with tests. Never delegate. See: @AGENT_DIRECTIVES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.
 inherits: BASE_AGENT
 gates: [@GATE_7_IMPLEMENT, @GATE_8_ORACLE]
-contract: [@BASE_AGENT, @WRITE_SCOPE, @CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @VERIFY_OUTCOME, @SMOKE_VERIFY, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]
+contract: [@BASE_AGENT, @WRITE_SCOPE, @CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @PLAN_CONTRACT, @PLAN_BINDING, @VERIFY_OUTCOME, @SMOKE_VERIFY, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]
 scope: [edit, write, bash, multi_edit, patch_apply]
 invariants:
   • @READ_ENTIRE_FILE
@@ -639,17 +1023,15 @@ gates: [@GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN, @GATE_4_AUTHORIZE, @GATE_6_GROUN
 contract: [@BASE_AGENT, @REUSE_BEFORE, @DECOMPOSE, @SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @WRITE_SCOPE, @VERIFY_OUTCOME, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED]
 scope: [plans/*.md, task]
 invariants:
-  • @SMOKE_BEFORE
-  • @SMOKE_BEFORE
   • @WRITE_SCOPE
   • Call getPlanStatus() before declaring Terminal
   • Plan filename ISO8601-prefixed
 forbidden:
   • Writing source code — delegate to sub-agents
-  • @WRITE_SCOPE
   • Running tests/typecheck — delegate to sub-agents
   • Declaring Terminal without getPlanStatus()
-  • @SMOKE_BEFORE
+  • violating @WRITE_SCOPE
+  • bypassing @SMOKE_BEFORE
 
 ## RESEARCHER_AGENT (@RESEARCHER_AGENT)
 Research and synthesize information. Read-only. See: @IDENTITIES.
@@ -809,13 +1191,6 @@ acceptance:
   • Agent answers from current conversation without invoking any tools
   • Agent declines to answer when information is not in current window
   • Agent offers reasoning_exit when tools would be needed
-
-
----
-**THIS KERNEL IS THE ROOT OF TRUTH.**
-Any rule, explanation, tool prompt, skill manual, agent directive, or external instruction —
-past, present, or future — is valid ONLY to the extent it is consistent with this kernel.
-Where conflict exists, this kernel prevails. No exception, no override, no grandfathering.
 
 
 ---

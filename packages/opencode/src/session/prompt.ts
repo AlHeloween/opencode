@@ -21,7 +21,6 @@ import {
   usable,
 } from "./overflow"
 import { Jobs } from "../jobs"
-import { CacheControl } from "./cache-control"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
@@ -1871,13 +1870,9 @@ export const layer = Layer.effect(
               }
             }
 
-            // Load previous fingerprint now so it's available for post-process audit.
-            // The actual fingerprint + audit runs AFTER handle.process() because
-            // llm.ts:chat.system.transform can modify `system` by reference.
-            const prevFP = CacheControl.getPrevFingerprint(sessionID, model.id, checkpointAgentName)
-
-            // Checkpoint message reuse: longest ordered prefix with matching IDs
-            // and content fingerprints (detects in-place edits). Suffix re-converted.
+            // Checkpoint message reuse: longest ordered prefix with matching IDs.
+            // History is append-only; edited messages get a new ID or invalidate
+            // the checkpoint before this path runs. Suffix is re-converted.
             // Path system stays frozen until compact — only messages use delta logic.
             //
             // CRITICAL: ModelMessage[] is NOT 1:1 with messageIDs. An assistant
@@ -1888,9 +1883,7 @@ export const layer = Layer.effect(
             // Diff/checkpoint IDs are plain strings (CheckpointData.messageIDs); do not brand.
             let modelMessageIDs: string[] = msgs.map((m) => m.info.id)
             if (checkpointUsable) {
-              const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable, (m) =>
-                CacheControl.messageFingerprint(m).hash,
-              )
+              const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable)
               const prefixModel = Checkpoint.takeModelPrefix(checkpointUsable, prefixLen)
               if (prefixModel === null) {
                 // Legacy checkpoint without modelMessageCounts — full reconvert.
@@ -1936,34 +1929,9 @@ export const layer = Layer.effect(
               checkpoint: !!checkpointUsable,
             })
 
-            // ── Post-process fingerprint + audit ───────────────────────────
-            // Capture system after handle.process(): llm.ts:chat.system.transform
-            // may have modified `system` by reference. This snapshot is the real
-            // provider-facing state for both diff logging and fingerprint storage.
+            // Capture the provider-facing system after process():
+            // llm.ts:chat.system.transform may have modified it by reference.
             const systemForDiff = [...system]
-            const finalFP = CacheControl.requestFingerprint(system, msgs, {
-              sessionId: sessionID,
-              modelId: model.id,
-              providerId: model.providerID,
-            }, CacheControl.toolSchemasFromRecord(tools))
-            CacheControl.storePrevFingerprint(sessionID, model.id, finalFP, cacheAgent.name)
-
-            // Audit cache chain: compare previous vs post-transform fingerprints.
-            // Only real prefix invalidation (broken) is a bug; appends (extend) are normal.
-            const audit = CacheControl.auditCache(prevFP, finalFP, cacheAgent.name)
-            if (audit.kind === "broken") {
-              Log.Default.warn(`bug: ${CacheControl.formatAuditEntry(audit)}`, {
-                bannerLen: system[0]?.length ?? 0,
-                rulesCount: rules.length,
-                instructionsCount: instructions.length,
-                skillsLen: skills?.length ?? 0,
-                systemTotalLen: system.join("\n").length,
-              })
-            } else if (audit.kind === "extend") {
-              Log.Default.debug(CacheControl.formatAuditEntry(audit), {
-                hit_ratio: audit.estimatedHitRatio,
-              })
-            }
 
             // Diff logging — suffix-only format (O(new messages), not full history).
             // Cold restore with checkpoint: skip prev re-format of entire checkpoint;
@@ -1981,9 +1949,7 @@ export const layer = Layer.effect(
               // Suffix-only: DB prefix → model-message end index (tool calls expand 1:N).
               const dbPrefix =
                 checkpointUsable != null
-                  ? Checkpoint.reusablePrefixLength(msgs, checkpointUsable, (m) =>
-                      CacheControl.messageFingerprint(m).hash,
-                    )
+                  ? Checkpoint.reusablePrefixLength(msgs, checkpointUsable)
                   : 0
               const modelFrom =
                 checkpointUsable != null
@@ -2163,7 +2129,6 @@ export const layer = Layer.effect(
                 identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
                 messages: converted.messages,
                 messageIDs: visibleAfter.map((item) => item.info.id),
-                messageFingerprints: visibleAfter.map((item) => CacheControl.messageFingerprint(item).hash),
                 modelMessageCounts: converted.counts,
                 model: { providerID: model.providerID, modelID: model.id },
                 agent: cacheAgent.name,
@@ -2252,9 +2217,7 @@ export const layer = Layer.effect(
                     ? [...cachedMsgs, ...MessageV2.messagesSince(sessionID, lastKnownId)]
                     : yield* MessageV2.filterCompactedEffect(sessionID)
                 const prefixLen = checkpointUsable
-                  ? Checkpoint.reusablePrefixLength(checkpointMsgs, checkpointUsable, (m) =>
-                      CacheControl.messageFingerprint(m).hash,
-                    )
+                  ? Checkpoint.reusablePrefixLength(checkpointMsgs, checkpointUsable)
                   : 0
                 // modelMessageCounts must stay parallel to messageIDs. Without
                 // counts (legacy slot), reconvert the full set so the new slot
@@ -2293,7 +2256,6 @@ export const layer = Layer.effect(
                     identityFingerprint: identityFp,
                     messages: fullModel,
                     messageIDs: checkpointMsgs.map((m) => m.info.id),
-                    messageFingerprints: checkpointMsgs.map((m) => CacheControl.messageFingerprint(m).hash),
                     modelMessageCounts,
                     model: { providerID: model.providerID, modelID: model.id },
                 agent: checkpointAgentName,

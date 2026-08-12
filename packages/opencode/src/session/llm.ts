@@ -320,8 +320,10 @@ const live: Layer.Layer<
       // Tool definitions are delivered via AI SDK `tools` JSON parameter
       // (function-calling schemas) — no prose duplicate in system messages.
       const isCheckpoint = input.checkpoint === true
-
-      const banner = `[session: ${input.providerCacheKey ?? input.sessionID}]`
+      const isOpenCodeProvider = input.model.providerID.startsWith("opencode")
+      // Direct providers do not need a session identity in the model context.
+      // Keeping their system prompt identical across sessions maximizes prefix reuse.
+      const banner = isOpenCodeProvider ? `[session: ${input.providerCacheKey ?? input.sessionID}]` : ""
 
       // Identity is delivered via modeInstructionForTransition as a one-shot
       // conversation notify (synthetic user part) — NOT in system prompt.
@@ -694,8 +696,9 @@ const live: Layer.Layer<
           ? {}
           : { system: system.map((content) => ({ role: "system" as const, content })) }),
         headers: {
-          ...(input.model.providerID.startsWith("opencode")
+          ...(isOpenCodeProvider
             ? {
+                "x-session-affinity": input.sessionID,
                 "x-opencode-project": Instance.project.id,
                 "x-opencode-session": input.sessionID,
                 "x-opencode-request": input.user.id,
@@ -703,7 +706,6 @@ const live: Layer.Layer<
                 "User-Agent": `opencode/${InstallationVersion}`,
               }
             : {
-                "x-session-affinity": input.sessionID,
                 ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
                 "User-Agent": `opencode/${InstallationVersion}`,
               }),

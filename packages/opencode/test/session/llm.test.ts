@@ -420,6 +420,10 @@ describe("session.llm.stream", () => {
         expect(url.pathname.startsWith("/v1/")).toBe(true)
         expect(url.pathname.endsWith("/chat/completions")).toBe(true)
         expect(headers.get("Authorization")).toBe("Bearer test-key")
+        expect(headers.get("x-session-affinity")).toBeNull()
+        expect((body.messages as Array<{ role: string; content: string }>)
+          .some((message) => message.role === "system" && message.content.includes("[session:")))
+          .toBe(false)
 
         expect(body.model).toBe(resolved.api.id)
         expect(body.temperature).toBe(0.4)

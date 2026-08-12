@@ -270,7 +270,7 @@ describe("Checkpoint", () => {
     await Effect.runPromise(Checkpoint.remove(sid))
   })
 
-  test("reusablePrefixLength stops at content fingerprint change", () => {
+  test("reusablePrefixLength reuses matching ordered message IDs", () => {
     const data = makeCheckpointData({
       messageIDs: ["a", "b", "c"],
       messages: [
@@ -278,20 +278,16 @@ describe("Checkpoint", () => {
         { role: "assistant", content: "2" },
         { role: "user", content: "3" },
       ],
-      messageFingerprints: ["fp1", "fp2", "fp3"],
     })
     const msgs = [
       { info: { id: "a" }, parts: [] },
       { info: { id: "b" }, parts: [] },
       { info: { id: "c" }, parts: [] },
     ] as any
-    const fp = (m: any) => (m.info.id === "b" ? "DIRTY" : `fp${m.info.id === "a" ? "1" : m.info.id === "b" ? "2" : "3"}`)
-    // a matches fp1, b mismatches → prefix 1
-    expect(Checkpoint.reusablePrefixLength(msgs, data, (m) => (m.info.id === "a" ? "fp1" : "x"))).toBe(1)
-    expect(Checkpoint.reusablePrefixLength(msgs, data, (m) => data.messageFingerprints![msgs.indexOf(m)])).toBe(3)
+    expect(Checkpoint.reusablePrefixLength(msgs, data)).toBe(3)
   })
 
-  test("reusablePrefixLength without fingerprints trusts ID order", () => {
+  test("reusablePrefixLength stops at the first different message ID", () => {
     const data = makeCheckpointData({
       messageIDs: ["a", "b"],
       messages: [
@@ -299,12 +295,11 @@ describe("Checkpoint", () => {
         { role: "assistant", content: "2" },
       ],
     })
-    delete (data as any).messageFingerprints
     const msgs = [
       { info: { id: "a" }, parts: [] },
-      { info: { id: "b" }, parts: [] },
+      { info: { id: "replacement" }, parts: [] },
     ] as any
-    expect(Checkpoint.reusablePrefixLength(msgs, data, () => "ignored")).toBe(2)
+    expect(Checkpoint.reusablePrefixLength(msgs, data)).toBe(1)
   })
 
   test("reusablePrefixLength is not capped by expanded model message count", () => {
@@ -324,17 +319,13 @@ describe("Checkpoint", () => {
           content: [{ type: "tool-result", toolCallId: "call_1", toolName: "bash", output: { type: "text", value: "ok" } }],
         },
       ] as any,
-      messageFingerprints: ["fp_u", "fp_a"],
       modelMessageCounts: [1, 2],
     })
     const msgs = [
       { info: { id: "user1" }, parts: [] },
       { info: { id: "asst1" }, parts: [] },
     ] as any
-    expect(Checkpoint.reusablePrefixLength(msgs, data, () => "fp_u")).toBe(1)
-    expect(
-      Checkpoint.reusablePrefixLength(msgs, data, (m) => (m.info.id === "user1" ? "fp_u" : "fp_a")),
-    ).toBe(2)
+    expect(Checkpoint.reusablePrefixLength(msgs, data)).toBe(2)
   })
 
   test("takeModelPrefix includes tool-result messages after assistant tool-call", () => {

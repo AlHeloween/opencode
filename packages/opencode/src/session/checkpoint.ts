@@ -61,13 +61,6 @@ export interface CheckpointData {
   messages: ModelMessage[]
   messageIDs: string[]
   /**
-   * Parallel to messageIDs: CacheControl.messageFingerprint(msg).hash at save.
-   * Used to detect in-place content changes (background-jobs, tool parts, etc.)
-   * so load re-converts from the first dirty message instead of reusing stale
-   * model-ready bytes. Optional for older slots; next save fills them.
-   */
-  messageFingerprints?: string[]
-  /**
    * Parallel to messageIDs: how many ModelMessage entries each DB message
    * produced in `messages`. Required for correct prefix reuse because
    * convertToModelMessages expands a single assistant tool-call message into
@@ -220,27 +213,23 @@ export function dropMemory(sessionID: string): void {
 }
 
 /**
- * Longest reusable prefix: same message IDs in order, content fingerprints match.
- * Suffix must be re-converted (new messages or in-place edits from first dirty).
- * Legacy slots without messageFingerprints trust ID order only (next save fills fps).
+ * Longest reusable prefix: same message IDs in order.
+ * Message history is append-only; edits create a new ID or explicitly invalidate
+ * the checkpoint, so IDs are sufficient and content fingerprints are unnecessary.
  *
- * NOTE: The returned length indexes messageIDs / messageFingerprints / modelMessageCounts
+ * NOTE: The returned length indexes messageIDs / modelMessageCounts
  * (DB messages), NOT data.messages. Use modelMessageEnd / takeModelPrefix to slice
  * ModelMessage[] — tool results expand so messages.length can exceed messageIDs.length.
  */
 export function reusablePrefixLength(
   msgs: MessageV2.WithParts[],
   data: CheckpointData,
-  fingerprint: (msg: MessageV2.WithParts) => string,
 ): number {
   // Cap by messageIDs only — do not use data.messages.length (1:N tool expansion).
   const n = Math.min(msgs.length, data.messageIDs.length)
-  const fps = data.messageFingerprints
-  const hasFp = Array.isArray(fps) && fps.length === data.messageIDs.length
   let prefix = 0
   for (let i = 0; i < n; i++) {
     if (msgs[i].info.id !== data.messageIDs[i]) break
-    if (hasFp && fps![i] !== fingerprint(msgs[i])) break
     prefix++
   }
   return prefix
@@ -477,7 +466,6 @@ export function clone(input: {
           ...data,
           messages: [],
           messageIDs: [],
-          messageFingerprints: [],
           turn: 0,
           timestamp: Date.now(),
         },

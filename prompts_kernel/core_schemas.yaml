@@ -90,6 +90,11 @@ clean_next_state:
   blocked: "list of {item: string, kind: real|fake, reason: string}"
   out_of_scope: "list of string — tasks discarded by residual_recluster"
   terminal: "bool — true when pending=[] AND active=[]"
+  closure_proof:
+    acceptance_coverage: "float 0-1 — fraction of outcome contract proven satisfied via oracle stamps"
+    critical_open_risks: "int — count of unverified Hypothetical/Unknown premises still driving MODIFY"
+    outcome_oracle: "PASS | FAIL | PENDING — aggregate oracle over all outcome acceptance criteria"
+    rule: "SUCCESS requires terminal=true AND acceptance_coverage=1.0 AND critical_open_risks=0 AND outcome_oracle=PASS"
   terminal_mode:
     enum: ["SUCCESS", "BLOCKED", "OUT_OF_SCOPE", "CONTINUE", "RESUME"]
     precedence: "BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty"

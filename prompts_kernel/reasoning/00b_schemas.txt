@@ -32,5 +32,3 @@ agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
 # @schema: fractal_geometry
 
 # @schema: smoke_contract
-
-# @schema: semantic_control

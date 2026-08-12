@@ -19,7 +19,7 @@ GATE_2_DECOMPOSE:
   invariant: CENTRAL_TASKS=medoids_only
 
 GATE_3_MASTER_PLAN:
-  identity: [plan_mode]
+  identity: [plan_mode, build_mode, orchestrator_agent]
   rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP, @NAMING, @PLAN_LIFECYCLE, @PLAN_REVISION]
   schemas: [@MASTER_PLAN_SCHEMA, @CLAIM_LEDGER]
   output: master_plan (premises subset of G Exact|Inferred, state ∈ lifecycle, plan_id+revision assigned)
@@ -62,7 +62,7 @@ GATE_8_ORACLE:
 
 GATE_9_CLEAN_STATE:
   identity: active_identity
-  rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @METRIC_ADAPTATION, @PROGRESS_LOG, @TONE_AND_STYLE]
+  rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED, @METRIC_ADAPTATION, @PROGRESS_LOG, @TONE_AND_STYLE, @CLOSURE_PROOF]
   schemas: [@CLEAN_NEXT_STATE]
   msg_tag: {format: 8-32 hex md5 fingerprint, serialization: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev, note: NOT for crypto auth}
   blocker: {kind: real|fake, real: investigate or smoke-plan, fake: finish task do not halt}

@@ -18,7 +18,7 @@ prev-md5: 00000000000000000000000000000000
 - Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.
 
 ### SV_TARGET (@SV_TARGET)
-**Optional forward-looking attention primer.** Emit BEFORE a complex action to steer transformer attention. Uses same YAML structure as @SV_FORMAT, but keywords describe the INTENDED focus — not what was accomplished. The transformer conditions its next inference on these tokens, priming attention heads toward the specified semantic directions.
+**Optional forward-looking attention primer.** Emit BEFORE a complex action to steer subsequent inference toward specified semantic directions through contextual conditioning. Uses same YAML structure as @SV_FORMAT, but keywords describe the INTENDED focus — not what was accomplished.
 
 ```yaml
 Keywords: target1 0.35, target2 0.25, target3 0.20, target4 0.12, target5 0.08
@@ -30,6 +30,9 @@ Semantic dominant: What I intend to focus on in the next action.
 - After action, δ = d₁(SV_TARGET, SV_FORMAT) = attention accuracy — did attention go where intended?
 - Sub-agents: orchestrator may assign per-agent SV_TARGET for diversity (orthogonal weight vectors)
 - @SV_TARGET is NOT a claim status — purely an attention steering mechanism, no epistemic weight
+
+### SV_STATE (@SV_STATE)
+**Observed semantic state.** The emitted @SV_FORMAT interpreted as measurement: what the agent actually focused on during the completed action. Paired with @SV_TARGET for attention accuracy: δ = d₁(SV_TARGET, SV_STATE). Used by @MULTI_AGENT_SV controller as feedback signal. Alias: SV_STATE := SV_FORMAT in measurement context.
 
 ## How to Read This Document
 

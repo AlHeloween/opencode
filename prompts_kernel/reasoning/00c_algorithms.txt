@@ -106,3 +106,5 @@ objective function: J = α·Alignment + β·Coverage + γ·Novelty − δ·Drift
   maximize alignment to Goal while preserving inter-agent diversity
 
 invariant: diversity > 0 — homogeneous agents (all d₁(S_i, S_j) → 0) produce tunnel vision; enforce d₁(S_i, S_j) ≥ 0.15 for at least one pair
+
+# @schema: semantic_control

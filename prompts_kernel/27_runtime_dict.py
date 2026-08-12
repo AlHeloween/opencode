@@ -51,7 +51,8 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
     "OBSOLETE_CLEANUP": "GATE_8_ORACLE",
     # GATE_9_CLEAN_STATE
     "CLEAN_STATE": "GATE_9_CLEAN_STATE", "SV_OUTPUT": "GATE_9_CLEAN_STATE", "SV_EVERY_TURN": "GATE_9_CLEAN_STATE",
-    "RESIDUAL_LOOP": "GATE_9_CLEAN_STATE", "EMIT_STATE": "GATE_9_CLEAN_STATE", "PLANS_COMPLETED": "GATE_9_CLEAN_STATE",
+    "RESIDUAL_LOOP": "GATE_9_CLEAN_STATE", "EMIT_STATE": "GATE_9_CLEAN_STATE",     "PLANS_COMPLETED": "GATE_9_CLEAN_STATE",
+    "CLOSURE_PROOF": "GATE_9_CLEAN_STATE",
     "METRIC_ADAPTATION": "GATE_9_CLEAN_STATE",
     "PROGRESS_LOG": "GATE_9_CLEAN_STATE",
 })
@@ -115,6 +116,7 @@ RUNTIME_RULES = MappingProxyType({
     "RESIDUAL_LOOP": "Re-cluster pending tasks against original Goal SV; empty -> TERMINAL.",
     "EMIT_STATE": "Return structured state; terminal_mode: BLOCKED > OUT_OF_SCOPE > SUCCESS.",
     "PLANS_COMPLETED": "Move completed plan files to plans_completed/ immediately upon completion.",
+    "CLOSURE_PROOF": "SUCCESS requires terminal=true AND acceptance_coverage=1.0 AND critical_open_risks=0 AND outcome_oracle=PASS. Task complete != plan complete != user outcome proven. See @CLEAN_NEXT_STATE.closure_proof.",
     "METRIC_ADAPTATION": "Parameter auto-tuning within bounds; metric family change requires governance.",
     "PROGRESS_LOG": "Maintain _development_plan.md, _progress_log.md, and _application_workflow_diagram.md.",
     "TONE_AND_STYLE": "Expert stance, direct, multi-perspective, concise, no hedging or apologies.",
@@ -174,6 +176,7 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "PLAN_BINDING": "plan",
     "PLAN_LIFECYCLE": "plan",
     "PLAN_REVISION": "plan",
+    "CLOSURE_PROOF": "verification",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
@@ -284,6 +287,7 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "NO_SCRIPT_EDITING",
         "PLAN_LIFECYCLE",
         "PLAN_REVISION",
+        "CLOSURE_PROOF",
     ),
     "research": (
         "evidence",

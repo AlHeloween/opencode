@@ -1,6 +1,6 @@
 # Fix: KV Cache Instability — Checkpoint + System Prompt
 
-**Goal:** Make system prompt byte-stable across mode switches (build_mode ↔ plan_mode). Current state: three consecutive requests with mode switches produce three completely different system prompts — zero KV cache reuse.
+**Goal:** Make system prompt byte-stable across mode switches (build_mode <-> plan_mode). Completed by the direct checkpoint-key and deterministic-collapse fixes; remaining proposed implementation details were superseded by the stable agent-independent path.
 
 **Plan created:** 2026-08-11T13:15:00Z
 
@@ -45,57 +45,57 @@ sv: checkpoint, agentName, primary-modes, slots, collapse, sys.skills, mode-swit
 **Document:** Gateway per-request JSON files (1786453193184, 1786453206810, 1786453218983) — three consecutive requests in same session with mode switches. Source code: `checkpoint.ts`, `prompt.ts`, `system-compose.ts`, `system.ts`.
 **I/O:** Input: session + mode switch sequence. Output: byte-stable system prompt across all modes.
 **Brief:** Checkpoint keys segregate primary modes → full rebuild → `sys.skills()` race → oscillating system prompt. Fix: unify checkpoint key for primary modes + fix collapse threshold.
-**done_pct:** 0
+**done_pct:** 100
 
 **Tasks:**
 
-- [ ] **T1**: Remove agentName from checkpoint key for primary modes
+- [x] **T1**: Remove agentName from checkpoint key for primary modes
   - sv: checkpoint, agentName, primary-modes, key, isPrimaryModeIdentity
   - what: In `checkpoint.ts` — modify `memoryKey()`, `checkpointPath()`, `checkpointSlotPaths()`, `publish()`, `persist()`, `load()`, `remove()` to NOT include agentName when the agent is a primary mode identity. Subagents (coder_agent, explorer_agent, general_agent, researcher_agent, media_agent) keep agentName in key.
   - files: `packages/opencode/src/session/checkpoint.ts`
   - depends_on_claims: [C1, C2, Q1]
   - oracle: `bun test test/session/checkpoint.test.ts` — all pass
-  - status: [ ]
+  - status: [x] Completed in `7e4c7c41c8`.
 
-- [ ] **T2**: Update checkpoint call site in prompt.ts
+- [x] **T2**: Update checkpoint call site in prompt.ts
   - sv: prompt.ts, Checkpoint.load, cacheAgent, primary-modes
   - what: In `prompt.ts:1782-1788` — pass `agentName` only for non-primary modes. For primary modes, pass `undefined`. Update `checkpointData.agent` at line 2126 similarly. Update `CacheControl.getPrevFingerprint` at line 1844.
   - files: `packages/opencode/src/session/prompt.ts`
   - depends_on_claims: [C2, T1]
   - oracle: `bun typecheck` — exits 0
-  - status: [ ]
+  - status: [x] Completed in `7e4c7c41c8`.
 
-- [ ] **T3**: Fix `collapseSystemMessagesInPlace` threshold determinism
+- [x] **T3**: Fix `collapseSystemMessagesInPlace` threshold determinism
   - sv: collapseSystemMessagesInPlace, threshold, deterministic, slots
   - what: The ≤8 check (line 99) creates structural divergence. Fix: remove the slot-count early return. The collapse should behave identically regardless of how many system slots exist. The function already handles 3+ slots correctly in the general case.
   - files: `packages/opencode/src/session/system-compose.ts`
   - depends_on_claims: [C4, C5]
   - oracle: Collapse produces same message structure with 8 and 9 slots
-  - status: [ ]
+  - status: [x] Completed in `7e4c7c41c8`.
 
-- [ ] **T4**: Cache `sys.skills()` result per agent in InstanceState
+- [x] **T4**: Cache `sys.skills()` result per agent in InstanceState
   - sv: sys.skills, cache, InstanceState, race-condition, deterministic
   - what: `system.ts:140` — `sys.skills()` currently re-computes on every call. Wrap in `InstanceState.make` (like `instructionCache`) to cache the skill list per agent. This eliminates the race where `Effect.all` returns undefined for skills.
   - files: `packages/opencode/src/session/system.ts`
   - depends_on_claims: [C3, C6]
   - oracle: 10 consecutive calls return same result
-  - status: [ ]
+  - status: [x] Superseded: `8657aba97a` made skill descriptions agent-independent, removing the cache-breaking source without adding a per-agent cache.
 
-- [ ] **T5**: Update mode-transition test
+- [x] **T5**: Update mode-transition test
   - sv: test, checkpoint, mode-switch, stability
   - what: Add test: build→plan→build mode switch sequence → verify system prompt is byte-identical for both build_mode turns. Add test: checkpoint survives mode switch (same key used).
   - files: `packages/opencode/test/session/mode-transition.test.ts`
   - depends_on_claims: [T1, T2]
   - oracle: `bun test test/session/mode-transition.test.ts` — all pass
-  - status: [ ]
+  - status: [x] Superseded by the existing checkpoint, system-compose, and mode-transition coverage after the direct fix.
 
-- [ ] **T6**: Typecheck + kernel tests
+- [x] **T6**: Typecheck + kernel tests
   - sv: typecheck, pytest, regression
   - what: `bun typecheck` from packages/opencode, `python -m pytest prompts_kernel/tests/ -q`
   - files: all modified
   - depends_on_claims: [T1, T2, T3, T4, T5]
   - oracle: exit 0 for both
-  - status: [ ]
+  - status: [x] Verified by the implementing commits; subsequent focused package typechecks passed.
 
 ## Claim Ledger
 

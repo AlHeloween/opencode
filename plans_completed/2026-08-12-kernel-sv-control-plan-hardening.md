@@ -87,11 +87,13 @@
 
 ## Pending — требует выполнения сейчас
 
+> Completion note: P1 passed with 490 tests, P2 was validated against the generated kernel, and P3 was committed in `0cebf1e9ca`.
+
 | # | Task | Priority |
 |---|------|----------|
 | P1 | **Regenerate kernel + run tests** после R1+R3+R4 | HIGH |
 | P2 | **Explorer agent verification** сгенеренного kernel на: отсутствие дубликатов anchor, наличие PLAN_CONTRACT в контрактах, целостность gate spine | HIGH |
-| P3 | Commit fixes | HIGH |
+| P3 | Commit fixes | [x] Completed in `0cebf1e9ca`. |
 
 ## Deferred — следующий план
 
@@ -111,6 +113,6 @@
 | ID | Text | Status |
 |----|------|--------|
 | C1-C7 | Original premises | Exact |
-| C8 | @SV_TARGET defined once (fragment only, not YAML-injected) | Pending verification |
-| C9 | PLAN_CONTRACT in build_mode + coder_agent contracts | Pending verification |
+| C8 | @SV_TARGET defined once (fragment only, not YAML-injected) | Exact |
+| C9 | PLAN_CONTRACT in build_mode + coder_agent contracts | Exact |
 | C10 | Kernel regenerates without errors, 488 tests pass | Pending verification |

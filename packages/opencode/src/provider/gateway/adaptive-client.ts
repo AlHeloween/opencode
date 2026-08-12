@@ -16,7 +16,7 @@ import path from "path"
 import { EOL } from "os"
 import fs from "fs"
 import type { AsyncLogger, PerRequestLogger } from "./async-logger"
-import { make as makeAsyncLogger, makePerRequest } from "./async-logger"
+import { make as makeAsyncLogger, makePerRequest, readableResponseBody } from "./async-logger"
 import type { ResolvedDebugConfig } from "./debug-config"
 
 const log = Log.create({ service: "gateway.adaptive-client" })
@@ -100,6 +100,17 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
     }
   }
   return sanitized
+}
+
+/**
+ * Produce wire-format headers for logging: no auth, no internal x-opencode-*.
+ * Matches both transport filters while keeping credentials out of diagnostics.
+ */
+function wireHeaders(headers: Record<string, string>): Record<string, string> {
+  const withoutInternal = Object.fromEntries(
+    Object.entries(headers).filter(([k]) => !k.toLowerCase().startsWith("x-opencode-")),
+  )
+  return sanitizeHeaders(withoutInternal)
 }
 
 /**
@@ -343,27 +354,13 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
     if (perRequestLogger && debugCfg.perRequest) {
       perRequestLogger.log({
-        level: "INFO",
-        event: "gateway.request.per_request",
+        type: "request",
         timestamp: startTime,
-        requestId,
-        url,
+        id: requestId,
         method: (init?.method || "GET").toUpperCase(),
-        provider,
-        model,
-        endpointKind,
-        shapeClass,
-        isStream,
-        key: keyStr,
-        healthScore: Math.round(score * 100) / 100,
-        policy: {
-          minLaunchIntervalMs: policy.minLaunchIntervalMs,
-          streamMinLaunchIntervalMs: policy.streamMinLaunchIntervalMs,
-          maxInflight: policy.maxInflight,
-          maxStreams: policy.maxStreams,
-        },
-        headers: sanitizedLogHeaders,
-        ...(rawBody && { body: rawBody, bodySize: rawBody.length }),
+        url,
+        headers: wireHeaders(headers),
+        ...(rawBody && { body: rawBody }),
       })
 
       // Write request-to-request git-format diff as a separate .diff file
@@ -509,6 +506,37 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       sample.socketAcquiredAt = Date.now()
       let response: Response
       let usedProtocol: "h2" | "http/1.1" = "http/1.1"
+
+      // ── Raw wire dump (debug) ──
+      if (debugCfg.perRequest && init?.body) {
+        try {
+          const wireDir = path.join(
+            process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway"),
+            "raw-wire",
+          )
+          fs.mkdirSync(wireDir, { recursive: true })
+          const d = new Date()
+          const pad = (n: number, len = 2) => String(n).padStart(len, "0")
+          const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
+            `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
+          const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
+          const bodyStr = typeof init.body === "string" ? init.body : JSON.stringify(init.body)
+          fs.writeFileSync(
+            path.join(wireDir, `${iso}-${sanitizedId}.json`),
+            JSON.stringify({
+              url,
+              method: (init?.method || "POST").toUpperCase(),
+              headers: wireHeaders(headers),
+              body: tryFormatJSON(bodyStr),
+              body_raw: bodyStr,
+            }, null, 2).replace(/\n/g, EOL),
+          )
+        } catch (e) {
+          log.debug("raw-wire dump failed", { error: String(e), requestId })
+        }
+      }
+      // ── End raw wire dump ──
+
       try {
         const useH2 = modelProtocol === "h2"
 
@@ -752,14 +780,17 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                     const responseDir = path.join(responseLogDir, "per-response")
                     fs.mkdirSync(responseDir, { recursive: true })
                     const responsePath = path.join(responseDir, `${iso}-${sanitizedId}.json`)
+                    const resHeaders: Record<string, string> = {}
+                    response.headers.forEach((v, k) => { resHeaders[k] = v })
                     fs.writeFileSync(responsePath, JSON.stringify({
-                      level: "INFO",
-                      event: "gateway.response.per_response",
+                      type: "response",
                       timestamp: d.getTime(),
-                      requestId,
+                      id: requestId,
                       status: response.status,
-                      body: raw,
-                    }, null, 2) + EOL)
+                      headers: wireHeaders(resHeaders),
+                      body: readableResponseBody(raw, isStream),
+                      body_raw: raw,
+                    }, null, 2).replace(/\n/g, EOL))
                     // Write response-to-response diff (fire-and-forget, flush is sync)
                     if (prevResponseBody) {
                       const prevBody = tryFormatJSON(prevResponseBody.body)

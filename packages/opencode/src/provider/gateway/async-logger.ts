@@ -16,7 +16,7 @@ export interface PerRequestLogger {
   dispose: () => Promise<void>
 }
 
-function readableBody(body: unknown) {
+export function readableBody(body: unknown) {
   if (typeof body !== "string") return body
   if (!body.trimStart().startsWith("{")) return body
   try {
@@ -29,15 +29,47 @@ function readableBody(body: unknown) {
   }
 }
 
+/**
+ * Format response body for logging. For SSE streams, split into data: lines
+ * without JSON-parsing (preserves \uXXXX escapes). For non-streams, delegate to readableBody.
+ */
+export function readableResponseBody(body: unknown, isStream: boolean): unknown {
+  if (typeof body !== "string") return body
+  if (!isStream) return readableBody(body)
+
+  const chunks: string[] = []
+  const lines = body.split("\n")
+  for (const line of lines) {
+    if (line.startsWith("data: ")) {
+      const json = line.slice(6)
+      if (json === "[DONE]") continue
+      chunks.push(json)
+    }
+  }
+  return chunks.length > 0 ? chunks : body
+}
+
+/**
+ * Attempt to format a JSON string for readability while preserving original for fidelity.
+ * Returns { formatted, raw } — formatted has line breaks, raw preserves \uXXXX.
+ */
+function formatBodyForLog(raw: string): { formatted: unknown; raw: string } {
+  try {
+    return { formatted: JSON.parse(raw) as unknown, raw }
+  } catch {
+    return { formatted: raw, raw }
+  }
+}
+
 export function formatPerRequestEntry(entry: Record<string, unknown>) {
-  return JSON.stringify(
-    {
-      ...entry,
-      ...(entry.body !== undefined && { body: readableBody(entry.body) }),
-    },
-    null,
-    2,
-  ) + EOL
+  const result = { ...entry }
+  // If body is a string, provide both formatted (parsed, readable) and raw (unicode-preserved)
+  if (typeof result.body === "string" && (result.body as string).trimStart().startsWith("{")) {
+    const { formatted, raw } = formatBodyForLog(result.body as string)
+    result.body = formatted
+    result.body_raw = raw
+  }
+  return JSON.stringify(result, null, 2).replace(/\n/g, EOL)
 }
 
 export function make(input: {

@@ -6,6 +6,12 @@ import type { NormalizedError } from "./errors"
 
 const log = Log.create({ service: "gateway/h1" })
 
+function cleanHeaders(headers: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([key]) => !key.toLowerCase().startsWith("x-opencode-")),
+  )
+}
+
 export interface H1Response {
   status: number
   headers: Headers
@@ -32,7 +38,7 @@ export async function request(options: H1RequestOptions): Promise<H1Response> {
 
     const response = await fetch(options.url, {
       method: options.method,
-      headers: options.headers,
+      headers: cleanHeaders(options.headers),
       body: options.body as BodyInit | null | undefined,
       signal: mergedSignal,
     })

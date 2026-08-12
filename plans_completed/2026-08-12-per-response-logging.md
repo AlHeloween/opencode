@@ -1,12 +1,14 @@
 # Per-response logging with diffs
 
+**Status:** Closed 2026-08-12. Response files and response-to-response diffs are implemented in `adaptive-client.ts`; the active plan was stale.
+
 ## Goal
 Добавить per-response файлы (`per-response/{iso}-{requestId}.json`) и диффы между ответами — зеркально per-request.
 
-## Current state
-- `adaptive-client.ts:342-365` — per-request JSON ✅
-- `adaptive-client.ts:367-391` — per-request `.diff` ✅
-- `adaptive-client.ts:707-742` — response body inline в gateway.log ❌ (нет отдельного файла, нет диффа)
+## Outcome
+- `adaptive-client.ts` writes a per-response JSON file after the response body is collected.
+- Response-to-response diffs use the captured raw body.
+- The per-response JSON now carries both a readable body and `body_raw` for exact debug comparison.
 
 ## Tasks
 

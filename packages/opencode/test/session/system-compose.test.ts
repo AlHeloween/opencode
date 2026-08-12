@@ -93,8 +93,13 @@ describe("system-compose provider assembly", () => {
       checkpoint: false,
     })
     const collapsed = collapseSystemMessages(raw, "UE")
-    // 7 slots (≤8) → no collapse, identical to raw
-    expect(collapsed).toEqual(raw)
+    expect(collapsed).toEqual([
+      "UE",
+      "REASONING\nKERNEL",
+      "RULES",
+      "SKILLS\nENV\nINSTRUCTIONS",
+      "[session: ses_1]\nActive tools: a\nAGENT_PROMPT",
+    ])
     // Session only in mutable tail, never in path tiers
     const mutable = collapsed[collapsed.length - 1]
     expect(mutable).toContain("[session: ses_1]")

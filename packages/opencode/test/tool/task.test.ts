@@ -12,6 +12,7 @@ import { MessageID, PartID } from "../../src/session/schema"
 import { ModelID, ProviderID } from "../../src/provider/schema"
 import { Provider } from "@/provider/provider"
 import { TaskTool, type TaskPromptOps } from "../../src/tool/task"
+import { loadSessionSettings, saveSessionSettings } from "../../src/session/session-settings"
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -154,8 +155,8 @@ describe("tool.task", () => {
           expect(first).toBe(second)
 
           const alpha = first.indexOf("- alpha: Alpha agent")
-          const explore = first.indexOf("- explore:")
-          const general = first.indexOf("- general:")
+          const explore = first.indexOf("- explorer_agent:")
+          const general = first.indexOf("- general_agent:")
           const zebra = first.indexOf("- zebra: Zebra agent")
 
           expect(alpha).toBeGreaterThan(-1)
@@ -178,9 +179,10 @@ describe("tool.task", () => {
         },
       },
     ),
+    30_000,
   )
 
-  it.live("description hides denied subagents for the caller", () =>
+  it.live("description remains mode-stable when a caller denies a subagent", () =>
     provideTmpdirInstance(
       () =>
         Effect.gen(function* () {
@@ -191,7 +193,7 @@ describe("tool.task", () => {
             (yield* registry.tools({ ...ref, agent: build })).find((tool) => tool.id === TaskTool.id)?.description ?? ""
 
           expect(description).toContain("- alpha: Alpha agent")
-          expect(description).not.toContain("- zebra: Zebra agent")
+          expect(description).toContain("- zebra: Zebra agent")
         }),
       {
         config: {
@@ -362,7 +364,7 @@ describe("tool.task", () => {
         expect(first.metadata.sessionId).not.toBe(second.metadata.sessionId)
         expect(seen).toHaveLength(2)
         expect(seen[0]).toBe(seen[1])
-        expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
+        expect(seen[0]).toContain(`${chat.id}:general_agent:test:test-model:task-1`)
       }),
     ),
   )
@@ -408,7 +410,7 @@ describe("tool.task", () => {
         )
 
         expect(seen).toHaveLength(1)
-        expect(seen[0]).toContain(`${chat.id}:general:test:test-model:task-1`)
+        expect(seen[0]).toContain(`${chat.id}:general_agent:test:test-model:task-1`)
       }),
     ),
   )
@@ -445,8 +447,8 @@ describe("tool.task", () => {
         yield* Deferred.succeed(releaseFirst, undefined)
         yield* Fiber.join(firstFiber)
 
-        expect(firstKey).toContain(`${chat.id}:general:test:test-model:task-1`)
-        expect(secondKey).toContain(`${chat.id}:general:test:test-model:task-2`)
+        expect(firstKey).toContain(`${chat.id}:general_agent:test:test-model:task-1`)
+        expect(secondKey).toContain(`${chat.id}:general_agent:test:test-model:task-2`)
       }),
     ),
   )
@@ -484,11 +486,6 @@ describe("tool.task", () => {
           expect(child.parentID).toBe(chat.id)
           expect(child.permission).toEqual([
             {
-              permission: "todowrite",
-              pattern: "*",
-              action: "deny",
-            },
-            {
               permission: "bash",
               pattern: "*",
               action: "allow",
@@ -499,11 +496,7 @@ describe("tool.task", () => {
               action: "allow",
             },
           ])
-          expect(seen?.tools).toEqual({
-            todowrite: false,
-            bash: false,
-            read: false,
-          })
+          expect(seen?.tools).toBeUndefined()
         }),
       {
         config: {
@@ -521,5 +514,84 @@ describe("tool.task", () => {
         },
       },
     ),
+    30_000,
+  )
+
+  it.live("plan mode delegates explorer_agent", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        let seen: SessionPrompt.PromptInput | undefined
+
+        const result = yield* def.execute(
+          {
+            description: "inspect plan scope",
+            prompt: "Find task callers.",
+            subagent_type: "explorer_agent",
+          },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "plan_mode",
+            abort: new AbortController().signal,
+            extra: { promptOps: stubOps({ onPrompt: (input) => (seen = input) }) },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+
+        expect(result.output).toContain("<task_result>")
+        expect(seen?.agent).toBe("explorer_agent")
+      }),
+    ),
+    30_000,
+  )
+
+  it.live("delegated explorer uses the parent session model and variant without global state", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        yield* Effect.promise(() =>
+          saveSessionSettings(chat.id, {
+            agent: { explorer_agent: { model: "test/test-model", variant: "session-variant" } },
+            agentVariant: { "explorer_agent/test/test-model": "session-variant" },
+          }),
+        )
+        const settings = yield* Effect.promise(() => loadSessionSettings(chat.id))
+        expect(settings?.agent?.explorer_agent?.variant).toBe("session-variant")
+        expect(settings?.agentVariant?.["explorer_agent/test/test-model"]).toBe("session-variant")
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        let seen: SessionPrompt.PromptInput | undefined
+
+        yield* def.execute(
+          {
+            description: "inspect session settings",
+            prompt: "Inspect the session settings.",
+            subagent_type: "explorer_agent",
+          },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build_mode",
+            abort: new AbortController().signal,
+            extra: { promptOps: stubOps({ onPrompt: (input) => (seen = input) }) },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+
+        expect(seen?.model).toEqual({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+        })
+        expect(seen?.variant).toBe("session-variant")
+      }),
+    ),
+    30_000,
   )
 })

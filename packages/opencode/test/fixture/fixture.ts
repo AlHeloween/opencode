@@ -7,6 +7,7 @@ import { Context, Effect, Scope, Semaphore } from "effect"
 import { Config } from "../../src/config/config"
 import { InstanceRef } from "../../src/effect/instance-ref"
 import { Instance } from "../../src/project/instance"
+import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import * as PlatformError from "effect/PlatformError"
 import { TestLLMServer } from "../lib/llm-server"
@@ -98,6 +99,11 @@ export function tmpdirScoped(options?: { git?: boolean; config?: Partial<Config.
       Effect.promise(async () => {
         if (options?.git) await stop(dir).catch(() => undefined)
         await clean(dir).catch(() => undefined)
+        // Effect's test reporting can emit after this scope closes. Do not
+        // leave the process-global logger pointed at the removed worktree.
+        Global.initFromWorktree(TEST_TEMP)
+        await fs.mkdir(Global.Path.log, { recursive: true })
+        await Log.reopen()
       }),
     )
 

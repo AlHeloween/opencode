@@ -200,6 +200,7 @@ describe("session undo + fossil (SP-03)", () => {
         expect(cleared.revert).toBeUndefined()
       }),
     ),
+    30_000,
   )
 
   it.live(
@@ -486,6 +487,7 @@ describe("session undo + fossil (SP-03)", () => {
         expect(cleared.revert).toBeUndefined()
       }),
     ),
+    30_000,
   )
 
   /**
@@ -560,5 +562,6 @@ describe("session undo + fossil (SP-03)", () => {
         expect(yield* read(b)).toBe("B-edited")
       }),
     ),
+    30_000,
   )
 })

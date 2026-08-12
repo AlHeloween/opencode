@@ -249,22 +249,24 @@ export const TaskTool = Tool.define(
             providerID: msg.info.providerID,
           })
 
-      // Now read agent-specific variant for this model
-      const taskVariant = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
-        Effect.map((x: any) => {
-          if (!next?.name) return undefined
-          const modelKey = `${model.providerID}/${model.modelID}`
-          const agentKey = `${next.name}/${modelKey}`
-          const sessionVariant = sessionAgentVariant(next.name, model, sessionSettings)
-          if (sessionVariant) return sessionVariant
-          // Check agent-specific variant first, then fall back to model-level variant
-          if (x?.agentVariant?.[agentKey]) return x.agentVariant[agentKey]
-          if (x?.variant?.[modelKey]) return x.variant[modelKey]
-          const sameAsAgentModel = next.model?.providerID === model.providerID && next.model?.modelID === model.modelID
-          return sameAsAgentModel ? next.variant : undefined
-        }),
-        Effect.catch(() => Effect.succeed(undefined)),
-      )
+      // Session settings are authoritative for this parent session. Resolve
+      // them before the optional global state file, which may not exist.
+      const sessionVariant = sessionAgentVariant(next.name, model, sessionSettings)
+      const taskVariant =
+        sessionVariant ??
+        (yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
+          Effect.map((x: any) => {
+            if (!next?.name) return undefined
+            const modelKey = `${model.providerID}/${model.modelID}`
+            const agentKey = `${next.name}/${modelKey}`
+            // Check agent-specific variant first, then fall back to model-level variant
+            if (x?.agentVariant?.[agentKey]) return x.agentVariant[agentKey]
+            if (x?.variant?.[modelKey]) return x.variant[modelKey]
+            const sameAsAgentModel = next.model?.providerID === model.providerID && next.model?.modelID === model.modelID
+            return sameAsAgentModel ? next.variant : undefined
+          }),
+          Effect.catch(() => Effect.succeed(undefined)),
+        ))
       // Diagnostic: log when task agent model has different context window than parent
       const parentModel = { modelID: msg.info.modelID, providerID: msg.info.providerID }
       if (parentModel.modelID !== model.modelID || parentModel.providerID !== model.providerID) {
@@ -417,6 +419,7 @@ export const TaskTool = Tool.define(
                   providerID: model.providerID,
                 },
                 agent: next.name,
+                variant: taskVariant,
                 // Full tool schemas; ACL via nextSession.permission + agent.permission.
                 parts,
               })

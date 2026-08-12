@@ -174,7 +174,7 @@ export const layer = Layer.effect(
                 cmd: "deny",
                 powershell: "deny",
                 run: "deny",
-                task: "deny",
+                task: "allow",
                 "destructive-file": "deny",
                 "destructive-db": "deny",
                 "destructive-git": "deny",
@@ -196,7 +196,9 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
-            subagents: [],
+            // Plan mode delegates bounded read-only discovery; implementation
+            // remains outside this mode's execute-time ACL.
+            subagents: ["explorer_agent"],
           },
           reasoning_mode: {
             name: "reasoning_mode",

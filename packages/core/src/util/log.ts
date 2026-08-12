@@ -110,6 +110,10 @@ function getOrCreateStream(model: string, sessionID: string, op: "log" | "diff" 
   const filepath = logPath(op, model, sessionID, ext)
   mkdirSync(Global.Path.log, { recursive: true })
   const stream = createWriteStream(filepath, { flags: "a" })
+  stream.on("error", (error) => {
+    if (contextStreams.get(key) === stream) contextStreams.delete(key)
+    logError("log stream write failed", { path: filepath, error: String(error) })
+  })
   contextStreams.set(key, stream)
   return stream
 }

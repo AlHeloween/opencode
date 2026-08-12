@@ -83,7 +83,7 @@ RUNTIME_RULES = MappingProxyType({
     "SMOKE_VALIDATE": "Validate spec: >=1 baseline check, exit status, tolerance justification; fail @GATE_4_AUTHORIZE if invalid.",
     "INFOMARK_SEP": "Salience != Evidence; fluency != truth; only stamped Exact|Inferred enter G.",
     "NAMING": "Rule and task identifiers must use UPPER_SNAKE_CASE with underscore delimiters.",
-    "PLAN_LIFECYCLE": "Plan follows state machine per @MASTER_PLAN_SCHEMA.lifecycle: DRAFT → ACTIVE → EXECUTING → VERIFYING → COMPLETED. Only ACTIVE and EXECUTING plans may drive @GATE_7_IMPLEMENT mutations.",
+    "PLAN_LIFECYCLE": "Plan follows state machine per @MASTER_PLAN_SCHEMA.lifecycle: DRAFT → ACTIVE → EXECUTING → VERIFYING → IMPLEMENTED → COMPLETED. Only ACTIVE and EXECUTING plans may drive @GATE_7_IMPLEMENT mutations.",
     "PLAN_REVISION": "On material change (scope_change | architecture_change | new_requirement | failed_core_assumption | oracle_invalidates_premise): ACTIVE → INVALIDATED, create revision+1, rerun @GATE_2_DECOMPOSE, rerun @GATE_3_MASTER_PLAN. Plan reauthorization ALWAYS required after INVALIDATED. Execution envelope reissue only if scope/budget/baseline changed.",
 
     # ── G4: AUTHORIZE (Execution Envelope) ──
@@ -113,10 +113,10 @@ RUNTIME_RULES = MappingProxyType({
     "CLEAN_STATE": "Emit Clean next state (Done, Pending, Blocked, Next); completed plans -> plans_completed/.",
     "SV_OUTPUT": "Emit @SV_FORMAT after every response without exception.",
     "SV_EVERY_TURN": "Protocol requirement: SV emitted every turn; trivial -> Keywords: acknowledged 1.0.",
-    "RESIDUAL_LOOP": "Re-cluster pending tasks against original Goal SV; empty -> TERMINAL.",
+    "RESIDUAL_LOOP": "Re-cluster pending tasks against original Goal SV; empty → execution_exhausted (not TERMINAL). If closure PASS → SUCCESS. If closure gaps → CONTINUE with closure residual vector.",
     "EMIT_STATE": "Return structured state; terminal_mode: BLOCKED > OUT_OF_SCOPE > SUCCESS.",
     "PLANS_COMPLETED": "Move completed plan files to plans_completed/ immediately upon completion.",
-    "CLOSURE_PROOF": "SUCCESS requires terminal=true AND acceptance_coverage=1.0 AND critical_open_risks=0 AND outcome_oracle=PASS. Task complete != plan complete != user outcome proven. See @CLEAN_NEXT_STATE.closure_proof.",
+    "CLOSURE_PROOF": "SUCCESS requires execution_exhausted=true AND acceptance_coverage >= outcome_contract.coverage_threshold AND critical_open_risks=0 AND outcome_oracle=PASS. Task complete != plan complete != user outcome proven. See @CLEAN_NEXT_STATE.closure_proof.",
     "METRIC_ADAPTATION": "Parameter auto-tuning within bounds; metric family change requires governance.",
     "PROGRESS_LOG": "Maintain _development_plan.md, _progress_log.md, and _application_workflow_diagram.md.",
     "TONE_AND_STYLE": "Expert stance, direct, multi-perspective, concise, no hedging or apologies.",

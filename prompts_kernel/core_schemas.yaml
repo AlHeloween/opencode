@@ -95,7 +95,7 @@ clean_next_state:
     acceptance_coverage: "float 0-1 — fraction of @OUTCOME_CONTRACT criteria proven via oracle stamps"
     critical_open_risks: "int — unresolved risks from @RISK_LEDGER blocking outcome acceptance"
     outcome_oracle: "PASS | FAIL | PENDING — aggregate oracle over all outcome acceptance criteria per @OUTCOME_CONTRACT"
-    rule: "SUCCESS requires execution_exhausted=true AND acceptance_coverage=1.0 AND critical_open_risks=0 AND outcome_oracle=PASS. CONTINUE when exhausted but closure pending."
+    rule: "SUCCESS requires execution_exhausted=true AND acceptance_coverage >= outcome_contract.coverage_threshold AND critical_open_risks=0 AND outcome_oracle=PASS. CONTINUE when exhausted but closure pending."
   terminal_mode:
     enum: ["SUCCESS", "BLOCKED", "OUT_OF_SCOPE", "CONTINUE", "RESUME"]
     precedence: "BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty"
@@ -255,6 +255,88 @@ risk_ledger:
     - "Every open risk blocks CLOSURE_PROOF.outcome_oracle=PASS if listed in OUTCOME_CONTRACT.critical_risks"
     - "Risks are NOT premises — they do not block MODIFY, only outcome acceptance"
 
+# QUALITY METRIC SPEC
+quality_metric_spec:
+  tag: QUALITY_METRIC_SPEC
+  description: "Normalization contract for each QUALITY_VECTOR metric — makes D_i = w_i(1-Q_i) computable"
+  metric:
+    id: "unique metric identifier"
+    unit: "ms | count | ratio | bytes | boolean | score"
+    direction: "MAXIMIZE | MINIMIZE | TARGET"
+    baseline: "current measured value"
+    target: "desired value"
+    hard_limit: "value beyond which candidate is HARD DENIED"
+    normalize: "function: q = clamp((bad − actual) / (bad − target), 0, 1) for MINIMIZE; mirror for MAXIMIZE"
+    sample_window: "number of runs for stable measurement"
+    repetitions: "minimum repetitions before accepting measurement"
+    oracle: "command or test that produces the measurement"
+    confidence: "0..1 — statistical confidence in current measurement"
+  rule: "Axis score Q_i = Σ(w_ij * q_ij). Deficit D_i = w_i * (1 − Q_i)."
+
+# QUALITY GUARDRAILS
+quality_guardrails:
+  tag: QUALITY_GUARDRAILS
+  description: "Single source of hard-deny rules — referenced by both QUALITY_VECTOR and EVOLUTION_CANDIDATES"
+  hard_deny:
+    - "correctness regression > 0"
+    - "stability regression > tolerance"
+    - "security regression > 0"
+    - "architecture invariant violation"
+    - "public contract broken without explicit ARCHITECTURE_EVOLUTION"
+  rule: "No weighted utility score can override hard-deny. Referenced from @QUALITY_VECTOR.invariant and @EVOLUTION_CANDIDATES.validation."
+
+# MIGRATION PROTOCOL
+migration_protocol:
+  tag: MIGRATION_PROTOCOL
+  description: "State machine for architecture-displacing changes: NORMAL_EVOLUTION vs ARCHITECTURE_EVOLUTION vs MIGRATION"
+  states:
+    NORMAL_EVOLUTION: "improvement inside existing geometry — standard G1..G9"
+    ARCHITECTURE_EVOLUTION: "geometry change without toolchain/language/platform change — requires architecture review"
+    MIGRATION: "toolchain/runtime/language/framework/version change OR architecture_displacement > threshold"
+  migration_requirements:
+    - "explicit user authorization"
+    - "isolated branch"
+    - "full-project smoke/oracle baseline + verify"
+    - "compatibility oracle"
+    - "rollback proof"
+  metrics:
+    architecture_displacement: "normalized graph edit distance between old and new geometry"
+    migration_amplification: "files touched / logical change size"
+    compatibility_surface: "public APIs that must remain stable"
+    geometry_preservation: "1 − NGED(G_before, G_after)"
+    rollback_cost: "estimated effort to revert"
+  rule: "MIGRATION requires explicit authorization and cannot be bundled with NORMAL_EVOLUTION improvements."
+
+# CAPABILITY GRAPH
+capability_graph:
+  tag: CAPABILITY_GRAPH
+  description: "What the project CAN do — nodes, edges, outcomes, evidence. Source for ΔG computation."
+  nodes: "existing project capabilities"
+  edges: "executable / semantic relations between capabilities"
+  outcomes: "user-visible behaviors each capability provides"
+  evidence: "code/tests/docs/oracles proving each node exists"
+  rule: "USER_REQUEST is projected onto this graph; only UNCOVERED residual becomes EXECUTION_GOAL"
+
+# INTENT PROJECTION
+intent_projection:
+  tag: INTENT_PROJECTION
+  description: "Maps USER_REQUEST onto PROJECT_GEOMETRY + CAPABILITY_GRAPH. EXECUTION_GOAL = only unresolved ΔG."
+  observation: "what user reports / requests"
+  desired_outcome: "what should become true"
+  suggested_solution: "optional user hypothesis — NOT automatically the Goal"
+  constraints: "explicit user constraints"
+  projection:
+    matching_geometry_nodes: "geometry components relevant to request"
+    existing_capabilities: "capability graph nodes covering parts of request"
+    node_coverage: "0..1 — fraction of desired outcomes already covered"
+    edge_coverage: "0..1 — fraction of capability relations already present"
+    outcome_coverage: "0..1 — fraction of user-visible outcomes already satisfied"
+  residual:
+    delta_graph: "desired_graph − current_graph"
+    execution_goal: "only unresolved verified residual becomes @GATE_2_DECOMPOSE input"
+  invariant: "USER_REQUEST ≠ EXECUTION_GOAL. If ΔG=∅, implementation is SKIPPED — Oracle verifies existing capability."
+  gate: "Feeds @GATE_1_GROUND → @GATE_2_DECOMPOSE. Replaces raw Goal→seeds with projected residual."
+
 # PROJECT GEOMETRY
 project_geometry:
   tag: PROJECT_GEOMETRY
@@ -320,7 +402,7 @@ evolution_cycle:
     - "regression_debt: accumulated regressions from prior evolution steps"
     - "quality_history: append current vector to generation log"
   candidate_generation: "see @EVOLUTION_CANDIDATES"
-  selection: "best candidate by fitness; selected → NEW @MASTER_PLAN with parent_goal_id"
+  selection: "best candidate by fitness; selected → NEW_GOAL (not MASTER_PLAN directly). GOAL then passes through G1→INTENT_PROJECTION→G2→G3→MASTER_PLAN. parent_goal_id preserved for lineage."
   saturation: "stop when max(F(C_i)) < F_min OR all delta_Q < epsilon — no improvement worth cost"
   invariant: "Evolution candidate runs FULL GATED_WORKFLOW (G1..G9) — no shortcuts. parent_goal_id preserved for lineage."
 
@@ -333,6 +415,11 @@ master_plan:
   plan_id: "uuid — immutable; assigned at creation"
   revision: "int — starts at 1; increments on invalidation"
   created_by: "string — agent identity that authored the plan"
+  lineage:
+    parent_goal_id: "uuid|null — previous goal this plan continues"
+    generation_id: "int — evolution generation number (0 for user-initiated)"
+    evolution_candidate_id: "uuid|null — which @EVOLUTION_CANDIDATES entry spawned this"
+    parent_project_snapshot: "sha256|null — project state hash at parent SUCCESS"
   state: "enum: DRAFT | ACTIVE | EXECUTING | VERIFYING | IMPLEMENTED | COMPLETED | INVALIDATED"
   lifecycle:
     DRAFT: "plan written, not yet authorized"

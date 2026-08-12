@@ -44,3 +44,13 @@ agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
 # @schema: evolution_candidates
 
 # @schema: evolution_cycle
+
+# @schema: capability_graph
+
+# @schema: intent_projection
+
+# @schema: quality_metric_spec
+
+# @schema: quality_guardrails
+
+# @schema: migration_protocol

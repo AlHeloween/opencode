@@ -17,10 +17,21 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 sys.path.insert(0, PROJECT_ROOT)
 
 SCHEMAS_PATH = os.path.join(PROJECT_ROOT, "prompts_kernel", "core_schemas.yaml")
-MDC_PATH = os.path.join(
+DIST_DIR = os.path.join(PROJECT_ROOT, "prompts_kernel", "dist")
+MAP_PATH = os.path.join(PROJECT_ROOT, "prompts_kernel", "reasoning", "00_map.txt")
+
+
+def _find_latest_mdc() -> str | None:
+    """Find the latest dated reasoning_prompt.mdc in dist/."""
+    import glob as _g
+    candidates = sorted(_g.glob(os.path.join(DIST_DIR, "*_reasoning_prompt.mdc")))
+    return candidates[-1] if candidates else None
+
+
+# Legacy path fallback — remove after production migration
+_LEGACY_MDC = os.path.join(
     PROJECT_ROOT, "packages", "opencode", "src", "session", "prompt", "reasoning_prompt.mdc"
 )
-MAP_PATH = os.path.join(PROJECT_ROOT, "prompts_kernel", "reasoning", "00_map.txt")
 
 
 def _load_gates() -> dict:
@@ -93,9 +104,10 @@ def test_g9_sv_every_turn_is_at_ref():
 
 def test_assembled_mdc_has_no_bare_gate_rule_lines():
     """Assembled mdc must not emit bare rule list items under gate rules: sections."""
-    if not os.path.isfile(MDC_PATH):
+    mdc_path = _find_latest_mdc()
+    if not mdc_path:
         pytest.skip("reasoning_prompt.mdc not built")
-    with open(MDC_PATH, encoding="utf-8") as f:
+    with open(mdc_path, encoding="utf-8") as f:
         mdc = f.read()
 
     # Under each # NAME (@Gn) ... rules: block, every list item must start with @
@@ -118,9 +130,10 @@ def test_assembled_mdc_has_no_bare_gate_rule_lines():
 
 
 def test_assembled_mdc_has_lookup_and_g9_at_sv():
-    if not os.path.isfile(MDC_PATH):
+    mdc_path = _find_latest_mdc()
+    if not mdc_path:
         pytest.skip("reasoning_prompt.mdc not built")
-    with open(MDC_PATH, encoding="utf-8") as f:
+    with open(mdc_path, encoding="utf-8") as f:
         mdc = f.read()
     assert "@SV_EVERY_TURN" in mdc
     assert "How to Read" in mdc  # replaced old "Lookup" / "@REFS only" section

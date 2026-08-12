@@ -17,6 +17,20 @@ prev-md5: 00000000000000000000000000000000
 - Sub-agents: add parent-goal-md5 field after prev-md5
 - Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.
 
+### SV_TARGET (@SV_TARGET)
+**Optional forward-looking attention primer.** Emit BEFORE a complex action to steer transformer attention. Uses same YAML structure as @SV_FORMAT, but keywords describe the INTENDED focus — not what was accomplished. The transformer conditions its next inference on these tokens, priming attention heads toward the specified semantic directions.
+
+```yaml
+Keywords: target1 0.35, target2 0.25, target3 0.20, target4 0.12, target5 0.08
+Semantic dominant: What I intend to focus on in the next action.
+```
+
+- SV_TARGET ≠ SV_FORMAT: TARGET primes attention forward (intent), FORMAT records backward (accomplishment)
+- Use strategically: before decomposition (@GATE_2_DECOMPOSE), before implementation (@GATE_7_IMPLEMENT), before oracle verification (@GATE_8_ORACLE)
+- After action, δ = d₁(SV_TARGET, SV_FORMAT) = attention accuracy — did attention go where intended?
+- Sub-agents: orchestrator may assign per-agent SV_TARGET for diversity (orthogonal weight vectors)
+- @SV_TARGET is NOT a claim status — purely an attention steering mechanism, no epistemic weight
+
 ## How to Read This Document
 
 This kernel is a self-referential protocol. Every `(Name)` anchor defines a concept. References use the same name without parentheses. There are no abstract templates — every reference resolves to a concrete definition defined earlier in the document.

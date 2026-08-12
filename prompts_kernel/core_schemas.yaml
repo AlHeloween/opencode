@@ -25,6 +25,61 @@ sv_output:
   tag: SV_OUTPUT_SCHEMA
   see: "@SV_FORMAT"
 
+sv_target:
+  tag: SV_TARGET
+  description: "Forward-looking attention primer — emitted BEFORE action to steer transformer attention"
+  structure: "same YAML as @SV_FORMAT: Keywords + weights + Semantic dominant"
+  vs_sv_format: "TARGET = intent (forward), FORMAT = accomplishment (backward)"
+  attention_accuracy: "δ = d₁(SV_TARGET, SV_FORMAT) — how close actual attention was to intended"
+  sub_agent_use: "orchestrator assigns per-agent SV_TARGET for diversity via orthogonal weight vectors"
+  invariant: "NOT a claim status — no epistemic weight, purely attention steering"
+
+# SV TRAJECTORY
+sv_trajectory:
+  tag: SV_TRAJECTORY
+  description: "Multi-step semantic position tracking for drift detection"
+  extends: "@SV_DELTA"
+  metrics:
+    goal_distance: "D_g = d₁(S_t, G) — drift from original Goal SV"
+    step_distance: "D_p = d₁(S_t, S_{t-1}) — per-step change"
+    velocity: "v_t = D_p per turn"
+    coverage: "C_g = fraction of Goal dimensions with cumulative weight ≥ 0.5"
+  drift_classification:
+    stable_convergence: "D_g < 0.3 ∧ D_p < 0.3 — on target"
+    exploration: "D_g < 0.3 ∧ D_p ≥ 0.3 — exploring around goal"
+    stable_drift: "D_g ≥ 0.6 ∧ D_p < 0.3 — DANGEROUS: wrong problem, confidently"
+    divergence: "D_g ≥ 0.6 ∧ D_p ≥ 0.3 — uncontrolled"
+    transitional: "otherwise — accumulating evidence"
+  rules:
+    - "stable_drift ≥ 2 consecutive turns → re-anchor via @GATE_1_GROUND + emit SV_TARGET"
+    - "step_distance spike ≥ 0.5 above median → verify against plan"
+  invariant: "Same Manhattan L1 metric as @SV_DELTA and @FRACTAL_GEOMETRY"
+
+# SEMANTIC CONTROL (orchestrator feedback loop)
+semantic_control:
+  tag: SEMANTIC_CONTROL
+  description: "Orchestrator-level SV feedback loop — extends @MULTI_AGENT_SV"
+  goal_sv: "original Goal SV — reference point for all measurements"
+  target_sv: "per-agent SV_TARGET — assigned by orchestrator for diversity"
+  observed_sv: "per-agent SV_STATE — what the agent actually focused on"
+  trajectory:
+    previous: "SV from prior turn"
+    velocity: "v_t = d₁(S_t, S_{t-1})"
+    acceleration: "a_t = v_t − v_{t-1}"
+  metrics:
+    goal_distance: "d₁(S_t, G) — drift from Goal"
+    step_distance: "d₁(S_t, S_{t-1}) — per-step change"
+    coverage: "fraction of Goal dimensions covered by team"
+    redundancy: "overlap between agents — lower is better for exploration"
+    diversity: "minimum pairwise d₁ across agent team"
+  controller:
+    proportional_error: "d₁(target, observed) — immediate correction signal"
+    accumulated_residual: "Σ(target − observed) over cycles — systemic bias"
+    drift_derivative: "Δd₁(S_t, G) / Δt — rising = intervention needed"
+  next_target_sv: "computed from controller + residual coverage map"
+  stop_condition: "||R||₁ < 0.15 — semantic residual below threshold"
+  invariant: "diversity floor: at least one agent pair with d₁ ≥ 0.15 to prevent tunnel vision"
+
 # CLEAN NEXT STATE
 clean_next_state:
   tag: CLEAN_NEXT_STATE
@@ -156,6 +211,7 @@ claim_ledger:
     - id: "C1"
       text: string
       status: "Exact | Inferred | Hypothetical | Guess | Unknown"
+      provenance: "CONTEXT | RETRIEVED | MODEL_PRIOR | INFERENCE | SYNTHESIS | UNKNOWN — origin of the claim"
       falsifier: "string (optional, for Hypothetical)"
       reason: string
       deps: "list of claim_ids (EpistemicDAG)"
@@ -167,6 +223,8 @@ claim_ledger:
     - "Unmarked ⇒ Unknown"
     - "Hypothetical in premises ⇒ plan illegal"
     - "effective(c) = min(status(c), min(effective(deps))) — weakest-link ceiling"
+    - "Every claim MUST declare provenance; UNKNOWN provenance ⇒ non-actionable"
+    - "MODEL_PRIOR claims must be verified externally before advancing beyond Hypothetical"
 
 # MASTER PLAN
 master_plan:
@@ -174,6 +232,17 @@ master_plan:
   description: "one-line goal"
   premises: "list of claim_ids (⊆ G only)"
   open_questions: "list of claim_ids"
+  plan_id: "uuid — immutable; assigned at creation"
+  revision: "int — starts at 1; increments on invalidation"
+  created_by: "string — agent identity that authored the plan"
+  state: "enum: DRAFT | ACTIVE | EXECUTING | VERIFYING | COMPLETED | INVALIDATED"
+  lifecycle:
+    DRAFT: "plan written, not yet authorized"
+    ACTIVE: "authorized via @GATE_4_AUTHORIZE, ready for implementation"
+    EXECUTING: "at least one task started via @GATE_7_IMPLEMENT"
+    VERIFYING: "all tasks materialized; oracles running via @GATE_8_ORACLE"
+    COMPLETED: "all tasks done, all oracles PASS; plan → plans_completed/"
+    INVALIDATED: "premise failed or scope changed; requires revision+1 + re-authorization"
   goals:
     - id: GATE_1_GROUND
       sv: "list of keywords (3-9 terms)"

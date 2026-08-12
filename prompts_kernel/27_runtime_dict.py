@@ -43,6 +43,9 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
     "ADID_OPS": "GATE_7_IMPLEMENT", "NO_SCRIPT_EDITING": "GATE_7_IMPLEMENT",
     "WORKSPACE_LANES": "GATE_7_IMPLEMENT", "ADID_FREEZE": "GATE_7_IMPLEMENT",
     "FRAMEWORK_INHERITANCE": "GATE_7_IMPLEMENT",
+    "PLAN_CONTRACT": "GATE_7_IMPLEMENT", "PLAN_BINDING": "GATE_7_IMPLEMENT",
+    # GATE_3_MASTER_PLAN (lifecycle)
+    "PLAN_LIFECYCLE": "GATE_3_MASTER_PLAN", "PLAN_REVISION": "GATE_3_MASTER_PLAN",
     # GATE_8_ORACLE
     "VERIFY_OUTCOME": "GATE_8_ORACLE", "SMOKE_VERIFY": "GATE_8_ORACLE",
     "OBSOLETE_CLEANUP": "GATE_8_ORACLE",
@@ -79,6 +82,8 @@ RUNTIME_RULES = MappingProxyType({
     "SMOKE_VALIDATE": "Validate spec: >=1 baseline check, exit status, tolerance justification; fail @GATE_4_AUTHORIZE if invalid.",
     "INFOMARK_SEP": "Salience != Evidence; fluency != truth; only stamped Exact|Inferred enter G.",
     "NAMING": "Rule and task identifiers must use UPPER_SNAKE_CASE with underscore delimiters.",
+    "PLAN_LIFECYCLE": "Plan follows state machine per @MASTER_PLAN_SCHEMA.lifecycle: DRAFT → ACTIVE → EXECUTING → VERIFYING → COMPLETED. Only ACTIVE and EXECUTING plans may drive @GATE_7_IMPLEMENT mutations.",
+    "PLAN_REVISION": "On material change (scope_change | architecture_change | new_requirement | failed_core_assumption | oracle_invalidates_premise): ACTIVE → INVALIDATED, create revision+1, rerun @GATE_2_DECOMPOSE, rerun @GATE_3_MASTER_PLAN, re-authorize via @GATE_4_AUTHORIZE if scope changed.",
 
     # ── G4: AUTHORIZE (Execution Envelope) ──
     "WRITE_SCOPE": "Modify strictly within user-authorized paths and ExecutionEnvelope bounds.",
@@ -95,6 +100,8 @@ RUNTIME_RULES = MappingProxyType({
     "WORKSPACE_LANES": "Keep throwaway code isolated in experiments/, futures/, obsolete/, makeups/.",
     "ADID_FREEZE": "ADID receivers frozen; change only via SPECS or official ADM pipelines.",
     "FRAMEWORK_INHERITANCE": "Inherit/extend existing abstractions; polymorphism > duplication.",
+    "PLAN_CONTRACT": "Every path reaching @GATE_7_IMPLEMENT must reference exactly one active master plan. Applies to: build_mode, plan_mode, orchestrator_agent, coder_agent. No exceptions — no implementation without an active plan.",
+    "PLAN_BINDING": "@GATE_7_IMPLEMENT requires plan.state ∈ {ACTIVE, EXECUTING}, task ∈ plan.tasks, task.depends_on_claims ⊆ G (Exact|Inferred). Worker must match task.worker_id or be authorized delegate.",
 
     # ── G8: ORACLE (Verification & Promotion) ──
     "VERIFY_OUTCOME": "Declare oracle before execution; PASS -> Exact stamp; FAIL -> demote; no self-certification.",
@@ -163,6 +170,10 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "FRAMEWORK_INHERITANCE": "mutation",
     "OBSOLETE_CLEANUP": "verification",
     "METRIC_ADAPTATION": "plan",
+    "PLAN_CONTRACT": "plan",
+    "PLAN_BINDING": "plan",
+    "PLAN_LIFECYCLE": "plan",
+    "PLAN_REVISION": "plan",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
@@ -217,6 +228,8 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "TONE_AND_STYLE",
         "CONSTITUTION_BLOCKS",
         "FRAMEWORK_INHERITANCE",
+        "PLAN_CONTRACT",
+        "PLAN_BINDING",
     ),
     "observe": (
         "scope",
@@ -269,6 +282,8 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "PLANS_COMPLETED",
         "READ_ENTIRE_FILE",
         "NO_SCRIPT_EDITING",
+        "PLAN_LIFECYCLE",
+        "PLAN_REVISION",
     ),
     "research": (
         "evidence",

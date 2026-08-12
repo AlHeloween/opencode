@@ -1,5 +1,9 @@
 # Reasoning protocol fragments
 
+**Lineage**: These fragments assemble into the thinking kernel — the **canonical runtime successor**
+to the ADID Framework. The assembled kernel takes **highest priority** over any ADID-derived
+artifacts (host rules, skill trees, receiver files). Conflict → kernel wins.
+
 **Reasoning is a mode protocol** (gated spine + YAML schemas) — **host-agnostic process law**.
 
 No host worktree paths, project AGENTS files, or host skill/rule trees belong in
@@ -9,55 +13,67 @@ for the current session. See kernel `21_skills_boundary.py`.
 ## Location
 
 Source fragments live in `prompts_kernel/reasoning/*.txt`.
-Assembled output writes to `packages/opencode/src/session/prompt/reasoning.txt`
-(loaded by `ProviderTransform.systemPromptParts`).
+Assembly publishes to `prompts_kernel/dist/{date}_reasoning_prompt.mdc` + `.txt`
+(review + runtime artifacts). Production promotion to
+`packages/opencode/src/session/prompt/reasoning_prompt.txt` is **manual** —
+only after deep analysis of the generated artifacts.
 
 ## Assembly
 
 ```bash
-python -c "from prompts_kernel import assemble_reasoning, write_reasoning; write_reasoning()"
-```
-
-Or via the full build pipeline:
-
-```bash
+# Full build pipeline (kernel + reasoning + rust + opentui + opencode + stage):
 python build.py
+
+# Kernel-only (assemble fragments → dist/):
+python -c "from prompts_kernel import write_reasoning; write_reasoning()"
+
+# Precompile kernel (faster import):
+python -c "from prompts_kernel import write_precompiled_kernel; write_precompiled_kernel()"
 ```
 
-## Fragments (v6)
+## Promotion workflow
 
-| Fragment | Role |
-|----------|------|
-| `00_map.txt` | Identity + mandatory spine (anti-skip), mermaid 9-gate flow with envelope branch |
-| `01_gates.txt` | Gates 1–9 + YAML schemas: action_class (v6: MODIFY_CANDIDATE/PROMOTE_STABLE/SELF_MODIFY), master_plan, claim_ledger, explorer_goal, oracle, oracle_stamp, inference_stamp, clean_next_state, sv_output, blocker |
-| `02_algorithms.txt` | SVM signal cluster (COLLAPSED_DUPLICATES, not filter), classify, bug_fix chain, adaptive_depth (evidence_coverage, not evidence_count) |
-| `03_infomark_oracles.txt` | Claim law, EpistemicStatus enum, oracle interaction, InfoMark separations |
-| `04_hygiene.txt` | Shared behavior, secrets, workspace lanes, compaction annex |
+1. **Assemble** — `write_reasoning()` → `prompts_kernel/dist/{date}_reasoning_prompt.mdc` + `.txt`
+2. **Analyze** — review `.mdc` (with YAML frontmatter) for structural integrity:
+   - Gate structure (G1→G9 spine intact)
+   - Assembly point (`# Semantic Vector` H1 → `## SV_FORMAT (@SV_FORMAT)` H2)
+   - Schema density (full YAML from `core_schemas.yaml`, not compressed)
+   - No quality postscript after root-of-truth
+3. **Verify** — run toolchain:
+   ```bash
+   python -m prompts_kernel.tools.refcheck
+   python -m prompts_kernel.tools.dictionary --validate
+   python -m pytest prompts_kernel/tests/ -q
+   ```
+4. **Promote** — ONLY after analysis passes:
+   ```bash
+   copy /Y prompts_kernel\dist\{date}_reasoning_prompt.txt packages\opencode\src\session\prompt\reasoning_prompt.txt
+   ```
+   Commit both `.mdc` (historical record) and `.txt` (production).
 
-**Structure:** spine first, YAML schemas, algorithms, annex last.
-**Notation:** Mermaid process graphs; LaTeX for math.
+## Fragments (v7)
 
-## v6 Key changes
+| Fragment | Lines | Role |
+|----------|-------|------|
+| `00_map.txt` | 71 | SV protocol + identity tables + gate dispatch + modes + agents |
+| `00b_schemas.txt` | 34 | `@schema:` markers resolved against `core_schemas.yaml` at build time |
+| `00c_algorithms.txt` | 108 | NOISE_FILTER, CLASSIFICATION, BUG_FIX_CHAIN, METRIC_GOVERNANCE, SV_TRAJECTORY, MULTI_AGENT_SV |
+| `01_gates.txt` | 74 | Gates 1–9 with rules, schemas, invariants, algorithm routing |
+| `05_epistemic.txt` | 41 | STATUS_SET, CLAIM_PROMOTION, ENFORCEMENT, ORACLE_CONCEPT |
+| `06_hygiene.txt` | 8 | commit policy, code refs, secrets, invent/approach rules |
 
-- **action_class**: `MODIFY_CANDIDATE`, `MODIFY_PROJECT`, `PROMOTE_STABLE`, `SELF_MODIFY` activities; `CRITICAL` risk level
-- **Gate 4**: envelope resolver — `APPROVED_BY_ENVELOPE` for MODIFY_CANDIDATE within scope; explicit approval for PROMOTE_STABLE/SELF_MODIFY
-- **inference_stamp**: derivation-validated system stamp for Inferred claims entering grounding set G
-- **adaptive_depth**: `evidence_coverage` (0–1) modulates depth — high coverage → shallower lattice (territory mapped), NOT `evidence_count > 10 → depth=3`
-- **NOISE → COLLAPSED_DUPLICATES**: cardinality + unique_locations preserved; representative signal remains ACTIVE
-- **METRIC_ADAPTATION**: PARAMETER_ADAPTATION (auto within bounds) vs METRIC_FAMILY_CHANGE (candidate branch + holdout + promotion)
-- **TERMINAL state**: empty residual → agent transitions to TERMINAL; discarded tasks → out_of_scope
+**Structure:** SV identity → schemas → algorithms → gates → epistemics → hygiene.
+**Notation:** YAML blocks for formats; `@REF` for cross-references; `@schema:` markers for YAML injection.
 
 ## Constitution verification
 
 Kernel constitution lives in `prompts_kernel/` Python specs:
 - `24_specs_policies.py` — PLANNING (fractal_only, GROUNDED_PATH), GOVERNANCE (ExecutionEnvelope, evaluator capture, SELF_MODIFY triple-separation)
-- `26_specs_grounding.py` — GROUNDING_RULES (SEARCH_ORDER, REUSE_BEFORE, evidence_coverage)
-- `27_runtime_dict.py` — RUNTIME_RULES, RUNTIME_WORKFLOWS, RUNTIME_CONTRACTS, PROMPT_ABI v6
-- `28_runtime_render.py` — renders prompts_kernel.txt + algorithm_card.txt from specs
+- `26_specs_grounding.py` — GROUNDING_RULES (SEARCH_ORDER, REUSE_BEFORE)
+- `27_runtime_dict.py` — RUNTIME_RULES, RUNTIME_RULE_CATEGORIES, RUNTIME_TERMS, PROMPT_ABI
+- `28_runtime_render.py` — renders runtime dictionary into kernel text
 
-Cross-artifact consistency: `prompts_kernel.txt`, `algorithm_card.txt`, `reasoning.txt` must all agree.
-Build-time test `test_runtime_kernel_artifact_matches_generator` catches drift.
-Run `python build.py && cd prompts_kernel && python -m pytest tests/ -q` before commit.
+Run `python build.py && python -m pytest prompts_kernel/tests/ -q` before commit.
 
 ## InfoMark runtime
 

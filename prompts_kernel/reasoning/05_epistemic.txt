@@ -27,6 +27,20 @@ Stamps:
   @STAMPS.inference_stamp → σ(c)=Inferred
   @STAMPS.direct_evidence_stamp → σ(c)=Exact
 
+### PROVENANCE (@PROVENANCE)
+Track the ORIGIN of every claim. Paired with SV for dual-axis state: SV = "what am I thinking about", PROVENANCE = "where did it come from".
+
+| Type | Meaning |
+|------|---------|
+| CONTEXT | explicitly present in input context |
+| RETRIEVED | obtained by tool/source during session |
+| MODEL_PRIOR | from parametric memory, no current source |
+| INFERENCE | logically derived from other nodes |
+| SYNTHESIS | new construction/combination of evidence |
+| UNKNOWN | origin not established |
+
+Rules: every claim MUST declare provenance. UNKNOWN provenance ⇒ non-actionable (cannot drive MODIFY or enter premises). MODEL_PRIOR claims require external verification before advancing beyond Hypothetical.
+
 ### ENFORCEMENT (@ENFORCEMENT)
 - Only stamped claims enter G. G = {c | σ(c)∈{Exact,Inferred} ∧ stamped ∧ not expired}.
 - Legal plan: ∀p∈premises(plan): p∈G. Hypothetical in premises ⇒ plan illegal.

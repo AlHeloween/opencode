@@ -292,6 +292,12 @@ The agent kernel lives in `packages/opencode/src/session/prompt/reasoning_prompt
 It is the **single source of truth** for all agent behavior — gates, rules, schemas,
 algorithms, diagrams, identities, and the runtime dictionary (RULES/TERMS/PROMPT_ABI).
 
+**Lineage & priority**: The thinking kernel (`prompts_kernel`) is the **canonical runtime
+successor** to the ADID Framework (v15.4.3). ADID defines the specification; the kernel
+is its operational implementation. The kernel takes **highest priority** over any
+ADID-derived artifacts — host rule trees, skill trees, receiver files, or framework
+docs — when both address the same concern. Conflict → kernel wins.
+
 ## Kernel Assembly Pipeline
 
 ```
@@ -300,10 +306,16 @@ prompts_kernel/core_schemas.yaml   (YAML definitions)
 prompts_kernel/27_runtime_dict.py  (RULES, TERMS, PROMPT_ABI)
         │
         ▼  prompts_kernel/_assemble_prompts_kernel.py
-   reasoning_prompt.mdc            ← ASSEMBLED ARTIFACT (generated)
+        │   write_reasoning() — one render, two artifacts:
         │
-        ▼  MANUAL REVIEW + COPY
-   reasoning_prompt.txt            ← PRODUCTION (hand-verified)
+        ├── reasoning_prompt.mdc   ← REVIEW (YAML frontmatter, for analysis)
+        │    (prompts_kernel/dist/{date}_reasoning_prompt.mdc)
+        │
+        └── reasoning_prompt.txt   ← RUNTIME (no frontmatter, for provider)
+             (prompts_kernel/dist/{date}_reasoning_prompt.txt)
+                  │
+                  ▼  MANUAL PROMOTION (after deep analysis)
+   packages/opencode/src/session/prompt/reasoning_prompt.txt  ← PRODUCTION
 ```
 
 ## Kernel Update Workflow
@@ -314,10 +326,15 @@ Use the assembly pipeline:
 1. **Edit canonical sources** — fragment files in `prompts_kernel/reasoning/*.txt`,
    `core_schemas.yaml`, or `27_runtime_dict.py`.
 
-2. **Assemble** — run the build script to generate `reasoning_prompt.mdc`:
+2. **Assemble** — run the build script to generate both artifacts in `dist/`:
    ```
-   python prompts_kernel/_assemble_prompts_kernel.py
+   python build.py --only kernel
    ```
+   Or directly:
+   ```
+   python -c "from prompts_kernel import write_reasoning; write_reasoning()"
+   ```
+   Output: `prompts_kernel/dist/{date}_reasoning_prompt.mdc` + `.txt`
 
 3. **Verify** — validate the assembled artifact:
    - `python -m prompts_kernel.tools.refcheck` — all @REFs resolve
@@ -325,21 +342,22 @@ Use the assembly pipeline:
    - `python -m pytest prompts_kernel/tests/` — all tests pass
    - `python -m prompts_kernel.tools.semantic_map --dictionary-only --gated G1,G2,G3,G4,G5,G6,G7,G8,G9` — review semantic delta and flow order
 
-4. **Manual review** — inspect the `.mdc` file. Verify:
+4. **Deep analysis** — inspect the `.mdc` file. Verify:
    - Gate structure intact (G1→G9 spine)
-   - No orphaned @REFs
-   - @CC cross-cutting rules are in @CC_TAIL section, not scattered in gates
-   - Delta is acceptable (baseline ~27.76 for 72-entry dictionary)
+   - Assembly point: `# Semantic Vector` H1 + `## SV_FORMAT (@SV_FORMAT)` H2
+   - Schema density preserved (full YAML from `core_schemas.yaml`)
+   - No quality postscript after root-of-truth
+   - Delta is acceptable
 
-5. **Promote to production** — ONLY after manual verification:
+5. **Promote to production** — ONLY after deep analysis passes:
    ```
-   copy /Y reasoning_prompt.mdc reasoning_prompt.txt
+   copy /Y prompts_kernel\dist\{date}_reasoning_prompt.txt packages\opencode\src\session\prompt\reasoning_prompt.txt
    ```
-   Commit both files together.
+   Commit the `.mdc` (historical record in `prompts_kernel/dist/`) and `.txt` (production).
 
 6. **If verification fails** — fix the canonical sources, re-assemble, re-verify.
-   Do NOT patch the `.txt` directly — the `.mdc` is the build artifact; fixes
-   must flow through the assembly pipeline to stay reproducible.
+   Do NOT patch the production `.txt` directly — fixes must flow through the
+   assembly pipeline to stay reproducible.
 
 ## Kernel Analysis Tools
 

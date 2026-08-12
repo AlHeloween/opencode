@@ -1,5 +1,11 @@
 # prompts_kernel — TUI-agnostic prompt construction kernel
 
+**Lineage**: The thinking kernel (`prompts_kernel`) is the **canonical runtime successor**
+to the ADID Framework. ADID (v15.4.3) defines the specification and formal contract;
+the kernel is its operational implementation — and takes **highest priority** over
+any ADID-derived artifacts (host rules, skill trees, receiver files, or framework
+docs) when both address the same concern. In case of conflict: kernel wins.
+
 Self-contained package: code, tests, reasoning fragments, assembly — everything in one directory.
 
 ## Structure
@@ -11,7 +17,7 @@ prompts_kernel/
 ├── 01_enums … 31_prompt_ir      # 32 topic-sliced modules
 ├── 27_runtime_dict.py           # RUNTIME_TERMS (12), RUNTIME_RULES (32), WORKFLOWS (7)
 ├── 28_runtime_render.py         # render_runtime_kernel + validate_* functions
-├── reasoning/                   # 5 fragments (00_map … 04_hygiene)
+├── reasoning/                   # 6 fragments (00_map … 06_hygiene)
 └── tests/                       # 27 test files, 481 tests
 ```
 

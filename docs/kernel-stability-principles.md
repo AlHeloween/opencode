@@ -1,14 +1,16 @@
 # Kernel Stability Principles
 
 **Date**: 2026-08-09  
-**Status**: Post-mortem — optimization destroyed the assembly point  
+**Status**: Post-mortem — principles applied, kept as reference  
 **Audience**: Kernel developers, prompt engineers  
+
+> **Note (2026-08-12):** Fixes described here have been applied. The historical stable kernel is at `prompts_kernel/2026-08-09-historical-stable_kernel.txt`.  
 
 ---
 
 ## Context
 
-During optimization of the kernel assembly pipeline (`prompts_kernel/`), a critical error was introduced: schema compression, heading flattening, and a "quality" postscript collectively destroyed the **assembly point** — the structural reference frame without which an LLM cannot reconstruct the protocol from compressed information. The defect was discovered by chance — through comparison with `stable_kernel.txt`.
+During optimization of the kernel assembly pipeline (`prompts_kernel/`), a critical error was introduced: schema compression, heading flattening, and a "quality" postscript collectively destroyed the **assembly point** — the structural reference frame without which an LLM cannot reconstruct the protocol from compressed information. The defect was discovered by chance — through comparison with `2026-08-09-historical-stable_kernel.txt`.
 
 ---
 
@@ -61,7 +63,7 @@ Compressing schemas to 5–30% of original density shifted the ENTIRE kernel int
 
 ### Rule
 
-> **Schema density must not drop below 80% of stable_kernel.txt. Compressing one schema affects perception of the ENTIRE kernel.**
+> **Schema density must not drop below 80% of the historical stable kernel (`2026-08-09-historical-stable_kernel.txt`). Compressing one schema affects perception of the ENTIRE kernel.**
 
 ### Critical Schema Density Requirements
 
@@ -191,7 +193,7 @@ A break at any link = loss of the assembly point.
 - [ ] Bold imperative: `**YOU must emit... protocol violation**`?
 - [ ] Closing anchor: `Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.`?
 - [ ] Schemas — H2 under `# Schemas`?
-- [ ] Schema density ≥ 80% of `stable_kernel.txt`?
+- [ ] Schema density ≥ 80% of historical stable kernel (`2026-08-09-historical-stable_kernel.txt`)?
 - [ ] Schema order: action → plan → authorization → verification → epistemics?
 - [ ] Root-of-truth — last line, no postscript?
 - [ ] Refcheck: @G9→@SV_EVERY_TURN→@SV_FORMAT chain resolved?

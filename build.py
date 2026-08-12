@@ -180,8 +180,7 @@ def save_manifest(manifest: dict) -> None:
 
 
 def step_kernel() -> None:
-    """Precompile kernel + assemble unified reasoning_prompt.mdc."""
-    dst = ROOT / "packages/opencode/src/session/prompt/reasoning_prompt.mdc"
+    """Precompile kernel + assemble unified reasoning_prompt artifacts to dist/."""
     pkg = ROOT / "prompts_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
@@ -189,12 +188,13 @@ def step_kernel() -> None:
     _run([sys.executable, "-c",
           "from prompts_kernel import write_precompiled_kernel; "
           "write_precompiled_kernel()"])
-    # Step 2: Assemble reasoning_prompt.mdc (reasoning + runtime kernel, one file)
+    precompiled = pkg / "_kernel_precompiled.py"
+    if not precompiled.is_file():
+        raise RuntimeError(f"precompiled kernel missing: {precompiled}")
+    # Step 2: Assemble reasoning artifacts → dist/{date}_reasoning_prompt.{mdc,txt}
     _run([sys.executable, "-c",
           "from prompts_kernel import write_reasoning; "
           "write_reasoning()"])
-    if not dst.is_file():
-        raise RuntimeError(f"kernel assembly missing output: {dst}")
     # Coverage audit: gate ↔ rule sync
     _run(
         [sys.executable, str(ROOT / "prompts_kernel/_coverage.py")],
@@ -269,13 +269,13 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
     steps = [
         Step(
             name="kernel",
-            description="Assemble prompts_kernel/reasoning → reasoning_prompt.mdc",
+            description="Precompile kernel + assemble reasoning artifacts → dist/",
             inputs=[
                 "prompts_kernel",
                 "prompts_kernel/reasoning",
             ],
             outputs=[
-                "packages/opencode/src/session/prompt/reasoning_prompt.mdc",
+                "prompts_kernel/_kernel_precompiled.py",
             ],
             run=step_kernel,
         ),

@@ -4207,6 +4207,9 @@ RUNTIME_RULE_CATEGORIES = MappingProxyType({
     "ADID_OPS": "GATE_7_IMPLEMENT", "NO_SCRIPT_EDITING": "GATE_7_IMPLEMENT",
     "WORKSPACE_LANES": "GATE_7_IMPLEMENT", "ADID_FREEZE": "GATE_7_IMPLEMENT",
     "FRAMEWORK_INHERITANCE": "GATE_7_IMPLEMENT",
+    "PLAN_CONTRACT": "GATE_7_IMPLEMENT", "PLAN_BINDING": "GATE_7_IMPLEMENT",
+    # GATE_3_MASTER_PLAN (lifecycle)
+    "PLAN_LIFECYCLE": "GATE_3_MASTER_PLAN", "PLAN_REVISION": "GATE_3_MASTER_PLAN",
     # GATE_8_ORACLE
     "VERIFY_OUTCOME": "GATE_8_ORACLE", "SMOKE_VERIFY": "GATE_8_ORACLE",
     "OBSOLETE_CLEANUP": "GATE_8_ORACLE",
@@ -4243,6 +4246,8 @@ RUNTIME_RULES = MappingProxyType({
     "SMOKE_VALIDATE": "Validate spec: >=1 baseline check, exit status, tolerance justification; fail @GATE_4_AUTHORIZE if invalid.",
     "INFOMARK_SEP": "Salience != Evidence; fluency != truth; only stamped Exact|Inferred enter G.",
     "NAMING": "Rule and task identifiers must use UPPER_SNAKE_CASE with underscore delimiters.",
+    "PLAN_LIFECYCLE": "Plan follows state machine per @MASTER_PLAN_SCHEMA.lifecycle: DRAFT → ACTIVE → EXECUTING → VERIFYING → COMPLETED. Only ACTIVE and EXECUTING plans may drive @GATE_7_IMPLEMENT mutations.",
+    "PLAN_REVISION": "On material change (scope_change | architecture_change | new_requirement | failed_core_assumption | oracle_invalidates_premise): ACTIVE → INVALIDATED, create revision+1, rerun @GATE_2_DECOMPOSE, rerun @GATE_3_MASTER_PLAN, re-authorize via @GATE_4_AUTHORIZE if scope changed.",
 
     # ── G4: AUTHORIZE (Execution Envelope) ──
     "WRITE_SCOPE": "Modify strictly within user-authorized paths and ExecutionEnvelope bounds.",
@@ -4259,6 +4264,8 @@ RUNTIME_RULES = MappingProxyType({
     "WORKSPACE_LANES": "Keep throwaway code isolated in experiments/, futures/, obsolete/, makeups/.",
     "ADID_FREEZE": "ADID receivers frozen; change only via SPECS or official ADM pipelines.",
     "FRAMEWORK_INHERITANCE": "Inherit/extend existing abstractions; polymorphism > duplication.",
+    "PLAN_CONTRACT": "Every path reaching @GATE_7_IMPLEMENT must reference exactly one active master plan. Applies to: build_mode, plan_mode, orchestrator_agent, coder_agent. No exceptions — no implementation without an active plan.",
+    "PLAN_BINDING": "@GATE_7_IMPLEMENT requires plan.state ∈ {ACTIVE, EXECUTING}, task ∈ plan.tasks, task.depends_on_claims ⊆ G (Exact|Inferred). Worker must match task.worker_id or be authorized delegate.",
 
     # ── G8: ORACLE (Verification & Promotion) ──
     "VERIFY_OUTCOME": "Declare oracle before execution; PASS -> Exact stamp; FAIL -> demote; no self-certification.",
@@ -4327,6 +4334,10 @@ RUNTIME_RULE_OWNERS = MappingProxyType({
     "FRAMEWORK_INHERITANCE": "mutation",
     "OBSOLETE_CLEANUP": "verification",
     "METRIC_ADAPTATION": "plan",
+    "PLAN_CONTRACT": "plan",
+    "PLAN_BINDING": "plan",
+    "PLAN_LIFECYCLE": "plan",
+    "PLAN_REVISION": "plan",
 })
 
 RUNTIME_WORKFLOWS = MappingProxyType({
@@ -4381,6 +4392,8 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "TONE_AND_STYLE",
         "CONSTITUTION_BLOCKS",
         "FRAMEWORK_INHERITANCE",
+        "PLAN_CONTRACT",
+        "PLAN_BINDING",
     ),
     "observe": (
         "scope",
@@ -4433,6 +4446,8 @@ RUNTIME_WORKFLOWS = MappingProxyType({
         "PLANS_COMPLETED",
         "READ_ENTIRE_FILE",
         "NO_SCRIPT_EDITING",
+        "PLAN_LIFECYCLE",
+        "PLAN_REVISION",
     ),
     "research": (
         "evidence",
@@ -6176,6 +6191,19 @@ def validate_prompt_file(filepath: str, content: str) -> list[str]:
     errors: list[str] = []
     lower = content.lower()
 
+    # XML agent format: <agent id="...">, <scope>, <unique>, <kernel>, <forbidden>
+    # Detect and accept as valid — maps to PromptSpec sections.
+    if "<agent " in lower and "</agent>" in lower:
+        xml_sections = _extract_xml_sections(content)
+        missing = {"intent", "constraints", "invariants", "forbidden_actions"} - xml_sections
+        if missing:
+            errors.append(
+                f"{filepath}: XML agent format missing equivalent sections: {', '.join(sorted(missing))}. "
+                f"XML requires <agent id=\"...\"> (intent), <kernel> (constraints), "
+                f"<unique> (invariants), <forbidden> (forbidden_actions)."
+            )
+        return errors
+
     # Check for structured spec sections
     found_sections: set[str] = set()
     for marker in _STRUCTURED_SECTION_MARKERS:
@@ -6208,6 +6236,33 @@ def validate_prompt_file(filepath: str, content: str) -> list[str]:
                 break
 
     return errors
+
+
+def _extract_xml_sections(content: str) -> set[str]:
+    """Extract PromptSpec-equivalent sections from XML agent format.
+
+    Mapping:
+      <agent id="X">  → intent (identity declared)
+      <scope>         → scope
+      <unique>        → invariants (unique behavioral rules)
+      <kernel>        → constraints (kernel rule refs)
+      <forbidden>     → forbidden_actions
+    """
+    import re
+    sections: set[str] = set()
+    lower = content.lower()
+    # <agent id="..."> carries intent/identity
+    if re.search(r'<agent\s+id="[^"]*"', lower):
+        sections.add("intent")
+    if "<scope>" in lower:
+        sections.add("scope")
+    if "<unique>" in lower:
+        sections.add("invariants")
+    if "<kernel>" in lower:
+        sections.add("constraints")
+    if "<forbidden>" in lower:
+        sections.add("forbidden_actions")
+    return sections
 
 
 def assert_prompt_files_conform(*, package_root: str = ".") -> dict[str, list[str]]:
@@ -6341,10 +6396,16 @@ def _default_fragment_dir() -> Path:
 
 
 def _default_output() -> Path:
-    """Default output path for reasoning_prompt.mdc."""
+    """Default output path for reasoning_prompt.mdc — staging under dist/ with date prefix.
+
+    The .mdc review artifact and .txt runtime sibling are both written here.
+    Manual promotion to packages/opencode/src/session/prompt/reasoning_prompt.txt
+    happens only after deep assessment.
+    """
+    from datetime import datetime, timezone
     kernel_dir = Path(__file__).resolve().parent
-    repo_root = kernel_dir.parent
-    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return kernel_dir / "dist" / f"{today}_reasoning_prompt.mdc"
 
 
 def _schemas_path() -> Path:
@@ -6538,21 +6599,6 @@ def _strip_comment_prefix(text: str) -> str:
     return "\n".join(result)
 
 
-_MDC_FRONTMATTER_UNIFIED = """---
-description: "GATED agent — 9-gate spine, semantic vector, rules, contracts"
-alwaysApply: true
----
-
-"""
-
-
-def _default_output() -> Path:
-    """Default output path for reasoning_prompt.mdc."""
-    kernel_dir = Path(__file__).resolve().parent
-    repo_root = kernel_dir.parent
-    return repo_root / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
-
-
 def _runtime_output(output: Path) -> Path:
     """Return the runtime .txt sibling for a generated .mdc review artifact."""
     return output.with_suffix(".txt")
@@ -6634,6 +6680,7 @@ def write_reasoning(output: Path | None = None, fragment_dir: Path | None = None
     if errors:
         raise RuntimeError("; ".join(errors))
     return len(mdc)
+
 
 
 # =========================================================================

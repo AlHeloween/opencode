@@ -244,6 +244,19 @@ def validate_prompt_file(filepath: str, content: str) -> list[str]:
     errors: list[str] = []
     lower = content.lower()
 
+    # XML agent format: <agent id="...">, <scope>, <unique>, <kernel>, <forbidden>
+    # Detect and accept as valid — maps to PromptSpec sections.
+    if "<agent " in lower and "</agent>" in lower:
+        xml_sections = _extract_xml_sections(content)
+        missing = {"intent", "constraints", "invariants", "forbidden_actions"} - xml_sections
+        if missing:
+            errors.append(
+                f"{filepath}: XML agent format missing equivalent sections: {', '.join(sorted(missing))}. "
+                f"XML requires <agent id=\"...\"> (intent), <kernel> (constraints), "
+                f"<unique> (invariants), <forbidden> (forbidden_actions)."
+            )
+        return errors
+
     # Check for structured spec sections
     found_sections: set[str] = set()
     for marker in _STRUCTURED_SECTION_MARKERS:
@@ -276,6 +289,33 @@ def validate_prompt_file(filepath: str, content: str) -> list[str]:
                 break
 
     return errors
+
+
+def _extract_xml_sections(content: str) -> set[str]:
+    """Extract PromptSpec-equivalent sections from XML agent format.
+
+    Mapping:
+      <agent id="X">  → intent (identity declared)
+      <scope>         → scope
+      <unique>        → invariants (unique behavioral rules)
+      <kernel>        → constraints (kernel rule refs)
+      <forbidden>     → forbidden_actions
+    """
+    import re
+    sections: set[str] = set()
+    lower = content.lower()
+    # <agent id="..."> carries intent/identity
+    if re.search(r'<agent\s+id="[^"]*"', lower):
+        sections.add("intent")
+    if "<scope>" in lower:
+        sections.add("scope")
+    if "<unique>" in lower:
+        sections.add("invariants")
+    if "<kernel>" in lower:
+        sections.add("constraints")
+    if "<forbidden>" in lower:
+        sections.add("forbidden_actions")
+    return sections
 
 
 def assert_prompt_files_conform(*, package_root: str = ".") -> dict[str, list[str]]:

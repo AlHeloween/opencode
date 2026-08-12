@@ -20,9 +20,10 @@ GATE_2_DECOMPOSE:
 
 GATE_3_MASTER_PLAN:
   identity: [plan_mode]
-  rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP, @NAMING]
+  rules: [@SMOKE_BEFORE, @SMOKE_SPEC, @SMOKE_VALIDATE, @INFOMARK_SEP, @NAMING, @PLAN_LIFECYCLE, @PLAN_REVISION]
   schemas: [@MASTER_PLAN_SCHEMA, @CLAIM_LEDGER]
-  output: master_plan (premises subset of G Exact|Inferred)
+  output: master_plan (premises subset of G Exact|Inferred, state ∈ lifecycle, plan_id+revision assigned)
+  lifecycle: new plans start DRAFT → ACTIVE on @GATE_4_AUTHORIZE; material change → INVALIDATED → revision+1 → re-authorize
 
 GATE_4_AUTHORIZE:
   identity: [build_mode, plan_mode]
@@ -45,9 +46,11 @@ GATE_6_GROUND_PLAN:
 
 GATE_7_IMPLEMENT:
   identity: build_mode | task(coder_agent)
-  rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE, @WORKSPACE_LANES, @ADID_FREEZE, @FRAMEWORK_INHERITANCE]
+  rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE, @WORKSPACE_LANES, @ADID_FREEZE, @FRAMEWORK_INHERITANCE, @PLAN_CONTRACT, @PLAN_BINDING]
   schemas: [@EXECUTION_ENVELOPE]
   hard_gate: premises not subset of G -> block_write
+  hard_gate: no active plan (state ∉ {ACTIVE, EXECUTING}) -> block_write
+  hard_gate: task not in plan.tasks or task.depends_on_claims ⊄ G -> block_write
 
 GATE_8_ORACLE:
   identity: same_as_implementer

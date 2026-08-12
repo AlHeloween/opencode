@@ -63,3 +63,46 @@ stages: ERROR_TEST → TRIAL_FIX → REAL_FIX → TARGETED_TESTS → DONE.
 rule: ERROR_TEST must FAIL first. TARGETED = changed module + related only.
 deadloop: ≥2 STUCK in last 3 attempts → STOP + universalsearch web+code; re-plan.
 STUCK: δ < 0.3 | REFINING: 0.3 ≤ δ < 0.5 | DIVERGING: δ ≥ 0.5.
+
+### SV_TRAJECTORY (@SV_TRAJECTORY)
+**Extends @SV_DELTA with multi-step trajectory analysis.** Tracks semantic position over time to detect drift before it becomes visible in output quality.
+
+metrics:
+  goal_distance: D_g = d₁(S_t, G) — Manhattan L1 from current SV to original Goal SV. Rising → semantic drift.
+  step_distance: D_p = d₁(S_t, S_{t-1}) — per-step change magnitude.
+  velocity: v_t = D_p per turn — sustained high velocity = unstable exploration.
+  coverage: C_g = fraction of Goal SV keyword dimensions with cumulative weight ≥ 0.5 across trajectory {S_0…S_t}.
+
+drift classification (from D_g, D_p):
+  stable_convergence: D_g < 0.3 ∧ D_p < 0.3 — on target, small refinements. Continue.
+  exploration:        D_g < 0.3 ∧ D_p ≥ 0.3 — exploring around goal. Acceptable, monitor D_g.
+  stable_drift:       D_g ≥ 0.6 ∧ D_p < 0.3 — DANGEROUS: confidently solving wrong problem. HALT + re-anchor to Goal SV.
+  divergence:         D_g ≥ 0.6 ∧ D_p ≥ 0.3 — uncontrolled. HALT + universalsearch + re-plan.
+  transitional:       otherwise — accumulating evidence, re-evaluate next turn.
+
+rule: stable_drift ≥ 2 consecutive turns → mandatory re-anchor via @GATE_1_GROUND + emit SV_TARGET realigned to Goal.
+rule: step_distance spike ≥ 0.5 above running median → possible context switch; verify against plan.
+invariant: trajectory analysis uses the same Manhattan L1 metric as @SV_DELTA and @FRACTAL_GEOMETRY.
+
+### MULTI_AGENT_SV (@MULTI_AGENT_SV)
+**Orchestrator-level SV feedback controller for sub-agent teams.** Extends @SV_TARGET with diversity-driven dispatch and semantic coverage tracking.
+
+controller loop:
+  1. GOAL_SV → allocate per-agent SV_TARGET with orthogonal weight vectors for diversity
+  2. dispatch agents: Agent_1→correctness, Agent_2→architecture, Agent_3→adversarial, Agent_4→simplicity, Agent_5→usability
+  3. collect RESULT + SV_STATE from each agent
+  4. measure: alignment d₁(SV_TARGET, SV_STATE), inter-agent diversity d₁(S_i, S_j), coverage vs Goal
+  5. compute semantic residual: R = G − ⋃Coverage(S_i) — dimensions with cumulative weight < 0.5
+  6. redistribute: next SV_TARGET weights toward uncovered dimensions
+  7. redispatch only to uncovered regions
+  8. stop when ||R||₁ < threshold
+
+PID feedback interpretation:
+  P (proportional): current uncovered dimensions → immediate correction
+  I (integral): dimensions systematically ignored across cycles → escalating priority
+  D (derivative): dimensions where attention is growing too fast → dampening
+
+objective function: J = α·Alignment + β·Coverage + γ·Novelty − δ·Drift
+  maximize alignment to Goal while preserving inter-agent diversity
+
+invariant: diversity > 0 — homogeneous agents (all d₁(S_i, S_j) → 0) produce tunnel vision; enforce d₁(S_i, S_j) ≥ 0.15 for at least one pair

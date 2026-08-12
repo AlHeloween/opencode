@@ -1,8 +1,10 @@
 # Kernel Assembly Point Analysis
 
 **Date**: 2026-08-09  
-**Status**: Critical — mission-critical prompt engineering  
-**Scope**: Stable kernel (`stable_kernel.txt`) vs infrastructure-generated kernel (`reasoning_prompt.txt`)
+**Status**: Post-mortem analysis — fixes applied, kept as historical reference  
+**Scope**: Stable kernel (`2026-08-09-historical-stable_kernel.txt`) vs infrastructure-generated kernel (`reasoning_prompt.txt`)
+
+> **Note (2026-08-12):** The "Fix Plan" items below have been applied. Fragment `03_schemas.txt` no longer exists — schemas are now in `00b_schemas.txt` with `@schema:` markers. The quality postscript was removed from `_assemble_prompts_kernel.py`. Stable kernel reference is now `prompts_kernel/2026-08-09-historical-stable_kernel.txt`.
 
 ---
 
@@ -208,33 +210,23 @@ The generated kernel breaks every link in this loop:
 
 ## Fix Plan
 
-### Fragment Fixes
+### Fragment Fixes ✅ (applied)
 
-**`prompts_kernel/reasoning/00_map.txt`** — Restructure SV section:
-- Replace `#### Here are the rules (obsidian md) you MUST FOLLOW...` / `## RESPONSE REQUIREMENT` with stable kernel structure:
-  - `# Semantic Vector` H1
-  - Bold imperative: `**YOU must emit this after EVERY response.** No exceptions. Omission = protocol violation.`
-  - `## SV_FORMAT (@SV_FORMAT)` H2 with yaml block
-  - Rules as bullet points under SV_FORMAT
-  - Closing: `Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.`
+**`prompts_kernel/reasoning/00_map.txt`** — SV section restructured:
+- ✅ `# Semantic Vector` H1 with bold imperative
+- ✅ `## SV_FORMAT (@SV_FORMAT)` H2 with yaml block
+- ✅ Closing: `Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.`
 
-**`prompts_kernel/reasoning/03_schemas.txt`** — Replace compressed schemas with `@schema:` markers:
-- Replace each compressed `## NAME (@TAG)` block with `# @schema: name` marker
-- This causes the assembly script to inject full YAML from `core_schemas.yaml`
-- Restore narrative schema order: ACTION_CLASS → MASTER_PLAN_SCHEMA → EXECUTION_ENVELOPE → EXPLORER_GOAL → STAMPS → CLEAN_NEXT_STATE → MSG_TAG → BLOCKER → SIGNAL_CLUSTER → BUG_FIX_SCHEMA → CLAIM_LEDGER → FRACTAL_GEOMETRY → SMOKE_CONTRACT
-- Promote schemas to `## NAME (@TAG)` H2 headings (the assembly script already outputs H2 for tagged sections)
+**`prompts_kernel/reasoning/00b_schemas.txt`** — Uses `@schema:` markers (replaced old `03_schemas.txt`):
+- ✅ Each `@schema:` marker resolved against `core_schemas.yaml` at build time
+- ✅ Full YAML injected — no compression
+- ✅ Narrative schema order preserved
 
-### Assembly Script Fix
+### Assembly Script Fix ✅ (applied)
 
-**`prompts_kernel/_assemble_prompts_kernel.py`** — Remove quality postscript:
-- In `render_reasoning_artifacts()` (line 261), change:
-  ```python
-  runtime_body = reasoning + "\n\n" + runtime + "\n\n### Remember FOLLOWING these rules ensures the quality of your responses"
-  ```
-  to:
-  ```python
-  runtime_body = reasoning + "\n\n" + runtime
-  ```
+**`prompts_kernel/_assemble_prompts_kernel.py`** — Quality postscript removed:
+- ✅ `render_reasoning_artifacts()` no longer appends `### Remember FOLLOWING...`
+- ✅ Root-of-truth is the last line
 
 ### Verification
 
@@ -248,10 +240,11 @@ After reassembly, verify:
 
 ## References
 
-- `stable_kernel.txt` — Canonical hand-verified kernel (880 lines)
-- `prompts_kernel/reasoning/00_map.txt` — SV/identity/protocol fragment (80 lines)
-- `prompts_kernel/reasoning/03_schemas.txt` — Compressed schema fragment (79 lines)
+- `prompts_kernel/2026-08-09-historical-stable_kernel.txt` — Canonical hand-verified kernel (880 lines)
+- `prompts_kernel/reasoning/00_map.txt` — SV/identity/protocol fragment (71 lines)
+- `prompts_kernel/reasoning/00b_schemas.txt` — Schema fragment with @schema: markers (was `03_schemas.txt` in broken config)
 - `prompts_kernel/core_schemas.yaml` — Full schema source of truth (357 lines)
 - `prompts_kernel/_assemble_prompts_kernel.py` — Assembly script (490 lines)
-- `packages/opencode/src/session/prompt/reasoning_prompt.txt` — Production kernel (703 lines)
+- `packages/opencode/src/session/prompt/reasoning_prompt.txt` — Production kernel
+- `prompts_kernel/dist/` — Staging area for generated artifacts before manual promotion
 - `packages/opencode/AGENTS.md` — Agent development guide

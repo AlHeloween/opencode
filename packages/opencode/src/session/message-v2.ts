@@ -766,23 +766,12 @@ export function clearConversionCache() {
 }
 
 /**
- * Fast content fingerprint of part texts for conversion-cache invalidation.
- * Uses length + sample endpoints + Bun.hash — O(1) per part, not O(chars).
- * When text changes (e.g. UTC append), length/endpoints change → miss.
+ * Fingerprint every persisted part field that can affect model conversion.
+ * Tool results update `state` on an existing assistant message, so hashing text
+ * alone would return the pre-tool snapshot and omit the result from the next request.
  */
-function hashPartTexts(parts: readonly Part[]): number {
-  let h = 2166136261
-  for (const part of parts) {
-    if (!("text" in part) || typeof part.text !== "string") continue
-    const t = part.text
-    const len = t.length
-    // Sample head/tail so mid-edits that preserve length still miss often enough.
-    const head = len > 0 ? t.slice(0, Math.min(64, len)) : ""
-    const tail = len > 64 ? t.slice(-64) : ""
-    const piece = `${part.id}:${len}:${head}:${tail}`
-    h = (Math.imul(h ^ Number(Bun.hash(piece)), 16777619)) | 0
-  }
-  return h
+function hashParts(parts: readonly Part[]): number {
+  return Number(Bun.hash(JSON.stringify(parts)))
 }
 
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
@@ -861,10 +850,8 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     }
 
     // Per-message conversion cache: skip redundant conversion of stable messages.
-    // Key includes a content hash of part texts so mutations (e.g. UTC
-    // append) invalidate the cache entry.  Without this, date text changes corrupt
-    // cached message content after session restores.
-    const contentFp = hashPartTexts(msg.parts)
+    // The key includes all provider-visible part state, including tool outputs.
+    const contentFp = hashParts(msg.parts)
     const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}:${contentFp}`
     const cached = cache.get(cacheKey)
     if (cached) {

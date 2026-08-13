@@ -648,6 +648,13 @@ it.live("glob tool keeps instance context during prompt runs", () =>
         expect(tool.state.output).toContain(file)
         expect(tool.state.output).not.toContain("No context found for instance")
         expect(result.parts.some((part) => part.type === "text" && part.text === "done")).toBe(true)
+
+        // A tool result mutates the existing assistant message. The next model
+        // request must re-convert that message instead of reusing its pre-tool
+        // snapshot from the in-loop or conversion caches.
+        const inputs = yield* llm.inputs
+        expect(inputs).toHaveLength(2)
+        expect(JSON.stringify(inputs[1]?.messages)).toContain(file)
       }),
     { git: true, config: providerCfg },
   ),

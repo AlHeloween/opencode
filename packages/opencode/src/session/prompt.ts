@@ -2112,7 +2112,14 @@ export const layer = Layer.effect(
               // auto-continue — it's completing the tool-call cycle within one
               // logical turn. Provider-executed tools (finish === "stop") were
               // already handled in-stream and need no external processing.
-              if (msg.finish === "tool-calls" || MessageV2.parts(msg.id).some((part) => part.type === "tool" && !part.metadata?.providerExecuted)) return "continue" as const
+              if (msg.finish === "tool-calls" || MessageV2.parts(msg.id).some((part) => part.type === "tool" && !part.metadata?.providerExecuted)) {
+                // Tool execution updates parts of this assistant message in place.
+                // The incremental cache only discovers new IDs, so it cannot observe
+                // that mutation on the next loop iteration.
+                cachedMsgs = undefined
+                lastKnownId = undefined
+                return "continue" as const
+              }
               // Layer 1 only after this assistant fully completed (reasoning closed).
               // Never inject mid-stream or mid-tool-loop — reasoning models require
               // the open turn to finish before any synthetic user message.

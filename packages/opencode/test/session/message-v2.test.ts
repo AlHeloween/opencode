@@ -365,6 +365,39 @@ describe("session.message-v2.toModelMessage", () => {
     ])
   })
 
+  test("reconverts a tool result when it updates an existing assistant message", async () => {
+    const assistantID = "m-tool-cache"
+    const tool: MessageV2.ToolPart = {
+      ...basePart(assistantID, "tool-cache-part"),
+      type: "tool",
+      callID: "call-cache",
+      tool: "read",
+      state: {
+        status: "running",
+        input: { filePath: "Cargo.toml" },
+        title: "Read",
+        metadata: {},
+        time: { start: 0 },
+      },
+    }
+    const input: MessageV2.WithParts[] = [{ info: assistantInfo(assistantID, "m-user"), parts: [tool] }]
+
+    const before = await MessageV2.toModelMessages(input, model)
+    expect(JSON.stringify(before)).toContain("Tool execution was interrupted")
+
+    tool.state = {
+      status: "completed",
+      input: { filePath: "Cargo.toml" },
+      output: "fresh tool result",
+      title: "Read",
+      metadata: {},
+      time: { start: 0, end: 1 },
+    }
+
+    const after = await MessageV2.toModelMessages(input, model)
+    expect(JSON.stringify(after)).toContain("fresh tool result")
+  })
+
   test("preserves jpeg tool-result media for anthropic models", async () => {
     const anthropicModel: Provider.Model = {
       ...model,

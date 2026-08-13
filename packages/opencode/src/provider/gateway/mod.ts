@@ -58,7 +58,7 @@ export const layer = Layer.effect(
         const config = await loadGatewayConfig()
         const logging = config.gateway?.logging
         if (logging) {
-          configureLogging(logging.enabled ?? true, logging.format ?? "json")
+          configureLogging(logging.enabled ?? false, logging.format ?? "json")
         }
         // Set debug config (per-model overrides global)
         const debugCfg = resolveDebugConfig(config, null)

@@ -23,7 +23,7 @@ const log = Log.create({ service: "gateway.adaptive-client" })
 
 const limiterState = Limiter.makeState()
 const streamState = StreamBudget.makeState()
-let loggingEnabled = true
+let loggingEnabled = false
 let asyncLogger: AsyncLogger | undefined
 let errorLogger: AsyncLogger | undefined
 let perRequestLogger: PerRequestLogger | undefined
@@ -42,7 +42,7 @@ export function setDebugConfig(config: ResolvedDebugConfig): void {
 }
 
 export function getDebugConfig(): ResolvedDebugConfig {
-  return debugConfig ?? { debug: true, logBodies: true, logResponseBodies: false, perRequest: false }
+  return debugConfig ?? { debug: false, logBodies: false, logResponseBodies: false, perRequest: false }
 }
 
 export function configureLogging(enabled: boolean, _format: "json" | "text" = "json"): void {

@@ -29,6 +29,7 @@ _WE_USE_GIT_IDIOT_
 /opencode.json
 opencode.jsonc
 gateway.jsonc
+.opencode/gateway.jsonc
 auth.json
 /config.json
 

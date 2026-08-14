@@ -43,6 +43,8 @@ class DocIndex:
         DocRecord("docs/external-file-locations.md", "OpenCode team", "File paths opencode reads/writes outside worktree"),
         DocRecord("docs/linux-deploy.md", "Local_Development", "Linux build + portable deploy for this fork (not upstream install.sh)"),
         DocRecord("docs/tools-and-sidecars.md", "Local_Development", "Sidecar tools inventory, resolution paths, Windows/Linux packaging"),
+        DocRecord("docs/streamlake-kat-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of the StreamLake/KAT gateway (include_usage, 64-token hits, ignored chat_template_kwargs)"),
+        DocRecord("docs/deepseek-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of DeepSeek v4 (auto usage, 128-token units, cold-turn cost, CoT rules, refuted user_id isolation)"),
     ])
     
     specs: list[DocRecord] = field(default_factory=lambda: [

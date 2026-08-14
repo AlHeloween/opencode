@@ -125,6 +125,16 @@ export const layer = Layer.effect(
         })
 
         const user = Permission.fromConfig(cfg.permission ?? {})
+        // Restrictive native modes append `* → deny` to make their runtime ACL
+        // authoritative. Reapply the resolved external-directory policy after
+        // that catch-all so resource grants (navigation.allow/deny included)
+        // keep working without reopening shell or edit capabilities.
+        const externalDirectory = Permission.fromConfig({
+          external_directory: cfg.permission?.external_directory ?? {
+            "*": "ask",
+            ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
+          },
+        })
 
         // Canonical identity ids: *_mode (primary) / *_agent (specialized). See @IDENTITIES.
         const agents: Record<string, Info> = {
@@ -193,6 +203,7 @@ export const layer = Layer.effect(
                   [path.join("plans", "*")]: "allow",
                 },
               }),
+              externalDirectory,
             ),
             mode: "primary",
             native: true,
@@ -316,11 +327,8 @@ export const layer = Layer.effect(
                 "session-read": "allow",
                 read: "allow",
                 todowrite: "allow",
-                external_directory: {
-                  "*": "ask",
-                  ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
-                },
               }),
+              externalDirectory,
             ),
             description: `Fast agent (explorer_agent) specialized for exploring codebases and researching conversation history. Use when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase, or search past conversations. Thoroughness: "quick" | "medium" | "very thorough". Not codegraph mode "explore".`,
             prompt: PROMPT_EXPLORE,
@@ -365,11 +373,8 @@ export const layer = Layer.effect(
                 messagesearch: "allow",
                 "session-read": "allow",
                 todowrite: "allow",
-                external_directory: {
-                  "*": "ask",
-                  ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
-                },
               }),
+              externalDirectory,
             ),
             prompt: PROMPT_RESEARCHER,
             options: {},

@@ -6,12 +6,10 @@ import { Effect, Layer, Context, Schema } from "effect"
 import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
-import type { Agent } from "@/agent/agent"
 import { Bus } from "@/bus"
 import { InstanceState } from "@/effect/instance-state"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Global } from "@opencode-ai/core/global"
-import { Permission } from "@/permission"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Config } from "@/config/config"
 import { ConfigMarkdown } from "@/config/markdown"
@@ -118,7 +116,8 @@ export interface Interface {
   readonly get: (name: string) => Effect.Effect<Info | undefined>
   readonly all: () => Effect.Effect<Info[]>
   readonly dirs: () => Effect.Effect<string[]>
-  readonly available: (agent?: Agent.Info) => Effect.Effect<Info[]>
+  /** Full discovered catalog. Permissions are enforced only by SkillTool at execution time. */
+  readonly available: () => Effect.Effect<Info[]>
 }
 
 const add = Effect.fnUntraced(function* (state: State, match: string, bus: Bus.Interface) {
@@ -254,8 +253,10 @@ const loadSkills = Effect.fnUntraced(function* (state: State, discovered: Discov
     content: COMPACTION_SKILL_CONTENT,
   }
 
-  yield* Effect.forEach(discovered.matches, (match) => add(state, match, bus), {
-    concurrency: "unbounded",
+  // Discovery sources can overlap. A sorted sequential load gives duplicate skill
+  // names a deterministic winner instead of depending on filesystem timing.
+  yield* Effect.forEach(discovered.matches.toSorted(), (match) => add(state, match, bus), {
+    concurrency: 1,
     discard: true,
   })
 
@@ -298,11 +299,9 @@ export const layer = Layer.effect(
       return (yield* InstanceState.get(discovered)).dirs
     })
 
-    const available = Effect.fn("Skill.available")(function* (agent?: Agent.Info) {
+    const available = Effect.fn("Skill.available")(function* () {
       const s = yield* InstanceState.get(state)
-      const list = Object.values(s.skills).toSorted((a, b) => a.name.localeCompare(b.name))
-      if (!agent) return list
-      return list.filter((skill) => Permission.evaluate("skill", skill.name, agent.permission).action !== "deny")
+      return Object.values(s.skills).toSorted((a, b) => a.name.localeCompare(b.name))
     })
 
     return Service.of({ get, all, dirs, available })

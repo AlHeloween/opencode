@@ -345,13 +345,10 @@ export const layer: Layer.Layer<
       return (yield* all()).map((tool) => tool.id)
     })
 
-    const describeSkill = Effect.fn("ToolRegistry.describeSkill")(function* (_agent: Agent.Info) {
-      // Skill descriptions are mode-stable for KV cache: always list the full
-      // skill set (build_mode = most permissive). Mode-specific ACL gating is
-      // runtime-only in SessionTools — never shrink the tool description by role.
-      // describeTask below already follows this pattern (_agent unused).
-      const buildAgent = yield* agents.get("build_mode")
-      const list = yield* skill.available(buildAgent ?? _agent)
+    const describeSkill = Effect.fn("ToolRegistry.describeSkill")(function* () {
+      // Skill descriptions are mode-stable for KV cache: publish the complete
+      // discovered catalog. SkillTool applies the name-specific ACL at execution.
+      const list = yield* skill.available()
       if (list.length === 0) return "No skills are currently available."
       return [
         "Load a specialized skill that provides domain-specific instructions and workflows.",
@@ -389,15 +386,7 @@ export const layer: Layer.Layer<
       // Reasoning/plan ACL is runtime-only in SessionTools (deny execute + mode message).
       // reasoningEnter/reasoningExit are always present in the schema — execute is
       // gated by SessionTools, not by removing the tool definition (KV cache stable).
-      const candidates = yield* all()
-      const filtered = candidates.filter((tool) => {
-        const usePatch =
-          input.modelID.includes("gpt-") && !input.modelID.includes("oss") && !input.modelID.includes("gpt-4")
-        if (tool.id === ApplyPatchTool.id) return usePatch
-        if (tool.id === EditTool.id || tool.id === WriteTool.id) return !usePatch
-
-        return true
-      })
+      const filtered = yield* all()
 
       return yield* Effect.forEach(
         filtered,
@@ -414,7 +403,7 @@ export const layer: Layer.Layer<
             description: [
               output.description,
               tool.id === TaskTool.id ? yield* describeTask(input.agent) : undefined,
-              tool.id === SkillTool.id ? yield* describeSkill(input.agent) : undefined,
+              tool.id === SkillTool.id ? yield* describeSkill() : undefined,
             ]
               .filter(Boolean)
               .join("\n"),

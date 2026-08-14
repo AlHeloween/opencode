@@ -27,7 +27,6 @@ from prompts_kernel import build_conformance_suite
 
 SESSION_PROMPT_DIR = os.path.join(PROJECT_ROOT, "packages/opencode/src/session/prompt")
 AGENT_PROMPT_DIR = os.path.join(PROJECT_ROOT, "packages/opencode/src/agent/prompt")
-DIST_DIR = os.path.join(PROJECT_ROOT, "prompts_kernel", "dist")
 SKILL_DIRS = [
     os.path.join(PROJECT_ROOT, "packages/opencode/src/skill"),
 ]
@@ -63,25 +62,13 @@ _REASONING_POCKET_MARKERS = (
     "oracle_stamp",
 )
 POCKET_PROTOCOL_FILES = {
-    # Assembler writes .mdc to dist/ (review artifact); runtime imports .txt (must stay in sync).
+    # Assembler writes .mdc; runtime imports .txt (must stay in sync).
     "reasoning_prompt.mdc": _REASONING_POCKET_MARKERS,
     "reasoning_prompt.txt": _REASONING_POCKET_MARKERS,
-    # Mode-switch tails: XML identity stamp (compact — law lives in reasoning_prompt).
-    "build.txt": ("build_mode", "@BUILD_MODE"),
-    "plan.txt": ("plan_mode", "@PLAN_MODE"),
-    "reasoning-mode.txt": ("reasoning_mode", "@REASONING_MODE"),
-}
-
-# Pocket protocol files are split across two directories:
-# - dist/  → generated reasoning artifacts (.mdc + .txt)
-# - session prompt/ → mode tails (build.txt, plan.txt, reasoning-mode.txt)
-# - session prompt/ → production reasoning_prompt.txt (manually promoted from dist/)
-POCKET_PROTOCOL_DIRS = {
-    "reasoning_prompt.mdc": DIST_DIR,
-    "reasoning_prompt.txt": DIST_DIR,   # review artifact in dist; also exists in session prompt (production)
-    "build.txt": SESSION_PROMPT_DIR,
-    "plan.txt": SESSION_PROMPT_DIR,
-    "reasoning-mode.txt": SESSION_PROMPT_DIR,
+    # Mode-switch tails: identity stamp + @SPEC ref only (law lives in reasoning_prompt).
+    "build.txt": ("build_mode", "@BUILD_MODE", "@IDENTITIES"),
+    "plan.txt": ("plan_mode", "@PLAN_MODE", "@IDENTITIES"),
+    "reasoning-mode.txt": ("reasoning_mode", "@REASONING_MODE", "@IDENTITIES"),
 }
 
 # Soft budget for pocket protocol files (bytes). reasoning includes full gates + InfoMark.
@@ -317,21 +304,10 @@ def test_modes_bind_generated_session_tails():
 
 
 def test_pocket_protocol_files_exist_and_markers():
-    """reasoning_prompt artifacts in dist/ + mode tails in session prompt/ are pocket density, not PromptSpec."""
+    """reasoning_prompt (.mdc assemble / .txt runtime) + mode tails are pocket density, not PromptSpec."""
     for name, markers in POCKET_PROTOCOL_FILES.items():
-        target_dir = POCKET_PROTOCOL_DIRS.get(name, SESSION_PROMPT_DIR)
-        # Dist files use dated prefix: {date}_reasoning_prompt.{mdc,txt}
-        if target_dir == DIST_DIR:
-            import glob as _glob
-            candidates = sorted(_glob.glob(os.path.join(target_dir, f"*_{name}")))
-            if not candidates:
-                # Try exact name (fallback for non-dated)
-                fp = os.path.join(target_dir, name)
-            else:
-                fp = candidates[-1]  # Latest dated file
-        else:
-            fp = os.path.join(target_dir, name)
-        assert os.path.isfile(fp), f"missing pocket protocol: {name} (in {target_dir})"
+        fp = os.path.join(SESSION_PROMPT_DIR, name)
+        assert os.path.isfile(fp), f"missing pocket protocol: {name}"
         with open(fp, "r", encoding="utf-8") as f:
             content = f.read()
         max_bytes = POCKET_PROTOCOL_MAX_BYTES.get(name, 12_000)
@@ -384,15 +360,7 @@ def test_schema_refs_resolve():
     )
 
     # 2. Assembled reasoning.txt must contain ZERO raw @schema: markers
-    import glob as _glob
-    mdc_candidates = sorted(_glob.glob(os.path.join(DIST_DIR, "*_reasoning_prompt.mdc")))
-    if mdc_candidates:
-        reasoning_path = mdc_candidates[-1]  # Latest dated
-    elif os.path.isfile(os.path.join(SESSION_PROMPT_DIR, "reasoning_prompt.txt")):
-        reasoning_path = os.path.join(SESSION_PROMPT_DIR, "reasoning_prompt.txt")
-    else:
-        reasoning_path = os.path.join(DIST_DIR, "reasoning_prompt.mdc")  # fallback
-    assert os.path.isfile(reasoning_path), f"reasoning artifact not found: {reasoning_path}"
+    reasoning_path = os.path.join(SESSION_PROMPT_DIR, "reasoning_prompt.mdc")
     with open(reasoning_path, "r", encoding="utf-8") as f:
         assembled = f.read()
     orphan_markers = re.findall(r"^# @schema:\s*\S+\s*$", assembled, re.MULTILINE)
@@ -402,9 +370,9 @@ def test_schema_refs_resolve():
 
     # 3. All @schema: refs produce a corresponding tagged heading in the assembled output.
     #    The assembly pipeline injects full YAML from core_schemas.yaml via _section_to_comment_lines,
-    #    which produces "## {name} (@{tag})" or "### {name} (@{tag})" headings. Resolve expected tags from the YAML itself.
+    #    which produces "## {name} (@{tag})" headings. Resolve expected tags from the YAML itself.
     resolved_tags = set()
-    for m in re.finditer(r"^#{2,3} (\w+(?:\s+\w+)*)\s+\(@(\w+)\)", assembled, re.MULTILINE):
+    for m in re.finditer(r"^## (\w+(?:\s+\w+)*)\s+\(@(\w+)\)", assembled, re.MULTILINE):
         resolved_tags.add(m.group(2))  # group(2) = tag name, e.g. ACTION_CLASS
     # Derive expected tags from YAML: for each @schema: ref, look up the tag field
     expected_tags = set()

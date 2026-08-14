@@ -621,8 +621,9 @@ it.live("glob tool keeps instance context during prompt runs", () =>
           title: "Glob context",
           permission: [{ permission: "*", pattern: "*", action: "allow" }],
         })
-        const file = path.join(dir, "probe.txt")
-        yield* Effect.promise(() => Bun.write(file, "probe"))
+        const first = path.join(dir, "first.txt")
+        const second = path.join(dir, "second.txt")
+        yield* Effect.promise(() => Promise.all([Bun.write(first, "first"), Bun.write(second, "second")]))
 
         yield* prompt.prompt({
           sessionID: session.id,
@@ -630,7 +631,8 @@ it.live("glob tool keeps instance context during prompt runs", () =>
           noReply: true,
           parts: [{ type: "text", text: "find text files" }],
         })
-        yield* llm.tool("glob", { pattern: "**/*.txt" })
+        yield* llm.tool("glob", { pattern: "**/first.txt" })
+        yield* llm.tool("glob", { pattern: "**/second.txt" })
         yield* llm.text("done")
 
         const result = yield* prompt.loop({ sessionID: session.id })
@@ -645,16 +647,17 @@ it.live("glob tool keeps instance context during prompt runs", () =>
           )
         if (!tool) return
 
-        expect(tool.state.output).toContain(file)
+        expect(tool.state.output).toContain(first)
         expect(tool.state.output).not.toContain("No context found for instance")
         expect(result.parts.some((part) => part.type === "text" && part.text === "done")).toBe(true)
 
-        // A tool result mutates the existing assistant message. The next model
-        // request must re-convert that message instead of reusing its pre-tool
-        // snapshot from the in-loop or conversion caches.
+        // Each tool result mutates an existing assistant message. The third model
+        // request must contain both results, not a snapshot frozen after the first.
         const inputs = yield* llm.inputs
-        expect(inputs).toHaveLength(2)
-        expect(JSON.stringify(inputs[1]?.messages)).toContain(file)
+        expect(inputs).toHaveLength(3)
+        expect(JSON.stringify(inputs[1]?.messages)).toContain("first.txt")
+        expect(JSON.stringify(inputs[2]?.messages)).toContain("first.txt")
+        expect(JSON.stringify(inputs[2]?.messages)).toContain("second.txt")
       }),
     { git: true, config: providerCfg },
   ),
@@ -2002,6 +2005,39 @@ unix(
       ),
     ),
   30_000,
+)
+
+it.live(
+  "cancel cascades to child sessions and their background jobs",
+  () =>
+    provideTmpdirServer(
+      Effect.fnUntraced(function* () {
+        const { prompt, sessions, chat } = yield* boot()
+        const child = yield* sessions.create({ parentID: chat.id })
+        const jobs = yield* Jobs.Service
+        const parentJob = yield* jobs.startEffect({
+          sessionID: chat.id,
+          kind: "task",
+          label: "parent task",
+          run: () => Effect.never,
+        })
+        const childJob = yield* jobs.startEffect({
+          sessionID: child.id,
+          kind: "task",
+          label: "child task",
+          run: () => Effect.never,
+        })
+
+        yield* prompt.cancel(chat.id)
+
+        const parent = yield* jobs.list({ sessionID: chat.id })
+        const childJobs = yield* jobs.list({ sessionID: child.id })
+        expect(parent.find((job) => job.id === parentJob)?.status).toBe("killed")
+        expect(childJobs.find((job) => job.id === childJob)?.status).toBe("killed")
+      }),
+      { git: true, config: () => cfg },
+    ),
+  15_000,
 )
 
 unix(

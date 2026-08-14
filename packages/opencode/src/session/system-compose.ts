@@ -85,31 +85,13 @@ export function assembleSystemMessages(input: SystemComposeInput): string[] {
  * Collapse for provider cache:
  *   [UNIVERSAL_ENV, stablePrefix?, …path slots…, mutableTail]
  *
- * assembleSystemMessages produces 3–7 slots (UE + kernel + path tiers + mutable).
- * Keep them separate. Only join accidental middle fragments if a plugin inserted
- * extras. Does NOT merge the last (mutable) segment into the stable body.
+ * assembleSystemMessages produces independently cacheable slots (UE + kernel +
+ * rules + skills + env + instructions + mutable tail). Do not concatenate any
+ * slots here: merging them turns a small rule or skill change into a cache miss
+ * for every following path tier.
  */
-export function collapseSystemMessages(system: string[], header: string): string[] {
-  if (system.length <= 2 || system[0] !== header) return system
-
-  // assembleSystemMessages produces 3+ slots:
-  //   [UE, stablePrefix?, …path tiers…, mutable?]
-  // Collapse middle fragments into one joined entry while keeping
-  // the header, first path tiers, and last mutable segment separate.
-  // No slot-count threshold — same result regardless of how many
-  // rules/skills/instructions tiers exist (KV cache stability).
-
-  // Plugin added parts: [UE, stablePrefix?, tools?, ...middle, lastMutable]
-  const second = system[1]!
-  const third = system.length > 3 ? system[2]! : undefined
-  const last = system[system.length - 1]!
-  const middle = system.slice(third ? 3 : 2, -1)
-  if (middle.length === 0) return system.length === 4
-    ? [header, second, third!, last]
-    : [header, second, last]
-  return system.length === 4
-    ? [header, second, middle.join("\n"), last]
-    : [header, second, third!, middle.join("\n"), last]
+export function collapseSystemMessages(system: string[], _header: string): string[] {
+  return system
 }
 
 /** Collapse provider-facing system messages without replacing the plugin-owned array. */

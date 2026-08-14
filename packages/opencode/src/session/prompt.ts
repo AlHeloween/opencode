@@ -148,10 +148,9 @@ const SIDECAR_COOLDOWN_MS = 30_000
 /** Track last successful sidecar capture time per session. */
 const lastSidecarCapture = new Map<string, number>()
 
-/** Track the last injected mode — survives compaction so identity is never
- *  re-injected when the visible-message window no longer contains the previous
- *  agent (e.g. after a compaction fold). */
-let lastInjectedMode = ""
+/** Track the last injected mode per session. Compaction can hide the previous
+ *  message, but another session must never affect this transition record. */
+const lastInjectedMode = new Map<SessionID, string>()
 
 /** Reusable: filter thenmap visible agent names from a list. */
 const visibleNames = (agents: Agent.Info[]) => agents.filter((a) => !a.hidden).map((a) => a.name)
@@ -194,6 +193,7 @@ export const layer = Layer.effect(
     const summary = yield* SessionSummary.Service
     const sys = yield* SystemPrompt.Service
     const llm = yield* LLM.Service
+    const jobs = yield* Jobs.Service
     const runner = Effect.fn("SessionPrompt.runner")(function* () {
       return yield* EffectBridge.make()
     })
@@ -207,7 +207,27 @@ export const layer = Layer.effect(
 
     const cancel = Effect.fn("SessionPrompt.cancel")(function* (sessionID: SessionID) {
       yield* elog.info("cancel", { sessionID })
-      yield* state.cancel(sessionID)
+      const seen = new Set<SessionID>()
+      function cancelTree(current: SessionID): Effect.Effect<void, never, never> {
+        return Effect.gen(function* () {
+        if (seen.has(current)) return
+        seen.add(current)
+
+        // Stop the parent before enumerating children so it cannot launch more work.
+        yield* state.cancel(current)
+
+        const running = yield* jobs.list({ sessionID: current })
+        yield* Effect.forEach(
+          running.filter((job) => job.status === "running" || job.status === "stalled"),
+          (job) => jobs.kill({ sessionID: current, jobID: job.id }),
+          { discard: true },
+        )
+
+        const children = yield* sessions.children(current)
+        yield* Effect.forEach(children, (child) => cancelTree(child.id), { discard: true })
+        })
+      }
+      yield* cancelTree(sessionID)
     })
 
     const resolvePromptParts = Effect.fn("SessionPrompt.resolvePromptParts")(function* (template: string) {
@@ -362,14 +382,14 @@ export const layer = Layer.effect(
       // Steady-state same identity: no re-inject (permissions enforce; keep KV prefix).
       const prevCanon = previousMode ? canonicalIdentity(previousMode) : undefined
       const nextCanon = canonicalIdentity(input.agent.name)
-      // Module-level tracker survives compaction — visible-message window may not
-      // contain the previous agent after a fold, but lastInjectedMode does.
-      const prevTracked = lastInjectedMode || (previousMode ?? "")
+      // This per-session tracker survives compaction — the visible-message window
+      // may no longer contain the previous agent after a fold.
+      const prevTracked = lastInjectedMode.get(input.session.id) || (previousMode ?? "")
       const instruction =
         modeInstructionForTransition(prevTracked, input.agent.name) ??
         (prevCanon !== nextCanon ? roleInstructionForAgent(input.agent) : undefined)
       if (!instruction || hasSynthetic(instruction)) return input.messages
-      lastInjectedMode = nextCanon
+      lastInjectedMode.set(input.session.id, nextCanon)
       yield* elog.debug("mode transition", {
         previousMode,
         nextMode: input.agent.name,
@@ -1831,10 +1851,9 @@ export const layer = Layer.effect(
               : checkpointUsable && structuredPromptMismatch
                 ? [undefined, [] as string[], [] as string[], [] as string[]] as const  // also skip: only prompt differs
                 : yield* Effect.all([
-                    // Skills are agent-independent in system prompt — always compute
-                    // against build_mode (most permissive) for byte-stable path body.
-                    // Runtime ACL gates the skill tool per agent; system prompt just lists.
-                    sys.skills(yield* agents.get("build_mode")),
+                    // Skills are a complete, agent-independent catalog in the system
+                    // prefix. Runtime ACL gates each skill name when it is invoked.
+                    sys.skills(),
                     Effect.sync(() => sys.environment(model)),
                     instruction.system().pipe(Effect.orDie),
                     instruction.rules().pipe(Effect.orDie),
@@ -2105,21 +2124,21 @@ export const layer = Layer.effect(
               return "break" as const
             }
 
+            // Tool-call chain: if the assistant turn ended with pending tool calls,
+            // continue the loop so tool results can be fed back to the LLM in the
+            // next iteration. `process()` returns "continue" for a normal tool step,
+            // so this must not be nested below the result === "stop" error path.
+            // Provider-executed tools were fully handled in-stream and need no re-loop.
+            if (msg.finish === "tool-calls" || MessageV2.parts(msg.id).some((part) => part.type === "tool" && !part.metadata?.providerExecuted)) {
+              // Tool execution updates parts of this assistant message in place.
+              // The incremental cache only discovers new IDs, so it cannot observe
+              // that mutation on the next loop iteration.
+              cachedMsgs = undefined
+              lastKnownId = undefined
+              return "continue" as const
+            }
+
             if (result === "stop") {
-              // Tool-call chain: if the assistant turn ended with pending tool
-              // calls (finish === "tool-calls"), continue the loop so tool results
-              // can be fed back to the LLM in the next iteration. This is NOT
-              // auto-continue — it's completing the tool-call cycle within one
-              // logical turn. Provider-executed tools (finish === "stop") were
-              // already handled in-stream and need no external processing.
-              if (msg.finish === "tool-calls" || MessageV2.parts(msg.id).some((part) => part.type === "tool" && !part.metadata?.providerExecuted)) {
-                // Tool execution updates parts of this assistant message in place.
-                // The incremental cache only discovers new IDs, so it cannot observe
-                // that mutation on the next loop iteration.
-                cachedMsgs = undefined
-                lastKnownId = undefined
-                return "continue" as const
-              }
               // Layer 1 only after this assistant fully completed (reasoning closed).
               // Never inject mid-stream or mid-tool-loop — reasoning models require
               // the open turn to finish before any synthetic user message.
@@ -2453,6 +2472,7 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Session.defaultLayer),
     Layer.provide(SessionRevert.defaultLayer),
     Layer.provide(SessionSummary.defaultLayer),
+    Layer.provide(Jobs.defaultLayer),
     Layer.provide(
       Layer.mergeAll(
         Agent.defaultLayer,

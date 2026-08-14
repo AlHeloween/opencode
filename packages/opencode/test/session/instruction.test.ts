@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import fs from "fs/promises"
 import path from "path"
 import { Effect } from "effect"
 import { ModelID, ProviderID } from "../../src/provider/schema"
@@ -220,6 +221,31 @@ describe("Instruction.resolve", () => {
 })
 
 describe("Instruction.system", () => {
+  test("loads nested rule files in lexical order", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await fs.mkdir(path.join(dir, ".opencode", "rules", "nested"), { recursive: true })
+        await Bun.write(path.join(dir, ".opencode", "rules", "a.md"), "# Root rule")
+        await Bun.write(path.join(dir, ".opencode", "rules", "nested", "b.md"), "# Nested rule")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: () =>
+        run(
+          Instruction.Service.use((svc) =>
+            Effect.gen(function* () {
+              expect(yield* svc.rules()).toEqual([
+                "Instructions from: .opencode/rules/a.md\n# Root rule",
+                "Instructions from: .opencode/rules/b.md\n# Nested rule",
+              ])
+            }),
+          ),
+        ),
+    })
+  })
+
   test("loads both project and global AGENTS.md when both exist", async () => {
     const originalConfigDir = process.env["OPENCODE_CONFIG_DIR"]
     delete process.env["OPENCODE_CONFIG_DIR"]

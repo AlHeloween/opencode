@@ -178,7 +178,7 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
           const rulesDir = path.join(ctx.worktree, ".opencode", "rules")
           const rulesResult: string[] = []
           if (yield* fs.existsSafe(rulesDir)) {
-            const matches = yield* fs.glob("*", { cwd: rulesDir, absolute: true, include: "file" }).pipe(
+            const matches = yield* fs.glob("**/*", { cwd: rulesDir, absolute: true, include: "file" }).pipe(
               Effect.catch(() => Effect.succeed([] as string[])),
             )
             const filtered = matches.filter((f) => [".mdc", ".md"].some((ext) => f.endsWith(ext))).sort()

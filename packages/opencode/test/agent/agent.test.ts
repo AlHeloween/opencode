@@ -60,7 +60,7 @@ test("plan agent is read-only except for plans/*", async () => {
       const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
       expect(plan).toBeDefined()
       expect(plan?.mode).toBe("primary")
-      expect(plan?.prompt).toContain("# plan_mode")
+      expect(plan?.prompt).toContain("Active identity: plan_mode")
       // Wildcard is denied
       expect(evalPerm(plan, "edit")).toBe("deny")
       // But specific path is allowed
@@ -70,8 +70,34 @@ test("plan agent is read-only except for plans/*", async () => {
       expect(evalPerm(plan, "cmd")).toBe("deny")
       expect(evalPerm(plan, "powershell")).toBe("deny")
       expect(evalPerm(plan, "run")).toBe("deny")
-      expect(evalPerm(plan, "task")).toBe("deny")
-      expect(plan?.subagents).toEqual([])
+      expect(evalPerm(plan, "task")).toBe("allow")
+      expect(plan?.subagents).toEqual(["explorer_agent"])
+    },
+  })
+})
+
+test("plan agent preserves external-directory grants after its runtime deny", async () => {
+  const allowed = path.resolve(process.cwd(), ".test-external-allow")
+  const denied = path.resolve(process.cwd(), ".test-external-deny")
+  await using tmp = await tmpdir({
+    config: {
+      external_directory_mode: "deny",
+      navigation: {
+        allow: [allowed],
+      },
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
+      expect(plan).toBeDefined()
+      expect(Permission.evaluate("external_directory", path.join(allowed, "*"), plan!.permission).action).toBe("allow")
+      expect(Permission.evaluate("external_directory", path.join(denied, "*"), plan!.permission).action).toBe("deny")
+      expect(evalPerm(plan, "bash")).toBe("deny")
+      expect(evalPerm(plan, "cmd")).toBe("deny")
+      expect(evalPerm(plan, "powershell")).toBe("deny")
+      expect(evalPerm(plan, "run")).toBe("deny")
     },
   })
 })
@@ -149,9 +175,15 @@ test("explore agent denies edit and write", async () => {
   })
 })
 
-test("explore agent asks for external directories and allows Truncate.truncateGlob()", async () => {
+test("explore agent honors ask external-directory policy and allows Truncate.truncateGlob()", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
-  await using tmp = await tmpdir()
+  await using tmp = await tmpdir({
+    config: {
+      permission: {
+        external_directory: "ask",
+      },
+    },
+  })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
@@ -159,6 +191,24 @@ test("explore agent asks for external directories and allows Truncate.truncateGl
       expect(explore).toBeDefined()
       expect(Permission.evaluate("external_directory", "/some/other/path", explore!.permission).action).toBe("ask")
       expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), explore!.permission).action).toBe("allow")
+    },
+  })
+})
+
+test("explore agent preserves a global external_directory deny", async () => {
+  await using tmp = await tmpdir({
+    config: {
+      permission: {
+        external_directory: "deny",
+      },
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const explore = await load(tmp.path, (svc) => svc.get("explorer_agent"))
+      expect(explore).toBeDefined()
+      expect(Permission.evaluate("external_directory", "/some/other/path", explore!.permission).action).toBe("deny")
     },
   })
 })

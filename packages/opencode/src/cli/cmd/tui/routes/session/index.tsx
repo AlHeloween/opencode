@@ -743,6 +743,23 @@ export function Session() {
       },
     },
     {
+      title: "Stop all work",
+      value: "session.stop",
+      category: "Session",
+      slash: { name: "stop" },
+      onSelect: async (dialog) => {
+        await sdk.client.session
+          .abort({ sessionID: route.sessionID }, { throwOnError: true })
+          .then(() => toast.show({ message: "Stopped active work", variant: "success", duration: 2000 }))
+          .catch((error) => {
+            const msg = errorMessage(error)
+            Log.Default.warn("bug: session stop failed", { error: msg })
+            toast.show({ message: `Stop failed: ${msg}`, variant: "error" })
+          })
+        dialog.clear()
+      },
+    },
+    {
       title: "Undo previous message",
       value: "session.undo",
       keybind: "messages_undo",

@@ -14,7 +14,6 @@ import PROMPT_CODEX from "./prompt/codex.txt"
 import PROMPT_TRINITY from "./prompt/trinity.txt"
 import PROMPT_COPILOT_GPT_5 from "./prompt/copilot-gpt-5.txt"
 import type { Provider } from "@/provider/provider"
-import type { Agent } from "@/agent/agent"
 import { Skill } from "@/skill"
 
 interface PromptEntry {
@@ -91,7 +90,7 @@ export function promptFamily(model: Provider.Model) {
 
 export interface Interface {
   readonly environment: (model: Provider.Model) => string[]
-  readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
+  readonly skills: () => Effect.Effect<string | undefined>
 }
 
 /**
@@ -138,8 +137,8 @@ export const layer = Layer.effect(
 
       // Skills are listed in system prompt for ALL agents — byte-stable path body.
       // Runtime ACL (agent.permission) gates the skill tool, not the prompt listing.
-      skills: Effect.fn("SystemPrompt.skills")(function* (_agent: Agent.Info) {
-        const list = yield* skill.available(_agent)
+      skills: Effect.fn("SystemPrompt.skills")(function* () {
+        const list = yield* skill.available()
 
         return [
           "Skills provide specialized instructions and workflows for specific tasks.",

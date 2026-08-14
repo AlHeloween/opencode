@@ -2,7 +2,7 @@ import { Provider } from "@/provider/provider"
 import * as Log from "@opencode-ai/core/util/log"
 import { Context, Effect, Layer, Record } from "effect"
 import * as Stream from "effect/Stream"
-import { streamText, type ModelMessage, type Tool, tool, jsonSchema } from "ai"
+import { streamText, wrapLanguageModel, type ModelMessage, type Tool, tool, jsonSchema } from "ai"
 import { mergeDeep, pipe } from "remeda"
 import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 import { ProviderTransform } from "@/provider/transform"
@@ -12,7 +12,7 @@ import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
 import { Plugin } from "@/plugin"
 import { SystemPrompt, UNIVERSAL_ENV } from "./system"
-import { assembleSystemMessages, collapseSystemMessagesInPlace, validateSystemOrder } from "./system-compose"
+import { assembleSystemMessages, collapseSystemMessagesInPlace } from "./system-compose"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
@@ -30,9 +30,6 @@ import { readWasmAsset } from "@/util/wasm-path"
 import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
 
 const log = Log.create({ service: "llm" })
-/** Per-session system prompt logging — reset for each new provider cache key.
- *  Module-level `let` only captured the very first system prompt across all
- *  sessions in the process lifetime, losing observability for later sessions. */
 const loggedSystemPromptForCacheKey = new Map<string, boolean>()
 
 // ── Tree-sitter JSON parser (lazy) ───────────────────────────────────────────
@@ -69,7 +66,7 @@ function getToolSchema(t: Tool): Record<string, any> {
     if (typeof params.jsonSchema === "function") return params.jsonSchema()
     if (typeof params.jsonSchema === "object") return params.jsonSchema
     return params
-  } catch { log.debug("getToolSchema failed", { tool: (t as any).id }); return {} }
+  } catch { return {} }
 }
 
 /** Serialize all tool schemas into a text block for the system prompt.
@@ -93,16 +90,9 @@ function serializeToolSchemas(tools: Record<string, Tool>): string {
   return lines.join("\n")
 }
 
-/** Per session/agent/model length of final system content, used to detect
- *  cache-poisoning content changes. System prompt is append-only within a
- *  session — differences only occur in the tail. Length comparison suffices
- *  to detect mutation; character-level scan finds first divergence.
- *  LRU-evicted at 500 entries to prevent unbounded growth.
- *
- *  Effect fibers are cooperative (no preemptive yield in synchronous code);
- *  the two-Map update in checkSystemStability is atomic within one
- *  Effect.gen block — no lock needed. */
-const systemContentLen = new Map<string, number>()
+/** Per session/agent/model hash of final system messages, used to detect cache-poisoning content changes.
+  * LRU-evicted at 500 entries to prevent unbounded growth. */
+const systemContentHashes = new Map<string, number>()
 const systemContentPrev = new Map<string, string>()
 const MAX_HASHES = 500
 
@@ -129,15 +119,12 @@ function hashInfo(input: unknown) {
 
 function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {
   const key = input.cacheKey
-  const prevLen = systemContentLen.get(key)
+  const hash = Number(Bun.hash(input.content))
+  const prevHash = systemContentHashes.get(key)
   const prevContent = systemContentPrev.get(key)
-  if (prevLen !== undefined && input.content.length !== prevLen) {
-    // System prompt is append-only within a session — first divergence is
-    // at the length boundary. Scan only the shorter tail for the exact line.
-    const oldTail = (prevContent ?? "").slice(Math.min(prevLen, input.content.length))
-    const newTail = input.content.slice(Math.min(prevLen, input.content.length))
-    const oldLines = oldTail.split("\n")
-    const newLines = newTail.split("\n")
+  if (prevHash !== undefined && prevHash !== hash) {
+    const oldLines = (prevContent ?? "").split("\n")
+    const newLines = input.content.split("\n")
     let diffLine = 0
     let oldSample = ""
     let newSample = ""
@@ -149,32 +136,32 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
         break
       }
     }
-    // Convert tail-relative line number to absolute for diagnostic clarity
-    const tailStartLines = (prevContent ?? "").slice(0, Math.min(prevLen, input.content.length)).split("\n").length - 1
     log.warn("bug: system prompt content changed mid-session", {
       sessionID: input.sessionID,
       agent: input.agent,
       modelID: input.modelID,
-      cacheKey: key,
-      prevLen,
-      newLen: input.content.length,
-      diffLine: tailStartLines + diffLine,
+      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
+      prevHash,
+      newHash: hash,
+      diffLine,
       oldLine: oldSample,
       newLine: newSample,
+      oldLen: (prevContent ?? "").length,
+      newLen: input.content.length,
     })
   }
   // Proper LRU: delete-then-set moves the key to the end of insertion order
   // so that FIFO-ordered keys().next() evicts the least-recently-used entry.
-  if (systemContentLen.has(key)) {
-    systemContentLen.delete(key)
+  if (systemContentHashes.has(key)) {
+    systemContentHashes.delete(key)
     systemContentPrev.delete(key)
   }
-  systemContentLen.set(key, input.content.length)
+  systemContentHashes.set(key, hash)
   systemContentPrev.set(key, input.content)
-  if (systemContentLen.size > MAX_HASHES) {
-    const first = systemContentLen.keys().next().value
+  if (systemContentHashes.size > MAX_HASHES) {
+    const first = systemContentHashes.keys().next().value
     if (first !== undefined) {
-      systemContentLen.delete(first)
+      systemContentHashes.delete(first)
       systemContentPrev.delete(first)
     }
   }
@@ -184,13 +171,15 @@ export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
 
 /**
- * Stable provider prompt-cache key. Shared across all agents for the same
- * session+model — system prefix is byte-stable regardless of mode/identity.
+ * Stable provider prompt-cache key. Shared across agents for the same session+model
+ * (system prefix is identity-stable; do not suffix agent name).
+ * `identity` is accepted for call-site compatibility and ignored.
  */
 export function buildProviderCacheKey(input: {
   sessionID: string
   providerCacheKey?: string
   modelID: string
+  identity?: string
 }) {
   if (input.providerCacheKey) return input.providerCacheKey
   return [input.sessionID, input.modelID].join(":")
@@ -320,14 +309,12 @@ const live: Layer.Layer<
       // Tool definitions are delivered via AI SDK `tools` JSON parameter
       // (function-calling schemas) — no prose duplicate in system messages.
       const isCheckpoint = input.checkpoint === true
-      const isOpenCodeProvider = input.model.providerID.startsWith("opencode")
-      // Direct providers do not need a session identity in the model context.
-      // Keeping their system prompt identical across sessions maximizes prefix reuse.
-      const banner = isOpenCodeProvider ? `[session: ${input.providerCacheKey ?? input.sessionID}]` : ""
 
-      // Identity is delivered via modeInstructionForTransition as a one-shot
-      // conversation notify (synthetic user part) — NOT in system prompt.
-      // System prompt stays byte-stable across mode switches for KV cache.
+      const isOpenCodeProvider = input.model.providerID.startsWith("opencode")
+      // Mode and role are recorded as synthetic user-message transitions in
+      // SessionPrompt. They must never enter the system prefix: the same model
+      // session shares this prefix across identities for provider KV reuse.
+      const banner = isOpenCodeProvider ? `[session: ${input.providerCacheKey ?? input.sessionID}]` : ""
 
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
@@ -352,35 +339,25 @@ const live: Layer.Layer<
       // that forced full path/skills recompute on every new session (~20–40k miss).
       collapseSystemMessagesInPlace(system, header)
 
-      // Development guard: system message ordering affects KV cache stability.
-      // Rules → skills → env → instructions → banner. Validate in debug builds.
-      if (!validateSystemOrder(system)) {
-        l.warn("bug: system message ordering violation — KV cache may be unstable", {
-          providerCacheKey: buildProviderCacheKey({
-            sessionID: input.sessionID,
-            providerCacheKey: input.providerCacheKey,
-            modelID: input.model.id,
-          }),
-        })
-      }
-
-      // System prompt is byte-stable (no identity capsule). Cache key is
-      // shared across all agents for the same session+model.
+      // Detect cache-poisoning: if one agent/model's system prompt content changes
+      // while its provider cache key is stable, the provider cache is invalidated.
+      // Shared identity: do not suffix agent name — all roles use the same system prefix.
       const providerCacheKey = buildProviderCacheKey({
         sessionID: input.sessionID,
         providerCacheKey: input.providerCacheKey,
         modelID: input.model.id,
+        identity: input.agent.name,
       })
       if (!loggedSystemPromptForCacheKey.has(providerCacheKey)) {
         loggedSystemPromptForCacheKey.set(providerCacheKey, true)
-        l.info("system prompt ready (once per session)", { content: system.join("\n") })
+        l.info("system prompt ready (once)", { content: system.join("\n") })
       }
       checkSystemStability({
         sessionID: input.sessionID,
         agent: input.agent.name,
         modelID: input.model.id,
         cacheKey: providerCacheKey,
-        content: system.join("\n"),
+        content: system.join(""),
       })
 
       const variant =
@@ -656,8 +633,9 @@ const live: Layer.Layer<
                   tool: failed.toolCall.toolName,
                 })
                 return { ...failed.toolCall, input: repaired }
-              } catch { log.debug("json-repair parse still invalid, falling through to error", { tool: failed.toolCall.toolName }) }
-              // repaired JSON still invalid — fall through to error
+              } catch {
+                // repaired JSON still invalid — fall through to error
+              }
             }
 
             // Step 3: repair failed. Tell model the ORIGINAL error + position
@@ -696,7 +674,7 @@ const live: Layer.Layer<
           ? {}
           : { system: system.map((content) => ({ role: "system" as const, content })) }),
         headers: {
-          ...(isOpenCodeProvider
+          ...(input.model.providerID.startsWith("opencode")
             ? {
                 "x-session-affinity": input.sessionID,
                 "x-opencode-project": Instance.project.id,
@@ -713,8 +691,34 @@ const live: Layer.Layer<
           ...headers,
         },
         maxRetries: input.retries ?? 0,
-        messages: ProviderTransform.message(messages, input.model, options),
-        model: language,
+        messages,
+        model: wrapLanguageModel({
+          model: language,
+          middleware: [
+            {
+              specificationVersion: "v3" as const,
+              async transformParams(args) {
+                if (args.type === "stream") {
+                  // @ts-expect-error
+                  args.params.prompt = ProviderTransform.message(args.params.prompt, input.model, options)
+                  // Diagnostic: check cache markers on first system message
+                  const sysMsg: any = args.params.prompt.find((m: any) => m.role === "system")
+                  const lastContent: any = sysMsg?.content?.[sysMsg.content?.length - 1]
+                  const hasCacheControl: any = sysMsg?.providerOptions?.openaiCompatible?.cache_control
+                    ?? lastContent?.providerOptions?.openaiCompatible?.cache_control
+                  log.info("cache marker check", {
+                    providerID: input.model.providerID,
+                    modelID: input.model.id,
+                    hasCacheControl: !!hasCacheControl,
+                    cacheControlValue: hasCacheControl ?? null,
+                    systemMsgCount: args.params.prompt.filter((m: any) => m.role === "system").length,
+                  })
+                }
+                return args.params
+              },
+            },
+          ],
+        }),
       })
     })
 

@@ -9,6 +9,7 @@ import { DialogVariant } from "./dialog-variant"
 import { useKeybind } from "../context/keybind"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
+import { canActivateAgent } from "../util/agent"
 
 export function DialogModel(props: { providerID?: string; targetAgent?: string; onDone?: () => void }) {
   const local = useLocal()
@@ -134,7 +135,7 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string; 
 
   function onSelect(providerID: string, modelID: string) {
     local.model.set({ providerID, modelID }, { recent: true, agent: props.targetAgent })
-    if (props.targetAgent) {
+    if (props.targetAgent && canActivateAgent(props.targetAgent, sync.data.agent)) {
       local.agent.set(props.targetAgent)
     }
     const list = local.model.variant.list()

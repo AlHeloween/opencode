@@ -56,15 +56,11 @@ describe("session.system", () => {
     expect(prompt).not.toContain("run_conformance")
   })
 
-  test("plan reminders preserve the compact read-only planning contract", async () => {
-    expect(PROMPT_PLAN).toContain("use general agent for validation")
+  test("plan reminder is a compact reference to the stable kernel contract", async () => {
+    expect(PROMPT_PLAN).toContain('id="plan_mode"')
+    expect(PROMPT_PLAN).toContain("@PLAN_MODE")
     expect(PROMPT_PLAN).not.toContain("Plan subagent")
     expect(PROMPT_PLAN).not.toContain("Plan agent")
-    // Plan mode: planning only + plans/ writes; product paths forbidden
-    expect(PROMPT_PLAN).toMatch(/Plan mode ACTIVE|planning only|planning phase/i)
-    expect(PROMPT_PLAN).toMatch(/STRICTLY FORBIDDEN|Forbidden:|No modifications|implementation edits/i)
-    expect(PROMPT_PLAN).toContain("cmd_runner session control/inspection")
-    expect(PROMPT_PLAN).toContain("manage directly")
   })
 
   test("session plan path uses repo root plans directory", async () => {
@@ -110,10 +106,9 @@ description: ${description}
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          const build = await load(tmp.path, (svc) => svc.get("build"))
           const runSkills = Effect.gen(function* () {
             const svc = yield* SystemPrompt.Service
-            return yield* svc.skills(build!)
+            return yield* svc.skills()
           }).pipe(Effect.provide(SystemPrompt.defaultLayer))
 
           const first = await Effect.runPromise(runSkills)

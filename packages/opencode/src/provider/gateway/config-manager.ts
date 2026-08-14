@@ -47,7 +47,6 @@ export interface GatewayModelConfig {
       enabled?: boolean
       format?: "json" | "text"
       logBodies?: boolean
-      logResponseBodies?: boolean
       perRequest?: boolean
     }
   }
@@ -80,7 +79,6 @@ export interface GatewayConfig {
       enabled?: boolean
       format?: "json" | "text"
       logBodies?: boolean
-      logResponseBodies?: boolean
       perRequest?: boolean
     }
   }
@@ -96,15 +94,11 @@ function defaultModelConfig(provider: ModelsDev.Provider, model: ModelsDev.Model
         enabled: false,
         format: "json",
         logBodies: false,
-        logResponseBodies: false,
         perRequest: false,
       },
     },
     provider: {
-      npm:
-        (provider.id === "deepseek" && model.id?.toLowerCase().includes("v4")
-          ? "@ai-sdk/deepseek"
-          : model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible"),
+      npm: model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible",
       api: model.provider?.api ?? provider.api,
     },
     limit: {
@@ -177,8 +171,7 @@ export async function writeConfigFile(filePath: string, config: GatewayConfig): 
 // gateway.debug: Enable debug mode for gateway internals. Default: false.
 // gateway.logging.enabled: Enable gateway request logging. Default: false.
 // gateway.logging.format: Log format - "json" or "text". Default: "json".
-// gateway.logging.logBodies: Include request bodies in logs. Default: false.
-// gateway.logging.logResponseBodies: Include response bodies in logs. Default: false.
+// gateway.logging.logBodies: Include request/response bodies in logs. Default: false.
 // gateway.logging.perRequest: Write each request to a separate JSON file under
 //   the per-request/ log subdirectory. Filename: {datetime-ms}-{requestId}.json.
 //   Full body included when logBodies is also enabled. Default: false.
@@ -350,7 +343,6 @@ async function buildDefaultConfig(): Promise<GatewayConfig> {
         enabled: false,
         format: "json",
         logBodies: false,
-        logResponseBodies: false,
         perRequest: false,
       },
     },
@@ -403,7 +395,7 @@ export async function ensureModelConfig(providerID: ProviderID, modelID: string)
       providers: {},
       gateway: {
         enabled: true,
-        logging: { enabled: false, format: "json", logBodies: false, logResponseBodies: false, perRequest: false },
+        logging: { enabled: false, format: "json", logBodies: false, perRequest: false },
       },
     }),
     providers: {

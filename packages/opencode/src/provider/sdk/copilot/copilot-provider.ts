@@ -71,6 +71,10 @@ export function createOpenaiCompatible(options: OpenaiCompatibleProviderSettings
       headers: getHeaders,
       url: ({ path }) => `${baseURL}${path}`,
       fetch: options.fetch,
+      // StreamLake/KAT-style gateways only report usage (incl. cached_tokens)
+      // when the client asks via stream_options.include_usage. Without it every
+      // chunk carries usage:null and cache metrics are invisible (verified live).
+      includeUsage: (options as { includeUsage?: boolean }).includeUsage !== false,
     })
   }
 

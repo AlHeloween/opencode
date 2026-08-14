@@ -41,6 +41,12 @@ const PROMPT_PLAN = PROMPT_PLAN_RAW.replace(/\r\n/g, "\n")
 const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
 const PROMPT_REASONING = PROMPT_REASONING_RAW.replace(/\r\n/g, "\n")
 import MAX_STEPS from "../session/prompt/max-steps.txt"
+
+/** Bounded replay of completed tool outputs keeps per-turn cache-miss blocks small.
+ *  Config: tool_output.replay_max_chars (default MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS). */
+const toolReplayOptions = (cfg: { tool_output?: { replay_max_chars?: number } }) => ({
+  toolOutputMaxChars: cfg.tool_output?.replay_max_chars ?? MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS,
+})
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
 import { LSP } from "@/lsp/lsp"
@@ -307,7 +313,7 @@ export const layer = Layer.effect(
         if (mdl) {
           const msgs = onlySubtasks
             ? [{ role: "user" as const, content: subtasks.map((p) => p.prompt).join("\n") }]
-            : yield* MessageV2.toModelMessagesEffect(context, mdl).pipe(
+            : yield* MessageV2.toModelMessagesEffect(context, mdl, toolReplayOptions(yield* config.get())).pipe(
                 Effect.catchCause((cause) => {
                   elog.error("title model messages failed", { error: Cause.squash(cause) })
                   return Effect.succeed([] as ModelMessage[])
@@ -1285,7 +1291,11 @@ export const layer = Layer.effect(
               // Summarize **this open range only** — not the entire checkpoint M.
               // Full M dilutes attention and yields 3-sentence stubs; old inject
               // geometry was always the window being summarized.
-              const rangeModel = yield* MessageV2.toModelMessagesWithCountsEffect(range, input.model)
+              const rangeModel = yield* MessageV2.toModelMessagesWithCountsEffect(
+                range,
+                input.model,
+                toolReplayOptions(yield* config.get()),
+              )
               const lastSv = previous?.body
                 ? SessionCompaction.extractSemanticVector(previous.body)
                 : undefined
@@ -1915,11 +1925,19 @@ export const layer = Layer.effect(
                   modelID: model.id,
                   providerID: model.providerID,
                 })
-                modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
+                modelMsgs = yield* MessageV2.toModelMessagesEffect(
+                  msgs,
+                  model,
+                  toolReplayOptions(yield* config.get()),
+                )
               } else {
                 const suffix = msgs.slice(prefixLen)
                 const suffixModel = suffix.length
-                  ? yield* MessageV2.toModelMessagesEffect(suffix, model)
+                  ? yield* MessageV2.toModelMessagesEffect(
+                      suffix,
+                      model,
+                      toolReplayOptions(yield* config.get()),
+                    )
                   : []
                 modelMsgs = [...prefixModel, ...suffixModel]
                 modelMessageIDs = [
@@ -1928,7 +1946,11 @@ export const layer = Layer.effect(
                 ]
               }
             } else {
-              modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model)
+              modelMsgs = yield* MessageV2.toModelMessagesEffect(
+                msgs,
+                model,
+                toolReplayOptions(yield* config.get()),
+              )
             }
 
             yield* slog.debug("prepare", { step, stage: "dispatch" })
@@ -2147,7 +2169,11 @@ export const layer = Layer.effect(
               // Publish normal M before opening the ephemeral sidecar branch.
               // Its disk copy is durability only; the sidecar receives this exact
               // model-ready state and cannot alter the main outcome.
-              const converted = yield* MessageV2.toModelMessagesWithCountsEffect(visibleAfter, model)
+              const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
+                visibleAfter,
+                model,
+                toolReplayOptions(yield* config.get()),
+              )
               const checkpointData = {
                 kind: Checkpoint.CHECKPOINT_KIND,
                 version: Checkpoint.CHECKPOINT_VERSION,
@@ -2258,6 +2284,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs.slice(prefixLen),
                     model,
+                    toolReplayOptions(yield* config.get()),
                   )
                   fullModel = [...prefixModel, ...converted.messages]
                   modelMessageCounts = [
@@ -2268,6 +2295,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs,
                     model,
+                    toolReplayOptions(yield* config.get()),
                   )
                   fullModel = converted.messages
                   modelMessageCounts = converted.counts

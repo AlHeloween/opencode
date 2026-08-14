@@ -1,5 +1,55 @@
 # Progress Log
 
+## 2026-08-14 Cache Alignment (plan: plans/2026-08-14-cache-alignment.md)
+
+Reason: привести opencode в соответствие с измеренным поведением кешей DeepSeek и StreamLake/KAT (две лабораторные серии), чтобы кеш не ломался от наших же артефактов.
+
+Script/Changes:
+
+- `packages/opencode/src/provider/transform.ts` — P2: deepseek-маршрут дропает CoT-байты из replay для сообщений БЕЗ tool calls (API игнорирует), сохраняет эхо при tool calls (400-guard); исключён OpenRouter (свой reasoning_details pass-through). P3: убран мёртвый `prompt_cache_key` для deepseek SDK-маршрута (не сериализуется, изоляции нет — D5 опровергнут).
+- `packages/opencode/src/session/processor.ts` — P4: `prefixResetDelta()` + warn «cache: prefix reset» при сжатии промпта > порога (compaction/model switch).
+- `packages/opencode/test/provider/transform-reasoning.test.ts` — P2/P3 тесты; `test/session/cache-injection.test.ts` — P4 тесты.
+
+Script Output:
+
+- typecheck: PASS (`20260814T155717Z_d81409cc`); 61/61 тестов PASS (`20260814T155443Z_8e64e8e0`).
+- Rebuild `_build.ps1 -SkipOpenTui`: exit 0 (`20260814T160217Z_082209ae`) → dist 10.0.840.
+- LIVE OC1: dist TUI на pasha-coder → wire содержит `stream_options.include_usage` → финальный чанк с реальным usage `{prompt_tokens:42008, completion_tokens:130, reasoning_tokens:37}`; `prompt_tokens_details:null` (cached_tokens гейтвей не отдаёт).
+
+## 2026-08-14 DeepSeek Verification Series (experiments/deepseek-test)
+
+Reason: mirror the StreamLake verification suite against api.deepseek.com (deepseek-v4-pro, DEEPSEEK_API_KEY from env) after reading the official API refs (chat completions, thinking mode, kv_cache).
+
+Script: `experiments/deepseek-test/deepseek_test.py`, run via cmd_runner (`20260814T151203Z_c15f4a79` ladder, `20260814T151509Z_96b2ba97` big, `20260814T152056Z_23a60af4` no_think, `20260814T152307Z_546f0cb3` isolation).
+
+Output: D1/D2/D3/D4/D6 CONFIRMED (balance, auto-cache full prefix, CoT ignored, thinking toggle works, usage auto). D5 NOT confirmed — user_id does not isolate KV cache (both new user_ids hit 48 128 on turn 1). Cold turn = 87% of series cost ($0.0209 miss on 48K). Report: `experiments/deepseek-test/REPORT.md`.
+
+## 2026-08-14 StreamLake KAT Verification Series (experiments/streamlake-test)
+
+Reason: confirm docs/streamlake-kat-thinking-cache.md claims (128-step cache, null≠miss, echo not billed, chat_template_kwargs ignored, bucket isolation) with multiturn+thinking series; measure cache hit/miss ratio.
+
+Script: `experiments/streamlake-test/pasha_test.py` (modified from `bin/pasha_test.py`, key from `bin/auth.json`), run via cmd_runner (`20260814T143109Z_6b42b820` ladder, `20260814T143309Z_0419930b` big series).
+
+Output: all 5 doc claims CONFIRMED (C1 with 64-token lattice nuance; C2 with latency nuance on big prompts). Hit ratio on 72K prefix: 0.969–0.9993 (miss = appended turn only). NEW ROOT CAUSE: gateway reports usage only with `stream_options.include_usage`; copilot-provider didn't send it → fixed in `packages/opencode/src/provider/sdk/copilot/copilot-provider.ts` (includeUsage default true); typecheck PASS (`20260814T143736Z_65596181`). Report: `experiments/streamlake-test/REPORT.md`.
+
+## 2026-08-14 Cache-Miss Tail Fix (plan: plans/2026-08-14-cache-miss-tail.md)
+
+Reason: wire/DB analysis showed 5.3% of prompt tokens (miss tail) consuming 87% of input cost; max deviation 38.6% miss per request on large tool-output injections; streamlake gateway reports no usage at all.
+
+Script/Changes:
+
+- `packages/opencode/src/session/message-v2.ts` — exported `REPLAY_TOOL_OUTPUT_MAX_CHARS = 32_000`.
+- `packages/opencode/src/config/config.ts` — added `tool_output.replay_max_chars` (default 32000).
+- `packages/opencode/src/session/prompt.ts` — all 8 `toModelMessages*` callsites pass `toolReplayOptions(cfg)`.
+- `packages/opencode/src/session/processor.ts` — `CACHE_INJECTION_WARN_TOKENS=24_576`, `injectionDelta()`, `accumulateStepTokens()`; finish-step warns on large injections and aggregates per-step tokens.
+- `packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts` — mapped `prompt_tokens_details.cache_write_tokens` → cacheWrite (was hardcoded undefined).
+- `packages/opencode/test/session/cache-injection.test.ts` — new: 7 tests for T3/T4 pure functions.
+
+Script Output:
+
+- `bun typecheck` (packages/opencode): exit 0 pre-edit (`20260814T131807Z_2ea8598e`) and post-edit (`20260814T133958Z_8dcbcd51`).
+- `bun test test/session/cache-injection.test.ts test/session/message-v2.test.ts test/session/processor-effect.test.ts`: 54 pass, 0 fail (`20260814T133958Z_ce3c3ca6`).
+
 ## 2026-06-04 Cache Collapse And Stream Stall Recovery
 
 Reason: fix DeepSeek/Anthropic prompt-cache collapse detection, prevent cache-poison loop blocking, notify users, and add conservative pre-tool stream stall recovery.

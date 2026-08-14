@@ -68,7 +68,7 @@ function assistantMsg(parts: Array<{ type: string; text: string }>) {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 describe("DeepSeek V4 reasoning_content roundtrip", () => {
-  test("preserves reasoning part in content for DeepSeek models", () => {
+  test("drops reasoning text for assistant messages WITHOUT tool calls (API ignores it)", () => {
     const model = mkDeepseekModel()
     const msgs = [
       assistantMsg([{ type: "reasoning", text: "I should search first." }, { type: "text", text: "Let me look." }]),
@@ -77,7 +77,25 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
     expect(reasoningParts.length).toBe(1)
-    expect(reasoningParts[0]!.text).toBe("I should search first.")
+    expect(reasoningParts[0]!.text).toBe("") // CoT dropped, empty part kept for wire shape
+  })
+
+  test("preserves reasoning for assistant messages WITH tool calls (400 guard)", () => {
+    const model = mkDeepseekModel()
+    const msgs = [
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "reasoning", text: "I should call the tool." },
+          { type: "tool-call", toolCallId: "call-1", toolName: "read", input: {} },
+        ],
+      },
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    const content = result[0]!.content as any[]
+    const reasoningParts = content.filter((p: any) => p.type === "reasoning")
+    expect(reasoningParts.length).toBe(1)
+    expect(reasoningParts[0]!.text).toBe("I should call the tool.")
   })
 
   test("adds empty reasoning part when missing — all-or-nothing invariant", () => {
@@ -123,7 +141,8 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const result = ProviderTransform.message(msgs as any, model, {})
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
-    expect(reasoningParts.length).toBe(1) // not duplicated
+    expect(reasoningParts.length).toBe(1) // not duplicated; text dropped (no tool call)
+    expect(reasoningParts[0]!.text).toBe("")
   })
 
   test("preserves reasoning across multiple assistant messages", () => {
@@ -134,7 +153,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
       assistantMsg([{ type: "reasoning", text: "Step 3 thinking." }]),
     ]
     const result = ProviderTransform.message(msgs as any, model, {})
-    // All three messages should have a reasoning part
+    // All three messages should have a reasoning part (empty — no tool calls)
     expect((result[0]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true)
     expect((result[1]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true) // added
     expect((result[2]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true)
@@ -212,6 +231,26 @@ describe("Interleaved capability — reasoning extraction", () => {
     )
     expect((result[0]!.content as any[]).some((part: any) => part.type === "reasoning")).toBe(true)
     expect((result[0]! as any).providerOptions?.openaiCompatible?.reasoning_content).toBeUndefined()
+  })
+})
+
+describe("prompt_cache_key routing (P3)", () => {
+  const base = {
+    model: { ...mkDeepseekModel(), api: { ...mkDeepseekModel().api, npm: "@ai-sdk/deepseek" } },
+    sessionID: "ses-test",
+  }
+
+  test("deepseek SDK route does NOT set prompt_cache_key (dead field — never serialized, no isolation)", () => {
+    const out = ProviderTransform.options(base as any)
+    expect(out.prompt_cache_key).toBeUndefined()
+  })
+
+  test("openai-compatible route DOES set prompt_cache_key (bucket isolation verified on KAT)", () => {
+    const out = ProviderTransform.options({
+      model: { ...mkDeepseekModel(), providerID: "pasha-coder", api: { ...mkDeepseekModel().api, id: "kat-coder", npm: "@ai-sdk/openai-compatible" } },
+      sessionID: "ses-test",
+    } as any)
+    expect(out.prompt_cache_key).toBe("ses-test:deepseek-v3.2-thinking")
   })
 })
 

@@ -348,6 +348,15 @@ function truncateToolOutput(text: string, maxChars?: number) {
   return `${text.slice(0, maxChars)}\n[Tool output truncated for compaction: omitted ${omitted} chars]`
 }
 
+/**
+ * Default cap (chars) for completed tool outputs replayed into the model
+ * context. Provider prompt caches bill every injected block at full miss
+ * price until it becomes a persisted prefix unit; bounding the replay to a
+ * digest-sized slice keeps per-turn cache-miss blocks small (~8K tokens)
+ * instead of unbounded (observed 32K-68K token injections per turn).
+ */
+export const REPLAY_TOOL_OUTPUT_MAX_CHARS = 32_000
+
 export const ToolStateError = Schema.Struct({
   status: Schema.Literal("error"),
   input: Schema.Record(Schema.String, Schema.Any),

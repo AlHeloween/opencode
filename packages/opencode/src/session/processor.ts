@@ -134,6 +134,67 @@ export function cacheRatio(tokens: { input: number; cache: { read: number; write
   return tokens.cache.read / Math.max(1, tokens.input + tokens.cache.read + tokens.cache.write)
 }
 
+/**
+ * T3: warn when a single step injects more than this many prompt tokens.
+ * Injected blocks are billed at full miss price on the next request until
+ * they become a persisted cache prefix unit (observed 32K-68K injections).
+ */
+export const CACHE_INJECTION_WARN_TOKENS = 24_576
+
+/** Per session+provider+model last prompt-token total for injection detection. */
+const lastPromptTokens = new Map<string, number>()
+
+/** Pure T3 check: returns the injection delta when it exceeds the threshold. */
+export function injectionDelta(
+  previousTotal: number | undefined,
+  currentTotal: number,
+  threshold: number,
+): number | undefined {
+  if (previousTotal === undefined) return undefined
+  const delta = currentTotal - previousTotal
+  return delta > threshold ? delta : undefined
+}
+
+/** Pure P4 check: returns the shrink size when the prefix reset below the threshold. */
+export function prefixResetDelta(
+  previousTotal: number | undefined,
+  currentTotal: number,
+  threshold: number,
+): number | undefined {
+  if (previousTotal === undefined) return undefined
+  const shrink = previousTotal - currentTotal
+  return shrink > threshold ? shrink : undefined
+}
+
+export interface StepTokens {
+  total?: number
+  input: number
+  output: number
+  reasoning: number
+  cache: { read: number; write: number }
+  cacheRatio?: number
+}
+
+/**
+ * Pure T4 aggregation: sum per-step usage across all steps of one assistant
+ * message. Prevents the old bug where message tokens held only the last
+ * step's usage, mixing per-step input with cumulative cache.read.
+ */
+export function accumulateStepTokens(accumulated: StepTokens | undefined, step: StepTokens): StepTokens {
+  if (!accumulated) return { ...step, cache: { ...step.cache } }
+  const read = accumulated.cache.read + step.cache.read
+  const write = accumulated.cache.write + step.cache.write
+  const input = accumulated.input + step.input
+  return {
+    total: (accumulated.total ?? 0) + (step.total ?? 0),
+    input,
+    output: accumulated.output + step.output,
+    reasoning: accumulated.reasoning + step.reasoning,
+    cache: { read, write },
+    cacheRatio: read / Math.max(1, input + read + write),
+  }
+}
+
 const _lastBalanceCheck: Record<string, number> = {}
 const BALANCE_CHECK_INTERVAL_MS = 300_000 // 5 minutes
 const BALANCE_CHECK_MIN_COST = 0.01
@@ -595,8 +656,38 @@ export const layer: Layer.Layer<
               inputTokens: usage.tokens.input,
               outputTokens: usage.tokens.output,
             })
+            // T3 guard: large prompt injections bill at full miss price on the
+            // next request (provider prompt caches only reuse persisted prefix
+            // units). Warn early so heavy tool turns are visible before the bill.
+            const promptTotal = usage.tokens.input + usage.tokens.cache.read + usage.tokens.cache.write
+            const injectionKey = `${ctx.sessionID}\0${ctx.model.providerID}\0${ctx.model.id}`
+            const previous = lastPromptTokens.get(injectionKey)
+            const deltaTokens = injectionDelta(previous, promptTotal, CACHE_INJECTION_WARN_TOKENS)
+            if (deltaTokens !== undefined) {
+              const missRate = ctx.model.cost?.input ?? 0
+              log.warn("cache: large injection — new block pays full miss price", {
+                sessionID: ctx.sessionID,
+                modelID: ctx.model.id,
+                providerID: ctx.model.providerID,
+                deltaTokens,
+                estMissCostUsd: Number(((deltaTokens * missRate) / 1_000_000).toFixed(6)),
+              })
+            }
+            const shrink = prefixResetDelta(previous, promptTotal, CACHE_INJECTION_WARN_TOKENS)
+            if (shrink !== undefined) {
+              log.warn("cache: prefix reset — next turns re-prefill from cold (compaction/model switch?)", {
+                sessionID: ctx.sessionID,
+                modelID: ctx.model.id,
+                providerID: ctx.model.providerID,
+                shrinkTokens: shrink,
+              })
+            }
+            lastPromptTokens.set(injectionKey, promptTotal)
             ctx.assistantMessage.cost += usage.cost
-            ctx.assistantMessage.tokens = usage.tokens
+            // T4: aggregate tokens across all steps of this assistant message.
+            // Previous behaviour stored only the LAST step's usage, mixing
+            // per-step input with cumulative cache.read into a misleading ratio.
+            ctx.assistantMessage.tokens = accumulateStepTokens(ctx.assistantMessage.tokens, usage.tokens)
             if (usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0) {
               const cacheWarm = Session.isCacheWarm(usage.tokens)
               log.info(cacheWarm ? "cache hit" : "cache miss", {

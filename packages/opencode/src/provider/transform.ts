@@ -190,13 +190,25 @@ function normalizeMessages(
     return result
   }
 
-  // Deepseek requires all assistant messages to have reasoning on them
-  if (model.api.id.includes("deepseek")) {
+  // DeepSeek thinking-mode semantics (verified D3/D4, api-docs.deepseek.com):
+  // - assistant messages WITH tool calls: reasoning_content is REQUIRED on the
+  //   wire (API 400s without it) — keep the full CoT echo.
+  // - assistant messages WITHOUT tool calls: the API IGNORES historical
+  //   reasoning_content — drop the CoT bytes from the replay prefix so the
+  //   per-turn miss tail stays text-only.
+  // OpenRouter is excluded: it has its own reasoning_details pass-through and
+  // the DeepSeek API stripping rules do not apply to its gateway.
+  if (model.api.id.includes("deepseek") && model.api.npm !== "@openrouter/ai-sdk-provider") {
     msgs = msgs.map((msg) => {
       if (msg.role !== "assistant") return msg
       if (Array.isArray(msg.content)) {
-        if (msg.content.some((part) => part.type === "reasoning")) return msg
-        return { ...msg, content: [...msg.content, { type: "reasoning", text: "" }] }
+        const hasToolCall = msg.content.some((part) => part.type === "tool-call")
+        if (hasToolCall) {
+          if (msg.content.some((part) => part.type === "reasoning")) return msg
+          return { ...msg, content: [...msg.content, { type: "reasoning", text: "" }] }
+        }
+        const filtered = msg.content.filter((part) => part.type !== "reasoning")
+        return { ...msg, content: [...filtered, { type: "reasoning" as const, text: "" }] }
       }
       return {
         ...msg,
@@ -968,9 +980,7 @@ export function options(input: {
   if (
     input.model.providerID === "openai" ||
     input.model.api.npm === "@ai-sdk/openai-compatible" ||
-    input.model.api.npm === "@ai-sdk/deepseek" ||
     input.model.api.npm === "@ai-sdk/azure" ||
-    input.model.providerID === "deepseek" ||
     input.providerOptions?.setCacheKey
   ) {
     tlog.info("prompt_cache_key set", {

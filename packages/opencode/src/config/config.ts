@@ -270,6 +270,10 @@ export const Info = Schema.Struct({
       max_bytes: Schema.optional(PositiveInt).annotate({
         description: "Maximum bytes of tool output before it is truncated and saved to disk (default: 51200)",
       }),
+      replay_max_chars: Schema.optional(PositiveInt).annotate({
+        description:
+          "Maximum chars of a completed tool output replayed into the model context (default: 32000). Larger outputs are truncated with a digest marker; the full text stays in the truncation output file. Bounding the replay keeps provider prompt-cache miss blocks small.",
+      }),
     }),
   ).annotate({
     description:

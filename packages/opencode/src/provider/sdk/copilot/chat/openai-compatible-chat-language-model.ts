@@ -285,7 +285,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
             responseBody.usage?.prompt_cache_hit_tokens ??
             responseBody.usage?.prompt_tokens_details?.cached_tokens ??
             undefined,
-          cacheWrite: undefined,
+          cacheWrite: responseBody.usage?.prompt_tokens_details?.cache_write_tokens ?? undefined,
         },
         outputTokens: {
           total: responseBody.usage?.completion_tokens ?? undefined,
@@ -361,6 +361,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       promptTokens: number | undefined
       promptTokensDetails: {
         cachedTokens: number | undefined
+        cacheWriteTokens: number | undefined
       }
       promptCacheHitTokens: number | undefined
       promptCacheMissTokens: number | undefined
@@ -375,6 +376,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       promptTokens: undefined,
       promptTokensDetails: {
         cachedTokens: undefined,
+        cacheWriteTokens: undefined,
       },
       promptCacheHitTokens: undefined,
       promptCacheMissTokens: undefined,
@@ -457,6 +459,9 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
               }
               if (prompt_tokens_details?.cached_tokens != null) {
                 usage.promptTokensDetails.cachedTokens = prompt_tokens_details?.cached_tokens
+              }
+              if (prompt_tokens_details?.cache_write_tokens != null) {
+                usage.promptTokensDetails.cacheWriteTokens = prompt_tokens_details?.cache_write_tokens
               }
               if (value.usage?.prompt_cache_hit_tokens != null) {
                 usage.promptCacheHitTokens = value.usage.prompt_cache_hit_tokens
@@ -753,6 +758,7 @@ const openaiCompatibleTokenUsageSchema = z
     prompt_tokens_details: z
       .object({
         cached_tokens: z.number().nullish(),
+        cache_write_tokens: z.number().nullish(),
       })
       .nullish(),
     completion_tokens_details: z

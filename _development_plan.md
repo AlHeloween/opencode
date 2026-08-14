@@ -1,5 +1,22 @@
 # Development Plan
 
+## 2026-08-14 Cache-Miss Tail (plan: plans/2026-08-14-cache-miss-tail.md)
+
+Goal: reduce the prompt-cache miss tail in heavy agentic turns (DeepSeek + OpenAI-compatible gateways): bound tool-output replay blocks, warn on large context injections, make cache metrics honest.
+
+Tasks:
+
+- [x] T1 Diagnose streamlake/openai-compatible gateway cache: verdict H3 — gateway sends no `usage` in stream (kat-coder-pro-v2.5, `"usage":null` everywhere); the 9×0 cache.read rows are a reporting artifact.
+- [x] T2 Wire `toolOutputMaxChars` (default 32 000 chars via `tool_output.replay_max_chars`) through all 8 `toModelMessages*` callsites in `prompt.ts`; exported `REPLAY_TOOL_OUTPUT_MAX_CHARS` in `message-v2.ts`.
+- [x] T3 Add per-session/provider/model injection guard in `processor.ts` (warn at Δprompt > 24 576 tokens with estMissCostUsd).
+- [x] T4 Aggregate message tokens across steps (`accumulateStepTokens`) instead of last-step overwrite; map `cache_write_tokens` → cacheWrite in openai-compatible SDK.
+
+Verification:
+
+- [x] `bun typecheck` from `packages/opencode` pre-edit exit 0 (`20260814T131807Z_2ea8598e`) and post-edit exit 0 (`20260814T133958Z_8dcbcd51`).
+- [x] `bun test test/session/cache-injection.test.ts test/session/message-v2.test.ts test/session/processor-effect.test.ts` — 54 pass, 0 fail (`20260814T133958Z_ce3c3ca6`).
+- [ ] Live wire re-measure: Δprompt per heavy turn + T3 warn line (next heavy session after rebuild).
+
 ## 2026-06-07 Runtime Path And Project DB Routing
 
 Goal: keep runtime data out of copied executable `bin` folders, route project data to the requested project directory when it has local opencode state, and remove the experimental console-account SQLite side database.

@@ -254,6 +254,96 @@ describe("prompt_cache_key routing (P3)", () => {
   })
 })
 
+describe("vanchin StreamLake KAT reasoning_content replay (verified live)", () => {
+  function mkKatModel(overrides: Partial<Provider.Model> = {}): Provider.Model {
+    return {
+      ...mkDeepseekModel(),
+      id: "ep-kneqk9-1786632248553436783",
+      providerID: "pasha-coder",
+      name: "KAT Coder Pro",
+      api: {
+        id: "ep-kneqk9-1786632248553436783",
+        npm: "@ai-sdk/github-copilot",
+        url: "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+      },
+      ...overrides,
+    } as any
+  }
+
+  test("drops reasoning parts from assistant replay (no tool calls)", () => {
+    const model = mkKatModel()
+    const msgs = [
+      assistantMsg([{ type: "reasoning", text: "CoT bytes" }, { type: "text", text: "Answer" }]),
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    const content = result[0]!.content as any[]
+    expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(0)
+    expect(content.filter((p: any) => p.type === "text")).toHaveLength(1)
+  })
+
+  test("drops reasoning but keeps tool calls (live: no-echo accepted, no 400)", () => {
+    const model = mkKatModel()
+    const msgs = [
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "reasoning", text: "CoT bytes" },
+          { type: "tool-call", toolCallId: "call-1", toolName: "read", input: {} },
+        ],
+      },
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    const content = result[0]!.content as any[]
+    expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(0)
+    expect(content.filter((p: any) => p.type === "tool-call")).toHaveLength(1)
+  })
+
+  test("strips reasoning_content from providerOptions.openaiCompatible (interleaved-style echo)", () => {
+    const model = mkKatModel()
+    const msgs = [
+      {
+        role: "assistant" as const,
+        content: [{ type: "text", text: "Answer" }],
+        providerOptions: { openaiCompatible: { reasoning_content: "CoT bytes" } },
+      },
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    expect((result[0] as any).providerOptions?.openaiCompatible?.reasoning_content).toBeUndefined()
+  })
+
+  test("does NOT touch GitHub Copilot opaque reasoning (non-streamlake url)", () => {
+    const model = mkKatModel({
+      api: {
+        id: "gpt-5-codex",
+        npm: "@ai-sdk/github-copilot",
+        url: "https://api.githubcopilot.com",
+      },
+    })
+    const msgs = [
+      assistantMsg([{ type: "reasoning", text: "opaque CoT" }, { type: "text", text: "Answer" }]),
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    const content = result[0]!.content as any[]
+    expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(1)
+  })
+
+  test("does NOT touch other openai-compatible proxies (non-streamlake url)", () => {
+    const model = mkKatModel({
+      api: {
+        id: "litellm-proxy-model",
+        npm: "@ai-sdk/openai-compatible",
+        url: "https://litellm.example.com/v1",
+      },
+    })
+    const msgs = [
+      assistantMsg([{ type: "reasoning", text: "CoT" }, { type: "text", text: "Answer" }]),
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    const content = result[0]!.content as any[]
+    expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(1)
+  })
+})
+
 describe("Dedicated DeepSeek V4 thinking", () => {
   const model = {
     ...mkDeepseekModel(),

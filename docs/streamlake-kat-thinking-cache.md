@@ -28,11 +28,27 @@ On the short ladder we saw **128** then **192** (`128+64`). Still 128-token step
 
 +1 Ki ≈ eight blocks of 128. That is what you would expect if **historical thinking were in the template**.
 
-## What smit does today
+## What smit does today (post 2026-08-15)
 
-- Sends `reasoning_content` back on later assistant messages (OpenAI-compat field).
-- Does **not** send `chat_template_kwargs.preserve_thinking` or `enable_thinking`.
-- So we match KAT **default interleaved**: echo is on the wire, template **strips** old think. Prefix stays byte-stable. Model **re-thinks every turn**.
+- **Drops `reasoning_content` from the replay for ALL KAT assistant messages** — no 400 even with tool calls (unlike DeepSeek, which requires the CoT back for tool-call messages).
+- Does **not** send `chat_template_kwargs.preserve_thinking` or `enable_thinking` (gateway ignores them anyway).
+- So we match KAT **default interleaved**: template **strips** old think. Prefix stays byte-stable. Model **re-thinks every turn** — but with **fewer output reasoning tokens** because it doesn't see its own historical CoT.
+
+### Why we drop the echo (live verified 2026-08-15)
+
+| Scenario | prompt | output reasoning | duration |
+|---|---:|---:|---:|
+| t2 **with echo** (old behavior) | 73 | **142 rtok** | 1768ms |
+| t2 **without echo** (new) | 73 | **50 rtok** | 1042ms |
+| t2 empty echo | 73 | 120 rtok | 1710ms |
+
+Tool-call replay (assistant with `tool_calls`): no-echo accepted **without 400**, prompt **78 vs 101** (echo added 23 CoT tokens to billed input).
+
+**Conclusion:** echoing historical `reasoning_content` to KAT is unnecessary, adds input bytes for tool-call replays, and makes the model re-think longer (more output tokens billed). Drop it.
+
+### Contrast with DeepSeek
+
+DeepSeek's official docs ([Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode)) require `reasoning_content` back for tool-call messages (400 otherwise) and ignore it for non-tool messages. KAT does **neither** — it accepts requests without the echo in all cases. See `docs/deepseek-thinking-cache.md` for the DeepSeek rules.
 
 ## Live matrix (this host)
 
@@ -93,14 +109,21 @@ We cannot claim `preserve_thinking` works on this host until `prompt` grows with
 ## What we can claim (Exact)
 
 1. Cache accounting is **128-token steps** (OpenAI-compat). Short run: 128 → 192. Long run: 49152 (= 48 Ki).
-2. `cached_tokens: null` is **not** a miss of the prefix — stream still 200, often ~same latency. Do not treat null as “cache broken”.
-3. Echoing `reasoning_content` **without** a working `preserve_thinking` does not change `prompt_tokens`. Smit already does this; it is not the 17/33/49/65 shift.
+2. `cached_tokens: null` is **not** a miss of the prefix — stream still 200, often ~same latency. Do not treat null as "cache broken".
+3. Echoing `reasoning_content` to KAT **is unnecessary** — the gateway accepts requests without it in all cases (no tool-call 400, unlike DeepSeek). Dropping it **reduces output reasoning tokens** (model re-thinks less) and **saves input bytes** on tool-call replays.
 4. On **this** StreamLake coding gateway, `chat_template_kwargs` did not change think-off or prefix growth. Do not ship a smit default of `preserve_thinking: true` until a host actually inflates `prompt`.
 5. `prompt_cache_key` still isolates buckets (`:default` vs `:no_think` vs `:preserve` plus earlier `:lab-a` / `:lab-b` tests).
 
 ## Smit implication
 
-Leave production as **default interleaved** until Vanchin documents / forwards `chat_template_kwargs`. If they later honor `preserve_thinking`, expect:
+**Drop `reasoning_content` echo for KAT** (implemented in `transform.ts` `normalizeMessages`, keyed on `@ai-sdk/github-copilot` npm + streamlake/vanchin URL). This:
+
+- saves input bytes on tool-call replays (CoT no longer billed),
+- reduces output reasoning tokens (model doesn't re-think over its own historical CoT),
+- is faster (1042ms vs 1768ms in live tests),
+- is safe (no 400, correct answers in both plain and tool-call scenarios).
+
+If Vanchin later honors `preserve_thinking`, expect:
 
 - fewer repeat reasoning tokens,
 - prefix that **grows every turn** (old think stays),
@@ -110,9 +133,19 @@ That change is `[KV-CACHE RISK]`: system prefix stays, conversation prefix after
 
 ## How to re-run
 
+### Cache ladder (this doc)
+
 ```
 python bin/pasha_test.py --mode all --turns 8
 python bin/pasha_test.py --mode default
 python bin/pasha_test.py --mode no_think
 python bin/pasha_test.py --mode preserve
 ```
+
+### Reasoning echo experiment (2026-08-15)
+
+```
+python experiments/cache-alignment-smoke/smoke_kat_reasoning_echo.py
+```
+
+Compares turn-2 with echo vs without echo (plain + tool-call scenarios) — acceptance, prompt tokens, output reasoning tokens, duration.

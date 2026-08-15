@@ -257,6 +257,41 @@ function normalizeMessages(
     })
   }
 
+  // vanchin StreamLake KAT gateways (verified live + Qwen/Alibaba docs
+  // convention: historical reasoning_content is IGNORED on replay): drop the
+  // CoT parts so the replay prefix stays text-only and the model does not
+  // re-think over its own reasoning (fewer output reasoning tokens, smaller
+  // tool-call replays). DeepSeek keeps its own echo rules above (tool-call
+  // messages REQUIRE the CoT back). GitHub Copilot opaque reasoning is
+  // untouched — its route is excluded by the streamlake URL match.
+  if (
+    /streamlake|vanchin/i.test(model.api.url ?? "") &&
+    (model.api.npm === "@ai-sdk/github-copilot" || model.api.npm === "@ai-sdk/openai-compatible")
+  ) {
+    msgs = msgs.map((msg) => {
+      if (msg.role !== "assistant") return msg
+      const providerOptions = (msg as ModelMessage & { providerOptions?: any }).providerOptions
+      const oc = providerOptions?.openaiCompatible
+      const cleanedOptions = oc
+        ? {
+            ...providerOptions,
+            openaiCompatible: Object.fromEntries(
+              Object.entries(oc).filter(
+                ([key]) => key !== "reasoning_content" && key !== "reasoning_details",
+              ),
+            ),
+          }
+        : providerOptions
+      if (!Array.isArray(msg.content)) {
+        return cleanedOptions ? { ...msg, providerOptions: cleanedOptions } : msg
+      }
+      const filtered = msg.content.filter((part) => part.type !== "reasoning")
+      return cleanedOptions
+        ? { ...msg, content: filtered, providerOptions: cleanedOptions }
+        : { ...msg, content: filtered }
+    })
+  }
+
   return msgs
 }
 

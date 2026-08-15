@@ -74,6 +74,18 @@ Output:
 - Pure: `bun test summary-cadence + cache-classification + cache-injection + processor-effect`: **51 pass, 0 fail** (`20260815T012844Z_d00f6381`).
 - Force no-op (filtered, compaction.test.ts): **1 pass, 0 fail** (`20260815T013051Z_7c166447`). Полный compaction.test.ts — пре-существующий hang харнесса (как prompt.test.ts).
 - typecheck exit 0 (`20260815T013125Z_ce7a8b5a`); rebuild exit 0 (`20260815T013159Z_d2d6236a`) → dist 10.0.847.
+
+## 2026-08-15 KAT reasoning_content: не возвращать в replay (гипотеза подтверждена live + доки)
+
+Reason: kat-coder-v2.5 — эхо reasoning_content в мультитёрне не нужно. LIVE (experiments/cache-alignment-smoke/smoke_kat_reasoning_echo.py `20260815T093520Z_7510f28e`): no-echo принят, prompt не растёт (73 vs 73), output reasoning tokens 50 vs 142 (с эхом модель пере-думает), быстрее (1042 vs 1768ms), явный cache hit. Tool-call сценарий (smoke_kat_reasoning_toolcall.py `20260815T093655Z_19ed03e8`): no-echo принят БЕЗ 400 (в отличие от DeepSeek), prompt 78 vs 101. Интернет: DeepSeek docs — без tool call reasoning_content игнорируется, с tool call обязателен; Alibaba/Qwen docs — «retain only content, ignore reasoning_content».
+
+Changes:
+- `packages/opencode/src/provider/transform.ts` — normalizeMessages: для streamlake/vanchin URL + npm github-copilot/openai-compatible → дроп reasoning-частей из assistant replay + зачистка `providerOptions.openaiCompatible.reasoning_content/reasoning_details`. Copilot opaque (github URL) и прочие прокси не тронуты; deepseek-правила выше не затронуты.
+- `packages/opencode/test/provider/transform-reasoning.test.ts` — 5 новых KAT-кейсов (no-tool drop, tool-call drop, providerOptions strip, copilot untouched, litellm untouched).
+
+Output:
+- `bun test test/provider/transform-reasoning.test.ts`: **22 pass, 0 fail** (`20260815T094820Z_104e40c1`).
+- typecheck exit 0 (`20260815T094908Z_bd83f8f0`); rebuild exit 0 (`20260815T094959Z_9b646b08`) → dist 10.0.848.
 - Живые smoke (эксперименты, KAT): prefix-shrink — shorter-after-longer = 0.997 hit (`20260814T174304Z_5532596a`); sidecar под shared key НЕ клобберит ствол (0.997 hit после S) — прежний «clobber» вердикт дезавуирован (None≠miss).
 
 ## 2026-08-14 Cache Alignment (plan: plans/2026-08-14-cache-alignment.md)

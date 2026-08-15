@@ -190,15 +190,19 @@ function normalizeMessages(
     return result
   }
 
-  // DeepSeek thinking-mode semantics (verified D3/D4, api-docs.deepseek.com):
+  // DeepSeek + MIMO thinking-mode semantics (verified live + vendor docs):
   // - assistant messages WITH tool calls: reasoning_content is REQUIRED on the
-  //   wire (API 400s without it) — keep the full CoT echo.
-  // - assistant messages WITHOUT tool calls: the API IGNORES historical
-  //   reasoning_content — drop the CoT bytes from the replay prefix so the
-  //   per-turn miss tail stays text-only.
+  //   wire (both APIs 400 without it — api-docs.deepseek.com/guides/thinking_mode,
+  //   mimo.mi.com/docs deep-thinking) — keep the full CoT echo.
+  // - assistant messages WITHOUT tool calls: the APIs IGNORE historical
+  //   reasoning_content (DeepSeek) / do not require it (MIMO) — drop the CoT
+  //   bytes from the replay prefix so the per-turn miss tail stays text-only.
   // OpenRouter is excluded: it has its own reasoning_details pass-through and
-  // the DeepSeek API stripping rules do not apply to its gateway.
-  if (model.api.id.includes("deepseek") && model.api.npm !== "@openrouter/ai-sdk-provider") {
+  // the vendor stripping rules do not apply to its gateway.
+  if (
+    (model.api.id.includes("deepseek") || model.api.id.toLowerCase().includes("mimo")) &&
+    model.api.npm !== "@openrouter/ai-sdk-provider"
+  ) {
     msgs = msgs.map((msg) => {
       if (msg.role !== "assistant") return msg
       if (Array.isArray(msg.content)) {
@@ -257,17 +261,24 @@ function normalizeMessages(
     })
   }
 
-  // vanchin StreamLake KAT gateways (verified live + Qwen/Alibaba docs
-  // convention: historical reasoning_content is IGNORED on replay): drop the
-  // CoT parts so the replay prefix stays text-only and the model does not
-  // re-think over its own reasoning (fewer output reasoning tokens, smaller
-  // tool-call replays). DeepSeek keeps its own echo rules above (tool-call
-  // messages REQUIRE the CoT back). GitHub Copilot opaque reasoning is
-  // untouched — its route is excluded by the streamlake URL match.
-  if (
-    /streamlake|vanchin/i.test(model.api.url ?? "") &&
-    (model.api.npm === "@ai-sdk/github-copilot" || model.api.npm === "@ai-sdk/openai-compatible")
-  ) {
+  // Everyone else on openai-compatible routes drops historical reasoning
+  // entirely (2026-08-15, live + vendor docs):
+  // - KAT/StreamLake: live-verified no-echo accepted in plain AND tool-call
+  //   replays; echo made the model re-think over its own CoT (50 vs 142
+  //   output reasoning tokens) and was slower (1042 vs 1768 ms).
+  // - Qwen: official Alibaba docs — "do not add the reasoning_content field
+  //   when you add to the context".
+  // - zen-proxied Kimi/GLM/MiniMax/hy3: live-verified — no reasoning surfaced
+  //   on this key, all no-echo replays accepted without 400.
+  // Excluded: real GitHub Copilot (opaque reasoning replay is a different
+  // field set), DeepSeek/MIMO (tool-call echo rules above).
+  const isOpenAICompatRoute =
+    model.api.npm === "@ai-sdk/openai-compatible" || model.api.npm === "@ai-sdk/github-copilot"
+  const isCopilotOpaqueRoute =
+    model.api.npm === "@ai-sdk/github-copilot" && /github/i.test(model.api.url ?? "")
+  const echoRequiredId =
+    model.api.id.toLowerCase().includes("deepseek") || model.api.id.toLowerCase().includes("mimo")
+  if (isOpenAICompatRoute && !isCopilotOpaqueRoute && !echoRequiredId) {
     msgs = msgs.map((msg) => {
       if (msg.role !== "assistant") return msg
       const providerOptions = (msg as ModelMessage & { providerOptions?: any }).providerOptions

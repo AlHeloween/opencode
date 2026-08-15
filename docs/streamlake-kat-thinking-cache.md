@@ -34,6 +34,19 @@ On the short ladder we saw **128** then **192** (`128+64`). Still 128-token step
 - Does **not** send `chat_template_kwargs.preserve_thinking` or `enable_thinking` (gateway ignores them anyway).
 - So we match KAT **default interleaved**: template **strips** old think. Prefix stays byte-stable. Model **re-thinks every turn** — but with **fewer output reasoning tokens** because it doesn't see its own historical CoT.
 
+### Reasoning echo policy across vendors (transform.ts `normalizeMessages`)
+
+| Route | No tool calls | Tool calls |
+|---|---|---|
+| DeepSeek, MIMO (any openai-compatible route) | drop CoT bytes (ignored / not required) | **echo required** (400 without — vendor docs) |
+| Everyone else on openai-compatible routes (KAT, Qwen, zen-proxied Kimi/GLM/MiniMax/hy3, LiteLLM-style proxies) | **drop entirely** | **drop entirely** |
+| GitHub Copilot (opaque `reasoning_text`) | keep (opaque replay) | keep (opaque replay) |
+| Anthropic / other SDK routes | untouched | untouched |
+
+Evidence: KAT live matrix (this doc), DeepSeek + MIMO official docs, Qwen official docs
+("do not add the reasoning_content field when you add to the context"), zen live
+matrix 2026-08-15 (`experiments/cache-alignment-smoke/smoke_zen_reasoning_echo.py`).
+
 ### Why we drop the echo (live verified 2026-08-15)
 
 | Scenario | prompt | output reasoning | duration |

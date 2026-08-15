@@ -281,6 +281,22 @@ describe("vanchin StreamLake KAT reasoning_content replay (verified live)", () =
     expect(content.filter((p: any) => p.type === "text")).toHaveLength(1)
   })
 
+  test("drop only affects the wire — stored parts keep reasoning for the UI (save/render invariant)", () => {
+    const model = mkKatModel()
+    const msgs = [
+      assistantMsg([{ type: "reasoning", text: "CoT bytes" }, { type: "text", text: "Answer" }]),
+    ]
+    ProviderTransform.message(msgs as any, model, {})
+    // The drop builds new wire objects; the input array (what the session
+    // stores and the TUI renders) keeps its reasoning parts. Cache-control
+    // providerOptions may be attached in place by applyCaching — content is
+    // what must survive.
+    const inputContent = msgs[0]!.content as any[]
+    expect(inputContent.filter((p: any) => p.type === "reasoning")).toHaveLength(1)
+    expect(inputContent.find((p: any) => p.type === "reasoning")?.text).toBe("CoT bytes")
+    expect(inputContent.filter((p: any) => p.type === "text")).toHaveLength(1)
+  })
+
   test("drops reasoning but keeps tool calls (live: no-echo accepted, no 400)", () => {
     const model = mkKatModel()
     const msgs = [
@@ -327,7 +343,7 @@ describe("vanchin StreamLake KAT reasoning_content replay (verified live)", () =
     expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(1)
   })
 
-  test("does NOT touch other openai-compatible proxies (non-streamlake url)", () => {
+  test("drops reasoning for other openai-compatible proxies too (LiteLLM-style)", () => {
     const model = mkKatModel({
       api: {
         id: "litellm-proxy-model",
@@ -340,7 +356,70 @@ describe("vanchin StreamLake KAT reasoning_content replay (verified live)", () =
     ]
     const result = ProviderTransform.message(msgs as any, model, {})
     const content = result[0]!.content as any[]
-    expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(1)
+    expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(0)
+  })
+
+  test("zen Qwen: drops reasoning (vendor docs: do not add reasoning_content)", () => {
+    const model = mkKatModel({
+      id: "qwen3.6-plus-free",
+      api: {
+        id: "qwen3.6-plus-free",
+        npm: "@ai-sdk/openai-compatible",
+        url: "https://opencode.ai/zen/v1",
+      },
+    } as any)
+    const msgs = [
+      assistantMsg([{ type: "reasoning", text: "CoT bytes" }, { type: "text", text: "Answer" }]),
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    const content = result[0]!.content as any[]
+    expect(content.filter((p: any) => p.type === "reasoning")).toHaveLength(0)
+  })
+
+  test("zen MIMO tool-call message keeps the echo via interleaved field (400-guard)", () => {
+    const model = mkKatModel({
+      id: "mimo-v2.5-free",
+      api: {
+        id: "mimo-v2.5-free",
+        npm: "@ai-sdk/openai-compatible",
+        url: "https://opencode.ai/zen/v1",
+      },
+      capabilities: {
+        ...mkKatModel().capabilities,
+        interleaved: { field: "reasoning_content" },
+      },
+    } as any)
+    const msgs = [
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "reasoning", text: "I should call the tool." },
+          { type: "tool-call", toolCallId: "call-1", toolName: "read", input: {} },
+        ],
+      },
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    expect((result[0] as any).providerOptions?.openaiCompatible?.reasoning_content).toBe("I should call the tool.")
+  })
+
+  test("zen MIMO plain message drops CoT bytes but keeps the empty field (DeepSeek shape)", () => {
+    const model = mkKatModel({
+      id: "mimo-v2.5-free",
+      api: {
+        id: "mimo-v2.5-free",
+        npm: "@ai-sdk/openai-compatible",
+        url: "https://opencode.ai/zen/v1",
+      },
+      capabilities: {
+        ...mkKatModel().capabilities,
+        interleaved: { field: "reasoning_content" },
+      },
+    } as any)
+    const msgs = [
+      assistantMsg([{ type: "reasoning", text: "CoT bytes" }, { type: "text", text: "Answer" }]),
+    ]
+    const result = ProviderTransform.message(msgs as any, model, {})
+    expect((result[0] as any).providerOptions?.openaiCompatible?.reasoning_content).toBe("")
   })
 })
 

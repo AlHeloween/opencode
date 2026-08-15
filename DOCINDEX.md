@@ -45,6 +45,7 @@ class DocIndex:
         DocRecord("docs/tools-and-sidecars.md", "Local_Development", "Sidecar tools inventory, resolution paths, Windows/Linux packaging"),
         DocRecord("docs/streamlake-kat-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of the StreamLake/KAT gateway (include_usage, 64-token hits, ignored chat_template_kwargs)"),
         DocRecord("docs/deepseek-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of DeepSeek v4 (auto usage, 128-token units, cold-turn cost, CoT rules, refuted user_id isolation)"),
+        DocRecord("docs/cot-reasoning-research.md", "Local_Development", "Research: how CoT affects task execution (Hi-CoT, TOPS, STITCH, Inkling, GPT-5) and why opencode drops reasoning echo"),
     ])
     
     specs: list[DocRecord] = field(default_factory=lambda: [

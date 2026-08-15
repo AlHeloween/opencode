@@ -1,5 +1,81 @@
 # Progress Log
 
+## 2026-08-14 Sidecar Summary Parity Fix (spec: user — summary = обычный user-запрос к полному M)
+
+Reason: sidecar Layer-1 summary уходил как «другой» запрос (range-only, tools:{}, tool_choice:none, max_tokens 8192, gap-fill) под общим cache key — расхождение с immutable-prompt инвариантом. Спецификация: summary = полный checkpoint M + синтетический user-промпт, те же tools на проводе, стандартный бюджет, запрет исполнения тулов системным флагом (constitution), retry тем же запросом, S сохраняется в базу, X не мутируется.
+
+Script/Changes:
+
+- `packages/opencode/src/session/prompt.ts` — `maybeCaptureSidecar`: messages = `[...checkpoint.messages, {role:"user", summaryRequestProse}]` (полный M, без range-реконвертации); убраны `toolChoice:"none"`, `outputTokenMax` (стандартный бюджет), gap-fill целиком; retry-цикл `SIDECAR_MAX_ATTEMPTS=3` (тот же запрос, тот же префикс → кеш-хит на ретраях); `Constitution.setSummaryMode(sessionID, true/false)` вокруг stream (clearing в `ensuring`); `tools` передаётся из scope вызова.
+- `packages/opencode/src/session/constitution.ts` — `setSummaryMode`/`isSummaryMode` (per-session Map; очистка в `resetEpistemicState`).
+- `packages/opencode/src/session/tools.ts` — execute-обёртка: `isSummaryMode` → denied-вывод «Tool execution disabled during summary», схемы остаются на проводе.
+- `packages/opencode/src/session/compaction.ts` — в `summaryRequestProse` добавлено «Do not call tools — write the summary as plain text only».
+
+Script Output:
+
+- typecheck (tsgo --noEmit): PASS exit 0 (`20260814T183541Z_93c24122`, после восстановления правок через edit).
+- `bun test test/session/constitution.test.ts`: 37 pass, 0 fail (`20260814T182415Z_6faa48f3`).
+- `bun test -t "Layer-1" test/session/prompt.test.ts`: HANG без вывода — **pre-existing**: зависает и БЕЗ наших правок (stash-дискриминатор `20260814T182831Z_e8a075e3`), не вызвано фиксом.
+- Rebuild `_build.ps1 -SkipOpenTui`: exit 0 (`20260814T183632Z_2cbf9ef5`) → dist 10.0.842, smoke: version OK + reasoning_prompt.txt inlined.
+- Soft gap-fill (spec: «второй запрос включает что дополнить, без выключения чего-либо»): `prompt.ts` retry-цикл — attempt 1 = `summaryRequestProse`; attempts 2+ = тот же полный M + `gapFillRequest(body, gaps)` + «Previous draft for reference» в user-сообщении, ответ мержится `mergeSummarySections`; ничего не выключается (те же system/tools/бюджет).
+- LIVE smoke `experiments/cache-alignment-smoke/smoke_gapfill_parity.py` (`20260814T185804Z_58f188fd`): retry-same — быстро; **parity gap-fill B1: cached 12096/12216 = 0.990 (M-префикс HIT, miss только tail)**; old-style (system:[], 2 msg) — cold. ВЕРДИКТ: мягкий gap-fill кеш-безопасен.
+- Typecheck после soft gap-fill: exit 0 (`20260814T185939Z_f622bb26`); rebuild: exit 0 (`20260814T190011Z_98028f28`) → dist 10.0.843.
+- LSP «Cannot find module openai»: root cause — pyrefly LSP авто-выбирает venv `.rag_env` (по pyvenv.cfg), а тот создан с `include-system-site-packages = false` → базовые site-packages (где стоит openai) не видны; PATH при наличии venv игнорируется. Fix: `include-system-site-packages = true` в `.rag_env\pyvenv.cfg` (gitignored, локально). Проверено: `.rag_env\Scripts\python.exe` теперь резолвит openai из `D:\USESoft\Python313\Lib\site-packages`. Эффект после рестарта LSP/opencode (пирайт кеширует интерпретатор).
+
+## 2026-08-14 Cache null≠miss classification (critical: KAT gateways return cached_tokens:null on hits)
+
+Reason: vanchin KAT Coder и другие гейтвеи возвращают `cached_tokens: null` (или не отдают поле) на ХИТАХ. Цепочка `getUsage` (session.ts:497 `?? 0`) схлопывала null → 0, `isCacheWarm` давал «cache miss» — хит логировался как промах. Различие «явный 0» vs «null/absent» терялось, тестов не было.
+
+Changes:
+- `packages/opencode/src/session/session.ts` — `CacheState = "hit"|"miss"|"unknown"` + `classifyCacheRead(cacheRead)` (null/undefined → unknown; 0 → miss; >0 → hit); комментарий-инвариант (классифицировать по RAW значению до коллапса getUsage).
+- `packages/opencode/src/session/processor.ts` — finish-step: `rawCacheRead = value.usage.inputTokenDetails?.cacheReadTokens` ДО getUsage; лог «cache hit»/«cache miss»/«cache unknown» + поле `cacheState`.
+- `packages/opencode/test/session/cache-classification.test.ts` — tri-state, collapse-trap регрессия (null ≠ miss), cacheRatio без NaN, isCacheWarm.
+
+Output:
+- `bun test test/session/cache-classification.test.ts test/session/cache-injection.test.ts test/session/processor-effect.test.ts`: **34 pass, 0 fail** (`20260814T194540Z_a89d9dfb`).
+- typecheck exit 0 (`20260814T194735Z_44e08411`); rebuild exit 0 (`20260814T194807Z_866f7117`) → dist 10.0.844.
+
+## 2026-08-14 Layer-1 summary cadence fix (bug: summary fired at ~10K startup content)
+
+Reason: `summaryWindowLimit` клэмпил каденцию 65 536 по контексту модели. Для ~40K-модели порог схлопывался до ≈12 528 → Layer-1 summary срабатывал при старте с ~10K контента (не 64K). Клэмп нужен только Layer-2 (trim Recent), а не Layer-1.
+
+Changes:
+- `packages/opencode/src/session/compaction.ts` — `layer1SummaryThreshold()`: чистая каденция 65 536, без контекстного клэмпа (+док о регрессии).
+- `packages/opencode/src/session/prompt.ts` — maybeCaptureSidecar: `threshold = SessionCompaction.layer1SummaryThreshold()` вместо `summaryWindowLimit`; `summaryWindowLimit` остаётся только в двух Layer-2 compact-вызовах (Recent trim).
+- `packages/opencode/test/session/summary-cadence.test.ts` — каденция 65 536 model-independent; регрессия «10K старт не дотягивает до порога»; 65K окно срабатывает; summaryWindowLimit для 40K-модели = 12 528 (Layer-2, Layer-1 никогда его не использует).
+
+Output:
+- `bun test test/session/summary-cadence.test.ts test/session/cache-classification.test.ts`: **16 pass, 0 fail** (`20260814T195731Z_74bd6016`).
+- typecheck exit 0 (`20260814T195802Z_7263d8d6`); rebuild exit 0 (`20260814T195834Z_ec00b050`) → dist 10.0.845.
+
+## 2026-08-14 Summary 32K generation headroom gate (invariant: никогда не резать контент)
+
+Reason: под генерацию summary всегда должно быть ≥32K свободного места; если полный M + 32K не влезает в лимит провайдера — обязан сработать компакт (иначе провайдер режет контент). Старый pre-flight мерял open-window (не полный M) против usable() и молча скипал summary — компакт в опасной зоне не срабатывал.
+
+Changes:
+- `packages/opencode/src/session/overflow.ts` — `SUMMARY_GENERATION_RESERVE_TOKENS = 32_768`; `summaryNeedsCompactFirst({model, contentTokens})`: `estimateRequestTokens(content) + 32_768 > limit` → true (limit = observed ?? input ?? context; ≤0 не блокирует).
+- `packages/opencode/src/session/prompt.ts` — maybeCaptureSidecar pre-flight заменён: `fullMTokens = estimateContentTokens(visible)`; при `summaryNeedsCompactFirst` → warn «no 32K generation headroom — compacting first» + `maybeCompactCadence({force:true})` + return false. `maybeCompactCadence` получил `force` (обходит skip_single_sidecar и needsContentCompaction-гейт; sanity compactTarget>0 остаётся).
+- `packages/opencode/test/session/summary-cadence.test.ts` — 6 тестов гейта: резерв 32_768; место есть/нет; точная граница fit; unknown limit не блокирует; регрессия «64K окно на 100K модели → compact first».
+
+Output:
+- `bun test test/session/summary-cadence.test.ts test/session/cache-classification.test.ts`: **22 pass, 0 fail** (`20260814T200703Z_7ab71e20`).
+- typecheck exit 0 (`20260814T200717Z_ca8207bc`); rebuild exit 0 (`20260814T200748Z_d9882244`) → dist 10.0.846.
+
+## 2026-08-15 Summary/compact loop guard (bug: бесконечное кольцо summary→force-compact→summary)
+
+Reason: на версии под тестом после компакта сессии «позависали» во всех проектах. Цепочка: star без s (сырой) ≥ каденции 64K → sidecar дёргается на каждом стопе → headroom gate (full M + 32K > limit) форсит компакт → компакт не может уменьшить одинокий star (trim по границам сообщений) → Checkpoint.remove каждый стоп → холодный re-prefill каждый ход → TUI мёртв, abort/рестарты.
+
+Changes:
+- `compaction.ts` — идемпотентный skip «visible = [message*]» теперь **безусловный** (force не обходит): пересвёртка одинокого star не может его уменьшить. `isMessageStar` экспортирован; новый `hasFoldableContent(visible)` (чистый guard: star один → fold бессилен). `compact()` возвращает `{messageStarTokens, folded}` (skip/early-return → folded:false).
+- `prompt.ts` — headroom gate: если `hasFoldableContent` → force compact + return false (как было); если складывать нечего (одинокий star) → **warn + capture дальше** (summary — единственный выход). `maybeCompactCadence`: `folded.folded === false` → return false **без** `Checkpoint.remove`/cooldown-сброса (не рушим KV-непрерывность на no-op).
+- Тесты: `compaction.test.ts` — «FORCE re-compact на lone star → folded:false, star один» (1 pass, точечно `20260815T013051Z_7c166447`); `summary-cadence.test.ts` — `hasFoldableContent` 5 кейсов + регрессия deadlock-сценария.
+
+Output:
+- Pure: `bun test summary-cadence + cache-classification + cache-injection + processor-effect`: **51 pass, 0 fail** (`20260815T012844Z_d00f6381`).
+- Force no-op (filtered, compaction.test.ts): **1 pass, 0 fail** (`20260815T013051Z_7c166447`). Полный compaction.test.ts — пре-существующий hang харнесса (как prompt.test.ts).
+- typecheck exit 0 (`20260815T013125Z_ce7a8b5a`); rebuild exit 0 (`20260815T013159Z_d2d6236a`) → dist 10.0.847.
+- Живые smoke (эксперименты, KAT): prefix-shrink — shorter-after-longer = 0.997 hit (`20260814T174304Z_5532596a`); sidecar под shared key НЕ клобберит ствол (0.997 hit после S) — прежний «clobber» вердикт дезавуирован (None≠miss).
+
 ## 2026-08-14 Cache Alignment (plan: plans/2026-08-14-cache-alignment.md)
 
 Reason: привести opencode в соответствие с измеренным поведением кешей DeepSeek и StreamLake/KAT (две лабораторные серии), чтобы кеш не ломался от наших же артефактов.

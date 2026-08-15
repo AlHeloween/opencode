@@ -191,6 +191,23 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
             if (denied(item.policy)) {
               return yield* rejected(item.id, options.toolCallId)
             }
+            // Sidecar summary guard: constitution flag blocks execution of ALL
+            // tools. Schemas stay on the wire — removing them would change the
+            // request prefix and break the provider cache.
+            if (Constitution.isSummaryMode(input.session.id)) {
+              const output = {
+                title: "Summary mode",
+                metadata: {
+                  summary: true,
+                  denied: true,
+                  tool: item.id,
+                },
+                output: "Tool execution disabled during summary — reply in text only.",
+              }
+              log.debug("tool blocked by summary mode", { tool: item.id, sessionID: input.session.id })
+              yield* input.processor.completeToolCall(options.toolCallId, output)
+              return output
+            }
             // InfoMark grounding: MODIFY denied when active premises ∉ G
             const grounding = Constitution.guardMutationGrounding({
               sessionID: input.session.id,

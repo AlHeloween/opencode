@@ -616,6 +616,9 @@ export const layer: Layer.Layer<
             return
 
           case "finish-step": {
+            // RAW cache read BEFORE getUsage collapses null → 0: KAT and other
+            // gateways return cached_tokens: null on hits — null ≠ miss.
+            const rawCacheRead = value.usage.inputTokenDetails?.cacheReadTokens
             const usage = Session.getUsage({
               model: ctx.model,
               usage: value.usage,
@@ -689,10 +692,11 @@ export const layer: Layer.Layer<
             // per-step input with cumulative cache.read into a misleading ratio.
             ctx.assistantMessage.tokens = accumulateStepTokens(ctx.assistantMessage.tokens, usage.tokens)
             if (usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0) {
-              const cacheWarm = Session.isCacheWarm(usage.tokens)
-              log.info(cacheWarm ? "cache hit" : "cache miss", {
+              const cacheState = Session.classifyCacheRead(rawCacheRead)
+              log.info(cacheState === "hit" ? "cache hit" : cacheState === "miss" ? "cache miss" : "cache unknown", {
                 sessionID: ctx.sessionID,
                 modelID: ctx.model.id,
+                cacheState,
                 cacheRatio: cacheRatio(usage.tokens),
                 inputTokens: usage.tokens.input,
                 cacheReadTokens: usage.tokens.cache.read,

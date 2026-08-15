@@ -195,6 +195,44 @@ describe("session.compaction.sequential-compact", () => {
       }),
     ),
   )
+
+  it.live(
+    "FORCE re-compact on a lone message* is a no-op (folded:false) — no summary/compact loop",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent-msg" })
+
+        const first = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        expect(first.folded).toBe(true)
+
+        // FORCE re-fold of the lone star must not rebuild it — the Layer-1
+        // headroom gate would otherwise loop compact→summary→compact forever.
+        const forced = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build", force: true })
+        expect(forced.folded).toBe(false)
+
+        const after = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after).toHaveLength(1)
+        expect(after[0].parts.some((p: any) => p.type === "text" && p.text.includes("=== COMPACTED ==="))).toBe(true)
+      }),
+    ),
+  )
 })
 
 describe("session.compaction.structural-summary-handoff", () => {

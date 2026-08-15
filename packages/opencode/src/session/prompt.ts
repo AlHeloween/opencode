@@ -13,10 +13,13 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, type ModelMessage, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
+import { Constitution } from "./constitution"
 import {
   estimateContentTokens,
   estimateRequestTokens,
   needsContentCompaction,
+  SUMMARY_GENERATION_RESERVE_TOKENS,
+  summaryNeedsCompactFirst,
   summaryWindowLimit,
   usable,
 } from "./overflow"
@@ -153,6 +156,9 @@ const sidecarInFlight = new Set<string>()
 const SIDECAR_COOLDOWN_MS = 30_000
 /** Track last successful sidecar capture time per session. */
 const lastSidecarCapture = new Map<string, number>()
+/** Max resends of the identical summary request before giving up this cycle.
+ *  Same prefix every attempt → provider cache hits on retries. */
+const SIDECAR_MAX_ATTEMPTS = 3
 
 /** Track the last injected mode per session. Compaction can hide the previous
  *  message, but another session must never affect this transition record. */
@@ -1252,6 +1258,7 @@ export const layer = Layer.effect(
           cacheIdentity: Agent.Info
           user: MessageV2.User
           checkpoint: CheckpointData
+          tools: Record<string, AITool>
           afterAssistant?: MessageV2.WithParts
         }) =>
           Effect.gen(function* () {
@@ -1261,128 +1268,103 @@ export const layer = Layer.effect(
             // excessive LLM calls during rapid-fire short turns.
             const lastCapture = lastSidecarCapture.get(sessionID)
             if (lastCapture !== undefined && Date.now() - lastCapture < SIDECAR_COOLDOWN_MS) return false
-            const threshold = summaryWindowLimit({
-              cfg: yield* config.get(),
-              model: input.model,
-              target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-            })
+            // Layer-1 cadence is a pure content counter (65 536 open-window
+            // tokens) — NOT context-clamped. Small-context models rely on
+            // Layer-2 compaction; the pre-flight below guards request fit.
+            const threshold = SessionCompaction.layer1SummaryThreshold()
             const previous = IncrementalCheckpoint.latestOpen(sessionID)
             const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible, previous?.toMessageID)
             if (openTokens < threshold) return false
-            // Pre-flight: full request fit ≈ open content/4 + 10k overhead
-            // (system/tools/framing). Tokenizer not used — undercounts providers.
-            // usable() reserves headroom; sidecar is toolChoice:none (no output budget).
-            const requestTokens = estimateRequestTokens(openTokens)
-            const usableTokens = usable({ cfg: yield* config.get(), model: input.model })
-            if (requestTokens >= usableTokens) {
-              yield* slog.debug("sidecar checkpoint skipped: request exceeds model context", {
-                openTokens,
-                requestTokens,
-                usable: usableTokens,
+            // Pre-flight (user invariant): the summary request is FULL
+            // checkpoint M + prose, and the response needs ≥32K generation
+            // room. If M + 32K exceeds the provider limit, the provider would
+            // CUT content — compact first when a fold can shrink M. A lone
+            // message* cannot fold smaller; capturing is its only exit path.
+            const fullMTokens = estimateContentTokens(input.visible, input.model)
+            if (summaryNeedsCompactFirst({ model: input.model, contentTokens: fullMTokens })) {
+              if (SessionCompaction.hasFoldableContent(input.visible)) {
+                yield* slog.warn("sidecar summary blocked: no 32K generation headroom — compacting first", {
+                  sessionID,
+                  fullMTokens,
+                  requestTokens: estimateRequestTokens(fullMTokens),
+                  generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
+                  modelContext: input.model.limit.context,
+                })
+                yield* maybeCompactCadence({ model: input.model, agent: input.agent.name, force: true })
+                return false
+              }
+              yield* slog.warn("sidecar summary: star exceeds 32K headroom and cannot fold — capturing anyway (only exit path)", {
+                sessionID,
+                fullMTokens,
+                requestTokens: estimateRequestTokens(fullMTokens),
+                generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
+                modelContext: input.model.limit.context,
               })
-              return false
             }
             const boundary = previous?.toMessageID
             const start = boundary ? input.visible.findIndex((m) => m.info.id === boundary) + 1 : 0
             const range = input.visible.slice(Math.max(0, start))
             if (!range.length) return false
             sidecarInFlight.add(sessionID)
+            // System flag: execution of ALL tools is blocked while the summary
+            // request is in flight. Tools stay on the wire — prefix parity with
+            // the trunk is preserved (see tools.ts summary guard).
+            Constitution.setSummaryMode(sessionID, true)
             return yield* Effect.gen(function* () {
-              // Summarize **this open range only** — not the entire checkpoint M.
-              // Full M dilutes attention and yields 3-sentence stubs; old inject
-              // geometry was always the window being summarized.
-              const rangeModel = yield* MessageV2.toModelMessagesWithCountsEffect(
-                range,
-                input.model,
-                toolReplayOptions(yield* config.get()),
-              )
               const lastSv = previous?.body
                 ? SessionCompaction.extractSemanticVector(previous.body)
                 : undefined
-              // Generous output for a full 4-section memory body (not chat brevity).
-              const summaryOutCap = Math.min(8_192, input.model.limit.output || 8_192)
-              // Use cacheIdentity for agent ACL/identity when present (sidecar branch).
+              // Same shape as a normal working turn: full checkpoint M (the
+              // previous request's model-ready messages) + one synthetic user
+              // prompt. No range reconversion, no tool_choice=none, standard
+              // output budget — the sidecar must not diverge from the trunk.
               const sidecarAgent = input.cacheIdentity ?? input.agent
-              let body = yield* llm
-                .stream({
-                  user: input.user,
-                  agent: sidecarAgent,
-                  permission: session.permission,
-                  sessionID,
-                  providerCacheKey: input.user.providerCacheKey
-                    ? `${input.user.providerCacheKey}:sidecar`
-                    : undefined,
-                  system: [...input.checkpoint.systemPrompt],
-                  messages: [
-                    ...rangeModel.messages,
-                    { role: "user", content: SessionCompaction.summaryRequestProse(lastSv) },
-                  ],
-                  tools: {},
-                  toolChoice: "none",
-                  model: input.model,
-                  outputTokenMax: summaryOutCap,
-                })
-                .pipe(
-                  Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
-                  Stream.map((event) => event.text),
-                  Stream.mkString,
-                  Effect.catchCause((cause) => {
-                    slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
-                    return Effect.succeed("")
-                  }),
-                )
-              const gaps = SessionCompaction.diagnoseSummaryGaps(body)
-              if (gaps.length > 0) {
-                yield* slog.info("sidecar summary gaps — attempting gap-fill", {
-                  bodyLen: body.length,
-                  gaps,
-                  openTokens,
-                  rangeMessages: range.length,
-                })
-                // One-shot gap-fill: ask model to complete only the deficient sections.
-                // Much cheaper than regenerating the full range — no tools, no system prefix.
-                const gapFillPrompt = SessionCompaction.gapFillRequest(body, gaps)
-                const fillResponse = yield* llm
+              let body = ""
+              // Retry loop, soft gap-fill: attempt 1 = fresh summary request;
+              // attempts 2+ = the SAME full-M request shape, user message names
+              // the deficient sections + previous draft. Nothing is switched
+              // off — same system, same tools, standard budget. Identical M
+              // prefix → provider cache hits on retries (verified live: M
+              // prefix hit 0.990 with a changed tail message).
+              for (let attempt = 0; attempt < SIDECAR_MAX_ATTEMPTS; attempt++) {
+                const requestText =
+                  attempt === 0
+                    ? SessionCompaction.summaryRequestProse(lastSv)
+                    : `${SessionCompaction.gapFillRequest(body, SessionCompaction.diagnoseSummaryGaps(body))}\n\nPrevious draft for reference:\n${body}`
+                const reply = yield* llm
                   .stream({
                     user: input.user,
                     agent: sidecarAgent,
                     permission: session.permission,
                     sessionID,
-                    system: [], // no system prefix — focused micro-task
+                    providerCacheKey: input.user.providerCacheKey
+                      ? `${input.user.providerCacheKey}:sidecar`
+                      : undefined,
+                    system: [...input.checkpoint.systemPrompt],
                     messages: [
-                      { role: "assistant", content: body },
-                      { role: "user", content: gapFillPrompt },
+                      ...input.checkpoint.messages,
+                      { role: "user", content: requestText },
                     ],
-                    tools: {},
-                    toolChoice: "none",
+                    tools: input.tools,
                     model: input.model,
-                    outputTokenMax: Math.min(2_048, input.model.limit.output || 2_048),
                   })
                   .pipe(
                     Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
                     Stream.map((event) => event.text),
                     Stream.mkString,
                     Effect.catchCause((cause) => {
-                      slog.debug("sidecar gap-fill failed", { error: Cause.pretty(cause) })
+                      slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
                       return Effect.succeed("")
                     }),
                   )
-                const merged = SessionCompaction.mergeSummarySections(body, fillResponse)
-                if (!SessionCompaction.isValidSummaryBody(merged)) {
-                  yield* slog.warn("sidecar gap-fill insufficient — rejecting", {
-                    originalLen: body.length,
-                    fillLen: fillResponse.length,
-                    mergedLen: merged.length,
-                    remainingGaps: SessionCompaction.diagnoseSummaryGaps(merged),
-                  })
-                  return false
-                }
-                yield* slog.info("sidecar gap-fill succeeded", {
-                  originalLen: body.length,
-                  fillLen: fillResponse.length,
-                  mergedLen: merged.length,
+                if (attempt === 0) body = reply
+                else body = SessionCompaction.mergeSummarySections(body, reply)
+                if (SessionCompaction.isValidSummaryBody(body)) break
+                yield* slog.debug("sidecar summary invalid — retrying same request", {
+                  attempt: attempt + 1,
+                  bodyLen: body.length,
+                  gaps: SessionCompaction.diagnoseSummaryGaps(body),
                 })
-                body = merged
               }
               // Exact: write/edit/multiedit tool filediffs in range + CodeGraph on those paths.
               // Fossil is rollback only — not used here. Soft-fail enrich, keep body.
@@ -1465,7 +1447,14 @@ export const layer = Layer.effect(
               })
               lastSidecarCapture.set(sessionID, Date.now())
               return true
-            }).pipe(Effect.ensuring(Effect.sync(() => sidecarInFlight.delete(sessionID))))
+            }).pipe(
+              Effect.ensuring(
+                Effect.sync(() => {
+                  sidecarInFlight.delete(sessionID)
+                  Constitution.setSummaryMode(sessionID, false)
+                }),
+              ),
+            )
           })
 
         /**
@@ -1480,11 +1469,14 @@ export const layer = Layer.effect(
           model: Provider.Model
           agent: string
           msgs?: MessageV2.WithParts[]
+          /** Safety path: summary has no 32K generation headroom — fold must
+           *  fire even with exactly one open sidecar / below the usual gate. */
+          force?: boolean
         }) =>
           Effect.gen(function* () {
             const openSidecars = IncrementalCheckpoint.listOpen(sessionID).length
             // Hold fold until ≥2 open s rows (or pure history with zero sidecars).
-            if (openSidecars === 1) {
+            if (openSidecars === 1 && !input.force) {
               yield* slog.info("layer2.cadence.skip_single_sidecar", {
                 sessionID,
                 openSidecars,
@@ -1501,11 +1493,12 @@ export const layer = Layer.effect(
             const compactTarget = usable({ cfg, model: input.model })
             if (
               compactTarget <= 0 ||
-              !needsContentCompaction({
-                cfg,
-                openTokens: visibleTokens,
-                target: compactTarget,
-              })
+              (!input.force &&
+                !needsContentCompaction({
+                  cfg,
+                  openTokens: visibleTokens,
+                  target: compactTarget,
+                }))
             ) {
               return false
             }
@@ -1518,7 +1511,7 @@ export const layer = Layer.effect(
               summaryInterval: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
             })
             // Recent trim inside compact (no-s case) still uses Layer-1 interval floor.
-            yield* compaction.compact({
+            const folded = yield* compaction.compact({
               sessionID,
               model: { providerID: input.model.providerID, modelID: input.model.id },
               agent: input.agent,
@@ -1528,6 +1521,10 @@ export const layer = Layer.effect(
                 target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
               }),
             })
+            // Nothing folded (e.g. lone message*) — keep the checkpoint and
+            // cooldown untouched; reporting false lets callers know M did not
+            // shrink (the Layer-1 headroom gate must not loop on a no-op).
+            if (!folded.folded) return false
             yield* Checkpoint.remove(sessionID)
             // Reset sidecar cooldown: compaction opens a fresh message window,
             // so a new sidecar summary is appropriate on the next turn.
@@ -2202,6 +2199,7 @@ export const layer = Layer.effect(
                 cacheIdentity: cacheAgent,
                 user: lastUser,
                 checkpoint: checkpointData,
+                tools,
                 afterAssistant: completedAsst,
               })
               // Never compact on the same stop as a new s — work continues with M

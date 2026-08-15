@@ -132,7 +132,8 @@ export function formatLayer1SummaryDisplay(input: {
   * Must NOT match COMPACTION_REMINDER text that merely *mentions* the marker
   * (that reminder is injected onto every post-compact user message — matching
   * it would exclude all real user messages from the next message* Recent fold). */
-function isMessageStar(msg: MessageV2.WithParts): boolean {
+/** True for the message* built by compact() (=== COMPACTED === + summary blocks). */
+export function isMessageStar(msg: MessageV2.WithParts): boolean {
   return msg.parts.some(
     (p) =>
       p.type === "text" &&
@@ -350,6 +351,17 @@ export function summaryAttemptCount(msgs: MessageV2.WithParts[], requestID: Mess
 }
 
 /**
+ * Layer-1 summary cadence: pure open-window content counter (65 536 tokens).
+ * NOT context-clamped — small-context models must rely on Layer-2 compaction
+ * instead of firing Layer-1 early. Regression: a ~40K-context model used to
+ * get a threshold ≈12.5K from summaryWindowLimit and summarized at session
+ * start with ~10K content. summaryWindowLimit stays for Layer-2 Recent trim.
+ */
+export function layer1SummaryThreshold(): number {
+  return SUMMARY_INTERVAL_TOKENS
+}
+
+/**
  * Layer-1 summary **token counter**: content tokens (chars/4) of the open window
  * since the last summary assistant, or of the entire visible list when none.
  *
@@ -374,6 +386,18 @@ export function computeOpenWindowTokens(msgs: MessageV2.WithParts[], checkpointB
     }
   }
   return Math.ceil(contentChars(msgs.slice(start)) / CHARS_PER_TOKEN)
+}
+
+/**
+ * True when a compact can actually shrink M: any new content beyond a lone
+ * message*. A lone star cannot be re-folded smaller (the no-s Recent trim
+ * works on message boundaries and a star is a single message) — force must
+ * NOT re-fold it, or the Layer-1 headroom gate would loop without progress.
+ */
+export function hasFoldableContent(visible: MessageV2.WithParts[]): boolean {
+  if (visible.length === 0) return false
+  if (visible.length > 1) return true
+  return !isMessageStar(visible[0])
 }
 
 /**
@@ -529,6 +553,7 @@ export function summaryRequestProse(lastSv?: SemanticVector) {
   return `You are writing a **Layer-1 memory summary** of the conversation window above (all prior messages in this request). This is the durable handle used after compaction — not a chat reply.
 
 Write **Inferred** narrative only under the four headings below. Be specific and dense (names of systems, files, bugs, decisions). Thin 2–3 sentence stubs are **rejected**.
+Do **not** call tools — write the summary as plain text only.
 Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data.
 Do **not** open with "Sure" / "Here is a summary" — start with \`## Semantic Vector\`.
 ${svHint}
@@ -715,7 +740,7 @@ export interface Interface {
     agent: string
     force?: boolean
     threshold?: number
-  }) => Effect.Effect<{ messageStarTokens: number }>
+  }) => Effect.Effect<{ messageStarTokens: number; folded: boolean }>
   readonly injectSummaryRequest: (input: {
     sessionID: SessionID
     model: { providerID: ProviderID; modelID: ModelID }
@@ -764,7 +789,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           const currentStatus = yield* statusOpt.value.get(input.sessionID)
           if (currentStatus.type === "compacting") {
             log.debug("compaction skipped: already in progress", { sessionID: input.sessionID })
-            return { messageStarTokens: 0 }
+            return { messageStarTokens: 0, folded: false }
           }
           yield* statusOpt.value.set(input.sessionID, { type: "compacting" })
         }
@@ -782,7 +807,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         )) as MessageV2.WithParts[] | undefined
         if (!msgs?.length) {
           yield* finish()
-          return { messageStarTokens: 0 }
+          return { messageStarTokens: 0, folded: false }
         }
 
         // session.messages → MessageV2.page() already returns chronological
@@ -792,14 +817,18 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const visible = msgs.filter((m) => !m.info.compacted)
         if (!visible.length) {
           yield* finish()
-          return { messageStarTokens: 0 }
+          return { messageStarTokens: 0, folded: false }
         }
 
         // Idempotent: only a single prior message* and nothing new to fold.
-        if (!input.force && visible.length === 1 && isMessageStar(visible[0])) {
+        // Applies to force too — re-folding a lone star cannot shrink it (the
+        // no-s Recent trim works on message boundaries and a star is one
+        // message), so a forced re-fold would only loop with the Layer-1
+        // summary headroom gate without ever making progress.
+        if (visible.length === 1 && isMessageStar(visible[0])) {
           log.debug("compaction skipped: already message* only", { sessionID: input.sessionID })
           yield* finish()
-          return { messageStarTokens: tokensOf(visible[0]) }
+          return { messageStarTokens: tokensOf(visible[0]), folded: false }
         }
 
         // Find the prior message* (if any) to bound summary collection.
@@ -963,7 +992,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         })
         yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })
         yield* finish()
-        return { messageStarTokens }
+        return { messageStarTokens, folded: true }
       }).pipe(
         Effect.catch((err) =>
           Effect.gen(function* () {

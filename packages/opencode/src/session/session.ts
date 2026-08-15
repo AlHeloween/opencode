@@ -554,6 +554,18 @@ export function isCacheWarm(tokens: { cache: { read: number } }) {
   return tokens.cache.read > 0
 }
 
+/** Tri-state cache classification for provider usage reporting.
+ *  vanchin KAT Coder and other gateways return `cached_tokens: null` (or omit
+ *  the field) on HITS — null/absent ≠ miss (verified live). Explicit 0 means a
+ *  real cold miss. Classify on the RAW `cacheReadTokens` value BEFORE getUsage
+ *  collapses null → 0, otherwise hits get logged as "cache miss". */
+export type CacheState = "hit" | "miss" | "unknown"
+
+export function classifyCacheRead(cacheRead: number | null | undefined): CacheState {
+  if (cacheRead == null) return "unknown"
+  return cacheRead > 0 ? "hit" : "miss"
+}
+
 export class BusyError extends Error {
   constructor(public readonly sessionID: string) {
     super(`Session ${sessionID} is busy`)

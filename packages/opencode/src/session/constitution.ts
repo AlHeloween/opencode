@@ -906,8 +906,30 @@ function epistemic(sessionID: string): SessionEpistemic {
 }
 
 export function resetEpistemicState(sessionID?: string) {
-  if (sessionID) sessionEpistemic.delete(sessionID)
-  else sessionEpistemic.clear()
+  if (sessionID) {
+    sessionEpistemic.delete(sessionID)
+    sessionSummaryMode.delete(sessionID)
+  } else {
+    sessionEpistemic.clear()
+    sessionSummaryMode.clear()
+  }
+}
+
+// ============================================================================
+// SUMMARY MODE — system flag for the sidecar Layer-1 summary turn.
+// Tools stay on the wire (immutable prompt prefix), but execution is blocked
+// while the flag is set. Checked by tools.ts execute wrappers.
+// ============================================================================
+
+const sessionSummaryMode = new Map<string, true>()
+
+export function setSummaryMode(sessionID: string, on: boolean) {
+  if (on) sessionSummaryMode.set(sessionID, true)
+  else sessionSummaryMode.delete(sessionID)
+}
+
+export function isSummaryMode(sessionID: string): boolean {
+  return sessionSummaryMode.has(sessionID)
 }
 
 export function getClaimLedger(sessionID: string): ClaimLedger {

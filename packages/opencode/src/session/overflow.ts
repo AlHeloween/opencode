@@ -97,6 +97,25 @@ export function estimateRequestTokens(contentTokens: number): number {
 }
 
 /**
+ * Hard floor: the summary response must always have this much generation room
+ * under the provider limit — otherwise the provider cuts input content.
+ */
+export const SUMMARY_GENERATION_RESERVE_TOKENS = 32_768
+
+/**
+ * True when the full-M summary request + the 32K generation reserve would
+ * exceed the provider limit. Compaction MUST fire before the summary in that
+ * case (user invariant: always ≥32K room for generation, never risk truncated
+ * content). Unknown limits (≤0) never block.
+ */
+export function summaryNeedsCompactFirst(input: { model: Provider.Model; contentTokens: number }): boolean {
+  const limit =
+    TokenCalibration.getObservedLimit(input.model) ?? input.model.limit.input ?? input.model.limit.context
+  if (limit <= 0) return false
+  return estimateRequestTokens(input.contentTokens) + SUMMARY_GENERATION_RESERVE_TOKENS > limit
+}
+
+/**
  * Content-only tokens from message parts (chars/4).
  * No tokenizer, no +10k. For cadence callers use
  * `SessionCompaction.computeOpenWindowTokens` instead.

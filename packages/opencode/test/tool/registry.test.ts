@@ -1,12 +1,13 @@
-import { afterEach, describe, expect } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import path from "path"
 import fs from "fs/promises"
 import { Effect, Layer } from "effect"
 import { Instance } from "../../src/project/instance"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
-import { ToolRegistry } from "@/tool/registry"
+import { createEraMemo, ToolRegistry } from "@/tool/registry"
 import { Agent } from "@/agent/agent"
 import { ModelID, ProviderID } from "@/provider/schema"
+import { SessionID } from "../../src/session/schema"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
@@ -19,6 +20,56 @@ afterEach(async () => {
 })
 
 describe("tool.registry", () => {
+  test("createEraMemo freezes values per key until invalidate", () => {
+    const memo = createEraMemo()
+    expect(memo.get("era-a")).toBeUndefined()
+    memo.set("era-a", { task: "task-v1", skill: "skill-v1" })
+    expect(memo.get("era-a")).toEqual({ task: "task-v1", skill: "skill-v1" })
+    // Second set within the same era keeps the FIRST value semantics via
+    // callers skipping compute — the memo itself stores the last set.
+    memo.invalidate("era-a")
+    expect(memo.get("era-a")).toBeUndefined()
+    memo.set("era-a", { task: "task-v2", skill: "skill-v2" })
+    expect(memo.get("era-a")).toEqual({ task: "task-v2", skill: "skill-v2" })
+    // Other keys are unaffected.
+    memo.set("era-b", { task: "task-b", skill: "skill-b" })
+    memo.invalidate("era-a")
+    expect(memo.get("era-b")).toEqual({ task: "task-b", skill: "skill-b" })
+  })
+
+  it.live(
+    "era-freezes task/skill descriptions per session until invalidateToolDescriptions",
+    () =>
+      provideTmpdirInstance(() =>
+        Effect.gen(function* () {
+          const registry = yield* ToolRegistry.Service
+          const agents = yield* Agent.Service
+          const build = yield* agents.get("build")
+          expect(build).toBeDefined()
+          const sid = SessionID.descending()
+          const base = {
+            providerID: ProviderID.make("test"),
+            modelID: ModelID.make("test-model"),
+            agent: build!,
+          }
+          const first = yield* registry.tools({ ...base, sessionID: sid })
+          const second = yield* registry.tools({ ...base, sessionID: sid })
+          const desc = (tools: { id: string; description: string }[], id: string) =>
+            tools.find((tool) => tool.id === id)?.description
+          // Same era → identical task/skill descriptions (frozen, not recomputed).
+          expect(desc(second, "task")).toBe(desc(first, "task"))
+          expect(desc(second, "skill")).toBe(desc(first, "skill"))
+          expect(desc(first, "skill")).toBeDefined()
+          expect(desc(first, "task")).toBeDefined()
+          // Era boundary (compact / system-version bump) refreshes the memo.
+          yield* registry.invalidateToolDescriptions(sid)
+          const third = yield* registry.tools({ ...base, sessionID: sid })
+          expect(desc(third, "task")).toBe(desc(first, "task"))
+          expect(desc(third, "skill")).toBe(desc(first, "skill"))
+        }),
+      ),
+  )
+
   it.live(
     "exposes unique platform-appropriate built-in tool IDs",
     () =>

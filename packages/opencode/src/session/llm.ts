@@ -117,8 +117,59 @@ function hashInfo(input: unknown) {
   }
 }
 
-function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {
-  const key = input.cacheKey
+/**
+ * Per session/agent/model hash of the WIRE tool catalog (insertion order).
+ * Detects mid-session catalog drift that changes the provider request prefix:
+ * reconnects, plugin rewrites, catalog growth. Mirrors checkSystemStability.
+ */
+const toolCatalogHashes = new Map<string, number>()
+const toolCatalogPrev = new Map<string, string>()
+const MAX_TOOL_HASHES = 500
+
+function checkToolStability(input: {
+  sessionID: string
+  agent: string
+  modelID: string
+  cacheKey: string
+  tools: Record<string, Tool>
+}) {
+  const wire = Object.keys(input.tools).map((name) => {
+    const item = input.tools[name]
+    const desc = typeof item.description === "string" ? item.description : item.description?.({ context: undefined } as never) ?? ""
+    return [name, desc, getToolSchema(item)]
+  })
+  const content = stableStringify(wire)
+  const hash = Number(Bun.hash(content))
+  const prevHash = toolCatalogHashes.get(input.cacheKey)
+  const prevContent = toolCatalogPrev.get(input.cacheKey)
+  if (prevHash !== undefined && prevHash !== hash) {
+    log.warn("bug: tool catalog changed mid-session", {
+      sessionID: input.sessionID,
+      agent: input.agent,
+      modelID: input.modelID,
+      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
+      prevHash,
+      newHash: hash,
+      prevToolCount: prevContent ? prevContent.split("\u0000").length : undefined,
+      newToolCount: Object.keys(input.tools).length,
+    })
+  }
+  if (toolCatalogHashes.has(input.cacheKey)) {
+    toolCatalogHashes.delete(input.cacheKey)
+    toolCatalogPrev.delete(input.cacheKey)
+  }
+  toolCatalogHashes.set(input.cacheKey, hash)
+  toolCatalogPrev.set(input.cacheKey, content)
+  if (toolCatalogHashes.size > MAX_TOOL_HASHES) {
+    const first = toolCatalogHashes.keys().next().value
+    if (first !== undefined) {
+      toolCatalogHashes.delete(first)
+      toolCatalogPrev.delete(first)
+    }
+  }
+}
+
+function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {  const key = input.cacheKey
   const hash = Number(Bun.hash(input.content))
   const prevHash = systemContentHashes.get(key)
   const prevContent = systemContentPrev.get(key)
@@ -585,7 +636,9 @@ const live: Layer.Layer<
       l.info("request shape", {
         system: hashInfo(system),
         providerOptions: hashInfo(options),
-        tools: hashInfo(Object.keys(tools).sort()),
+        // Insertion order — the wire order. Sorted hashes would mask
+        // wire-order drift (audit says stable, gateway sees different bytes).
+        tools: hashInfo(Object.keys(tools)),
         messages: hashInfo(messages),
         toolChoice: input.toolChoice ?? "auto",
         promptCacheKey: {
@@ -593,6 +646,15 @@ const live: Layer.Layer<
           hash: typeof promptCacheKey === "string" ? Number(Bun.hash(promptCacheKey)) : undefined,
           scope: typeof promptCacheKey === "string" ? "session:agent:model" : undefined,
         },
+      })
+
+      // Wire catalog drift detector — includes the post-resolve _noop stub.
+      checkToolStability({
+        sessionID: input.sessionID,
+        agent: input.agent.name,
+        modelID: input.model.id,
+        cacheKey: providerCacheKey,
+        tools,
       })
 
       return streamText({
@@ -755,17 +817,12 @@ export const defaultLayer = Layer.suspend(() =>
 
 /**
  * Provider-facing tool set — keep schemas unified for all agents/modes.
- * Do **not** strip by agent permission (that would change tool JSON per role and
- * bust the shared KV prefix). Execute-time SessionTools enforces real-agent ACL.
- * Only honor explicit `user.tools[k] === false` opt-outs (legacy separator names ok).
+ * Wire filtering is FORBIDDEN here: a changed tool set breaks inference and
+ * the KV prefix. `user.tools[k] === false` opt-outs are enforced at execute
+ * time by SessionTools.denied (runtime-deny), not by reshaping the catalog.
  */
 export function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
-  const disabled = new Set(
-    Object.entries(input.user.tools ?? {})
-      .filter(([, enabled]) => enabled === false)
-      .map(([name]) => canonicalName(name)),
-  )
-  return Record.filter(input.tools, (_, k) => !disabled.has(k))
+  return input.tools
 }
 
 // Check if messages contain any tool-call content

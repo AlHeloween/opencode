@@ -20,8 +20,63 @@ import { EffectBridge } from "@/effect/bridge"
 import { ModelID } from "@/provider/schema"
 import { Wildcard } from "@/util/wildcard"
 import { Constitution } from "./constitution"
+import { SessionID } from "./schema"
 
 const log = Log.create({ service: "session.tools" })
+
+/** Wire-frozen MCP tool entry: everything the provider sees, nothing else. */
+type McpWire = {
+  key: string
+  name: string
+  description: AITool["description"]
+  schema: Parameters<typeof jsonSchema>[0]
+}
+
+type McpEra = { sig: string; wire: McpWire[] }
+
+/** Per session+model era snapshots of the MCP wire catalog (process-local;
+ *  session IDs are globally unique, entries are cleared on era boundaries). */
+const mcpEraStore = new Map<string, McpEra>()
+const MCP_ERA_STORE_MAX = 512
+
+/** Era boundary (compact / system-version bump): refresh the MCP wire catalog. */
+export function invalidateMCPEra(sessionID: SessionID): void {
+  const prefix = `${sessionID}\0`
+  for (const key of [...mcpEraStore.keys()]) {
+    if (key.startsWith(prefix)) mcpEraStore.delete(key)
+  }
+}
+
+function mcpEraGet(key: string): McpEra | undefined {
+  return mcpEraStore.get(key)
+}
+
+function mcpEraSet(key: string, value: McpEra): void {
+  mcpEraStore.delete(key)
+  mcpEraStore.set(key, value)
+  while (mcpEraStore.size > MCP_ERA_STORE_MAX) {
+    const first = mcpEraStore.keys().next().value
+    if (first === undefined) break
+    mcpEraStore.delete(first)
+  }
+}
+
+export function mcpLiveSig(tools: Record<string, AITool>): string {
+  return Object.keys(tools)
+    .toSorted()
+    .map((key) => {
+      const item = tools[key]
+      let schemaLen = 0
+      try {
+        schemaLen = JSON.stringify(asSchema(item.inputSchema).jsonSchema).length
+      } catch {
+        schemaLen = 0
+      }
+      const descLen = typeof item.description === "string" ? item.description.length : 0
+      return `${key}:${schemaLen}:${descLen}`
+    })
+    .join("\u0000")
+}
 const policyNames = new WeakMap<Record<string, AITool>, Map<string, string>>()
 
 export function policyName(tools: Record<string, AITool>, name: string) {
@@ -48,6 +103,9 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   bypassAgentCheck: boolean
   messages: MessageV2.WithParts[]
   promptOps: TaskPromptOps
+  /** Canonical tool names disabled via user.tools[k] === false — runtime-deny
+   *  only; the catalog on the wire stays complete (KV prefix stability). */
+  userDisabled?: ReadonlySet<string>
 }) {
   using _ = log.time("resolveTools")
   const tools: Record<string, AITool> = {}
@@ -64,6 +122,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
    * mode/role lives in system + mode reminder; this gate refuses execution.
    */
   const denied = (toolID: string) => {
+    // user.tools[k] === false: runtime-deny, never a wire reshape.
+    if (input.userDisabled?.has(canonicalName(toolID))) return true
     const keys = new Set<string>([
       toolID,
       ...(["edit", "write", "apply_patch"].includes(toolID) ? (["edit"] as const) : []),
@@ -110,15 +170,22 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const rejected = (toolID: string, callID: string) =>
     Effect.gen(function* () {
       const mode = input.agent.name
+      const userDisabled = input.userDisabled?.has(canonicalName(toolID)) ?? false
       const hint =
         mode === "reasoning_mode" || mode === "reasoning"
           ? ` In reasoning_mode only the permanent memory tool is authorized (file .opencode/data/memory/reasoning.md). Do not call dbread, messagesearch, session-read, or other inspection tools.`
           : ""
-      const output = {
-        title: "Tool denied",
-        metadata: { mode, tool: toolID, denied: true },
-        output: `Permission denied: tool \"${toolID}\" is not authorized for identity ${mode}.${hint}`,
-      }
+      const output = userDisabled
+        ? {
+            title: "Tool disabled",
+            metadata: { mode, tool: toolID, denied: true, userDisabled: true },
+            output: `Tool disabled by user configuration: "${toolID}" is disabled via user.tools["${toolID}"] = false. The catalog stays on the wire — execution is refused.`,
+          }
+        : {
+            title: "Tool denied",
+            metadata: { mode, tool: toolID, denied: true },
+            output: `Permission denied: tool "${toolID}" is not authorized for identity ${mode}.${hint}`,
+          }
       yield* input.processor.completeToolCall(callID, output)
       return output
     })
@@ -179,6 +246,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     modelID: ModelID.make(input.model.api.id),
     providerID: input.model.providerID,
     agent: input.providerAgent ?? input.agent,
+    sessionID: input.session.id,
   })) {
     const name = canonicalName(item.id)
     const schema = ProviderTransform.schema(input.model, EffectZod.toJsonSchema(item.parameters))
@@ -262,83 +330,137 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   }
 
   // MCP stays in the stable provider tool surface; mode ACL refuses at execute.
-  const mcpTools = yield* mcp.tools()
-  for (const [key, item] of Object.entries(mcpTools)) {
-    const execute = item.execute
-    if (!execute) continue
+  // Era-freeze: the WIRE catalog (names, descriptions, schemas) is snapshotted
+  // per session+model. Live connects/disconnects or server-side tool-list
+  // changes do NOT reshape the wire until invalidateMCPEra (compact / system
+  // version bump). Execute closures are rebuilt per resolve from the live
+  // client when present — only the wire bytes are frozen.
+  const liveMcpTools = yield* mcp.tools()
+  const mcpEraKey = `${input.session.id}\0${input.model.api.id}`
+  const liveSig = mcpLiveSig(liveMcpTools)
+  const snapshot = mcpEraGet(mcpEraKey)
+  let wire: McpWire[]
+  if (snapshot) {
+    if (snapshot.sig !== liveSig) {
+      log.info("MCP tool catalog changed — deferred to next era", {
+        sessionID: input.session.id,
+        snapshotTools: snapshot.wire.length,
+        liveTools: Object.keys(liveMcpTools).length,
+      })
+    }
+    wire = snapshot.wire
+  } else {
+    wire = []
+    for (const [key, item] of Object.entries(liveMcpTools)) {
+      const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
+      wire.push({
+        key,
+        name: canonicalName(key),
+        description: item.description,
+        schema: ProviderTransform.schema(input.model, schema),
+      })
+    }
+    mcpEraSet(mcpEraKey, { sig: liveSig, wire })
+  }
 
-    const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
-    const name = canonicalName(key)
-    const transformed = ProviderTransform.schema(input.model, schema)
-    item.inputSchema = jsonSchema(transformed)
-    item.execute = (args, opts) =>
-      run.promise(
-        Effect.gen(function* () {
-          if (denied(key) || denied(name)) return yield* rejected(key, opts.toolCallId)
-          const ctx = context(args, opts)
-          yield* plugin.trigger(
-            "tool.execute.before",
-            { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
-            { args },
-          )
-          yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
-          const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.promise(() =>
-            execute(args, opts),
-          )
-          yield* plugin.trigger(
-            "tool.execute.after",
-            { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId, args },
-            result,
-          )
+  for (const entry of wire) {
+    const key = entry.key
+    const name = entry.name
+    const live = liveMcpTools[key]
+    const execute = live?.execute
+    if (!execute) {
+      // Disconnected mid-era: schema stays on the wire (prefix parity);
+      // execution refuses loudly until the next era.
+      register(
+        name,
+        tool({
+          description: entry.description,
+          inputSchema: jsonSchema(entry.schema),
+          execute: () =>
+            run.promise(
+              Effect.sync(() => ({
+                title: "MCP tool unavailable",
+                metadata: { denied: true, tool: key, deferredEra: true },
+                output: `MCP tool "${key}" is unavailable until the next session era.`,
+              })),
+            ),
+        }),
+        key,
+      )
+      continue
+    }
+    const item = tool({
+      description: entry.description,
+      inputSchema: jsonSchema(entry.schema),
+      execute: (args, opts) =>
+        run.promise(
+          Effect.gen(function* () {
+            if (denied(key) || denied(name)) return yield* rejected(key, opts.toolCallId)
+            const ctx = context(args as Record<string, unknown>, opts)
+            yield* plugin.trigger(
+              "tool.execute.before",
+              { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
+              { args },
+            )
+            yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
+            const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.promise(() =>
+              execute(args, opts),
+            )
+            yield* plugin.trigger(
+              "tool.execute.after",
+              { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId, args },
+              result,
+            )
 
-          const textParts: string[] = []
-          const attachments: Omit<MessageV2.FilePart, "id" | "sessionID" | "messageID">[] = []
-          for (const contentItem of result.content) {
-            if (contentItem.type === "text") textParts.push(contentItem.text)
-            else if (contentItem.type === "image") {
-              attachments.push({
-                type: "file",
-                mime: contentItem.mimeType,
-                url: `data:${contentItem.mimeType};base64,${contentItem.data}`,
-              })
-            } else if (contentItem.type === "resource") {
-              const { resource } = contentItem
-              if (resource.text) textParts.push(resource.text)
-              if (resource.blob) {
+            const textParts: string[] = []
+            const attachments: Omit<MessageV2.FilePart, "id" | "sessionID" | "messageID">[] = []
+            for (const contentItem of result.content) {
+              if (contentItem.type === "text") textParts.push(contentItem.text)
+              else if (contentItem.type === "image") {
                 attachments.push({
                   type: "file",
-                  mime: resource.mimeType ?? "application/octet-stream",
-                  url: `data:${resource.mimeType ?? "application/octet-stream"};base64,${resource.blob}`,
-                  filename: resource.uri,
+                  mime: contentItem.mimeType,
+                  url: `data:${contentItem.mimeType};base64,${contentItem.data}`,
                 })
+              } else if (contentItem.type === "resource") {
+                const { resource } = contentItem
+                if (resource.text) textParts.push(resource.text)
+                if (resource.blob) {
+                  attachments.push({
+                    type: "file",
+                    mime: resource.mimeType ?? "application/octet-stream",
+                    url: `data:${resource.mimeType ?? "application/octet-stream"};base64,${resource.blob}`,
+                    filename: resource.uri,
+                  })
+                }
               }
             }
-          }
 
-          const truncated = yield* truncate.output(textParts.join("\n\n"), {}, input.agent)
-          const metadata = {
-            ...result.metadata,
-            truncated: truncated.truncated,
-            ...(truncated.truncated && { outputPath: truncated.outputPath }),
-          }
+            const truncated = yield* truncate.output(textParts.join("\n\n"), {}, input.agent)
+            const metadata = {
+              ...result.metadata,
+              truncated: truncated.truncated,
+              ...(truncated.truncated && { outputPath: truncated.outputPath }),
+            }
 
-          const output = {
-            title: "",
-            metadata,
-            output: truncated.content,
-            attachments: attachments.map((attachment) => ({
-              ...attachment,
-              id: PartID.ascending(),
-              sessionID: ctx.sessionID,
-              messageID: input.processor.message.id,
-            })),
-            content: result.content,
-          }
-          // Always complete — "tool-result" may not fire if stream interrupted.
-          yield* input.processor.completeToolCall(opts.toolCallId, output)
-          return output
-        }),
-      )
+            const output = {
+              title: "",
+              metadata,
+              output: truncated.content,
+              attachments: attachments.map((attachment) => ({
+                ...attachment,
+                id: PartID.ascending(),
+                sessionID: ctx.sessionID,
+                messageID: input.processor.message.id,
+              })),
+              content: result.content,
+            }
+            // Always complete — "tool-result" may not fire if stream interrupted.
+            yield* input.processor.completeToolCall(opts.toolCallId, output)
+            return output
+          }),
+        ),
+    })
     register(name, item, key)
   }
 

@@ -147,7 +147,7 @@ test("tool call repair resolves separator aliases to the canonical provider name
   expect(LLM.resolveToolName("unknown_tool", tools)).toBeUndefined()
 })
 
-test("legacy user tool disables apply to canonical provider schema names", () => {
+test("user.tools=false never reshapes the wire catalog (runtime-deny instead)", () => {
   const tools = {
     reasoningenter: tool({ inputSchema: z.object({}), execute: async () => "" }),
   }
@@ -156,7 +156,9 @@ test("legacy user tool disables apply to canonical provider schema names", () =>
     agent: { permission: [] } as unknown as Agent.Info,
     user: { tools: { reasoning_enter: false } } as unknown as LLM.StreamInput["user"],
   })
-  expect(visible).toEqual({})
+  // The catalog stays complete on the wire — opt-outs are enforced at
+  // execute time by SessionTools.denied (see session/tools.test.ts).
+  expect(visible).toEqual(tools)
 })
 
 type Capture = {

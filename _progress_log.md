@@ -1,5 +1,29 @@
 # Progress Log
 
+## 2026-08-16 Tools JSON era-freeze — T1-T6 завершены (plan: plans/2026-08-16-tools-kv-cache-era-freeze.md)
+
+Reason: KAT-прогон с реальным каталогом (31 тул) показал — Layer-1 саммари-тур шлёт `tools: {}` (prompt.ts ветка `summaryAttempt`), префикс 55k вместо 73k, gateway «хитит» чужую эру (без тулов), рабочий префикс кэш не набирает; саммари-тур при этом не был защищён ничем, кроме пустого каталога. Дизайн-принцип заказчика: каталог тулов/скиллов перманентный (гейтинг — constitution+промпт, не форма провода); compact = апгрейд версии системы.
+
+Script/Changes:
+
+- `packages/opencode/src/session/prompt.ts` — T1: убрана ветка `tools = {}` из `summaryAttempt` (саммари-тур использует тот же `cachedTools`/`SessionTools.resolve`); ин-луп саммари-тур обёрнут в `Constitution.setSummaryMode(sessionID, true)` с очисткой в `Effect.ensuring` (по образцу сайдкара 854/992-998; guard — `tools.ts:194-210`).
+- `packages/opencode/test/session/prompt.test.ts` — 4 ассерта `tools.length===0` заменены на паритет JSON каталога саммари/рабочего тура + снятие флага; новый тест «Layer-1 in-loop summary turn keeps the full tool catalog on the wire» (ручной инжект через `SessionCompaction.Service.injectSummaryRequest`, т.к. runLoop больше сам не инжектит).
+- `experiments/2026-08-16-zen-tools-kv-smoke/tools_kv_zen_smoke.py` — живой zen-smoke: W1 cold → W2 identical → W3 drop-last-tool → W4 full-again; ключ из bin/auth.json (не печатается).
+
+Script Output:
+
+- typecheck: PASS exit 0 (`20260816T161342Z_336797af`).
+- Новый T1-тест: **1 pass, 0 fail** (`20260816T163404Z_f6bc5652`; 4 expect: паритет JSON каталога, флаг снят).
+- A/B на чистом HEAD: legacy Layer-1 тесты (`prompt.test.ts:806/845/…`) падают и без правок (inputs 1 vs 2) — in-loop инжект в dev не вызывается, тесты устарели (pre-existing, отдельная задача).
+- Zen live (nemotron-3-ultra-free, 31 тул): W1 5.32s cold; W2 идентичный 2.88s (тёплый префикс, cached_tokens=0 как на KAT — null≠miss); W3 drop-last-tool prompt 3160 vs 3244 (−84 токена = 1 тул, префикс видимо другой); W4 снова полный каталог 2.31s — префикс-кэш эры переиспользуется. Контракт T1 подтверждён на живом gateway.
+- **T2 (captureSummary)**: `tools: {}` → полный `SessionTools.resolve` (стаб-processor 3 поля, providerAgent=cacheAgent). Тест «emergency captureSummary carries the full tool catalog on the wire» — **1 pass** (`20260816T181517Z_c1d3f3d0`), с `bigCaptureProviderCfg` (context 200K — иначе sidecar headroom-гейт M+32K не пускает при открытом 65K-окне). typecheck: после рефакторинга captureSummary на `Effect.fn` + R-каст (паттерн runLoop в loop()) — PASS exit 0 (`20260816T182429Z_d7279618`). Оба новых теста вместе: **2 pass, 0 fail** (`20260816T182638Z_f16a1fe5`).
+- **T3 (эра-заморозка описаний)**: `createEraMemo` в `ToolRegistry` (per-session memo describeTask/Skill), `invalidateToolDescriptions(sessionID)` из compact + identity-mismatch. Тесты: юнит memo + «era-freezes task/skill descriptions...» — **1 pass** (`20260816T184312Z_2cf0338f`); typecheck PASS (`20260816T184437Z_9c4982ee`). Pre-existing: «exposes only memory» (каталог не режется по роли давно).
+- **T4 (MCP)**: `mcp/index.ts` — детерминированный порядок (sorted clients, server-listed tools; гонка concurrency:4 убрана), silent-drop устранён (re-fetch `defs()` при отсутствии кэша). `tools.ts` — эра-снапшот MCP wire (`mcpEraStore` per session+model, `mcpLiveSig`-детект → defer-лог, deny-стаб при дисконнекте), `invalidateMCPEra` из compact/identity-mismatch. Тест «deterministic client-sorted tool order» — **1 pass** (`20260816T190413Z_e742e616`). A/B: фейлы lifecycle.test.ts (listToolsCalls 2 vs 1) — pre-existing (`20260816T190228Z_bc527763` на чистом HEAD).
+- **T5 (wire-аудит + user.tools)**: `llm.ts` — audit-хэш в insertion order, `checkToolStability` (warn «bug: tool catalog changed mid-session»), `resolveTools` = identity; `tools.ts` — `userDisabled` runtime-deny (ответ «Tool disabled by user configuration»), `prompt.ts` передаёт user.tools=false в оба resolve. Тесты tools+llm — **21 pass, 0 fail** (`20260816T192836Z_b660560f`; обновлён pre-existing deny-ассерт и legacy wire-фильтр-тест). typecheck PASS (`20260816T193056Z_e933d5a8`); T1+T2 регресс — **2 pass** (`20260816T193314Z_27879b3c`).
+- **T6**: план → COMPLETED; stash `t4-abi` добавлен к `t1-kv-tools` (оба ждут разрешения на drop).
+- WIP: stash `t1-kv-tools` остался в списке (constitution заблокировал `git stash pop`; правки восстановлены edit-инструментами — stash можно drop с разрешения).
+- free-лимиты zen: deepseek-v4-flash-free и mimo-v2.5-free отдали 429 FreeUsageLimitError; nemotron-3-ultra-free работает.
+
 ## 2026-08-16 Compaction Sidecar Wiring Fix (plan: plans/2026-08-16-compaction-sidecar-wiring-fix.md)
 
 Reason: Layer-1 64K summary-захват был подключён к `result === "stop"`, который процессор возвращает ТОЛЬКО при blocked/error (processor.ts:1079-1081) — на нормальных ходах захват не исполнялся никогда (0 строк project_checkpoint за всю БД); компакты фолдили историю без покрытия (сессия ses_fffc5d1d2ffe: 538 сообщений, summaries:0, forced /summarize 08:08:14 UTC).

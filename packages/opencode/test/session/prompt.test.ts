@@ -11,6 +11,7 @@ import { Command } from "../../src/command"
 import { Config } from "@/config/config"
 import { LSP } from "@/lsp/lsp"
 import { MCP } from "../../src/mcp"
+import { Constitution } from "../../src/session/constitution"
 import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
 import { Provider as ProviderSvc } from "@/provider/provider"
@@ -308,6 +309,26 @@ function reasoning65kProviderCfg(url: string) {
             ...providerCfg(url).provider.test.models["test-model"],
             reasoning: true,
             limit: { context: 65_536, output: 32_000 },
+          },
+        },
+      },
+    },
+  }
+}
+
+// Big context so the emergency sidecar passes the M+32K headroom gate while
+// the Layer-1 open window (65 536 tokens) is open.
+function bigCaptureProviderCfg(url: string) {
+  return {
+    ...providerCfg(url),
+    provider: {
+      ...providerCfg(url).provider,
+      test: {
+        ...providerCfg(url).provider.test,
+        models: {
+          "test-model": {
+            ...providerCfg(url).provider.test.models["test-model"],
+            limit: { context: 200_000, output: 32_000 },
           },
         },
       },
@@ -806,6 +827,110 @@ expect(inputs).toHaveLength(2)
 expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
       }),
       { git: true, config: providerCfg },
+    ),
+  30_000,
+)
+
+it.live(
+  "Layer-1 in-loop summary turn keeps the full tool catalog on the wire",
+  () =>
+    provideTmpdirServer(
+      Effect.fnUntraced(function* ({ llm }) {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const compact = yield* SessionCompaction.Service
+        const session = yield* sessions.create({
+          title: "Layer-1 tools on summary wire",
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        })
+        yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          parts: [{ type: "text", text: "hello" }],
+        })
+        yield* llm.text("working answer")
+        yield* prompt.loop({ sessionID: session.id })
+        // Manual inject: runLoop no longer injects the summary request itself
+        // (the sidecar owns cadence) — this test pins the in-loop summary path.
+        yield* compact.injectSummaryRequest({ sessionID: session.id, model: ref, agent: "build" })
+        yield* llm.text(`## Semantic Vector
+dominant: "summary turns keep the full tool catalog on the wire for KV parity"
+
+## Goal
+Keep the full tool catalog on the wire for summary turns so the provider cache prefix stays byte-stable across turn kinds.
+
+## Key decisions
+- Never strip tool schemas per turn kind; block execution via the summary-mode flag instead.
+
+## Current state
+Summary turns carry the full tool catalog on the wire and tool execution is blocked while the summary request is in flight.`)
+        yield* prompt.loop({ sessionID: session.id })
+
+        const inputs = yield* llm.inputs
+        expect(inputs).toHaveLength(2)
+        const summaryTools = (inputs[1]?.tools as unknown[] | undefined) ?? []
+        const workingTools = (inputs[0]?.tools as unknown[] | undefined) ?? []
+        expect(summaryTools).not.toHaveLength(0)
+        expect(JSON.stringify(summaryTools)).toEqual(JSON.stringify(workingTools))
+        expect(Constitution.isSummaryMode(session.id)).toBe(false)
+      }),
+      { git: true, config: providerCfg },
+    ),
+  30_000,
+)
+
+it.live(
+  "emergency captureSummary carries the full tool catalog on the wire",
+  () =>
+    provideTmpdirServer(
+      Effect.fnUntraced(function* ({ llm }) {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const session = yield* sessions.create({
+          title: "Layer-1 emergency capture tools",
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        })
+        // Phase 1: a normal working turn pins the trunk wire catalog.
+        yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          parts: [{ type: "text", text: "hello" }],
+        })
+        yield* llm.text("working answer")
+        yield* prompt.loop({ sessionID: session.id })
+        // Phase 2: big content opens the Layer-1 cadence window; captureSummary
+        // (emergency /summarize route) must send the SAME catalog as the trunk.
+        yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
+        })
+        yield* llm.text(`## Semantic Vector
+dominant: "emergency capture keeps the full tool catalog on the wire for KV parity"
+
+## Goal
+Keep the full tool catalog on the wire for the emergency summary route so the provider cache prefix stays byte-stable across turn kinds.
+
+## Key decisions
+- Resolve the trunk catalog instead of stripping schemas for the emergency capture route.
+
+## Current state
+The emergency capture route carries the full tool catalog on the wire and tool execution is blocked while the summary request is in flight.`)
+        const captured = yield* prompt.captureSummary({ sessionID: session.id, model: ref, agent: "build" })
+        expect(captured).toBe(true)
+
+        const inputs = yield* llm.inputs
+        expect(inputs).toHaveLength(2)
+        const emergencyTools = (inputs[1]?.tools as unknown[] | undefined) ?? []
+        const workingTools = (inputs[0]?.tools as unknown[] | undefined) ?? []
+        expect(emergencyTools).not.toHaveLength(0)
+        expect(JSON.stringify(emergencyTools)).toEqual(JSON.stringify(workingTools))
+        expect(Constitution.isSummaryMode(session.id)).toBe(false)
+      }),
+      { git: true, config: bigCaptureProviderCfg },
     ),
   30_000,
 )

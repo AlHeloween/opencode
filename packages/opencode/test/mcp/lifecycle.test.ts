@@ -240,6 +240,34 @@ test(
 // ========================================================================
 
 test(
+  "tools() returns a deterministic client-sorted tool order",
+  withInstance({}, (mcp) =>
+    Effect.gen(function* () {
+      // Add in reverse-alphabetical order: the wire order must NOT depend on
+      // connection order (KV prefix stability across reconnects).
+      lastCreatedClientName = "z-server"
+      const zState = getOrCreateClientState("z-server")
+      zState.tools = [{ name: "z_tool", description: "z", inputSchema: { type: "object", properties: {} } }]
+      yield* mcp.add("z-server", { type: "local", command: ["echo", "test"] })
+
+      lastCreatedClientName = "a-server"
+      const aState = getOrCreateClientState("a-server")
+      aState.tools = [{ name: "a_tool", description: "a", inputSchema: { type: "object", properties: {} } }]
+      yield* mcp.add("a-server", { type: "local", command: ["echo", "test"] })
+
+      let previous: string[] | undefined
+      for (let i = 0; i < 5; i++) {
+        const keys = Object.keys(yield* mcp.tools())
+        const mcpKeys = keys.filter((key) => key.startsWith("a-server") || key.startsWith("z-server"))
+        expect(mcpKeys).toEqual(["a-server_a_tool", "z-server_z_tool"])
+        if (previous) expect(keys).toEqual(previous)
+        previous = keys
+      }
+    }),
+  ),
+)
+
+test(
   "tool change notifications refresh cached tool definitions",
   withInstance({}, (mcp) =>
     Effect.gen(function* () {

@@ -1,5 +1,34 @@
 # Application Workflow Diagram
 
+## Tools Wire Era-Freeze Flow (2026-08-16)
+
+1. `packages/opencode/src/session/tools.ts` / `SessionTools.resolve`
+   - Input: agent/providerAgent/model/session/processor/messages/promptOps/userDisabled.
+   - Output: `Record<string, AITool>` — полный каталог на проводе (registry + MCP + aliases).
+   - Logic: registry-тулы (execute с ACL `denied()`: mode + userDisabled + summary-mode guard), MCP-тулы из эра-снапшота `mcpEraStore` (wire заморожен per session+model; `mcpLiveSig` детектит изменения → defer-лог; execute из живого клиента, при дисконнекте — deny-стаб), alias-регистрация. Wire никогда не режется.
+
+2. `packages/opencode/src/tool/registry.ts` / `ToolRegistry.tools` + `createEraMemo`
+   - Input: providerID/modelID/agent/sessionID.
+   - Output: `Tool.Def[]` с описаниями task/skill.
+   - Logic: описания task/skill вычисляются один раз на эру (per-session memo), замораживаются до `invalidateToolDescriptions(sessionID)` (compact / identity mismatch).
+
+3. `packages/opencode/src/mcp/index.ts` / `MCP.tools`
+   - Input: connected MCP-клиенты + defs-кэш.
+   - Output: `Record<string, Tool>` в детерминированном порядке (sorted clients, server-listed tools).
+   - Logic: при отсутствии defs — re-fetch (без silent-drop); провал re-fetch → warn «bug:» и пропуск.
+
+4. `packages/opencode/src/session/prompt.ts` / summary turn + captureSummary
+   - Input: runLoop state / emergency route input.
+   - Output: llm.stream с полным каталогом.
+   - Logic: `summaryAttempt` больше не шлёт `tools: {}`; ин-луп саммари-тур обёрнут в `Constitution.setSummaryMode` (исполнение заблокировано, схемы на проводе); `captureSummary` резолвит тот же каталог (стаб-processor); compact/identity-mismatch → инвалидация обеих эр (registry + MCP).
+
+5. `packages/opencode/src/session/llm.ts` / request shape + stability checks
+   - Input: tools/system/messages/options.
+   - Output: audit-хэши + warn при дрейфе.
+   - Logic: `hashInfo(Object.keys(tools))` в insertion order; `checkToolStability` (порядок+описания+схемы, включая `_noop`) → «bug: tool catalog changed mid-session»; `resolveTools` = identity (user.tools=false — runtime-deny в SessionTools).
+
+Coverage estimate vs actual codebase: 9%.
+
 ## Provider Request Output Cap Flow
 
 1. `packages/opencode/src/provider/transform.ts` / `maxOutputTokens`

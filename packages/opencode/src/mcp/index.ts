@@ -634,30 +634,38 @@ export const layer = Layer.effect(
       const config = cfg.mcp ?? {}
       const defaultTimeout = cfg.experimental?.mcp_timeout
 
-      const connectedClients = Object.entries(s.clients).filter(
-        ([clientName]) => s.status[clientName]?.status === "connected",
-      )
+      // Deterministic wire order: iterate clients in SORTED name order and
+      // tools in server-listed order. The previous concurrency:4 wrote keys
+      // into the shared result in completion order — the wire tool order was
+      // a race between MCP servers (KV prefix instability).
+      const connectedClients = Object.entries(s.clients)
+        .filter(([clientName]) => s.status[clientName]?.status === "connected")
+        .toSorted(([a], [b]) => a.localeCompare(b))
 
-      yield* Effect.forEach(
-        connectedClients,
-        ([clientName, client]) =>
-          Effect.gen(function* () {
-            const mcpConfig = config[clientName]
-            const entry = mcpConfig && isMcpConfigured(mcpConfig) ? mcpConfig : undefined
-
-            const listed = s.defs[clientName]
-            if (!listed) {
-              log.warn("missing cached tools for connected server", { clientName })
-              return
-            }
-
-            const timeout = entry?.timeout ?? defaultTimeout
-            for (const mcpTool of listed) {
-              result[sanitize(clientName) + "_" + sanitize(mcpTool.name)] = convertMcpTool(mcpTool, client, timeout)
-            }
-          }),
-        { concurrency: 4 },
-      )
+      for (const [clientName, client] of connectedClients) {
+        const mcpConfig = config[clientName]
+        const entry = mcpConfig && isMcpConfigured(mcpConfig) ? mcpConfig : undefined
+        const timeout = entry?.timeout ?? defaultTimeout
+        let listed = s.defs[clientName]
+        if (!listed) {
+          // Never silently drop a connected server from the wire catalog —
+          // a shrinking tool set changes the request prefix (KV cache) with no
+          // observable event. Re-fetch defs; only a failed re-fetch omits.
+          log.warn("missing cached tools for connected server — re-fetching defs", { clientName })
+          const fetched = yield* defs(clientName, client, timeout)
+          if (!fetched) {
+            log.warn("bug: defs re-fetch failed; connected MCP server omitted from tool catalog", {
+              clientName,
+            })
+            continue
+          }
+          s.defs[clientName] = fetched
+          listed = fetched
+        }
+        for (const mcpTool of listed) {
+          result[sanitize(clientName) + "_" + sanitize(mcpTool.name)] = convertMcpTool(mcpTool, client, timeout)
+        }
+      }
       return result
     })
 

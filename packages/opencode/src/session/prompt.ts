@@ -66,6 +66,7 @@ import { NamedError } from "@opencode-ai/core/util/error"
 import { SessionProcessor } from "./processor"
 import { Tool } from "@/tool/tool"
 import { SessionTools } from "./tools"
+import { canonicalName } from "@/tool/tool"
 import { Permission } from "@/permission"
 import { SessionStatus } from "./status"
 import { LLM } from "./llm"
@@ -1005,12 +1006,14 @@ export const layer = Layer.effect(
      * sidecar summary WITHOUT a full turn. Returns true when a valid
      * checkpoint was saved (the caller may then fold safely).
      */
-    const captureSummary = (input: {
+    const captureSummary: (input: {
       sessionID: SessionID
       model: { providerID: ProviderID; modelID: ModelID }
       agent: string
-    }) =>
-      Effect.gen(function* () {
+    }) => Effect.Effect<boolean> = Effect.fn("SessionPrompt.captureSummary")(function* (input) {
+      // Service requirements from SessionTools.resolve are satisfied by the
+      // enclosing layer; the cast mirrors the runLoop usage in loop() below.
+      return yield* Effect.gen(function* () {
         const ctx = yield* InstanceState.context
         const visible = yield* MessageV2.filterCompactedEffect(input.sessionID)
         if (!visible.length) return false
@@ -1076,6 +1079,32 @@ export const layer = Layer.effect(
         // Emergency branch: never fold here. If the window exceeds headroom,
         // the capture returns false and the route surfaces an error instead of
         // silently folding uncovered history.
+        //
+        // Wire parity with the working turn: resolve the SAME tool catalog
+        // (schemas + order). Execution is blocked by the sidecar summary flag
+        // (captureSidecar sets it before streaming); the stub processor is only
+        // consumed by execute callbacks, which answer with the summary-mode
+        // denial while the flag is active (see tools.ts summary guard).
+        const sessionInfo = yield* sessions.get(input.sessionID)
+        const tools = yield* SessionTools.resolve({
+          agent,
+          providerAgent: cacheAgent,
+          model,
+          session: sessionInfo,
+          processor: {
+            message: { id: MessageID.ascending() } as SessionProcessor.Handle["message"],
+            updateToolCall: () => Effect.succeed(undefined),
+            completeToolCall: () => Effect.succeed(undefined),
+          } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+          bypassAgentCheck: false,
+          messages: visible,
+          promptOps: yield* ops(),
+          userDisabled: new Set(
+            Object.entries(user.tools ?? {})
+              .filter(([, enabled]) => enabled === false)
+              .map(([name]) => canonicalName(name)),
+          ),
+        })
         return yield* captureSidecar({
           sessionID: input.sessionID,
           visible,
@@ -1084,7 +1113,7 @@ export const layer = Layer.effect(
           cacheIdentity: cacheAgent,
           user,
           checkpoint: checkpointData,
-          tools: {},
+          tools,
           afterAssistant: undefined,
           onHeadroomCompact: () => Effect.succeed(false),
         })
@@ -1096,7 +1125,8 @@ export const layer = Layer.effect(
           })
           return Effect.succeed(false)
         }),
-      )
+      ) as Effect.Effect<boolean, never, never>
+    })
 
     const lastModel = Effect.fnUntraced(function* (sessionID: SessionID) {
       const match = yield* sessions.findMessage(sessionID, (m) => m.info.role === "user" && !!m.info.model)
@@ -1858,13 +1888,17 @@ export const layer = Layer.effect(
           const outcome: "break" | "continue" = yield* Effect.gen(function* () {
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
 
+            // Layer-1 in-loop summary turn: the FULL tool catalog stays on the
+            // wire — prefix parity with working turns (KV cache). Execution of
+            // all tools is blocked while the summary request is in flight, via
+            // the same constitution flag the sidecar uses (tools.ts summary guard).
+            if (summaryAttempt) Constitution.setSummaryMode(sessionID, true)
+
             let tools: Record<string, AITool>
-            // Layer-1 summary turn: prose only. Full tools let the model Read/bash
-            // instead of writing SVM/goal/decisions. The accepted `summary` flag
-            // is set only after validation, so use the persisted request state here.
-            if (summaryAttempt) {
-              tools = {}
-            } else if (cachedTools && cachedToolsAgent === agent.name) {
+            // Same catalog for summary and working turns — never strip schemas
+            // per turn kind: a different tool set breaks inference and the
+            // provider cache prefix.
+            if (cachedTools && cachedToolsAgent === agent.name) {
               tools = cachedTools
             } else {
               tools = yield* SessionTools.resolve({
@@ -1876,6 +1910,11 @@ export const layer = Layer.effect(
                 bypassAgentCheck,
                 messages: msgs,
                 promptOps: yield* ops(),
+                userDisabled: new Set(
+                  Object.entries(lastUser?.tools ?? {})
+                    .filter(([, enabled]) => enabled === false)
+                    .map(([name]) => canonicalName(name)),
+                ),
               })
               if (lastUser.format?.type === "json_schema") {
                 tools["StructuredOutput"] = createStructuredOutputTool({
@@ -1971,6 +2010,11 @@ export const layer = Layer.effect(
                 providerID: model.providerID,
                 modelID: model.id,
               })
+              // New system version (kernel/identity changed): era-frozen tool
+              // descriptions and the MCP wire snapshot refresh with the
+              // rebuilt prefix.
+              yield* registry.invalidateToolDescriptions(sessionID)
+              SessionTools.invalidateMCPEra(sessionID)
             }
             // Use checkpoint for everything EXCEPT structured output prompt mismatch.
             // Structured prompt is a one-line append/remove — no reason to drop the
@@ -2413,6 +2457,11 @@ export const layer = Layer.effect(
               // Invalidate checkpoint — the old checkpoint contains pre-compaction
               // message IDs that won't match the new compacted state.
               yield* Checkpoint.remove(sessionID)
+              // Compact = new system version: era-frozen tool descriptions
+              // (task/skill catalogs) and the MCP wire snapshot refresh here,
+              // not mid-era.
+              yield* registry.invalidateToolDescriptions(sessionID)
+              SessionTools.invalidateMCPEra(sessionID)
               // Reset sidecar cooldown: fresh message window after compaction.
               lastSidecarCapture.delete(sessionID)
               cachedMsgs = undefined
@@ -2489,6 +2538,14 @@ export const layer = Layer.effect(
             return "continue" as const
           }).pipe(
             Effect.ensuring(instruction.clear(handle.message.id)),
+            // Clear the summary-mode flag set above — normal turns must not
+            // inherit the tool-execution block. Safe to clear unconditionally:
+            // the sidecar manages its own flag lifecycle inside captureSidecar.
+            Effect.ensuring(
+              Effect.sync(() => {
+                if (summaryAttempt) Constitution.setSummaryMode(sessionID, false)
+              }),
+            ),
             Effect.onInterrupt(() => finalizeInterruptedAssistant),
           )
           if (outcome === "break") break

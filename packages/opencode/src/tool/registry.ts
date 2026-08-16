@@ -43,6 +43,7 @@ import { ZodOverride } from "@/util/effect-zod"
 import { Plugin } from "../plugin"
 import { Provider } from "@/provider/provider"
 import { ProviderID, type ModelID } from "../provider/schema"
+import { SessionID } from "@/session/schema"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import * as Log from "@opencode-ai/core/util/log"
 import { LspTool } from "./lsp"
@@ -87,13 +88,44 @@ type State = {
   getmode: GetModeDef
   reasoningEnter: ReasoningEnterDef
   reasoningExit: ReasoningExitDef
+  /** Era-frozen task/skill descriptions (see createEraMemo). */
+  descEra: EraMemo
+}
+
+/**
+ * Per-session-era memo for volatile description sources (agent list, skill
+ * catalog). Values are computed ONCE per era and frozen until invalidated —
+ * a new skill/agent mid-session must NOT change tool JSON on the wire
+ * (KV prefix stability). Compact / system-version bump invalidates the era.
+ */
+export type EraMemo = ReturnType<typeof createEraMemo>
+
+export function createEraMemo() {
+  const cache = new Map<string, { task: string; skill: string }>()
+  return {
+    get(key: string) {
+      return cache.get(key)
+    },
+    set(key: string, value: { task: string; skill: string }) {
+      cache.set(key, value)
+    },
+    invalidate(key: string) {
+      cache.delete(key)
+    },
+  }
 }
 
 export interface Interface {
   readonly ids: () => Effect.Effect<string[]>
   readonly all: () => Effect.Effect<Tool.Def[]>
   readonly named: () => Effect.Effect<{ task: TaskDef; read: ReadDef }>
-  readonly tools: (model: { providerID: ProviderID; modelID: ModelID; agent: Agent.Info }) => Effect.Effect<Tool.Def[]>
+  readonly tools: (model: {
+    providerID: ProviderID
+    modelID: ModelID
+    agent: Agent.Info
+    sessionID?: SessionID
+  }) => Effect.Effect<Tool.Def[]>
+  readonly invalidateToolDescriptions: (sessionID: SessionID) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/ToolRegistry") {}
@@ -285,6 +317,7 @@ export const layer: Layer.Layer<
         })
 
         return {
+          descEra: createEraMemo(),
           builtin: [
             tool.invalid,
             ...(questionEnabled ? [tool.question] : []),
@@ -387,6 +420,20 @@ export const layer: Layer.Layer<
       // reasoningEnter/reasoningExit are always present in the schema — execute is
       // gated by SessionTools, not by removing the tool definition (KV cache stable).
       const filtered = yield* all()
+      // Task/skill descriptions come from LIVE catalogs (agents, skills). They are
+      // era-frozen per session: computed once, reused until invalidateToolDescriptions
+      // (compact / system-version bump) — a new skill mid-session must not change
+      // the tool JSON on the wire.
+      let descriptions: { task: string; skill: string } | undefined
+      if (input.sessionID) {
+        descriptions = s.descEra.get(input.sessionID)
+        if (!descriptions) {
+          descriptions = { task: yield* describeTask(input.agent), skill: yield* describeSkill() }
+          s.descEra.set(input.sessionID, descriptions)
+        }
+      } else {
+        descriptions = { task: yield* describeTask(input.agent), skill: yield* describeSkill() }
+      }
 
       return yield* Effect.forEach(
         filtered,
@@ -402,8 +449,8 @@ export const layer: Layer.Layer<
             policy: tool.policy,
             description: [
               output.description,
-              tool.id === TaskTool.id ? yield* describeTask(input.agent) : undefined,
-              tool.id === SkillTool.id ? yield* describeSkill() : undefined,
+              tool.id === TaskTool.id ? descriptions.task : undefined,
+              tool.id === SkillTool.id ? descriptions.skill : undefined,
             ]
               .filter(Boolean)
               .join("\n"),
@@ -416,12 +463,20 @@ export const layer: Layer.Layer<
       )
     })
 
+    const invalidateToolDescriptions: Interface["invalidateToolDescriptions"] = Effect.fn(
+      "ToolRegistry.invalidateToolDescriptions",
+    )(function* (sessionID: SessionID) {
+      const s = yield* InstanceState.get(state)
+      s.descEra.invalidate(sessionID)
+      log.info("tool descriptions era invalidated", { sessionID })
+    })
+
     const named: Interface["named"] = Effect.fn("ToolRegistry.named")(function* () {
       const s = yield* InstanceState.get(state)
       return { task: s.task, read: s.read }
     })
 
-    return Service.of({ ids, all, named, tools })
+    return Service.of({ ids, all, named, tools, invalidateToolDescriptions })
   }),
 )
 

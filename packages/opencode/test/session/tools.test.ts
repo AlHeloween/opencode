@@ -108,7 +108,7 @@ describe("session.tools", () => {
         yield* Effect.promise(() => resolved.read!.execute!({} as never, { toolCallId: "call-rejected" } as never))
         expect(completed).toHaveLength(1)
         expect(completed[0]?.id).toBe("call-rejected")
-        expect(completed[0]?.output).toMatchObject({ output: expect.stringContaining("not authorized in reasoning mode") })
+        expect(completed[0]?.output).toMatchObject({ output: expect.stringContaining("not authorized for identity reasoning_mode") })
 
         const planResolved = yield* SessionTools.resolve({
           agent: plan!,
@@ -153,5 +153,45 @@ describe("session.tools", () => {
       }),
     ),
     { timeout: 45_000 },
+  )
+
+  it.live("user.tools=false is a runtime-deny, never a wire reshape", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const agents = yield* Agent.Service
+        const build = yield* agents.get("build")
+        expect(build).toBeDefined()
+        const model = ProviderTest.model({ providerID: ProviderID.make("test") })
+        const completed: Array<{ id: string; output: unknown }> = []
+        const resolved = yield* SessionTools.resolve({
+          agent: build!,
+          providerAgent: build!,
+          model,
+          session: { id: SessionID.descending() } as Session.Info,
+          processor: {
+            message: { id: MessageID.ascending() } as SessionProcessor.Handle["message"],
+            updateToolCall: () => Effect.succeed(undefined),
+            completeToolCall: (id, output) =>
+              Effect.sync(() => {
+                completed.push({ id, output })
+              }),
+          } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+          bypassAgentCheck: false,
+          messages: [],
+          promptOps: {
+            cancel: () => Effect.void,
+            resolvePromptParts: () => Effect.succeed([]),
+            prompt: () => Effect.die("unexpected task prompt"),
+          },
+          userDisabled: new Set(["read"]),
+        })
+        // The catalog stays complete on the wire — read is still declared.
+        expect(Object.keys(resolved)).toContain("read")
+        // Execution is refused with a user-config denial, not a mode denial.
+        yield* Effect.promise(() => resolved.read!.execute!({} as never, { toolCallId: "call-user-disabled" } as never))
+        expect(completed).toHaveLength(1)
+        expect(completed[0]?.output).toMatchObject({ output: expect.stringContaining("disabled by user configuration") })
+      }),
+    ),
   )
 })

@@ -32,11 +32,14 @@ export const SUMMARY_INTERVAL_TOKENS = 65_536
 export const MAX_SUMMARY_ATTEMPTS = 2
 /**
  * Minimum Recent tail after compact (content tokens, chars/4).
- * Walk from the end, skipping message* and the latest summary (request+body),
- * so m* always keeps a real work tail — not only a thin post-summary stub that
- * immediately re-triggers Layer-1 summary after fold.
+ * Walk from the end, skipping the latest summary (request+body), so m* always
+ * keeps a real work tail — not only a thin post-summary stub that immediately
+ * re-triggers Layer-1 summary after fold.
+ * The walk-back hard-stops at the prior message*: it is included as the
+ * boundary element, and the tail never reaches further back — repeated
+ * compacts cannot re-expand the tail beyond the star (idempotency).
  */
-export const RECENT_MIN_TOKENS = 16_384
+export const RECENT_MIN_TOKENS = 32_768
 
 const CHARS_PER_TOKEN = 4
 const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
@@ -243,10 +246,11 @@ function isSummaryAssistant(msg: MessageV2.WithParts): boolean {
  * Recent tail for message* fold.
  *
  * 1. Prefer messages after `latestBoundaryId` (last summary / sidecar to_id).
- * 2. Always exclude message* and the latest in-band summary (request + assistant).
- * 3. If that tail is under {@link RECENT_MIN_TOKENS}, walk further back (overlap
- *    into already-summarized window) until the floor or session start.
- * 4. Caller may still cap a no-summary pool with {@link trimToLastInterval}.
+ * 2. Always exclude the latest in-band summary (request + assistant).
+ * 3. If that tail is under {@link RECENT_MIN_TOKENS}, walk further back — but
+ *    hard-stop at the prior message*: it is INCLUDED as the boundary element
+ *    and the walk never crosses it (older history stays covered by summaries
+ *    folded earlier; repeated compacts stay idempotent).
  */
 export function selectRecentTail(
   visible: MessageV2.WithParts[],
@@ -283,13 +287,20 @@ export function selectRecentTail(
   const minChars = minTokens * CHARS_PER_TOKEN
   if (contentChars(recent) >= minChars) return recent
 
-  // Thin post-boundary tail: extend backward past boundary (small overlap).
+  // Thin post-boundary tail: extend backward past boundary (small overlap),
+  // but hard-stop at the prior message* — include it, never go further.
   // visible is ascending by id; walk from end, keep messages not skipped.
   const selected: MessageV2.WithParts[] = []
   let chars = 0
   for (let i = visible.length - 1; i >= 0; i--) {
     const m = visible[i]!
-    if (skip(m)) continue
+    if (isMessageStar(m)) {
+      selected.unshift(m)
+      break
+    }
+    if (isLayer1SummaryMessage(m)) continue
+    if (lastSummaryId && m.info.id === lastSummaryId) continue
+    if (lastSummaryRequestId && m.info.id === lastSummaryRequestId) continue
     selected.unshift(m)
     chars += contentChars([m])
     if (chars >= minChars) break
@@ -907,17 +918,40 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const latestSidecarBoundary = sidecars.at(-1)?.toMessageID
         const latestBoundaryId = [latestSummaryId, latestSidecarBoundary].filter(Boolean).sort().at(-1)
 
+        // T2 invariant: never fold history without at least one summary covering it.
+        // With zero summaries the message* would carry no memory handles for the
+        // folded range — silent catastrophic memory loss (2026-08-16 incident:
+        // 538 messages folded with summaries:0 by forced /summarize). The caller
+        // must capture a sidecar first; refusing here cannot loop (a no-op fold
+        // reports folded:false, which stops the headroom/cadence paths).
+        if (!summaries.length) {
+          log.warn("compaction refused: no summary coverage", {
+            sessionID: input.sessionID,
+            visible: visible.length,
+            forced: input.force ?? false,
+          })
+          yield* finish()
+          return { messageStarTokens: 0, folded: false }
+        }
+
+        // Coverage boundary: everything up to (and including) this ID is covered
+        // by at least one collected summary. Linkless legacy summaries cover up to
+        // their own message — conservative, never over-hides. Used for the
+        // representation invariant (hidden ⇔ covered or in the Recent walk-back).
+        const coveredThroughId = summaries.reduce<string | undefined>((max, s) => {
+          const bound = s.toId ?? s.id
+          if (!max) return bound
+          return bound > max ? bound : max
+        }, undefined)
+        void coveredThroughId
+
         // Recent = work tail for m* (≥ RECENT_MIN_TOKENS). Skip message* + latest
         // summary; if post-boundary stub is thin, overlap back into pre-boundary m.
-        let recent = selectRecentTail(visible, latestBoundaryId, RECENT_MIN_TOKENS)
-
-        // No summary yet: cap Recent at the same effective target used by Layer 1.
-        // This keeps a low-context provider from immediately overflowing again.
-        const threshold = input.threshold ?? SUMMARY_INTERVAL_TOKENS
-        if (!summaries.length && contentChars(recent) >= threshold * CHARS_PER_TOKEN) {
-          const start = trimToLastInterval(recent, threshold)
-          recent = recent.slice(start)
-        }
+        // Representation invariant: every hidden message is represented — either
+        // by a collected summary or by the Recent walk-back. selectRecentTail
+        // walks back from the end until the floor or session start, so no message
+        // can fall between the last summary boundary and the Recent floor.
+        const recent = selectRecentTail(visible, latestBoundaryId, RECENT_MIN_TOKENS)
 
         // Collect decisions from the prior messageStar (if any) so they survive
         // across compaction cycles verbatim — "Inferred once, not re-Inferred."
@@ -945,6 +979,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         })
 
         // Soft-hide every currently visible message (DB retained for session-read).
+        // Safe under the T2 guard above: summaries.length ≥ 1, so the folded middle
+        // is covered by at least one summary and the Recent section represents the
+        // tail — nothing is hidden without representation.
         let compacted = 0
         for (const m of visible) {
           m.info.compacted = true

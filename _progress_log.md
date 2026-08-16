@@ -1,5 +1,27 @@
 # Progress Log
 
+## 2026-08-16 Compaction Sidecar Wiring Fix (plan: plans/2026-08-16-compaction-sidecar-wiring-fix.md)
+
+Reason: Layer-1 64K summary-захват был подключён к `result === "stop"`, который процессор возвращает ТОЛЬКО при blocked/error (processor.ts:1079-1081) — на нормальных ходах захват не исполнялся никогда (0 строк project_checkpoint за всю БД); компакты фолдили историю без покрытия (сессия ses_fffc5d1d2ffe: 538 сообщений, summaries:0, forced /summarize 08:08:14 UTC).
+
+Script/Changes:
+
+- `prompt.ts` — T1: `completedCleanly` + `captureDue`-гейты, стоп-последовательность (checkpoint persist → captureSidecar → maybeCompactCadence) на нормальных ходах с fall-through в incremental save; T4: `openSidecars < 2` блокирует фолд; T5: debug skip-логи.
+- `prompt.ts` — T3: `captureSidecar` вынесен на уровень сервиса (+sessionID/onHeadroomCompact), новый `SessionPrompt.captureSummary` для /summarize.
+- `compaction.ts` — T2: отказ фолда при нуле summaries (`compaction refused: no summary coverage`).
+- `httpapi/session.ts` — /summarize = captureSummary → compact(force) → loop; при неудаче false.
+- `compaction.test.ts` — приведён к новым семантам (refusal-тесты, boundary-семантика computeOpenWindowTokens, тела summary-фикстур, padding recent против walk-back overlap).
+- `docs/compaction.md` — gap-таблица обновлена.
+
+Script Output:
+
+- typecheck: PASS exit 0 (`20260816T100757Z_007888b2`).
+- `bun test compaction.test.ts summary-cadence.test.ts`: **87 pass, 0 fail** (`20260816T100842Z_8da40ca4`).
+- Baseline-оракулы: до фикса compaction/summary-cadence = 6 fail (stale-тесты); prompt.test.ts на HEAD = 40 fail (pre-existing); revert-compact.test.ts = 5 fail (SessionRevert.revert не персистит revert-state, pre-existing).
+- WIP-восстановление: constitution заблокировал `git stash pop` → восстановлено через `git apply logs/compaction-fix.patch` (stash-запись осталась в списке).
+- Nuance-round (user, 2026-08-16 11:43): `RECENT_MIN_TOKENS` → 32_768; `selectRecentTail` walk-back хард-стопится на prior message* (включает его одним юнитом); `captureSummary` отказывает на lone-star. Итог: хвост ≥32K (±m*), summaries в начале, повторные компакты идемпотентны. Oраклы: typecheck exit 0 (`20260816T114757Z_8c1dfd49`), тесты **88 pass, 0 fail** (`20260816T114834Z_e8bb4e23`, +тест «walk-back hard-stops at the prior message*»).
+- Nuance-round #2 (user, 2026-08-16 11:50): (a) компакт-порог = `usable()` = limit−32K−10K gap — подтверждён, без изменений; (b) закрыт гэп в stop-path: `maybeCompactCadence` теперь выполняется в конце хода и при `!captureDue`; headroom-нехватка 32K → force-компакт → счётчик = len(m*)/4; (c) панели summaries исключены из агент-M — верифицировано (`message-v2.ts:847-859,881`, синтетик+ignored); (d) revert: fallback без fossil-чекпоинта (message-level persist + warn вместо молчаливого bail) — `revert.ts`. Oраклы: typecheck exit 0 (`20260816T115313Z_a35f704b`); combined-прогон (`20260816T115346Z_9da21af5`): compaction/summary-cadence **88 pass, 0 fail**; revert-compact 7 fail — таймауты ~5s (fossil spawn в тест-окружении), отдельный план.
+
 ## 2026-08-14 Sidecar Summary Parity Fix (spec: user — summary = обычный user-запрос к полному M)
 
 Reason: sidecar Layer-1 summary уходил как «другой» запрос (range-only, tools:{}, tool_choice:none, max_tokens 8192, gap-fill) под общим cache key — расхождение с immutable-prompt инвариантом. Спецификация: summary = полный checkpoint M + синтетический user-промпт, те же tools на проводе, стандартный бюджет, запрет исполнения тулов системным флагом (constitution), retry тем же запросом, S сохраняется в базу, X не мутируется.
@@ -365,3 +387,23 @@ Script output:
 - `bun typecheck` from `packages/opencode`: passed.
 - `bun test test/session/compaction.test.ts` from `packages/opencode`: 31 pass, 0 fail.
 - `bun test test/skill/skill.test.ts` from `packages/opencode`: 10 pass, 0 fail (one flaky timeout passes on rerun).
+
+---
+
+## [2026-08-15] CoT semantic map experiment
+
+**Reason:** Map the semantic structure of CoT reasoning — how the model's thinking
+flows through a task (phases, jumps, revisits), instead of guessing from anecdote.
+
+**Scripts:** `experiments/cot-semantic-map/` — `extract_cot.py` (DB → sentences.jsonl),
+`embed_sentences.py` (BGE-bge-base-en-v1.5 on GPU, shim for torch.distributed-less build),
+`build_map.py` (PCA 768→32, UMAP 2D, k-means phases, stats, self-contained `map.html`).
+
+**Output:** 8804 CoT sentences from 467 messages / 6 sessions; embeddings (8804, 768);
+10 semantic phases (k-means silhouette 0.085); trajectory stats: 290 phase transitions,
+67 jumps, 96 revisits, median step 0.055 / max 0.427 of the map span.
+Phase lexicons match real work topics: prompt.ts inspection, echo policy, summary
+sidecar, cache modeling, compaction mechanics, transform blocks.
+
+**Artifacts:** `experiments/cot-semantic-map/map.html` (interactive: hover = sentence
+text, trajectory arrows = message flow, phase legend). `map_data.json` for replays.

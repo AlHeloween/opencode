@@ -63,7 +63,7 @@ rows are consumed **only at compact** into `m*`.
 
 **Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph.
 
-**Recent floor:** after compact, work tail is at least ~`RECENT_MIN_TOKENS` (16 384) content tokens from the end, ignoring `message*` and the latest summary — thin post-summary stubs are extended backward (small overlap) so the next open window is real work, not empty → immediate re-summary.
+**Recent floor:** after compact, work tail is at least ~`RECENT_MIN_TOKENS` (32 768) content tokens from the end, ignoring the latest summary — thin post-summary stubs are extended backward so the next open window is real work, not empty → immediate re-summary. The walk-back **hard-stops at the prior message***: it is included as one boundary unit and the tail never crosses it — repeated compacts stay idempotent.
 
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
@@ -135,14 +135,14 @@ sequenceDiagram
 |---------------|------------|--------|
 | `s` not in content window | `maybeCaptureSidecar` → `project_checkpoint` + UI panel with **old** Exact stamp product (`=== LAYER-1 SUMMARY ===`, ignored/synthetic; skipped by `toModelMessages` / cadence) | **Match** (old s product, new placement) |
 | Exact stamp / multi-s fold | `formatExactSystemStamp` shared with legacy inject; `compact` folds **all** open checkpoints + legacy `assistant.summary` via `buildMessageStar` | **Match** |
-| After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → `maybeCaptureSidecar` | **Match** (disk before summary) |
+| After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → `maybeCaptureSidecar` | **Match** (disk before summary); capture now runs on normal clean completions (`completedCleanly`), not only on blocked/error turns |
 | Exact tool diffs + CodeGraph on s | `enrichRange`: `collectToolFileDiffs` + `mcpTouchThenSqlitePack` (no Fossil) | **Match**; no write/edit/multiedit in range ⇒ empty Exact |
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
 | Checker after summary | `isValidSummaryBody` 4 headings; reject body if fail | **Partial** (no multi-retry on sidecar path) |
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
-| `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs** |
+| `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs**; new T2 guard: fold **refused** when no summaries exist (`folded:false`, warn) — no memory loss on /summarize |
 | Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin | **Match** |
 | Compact after enough s / model window full | **`maybeCompactCadence`**: target=`usable(model)` not 64k; skip same stop as new s; skip if 1 open sidecar | **Fixed 2026-07-30** |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |

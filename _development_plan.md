@@ -1,5 +1,25 @@
 # Development Plan
 
+## 2026-08-16 Compaction Sidecar Wiring Fix (plan: plans/2026-08-16-compaction-sidecar-wiring-fix.md)
+
+Goal: восстановить Layer-1 64K summary-каденс — захват sidecar на нормальных ходах (сейчас подключён к result==="stop", который процессор возвращает только при blocked/error), закрыть фолд непокрытой истории в compact(), сделать /summarize = capture→fold.
+
+Tasks:
+
+- [x] T1 Переезд стоп-последовательности (checkpoint → captureSidecar → maybeCompactCadence) на нормальный путь завершения хода (prompt.ts: completedCleanly + captureDue).
+- [x] T2 Инвариант покрытия в compact(): без summaries — отказ (folded:false + warn), ничего не скрывать.
+- [x] T3 /summarize: экстренный захват sidecar (SessionPrompt.captureSummary) → фолд; при неудаче — false, без фолда.
+- [x] T4 maybeCompactCadence: блокировать фолд при 0 open sidecars (< 2).
+- [x] T5 Диагностика: warn «compaction refused» + debug-логи skip-причин в captureSidecar.
+- [x] T6 Тесты (compaction.test.ts: refusal-тесты, boundary-семантика, тела summary-фикстур, padding recent) + docs/compaction.md.
+
+Verification:
+
+- [x] `bun typecheck` (packages/opencode) — exit 0 (20260816T100757Z_007888b2).
+- [x] `bun test compaction.test.ts summary-cadence.test.ts` — 87 pass, 0 fail (20260816T100842Z_8da40ca4).
+- [ ] Живой прогон: чистый ход с контентом ≥ 64K → строка в project_checkpoint + панель === LAYER-1 SUMMARY === (после rebuild).
+- [ ] Pre-existing к починке (вне плана): prompt.test.ts (40 fail на HEAD), revert-compact.test.ts (5 fail), некоммиченный transform.ts.
+
 ## 2026-08-14 Cache-Miss Tail (plan: plans/2026-08-14-cache-miss-tail.md)
 
 Goal: reduce the prompt-cache miss tail in heavy agentic turns (DeepSeek + OpenAI-compatible gateways): bound tool-output replay blocks, warn on large context injections, make cache metrics honest.

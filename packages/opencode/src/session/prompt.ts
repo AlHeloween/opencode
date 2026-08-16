@@ -174,6 +174,11 @@ export interface Interface {
   readonly shell: (input: ShellInput) => Effect.Effect<MessageV2.WithParts>
   readonly command: (input: CommandInput) => Effect.Effect<MessageV2.WithParts>
   readonly resolvePromptParts: (template: string) => Effect.Effect<PromptInput["parts"]>
+  readonly captureSummary: (input: {
+    sessionID: SessionID
+    model: { providerID: ProviderID; modelID: ModelID }
+    agent: string
+  }) => Effect.Effect<boolean>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionPrompt") {}
@@ -764,6 +769,335 @@ export const layer = Layer.effect(
       return yield* Effect.failCause(exit.cause)
     })
 
+    /**
+     * T3: capture an LLM-authored Layer-1 checkpoint on an isolated branch.
+     * The request and response never become Message/Part rows, so normal M is
+     * unchanged. Shared by the runLoop stop path and the /summarize HTTP route
+     * (emergency capture before a forced fold).
+     */
+    const captureSidecar = (input: {
+      sessionID: SessionID
+      visible: MessageV2.WithParts[]
+      model: Provider.Model
+      agent: Agent.Info
+      cacheIdentity: Agent.Info
+      user: MessageV2.User
+      checkpoint: CheckpointData
+      tools: Record<string, AITool>
+      afterAssistant?: MessageV2.WithParts
+      /** Headroom pre-flight hook: runLoop folds via its cadence gate. */
+      onHeadroomCompact: () => Effect.Effect<boolean>
+    }) =>
+      Effect.gen(function* () {
+        const sessionID = input.sessionID
+        const slog = elog.with({ sessionID })
+        const session = yield* sessions.get(sessionID)
+        if (input.afterAssistant && !SessionCompaction.isAssistantTurnComplete(input.afterAssistant)) {
+          slog.debug("sidecar skip: assistant turn not complete", { sessionID })
+          return false
+        }
+        if (sidecarInFlight.has(sessionID)) {
+          slog.debug("sidecar skip: capture in flight", { sessionID })
+          return false
+        }
+        // Rate-limit: cooldown between sequential captures to avoid
+        // excessive LLM calls during rapid-fire short turns.
+        const lastCapture = lastSidecarCapture.get(sessionID)
+        if (lastCapture !== undefined && Date.now() - lastCapture < SIDECAR_COOLDOWN_MS) {
+          slog.debug("sidecar skip: cooldown", { sessionID })
+          return false
+        }
+        // Layer-1 cadence is a pure content counter (65 536 open-window
+        // tokens) — NOT context-clamped. Small-context models rely on
+        // Layer-2 compaction; the pre-flight below guards request fit.
+        const threshold = SessionCompaction.layer1SummaryThreshold()
+        const previous = IncrementalCheckpoint.latestOpen(sessionID)
+        const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible, previous?.toMessageID)
+        if (openTokens < threshold) {
+          slog.debug("sidecar skip: below Layer-1 threshold", { sessionID, openTokens, threshold })
+          return false
+        }
+        // Pre-flight (user invariant): the summary request is FULL
+        // checkpoint M + prose, and the response needs ≥32K generation
+        // room. If M + 32K exceeds the provider limit, the provider would
+        // CUT content — compact first when a fold can shrink M. A lone
+        // message* cannot fold smaller; capturing is its only exit path.
+        const fullMTokens = estimateContentTokens(input.visible, input.model)
+        if (summaryNeedsCompactFirst({ model: input.model, contentTokens: fullMTokens })) {
+          if (SessionCompaction.hasFoldableContent(input.visible)) {
+            yield* slog.warn("sidecar summary blocked: no 32K generation headroom — compacting first", {
+              sessionID,
+              fullMTokens,
+              requestTokens: estimateRequestTokens(fullMTokens),
+              generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
+              modelContext: input.model.limit.context,
+            })
+            yield* input.onHeadroomCompact()
+            return false
+          }
+          yield* slog.warn("sidecar summary: star exceeds 32K headroom and cannot fold — capturing anyway (only exit path)", {
+            sessionID,
+            fullMTokens,
+            requestTokens: estimateRequestTokens(fullMTokens),
+            generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
+            modelContext: input.model.limit.context,
+          })
+        }
+        const boundary = previous?.toMessageID
+        const start = boundary ? input.visible.findIndex((m) => m.info.id === boundary) + 1 : 0
+        const range = input.visible.slice(Math.max(0, start))
+        if (!range.length) return false
+        sidecarInFlight.add(sessionID)
+        // System flag: execution of ALL tools is blocked while the summary
+        // request is in flight. Tools stay on the wire — prefix parity with
+        // the trunk is preserved (see tools.ts summary guard).
+        Constitution.setSummaryMode(sessionID, true)
+        return yield* Effect.gen(function* () {
+          const lastSv = previous?.body
+            ? SessionCompaction.extractSemanticVector(previous.body)
+            : undefined
+          // Same shape as a normal working turn: full checkpoint M (the
+          // previous request's model-ready messages) + one synthetic user
+          // prompt. No range reconversion, no tool_choice=none, standard
+          // output budget — the sidecar must not diverge from the trunk.
+          const sidecarAgent = input.cacheIdentity ?? input.agent
+          let body = ""
+          // Retry loop, soft gap-fill: attempt 1 = fresh summary request;
+          // attempts 2+ = the SAME full-M request shape, user message names
+          // the deficient sections + previous draft. Nothing is switched
+          // off — same system, same tools, standard budget. Identical M
+          // prefix → provider cache hits on retries (verified live: M
+          // prefix hit 0.990 with a changed tail message).
+          for (let attempt = 0; attempt < SIDECAR_MAX_ATTEMPTS; attempt++) {
+            const requestText =
+              attempt === 0
+                ? SessionCompaction.summaryRequestProse(lastSv)
+                : `${SessionCompaction.gapFillRequest(body, SessionCompaction.diagnoseSummaryGaps(body))}\n\nPrevious draft for reference:\n${body}`
+            const reply = yield* llm
+              .stream({
+                user: input.user,
+                agent: sidecarAgent,
+                permission: session.permission,
+                sessionID,
+                providerCacheKey: input.user.providerCacheKey
+                  ? `${input.user.providerCacheKey}:sidecar`
+                  : undefined,
+                system: [...input.checkpoint.systemPrompt],
+                messages: [
+                  ...input.checkpoint.messages,
+                  { role: "user", content: requestText },
+                ],
+                tools: input.tools,
+                model: input.model,
+              })
+              .pipe(
+                Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
+                Stream.map((event) => event.text),
+                Stream.mkString,
+                Effect.catchCause((cause) => {
+                  slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
+                  return Effect.succeed("")
+                }),
+              )
+            if (attempt === 0) body = reply
+            else body = SessionCompaction.mergeSummarySections(body, reply)
+            if (SessionCompaction.isValidSummaryBody(body)) break
+            yield* slog.debug("sidecar summary invalid — retrying same request", {
+              attempt: attempt + 1,
+              bodyLen: body.length,
+              gaps: SessionCompaction.diagnoseSummaryGaps(body),
+            })
+          }
+          // Exact: write/edit/multiedit tool filediffs in range + CodeGraph on those paths.
+          // Fossil is rollback only — not used here. Soft-fail enrich, keep body.
+          const beforeMessages =
+            start > 0 ? input.visible.slice(0, Math.max(0, start)) : []
+          const enrichment = yield* summary
+            .enrichRange({ sessionID, messages: range, beforeMessages })
+            .pipe(
+              Effect.catchCause((cause) => {
+                slog.warn("sidecar Exact enrich failed (tool diffs/codegraph); storing body without handles", {
+                  error: Cause.pretty(cause),
+                })
+                return Effect.succeed({ diffs: [], impact: undefined })
+              }),
+            )
+          // Old tested product: Inferred body + system Exact (range / diffs / CG).
+          // Placement only differs: project_checkpoint + UI panel, not agent M.
+          const checkpointID = ulid()
+          const fromID = range[0].info.id
+          const toID = range[range.length - 1].info.id
+          if (!SessionCompaction.isValidSummaryBody(body)) {
+            yield* slog.warn("sidecar rejecting invalid summary body", {
+              bodyLen: body.length,
+              gaps: SessionCompaction.diagnoseSummaryGaps(body),
+            })
+            return false
+          }
+          IncrementalCheckpoint.save({
+            id: checkpointID,
+            sessionID,
+            fromMessageID: fromID,
+            toMessageID: toID,
+            predecessorID: previous?.id,
+            providerID: input.model.providerID,
+            modelID: input.model.id,
+            agent: input.cacheIdentity.name,
+            body,
+            diffs: enrichment.diffs,
+            impact: enrichment.impact,
+          })
+          // Print full old-style s for the user; synthetic+ignored → not agent M.
+          const displayText = SessionCompaction.formatLayer1SummaryDisplay({
+            checkpointID,
+            fromID,
+            toID,
+            sessionID,
+            body,
+            diffs: enrichment.diffs,
+            impact: enrichment.impact,
+          })
+          const displayMsg = yield* sessions.updateMessage({
+            id: MessageID.ascending(),
+            role: "user",
+            sessionID,
+            agent: input.cacheIdentity.name,
+            model: {
+              providerID: input.model.providerID,
+              modelID: input.model.id,
+            },
+            time: { created: Date.now() },
+          })
+          yield* sessions.updatePart({
+            id: PartID.ascending(),
+            messageID: displayMsg.id,
+            sessionID,
+            type: "text",
+            text: displayText,
+            synthetic: true,
+            ignored: true,
+          })
+          yield* slog.info("sidecar checkpoint captured", {
+            openTokens,
+            threshold,
+            fromID,
+            toID,
+            checkpointID,
+            toolDiffFiles: enrichment.diffs?.length ?? 0,
+            hasCodeGraph: !!enrichment.impact,
+            displayMessageID: displayMsg.id,
+          })
+          lastSidecarCapture.set(sessionID, Date.now())
+          return true
+        }        ).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              sidecarInFlight.delete(sessionID)
+              Constitution.setSummaryMode(sessionID, false)
+            }),
+          ),
+        )
+      })
+
+    /**
+     * T3: emergency Layer-1 capture for the /summarize route — builds the
+     * model-ready checkpoint from the current visible window and runs the
+     * sidecar summary WITHOUT a full turn. Returns true when a valid
+     * checkpoint was saved (the caller may then fold safely).
+     */
+    const captureSummary = (input: {
+      sessionID: SessionID
+      model: { providerID: ProviderID; modelID: ModelID }
+      agent: string
+    }) =>
+      Effect.gen(function* () {
+        const ctx = yield* InstanceState.context
+        const visible = yield* MessageV2.filterCompactedEffect(input.sessionID)
+        if (!visible.length) return false
+        // Idempotency: a lone message* is already the memory handle — nothing
+        // new to summarize; capturing would only nest stars on repeated calls.
+        if (visible.length === 1 && SessionCompaction.isMessageStar(visible[0])) return false
+        const model = yield* getModel(input.model.providerID, input.model.modelID, input.sessionID)
+        const agent = (yield* agents.get(input.agent)) ?? (yield* agents.defaultAgent())
+        const cacheAgent = providerIdentityForMode(agent, (yield* agents.get("build_mode")) ?? agent)
+        const checkpointAgentName = isPrimaryModeIdentity(cacheAgent.name) ? undefined : cacheAgent.name
+        const lastUserMsg = visible.findLast(
+          (m) => m.info.role === "user" && !SessionCompaction.isLayer1SummaryMessage(m),
+        )
+        if (!lastUserMsg || lastUserMsg.info.role !== "user") return false
+        const user = lastUserMsg.info
+        // System prefix: reuse the encrypted checkpoint when identity-compatible,
+        // else cold-assemble the path system (rare fallback).
+        const cleanIdentity = ProviderTransform.systemPromptPrefix(model)
+        const checkpoint = yield* Checkpoint.load({
+          sessionID: input.sessionID,
+          providerID: model.providerID,
+          modelID: model.id,
+          projectID: ctx.project.id,
+          agentName: checkpointAgentName,
+        }).pipe(Effect.catch(() => Effect.succeed(null)))
+        const checkpointUsable =
+          checkpoint && Checkpoint.isIdentityCompatible(checkpoint, cleanIdentity) ? checkpoint : undefined
+        const [skills, env, instructions, rules] = checkpointUsable
+          ? [undefined, [] as string[], [] as string[], [] as string[]] as const
+          : yield* Effect.all([
+              sys.skills(),
+              Effect.sync(() => sys.environment(model)),
+              instruction.system().pipe(Effect.orDie),
+              instruction.rules().pipe(Effect.orDie),
+            ])
+        const system = checkpointUsable
+          ? [...checkpointUsable.systemPrompt]
+          : assemblePathSystem({ skills: skills || undefined, env, rules, instructions })
+        const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
+          visible,
+          model,
+          toolReplayOptions(yield* config.get()),
+        )
+        const checkpointData = {
+          kind: Checkpoint.CHECKPOINT_KIND,
+          version: Checkpoint.CHECKPOINT_VERSION,
+          systemPrompt: cleanIdentity ? [cleanIdentity, ...system] : [...system],
+          identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
+          messages: converted.messages,
+          messageIDs: visible.map((item) => item.info.id),
+          modelMessageCounts: converted.counts,
+          model: { providerID: model.providerID, modelID: model.id },
+          agent: cacheAgent.name,
+          turn: 1,
+          timestamp: Date.now(),
+        } satisfies CheckpointData
+        Checkpoint.publish({ sessionID: input.sessionID, data: checkpointData })
+        yield* Checkpoint.persist({
+          sessionID: input.sessionID,
+          projectID: ctx.project.id,
+          data: checkpointData,
+        })
+        // Emergency branch: never fold here. If the window exceeds headroom,
+        // the capture returns false and the route surfaces an error instead of
+        // silently folding uncovered history.
+        return yield* captureSidecar({
+          sessionID: input.sessionID,
+          visible,
+          model,
+          agent,
+          cacheIdentity: cacheAgent,
+          user,
+          checkpoint: checkpointData,
+          tools: {},
+          afterAssistant: undefined,
+          onHeadroomCompact: () => Effect.succeed(false),
+        })
+      }).pipe(
+        Effect.catchCause((cause) => {
+          elog.warn("bug: emergency summary capture failed", {
+            sessionID: input.sessionID,
+            error: Cause.pretty(cause),
+          })
+          return Effect.succeed(false)
+        }),
+      )
+
     const lastModel = Effect.fnUntraced(function* (sessionID: SessionID) {
       const match = yield* sessions.findMessage(sessionID, (m) => m.info.role === "user" && !!m.info.model)
       if (Option.isSome(match) && match.value.info.role === "user") return match.value.info.model
@@ -1247,215 +1581,9 @@ export const layer = Layer.effect(
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
-        /**
-         * Capture an LLM-authored checkpoint on an isolated branch. The request
-         * and response never become Message/Part rows, so normal M is unchanged.
-         */
-        const maybeCaptureSidecar = (input: {
-          visible: MessageV2.WithParts[]
-          model: Provider.Model
-          agent: Agent.Info
-          cacheIdentity: Agent.Info
-          user: MessageV2.User
-          checkpoint: CheckpointData
-          tools: Record<string, AITool>
-          afterAssistant?: MessageV2.WithParts
-        }) =>
-          Effect.gen(function* () {
-            if (input.afterAssistant && !SessionCompaction.isAssistantTurnComplete(input.afterAssistant)) return false
-            if (sidecarInFlight.has(sessionID)) return false
-            // Rate-limit: cooldown between sequential captures to avoid
-            // excessive LLM calls during rapid-fire short turns.
-            const lastCapture = lastSidecarCapture.get(sessionID)
-            if (lastCapture !== undefined && Date.now() - lastCapture < SIDECAR_COOLDOWN_MS) return false
-            // Layer-1 cadence is a pure content counter (65 536 open-window
-            // tokens) — NOT context-clamped. Small-context models rely on
-            // Layer-2 compaction; the pre-flight below guards request fit.
-            const threshold = SessionCompaction.layer1SummaryThreshold()
-            const previous = IncrementalCheckpoint.latestOpen(sessionID)
-            const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible, previous?.toMessageID)
-            if (openTokens < threshold) return false
-            // Pre-flight (user invariant): the summary request is FULL
-            // checkpoint M + prose, and the response needs ≥32K generation
-            // room. If M + 32K exceeds the provider limit, the provider would
-            // CUT content — compact first when a fold can shrink M. A lone
-            // message* cannot fold smaller; capturing is its only exit path.
-            const fullMTokens = estimateContentTokens(input.visible, input.model)
-            if (summaryNeedsCompactFirst({ model: input.model, contentTokens: fullMTokens })) {
-              if (SessionCompaction.hasFoldableContent(input.visible)) {
-                yield* slog.warn("sidecar summary blocked: no 32K generation headroom — compacting first", {
-                  sessionID,
-                  fullMTokens,
-                  requestTokens: estimateRequestTokens(fullMTokens),
-                  generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
-                  modelContext: input.model.limit.context,
-                })
-                yield* maybeCompactCadence({ model: input.model, agent: input.agent.name, force: true })
-                return false
-              }
-              yield* slog.warn("sidecar summary: star exceeds 32K headroom and cannot fold — capturing anyway (only exit path)", {
-                sessionID,
-                fullMTokens,
-                requestTokens: estimateRequestTokens(fullMTokens),
-                generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
-                modelContext: input.model.limit.context,
-              })
-            }
-            const boundary = previous?.toMessageID
-            const start = boundary ? input.visible.findIndex((m) => m.info.id === boundary) + 1 : 0
-            const range = input.visible.slice(Math.max(0, start))
-            if (!range.length) return false
-            sidecarInFlight.add(sessionID)
-            // System flag: execution of ALL tools is blocked while the summary
-            // request is in flight. Tools stay on the wire — prefix parity with
-            // the trunk is preserved (see tools.ts summary guard).
-            Constitution.setSummaryMode(sessionID, true)
-            return yield* Effect.gen(function* () {
-              const lastSv = previous?.body
-                ? SessionCompaction.extractSemanticVector(previous.body)
-                : undefined
-              // Same shape as a normal working turn: full checkpoint M (the
-              // previous request's model-ready messages) + one synthetic user
-              // prompt. No range reconversion, no tool_choice=none, standard
-              // output budget — the sidecar must not diverge from the trunk.
-              const sidecarAgent = input.cacheIdentity ?? input.agent
-              let body = ""
-              // Retry loop, soft gap-fill: attempt 1 = fresh summary request;
-              // attempts 2+ = the SAME full-M request shape, user message names
-              // the deficient sections + previous draft. Nothing is switched
-              // off — same system, same tools, standard budget. Identical M
-              // prefix → provider cache hits on retries (verified live: M
-              // prefix hit 0.990 with a changed tail message).
-              for (let attempt = 0; attempt < SIDECAR_MAX_ATTEMPTS; attempt++) {
-                const requestText =
-                  attempt === 0
-                    ? SessionCompaction.summaryRequestProse(lastSv)
-                    : `${SessionCompaction.gapFillRequest(body, SessionCompaction.diagnoseSummaryGaps(body))}\n\nPrevious draft for reference:\n${body}`
-                const reply = yield* llm
-                  .stream({
-                    user: input.user,
-                    agent: sidecarAgent,
-                    permission: session.permission,
-                    sessionID,
-                    providerCacheKey: input.user.providerCacheKey
-                      ? `${input.user.providerCacheKey}:sidecar`
-                      : undefined,
-                    system: [...input.checkpoint.systemPrompt],
-                    messages: [
-                      ...input.checkpoint.messages,
-                      { role: "user", content: requestText },
-                    ],
-                    tools: input.tools,
-                    model: input.model,
-                  })
-                  .pipe(
-                    Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
-                    Stream.map((event) => event.text),
-                    Stream.mkString,
-                    Effect.catchCause((cause) => {
-                      slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
-                      return Effect.succeed("")
-                    }),
-                  )
-                if (attempt === 0) body = reply
-                else body = SessionCompaction.mergeSummarySections(body, reply)
-                if (SessionCompaction.isValidSummaryBody(body)) break
-                yield* slog.debug("sidecar summary invalid — retrying same request", {
-                  attempt: attempt + 1,
-                  bodyLen: body.length,
-                  gaps: SessionCompaction.diagnoseSummaryGaps(body),
-                })
-              }
-              // Exact: write/edit/multiedit tool filediffs in range + CodeGraph on those paths.
-              // Fossil is rollback only — not used here. Soft-fail enrich, keep body.
-              const beforeMessages =
-                start > 0 ? input.visible.slice(0, Math.max(0, start)) : []
-              const enrichment = yield* summary
-                .enrichRange({ sessionID, messages: range, beforeMessages })
-                .pipe(
-                  Effect.catchCause((cause) => {
-                    slog.warn("sidecar Exact enrich failed (tool diffs/codegraph); storing body without handles", {
-                      error: Cause.pretty(cause),
-                    })
-                    return Effect.succeed({ diffs: [], impact: undefined })
-                  }),
-                )
-              // Old tested product: Inferred body + system Exact (range / diffs / CG).
-              // Placement only differs: project_checkpoint + UI panel, not agent M.
-              const checkpointID = ulid()
-              const fromID = range[0].info.id
-              const toID = range[range.length - 1].info.id
-              if (!SessionCompaction.isValidSummaryBody(body)) {
-                yield* slog.warn("sidecar rejecting invalid summary body", {
-                  bodyLen: body.length,
-                  gaps: SessionCompaction.diagnoseSummaryGaps(body),
-                })
-                return false
-              }
-              IncrementalCheckpoint.save({
-                id: checkpointID,
-                sessionID,
-                fromMessageID: fromID,
-                toMessageID: toID,
-                predecessorID: previous?.id,
-                providerID: input.model.providerID,
-                modelID: input.model.id,
-                agent: input.cacheIdentity.name,
-                body,
-                diffs: enrichment.diffs,
-                impact: enrichment.impact,
-              })
-              // Print full old-style s for the user; synthetic+ignored → not agent M.
-              const displayText = SessionCompaction.formatLayer1SummaryDisplay({
-                checkpointID,
-                fromID,
-                toID,
-                sessionID,
-                body,
-                diffs: enrichment.diffs,
-                impact: enrichment.impact,
-              })
-              const displayMsg = yield* sessions.updateMessage({
-                id: MessageID.ascending(),
-                role: "user",
-                sessionID,
-                agent: input.cacheIdentity.name,
-                model: {
-                  providerID: input.model.providerID,
-                  modelID: input.model.id,
-                },
-                time: { created: Date.now() },
-              })
-              yield* sessions.updatePart({
-                id: PartID.ascending(),
-                messageID: displayMsg.id,
-                sessionID,
-                type: "text",
-                text: displayText,
-                synthetic: true,
-                ignored: true,
-              })
-              yield* slog.info("sidecar checkpoint captured", {
-                openTokens,
-                threshold,
-                fromID,
-                toID,
-                checkpointID,
-                toolDiffFiles: enrichment.diffs?.length ?? 0,
-                hasCodeGraph: !!enrichment.impact,
-                displayMessageID: displayMsg.id,
-              })
-              lastSidecarCapture.set(sessionID, Date.now())
-              return true
-            }).pipe(
-              Effect.ensuring(
-                Effect.sync(() => {
-                  sidecarInFlight.delete(sessionID)
-                  Constitution.setSummaryMode(sessionID, false)
-                }),
-              ),
-            )
-          })
+        // captureSidecar moved to layer level so the /summarize HTTP route can
+        // run an emergency capture without a full turn; runLoop passes its
+        // cadence hook via onHeadroomCompact.
 
         /**
          * Layer-2 fold (zero LLM tokens) when **model usable context** is full —
@@ -1475,8 +1603,10 @@ export const layer = Layer.effect(
         }) =>
           Effect.gen(function* () {
             const openSidecars = IncrementalCheckpoint.listOpen(sessionID).length
-            // Hold fold until ≥2 open s rows (or pure history with zero sidecars).
-            if (openSidecars === 1 && !input.force) {
+            // T4: hold fold until ≥2 open s rows. Zero sidecars means nothing
+            // covers the fold — compact() refuses anyway (T2 invariant); skip
+            // early instead of letting a forced fold destroy uncovered history.
+            if (openSidecars < 2 && !input.force) {
               yield* slog.info("layer2.cadence.skip_single_sidecar", {
                 sessionID,
                 openSidecars,
@@ -2148,7 +2278,10 @@ export const layer = Layer.effect(
             // next iteration. `process()` returns "continue" for a normal tool step,
             // so this must not be nested below the result === "stop" error path.
             // Provider-executed tools were fully handled in-stream and need no re-loop.
-            if (msg.finish === "tool-calls" || MessageV2.parts(msg.id).some((part) => part.type === "tool" && !part.metadata?.providerExecuted)) {
+            const hasToolParts =
+              msg.finish === "tool-calls" ||
+              MessageV2.parts(msg.id).some((part) => part.type === "tool" && !part.metadata?.providerExecuted)
+            if (hasToolParts) {
               // Tool execution updates parts of this assistant message in place.
               // The incremental cache only discovers new IDs, so it cannot observe
               // that mutation on the next loop iteration.
@@ -2157,63 +2290,97 @@ export const layer = Layer.effect(
               return "continue" as const
             }
 
-            if (result === "stop") {
+            // T1: a normal clean completion (finish set, no tool parts, no error).
+            // The processor returns "continue" for these — "stop" is reserved for
+            // blocked/errored turns. The Layer-1 sidecar capture must run on the
+            // normal path too; error/blocked turns keep the previous behavior.
+            const completedCleanly = result === "continue" && finished && !handle.message.error
+
+            if (result === "stop" || completedCleanly) {
               // Layer 1 only after this assistant fully completed (reasoning closed).
               // Never inject mid-stream or mid-tool-loop — reasoning models require
               // the open turn to finish before any synthetic user message.
               const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
               const completedAsst = visibleAfter.find((m) => m.info.id === msg.id)
-              // Publish normal M before opening the ephemeral sidecar branch.
-              // Its disk copy is durability only; the sidecar receives this exact
-              // model-ready state and cannot alter the main outcome.
-              const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
-                visibleAfter,
-                model,
-                toolReplayOptions(yield* config.get()),
-              )
-              const checkpointData = {
-                kind: Checkpoint.CHECKPOINT_KIND,
-                version: Checkpoint.CHECKPOINT_VERSION,
-                systemPrompt: checkpointUsable ? [...system] : cleanIdentity ? [cleanIdentity, ...system] : [...system],
-                identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
-                messages: converted.messages,
-                messageIDs: visibleAfter.map((item) => item.info.id),
-                modelMessageCounts: converted.counts,
-                model: { providerID: model.providerID, modelID: model.id },
-                agent: cacheAgent.name,
-                turn: step + 1,
-                timestamp: Date.now(),
-              } satisfies CheckpointData
-              Checkpoint.publish({ sessionID, data: checkpointData })
-              // Contract: summary only AFTER checkpoint is durable on disk (not fire-and-forget).
-              yield* Checkpoint.persist({
-                sessionID,
-                projectID: ctx.project.id,
-                data: checkpointData,
-              })
-              // Then: s outside M (ephemeral summary + Exact tool diffs/CodeGraph on range).
-              const sidecarCaptured = yield* maybeCaptureSidecar({
-                visible: visibleAfter,
-                model,
-                agent,
-                cacheIdentity: cacheAgent,
-                user: lastUser,
-                checkpoint: checkpointData,
-                tools,
-                afterAssistant: completedAsst,
-              })
-              // Never compact on the same stop as a new s — work continues with M
-              // intact and s outside. Layer-2 runs on a later stop (and only when
-              // ≥2 open sidecars, see maybeCompactCadence).
-              if (!sidecarCaptured) {
+              // Cheap gates before the expensive full-M conversion: on normal
+              // completions, build the model-ready checkpoint + attempt capture
+              // only when the Layer-1 cadence window is open.
+              const captureDue =
+                result === "stop" ||
+                (SessionCompaction.isAssistantTurnComplete(completedAsst) &&
+                  !sidecarInFlight.has(sessionID) &&
+                  (lastSidecarCapture.get(sessionID) === undefined ||
+                    Date.now() - (lastSidecarCapture.get(sessionID) ?? 0) >= SIDECAR_COOLDOWN_MS) &&
+                  SessionCompaction.computeOpenWindowTokens(
+                    visibleAfter,
+                    IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
+                  ) >= SessionCompaction.layer1SummaryThreshold())
+              if (captureDue) {
+                // Publish normal M before opening the ephemeral sidecar branch.
+                // Its disk copy is durability only; the sidecar receives this exact
+                // model-ready state and cannot alter the main outcome.
+                const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
+                  visibleAfter,
+                  model,
+                  toolReplayOptions(yield* config.get()),
+                )
+                const checkpointData = {
+                  kind: Checkpoint.CHECKPOINT_KIND,
+                  version: Checkpoint.CHECKPOINT_VERSION,
+                  systemPrompt: checkpointUsable ? [...system] : cleanIdentity ? [cleanIdentity, ...system] : [...system],
+                  identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
+                  messages: converted.messages,
+                  messageIDs: visibleAfter.map((item) => item.info.id),
+                  modelMessageCounts: converted.counts,
+                  model: { providerID: model.providerID, modelID: model.id },
+                  agent: cacheAgent.name,
+                  turn: step + 1,
+                  timestamp: Date.now(),
+                } satisfies CheckpointData
+                Checkpoint.publish({ sessionID, data: checkpointData })
+                // Contract: summary only AFTER checkpoint is durable on disk (not fire-and-forget).
+                yield* Checkpoint.persist({
+                  sessionID,
+                  projectID: ctx.project.id,
+                  data: checkpointData,
+                })
+                // Then: s outside M (ephemeral summary + Exact tool diffs/CodeGraph on range).
+                const sidecarCaptured = yield* captureSidecar({
+                  sessionID,
+                  visible: visibleAfter,
+                  model,
+                  agent,
+                  cacheIdentity: cacheAgent,
+                  user: lastUser,
+                  checkpoint: checkpointData,
+                  tools,
+                  afterAssistant: completedAsst,
+                  onHeadroomCompact: () => maybeCompactCadence({ model, agent: lastUser.agent, force: true }),
+                })
+                // Never compact on the same stop as a new s — work continues with M
+                // intact and s outside. Layer-2 runs on a later stop (and only when
+                // ≥2 open sidecars, see maybeCompactCadence).
+                if (!sidecarCaptured) {
+                  yield* maybeCompactCadence({
+                    model,
+                    agent: lastUser.agent,
+                  })
+                } else {
+                  yield* slog.info("layer2.cadence.defer_after_sidecar", { sessionID })
+                }
+              } else {
+                // Layer-2 fold gate runs at every turn end regardless of the
+                // Layer-1 summary cadence: compact fires when the open window
+                // reaches limit − 32K (+request gap) — even before 64K of new
+                // content accumulated for the summary cadence. After a fold the
+                // open-window counter becomes len(message*)/4 (no summary
+                // boundary after the star).
                 yield* maybeCompactCadence({
                   model,
                   agent: lastUser.agent,
                 })
-              } else {
-                yield* slog.info("layer2.cadence.defer_after_sidecar", { sessionID })
               }
-              if (!titleRequested) {
+              if (result === "stop" && !titleRequested) {
                 titleRequested = true
                 yield* title({
                   session,
@@ -2225,7 +2392,9 @@ export const layer = Layer.effect(
                   Effect.forkIn(scope),
                 )
               }
-              return "break" as const
+              if (result === "stop") return "break" as const
+              // completedCleanly: fall through to the encrypted incremental
+              // checkpoint save below, then "continue" → top-of-loop break.
             }
             if (result === "compact") {
               // Compact → message*. Next loop recomputes the open-window
@@ -2474,6 +2643,7 @@ export const layer = Layer.effect(
       shell,
       command,
       resolvePromptParts,
+      captureSummary,
     })
   }),
 )

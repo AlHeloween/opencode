@@ -710,7 +710,7 @@ export const sessionHandlers = Layer.unwrap(
       payload: typeof SummarizePayload.Type
     }) {
       const instance = yield* InstanceState.context
-      yield* Effect.promise(() =>
+      const captured = yield* Effect.promise(() =>
         Instance.restore(instance, () =>
           AppRuntime.runPromise(
             Effect.gen(function* () {
@@ -726,6 +726,17 @@ export const sessionHandlers = Layer.unwrap(
               const currentAgent =
                 messages.findLast((message) => message.info.role === "user")?.info.agent ?? defaultAgent
 
+              // T3: capture-first. A forced fold without summary coverage
+              // silently destroys history (compact() now refuses it anyway) —
+              // so build the emergency sidecar summary BEFORE folding.
+              const captured = yield* prompt.captureSummary({
+                sessionID: ctx.params.sessionID,
+                model: {
+                  providerID: ctx.payload.providerID,
+                  modelID: ctx.payload.modelID,
+                },
+                agent: currentAgent,
+              })
               yield* compact.compact({
                 sessionID: ctx.params.sessionID,
                 model: {
@@ -736,6 +747,7 @@ export const sessionHandlers = Layer.unwrap(
                 force: true, // User explicitly requested compaction — bypass alreadyCompacted guard
               })
               yield* prompt.loop({ sessionID: ctx.params.sessionID })
+              return captured
             }).pipe(
               Effect.provide(SessionRevert.defaultLayer),
               Effect.provide(SessionCompaction.defaultLayer),
@@ -746,7 +758,7 @@ export const sessionHandlers = Layer.unwrap(
           ),
         ),
       )
-      return true
+      return captured
     })
 
     const prompt = Effect.fn("SessionHttpApi.prompt")(function* (ctx: {

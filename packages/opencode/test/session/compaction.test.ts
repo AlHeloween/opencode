@@ -166,7 +166,7 @@ describe("session.compaction.sequential-compact", () => {
         // Create a summary + recent messages, then compact once
         const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
-        yield* ssn.updateMessage({
+        const sa = yield* ssn.updateMessage({
           id: MessageID.ascending(), role: "assistant", sessionID: info.id,
           mode: "build", agent: "build", parentID: su.id,
           modelID: ref.modelID, providerID: ref.providerID,
@@ -175,6 +175,7 @@ describe("session.compaction.sequential-compact", () => {
           summary: true, finish: "end_turn",
           time: { created: Date.now() },
         } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "## Goal\n- summary for first compact" })
         const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent-msg" })
 
@@ -207,7 +208,7 @@ describe("session.compaction.sequential-compact", () => {
 
         const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
-        yield* ssn.updateMessage({
+        const sa = yield* ssn.updateMessage({
           id: MessageID.ascending(), role: "assistant", sessionID: info.id,
           mode: "build", agent: "build", parentID: su.id,
           modelID: ref.modelID, providerID: ref.providerID,
@@ -216,6 +217,7 @@ describe("session.compaction.sequential-compact", () => {
           summary: true, finish: "end_turn",
           time: { created: Date.now() },
         } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "## Goal\n- summary for forced test" })
         const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent-msg" })
 
@@ -359,6 +361,45 @@ describe("session.compaction.user-messages-in-recent", () => {
           type: "text",
           text: "assistant reply one",
         })
+        // Legacy summary covering the first window (T2: folds require coverage)
+        const s1u = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: s1u.id,
+          sessionID: info.id,
+          type: "text",
+          text: "summary-req-1",
+        })
+        const s1a = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "build",
+          agent: "build",
+          parentID: s1u.id,
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true,
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: s1a.id,
+          sessionID: info.id,
+          type: "text",
+          text: "## Goal\n- summary for first window",
+        })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after1 = yield* MessageV2.filterCompactedEffect(info.id)
@@ -418,6 +459,45 @@ Active memory is the compacted message (=== COMPACTED ===) and/or summary assist
           sessionID: info.id,
           type: "text",
           text: "assistant reply two",
+        })
+        // Second legacy summary covering the post-compact window (T2)
+        const s2u = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: s2u.id,
+          sessionID: info.id,
+          type: "text",
+          text: "summary-req-2",
+        })
+        const s2a = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "build",
+          agent: "build",
+          parentID: s2u.id,
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true,
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: s2a.id,
+          sessionID: info.id,
+          type: "text",
+          text: "## Goal\n- summary for second window",
         })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build", force: true })
@@ -1364,8 +1444,10 @@ describe("session.compaction.compact", () => {
           type: "text", text: "## Goal\n- summary content here",
         })
 
-        // Create recent messages (will be kept)
-        for (const text of ["recent-1", "recent-2"]) {
+        // Create recent messages (will be kept). Pad past RECENT_MIN_TOKENS so the
+        // walk-back does not overlap into pre-summary history (overlap is intended
+        // only for thin tails).
+        for (const text of ["recent-1", "recent-2" + "y".repeat(140_000)]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
             agent: "build", model: ref, time: { created: Date.now() },
@@ -1402,7 +1484,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "folds all visible messages into message* when no summaries exist",
+    "refuses to fold when no summaries exist (T2 invariant)",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1418,25 +1500,86 @@ describe("session.compaction.compact", () => {
           yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
         }
 
-        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const result = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build", force: true })
 
+        // No summaries → fold refused; every message stays visible (no memory loss).
+        expect(result.folded).toBe(false)
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        // Only message* is visible; content preserved inside it
-        expect(msgs).toHaveLength(1)
+        expect(msgs).toHaveLength(3)
         const combined = msgs
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
-        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).not.toContain("=== COMPACTED ===")
         expect(combined).toContain("msg-1")
-        expect(combined).toContain("msg-2")
         expect(combined).toContain("msg-3")
-        expect(combined).toContain("session_id")
       }),
     ),
   )
 
   it.live(
-    "trims to ~30K tokens when no summary and context is large",
+    "walk-back hard-stops at the prior message* (tail never crosses the star)",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        // Pre-star history folded with a summary
+        const old = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: old.id, sessionID: info.id, type: "text", text: "pre-star-history" })
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn", time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "## Goal\n- covers pre-star history" })
+
+        // First fold → star1
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after1 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after1).toHaveLength(1)
+
+        // Growth + second summary → second fold with a THIN tail (< 32K floor)
+        const growth = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: growth.id, sessionID: info.id, type: "text", text: "post-star-work" })
+        const su2 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su2.id, sessionID: info.id, type: "text", text: "summary-req-2" })
+        const sa2 = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su2.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn", time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa2.id, sessionID: info.id, type: "text", text: "## Goal\n- covers post-star work" })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after2 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after2).toHaveLength(1)
+        const combined = after2
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        // Thin tail → walk-back includes the prior star as ONE boundary unit…
+        expect(combined).toContain("post-star-work")
+        expect(combined).toContain("Prior message*")
+        // …and never walks past it: exactly two marker blocks — the new header
+        // plus the embedded prior star (one unit, not exploded into raw history).
+        expect(combined.split("=== COMPACTED ===").length - 1).toBe(2)
+        // The embedded star sits before the post-star messages (chronological).
+        expect(combined.indexOf("Prior message*")).toBeLessThan(combined.indexOf("post-star-work"))
+      }),
+    ),
+  )
+
+  it.live(
+    "refuses to fold a large session when no summaries exist (T2 invariant)",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1444,7 +1587,7 @@ describe("session.compaction.compact", () => {
         const info = yield* ssn.create({})
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
 
-        // 30 messages × 5K chars = 150K chars ≈ 37.5K tokens — exceeds 30K threshold
+        // 30 messages × 5K chars = 150K chars ≈ 37.5K tokens
         for (const text of Array.from({ length: 30 }, (_, i) => `msg-${i}-` + "x".repeat(5000))) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
@@ -1453,16 +1596,12 @@ describe("session.compaction.compact", () => {
           yield* ssn.updatePart({ id: PartID.ascending(), messageID: u.id, sessionID: info.id, type: "text", text })
         }
 
-        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const result = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
+        // No summary coverage → nothing folded, nothing trimmed, nothing hidden.
+        expect(result.folded).toBe(false)
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(msgs).toHaveLength(1)
-        const combined = msgs
-          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
-          .join("\n")
-        expect(combined).toContain("=== COMPACTED ===")
-        expect(combined.includes("msg-28") || combined.includes("msg-29")).toBe(true)
-        expect(combined).not.toContain("msg-0-")
+        expect(msgs).toHaveLength(30)
       }),
     ),
   )
@@ -1492,7 +1631,7 @@ describe("session.compaction.injectSummaryRequest", () => {
         const systemBody = systemParts.map((p) => p.text).join("\n")
 
         // Model-facing: SVM / goal / decisions / state only — no digital facts.
-        expect(modelBody).toContain("structured summary")
+        expect(modelBody).toContain("Layer-1 memory summary")
         expect(modelBody).toContain("## Semantic Vector")
         expect(modelBody).toContain("## Goal")
         expect(modelBody).toContain("## Key decisions")
@@ -1696,15 +1835,26 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(10_000)
   })
 
-  test("counts only after last summary assistant", () => {
+  test("counts only after the checkpoint boundary (sidecar to_id)", () => {
     const msgs = [
       textMsg("u0", "user", "x".repeat(40_000)),
       textMsg("s1", "assistant", "summary", { summary: true }),
       textMsg("u1", "user", "y".repeat(8_000)),
       textMsg("a1", "assistant", "z".repeat(4_000)),
     ]
-    // Only u1+a1 after s1: 12_000 chars → 3_000 tokens
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(3_000)
+    // Boundary = s1 → only u1+a1 after it: 12_000 chars → 3_000 tokens
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, "s1")).toBe(3_000)
+  })
+
+  test("without a boundary, counts the whole visible list (sidecar semantics)", () => {
+    const msgs = [
+      textMsg("u0", "user", "x".repeat(40_000)),
+      textMsg("s1", "assistant", "summary", { summary: true }),
+      textMsg("u1", "user", "y".repeat(8_000)),
+      textMsg("a1", "assistant", "z".repeat(4_000)),
+    ]
+    // 52_007 chars → 13_002 tokens — a legacy summary assistant is no boundary.
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(13_002)
   })
 
   test("message* body alone can exceed SUMMARY_INTERVAL_TOKENS", () => {
@@ -1714,12 +1864,12 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(tokens).toBeGreaterThanOrEqual(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
   })
 
-  test("returns 0 when latest message is a summary assistant", () => {
+  test("returns 0 when the boundary is the latest message", () => {
     const msgs = [
       textMsg("u0", "user", "x".repeat(40_000)),
       textMsg("s1", "assistant", "done", { summary: true }),
     ]
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(0)
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, "s1")).toBe(0)
   })
 
   test("empty message list returns 0", () => {
@@ -1821,9 +1971,10 @@ describe("session.compaction.multiple-summaries", () => {
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: s2u.id, sessionID: info.id, type: "text", text: "summary-2-request" })
         yield* makeAssistant(s2u.id, true)
 
-        // recent messages after s2
+        // recent messages after s2 (padded past RECENT_MIN_TOKENS so the Recent
+        // walk-back does not overlap into pre-summary history)
         const r1 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
-        yield* ssn.updatePart({ id: PartID.ascending(), messageID: r1.id, sessionID: info.id, type: "text", text: "recent-after-s2" })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: r1.id, sessionID: info.id, type: "text", text: "recent-after-s2" + "z".repeat(140_000) })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
@@ -1971,7 +2122,7 @@ describe("session.compaction.regression", () => {
         // Create a summary
         const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
-        yield* ssn.updateMessage({
+        const sa = yield* ssn.updateMessage({
           id: MessageID.ascending(), role: "assistant", sessionID: info.id,
           mode: "build", agent: "build", parentID: su.id,
           modelID: ref.modelID, providerID: ref.providerID,
@@ -1980,6 +2131,7 @@ describe("session.compaction.regression", () => {
           summary: true, finish: "end_turn",
           time: { created: Date.now() },
         } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "## Goal\n- regression coverage" })
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
@@ -2012,7 +2164,7 @@ describe("session.compaction.regression", () => {
         }
         const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
-        yield* ssn.updateMessage({
+        const sa = yield* ssn.updateMessage({
           id: MessageID.ascending(), role: "assistant", sessionID: info.id,
           mode: "build", agent: "build", parentID: su.id,
           modelID: ref.modelID, providerID: ref.providerID,
@@ -2021,6 +2173,7 @@ describe("session.compaction.regression", () => {
           summary: true, finish: "end_turn",
           time: { created: Date.now() },
         } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "## Goal\n- fast path coverage" })
         const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent" })
 
@@ -2065,7 +2218,7 @@ describe("session.compaction.edge-cases", () => {
         const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
         const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
-        yield* ssn.updateMessage({
+        const sa2 = yield* ssn.updateMessage({
           id: MessageID.ascending(), role: "assistant", sessionID: info.id,
           mode: "build", agent: "build", parentID: su.id,
           modelID: ref.modelID, providerID: ref.providerID,
@@ -2073,6 +2226,7 @@ describe("session.compaction.edge-cases", () => {
           tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
           summary: true, finish: "end_turn", time: { created: Date.now() },
         } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa2.id, sessionID: info.id, type: "text", text: "## Goal\n- no tail coverage" })
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
         expect(msgs).toHaveLength(1)
@@ -2082,7 +2236,7 @@ describe("session.compaction.edge-cases", () => {
     ),
   )
 
-  it.live("re-compacts after growth: (m*, m) → new message*", () =>
+  it.live("refuses re-compact after growth without a new summary (no memory loss)", () =>
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -2112,19 +2266,16 @@ describe("session.compaction.edge-cases", () => {
         const normal = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: normal.id, sessionID: info.id, type: "text", text: "post-star-work" })
 
-        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        // No new summary in this window → T2 refuses the fold; nothing is hidden.
+        const second = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        expect(second.folded).toBe(false)
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(after2).toHaveLength(1)
-        expect(after2[0].info.id).not.toBe(star1)
-        const combined = after2
+        expect(after2).toHaveLength(2)
+        expect(after2[0].info.id).toBe(star1)
+        const texts2 = after2
           .flatMap((m: any) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
-        expect(combined).toContain("=== COMPACTED ===")
-        // Bounded summary scope: the second message* contains only summaries
-        // from the current compaction window (since the prior message*).
-        // "first cycle summary" belongs to the prior message*, accessible via:
-        expect(combined).toContain("Prior message*")
-        expect(combined).toContain("post-star-work")
+        expect(texts2).toContain("post-star-work")
       }),
     ),
   )
@@ -2264,8 +2415,10 @@ describe("session.compaction.key-decisions", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(after2).toHaveLength(1)
-        expect(after2[0].info.id).not.toBe(star1)
+        // No new summary in this window → T2 refuses; the first star (with the
+        // preserved decision) and the growth message both stay visible.
+        expect(after2).toHaveLength(2)
+        expect(after2[0].info.id).toBe(star1)
         const text2 = after2
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
@@ -2430,10 +2583,11 @@ describe("session.compaction.full-cycle", () => {
         yield* mkSummary("summary for segment 2", "decision-from-s2")
 
         // ============================================================
-        // Segment 3 (recent, <30k): m7, u3, m8, m9
-        // ============================================================
+        // Segment 3 (recent, <30k): m7, u3, m8, m9 — u3 padded past
+        // RECENT_MIN_TOKENS so the Recent walk-back does not overlap into
+        // already-summarized segments.
         yield* mkAssistant([{ type: "text", text: "assistant-text-7" }])
-        yield* mkUser("user-msg-3")
+        yield* mkUser("user-msg-3" + "z".repeat(140_000))
         yield* mkAssistant([
           { type: "text", text: "assistant-text-8" },
           { type: "reasoning", text: "reasoning-for-m8" },

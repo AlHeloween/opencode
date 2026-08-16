@@ -77,8 +77,13 @@ export const layer = Layer.effect(
       // forward through leaves (T0 ← T1 ← T2 undo, then T0 → T1 → T2 redo).
       const anchor = yield* snap.checkpoint()
       if (!anchor) {
-        log.error("bug: cannot undo — fossil checkpoint unavailable")
-        return session
+        // Fossil unavailable (test env / disabled / corrupt repo): persist a
+        // message-level revert — cleanup still removes the tail, only the
+        // file-level restore is skipped. Never bail silently (revert state
+        // must survive so the UI can show an undoable state).
+        log.warn("revert: fossil checkpoint unavailable — message-level revert only", {
+          sessionID: input.sessionID,
+        })
       }
       const prior = session.revert
       const redo_stack = [...(prior?.redo_stack ?? [])]
@@ -89,18 +94,20 @@ export const layer = Layer.effect(
           partID: prior.partID,
         })
       }
-      rev.snapshot = anchor
-      rev.op_id = anchor
+      if (anchor) {
+        rev.snapshot = anchor
+        rev.op_id = anchor
+      }
       rev.redo_stack = redo_stack.length ? redo_stack : undefined
 
-      if (patches.length > 0) {
+      if (patches.length > 0 && anchor) {
         // I-1: one full Fossil leaf = earliest patch hash (structure of that checkin).
         // Not per-file mix — renames/moves/deletes must match the leaf exactly.
         const targetHash = patches[0]!.hash
         yield* snap.revertTo(targetHash)
       }
 
-      rev.diff = yield* snap.diff(anchor)
+      rev.diff = anchor ? yield* snap.diff(anchor) : undefined
       const range = all.filter((msg) => msg.info.id >= rev!.messageID)
       const diffs = yield* summary.computeDiff({ messages: range })
       yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)

@@ -53,7 +53,7 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 | gate | preferred identity | notes |
 |------|-------------------|--------|
 | GATE_1_GROUND | active primary (`build_mode` \| `plan_mode`) | observe only |
-| GATE_2_DECOMPOSE | `plan_mode` \| `build_mode` | may task(general_agent) |
+| GATE_2_DECOMPOSE | `plan_mode` \| `build_mode` | plan_mode may task(explorer_agent) for bounded discovery |
 | GATE_3_MASTER_PLAN | `plan_mode` preferred | write plan docs |
 | GATE_4_AUTHORIZE | active primary | user approval |
 | GATE_5_CONCERN_LOOP | `plan_mode` \| `build_mode` | refine, re-authorize |
@@ -61,7 +61,7 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 | GATE_7_IMPLEMENT | `build_mode` and/or task(`coder_agent`) | implement approved plan |
 | GATE_8_ORACLE | same as implementer | `build_mode` \| `coder_agent` |
 | GATE_9_CLEAN_STATE | active identity | emit state + SV |
-| (out of spine) | `reasoning_mode` | no G7 mutation; memory only |
+| (out of spine) | `reasoning_mode` | no G7 mutation; getmode, permanent memory, and its own exit only |
 
 ## Modes (primary — session switch)
 
@@ -69,7 +69,7 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 |----|-------|--------|
 | `build_mode` | Full implement; default primary | default; plan_exit; reasoning_exit |
 | `plan_mode` | `plans/` only; no product source mutation | plan_enter |
-| `reasoning_mode` | Memory/calibration only; no mutation spine tools | reasoning_enter / reasoning_exit |
+| `reasoning_mode` | Memory/calibration only; no mutation spine tools | build_mode → reasoning_enter; reasoning_mode → reasoning_exit |
 
 ## Agents (sub / specialized — task or agent select)
 
@@ -86,6 +86,8 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 
 On switch: conversation-tail notify; do not claim another identity's rights.
 Runtime ACL enforces identity; prose must match.
+Provider tool schemas are one immutable ordered catalogue for every identity;
+permission denials happen only when a tool executes.
 
 # Schemas (@SCHEMA)
 
@@ -939,6 +941,7 @@ constraints:
   plans_only_writes: true
   no_product_source_mutation: true
   smoke_tests_required: true
+  delegation: explorer_agent discovery only
 invariants:
   • @WRITE_SCOPE
 forbidden:
@@ -959,6 +962,8 @@ invariants:
   • @REUSE_BEFORE
 forbidden:
   • task
+  • pipeline
+  • Editing plans/ or plans_completed/
   • Committing unless user explicitly asks
 
 ## EXPLORER_AGENT (@EXPLORER_AGENT)
@@ -966,7 +971,7 @@ Thoroughly navigate codebases, search conversation history, and research externa
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_6_GROUND_PLAN]
 contract: [@BASE_AGENT, @SEARCH_ORDER, @REUSE_BEFORE]
-scope: [codegraph, glob, grep, read, messagesearch, session-read, universalsearch]
+scope: [all read-only discovery and search tools, including codegraph, local search, conversation search, and Internet search]
 constraints:
   return_absolute_paths: true
   no_mutations: true
@@ -985,7 +990,7 @@ General-purpose reasoning and planning. See: @IDENTITIES.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_2_DECOMPOSE]
 contract: [@BASE_AGENT, @REUSE_BEFORE, @DECOMPOSE, @SMOKE_BEFORE, @VERIFY_OUTCOME]
-scope: [glob, grep, read, list, conversation_search, web_research]
+scope: [edit, write, glob, grep, read, list, conversation_search, web_research]
 constraints:
   concise_response: true
   include_line_numbers: true
@@ -1034,17 +1039,18 @@ forbidden:
   • bypassing @SMOKE_BEFORE
 
 ## RESEARCHER_AGENT (@RESEARCHER_AGENT)
-Research and synthesize information. Read-only. See: @IDENTITIES.
+Research and synthesize Internet information only. See: @IDENTITIES.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_6_GROUND_PLAN]
 contract: [@BASE_AGENT, @REUSE_BEFORE, @VERIFY_OUTCOME, @MEMORY_LINKS]
-scope: [read_only_search, web_research, session-read]
+scope: [webfetch, universalsearch(source: web)]
 constraints:
   distinguish_evidence: true
 invariants:
-  • Must verify claims against actual code before reporting
+  • Must use an explicit Internet source and cite it before reporting
   • Must cite sources for external research
 forbidden:
+  • Local codebase, database, log, session, or conversation search
   • edit
   • write
   • task
@@ -1102,7 +1108,7 @@ constraints:
 invariants:
   • codegraph before grep/glob for structure
   • messagesearch → session-read for conversation
-  • universalsearch web+code before agent for prior art
+  • universalsearch web+code before agent for identities authorized to those sources
   • aicall only on attached files; output Inferred until verified
 
 ## AGENT_DIRECTIVES (@AGENT_DIRECTIVES)
@@ -1173,22 +1179,22 @@ forbidden:
   • Creating second task identity outside authoritative task store
 
 ## REASONING_MODE (@REASONING_MODE)
-Pure reasoning: conversation memory only, no tools, offer build switch.
-scope: conversation_memory_only
+Pure reasoning: current conversation plus permanent memory, with a controlled return to build mode.
+scope: conversation_memory_and_permanent_memory
 constraints:
-  zero_tools: true
+  allowed_tools: [getmode, memory, reasoning_exit]
   no_external_access: true
   offer_build_switch_on_stuck: true
 invariants:
   • @INFOMARK_SEP
 forbidden:
-  • Using any tool
-  • Accessing database or file system
+  • Using tools other than getmode, memory, or reasoning_exit
+  • Accessing database or file system other than the permanent memory tool
   • Searching message history beyond current window
   • Making claims about facts not present in current conversation
   • Guessing or inventing information not in current memory
 acceptance:
-  • Agent answers from current conversation without invoking any tools
+  • Agent answers from current conversation and may use permanent memory
   • Agent declines to answer when information is not in current window
   • Agent offers reasoning_exit when tools would be needed
 

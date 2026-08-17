@@ -70,6 +70,14 @@ test("plan agent is read-only except for plans/*", async () => {
       expect(evalPerm(plan, "cmd")).toBe("deny")
       expect(evalPerm(plan, "powershell")).toBe("deny")
       expect(evalPerm(plan, "run")).toBe("deny")
+      expect(evalPerm(plan, "apply_patch")).toBe("deny")
+      expect(evalPerm(plan, "multiedit")).toBe("deny")
+      expect(evalPerm(plan, "restore")).toBe("deny")
+      expect(evalPerm(plan, "pipeline")).toBe("deny")
+      expect(evalPerm(plan, "jobkill")).toBe("deny")
+      expect(evalPerm(plan, "dbread")).toBe("allow")
+      expect(evalPerm(plan, "logsearch")).toBe("allow")
+      expect(evalPerm(plan, "session-read")).toBe("allow")
       expect(evalPerm(plan, "task")).toBe("allow")
       expect(plan?.subagents).toEqual(["explorer_agent"])
     },
@@ -102,7 +110,7 @@ test("plan agent preserves external-directory grants after its runtime deny", as
   })
 })
 
-test("reasoning agent software guardrail exposes only memory", async () => {
+test("reasoning agent permits only status, permanent memory, and its own exit", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
@@ -110,8 +118,10 @@ test("reasoning agent software guardrail exposes only memory", async () => {
       const reasoning = await load(tmp.path, (svc) => svc.get("reasoning_mode"))
       expect(reasoning).toBeDefined()
       expect(reasoning?.mode).toBe("primary")
+      expect(evalPerm(reasoning, "get_mode")).toBe("allow")
       expect(evalPerm(reasoning, "memory")).toBe("allow")
       expect(evalPerm(reasoning, "reasoning_exit")).toBe("allow")
+      expect(evalPerm(reasoning, "todowrite")).toBe("deny")
       expect(evalPerm(reasoning, "read")).toBe("deny")
       expect(evalPerm(reasoning, "edit")).toBe("deny")
       expect(evalPerm(reasoning, "write")).toBe("deny")
@@ -141,17 +151,31 @@ test("project configuration cannot reopen reasoning capabilities", async () => {
   })
 })
 
-test("only the native orchestrator can control reasoning transitions", async () => {
+test("only native modes own reasoning transitions", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
-      const orchestrator = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
+      const identities = new Map((await load(tmp.path, (svc) => svc.list())).map((agent) => [agent.name, agent]))
+      const build = identities.get("build_mode")
+      const plan = identities.get("plan_mode")
+      const reasoning = identities.get("reasoning_mode")
+      const orchestrator = identities.get("orchestrator_agent")
+      const general = identities.get("general_agent")
+      const coder = identities.get("coder_agent")
+      const explorer = identities.get("explorer_agent")
+      const researcher = identities.get("researcher_agent")
+      const media = identities.get("media_agent")
       expect(evalPerm(build, "reasoning_enter")).toBe("allow")
       expect(evalPerm(build, "reasoning_exit")).toBe("deny")
-      expect(evalPerm(orchestrator, "reasoning_enter")).toBe("allow")
-      expect(evalPerm(orchestrator, "reasoning_exit")).toBe("allow")
+      expect(evalPerm(plan, "reasoning_enter")).toBe("deny")
+      expect(evalPerm(plan, "reasoning_exit")).toBe("deny")
+      expect(evalPerm(reasoning, "reasoning_enter")).toBe("deny")
+      expect(evalPerm(reasoning, "reasoning_exit")).toBe("allow")
+      for (const agent of [orchestrator, general, coder, explorer, researcher, media]) {
+        expect(evalPerm(agent, "reasoning_enter")).toBe("deny")
+        expect(evalPerm(agent, "reasoning_exit")).toBe("deny")
+      }
     },
   })
 })
@@ -170,6 +194,22 @@ test("explore agent denies edit and write", async () => {
       expect(evalPerm(explore, "cmd")).toBe("deny")
       expect(evalPerm(explore, "powershell")).toBe("deny")
       expect(evalPerm(explore, "run")).toBe("deny")
+      expect(evalPerm(explore, "apply_patch")).toBe("deny")
+      expect(evalPerm(explore, "multiedit")).toBe("deny")
+      expect(evalPerm(explore, "restore")).toBe("deny")
+      expect(evalPerm(explore, "task")).toBe("deny")
+      expect(evalPerm(explore, "pipeline")).toBe("deny")
+      expect(evalPerm(explore, "jobkill")).toBe("deny")
+      expect(evalPerm(explore, "dbread")).toBe("allow")
+      expect(evalPerm(explore, "logsearch")).toBe("allow")
+      expect(evalPerm(explore, "session-read")).toBe("allow")
+      expect(evalPerm(explore, "glob")).toBe("allow")
+      expect(evalPerm(explore, "grep")).toBe("allow")
+      expect(evalPerm(explore, "fossilgrep")).toBe("allow")
+      expect(evalPerm(explore, "codegraph")).toBe("allow")
+      expect(evalPerm(explore, "messagesearch")).toBe("allow")
+      expect(evalPerm(explore, "webfetch")).toBe("allow")
+      expect(evalPerm(explore, "universalsearch")).toBe("allow")
       expect(evalPerm(explore, "todowrite")).toBe("allow")
     },
   })
@@ -191,6 +231,101 @@ test("explore agent honors ask external-directory policy and allows Truncate.tru
       expect(explore).toBeDefined()
       expect(Permission.evaluate("external_directory", "/some/other/path", explore!.permission).action).toBe("ask")
       expect(Permission.evaluate("external_directory", Truncate.truncateGlob(), explore!.permission).action).toBe("allow")
+    },
+  })
+})
+
+test("coder can implement product files but cannot delegate or change plans", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const coder = await load(tmp.path, (svc) => svc.get("coder_agent"))
+      expect(coder).toBeDefined()
+      expect(Permission.evaluate("edit", "packages/opencode/src/example.ts", coder!.permission).action).toBe("allow")
+      expect(Permission.evaluate("edit", "plans/example.md", coder!.permission).action).toBe("deny")
+      expect(Permission.evaluate("edit", "plans_completed/example.md", coder!.permission).action).toBe("deny")
+      expect(evalPerm(coder, "task")).toBe("deny")
+      expect(evalPerm(coder, "pipeline")).toBe("deny")
+      expect(evalPerm(coder, "jobkill")).toBe("deny")
+    },
+  })
+})
+
+test("native agent configuration can narrow but cannot reopen role boundaries", async () => {
+  await using tmp = await tmpdir({
+    config: {
+      agent: {
+        build: { permission: { reasoning_exit: "allow", bash: "deny" } },
+        plan: { permission: { plan_enter: "allow", bash: "allow" } },
+      },
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
+      const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
+      expect(evalPerm(build, "reasoning_exit")).toBe("deny")
+      expect(evalPerm(build, "bash")).toBe("deny")
+      expect(evalPerm(plan, "plan_enter")).toBe("deny")
+      expect(evalPerm(plan, "bash")).toBe("deny")
+    },
+  })
+})
+
+test("plan transitions have explicit ACL owners", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const build = await load(tmp.path, (svc) => svc.get("build_mode"))
+      const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
+      const orchestrator = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
+      const explorer = await load(tmp.path, (svc) => svc.get("explorer_agent"))
+      expect(evalPerm(build, "plan_enter")).toBe("allow")
+      expect(evalPerm(build, "plan_exit")).toBe("deny")
+      expect(evalPerm(plan, "plan_enter")).toBe("deny")
+      expect(evalPerm(plan, "plan_exit")).toBe("allow")
+      expect(evalPerm(orchestrator, "plan_enter")).toBe("deny")
+      expect(evalPerm(orchestrator, "plan_exit")).toBe("deny")
+      expect(evalPerm(explorer, "plan_enter")).toBe("deny")
+      expect(evalPerm(explorer, "plan_exit")).toBe("deny")
+    },
+  })
+})
+
+test("researcher agent permits only Internet search plus universal session tools", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const researcher = await load(tmp.path, (svc) => svc.get("researcher_agent"))
+      expect(researcher).toBeDefined()
+      expect(evalPerm(researcher, "edit")).toBe("deny")
+      expect(evalPerm(researcher, "write")).toBe("deny")
+      expect(evalPerm(researcher, "bash")).toBe("deny")
+      expect(evalPerm(researcher, "cmd")).toBe("deny")
+      expect(evalPerm(researcher, "powershell")).toBe("deny")
+      expect(evalPerm(researcher, "run")).toBe("deny")
+      expect(evalPerm(researcher, "apply_patch")).toBe("deny")
+      expect(evalPerm(researcher, "multiedit")).toBe("deny")
+      expect(evalPerm(researcher, "restore")).toBe("deny")
+      expect(evalPerm(researcher, "task")).toBe("deny")
+      expect(evalPerm(researcher, "pipeline")).toBe("deny")
+      expect(evalPerm(researcher, "jobkill")).toBe("deny")
+      expect(evalPerm(researcher, "read")).toBe("deny")
+      expect(evalPerm(researcher, "glob")).toBe("deny")
+      expect(evalPerm(researcher, "grep")).toBe("deny")
+      expect(evalPerm(researcher, "codegraph")).toBe("deny")
+      expect(evalPerm(researcher, "dbread")).toBe("deny")
+      expect(evalPerm(researcher, "logsearch")).toBe("deny")
+      expect(evalPerm(researcher, "sessionread")).toBe("deny")
+      expect(evalPerm(researcher, "messagesearch")).toBe("deny")
+      expect(evalPerm(researcher, "webfetch")).toBe("allow")
+      expect(evalPerm(researcher, "universalsearch")).toBe("allow")
+      expect(evalPerm(researcher, "get_mode")).toBe("allow")
+      expect(evalPerm(researcher, "todowrite")).toBe("allow")
     },
   })
 })
@@ -240,7 +375,25 @@ test("general agent allows todo tools (per-session list)", async () => {
       expect(general?.mode).toBe("subagent")
       expect(general?.hidden).toBeUndefined()
       expect(general?.description).toContain("planning")
+      expect(evalPerm(general, "edit")).toBe("allow")
+      expect(evalPerm(general, "write")).toBe("allow")
+      expect(evalPerm(general, "pipeline")).toBe("deny")
+      expect(evalPerm(general, "get_mode")).toBe("allow")
       expect(evalPerm(general, "todowrite")).toBe("allow")
+    },
+  })
+})
+
+test("media agent cannot delegate or cancel shared jobs", async () => {
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const media = await load(tmp.path, (svc) => svc.get("media_agent"))
+      expect(media).toBeDefined()
+      expect(evalPerm(media, "task")).toBe("deny")
+      expect(evalPerm(media, "pipeline")).toBe("deny")
+      expect(evalPerm(media, "jobkill")).toBe("deny")
     },
   })
 })

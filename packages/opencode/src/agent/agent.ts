@@ -95,8 +95,6 @@ export const layer = Layer.effect(
 
         const defaults = Permission.fromConfig({
           "*": "allow",
-          getmode: "allow",
-          "ai-call": "deny",
           doom_loop: "ask",
           // Four independent constitution buckets — deny after "*" so bash:* cannot skip.
           "destructive-file": "deny",
@@ -109,12 +107,6 @@ export const layer = Layer.effect(
             "*": "ask",
             ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
           },
-          question: "deny",
-          plan_enter: "deny",
-          plan_exit: "deny",
-          reasoning_enter: "deny",
-          reasoning_exit: "deny",
-          memory: "deny",
           // mirrors github.com/github/gitignore Node.gitignore pattern for .env files
           read: {
             "*": "allow",
@@ -136,6 +128,12 @@ export const layer = Layer.effect(
           },
         })
 
+        // Native roles are deny-only: the shared policy permits normal tools and
+        // each role names only its boundaries. Scoped edit/write grants below are
+        // the unavoidable exception for the positive-glob permission evaluator.
+        const deny = (...policies: string[]) =>
+          Permission.fromConfig(Object.fromEntries(policies.map((policy) => [policy, "deny"])))
+
         // Canonical identity ids: *_mode (primary) / *_agent (specialized). See @IDENTITIES.
         const agents: Record<string, Info> = {
           build_mode: {
@@ -145,13 +143,8 @@ export const layer = Layer.effect(
             options: {},
             permission: Permission.merge(
               defaults,
-              Permission.fromConfig({
-                question: "allow",
-                plan_enter: "allow",
-                reasoning_enter: "allow",
-                "ai-call": "allow",
-              }),
               user,
+              deny("memory", "plan_exit", "reasoning_exit"),
             ),
             mode: "primary",
             native: true,
@@ -164,32 +157,24 @@ export const layer = Layer.effect(
             permission: Permission.merge(
               defaults,
               user,
+              deny(
+                "memory",
+                "plan_enter",
+                "reasoning_enter",
+                "reasoning_exit",
+                "bash",
+                "cmd",
+                "powershell",
+                "run",
+                "apply_patch",
+                "multiedit",
+                "restore",
+                "pipeline",
+                "jobkill",
+              ),
               Permission.fromConfig({
-                // Default deny is the runtime boundary. Prompt guidance is not an ACL.
-                "*": "deny",
-                getmode: "allow",
-                question: "allow",
-                plan_exit: "allow",
-                read: "allow",
-                glob: "allow",
-                grep: "allow",
-                list: "allow",
-                "codegraph*": "allow",
-                messagesearch: "allow",
-                "session-read": "allow",
-                universalsearch: "allow",
-                webfetch: "allow",
-                todowrite: "allow",
-                bash: "deny",
-                cmd: "deny",
-                powershell: "deny",
-                run: "deny",
-                task: "allow",
-                "destructive-file": "deny",
-                "destructive-db": "deny",
-                "destructive-git": "deny",
-                "destructive-fossil": "deny",
-                destructive: "deny",
+                // Read and diagnostics inherit the default allow. Keep only
+                // explicit mutation, execution, and delegation boundaries.
                 // Same exception as orchestrator: plan docs only (not implementation).
                 // Use plans/* (not only *.md) so write/edit of any plan file works.
                 // write key is redundant with edit (write tool maps to edit) but kept
@@ -214,7 +199,7 @@ export const layer = Layer.effect(
           reasoning_mode: {
             name: "reasoning_mode",
             description:
-              "Reasoning mode (reasoning_mode). Runtime allows only permanent memory.",
+              "Reasoning mode (reasoning_mode). Runtime allows getmode, permanent memory, and its own exit.",
             prompt: PROMPT_REASONING_MODE,
             options: {},
             permission: Permission.merge(
@@ -222,29 +207,12 @@ export const layer = Layer.effect(
               user,
               Permission.fromConfig({
                 // Runtime ACL only — tool *schemas* stay the full shared set.
-                // Only permanent memory file is authorized to execute.
+                // Mode inspection, permanent memory, and this mode's own exit
+                // transition are authorized. Every other tool remains denied.
                 "*": "deny",
-                getmode: "allow",
+                get_mode: "allow",
                 memory: "allow",
                 reasoning_exit: "allow",
-                dbread: "deny",
-                "db-read": "deny",
-                messagesearch: "deny",
-                "session-read": "deny",
-                logsearch: "deny",
-                codegraph: "deny",
-                universalsearch: "deny",
-                webfetch: "deny",
-                read: "deny",
-                grep: "deny",
-                glob: "deny",
-                list: "deny",
-                bash: "deny",
-                cmd: "deny",
-                run: "deny",
-                edit: "deny",
-                write: "deny",
-                task: "deny",
               }),
             ),
             mode: "primary",
@@ -261,6 +229,22 @@ export const layer = Layer.effect(
             permission: Permission.merge(
               defaults,
               user,
+              deny(
+                "memory",
+                "plan_enter",
+                "plan_exit",
+                "reasoning_enter",
+                "reasoning_exit",
+                "bash",
+                "cmd",
+                "powershell",
+                "run",
+                "apply_patch",
+                "multiedit",
+                "restore",
+                "pipeline",
+                "jobkill",
+              ),
               Permission.fromConfig({
                 edit: {
                   "*": "deny",
@@ -274,33 +258,34 @@ export const layer = Layer.effect(
                   [path.join("plans_completed", "*")]: "allow",
                   [path.join(".opencode", "data", "memory", "*_orchestrator.md")]: "allow",
                 },
-                bash: "deny",
-                cmd: "deny",
-                powershell: "deny",
-                run: "deny",
-                task: "allow",
-                reasoning_enter: "allow",
-                reasoning_exit: "allow",
-                todowrite: "allow",
-                read: "allow",
-                glob: "allow",
-                grep: "allow",
-                list: "allow",
-                messagesearch: "allow",
-                "session-read": "allow",
-                universalsearch: "allow",
-                webfetch: "allow",
               }),
             ),
             mode: "primary",
             native: true,
-            // Only explorer — not general/coder (workers implement via AGI main session)
+            // Explorer and coder workers are dispatched by the AGI main session.
             subagents: ["explorer_agent", "coder_agent"],
           },
           general_agent: {
             name: "general_agent",
             description: `General-purpose subagent (general_agent) for planning, design alternatives, root-cause analysis, and multi-step implementation strategy. Use after explorer_agent has gathered scope evidence, or when a focused non-explore subtask should run in parallel.`,
-            permission: Permission.merge(defaults, user),
+            permission: Permission.merge(
+              defaults,
+              user,
+              deny(
+                "memory",
+                "plan_enter",
+                "plan_exit",
+                "reasoning_enter",
+                "reasoning_exit",
+                "bash",
+                "cmd",
+                "powershell",
+                "run",
+                "task",
+                "pipeline",
+                "jobkill",
+              ),
+            ),
             prompt: PROMPT_GENERAL,
             options: {},
             mode: "subagent",
@@ -311,23 +296,25 @@ export const layer = Layer.effect(
             permission: Permission.merge(
               defaults,
               user,
-              Permission.fromConfig({
-                "*": "deny",
-                "codegraph*": "allow",
-                grep: "allow",
-                glob: "allow",
-                list: "allow",
-                bash: "deny",
-                cmd: "deny",
-                powershell: "deny",
-                run: "deny",
-                webfetch: "allow",
-                universalsearch: "allow",
-                messagesearch: "allow",
-                "session-read": "allow",
-                read: "allow",
-                todowrite: "allow",
-              }),
+              deny(
+                "memory",
+                "plan_enter",
+                "plan_exit",
+                "reasoning_enter",
+                "reasoning_exit",
+                "bash",
+                "cmd",
+                "powershell",
+                "run",
+                "edit",
+                "write",
+                "apply_patch",
+                "multiedit",
+                "restore",
+                "task",
+                "pipeline",
+                "jobkill",
+              ),
               externalDirectory,
             ),
             description: `Fast agent (explorer_agent) specialized for exploring codebases and researching conversation history. Use when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase, or search past conversations. Thoroughness: "quick" | "medium" | "very thorough". Not codegraph mode "explore".`,
@@ -342,8 +329,24 @@ export const layer = Layer.effect(
             permission: Permission.merge(
               defaults,
               user,
+              deny(
+                "memory",
+                "plan_enter",
+                "plan_exit",
+                "reasoning_enter",
+                "reasoning_exit",
+                "task",
+                "pipeline",
+                "jobkill",
+              ),
               Permission.fromConfig({
-                task: "deny",
+                // Every mutation tool reaches ctx.ask({ permission: "edit" })
+                // with its actual target path. This one path rule keeps coder
+                // implementation-capable while making plan ownership immutable.
+                edit: {
+                  [path.join("plans", "*")]: "deny",
+                  [path.join("plans_completed", "*")]: "deny",
+                },
               }),
             ),
             prompt: PROMPT_CODER,
@@ -353,27 +356,51 @@ export const layer = Layer.effect(
           },
           researcher_agent: {
             name: "researcher_agent",
-            description: `Specialized agent (researcher_agent) for information gathering. Read-only codebase, web, and conversation history.`,
+            description: `Specialized agent (researcher_agent) for Internet information gathering only. Uses webfetch or universalsearch with source: "web".`,
             permission: Permission.merge(
               defaults,
               user,
-              Permission.fromConfig({
-                "*": "deny",
-                "codegraph*": "allow",
-                read: "allow",
-                glob: "allow",
-                grep: "allow",
-                list: "allow",
-                bash: "deny",
-                cmd: "deny",
-                powershell: "deny",
-                run: "deny",
-                webfetch: "allow",
-                universalsearch: "allow",
-                messagesearch: "allow",
-                "session-read": "allow",
-                todowrite: "allow",
-              }),
+              deny(
+                "memory",
+                "plan_enter",
+                "plan_exit",
+                "reasoning_enter",
+                "reasoning_exit",
+                "bash",
+                "cmd",
+                "powershell",
+                "run",
+                "edit",
+                "write",
+                "apply_patch",
+                "multiedit",
+                "restore",
+                "task",
+                "pipeline",
+                "jobkill",
+                // Researcher is web-only. Keep getmode/todowrite as universal
+                // session tools and constrain universalsearch in its executor.
+                "invalid",
+                "question",
+                "aicall",
+                "compare",
+                "treediff",
+                "read",
+                "glob",
+                "grep",
+                "fossilgrep",
+                "skill",
+                "list",
+                "codegraph",
+                "messagesearch",
+                "dbread",
+                "logsearch",
+                "sessionread",
+                "joboutput",
+                "jobwait",
+                "capability",
+                "lsp",
+              ),
               externalDirectory,
             ),
             prompt: PROMPT_RESEARCHER,
@@ -387,9 +414,16 @@ export const layer = Layer.effect(
             permission: Permission.merge(
               defaults,
               user,
-              Permission.fromConfig({
-                task: "deny",
-              }),
+              deny(
+                "memory",
+                "plan_enter",
+                "plan_exit",
+                "reasoning_enter",
+                "reasoning_exit",
+                "task",
+                "pipeline",
+                "jobkill",
+              ),
             ),
             prompt: PROMPT_MEDIA,
             options: {},
@@ -464,11 +498,14 @@ export const layer = Layer.effect(
           if (value.subagents !== undefined) {
             item.subagents = value.subagents.map((id) => resolveIdentity(id))
           }
-          // Reasoning is a native calibration boundary: permanent memory only.
-          // Project config must not reopen dbread/messagesearch/shell/etc.
-          if (!(key === "reasoning_mode" && item.native)) {
-            item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
-          }
+          const configuredPermission = Permission.fromConfig(value.permission ?? {})
+          // Native role boundaries are runtime policy, not project configuration.
+          // Configuration may narrow them, but cannot reopen transitions, mutation,
+          // shell, or the protected reasoning allow-list.
+          item.permission = Permission.merge(
+            item.permission,
+            item.native ? configuredPermission.filter((rule) => rule.action === "deny") : configuredPermission,
+          )
         }
 
         // Ensure truncation output dir is allowed unless user explicitly denied it.

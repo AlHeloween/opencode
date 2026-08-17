@@ -47,14 +47,16 @@ function context(sessionID: SessionID, messageID: MessageID, agentInfo?: Agent.I
 }
 
 describe("tool.reasoning", () => {
-  it.live("orchestrator transitions persist reasoning then build agents", () =>
+  it.live("native build enters and native reasoning exits", () =>
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const sessions = yield* Session.Service
         const agents = yield* Agent.Service
         const build = yield* agents.get("build")
+        const reasoning = yield* agents.get("reasoning")
         const orchestrator = yield* agents.get("orchestrator")
         expect(build).toBeDefined()
+        expect(reasoning).toBeDefined()
         expect(orchestrator).toBeDefined()
         const chat = yield* sessions.create({})
         const user = yield* sessions.updateMessage({
@@ -67,7 +69,7 @@ describe("tool.reasoning", () => {
         })
         const enter = yield* (yield* ReasoningEnterTool).init()
         const exit = yield* (yield* ReasoningExitTool).init()
-        const deniedEnter = yield* Effect.exit(enter.execute({}, context(chat.id, user.id, build)))
+        const deniedEnter = yield* Effect.exit(enter.execute({}, context(chat.id, user.id, reasoning)))
         const deniedExit = yield* Effect.exit(exit.execute({}, context(chat.id, user.id, build)))
         const spoofedEnter = yield* Effect.exit(
           enter.execute({}, context(chat.id, user.id, { ...orchestrator!, native: false })),
@@ -76,9 +78,9 @@ describe("tool.reasoning", () => {
         expect(Exit.isFailure(deniedExit)).toBe(true)
         expect(Exit.isFailure(spoofedEnter)).toBe(true)
         expect(yield* sessions.messages({ sessionID: chat.id })).toHaveLength(1)
-        yield* enter.execute({}, context(chat.id, user.id, orchestrator))
+        yield* enter.execute({}, context(chat.id, user.id, build))
         expect((yield* sessions.messages({ sessionID: chat.id })).at(-1)?.info.agent).toBe("reasoning_mode")
-        yield* exit.execute({}, context(chat.id, user.id, orchestrator))
+        yield* exit.execute({}, context(chat.id, user.id, reasoning))
         expect((yield* sessions.messages({ sessionID: chat.id })).at(-1)?.info.agent).toBe("build_mode")
       }),
     ),

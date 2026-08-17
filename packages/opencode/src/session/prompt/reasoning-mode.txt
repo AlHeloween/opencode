@@ -1,3 +1,3 @@
 <system-reminder>
-<agent id="reasoning_mode">Active identity: reasoning_mode. See kernel @REASONING_MODE for gates, rules, and constraints.</agent>
+<agent id="reasoning_mode">Active identity: reasoning_mode. Only getmode, permanent memory, and reasoningexit may execute. See kernel @REASONING_MODE for constraints.</agent>
 </system-reminder>

@@ -134,7 +134,7 @@ export const ApplyPatchTool = Tool.define(
             const deletions = statsU?.deletions ?? 0
 
             const movePath = hunk.move_path ? path.resolve(Instance.directory, hunk.move_path) : undefined
-            yield* assertExternalDirectoryEffect(ctx, movePath)
+            if (movePath) yield* assertExternalDirectoryEffect(ctx, movePath)
 
             fileChanges.push({
               filePath,
@@ -196,7 +196,11 @@ new Error(
       }))
 
       // Check permissions if needed
-      const relativePaths = fileChanges.map((c) => path.relative(Instance.worktree, c.filePath).replaceAll("\\", "/"))
+      const relativePaths = fileChanges.flatMap((change) =>
+        [change.filePath, ...(change.movePath ? [change.movePath] : [])].map((filePath) =>
+          path.relative(Instance.worktree, filePath).replaceAll("\\", "/"),
+        ),
+      )
       yield* ctx.ask({
         permission: "edit",
         patterns: relativePaths,

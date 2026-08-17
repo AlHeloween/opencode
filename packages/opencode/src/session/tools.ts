@@ -173,7 +173,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       const userDisabled = input.userDisabled?.has(canonicalName(toolID)) ?? false
       const hint =
         mode === "reasoning_mode" || mode === "reasoning"
-          ? ` In reasoning_mode only the permanent memory tool is authorized (file .opencode/data/memory/reasoning.md). Do not call dbread, messagesearch, session-read, or other inspection tools.`
+          ? ` In reasoning_mode only getmode, permanent memory (file .opencode/data/memory/reasoning.md), and reasoningexit are authorized. Do not call dbread, messagesearch, session-read, or other inspection tools.`
           : ""
       const output = userDisabled
         ? {

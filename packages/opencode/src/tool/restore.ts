@@ -78,30 +78,26 @@ export const RestoreTool = Tool.define(
             // Peek original path for permission
             const entries = yield* listBackups(sessionID)
             const hit = entries.find((e) => e.filename === name || e.filename === params.filename)
-            const target = hit?.originalPath
-            if (target) {
-              yield* assertExternalDirectoryEffect(ctx, target)
-              Constitution.noteMutationRisk({ tool: "restore", path: target, sessionID })
-              yield* ctx.ask({
-                permission: "edit",
-                patterns: [path.relative(Instance.worktree, target) || target],
-                always: ["*"],
-                metadata: { filepath: target, restore: name },
-              })
-            } else {
-              yield* ctx.ask({
-                permission: "edit",
-                patterns: ["*"],
-                always: ["*"],
-                metadata: { restore: name },
-              })
+            if (!hit?.originalPath) {
+              return yield* Effect.fail(
+                new Error(`restore rejected: backup ${name} has no verified original path`),
+              )
             }
-            const restored = yield* restoreBackup(sessionID, hit?.filename ?? name)
+            const target = hit.originalPath
+            yield* assertExternalDirectoryEffect(ctx, target)
+            Constitution.noteMutationRisk({ tool: "restore", path: target, sessionID })
+            yield* ctx.ask({
+              permission: "edit",
+              patterns: [path.relative(Instance.worktree, target) || target],
+              always: ["*"],
+              metadata: { filepath: target, restore: name },
+            })
+            const restored = yield* restoreBackup(sessionID, hit.filename)
             yield* bus.publish(File.Event.Edited, { file: restored })
             return {
               title: path.basename(restored),
-              metadata: { filepath: restored, filename: hit?.filename ?? name } as RestoreMetadata,
-              output: `Restored ${restored} from backup ${hit?.filename ?? name} (pre-edit content). No git/Fossil required.`,
+              metadata: { filepath: restored, filename: hit.filename } as RestoreMetadata,
+              output: `Restored ${restored} from backup ${hit.filename} (pre-edit content). No git/Fossil required.`,
             }
           }
 

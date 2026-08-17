@@ -36,6 +36,13 @@ type Metadata = {
   mode?: string
 }
 
+export function researcherWebOnly(
+  agentName: string | undefined,
+  params: Pick<Schema.Schema.Type<typeof Parameters>, "source">,
+) {
+  return agentName !== "researcher_agent" || params.source === "web"
+}
+
 export const UniversalSearchTool = Tool.define(
   "universalsearch",
   Effect.gen(function* () {
@@ -46,6 +53,14 @@ export const UniversalSearchTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
+          // This is intentionally before ctx.ask and before job polling. A flat
+          // tool ACL cannot distinguish universalsearch sources, while researcher
+          // is Internet-only. The provider schema stays unchanged for KV reuse.
+          if (!researcherWebOnly(ctx.agentInfo?.name, params)) {
+            return yield* Effect.fail(
+              new Error('researcher_agent may use universalsearch only with explicit source: "web"'),
+            )
+          }
           yield* ctx.ask({
             permission: "universalsearch",
             patterns: [params.query || params.job_id || ""],

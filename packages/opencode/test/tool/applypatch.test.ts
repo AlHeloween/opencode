@@ -119,7 +119,7 @@ describe("tool.apply_patch freeform", () => {
         if (process.platform === "win32") {
           expect(result.output).not.toContain("\\")
         }
-        expect(result.metadata.diff).toContain("Index:")
+        expect(result.metadata.diff).toContain("--- original")
         expect(calls.length).toBe(1)
 
         // Verify permission metadata includes files array for UI rendering
@@ -171,6 +171,7 @@ describe("tool.apply_patch freeform", () => {
         expect(moveFile.movePath).toBe(path.join(fixture.path, "renamed/dir/name.txt"))
         expect(moveFile.patch).toContain("-old content")
         expect(moveFile.patch).toContain("+new content")
+        expect(permissionCall.patterns).toEqual(["old/name.txt", "renamed/dir/name.txt"])
       },
     })
   })

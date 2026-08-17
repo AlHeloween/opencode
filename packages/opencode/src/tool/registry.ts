@@ -247,10 +247,21 @@ export const layer: Layer.Layer<
         const matches = dirs.flatMap((dir) =>
           Glob.scanSync("{tool,tools}/*.{js,ts}", { cwd: dir, absolute: true, dot: true, symlink: true }),
         )
-        if (matches.length) yield* config.waitForDependencies()
         for (const match of matches) {
           const namespace = path.basename(match, path.extname(match))
-          const mod = yield* Effect.promise(() => import(pathToFileURL(match).href))
+          const load = () =>
+            Effect.tryPromise({
+              try: () => import(pathToFileURL(match).href),
+              catch: (cause) => cause,
+            })
+          // A plain local tool needs no package installation. Waiting for the
+          // background installer here made every custom-tool load block behind
+          // unrelated dependency work. Retry only when its first import proves
+          // that it actually needs those dependencies.
+          const mod = yield* load().pipe(
+            Effect.catch(() => config.waitForDependencies().pipe(Effect.andThen(load()))),
+            Effect.orDie,
+          )
           for (const [id, def] of Object.entries<ToolDefinition>(mod)) {
             custom.push(fromPlugin(id === "default" ? namespace : `${namespace}_${id}`, def))
           }

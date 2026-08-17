@@ -46,10 +46,10 @@ function transitionModel(
   }
 }
 
-function requireNativeOrchestrator(ctx: Tool.Context) {
-  if (ctx.agentInfo?.native && (ctx.agentInfo.name === "orchestrator_agent" || ctx.agentInfo.name === "orchestrator"))
+function requireNativeIdentity(ctx: Tool.Context, identity: "build_mode" | "reasoning_mode") {
+  if (ctx.agentInfo?.native && ctx.agentInfo.name === identity)
     return Effect.void
-  return Effect.die(new Error("reasoning transitions require the native orchestrator"))
+  return Effect.die(new Error(`reasoning transition requires native ${identity}`))
 }
 
 export const ReasoningEnterParameters = Schema.Struct({})
@@ -64,11 +64,11 @@ export const ReasoningEnterTool = Tool.define(
 
     return {
       description:
-        "Move a controlled session into protected reasoning mode. Only the native Orchestrator may use this transition; Reasoning Mode has only the project memory tool.",
+        "Move a build session into protected reasoning mode. Only native build_mode may enter; reasoning_mode permits getmode, permanent memory, and its own exit.",
       parameters: ReasoningEnterParameters,
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          yield* requireNativeOrchestrator(ctx)
+          yield* requireNativeIdentity(ctx, "build_mode")
           const settings = yield* Effect.tryPromise({
             try: () => loadSessionSettings(ctx.sessionID),
             catch: (cause) => cause,
@@ -103,7 +103,7 @@ export const ReasoningEnterTool = Tool.define(
             title: "Switched to reasoning_mode",
             output:
               "IDENTITY SWITCH COMPLETE: You are now reasoning_mode. " +
-              "Only permanent memory is authorized. Wait for the user calibration question.",
+              "Only getmode, permanent memory, and reasoningexit are authorized. Wait for the user calibration question.",
             metadata: { identity: "reasoning_mode" },
           }
         }).pipe(Effect.orDie),
@@ -121,11 +121,11 @@ export const ReasoningExitTool = Tool.define(
 
     return {
       description:
-        "Return a controlled session from protected reasoning mode to build_mode. Only the native Orchestrator may use this transition.",
+        "Return a controlled session from protected reasoning mode to build_mode. Only native reasoning_mode may use this transition.",
       parameters: ReasoningExitParameters,
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          yield* requireNativeOrchestrator(ctx)
+          yield* requireNativeIdentity(ctx, "reasoning_mode")
           const settings = yield* Effect.tryPromise({
             try: () => loadSessionSettings(ctx.sessionID),
             catch: (cause) => cause,

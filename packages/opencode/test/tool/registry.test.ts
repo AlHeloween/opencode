@@ -15,6 +15,10 @@ const node = CrossSpawnSpawner.defaultLayer
 
 const it = testEffect(Layer.mergeAll(ToolRegistry.defaultLayer, Agent.defaultLayer, node))
 
+function schemaFingerprint(tools: { id: string; policy: string; description: string; parameters: unknown }[]) {
+  return JSON.stringify(tools.map(({ id, policy, description, parameters }) => ({ id, policy, description, parameters })))
+}
+
 afterEach(async () => {
   await Instance.disposeAll()
 })
@@ -86,24 +90,33 @@ describe("tool.registry", () => {
     10_000,
   )
 
-  it.live("exposes only memory to the protected reasoning agent", () =>
+  it.live("exposes the full shared schema catalogue to reasoning_mode", () =>
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const registry = yield* ToolRegistry.Service
         const agents = yield* Agent.Service
         const reasoning = yield* agents.get("reasoning")
+        const build = yield* agents.get("build")
         expect(reasoning).toBeDefined()
-        const tools = yield* registry.tools({
+        expect(build).toBeDefined()
+        const reasoningTools = yield* registry.tools({
           providerID: ProviderID.make("test"),
           modelID: ModelID.make("test-model"),
           agent: reasoning!,
         })
-        expect(tools.map((tool) => tool.id)).toEqual(["memory"])
+        const buildTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: build!,
+        })
+        expect(schemaFingerprint(reasoningTools)).toBe(schemaFingerprint(buildTools))
+        expect(reasoningTools.map((tool) => tool.id)).toContain("memory")
+        expect(reasoningTools.map((tool) => tool.id)).toContain("reasoningexit")
       }),
     ),
   )
 
-  it.live("exposes reasoning transitions only to the native orchestrator", () =>
+  it.live("keeps every native identity on the identical ordered schema catalogue", () =>
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const registry = yield* ToolRegistry.Service
@@ -116,41 +129,32 @@ describe("tool.registry", () => {
         expect(plan).toBeDefined()
         expect(reasoning).toBeDefined()
         expect(orchestrator).toBeDefined()
-        const buildTools = yield* registry.tools({
-          providerID: ProviderID.make("test"),
-          modelID: ModelID.make("test-model"),
-          agent: build!,
-        })
-        const planTools = yield* registry.tools({
-          providerID: ProviderID.make("test"),
-          modelID: ModelID.make("test-model"),
-          agent: plan!,
-        })
-        const reasoningTools = yield* registry.tools({
-          providerID: ProviderID.make("test"),
-          modelID: ModelID.make("test-model"),
-          agent: reasoning!,
-        })
-        const spoofedTools = yield* registry.tools({
-          providerID: ProviderID.make("test"),
-          modelID: ModelID.make("test-model"),
-          agent: { ...orchestrator!, native: false },
-        })
-        const orchestratorTools = yield* registry.tools({
-          providerID: ProviderID.make("test"),
-          modelID: ModelID.make("test-model"),
-          agent: orchestrator!,
-        })
-        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoningenter")
-        expect(buildTools.map((tool) => tool.id)).not.toContain("reasoningexit")
-        expect(planTools.map((tool) => tool.id)).not.toContain("reasoningenter")
-        expect(planTools.map((tool) => tool.id)).not.toContain("reasoningexit")
-        expect(reasoningTools.map((tool) => tool.id)).toEqual(["memory"])
-        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoningenter")
-        expect(spoofedTools.map((tool) => tool.id)).not.toContain("reasoningexit")
-        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoningenter")
-        expect(orchestratorTools.map((tool) => tool.id)).toContain("reasoningexit")
-        expect(orchestratorTools.find((tool) => tool.id === "reasoningenter")?.policy).toBe("reasoning_enter")
+        const all = yield* agents.list()
+        const byName = new Map(all.map((agent) => [agent.name, agent]))
+        const identities = [
+          build!,
+          plan!,
+          reasoning!,
+          orchestrator!,
+          byName.get("coder_agent")!,
+          byName.get("general_agent")!,
+          byName.get("explorer_agent")!,
+          byName.get("researcher_agent")!,
+          byName.get("media_agent")!,
+          { ...orchestrator!, native: false },
+        ]
+        const catalogues = yield* Effect.forEach(identities, (agent) =>
+          registry.tools({
+            providerID: ProviderID.make("test"),
+            modelID: ModelID.make("test-model"),
+            agent,
+          }),
+        )
+        for (const catalogue of catalogues) {
+          expect(schemaFingerprint(catalogue)).toBe(schemaFingerprint(catalogues[0]!))
+          expect(catalogue.map((tool) => tool.id)).toContain("reasoningenter")
+          expect(catalogue.map((tool) => tool.id)).toContain("reasoningexit")
+        }
       }),
     ),
   )
@@ -228,8 +232,15 @@ describe("tool.registry", () => {
           modelID: ModelID.make("test-model"),
           agent: reasoning!,
         })
-        expect(tools).toHaveLength(1)
-        expect(tools[0]?.description).not.toContain("custom memory collision")
+        const build = yield* (yield* Agent.Service).get("build")
+        expect(build).toBeDefined()
+        const buildTools = yield* registry.tools({
+          providerID: ProviderID.make("test"),
+          modelID: ModelID.make("test-model"),
+          agent: build!,
+        })
+        expect(schemaFingerprint(tools)).toBe(schemaFingerprint(buildTools))
+        expect(tools.find((tool) => tool.id === "memory")?.description).not.toContain("custom memory collision")
       }),
     ),
   )

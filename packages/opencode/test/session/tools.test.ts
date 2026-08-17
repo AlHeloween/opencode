@@ -105,6 +105,7 @@ describe("session.tools", () => {
         expect(visible.applypatch).toBeDefined()
         expect(Object.keys(resolved)).toContain("memory")
         expect(Object.keys(resolved)).toContain("read")
+        expect(Object.keys(resolved)).toContain("reasoningexit")
         yield* Effect.promise(() => resolved.read!.execute!({} as never, { toolCallId: "call-rejected" } as never))
         expect(completed).toHaveLength(1)
         expect(completed[0]?.id).toBe("call-rejected")
@@ -133,14 +134,16 @@ describe("session.tools", () => {
         })
         // Plan mode: scoped allow (plans/* → allow) means Gate A no longer
         // blocks the edit family. Gate B (ctx.ask with real path) enforces
-        // per-path. Use multiedit which accepts simpler args (array of edits).
-        const planEdit = planResolved.multiedit ?? planResolved.applypatch
+        // the plan-only path boundary. multiedit/applypatch are deliberately
+        // denied, so use the ordinary edit tool here.
+        const planEdit = planResolved.edit
         expect(planEdit).toBeDefined()
         yield* Effect.promise(() =>
           planEdit!.execute!(
             {
               filePath: "plans/test.md",
-              edits: [{ oldString: "", newString: "# plan test" }],
+              oldString: "",
+              newString: "# plan test",
             } as never,
             { toolCallId: "call-plan-allowed" } as never,
           ),

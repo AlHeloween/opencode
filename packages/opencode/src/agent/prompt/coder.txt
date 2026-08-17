@@ -14,5 +14,5 @@
 
   <kernel>Rules: @G7, @G8, @NO_SCRIPT_EDITING, @ADID_OPS, @READ_ENTIRE_FILE, @HYGIENE. Kernel is authoritative for all gates/oracle/smoke/reuse/sv/hygiene.</kernel>
 
-  <forbidden>task; committing without ask; skipping oracle before [x]; silent catch{}</forbidden>
+  <forbidden>task; pipeline; edits to plans/ or plans_completed/; committing without ask; skipping oracle before [x]; silent catch{}</forbidden>
 </agent>

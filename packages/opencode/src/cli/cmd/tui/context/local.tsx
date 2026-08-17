@@ -21,6 +21,7 @@ import {
   sessionAgentVariant,
   workspaceAgentModel,
   workspaceModelScope,
+  setWorkspaceAgentModel,
   type SessionSettings,
 } from "@/session/session-settings"
 
@@ -532,7 +533,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (!agentName) return
             if (options?.agent) {
               const sid = getActiveSessionID()
-              setModelStore("workspaceAgent", workspaceModelScope(getActiveWorkspaceID()), agentName, model)
+              const workspace = workspaceModelScope(getActiveWorkspaceID())
+              setModelStore("workspaceAgent", (agents) =>
+                setWorkspaceAgentModel(agents, workspace, agentName, model),
+              )
               // Per-session: record the explicit override alongside the workspace memory.
               // Global config remains the initial default only.
               if (sid) {

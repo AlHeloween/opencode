@@ -56,6 +56,23 @@ export function workspaceModelScope(workspaceID: string | undefined): string {
   return workspaceID ?? DEFAULT_WORKSPACE_MODEL_SCOPE
 }
 
+/** Return a workspace model map with one agent selection updated. */
+export function setWorkspaceAgentModel(
+  workspaceAgent: Record<string, Record<string, ModelRef>>,
+  workspaceID: string | undefined,
+  agentName: string,
+  model: ModelRef,
+): Record<string, Record<string, ModelRef>> {
+  const scope = workspaceModelScope(workspaceID)
+  return {
+    ...workspaceAgent,
+    [scope]: {
+      ...workspaceAgent[scope],
+      [agentName]: model,
+    },
+  }
+}
+
 /** Read a valid agent model from the workspace-level state payload. */
 export function workspaceAgentModel(agentName: string, workspaceID: string | undefined, state: unknown): ModelRef | undefined {
   if (typeof state !== "object" || state === null) return undefined

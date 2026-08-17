@@ -11,6 +11,7 @@ import {
   saveSessionSettings,
   removeSessionSettings,
   effectiveSubagents,
+  setWorkspaceAgentModel,
 } from "../../src/session/session-settings"
 
 // ── Helpers ──
@@ -47,6 +48,22 @@ describe("getSessionSettingsPath", () => {
       expect(p).toContain("sessions")
       expect(p).toContain("ses_abc123.jsonc")
       expect(p).toContain(".opencode")
+    })
+  })
+})
+
+describe("setWorkspaceAgentModel", () => {
+  test("creates a missing workspace scope without losing existing selections", () => {
+    const result = setWorkspaceAgentModel(
+      { existing: { planner: { providerID: "openai", modelID: "gpt-5.6" } } },
+      undefined,
+      "build_mode",
+      { providerID: "anthropic", modelID: "claude-4.5" },
+    )
+
+    expect(result).toEqual({
+      existing: { planner: { providerID: "openai", modelID: "gpt-5.6" } },
+      default: { build_mode: { providerID: "anthropic", modelID: "claude-4.5" } },
     })
   })
 })

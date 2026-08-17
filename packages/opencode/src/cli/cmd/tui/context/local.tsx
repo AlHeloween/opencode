@@ -220,6 +220,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const overrides = { ...settings?.agent }
         let changed = false
         for (const a of sync.data.agent) {
+          if (a.mode === "subagent") continue // subagents inherit parent; never seeded from global
           if (overrides[a.name]) continue // already has per-session override
           if (!a.model) continue // no global default to seed
           overrides[a.name] = {

@@ -243,8 +243,7 @@ export const TaskTool = Tool.define(
             providerID: ProviderID.make(sessionModel.providerID),
             modelID: ModelID.make(sessionModel.modelID),
           }
-        : (taskModelOverride ??
-          next.model ?? {
+        : (taskModelOverride ?? {
             modelID: msg.info.modelID,
             providerID: msg.info.providerID,
           })

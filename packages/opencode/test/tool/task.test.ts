@@ -28,6 +28,19 @@ const ref = {
   modelID: ModelID.make("test-model"),
 }
 
+const testModel = (id: string) => ({
+  id,
+  name: "Test Model",
+  attachment: false,
+  reasoning: false,
+  temperature: false,
+  tool_call: true,
+  release_date: "2025-01-01",
+  limit: { context: 100000, output: 10000 },
+  cost: { input: 0, output: 0 },
+  options: {},
+})
+
 const it = testEffect(
   Layer.mergeAll(
     Agent.defaultLayer,
@@ -591,6 +604,55 @@ describe("tool.task", () => {
         })
         expect(seen?.variant).toBe("session-variant")
       }),
+    ),
+    30_000,
+  )
+
+  it.live("delegated subagent inherits parent model over a global agent default", () =>
+    provideTmpdirInstance(
+      () =>
+        Effect.gen(function* () {
+          const { chat, assistant } = yield* seed()
+          const tool = yield* TaskTool
+          const def = yield* tool.init()
+          let seen: SessionPrompt.PromptInput | undefined
+          yield* def.execute(
+            {
+              description: "inherit parent over global default",
+              prompt: "Inspect.",
+              subagent_type: "explorer_agent",
+            },
+            {
+              sessionID: chat.id,
+              messageID: assistant.id,
+              agent: "build_mode",
+              abort: new AbortController().signal,
+              extra: { promptOps: stubOps({ onPrompt: (input) => (seen = input) }) },
+              messages: [],
+              metadata: () => Effect.void,
+              ask: () => Effect.void,
+            },
+          )
+          expect(seen?.model).toEqual({ providerID: ref.providerID, modelID: ref.modelID })
+        }),
+      {
+        config: {
+          agent: { explore: { model: "test/other-model" } },
+          provider: {
+            test: {
+              name: "Test",
+              id: "test",
+              env: [],
+              npm: "@ai-sdk/openai-compatible",
+              models: {
+                "test-model": testModel("test-model"),
+                "other-model": testModel("other-model"),
+              },
+              options: { apiKey: "test-key", baseURL: "http://localhost:1/v1" },
+            },
+          },
+        },
+      },
     ),
     30_000,
   )

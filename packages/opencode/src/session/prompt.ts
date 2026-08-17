@@ -890,6 +890,7 @@ export const layer = Layer.effect(
                 ],
                 tools: input.tools,
                 model: input.model,
+                checkpoint: true,
               })
               .pipe(
                 Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),

@@ -926,8 +926,13 @@ The emergency capture route carries the full tool catalog on the wire and tool e
         expect(inputs).toHaveLength(2)
         const emergencyTools = (inputs[1]?.tools as unknown[] | undefined) ?? []
         const workingTools = (inputs[0]?.tools as unknown[] | undefined) ?? []
+        const emergencyMessages = inputs[1]?.messages as Array<{ role: string }> | undefined
+        const workingMessages = inputs[0]?.messages as Array<{ role: string }> | undefined
         expect(emergencyTools).not.toHaveLength(0)
         expect(JSON.stringify(emergencyTools)).toEqual(JSON.stringify(workingTools))
+        expect(emergencyMessages?.filter((message) => message.role === "system")).toEqual(
+          workingMessages?.filter((message) => message.role === "system"),
+        )
         expect(Constitution.isSummaryMode(session.id)).toBe(false)
       }),
       { git: true, config: bigCaptureProviderCfg },

@@ -134,9 +134,10 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string; 
   })
 
   function onSelect(providerID: string, modelID: string) {
-    local.model.set({ providerID, modelID }, { recent: true, agent: props.targetAgent })
-    if (props.targetAgent && canActivateAgent(props.targetAgent, sync.data.agent)) {
-      local.agent.set(props.targetAgent)
+    const agent = props.targetAgent ?? local.agent.current()?.name
+    local.model.set({ providerID, modelID }, { recent: true, agent })
+    if (agent && canActivateAgent(agent, sync.data.agent)) {
+      local.agent.set(agent)
     }
     const list = local.model.variant.list()
     const cur = local.model.variant.selected()

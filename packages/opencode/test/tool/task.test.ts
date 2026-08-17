@@ -16,6 +16,8 @@ import { loadSessionSettings, saveSessionSettings } from "../../src/session/sess
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
+import { Global } from "@opencode-ai/core/global"
+import path from "path"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
@@ -563,10 +565,21 @@ describe("tool.task", () => {
     30_000,
   )
 
-  it.live("delegated explorer uses the parent session model and variant without global state", () =>
+  it.live("delegated explorer uses its session model and variant before the workspace model", () =>
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
+        const fs = yield* AppFileSystem.Service
         const { chat, assistant } = yield* seed()
+        yield* fs.writeWithDirs(
+          path.join(Global.Path.state, "model.json"),
+          JSON.stringify({
+            workspaceAgent: {
+              default: {
+                explorer_agent: { providerID: "test", modelID: "workspace-model" },
+              },
+            },
+          }),
+        )
         yield* Effect.promise(() =>
           saveSessionSettings(chat.id, {
             agent: { explorer_agent: { model: "test/test-model", variant: "session-variant" } },
@@ -608,17 +621,29 @@ describe("tool.task", () => {
     30_000,
   )
 
-  it.live("delegated subagent inherits parent model over a global agent default", () =>
+  it.live("delegated subagent uses the workspace model before its global default", () =>
     provideTmpdirInstance(
       () =>
         Effect.gen(function* () {
+          const fs = yield* AppFileSystem.Service
+          yield* fs.writeWithDirs(
+            path.join(Global.Path.state, "model.json"),
+            JSON.stringify({
+              workspaceAgent: {
+                default: {
+                  explorer_agent: { providerID: "test", modelID: "workspace-model" },
+                },
+              },
+            }),
+          )
           const { chat, assistant } = yield* seed()
           const tool = yield* TaskTool
           const def = yield* tool.init()
           let seen: SessionPrompt.PromptInput | undefined
+
           yield* def.execute(
             {
-              description: "inherit parent over global default",
+              description: "workspace model before global",
               prompt: "Inspect.",
               subagent_type: "explorer_agent",
             },
@@ -633,7 +658,64 @@ describe("tool.task", () => {
               ask: () => Effect.void,
             },
           )
-          expect(seen?.model).toEqual({ providerID: ref.providerID, modelID: ref.modelID })
+
+          expect(seen?.model).toEqual({
+            providerID: ProviderID.make("test"),
+            modelID: ModelID.make("workspace-model"),
+          })
+        }),
+      {
+        config: {
+          agent: { explore: { model: "test/other-model" } },
+          provider: {
+            test: {
+              name: "Test",
+              id: "test",
+              env: [],
+              npm: "@ai-sdk/openai-compatible",
+              models: {
+                "test-model": testModel("test-model"),
+                "other-model": testModel("other-model"),
+                "workspace-model": testModel("workspace-model"),
+              },
+              options: { apiKey: "test-key", baseURL: "http://localhost:1/v1" },
+            },
+          },
+        },
+      },
+    ),
+    30_000,
+  )
+
+  it.live("delegated subagent uses its global agent model over the parent model", () =>
+    provideTmpdirInstance(
+      () =>
+        Effect.gen(function* () {
+          const { chat, assistant } = yield* seed()
+          const tool = yield* TaskTool
+          const def = yield* tool.init()
+          let seen: SessionPrompt.PromptInput | undefined
+          yield* def.execute(
+            {
+              description: "agent model over parent",
+              prompt: "Inspect.",
+              subagent_type: "explorer_agent",
+            },
+            {
+              sessionID: chat.id,
+              messageID: assistant.id,
+              agent: "build_mode",
+              abort: new AbortController().signal,
+              extra: { promptOps: stubOps({ onPrompt: (input) => (seen = input) }) },
+              messages: [],
+              metadata: () => Effect.void,
+              ask: () => Effect.void,
+            },
+          )
+          expect(seen?.model).toEqual({
+            providerID: ProviderID.make("test"),
+            modelID: ModelID.make("other-model"),
+          })
         }),
       {
         config: {

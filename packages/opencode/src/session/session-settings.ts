@@ -11,8 +11,9 @@ import * as Log from "@opencode-ai/core/util/log"
  * (worktree-local — multi-project installs do not share these overrides.)
  *
  * Loading priority:
- *   1. Session file (if present) → overrides global agent definition for that field
- *   2. Global config (opencode.jsonc) / state (model.json) / native Agent.Info
+ *   1. Session file (if present) → session override
+ *   2. Workspace state (model.json) → last model selected in that workspace
+ *   3. Global config (opencode.jsonc) / native Agent.Info → defaults only
  */
 
 // ── Types ──
@@ -48,6 +49,28 @@ export interface ModelRef {
   modelID: string
 }
 
+export const DEFAULT_WORKSPACE_MODEL_SCOPE = "default"
+
+/** A missing control-plane workspace still has an isolated worktree state file. */
+export function workspaceModelScope(workspaceID: string | undefined): string {
+  return workspaceID ?? DEFAULT_WORKSPACE_MODEL_SCOPE
+}
+
+/** Read a valid agent model from the workspace-level state payload. */
+export function workspaceAgentModel(agentName: string, workspaceID: string | undefined, state: unknown): ModelRef | undefined {
+  if (typeof state !== "object" || state === null) return undefined
+  const workspaceAgent = (state as Record<string, unknown>).workspaceAgent
+  if (typeof workspaceAgent !== "object" || workspaceAgent === null) return undefined
+  const workspace = (workspaceAgent as Record<string, unknown>)[workspaceModelScope(workspaceID)]
+  if (typeof workspace !== "object" || workspace === null) return undefined
+  const model = (workspace as Record<string, unknown>)[agentName]
+  if (typeof model !== "object" || model === null) return undefined
+  const value = model as Record<string, unknown>
+  if (typeof value.providerID !== "string" || typeof value.modelID !== "string") return undefined
+  if (!value.providerID || !value.modelID) return undefined
+  return { providerID: value.providerID, modelID: value.modelID }
+}
+
 /** Read a per-session model selection for one agent. Invalid persisted values are ignored. */
 export function sessionAgentModel(
   agentName: string,
@@ -67,8 +90,7 @@ export function sessionAgentModel(
  * Resolve a session-scoped variant for an agent/model pair.
  *
  * `agentVariant` is the explicit TUI selection. `agent[].variant` is retained
- * for seeded native-agent defaults and older session files. Model-level variant
- * is the final session fallback.
+ * for older session files. Model-level variant is the final session fallback.
  */
 export function sessionAgentVariant(
   agentName: string,

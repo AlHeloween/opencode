@@ -10,6 +10,7 @@ import { iife } from "@/util/iife"
 import { useToast } from "../ui/toast"
 import { useArgs } from "./args"
 import { useSDK } from "./sdk"
+import { useRoute, type Route } from "./route"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
 import { Filesystem } from "@/util/filesystem"
@@ -18,6 +19,8 @@ import {
   saveSessionSettings,
   effectiveSubagents,
   sessionAgentVariant,
+  workspaceAgentModel,
+  workspaceModelScope,
   type SessionSettings,
 } from "@/session/session-settings"
 
@@ -29,12 +32,19 @@ export function parseModel(model: string) {
   }
 }
 
+/** Session settings belong to the session open in the TUI, not the newest child session. */
+export function activeSessionID(route: Route, sessions: ReadonlyArray<{ id: string }>): string | undefined {
+  if (route.type === "session") return route.sessionID
+  return sessions.at(-1)?.id
+}
+
 export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
   name: "Local",
   init: () => {
     const sync = useSync()
     const sdk = useSDK()
     const toast = useToast()
+    const route = useRoute()
 
     function isModelValid(model: { providerID: string; modelID: string }) {
       const provider = sync.data.provider.find((x) => x.id === model.providerID)
@@ -144,6 +154,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }[]
         variant: Record<string, string | undefined>
         agentVariant: Record<string, string | undefined>
+        workspaceAgent: Record<string, Record<string, { providerID: string; modelID: string }>>
         taskModel:
           | {
               providerID: string
@@ -156,6 +167,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         favorite: [],
         variant: {},
         agentVariant: {},
+        workspaceAgent: {},
         taskModel: undefined,
       })
 
@@ -169,11 +181,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       const [sessionSettings, setSessionSettings] = createSignal<SessionSettings | null>(null)
       let lastSettingsSessionID: string | undefined
 
-      /** Get the most recent session ID for session-scoped settings. */
+      /** Get the session whose settings are currently being shown or edited. */
       function getActiveSessionID(): string | undefined {
-        const sessions = sync.data.session
-        if (!sessions?.length) return undefined
-        return sessions[sessions.length - 1]?.id
+        return activeSessionID(route.data, sync.data.session)
+      }
+
+      function getActiveWorkspaceID(): string | undefined {
+        const sid = getActiveSessionID()
+        return sync.data.session.find((session) => session.id === sid)?.workspaceID
       }
 
       /** Load session settings from disk and merge into the store. */
@@ -181,14 +196,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const sid = getActiveSessionID()
         if (!sid) return
         lastSettingsSessionID = sid
-        let settings = await loadSessionSettings(sid)
-        // Seed from global agent configs: new sessions inherit global defaults
-        // but per-session overrides (if already set) are never overwritten.
-        const seeded = seedAgentDefaults(settings)
-        if (seeded) {
-          settings = seeded
-          void saveSessionSettings(sid, settings)
-        }
+        const settings = await loadSessionSettings(sid)
+        // Ignore a delayed read after the user has moved to another session.
+        if (getActiveSessionID() !== sid) return
         if (!settings) {
           setSessionSettings(null)
           return
@@ -211,29 +221,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
       }
 
-      /**
-       * Seed session settings with global agent defaults for agents that
-       * have no per-session override yet. Returns a new settings object if
-       * any defaults were added, or undefined if nothing changed.
-       */
-      function seedAgentDefaults(settings: SessionSettings | null): SessionSettings | undefined {
-        const overrides = { ...settings?.agent }
-        let changed = false
-        for (const a of sync.data.agent) {
-          if (a.mode === "subagent") continue // subagents inherit parent; never seeded from global
-          if (overrides[a.name]) continue // already has per-session override
-          if (!a.model) continue // no global default to seed
-          overrides[a.name] = {
-            model: `${a.model.providerID}/${a.model.modelID}`,
-            ...(a.variant ? { variant: a.variant } : {}),
-          }
-          changed = true
-        }
-        if (!changed) return undefined
-        return { ...settings, agent: overrides } as SessionSettings
-      }
-
-      /** Save settings to both global model.json and session-specific file. */
+      /** Save workspace state and the current session's settings. */
       function saveAll() {
         save()
         // Also persist to session settings if a session is active
@@ -269,6 +257,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           favorite: modelStore.favorite,
           variant: modelStore.variant,
           agentVariant: modelStore.agentVariant,
+          workspaceAgent: modelStore.workspaceAgent,
           taskModel: modelStore.taskModel,
         }
         state.write = state.write
@@ -287,6 +276,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
           if (typeof x.agentVariant === "object" && x.agentVariant !== null)
             setModelStore("agentVariant", x.agentVariant)
+          if (typeof x.workspaceAgent === "object" && x.workspaceAgent !== null)
+            setModelStore("workspaceAgent", x.workspaceAgent)
           if (
             typeof x.taskModel === "object" &&
             x.taskModel !== null &&
@@ -307,9 +298,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       // Watch for session changes and reload session settings
       createEffect(() => {
-        const sessions = sync.data.session
-        if (!sessions?.length) return
-        const sid = sessions[sessions.length - 1]?.id
+        const sid = getActiveSessionID()
         if (!sid || sid === lastSettingsSessionID) return
         refreshSessionSettings()
       })
@@ -361,7 +350,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const a = agent.current()
         return (
           getFirstValidModel(
-            () => a && forAgent(a.name), // Session settings → global config
+            () => a && forAgent(a.name), // Session → workspace → global agent config
             fallbackModel,
           ) ?? undefined
         )
@@ -375,7 +364,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const parsed = parseModel(agentOverride.model)
           if (isModelValid(parsed)) return parsed
         }
-        // 2. Fall back to global agent config
+        // 2. Workspace remembers the last explicit session selection.
+        const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
+          workspaceAgent: modelStore.workspaceAgent,
+        })
+        if (workspace && isModelValid(workspace)) return workspace
+        // 3. Global config is a default, never overwritten by TUI selections.
         const a = sync.data.agent.find((x) => x.name === name)
         return a?.model ?? undefined
       }
@@ -538,8 +532,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (!agentName) return
             if (options?.agent) {
               const sid = getActiveSessionID()
-              // Per-session: write ONLY to session file, not global config.
-              // Without a session: write to global config as the default for new sessions.
+              setModelStore("workspaceAgent", workspaceModelScope(getActiveWorkspaceID()), agentName, model)
+              // Per-session: record the explicit override alongside the workspace memory.
+              // Global config remains the initial default only.
               if (sid) {
                 const ss = sessionSettings()
                 const currentAgent = ss?.agent ?? {}
@@ -553,20 +548,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                     },
                   },
                 } as SessionSettings)
-              } else {
-                void sdk.client.global.config
-                  .update({
-                    config: {
-                      agent: {
-                        [agentName]: { model: `${model.providerID}/${model.modelID}` },
-                      },
-                    },
-                  })
-                  .catch((e: unknown) =>
-                    Log.Default.warn("bug: failed to persist agent model to config", {
-                      error: e instanceof Error ? e.message : String(e),
-                    }),
-                  )
               }
             }
             if (options?.recent) {

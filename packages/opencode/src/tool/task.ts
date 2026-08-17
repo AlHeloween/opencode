@@ -23,6 +23,7 @@ import {
   effectiveSubagents,
   sessionAgentModel,
   sessionAgentVariant,
+  workspaceAgentModel,
 } from "../session/session-settings"
 import { canonicalIdentity } from "../session/mode-identity"
 
@@ -225,47 +226,56 @@ export const TaskTool = Tool.define(
       const msg = yield* Effect.sync(() => MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }))
       if (msg.info.role !== "assistant") return yield* Effect.fail(new Error("Not an assistant message"))
 
-      // First determine the model
-      const taskModelOverride = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
-        Effect.map((x: any) => {
-          if (x?.taskModel?.providerID && x?.taskModel?.modelID)
-            return {
-              providerID: x.taskModel.providerID,
-              modelID: x.taskModel.modelID,
-            }
-          return undefined
-        }),
+      // Resolve the shared workspace state once. It is worktree-local and
+      // carries the last explicit per-agent selection for each workspace.
+      const modelState = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
         Effect.catch(() => Effect.succeed(undefined)),
       )
+      const taskModelOverride = (() => {
+        const state = modelState as any
+        if (!state?.taskModel?.providerID || !state?.taskModel?.modelID) return undefined
+        return {
+          providerID: state.taskModel.providerID,
+          modelID: state.taskModel.modelID,
+        }
+      })()
+      const parentSession = yield* sessions.get(ctx.sessionID)
+      const workspaceModel = workspaceAgentModel(next.name, parentSession.workspaceID, modelState)
+      // Model precedence: session override → workspace selection → global
+      // agent default → legacy task model → parent model.
       const sessionModel = sessionAgentModel(next.name, sessionSettings)
       const model = sessionModel
         ? {
             providerID: ProviderID.make(sessionModel.providerID),
             modelID: ModelID.make(sessionModel.modelID),
           }
-        : (taskModelOverride ?? {
-            modelID: msg.info.modelID,
-            providerID: msg.info.providerID,
-          })
+        : workspaceModel
+          ? {
+              providerID: ProviderID.make(workspaceModel.providerID),
+              modelID: ModelID.make(workspaceModel.modelID),
+            }
+          : (next.model ??
+              (taskModelOverride ?? {
+                modelID: msg.info.modelID,
+                providerID: msg.info.providerID,
+              }))
 
       // Session settings are authoritative for this parent session. Resolve
       // them before the optional global state file, which may not exist.
+      const sameAsAgentModel =
+        next.model?.providerID === model.providerID && next.model?.modelID === model.modelID
       const sessionVariant = sessionAgentVariant(next.name, model, sessionSettings)
       const taskVariant =
         sessionVariant ??
-        (yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
-          Effect.map((x: any) => {
-            if (!next?.name) return undefined
-            const modelKey = `${model.providerID}/${model.modelID}`
-            const agentKey = `${next.name}/${modelKey}`
-            // Check agent-specific variant first, then fall back to model-level variant
-            if (x?.agentVariant?.[agentKey]) return x.agentVariant[agentKey]
-            if (x?.variant?.[modelKey]) return x.variant[modelKey]
-            const sameAsAgentModel = next.model?.providerID === model.providerID && next.model?.modelID === model.modelID
-            return sameAsAgentModel ? next.variant : undefined
-          }),
-          Effect.catch(() => Effect.succeed(undefined)),
-        ))
+        (() => {
+          const state = modelState as any
+          const modelKey = `${model.providerID}/${model.modelID}`
+          const agentKey = `${next.name}/${modelKey}`
+          if (state?.agentVariant?.[agentKey]) return state.agentVariant[agentKey]
+          return state?.variant?.[modelKey]
+        })() ??
+        // Agent's own configured variant applies only when its own model is used.
+        (sameAsAgentModel ? next.variant : undefined)
       // Diagnostic: log when task agent model has different context window than parent
       const parentModel = { modelID: msg.info.modelID, providerID: msg.info.providerID }
       if (parentModel.modelID !== model.modelID || parentModel.providerID !== model.providerID) {

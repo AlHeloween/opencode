@@ -430,10 +430,10 @@ describe("Dedicated DeepSeek V4 thinking", () => {
     api: { ...mkDeepseekModel().api, id: "deepseek-v4-pro", npm: "@ai-sdk/deepseek" },
   } as any
 
-  test("exposes off, adaptive, high, and max variants for TUI selection", () => {
+  test("exposes off, low, high, and max variants for TUI selection", () => {
     expect(ProviderTransform.variants(model)).toEqual({
       off: { thinking: { type: "disabled" } },
-      adaptive: { thinking: { type: "adaptive" } },
+      low: { thinking: { type: "enabled" }, reasoningEffort: "low" },
       high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
       max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
     })
@@ -464,7 +464,7 @@ describe("Dedicated DeepSeek V4 thinking", () => {
     }
     expect(bodies.map((body) => ({ thinking: body.thinking, reasoningEffort: body.reasoning_effort }))).toEqual([
       { thinking: { type: "disabled" }, reasoningEffort: undefined },
-      { thinking: { type: "adaptive" }, reasoningEffort: undefined },
+      { thinking: { type: "enabled" }, reasoningEffort: "low" },
       { thinking: { type: "enabled" }, reasoningEffort: "high" },
       { thinking: { type: "enabled" }, reasoningEffort: "max" },
     ])

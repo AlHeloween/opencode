@@ -573,7 +573,7 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
       if (!model.api.id.includes("deepseek-v4")) return {}
       return {
         off: { thinking: { type: "disabled" } },
-        adaptive: { thinking: { type: "adaptive" } },
+        low: { thinking: { type: "enabled" }, reasoningEffort: "low" },
         high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
         max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
       }

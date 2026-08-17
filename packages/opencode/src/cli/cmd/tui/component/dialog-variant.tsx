@@ -12,9 +12,9 @@ const deepseekThinkingVariant = {
     title: "Off",
     description: "Thinking disabled",
   },
-  adaptive: {
-    title: "Adaptive",
-    description: "DeepSeek decides when to use thinking",
+  low: {
+    title: "Low",
+    description: "Thinking enabled · low reasoning budget",
   },
   high: {
     title: "High",

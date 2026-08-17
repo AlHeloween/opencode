@@ -39,7 +39,7 @@ field) affects **task execution** — and what it means for opencode's echo poli
 | **Drop CoT from replay** (all openai-compatible routes except the DeepSeek/MIMO tool-call 400-guard) | Echo makes the model re-think over its own CoT — live-verified: KAT 50 vs 142 output reasoning tokens, 1042 vs 1768 ms; zen MIMO 2.4× more CoT. That is the TOPS "overthinking" pattern: more tokens, no quality gain. Historical CoT's value is realized *during* its generation; in-context replay adds redundancy. |
 | **Save + render, never mutate stored parts** | CoT remains an explainability artifact (Hi-CoT: "interpretable, auditable reasoning traces"). The drop operates only on the outgoing wire copy (`normalizeMessages`); DB parts and TUI rendering are untouched. |
 | **Tool-call echo whitelist (DeepSeek, MIMO)** | Protocol requirement (vendor 400), not quality. Thinking continuity across tool steps inside a turn is real; between turns it is not. |
-| **Reasoning effort variants** (`off/adaptive/high/max` for DeepSeek) | Direct consequence of TOPS/Inkling/GPT-5: effort should be chosen per task difficulty, not fixed. |
+| **Reasoning effort variants** (`off/low/high/max` for DeepSeek) | Direct consequence of TOPS/Inkling/GPT-5: effort should be chosen per task difficulty, not fixed. |
 | **Fresh CoT every turn, no echo** | The useful part of CoT is test-time compute for the *current* problem; replaying old CoT wastes context and invites overthinking. |
 
 ## One-line conclusion

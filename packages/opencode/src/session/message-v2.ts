@@ -284,6 +284,7 @@ export const StepFinishPart = Schema.Struct({
   ...partBase,
   type: Schema.Literal("step-finish"),
   reason: Schema.String,
+  cacheState: Schema.optional(Schema.Literals(["hit", "miss", "unknown"])),
   snapshot: Schema.optional(Schema.String),
   cost: Schema.Number,
   tokens: Schema.Struct({
@@ -294,9 +295,16 @@ export const StepFinishPart = Schema.Struct({
     cache: Schema.Struct({
       read: Schema.Number,
       write: Schema.Number,
+      state: Schema.optional(
+        Schema.Struct({
+          hit: Schema.Number,
+          miss: Schema.Number,
+          unknown: Schema.Number,
+        }),
+      ),
     }),
     cacheRatio: Schema.optional(Schema.Number),
-  }),
+    }),
 })
   .annotate({ identifier: "StepFinishPart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -596,6 +604,13 @@ export const Assistant = Schema.Struct({
     cache: Schema.Struct({
       read: Schema.Number,
       write: Schema.Number,
+      state: Schema.optional(
+        Schema.Struct({
+          hit: Schema.Number,
+          miss: Schema.Number,
+          unknown: Schema.Number,
+        }),
+      ),
     }),
     cacheRatio: Schema.optional(Schema.Number),
   }),

@@ -50,6 +50,10 @@ export const SessionTable = sqliteTable(
     tokens_reasoning: integer().default(0),
     tokens_cache_read: integer().default(0),
     tokens_cache_write: integer().default(0),
+    cache_hit_steps: integer(),
+    cache_miss_steps: integer(),
+    cache_unknown_steps: integer(),
+    cache_state_observed: integer(),
   },
   (table) => [
     index("session_project_idx").on(table.project_id),

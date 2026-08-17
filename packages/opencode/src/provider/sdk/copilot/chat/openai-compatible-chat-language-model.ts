@@ -499,7 +499,8 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
             }
 
             // enqueue reasoning before text deltas (DeepSeek uses reasoning_content, Copilot uses reasoning_text):
-            const reasoningContent = delta.reasoning_content ?? delta.reasoning_text
+            const reasoningContent =
+              delta.reasoning_content ?? delta.reasoning_text ?? (value.event === "model_thought" ? delta.content : undefined)
             if (reasoningContent) {
               if (!isActiveReasoning) {
                 controller.enqueue({
@@ -516,7 +517,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
               })
             }
 
-            if (delta.content) {
+            if (delta.content && value.event !== "model_thought") {
               // If reasoning was active and we're starting text, end reasoning first
               // This handles the case where reasoning_opaque and content come in the same chunk
               if (isActiveReasoning && !isActiveText) {
@@ -813,6 +814,7 @@ const createOpenAICompatibleChatChunkSchema = <ERROR_SCHEMA extends z.core.$ZodT
     z.object({
       id: z.string().nullish(),
       created: z.number().nullish(),
+      event: z.string().nullish(),
       model: z.string().nullish(),
       choices: z.array(
         z.object({

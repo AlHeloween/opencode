@@ -171,7 +171,11 @@ export interface StepTokens {
   input: number
   output: number
   reasoning: number
-  cache: { read: number; write: number }
+  cache: {
+    read: number
+    write: number
+    state?: { hit: number; miss: number; unknown: number }
+  }
   cacheRatio?: number
 }
 
@@ -180,17 +184,33 @@ export interface StepTokens {
  * message. Prevents the old bug where message tokens held only the last
  * step's usage, mixing per-step input with cumulative cache.read.
  */
-export function accumulateStepTokens(accumulated: StepTokens | undefined, step: StepTokens): StepTokens {
-  if (!accumulated) return { ...step, cache: { ...step.cache } }
+export function accumulateStepTokens(
+  accumulated: StepTokens | undefined,
+  step: StepTokens,
+  cacheState?: Session.CacheState,
+): StepTokens {
+  const state = (current?: StepTokens["cache"]["state"]) =>
+    cacheState
+      ? {
+          hit: (current?.hit ?? 0) + (cacheState === "hit" ? 1 : 0),
+          miss: (current?.miss ?? 0) + (cacheState === "miss" ? 1 : 0),
+          unknown: (current?.unknown ?? 0) + (cacheState === "unknown" ? 1 : 0),
+        }
+      : current
+  if (!accumulated) {
+    const next = state(step.cache.state)
+    return { ...step, cache: { ...step.cache, ...(next && { state: next }) } }
+  }
   const read = accumulated.cache.read + step.cache.read
   const write = accumulated.cache.write + step.cache.write
   const input = accumulated.input + step.input
+  const next = state(accumulated.cache.state)
   return {
     total: (accumulated.total ?? 0) + (step.total ?? 0),
     input,
     output: accumulated.output + step.output,
     reasoning: accumulated.reasoning + step.reasoning,
-    cache: { read, write },
+    cache: { read, write, ...(next && { state: next }) },
     cacheRatio: read / Math.max(1, input + read + write),
   }
 }
@@ -686,13 +706,14 @@ export const layer: Layer.Layer<
               })
             }
             lastPromptTokens.set(injectionKey, promptTotal)
+            const hasCacheUsage = usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0
+            const cacheState = hasCacheUsage ? Session.classifyCacheRead(rawCacheRead) : undefined
             ctx.assistantMessage.cost += usage.cost
             // T4: aggregate tokens across all steps of this assistant message.
             // Previous behaviour stored only the LAST step's usage, mixing
             // per-step input with cumulative cache.read into a misleading ratio.
-            ctx.assistantMessage.tokens = accumulateStepTokens(ctx.assistantMessage.tokens, usage.tokens)
-            if (usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0) {
-              const cacheState = Session.classifyCacheRead(rawCacheRead)
+            ctx.assistantMessage.tokens = accumulateStepTokens(ctx.assistantMessage.tokens, usage.tokens, cacheState)
+            if (cacheState) {
               log.info(cacheState === "hit" ? "cache hit" : cacheState === "miss" ? "cache miss" : "cache unknown", {
                 sessionID: ctx.sessionID,
                 modelID: ctx.model.id,
@@ -719,6 +740,7 @@ export const layer: Layer.Layer<
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",
               tokens: usage.tokens,
+              ...(cacheState && { cacheState }),
               cost: usage.cost,
             })
             yield* session.updateMessage(ctx.assistantMessage)
@@ -734,6 +756,12 @@ export const layer: Layer.Layer<
                     tokens_reasoning: sql`tokens_reasoning + ${usage.tokens.reasoning}`,
                     tokens_cache_read: sql`tokens_cache_read + ${usage.tokens.cache.read}`,
                     tokens_cache_write: sql`tokens_cache_write + ${usage.tokens.cache.write}`,
+                    ...(cacheState && {
+                      cache_hit_steps: sql`COALESCE(cache_hit_steps, 0) + ${cacheState === "hit" ? 1 : 0}`,
+                      cache_miss_steps: sql`COALESCE(cache_miss_steps, 0) + ${cacheState === "miss" ? 1 : 0}`,
+                      cache_unknown_steps: sql`COALESCE(cache_unknown_steps, 0) + ${cacheState === "unknown" ? 1 : 0}`,
+                      cache_state_observed: 1,
+                    }),
                   })
                   .where(eq(SessionTable.id, ctx.sessionID))
                   .run(),

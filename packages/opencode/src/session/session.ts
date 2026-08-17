@@ -200,6 +200,15 @@ export function fromRow(row: SessionRow): Info {
       cache: {
         read: row.tokens_cache_read ?? 0,
         write: row.tokens_cache_write ?? 0,
+        ...(row.cache_state_observed
+          ? {
+              state: {
+                hit: row.cache_hit_steps ?? 0,
+                miss: row.cache_miss_steps ?? 0,
+                unknown: row.cache_unknown_steps ?? 0,
+              },
+            }
+          : {}),
       },
     },
   }
@@ -232,6 +241,10 @@ export function toRow(info: Info) {
     tokens_reasoning: info.tokens?.reasoning ?? 0,
     tokens_cache_read: info.tokens?.cache?.read ?? 0,
     tokens_cache_write: info.tokens?.cache?.write ?? 0,
+    cache_hit_steps: info.tokens?.cache?.state?.hit ?? null,
+    cache_miss_steps: info.tokens?.cache?.state?.miss ?? null,
+    cache_unknown_steps: info.tokens?.cache?.state?.unknown ?? null,
+    cache_state_observed: info.tokens?.cache?.state ? 1 : null,
   }
 }
 
@@ -307,7 +320,17 @@ export const Info = Schema.Struct({
     input: Schema.Number,
     output: Schema.Number,
     reasoning: Schema.Number,
-    cache: Schema.Struct({ read: Schema.Number, write: Schema.Number }),
+    cache: Schema.Struct({
+      read: Schema.Number,
+      write: Schema.Number,
+      state: Schema.optional(
+        Schema.Struct({
+          hit: Schema.Number,
+          miss: Schema.Number,
+          unknown: Schema.Number,
+        }),
+      ),
+    }),
     cacheRatio: Schema.optional(Schema.Number),
   })),
 })
@@ -1022,6 +1045,12 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
                   tokens_reasoning: sql`tokens_reasoning + ${input.tokens.reasoning}`,
                   tokens_cache_read: sql`tokens_cache_read + ${input.tokens.cache.read}`,
                   tokens_cache_write: sql`tokens_cache_write + ${input.tokens.cache.write}`,
+                  ...(input.stepFinishPart.cacheState && {
+                    cache_hit_steps: sql`COALESCE(cache_hit_steps, 0) + ${input.stepFinishPart.cacheState === "hit" ? 1 : 0}`,
+                    cache_miss_steps: sql`COALESCE(cache_miss_steps, 0) + ${input.stepFinishPart.cacheState === "miss" ? 1 : 0}`,
+                    cache_unknown_steps: sql`COALESCE(cache_unknown_steps, 0) + ${input.stepFinishPart.cacheState === "unknown" ? 1 : 0}`,
+                    cache_state_observed: 1,
+                  }),
                 })
                 .where(eq(SessionTable.id, input.sessionID))
                 .run()

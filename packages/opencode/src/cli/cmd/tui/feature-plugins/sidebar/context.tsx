@@ -24,12 +24,23 @@ function compactNum(n: number): string {
   return n.toString()
 }
 
-/** Format cache stats in compact form: 99%(161K read 860 miss). */
-function formatCacheStats(hitRate: number | null, read: number, miss: number, lastRead?: number, lastMiss?: number): string {
+function formatCacheStats(
+  hitRate: number | null,
+  read: number,
+  miss: number,
+  lastRead?: number,
+  lastMiss?: number,
+): string {
   if (hitRate === null) return "cold"
   const r = lastRead != null ? `(${compactNum(lastRead)})` : ""
   const m = lastMiss != null ? `(${compactNum(lastMiss)})` : ""
-  return `${hitRate}%(${compactNum(read)}${r} read ${compactNum(miss)}${m} miss)`
+  return `${hitRate}%(${compactNum(read)}${r} hit ${compactNum(miss)}${m} miss)`
+}
+
+function cacheTokens(message: AssistantMessage) {
+  const state = (message.tokens.cache as { state?: { unknown: number } }).state
+  if (state?.unknown) return { read: 0, miss: 0 }
+  return { read: message.tokens.cache.read, miss: message.tokens.input }
 }
 
 interface ModelStatusDisplay {
@@ -68,31 +79,38 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
 
   // Calculate cache stats for all active sessions
   const allSessionStats = createMemo(() => {
-    const stats: Array<{ name: string; cacheRead: number; cacheMiss: number; hitRate: number | null; lastCacheRead: number; lastCacheMiss: number }> = []
+    const stats: Array<{
+      name: string
+      cacheRead: number
+      cacheMiss: number
+      hitRate: number | null
+      lastCacheRead: number
+      lastCacheMiss: number
+    }> = []
 
     // Current session stats
-    const allAssistant = msg().filter((item): item is AssistantMessage =>
-      item.role === "assistant" && item.tokens.output > 0,
+    const allAssistant = msg().filter(
+      (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
     )
     const last = allAssistant[allAssistant.length - 1]
     if (last) {
       let sessionCacheRead = 0
       let sessionCacheMiss = 0
       for (const m of allAssistant) {
-        sessionCacheRead += m.tokens.cache.read
-        sessionCacheMiss += m.tokens.input
+        const tokens = cacheTokens(m)
+        sessionCacheRead += tokens.read
+        sessionCacheMiss += tokens.miss
       }
+      const lastTokens = cacheTokens(last)
       const total = sessionCacheRead + sessionCacheMiss
-      const hitRate = total > 0 && sessionCacheRead > 0
-        ? Math.round((sessionCacheRead / total) * 100)
-        : null
+      const hitRate = total > 0 && sessionCacheRead > 0 ? Math.round((sessionCacheRead / total) * 100) : null
       stats.push({
         name: "current",
         cacheRead: sessionCacheRead,
         cacheMiss: sessionCacheMiss,
         hitRate,
-        lastCacheRead: last.tokens.cache.read,
-        lastCacheMiss: last.tokens.input,
+        lastCacheRead: lastTokens.read,
+        lastCacheMiss: lastTokens.miss,
       })
     }
 
@@ -102,42 +120,56 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       const mainSid = agiMode.mainSessionID()
       if (orchSid && orchSid !== props.session_id) {
         const orchMsgs = props.api.state.session.messages(orchSid)
-        const orchAssistant = orchMsgs.filter((m): m is AssistantMessage =>
-          m.role === "assistant" && m.tokens.output > 0,
+        const orchAssistant = orchMsgs.filter(
+          (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
         )
         if (orchAssistant.length > 0) {
           let cacheRead = 0
           let cacheMiss = 0
           for (const m of orchAssistant) {
-            cacheRead += m.tokens.cache.read
-            cacheMiss += m.tokens.input
+            const tokens = cacheTokens(m)
+            cacheRead += tokens.read
+            cacheMiss += tokens.miss
           }
           const orchLast = orchAssistant[orchAssistant.length - 1]
+          const orchLastTokens = cacheTokens(orchLast)
           const total = cacheRead + cacheMiss
-          const hitRate = total > 0 && cacheRead > 0
-            ? Math.round((cacheRead / total) * 100)
-            : null
-          stats.push({ name: "orch", cacheRead, cacheMiss, hitRate, lastCacheRead: orchLast.tokens.cache.read, lastCacheMiss: orchLast.tokens.input })
+          const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
+          stats.push({
+            name: "orch",
+            cacheRead,
+            cacheMiss,
+            hitRate,
+            lastCacheRead: orchLastTokens.read,
+            lastCacheMiss: orchLastTokens.miss,
+          })
         }
       }
       if (mainSid && mainSid !== props.session_id) {
         const mainMsgs = props.api.state.session.messages(mainSid)
-        const mainAssistant = mainMsgs.filter((m): m is AssistantMessage =>
-          m.role === "assistant" && m.tokens.output > 0,
+        const mainAssistant = mainMsgs.filter(
+          (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
         )
         if (mainAssistant.length > 0) {
           let cacheRead = 0
           let cacheMiss = 0
           for (const m of mainAssistant) {
-            cacheRead += m.tokens.cache.read
-            cacheMiss += m.tokens.input
+            const tokens = cacheTokens(m)
+            cacheRead += tokens.read
+            cacheMiss += tokens.miss
           }
           const mainLast = mainAssistant[mainAssistant.length - 1]
+          const mainLastTokens = cacheTokens(mainLast)
           const total = cacheRead + cacheMiss
-          const hitRate = total > 0 && cacheRead > 0
-            ? Math.round((cacheRead / total) * 100)
-            : null
-          stats.push({ name: "main", cacheRead, cacheMiss, hitRate, lastCacheRead: mainLast.tokens.cache.read, lastCacheMiss: mainLast.tokens.input })
+          const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
+          stats.push({
+            name: "main",
+            cacheRead,
+            cacheMiss,
+            hitRate,
+            lastCacheRead: mainLastTokens.read,
+            lastCacheMiss: mainLastTokens.miss,
+          })
         }
       }
     }
@@ -147,24 +179,31 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     const childSessions = allSessions.filter((s) => s.parentID === props.session_id)
     for (const child of childSessions) {
       const childMsgs = props.api.state.session.messages(child.id)
-      const childAssistant = childMsgs.filter((m): m is AssistantMessage =>
-        m.role === "assistant" && m.tokens.output > 0,
+      const childAssistant = childMsgs.filter(
+        (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
       )
       if (childAssistant.length > 0) {
         let cacheRead = 0
         let cacheMiss = 0
         for (const m of childAssistant) {
-          cacheRead += m.tokens.cache.read
-          cacheMiss += m.tokens.input
+          const tokens = cacheTokens(m)
+          cacheRead += tokens.read
+          cacheMiss += tokens.miss
         }
         const childLast = childAssistant[childAssistant.length - 1]
+        const childLastTokens = cacheTokens(childLast)
         const total = cacheRead + cacheMiss
-        const hitRate = total > 0 && cacheRead > 0
-          ? Math.round((cacheRead / total) * 100)
-          : null
+        const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
         // Use first word of title as label (e.g., "Explorer", "Coder")
         const label = child.title.split(" ")[0].toLowerCase() || child.id.slice(0, 6)
-        stats.push({ name: label, cacheRead, cacheMiss, hitRate, lastCacheRead: childLast.tokens.cache.read, lastCacheMiss: childLast.tokens.input })
+        stats.push({
+          name: label,
+          cacheRead,
+          cacheMiss,
+          hitRate,
+          lastCacheRead: childLastTokens.read,
+          lastCacheMiss: childLastTokens.miss,
+        })
       }
     }
 
@@ -193,26 +232,28 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   // sidebar shows status immediately, not just after a message is sent.
   onMount(() => {
     for (const p of props.api.state.provider) {
-      getModelStatus(p.id).then((status) => {
-        setProviderStatus((prev) => ({
-          ...prev,
-          [p.id]: {
-            type: status.type,
-            currency: (status as any).currency,
-            totalBalance: (status as any).totalBalance,
-            isAvailable: (status as any).isAvailable,
-            windows: (status as any).windows,
-            reason: (status as any).reason,
-            timestamp: Date.now(),
-          },
-        }))
-      }).catch((e) => console.debug("sidebar balance fetch failed", e))
+      getModelStatus(p.id)
+        .then((status) => {
+          setProviderStatus((prev) => ({
+            ...prev,
+            [p.id]: {
+              type: status.type,
+              currency: (status as any).currency,
+              totalBalance: (status as any).totalBalance,
+              isAvailable: (status as any).isAvailable,
+              windows: (status as any).windows,
+              reason: (status as any).reason,
+              timestamp: Date.now(),
+            },
+          }))
+        })
+        .catch((e) => console.debug("sidebar balance fetch failed", e))
     }
   })
 
   const state = createMemo(() => {
-    const allAssistant = msg().filter((item): item is AssistantMessage =>
-      item.role === "assistant" && item.tokens.output > 0,
+    const allAssistant = msg().filter(
+      (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
     )
     const last = allAssistant[allAssistant.length - 1]
     if (!last) {
@@ -249,11 +290,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       | undefined
 
     const totalInput = last.tokens.input + last.tokens.cache.read
-    const cacheHitRate = totalInput > 0 && last.tokens.cache.read > 0
-      ? Math.round((last.tokens.cache.read / totalInput) * 100)
-      : null
+    const cacheHitRate =
+      totalInput > 0 && last.tokens.cache.read > 0 ? Math.round((last.tokens.cache.read / totalInput) * 100) : null
 
-    // Cumulative session cache: sum across ALL assistant messages
     let sessionCacheRead = 0
     let sessionCacheInput = 0
     for (const m of allAssistant) {
@@ -261,15 +300,14 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       sessionCacheInput += m.tokens.input
     }
     const sessionTotal = sessionCacheRead + sessionCacheInput
-    const sessionCacheHitRate = sessionTotal > 0 && sessionCacheRead > 0
-      ? Math.round((sessionCacheRead / sessionTotal) * 100)
-      : null
+    const sessionCacheHitRate =
+      sessionTotal > 0 && sessionCacheRead > 0 ? Math.round((sessionCacheRead / sessionTotal) * 100) : null
 
     return {
       tokens,
       percent: model?.limit?.context ? Math.round((tokens / model.limit.context) * 100) : null,
       gatewayEnabled,
-      protocol: gatewayEnabled ? (model?.options?.protocol || "http/1.1") : undefined,
+      protocol: gatewayEnabled ? model?.options?.protocol || "http/1.1" : undefined,
       streaming: gatewayEnabled ? (model?.options?.streaming ?? true) : undefined,
       activeStreams: liveStatus?.activeStreams ?? 0,
       h2Sessions: liveStatus?.h2Sessions ?? 0,
@@ -293,11 +331,18 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <text fg={theme().text}>
         <b>Greeting</b>
       </text>
-      {state().providerID ? <text fg={theme().textMuted}>{state().providerID} · {state().apiProtocol}{state().protocol ? ` · ${state().protocol}` : ""}</text> : null}
+      {state().providerID ? (
+        <text fg={theme().textMuted}>
+          {state().providerID} · {state().apiProtocol}
+          {state().protocol ? ` · ${state().protocol}` : ""}
+        </text>
+      ) : null}
       {state().streaming !== undefined ? (
         <text fg={theme().textMuted}>Streaming: {state().streaming ? "enabled" : "disabled"}</text>
       ) : null}
-      {state().h2Sessions > 0 ? <text fg={theme().textMuted}>Stream capacity: {state().h2Sessions * state().h2MaxConcurrentStreams}</text> : null}
+      {state().h2Sessions > 0 ? (
+        <text fg={theme().textMuted}>Stream capacity: {state().h2Sessions * state().h2MaxConcurrentStreams}</text>
+      ) : null}
       {state().activeStreams > 0 ? <text fg={theme().textMuted}>Active: {state().activeStreams}</text> : null}
       <text fg={theme().text}>
         <b>Context</b>
@@ -315,7 +360,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       )}
       {(state().reasoning > 0 || state().output > 0) && (
         <text fg={theme().textMuted}>
-          Output: {state().reasoning > 0 ? `R${compactNum(state().reasoning)}, ` : ""}{compactNum(state().output)}{state().outputLimit > 0 ? `/${compactNum(state().outputLimit)}` : ""} tok
+          Output: {state().reasoning > 0 ? `R${compactNum(state().reasoning)}, ` : ""}
+          {compactNum(state().output)}
+          {state().outputLimit > 0 ? `/${compactNum(state().outputLimit)}` : ""} tok
         </text>
       )}
       {cost() > 0 && <text fg={theme().textMuted}>{money.format(cost())} spent</text>}
@@ -355,7 +402,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
                 <b>Status</b>
               </text>
               {(status.windows ?? []).map((w) => (
-                <text fg={w.usedPercent >= 90 ? theme().error : w.usedPercent >= 75 ? theme().warning : theme().textMuted}>
+                <text
+                  fg={w.usedPercent >= 90 ? theme().error : w.usedPercent >= 75 ? theme().warning : theme().textMuted}
+                >
                   {w.label}: {w.usedPercent}% used
                 </text>
               ))}

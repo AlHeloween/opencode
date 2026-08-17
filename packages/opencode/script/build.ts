@@ -5,6 +5,7 @@ import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
 import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
+import { assertWindowsBuildPrerequisites } from "./build-prerequisites"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -135,26 +136,29 @@ const targets = singleFlag
 await $`rm -rf dist`
 
 const binaries: Record<string, string> = {}
-if (!skipInstall) {
+if (singleFlag && process.platform === "win32") {
+  assertWindowsBuildPrerequisites(dir)
+}
+if (!singleFlag && !skipInstall) {
   await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
   await $`bun install --os="*" --cpu="*" @parcel/watcher@${pkg.dependencies["@parcel/watcher"]}`
-  // Force bun to pick up the local native DLL by copying it to the
-  // platform-native install dir that the bundler resolves at compile time.
-  const nativeDll = path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")
-  const nativePkgDir = path.join(dir, "node_modules", "@opentui", "core-win32-x64")
-  if (fs.existsSync(nativeDll)) {
-    fs.mkdirSync(nativePkgDir, { recursive: true })
-    fs.copyFileSync(nativeDll, path.join(nativePkgDir, "opentui.dll"))
-    // bun install only copies the DLL — we need the full package for resolution
-    fs.copyFileSync(
-      path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "index.js"),
-      path.join(nativePkgDir, "index.js"),
-    )
-    fs.copyFileSync(
-      path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "package.json"),
-      path.join(nativePkgDir, "package.json"),
-    )
-  }
+}
+// Force bun to pick up the local native DLL by copying it to the
+// platform-native install dir that the bundler resolves at compile time.
+const nativeDll = path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "opentui.dll")
+const nativePkgDir = path.join(dir, "node_modules", "@opentui", "core-win32-x64")
+if (fs.existsSync(nativeDll)) {
+  fs.mkdirSync(nativePkgDir, { recursive: true })
+  fs.copyFileSync(nativeDll, path.join(nativePkgDir, "opentui.dll"))
+  // bun install only copies the DLL — we need the full package for resolution
+  fs.copyFileSync(
+    path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "index.js"),
+    path.join(nativePkgDir, "index.js"),
+  )
+  fs.copyFileSync(
+    path.join(dir, "..", "..", "packages", "opentui", "packages", "core-win32-x64", "package.json"),
+    path.join(nativePkgDir, "package.json"),
+  )
 }
 for (const item of targets) {
   const name = [
@@ -174,9 +178,7 @@ for (const item of targets) {
   const localDistPath = path.resolve(dir, "node_modules/@opentui/core/dist/parser.worker.js")
   const rootPath = path.resolve(dir, "../../node_modules/@opentui/core/parser.worker.js")
   const parserWorker = fs.realpathSync(
-    fs.existsSync(localDistPath) ? localDistPath :
-    fs.existsSync(localPath) ? localPath :
-    rootPath
+    fs.existsSync(localDistPath) ? localDistPath : fs.existsSync(localPath) ? localPath : rootPath,
   )
   const workerPath = "./src/cli/cmd/tui/worker.ts"
 
@@ -219,10 +221,7 @@ for (const item of targets) {
   if (item.os === process.platform && item.arch === process.arch && !item.abi) {
     // Windows compile emits opencode.exe; shell may resolve bare "opencode", Bun.file does not.
     const binaryBase = `dist/${name}/bin/opencode`
-    const binaryPath =
-      item.os === "win32" && fs.existsSync(`${binaryBase}.exe`)
-        ? `${binaryBase}.exe`
-        : binaryBase
+    const binaryPath = item.os === "win32" && fs.existsSync(`${binaryBase}.exe`) ? `${binaryBase}.exe` : binaryBase
     console.log(`Running smoke test: ${binaryPath} --version`)
     try {
       const versionOutput = await $`${binaryPath} --version`.text()
@@ -231,9 +230,7 @@ for (const item of targets) {
       const binBytes = await Bun.file(binaryPath).arrayBuffer()
       const binText = new TextDecoder("latin1").decode(binBytes)
       if (!binText.includes("GATED_WORKFLOW")) {
-        throw new Error(
-          "binary missing inlined reasoning kernel (GATED_WORKFLOW) — .txt text embed failed",
-        )
+        throw new Error("binary missing inlined reasoning kernel (GATED_WORKFLOW) — .txt text embed failed")
       }
       if (binText.includes("~BUN/root/reasoning_prompt") && !binText.includes("IDENTITIES")) {
         throw new Error(

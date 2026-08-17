@@ -133,9 +133,12 @@ describe("step-finish token propagation via Bus event", () => {
             sessionID: info.id,
             type: "step-finish" as const,
             reason: "stop",
+            cacheState: "unknown" as const,
             cost: 0.005,
             tokens,
           }
+
+          expect(MessageV2.StepFinishPart.zod.parse(partInput).cacheState).toBe("unknown")
 
           await updatePart(partInput)
           await new Promise((resolve) => setTimeout(resolve, 100))
@@ -149,6 +152,7 @@ describe("step-finish token propagation via Bus event", () => {
           expect(finish.tokens.total).toBe(1500)
           expect(finish.tokens.cache.read).toBe(100)
           expect(finish.tokens.cache.write).toBe(50)
+          expect(finish.cacheState).toBe("unknown")
           expect(finish.cost).toBe(0.005)
 
           unsub()

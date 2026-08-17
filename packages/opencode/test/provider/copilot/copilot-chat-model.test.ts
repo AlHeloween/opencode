@@ -88,6 +88,13 @@ const FIXTURES = {
     `data: {"choices":[{"index":0,"delta":{"content":"I inspected it."},"finish_reason":"stop"}],"id":"deepseek-reasoning","model":"deepseek-v4-pro","usage":{"completion_tokens":4,"prompt_tokens":40,"total_tokens":44}}`,
     `data: [DONE]`,
   ],
+
+  streamlakeModelThought: [
+    `data: {"event":"model_thought","choices":[{"index":0,"delta":{"content":"Private thought."},"finish_reason":null}],"id":"streamlake-thought","model":"qwen3-30b-a3b","usage":null}`,
+    `data: {"choices":[{"index":0,"delta":{"content":"Visible output."},"finish_reason":null}],"id":"streamlake-thought","model":"qwen3-30b-a3b","usage":null}`,
+    `data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_thought","function":{"name":"read","arguments":"{}"}}]},"finish_reason":"tool_calls"}],"id":"streamlake-thought","model":"qwen3-30b-a3b","usage":{"completion_tokens":1470,"completion_tokens_details":{"reasoning_tokens":454},"prompt_tokens":11,"total_tokens":1481}}`,
+    `data: [DONE]`,
+  ],
 }
 
 function createMockFetch(chunks: string[]) {
@@ -549,6 +556,31 @@ describe("doStream", () => {
 
     const rawChunks = parts.filter((p) => p.type === "raw")
     expect(rawChunks.length).toBeGreaterThan(0)
+  })
+
+  test("routes StreamLake model_thought content to reasoning before visible text and tool calls", async () => {
+    const model = createModel(createMockFetch(FIXTURES.streamlakeModelThought))
+    const { stream } = await model.doStream({
+      prompt: TEST_PROMPT,
+      includeRawChunks: false,
+    })
+
+    const parts = await convertReadableStreamToArray(stream)
+    expect(parts.filter((part) => part.type === "reasoning-delta")).toEqual([
+      { type: "reasoning-delta", id: "reasoning-0", delta: "Private thought." },
+    ])
+    expect(parts.filter((part) => part.type === "text-delta")).toEqual([
+      { type: "text-delta", id: "txt-0", delta: "Visible output." },
+    ])
+    expect(parts.findIndex((part) => part.type === "reasoning-end")).toBeLessThan(
+      parts.findIndex((part) => part.type === "text-start"),
+    )
+    expect(parts).toContainEqual(expect.objectContaining({ type: "tool-call", toolCallId: "call_thought" }))
+    expect(parts.find((part) => part.type === "finish")).toMatchObject({
+      usage: {
+        outputTokens: { total: 1470, reasoning: 454 },
+      },
+    })
   })
 })
 

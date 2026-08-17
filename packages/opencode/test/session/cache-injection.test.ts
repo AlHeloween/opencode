@@ -81,4 +81,11 @@ describe("per-step token aggregation (T4)", () => {
     const acc = accumulateStepTokens(accumulateStepTokens(undefined, step(100, 900)), step(200, 1800))
     expect(acc.total).toBe((100 + 900 + 50) + (200 + 1800 + 50))
   })
+
+  test("cache state is aggregated independently from collapsed cache-read tokens", () => {
+    const unknown = accumulateStepTokens(undefined, step(100, 0), "unknown")
+    const hit = accumulateStepTokens(unknown, step(100, 100), "hit")
+    const result = accumulateStepTokens(hit, step(100, 0), "miss")
+    expect(result.cache.state).toEqual({ hit: 1, miss: 1, unknown: 1 })
+  })
 })

@@ -571,6 +571,7 @@ test("provider with baseURL from config", async () => {
       const providers = await list()
       expect(providers[ProviderID.make("custom-openai")]).toBeDefined()
       expect(providers[ProviderID.make("custom-openai")].options.baseURL).toBe("https://custom.openai.com/v1")
+      expect(providers[ProviderID.make("custom-openai")].models["gpt-4"].api.url).toBe("https://custom.openai.com/v1")
     },
   })
 })

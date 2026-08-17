@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { generateText } from "ai"
 import { createDeepSeek } from "@ai-sdk/deepseek"
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 import { mergeDeep } from "remeda"
 import { ProviderTransform } from "../../src/provider/transform"
 import type { Provider } from "../../src/provider/provider"
@@ -269,6 +270,46 @@ describe("vanchin StreamLake KAT reasoning_content replay (verified live)", () =
       ...overrides,
     } as any
   }
+
+  test("serializes cache identity and preserve_thinking into the Pasha wire body", async () => {
+    const bodies: Record<string, any>[] = []
+    const model = mkKatModel({
+      api: {
+        id: "ep-kneqk9-1786632248553436783",
+        npm: "@ai-sdk/openai-compatible",
+        url: "https://vanchin.streamlake.ai/api/gateway/coding/v1",
+      },
+    })
+    const pasha = createOpenAICompatible({
+      name: "pasha-coder",
+      apiKey: "test",
+      baseURL: model.api.url,
+      fetch: (async (_url, init) => {
+        bodies.push(JSON.parse(String(init?.body)))
+        return Response.json({
+          id: "test",
+          choices: [{ index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        })
+      }) as typeof fetch,
+    })
+
+    await generateText({
+      model: pasha(model.api.id),
+      prompt: "continue after a tool replay",
+      providerOptions: ProviderTransform.providerOptions(
+        model,
+        ProviderTransform.options({ model, sessionID: "ses-pasha-smoke" }),
+      ),
+    })
+
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toMatchObject({
+      prompt_cache_key: "ses-pasha-smoke:ep-kneqk9-1786632248553436783",
+      chat_template_kwargs: { preserve_thinking: true },
+    })
+    expect(bodies[0].cache_control).toBeUndefined()
+  })
 
   test("drops reasoning parts from assistant replay (no tool calls)", () => {
     const model = mkKatModel()

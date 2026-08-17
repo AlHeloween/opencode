@@ -1160,7 +1160,12 @@ const layer: Layer.Layer<
                 modelsDev[providerID]?.npm ??
                 "@ai-sdk/openai-compatible",
             )
-            const apiUrl = model.provider?.api ?? provider?.api ?? existingModel?.api.url ?? modelsDev[providerID]?.api ?? ""
+            const apiUrl =
+              model.provider?.api ??
+              provider?.api ??
+              existingModel?.api.url ??
+              modelsDev[providerID]?.api ??
+              (typeof provider.options?.baseURL === "string" ? provider.options.baseURL : "")
             const name = iife(() => {
               if (model.name) return model.name
               if (model.id && model.id !== modelID) return modelID
@@ -1201,7 +1206,7 @@ const layer: Layer.Layer<
                 interleaved:
                   model.interleaved ??
                   existingModel?.capabilities.interleaved ??
-              (!existingModel && (apiNpm === "@ai-sdk/openai-compatible" || apiNpm === "@ai-sdk/anthropic") && apiID.includes("deepseek")
+              (!existingModel && apiNpm === "@ai-sdk/openai-compatible" && apiID.includes("deepseek")
                 ? { field: "reasoning_content" }
                 : false),
               },

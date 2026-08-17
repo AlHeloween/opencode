@@ -733,16 +733,16 @@ it.live(
         })
         yield* llm.text("normal answer")
         yield* llm.text(`## Semantic Vector
-dominant: "summary timing"
+dominant: "summary timing; preserve the completed answer and the active working context for the next turn."
 
 ## Goal
-Preserve the completed answer.
+Preserve the completed answer while retaining enough context for a user follow-up to continue without rebuilding the session state.
 
 ## Key decisions
-- Summarize only after completion.
+- Summarize only after completion so the completed answer stays in the model-ready checkpoint and is never replaced by a synthetic summary turn.
 
 ## Current state
-The flow will resume.`)
+The completed answer is available and the next user follow-up should reuse the hidden checkpoint without including the summary request.`)
 
         const result = yield* prompt.loop({ sessionID: session.id })
         expect(yield* llm.calls).toBe(2)
@@ -762,7 +762,6 @@ The flow will resume.`)
           providerID: ref.providerID,
           modelID: ref.modelID,
           projectID: session.projectID,
-          agentName: "build",
         })
         expect(JSON.stringify(mainCheckpoint?.messages)).toContain("normal answer")
         expect(JSON.stringify(mainCheckpoint?.messages)).not.toContain("Create a structured summary")
@@ -778,12 +777,12 @@ The flow will resume.`)
         const inputs = yield* llm.inputs
         expect(inputs).toHaveLength(3)
         const followUpRequest = JSON.stringify(inputs[2]?.messages)
-        expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
+        expect(inputs[1]?.tools).toEqual(inputs[2]?.tools)
         expect(followUpRequest).toContain("normal answer")
         expect(followUpRequest).toContain("real follow-up")
         expect(followUpRequest).not.toContain("Create a structured summary")
       }),
-      { git: true, config: providerCfg },
+      { git: true, config: bigCaptureProviderCfg },
     ),
   30_000,
 )
@@ -921,6 +920,14 @@ Keep the full tool catalog on the wire for the emergency summary route so the pr
 The emergency capture route carries the full tool catalog on the wire and tool execution is blocked while the summary request is in flight.`)
         const captured = yield* prompt.captureSummary({ sessionID: session.id, model: ref, agent: "build" })
         expect(captured).toBe(true)
+
+        const checkpoint = yield* Checkpoint.load({
+          sessionID: session.id,
+          providerID: ref.providerID,
+          modelID: ref.modelID,
+          projectID: session.projectID,
+        })
+        expect(JSON.stringify(checkpoint?.messages)).toContain("x".repeat(128))
 
         const inputs = yield* llm.inputs
         expect(inputs).toHaveLength(2)

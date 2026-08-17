@@ -1067,7 +1067,7 @@ export const layer = Layer.effect(
           messageIDs: visible.map((item) => item.info.id),
           modelMessageCounts: converted.counts,
           model: { providerID: model.providerID, modelID: model.id },
-          agent: cacheAgent.name,
+          agent: checkpointAgentName,
           turn: 1,
           timestamp: Date.now(),
         } satisfies CheckpointData
@@ -2378,7 +2378,7 @@ export const layer = Layer.effect(
                   messageIDs: visibleAfter.map((item) => item.info.id),
                   modelMessageCounts: converted.counts,
                   model: { providerID: model.providerID, modelID: model.id },
-                  agent: cacheAgent.name,
+                  agent: checkpointAgentName,
                   turn: step + 1,
                   timestamp: Date.now(),
                 } satisfies CheckpointData

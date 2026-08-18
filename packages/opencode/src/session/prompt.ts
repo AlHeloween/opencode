@@ -2437,9 +2437,9 @@ export const layer = Layer.effect(
                   Effect.forkIn(scope),
                 )
               }
-              if (result === "stop") return "break" as const
-              // completedCleanly: fall through to the encrypted incremental
-              // checkpoint save below, then "continue" → top-of-loop break.
+              if (result === "stop" && !sidecarCaptured) return "break" as const
+              // After sidecar capture: continue loop so work can finish naturally.
+              // Sidecar is a checkpoint mechanism, not a termination signal.
             }
             if (result === "compact") {
               // Compact → message*. Next loop recomputes the open-window

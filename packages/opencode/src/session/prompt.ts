@@ -2360,6 +2360,7 @@ export const layer = Layer.effect(
                     visibleAfter,
                     IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
                   ) >= SessionCompaction.layer1SummaryThreshold())
+              let sidecarCaptured = false
               if (captureDue) {
                 // Publish normal M before opening the ephemeral sidecar branch.
                 // Its disk copy is durability only; the sidecar receives this exact
@@ -2390,7 +2391,7 @@ export const layer = Layer.effect(
                   data: checkpointData,
                 })
                 // Then: s outside M (ephemeral summary + Exact tool diffs/CodeGraph on range).
-                const sidecarCaptured = yield* captureSidecar({
+                sidecarCaptured = yield* captureSidecar({
                   sessionID,
                   visible: visibleAfter,
                   model,

@@ -93,6 +93,24 @@ function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
   return text.replaceAll("\n", "\r\n")
 }
 
+function normalizeLineEndingsWithIndexMap(text: string) {
+  const characters: string[] = []
+  const indexMap: number[] = []
+
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] === "\r" && text[index + 1] === "\n") {
+      characters.push("\n")
+      indexMap.push(index)
+      index++
+      continue
+    }
+    characters.push(text[index])
+    indexMap.push(index)
+  }
+
+  return { text: characters.join(""), indexMap }
+}
+
 const locks = new Map<string, Semaphore.Semaphore>()
 
 function lock(filePath: string) {
@@ -365,6 +383,21 @@ function slidingHammingBest(
 
 export const SimpleReplacer: Replacer = function* (_content, find) {
   yield find
+}
+
+export const LineEndingNormalizedReplacer: Replacer = function* (content, find) {
+  const source = normalizeLineEndingsWithIndexMap(content)
+  const search = normalizeLineEndings(find)
+  let offset = 0
+
+  while (true) {
+    const index = source.text.indexOf(search, offset)
+    if (index === -1) return
+    const start = source.indexMap[index]
+    const end = source.indexMap[index + search.length] ?? content.length
+    if (start !== undefined) yield content.substring(start, end)
+    offset = index + search.length
+  }
 }
 
 export const LineTrimmedReplacer: Replacer = function* (content, find) {
@@ -836,6 +869,7 @@ export function replace(content: string, oldString: string, newString: string, r
 
   for (const replacer of [
     SimpleReplacer,
+    LineEndingNormalizedReplacer,
     LineTrimmedReplacer,
     BlockAnchorReplacer,
     WhitespaceNormalizedReplacer,
@@ -859,9 +893,7 @@ export function replace(content: string, oldString: string, newString: string, r
   }
 
   if (notFound) {
-    throw new Error(
-      "Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings.",
-    )
+    throw new Error("Could not find oldString in the file after normalized matching. Include unique surrounding text.")
   }
   throw new Error("Found multiple matches for oldString. Provide more surrounding context to make the match unique.")
 }

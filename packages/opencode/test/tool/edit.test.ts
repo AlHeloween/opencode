@@ -1051,6 +1051,17 @@ describe("tool.edit", () => {
       expectCrlf(output)
     })
 
+    test("matches a mixed-EOL source block that ends within a line", async () => {
+      const output = await apply({
+        content: "before\r\nstart\r\nmiddle\nend: suffix\r\nafter\r\n",
+        oldString: "start\nmiddle\nend",
+        newString: "replacement\nblock",
+      })
+
+      expect(output).toBe("before\r\nreplacement\r\nblock: suffix\r\nafter\r\n")
+      expectCrlf(output)
+    })
+
     test("replaceAll preserves LF for multi-line blocks", async () => {
       const blockOld = "alpha\nbeta"
       const blockNew = "alpha\nbeta-updated"

@@ -10,22 +10,23 @@ Each edit automatically creates a backup of the file's pre-edit content. Backups
 
 **Undo without git:** use `restore` tool — `restore({ filePath })` for latest bak, `restore({ list: true })` to list.
 
-## Matching: 9-Stage Fuzzy Cascade
+## Matching: 10-Stage Cascade
 
 1. **SimpleReplacer** — Exact match.
-2. **LineTrimmedReplacer** — Line-by-line after trimming whitespace.
-3. **BlockAnchorReplacer** — Anchor on first/last lines, Levenshtein middle.
-4. **WhitespaceNormalizedReplacer** — Normalize whitespace runs.
-5. **IndentationFlexibleReplacer** — Strip minimum common indentation.
-6. **EscapeNormalizedReplacer** — Unescape `\n`, `\t`, etc.
-7. **TrimmedBoundaryReplacer** — Try trimmed version of search block.
-8. **ContextAwareReplacer** — Anchor-based with 50% middle-line threshold.
-9. **MultiOccurrenceReplacer** — Find all exact matches for `replaceAll`.
+2. **LineEndingNormalizedReplacer** — Match `LF`/`CRLF` variations using source offsets; supports text ending within a line.
+3. **LineTrimmedReplacer** — Line-by-line after trimming whitespace.
+4. **BlockAnchorReplacer** — Anchor on first/last lines, Levenshtein middle.
+5. **WhitespaceNormalizedReplacer** — Normalize whitespace runs.
+6. **IndentationFlexibleReplacer** — Strip minimum common indentation.
+7. **EscapeNormalizedReplacer** — Unescape `\n`, `\t`, etc.
+8. **TrimmedBoundaryReplacer** — Try trimmed version of search block.
+9. **ContextAwareReplacer** — Anchor-based with 50% middle-line threshold.
+10. **MultiOccurrenceReplacer** — Find all exact matches for `replaceAll`.
 
-If all 9 fail, edit throws error. Multiple matches without `replaceAll` also fails — provide more context.
+If all 10 fail, edit throws error. Multiple matches without `replaceAll` also fails — provide more context.
 
 ## Line Endings & Unicode
-- Line endings auto-detected (`\r\n` vs `\n`) and preserved.
+- Matching accepts `\r\n` and `\n` variations, including mixed-EOL source files. Replacement text uses the file's detected line ending.
 - Unicode normalization handles dash/quote/space variants.
 
 ## Post-Edit Processing
